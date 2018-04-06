@@ -1,62 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A03F46B0022
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 08:45:43 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id a125so622463qkd.4
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 05:45:43 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id k2si2471336qth.409.2018.04.06.05.45.42
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EDD476B0023
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 09:01:18 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 61-v6so813381plz.20
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 06:01:18 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 185si7069811pgd.561.2018.04.06.06.01.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Apr 2018 05:45:42 -0700 (PDT)
-Date: Fri, 6 Apr 2018 08:45:35 -0400
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: Re: [PATCH v2 1/2] mm: uninitialized struct page poisoning sanity
- checking
-Message-ID: <20180406124535.k3qyxjfrlo55d5if@xakep.localdomain>
-References: <20180131210300.22963-1-pasha.tatashin@oracle.com>
- <20180131210300.22963-2-pasha.tatashin@oracle.com>
- <20180313234333.j3i43yxeawx5d67x@sasha-lappy>
- <CAGM2reaPK=ZcLBOnmBiC2-u86DZC6ukOhL1xxZofB2OTW3ozoA@mail.gmail.com>
- <20180314005350.6xdda2uqzuy4n3o6@sasha-lappy>
- <20180315190430.o3vs7uxlafzdwgzd@xakep.localdomain>
- <20180315204312.n7p4zzrftgg6m7zw@sasha-lappy>
- <20180404021746.m77czxidkaumkses@xakep.localdomain>
- <20180405134940.2yzx4p7hjed7lfdk@xakep.localdomain>
- <20180405192256.GQ7561@sasha-vm>
+        Fri, 06 Apr 2018 06:01:15 -0700 (PDT)
+Message-Id: <20180406130113.687518198@goodmis.org>
+Date: Fri, 06 Apr 2018 09:00:48 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: [for-next][PATCH 13/18] ring-buffer: Check if memory is available before allocation
+References: <20180406130035.400292196@goodmis.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180405192256.GQ7561@sasha-vm>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Disposition: inline; filename=0013-ring-buffer-Check-if-memory-is-available-before-allo.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <Alexander.Levin@microsoft.com>
-Cc: "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "bharata@linux.vnet.ibm.com" <bharata@linux.vnet.ibm.com>
+To: linux-kernel@vger.kernel.org
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-mm@kvack.org, Zhaoyang Huang <huangzhaoyang@gmail.com>, Joel Fernandes <joelaf@google.com>
 
-On 18-04-05 19:22:58, Sasha Levin wrote:
-> On Thu, Apr 05, 2018 at 09:49:40AM -0400, Pavel Tatashin wrote:
-> >> Hi Sasha,
-> >>
-> >> I have registered on Azure's portal, and created a VM with 4 CPUs and 16G
-> >> of RAM. However, I still was not able to reproduce the boot bug you found.
-> >
-> >I have also tried to reproduce this issue on Windows 10 + Hyper-V, still
-> >unsuccessful.
-> 
-> I'm not sure why you can't reproduce it. I built a 4.16 kernel + your 6
-> patches on top, and booting on a D64s_v3 instance gives me this:
+From: "Steven Rostedt (VMware)" <rostedt@goodmis.org>
 
-Hi Sasha,
+The ring buffer is made up of a link list of pages. When making the ring
+buffer bigger, it will allocate all the pages it needs before adding to the
+ring buffer, and if it fails, it frees them and returns an error. This makes
+increasing the ring buffer size an all or nothing action. When this was
+first created, the pages were allocated with "NORETRY". This was to not
+cause any Out-Of-Memory (OOM) actions from allocating the ring buffer. But
+NORETRY was too strict, as the ring buffer would fail to expand even when
+there's memory available, but was taken up in the page cache.
 
-Thank you for running it again, the new trace is cleaner, as we do not get
-nested panics within dump_page.
+Commit 848618857d253 ("tracing/ring_buffer: Try harder to allocate") changed
+the allocating from NORETRY to RETRY_MAYFAIL. The RETRY_MAYFAIL would
+allocate from the page cache, but if there was no memory available, it would
+simple fail the allocation and not trigger an OOM.
 
-Perhaps a NUMA is required to reproduce this issue. I have tried,
-unsuccessfully, on D4S_V3. This is the largest VM allowed with free trial,
-as 4 CPU is the limit. D64S_V3 is with 64 CPUs and over $2K a month! :)
+This worked fine, but had one problem. As the ring buffer would allocate one
+page at a time, it could take up all memory in the system before it failed
+to allocate and free that memory. If the allocation is happening and the
+ring buffer allocates all memory and then tries to take more than available,
+its allocation will not trigger an OOM, but if there's any allocation that
+happens someplace else, that could trigger an OOM, even though once the ring
+buffer's allocation fails, it would free up all the previous memory it tried
+to allocate, and allow other memory allocations to succeed.
 
-Let me study your trace, perhaps I will able to figure out the issue
-without reproducing it.
+Commit d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a
+separate function") separated out si_mem_availble() as a separate function
+that could be used to see how much memory is available in the system. Using
+this function to make sure that the ring buffer could be allocated before it
+tries to allocate pages we can avoid allocating all memory in the system and
+making it vulnerable to OOMs if other allocations are taking place.
 
-Thank you,
-Pasha
+Link: http://lkml.kernel.org/r/1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com
+
+CC: stable@vger.kernel.org
+Cc: linux-mm@kvack.org
+Fixes: 848618857d253 ("tracing/ring_buffer: Try harder to allocate")
+Requires: d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a separate function")
+Reported-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Tested-by: Joel Fernandes <joelaf@google.com>
+Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+---
+ kernel/trace/ring_buffer.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
+index 515be03e3009..966128f02121 100644
+--- a/kernel/trace/ring_buffer.c
++++ b/kernel/trace/ring_buffer.c
+@@ -1164,6 +1164,11 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
+ 	struct buffer_page *bpage, *tmp;
+ 	long i;
+ 
++	/* Check if the available memory is there first */
++	i = si_mem_available();
++	if (i < nr_pages)
++		return -ENOMEM;
++
+ 	for (i = 0; i < nr_pages; i++) {
+ 		struct page *page;
+ 		/*
+-- 
+2.15.1
