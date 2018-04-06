@@ -1,97 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF0246B0003
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 10:23:34 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id d9so743356qtj.20
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 07:23:34 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x123si465223qke.473.2018.04.06.07.23.32
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F09C6B0006
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 10:23:45 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id k2so735293pfi.23
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 07:23:45 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id t14si4461193pfg.225.2018.04.06.07.23.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Apr 2018 07:23:33 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w36ELYgR047008
-	for <linux-mm@kvack.org>; Fri, 6 Apr 2018 10:23:32 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2h67xh7mk0-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 06 Apr 2018 10:23:31 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Fri, 6 Apr 2018 15:23:28 +0100
-Subject: Re: [PATCH v9 17/24] mm: Protect mm_rb tree with a rwlock
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1520963994-28477-18-git-send-email-ldufour@linux.vnet.ibm.com>
- <alpine.DEB.2.20.1804021711090.34466@chino.kir.corp.google.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Fri, 6 Apr 2018 16:23:18 +0200
+        Fri, 06 Apr 2018 07:23:44 -0700 (PDT)
+Subject: Re: [PATCH v3 2/4] mm/sparsemem: Defer the ms->section_mem_map
+ clearing
+References: <20180228032657.32385-1-bhe@redhat.com>
+ <20180228032657.32385-3-bhe@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <8e147320-50f5-f809-31d2-992c35ecc418@intel.com>
+Date: Fri, 6 Apr 2018 07:23:42 -0700
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1804021711090.34466@chino.kir.corp.google.com>
+In-Reply-To: <20180228032657.32385-3-bhe@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <dd22fde2-ea3d-5492-9f1d-4f39c72b2a68@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Baoquan He <bhe@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pagupta@redhat.com
+Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-
-
-On 03/04/2018 02:11, David Rientjes wrote:
-> On Tue, 13 Mar 2018, Laurent Dufour wrote:
+On 02/27/2018 07:26 PM, Baoquan He wrote:
+> In sparse_init(), if CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER=y, system
+> will allocate one continuous memory chunk for mem maps on one node and
+> populate the relevant page tables to map memory section one by one. If
+> fail to populate for a certain mem section, print warning and its
+> ->section_mem_map will be cleared to cancel the marking of being present.
+> Like this, the number of mem sections marked as present could become
+> less during sparse_init() execution.
 > 
->> This change is inspired by the Peter's proposal patch [1] which was
->> protecting the VMA using SRCU. Unfortunately, SRCU is not scaling well in
->> that particular case, and it is introducing major performance degradation
->> due to excessive scheduling operations.
->>
->> To allow access to the mm_rb tree without grabbing the mmap_sem, this patch
->> is protecting it access using a rwlock.  As the mm_rb tree is a O(log n)
->> search it is safe to protect it using such a lock.  The VMA cache is not
->> protected by the new rwlock and it should not be used without holding the
->> mmap_sem.
->>
->> To allow the picked VMA structure to be used once the rwlock is released, a
->> use count is added to the VMA structure. When the VMA is allocated it is
->> set to 1.  Each time the VMA is picked with the rwlock held its use count
->> is incremented. Each time the VMA is released it is decremented. When the
->> use count hits zero, this means that the VMA is no more used and should be
->> freed.
->>
->> This patch is preparing for 2 kind of VMA access :
->>  - as usual, under the control of the mmap_sem,
->>  - without holding the mmap_sem for the speculative page fault handler.
->>
->> Access done under the control the mmap_sem doesn't require to grab the
->> rwlock to protect read access to the mm_rb tree, but access in write must
->> be done under the protection of the rwlock too. This affects inserting and
->> removing of elements in the RB tree.
->>
->> The patch is introducing 2 new functions:
->>  - vma_get() to find a VMA based on an address by holding the new rwlock.
->>  - vma_put() to release the VMA when its no more used.
->> These services are designed to be used when access are made to the RB tree
->> without holding the mmap_sem.
->>
->> When a VMA is removed from the RB tree, its vma->vm_rb field is cleared and
->> we rely on the WMB done when releasing the rwlock to serialize the write
->> with the RMB done in a later patch to check for the VMA's validity.
->>
->> When free_vma is called, the file associated with the VMA is closed
->> immediately, but the policy and the file structure remained in used until
->> the VMA's use count reach 0, which may happens later when exiting an
->> in progress speculative page fault.
->>
->> [1] https://patchwork.kernel.org/patch/5108281/
->>
->> Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
->> Cc: Matthew Wilcox <willy@infradead.org>
->> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> Here just defer the ms->section_mem_map clearing if failed to populate
+> its page tables until the last for_each_present_section_nr() loop. This
+> is in preparation for later optimizing the mem map allocation.
 > 
-> Can __free_vma() be generalized for mm/nommu.c's delete_vma() and 
-> do_mmap()?
+> Signed-off-by: Baoquan He <bhe@redhat.com>
+> ---
+>  mm/sparse-vmemmap.c |  1 -
+>  mm/sparse.c         | 12 ++++++++----
+>  2 files changed, 8 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+> index bd0276d5f66b..640e68f8324b 100644
+> --- a/mm/sparse-vmemmap.c
+> +++ b/mm/sparse-vmemmap.c
+> @@ -303,7 +303,6 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  		ms = __nr_to_section(pnum);
+>  		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
+>  		       __func__);
+> -		ms->section_mem_map = 0;
+>  	}
 
-To be honest I didn't look at mm/nommu.c assuming that such architecture would
-probably be monothreaded. Am I wrong ?
+I think you might have been trying to say this in the description, but I
+was not able to parse it out of there.  What is in ms->section_mem_map
+that needs to get cleared?
+
+It *looks* like memory_present() uses ms->section_mem_map to just mark
+which sections are online relatively early in boot.  We need this
+clearing to mark that they are effectively *not* present any longer.
+Correct?
+
+I guess the concern here is that if you miss any of the error sites,
+we'll end up with a bogus, non-null ms->section_mem_map.  Do we handle
+that nicely?
+
+Should the " = 0" instead be clearing SECTION_MARKED_PRESENT or
+something?  That would make it easier to match the code up with the code
+that it is effectively undoing.
