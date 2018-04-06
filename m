@@ -1,80 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 57C836B0003
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 02:10:00 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id g61-v6so69266plb.10
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 23:10:00 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p64si6676446pga.492.2018.04.05.23.09.58
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 329DC6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 02:25:50 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id q185so79939qke.0
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 23:25:50 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id t135si7923036qke.309.2018.04.05.23.25.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Apr 2018 23:09:59 -0700 (PDT)
-Date: Fri, 6 Apr 2018 08:09:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: __GFP_LOW
-Message-ID: <20180406060953.GA8286@dhcp22.suse.cz>
-References: <20180404114730.65118279@gandalf.local.home>
- <20180405025841.GA9301@bombadil.infradead.org>
- <CAJWu+oqP64QzvPM6iHtzowek6s4p+3rb7WDXs1z51mwW-9mLbA@mail.gmail.com>
- <20180405142258.GA28128@bombadil.infradead.org>
- <20180405142749.GL6312@dhcp22.suse.cz>
- <20180405151359.GB28128@bombadil.infradead.org>
- <20180405153240.GO6312@dhcp22.suse.cz>
- <20180405161501.GD28128@bombadil.infradead.org>
- <20180405185444.GQ6312@dhcp22.suse.cz>
- <20180405201557.GA3666@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180405201557.GA3666@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Apr 2018 23:25:48 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: [RFC PATCH 1/1 v2] vmscan: Support multiple kswapd threads per
+ node
+From: Buddy Lumpkin <buddy.lumpkin@oracle.com>
+In-Reply-To: <20180405061015.GU6312@dhcp22.suse.cz>
+Date: Thu, 5 Apr 2018 23:25:14 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <99DC1801-1ADC-488B-BA8D-736BCE4BA372@oracle.com>
+References: <1522878594-52281-1-git-send-email-buddy.lumpkin@oracle.com>
+ <20180405061015.GU6312@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, riel@surriel.com, mgorman@suse.de, willy@infradead.org, akpm@linux-foundation.org
 
-On Thu 05-04-18 13:15:57, Matthew Wilcox wrote:
-> On Thu, Apr 05, 2018 at 08:54:44PM +0200, Michal Hocko wrote:
-[...]
-> >From a "user guide" perspective:
-> 
-> When allocating memory, you can choose:
 
-OK, we already split the documentation into these categories. So we got
-at least the structure right ;)
- 
->  - What kind of memory to allocate (DMA, NORMAL, HIGHMEM)
->  - Where to get the pages from
->    - Local node only (THISNODE)
->    - Only in compliance with cpuset policy (HARDWALL)
->    - Spread the pages between zones (WRITE)
->    - The movable zone (MOVABLE)
->    - The reclaimable zone (RECLAIMABLE)
->  - What you are willing to do if no free memory is available:
->    - Nothing at all (NOWAIT)
->    - Use my own time to free memory (DIRECT_RECLAIM)
->      - But only try once (NORETRY)
->      - Can call into filesystems (FS)
->      - Can start I/O (IO)
->      - Can sleep (!ATOMIC)
->    - Steal time from other processes to free memory (KSWAPD_RECLAIM)
+> On Apr 4, 2018, at 11:10 PM, Michal Hocko <mhocko@kernel.org> wrote:
+>=20
+> On Wed 04-04-18 21:49:54, Buddy Lumpkin wrote:
+>> v2:
+>> - Make update_kswapd_threads_node less racy
+>> - Handle locking for case where CONFIG_MEMORY_HOTPLUG=3Dn
+>=20
+> Please do not repost with such a small changes. It is much more
+> important to sort out the big picture first and only then deal with
+> minor implementation details. The more versions you post the more
+> fragmented and messy the discussion will become.
+>=20
+> You will have to be patient because this is a rather big change and it
+> will take _quite_ some time to get sorted.
+>=20
+> Thanks!
+> --=20
+> Michal Hocko
+> SUSE Labs
+>=20
 
-What does that mean? If I drop the flag, do not steal? Well I do because
-they will hit direct reclaim sooner...
 
->    - Kill other processes to get their memory (!RETRY_MAYFAIL)
+Sorry about that, I actually had three people review my code internally,
+then I managed to send out an old version. 100% guilty of submitting
+code when I needed sleep. As for the change, that was in response
+to a request from Andrew to make the update function less racy.
 
-Not really for costly orders.
+Should I resend a correct v2 now that the thread exists?
 
->    - All of the above, and wait forever (NOFAIL)
->    - Take from emergency reserves (HIGH)
->    - ... but not the last parts of the regular reserves (LOW)
-
-What does that mean and how it is different from NOWAIT? Is this about
-the low watermark and if yes do we want to teach users about this and
-make the whole thing even more complicated?  Does it wake
-kswapd? What is the eagerness ordering? LOW, NOWAIT, NORETRY,
-RETRY_MAYFAIL, NOFAIL?
-
--- 
-Michal Hocko
-SUSE Labs
+=E2=80=94Buddy=
