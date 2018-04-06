@@ -1,87 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EDD476B0023
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 09:01:18 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 61-v6so813381plz.20
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 06:01:18 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 185si7069811pgd.561.2018.04.06.06.01.15
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B5D6E6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 09:51:48 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id w9-v6so935185plp.0
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 06:51:48 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00123.outbound.protection.outlook.com. [40.107.0.123])
+        by mx.google.com with ESMTPS id f9si1261587pgn.723.2018.04.06.06.51.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Apr 2018 06:01:15 -0700 (PDT)
-Message-Id: <20180406130113.687518198@goodmis.org>
-Date: Fri, 06 Apr 2018 09:00:48 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: [for-next][PATCH 13/18] ring-buffer: Check if memory is available before allocation
-References: <20180406130035.400292196@goodmis.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 06 Apr 2018 06:51:47 -0700 (PDT)
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: [PATCH] mm-vmscan-dont-mess-with-pgdat-flags-in-memcg-reclaim-v2-fix
+Date: Fri,  6 Apr 2018 16:52:15 +0300
+Message-Id: <20180406135215.10057-1-aryabinin@virtuozzo.com>
+In-Reply-To: <CALvZod7P7cE38fDrWd=0caA2J6ZOmSzEuLGQH9VSaagCbo5O+A@mail.gmail.com>
+References: <CALvZod7P7cE38fDrWd=0caA2J6ZOmSzEuLGQH9VSaagCbo5O+A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline; filename=0013-ring-buffer-Check-if-memory-is-available-before-allo.patch
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-mm@kvack.org, Zhaoyang Huang <huangzhaoyang@gmail.com>, Joel Fernandes <joelaf@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-From: "Steven Rostedt (VMware)" <rostedt@goodmis.org>
+On 04/06/2018 05:13 AM, Shakeel Butt wrote:
+> Question: Should this 'flags' be per-node? Is it ok for a congested
+> memcg to call wait_iff_congested for all nodes?
 
-The ring buffer is made up of a link list of pages. When making the ring
-buffer bigger, it will allocate all the pages it needs before adding to the
-ring buffer, and if it fails, it frees them and returns an error. This makes
-increasing the ring buffer size an all or nothing action. When this was
-first created, the pages were allocated with "NORETRY". This was to not
-cause any Out-Of-Memory (OOM) actions from allocating the ring buffer. But
-NORETRY was too strict, as the ring buffer would fail to expand even when
-there's memory available, but was taken up in the page cache.
+Indeed, congestion state should be pre-node. If memcg on node A is
+congested, there is no point is stalling memcg reclaim from node B.
 
-Commit 848618857d253 ("tracing/ring_buffer: Try harder to allocate") changed
-the allocating from NORETRY to RETRY_MAYFAIL. The RETRY_MAYFAIL would
-allocate from the page cache, but if there was no memory available, it would
-simple fail the allocation and not trigger an OOM.
+Make congestion state per-cgroup-per-node and record it in
+'struct mem_cgroup_per_node'.
 
-This worked fine, but had one problem. As the ring buffer would allocate one
-page at a time, it could take up all memory in the system before it failed
-to allocate and free that memory. If the allocation is happening and the
-ring buffer allocates all memory and then tries to take more than available,
-its allocation will not trigger an OOM, but if there's any allocation that
-happens someplace else, that could trigger an OOM, even though once the ring
-buffer's allocation fails, it would free up all the previous memory it tried
-to allocate, and allow other memory allocations to succeed.
-
-Commit d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a
-separate function") separated out si_mem_availble() as a separate function
-that could be used to see how much memory is available in the system. Using
-this function to make sure that the ring buffer could be allocated before it
-tries to allocate pages we can avoid allocating all memory in the system and
-making it vulnerable to OOMs if other allocations are taking place.
-
-Link: http://lkml.kernel.org/r/1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com
-
-CC: stable@vger.kernel.org
-Cc: linux-mm@kvack.org
-Fixes: 848618857d253 ("tracing/ring_buffer: Try harder to allocate")
-Requires: d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a separate function")
-Reported-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Tested-by: Joel Fernandes <joelaf@google.com>
-Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 ---
- kernel/trace/ring_buffer.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ include/linux/memcontrol.h |  5 +++--
+ mm/vmscan.c                | 39 +++++++++++++++++++++++++--------------
+ 2 files changed, 28 insertions(+), 16 deletions(-)
 
-diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
-index 515be03e3009..966128f02121 100644
---- a/kernel/trace/ring_buffer.c
-+++ b/kernel/trace/ring_buffer.c
-@@ -1164,6 +1164,11 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
- 	struct buffer_page *bpage, *tmp;
- 	long i;
- 
-+	/* Check if the available memory is there first */
-+	i = si_mem_available();
-+	if (i < nr_pages)
-+		return -ENOMEM;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 8b394bbf1c86..af9eed2e3e04 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -120,6 +120,9 @@ struct mem_cgroup_per_node {
+ 	unsigned long		usage_in_excess;/* Set to the value by which */
+ 						/* the soft limit is exceeded*/
+ 	bool			on_tree;
++	bool			congested;	/* memcg has many dirty pages */
++						/* backed by a congested BDI */
 +
- 	for (i = 0; i < nr_pages; i++) {
- 		struct page *page;
+ 	struct mem_cgroup	*memcg;		/* Back pointer, we cannot */
+ 						/* use container_of	   */
+ };
+@@ -189,8 +192,6 @@ struct mem_cgroup {
+ 	/* vmpressure notifications */
+ 	struct vmpressure vmpressure;
+ 
+-	unsigned long flags;
+-
+ 	/*
+ 	 * Should the accounting and control be hierarchical, per subtree?
+ 	 */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 99688299eba8..78214c899710 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -200,16 +200,27 @@ static bool sane_reclaim(struct scan_control *sc)
+ 	return false;
+ }
+ 
+-static void set_memcg_bit(enum pgdat_flags flag,
+-			struct mem_cgroup *memcg)
++static void set_memcg_congestion(pg_data_t *pgdat,
++				struct mem_cgroup *memcg,
++				bool congested)
+ {
+-	set_bit(flag, &memcg->flags);
++	struct mem_cgroup_per_node *mz;
++
++	if (!memcg)
++		return;
++
++	mz = mem_cgroup_nodeinfo(memcg, pgdat->node_id);
++	WRITE_ONCE(mz->congested, congested);
+ }
+ 
+-static int test_memcg_bit(enum pgdat_flags flag,
++static bool memcg_congested(pg_data_t *pgdat,
+ 			struct mem_cgroup *memcg)
+ {
+-	return test_bit(flag, &memcg->flags);
++	struct mem_cgroup_per_node *mz;
++
++	mz = mem_cgroup_nodeinfo(memcg, pgdat->node_id);
++	return READ_ONCE(mz->congested);
++
+ }
+ #else
+ static bool global_reclaim(struct scan_control *sc)
+@@ -222,15 +233,16 @@ static bool sane_reclaim(struct scan_control *sc)
+ 	return true;
+ }
+ 
+-static inline void set_memcg_bit(enum pgdat_flags flag,
+-				struct mem_cgroup *memcg)
++static inline void set_memcg_congestion(struct pglist_data *pgdat,
++				struct mem_cgroup *memcg, bool congested)
+ {
+ }
+ 
+-static inline int test_memcg_bit(enum pgdat_flags flag,
+-				struct mem_cgroup *memcg)
++static inline bool memcg_congested(struct pglist_data *pgdat,
++			struct mem_cgroup *memcg)
+ {
+-	return 0;
++	return false;
++
+ }
+ #endif
+ 
+@@ -2482,7 +2494,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
+ {
+ 	return test_bit(PGDAT_CONGESTED, &pgdat->flags) ||
+-		(memcg && test_memcg_bit(PGDAT_CONGESTED, memcg));
++		(memcg && memcg_congested(pgdat, memcg));
+ }
+ 
+ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+@@ -2617,7 +2629,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 		 */
+ 		if (!global_reclaim(sc) && sane_reclaim(sc) &&
+ 		    sc->nr.dirty && sc->nr.dirty == sc->nr.congested)
+-			set_memcg_bit(PGDAT_CONGESTED, root);
++			set_memcg_congestion(pgdat, root, true);
+ 
  		/*
+ 		 * Stall direct reclaim for IO completions if underlying BDIs
+@@ -2844,6 +2856,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 			continue;
+ 		last_pgdat = zone->zone_pgdat;
+ 		snapshot_refaults(sc->target_mem_cgroup, zone->zone_pgdat);
++		set_memcg_congestion(last_pgdat, sc->target_mem_cgroup, false);
+ 	}
+ 
+ 	delayacct_freepages_end();
+@@ -3067,7 +3080,6 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+ 	 * the priority and make it zero.
+ 	 */
+ 	shrink_node_memcg(pgdat, memcg, &sc, &lru_pages);
+-	clear_bit(PGDAT_CONGESTED, &memcg->flags);
+ 
+ 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
+ 
+@@ -3113,7 +3125,6 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 	noreclaim_flag = memalloc_noreclaim_save();
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+-	clear_bit(PGDAT_CONGESTED, &memcg->flags);
+ 
+ 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
+ 
 -- 
-2.15.1
+2.16.1
