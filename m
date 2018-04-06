@@ -1,58 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B58D56B0003
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 10:15:43 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f137so948005wme.5
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 07:15:43 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t142sor2723168wmt.5.2018.04.06.07.15.41
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0246B0003
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 10:23:34 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id d9so743356qtj.20
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 07:23:34 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id x123si465223qke.473.2018.04.06.07.23.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 06 Apr 2018 07:15:42 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Apr 2018 07:23:33 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w36ELYgR047008
+	for <linux-mm@kvack.org>; Fri, 6 Apr 2018 10:23:32 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2h67xh7mk0-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 06 Apr 2018 10:23:31 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Fri, 6 Apr 2018 15:23:28 +0100
+Subject: Re: [PATCH v9 17/24] mm: Protect mm_rb tree with a rwlock
+References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1520963994-28477-18-git-send-email-ldufour@linux.vnet.ibm.com>
+ <alpine.DEB.2.20.1804021711090.34466@chino.kir.corp.google.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Fri, 6 Apr 2018 16:23:18 +0200
 MIME-Version: 1.0
-In-Reply-To: <72db1bfb-aa79-3764-54fd-2c7ddbd07bea@virtuozzo.com>
-References: <20180323152029.11084-1-aryabinin@virtuozzo.com>
- <20180323152029.11084-5-aryabinin@virtuozzo.com> <CALvZod7P7cE38fDrWd=0caA2J6ZOmSzEuLGQH9VSaagCbo5O+A@mail.gmail.com>
- <72db1bfb-aa79-3764-54fd-2c7ddbd07bea@virtuozzo.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Fri, 6 Apr 2018 07:15:40 -0700
-Message-ID: <CALvZod4YCvz4bvjcrQxi_=HeZ49pZcA2xvres6_jMKwvOdhqcg@mail.gmail.com>
-Subject: Re: [PATCH v2 4/4] mm/vmscan: Don't mess with pgdat->flags in memcg reclaim.
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <alpine.DEB.2.20.1804021711090.34466@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <dd22fde2-ea3d-5492-9f1d-4f39c72b2a68@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Fri, Apr 6, 2018 at 4:44 AM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> On 04/06/2018 05:13 AM, Shakeel Butt wrote:
->> On Fri, Mar 23, 2018 at 8:20 AM, Andrey Ryabinin
->> <aryabinin@virtuozzo.com> wrote:
->>> memcg reclaim may alter pgdat->flags based on the state of LRU lists
->>> in cgroup and its children. PGDAT_WRITEBACK may force kswapd to sleep
->>> congested_wait(), PGDAT_DIRTY may force kswapd to writeback filesystem
->>> pages. But the worst here is PGDAT_CONGESTED, since it may force all
->>> direct reclaims to stall in wait_iff_congested(). Note that only kswapd
->>> have powers to clear any of these bits. This might just never happen if
->>> cgroup limits configured that way. So all direct reclaims will stall
->>> as long as we have some congested bdi in the system.
->>>
->>> Leave all pgdat->flags manipulations to kswapd. kswapd scans the whole
->>> pgdat, only kswapd can clear pgdat->flags once node is balance, thus
->>> it's reasonable to leave all decisions about node state to kswapd.
+
+
+On 03/04/2018 02:11, David Rientjes wrote:
+> On Tue, 13 Mar 2018, Laurent Dufour wrote:
+> 
+>> This change is inspired by the Peter's proposal patch [1] which was
+>> protecting the VMA using SRCU. Unfortunately, SRCU is not scaling well in
+>> that particular case, and it is introducing major performance degradation
+>> due to excessive scheduling operations.
 >>
->> What about global reclaimers? Is the assumption that when global
->> reclaimers hit such condition, kswapd will be running and correctly
->> set PGDAT_CONGESTED?
+>> To allow access to the mm_rb tree without grabbing the mmap_sem, this patch
+>> is protecting it access using a rwlock.  As the mm_rb tree is a O(log n)
+>> search it is safe to protect it using such a lock.  The VMA cache is not
+>> protected by the new rwlock and it should not be used without holding the
+>> mmap_sem.
 >>
->
-> The reason I moved this under if(current_is_kswapd()) is because only kswapd
-> can clear these flags. I'm less worried about the case when PGDAT_CONGESTED falsely
-> not set, and more worried about the case when it falsely set. If direct reclaimer sets
-> PGDAT_CONGESTED, do we have guarantee that, after congestion problem is sorted, kswapd
-> ill be woken up and clear the flag? It seems like there is no such guarantee.
-> E.g. direct reclaimers may eventually balance pgdat and kswapd simply won't wake up
-> (see wakeup_kswapd()).
->
->
-Thanks for the explanation, I think it should be in the commit message.
+>> To allow the picked VMA structure to be used once the rwlock is released, a
+>> use count is added to the VMA structure. When the VMA is allocated it is
+>> set to 1.  Each time the VMA is picked with the rwlock held its use count
+>> is incremented. Each time the VMA is released it is decremented. When the
+>> use count hits zero, this means that the VMA is no more used and should be
+>> freed.
+>>
+>> This patch is preparing for 2 kind of VMA access :
+>>  - as usual, under the control of the mmap_sem,
+>>  - without holding the mmap_sem for the speculative page fault handler.
+>>
+>> Access done under the control the mmap_sem doesn't require to grab the
+>> rwlock to protect read access to the mm_rb tree, but access in write must
+>> be done under the protection of the rwlock too. This affects inserting and
+>> removing of elements in the RB tree.
+>>
+>> The patch is introducing 2 new functions:
+>>  - vma_get() to find a VMA based on an address by holding the new rwlock.
+>>  - vma_put() to release the VMA when its no more used.
+>> These services are designed to be used when access are made to the RB tree
+>> without holding the mmap_sem.
+>>
+>> When a VMA is removed from the RB tree, its vma->vm_rb field is cleared and
+>> we rely on the WMB done when releasing the rwlock to serialize the write
+>> with the RMB done in a later patch to check for the VMA's validity.
+>>
+>> When free_vma is called, the file associated with the VMA is closed
+>> immediately, but the policy and the file structure remained in used until
+>> the VMA's use count reach 0, which may happens later when exiting an
+>> in progress speculative page fault.
+>>
+>> [1] https://patchwork.kernel.org/patch/5108281/
+>>
+>> Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
+>> Cc: Matthew Wilcox <willy@infradead.org>
+>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> 
+> Can __free_vma() be generalized for mm/nommu.c's delete_vma() and 
+> do_mmap()?
+
+To be honest I didn't look at mm/nommu.c assuming that such architecture would
+probably be monothreaded. Am I wrong ?
