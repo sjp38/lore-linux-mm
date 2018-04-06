@@ -1,69 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CD156B0003
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 12:52:58 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id t4-v6so1300581plo.9
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 09:52:58 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n3si7516559pgf.667.2018.04.06.09.52.56
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9034E6B0003
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 12:54:25 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 204-v6so1565071itu.6
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 09:54:25 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0077.outbound.protection.outlook.com. [104.47.38.77])
+        by mx.google.com with ESMTPS id p69-v6si7456597itc.61.2018.04.06.09.54.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 06 Apr 2018 09:52:56 -0700 (PDT)
-Subject: Re: [PATCH] swap: divide-by-zero when zero length swap file on ssd
-References: <5AC747C1020000A7001FA82C@prv-mh.provo.novell.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <fdca1f72-8e51-7727-d1a0-4ccd60e80bd0@infradead.org>
-Date: Fri, 6 Apr 2018 09:52:50 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 06 Apr 2018 09:54:24 -0700 (PDT)
+Date: Fri, 6 Apr 2018 19:54:02 +0300
+From: Yury Norov <ynorov@caviumnetworks.com>
+Subject: Re: [PATCH 1/5] arm64: entry: isb in el1_irq
+Message-ID: <20180406165402.nq3sabeku2mp3hpb@yury-thinkpad>
+References: <20180405171800.5648-1-ynorov@caviumnetworks.com>
+ <20180405171800.5648-2-ynorov@caviumnetworks.com>
+ <5036b99a-9faa-c220-27dd-e0d73f8b3fc7@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <5AC747C1020000A7001FA82C@prv-mh.provo.novell.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5036b99a-9faa-c220-27dd-e0d73f8b3fc7@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Abraham <tabraham@suse.com>, linux-kernel@vger.kernel.org
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: James Morse <james.morse@arm.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Mark Rutland <mark.rutland@arm.com>, Will Deacon <will.deacon@arm.com>, Chris Metcalf <cmetcalf@mellanox.com>, Christopher Lameter <cl@linux.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Catalin Marinas <catalin.marinas@arm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Alexey Klimov <klimov.linux@gmail.com>, linux-arm-kernel@lists.infradead.org, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[adding linux-mm and akpm]
-
-On 04/06/2018 07:11 AM, Tom Abraham wrote:
->                                                                                 
-> Calling swapon() on a zero length swap file on SSD can lead to a                
-> divide-by-zero.                                                                 
->                                                                                 
-> Although creating such files isn't possible with mkswap and they woud be        
-> considered invalid, it would be better for the swapon code to be more robust    
-> and handle this condition gracefully (return -EINVAL). Especially since the fix 
-> is small and straight-forward.                                                  
->                                                                                 
-> To help with wear leveling on SSD, the swapon syscall calculates a random       
-> position in the swap file using modulo p->highest_bit, which is set to          
-> maxpages - 1 in read_swap_header.                                               
->                                                                                 
-> If the swap file is zero length, read_swap_header sets maxpages=1 and           
-> last_page=0, resulting in p->highest_bit=0 and we divide-by-zero when we modulo 
-> p->highest_bit in swapon syscall.                                               
->                                                                                 
-> This can be prevented by having read_swap_header return zero if last_page is    
-> zero.                                                                           
->                                                                                 
-> diff --git a/mm/swapfile.c b/mm/swapfile.c                                      
-> index c7a33717d079..d6b7bd9f365d 100644                                         
-> --- a/mm/swapfile.c                                                             
-> +++ b/mm/swapfile.c                                                             
-> @@ -2961,6 +2961,10 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
->         maxpages = swp_offset(pte_to_swp_entry(                                 
->                         swp_entry_to_pte(swp_entry(0, ~0UL)))) + 1;             
->         last_page = swap_header->info.last_page;                                
-> +       if(!last_page) {                                                        
-> +               pr_warn("Empty swap-file\n");                                   
-> +               return 0;                                                       
-> +       }                                                                       
->         if (last_page > maxpages) {                                             
->                 pr_warn("Truncating oversized swap area, only using %luk out of %luk\n",
->                         maxpages << (PAGE_SHIFT - 10),
+On Fri, Apr 06, 2018 at 11:02:56AM +0100, James Morse wrote:
+> Hi Yury,
 > 
+> An ISB at the beginning of the vectors? This is odd, taking an IRQ to get in
+> here would be a context-synchronization-event too, so the ISB is superfluous.
+> 
+> The ARM-ARM  has a list of 'Context-Synchronization event's (Glossary on page
+> 6480 of DDI0487B.b), paraphrasing:
+> * ISB
+> * Taking an exception
+> * ERET
+> * (...loads of debug stuff...)
 
+Hi James, Mark,
 
--- 
-~Randy
+I completely forgot that taking an exception is the context synchronization
+event. Sorry for your time on reviewing this crap. It means that patches 1,
+2 and 3 are not needed except chunk that adds ISB in do_idle() path. 
+
+Also it means that for arm64 we are safe to mask IPI delivering to CPUs that
+run any userspace code, not only nohz_full.
+
+In general, kick_all_cpus_sync() is needed to switch contexts. But exit from
+userspace is anyway the switch of context. And while in userspace, we cannot
+do something wrong on kernel side. For me it means that we can safely drop
+IPI for all userspace modes - both normal and nohz_full. 
+
+If it's correct, for v3 I would suggest:
+ - in kick_all_cpus_sync() mask all is_idle_task() and user_mode() CPUs;
+ - add isb() for arm64 in do_idle() path only - this path doesn't imply
+   context switch.
+
+What do you think?
+
+Yury
