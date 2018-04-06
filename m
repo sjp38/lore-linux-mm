@@ -1,89 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F6376B0003
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 07:43:25 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f4-v6so687341plm.12
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 04:43:25 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00107.outbound.protection.outlook.com. [40.107.0.107])
-        by mx.google.com with ESMTPS id n11-v6si10392455plp.636.2018.04.06.04.43.23
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C6A686B0003
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 08:03:10 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id n7so672518wrb.0
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 05:03:10 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 54si7713742wry.283.2018.04.06.05.03.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 06 Apr 2018 04:43:23 -0700 (PDT)
-Subject: Re: [PATCH v2 4/4] mm/vmscan: Don't mess with pgdat->flags in memcg
- reclaim.
-References: <20180323152029.11084-1-aryabinin@virtuozzo.com>
- <20180323152029.11084-5-aryabinin@virtuozzo.com>
- <CALvZod7P7cE38fDrWd=0caA2J6ZOmSzEuLGQH9VSaagCbo5O+A@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <72db1bfb-aa79-3764-54fd-2c7ddbd07bea@virtuozzo.com>
-Date: Fri, 6 Apr 2018 14:44:09 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 06 Apr 2018 05:03:04 -0700 (PDT)
+Date: Fri, 6 Apr 2018 14:03:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: memcg: make sure memory.events is uptodate when
+ waking pollers
+Message-ID: <20180406120302.GL8286@dhcp22.suse.cz>
+References: <20180324160901.512135-1-tj@kernel.org>
+ <20180324160901.512135-2-tj@kernel.org>
+ <20180404140855.GA28966@cmpxchg.org>
+ <20180404141850.GC28966@cmpxchg.org>
+ <20180404143447.GJ6312@dhcp22.suse.cz>
+ <20180404165829.GA3126663@devbig577.frc2.facebook.com>
+ <20180405175507.GA24817@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <CALvZod7P7cE38fDrWd=0caA2J6ZOmSzEuLGQH9VSaagCbo5O+A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180405175507.GA24817@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>, vdavydov.dev@gmail.com, guro@fb.com, riel@surriel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On 04/06/2018 05:13 AM, Shakeel Butt wrote:
-> On Fri, Mar 23, 2018 at 8:20 AM, Andrey Ryabinin
-> <aryabinin@virtuozzo.com> wrote:
->> memcg reclaim may alter pgdat->flags based on the state of LRU lists
->> in cgroup and its children. PGDAT_WRITEBACK may force kswapd to sleep
->> congested_wait(), PGDAT_DIRTY may force kswapd to writeback filesystem
->> pages. But the worst here is PGDAT_CONGESTED, since it may force all
->> direct reclaims to stall in wait_iff_congested(). Note that only kswapd
->> have powers to clear any of these bits. This might just never happen if
->> cgroup limits configured that way. So all direct reclaims will stall
->> as long as we have some congested bdi in the system.
->>
->> Leave all pgdat->flags manipulations to kswapd. kswapd scans the whole
->> pgdat, only kswapd can clear pgdat->flags once node is balance, thus
->> it's reasonable to leave all decisions about node state to kswapd.
+On Thu 05-04-18 13:55:16, Johannes Weiner wrote:
+[...]
+> >From 4369ce161a9085aa408f2eca54f9de72909ee1b1 Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Thu, 5 Apr 2018 11:53:55 -0400
+> Subject: [PATCH] mm: memcg: make sure memory.events is uptodate when waking
+>  pollers
 > 
-> What about global reclaimers? Is the assumption that when global
-> reclaimers hit such condition, kswapd will be running and correctly
-> set PGDAT_CONGESTED?
+> a983b5ebee57 ("mm: memcontrol: fix excessive complexity in memory.stat
+> reporting") added per-cpu drift to all memory cgroup stats and events
+> shown in memory.stat and memory.events.
 > 
-
-The reason I moved this under if(current_is_kswapd()) is because only kswapd
-can clear these flags. I'm less worried about the case when PGDAT_CONGESTED falsely
-not set, and more worried about the case when it falsely set. If direct reclaimer sets
-PGDAT_CONGESTED, do we have guarantee that, after congestion problem is sorted, kswapd 
-ill be woken up and clear the flag? It seems like there is no such guarantee.
-E.g. direct reclaimers may eventually balance pgdat and kswapd simply won't wake up
-(see wakeup_kswapd()).
-
-
-
->>  static inline bool bdi_cap_synchronous_io(struct backing_dev_info *bdi)
->>  {
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 4525b4404a9e..44422e1d3def 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -190,6 +190,8 @@ struct mem_cgroup {
->>         /* vmpressure notifications */
->>         struct vmpressure vmpressure;
->>
->> +       unsigned long flags;
->> +
+> For memory.stat this is acceptable. But memory.events issues file
+> notifications, and somebody polling the file for changes will be
+> confused when the counters in it are unchanged after a wakeup.
 > 
-> nit(you can ignore it): The name 'flags' is too general IMO. Something
-> more specific would be helpful.
+> Luckily, the events in memory.events - MEMCG_LOW, MEMCG_HIGH,
+> MEMCG_MAX, MEMCG_OOM - are sufficiently rare and high-level that we
+> don't need per-cpu buffering for them: MEMCG_HIGH and MEMCG_MAX would
+> be the most frequent, but they're counting invocations of reclaim,
+> which is a complex operation that touches many shared cachelines.
 > 
-> Question: Does this 'flags' has any hierarchical meaning? Does
-> congested parent means all descendents are congested?
+> This splits memory.events from the generic VM events and tracks them
+> in their own, unbuffered atomic counters. That's also cleaner, as it
+> eliminates the ugly enum nesting of VM and cgroup events.
 
-It's the same as with pgdat->flags. Cgroup (or pgdat) is congested if at least one cgroup
-in the hierarchy (in pgdat) is congested and the rest are all either also congested or don't have
-any file pages to reclaim (nr_file_taken == 0).
+I agree with the patch I am just worried about the naming a bit. It is
+quite confusing TBH. events should be vm_events and memory_events should
+be limit_events or something like that.
 
-> Question: Should this 'flags' be per-node? Is it ok for a congested
-> memcg to call wait_iff_congested for all nodes?
-> 
+> Fixes: a983b5ebee57 ("mm: memcontrol: fix excessive complexity in memory.stat reporting")
+> Reported-by: Tejun Heo <tj@kernel.org>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Yes, it should be per-node. I'll try to replace ->flags with 'bool congested'
-in struct mem_cgroup_per_node.
+Anyway
+Acked-by: Michal Hocko <mhocko@suse.com>
+-- 
+Michal Hocko
+SUSE Labs
