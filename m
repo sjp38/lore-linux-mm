@@ -1,104 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 78BFF6B0022
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 16:58:15 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 2so1310386pft.4
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 13:58:15 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id w3si7534052pge.719.2018.04.06.13.58.13
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B69A06B0024
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 16:58:16 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x23so733864pfh.6
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 13:58:16 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id u22-v6si9473730plk.608.2018.04.06.13.58.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Apr 2018 13:58:14 -0700 (PDT)
-Subject: [PATCH 10/11] x86/pti: never implicitly clear _PAGE_GLOBAL for kernel image
+        Fri, 06 Apr 2018 13:58:15 -0700 (PDT)
+Subject: [PATCH 11/11] x86/pti: leave kernel text global for !PCID
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 06 Apr 2018 13:55:17 -0700
+Date: Fri, 06 Apr 2018 13:55:18 -0700
 References: <20180406205501.24A1A4E7@viggo.jf.intel.com>
 In-Reply-To: <20180406205501.24A1A4E7@viggo.jf.intel.com>
-Message-Id: <20180406205517.C80FBE05@viggo.jf.intel.com>
+Message-Id: <20180406205518.E3D989EB@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, aarcange@redhat.com, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org, namit@vmware.com
 
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Note: This has changed since the last version.  It now clones the
+kernel text PMDs at a much later point and also disables this
+functionality on AMD K8 processors.  Details in the patch.
 
-Summary:
+--
 
-In current kernels, with PTI enabled, no pages are marked Global. This
-potentially increases TLB misses.  But, the mechanism by which the Global
-bit is set and cleared is rather haphazard.  This patch makes the process
-more explicit.  In the end, it leaves us with Global entries in the page
-tables for the areas truly shared by userspace and kernel and increases
-TLB hit rates.
+I'm sticking this at the end of the series because it's a bit weird.
+It can be dropped and the rest of the series is still useful without
+it.
 
-The place this patch really shines in on systems without PCIDs.  In this
-case, we are using an lseek microbenchmark[1] to see how a reasonably
-non-trivial syscall behaves.  Higher is better:
+Global pages are bad for hardening because they potentially let an
+exploit read the kernel image via a Meltdown-style attack which
+makes it easier to find gadgets.
 
-No Global pages (baseline): 6077741 lseeks/sec
-88 Global Pages (this set): 7528609 lseeks/sec (+23.9%)
+But, global pages are good for performance because they reduce TLB
+misses when making user/kernel transitions, especially when PCIDs
+are not available, such as on older hardware, or where a hypervisor
+has disabled them for some reason.
 
-On a modern Skylake desktop with PCIDs, the benefits are tangible, but not
-huge for a kernel compile (lower is better):
+This patch implements a basic, sane policy: If you have PCIDs, you
+only map a minimal amount of kernel text global.  If you do not have
+PCIDs, you map all kernel text global.
 
-No Global pages (baseline): 186.951 seconds time elapsed  ( +-  0.35% )
-28 Global pages (this set): 185.756 seconds time elapsed  ( +-  0.09% )
-                             -1.195 seconds (-0.64%)
+This policy effectively makes PCIDs something that not only adds
+performance but a little bit of hardening as well.
 
-I also re-checked everything using the lseek1 test[1]:
+I ran a simple "lseek" microbenchmark[1] to test the benefit on
+a modern Atom microserver.  Most of the benefit comes from applying
+the series before this patch ("entry only"), but there is still a
+signifiant benefit from this patch.
 
-No Global pages (baseline): 15783951 lseeks/sec
-28 Global pages (this set): 16054688 lseeks/sec
-			     +270737 lseeks/sec (+1.71%)
-
-The effect is more visible, but still modest.
-
-Details:
-
-The kernel page tables are inherited from head_64.S which rudely marks
-them as _PAGE_GLOBAL.  For PTI, we have been relying on the grace of
-$DEITY and some insane behavior in pageattr.c to clear _PAGE_GLOBAL.
-This patch tries to do better.
-
-First, stop filtering out "unsupported" bits from being cleared in the
-pageattr code.  It's fine to filter out *setting* these bits but it
-is insane to keep us from clearing them.
-
-Then, *explicitly* go clear _PAGE_GLOBAL from the kernel identity map.
-Do not rely on pageattr to do it magically.
-
-After this patch, we can see that "GLB" shows up in each copy of the
-page tables, that we have the same number of global entries in each
-and that they are the *same* entries.
-
-# grep -c GLB /sys/kernel/debug/page_tables/*
-/sys/kernel/debug/page_tables/current_kernel:11
-/sys/kernel/debug/page_tables/current_user:11
-/sys/kernel/debug/page_tables/kernel:11
-
-# for f in `ls /sys/kernel/debug/page_tables/`; do grep GLB /sys/kernel/debug/page_tables/$f > $f.GLB; done
-# md5sum *.GLB
-9caae8ad6a1fb53aca2407ec037f612d  current_kernel.GLB
-9caae8ad6a1fb53aca2407ec037f612d  current_user.GLB
-9caae8ad6a1fb53aca2407ec037f612d  kernel.GLB
-
-A quick visual audit also shows that all the entries make sense.
-0xfffffe0000000000 is the cpu_entry_area and 0xffffffff81c00000
-is the entry/exit text:
-
-# grep -c GLB /sys/kernel/debug/page_tables/current_user
-0xfffffe0000000000-0xfffffe0000002000           8K     ro                 GLB NX pte
-0xfffffe0000002000-0xfffffe0000003000           4K     RW                 GLB NX pte
-0xfffffe0000003000-0xfffffe0000006000          12K     ro                 GLB NX pte
-0xfffffe0000006000-0xfffffe0000007000           4K     ro                 GLB x  pte
-0xfffffe0000007000-0xfffffe000000d000          24K     RW                 GLB NX pte
-0xfffffe000002d000-0xfffffe000002e000           4K     ro                 GLB NX pte
-0xfffffe000002e000-0xfffffe000002f000           4K     RW                 GLB NX pte
-0xfffffe000002f000-0xfffffe0000032000          12K     ro                 GLB NX pte
-0xfffffe0000032000-0xfffffe0000033000           4K     ro                 GLB x  pte
-0xfffffe0000033000-0xfffffe0000039000          24K     RW                 GLB NX pte
-0xffffffff81c00000-0xffffffff81e00000           2M     ro         PSE     GLB x  pmd
+No Global Lines (baseline  ): 6077741 lseeks/sec
+88 Global Lines (entry only): 7528609 lseeks/sec (+23.9%)
+94 Global Lines (this patch): 8433111 lseeks/sec (+38.8%)
 
 1. https://github.com/antonblanchard/will-it-scale/blob/master/tests/lseek1.c
 
@@ -113,107 +69,186 @@ Cc: x86@kernel.org
 Cc: Nadav Amit <namit@vmware.com>
 ---
 
- b/arch/x86/mm/init.c     |    8 +-------
- b/arch/x86/mm/pageattr.c |   12 +++++++++---
- b/arch/x86/mm/pti.c      |   25 +++++++++++++++++++++++++
- 3 files changed, 35 insertions(+), 10 deletions(-)
+ b/arch/x86/include/asm/pti.h |    2 +
+ b/arch/x86/mm/init_64.c      |    6 +++
+ b/arch/x86/mm/pti.c          |   78 ++++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 82 insertions(+), 4 deletions(-)
 
-diff -puN arch/x86/mm/init.c~clear-global-for-pti arch/x86/mm/init.c
---- a/arch/x86/mm/init.c~clear-global-for-pti	2018-04-06 10:47:58.807796117 -0700
-+++ b/arch/x86/mm/init.c	2018-04-06 10:47:58.815796117 -0700
-@@ -161,12 +161,6 @@ struct map_range {
+diff -puN arch/x86/include/asm/pti.h~kpti-global-text-option arch/x86/include/asm/pti.h
+--- a/arch/x86/include/asm/pti.h~kpti-global-text-option	2018-04-06 10:47:59.393796116 -0700
++++ b/arch/x86/include/asm/pti.h	2018-04-06 10:47:59.400796116 -0700
+@@ -6,8 +6,10 @@
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ extern void pti_init(void);
+ extern void pti_check_boottime_disable(void);
++extern void pti_clone_kernel_text(void);
+ #else
+ static inline void pti_check_boottime_disable(void) { }
++static inline void pti_clone_kernel_text(void) { }
+ #endif
  
- static int page_size_mask;
+ #endif /* __ASSEMBLY__ */
+diff -puN arch/x86/mm/init_64.c~kpti-global-text-option arch/x86/mm/init_64.c
+--- a/arch/x86/mm/init_64.c~kpti-global-text-option	2018-04-06 10:47:59.395796116 -0700
++++ b/arch/x86/mm/init_64.c	2018-04-06 10:47:59.400796116 -0700
+@@ -1294,6 +1294,12 @@ void mark_rodata_ro(void)
+ 			(unsigned long) __va(__pa_symbol(_sdata)));
  
--static void enable_global_pages(void)
--{
--	if (!static_cpu_has(X86_FEATURE_PTI))
--		__supported_pte_mask |= _PAGE_GLOBAL;
--}
--
- static void __init probe_page_size_mask(void)
- {
- 	/*
-@@ -187,7 +181,7 @@ static void __init probe_page_size_mask(
- 	__supported_pte_mask &= ~_PAGE_GLOBAL;
- 	if (boot_cpu_has(X86_FEATURE_PGE)) {
- 		cr4_set_bits_and_update_boot(X86_CR4_PGE);
--		enable_global_pages();
-+		__supported_pte_mask |= _PAGE_GLOBAL;
- 	}
- 
- 	/* By the default is everything supported: */
-diff -puN arch/x86/mm/pageattr.c~clear-global-for-pti arch/x86/mm/pageattr.c
---- a/arch/x86/mm/pageattr.c~clear-global-for-pti	2018-04-06 10:47:58.809796117 -0700
-+++ b/arch/x86/mm/pageattr.c	2018-04-06 10:47:58.815796117 -0700
-@@ -1411,11 +1411,11 @@ static int change_page_attr_set_clr(unsi
- 	memset(&cpa, 0, sizeof(cpa));
- 
- 	/*
--	 * Check, if we are requested to change a not supported
--	 * feature:
-+	 * Check, if we are requested to set a not supported
-+	 * feature.  Clearing non-supported features is OK.
- 	 */
- 	mask_set = canon_pgprot(mask_set);
--	mask_clr = canon_pgprot(mask_clr);
+ 	debug_checkwx();
 +
- 	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr) && !force_split)
- 		return 0;
- 
-@@ -1758,6 +1758,12 @@ int set_memory_4k(unsigned long addr, in
- 					__pgprot(0), 1, 0, NULL);
++	/*
++	 * Do this after all of the manipulation of the
++	 * kernel text page tables are complete.
++	 */
++	pti_clone_kernel_text();
  }
  
-+int set_memory_nonglobal(unsigned long addr, int numpages)
-+{
-+	return change_page_attr_clear(&addr, numpages,
-+				      __pgprot(_PAGE_GLOBAL), 0);
-+}
+ int kern_addr_valid(unsigned long addr)
+diff -puN arch/x86/mm/pti.c~kpti-global-text-option arch/x86/mm/pti.c
+--- a/arch/x86/mm/pti.c~kpti-global-text-option	2018-04-06 10:47:59.397796116 -0700
++++ b/arch/x86/mm/pti.c	2018-04-06 10:47:59.401796116 -0700
+@@ -66,12 +66,22 @@ static void __init pti_print_if_secure(c
+ 		pr_info("%s\n", reason);
+ }
+ 
++enum pti_mode {
++	PTI_AUTO = 0,
++	PTI_FORCE_OFF,
++	PTI_FORCE_ON
++} pti_mode;
 +
- static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
+ void __init pti_check_boottime_disable(void)
  {
- 	struct cpa_data cpa;
-diff -puN arch/x86/mm/pti.c~clear-global-for-pti arch/x86/mm/pti.c
---- a/arch/x86/mm/pti.c~clear-global-for-pti	2018-04-06 10:47:58.811796117 -0700
-+++ b/arch/x86/mm/pti.c	2018-04-06 10:47:58.816796117 -0700
-@@ -373,6 +373,27 @@ static void __init pti_clone_entry_text(
+ 	char arg[5];
+ 	int ret;
+ 
++	/* Assume mode is auto unless overridden. */
++	pti_mode = PTI_AUTO;
++
+ 	if (hypervisor_is_type(X86_HYPER_XEN_PV)) {
++		pti_mode = PTI_FORCE_OFF;
+ 		pti_print_if_insecure("disabled on XEN PV.");
+ 		return;
+ 	}
+@@ -79,18 +89,23 @@ void __init pti_check_boottime_disable(v
+ 	ret = cmdline_find_option(boot_command_line, "pti", arg, sizeof(arg));
+ 	if (ret > 0)  {
+ 		if (ret == 3 && !strncmp(arg, "off", 3)) {
++			pti_mode = PTI_FORCE_OFF;
+ 			pti_print_if_insecure("disabled on command line.");
+ 			return;
+ 		}
+ 		if (ret == 2 && !strncmp(arg, "on", 2)) {
++			pti_mode = PTI_FORCE_ON;
+ 			pti_print_if_secure("force enabled on command line.");
+ 			goto enable;
+ 		}
+-		if (ret == 4 && !strncmp(arg, "auto", 4))
++		if (ret == 4 && !strncmp(arg, "auto", 4)) {
++			pti_mode = PTI_AUTO;
+ 			goto autosel;
++		}
+ 	}
+ 
+ 	if (cmdline_find_option_bool(boot_command_line, "nopti")) {
++		pti_mode = PTI_FORCE_OFF;
+ 		pti_print_if_insecure("disabled on command line.");
+ 		return;
+ 	}
+@@ -149,7 +164,7 @@ pgd_t __pti_set_user_pgd(pgd_t *pgdp, pg
+  *
+  * Returns a pointer to a P4D on success, or NULL on failure.
+  */
+-static __init p4d_t *pti_user_pagetable_walk_p4d(unsigned long address)
++static p4d_t *pti_user_pagetable_walk_p4d(unsigned long address)
+ {
+ 	pgd_t *pgd = kernel_to_user_pgdp(pgd_offset_k(address));
+ 	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+@@ -177,7 +192,7 @@ static __init p4d_t *pti_user_pagetable_
+  *
+  * Returns a pointer to a PMD on success, or NULL on failure.
+  */
+-static __init pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
++static pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
+ {
+ 	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+ 	p4d_t *p4d = pti_user_pagetable_walk_p4d(address);
+@@ -267,7 +282,7 @@ static void __init pti_setup_vsyscall(vo
+ static void __init pti_setup_vsyscall(void) { }
+ #endif
+ 
+-static void __init
++static void
+ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+ {
+ 	unsigned long addr;
+@@ -373,6 +388,58 @@ static void __init pti_clone_entry_text(
  }
  
  /*
-+ * This is the only user for it and it is not arch-generic like
-+ * the other set_memory.h functions.  Just extern it.
++ * Global pages and PCIDs are both ways to make kernel TLB entries
++ * live longer, reduce TLB misses and improve kernel performance.
++ * But, leaving all kernel text Global makes it potentially accessible
++ * to Meltdown-style attacks which make it trivial to find gadgets or
++ * defeat KASLR.
++ *
++ * Only use global pages when it is really worth it.
 + */
-+extern int set_memory_nonglobal(unsigned long addr, int numpages);
-+void pti_set_kernel_image_nonglobal(void)
++static inline bool pti_kernel_image_global_ok(void)
 +{
 +	/*
-+	 * The identity map is created with PMDs, regardless of the
-+	 * actual length of the kernel.  We need to clear
-+	 * _PAGE_GLOBAL up to a PMD boundary, not just to the end
-+	 * of the image.
++	 * Systems with PCIDs get litlle benefit from global
++	 * kernel text and are not worth the downsides.
 +	 */
-+	unsigned long start = PFN_ALIGN(_text);
-+	unsigned long end = ALIGN((unsigned long)_end, PMD_PAGE_SIZE);
++	if (cpu_feature_enabled(X86_FEATURE_PCID))
++		return false;
 +
-+	pr_debug("set kernel image non-global\n");
++	/*
++	 * Only do global kernel image for pti=auto.  Do the most
++	 * secure thing (not global) if pti=on specified.
++	 */
++	if (pti_mode != PTI_AUTO)
++		return false;
 +
-+	set_memory_nonglobal(start, (end - start) >> PAGE_SHIFT);
++	/*
++	 * K8 may not tolerate the cleared _PAGE_RW on the userspace
++	 * global kernel image pages.  Do the safe thing (disable
++	 * global kernel image).  This is unlikely to ever be
++	 * noticed because PTI is disabled by default on AMD CPUs.
++	 */
++	if (boot_cpu_has(X86_FEATURE_K8))
++		return false;
++
++	return true;
 +}
 +
 +/*
-  * Initialize kernel page table isolation
-  */
- void __init pti_init(void)
-@@ -383,6 +404,10 @@ void __init pti_init(void)
- 	pr_info("enabled\n");
- 
- 	pti_clone_user_shared();
++ * For some configurations, map all of kernel text into the user page
++ * tables.  This reduces TLB misses, especially on non-PCID systems.
++ */
++void pti_clone_kernel_text(void)
++{
++	unsigned long start = PFN_ALIGN(_text);
++	unsigned long end = ALIGN((unsigned long)_end, PMD_PAGE_SIZE);
 +
-+	/* Undo all global bits from the init pagetables in head_64.S: */
-+	pti_set_kernel_image_nonglobal();
-+	/* Replace some of the global bits just for shared entry text: */
- 	pti_clone_entry_text();
- 	pti_setup_espfix64();
- 	pti_setup_vsyscall();
++	if (!pti_kernel_image_global_ok())
++		return;
++
++	pti_clone_pmds(start, end, _PAGE_RW);
++}
++
++/*
+  * This is the only user for it and it is not arch-generic like
+  * the other set_memory.h functions.  Just extern it.
+  */
+@@ -388,6 +455,9 @@ void pti_set_kernel_image_nonglobal(void
+ 	unsigned long start = PFN_ALIGN(_text);
+ 	unsigned long end = ALIGN((unsigned long)_end, PMD_PAGE_SIZE);
+ 
++	if (pti_kernel_image_global_ok())
++		return;
++
+ 	pr_debug("set kernel image non-global\n");
+ 
+ 	set_memory_nonglobal(start, (end - start) >> PAGE_SHIFT);
 _
