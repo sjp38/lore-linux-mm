@@ -1,106 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 41D596B0003
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 16:36:03 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id d6-v6so1725080plo.2
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 13:36:03 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 73si7619024pgg.68.2018.04.06.13.36.01
+	by kanga.kvack.org (Postfix) with ESMTP id 1E8B76B0003
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 16:58:00 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id m6-v6so1732785pln.8
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 13:58:00 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id g3-v6si8994694pll.290.2018.04.06.13.57.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Apr 2018 13:36:01 -0700 (PDT)
-Date: Fri, 6 Apr 2018 13:36:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 199297] New: OOMs writing to files from processes with
- cgroup memory limits
-Message-Id: <20180406133600.afb9c2b0e1ba92b526f279ce@linux-foundation.org>
-In-Reply-To: <bug-199297-27@https.bugzilla.kernel.org/>
-References: <bug-199297-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 06 Apr 2018 13:57:58 -0700 (PDT)
+Subject: [PATCH 00/11] [v5] Use global pages with PTI
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Fri, 06 Apr 2018 13:55:01 -0700
+Message-Id: <20180406205501.24A1A4E7@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, cbehrens@codestud.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, aarcange@redhat.com, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org, namit@vmware.com
 
+Changes from v4
+ * Fix compile error reported by Tom Lendacky
+ * Avoid setting _PAGE_GLOBAL on non-present entries
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+Changes from v3:
+ * Fix whitespace issue noticed by willy
+ * Clarify comments about X86_FEATURE_PGE checks
+ * Clarify commit message around the necessity of _PAGE_GLOBAL
+   filtering when CR4.PGE=0 or PGE is unsupported.
 
-On Thu, 05 Apr 2018 21:55:26 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+Changes from v2:
 
-> https://bugzilla.kernel.org/show_bug.cgi?id=199297
-> 
->             Bug ID: 199297
->            Summary: OOMs writing to files from processes with cgroup
->                     memory limits
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 4.11+
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: high
->           Priority: P1
->          Component: Other
->           Assignee: akpm@linux-foundation.org
->           Reporter: cbehrens@codestud.com
->         Regression: No
-> 
-> Created attachment 275113
->   --> https://bugzilla.kernel.org/attachment.cgi?id=275113&action=edit
-> script to reproduce issue + kernel config + oom log from dmesg
-> 
-> OVERVIEW:
-> 
-> Processes that have a cgroup memory limit can easily OOM just writing to files.
-> It appears there is no throttling and the process can very quickly exceed the
-> cgroup memory limit. vm.dirty_ratio appears to be applied to global available
-> memory and not available memory for the cgroup, at least in my case.
-> 
-> This issue came to light by using kubernetes and putting memory limits on pods,
-> but is completely reproducible stand-alone.
-> 
-> STEPS TO REPRODUCE:
-> 
-> * create a memory cgroup
-> * put a memory limit on the cgroup.. say 256M.
-> * add a shell process to the cgroup
-> * use dd from that shell to write a bunch of data to a file
-> 
-> See attached simple script that reproduces the issue every time.
-> 
-> dd will end up getting OOMkilled very shortly after starting. OOM logging will
-> show dirty pages above the cgroup limit.
-> 
-> Kernels before 4.11 do not see this behavior. I've tracked the issue to the
-> following commit:
-> 
-> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git/commit/?id=726d061fbd3658e4bfeffa1b8e82da97de2ca4dd
-> 
-> When I reverse this commit, dd will complete successfully.
-> 
-> I believe there to be a larger issue here, though. I did a bit of debugging. As
-> mentioned above, it doesn't appear there's any throttling. It also doesn't
-> appear that writebacks are fired when dirty pages build up for the cgroup. From
-> what I can tell, vm.dirty* configs would only get applied against the cgroup
-> limit IFF inode_cgwb_enabled(inode) returns true in
-> balance_dirty_pages_ratelimited(). That appears to be returning false for me.
-> I'm using ext4 and CONFIG_CGROUP_WRITEBACK is enabled. The code removed from
-> the above commit seems to be saving things by reclaiming during try_charge().
-> But from what I can tell, we actually want to throttle in
-> balance_dirty_pages(), instead.. but that's not happening. This code is all
-> foreign to me, but just wanted to dump a bit about what I saw from my
-> debugging.
-> 
-> NOTE: If I set vm.dirty_bytes to a value lower than my cgroup memory limit, I
-> no longer see OOMs... as it appears the process gets throttled correctly.
-> 
-> I'm attaching a script to reproduce the issue, kernel config, and OOM log
-> messages from dmesg for kernel 4.15.0.
-> 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+ * Add performance numbers to changelogs
+ * Fix compile error resulting from use of x86-specific
+   __default_kernel_pte_mask in arch-generic mm/early_ioremap.c
+ * Delay kernel text cloning until after we are done messing
+   with it (patch 11).
+ * Blacklist K8 explicitly from mapping all kernel text as
+   global (this should never happen because K8 does not use
+   pti when pti=auto, but we on the safe side). (patch 11)
+
+--
+
+The later versions of the KAISER patches (pre-PTI) allowed the
+user/kernel shared areas to be GLOBAL.  The thought was that this would
+reduce the TLB overhead of keeping two copies of these mappings.
+
+During the switch over to PTI, we seem to have lost our ability to have
+GLOBAL mappings.  This adds them back.
+
+To measure the benefits of this, I took a modern Atom system without
+PCIDs and ran a microbenchmark[1] (higher is better):
+
+No Global Lines (baseline  ): 6077741 lseeks/sec
+88 Global Lines (kern entry): 7528609 lseeks/sec (+23.9%)
+94 Global Lines (all ktext ): 8433111 lseeks/sec (+38.8%)
+
+On a modern Skylake desktop with PCIDs, the benefits are tangible, but not
+huge:
+
+No Global pages (baseline): 15783951 lseeks/sec
+28 Global pages (this set): 16054688 lseeks/sec
+                             +270737 lseeks/sec (+1.71%)
+
+I also double-checked with a kernel compile on the Skylake system (lower
+is better):
+
+No Global pages (baseline): 186.951 seconds time elapsed  ( +-  0.35% )
+28 Global pages (this set): 185.756 seconds time elapsed  ( +-  0.09% )
+                             -1.195 seconds (-0.64%)
+
+1. https://github.com/antonblanchard/will-it-scale/blob/master/tests/lseek1.c
+
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Kees Cook <keescook@google.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: x86@kernel.org
+Cc: Nadav Amit <namit@vmware.com>
