@@ -1,107 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1267D6B000E
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 06:23:20 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id g35-v6so339238otd.6
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 03:23:20 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 98-v6sor4513008otv.326.2018.04.06.03.23.18
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E79F6B0011
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 06:33:26 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 91-v6so585817plf.6
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 03:33:26 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id w22-v6si7699943plq.115.2018.04.06.03.33.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 06 Apr 2018 03:23:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Apr 2018 03:33:25 -0700 (PDT)
+Date: Fri, 6 Apr 2018 11:32:56 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 3/3] dcache: account external names as indirectly
+ reclaimable memory
+Message-ID: <20180406103250.GA3717@castle>
+References: <20180305133743.12746-1-guro@fb.com>
+ <20180305133743.12746-5-guro@fb.com>
+ <20180312211742.GR30522@ZenIV.linux.org.uk>
+ <20180312223632.GA6124@castle>
+ <20180313004532.GU30522@ZenIV.linux.org.uk>
+ <20180405151123.df20d12168d8a38f7a6b02b5@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20180406090920.GM16141@n2100.armlinux.org.uk>
-References: <1522915478-5044-1-git-send-email-hejianet@gmail.com>
- <1522915478-5044-3-git-send-email-hejianet@gmail.com> <20180405113444.GB2647@bombadil.infradead.org>
- <1f809296-e88d-1090-0027-890782b91d6e@gmail.com> <20180405125054.GC2647@bombadil.infradead.org>
- <20180406090920.GM16141@n2100.armlinux.org.uk>
-From: Daniel Vacek <neelx@redhat.com>
-Date: Fri, 6 Apr 2018 12:23:17 +0200
-Message-ID: <CACjP9X_pfM7pUCHVXvFk_5HQPufF0pF-wr1V92J+8AnS8qxePA@mail.gmail.com>
-Subject: Re: [PATCH v7 2/5] arm: arm64: page_alloc: reduce unnecessary binary
- search in memblock_next_valid_pfn()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180405151123.df20d12168d8a38f7a6b02b5@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@armlinux.org.uk>
-Cc: Matthew Wilcox <willy@infradead.org>, Jia He <hejianet@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, open list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jia He <jia.he@hxt-semitech.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Apr 6, 2018 at 11:09 AM, Russell King - ARM Linux
-<linux@armlinux.org.uk> wrote:
-> On Thu, Apr 05, 2018 at 05:50:54AM -0700, Matthew Wilcox wrote:
->> On Thu, Apr 05, 2018 at 08:44:12PM +0800, Jia He wrote:
->> >
->> >
->> > On 4/5/2018 7:34 PM, Matthew Wilcox Wrote:
->> > > On Thu, Apr 05, 2018 at 01:04:35AM -0700, Jia He wrote:
->> > > > Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
->> > > > where possible") optimized the loop in memmap_init_zone(). But there is
->> > > > still some room for improvement. E.g. if pfn and pfn+1 are in the same
->> > > > memblock region, we can simply pfn++ instead of doing the binary search
->> > > > in memblock_next_valid_pfn.
->> > > Sure, but I bet if we are >end_pfn, we're almost certainly going to the
->> > > start_pfn of the next block, so why not test that as well?
->> > >
->> > > > +       /* fast path, return pfn+1 if next pfn is in the same region */
->> > > > +       if (early_region_idx != -1) {
->> > > > +               start_pfn = PFN_DOWN(regions[early_region_idx].base);
->> > > > +               end_pfn = PFN_DOWN(regions[early_region_idx].base +
->> > > > +                               regions[early_region_idx].size);
->> > > > +
->> > > > +               if (pfn >= start_pfn && pfn < end_pfn)
->> > > > +                       return pfn;
->> > >           early_region_idx++;
->> > >           start_pfn = PFN_DOWN(regions[early_region_idx].base);
->> > >           if (pfn >= end_pfn && pfn <= start_pfn)
->> > >                   return start_pfn;
->> > Thanks, thus the binary search in next step can be discarded?
->>
->> I don't know all the circumstances in which this is called.  Maybe a linear
->> search with memo is more appropriate than a binary search.
+On Thu, Apr 05, 2018 at 03:11:23PM -0700, Andrew Morton wrote:
+> On Tue, 13 Mar 2018 00:45:32 +0000 Al Viro <viro@ZenIV.linux.org.uk> wrote:
+> 
+> > On Mon, Mar 12, 2018 at 10:36:38PM +0000, Roman Gushchin wrote:
+> > 
+> > > Ah, I see...
+> > > 
+> > > I think, it's better to account them when we're actually freeing,
+> > > otherwise we will have strange path:
+> > > (indirectly) reclaimable -> unreclaimable -> free
+> > > 
+> > > Do you agree?
+> > 
+> > > +static void __d_free_external_name(struct rcu_head *head)
+> > > +{
+> > > +	struct external_name *name;
+> > > +
+> > > +	name = container_of(head, struct external_name, u.head);
+> > > +
+> > > +	mod_node_page_state(page_pgdat(virt_to_page(name)),
+> > > +			    NR_INDIRECTLY_RECLAIMABLE_BYTES,
+> > > +			    -ksize(name));
+> > > +
+> > > +	kfree(name);
+> > > +}
+> > 
+> > Maybe, but then you want to call that from __d_free_external() and from
+> > failure path in __d_alloc() as well.  Duplicating something that convoluted
+> > and easy to get out of sync is just asking for trouble.
+> 
+> So.. where are we at with this issue?
 
-This is actually a good point.
+I assume that commit 0babe6fe1da3 ("dcache: fix indirectly reclaimable memory accounting")
+address the issue.
 
-> That's been brought up before, and the reasoning appears to be
-> something along the lines of...
->
-> Academics and published wisdom is that on cached architectures, binary
-> searches are bad because it doesn't operate efficiently due to the
-> overhead from having to load cache lines.  Consequently, there seems
-> to be a knee-jerk reaction that "all binary searches are bad, we must
-> eliminate them."
+__d_free_external_name() is now called from all release paths (including __d_free_external())
+and is the only place where NR_INDIRECTLY_RECLAIMABLE_BYTES is decremented.
 
-a) This does not make sense. At least in general case.
-b) It is not the case here. Here it's really mostly called with
-sequentially incremented pfns, AFAICT.
+__d_alloc()'s error path is slightly different, because I bump NR_INDIRECTLY_RECLAIMABLE_BYTES
+in a very last moment, when it's already clear, that no errors did occur.
+So we don't need to increase and decrease the counter back and forth.
 
-> What is failed to be grasped here, though, is that it is typical that
-> the number of entries in this array tend to be small, so the entire
-> array takes up one or two cache lines, maybe a maximum of four lines
-> depending on your cache line length and number of entries.
->
-> This means that the binary search expense is reduced, and is lower
-> than a linear search for the majority of cases.
-
-In this case it hits mostly the last result or eventually the
-sequentially next one.
-
-> What is key here as far as performance is concerned is whether the
-> general usage of pfn_valid() by the kernel is optimal.  We should
-> not optimise only for the boot case, which means evaluating the
-> effect of these changes with _real_ workloads, not just "does my
-> machine boot a milliseconds faster".
-
-IIUC, this is only used during early boot (and memory hotplug) and it
-does not influence regular runtime. Whether the general usage of
-pfn_valid() by the kernel is optimal is another good question, but
-that's totally unrelated to this series, IMHO.
-
-On the other hand I also wonder if this all really is worth the
-negligible boot time speedup.
-
---nX
-
-> --
-> RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
-> FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
-> According to speedtest.net: 8.21Mbps down 510kbps up
+Thank you!
