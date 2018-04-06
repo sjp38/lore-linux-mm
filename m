@@ -1,55 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1381F6B0003
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 07:36:07 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id u13so635766wre.1
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 04:36:07 -0700 (PDT)
-Received: from fuzix.org (www.llwyncelyn.cymru. [82.70.14.225])
-        by mx.google.com with ESMTPS id t15si7475507wrb.190.2018.04.06.04.36.05
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F6376B0003
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 07:43:25 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f4-v6so687341plm.12
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 04:43:25 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00107.outbound.protection.outlook.com. [40.107.0.107])
+        by mx.google.com with ESMTPS id n11-v6si10392455plp.636.2018.04.06.04.43.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 06 Apr 2018 04:36:05 -0700 (PDT)
-Date: Fri, 6 Apr 2018 12:35:45 +0100
-From: Alan Cox <gnomes@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH] gup: return -EFAULT on access_ok failure
-Message-ID: <20180406123545.24953eb4@alans-desktop>
-In-Reply-To: <20180405211945-mutt-send-email-mst@kernel.org>
-References: <1522431382-4232-1-git-send-email-mst@redhat.com>
-	<20180405045231-mutt-send-email-mst@kernel.org>
-	<CA+55aFwpe92MzEX2qRHO-MQsa1CP-iz6AmanFqXCV6_EaNKyMg@mail.gmail.com>
-	<20180405171009-mutt-send-email-mst@kernel.org>
-	<CA+55aFz_mCZQPV6ownt+pYnLFf9O+LUK_J6y4t1GUyWL1NJ2Lg@mail.gmail.com>
-	<20180405211945-mutt-send-email-mst@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 06 Apr 2018 04:43:23 -0700 (PDT)
+Subject: Re: [PATCH v2 4/4] mm/vmscan: Don't mess with pgdat->flags in memcg
+ reclaim.
+References: <20180323152029.11084-1-aryabinin@virtuozzo.com>
+ <20180323152029.11084-5-aryabinin@virtuozzo.com>
+ <CALvZod7P7cE38fDrWd=0caA2J6ZOmSzEuLGQH9VSaagCbo5O+A@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <72db1bfb-aa79-3764-54fd-2c7ddbd07bea@virtuozzo.com>
+Date: Fri, 6 Apr 2018 14:44:09 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <CALvZod7P7cE38fDrWd=0caA2J6ZOmSzEuLGQH9VSaagCbo5O+A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, syzbot+6304bf97ef436580fede@syzkaller.appspotmail.com, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>
 
-> so an error on the 1st page gets propagated to the caller,
-> and that get_user_pages_unlocked eventually calls __get_user_pages
-> so it does return an error sometimes.
+On 04/06/2018 05:13 AM, Shakeel Butt wrote:
+> On Fri, Mar 23, 2018 at 8:20 AM, Andrey Ryabinin
+> <aryabinin@virtuozzo.com> wrote:
+>> memcg reclaim may alter pgdat->flags based on the state of LRU lists
+>> in cgroup and its children. PGDAT_WRITEBACK may force kswapd to sleep
+>> congested_wait(), PGDAT_DIRTY may force kswapd to writeback filesystem
+>> pages. But the worst here is PGDAT_CONGESTED, since it may force all
+>> direct reclaims to stall in wait_iff_congested(). Note that only kswapd
+>> have powers to clear any of these bits. This might just never happen if
+>> cgroup limits configured that way. So all direct reclaims will stall
+>> as long as we have some congested bdi in the system.
+>>
+>> Leave all pgdat->flags manipulations to kswapd. kswapd scans the whole
+>> pgdat, only kswapd can clear pgdat->flags once node is balance, thus
+>> it's reasonable to leave all decisions about node state to kswapd.
 > 
-> Would it be correct to apply the second part of the patch then
-> (pasted below for reference) or should get_user_pages_fast
-> and all its callers be changed to return 0 on error instead?
+> What about global reclaimers? Is the assumption that when global
+> reclaimers hit such condition, kswapd will be running and correctly
+> set PGDAT_CONGESTED?
+> 
 
-0 isn't an error. As SuS sees it (ie from the userspace end of the pile)
+The reason I moved this under if(current_is_kswapd()) is because only kswapd
+can clear these flags. I'm less worried about the case when PGDAT_CONGESTED falsely
+not set, and more worried about the case when it falsely set. If direct reclaimer sets
+PGDAT_CONGESTED, do we have guarantee that, after congestion problem is sorted, kswapd 
+ill be woken up and clear the flag? It seems like there is no such guarantee.
+E.g. direct reclaimers may eventually balance pgdat and kswapd simply won't wake up
+(see wakeup_kswapd()).
 
-returning the number you asked for means it worked
 
-returning a smaller number means it worked partially and that much was
-consumed (or in some cases more and the rest if so was lost - depends
-what you are reading/writing)
 
-returning 0 means you read nothing as you were at the end of file
+>>  static inline bool bdi_cap_synchronous_io(struct backing_dev_info *bdi)
+>>  {
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index 4525b4404a9e..44422e1d3def 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -190,6 +190,8 @@ struct mem_cgroup {
+>>         /* vmpressure notifications */
+>>         struct vmpressure vmpressure;
+>>
+>> +       unsigned long flags;
+>> +
+> 
+> nit(you can ignore it): The name 'flags' is too general IMO. Something
+> more specific would be helpful.
+> 
+> Question: Does this 'flags' has any hierarchical meaning? Does
+> congested parent means all descendents are congested?
 
-returning an error code means it broke, or you should try again
-(EAGAIN/EWOULDBLOCK)
+It's the same as with pgdat->flags. Cgroup (or pgdat) is congested if at least one cgroup
+in the hierarchy (in pgdat) is congested and the rest are all either also congested or don't have
+any file pages to reclaim (nr_file_taken == 0).
 
-The ugly bit there is the try-again semantics needs to exactly match the
-attached poll() behaviour or you get busy loops.
+> Question: Should this 'flags' be per-node? Is it ok for a congested
+> memcg to call wait_iff_congested for all nodes?
+> 
 
-Alan
+Yes, it should be per-node. I'll try to replace ->flags with 'bool congested'
+in struct mem_cgroup_per_node.
