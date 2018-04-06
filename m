@@ -1,52 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4A26B0006
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 04:07:17 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id b9so221545wrj.15
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 01:07:17 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D08C56B0007
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 04:09:24 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t133so369595wmt.6
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 01:09:24 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j49si6708858wra.297.2018.04.06.01.07.16
+        by mx.google.com with ESMTPS id v101si7014579wrb.396.2018.04.06.01.09.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Apr 2018 01:07:16 -0700 (PDT)
-Date: Fri, 6 Apr 2018 10:07:14 +0200
+        Fri, 06 Apr 2018 01:09:23 -0700 (PDT)
+Date: Fri, 6 Apr 2018 10:09:22 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] writeback: safer lock nesting
-Message-ID: <20180406080714.GG8286@dhcp22.suse.cz>
-References: <2cb713cd-0b9b-594c-31db-b4582f8ba822@meituan.com>
- <20180406080324.160306-1-gthelen@google.com>
+Subject: Re: WARNING in kill_block_super
+Message-ID: <20180406080922.GH8286@dhcp22.suse.cz>
+References: <001a114043bcfab6ab05689518f9@google.com>
+ <6c95e826-4b9f-fb21-b311-830411e58480@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180406080324.160306-1-gthelen@google.com>
+In-Reply-To: <6c95e826-4b9f-fb21-b311-830411e58480@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Wang Long <wanglong19@meituan.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, npiggin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: viro@zeniv.linux.org.uk, syzbot <syzbot+5a170e19c963a2e0df79@syzkaller.appspotmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, syzkaller-bugs@googlegroups.com, linux-mm <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>
 
-On Fri 06-04-18 01:03:24, Greg Thelen wrote:
-[...]
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index d4d04fee568a..d51bae5a53e2 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -746,10 +746,11 @@ int inode_congested(struct inode *inode, int cong_bits)
->  	if (inode && inode_to_wb_is_valid(inode)) {
->  		struct bdi_writeback *wb;
->  		bool locked, congested;
-> +		unsigned long flags;
->  
-> -		wb = unlocked_inode_to_wb_begin(inode, &locked);
-> +		wb = unlocked_inode_to_wb_begin(inode, &locked, &flags);
+On Wed 04-04-18 19:53:07, Tetsuo Handa wrote:
+> Al and Michal, are you OK with this patch?
 
-Wouldn't it be better to have a cookie (struct) rather than 2 parameters
-and let unlocked_inode_to_wb_end DTRT?
+Maybe I've misunderstood, but hasn't Al explained [1] that the
+appropriate fix is in the fs code?
 
->  		congested = wb_congested(wb, cong_bits);
-> -		unlocked_inode_to_wb_end(inode, locked);
-> +		unlocked_inode_to_wb_end(inode, locked, flags);
->  		return congested;
->  	}
+[1] http://lkml.kernel.org/r/20180402143415.GC30522@ZenIV.linux.org.uk
 -- 
 Michal Hocko
 SUSE Labs
