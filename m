@@ -1,87 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A21056B0007
-	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 10:54:19 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t1-v6so1058439plb.5
-        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 07:54:19 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b1si7129710pgs.417.2018.04.06.07.54.18
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4328A6B0007
+	for <linux-mm@kvack.org>; Fri,  6 Apr 2018 11:09:07 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id d6-v6so1107586plo.2
+        for <linux-mm@kvack.org>; Fri, 06 Apr 2018 08:09:07 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00091.outbound.protection.outlook.com. [40.107.0.91])
+        by mx.google.com with ESMTPS id x14-v6si8375989pln.728.2018.04.06.08.09.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 06 Apr 2018 07:54:18 -0700 (PDT)
-Date: Fri, 6 Apr 2018 07:54:15 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: mmotm 2018-04-05-16-59 uploaded
-Message-ID: <20180406145415.GB20605@bombadil.infradead.org>
-References: <20180406000009.l1ebV%akpm@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 06 Apr 2018 08:09:06 -0700 (PDT)
+Subject: Re: [PATCH]
+ mm-vmscan-dont-mess-with-pgdat-flags-in-memcg-reclaim-v2-fix
+References: <CALvZod7P7cE38fDrWd=0caA2J6ZOmSzEuLGQH9VSaagCbo5O+A@mail.gmail.com>
+ <20180406135215.10057-1-aryabinin@virtuozzo.com>
+ <CALvZod7bGjx-fUKZ15oVAkXkeneZjtoRFiUSpKSZ1U0DA_e1BA@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <406e02a5-16d4-7cd3-de01-24bee60eab02@virtuozzo.com>
+Date: Fri, 6 Apr 2018 18:09:54 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180406000009.l1ebV%akpm@linux-foundation.org>
+In-Reply-To: <CALvZod7bGjx-fUKZ15oVAkXkeneZjtoRFiUSpKSZ1U0DA_e1BA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>
 
-On Thu, Apr 05, 2018 at 05:00:09PM -0700, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2018-04-05-16-59 has been uploaded to
+
+
+On 04/06/2018 05:37 PM, Shakeel Butt wrote:
+
+>>
+>> @@ -2482,7 +2494,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+>>  static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
+>>  {
+>>         return test_bit(PGDAT_CONGESTED, &pgdat->flags) ||
+>> -               (memcg && test_memcg_bit(PGDAT_CONGESTED, memcg));
+>> +               (memcg && memcg_congested(pgdat, memcg));
 > 
->    http://www.ozlabs.org/~akpm/mmotm/
+> I am wondering if we should check all ancestors for congestion as
+> well. Maybe a parallel memcg reclaimer might have set some ancestor of
+> this memcg to congested.
+> 
 
-> * page-cache-use-xa_lock.patch
-
-Hi Andrew.  Could I trouble you to add page-cache-use-xa_lock-fix.patch?
-
----
- arch/nds32/include/asm/cacheflush.h | 4 ++--
- fs/dax.c                            | 6 +++---
- 2 files changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/arch/nds32/include/asm/cacheflush.h b/arch/nds32/include/asm/cacheflush.h
-index 7b9b20a381cb..1240f148ec0f 100644
---- a/arch/nds32/include/asm/cacheflush.h
-+++ b/arch/nds32/include/asm/cacheflush.h
-@@ -34,8 +34,8 @@ void flush_anon_page(struct vm_area_struct *vma,
- void flush_kernel_dcache_page(struct page *page);
- void flush_icache_range(unsigned long start, unsigned long end);
- void flush_icache_page(struct vm_area_struct *vma, struct page *page);
--#define flush_dcache_mmap_lock(mapping)   spin_lock_irq(&(mapping)->tree_lock)
--#define flush_dcache_mmap_unlock(mapping) spin_unlock_irq(&(mapping)->tree_lock)
-+#define flush_dcache_mmap_lock(mapping)   xa_lock_irq(&(mapping)->i_pages)
-+#define flush_dcache_mmap_unlock(mapping) xa_unlock_irq(&(mapping)->i_pages)
- 
- #else
- #include <asm-generic/cacheflush.h>
-diff --git a/fs/dax.c b/fs/dax.c
-index fef7d458fd7d..aaec72ded1b6 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -499,7 +499,7 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
- 	void *entry;
- 	struct radix_tree_root *pages = &mapping->i_pages;
- 
--	xa_lock_irq(&mapping->i_pages);
-+	xa_lock_irq(pages);
- 	entry = get_unlocked_mapping_entry(mapping, index, NULL);
- 	if (!entry || WARN_ON_ONCE(!radix_tree_exceptional_entry(entry)))
- 		goto out;
-@@ -513,7 +513,7 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
- 	ret = 1;
- out:
- 	put_unlocked_mapping_entry(mapping, index, entry);
--	xa_unlock_irq(&mapping->i_pages);
-+	xa_unlock_irq(pages);
- 	return ret;
- }
- /*
-@@ -600,7 +600,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 			unmap_mapping_pages(mapping, vmf->pgoff, 1, false);
- 	}
- 
--	xa_lock_irq(&mapping->i_pages);
-+	xa_lock_irq(pages);
- 	new_entry = dax_radix_locked_entry(pfn, flags);
- 	if (dax_entry_size(entry) != dax_entry_size(new_entry)) {
- 		dax_disassociate_entry(entry, mapping, false);
--- 
-2.16.3
+Why? If ancestor is congested but its child (the one we currently reclaim) is not,
+it could mean only 2 things:
+ - Either child use mostly anon and inactive file lru is small (file_lru >> priority == 0)
+   so it's not congested.
+ - Or the child was congested recently (at the time when ancestor scanned this group),
+   but not anymore. So the information from ancestor is simply outdated.
