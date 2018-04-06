@@ -1,94 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CBFA36B0003
-	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 21:46:52 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id o3-v6so19152691pls.11
-        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 18:46:52 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j21sor2217967pgn.161.2018.04.05.18.46.51
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DF6356B0003
+	for <linux-mm@kvack.org>; Thu,  5 Apr 2018 21:57:38 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id v17so6598253uak.14
+        for <linux-mm@kvack.org>; Thu, 05 Apr 2018 18:57:38 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y30sor3002018uab.137.2018.04.05.18.57.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 05 Apr 2018 18:46:51 -0700 (PDT)
-Date: Fri, 6 Apr 2018 09:46:43 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: call set_pageblock_order() once for each
- node
-Message-ID: <20180406014643.GB12350@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180329033607.8440-1-richard.weiyang@gmail.com>
- <20180329121109.xg5tfk6dyqzkrgrh@suse.de>
- <20180330010243.GA14446@WeideMacBook-Pro.local>
- <20180403075737.GB5501@dhcp22.suse.cz>
- <20180404012734.GA1841@WeideMacBook-Pro.local>
- <20180405095550.GG6312@dhcp22.suse.cz>
+        Thu, 05 Apr 2018 18:57:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180405095550.GG6312@dhcp22.suse.cz>
+In-Reply-To: <65E6BD75-FBA6-43AC-AC5A-B952DE409BC8@cs.rutgers.edu>
+References: <20180404032257.11422-1-ying.huang@intel.com> <65E6BD75-FBA6-43AC-AC5A-B952DE409BC8@cs.rutgers.edu>
+From: huang ying <huang.ying.caritas@gmail.com>
+Date: Fri, 6 Apr 2018 09:57:37 +0800
+Message-ID: <CAC=cRTOjybaa+nEBcagDebGWh9Ty49TkcJkWi+BcqVcu3at2vA@mail.gmail.com>
+Subject: Re: [PATCH -mm] mm, gup: prevent pmd checking race in follow_pmd_mask()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Mel Gorman <mgorman@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Apr 05, 2018 at 11:55:50AM +0200, Michal Hocko wrote:
->On Wed 04-04-18 09:27:34, Wei Yang wrote:
->> On Tue, Apr 03, 2018 at 09:57:37AM +0200, Michal Hocko wrote:
->> >On Fri 30-03-18 09:02:43, Wei Yang wrote:
->> >> On Thu, Mar 29, 2018 at 01:11:09PM +0100, Mel Gorman wrote:
->> >> >On Thu, Mar 29, 2018 at 11:36:07AM +0800, Wei Yang wrote:
->> >> >> set_pageblock_order() is a standalone function which sets pageblock_order,
->> >> >> while current implementation calls this function on each ZONE of each node
->> >> >> in free_area_init_core().
->> >> >> 
->> >> >> Since free_area_init_node() is the only user of free_area_init_core(),
->> >> >> this patch moves set_pageblock_order() up one level to invoke
->> >> >> set_pageblock_order() only once on each node.
->> >> >> 
->> >> >> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
->> >> >
->> >> >The patch looks ok but given that set_pageblock_order returns immediately
->> >> >if it has already been called, I expect the benefit is marginal. Was any
->> >> >improvement in boot time measured?
->> >> 
->> >> No, I don't expect measurable improvement from this since the number of nodes
->> >> and zones are limited.
->> >> 
->> >> This is just a code refine from logic point of view.
->> >
->> >Then, please make sure it is a real refinement. Calling this function
->> >per node is only half way to get there as the function is by no means
->> >per node.
->> >
->> 
->> Hi, Michal
->> 
->> I guess you are willing to see this function is only called once for the whole
->> system.
->> 
->> Yes, that is the ideal way, well I don't come up with an elegant way. The best
->> way is to move this to free_area_init_nodes(), while you can see not all arch
->> use this function.
->> 
->> Then I have two options:
->> 
->> A: Move this to free_area_init_nodes() for those arch using it. Call it
->> specifically for those arch not using free_area_init_nodes().
->> 
->> B: call it before setup_arch() in start_kernel()
->> 
->> Hmm... which one you would prefer? If you have a better idea, that would be
->> great.
+On Wed, Apr 4, 2018 at 11:02 PM, Zi Yan <zi.yan@cs.rutgers.edu> wrote:
+> On 3 Apr 2018, at 23:22, Huang, Ying wrote:
 >
->or
->C: do nothing and/or just document why do we call it this way
->(convenience).
+>> From: Huang Ying <ying.huang@intel.com>
+>>
+>> mmap_sem will be read locked when calling follow_pmd_mask().  But this
+>> cannot prevent PMD from being changed for all cases when PTL is
+>> unlocked, for example, from pmd_trans_huge() to pmd_none() via
+>> MADV_DONTNEED.  So it is possible for the pmd_present() check in
+>> follow_pmd_mask() encounter a none PMD.  This may cause incorrect
+>> VM_BUG_ON() or infinite loop.  Fixed this via reading PMD entry again
+>> but only once and checking the local variable and pmd_none() in the
+>> retry loop.
+>>
+>> As Kirill pointed out, with PTL unlocked, the *pmd may be changed
+>> under us, so read it directly again and again may incur weird bugs.
+>> So although using *pmd directly other than pmd_present() checking may
+>> be safe, it is still better to replace them to read *pmd once and
+>> check the local variable for multiple times.
+>
+> I see you point there. The patch wants to provide a consistent value
+> for all race checks. Specifically, this patch is trying to avoid the inconsistent
+> reads of *pmd for if-statements, which causes problem when both if-condition reads *pmd and
+> the statements inside "if" reads *pmd again and two reads can give different values.
+> Am I right about this?
 
-Ok, maybe we can leave it alone now.
+Yes.
 
->-- 
->Michal Hocko
->SUSE Labs
+> If yes, the problem can be solved by something like:
+>
+> if (!pmd_present(tmpval = *pmd)) {
+>     check tmpval instead of *pmd;
+> }
+>
+> Right?
 
--- 
-Wei Yang
-Help you, Help me
+I think this isn't enough yet.  we need
+
+tmpval = READ_ONCE(*pmd);
+
+To prevent compiler to generate code to read *pmd again and again.
+Please check the comments of pmd_none_or_trans_huge_or_clear_bad()
+about barrier.
+
+Best Regards,
+Huang, Ying
+
+> I just wonder if we need some general code for all race checks.
+>
+> Thanks.
+>
+> --
+> Best Regards
+> Yan Zi
