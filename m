@@ -1,71 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 61E096B0006
-	for <linux-mm@kvack.org>; Sat,  7 Apr 2018 06:38:41 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 203so2046447pfz.19
-        for <linux-mm@kvack.org>; Sat, 07 Apr 2018 03:38:41 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id q6si8230803pgt.130.2018.04.07.03.38.39
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C0DE6B0007
+	for <linux-mm@kvack.org>; Sat,  7 Apr 2018 10:45:47 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id p131-v6so2285205oig.10
+        for <linux-mm@kvack.org>; Sat, 07 Apr 2018 07:45:47 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 92-v6si3760086otw.33.2018.04.07.07.45.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 07 Apr 2018 03:38:40 -0700 (PDT)
-Subject: Re: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1522322870-4335-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
-In-Reply-To: <20180329143003.c52ada618be599c5358e8ca2@linux-foundation.org>
-Message-Id: <201804071938.CDE04681.SOFVQJFtMHOOLF@I-love.SAKURA.ne.jp>
-Date: Sat, 7 Apr 2018 19:38:28 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Sat, 07 Apr 2018 07:45:46 -0700 (PDT)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w37EVjv3162532
+	for <linux-mm@kvack.org>; Sat, 7 Apr 2018 14:45:45 GMT
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by userp2120.oracle.com with ESMTP id 2h6pn48nwd-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Sat, 07 Apr 2018 14:45:45 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w37Ejioa000668
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Sat, 7 Apr 2018 14:45:44 GMT
+Received: from abhmp0016.oracle.com (abhmp0016.oracle.com [141.146.116.22])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w37Ejio2010772
+	for <linux-mm@kvack.org>; Sat, 7 Apr 2018 14:45:44 GMT
+Received: by mail-ot0-f181.google.com with SMTP id h55-v6so4206393ote.9
+        for <linux-mm@kvack.org>; Sat, 07 Apr 2018 07:45:43 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180406124535.k3qyxjfrlo55d5if@xakep.localdomain>
+References: <20180131210300.22963-1-pasha.tatashin@oracle.com>
+ <20180131210300.22963-2-pasha.tatashin@oracle.com> <20180313234333.j3i43yxeawx5d67x@sasha-lappy>
+ <CAGM2reaPK=ZcLBOnmBiC2-u86DZC6ukOhL1xxZofB2OTW3ozoA@mail.gmail.com>
+ <20180314005350.6xdda2uqzuy4n3o6@sasha-lappy> <20180315190430.o3vs7uxlafzdwgzd@xakep.localdomain>
+ <20180315204312.n7p4zzrftgg6m7zw@sasha-lappy> <20180404021746.m77czxidkaumkses@xakep.localdomain>
+ <20180405134940.2yzx4p7hjed7lfdk@xakep.localdomain> <20180405192256.GQ7561@sasha-vm>
+ <20180406124535.k3qyxjfrlo55d5if@xakep.localdomain>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Sat, 7 Apr 2018 10:45:03 -0400
+Message-ID: <CAGM2reYtCb2_czEt1M8KhFz+YxGq=iSGnTskC=FGNM4kXOiS5g@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: uninitialized struct page poisoning sanity checking
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, kirill.shutemov@linux.intel.com, mhocko@suse.com, riel@redhat.com
+To: Sasha Levin <Alexander.Levin@microsoft.com>
+Cc: "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@suse.com" <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "bharata@linux.vnet.ibm.com" <bharata@linux.vnet.ibm.com>
 
->From 31c863e57a4ab7dfb491b2860fe3653e1e8f593b Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sat, 7 Apr 2018 19:29:30 +0900
-Subject: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
+> Let me study your trace, perhaps I will able to figure out the issue
+> without reproducing it.
 
-As a theoretical problem, an mm_struct with 60000+ vmas can loop with
-potentially allocating memory, with mm->mmap_sem held for write by current
-thread. This is bad if current thread was selected as an OOM victim, for
-current thread will continue allocations using memory reserves while OOM
-reaper is unable to reclaim memory.
+Hi Sasha,
 
-As an actually observable problem, it is not difficult to make OOM reaper
-unable to reclaim memory if the OOM victim is blocked at
-i_mmap_lock_write() in this loop. Unfortunately, since nobody can explain
-whether it is safe to use killable wait there, let's check for SIGKILL
-before trying to allocate memory. Even without an OOM event, there is no
-point with continuing the loop from the beginning if current thread is
-killed.
+I've been studying this problem more. The issue happens in this stack:
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- kernel/fork.c | 4 ++++
- 1 file changed, 4 insertions(+)
+...subsys_init...
+ topology_init()
+  register_one_node(nid)
+   link_mem_sections(nid, pgdat->node_start_pfn, pgdat->node_spanned_pages)
+    register_mem_sect_under_node(mem_blk, nid)
+     get_nid_for_pfn(pfn)
+      pfn_to_nid(pfn)
+       page_to_nid(page)
+        PF_POISONED_CHECK(page)
 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 242c8c9..8831bae 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -441,6 +441,10 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
- 			continue;
- 		}
- 		charge = 0;
-+		if (fatal_signal_pending(current)) {
-+			retval = -EINTR;
-+			goto out;
-+		}
- 		if (mpnt->vm_flags & VM_ACCOUNT) {
- 			unsigned long len = vma_pages(mpnt);
- 
--- 
-1.8.3.1
+We are trying to get nid from struct page which has not been
+initialized.  My patches add this extra scrutiny to make sure that we
+never get invalid nid from a "struct page" by adding
+PF_POISONED_CHECK() to page_to_nid(). So, the bug already exists in
+Linux where incorrect nid is read. The question is why does happen?
+
+First, I thought, that perhaps struct page is not yet initialized.
+But, the initcalls are done after deferred pages are initialized, and
+thus every struct page must be initialized by now. Also, if deferred
+pages were enabled, we would take a slightly different path and avoid
+this bug by getting nid from memblock instead of struct page:
+
+get_nid_for_pfn(pfn)
+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+ if (system_state < SYSTEM_RUNNING)
+  return early_pfn_to_nid(pfn);
+#endif
+
+I also verified in your config that CONFIG_DEFERRED_STRUCT_PAGE_INIT
+is not set. So, one way to fix this issue, is to remove this "#ifdef"
+(I have not checked for dependancies), but this is simply addressing
+symptom, not fixing the actual issue.
+
+Thus, we have a "struct page" backing memory for this pfn, but we have
+not initialized it. For some reason memmap_init_zone() decided to skip
+it, and I am not sure why. Looking at the code we skip initializing
+if:
+!early_pfn_valid(pfn)) aka !pfn_valid(pfn) and if !early_pfn_in_nid(pfn, nid).
+
+I suspect, this has something to do with !pfn_valid(pfn). But, without
+having a machine on which I could reproduce this problem, I cannot
+study it further to determine exactly why pfn is not valid.
+
+Please replace !pfn_valid_within() with !pfn_valid() in
+get_nid_for_pfn() and see if problem still happens. If it does not
+happen, lets study the memory map, pgdata's start end, and the value
+of this pfn.
+
+Thank you,
+Pasha
