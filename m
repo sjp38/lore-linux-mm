@@ -1,40 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 517066B0028
-	for <linux-mm@kvack.org>; Sat,  7 Apr 2018 16:08:46 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id x7so1526724iob.21
-        for <linux-mm@kvack.org>; Sat, 07 Apr 2018 13:08:46 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e84-v6sor5927785itd.0.2018.04.07.13.08.44
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 022496B002A
+	for <linux-mm@kvack.org>; Sat,  7 Apr 2018 16:11:14 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id m17so4360669iod.1
+        for <linux-mm@kvack.org>; Sat, 07 Apr 2018 13:11:13 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0079.hostedemail.com. [216.40.44.79])
+        by mx.google.com with ESMTPS id d184-v6si8055342ite.132.2018.04.07.13.11.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 07 Apr 2018 13:08:45 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1522962072-182137-3-git-send-email-mst@redhat.com>
-References: <1522962072-182137-1-git-send-email-mst@redhat.com> <1522962072-182137-3-git-send-email-mst@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 7 Apr 2018 13:08:43 -0700
-Message-ID: <CA+55aFywfktB83dERzYaC1NCYxD+Lg+NRft5ypjmbbcM_qdxpQ@mail.gmail.com>
-Subject: Re: [PATCH v2 1/3] mm/gup_benchmark: handle gup failures
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 07 Apr 2018 13:11:12 -0700 (PDT)
+Message-ID: <03c43ed43d0ec3ab42940bfffd4c3778bf5d0f11.camel@perches.com>
+Subject: Re: [PATCH 1/3] mm: replace S_IRUGO with 0444
+From: Joe Perches <joe@perches.com>
+Date: Sat, 07 Apr 2018 13:11:08 -0700
+In-Reply-To: <20180407184726.8634-1-paulmcquad@gmail.com>
+References: <20180407184726.8634-1-paulmcquad@gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>, stable <stable@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Paul McQuade <paulmcquad@gmail.com>
+Cc: konrad.wilk@oracle.com, labbott@redhat.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, guptap@codeaurora.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, rientjes@google.com, mhocko@suse.com, rppt@linux.vnet.ibm.com, dave@stgolabs.net, hmclauchlan@fb.com, tglx@linutronix.de, pombredanne@nexb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 5, 2018 at 2:03 PM, Michael S. Tsirkin <mst@redhat.com> wrote:
->
->                 nr = get_user_pages_fast(addr, nr, gup->flags & 1, pages + i);
-> -               i += nr;
-> +               if (nr > 0)
-> +                       i += nr;
+On Sat, 2018-04-07 at 19:47 +0100, Paul McQuade wrote:
+> Fix checkpatch warnings about S_IRUGO being less readable than
+> providing the permissions octal as '0444'.
 
-Can we just make this robust while at it, and just make it
+Hey Paul.
 
-        if (nr <= 0)
-                break;
+I sent a cleanup a couple weeks ago to Andrew Morton for the
+same thing.
 
-instead? Then it doesn't care about zero vs negative error, and
-wouldn't get stuck in an endless loop if it got zero.
+https://lkml.org/lkml/2018/3/26/638
 
-             Linus
+Andrew said he'd wait until after -rc1 is out.
+
+btw: checkpatch can do this substitution automatically
+
+cheers, Joe
