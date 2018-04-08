@@ -1,55 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A76AD6B0005
-	for <linux-mm@kvack.org>; Sun,  8 Apr 2018 12:41:07 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id s21so3730707pfm.15
-        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 09:41:07 -0700 (PDT)
-Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com. [68.232.143.124])
-        by mx.google.com with ESMTPS id y70si10028374pgd.777.2018.04.08.09.41.04
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C3856B0003
+	for <linux-mm@kvack.org>; Sun,  8 Apr 2018 14:53:21 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id p131-v6so3813118oig.10
+        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 11:53:21 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y2-v6sor6175245oty.13.2018.04.08.11.53.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Apr 2018 09:41:04 -0700 (PDT)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
-Subject: Re: Block layer use of __GFP flags
-Date: Sun, 8 Apr 2018 16:40:59 +0000
-Message-ID: <aea2f6bcae3fe2b88e020d6a258706af1ce1a58b.camel@wdc.com>
-References: <20180408065425.GD16007@bombadil.infradead.org>
-In-Reply-To: <20180408065425.GD16007@bombadil.infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <B33750FFC46826469D05ADEB5AE796DF@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Sun, 08 Apr 2018 11:53:20 -0700 (PDT)
+Date: Sun, 8 Apr 2018 11:53:17 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Free swap negative?
+In-Reply-To: <4a181da3-8ce4-dc3c-60de-e6ad6f2a296a@redhat.com>
+Message-ID: <alpine.LSU.2.11.1804081132360.1977@eggly.anvils>
+References: <4a181da3-8ce4-dc3c-60de-e6ad6f2a296a@redhat.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "hare@suse.com" <hare@suse.com>, "martin@lichtvoll.de" <martin@lichtvoll.de>, "oleksandr@natalenko.name" <oleksandr@natalenko.name>, "willy@infradead.org" <willy@infradead.org>, "axboe@kernel.dk" <axboe@kernel.dk>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Linux-MM <linux-mm@kvack.org>
 
-T24gU2F0LCAyMDE4LTA0LTA3IGF0IDIzOjU0IC0wNzAwLCBNYXR0aGV3IFdpbGNveCB3cm90ZToN
-Cj4gUGxlYXNlIGV4cGxhaW46DQo+IA0KPiBjb21taXQgNmExNTY3NGQxZTkwOTE3ZjE3MjNhODE0
-ZTJlOGM5NDkwMDA0NDBmNw0KPiBBdXRob3I6IEJhcnQgVmFuIEFzc2NoZSA8YmFydC52YW5hc3Nj
-aGVAd2RjLmNvbT4NCj4gRGF0ZTogICBUaHUgTm92IDkgMTA6NDk6NTQgMjAxNyAtMDgwMA0KPiAN
-Cj4gICAgIGJsb2NrOiBJbnRyb2R1Y2UgYmxrX2dldF9yZXF1ZXN0X2ZsYWdzKCkNCj4gICAgIA0K
-PiAgICAgQSBzaWRlIGVmZmVjdCBvZiB0aGlzIHBhdGNoIGlzIHRoYXQgdGhlIEdGUCBtYXNrIHRo
-YXQgaXMgcGFzc2VkIHRvDQo+ICAgICBzZXZlcmFsIGFsbG9jYXRpb24gZnVuY3Rpb25zIGluIHRo
-ZSBsZWdhY3kgYmxvY2sgbGF5ZXIgaXMgY2hhbmdlZA0KPiAgICAgZnJvbSBHRlBfS0VSTkVMIGlu
-dG8gX19HRlBfRElSRUNUX1JFQ0xBSU0uDQo+IA0KPiBXaHkgd2FzIHRoaXMgdGhvdWdodCB0byBi
-ZSBhIGdvb2QgaWRlYT8gIEkgdGhpbmsgZ2ZwLmggaXMgcHJldHR5IGNsZWFyOg0KPiANCj4gICog
-VXNlZnVsIEdGUCBmbGFnIGNvbWJpbmF0aW9ucyB0aGF0IGFyZSBjb21tb25seSB1c2VkLiBJdCBp
-cyByZWNvbW1lbmRlZA0KPiAgKiB0aGF0IHN1YnN5c3RlbXMgc3RhcnQgd2l0aCBvbmUgb2YgdGhl
-c2UgY29tYmluYXRpb25zIGFuZCB0aGVuIHNldC9jbGVhcg0KPiAgKiBfX0dGUF9GT08gZmxhZ3Mg
-YXMgbmVjZXNzYXJ5Lg0KPiANCj4gSW5zdGVhZCwgdGhlIGJsb2NrIGxheWVyIG5vdyB0aHJvd3Mg
-YXdheSBhbGwgYnV0IG9uZSBiaXQgb2YgdGhlDQo+IGluZm9ybWF0aW9uIGJlaW5nIHBhc3NlZCBp
-biBieSB0aGUgY2FsbGVycywgYW5kIGFsbCBpdCB0ZWxscyB0aGUgYWxsb2NhdG9yDQo+IGlzIHdo
-ZXRoZXIgb3Igbm90IGl0IGNhbiBzdGFydCBkb2luZyBkaXJlY3QgcmVjbGFpbS4gSSBjYW4gc2Vl
-IHRoYXQNCj4geW91IG1heSB3ZWxsIGJlIGluIGEgc2l0dWF0aW9uIHdoZXJlIHlvdSBkb24ndCB3
-YW50IHRvIHN0YXJ0IG1vcmUgSS9PLA0KPiBidXQgeW91ciBjYWxsZXIga25vd3MgdGhhdCEgIFdo
-eSBtYWtlIHRoZSBhbGxvY2F0b3Igd29yayBoYXJkZXIgdGhhbg0KPiBpdCBoYXMgdG8/ICBJbiBw
-YXJ0aWN1bGFyLCB3aHkgaXNuJ3QgdGhlIHBhZ2UgYWxsb2NhdG9yIGFsbG93ZWQgdG8gd2FrZQ0K
-PiB1cCBrc3dhcGQgdG8gZG8gcmVjbGFpbSBpbiBub24tYXRvbWljIGNvbnRleHQsIGJ1dCBpcyB3
-aGVuIHRoZSBjYWxsZXINCj4gaXMgaW4gYXRvbWljIGNvbnRleHQ/DQoNCl9fR0ZQX0tTV0FQRF9S
-RUNMQUlNIHdhc24ndCBzdHJpcHBlZCBvZmYgb24gcHVycG9zZSBmb3Igbm9uLWF0b21pYw0KYWxs
-b2NhdGlvbnMuIFRoYXQgd2FzIGFuIG92ZXJzaWdodC4gDQoNCkRvIHlvdSBwZXJoYXBzIHdhbnQg
-bWUgdG8gcHJlcGFyZSBhIHBhdGNoIHRoYXQgbWFrZXMgYmxrX2dldF9yZXF1ZXN0KCkgYWdhaW4N
-CnJlc3BlY3QgdGhlIGZ1bGwgZ2ZwIG1hc2sgcGFzc2VkIGFzIHRoaXJkIGFyZ3VtZW50IHRvIGJs
-a19nZXRfcmVxdWVzdCgpPw0KDQpCYXJ0Lg0KDQoNCg0K
+On Tue, 27 Mar 2018, Laura Abbott wrote:
+
+> Hi,
+> 
+> Fedora got a bug report of an OOM which listed a negative number of swap
+> pages on 4.16-rc4
+> 
+> [ 2201.781891] localhost-live kernel: Free swap  = -245804kB
+> [ 2201.781892] localhost-live kernel: Total swap = 0kB
+> [ 2201.781894] localhost-live kernel: 458615 pages RAM
+> 
+> The setup itself was unusual, virt with 1792M RAM + 2G swap.
+> This apparently used to work but the test case was installation
+> media which is a bit painful to bisect. Full oom output is below:
+> 
+>  anaconda invoked oom-killer: gfp_mask=0x14200ca(GFP_HIGHUSER_MOVABLE),
+> nodemask=(null), order=0, oom_score_adj=0
+>  anaconda cpuset=/ mems_allowed=0
+>  CPU: 1 PID: 4928 Comm: anaconda Not tainted 4.16.0-0.rc4.git0.1.fc28.x86_64
+> #1
+>  Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-2.fc27
+> 04/01/2014
+>  Call Trace:
+>   dump_stack+0x5c/0x85
+>   dump_header+0x6e/0x275
+>   oom_kill_process.cold.28+0xb/0x3c9
+>   oom_badness+0xe1/0x160
+>   ? out_of_memory+0x1ca/0x4c0
+>   ? __alloc_pages_slowpath+0xca5/0xd80
+>   ? __alloc_pages_nodemask+0x28e/0x2b0
+>   ? alloc_pages_vma+0x74/0x1e0
+>   ? __read_swap_cache_async+0x14c/0x220
+>   ? read_swap_cache_async+0x28/0x60
+>   ? try_to_unuse+0x135/0x760
+>   ? swapcache_free_entries+0x11d/0x180
+>   ? drain_slots_cache_cpu.constprop.1+0x8a/0xd0
+>   ? SyS_swapoff+0x1d6/0x6b0
+>   ? do_syscall_64+0x74/0x180
+>   ? entry_SYSCALL_64_after_hwframe+0x3d/0xa2
+>  Mem-Info:
+>  active_anon:98024 inactive_anon:167006 isolated_anon:0
+>             active_file:138 inactive_file:226 isolated_file:0
+>             unevictable:118208 dirty:0 writeback:0 unstable:0
+>             slab_reclaimable:7506 slab_unreclaimable:18839
+>             mapped:1889 shmem:2744 pagetables:10605 bounce:0
+>             free:12856 free_pcp:235 free_cma:0
+>  Node 0 active_anon:392096kB inactive_anon:668024kB active_file:552kB
+> inactive_file:904kB unevictable:472832kB isolated(anon):0kB
+> isolated(file):0kB mapped:7556kB dirty:0kB writeback:0kB shmem:10976kB
+> shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 0kB writeback_tmp:0kB
+> unstable:0kB all_unreclaimable? no
+>  Node 0 DMA free:7088kB min:412kB low:512kB high:612kB active_anon:2428kB
+> inactive_anon:3120kB active_file:0kB inactive_file:0kB unevictable:2428kB
+> writepending:0kB present:15992kB managed:15908kB mlocked:0kB kernel_stack:0kB
+> pagetables:40kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+>  lowmem_reserve[]: 0 1670 1670 1670 1670
+>  Node 0 DMA32 free:44336kB min:44640kB low:55800kB high:66960kB
+> active_anon:389668kB inactive_anon:664904kB active_file:552kB
+> inactive_file:984kB unevictable:470404kB writepending:0kB present:1818468kB
+> managed:1766292kB mlocked:16kB kernel_stack:7840kB pagetables:42380kB
+> bounce:0kB free_pcp:940kB local_pcp:736kB free_cma:0kB
+>  lowmem_reserve[]: 0 0 0 0 0
+>  Node 0 DMA: 6*4kB (UME) 19*8kB (UME) 12*16kB (UE) 4*32kB (UE) 29*64kB (ME)
+> 11*128kB (UME) 3*256kB (ME) 3*512kB (UME) 1*1024kB (M) 0*2048kB 0*4096kB =
+> 7088kB
+>  Node 0 DMA32: 986*4kB (UMEH) 815*8kB (UMEH) 359*16kB (UMEH) 113*32kB (UMEH)
+> 229*64kB (UMEH) 51*128kB (UMEH) 7*256kB (UMEH) 3*512kB (ME) 0*1024kB 0*2048kB
+> 0*4096kB = 44336kB
+>  Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0
+> hugepages_size=2048kB
+>  122508 total pagecache pages
+>  1176 pages in swap cache
+>  Swap cache stats: add 222119, delete 220943, find 18522/25378
+>  Free swap  = -245804kB
+>  Total swap = 0kB
+>  458615 pages RAM
+>  0 pages HighMem/MovableOnly
+>  13065 pages reserved
+>  0 pages cma reserved
+>  0 pages hwpoisoned
+> 
+> Any suggestions?
+
+Negative "Free swap" is entirely normal in such output, while swapoff
+is in progress: and the stale address "? try_to_unuse+0x135/0x760" in
+the backtrace implies that swapoff is in progress.
+
+swapoff subtracts total size first, then as swap is freed the number
+goes back up to 0.  /proc/meminfo hides that negativity as 0, but in
+a low-level message like this, we prefer to see the unmassaged info.
+
+Mind you, swapoff uses set_current_oom_origin() to volunteer to be
+the first thing killed when OOM comes into play.  Perhaps it's already
+marked to be killed, but too busy in its loop looking for swap entries,
+to have noticed the kill yet.
+
+Hugh
