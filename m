@@ -1,47 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E23686B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 11:15:45 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m190so296725pgm.4
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 08:15:45 -0700 (PDT)
-Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com. [216.71.153.144])
-        by mx.google.com with ESMTPS id g12-v6si516447plo.664.2018.04.09.08.15.44
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 81B1D6B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 11:18:07 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v19so3563696pfn.7
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 08:18:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 33-v6si509169pls.491.2018.04.09.08.18.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 08:15:45 -0700 (PDT)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
-Subject: Re: Block layer use of __GFP flags
-Date: Mon, 9 Apr 2018 15:15:42 +0000
-Message-ID: <2d4016a71342f75009b8b6c967ee513702d677da.camel@wdc.com>
-References: <20180408065425.GD16007@bombadil.infradead.org>
-	 <aea2f6bcae3fe2b88e020d6a258706af1ce1a58b.camel@wdc.com>
-	 <20180408190825.GC5704@bombadil.infradead.org>
-	 <63d16891d115de25ac2776088571d7e90dab867a.camel@wdc.com>
-	 <20180409085349.31b10550@pentland.suse.de>
-	 <20180409082650.GA869@infradead.org>
-In-Reply-To: <20180409082650.GA869@infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <76637FC96B84AF45BDFA381669596079@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Apr 2018 08:18:05 -0700 (PDT)
+Date: Mon, 9 Apr 2018 17:18:01 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: filemap: provide dummy filemap_page_mkwrite() for
+ NOMMU
+Message-ID: <20180409151801.zqcevugkrixw3di3@quack2.suse.cz>
+References: <20180409105555.2439976-1-arnd@arndb.de>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180409105555.2439976-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "hch@infradead.org" <hch@infradead.org>, "hare@suse.de" <hare@suse.de>
-Cc: "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "martin@lichtvoll.de" <martin@lichtvoll.de>, "oleksandr@natalenko.name" <oleksandr@natalenko.name>, "willy@infradead.org" <willy@infradead.org>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Jeff Layton <jlayton@redhat.com>, Martin Brandenburg <martin@omnibond.com>, Mike Marshall <hubcap@omnibond.com>, Mel Gorman <mgorman@techsingularity.net>, Al Viro <viro@zeniv.linux.org.uk>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-T24gTW9uLCAyMDE4LTA0LTA5IGF0IDAxOjI2IC0wNzAwLCBDaHJpc3RvcGggSGVsbHdpZyB3cm90
-ZToNCj4gT24gTW9uLCBBcHIgMDksIDIwMTggYXQgMDg6NTM6NDlBTSArMDIwMCwgSGFubmVzIFJl
-aW5lY2tlIHdyb3RlOg0KPiA+IFdoeSBkb24ndCB5b3UgZm9sZCB0aGUgJ2ZsYWdzJyBhcmd1bWVu
-dCBpbnRvIHRoZSAnZ2ZwX2ZsYWdzJywgYW5kIGRyb3ANCj4gPiB0aGUgJ2ZsYWdzJyBhcmd1bWVu
-dCBjb21wbGV0ZWx5Pw0KPiA+IExvb2tzIGEgYml0IHBvaW50bGVzcyB0byBtZSwgaGF2aW5nIHR3
-byBhcmd1bWVudHMgZGVub3RpbmcgYmFzaWNhbGx5DQo+ID4gdGhlIHNhbWUgLi4uDQo+IA0KPiBX
-cm9uZyB3YXkgYXJvdW5kLiAgZ2ZwX2ZsYWdzIGRvZXNuJ3QgcmVhbGx5IG1ha2UgbXVjaCBzZW5z
-ZSBpbiB0aGlzDQo+IGNvbnRleHQuICBXZSBqdXN0IHdhbnQgdGhlIHBsYWluIGZsYWdzIGFyZ3Vt
-ZW50LCBpbmNsdWRpbmcgYSBub24tYmxvY2sNCj4gZmxhZyBmb3IgaXQuDQoNCkhlbGxvIENocmlz
-dG9waCBhbmQgSGFubmVzLA0KDQpUb2RheSBzcGFyc2UgdmVyaWZpZXMgd2hldGhlciBvciBub3Qg
-Z2ZwX3QgYW5kIGJsa19tcV9yZXFfdCBmbGFncyBhcmUgbm90DQptaXhlZCB3aXRoIG90aGVyIGZs
-YWdzLiBDb21iaW5pbmcgdGhlc2UgdHdvIHR5cGVzIG9mIGZsYWdzIGludG8gYSBzaW5nbGUNCmJp
-dCBwYXR0ZXJuIHdvdWxkIHJlcXVpcmUgc29tZSB1Z2x5IGNhc3RzIHRvIGF2b2lkIHRoYXQgc3Bh
-cnNlIGNvbXBsYWlucw0KYWJvdXQgY29tYmluaW5nIHRoZXNlIGZsYWdzIGludG8gYSBzaW5nbGUg
-Yml0IHBhdHRlcm4uDQoNCkJhcnQuDQoNCg0KDQo=
+On Mon 09-04-18 12:55:42, Arnd Bergmann wrote:
+> Building orangefs on MMU-less machines now results in a link error because
+> of the newly introduced use of the filemap_page_mkwrite() function:
+> 
+> ERROR: "filemap_page_mkwrite" [fs/orangefs/orangefs.ko] undefined!
+> 
+> This adds a dummy version for it, similar to the existing
+> generic_file_mmap and generic_file_readonly_mmap stubs in the same file,
+> to avoid the link error without adding #ifdefs in each file system that
+> uses these.
+> 
+> Cc: Martin Brandenburg <martin@omnibond.com>
+> Cc: Mike Marshall <hubcap@omnibond.com>
+> Fixes: a5135eeab2e5 ("orangefs: implement vm_ops->fault")
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+
+OK, makes sense. You can add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
+> ---
+>  mm/filemap.c | 6 +++++-
+>  1 file changed, 5 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index ab77e19ab09c..9276bdb2343c 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -2719,7 +2719,6 @@ int filemap_page_mkwrite(struct vm_fault *vmf)
+>  	sb_end_pagefault(inode->i_sb);
+>  	return ret;
+>  }
+> -EXPORT_SYMBOL(filemap_page_mkwrite);
+>  
+>  const struct vm_operations_struct generic_file_vm_ops = {
+>  	.fault		= filemap_fault,
+> @@ -2750,6 +2749,10 @@ int generic_file_readonly_mmap(struct file *file, struct vm_area_struct *vma)
+>  	return generic_file_mmap(file, vma);
+>  }
+>  #else
+> +int filemap_page_mkwrite(struct vm_fault *vmf)
+> +{
+> +	return -ENOSYS;
+> +}
+>  int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
+>  {
+>  	return -ENOSYS;
+> @@ -2760,6 +2763,7 @@ int generic_file_readonly_mmap(struct file * file, struct vm_area_struct * vma)
+>  }
+>  #endif /* CONFIG_MMU */
+>  
+> +EXPORT_SYMBOL(filemap_page_mkwrite);
+>  EXPORT_SYMBOL(generic_file_mmap);
+>  EXPORT_SYMBOL(generic_file_readonly_mmap);
+>  
+> -- 
+> 2.9.0
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
