@@ -1,93 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A1D876B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 14:50:20 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id z13so5426143pfe.21
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 11:50:20 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n11-v6sor424830pls.89.2018.04.09.11.50.19
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DE346B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 14:59:48 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id t4-v6so7538027plo.9
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 11:59:48 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0058.outbound.protection.outlook.com. [104.47.40.58])
+        by mx.google.com with ESMTPS id k75si692452pfk.4.2018.04.09.11.59.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Apr 2018 11:50:19 -0700 (PDT)
-Date: Mon, 9 Apr 2018 11:50:16 -0700
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: [PATCH] ipc/shm: fix use-after-free of shm file via
- remap_file_pages()
-Message-ID: <20180409185016.GA203367@gmail.com>
-References: <94eb2c06f65e5e2467055d036889@google.com>
- <20180409043039.28915-1-ebiggers3@gmail.com>
- <20180409094813.bsjc3u2hnsrdyiuk@black.fi.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 09 Apr 2018 11:59:47 -0700 (PDT)
+Subject: Re: [PATCH 00/11] [v5] Use global pages with PTI
+References: <20180406205501.24A1A4E7@viggo.jf.intel.com>
+ <c96373d0-c16a-4463-147c-8624ad90af61@amd.com>
+ <b9802f89-93b3-b535-742c-f84e9f5be832@linux.intel.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <1b45ffd1-99bb-4ac1-fb65-0de3e42c1c0a@amd.com>
+Date: Mon, 9 Apr 2018 13:59:33 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180409094813.bsjc3u2hnsrdyiuk@black.fi.intel.com>
+In-Reply-To: <b9802f89-93b3-b535-742c-f84e9f5be832@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dave@stgolabs.net>, Manfred Spraul <manfred@colorfullife.com>, "Eric W . Biederman" <ebiederm@xmission.com>, syzkaller-bugs@googlegroups.com
+To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, aarcange@redhat.com, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org, namit@vmware.com
 
-On Mon, Apr 09, 2018 at 12:48:14PM +0300, Kirill A. Shutemov wrote:
-> On Mon, Apr 09, 2018 at 04:30:39AM +0000, Eric Biggers wrote:
-> > diff --git a/ipc/shm.c b/ipc/shm.c
-> > index acefe44fefefa..c80c5691a9970 100644
-> > --- a/ipc/shm.c
-> > +++ b/ipc/shm.c
-> > @@ -225,6 +225,12 @@ static int __shm_open(struct vm_area_struct *vma)
-> >  	if (IS_ERR(shp))
-> >  		return PTR_ERR(shp);
-> >  
-> > +	if (shp->shm_file != sfd->file) {
-> > +		/* ID was reused */
-> > +		shm_unlock(shp);
-> > +		return -EINVAL;
-> > +	}
-> > +
-> >  	shp->shm_atim = ktime_get_real_seconds();
-> >  	ipc_update_pid(&shp->shm_lprid, task_tgid(current));
-> >  	shp->shm_nattch++;
-> > @@ -455,8 +461,9 @@ static int shm_mmap(struct file *file, struct vm_area_struct *vma)
-> >  	int ret;
-> >  
-> >  	/*
-> > -	 * In case of remap_file_pages() emulation, the file can represent
-> > -	 * removed IPC ID: propogate shm_lock() error to caller.
-> > +	 * In case of remap_file_pages() emulation, the file can represent an
-> > +	 * IPC ID that was removed, and possibly even reused by another shm
-> > +	 * segment already.  Propagate this case as an error to caller.
-> >  	 */
-> >  	ret = __shm_open(vma);
-> >  	if (ret)
-> > @@ -480,6 +487,7 @@ static int shm_release(struct inode *ino, struct file *file)
-> >  	struct shm_file_data *sfd = shm_file_data(file);
-> >  
-> >  	put_ipc_ns(sfd->ns);
-> > +	fput(sfd->file);
-> >  	shm_file_data(file) = NULL;
-> >  	kfree(sfd);
-> >  	return 0;
-> > @@ -1432,7 +1440,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
-> >  	file->f_mapping = shp->shm_file->f_mapping;
-> >  	sfd->id = shp->shm_perm.id;
-> >  	sfd->ns = get_ipc_ns(ns);
-> > -	sfd->file = shp->shm_file;
-> > +	sfd->file = get_file(shp->shm_file);
-> >  	sfd->vm_ops = NULL;
-> >  
-> >  	err = security_mmap_file(file, prot, flags);
+On 4/9/2018 1:17 PM, Dave Hansen wrote:
+> On 04/09/2018 11:04 AM, Tom Lendacky wrote:
+>> On 4/6/2018 3:55 PM, Dave Hansen wrote:
+>>> Changes from v4
+>>>  * Fix compile error reported by Tom Lendacky
+>> This built with CONFIG_RANDOMIZE_BASE=y, but failed to boot successfully.
+>> I think you're missing the initialization of __default_kernel_pte_mask in
+>> kaslr.c.
 > 
-> Hm. Why do we need sfd->file refcounting now? It's not obvious to me.
+> This should be simple to fix (just add a -1 instead of 0), but let me
+> double-check and actually boot the fix.
+
+Yup, added an "= ~0" and everything is good.
+
+Thanks,
+Tom
+
 > 
-> Looks like it's either a separate bug or an unneeded change.
-> 
-
-It's necessary because if we don't hold a reference to sfd->file, then it can be
-a stale pointer when we compare it in __shm_open().  In particular, if the new
-struct file happened to be allocated at the same address as the old one, then
-'sfd->file == shp->shm_file' so the mmap would be allowed.  But, it will be a
-different shm segment than was intended.  The caller may not even have
-permissions to map it normally, yet it would be done anyway.
-
-In the end it's just broken to have a pointer to something that can be freed out
-from under you...
-
-- Eric
