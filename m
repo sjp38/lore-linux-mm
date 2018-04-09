@@ -1,94 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 05C1D6B0003
-	for <linux-mm@kvack.org>; Sun,  8 Apr 2018 21:58:27 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id u11-v6so4019155pls.22
-        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 18:58:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 91-v6sor6086016plh.58.2018.04.08.18.58.25
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B88426B0006
+	for <linux-mm@kvack.org>; Sun,  8 Apr 2018 22:07:48 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id d205so5103481qkg.14
+        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 19:07:48 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id z19si17904339qtm.463.2018.04.08.19.07.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 08 Apr 2018 18:58:25 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm: workingset: fix NULL ptr dereference
-Date: Mon,  9 Apr 2018 10:58:15 +0900
-Message-Id: <20180409015815.235943-1-minchan@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 08 Apr 2018 19:07:47 -0700 (PDT)
+Date: Mon, 9 Apr 2018 10:07:41 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH v3 4/4] mm/sparse: Optimize memmap allocation during
+ sparse_init()
+Message-ID: <20180409020741.GA25724@localhost.localdomain>
+References: <20180228032657.32385-1-bhe@redhat.com>
+ <20180228032657.32385-5-bhe@redhat.com>
+ <5dd3942a-cf66-f749-b1c6-217b0c3c94dc@intel.com>
+ <20180408082038.GB19345@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180408082038.GB19345@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-Recently, I got a report like below.
+On 04/08/18 at 04:20pm, Baoquan He wrote:
+> On 04/06/18 at 07:50am, Dave Hansen wrote:
+> > I'm having a really hard time tying all the pieces back together.  Let
+> > me give it a shot and you can tell me where I go wrong.
+> > 
+> > On 02/27/2018 07:26 PM, Baoquan He wrote:
+> > > In sparse_init(), two temporary pointer arrays, usemap_map and map_map
+> > > are allocated with the size of NR_MEM_SECTIONS.
+> > 
+> > In sparse_init(), two temporary pointer arrays, usemap_map and map_map
+> > are allocated to hold the maps for every possible memory section
+> > (NR_MEM_SECTIONS).  However, we obviously only need the array sized for
+> > nr_present_sections (introduced in patch 1).
+> 
+> Yes, correct.
+> 
+> > 
+> > The reason this is a problem is that, with 5-level paging,
+> > NR_MEM_SECTIONS (8M->512M) went up dramatically and these temporary
+> > arrays can eat all of memory, like on kdump kernels.
+> 
+> With 5-level paging enabled, MAX_PHYSMEM_BITS changed from 46 to
+> 52. You can see NR_MEM_SECTIONS becomes 64 times of the old value. So
+> the two temporary pointer arrays eat more memory, 8M -> 8M*64 = 512M.
+> 
+> # define MAX_PHYSMEM_BITS       (pgtable_l5_enabled ? 52 : 46)
+> 
+> > 
+> > This patch does two things: it makes sure to give usemap_map/mem_map a
+> > less gluttonous size on small systems, and it changes the map allocation
+> > and handling to handle the now more compact, less sparse arrays.
+> 
+> Yes, because 99.9% of systems do not have PB level of memory, not even TB.
+> Any place of memory allocatin with the size of NR_MEM_SECTIONS should be
+> avoided.
+> 
+> > 
+> > ---
+> > 
+> > The code looks fine to me.  It's a bit of a shame that there's no
+> > verification to ensure that idx_present never goes beyond the shiny new
+> > nr_present_sections. 
+> 
+> This is a good point. Do you think it's OK to replace (section_nr <
+> NR_MEM_SECTIONS) with (section_nr < nr_present_sections) in below
+> for_each macro? This for_each_present_section_nr() is only used
+> during sparse_init() execution.
 
-[ 7858.792946] [<ffffff80086f4de0>] __list_del_entry+0x30/0xd0
-[ 7858.792951] [<ffffff8008362018>] list_lru_del+0xac/0x1ac
-[ 7858.792957] [<ffffff800830f04c>] page_cache_tree_insert+0xd8/0x110
-[ 7858.792962] [<ffffff8008310188>] __add_to_page_cache_locked+0xf8/0x4e0
-[ 7858.792967] [<ffffff800830ff34>] add_to_page_cache_lru+0x50/0x1ac
-[ 7858.792972] [<ffffff800830fdd0>] pagecache_get_page+0x468/0x57c
-[ 7858.792979] [<ffffff80085d081c>] __get_node_page+0x84/0x764
-[ 7858.792986] [<ffffff800859cd94>] f2fs_iget+0x264/0xdc8
-[ 7858.792991] [<ffffff800859ee00>] f2fs_lookup+0x3b4/0x660
-[ 7858.792998] [<ffffff80083d2540>] lookup_slow+0x1e4/0x348
-[ 7858.793003] [<ffffff80083d0eb8>] walk_component+0x21c/0x320
-[ 7858.793008] [<ffffff80083d0010>] path_lookupat+0x90/0x1bc
-[ 7858.793013] [<ffffff80083cfe6c>] filename_lookup+0x8c/0x1a0
-[ 7858.793018] [<ffffff80083c52d0>] vfs_fstatat+0x84/0x10c
-[ 7858.793023] [<ffffff80083c5b00>] SyS_newfstatat+0x28/0x64
+Oops, I was wrong. Here nr_present_sections is the number of present
+sections, while section_nr is index of all sections. If decide to do,
+can add check like below?
 
-v4.9 kenrel already has the d3798ae8c6f3,("mm: filemap: don't
-plant shadow entries without radix tree node") so I thought
-it should be okay. When I was googling, I found others report
-such problem and I think current kernel still has the problem.
+	if (idx_present >= nr_present_sections) {
+		pr_err("idx_present goes beyond nr_present_sections, xxxx \n");
+		break;
+	}
 
-https://bugzilla.redhat.com/show_bug.cgi?id=1431567
-https://bugzilla.redhat.com/show_bug.cgi?id=1420335
-
-It assumes shadow entry of radix tree relies on the init state
-that node->private_list allocated should be list_empty state.
-Currently, it's initailized in SLAB constructor which means
-node of radix tree would be initialized only when *slub allocates
-new page*, not *new object*. So, if some FS or subsystem pass
-gfp_mask to __GFP_ZERO, slub allocator will do memset blindly.
-That means allocated node can have !list_empty(node->private_list).
-It ends up calling NULL deference at workingset_update_node by
-failing list_empty check.
-
-This patch should fix it.
-
-Fixes: 449dd6984d0e ("mm: keep page cache radix tree nodes in check")
-Reported-by: Chris Fries <cfries@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Jan Kara <jack@suse.cz>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
-If it is reviewed and proved with testing, I will resend the patch to
-Ccing stable@vger.kernel.org.
-
-Thanks.
-
- lib/radix-tree.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 8e00138d593f..afcbdb6c495f 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -428,6 +428,7 @@ radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
- 		ret->exceptional = exceptional;
- 		ret->parent = parent;
- 		ret->root = root;
-+		INIT_LIST_HEAD(&ret->private_list);
- 	}
- 	return ret;
- }
-@@ -2234,7 +2235,6 @@ radix_tree_node_ctor(void *arg)
- 	struct radix_tree_node *node = arg;
- 
- 	memset(node, 0, sizeof(*node));
--	INIT_LIST_HEAD(&node->private_list);
- }
- 
- static __init unsigned long __maxindex(unsigned int height)
--- 
-2.17.0.484.g0c8726318c-goog
+> 
+> #define for_each_present_section_nr(start, section_nr)          \
+>         for (section_nr = next_present_section_nr(start-1);     \
+>              ((section_nr >= 0) &&                              \
+>               (section_nr < NR_MEM_SECTIONS) &&                 \                                                                                 
+>               (section_nr <= __highest_present_section_nr));    \
+>              section_nr = next_present_section_nr(section_nr))
+> 
+> > 
+> > 
+> > > @@ -583,6 +592,7 @@ void __init sparse_init(void)
+> > >  	unsigned long *usemap;
+> > >  	unsigned long **usemap_map;
+> > >  	int size;
+> > > +	int idx_present = 0;
+> > 
+> > I wonder whether idx_present is a good name.  Isn't it the number of
+> > consumed mem_map[]s or usemaps?
+> 
+> Yeah, in sparse_init(), it's the index of present memory sections, and
+> also the number of consumed mem_map[]s or usemaps. And I remember you
+> suggested nr_consumed_maps instead. seems nr_consumed_maps is a little
+> long to index array to make code line longer than 80 chars. How about
+> name it idx_present in sparse_init(), nr_consumed_maps in
+> alloc_usemap_and_memmap(), the maps allocation function? I am also fine
+> to use nr_consumed_maps for all of them.
+> 
+> > 
+> > > 
+> > >  		if (!map) {
+> > >  			ms->section_mem_map = 0;
+> > > +			idx_present++;
+> > >  			continue;
+> > >  		}
+> > >  
+> > 
+> > 
+> > This hunk seems logically odd to me.  I would expect a non-used section
+> > to *not* consume an entry from the temporary array.  Why does it?  The
+> > error and success paths seem to do the same thing.
+> 
+> Yes, this place is the hardest to understand. The temorary arrays are
+> allocated beforehand with the size of 'nr_present_sections'. The error
+> paths you mentioned is caused by allocation failure of mem_map or
+> map_map, but whatever it's error or success paths, the sections must be
+> marked as present in memory_present(). Error or success paths happened
+> in alloc_usemap_and_memmap(), while checking if it's erorr or success
+> paths happened in the last for_each_present_section_nr() of
+> sparse_init(), and clear the ms->section_mem_map if it goes along error
+> paths. This is the key point of this new allocation way.
+> 
+> Thanks
+> Baoquan
