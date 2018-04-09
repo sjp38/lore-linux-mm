@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 37AA46B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 09:17:38 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id g12so5863959qtj.22
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 06:17:38 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DC996B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 09:29:34 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id m3so5956070qtb.14
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 06:29:34 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id j13si368170qtf.307.2018.04.09.06.17.36
+        by mx.google.com with ESMTPS id l11si400566qta.331.2018.04.09.06.29.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 06:17:37 -0700 (PDT)
-Date: Mon, 9 Apr 2018 15:17:31 +0200
+        Mon, 09 Apr 2018 06:29:33 -0700 (PDT)
+Date: Mon, 9 Apr 2018 15:29:28 +0200
 From: Oleg Nesterov <oleg@redhat.com>
 Subject: Re: [PATCH v2 7/9] trace_uprobe/sdt: Fix multiple update of same
  reference counter
-Message-ID: <20180409131730.GA25631@redhat.com>
+Message-ID: <20180409132928.GA25722@redhat.com>
 References: <20180404083110.18647-1-ravi.bangoria@linux.vnet.ibm.com>
  <20180404083110.18647-8-ravi.bangoria@linux.vnet.ibm.com>
 MIME-Version: 1.0
@@ -46,9 +46,10 @@ On 04/04, Ravi Bangoria wrote:
 > +	__mmu_notifier_register(mn, mm);
 > +}
 
-I didn't read this version yet, just one question...
+and what if __mmu_notifier_register() fails simply because signal_pending() == T?
+see mm_take_all_locks().
 
-So now it depends on CONFIG_MMU_NOTIFIER, yes? I do not see any changes in Kconfig
-files, this doesn't look right...
+at first glance this all look suspicious and sub-optimal, but let me repeat that
+I didn't read this version yet.
 
 Oleg.
