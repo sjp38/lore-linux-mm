@@ -1,77 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6615A6B0009
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 09:52:20 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p189so5113032pfp.1
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 06:52:20 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f4-v6si390579plt.487.2018.04.09.06.52.19
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B63296B0008
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 09:57:28 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id w2so5946319qti.8
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 06:57:28 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id j186si287056qkd.386.2018.04.09.06.57.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 09 Apr 2018 06:52:19 -0700 (PDT)
-Date: Mon, 9 Apr 2018 15:52:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
-Message-ID: <20180409135215.GH21835@dhcp22.suse.cz>
-References: <20180409015815.235943-1-minchan@kernel.org>
- <20180409024925.GA21889@bombadil.infradead.org>
- <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
- <20180409111403.GA31652@bombadil.infradead.org>
- <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
- <7706245c-2661-f28b-f7f9-8f11e1ae932b@huawei.com>
- <20180409124852.GE21835@dhcp22.suse.cz>
- <20180409134114.GA30963@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180409134114.GA30963@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Apr 2018 06:57:27 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w39DuFo2140525
+	for <linux-mm@kvack.org>; Mon, 9 Apr 2018 09:57:26 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2h88dabq26-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 09 Apr 2018 09:57:25 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 9 Apr 2018 14:57:20 +0100
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: [PATCH 0/3] move __HAVE_ARCH_PTE_SPECIAL in Kconfig
+Date: Mon,  9 Apr 2018 15:57:06 +0200
+Message-Id: <1523282229-20731-1-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Chao Yu <yuchao0@huawei.com>, Minchan Kim <minchan@kernel.org>, Jaegeuk Kim <jaegeuk@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Jerome Glisse <jglisse@redhat.com>, mhocko@kernel.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S . Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Vineet Gupta <vgupta@synopsys.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <albert@sifive.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-On Mon 09-04-18 06:41:14, Matthew Wilcox wrote:
-> On Mon, Apr 09, 2018 at 02:48:52PM +0200, Michal Hocko wrote:
-> > On Mon 09-04-18 20:25:06, Chao Yu wrote:
-> > [...]
-> > > diff --git a/fs/f2fs/inode.c b/fs/f2fs/inode.c
-> > > index c85cccc2e800..cc63f8c448f0 100644
-> > > --- a/fs/f2fs/inode.c
-> > > +++ b/fs/f2fs/inode.c
-> > > @@ -339,10 +339,10 @@ struct inode *f2fs_iget(struct super_block *sb, unsigned long ino)
-> > >  make_now:
-> > >  	if (ino == F2FS_NODE_INO(sbi)) {
-> > >  		inode->i_mapping->a_ops = &f2fs_node_aops;
-> > > -		mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
-> > > +		mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
-> > 
-> > An unrelated question. Why do you make all allocations for the mapping
-> > NOFS automatically? What kind of reclaim recursion problems are you
-> > trying to prevent?
-> 
-> It's worth noting that this is endemic in filesystems.
+The per architecture __HAVE_ARCH_PTE_SPECIAL is defined statically in the
+per architecture header files. This doesn't allow to make other
+configuration dependent on it.
 
-Yes, and I have strong suspicion that this is a mindless copy&pasting...
-Well, xfs had a good reason for it in the past - mostly to handle deep
-call stacks on complicated storage setups in the past when we used to
-trigger IO from the direct reclaim. I am not sure whether there are
-other reasons to keep the status quo except for finding somebody brave
-enough to post the patch, do all the due testing.
+This series is moving the __HAVE_ARCH_PTE_SPECIAL into the Kconfig files,
+setting it automatically when architectures was already setting it in
+header file.
 
-> $ git grep mapping_set_gfp_mask.*FS
-> drivers/block/loop.c:   mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
-> fs/btrfs/disk-io.c:     mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
-> fs/f2fs/inode.c:                mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
-> fs/f2fs/inode.c:                mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
-> fs/gfs2/glock.c:                mapping_set_gfp_mask(mapping, GFP_NOFS);
-> fs/gfs2/ops_fstype.c:   mapping_set_gfp_mask(mapping, GFP_NOFS);
-> fs/jfs/jfs_imap.c:      mapping_set_gfp_mask(ip->i_mapping, GFP_NOFS);
-> fs/jfs/super.c: mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
-> fs/nilfs2/gcinode.c:    mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
-> fs/nilfs2/page.c:       mapping_set_gfp_mask(mapping, GFP_NOFS);
-> fs/reiserfs/xattr.c:    mapping_set_gfp_mask(mapping, GFP_NOFS);
-> fs/xfs/xfs_iops.c:      mapping_set_gfp_mask(inode->i_mapping, (gfp_mask & ~(__GFP_FS)));
+There is no functional change introduced by this series.
+
+Laurent Dufour (3):
+  mm: introduce ARCH_HAS_PTE_SPECIAL
+  mm: replace __HAVE_ARCH_PTE_SPECIAL
+  mm: remove __HAVE_ARCH_PTE_SPECIAL
+
+ Documentation/features/vm/pte_special/arch-support.txt | 2 +-
+ arch/arc/Kconfig                                       | 1 +
+ arch/arc/include/asm/pgtable.h                         | 2 --
+ arch/arm/Kconfig                                       | 1 +
+ arch/arm/include/asm/pgtable-3level.h                  | 1 -
+ arch/arm64/Kconfig                                     | 1 +
+ arch/arm64/include/asm/pgtable.h                       | 2 --
+ arch/powerpc/Kconfig                                   | 1 +
+ arch/powerpc/include/asm/book3s/64/pgtable.h           | 3 ---
+ arch/powerpc/include/asm/pte-common.h                  | 3 ---
+ arch/riscv/Kconfig                                     | 1 +
+ arch/s390/Kconfig                                      | 1 +
+ arch/s390/include/asm/pgtable.h                        | 1 -
+ arch/sh/Kconfig                                        | 1 +
+ arch/sh/include/asm/pgtable.h                          | 2 --
+ arch/sparc/Kconfig                                     | 1 +
+ arch/sparc/include/asm/pgtable_64.h                    | 3 ---
+ arch/x86/Kconfig                                       | 1 +
+ arch/x86/include/asm/pgtable_types.h                   | 1 -
+ include/linux/pfn_t.h                                  | 4 ++--
+ mm/Kconfig                                             | 3 +++
+ mm/gup.c                                               | 4 ++--
+ mm/memory.c                                            | 2 +-
+ 23 files changed, 18 insertions(+), 24 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
