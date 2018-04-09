@@ -1,54 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EC996B0007
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 09:42:11 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id t123so5301180wmt.8
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 06:42:11 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id y29si583574edl.79.2018.04.09.06.42.10
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 257146B0008
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 09:51:11 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id t1-v6so7063513plb.5
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 06:51:11 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id o6si281386pgs.51.2018.04.09.06.51.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 06:42:10 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w39Df1i8071114
-	for <linux-mm@kvack.org>; Mon, 9 Apr 2018 09:42:09 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2h870bpqtf-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 09 Apr 2018 09:42:08 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
-	Mon, 9 Apr 2018 14:42:06 +0100
-Subject: Re: [PATCH v2 7/9] trace_uprobe/sdt: Fix multiple update of same
- reference counter
-References: <20180404083110.18647-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180404083110.18647-8-ravi.bangoria@linux.vnet.ibm.com>
- <20180409131730.GA25631@redhat.com>
- <90d2fc35-0d58-1cab-a474-642192c7e1ff@linux.vnet.ibm.com>
-From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Date: Mon, 9 Apr 2018 19:11:48 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 09 Apr 2018 06:51:10 -0700 (PDT)
+Date: Mon, 9 Apr 2018 06:51:04 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
+Message-ID: <20180409135104.GA23434@infradead.org>
+References: <20180409015815.235943-1-minchan@kernel.org>
+ <20180409024925.GA21889@bombadil.infradead.org>
+ <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
+ <20180409111403.GA31652@bombadil.infradead.org>
+ <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
+ <7706245c-2661-f28b-f7f9-8f11e1ae932b@huawei.com>
+ <20180409124852.GE21835@dhcp22.suse.cz>
+ <20180409134114.GA30963@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <90d2fc35-0d58-1cab-a474-642192c7e1ff@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-Message-Id: <fd24639f-fe58-0078-1c7c-68d8b9484e08@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180409134114.GA30963@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com, Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Chao Yu <yuchao0@huawei.com>, Minchan Kim <minchan@kernel.org>, Jaegeuk Kim <jaegeuk@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
 
+On Mon, Apr 09, 2018 at 06:41:14AM -0700, Matthew Wilcox wrote:
+> It's worth noting that this is endemic in filesystems.
 
-
-On 04/09/2018 07:02 PM, Ravi Bangoria wrote:
-> Hi Oleg,
->
-> On 04/09/2018 06:47 PM, Oleg Nesterov wrote:
->> I didn't read this version yet, just one question...
->>
->> So now it depends on CONFIG_MMU_NOTIFIER, yes? I do not see any changes in Kconfig
->> files, this doesn't look right...
-> Yes, you are write.
-
-s/write/right.
+For the rationale in XFS take a look at commit ad22c7a043c2cc6792820e6c5da699935933e87d
