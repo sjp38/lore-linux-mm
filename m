@@ -1,207 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B6D456B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 17:53:19 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 203so5658648pfz.19
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 14:53:19 -0700 (PDT)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id 134si783202pgd.709.2018.04.09.14.53.17
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BE696B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 19:04:17 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id y7-v6so7961157plh.7
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 16:04:17 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s9sor318301pgr.414.2018.04.09.16.04.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 14:53:17 -0700 (PDT)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [v3 PATCH] mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct
-Date: Tue, 10 Apr 2018 05:52:54 +0800
-Message-Id: <1523310774-40300-1-git-send-email-yang.shi@linux.alibaba.com>
+        (Google Transport Security);
+        Mon, 09 Apr 2018 16:04:16 -0700 (PDT)
+Date: Tue, 10 Apr 2018 08:04:09 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
+Message-ID: <20180409230409.GA214542@rodete-desktop-imager.corp.google.com>
+References: <20180409015815.235943-1-minchan@kernel.org>
+ <20180409024925.GA21889@bombadil.infradead.org>
+ <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
+ <20180409111403.GA31652@bombadil.infradead.org>
+ <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
+ <7706245c-2661-f28b-f7f9-8f11e1ae932b@huawei.com>
+ <20180409144958.GA211679@rodete-laptop-imager.corp.google.com>
+ <20180409152032.GB11756@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180409152032.GB11756@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: adobriyan@gmail.com, mhocko@kernel.org, willy@infradead.org, mguzik@redhat.com, gorcunov@gmail.com, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Chao Yu <yuchao0@huawei.com>, Jaegeuk Kim <jaegeuk@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
 
-mmap_sem is on the hot path of kernel, and it very contended, but it is
-abused too. It is used to protect arg_start|end and evn_start|end when
-reading /proc/$PID/cmdline and /proc/$PID/environ, but it doesn't make
-sense since those proc files just expect to read 4 values atomically and
-not related to VM, they could be set to arbitrary values by C/R.
+On Mon, Apr 09, 2018 at 08:20:32AM -0700, Matthew Wilcox wrote:
+> On Mon, Apr 09, 2018 at 11:49:58PM +0900, Minchan Kim wrote:
+> > On Mon, Apr 09, 2018 at 08:25:06PM +0800, Chao Yu wrote:
+> > > On 2018/4/9 19:25, Minchan Kim wrote:
+> > > > On Mon, Apr 09, 2018 at 04:14:03AM -0700, Matthew Wilcox wrote:
+> > > >> On Mon, Apr 09, 2018 at 12:09:30PM +0900, Minchan Kim wrote:
+> > > >>> Look at fs/f2fs/inode.c
+> > > >>> mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
+> > > >>>
+> > > >>> __add_to_page_cache_locked
+> > > >>>   radix_tree_maybe_preload
+> > > >>>
+> > > >>> add_to_page_cache_lru
+> > > 
+> > > No, sometimes, we need to write meta data to new allocated block address,
+> > > then we will allocate a zeroed page in inner inode's address space, and
+> > > fill partial data in it, and leave other place with zero value which means
+> > > some fields are initial status.
+> > 
+> > Thanks for the explaining.
+> > 
+> > > There are two inner inodes (meta inode and node inode) setting __GFP_ZERO,
+> > > I have just checked them, for both of them, we can avoid using __GFP_ZERO,
+> > > and do initialization by ourselves to avoid unneeded/redundant zeroing
+> > > from mm.
+> > 
+> > Yub, it would be desirable for f2fs. Please go ahead for f2fs side.
+> > However, I think current problem is orthgonal. Now, the problem is
+> > radix_tree_node allocation is bind to page cache allocation.
+> > Why does FS cannot allocate page cache with __GFP_ZERO?
+> > I agree if the concern is only performance matter as Matthew mentioned.
+> > But it is beyond that because it shouldn't do due to limitation
+> > of workingset shadow entry implementation. I think such coupling is
+> > not a good idea.
+> > 
+> > I think right approach to abstract shadow entry in radix_tree is
+> > to mask off __GFP_ZERO in radix_tree's allocation APIs.
+> 
+> I don't think this is something the radix tree should know about.
 
-And, the mmap_sem contention may cause unexpected issue like below:
+Because shadow entry implementation is hidden by radix tree implemetation.
+IOW, radix tree user cannot know how it works.
 
-INFO: task ps:14018 blocked for more than 120 seconds.
-       Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
- "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-message.
- ps              D    0 14018      1 0x00000004
-  ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
-  ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
-  00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
- Call Trace:
-  [<ffffffff817154d0>] ? __schedule+0x250/0x730
-  [<ffffffff817159e6>] schedule+0x36/0x80
-  [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
-  [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
-  [<ffffffff81717db0>] down_read+0x20/0x40
-  [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
-  [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
-  [<ffffffff81241d87>] __vfs_read+0x37/0x150
-  [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
-  [<ffffffff81242266>] vfs_read+0x96/0x130
-  [<ffffffff812437b5>] SyS_read+0x55/0xc0
-  [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+> SLAB should be checking for it (the patch I posted earlier in this
 
-Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
-for them to mitigate the abuse of mmap_sem.
+I don't think it's right approach. SLAB constructor can initialize
+some metadata for slab page populated as well as page zeroing.
+However, __GFP_ZERO means only clearing pages, not metadata.
+So it's different semantic. No need to mix out.
 
-So, introduce a new spinlock in mm_struct to protect the concurrent
-access to arg_start|end, env_start|end and others except start_brk and
-brk, which are still protected by mmap_sem to avoid concurrent access
-from do_brk().
+> thread), but the right place to filter this out is in the caller of
+> radix_tree_maybe_preload -- it's already filtering out HIGHMEM pages,
+> and should filter out GFP_ZERO too.
 
-This patch just eliminates the abuse of mmap_sem, but it can't resolve the
-above hung task warning completely since the later access_remote_vm() call
-needs acquire mmap_sem. The mmap_sem scalability issue will be solved in the
-future.
+radix_tree_[maybe]_preload is exported API, which are error-prone
+for out of modules or upcoming customers.
 
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Mateusz Guzik <mguzik@redhat.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>
----
-v2 --> v3:
-* Restored down_write in prctl syscall
-* Elaborate the limitation of this patch suggested by Michal
-* Protect those fields by the new lock except brk and start_brk per Michal's
-  suggestion
-* Based off Cyrill's non PR_SET_MM_MAP oprations deprecation patch
-  (https://lkml.org/lkml/2018/4/5/541)
+More proper place is __radix_tree_preload.
 
-v1 --> v2:
-* Use spinlock instead of rwlock per Mattew's suggestion
-* Replace down_write to down_read in prctl_set_mm (see commit log for details)
-
- fs/proc/base.c           |  8 ++++----
- include/linux/mm_types.h |  2 ++
- kernel/fork.c            |  1 +
- kernel/sys.c             | 13 ++++++++-----
- mm/init-mm.c             |  1 +
- 5 files changed, 16 insertions(+), 9 deletions(-)
-
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index d532468..aa7ce07 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -239,12 +239,12 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
- 		goto out_mmput;
- 	}
- 
--	down_read(&mm->mmap_sem);
-+	spin_lock(&mm->arg_lock);
- 	arg_start = mm->arg_start;
- 	arg_end = mm->arg_end;
- 	env_start = mm->env_start;
- 	env_end = mm->env_end;
--	up_read(&mm->mmap_sem);
-+	spin_unlock(&mm->arg_lock);
- 
- 	BUG_ON(arg_start > arg_end);
- 	BUG_ON(env_start > env_end);
-@@ -926,10 +926,10 @@ static ssize_t environ_read(struct file *file, char __user *buf,
- 	if (!mmget_not_zero(mm))
- 		goto free;
- 
--	down_read(&mm->mmap_sem);
-+	spin_lock(&mm->arg_lock);
- 	env_start = mm->env_start;
- 	env_end = mm->env_end;
--	up_read(&mm->mmap_sem);
-+	spin_unlock(&mm->arg_lock);
- 
- 	while (count > 0) {
- 		size_t this_len, max_len;
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 2161234..26ff7bf 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -413,6 +413,8 @@ struct mm_struct {
- 	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE & ~VM_STACK */
- 	unsigned long stack_vm;		/* VM_STACK */
- 	unsigned long def_flags;
-+
-+	spinlock_t arg_lock; /* protect the below fields, except brk */
- 	unsigned long start_code, end_code, start_data, end_data;
- 	unsigned long start_brk, brk, start_stack;
- 	unsigned long arg_start, arg_end, env_start, env_end;
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 242c8c9..295f903 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -900,6 +900,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
- 	mm->pinned_vm = 0;
- 	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
- 	spin_lock_init(&mm->page_table_lock);
-+	spin_lock_init(&mm->arg_lock);
- 	mm_init_cpumask(mm);
- 	mm_init_aio(mm);
- 	mm_init_owner(mm, p);
-diff --git a/kernel/sys.c b/kernel/sys.c
-index f16725e..cbac235 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -2011,8 +2011,6 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
- 			return error;
- 	}
- 
--	down_write(&mm->mmap_sem);
--
- 	/*
- 	 * We don't validate if these members are pointing to
- 	 * real present VMAs because application may have correspond
-@@ -2025,17 +2023,23 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
- 	 *    to any problem in kernel itself
- 	 */
- 
-+	/* Hold mmap_sem to avoid concurrent access by do_brk */
-+	down_write(&mm->mmap_sem);
-+	mm->start_brk	= prctl_map.start_brk;
-+	mm->brk		= prctl_map.brk;
-+	up_write(&mm->mmap_sem);
-+
-+	spin_lock(&mm->arg_lock);
- 	mm->start_code	= prctl_map.start_code;
- 	mm->end_code	= prctl_map.end_code;
- 	mm->start_data	= prctl_map.start_data;
- 	mm->end_data	= prctl_map.end_data;
--	mm->start_brk	= prctl_map.start_brk;
--	mm->brk		= prctl_map.brk;
- 	mm->start_stack	= prctl_map.start_stack;
- 	mm->arg_start	= prctl_map.arg_start;
- 	mm->arg_end	= prctl_map.arg_end;
- 	mm->env_start	= prctl_map.env_start;
- 	mm->env_end	= prctl_map.env_end;
-+	spin_unlock(&mm->arg_lock);
- 
- 	/*
- 	 * Note this update of @saved_auxv is lockless thus
-@@ -2048,7 +2052,6 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
- 	if (prctl_map.auxv_size)
- 		memcpy(mm->saved_auxv, user_auxv, sizeof(user_auxv));
- 
--	up_write(&mm->mmap_sem);
- 	return 0;
- }
- #endif /* CONFIG_CHECKPOINT_RESTORE */
-diff --git a/mm/init-mm.c b/mm/init-mm.c
-index f94d5d1..f0179c9 100644
---- a/mm/init-mm.c
-+++ b/mm/init-mm.c
-@@ -22,6 +22,7 @@ struct mm_struct init_mm = {
- 	.mm_count	= ATOMIC_INIT(1),
- 	.mmap_sem	= __RWSEM_INITIALIZER(init_mm.mmap_sem),
- 	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
-+	.arg_lock	=  __SPIN_LOCK_UNLOCKED(init_mm.arg_lock),
- 	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
- 	.user_ns	= &init_user_ns,
- 	INIT_MM_CONTEXT(init_mm)
--- 
-1.8.3.1
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index c2147682f4c3..a87a523eea8e 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -785,7 +785,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+>  	VM_BUG_ON_PAGE(!PageLocked(new), new);
+>  	VM_BUG_ON_PAGE(new->mapping, new);
+>  
+> -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+> +	error = radix_tree_preload(gfp_mask & ~(__GFP_HIGHMEM | __GFP_ZERO));
+>  	if (!error) {
+>  		struct address_space *mapping = old->mapping;
+>  		void (*freepage)(struct page *);
+> @@ -841,7 +841,8 @@ static int __add_to_page_cache_locked(struct page *page,
+>  			return error;
+>  	}
+>  
+> -	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
+> +	error = radix_tree_maybe_preload(gfp_mask &
+> +			~(__GFP_HIGHMEM | __GFP_ZERO));
+>  	if (error) {
+>  		if (!huge)
+>  			mem_cgroup_cancel_charge(page, memcg, false);
