@@ -1,89 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 474516B0003
-	for <linux-mm@kvack.org>; Sun,  8 Apr 2018 23:09:38 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 91-v6so6009375pla.18
-        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 20:09:38 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E2E7D6B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 00:31:25 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id u7-v6so6188870plr.13
+        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 21:31:25 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i20sor3792995pfj.126.2018.04.08.20.09.37
+        by mx.google.com with SMTPS id bb5-v6sor1514094plb.98.2018.04.08.21.31.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 08 Apr 2018 20:09:37 -0700 (PDT)
-Date: Mon, 9 Apr 2018 12:09:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
-Message-ID: <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
-References: <20180409015815.235943-1-minchan@kernel.org>
- <20180409024925.GA21889@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180409024925.GA21889@bombadil.infradead.org>
+        Sun, 08 Apr 2018 21:31:24 -0700 (PDT)
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: [PATCH] ipc/shm: fix use-after-free of shm file via remap_file_pages()
+Date: Sun,  8 Apr 2018 21:30:39 -0700
+Message-Id: <20180409043039.28915-1-ebiggers3@gmail.com>
+In-Reply-To: <94eb2c06f65e5e2467055d036889@google.com>
+References: <94eb2c06f65e5e2467055d036889@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Manfred Spraul <manfred@colorfullife.com>, "Eric W . Biederman" <ebiederm@xmission.com>, syzkaller-bugs@googlegroups.com
 
-On Sun, Apr 08, 2018 at 07:49:25PM -0700, Matthew Wilcox wrote:
-> On Mon, Apr 09, 2018 at 10:58:15AM +0900, Minchan Kim wrote:
-> > It assumes shadow entry of radix tree relies on the init state
-> > that node->private_list allocated should be list_empty state.
-> > Currently, it's initailized in SLAB constructor which means
-> > node of radix tree would be initialized only when *slub allocates
-> > new page*, not *new object*. So, if some FS or subsystem pass
-> > gfp_mask to __GFP_ZERO, slub allocator will do memset blindly.
-> 
-> Wait, what?  Who's declaring their radix tree with GFP_ZERO flags?
-> I don't see anyone using INIT_RADIX_TREE or RADIX_TREE or RADIX_TREE_INIT
-> with GFP_ZERO.
+From: Eric Biggers <ebiggers@google.com>
 
-Look at fs/f2fs/inode.c
-mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
+syzbot reported a use-after-free of shm_file_data(file)->file->f_op in
+shm_get_unmapped_area(), called via sys_remap_file_pages().
+Unfortunately it couldn't generate a reproducer, but I found a bug which
+I think caused it.  When remap_file_pages() is passed a full System V
+shared memory segment, the memory is first unmapped, then a new map is
+created using the ->vm_file.  Between these steps, the shm ID can be
+removed and reused for a new shm segment.  But, shm_mmap() only checks
+whether the ID is currently valid before calling the underlying file's
+->mmap(); it doesn't check whether it was reused.  Thus it can use the
+wrong underlying file, one that was already freed.
 
-__add_to_page_cache_locked
-  radix_tree_maybe_preload
+Fix this by making the "outer" shm file (the one that gets put in
+->vm_file) hold a reference to the real shm file, and by making
+__shm_open() require that the file associated with the shm ID matches
+the one associated with the "outer" file.
 
-add_to_page_cache_lru
+Commit 1ac0b6dec656 ("ipc/shm: handle removed segments gracefully in
+shm_mmap()") almost fixed this bug, but it didn't go far enough because
+it didn't consider the case where the shm ID is reused.
 
-What's the wrong with setting __GFP_ZERO with mapping->gfp_mask?
+The following program usually reproduces this bug:
 
-> 
-> Although, even if nobody's doing that intentionally, if somebody has
-> a bitflip with the __GFP_ZERO bit, it's going to propagate widely.
-> I think something like this might be appropriate:
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 9e1100f9298f..0f55f0a0dcaa 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2714,8 +2714,10 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
->  		stat(s, ALLOC_FASTPATH);
->  	}
->  
-> -	if (unlikely(gfpflags & __GFP_ZERO) && object)
-> -		memset(object, 0, s->object_size);
-> +	if (unlikely(gfpflags & __GFP_ZERO) && object) {
-> +		if (!WARN_ON_ONCE(s->ctor))
-> +			memset(object, 0, s->object_size);
-> +	}
+	#include <stdlib.h>
+	#include <sys/shm.h>
+	#include <sys/syscall.h>
+	#include <unistd.h>
 
+	int main()
+	{
+		int is_parent = (fork() != 0);
+		srand(getpid());
+		for (;;) {
+			int id = shmget(0xF00F, 4096, IPC_CREAT|0700);
+			if (is_parent) {
+				void *addr = shmat(id, NULL, 0);
+				usleep(rand() % 50);
+				while (!syscall(__NR_remap_file_pages, addr, 4096, 0, 0, 0));
+			} else {
+				usleep(rand() % 50);
+				shmctl(id, IPC_RMID, NULL);
+			}
+		}
+	}
 
->  
->  	slab_post_alloc_hook(s, gfpflags, 1, &object);
->  
-> 
-> Something you could try is checking that the list is empty when the node
-> is inserted into the radix tree.
-> 
-> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-> index 8e00138d593f..580f52d0c072 100644
-> --- a/lib/radix-tree.c
-> +++ b/lib/radix-tree.c
-> @@ -428,6 +428,7 @@ radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
->  		ret->exceptional = exceptional;
->  		ret->parent = parent;
->  		ret->root = root;
-> +		BUG_ON(!list_empty(&ret->private_list));
->  	}
->  	return ret;
->  }
+It causes the following NULL pointer dereference due to a 'struct file'
+being used while it's being freed.  (I couldn't actually get a KASAN
+use-after-free splat like in the syzbot report.  But I think it's
+possible with this bug; it would just take a more extraordinary race...)
+
+	BUG: unable to handle kernel NULL pointer dereference at 0000000000000058
+	PGD 0 P4D 0
+	Oops: 0000 [#1] SMP NOPTI
+	CPU: 9 PID: 258 Comm: syz_ipc Not tainted 4.16.0-05140-gf8cf2f16a7c95 #189
+	Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-20171110_100015-anatol 04/01/2014
+	RIP: 0010:d_inode include/linux/dcache.h:519 [inline]
+	RIP: 0010:touch_atime+0x25/0xd0 fs/inode.c:1724
+	[...]
+	Call Trace:
+	 file_accessed include/linux/fs.h:2063 [inline]
+	 shmem_mmap+0x25/0x40 mm/shmem.c:2149
+	 call_mmap include/linux/fs.h:1789 [inline]
+	 shm_mmap+0x34/0x80 ipc/shm.c:465
+	 call_mmap include/linux/fs.h:1789 [inline]
+	 mmap_region+0x309/0x5b0 mm/mmap.c:1712
+	 do_mmap+0x294/0x4a0 mm/mmap.c:1483
+	 do_mmap_pgoff include/linux/mm.h:2235 [inline]
+	 SYSC_remap_file_pages mm/mmap.c:2853 [inline]
+	 SyS_remap_file_pages+0x232/0x310 mm/mmap.c:2769
+	 do_syscall_64+0x64/0x1a0 arch/x86/entry/common.c:287
+	 entry_SYSCALL_64_after_hwframe+0x42/0xb7
+
+Reported-by: syzbot+d11f321e7f1923157eac80aa990b446596f46439@syzkaller.appspotmail.com
+Fixes: c8d78c1823f4 ("mm: replace remap_file_pages() syscall with emulation")
+Cc: stable@vger.kernel.org
+Signed-off-by: Eric Biggers <ebiggers@google.com>
+---
+ ipc/shm.c | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/ipc/shm.c b/ipc/shm.c
+index acefe44fefefa..c80c5691a9970 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -225,6 +225,12 @@ static int __shm_open(struct vm_area_struct *vma)
+ 	if (IS_ERR(shp))
+ 		return PTR_ERR(shp);
+ 
++	if (shp->shm_file != sfd->file) {
++		/* ID was reused */
++		shm_unlock(shp);
++		return -EINVAL;
++	}
++
+ 	shp->shm_atim = ktime_get_real_seconds();
+ 	ipc_update_pid(&shp->shm_lprid, task_tgid(current));
+ 	shp->shm_nattch++;
+@@ -455,8 +461,9 @@ static int shm_mmap(struct file *file, struct vm_area_struct *vma)
+ 	int ret;
+ 
+ 	/*
+-	 * In case of remap_file_pages() emulation, the file can represent
+-	 * removed IPC ID: propogate shm_lock() error to caller.
++	 * In case of remap_file_pages() emulation, the file can represent an
++	 * IPC ID that was removed, and possibly even reused by another shm
++	 * segment already.  Propagate this case as an error to caller.
+ 	 */
+ 	ret = __shm_open(vma);
+ 	if (ret)
+@@ -480,6 +487,7 @@ static int shm_release(struct inode *ino, struct file *file)
+ 	struct shm_file_data *sfd = shm_file_data(file);
+ 
+ 	put_ipc_ns(sfd->ns);
++	fput(sfd->file);
+ 	shm_file_data(file) = NULL;
+ 	kfree(sfd);
+ 	return 0;
+@@ -1432,7 +1440,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
+ 	file->f_mapping = shp->shm_file->f_mapping;
+ 	sfd->id = shp->shm_perm.id;
+ 	sfd->ns = get_ipc_ns(ns);
+-	sfd->file = shp->shm_file;
++	sfd->file = get_file(shp->shm_file);
+ 	sfd->vm_ops = NULL;
+ 
+ 	err = security_mmap_file(file, prot, flags);
+-- 
+2.17.0
