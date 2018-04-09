@@ -1,174 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C398C6B0006
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 03:29:04 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p12so2531047pfn.13
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 00:29:04 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id a17si9391535pgv.164.2018.04.09.00.29.03
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 220256B0006
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 03:34:13 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 203so4686963pfz.19
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 00:34:13 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y7-v6si14080934plh.583.2018.04.09.00.34.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 00:29:03 -0700 (PDT)
-Date: Mon, 9 Apr 2018 16:28:56 +0900
-From: Masami Hiramatsu <mhiramat@kernel.org>
-Subject: Re: [PATCH v2 9/9] perf probe: Support SDT markers having reference
- counter (semaphore)
-Message-Id: <20180409162856.df4c32b840eb5f2ef8c028f1@kernel.org>
-In-Reply-To: <20180404083110.18647-10-ravi.bangoria@linux.vnet.ibm.com>
-References: <20180404083110.18647-1-ravi.bangoria@linux.vnet.ibm.com>
-	<20180404083110.18647-10-ravi.bangoria@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Apr 2018 00:34:12 -0700 (PDT)
+Date: Mon, 9 Apr 2018 09:34:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: __GFP_LOW
+Message-ID: <20180409073407.GD21835@dhcp22.suse.cz>
+References: <CAJWu+oqP64QzvPM6iHtzowek6s4p+3rb7WDXs1z51mwW-9mLbA@mail.gmail.com>
+ <20180405142258.GA28128@bombadil.infradead.org>
+ <20180405142749.GL6312@dhcp22.suse.cz>
+ <20180405151359.GB28128@bombadil.infradead.org>
+ <20180405153240.GO6312@dhcp22.suse.cz>
+ <20180405161501.GD28128@bombadil.infradead.org>
+ <20180405185444.GQ6312@dhcp22.suse.cz>
+ <20180405201557.GA3666@bombadil.infradead.org>
+ <20180406060953.GA8286@dhcp22.suse.cz>
+ <20180408042709.GC32632@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180408042709.GC32632@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Cc: oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-Hi Ravi,
+On Sat 07-04-18 21:27:09, Matthew Wilcox wrote:
+> On Fri, Apr 06, 2018 at 08:09:53AM +0200, Michal Hocko wrote:
+> > OK, we already split the documentation into these categories. So we got
+> > at least the structure right ;)
+> 
+> Yes, this part of the documentation makes sense to me :-)
+> 
+> > >  - What kind of memory to allocate (DMA, NORMAL, HIGHMEM)
+> > >  - Where to get the pages from
+> > >    - Local node only (THISNODE)
+> > >    - Only in compliance with cpuset policy (HARDWALL)
+> > >    - Spread the pages between zones (WRITE)
+> > >    - The movable zone (MOVABLE)
+> > >    - The reclaimable zone (RECLAIMABLE)
+> > >  - What you are willing to do if no free memory is available:
+> > >    - Nothing at all (NOWAIT)
+> > >    - Use my own time to free memory (DIRECT_RECLAIM)
+> > >      - But only try once (NORETRY)
+> > >      - Can call into filesystems (FS)
+> > >      - Can start I/O (IO)
+> > >      - Can sleep (!ATOMIC)
+> > >    - Steal time from other processes to free memory (KSWAPD_RECLAIM)
+> > 
+> > What does that mean? If I drop the flag, do not steal? Well I do because
+> > they will hit direct reclaim sooner...
+> 
+> If they allocate memory, sure.  A process which stays in its working
+> set won't, unless it's preempted by kswapd.
 
-On Wed,  4 Apr 2018 14:01:10 +0530
-Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+Well, I was probably not clear here. KSWAPD_RECLAIM is not something you
+want to drop because this is a cooperative flag. If you do not use it
+then you are effectivelly pushing others to the direct reclaim because
+the kswapd won't be woken up and won't do the background work. Your
+working make it sound as a good thing to drop.
 
-> With this, perf buildid-cache will save SDT markers with reference
-> counter in probe cache. Perf probe will be able to probe markers
-> having reference counter. Ex,
+> > >    - Kill other processes to get their memory (!RETRY_MAYFAIL)
+> > 
+> > Not really for costly orders.
 > 
->   # readelf -n /tmp/tick | grep -A1 loop2
->     Name: loop2
->     ... Semaphore: 0x0000000010020036
+> Yes, need to be more precise there.
 > 
->   # ./perf buildid-cache --add /tmp/tick
->   # ./perf probe sdt_tick:loop2
->   # ./perf stat -e sdt_tick:loop2 /tmp/tick
->     hi: 0
->     hi: 1
->     hi: 2
->     ^C
->      Performance counter stats for '/tmp/tick':
->                  3      sdt_tick:loop2
->        2.561851452 seconds time elapsed
+> > >    - All of the above, and wait forever (NOFAIL)
+> > >    - Take from emergency reserves (HIGH)
+> > >    - ... but not the last parts of the regular reserves (LOW)
+> > 
+> > What does that mean and how it is different from NOWAIT? Is this about
+> > the low watermark and if yes do we want to teach users about this and
+> > make the whole thing even more complicated?  Does it wake
+> > kswapd? What is the eagerness ordering? LOW, NOWAIT, NORETRY,
+> > RETRY_MAYFAIL, NOFAIL?
 > 
-> Signed-off-by: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+> LOW doesn't quite fit into the eagerness scale with the other flags;
+> instead it's composable with them.  So you can specify NOWAIT | LOW,
+> NORETRY | LOW, NOFAIL | LOW, etc.  All I have in mind is something
+> like this:
+> 
+>         if (alloc_flags & ALLOC_HIGH)
+>                 min -= min / 2;
+> +	if (alloc_flags & ALLOC_LOW)
+> +		min += min / 2;
+> 
+> The idea is that a GFP_KERNEL | __GFP_LOW allocation cannot force a
+> GFP_KERNEL allocation into an OOM situation because it cannot take
+> the last pages of memory before the watermark.
+
+So what are we going to do if the LOW watermark cannot succeed?
+
+> It can still make a
+> GFP_KERNEL allocation *more likely* to hit OOM (just like any other kind
+> of allocation can), but it can't do it by itself.
+
+So who would be a user of __GFP_LOW?
+
 > ---
->  tools/perf/util/probe-event.c | 18 ++++++++++++++---
->  tools/perf/util/probe-event.h |  1 +
->  tools/perf/util/probe-file.c  | 34 ++++++++++++++++++++++++++------
->  tools/perf/util/probe-file.h  |  1 +
->  tools/perf/util/symbol-elf.c  | 46 ++++++++++++++++++++++++++++++++-----------
->  tools/perf/util/symbol.h      |  7 +++++++
->  6 files changed, 86 insertions(+), 21 deletions(-)
 > 
-> diff --git a/tools/perf/util/probe-event.c b/tools/perf/util/probe-event.c
-> index e1dbc98..b3a1330 100644
-> --- a/tools/perf/util/probe-event.c
-> +++ b/tools/perf/util/probe-event.c
-> @@ -1832,6 +1832,12 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev)
->  			tp->offset = strtoul(fmt2_str, NULL, 10);
->  	}
->  
-> +	if (tev->uprobes) {
-> +		fmt2_str = strchr(p, '(');
-> +		if (fmt2_str)
-> +			tp->ref_ctr_offset = strtoul(fmt2_str + 1, NULL, 0);
-> +	}
-> +
->  	tev->nargs = argc - 2;
->  	tev->args = zalloc(sizeof(struct probe_trace_arg) * tev->nargs);
->  	if (tev->args == NULL) {
-> @@ -2054,15 +2060,21 @@ char *synthesize_probe_trace_command(struct probe_trace_event *tev)
->  	}
->  
->  	/* Use the tp->address for uprobes */
-> -	if (tev->uprobes)
-> +	if (tev->uprobes) {
->  		err = strbuf_addf(&buf, "%s:0x%lx", tp->module, tp->address);
-> -	else if (!strncmp(tp->symbol, "0x", 2))
-> +		if (uprobe_ref_ctr_is_supported() &&
-> +		    tp->ref_ctr_offset &&
-> +		    err >= 0)
-> +			err = strbuf_addf(&buf, "(0x%lx)", tp->ref_ctr_offset);
+> I've been wondering about combining the DIRECT_RECLAIM, NORETRY,
+> RETRY_MAYFAIL and NOFAIL flags together into a single field:
+> 0 => RECLAIM_NEVER,	/* !DIRECT_RECLAIM */
+> 1 => RECLAIM_ONCE,	/* NORETRY */
+> 2 => RECLAIM_PROGRESS,	/* RETRY_MAYFAIL */
+> 3 => RECLAIM_FOREVER,	/* NOFAIL */
+> 
+> The existance of __GFP_RECLAIM makes this a bit tricky.  I honestly don't
+> know what this code is asking for:
 
-If the kernel doesn't support uprobe_ref_ctr but the event requires
-to increment uprobe_ref_ctr, I think we should (at least) warn user here.
+I am not sure I follow here. Is the RECLAIM_ an internal thing to the
+allocator?
 
-> +	} else if (!strncmp(tp->symbol, "0x", 2)) {
->  		/* Absolute address. See try_to_find_absolute_address() */
->  		err = strbuf_addf(&buf, "%s%s0x%lx", tp->module ?: "",
->  				  tp->module ? ":" : "", tp->address);
-> -	else
-> +	} else {
->  		err = strbuf_addf(&buf, "%s%s%s+%lu", tp->module ?: "",
->  				tp->module ? ":" : "", tp->symbol, tp->offset);
-> +	}
-> +
->  	if (err)
->  		goto error;
->  
-> diff --git a/tools/perf/util/probe-event.h b/tools/perf/util/probe-event.h
-> index 45b14f0..15a98c3 100644
-> --- a/tools/perf/util/probe-event.h
-> +++ b/tools/perf/util/probe-event.h
-> @@ -27,6 +27,7 @@ struct probe_trace_point {
->  	char		*symbol;	/* Base symbol */
->  	char		*module;	/* Module name */
->  	unsigned long	offset;		/* Offset from symbol */
-> +	unsigned long	ref_ctr_offset;	/* SDT reference counter offset */
->  	unsigned long	address;	/* Actual address of the trace point */
->  	bool		retprobe;	/* Return probe flag */
->  };
-> diff --git a/tools/perf/util/probe-file.c b/tools/perf/util/probe-file.c
-> index 4ae1123..ca0e524 100644
-> --- a/tools/perf/util/probe-file.c
-> +++ b/tools/perf/util/probe-file.c
-> @@ -697,8 +697,16 @@ int probe_cache__add_entry(struct probe_cache *pcache,
->  #ifdef HAVE_GELF_GETNOTE_SUPPORT
->  static unsigned long long sdt_note__get_addr(struct sdt_note *note)
->  {
-> -	return note->bit32 ? (unsigned long long)note->addr.a32[0]
-> -		 : (unsigned long long)note->addr.a64[0];
-> +	return note->bit32 ?
-> +		(unsigned long long)note->addr.a32[SDT_NOTE_IDX_LOC] :
-> +		(unsigned long long)note->addr.a64[SDT_NOTE_IDX_LOC];
-> +}
-> +
-> +static unsigned long long sdt_note__get_ref_ctr_offset(struct sdt_note *note)
-> +{
-> +	return note->bit32 ?
-> +		(unsigned long long)note->addr.a32[SDT_NOTE_IDX_REFCTR] :
-> +		(unsigned long long)note->addr.a64[SDT_NOTE_IDX_REFCTR];
->  }
->  
->  static const char * const type_to_suffix[] = {
-> @@ -776,14 +784,21 @@ static char *synthesize_sdt_probe_command(struct sdt_note *note,
->  {
->  	struct strbuf buf;
->  	char *ret = NULL, **args;
-> -	int i, args_count;
-> +	int i, args_count, err;
-> +	unsigned long long ref_ctr_offset;
->  
->  	if (strbuf_init(&buf, 32) < 0)
->  		return NULL;
->  
-> -	if (strbuf_addf(&buf, "p:%s/%s %s:0x%llx",
-> -				sdtgrp, note->name, pathname,
-> -				sdt_note__get_addr(note)) < 0)
-> +	err = strbuf_addf(&buf, "p:%s/%s %s:0x%llx",
-> +			sdtgrp, note->name, pathname,
-> +			sdt_note__get_addr(note));
-> +
-> +	ref_ctr_offset = sdt_note__get_ref_ctr_offset(note);
-> +	if (uprobe_ref_ctr_is_supported() && ref_ctr_offset && err >= 0)
-> +		err = strbuf_addf(&buf, "(0x%llx)", ref_ctr_offset);
+> kernel/power/swap.c:                       __get_free_page(__GFP_RECLAIM | __GFP_HIGH);
+> but I suspect I'll have to find out.  There's about 60 places to look at.
 
-We don't have to care about uprobe_ref_ctr support here, because
-this information will be just cached, not directly written to
-uprobe_events.
+Well, it would be more understandable if this was written as
+(GFP_KERNEL | __GFP_HIGH) & ~(__GFP_FS|__GFP_IO)
+ 
+> I also want to add __GFP_KILL (to be part of the GFP_KERNEL definition).
 
-Other parts look good to me.
+What does __GFP_KILL means?
 
-Thanks,
+> That way, each bit that you set in the GFP mask increases the things the
+> page allocator can do to get memory for you.  At the moment, RETRY_MAYFAIL
+> subtracts the ability to kill other tasks, which is unusual.
 
+Well, it is not all that great because some flags add capabilities while
+some remove them but, well, life is hard when you try to extend an
+interface which was not all that great from the very beginning.
+
+> For example,
+> this test in kvmalloc_node:
+> 
+>         WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
+> 
+> doesn't catch RETRY_MAYFAIL being set.
+
+It doesn't really have to. We want to catch obviously broken gfp flags
+here. That means mostly GFP_NO{FS,IO} because those might simply
+deadlock. RETRY_MAYFAIL is even supported to some extend.
 -- 
-Masami Hiramatsu <mhiramat@kernel.org>
+Michal Hocko
+SUSE Labs
