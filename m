@@ -1,101 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 15FDF6B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 10:08:39 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v25so242769pgn.20
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 07:08:39 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b91-v6si416097plb.90.2018.04.09.07.08.36
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A27126B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 10:50:07 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id az8-v6so2767678plb.2
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 07:50:07 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w10-v6sor234036plz.30.2018.04.09.07.50.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 07:08:36 -0700 (PDT)
-Date: Mon, 9 Apr 2018 23:08:30 +0900
-From: Masami Hiramatsu <mhiramat@kernel.org>
-Subject: Re: [PATCH v2 9/9] perf probe: Support SDT markers having reference
- counter (semaphore)
-Message-Id: <20180409230830.48118d3c32f7ec448936ed8a@kernel.org>
-In-Reply-To: <643a8fb2-fb96-8dbe-9f36-2540bd8a1de5@linux.vnet.ibm.com>
-References: <20180404083110.18647-1-ravi.bangoria@linux.vnet.ibm.com>
-	<20180404083110.18647-10-ravi.bangoria@linux.vnet.ibm.com>
-	<20180409162856.df4c32b840eb5f2ef8c028f1@kernel.org>
-	<643a8fb2-fb96-8dbe-9f36-2540bd8a1de5@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Mon, 09 Apr 2018 07:50:06 -0700 (PDT)
+Date: Mon, 9 Apr 2018 23:49:58 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
+Message-ID: <20180409144958.GA211679@rodete-laptop-imager.corp.google.com>
+References: <20180409015815.235943-1-minchan@kernel.org>
+ <20180409024925.GA21889@bombadil.infradead.org>
+ <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
+ <20180409111403.GA31652@bombadil.infradead.org>
+ <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
+ <7706245c-2661-f28b-f7f9-8f11e1ae932b@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7706245c-2661-f28b-f7f9-8f11e1ae932b@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Cc: oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com
+To: Chao Yu <yuchao0@huawei.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Jaegeuk Kim <jaegeuk@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
 
-On Mon, 9 Apr 2018 13:59:16 +0530
-Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+On Mon, Apr 09, 2018 at 08:25:06PM +0800, Chao Yu wrote:
+> On 2018/4/9 19:25, Minchan Kim wrote:
+> > On Mon, Apr 09, 2018 at 04:14:03AM -0700, Matthew Wilcox wrote:
+> >> On Mon, Apr 09, 2018 at 12:09:30PM +0900, Minchan Kim wrote:
+> >>> On Sun, Apr 08, 2018 at 07:49:25PM -0700, Matthew Wilcox wrote:
+> >>>> On Mon, Apr 09, 2018 at 10:58:15AM +0900, Minchan Kim wrote:
+> >>>>> It assumes shadow entry of radix tree relies on the init state
+> >>>>> that node->private_list allocated should be list_empty state.
+> >>>>> Currently, it's initailized in SLAB constructor which means
+> >>>>> node of radix tree would be initialized only when *slub allocates
+> >>>>> new page*, not *new object*. So, if some FS or subsystem pass
+> >>>>> gfp_mask to __GFP_ZERO, slub allocator will do memset blindly.
+> >>>>
+> >>>> Wait, what?  Who's declaring their radix tree with GFP_ZERO flags?
+> >>>> I don't see anyone using INIT_RADIX_TREE or RADIX_TREE or RADIX_TREE_INIT
+> >>>> with GFP_ZERO.
+> >>>
+> >>> Look at fs/f2fs/inode.c
+> >>> mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
+> >>>
+> >>> __add_to_page_cache_locked
+> >>>   radix_tree_maybe_preload
+> >>>
+> >>> add_to_page_cache_lru
+> >>>
+> >>> What's the wrong with setting __GFP_ZERO with mapping->gfp_mask?
+> >>
+> >> Because it's a stupid thing to do.  Pages are allocated and then filled
+> >> from disk.  Zeroing them before DMAing to them is just a waste of time.
+> > 
+> > Every FSes do address_space to read pages from storage? I'm not sure.
+> 
+> No, sometimes, we need to write meta data to new allocated block address,
+> then we will allocate a zeroed page in inner inode's address space, and
+> fill partial data in it, and leave other place with zero value which means
+> some fields are initial status.
 
-> Hi Masami,
-> 
-> On 04/09/2018 12:58 PM, Masami Hiramatsu wrote:
-> > Hi Ravi,
-> >
-> > On Wed,  4 Apr 2018 14:01:10 +0530
-> > Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
-> >
-> >> @@ -2054,15 +2060,21 @@ char *synthesize_probe_trace_command(struct probe_trace_event *tev)
-> >>  	}
-> >>  
-> >>  	/* Use the tp->address for uprobes */
-> >> -	if (tev->uprobes)
-> >> +	if (tev->uprobes) {
-> >>  		err = strbuf_addf(&buf, "%s:0x%lx", tp->module, tp->address);
-> >> -	else if (!strncmp(tp->symbol, "0x", 2))
-> >> +		if (uprobe_ref_ctr_is_supported() &&
-> >> +		    tp->ref_ctr_offset &&
-> >> +		    err >= 0)
-> >> +			err = strbuf_addf(&buf, "(0x%lx)", tp->ref_ctr_offset);
-> > If the kernel doesn't support uprobe_ref_ctr but the event requires
-> > to increment uprobe_ref_ctr, I think we should (at least) warn user here.
-> 
-> pr_debug("A semaphore is associated with %s:%s and seems your kernel doesn't support it.\n"
-> A A A A A A A A  tev->group, tev->event);
-> 
-> Looks good?
-
-I think it should be pr_warning() and return NULL, since user may not be able to
-trace the event even if it is enabled.
-
-> 
-> >> @@ -776,14 +784,21 @@ static char *synthesize_sdt_probe_command(struct sdt_note *note,
-> >>  {
-> >>  	struct strbuf buf;
-> >>  	char *ret = NULL, **args;
-> >> -	int i, args_count;
-> >> +	int i, args_count, err;
-> >> +	unsigned long long ref_ctr_offset;
-> >>  
-> >>  	if (strbuf_init(&buf, 32) < 0)
-> >>  		return NULL;
-> >>  
-> >> -	if (strbuf_addf(&buf, "p:%s/%s %s:0x%llx",
-> >> -				sdtgrp, note->name, pathname,
-> >> -				sdt_note__get_addr(note)) < 0)
-> >> +	err = strbuf_addf(&buf, "p:%s/%s %s:0x%llx",
-> >> +			sdtgrp, note->name, pathname,
-> >> +			sdt_note__get_addr(note));
-> >> +
-> >> +	ref_ctr_offset = sdt_note__get_ref_ctr_offset(note);
-> >> +	if (uprobe_ref_ctr_is_supported() && ref_ctr_offset && err >= 0)
-> >> +		err = strbuf_addf(&buf, "(0x%llx)", ref_ctr_offset);
-> > We don't have to care about uprobe_ref_ctr support here, because
-> > this information will be just cached, not directly written to
-> > uprobe_events.
-> 
-> Sure, will remove the check.
-
-Thanks!
+Thanks for the explaining.
 
 > 
-> Thanks for the review :).
-> Ravi
+> There are two inner inodes (meta inode and node inode) setting __GFP_ZERO,
+> I have just checked them, for both of them, we can avoid using __GFP_ZERO,
+> and do initialization by ourselves to avoid unneeded/redundant zeroing
+> from mm.
+
+Yub, it would be desirable for f2fs. Please go ahead for f2fs side.
+However, I think current problem is orthgonal. Now, the problem is
+radix_tree_node allocation is bind to page cache allocation.
+Why does FS cannot allocate page cache with __GFP_ZERO?
+I agree if the concern is only performance matter as Matthew mentioned.
+But it is beyond that because it shouldn't do due to limitation
+of workingset shadow entry implementation. I think such coupling is
+not a good idea.
+
+I think right approach to abstract shadow entry in radix_tree is
+to mask off __GFP_ZERO in radix_tree's allocation APIs.
+
 > 
-
-
--- 
-Masami Hiramatsu <mhiramat@kernel.org>
+> To Jaegeuk, if I missed something, please let me know.
+> 
+> ---
+>  fs/f2fs/inode.c | 4 ++--
+>  fs/f2fs/node.c  | 2 ++
+>  2 files changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/f2fs/inode.c b/fs/f2fs/inode.c
+> index c85cccc2e800..cc63f8c448f0 100644
+> --- a/fs/f2fs/inode.c
+> +++ b/fs/f2fs/inode.c
+> @@ -339,10 +339,10 @@ struct inode *f2fs_iget(struct super_block *sb, unsigned long ino)
+>  make_now:
+>  	if (ino == F2FS_NODE_INO(sbi)) {
+>  		inode->i_mapping->a_ops = &f2fs_node_aops;
+> -		mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
+> +		mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+>  	} else if (ino == F2FS_META_INO(sbi)) {
+>  		inode->i_mapping->a_ops = &f2fs_meta_aops;
+> -		mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
+> +		mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+>  	} else if (S_ISREG(inode->i_mode)) {
+>  		inode->i_op = &f2fs_file_inode_operations;
+>  		inode->i_fop = &f2fs_file_operations;
+> diff --git a/fs/f2fs/node.c b/fs/f2fs/node.c
+> index 9dedd4b5e077..31e5ecf98ffd 100644
+> --- a/fs/f2fs/node.c
+> +++ b/fs/f2fs/node.c
+> @@ -1078,6 +1078,7 @@ struct page *new_node_page(struct dnode_of_data *dn, unsigned int ofs)
+>  	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
+> 
+>  	f2fs_wait_on_page_writeback(page, NODE, true);
+> +	memset(F2FS_NODE(page), 0, PAGE_SIZE);
+>  	fill_node_footer(page, dn->nid, dn->inode->i_ino, ofs, true);
+>  	set_cold_node(page, S_ISDIR(dn->inode->i_mode));
+>  	if (!PageUptodate(page))
+> @@ -2321,6 +2322,7 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
+> 
+>  	if (!PageUptodate(ipage))
+>  		SetPageUptodate(ipage);
+> +	memset(F2FS_NODE(page), 0, PAGE_SIZE);
+>  	fill_node_footer(ipage, ino, ino, 0, true);
+>  	set_cold_node(page, false);
+> 
+> -- 
+> 
+> > 
+> > If you're right, we need to insert WARN_ON to catch up __GFP_ZERO
+> > on mapping_set_gfp_mask at the beginning and remove all of those
+> > stupid thins. 
+> > 
+> > Jaegeuk, why do you need __GFP_ZERO? Could you explain?
+> > 
+> > .
+> > 
+> 
