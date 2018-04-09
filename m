@@ -1,91 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 00EA86B0007
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 03:15:31 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id c72-v6so4572746oig.8
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 00:15:30 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id u21-v6si4699750oiv.497.2018.04.09.00.15.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C398C6B0006
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 03:29:04 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p12so2531047pfn.13
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 00:29:04 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id a17si9391535pgv.164.2018.04.09.00.29.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 00:15:30 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm: shmem: enable thp migration (Re: [PATCH v1] mm:
- consider non-anonymous thp as unmovable page)
-Date: Mon, 9 Apr 2018 07:14:57 +0000
-Message-ID: <20180409071456.GA8693@hori1.linux.bs1.fc.nec.co.jp>
-References: <20180405085927.GC6312@dhcp22.suse.cz>
- <20180405122838.6a6b35psizem4tcy@node.shutemov.name>
- <20180405124830.GJ6312@dhcp22.suse.cz>
- <20180405134045.7axuun6d7ufobzj4@node.shutemov.name>
- <20180405150547.GN6312@dhcp22.suse.cz>
- <20180405155551.wchleyaf4rxooj6m@node.shutemov.name>
- <20180405160317.GP6312@dhcp22.suse.cz>
- <20180406030706.GA2434@hori1.linux.bs1.fc.nec.co.jp>
- <20180406051452.GB23467@hori1.linux.bs1.fc.nec.co.jp>
- <20180406070815.GC8286@dhcp22.suse.cz>
-In-Reply-To: <20180406070815.GC8286@dhcp22.suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <46617E8EBD5C594E93BC92C5255CD427@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Mon, 09 Apr 2018 00:29:03 -0700 (PDT)
+Date: Mon, 9 Apr 2018 16:28:56 +0900
+From: Masami Hiramatsu <mhiramat@kernel.org>
+Subject: Re: [PATCH v2 9/9] perf probe: Support SDT markers having reference
+ counter (semaphore)
+Message-Id: <20180409162856.df4c32b840eb5f2ef8c028f1@kernel.org>
+In-Reply-To: <20180404083110.18647-10-ravi.bangoria@linux.vnet.ibm.com>
+References: <20180404083110.18647-1-ravi.bangoria@linux.vnet.ibm.com>
+	<20180404083110.18647-10-ravi.bangoria@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Zi Yan <zi.yan@sent.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Cc: oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com
 
-On Fri, Apr 06, 2018 at 09:08:15AM +0200, Michal Hocko wrote:
-> On Fri 06-04-18 05:14:53, Naoya Horiguchi wrote:
-> > On Fri, Apr 06, 2018 at 03:07:11AM +0000, Horiguchi Naoya(=1B$BKY8}=1B(=
-B =1B$BD>Li=1B(B) wrote:
-> > ...
-> > > -----
-> > > From e31ec037701d1cc76b26226e4b66d8c783d40889 Mon Sep 17 00:00:00 200=
-1
-> > > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > > Date: Fri, 6 Apr 2018 10:58:35 +0900
-> > > Subject: [PATCH] mm: enable thp migration for shmem thp
-> > >=20
-> > > My testing for the latest kernel supporting thp migration showed an
-> > > infinite loop in offlining the memory block that is filled with shmem
-> > > thps.  We can get out of the loop with a signal, but kernel should
-> > > return with failure in this case.
-> > >=20
-> > > What happens in the loop is that scan_movable_pages() repeats returni=
-ng
-> > > the same pfn without any progress. That's because page migration alwa=
-ys
-> > > fails for shmem thps.
-> > >=20
-> > > In memory offline code, memory blocks containing unmovable pages shou=
-ld
-> > > be prevented from being offline targets by has_unmovable_pages() insi=
-de
-> > > start_isolate_page_range(). So it's possible to change migratability
-> > > for non-anonymous thps to avoid the issue, but it introduces more com=
-plex
-> > > and thp-specific handling in migration code, so it might not good.
-> > >=20
-> > > So this patch is suggesting to fix the issue by enabling thp migratio=
-n
-> > > for shmem thp. Both of anon/shmem thp are migratable so we don't need
-> > > precheck about the type of thps.
-> > >=20
-> > > Fixes: commit 72b39cfc4d75 ("mm, memory_hotplug: do not fail offlinin=
-g too early")
-> > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > > Cc: stable@vger.kernel.org # v4.15+
-> >=20
-> > ... oh, I don't think this is suitable for stable.
-> > Michal's fix in another email can come first with "CC: stable",
-> > then this one.
-> > Anyway I want to get some feedback on the change of this patch.
->=20
-> My patch is indeed much simpler but it depends on [1] and that doesn't
-> sound like a stable material as well because it depends on onether 2
-> patches. Maybe we need some other hack for 4.15 if we really care enough.
->=20
-> [1] http://lkml.kernel.org/r/20180103082555.14592-4-mhocko@kernel.org
+Hi Ravi,
 
-OK, so I like just giving up sending to stable.=
+On Wed,  4 Apr 2018 14:01:10 +0530
+Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+
+> With this, perf buildid-cache will save SDT markers with reference
+> counter in probe cache. Perf probe will be able to probe markers
+> having reference counter. Ex,
+> 
+>   # readelf -n /tmp/tick | grep -A1 loop2
+>     Name: loop2
+>     ... Semaphore: 0x0000000010020036
+> 
+>   # ./perf buildid-cache --add /tmp/tick
+>   # ./perf probe sdt_tick:loop2
+>   # ./perf stat -e sdt_tick:loop2 /tmp/tick
+>     hi: 0
+>     hi: 1
+>     hi: 2
+>     ^C
+>      Performance counter stats for '/tmp/tick':
+>                  3      sdt_tick:loop2
+>        2.561851452 seconds time elapsed
+> 
+> Signed-off-by: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+> ---
+>  tools/perf/util/probe-event.c | 18 ++++++++++++++---
+>  tools/perf/util/probe-event.h |  1 +
+>  tools/perf/util/probe-file.c  | 34 ++++++++++++++++++++++++++------
+>  tools/perf/util/probe-file.h  |  1 +
+>  tools/perf/util/symbol-elf.c  | 46 ++++++++++++++++++++++++++++++++-----------
+>  tools/perf/util/symbol.h      |  7 +++++++
+>  6 files changed, 86 insertions(+), 21 deletions(-)
+> 
+> diff --git a/tools/perf/util/probe-event.c b/tools/perf/util/probe-event.c
+> index e1dbc98..b3a1330 100644
+> --- a/tools/perf/util/probe-event.c
+> +++ b/tools/perf/util/probe-event.c
+> @@ -1832,6 +1832,12 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev)
+>  			tp->offset = strtoul(fmt2_str, NULL, 10);
+>  	}
+>  
+> +	if (tev->uprobes) {
+> +		fmt2_str = strchr(p, '(');
+> +		if (fmt2_str)
+> +			tp->ref_ctr_offset = strtoul(fmt2_str + 1, NULL, 0);
+> +	}
+> +
+>  	tev->nargs = argc - 2;
+>  	tev->args = zalloc(sizeof(struct probe_trace_arg) * tev->nargs);
+>  	if (tev->args == NULL) {
+> @@ -2054,15 +2060,21 @@ char *synthesize_probe_trace_command(struct probe_trace_event *tev)
+>  	}
+>  
+>  	/* Use the tp->address for uprobes */
+> -	if (tev->uprobes)
+> +	if (tev->uprobes) {
+>  		err = strbuf_addf(&buf, "%s:0x%lx", tp->module, tp->address);
+> -	else if (!strncmp(tp->symbol, "0x", 2))
+> +		if (uprobe_ref_ctr_is_supported() &&
+> +		    tp->ref_ctr_offset &&
+> +		    err >= 0)
+> +			err = strbuf_addf(&buf, "(0x%lx)", tp->ref_ctr_offset);
+
+If the kernel doesn't support uprobe_ref_ctr but the event requires
+to increment uprobe_ref_ctr, I think we should (at least) warn user here.
+
+> +	} else if (!strncmp(tp->symbol, "0x", 2)) {
+>  		/* Absolute address. See try_to_find_absolute_address() */
+>  		err = strbuf_addf(&buf, "%s%s0x%lx", tp->module ?: "",
+>  				  tp->module ? ":" : "", tp->address);
+> -	else
+> +	} else {
+>  		err = strbuf_addf(&buf, "%s%s%s+%lu", tp->module ?: "",
+>  				tp->module ? ":" : "", tp->symbol, tp->offset);
+> +	}
+> +
+>  	if (err)
+>  		goto error;
+>  
+> diff --git a/tools/perf/util/probe-event.h b/tools/perf/util/probe-event.h
+> index 45b14f0..15a98c3 100644
+> --- a/tools/perf/util/probe-event.h
+> +++ b/tools/perf/util/probe-event.h
+> @@ -27,6 +27,7 @@ struct probe_trace_point {
+>  	char		*symbol;	/* Base symbol */
+>  	char		*module;	/* Module name */
+>  	unsigned long	offset;		/* Offset from symbol */
+> +	unsigned long	ref_ctr_offset;	/* SDT reference counter offset */
+>  	unsigned long	address;	/* Actual address of the trace point */
+>  	bool		retprobe;	/* Return probe flag */
+>  };
+> diff --git a/tools/perf/util/probe-file.c b/tools/perf/util/probe-file.c
+> index 4ae1123..ca0e524 100644
+> --- a/tools/perf/util/probe-file.c
+> +++ b/tools/perf/util/probe-file.c
+> @@ -697,8 +697,16 @@ int probe_cache__add_entry(struct probe_cache *pcache,
+>  #ifdef HAVE_GELF_GETNOTE_SUPPORT
+>  static unsigned long long sdt_note__get_addr(struct sdt_note *note)
+>  {
+> -	return note->bit32 ? (unsigned long long)note->addr.a32[0]
+> -		 : (unsigned long long)note->addr.a64[0];
+> +	return note->bit32 ?
+> +		(unsigned long long)note->addr.a32[SDT_NOTE_IDX_LOC] :
+> +		(unsigned long long)note->addr.a64[SDT_NOTE_IDX_LOC];
+> +}
+> +
+> +static unsigned long long sdt_note__get_ref_ctr_offset(struct sdt_note *note)
+> +{
+> +	return note->bit32 ?
+> +		(unsigned long long)note->addr.a32[SDT_NOTE_IDX_REFCTR] :
+> +		(unsigned long long)note->addr.a64[SDT_NOTE_IDX_REFCTR];
+>  }
+>  
+>  static const char * const type_to_suffix[] = {
+> @@ -776,14 +784,21 @@ static char *synthesize_sdt_probe_command(struct sdt_note *note,
+>  {
+>  	struct strbuf buf;
+>  	char *ret = NULL, **args;
+> -	int i, args_count;
+> +	int i, args_count, err;
+> +	unsigned long long ref_ctr_offset;
+>  
+>  	if (strbuf_init(&buf, 32) < 0)
+>  		return NULL;
+>  
+> -	if (strbuf_addf(&buf, "p:%s/%s %s:0x%llx",
+> -				sdtgrp, note->name, pathname,
+> -				sdt_note__get_addr(note)) < 0)
+> +	err = strbuf_addf(&buf, "p:%s/%s %s:0x%llx",
+> +			sdtgrp, note->name, pathname,
+> +			sdt_note__get_addr(note));
+> +
+> +	ref_ctr_offset = sdt_note__get_ref_ctr_offset(note);
+> +	if (uprobe_ref_ctr_is_supported() && ref_ctr_offset && err >= 0)
+> +		err = strbuf_addf(&buf, "(0x%llx)", ref_ctr_offset);
+
+We don't have to care about uprobe_ref_ctr support here, because
+this information will be just cached, not directly written to
+uprobe_events.
+
+Other parts look good to me.
+
+Thanks,
+
+-- 
+Masami Hiramatsu <mhiramat@kernel.org>
