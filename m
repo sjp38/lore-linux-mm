@@ -1,151 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E2E7D6B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 00:31:25 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id u7-v6so6188870plr.13
-        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 21:31:25 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bb5-v6sor1514094plb.98.2018.04.08.21.31.24
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D18F6B0006
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 00:46:28 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id o2-v6so6216723plk.14
+        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 21:46:28 -0700 (PDT)
+Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com. [216.71.153.144])
+        by mx.google.com with ESMTPS id o1-v6si13963729pls.424.2018.04.08.21.46.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 08 Apr 2018 21:31:24 -0700 (PDT)
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: [PATCH] ipc/shm: fix use-after-free of shm file via remap_file_pages()
-Date: Sun,  8 Apr 2018 21:30:39 -0700
-Message-Id: <20180409043039.28915-1-ebiggers3@gmail.com>
-In-Reply-To: <94eb2c06f65e5e2467055d036889@google.com>
-References: <94eb2c06f65e5e2467055d036889@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 08 Apr 2018 21:46:26 -0700 (PDT)
+From: Bart Van Assche <Bart.VanAssche@wdc.com>
+Subject: Re: Block layer use of __GFP flags
+Date: Mon, 9 Apr 2018 04:46:22 +0000
+Message-ID: <63d16891d115de25ac2776088571d7e90dab867a.camel@wdc.com>
+References: <20180408065425.GD16007@bombadil.infradead.org>
+	 <aea2f6bcae3fe2b88e020d6a258706af1ce1a58b.camel@wdc.com>
+	 <20180408190825.GC5704@bombadil.infradead.org>
+In-Reply-To: <20180408190825.GC5704@bombadil.infradead.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <303A56832F8E0F42AFCF96CD13F21E7A@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Manfred Spraul <manfred@colorfullife.com>, "Eric W . Biederman" <ebiederm@xmission.com>, syzkaller-bugs@googlegroups.com
+To: "willy@infradead.org" <willy@infradead.org>
+Cc: "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hare@suse.com" <hare@suse.com>, "martin@lichtvoll.de" <martin@lichtvoll.de>, "oleksandr@natalenko.name" <oleksandr@natalenko.name>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-From: Eric Biggers <ebiggers@google.com>
-
-syzbot reported a use-after-free of shm_file_data(file)->file->f_op in
-shm_get_unmapped_area(), called via sys_remap_file_pages().
-Unfortunately it couldn't generate a reproducer, but I found a bug which
-I think caused it.  When remap_file_pages() is passed a full System V
-shared memory segment, the memory is first unmapped, then a new map is
-created using the ->vm_file.  Between these steps, the shm ID can be
-removed and reused for a new shm segment.  But, shm_mmap() only checks
-whether the ID is currently valid before calling the underlying file's
-->mmap(); it doesn't check whether it was reused.  Thus it can use the
-wrong underlying file, one that was already freed.
-
-Fix this by making the "outer" shm file (the one that gets put in
-->vm_file) hold a reference to the real shm file, and by making
-__shm_open() require that the file associated with the shm ID matches
-the one associated with the "outer" file.
-
-Commit 1ac0b6dec656 ("ipc/shm: handle removed segments gracefully in
-shm_mmap()") almost fixed this bug, but it didn't go far enough because
-it didn't consider the case where the shm ID is reused.
-
-The following program usually reproduces this bug:
-
-	#include <stdlib.h>
-	#include <sys/shm.h>
-	#include <sys/syscall.h>
-	#include <unistd.h>
-
-	int main()
-	{
-		int is_parent = (fork() != 0);
-		srand(getpid());
-		for (;;) {
-			int id = shmget(0xF00F, 4096, IPC_CREAT|0700);
-			if (is_parent) {
-				void *addr = shmat(id, NULL, 0);
-				usleep(rand() % 50);
-				while (!syscall(__NR_remap_file_pages, addr, 4096, 0, 0, 0));
-			} else {
-				usleep(rand() % 50);
-				shmctl(id, IPC_RMID, NULL);
-			}
-		}
-	}
-
-It causes the following NULL pointer dereference due to a 'struct file'
-being used while it's being freed.  (I couldn't actually get a KASAN
-use-after-free splat like in the syzbot report.  But I think it's
-possible with this bug; it would just take a more extraordinary race...)
-
-	BUG: unable to handle kernel NULL pointer dereference at 0000000000000058
-	PGD 0 P4D 0
-	Oops: 0000 [#1] SMP NOPTI
-	CPU: 9 PID: 258 Comm: syz_ipc Not tainted 4.16.0-05140-gf8cf2f16a7c95 #189
-	Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-20171110_100015-anatol 04/01/2014
-	RIP: 0010:d_inode include/linux/dcache.h:519 [inline]
-	RIP: 0010:touch_atime+0x25/0xd0 fs/inode.c:1724
-	[...]
-	Call Trace:
-	 file_accessed include/linux/fs.h:2063 [inline]
-	 shmem_mmap+0x25/0x40 mm/shmem.c:2149
-	 call_mmap include/linux/fs.h:1789 [inline]
-	 shm_mmap+0x34/0x80 ipc/shm.c:465
-	 call_mmap include/linux/fs.h:1789 [inline]
-	 mmap_region+0x309/0x5b0 mm/mmap.c:1712
-	 do_mmap+0x294/0x4a0 mm/mmap.c:1483
-	 do_mmap_pgoff include/linux/mm.h:2235 [inline]
-	 SYSC_remap_file_pages mm/mmap.c:2853 [inline]
-	 SyS_remap_file_pages+0x232/0x310 mm/mmap.c:2769
-	 do_syscall_64+0x64/0x1a0 arch/x86/entry/common.c:287
-	 entry_SYSCALL_64_after_hwframe+0x42/0xb7
-
-Reported-by: syzbot+d11f321e7f1923157eac80aa990b446596f46439@syzkaller.appspotmail.com
-Fixes: c8d78c1823f4 ("mm: replace remap_file_pages() syscall with emulation")
-Cc: stable@vger.kernel.org
-Signed-off-by: Eric Biggers <ebiggers@google.com>
----
- ipc/shm.c | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
-
-diff --git a/ipc/shm.c b/ipc/shm.c
-index acefe44fefefa..c80c5691a9970 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -225,6 +225,12 @@ static int __shm_open(struct vm_area_struct *vma)
- 	if (IS_ERR(shp))
- 		return PTR_ERR(shp);
- 
-+	if (shp->shm_file != sfd->file) {
-+		/* ID was reused */
-+		shm_unlock(shp);
-+		return -EINVAL;
-+	}
-+
- 	shp->shm_atim = ktime_get_real_seconds();
- 	ipc_update_pid(&shp->shm_lprid, task_tgid(current));
- 	shp->shm_nattch++;
-@@ -455,8 +461,9 @@ static int shm_mmap(struct file *file, struct vm_area_struct *vma)
- 	int ret;
- 
- 	/*
--	 * In case of remap_file_pages() emulation, the file can represent
--	 * removed IPC ID: propogate shm_lock() error to caller.
-+	 * In case of remap_file_pages() emulation, the file can represent an
-+	 * IPC ID that was removed, and possibly even reused by another shm
-+	 * segment already.  Propagate this case as an error to caller.
- 	 */
- 	ret = __shm_open(vma);
- 	if (ret)
-@@ -480,6 +487,7 @@ static int shm_release(struct inode *ino, struct file *file)
- 	struct shm_file_data *sfd = shm_file_data(file);
- 
- 	put_ipc_ns(sfd->ns);
-+	fput(sfd->file);
- 	shm_file_data(file) = NULL;
- 	kfree(sfd);
- 	return 0;
-@@ -1432,7 +1440,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
- 	file->f_mapping = shp->shm_file->f_mapping;
- 	sfd->id = shp->shm_perm.id;
- 	sfd->ns = get_ipc_ns(ns);
--	sfd->file = shp->shm_file;
-+	sfd->file = get_file(shp->shm_file);
- 	sfd->vm_ops = NULL;
- 
- 	err = security_mmap_file(file, prot, flags);
--- 
-2.17.0
+T24gU3VuLCAyMDE4LTA0LTA4IGF0IDEyOjA4IC0wNzAwLCBNYXR0aGV3IFdpbGNveCB3cm90ZToN
+Cj4gT24gU3VuLCBBcHIgMDgsIDIwMTggYXQgMDQ6NDA6NTlQTSArMDAwMCwgQmFydCBWYW4gQXNz
+Y2hlIHdyb3RlOg0KPiA+IERvIHlvdSBwZXJoYXBzIHdhbnQgbWUgdG8gcHJlcGFyZSBhIHBhdGNo
+IHRoYXQgbWFrZXMgYmxrX2dldF9yZXF1ZXN0KCkgYWdhaW4NCj4gPiByZXNwZWN0IHRoZSBmdWxs
+IGdmcCBtYXNrIHBhc3NlZCBhcyB0aGlyZCBhcmd1bWVudCB0byBibGtfZ2V0X3JlcXVlc3QoKT8N
+Cj4gDQo+IEkgdGhpbmsgdGhhdCB3b3VsZCBiZSBhIGdvb2QgaWRlYS4gIElmIGl0J3Mgb25lcm91
+cyB0byBoYXZlIGV4dHJhIGFyZ3VtZW50cywNCj4gdGhlcmUgYXJlIHNvbWUgYml0cyBpbiBnZnBf
+ZmxhZ3Mgd2hpY2ggY291bGQgYmUgdXNlZCBmb3IgeW91ciBwdXJwb3Nlcy4NCg0KVGhhdCdzIGlu
+ZGVlZCBzb21ldGhpbmcgd2UgY2FuIGNvbnNpZGVyLg0KDQpJdCB3b3VsZCBiZSBhcHByZWNpYXRl
+ZCBpZiB5b3UgY291bGQgaGF2ZSBhIGxvb2sgYXQgdGhlIHBhdGNoIGJlbG93Lg0KDQpUaGFua3Ms
+DQoNCkJhcnQuDQoNCg0KU3ViamVjdDogYmxvY2s6IE1ha2UgYmxrX2dldF9yZXF1ZXN0KCkgYWdh
+aW4gcmVzcGVjdCB0aGUgZW50aXJlIGdmcF90IGFyZ3VtZW50DQoNCkNvbW1pdCA2YTE1Njc0ZDFl
+OTAgKCJibG9jazogSW50cm9kdWNlIGJsa19nZXRfcmVxdWVzdF9mbGFncygpIikNCnRyYW5zbGF0
+ZXMgdGhlIHRoaXJkIGJsa19nZXRfcmVxdWVzdCgpIGFyZ3VtZW50cyBHRlBfS0VSTkVMLCBHRlBf
+Tk9JTw0KYW5kIF9fR0ZQX1JFQ0xBSU0gaW50byBfX0dGUF9ESVJFQ1RfUkVDTEFJTS4gTWFrZSBi
+bGtfZ2V0X3JlcXVlc3QoKQ0KYWdhaW4gcGFzcyB0aGUgZnVsbCBnZnBfdCBhcmd1bWVudCB0byBi
+bGtfb2xkX2dldF9yZXF1ZXN0KCkgc3VjaCB0aGF0DQprc3dhcGQgaXMgYWdhaW4gd29rZW4gdXAg
+dW5kZXIgbG93IG1lbW9yeSBjb25kaXRpb25zIGlmIHRoZSBjYWxsZXINCnJlcXVlc3RlZCB0aGlz
+Lg0KDQpOb3RlczoNCi0gVGhpcyBjaGFuZ2Ugb25seSBhZmZlY3RzIHRoZSBiZWhhdmlvciBvZiB0
+aGUgbGVnYWN5IGJsb2NrIGxheWVyLiBTZWUNCiAgYWxzbyB0aGUgbWVtcG9vbF9hbGxvYygpIGNh
+bGwgaW4gX19nZXRfcmVxdWVzdCgpLg0KLSBUaGUgX19HRlBfUkVDTEFJTSBmbGFnIGluIHRoZSBi
+bGtfZ2V0X3JlcXVlc3RfZmxhZ3MoKSBjYWxscyBpbg0KICB0aGUgSURFIGFuZCBTQ1NJIGRyaXZl
+cnMgd2FzIHJlbW92ZWQgYnkgY29tbWl0IDAzOWM2MzVmNGU2NiAoImlkZSwNCiAgc2NzaTogVGVs
+bCB0aGUgYmxvY2sgbGF5ZXIgYXQgcmVxdWVzdCBhbGxvY2F0aW9uIHRpbWUgYWJvdXQgcHJlZW1w
+dA0KICByZXF1ZXN0cyIpLg0KLS0tDQogYmxvY2svYmxrLWNvcmUuYyAgICAgICAgfCAyOCArKysr
+KysrKysrKysrKystLS0tLS0tLS0tLS0tDQogZHJpdmVycy9pZGUvaWRlLXBtLmMgICAgfCAgMiAr
+LQ0KIGRyaXZlcnMvc2NzaS9zY3NpX2xpYi5jIHwgIDMgKystDQogaW5jbHVkZS9saW51eC9ibGtk
+ZXYuaCAgfCAgMyArKy0NCiA0IGZpbGVzIGNoYW5nZWQsIDIwIGluc2VydGlvbnMoKyksIDE2IGRl
+bGV0aW9ucygtKQ0KDQpkaWZmIC0tZ2l0IGEvYmxvY2svYmxrLWNvcmUuYyBiL2Jsb2NrL2Jsay1j
+b3JlLmMNCmluZGV4IDNhYzlkZDI1ZTA0ZS4uODNjN2E1OGU0ZmIzIDEwMDY0NA0KLS0tIGEvYmxv
+Y2svYmxrLWNvcmUuYw0KKysrIGIvYmxvY2svYmxrLWNvcmUuYw0KQEAgLTEzMzMsNiArMTMzMyw3
+IEBAIGludCBibGtfdXBkYXRlX25yX3JlcXVlc3RzKHN0cnVjdCByZXF1ZXN0X3F1ZXVlICpxLCB1
+bnNpZ25lZCBpbnQgbnIpDQogICogQG9wOiBvcGVyYXRpb24gYW5kIGZsYWdzDQogICogQGJpbzog
+YmlvIHRvIGFsbG9jYXRlIHJlcXVlc3QgZm9yIChjYW4gYmUgJU5VTEwpDQogICogQGZsYWdzOiBC
+TFFfTVFfUkVRXyogZmxhZ3MNCisgKiBAZ2ZwX21hc2s6IGFsbG9jYXRpb24gbWFzaw0KICAqDQog
+ICogR2V0IGEgZnJlZSByZXF1ZXN0IGZyb20gQHEuICBUaGlzIGZ1bmN0aW9uIG1heSBmYWlsIHVu
+ZGVyIG1lbW9yeQ0KICAqIHByZXNzdXJlIG9yIGlmIEBxIGlzIGRlYWQuDQpAQCAtMTM0Miw3ICsx
+MzQzLDggQEAgaW50IGJsa191cGRhdGVfbnJfcmVxdWVzdHMoc3RydWN0IHJlcXVlc3RfcXVldWUg
+KnEsIHVuc2lnbmVkIGludCBucikNCiAgKiBSZXR1cm5zIHJlcXVlc3QgcG9pbnRlciBvbiBzdWNj
+ZXNzLCB3aXRoIEBxLT5xdWV1ZV9sb2NrICpub3QgaGVsZCouDQogICovDQogc3RhdGljIHN0cnVj
+dCByZXF1ZXN0ICpfX2dldF9yZXF1ZXN0KHN0cnVjdCByZXF1ZXN0X2xpc3QgKnJsLCB1bnNpZ25l
+ZCBpbnQgb3AsDQotCQkJCSAgICAgc3RydWN0IGJpbyAqYmlvLCBibGtfbXFfcmVxX2ZsYWdzX3Qg
+ZmxhZ3MpDQorCQkJCSAgICAgc3RydWN0IGJpbyAqYmlvLCBibGtfbXFfcmVxX2ZsYWdzX3QgZmxh
+Z3MsDQorCQkJCSAgICAgZ2ZwX3QgZ2ZwX21hc2spDQogew0KIAlzdHJ1Y3QgcmVxdWVzdF9xdWV1
+ZSAqcSA9IHJsLT5xOw0KIAlzdHJ1Y3QgcmVxdWVzdCAqcnE7DQpAQCAtMTM1MSw4ICsxMzUzLDYg
+QEAgc3RhdGljIHN0cnVjdCByZXF1ZXN0ICpfX2dldF9yZXF1ZXN0KHN0cnVjdCByZXF1ZXN0X2xp
+c3QgKnJsLCB1bnNpZ25lZCBpbnQgb3AsDQogCXN0cnVjdCBpb19jcSAqaWNxID0gTlVMTDsNCiAJ
+Y29uc3QgYm9vbCBpc19zeW5jID0gb3BfaXNfc3luYyhvcCk7DQogCWludCBtYXlfcXVldWU7DQot
+CWdmcF90IGdmcF9tYXNrID0gZmxhZ3MgJiBCTEtfTVFfUkVRX05PV0FJVCA/IEdGUF9BVE9NSUMg
+Og0KLQkJCSBfX0dGUF9ESVJFQ1RfUkVDTEFJTTsNCiAJcmVxX2ZsYWdzX3QgcnFfZmxhZ3MgPSBS
+UUZfQUxMT0NFRDsNCiANCiAJbG9ja2RlcF9hc3NlcnRfaGVsZChxLT5xdWV1ZV9sb2NrKTsNCkBA
+IC0xNTE2LDYgKzE1MTYsNyBAQCBzdGF0aWMgc3RydWN0IHJlcXVlc3QgKl9fZ2V0X3JlcXVlc3Qo
+c3RydWN0IHJlcXVlc3RfbGlzdCAqcmwsIHVuc2lnbmVkIGludCBvcCwNCiAgKiBAb3A6IG9wZXJh
+dGlvbiBhbmQgZmxhZ3MNCiAgKiBAYmlvOiBiaW8gdG8gYWxsb2NhdGUgcmVxdWVzdCBmb3IgKGNh
+biBiZSAlTlVMTCkNCiAgKiBAZmxhZ3M6IEJMS19NUV9SRVFfKiBmbGFncy4NCisgKiBAZ2ZwX21h
+c2s6IGFsbG9jYXRpb24gbWFzaw0KICAqDQogICogR2V0IGEgZnJlZSByZXF1ZXN0IGZyb20gQHEu
+ICBJZiAlX19HRlBfRElSRUNUX1JFQ0xBSU0gaXMgc2V0IGluIEBnZnBfbWFzaywNCiAgKiB0aGlz
+IGZ1bmN0aW9uIGtlZXBzIHJldHJ5aW5nIHVuZGVyIG1lbW9yeSBwcmVzc3VyZSBhbmQgZmFpbHMg
+aWZmIEBxIGlzIGRlYWQuDQpAQCAtMTUyNSw3ICsxNTI2LDggQEAgc3RhdGljIHN0cnVjdCByZXF1
+ZXN0ICpfX2dldF9yZXF1ZXN0KHN0cnVjdCByZXF1ZXN0X2xpc3QgKnJsLCB1bnNpZ25lZCBpbnQg
+b3AsDQogICogUmV0dXJucyByZXF1ZXN0IHBvaW50ZXIgb24gc3VjY2Vzcywgd2l0aCBAcS0+cXVl
+dWVfbG9jayAqbm90IGhlbGQqLg0KICAqLw0KIHN0YXRpYyBzdHJ1Y3QgcmVxdWVzdCAqZ2V0X3Jl
+cXVlc3Qoc3RydWN0IHJlcXVlc3RfcXVldWUgKnEsIHVuc2lnbmVkIGludCBvcCwNCi0JCQkJICAg
+c3RydWN0IGJpbyAqYmlvLCBibGtfbXFfcmVxX2ZsYWdzX3QgZmxhZ3MpDQorCQkJCSAgIHN0cnVj
+dCBiaW8gKmJpbywgYmxrX21xX3JlcV9mbGFnc190IGZsYWdzLA0KKwkJCQkgICBnZnBfdCBnZnBf
+bWFzaykNCiB7DQogCWNvbnN0IGJvb2wgaXNfc3luYyA9IG9wX2lzX3N5bmMob3ApOw0KIAlERUZJ
+TkVfV0FJVCh3YWl0KTsNCkBAIC0xNTM3LDcgKzE1MzksNyBAQCBzdGF0aWMgc3RydWN0IHJlcXVl
+c3QgKmdldF9yZXF1ZXN0KHN0cnVjdCByZXF1ZXN0X3F1ZXVlICpxLCB1bnNpZ25lZCBpbnQgb3As
+DQogDQogCXJsID0gYmxrX2dldF9ybChxLCBiaW8pOwkvKiB0cmFuc2ZlcnJlZCB0byBAcnEgb24g
+c3VjY2VzcyAqLw0KIHJldHJ5Og0KLQlycSA9IF9fZ2V0X3JlcXVlc3QocmwsIG9wLCBiaW8sIGZs
+YWdzKTsNCisJcnEgPSBfX2dldF9yZXF1ZXN0KHJsLCBvcCwgYmlvLCBmbGFncywgZ2ZwX21hc2sp
+Ow0KIAlpZiAoIUlTX0VSUihycSkpDQogCQlyZXR1cm4gcnE7DQogDQpAQCAtMTU3NSwxMSArMTU3
+NywxMCBAQCBzdGF0aWMgc3RydWN0IHJlcXVlc3QgKmdldF9yZXF1ZXN0KHN0cnVjdCByZXF1ZXN0
+X3F1ZXVlICpxLCB1bnNpZ25lZCBpbnQgb3AsDQogDQogLyogZmxhZ3M6IEJMS19NUV9SRVFfUFJF
+RU1QVCBhbmQvb3IgQkxLX01RX1JFUV9OT1dBSVQuICovDQogc3RhdGljIHN0cnVjdCByZXF1ZXN0
+ICpibGtfb2xkX2dldF9yZXF1ZXN0KHN0cnVjdCByZXF1ZXN0X3F1ZXVlICpxLA0KLQkJCQl1bnNp
+Z25lZCBpbnQgb3AsIGJsa19tcV9yZXFfZmxhZ3NfdCBmbGFncykNCisJCQkJdW5zaWduZWQgaW50
+IG9wLCBibGtfbXFfcmVxX2ZsYWdzX3QgZmxhZ3MsDQorCQkJCWdmcF90IGdmcF9tYXNrKQ0KIHsN
+CiAJc3RydWN0IHJlcXVlc3QgKnJxOw0KLQlnZnBfdCBnZnBfbWFzayA9IGZsYWdzICYgQkxLX01R
+X1JFUV9OT1dBSVQgPyBHRlBfQVRPTUlDIDoNCi0JCQkgX19HRlBfRElSRUNUX1JFQ0xBSU07DQog
+CWludCByZXQgPSAwOw0KIA0KIAlXQVJOX09OX09OQ0UocS0+bXFfb3BzKTsNCkBAIC0xNTkxLDcg
+KzE1OTIsNyBAQCBzdGF0aWMgc3RydWN0IHJlcXVlc3QgKmJsa19vbGRfZ2V0X3JlcXVlc3Qoc3Ry
+dWN0IHJlcXVlc3RfcXVldWUgKnEsDQogCWlmIChyZXQpDQogCQlyZXR1cm4gRVJSX1BUUihyZXQp
+Ow0KIAlzcGluX2xvY2tfaXJxKHEtPnF1ZXVlX2xvY2spOw0KLQlycSA9IGdldF9yZXF1ZXN0KHEs
+IG9wLCBOVUxMLCBmbGFncyk7DQorCXJxID0gZ2V0X3JlcXVlc3QocSwgb3AsIE5VTEwsIGZsYWdz
+LCBnZnBfbWFzayk7DQogCWlmIChJU19FUlIocnEpKSB7DQogCQlzcGluX3VubG9ja19pcnEocS0+
+cXVldWVfbG9jayk7DQogCQlibGtfcXVldWVfZXhpdChxKTsNCkBAIC0xNjEwLDkgKzE2MTEsMTAg
+QEAgc3RhdGljIHN0cnVjdCByZXF1ZXN0ICpibGtfb2xkX2dldF9yZXF1ZXN0KHN0cnVjdCByZXF1
+ZXN0X3F1ZXVlICpxLA0KICAqIEBxOiByZXF1ZXN0IHF1ZXVlIHRvIGFsbG9jYXRlIGEgcmVxdWVz
+dCBmb3INCiAgKiBAb3A6IG9wZXJhdGlvbiAoUkVRX09QXyopIGFuZCBSRVFfKiBmbGFncywgZS5n
+LiBSRVFfU1lOQy4NCiAgKiBAZmxhZ3M6IEJMS19NUV9SRVFfKiBmbGFncywgZS5nLiBCTEtfTVFf
+UkVRX05PV0FJVC4NCisgKiBAZ2ZwX21hc2s6IGFsbG9jYXRpb24gbWFzaw0KICAqLw0KIHN0cnVj
+dCByZXF1ZXN0ICpibGtfZ2V0X3JlcXVlc3RfZmxhZ3Moc3RydWN0IHJlcXVlc3RfcXVldWUgKnEs
+IHVuc2lnbmVkIGludCBvcCwNCi0JCQkJICAgICAgYmxrX21xX3JlcV9mbGFnc190IGZsYWdzKQ0K
+KwkJCQkgICAgICBibGtfbXFfcmVxX2ZsYWdzX3QgZmxhZ3MsIGdmcF90IGdmcF9tYXNrKQ0KIHsN
+CiAJc3RydWN0IHJlcXVlc3QgKnJlcTsNCiANCkBAIC0xNjI0LDcgKzE2MjYsNyBAQCBzdHJ1Y3Qg
+cmVxdWVzdCAqYmxrX2dldF9yZXF1ZXN0X2ZsYWdzKHN0cnVjdCByZXF1ZXN0X3F1ZXVlICpxLCB1
+bnNpZ25lZCBpbnQgb3AsDQogCQlpZiAoIUlTX0VSUihyZXEpICYmIHEtPm1xX29wcy0+aW5pdGlh
+bGl6ZV9ycV9mbikNCiAJCQlxLT5tcV9vcHMtPmluaXRpYWxpemVfcnFfZm4ocmVxKTsNCiAJfSBl
+bHNlIHsNCi0JCXJlcSA9IGJsa19vbGRfZ2V0X3JlcXVlc3QocSwgb3AsIGZsYWdzKTsNCisJCXJl
+cSA9IGJsa19vbGRfZ2V0X3JlcXVlc3QocSwgb3AsIGZsYWdzLCBnZnBfbWFzayk7DQogCQlpZiAo
+IUlTX0VSUihyZXEpICYmIHEtPmluaXRpYWxpemVfcnFfZm4pDQogCQkJcS0+aW5pdGlhbGl6ZV9y
+cV9mbihyZXEpOw0KIAl9DQpAQCAtMTYzNyw3ICsxNjM5LDcgQEAgc3RydWN0IHJlcXVlc3QgKmJs
+a19nZXRfcmVxdWVzdChzdHJ1Y3QgcmVxdWVzdF9xdWV1ZSAqcSwgdW5zaWduZWQgaW50IG9wLA0K
+IAkJCQlnZnBfdCBnZnBfbWFzaykNCiB7DQogCXJldHVybiBibGtfZ2V0X3JlcXVlc3RfZmxhZ3Mo
+cSwgb3AsIGdmcF9tYXNrICYgX19HRlBfRElSRUNUX1JFQ0xBSU0gPw0KLQkJCQkgICAgIDAgOiBC
+TEtfTVFfUkVRX05PV0FJVCk7DQorCQkJCSAgICAgMCA6IEJMS19NUV9SRVFfTk9XQUlULCBnZnBf
+bWFzayk7DQogfQ0KIEVYUE9SVF9TWU1CT0woYmxrX2dldF9yZXF1ZXN0KTsNCiANCkBAIC0yMDY1
+LDcgKzIwNjcsNyBAQCBzdGF0aWMgYmxrX3FjX3QgYmxrX3F1ZXVlX2JpbyhzdHJ1Y3QgcmVxdWVz
+dF9xdWV1ZSAqcSwgc3RydWN0IGJpbyAqYmlvKQ0KIAkgKiBSZXR1cm5zIHdpdGggdGhlIHF1ZXVl
+IHVubG9ja2VkLg0KIAkgKi8NCiAJYmxrX3F1ZXVlX2VudGVyX2xpdmUocSk7DQotCXJlcSA9IGdl
+dF9yZXF1ZXN0KHEsIGJpby0+Ymlfb3BmLCBiaW8sIDApOw0KKwlyZXEgPSBnZXRfcmVxdWVzdChx
+LCBiaW8tPmJpX29wZiwgYmlvLCAwLCBHRlBfTk9JTyk7DQogCWlmIChJU19FUlIocmVxKSkgew0K
+IAkJYmxrX3F1ZXVlX2V4aXQocSk7DQogCQlfX3didF9kb25lKHEtPnJxX3diLCB3Yl9hY2N0KTsN
+CmRpZmYgLS1naXQgYS9kcml2ZXJzL2lkZS9pZGUtcG0uYyBiL2RyaXZlcnMvaWRlL2lkZS1wbS5j
+DQppbmRleCBhZDhhMTI1ZGVmZGQuLjNkZGI0NjRiNzJlNiAxMDA2NDQNCi0tLSBhL2RyaXZlcnMv
+aWRlL2lkZS1wbS5jDQorKysgYi9kcml2ZXJzL2lkZS9pZGUtcG0uYw0KQEAgLTkxLDcgKzkxLDcg
+QEAgaW50IGdlbmVyaWNfaWRlX3Jlc3VtZShzdHJ1Y3QgZGV2aWNlICpkZXYpDQogDQogCW1lbXNl
+dCgmcnFwbSwgMCwgc2l6ZW9mKHJxcG0pKTsNCiAJcnEgPSBibGtfZ2V0X3JlcXVlc3RfZmxhZ3Mo
+ZHJpdmUtPnF1ZXVlLCBSRVFfT1BfRFJWX0lOLA0KLQkJCQkgICBCTEtfTVFfUkVRX1BSRUVNUFQp
+Ow0KKwkJCQkgICBCTEtfTVFfUkVRX1BSRUVNUFQsIF9fR0ZQX1JFQ0xBSU0pOw0KIAlpZGVfcmVx
+KHJxKS0+dHlwZSA9IEFUQV9QUklWX1BNX1JFU1VNRTsNCiAJcnEtPnNwZWNpYWwgPSAmcnFwbTsN
+CiAJcnFwbS5wbV9zdGVwID0gSURFX1BNX1NUQVJUX1JFU1VNRTsNCmRpZmYgLS1naXQgYS9kcml2
+ZXJzL3Njc2kvc2NzaV9saWIuYyBiL2RyaXZlcnMvc2NzaS9zY3NpX2xpYi5jDQppbmRleCAwZGZl
+YzBkZWRkNWUuLjYyZDMxNDAzNzY3YSAxMDA2NDQNCi0tLSBhL2RyaXZlcnMvc2NzaS9zY3NpX2xp
+Yi5jDQorKysgYi9kcml2ZXJzL3Njc2kvc2NzaV9saWIuYw0KQEAgLTI2Nyw3ICsyNjcsOCBAQCBp
+bnQgc2NzaV9leGVjdXRlKHN0cnVjdCBzY3NpX2RldmljZSAqc2RldiwgY29uc3QgdW5zaWduZWQg
+Y2hhciAqY21kLA0KIA0KIAlyZXEgPSBibGtfZ2V0X3JlcXVlc3RfZmxhZ3Moc2Rldi0+cmVxdWVz
+dF9xdWV1ZSwNCiAJCQlkYXRhX2RpcmVjdGlvbiA9PSBETUFfVE9fREVWSUNFID8NCi0JCQlSRVFf
+T1BfU0NTSV9PVVQgOiBSRVFfT1BfU0NTSV9JTiwgQkxLX01RX1JFUV9QUkVFTVBUKTsNCisJCQlS
+RVFfT1BfU0NTSV9PVVQgOiBSRVFfT1BfU0NTSV9JTiwgQkxLX01RX1JFUV9QUkVFTVBULA0KKwkJ
+CV9fR0ZQX1JFQ0xBSU0pOw0KIAlpZiAoSVNfRVJSKHJlcSkpDQogCQlyZXR1cm4gcmV0Ow0KIAly
+cSA9IHNjc2lfcmVxKHJlcSk7DQpkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9ibGtkZXYuaCBi
+L2luY2x1ZGUvbGludXgvYmxrZGV2LmgNCmluZGV4IGYyY2RmMjYzNjk3NC4uZTBhNmE3NDFhZmQw
+IDEwMDY0NA0KLS0tIGEvaW5jbHVkZS9saW51eC9ibGtkZXYuaA0KKysrIGIvaW5jbHVkZS9saW51
+eC9ibGtkZXYuaA0KQEAgLTk0Myw3ICs5NDMsOCBAQCBleHRlcm4gdm9pZCBibGtfcHV0X3JlcXVl
+c3Qoc3RydWN0IHJlcXVlc3QgKik7DQogZXh0ZXJuIHZvaWQgX19ibGtfcHV0X3JlcXVlc3Qoc3Ry
+dWN0IHJlcXVlc3RfcXVldWUgKiwgc3RydWN0IHJlcXVlc3QgKik7DQogZXh0ZXJuIHN0cnVjdCBy
+ZXF1ZXN0ICpibGtfZ2V0X3JlcXVlc3RfZmxhZ3Moc3RydWN0IHJlcXVlc3RfcXVldWUgKiwNCiAJ
+CQkJCSAgICAgdW5zaWduZWQgaW50IG9wLA0KLQkJCQkJICAgICBibGtfbXFfcmVxX2ZsYWdzX3Qg
+ZmxhZ3MpOw0KKwkJCQkJICAgICBibGtfbXFfcmVxX2ZsYWdzX3QgZmxhZ3MsDQorCQkJCQkgICAg
+IGdmcF90IGdmcF9tYXNrKTsNCiBleHRlcm4gc3RydWN0IHJlcXVlc3QgKmJsa19nZXRfcmVxdWVz
+dChzdHJ1Y3QgcmVxdWVzdF9xdWV1ZSAqLCB1bnNpZ25lZCBpbnQgb3AsDQogCQkJCSAgICAgICBn
+ZnBfdCBnZnBfbWFzayk7DQogZXh0ZXJuIHZvaWQgYmxrX3JlcXVldWVfcmVxdWVzdChzdHJ1Y3Qg
+cmVxdWVzdF9xdWV1ZSAqLCBzdHJ1Y3QgcmVxdWVzdCAqKTsNCi0tIA0KMi4xNi4yDQo=
