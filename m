@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B3896B0003
-	for <linux-mm@kvack.org>; Sun,  8 Apr 2018 20:17:03 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v19so2473047pfn.7
-        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 17:17:03 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0103.outbound.protection.outlook.com. [104.47.40.103])
-        by mx.google.com with ESMTPS id j189si10474506pgc.335.2018.04.08.17.17.01
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F0C556B0006
+	for <linux-mm@kvack.org>; Sun,  8 Apr 2018 20:22:07 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id k15so6680083ioc.4
+        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 17:22:07 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0115.outbound.protection.outlook.com. [104.47.38.115])
+        by mx.google.com with ESMTPS id p141si9691489iod.141.2018.04.08.17.22.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 08 Apr 2018 17:17:01 -0700 (PDT)
+        Sun, 08 Apr 2018 17:22:06 -0700 (PDT)
 From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: [PATCH AUTOSEL for 4.15 019/189] printk: Add console owner and waiter
+Subject: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and waiter
  logic to load balance console writes
-Date: Mon, 9 Apr 2018 00:16:59 +0000
-Message-ID: <20180409001637.162453-19-alexander.levin@microsoft.com>
-References: <20180409001637.162453-1-alexander.levin@microsoft.com>
-In-Reply-To: <20180409001637.162453-1-alexander.levin@microsoft.com>
+Date: Mon, 9 Apr 2018 00:19:53 +0000
+Message-ID: <20180409001936.162706-15-alexander.levin@microsoft.com>
+References: <20180409001936.162706-1-alexander.levin@microsoft.com>
+In-Reply-To: <20180409001936.162706-1-alexander.levin@microsoft.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
@@ -227,7 +227,7 @@ Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
  1 file changed, 107 insertions(+), 1 deletion(-)
 
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index b9006617710f..7e6459abba43 100644
+index 512f7c2baedd..89c3496975cc 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
 @@ -86,8 +86,15 @@ EXPORT_SYMBOL_GPL(console_drivers);
