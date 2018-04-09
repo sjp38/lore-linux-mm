@@ -1,74 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5200D6B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 14:38:30 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c85so5394056pfb.12
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 11:38:30 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 4-v6si816621pld.371.2018.04.09.11.38.28
+	by kanga.kvack.org (Postfix) with ESMTP id A1D876B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 14:50:20 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id z13so5426143pfe.21
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 11:50:20 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n11-v6sor424830pls.89.2018.04.09.11.50.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 11:38:28 -0700 (PDT)
-Date: Mon, 9 Apr 2018 11:38:27 -0700
-From: Jaegeuk Kim <jaegeuk@kernel.org>
-Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
-Message-ID: <20180409183827.GD17558@jaegeuk-macbookpro.roam.corp.google.com>
-References: <20180409015815.235943-1-minchan@kernel.org>
- <20180409024925.GA21889@bombadil.infradead.org>
- <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
- <20180409111403.GA31652@bombadil.infradead.org>
- <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
+        (Google Transport Security);
+        Mon, 09 Apr 2018 11:50:19 -0700 (PDT)
+Date: Mon, 9 Apr 2018 11:50:16 -0700
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: [PATCH] ipc/shm: fix use-after-free of shm file via
+ remap_file_pages()
+Message-ID: <20180409185016.GA203367@gmail.com>
+References: <94eb2c06f65e5e2467055d036889@google.com>
+ <20180409043039.28915-1-ebiggers3@gmail.com>
+ <20180409094813.bsjc3u2hnsrdyiuk@black.fi.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
+In-Reply-To: <20180409094813.bsjc3u2hnsrdyiuk@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dave@stgolabs.net>, Manfred Spraul <manfred@colorfullife.com>, "Eric W . Biederman" <ebiederm@xmission.com>, syzkaller-bugs@googlegroups.com
 
-On 04/09, Minchan Kim wrote:
-> On Mon, Apr 09, 2018 at 04:14:03AM -0700, Matthew Wilcox wrote:
-> > On Mon, Apr 09, 2018 at 12:09:30PM +0900, Minchan Kim wrote:
-> > > On Sun, Apr 08, 2018 at 07:49:25PM -0700, Matthew Wilcox wrote:
-> > > > On Mon, Apr 09, 2018 at 10:58:15AM +0900, Minchan Kim wrote:
-> > > > > It assumes shadow entry of radix tree relies on the init state
-> > > > > that node->private_list allocated should be list_empty state.
-> > > > > Currently, it's initailized in SLAB constructor which means
-> > > > > node of radix tree would be initialized only when *slub allocates
-> > > > > new page*, not *new object*. So, if some FS or subsystem pass
-> > > > > gfp_mask to __GFP_ZERO, slub allocator will do memset blindly.
-> > > > 
-> > > > Wait, what?  Who's declaring their radix tree with GFP_ZERO flags?
-> > > > I don't see anyone using INIT_RADIX_TREE or RADIX_TREE or RADIX_TREE_INIT
-> > > > with GFP_ZERO.
-> > > 
-> > > Look at fs/f2fs/inode.c
-> > > mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
-> > > 
-> > > __add_to_page_cache_locked
-> > >   radix_tree_maybe_preload
-> > > 
-> > > add_to_page_cache_lru
-> > > 
-> > > What's the wrong with setting __GFP_ZERO with mapping->gfp_mask?
-> > 
-> > Because it's a stupid thing to do.  Pages are allocated and then filled
-> > from disk.  Zeroing them before DMAing to them is just a waste of time.
+On Mon, Apr 09, 2018 at 12:48:14PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Apr 09, 2018 at 04:30:39AM +0000, Eric Biggers wrote:
+> > diff --git a/ipc/shm.c b/ipc/shm.c
+> > index acefe44fefefa..c80c5691a9970 100644
+> > --- a/ipc/shm.c
+> > +++ b/ipc/shm.c
+> > @@ -225,6 +225,12 @@ static int __shm_open(struct vm_area_struct *vma)
+> >  	if (IS_ERR(shp))
+> >  		return PTR_ERR(shp);
+> >  
+> > +	if (shp->shm_file != sfd->file) {
+> > +		/* ID was reused */
+> > +		shm_unlock(shp);
+> > +		return -EINVAL;
+> > +	}
+> > +
+> >  	shp->shm_atim = ktime_get_real_seconds();
+> >  	ipc_update_pid(&shp->shm_lprid, task_tgid(current));
+> >  	shp->shm_nattch++;
+> > @@ -455,8 +461,9 @@ static int shm_mmap(struct file *file, struct vm_area_struct *vma)
+> >  	int ret;
+> >  
+> >  	/*
+> > -	 * In case of remap_file_pages() emulation, the file can represent
+> > -	 * removed IPC ID: propogate shm_lock() error to caller.
+> > +	 * In case of remap_file_pages() emulation, the file can represent an
+> > +	 * IPC ID that was removed, and possibly even reused by another shm
+> > +	 * segment already.  Propagate this case as an error to caller.
+> >  	 */
+> >  	ret = __shm_open(vma);
+> >  	if (ret)
+> > @@ -480,6 +487,7 @@ static int shm_release(struct inode *ino, struct file *file)
+> >  	struct shm_file_data *sfd = shm_file_data(file);
+> >  
+> >  	put_ipc_ns(sfd->ns);
+> > +	fput(sfd->file);
+> >  	shm_file_data(file) = NULL;
+> >  	kfree(sfd);
+> >  	return 0;
+> > @@ -1432,7 +1440,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
+> >  	file->f_mapping = shp->shm_file->f_mapping;
+> >  	sfd->id = shp->shm_perm.id;
+> >  	sfd->ns = get_ipc_ns(ns);
+> > -	sfd->file = shp->shm_file;
+> > +	sfd->file = get_file(shp->shm_file);
+> >  	sfd->vm_ops = NULL;
+> >  
+> >  	err = security_mmap_file(file, prot, flags);
 > 
-> Every FSes do address_space to read pages from storage? I'm not sure.
+> Hm. Why do we need sfd->file refcounting now? It's not obvious to me.
 > 
-> If you're right, we need to insert WARN_ON to catch up __GFP_ZERO
-> on mapping_set_gfp_mask at the beginning and remove all of those
-> stupid thins. 
+> Looks like it's either a separate bug or an unneeded change.
 > 
-> Jaegeuk, why do you need __GFP_ZERO? Could you explain?
 
-Comment says "__GFP_ZERO returns a zeroed page on success."
+It's necessary because if we don't hold a reference to sfd->file, then it can be
+a stale pointer when we compare it in __shm_open().  In particular, if the new
+struct file happened to be allocated at the same address as the old one, then
+'sfd->file == shp->shm_file' so the mmap would be allowed.  But, it will be a
+different shm segment than was intended.  The caller may not even have
+permissions to map it normally, yet it would be done anyway.
 
-The f2fs maintains two inodes to manage some metadata in the page cache,
-which requires zeroed data when introducing a new structure. It's not
-a big deal to avoid __GFP_ZERO for whatever performance reasons tho, does
-it only matters with f2fs?
+In the end it's just broken to have a pointer to something that can be freed out
+from under you...
 
-Thanks,
+- Eric
