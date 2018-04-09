@@ -1,40 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F1D306B0006
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 13:22:00 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id v191so5645728wmd.1
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 10:22:00 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 4si569314wrh.100.2018.04.09.10.21.59
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E03A6B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 13:24:05 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id w17so6459812qkb.19
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 10:24:05 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id i9si943655qte.309.2018.04.09.10.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 10:21:59 -0700 (PDT)
-Date: Mon, 9 Apr 2018 19:21:58 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 7/7] block: use GFP_KERNEL for allocations from
-	blk_get_request
-Message-ID: <20180409172158.GB5697@lst.de>
-References: <20180409153916.23901-1-hch@lst.de> <20180409153916.23901-8-hch@lst.de> <20180409165203.GE11756@bombadil.infradead.org>
+        Mon, 09 Apr 2018 10:24:04 -0700 (PDT)
+Subject: Re: [PATCH] Documentation/vm/hmm.txt: typos and syntaxes fixes
+References: <20180409151859.4713-1-jglisse@redhat.com>
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <680b24d9-1c6b-a16c-45f3-6fd7a31c3840@nvidia.com>
+Date: Mon, 9 Apr 2018 10:24:03 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180409165203.GE11756@bombadil.infradead.org>
+In-Reply-To: <20180409151859.4713-1-jglisse@redhat.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christoph Hellwig <hch@lst.de>, axboe@kernel.dk, Bart.VanAssche@wdc.com, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: jglisse@redhat.com, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Randy Dunlap <rdunlap@infradead.org>
 
-On Mon, Apr 09, 2018 at 09:52:03AM -0700, Matthew Wilcox wrote:
-> On Mon, Apr 09, 2018 at 05:39:16PM +0200, Christoph Hellwig wrote:
-> > blk_get_request is used for pass-through style I/O and thus doesn't need
-> > GFP_NOIO.
-> 
-> Obviously GFP_KERNEL is a big improvement over GFP_NOIO!  But can we take
-> it all the way to GFP_USER, if this is always done in the ioctl path
-> (which it seems to be, except for nfsd, which presumably won't have
-> a cpuset memory allocation policy ... and if it did, the admin might
-> appreciate it honouring said policy).
 
-GFP_USER claims to be for allocations mapped into userspace, and except
-for a few outliers that is how we use it.  I see no reason to change
-that here.
+On 04/09/2018 08:18 AM, jglisse@redhat.com wrote:
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
+> This fix typos and syntaxes, thanks to Randy Dunlap for pointing them
+> out (they were all my faults).
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Randy Dunlap <rdunlap@infradead.org>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+
+You can add:
+
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
