@@ -1,139 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B88426B0006
-	for <linux-mm@kvack.org>; Sun,  8 Apr 2018 22:07:48 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id d205so5103481qkg.14
-        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 19:07:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id z19si17904339qtm.463.2018.04.08.19.07.47
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B5C356B0003
+	for <linux-mm@kvack.org>; Sun,  8 Apr 2018 22:49:29 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p10so4302996pfl.22
+        for <linux-mm@kvack.org>; Sun, 08 Apr 2018 19:49:29 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g4si11944379pfm.358.2018.04.08.19.49.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Apr 2018 19:07:47 -0700 (PDT)
-Date: Mon, 9 Apr 2018 10:07:41 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH v3 4/4] mm/sparse: Optimize memmap allocation during
- sparse_init()
-Message-ID: <20180409020741.GA25724@localhost.localdomain>
-References: <20180228032657.32385-1-bhe@redhat.com>
- <20180228032657.32385-5-bhe@redhat.com>
- <5dd3942a-cf66-f749-b1c6-217b0c3c94dc@intel.com>
- <20180408082038.GB19345@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 08 Apr 2018 19:49:28 -0700 (PDT)
+Date: Sun, 8 Apr 2018 19:49:25 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
+Message-ID: <20180409024925.GA21889@bombadil.infradead.org>
+References: <20180409015815.235943-1-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180408082038.GB19345@localhost.localdomain>
+In-Reply-To: <20180409015815.235943-1-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>
 
-On 04/08/18 at 04:20pm, Baoquan He wrote:
-> On 04/06/18 at 07:50am, Dave Hansen wrote:
-> > I'm having a really hard time tying all the pieces back together.  Let
-> > me give it a shot and you can tell me where I go wrong.
-> > 
-> > On 02/27/2018 07:26 PM, Baoquan He wrote:
-> > > In sparse_init(), two temporary pointer arrays, usemap_map and map_map
-> > > are allocated with the size of NR_MEM_SECTIONS.
-> > 
-> > In sparse_init(), two temporary pointer arrays, usemap_map and map_map
-> > are allocated to hold the maps for every possible memory section
-> > (NR_MEM_SECTIONS).  However, we obviously only need the array sized for
-> > nr_present_sections (introduced in patch 1).
-> 
-> Yes, correct.
-> 
-> > 
-> > The reason this is a problem is that, with 5-level paging,
-> > NR_MEM_SECTIONS (8M->512M) went up dramatically and these temporary
-> > arrays can eat all of memory, like on kdump kernels.
-> 
-> With 5-level paging enabled, MAX_PHYSMEM_BITS changed from 46 to
-> 52. You can see NR_MEM_SECTIONS becomes 64 times of the old value. So
-> the two temporary pointer arrays eat more memory, 8M -> 8M*64 = 512M.
-> 
-> # define MAX_PHYSMEM_BITS       (pgtable_l5_enabled ? 52 : 46)
-> 
-> > 
-> > This patch does two things: it makes sure to give usemap_map/mem_map a
-> > less gluttonous size on small systems, and it changes the map allocation
-> > and handling to handle the now more compact, less sparse arrays.
-> 
-> Yes, because 99.9% of systems do not have PB level of memory, not even TB.
-> Any place of memory allocatin with the size of NR_MEM_SECTIONS should be
-> avoided.
-> 
-> > 
-> > ---
-> > 
-> > The code looks fine to me.  It's a bit of a shame that there's no
-> > verification to ensure that idx_present never goes beyond the shiny new
-> > nr_present_sections. 
-> 
-> This is a good point. Do you think it's OK to replace (section_nr <
-> NR_MEM_SECTIONS) with (section_nr < nr_present_sections) in below
-> for_each macro? This for_each_present_section_nr() is only used
-> during sparse_init() execution.
+On Mon, Apr 09, 2018 at 10:58:15AM +0900, Minchan Kim wrote:
+> It assumes shadow entry of radix tree relies on the init state
+> that node->private_list allocated should be list_empty state.
+> Currently, it's initailized in SLAB constructor which means
+> node of radix tree would be initialized only when *slub allocates
+> new page*, not *new object*. So, if some FS or subsystem pass
+> gfp_mask to __GFP_ZERO, slub allocator will do memset blindly.
 
-Oops, I was wrong. Here nr_present_sections is the number of present
-sections, while section_nr is index of all sections. If decide to do,
-can add check like below?
+Wait, what?  Who's declaring their radix tree with GFP_ZERO flags?
+I don't see anyone using INIT_RADIX_TREE or RADIX_TREE or RADIX_TREE_INIT
+with GFP_ZERO.
 
-	if (idx_present >= nr_present_sections) {
-		pr_err("idx_present goes beyond nr_present_sections, xxxx \n");
-		break;
-	}
+Although, even if nobody's doing that intentionally, if somebody has
+a bitflip with the __GFP_ZERO bit, it's going to propagate widely.
+I think something like this might be appropriate:
 
-> 
-> #define for_each_present_section_nr(start, section_nr)          \
->         for (section_nr = next_present_section_nr(start-1);     \
->              ((section_nr >= 0) &&                              \
->               (section_nr < NR_MEM_SECTIONS) &&                 \                                                                                 
->               (section_nr <= __highest_present_section_nr));    \
->              section_nr = next_present_section_nr(section_nr))
-> 
-> > 
-> > 
-> > > @@ -583,6 +592,7 @@ void __init sparse_init(void)
-> > >  	unsigned long *usemap;
-> > >  	unsigned long **usemap_map;
-> > >  	int size;
-> > > +	int idx_present = 0;
-> > 
-> > I wonder whether idx_present is a good name.  Isn't it the number of
-> > consumed mem_map[]s or usemaps?
-> 
-> Yeah, in sparse_init(), it's the index of present memory sections, and
-> also the number of consumed mem_map[]s or usemaps. And I remember you
-> suggested nr_consumed_maps instead. seems nr_consumed_maps is a little
-> long to index array to make code line longer than 80 chars. How about
-> name it idx_present in sparse_init(), nr_consumed_maps in
-> alloc_usemap_and_memmap(), the maps allocation function? I am also fine
-> to use nr_consumed_maps for all of them.
-> 
-> > 
-> > > 
-> > >  		if (!map) {
-> > >  			ms->section_mem_map = 0;
-> > > +			idx_present++;
-> > >  			continue;
-> > >  		}
-> > >  
-> > 
-> > 
-> > This hunk seems logically odd to me.  I would expect a non-used section
-> > to *not* consume an entry from the temporary array.  Why does it?  The
-> > error and success paths seem to do the same thing.
-> 
-> Yes, this place is the hardest to understand. The temorary arrays are
-> allocated beforehand with the size of 'nr_present_sections'. The error
-> paths you mentioned is caused by allocation failure of mem_map or
-> map_map, but whatever it's error or success paths, the sections must be
-> marked as present in memory_present(). Error or success paths happened
-> in alloc_usemap_and_memmap(), while checking if it's erorr or success
-> paths happened in the last for_each_present_section_nr() of
-> sparse_init(), and clear the ms->section_mem_map if it goes along error
-> paths. This is the key point of this new allocation way.
-> 
-> Thanks
-> Baoquan
+diff --git a/mm/slub.c b/mm/slub.c
+index 9e1100f9298f..0f55f0a0dcaa 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2714,8 +2714,10 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
+ 		stat(s, ALLOC_FASTPATH);
+ 	}
+ 
+-	if (unlikely(gfpflags & __GFP_ZERO) && object)
+-		memset(object, 0, s->object_size);
++	if (unlikely(gfpflags & __GFP_ZERO) && object) {
++		if (!WARN_ON_ONCE(s->ctor))
++			memset(object, 0, s->object_size);
++	}
+ 
+ 	slab_post_alloc_hook(s, gfpflags, 1, &object);
+ 
+
+Something you could try is checking that the list is empty when the node
+is inserted into the radix tree.
+
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 8e00138d593f..580f52d0c072 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -428,6 +428,7 @@ radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
+ 		ret->exceptional = exceptional;
+ 		ret->parent = parent;
+ 		ret->root = root;
++		BUG_ON(!list_empty(&ret->private_list));
+ 	}
+ 	return ret;
+ }
