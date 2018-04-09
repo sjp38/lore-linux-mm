@@ -1,46 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DE346B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 14:59:48 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id t4-v6so7538027plo.9
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 11:59:48 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0058.outbound.protection.outlook.com. [104.47.40.58])
-        by mx.google.com with ESMTPS id k75si692452pfk.4.2018.04.09.11.59.47
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E91526B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 15:40:48 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id x184so3787100pfd.14
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 12:40:48 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d8si655217pgc.60.2018.04.09.12.40.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 09 Apr 2018 11:59:47 -0700 (PDT)
-Subject: Re: [PATCH 00/11] [v5] Use global pages with PTI
-References: <20180406205501.24A1A4E7@viggo.jf.intel.com>
- <c96373d0-c16a-4463-147c-8624ad90af61@amd.com>
- <b9802f89-93b3-b535-742c-f84e9f5be832@linux.intel.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <1b45ffd1-99bb-4ac1-fb65-0de3e42c1c0a@amd.com>
-Date: Mon, 9 Apr 2018 13:59:33 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 09 Apr 2018 12:40:47 -0700 (PDT)
+Date: Mon, 9 Apr 2018 12:40:44 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
+Message-ID: <20180409194044.GA15295@bombadil.infradead.org>
+References: <20180409015815.235943-1-minchan@kernel.org>
+ <20180409024925.GA21889@bombadil.infradead.org>
+ <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
+ <20180409111403.GA31652@bombadil.infradead.org>
+ <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
+ <20180409183827.GD17558@jaegeuk-macbookpro.roam.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <b9802f89-93b3-b535-742c-f84e9f5be832@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180409183827.GD17558@jaegeuk-macbookpro.roam.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, aarcange@redhat.com, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, jgross@suse.com, x86@kernel.org, namit@vmware.com
+To: Jaegeuk Kim <jaegeuk@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
 
-On 4/9/2018 1:17 PM, Dave Hansen wrote:
-> On 04/09/2018 11:04 AM, Tom Lendacky wrote:
->> On 4/6/2018 3:55 PM, Dave Hansen wrote:
->>> Changes from v4
->>>  * Fix compile error reported by Tom Lendacky
->> This built with CONFIG_RANDOMIZE_BASE=y, but failed to boot successfully.
->> I think you're missing the initialization of __default_kernel_pte_mask in
->> kaslr.c.
+On Mon, Apr 09, 2018 at 11:38:27AM -0700, Jaegeuk Kim wrote:
+> On 04/09, Minchan Kim wrote:
+> > On Mon, Apr 09, 2018 at 04:14:03AM -0700, Matthew Wilcox wrote:
+> > > On Mon, Apr 09, 2018 at 12:09:30PM +0900, Minchan Kim wrote:
+> > > > On Sun, Apr 08, 2018 at 07:49:25PM -0700, Matthew Wilcox wrote:
+> > > > > On Mon, Apr 09, 2018 at 10:58:15AM +0900, Minchan Kim wrote:
+> > > > > > It assumes shadow entry of radix tree relies on the init state
+> > > > > > that node->private_list allocated should be list_empty state.
+> > > > > > Currently, it's initailized in SLAB constructor which means
+> > > > > > node of radix tree would be initialized only when *slub allocates
+> > > > > > new page*, not *new object*. So, if some FS or subsystem pass
+> > > > > > gfp_mask to __GFP_ZERO, slub allocator will do memset blindly.
+> > > > > 
+> > > > > Wait, what?  Who's declaring their radix tree with GFP_ZERO flags?
+> > > > > I don't see anyone using INIT_RADIX_TREE or RADIX_TREE or RADIX_TREE_INIT
+> > > > > with GFP_ZERO.
+> > > > 
+> > > > Look at fs/f2fs/inode.c
+> > > > mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
+> > > > 
+> > > > __add_to_page_cache_locked
+> > > >   radix_tree_maybe_preload
+> > > > 
+> > > > add_to_page_cache_lru
+> > > > 
+> > > > What's the wrong with setting __GFP_ZERO with mapping->gfp_mask?
+> > > 
+> > > Because it's a stupid thing to do.  Pages are allocated and then filled
+> > > from disk.  Zeroing them before DMAing to them is just a waste of time.
+> > 
+> > Every FSes do address_space to read pages from storage? I'm not sure.
+> > 
+> > If you're right, we need to insert WARN_ON to catch up __GFP_ZERO
+> > on mapping_set_gfp_mask at the beginning and remove all of those
+> > stupid thins. 
+> > 
+> > Jaegeuk, why do you need __GFP_ZERO? Could you explain?
 > 
-> This should be simple to fix (just add a -1 instead of 0), but let me
-> double-check and actually boot the fix.
-
-Yup, added an "= ~0" and everything is good.
-
-Thanks,
-Tom
-
+> Comment says "__GFP_ZERO returns a zeroed page on success."
 > 
+> The f2fs maintains two inodes to manage some metadata in the page cache,
+> which requires zeroed data when introducing a new structure. It's not
+> a big deal to avoid __GFP_ZERO for whatever performance reasons tho, does
+> it only matters with f2fs?
+
+This isn't a performance issue.
+
+The problem is that the mapping gfp flags are used not only for allocating
+pages, but also for allocating the page cache data structures that hold
+the pages.  F2FS is the only filesystem that set the __GFP_ZERO bit,
+so it's the first time anyone's noticed that the page cache passes the
+__GFP_ZERO bit through to the radix tree allocation routines, which
+causes the radix tree nodes to be zeroed instead of constructed.
+
+I think the right solution to this is:
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index c2147682f4c3..a87a523eea8e 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -785,7 +785,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+ 	VM_BUG_ON_PAGE(!PageLocked(new), new);
+ 	VM_BUG_ON_PAGE(new->mapping, new);
+ 
+-	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
++	error = radix_tree_preload(gfp_mask & ~(__GFP_HIGHMEM | __GFP_ZERO));
+ 	if (!error) {
+ 		struct address_space *mapping = old->mapping;
+ 		void (*freepage)(struct page *);
+@@ -841,7 +841,8 @@ static int __add_to_page_cache_locked(struct page *page,
+ 			return error;
+ 	}
+ 
+-	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
++	error = radix_tree_maybe_preload(gfp_mask &
++			~(__GFP_HIGHMEM | __GFP_ZERO));
+ 	if (error) {
+ 		if (!huge)
+ 			mem_cgroup_cancel_charge(page, memcg, false);
