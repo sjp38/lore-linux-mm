@@ -1,60 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F3F266B0011
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:13:54 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id n188so8681985vkc.1
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:13:54 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k5sor1241321uab.160.2018.04.10.05.13.54
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 620576B0022
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:19:07 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id z20so70881pfn.11
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:19:07 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 1-v6si2589212plj.275.2018.04.10.05.19.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Apr 2018 05:13:54 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180409181400.GO21835@dhcp22.suse.cz>
-References: <20180405142749.GL6312@dhcp22.suse.cz> <20180405151359.GB28128@bombadil.infradead.org>
- <20180405153240.GO6312@dhcp22.suse.cz> <20180405161501.GD28128@bombadil.infradead.org>
- <20180405185444.GQ6312@dhcp22.suse.cz> <20180405201557.GA3666@bombadil.infradead.org>
- <20180406060953.GA8286@dhcp22.suse.cz> <20180408042709.GC32632@bombadil.infradead.org>
- <20180409073407.GD21835@dhcp22.suse.cz> <20180409155157.GC11756@bombadil.infradead.org>
- <20180409181400.GO21835@dhcp22.suse.cz>
-From: =?UTF-8?B?0JTQvNC40YLRgNC40Lkg0JvQtdC+0L3RgtGM0LXQsg==?= <dm.leontiev7@gmail.com>
-Date: Tue, 10 Apr 2018 15:13:53 +0300
-Message-ID: <CA+JonM0MewH8MYBJkriPjLVr_xxMfPb0E=eSAQ3in7V45WUAow@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 10 Apr 2018 05:19:06 -0700 (PDT)
+Date: Tue, 10 Apr 2018 05:19:04 -0700
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: __GFP_LOW
-Content-Type: multipart/alternative; boundary="f403045f3da4bc0fa605697d74cd"
+Message-ID: <20180410121904.GD22118@bombadil.infradead.org>
+References: <20180405153240.GO6312@dhcp22.suse.cz>
+ <20180405161501.GD28128@bombadil.infradead.org>
+ <20180405185444.GQ6312@dhcp22.suse.cz>
+ <20180405201557.GA3666@bombadil.infradead.org>
+ <20180406060953.GA8286@dhcp22.suse.cz>
+ <20180408042709.GC32632@bombadil.infradead.org>
+ <20180409073407.GD21835@dhcp22.suse.cz>
+ <20180409155157.GC11756@bombadil.infradead.org>
+ <20180409181400.GO21835@dhcp22.suse.cz>
+ <CA+JonM0HG9kWb6-0iyDQ8UMxTeR-f=+ZL89t5DvvDULDC8Sfyw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CA+JonM0HG9kWb6-0iyDQ8UMxTeR-f=+ZL89t5DvvDULDC8Sfyw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+To: =?utf-8?B?0JTQvNC40YLRgNC40Lkg0JvQtdC+0L3RgtGM0LXQsg==?= <dm.leontiev7@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
---f403045f3da4bc0fa605697d74cd
-Content-Type: text/plain; charset="UTF-8"
+On Tue, Apr 10, 2018 at 03:12:37PM +0300, D?D 1/4 D,N?N?D,D1 D?DuD 3/4 D 1/2 N?N?DuD2 wrote:
+> First, I've noticed the network drivers were allocating memory in interrupt
+> handlers. That sounds strange to me, because as far as I know, this
+> behaviour is discouraged and may lead to DDOS attack.
 
-Hello
+Linux supports allocating memory in interrupt context.  We also support
+allocating memory while holding locks.
 
-I'm not an expert in Linux, but something made me think something is broken
-in linux in this discussion.
-
-First, I've noticed the network drivers were allocating memory in interrupt
-handlers. That sounds strange to me, because as far as I know, this
-behaviour is discouraged and may lead to DDOS attack.
-
-Maybe this weird behaviour should be fixed instead of fixing memory
-allocator? Networking must not allocate anything, it must drop packets it
-cant handle at the moment. Sorry, we totally screwed up, shit happened,
-aliens are attacking, blahblahblah, but we won't allocate a byte for you.
-
---f403045f3da4bc0fa605697d74cd
-Content-Type: text/html; charset="UTF-8"
-
-<div dir="ltr"><div><div><div><div><div>Hello<br><br></div>I&#39;m not an expert in Linux, but something made me think something is broken in linux in this discussion.<br><br></div>First,
- I&#39;ve noticed the network drivers were allocating memory in interrupt 
-handlers. That sounds strange to me, because as far as I know, this 
-behaviour is discouraged and may lead to DDOS attack.<span class="gmail-im"><br><br></span></div>Maybe
- this weird behaviour should be fixed instead of fixing memory 
-allocator? Networking must not allocate anything, it must drop packets 
-it cant handle at the moment. Sorry, we totally screwed up, shit 
-happened, aliens are attacking, blahblahblah, but we won&#39;t allocate a 
-byte for you. <div class="gmail-yj6qo"></div><div class="gmail-adL"><br></div></div></div></div>
-
---f403045f3da4bc0fa605697d74cd--
+Doing it any other way would require the network stack to preallocate
+all of the memory it's going to use.  You can pop over to the netdev
+mailing list and ask them to stop this behaviour, but I don't think
+they'll be very sympathetic.
