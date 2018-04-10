@@ -1,47 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BE5516B0024
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:28:09 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id g13-v6so2436699lfl.15
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:28:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x13sor675283ljj.87.2018.04.10.05.28.07
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A088D6B0026
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:33:11 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id t1-v6so9444499plb.5
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:33:11 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c6-v6si2674395plr.620.2018.04.10.05.33.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Apr 2018 05:28:08 -0700 (PDT)
-Date: Tue, 10 Apr 2018 15:28:04 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [v3 PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-Message-ID: <20180410122804.GD2041@uranus.lan>
-References: <1523310774-40300-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180410090917.GZ21835@dhcp22.suse.cz>
- <20180410094047.GB2041@uranus.lan>
- <20180410104215.GB21835@dhcp22.suse.cz>
- <20180410110242.GC2041@uranus.lan>
- <20180410111001.GD21835@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Apr 2018 05:33:10 -0700 (PDT)
+Date: Tue, 10 Apr 2018 14:33:06 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
+Message-ID: <20180410123306.GI21835@dhcp22.suse.cz>
+References: <20180409015815.235943-1-minchan@kernel.org>
+ <20180409024925.GA21889@bombadil.infradead.org>
+ <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
+ <20180409111403.GA31652@bombadil.infradead.org>
+ <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
+ <20180409183827.GD17558@jaegeuk-macbookpro.roam.corp.google.com>
+ <20180409194044.GA15295@bombadil.infradead.org>
+ <20180410082643.GX21835@dhcp22.suse.cz>
+ <20180410120528.GB22118@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180410111001.GD21835@dhcp22.suse.cz>
+In-Reply-To: <20180410120528.GB22118@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, adobriyan@gmail.com, willy@infradead.org, mguzik@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Jaegeuk Kim <jaegeuk@kernel.org>, Minchan Kim <minchan@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
 
-On Tue, Apr 10, 2018 at 01:10:01PM +0200, Michal Hocko wrote:
+On Tue 10-04-18 05:05:28, Matthew Wilcox wrote:
+> On Tue, Apr 10, 2018 at 10:26:43AM +0200, Michal Hocko wrote:
+> > On Mon 09-04-18 12:40:44, Matthew Wilcox wrote:
+> > > The problem is that the mapping gfp flags are used not only for allocating
+> > > pages, but also for allocating the page cache data structures that hold
+> > > the pages.  F2FS is the only filesystem that set the __GFP_ZERO bit,
+> > > so it's the first time anyone's noticed that the page cache passes the
+> > > __GFP_ZERO bit through to the radix tree allocation routines, which
+> > > causes the radix tree nodes to be zeroed instead of constructed.
+> > > 
+> > > I think the right solution to this is:
 > > 
-> > Because do_brk does vma manipulations, for this reason it's
-> > running under down_write_killable(&mm->mmap_sem). Or you
-> > mean something else?
+> > This just hides the underlying problem that the node is not fully and
+> > properly initialized. Relying on the previous released state is just too
+> > subtle.
 > 
-> Yes, all we need the new lock for is to get a consistent view on brk
-> values. I am simply asking whether there is something fundamentally
-> wrong by doing the update inside the new lock while keeping the original
-> mmap_sem locking in the brk path. That would allow us to drop the
-> mmap_sem lock in the proc path when looking at brk values.
+> That's the fundamental design of slab-with-constructors.  The user provides
+> a constructor, so all newly allocagted objects are initialised to a known
+> state, then the user will restore the object to that state when it frees
+> the object to slab.
 
-Michal gimme some time. I guess  we might do so, but I need some
-spare time to take more precise look into the code, hopefully today
-evening. Also I've a suspicion that we've wracked check_data_rlimit
-with this new lock in prctl. Need to verify it again.
+And that is fundamentally subtle semantic and leads to bugs. So we
+should reconsider whether that is really worth keeping for the radix
+tree.
+
+> > Are you going to blacklist all potential gfp flags that come
+> > from the mapping? This is just unmaintainable! If anything this should
+> > be an explicit & with the allowed set of allowed flags.
+> 
+> Oh, I agree that using the set of flags used to allocate the page
+> in order to allocate the radix tree nodes is a pretty horrible idea.
+> 
+> Your suggestion, then, is:
+> 
+> -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+> +	error = radix_tree_preload(gfp_mask & GFP_RECLAIM_MASK);
+> 
+> correct?
+
+Something like that, yes.
+
+-- 
+Michal Hocko
+SUSE Labs
