@@ -1,42 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 898806B0031
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:47:36 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z15so8743550wrh.10
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:47:36 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m78sor714808wma.38.2018.04.10.13.47.35
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C5EC96B005A
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:48:39 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id z2-v6so10344109plk.3
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:48:39 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i188si2271802pgc.178.2018.04.10.13.48.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Apr 2018 13:47:35 -0700 (PDT)
-Date: Tue, 10 Apr 2018 23:47:32 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: [PATCH 01/25] slab: fixup calculate_alignment() argument type
-Message-ID: <20180410204732.GA11918@avx2>
-References: <20180305200730.15812-1-adobriyan@gmail.com>
- <20180410202546.GC21336@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180410202546.GC21336@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Apr 2018 13:48:38 -0700 (PDT)
+Date: Tue, 10 Apr 2018 13:48:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] writeback: safer lock nesting
+Message-Id: <20180410134837.d2b0f2d1cd940bb08c2bad0a@linux-foundation.org>
+In-Reply-To: <20180410063357.GS21835@dhcp22.suse.cz>
+References: <201804080259.VS5U0mKT%fengguang.wu@intel.com>
+	<20180410005908.167976-1-gthelen@google.com>
+	<20180410063357.GS21835@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Greg Thelen <gthelen@google.com>, Wang Long <wanglong19@meituan.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, npiggin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Apr 10, 2018 at 01:25:46PM -0700, Matthew Wilcox wrote:
-> I came across this:
-> 
->         for (order = max(min_order, (unsigned int)get_order(min_objects * size + reserved));
-> 
-> Do you want to work on making get_order() return an unsigned int?
-> 
-> Also, I think get_order(0) should probably be 0, but you might develop
-> a different feeling for it as you work your way around the kernel looking
-> at how it's used.
+On Tue, 10 Apr 2018 08:33:57 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-IIRC total size increased when I made it return "unsigned int".
+> > Reported-by: Wang Long <wanglong19@meituan.com>
+> > Signed-off-by: Greg Thelen <gthelen@google.com>
+> > Change-Id: Ibb773e8045852978f6207074491d262f1b3fb613
+> 
+> Not a stable material IMHO
 
-Another thing is that there should be 3 get_order's corresponding
-to 32-bit, 64-bit and unsigned long versions of fls() which correspond
-to REX and non-REX versions of BSR.
+Why's that?  Wang Long said he's observed the deadlock three times?
