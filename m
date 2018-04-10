@@ -1,78 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 848B16B0007
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:19:30 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id o63so7853710qki.12
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 01:19:30 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id y18si2813709qta.268.2018.04.10.01.19.29
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 203EA6B0007
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:22:47 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f9-v6so8959388plo.17
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 01:22:47 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g5si1637370pfh.411.2018.04.10.01.22.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Apr 2018 01:19:29 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3A8Iqhc114269
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:19:28 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2h8rqf2m17-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:19:28 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
-	Tue, 10 Apr 2018 09:19:25 +0100
-From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 7/9] trace_uprobe/sdt: Fix multiple update of same
- reference counter
-References: <20180404083110.18647-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180404083110.18647-8-ravi.bangoria@linux.vnet.ibm.com>
- <20180409132928.GA25722@redhat.com>
-Date: Tue, 10 Apr 2018 13:49:12 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Apr 2018 01:22:45 -0700 (PDT)
+Date: Tue, 10 Apr 2018 10:22:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
+Message-ID: <20180410082243.GW21835@dhcp22.suse.cz>
+References: <20180409015815.235943-1-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20180409132928.GA25722@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-Message-Id: <84c1e60f-8aad-a0ce-59af-4fcb3f77df94@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180409015815.235943-1-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com, Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>
 
-Hi Oleg,
+On Mon 09-04-18 10:58:15, Minchan Kim wrote:
+> Recently, I got a report like below.
+> 
+> [ 7858.792946] [<ffffff80086f4de0>] __list_del_entry+0x30/0xd0
+> [ 7858.792951] [<ffffff8008362018>] list_lru_del+0xac/0x1ac
+> [ 7858.792957] [<ffffff800830f04c>] page_cache_tree_insert+0xd8/0x110
+> [ 7858.792962] [<ffffff8008310188>] __add_to_page_cache_locked+0xf8/0x4e0
+> [ 7858.792967] [<ffffff800830ff34>] add_to_page_cache_lru+0x50/0x1ac
+> [ 7858.792972] [<ffffff800830fdd0>] pagecache_get_page+0x468/0x57c
+> [ 7858.792979] [<ffffff80085d081c>] __get_node_page+0x84/0x764
+> [ 7858.792986] [<ffffff800859cd94>] f2fs_iget+0x264/0xdc8
+> [ 7858.792991] [<ffffff800859ee00>] f2fs_lookup+0x3b4/0x660
+> [ 7858.792998] [<ffffff80083d2540>] lookup_slow+0x1e4/0x348
+> [ 7858.793003] [<ffffff80083d0eb8>] walk_component+0x21c/0x320
+> [ 7858.793008] [<ffffff80083d0010>] path_lookupat+0x90/0x1bc
+> [ 7858.793013] [<ffffff80083cfe6c>] filename_lookup+0x8c/0x1a0
+> [ 7858.793018] [<ffffff80083c52d0>] vfs_fstatat+0x84/0x10c
+> [ 7858.793023] [<ffffff80083c5b00>] SyS_newfstatat+0x28/0x64
+> 
+> v4.9 kenrel already has the d3798ae8c6f3,("mm: filemap: don't
+> plant shadow entries without radix tree node") so I thought
+> it should be okay. When I was googling, I found others report
+> such problem and I think current kernel still has the problem.
+> 
+> https://bugzilla.redhat.com/show_bug.cgi?id=1431567
+> https://bugzilla.redhat.com/show_bug.cgi?id=1420335
+> 
+> It assumes shadow entry of radix tree relies on the init state
+> that node->private_list allocated should be list_empty state.
+> Currently, it's initailized in SLAB constructor which means
+> node of radix tree would be initialized only when *slub allocates
+> new page*, not *new object*. So, if some FS or subsystem pass
+> gfp_mask to __GFP_ZERO, slub allocator will do memset blindly.
+> That means allocated node can have !list_empty(node->private_list).
+> It ends up calling NULL deference at workingset_update_node by
+> failing list_empty check.
+> 
+> This patch should fix it.
+> 
+> Fixes: 449dd6984d0e ("mm: keep page cache radix tree nodes in check")
+> Reported-by: Chris Fries <cfries@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Jan Kara <jack@suse.cz>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-On 04/09/2018 06:59 PM, Oleg Nesterov wrote:
-> On 04/04, Ravi Bangoria wrote:
->> +static void sdt_add_mm_list(struct trace_uprobe *tu, struct mm_struct *mm)
->> +{
->> +	struct mmu_notifier *mn;
->> +	struct sdt_mm_list *sml = kzalloc(sizeof(*sml), GFP_KERNEL);
->> +
->> +	if (!sml)
->> +		return;
->> +	sml->mm = mm;
->> +	list_add(&(sml->list), &(tu->sml.list));
->> +
->> +	/* Register mmu_notifier for this mm. */
->> +	mn = kzalloc(sizeof(*mn), GFP_KERNEL);
->> +	if (!mn)
->> +		return;
->> +
->> +	mn->ops = &sdt_mmu_notifier_ops;
->> +	__mmu_notifier_register(mn, mm);
->> +}
-> and what if __mmu_notifier_register() fails simply because signal_pending() == T?
-> see mm_take_all_locks().
->
-> at first glance this all look suspicious and sub-optimal,
+Regardless of whether it makes sense to use __GFP_ZERO from the upper
+layer or not, it is subtle as hell to rely on the pre-existing state
+for a newly allocated object. So yes this makes perfect sense.
 
-Yes. I should have added checks for failure cases.
-Will fix them in v3.
+Do we want CC: stable?
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Thanks for the review,
-Ravi
+> ---
+> If it is reviewed and proved with testing, I will resend the patch to
+> Ccing stable@vger.kernel.org.
+> 
+> Thanks.
+> 
+>  lib/radix-tree.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index 8e00138d593f..afcbdb6c495f 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -428,6 +428,7 @@ radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
+>  		ret->exceptional = exceptional;
+>  		ret->parent = parent;
+>  		ret->root = root;
+> +		INIT_LIST_HEAD(&ret->private_list);
+>  	}
+>  	return ret;
+>  }
+> @@ -2234,7 +2235,6 @@ radix_tree_node_ctor(void *arg)
+>  	struct radix_tree_node *node = arg;
+>  
+>  	memset(node, 0, sizeof(*node));
+> -	INIT_LIST_HEAD(&node->private_list);
+>  }
+>  
+>  static __init unsigned long __maxindex(unsigned int height)
+> -- 
+> 2.17.0.484.g0c8726318c-goog
 
->  but let me repeat that
-> I didn't read this version yet.
->
-> Oleg.
->
+-- 
+Michal Hocko
+SUSE Labs
