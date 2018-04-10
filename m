@@ -1,61 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 83D116B0003
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 07:10:08 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id f9-v6so9270648plo.17
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:10:08 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f9-v6si2475320pln.45.2018.04.10.04.10.07
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B189C6B0003
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 07:13:11 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 31so7993170wrr.2
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:13:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d12sor2137598edo.0.2018.04.10.04.13.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Apr 2018 04:10:07 -0700 (PDT)
-Date: Tue, 10 Apr 2018 13:10:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v3 PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-Message-ID: <20180410111001.GD21835@dhcp22.suse.cz>
-References: <1523310774-40300-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180410090917.GZ21835@dhcp22.suse.cz>
- <20180410094047.GB2041@uranus.lan>
- <20180410104215.GB21835@dhcp22.suse.cz>
- <20180410110242.GC2041@uranus.lan>
+        (Google Transport Security);
+        Tue, 10 Apr 2018 04:13:10 -0700 (PDT)
+Date: Tue, 10 Apr 2018 14:12:22 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH -mm] mm, pagemap: Fix swap offset value for PMD migration
+ entry
+Message-ID: <20180410111222.akgtbqsmrpmm2clt@node.shutemov.name>
+References: <20180408033737.10897-1-ying.huang@intel.com>
+ <20180409174753.4b959a5b3ff732b8f96f5a14@linux-foundation.org>
+ <87in8znaj4.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180410110242.GC2041@uranus.lan>
+In-Reply-To: <87in8znaj4.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, adobriyan@gmail.com, willy@infradead.org, mguzik@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrei Vagin <avagin@openvz.org>, Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Tue 10-04-18 14:02:42, Cyrill Gorcunov wrote:
-> On Tue, Apr 10, 2018 at 12:42:15PM +0200, Michal Hocko wrote:
-> > On Tue 10-04-18 12:40:47, Cyrill Gorcunov wrote:
-> > > On Tue, Apr 10, 2018 at 11:09:17AM +0200, Michal Hocko wrote:
-> > > > On Tue 10-04-18 05:52:54, Yang Shi wrote:
-> > > > [...]
-> > > > > So, introduce a new spinlock in mm_struct to protect the concurrent
-> > > > > access to arg_start|end, env_start|end and others except start_brk and
-> > > > > brk, which are still protected by mmap_sem to avoid concurrent access
-> > > > > from do_brk().
-> > > > 
-> > > > Is there any fundamental problem with brk using the same lock?
-> > > 
-> > > Seems so. Look into mm/mmap.c:brk syscall which reads and writes
-> > > brk value under mmap_sem ('cause of do_brk called inside).
-> > 
-> > Why cannot we simply use the lock when the value is updated?
+On Tue, Apr 10, 2018 at 08:57:19AM +0800, Huang, Ying wrote:
+> >> the swap offset reported doesn't
+> >> reflect this.  And in the loop to report information of each sub-page,
+> >> the swap offset isn't increased accordingly as that for PFN.
+> >> 
+> >> BTW: migration swap entries have PFN information, do we need to
+> >> restrict whether to show them?
+> >
+> > For what reason?  Address obfuscation?
 > 
-> Because do_brk does vma manipulations, for this reason it's
-> running under down_write_killable(&mm->mmap_sem). Or you
-> mean something else?
+> This is an existing feature for PFN report of /proc/<pid>/pagemap,
+> reason is in following commit log.  I am wondering whether that is
+> necessary for migration swap entries too.
+> 
+> ab676b7d6fbf4b294bf198fb27ade5b0e865c7ce
+> Author:     Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> AuthorDate: Mon Mar 9 23:11:12 2015 +0200
+> Commit:     Linus Torvalds <torvalds@linux-foundation.org>
+> CommitDate: Tue Mar 17 09:31:30 2015 -0700
+> 
+> pagemap: do not leak physical addresses to non-privileged userspace
+> 
+> As pointed by recent post[1] on exploiting DRAM physical imperfection,
+> /proc/PID/pagemap exposes sensitive information which can be used to do
+> attacks.
+> 
+> This disallows anybody without CAP_SYS_ADMIN to read the pagemap.
+> 
+> [1] http://googleprojectzero.blogspot.com/2015/03/exploiting-dram-rowhammer-bug-to-gain.html
+> 
+> [ Eventually we might want to do anything more finegrained, but for now
+>   this is the simple model.   - Linus ]
 
-Yes, all we need the new lock for is to get a consistent view on brk
-values. I am simply asking whether there is something fundamentally
-wrong by doing the update inside the new lock while keeping the original
-mmap_sem locking in the brk path. That would allow us to drop the
-mmap_sem lock in the proc path when looking at brk values.
+Note that there's follow up to the commit: 
+
+1c90308e7a77 ("pagemap: hide physical addresses from non-privileged users")
+
+It introduces pm->show_pfn and it should be applied to swap entries too.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
