@@ -1,317 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 06B236B0003
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:15:20 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id c3-v6so9248650itc.4
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 01:15:20 -0700 (PDT)
-Received: from mx02.meituan.com (mx-fe5-210.meituan.com. [103.37.138.210])
-        by mx.google.com with ESMTPS id z84-v6si941320ita.39.2018.04.10.01.15.17
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CBDD6B0006
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:15:43 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id y7-v6so8970641plh.7
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 01:15:43 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r62si1754075pfe.68.2018.04.10.01.15.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Apr 2018 01:15:18 -0700 (PDT)
-Subject: Re: [PATCH v3] writeback: safer lock nesting
-References: <201804080259.VS5U0mKT%fengguang.wu@intel.com>
- <20180410005908.167976-1-gthelen@google.com>
-From: Wang Long <wanglong19@meituan.com>
-Message-ID: <55efb2c6-04c5-d2bb-738e-8308aa0eaf8f@meituan.com>
-Date: Tue, 10 Apr 2018 16:14:25 +0800
-MIME-Version: 1.0
-In-Reply-To: <20180410005908.167976-1-gthelen@google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Apr 2018 01:15:42 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [RFC] mm, slab: reschedule cache_reap() on the same CPU
+Date: Tue, 10 Apr 2018 10:15:31 +0200
+Message-Id: <20180410081531.18053-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
-Cc: npiggin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Tejun Heo <tj@kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, John Stultz <john.stultz@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Stephen Boyd <sboyd@kernel.org>
 
-> lock_page_memcg()/unlock_page_memcg() use spin_lock_irqsave/restore() i=
-f
-> the page's memcg is undergoing move accounting, which occurs when a
-> process leaves its memcg for a new one that has
-> memory.move_charge_at_immigrate set.
->
-> unlocked_inode_to_wb_begin,end() use spin_lock_irq/spin_unlock_irq() if=
- the
-> given inode is switching writeback domains.  Switches occur when enough
-> writes are issued from a new domain.
->
-> This existing pattern is thus suspicious:
->      lock_page_memcg(page);
->      unlocked_inode_to_wb_begin(inode, &locked);
->      ...
->      unlocked_inode_to_wb_end(inode, locked);
->      unlock_page_memcg(page);
->
-> If both inode switch and process memcg migration are both in-flight the=
-n
-> unlocked_inode_to_wb_end() will unconditionally enable interrupts while
-> still holding the lock_page_memcg() irq spinlock.  This suggests the
-> possibility of deadlock if an interrupt occurs before
-> unlock_page_memcg().
->
->      truncate
->      __cancel_dirty_page
->      lock_page_memcg
->      unlocked_inode_to_wb_begin
->      unlocked_inode_to_wb_end
->      <interrupts mistakenly enabled>
->                                      <interrupt>
->                                      end_page_writeback
->                                      test_clear_page_writeback
->                                      lock_page_memcg
->                                      <deadlock>
->      unlock_page_memcg
->
-> Due to configuration limitations this deadlock is not currently possibl=
-e
-> because we don't mix cgroup writeback (a cgroupv2 feature) and
-> memory.move_charge_at_immigrate (a cgroupv1 feature).
->
-> If the kernel is hacked to always claim inode switching and memcg
-> moving_account, then this script triggers lockup in less than a minute:
->    cd /mnt/cgroup/memory
->    mkdir a b
->    echo 1 > a/memory.move_charge_at_immigrate
->    echo 1 > b/memory.move_charge_at_immigrate
->    (
->      echo $BASHPID > a/cgroup.procs
->      while true; do
->        dd if=3D/dev/zero of=3D/mnt/big bs=3D1M count=3D256
->      done
->    ) &
->    while true; do
->      sync
->    done &
->    sleep 1h &
->    SLEEP=3D$!
->    while true; do
->      echo $SLEEP > a/cgroup.procs
->      echo $SLEEP > b/cgroup.procs
->    done
->
-> Given the deadlock is not currently possible, it's debatable if there's
-> any reason to modify the kernel.  I suggest we should to prevent future
-> surprises.
-This deadlock occurs three times in our environment=EF=BC=8C
+cache_reap() is initially scheduled in start_cpu_timer() via
+schedule_delayed_work_on(). But then the next iterations are scheduled via
+schedule_delayed_work(), thus using WORK_CPU_UNBOUND.
 
-this deadlock occurs three times in our environment. It is better to cc s=
-table kernel and
-backport it.
+AFAIU there is thus no guarantee the future iterations will happen on the
+intended cpu, although it's preferred. I was able to demonstrate this with
+/sys/module/workqueue/parameters/debug_force_rr_cpu. IIUC the timer code, it
+may also happen due to migrating timers in nohz context. As a result, some
+cpu's would be calling cache_reap() more frequently and others never.
 
-Acked-by: Wang Long <wanglong19@meituan.com>
+What would be even worse is a potential scenario where WORK_CPU_UNBOUND would
+result in being run via kworker thread that's not pinned to any single CPU
+(although I haven't observed that in my simple tests). Migration to another CPU
+during cache_reap() e.g. between cpu_cache_get() and drain_array() would result
+in operating on non-local cpu array cache and might race with the other cpu.
+Migration to another numa node than the one obtained with numa_mem_id() could
+result in slabs being moved to a list on a wrong node, which would then be
+modified with a wrong lock, againn potentially racing.
 
-thanks
+This patch makes sure schedule_delayed_work_on() is used with the proper cpu
+when scheduling the next iteration. The cpu is stored with delayed_work on a
+new slab_reap_work_struct super-structure.
 
-> Reported-by: Wang Long <wanglong19@meituan.com>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> Change-Id: Ibb773e8045852978f6207074491d262f1b3fb613
-> ---
-> Changelog since v2:
-> - explicitly initialize wb_lock_cookie to silence compiler warnings.
->
-> Changelog since v1:
-> - add wb_lock_cookie to record lock context.
->
->   fs/fs-writeback.c                |  7 ++++---
->   include/linux/backing-dev-defs.h |  5 +++++
->   include/linux/backing-dev.h      | 30 ++++++++++++++++--------------
->   mm/page-writeback.c              | 18 +++++++++---------
->   4 files changed, 34 insertions(+), 26 deletions(-)
->
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 1280f915079b..f4b2f6625913 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -745,11 +745,12 @@ int inode_congested(struct inode *inode, int cong=
-_bits)
->   	 */
->   	if (inode && inode_to_wb_is_valid(inode)) {
->   		struct bdi_writeback *wb;
-> -		bool locked, congested;
-> +		struct wb_lock_cookie lock_cookie;
-> +		bool congested;
->  =20
-> -		wb =3D unlocked_inode_to_wb_begin(inode, &locked);
-> +		wb =3D unlocked_inode_to_wb_begin(inode, &lock_cookie);
->   		congested =3D wb_congested(wb, cong_bits);
-> -		unlocked_inode_to_wb_end(inode, locked);
-> +		unlocked_inode_to_wb_end(inode, &lock_cookie);
->   		return congested;
->   	}
->  =20
-> diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-d=
-ev-defs.h
-> index bfe86b54f6c1..0bd432a4d7bd 100644
-> --- a/include/linux/backing-dev-defs.h
-> +++ b/include/linux/backing-dev-defs.h
-> @@ -223,6 +223,11 @@ static inline void set_bdi_congested(struct backin=
-g_dev_info *bdi, int sync)
->   	set_wb_congested(bdi->wb.congested, sync);
->   }
->  =20
-> +struct wb_lock_cookie {
-> +	bool locked;
-> +	unsigned long flags;
-> +};
-> +
->   #ifdef CONFIG_CGROUP_WRITEBACK
->  =20
->   /**
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index 3e4ce54d84ab..1d744c61d996 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -346,7 +346,7 @@ static inline struct bdi_writeback *inode_to_wb(con=
-st struct inode *inode)
->   /**
->    * unlocked_inode_to_wb_begin - begin unlocked inode wb access transa=
-ction
->    * @inode: target inode
-> - * @lockedp: temp bool output param, to be passed to the end function
-> + * @cookie: output param, to be passed to the end function
->    *
->    * The caller wants to access the wb associated with @inode but isn't
->    * holding inode->i_lock, mapping->tree_lock or wb->list_lock.  This
-> @@ -354,12 +354,11 @@ static inline struct bdi_writeback *inode_to_wb(c=
-onst struct inode *inode)
->    * association doesn't change until the transaction is finished with
->    * unlocked_inode_to_wb_end().
->    *
-> - * The caller must call unlocked_inode_to_wb_end() with *@lockdep
-> - * afterwards and can't sleep during transaction.  IRQ may or may not =
-be
-> - * disabled on return.
-> + * The caller must call unlocked_inode_to_wb_end() with *@cookie after=
-wards and
-> + * can't sleep during transaction.  IRQ may or may not be disabled on =
-return.
->    */
->   static inline struct bdi_writeback *
-> -unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
-> +unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie =
-*cookie)
->   {
->   	rcu_read_lock();
->  =20
-> @@ -367,10 +366,10 @@ unlocked_inode_to_wb_begin(struct inode *inode, b=
-ool *lockedp)
->   	 * Paired with store_release in inode_switch_wb_work_fn() and
->   	 * ensures that we see the new wb if we see cleared I_WB_SWITCH.
->   	 */
-> -	*lockedp =3D smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
-> +	cookie->locked =3D smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
->  =20
-> -	if (unlikely(*lockedp))
-> -		spin_lock_irq(&inode->i_mapping->tree_lock);
-> +	if (unlikely(cookie->locked))
-> +		spin_lock_irqsave(&inode->i_mapping->tree_lock, cookie->flags);
->  =20
->   	/*
->   	 * Protected by either !I_WB_SWITCH + rcu_read_lock() or tree_lock.
-> @@ -382,12 +381,14 @@ unlocked_inode_to_wb_begin(struct inode *inode, b=
-ool *lockedp)
->   /**
->    * unlocked_inode_to_wb_end - end inode wb access transaction
->    * @inode: target inode
-> - * @locked: *@lockedp from unlocked_inode_to_wb_begin()
-> + * @cookie: @cookie from unlocked_inode_to_wb_begin()
->    */
-> -static inline void unlocked_inode_to_wb_end(struct inode *inode, bool =
-locked)
-> +static inline void unlocked_inode_to_wb_end(struct inode *inode,
-> +					    struct wb_lock_cookie *cookie)
->   {
-> -	if (unlikely(locked))
-> -		spin_unlock_irq(&inode->i_mapping->tree_lock);
-> +	if (unlikely(cookie->locked))
-> +		spin_unlock_irqrestore(&inode->i_mapping->tree_lock,
-> +				       cookie->flags);
->  =20
->   	rcu_read_unlock();
->   }
-> @@ -434,12 +435,13 @@ static inline struct bdi_writeback *inode_to_wb(s=
-truct inode *inode)
->   }
->  =20
->   static inline struct bdi_writeback *
-> -unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
-> +unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie =
-*cookie)
->   {
->   	return inode_to_wb(inode);
->   }
->  =20
-> -static inline void unlocked_inode_to_wb_end(struct inode *inode, bool =
-locked)
-> +static inline void unlocked_inode_to_wb_end(struct inode *inode,
-> +					    struct wb_lock_cookie *cookie)
->   {
->   }
->  =20
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 586f31261c83..bc38a2a7a597 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2501,13 +2501,13 @@ void account_page_redirty(struct page *page)
->   	if (mapping && mapping_cap_account_dirty(mapping)) {
->   		struct inode *inode =3D mapping->host;
->   		struct bdi_writeback *wb;
-> -		bool locked;
-> +		struct wb_lock_cookie cookie =3D {0};
->  =20
-> -		wb =3D unlocked_inode_to_wb_begin(inode, &locked);
-> +		wb =3D unlocked_inode_to_wb_begin(inode, &cookie);
->   		current->nr_dirtied--;
->   		dec_node_page_state(page, NR_DIRTIED);
->   		dec_wb_stat(wb, WB_DIRTIED);
-> -		unlocked_inode_to_wb_end(inode, locked);
-> +		unlocked_inode_to_wb_end(inode, &cookie);
->   	}
->   }
->   EXPORT_SYMBOL(account_page_redirty);
-> @@ -2613,15 +2613,15 @@ void __cancel_dirty_page(struct page *page)
->   	if (mapping_cap_account_dirty(mapping)) {
->   		struct inode *inode =3D mapping->host;
->   		struct bdi_writeback *wb;
-> -		bool locked;
-> +		struct wb_lock_cookie cookie =3D {0};
->  =20
->   		lock_page_memcg(page);
-> -		wb =3D unlocked_inode_to_wb_begin(inode, &locked);
-> +		wb =3D unlocked_inode_to_wb_begin(inode, &cookie);
->  =20
->   		if (TestClearPageDirty(page))
->   			account_page_cleaned(page, mapping, wb);
->  =20
-> -		unlocked_inode_to_wb_end(inode, locked);
-> +		unlocked_inode_to_wb_end(inode, &cookie);
->   		unlock_page_memcg(page);
->   	} else {
->   		ClearPageDirty(page);
-> @@ -2653,7 +2653,7 @@ int clear_page_dirty_for_io(struct page *page)
->   	if (mapping && mapping_cap_account_dirty(mapping)) {
->   		struct inode *inode =3D mapping->host;
->   		struct bdi_writeback *wb;
-> -		bool locked;
-> +		struct wb_lock_cookie cookie =3D {0};
->  =20
->   		/*
->   		 * Yes, Virginia, this is indeed insane.
-> @@ -2690,14 +2690,14 @@ int clear_page_dirty_for_io(struct page *page)
->   		 * always locked coming in here, so we get the desired
->   		 * exclusion.
->   		 */
-> -		wb =3D unlocked_inode_to_wb_begin(inode, &locked);
-> +		wb =3D unlocked_inode_to_wb_begin(inode, &cookie);
->   		if (TestClearPageDirty(page)) {
->   			dec_lruvec_page_state(page, NR_FILE_DIRTY);
->   			dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
->   			dec_wb_stat(wb, WB_RECLAIMABLE);
->   			ret =3D 1;
->   		}
-> -		unlocked_inode_to_wb_end(inode, locked);
-> +		unlocked_inode_to_wb_end(inode, &cookie);
->   		return ret;
->   	}
->   	return TestClearPageDirty(page);
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Lai Jiangshan <jiangshanlai@gmail.com>
+Cc: John Stultz <john.stultz@linaro.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Stephen Boyd <sboyd@kernel.org>
+---
+Hi,
+
+this patch is a result of hunting some rare crashes in our (4.4-based) kernel
+where slabs misplaced on wrong nodes were identified in the crash dumps. I
+don't yet know if cache_reap() is the culprit and if this patch fill fix it,
+but the problem seems real to me nevertheless. I CC'd workqueue and timer
+maintainers and would like to check if my assumptions in changelog are correct,
+and especially if there's a guarantee that work scheduled with
+schedule_delayed_work_on(cpu) will never migrate to another cpu. If that's not
+guaranteed (including past stable kernel versions), we will have to be even
+more careful and e.g. disable interrupts sooner.
+
+Thanks,
+Vlastimil
+
+ mm/slab.c | 29 +++++++++++++++++++++--------
+ 1 file changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 9095c3945425..b3e3d082099c 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -429,7 +429,12 @@ static struct kmem_cache kmem_cache_boot = {
+ 	.name = "kmem_cache",
+ };
+ 
+-static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
++struct slab_reap_work_struct {
++	struct delayed_work dwork;
++	int cpu;
++};
++
++static DEFINE_PER_CPU(struct slab_reap_work_struct, slab_reap_work);
+ 
+ static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
+ {
+@@ -551,12 +556,15 @@ static void next_reap_node(void)
+  */
+ static void start_cpu_timer(int cpu)
+ {
+-	struct delayed_work *reap_work = &per_cpu(slab_reap_work, cpu);
+ 
+-	if (reap_work->work.func == NULL) {
++	struct slab_reap_work_struct *reap_work = &per_cpu(slab_reap_work, cpu);
++	struct delayed_work *dwork = &reap_work->dwork;
++
++	if (dwork->work.func == NULL) {
++		reap_work->cpu = cpu;
+ 		init_reap_node(cpu);
+-		INIT_DEFERRABLE_WORK(reap_work, cache_reap);
+-		schedule_delayed_work_on(cpu, reap_work,
++		INIT_DEFERRABLE_WORK(dwork, cache_reap);
++		schedule_delayed_work_on(cpu, dwork,
+ 					__round_jiffies_relative(HZ, cpu));
+ 	}
+ }
+@@ -1120,9 +1128,9 @@ static int slab_offline_cpu(unsigned int cpu)
+ 	 * expensive but will only modify reap_work and reschedule the
+ 	 * timer.
+ 	 */
+-	cancel_delayed_work_sync(&per_cpu(slab_reap_work, cpu));
++	cancel_delayed_work_sync(&per_cpu(slab_reap_work, cpu).dwork);
+ 	/* Now the cache_reaper is guaranteed to be not running. */
+-	per_cpu(slab_reap_work, cpu).work.func = NULL;
++	per_cpu(slab_reap_work, cpu).dwork.work.func = NULL;
+ 	return 0;
+ }
+ 
+@@ -4027,11 +4035,15 @@ static void cache_reap(struct work_struct *w)
+ 	struct kmem_cache_node *n;
+ 	int node = numa_mem_id();
+ 	struct delayed_work *work = to_delayed_work(w);
++	struct slab_reap_work_struct *reap_work =
++		container_of(work, struct slab_reap_work_struct, dwork);
+ 
+ 	if (!mutex_trylock(&slab_mutex))
+ 		/* Give up. Setup the next iteration. */
+ 		goto out;
+ 
++	WARN_ON_ONCE(reap_work->cpu != smp_processor_id());
++
+ 	list_for_each_entry(searchp, &slab_caches, list) {
+ 		check_irq_on();
+ 
+@@ -4074,7 +4086,8 @@ static void cache_reap(struct work_struct *w)
+ 	next_reap_node();
+ out:
+ 	/* Set up the next iteration */
+-	schedule_delayed_work(work, round_jiffies_relative(REAPTIMEOUT_AC));
++	schedule_delayed_work_on(reap_work->cpu, work,
++					round_jiffies_relative(REAPTIMEOUT_AC));
+ }
+ 
+ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+-- 
+2.16.3
