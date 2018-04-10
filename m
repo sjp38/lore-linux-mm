@@ -1,47 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 351F56B0007
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 06:42:19 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id q22so6685946pfh.20
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 03:42:19 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m63si1668358pgm.302.2018.04.10.03.42.17
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 753316B0003
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 07:02:45 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id f135-v6so2315159lfg.18
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:02:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b16sor633727ljk.65.2018.04.10.04.02.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Apr 2018 03:42:18 -0700 (PDT)
-Date: Tue, 10 Apr 2018 12:42:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (Google Transport Security);
+        Tue, 10 Apr 2018 04:02:44 -0700 (PDT)
+Date: Tue, 10 Apr 2018 14:02:42 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
 Subject: Re: [v3 PATCH] mm: introduce arg_lock to protect arg_start|end and
  env_start|end in mm_struct
-Message-ID: <20180410104215.GB21835@dhcp22.suse.cz>
+Message-ID: <20180410110242.GC2041@uranus.lan>
 References: <1523310774-40300-1-git-send-email-yang.shi@linux.alibaba.com>
  <20180410090917.GZ21835@dhcp22.suse.cz>
  <20180410094047.GB2041@uranus.lan>
+ <20180410104215.GB21835@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180410094047.GB2041@uranus.lan>
+In-Reply-To: <20180410104215.GB21835@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: Yang Shi <yang.shi@linux.alibaba.com>, adobriyan@gmail.com, willy@infradead.org, mguzik@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 10-04-18 12:40:47, Cyrill Gorcunov wrote:
-> On Tue, Apr 10, 2018 at 11:09:17AM +0200, Michal Hocko wrote:
-> > On Tue 10-04-18 05:52:54, Yang Shi wrote:
-> > [...]
-> > > So, introduce a new spinlock in mm_struct to protect the concurrent
-> > > access to arg_start|end, env_start|end and others except start_brk and
-> > > brk, which are still protected by mmap_sem to avoid concurrent access
-> > > from do_brk().
+On Tue, Apr 10, 2018 at 12:42:15PM +0200, Michal Hocko wrote:
+> On Tue 10-04-18 12:40:47, Cyrill Gorcunov wrote:
+> > On Tue, Apr 10, 2018 at 11:09:17AM +0200, Michal Hocko wrote:
+> > > On Tue 10-04-18 05:52:54, Yang Shi wrote:
+> > > [...]
+> > > > So, introduce a new spinlock in mm_struct to protect the concurrent
+> > > > access to arg_start|end, env_start|end and others except start_brk and
+> > > > brk, which are still protected by mmap_sem to avoid concurrent access
+> > > > from do_brk().
+> > > 
+> > > Is there any fundamental problem with brk using the same lock?
 > > 
-> > Is there any fundamental problem with brk using the same lock?
+> > Seems so. Look into mm/mmap.c:brk syscall which reads and writes
+> > brk value under mmap_sem ('cause of do_brk called inside).
 > 
-> Seems so. Look into mm/mmap.c:brk syscall which reads and writes
-> brk value under mmap_sem ('cause of do_brk called inside).
+> Why cannot we simply use the lock when the value is updated?
 
-Why cannot we simply use the lock when the value is updated?
-
--- 
-Michal Hocko
-SUSE Labs
+Because do_brk does vma manipulations, for this reason it's
+running under down_write_killable(&mm->mmap_sem). Or you
+mean something else?
