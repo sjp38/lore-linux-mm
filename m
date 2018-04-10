@@ -1,65 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 473756B0009
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:05:32 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id y7-v6so9387634plh.7
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:05:32 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4388B6B0005
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:07:22 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q22so6794024pfh.20
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:07:22 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q66si1993553pfk.190.2018.04.10.05.05.31
+        by mx.google.com with ESMTPS id o12-v6si2507593plg.715.2018.04.10.05.07.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 10 Apr 2018 05:05:31 -0700 (PDT)
-Date: Tue, 10 Apr 2018 05:05:28 -0700
+        Tue, 10 Apr 2018 05:07:21 -0700 (PDT)
+Date: Tue, 10 Apr 2018 05:07:19 -0700
 From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
-Message-ID: <20180410120528.GB22118@bombadil.infradead.org>
+Message-ID: <20180410120719.GC22118@bombadil.infradead.org>
 References: <20180409015815.235943-1-minchan@kernel.org>
- <20180409024925.GA21889@bombadil.infradead.org>
- <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
- <20180409111403.GA31652@bombadil.infradead.org>
- <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
- <20180409183827.GD17558@jaegeuk-macbookpro.roam.corp.google.com>
- <20180409194044.GA15295@bombadil.infradead.org>
- <20180410082643.GX21835@dhcp22.suse.cz>
+ <20180410082243.GW21835@dhcp22.suse.cz>
+ <20180410085531.m2xvzi7nenbrgbve@quack2.suse.cz>
+ <20180410093241.GA21835@dhcp22.suse.cz>
+ <20180410102845.3ixg2lbnumqn2o6z@quack2.suse.cz>
+ <20180410111931.GA5113@rodete-laptop-imager.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180410082643.GX21835@dhcp22.suse.cz>
+In-Reply-To: <20180410111931.GA5113@rodete-laptop-imager.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Jaegeuk Kim <jaegeuk@kernel.org>, Minchan Kim <minchan@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Fries <cfries@google.com>
 
-On Tue, Apr 10, 2018 at 10:26:43AM +0200, Michal Hocko wrote:
-> On Mon 09-04-18 12:40:44, Matthew Wilcox wrote:
-> > The problem is that the mapping gfp flags are used not only for allocating
-> > pages, but also for allocating the page cache data structures that hold
-> > the pages.  F2FS is the only filesystem that set the __GFP_ZERO bit,
-> > so it's the first time anyone's noticed that the page cache passes the
-> > __GFP_ZERO bit through to the radix tree allocation routines, which
-> > causes the radix tree nodes to be zeroed instead of constructed.
-> > 
-> > I think the right solution to this is:
-> 
-> This just hides the underlying problem that the node is not fully and
-> properly initialized. Relying on the previous released state is just too
-> subtle.
+On Tue, Apr 10, 2018 at 08:19:31PM +0900, Minchan Kim wrote:
+> If you're okay for that, I really want to go my original patch
+> Michal already gave Acked-by.
 
-That's the fundamental design of slab-with-constructors.  The user provides
-a constructor, so all newly allocagted objects are initialised to a known
-state, then the user will restore the object to that state when it frees
-the object to slab.
-
-> Are you going to blacklist all potential gfp flags that come
-> from the mapping? This is just unmaintainable! If anything this should
-> be an explicit & with the allowed set of allowed flags.
-
-Oh, I agree that using the set of flags used to allocate the page
-in order to allocate the radix tree nodes is a pretty horrible idea.
-
-Your suggestion, then, is:
-
--	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-+	error = radix_tree_preload(gfp_mask & GFP_RECLAIM_MASK);
-
-correct?
+I NAK this patch.  It is completely wrong.
