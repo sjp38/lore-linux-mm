@@ -1,46 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 83D006B0028
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 09:53:09 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id n51so8464435qta.9
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 06:53:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b6sor2087026qke.31.2018.04.10.06.53.08
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 90F956B0003
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 10:02:26 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id t1-v6so9614039plb.5
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 07:02:26 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id x21si2136593pfn.155.2018.04.10.07.02.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Apr 2018 06:53:08 -0700 (PDT)
-Subject: Re: [PATCH 1/2] slab: __GFP_ZERO is incompatible with a constructor
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 10 Apr 2018 07:02:25 -0700 (PDT)
+Date: Tue, 10 Apr 2018 07:02:23 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 2/2] page cache: Mask off unwanted GFP flags
+Message-ID: <20180410140223.GE22118@bombadil.infradead.org>
 References: <20180410125351.15837-1-willy@infradead.org>
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Message-ID: <fee8a8bc-3db5-a66a-33cb-0729143ba615@gmail.com>
-Date: Tue, 10 Apr 2018 06:53:04 -0700
+ <20180410125351.15837-2-willy@infradead.org>
+ <20180410134545.GA35354@rodete-laptop-imager.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20180410125351.15837-1-willy@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180410134545.GA35354@rodete-laptop-imager.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, stable@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, stable@vger.kernel.org, jaegeuk@kernel.org
 
-
-
-On 04/10/2018 05:53 AM, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
+On Tue, Apr 10, 2018 at 10:45:45PM +0900, Minchan Kim wrote:
+> On Tue, Apr 10, 2018 at 05:53:51AM -0700, Matthew Wilcox wrote:
+> > From: Matthew Wilcox <mawilcox@microsoft.com>
+> > 
+> > The page cache has used the mapping's GFP flags for allocating
+> > radix tree nodes for a long time.  It took care to always mask off the
+> > __GFP_HIGHMEM flag, and masked off other flags in other paths, but the
+> > __GFP_ZERO flag was still able to sneak through.  The __GFP_DMA and
+> > __GFP_DMA32 flags would also have been able to sneak through if they
+> > were ever used.  Fix them all by using GFP_RECLAIM_MASK at the innermost
+> > location, and remove it from earlier in the callchain.
+> > 
+> > Fixes: 19f99cee206c ("f2fs: add core inode operations")
 > 
-> __GFP_ZERO requests that the object be initialised to all-zeroes,
-> while the purpose of a constructor is to initialise an object to a
-> particular pattern.  We cannot do both.  Add a warning to catch any
-> users who mistakenly pass a __GFP_ZERO flag when allocating a slab with
-> a constructor.
-> 
-> Fixes: d07dbea46405 ("Slab allocators: support __GFP_ZERO in all allocators")
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: stable@vger.kernel.org
+> Why this patch fix 19f99cee206c instead of 449dd6984d0e?
+> F2FS doesn't have any problem before introducing 449dd6984d0e?
 
+Well, there's the problem.  This bug is the combination of three different
+things:
 
-Since there are probably no bug to fix, what about adding the extra check
-only for some DEBUG option ?
+1. The working set code relying on list_empty.
+2. The page cache not filtering out the bad flags.
+3. F2FS specifying a flag nobody had ever specified before.
 
-How many caches are still using ctor these days ?
+So what single patch does this patch fix?  I don't think it really matters.
