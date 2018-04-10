@@ -1,62 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C72C86B0005
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:57:59 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id q15so2638460pff.15
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:57:59 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 947FB6B0005
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 17:02:28 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id o33-v6so10332286plb.16
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 14:02:28 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c184si2640176pfc.367.2018.04.10.13.57.58
+        by mx.google.com with ESMTPS id d67si2722230pfb.232.2018.04.10.14.02.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 10 Apr 2018 13:57:58 -0700 (PDT)
-Date: Tue, 10 Apr 2018 13:57:57 -0700
+        Tue, 10 Apr 2018 14:02:27 -0700 (PDT)
+Date: Tue, 10 Apr 2018 14:02:25 -0700
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] slub: Remove use of page->counter
-Message-ID: <20180410205757.GD21336@bombadil.infradead.org>
-References: <20180410195429.GB21336@bombadil.infradead.org>
- <alpine.DEB.2.20.1804101545350.30437@nuc-kabylake>
+Subject: Re: [PATCH 01/25] slab: fixup calculate_alignment() argument type
+Message-ID: <20180410210225.GE21336@bombadil.infradead.org>
+References: <20180305200730.15812-1-adobriyan@gmail.com>
+ <20180410202546.GC21336@bombadil.infradead.org>
+ <20180410204732.GA11918@avx2>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1804101545350.30437@nuc-kabylake>
+In-Reply-To: <20180410204732.GA11918@avx2>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org
 
-On Tue, Apr 10, 2018 at 03:47:28PM -0500, Christopher Lameter wrote:
-> On Tue, 10 Apr 2018, Matthew Wilcox wrote:
+On Tue, Apr 10, 2018 at 11:47:32PM +0300, Alexey Dobriyan wrote:
+> On Tue, Apr 10, 2018 at 01:25:46PM -0700, Matthew Wilcox wrote:
+> > I came across this:
+> > 
+> >         for (order = max(min_order, (unsigned int)get_order(min_objects * size + reserved));
+> > 
+> > Do you want to work on making get_order() return an unsigned int?
+> > 
+> > Also, I think get_order(0) should probably be 0, but you might develop
+> > a different feeling for it as you work your way around the kernel looking
+> > at how it's used.
 > 
-> > In my continued attempt to clean up struct page, I've got to the point
-> > where it'd be really nice to get rid of 'counters'.  I like the patch
-> > below because it makes it clear when & where we're doing "weird" things
-> > to access the various counters.
-> 
-> Well sounds good.
-> 
-> > struct {
-> > 	unsigned long flags;
-> > 	union {
-> > 		struct {
-> > 			struct address_space *mapping;
-> > 			pgoff_t index;
-> > 		};
-> > 		struct {
-> > 			void *s_mem;
-			/* Dword boundary */
-> > 			void *freelist;
-> > 		};
-> > 		...
-> > 	};
-> > 	union {
-> > 		atomic_t _mapcount;
-> > 		unsigned int active;
-> 
-> Is this aligned on a doubleword boundary? Maybe move the refcount below
-> the flags field?
+> IIRC total size increased when I made it return "unsigned int".
 
-You need freelist and _mapcount to be in the same dword.  There's no
-space to put them both in dword 0, so that's used for flags and mapping
-/ s_mem.  Then freelist, mapcount and refcount are in dword 1 (on 64-bit),
-or freelist & mapcount are in dword 1 on 32-bit.  After that, 32 and 64-bit
-no longer line up on the same dword boundaries.
+Huh, weird.  Did you go so far as to try having it return unsigned char?
+We know it's not going to return anything outside the range of 0-63.
