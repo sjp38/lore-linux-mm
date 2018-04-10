@@ -1,62 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5D26B0007
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 12:55:27 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id t11-v6so3591323ybc.15
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 09:55:27 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id k3si685503ywl.356.2018.04.10.09.55.25
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3799E6B0006
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:04:42 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id r69so11396070ioe.20
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 10:04:42 -0700 (PDT)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id u200-v6si1619182itb.164.2018.04.10.10.04.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Apr 2018 09:55:25 -0700 (PDT)
-Subject: Re: [PATCH v3 3/3] mm: restructure memfd code
-References: <20180409230505.18953-1-mike.kravetz@oracle.com>
- <20180409230505.18953-4-mike.kravetz@oracle.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <bfcae61d-e34e-e04d-62f5-a5359df8fcf1@oracle.com>
-Date: Tue, 10 Apr 2018 10:55:04 -0600
+        Tue, 10 Apr 2018 10:04:40 -0700 (PDT)
+Date: Tue, 10 Apr 2018 12:04:38 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/2] slab: __GFP_ZERO is incompatible with a
+ constructor
+In-Reply-To: <20180410155442.GA3614@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1804101203320.29042@nuc-kabylake>
+References: <20180410125351.15837-1-willy@infradead.org> <alpine.DEB.2.20.1804100920110.27333@nuc-kabylake> <20180410155442.GA3614@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180409230505.18953-4-mike.kravetz@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <willy@infradead.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@gmail.com>, David Herrmann <dh.herrmann@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, stable@vger.kernel.org
 
-On 04/09/2018 05:05 PM, Mike Kravetz wrote:
-> With the addition of memfd hugetlbfs support, we now have the situation
-> where memfd depends on TMPFS -or- HUGETLBFS.  Previously, memfd was only
-> supported on tmpfs, so it made sense that the code resided in shmem.c.
-> In the current code, memfd is only functional if TMPFS is defined.  If
-> HUGETLFS is defined and TMPFS is not defined, then memfd functionality
-> will not be available for hugetlbfs.  This does not cause BUGs, just a
-> lack of potentially desired functionality.
-> 
-> Code is restructured in the following way:
-> - include/linux/memfd.h is a new file containing memfd specific
->    definitions previously contained in shmem_fs.h.
-> - mm/memfd.c is a new file containing memfd specific code previously
->    contained in shmem.c.
-> - memfd specific code is removed from shmem_fs.h and shmem.c.
-> - A new config option MEMFD_CREATE is added that is defined if TMPFS
->    or HUGETLBFS is defined.
-> 
-> No functional changes are made to the code: restructuring only.
-> 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->   fs/Kconfig               |   3 +
->   fs/fcntl.c               |   2 +-
->   include/linux/memfd.h    |  16 +++
->   include/linux/shmem_fs.h |  13 --
->   mm/Makefile              |   1 +
->   mm/memfd.c               | 344 +++++++++++++++++++++++++++++++++++++++++++++++
->   mm/shmem.c               | 323 --------------------------------------------
->   7 files changed, 365 insertions(+), 337 deletions(-)
->   create mode 100644 include/linux/memfd.h
->   create mode 100644 mm/memfd.c
-> 
+On Tue, 10 Apr 2018, Matthew Wilcox wrote:
 
-Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+> Are you willing to have this kind of bug go uncaught for a while?
+
+There will be frequent allocations and this will show up at some point.
+
+Also you could put this into the debug only portions somehwere so we
+always catch it when debugging is on,
+'
