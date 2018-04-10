@@ -1,54 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AFC386B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 23:03:48 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id v14-v6so5190494ybq.20
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 20:03:48 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id j205si328345ywg.593.2018.04.09.20.03.47
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 364136B0003
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 02:26:12 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id b11-v6so8758047pla.19
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 23:26:12 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z22si1310149pgv.684.2018.04.09.23.26.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 20:03:47 -0700 (PDT)
-Subject: Re: [PATCH v3 3/3] mm: restructure memfd code
-References: <20180409230505.18953-1-mike.kravetz@oracle.com>
- <20180409230505.18953-4-mike.kravetz@oracle.com>
- <20180410014153.GB31282@bombadil.infradead.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <d5bfc82f-9331-fc0d-abbf-acc0a80b2c4c@oracle.com>
-Date: Mon, 9 Apr 2018 20:03:25 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Apr 2018 23:26:10 -0700 (PDT)
+Date: Tue, 10 Apr 2018 08:26:08 +0200
+From: Hannes Reinecke <hare@suse.de>
+Subject: Re: [PATCH 3/7] block: sanitize blk_get_request calling conventions
+Message-ID: <20180410082608.2cb9a6be@pentland.suse.de>
+In-Reply-To: <20180409153916.23901-4-hch@lst.de>
+References: <20180409153916.23901-1-hch@lst.de>
+	<20180409153916.23901-4-hch@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <20180410014153.GB31282@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@gmail.com>, David Herrmann <dh.herrmann@gmail.com>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: axboe@kernel.dk, Bart.VanAssche@wdc.com, willy@infradead.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On 04/09/2018 06:41 PM, Matthew Wilcox wrote:
-> On Mon, Apr 09, 2018 at 04:05:05PM -0700, Mike Kravetz wrote:
->> +/*
->> + * We need a tag: a new tag would expand every radix_tree_node by 8 bytes,
->> + * so reuse a tag which we firmly believe is never set or cleared on shmem.
->> + */
->> +#define SHMEM_TAG_PINNED        PAGECACHE_TAG_TOWRITE
+On Mon,  9 Apr 2018 17:39:12 +0200
+Christoph Hellwig <hch@lst.de> wrote:
+
+> Switch everyone to blk_get_request_flags, and then rename
+> blk_get_request_flags to blk_get_request.
 > 
-> Do we also firmly believe it's never used on hugetlbfs?
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  block/blk-core.c                   | 14 +++-----------
+>  block/bsg.c                        |  5 ++---
+>  block/scsi_ioctl.c                 |  8 +++-----
+>  drivers/block/paride/pd.c          |  2 +-
+>  drivers/block/pktcdvd.c            |  2 +-
+>  drivers/block/sx8.c                |  2 +-
+>  drivers/block/virtio_blk.c         |  2 +-
+>  drivers/cdrom/cdrom.c              |  2 +-
+>  drivers/ide/ide-atapi.c            |  2 +-
+>  drivers/ide/ide-cd.c               |  2 +-
+>  drivers/ide/ide-cd_ioctl.c         |  2 +-
+>  drivers/ide/ide-devsets.c          |  2 +-
+>  drivers/ide/ide-disk.c             |  2 +-
+>  drivers/ide/ide-ioctls.c           |  4 ++--
+>  drivers/ide/ide-park.c             |  4 ++--
+>  drivers/ide/ide-pm.c               |  5 ++---
+>  drivers/ide/ide-tape.c             |  2 +-
+>  drivers/ide/ide-taskfile.c         |  2 +-
+>  drivers/md/dm-mpath.c              |  3 ++-
+>  drivers/mmc/core/block.c           | 12 +++++-------
+>  drivers/scsi/osd/osd_initiator.c   |  2 +-
+>  drivers/scsi/osst.c                |  2 +-
+>  drivers/scsi/scsi_error.c          |  2 +-
+>  drivers/scsi/scsi_lib.c            |  2 +-
+>  drivers/scsi/sg.c                  |  2 +-
+>  drivers/scsi/st.c                  |  2 +-
+>  drivers/target/target_core_pscsi.c |  3 +--
+>  fs/nfsd/blocklayout.c              |  2 +-
+>  include/linux/blkdev.h             |  5 +----
+>  29 files changed, 42 insertions(+), 59 deletions(-)
 > 
+Long overdue.
 
-Yes.  hugetlbfs is memory resident only with no writeback.
-This comment and name should have been updated when hugetlbfs support was
-added.
+Reviewed-by: Hannes Reinecke <hare@suse.com>
 
-Also, ideally all the memfd related function names of the form shmem_* should
-have been changed to memfd_* when hugetlbfs support was added.  Some of them
-were changed, but not all.
+Cheers,
 
-I can clean all this up.  But, I would want to do it in patch 2 of the series.
-That is where other cleanup such as this was done before code movement.
-
-Will wait a little while for any additional comments before sending series
-again.
--- 
-Mike Kravetz
+Hannes
