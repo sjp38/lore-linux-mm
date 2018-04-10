@@ -1,101 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A746B0009
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 22:09:06 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p189so6012565pfp.1
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 19:09:06 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id d81si1231198pfd.210.2018.04.09.19.09.05
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E4FB6B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 22:33:48 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p10so6018367pfl.22
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 19:33:48 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o88sor463275pfa.90.2018.04.09.19.33.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 19:09:05 -0700 (PDT)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v32 4/4] virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-Date: Tue, 10 Apr 2018 09:50:09 +0800
-Message-Id: <1523325009-29763-5-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1523325009-29763-1-git-send-email-wei.w.wang@intel.com>
-References: <1523325009-29763-1-git-send-email-wei.w.wang@intel.com>
+        (Google Transport Security);
+        Mon, 09 Apr 2018 19:33:46 -0700 (PDT)
+Date: Tue, 10 Apr 2018 11:33:39 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
+Message-ID: <20180410023339.GB214542@rodete-desktop-imager.corp.google.com>
+References: <20180409015815.235943-1-minchan@kernel.org>
+ <20180409024925.GA21889@bombadil.infradead.org>
+ <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
+ <20180409111403.GA31652@bombadil.infradead.org>
+ <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
+ <7706245c-2661-f28b-f7f9-8f11e1ae932b@huawei.com>
+ <20180409144958.GA211679@rodete-laptop-imager.corp.google.com>
+ <20180409152032.GB11756@bombadil.infradead.org>
+ <20180409230409.GA214542@rodete-desktop-imager.corp.google.com>
+ <20180410011211.GA31282@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180410011211.GA31282@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Chao Yu <yuchao0@huawei.com>, Jaegeuk Kim <jaegeuk@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
 
-The VIRTIO_BALLOON_F_PAGE_POISON feature bit is used to indicate if the
-guest is using page poisoning. Guest writes to the poison_val config
-field to tell host about the page poisoning value in use.
+On Mon, Apr 09, 2018 at 06:12:11PM -0700, Matthew Wilcox wrote:
+> On Tue, Apr 10, 2018 at 08:04:09AM +0900, Minchan Kim wrote:
+> > On Mon, Apr 09, 2018 at 08:20:32AM -0700, Matthew Wilcox wrote:
+> > > I don't think this is something the radix tree should know about.
+> > 
+> > Because shadow entry implementation is hidden by radix tree implemetation.
+> > IOW, radix tree user cannot know how it works.
+> 
+> I have no idea what you mean.
+> 
+> > > SLAB should be checking for it (the patch I posted earlier in this
+> > 
+> > I don't think it's right approach. SLAB constructor can initialize
+> > some metadata for slab page populated as well as page zeroing.
+> > However, __GFP_ZERO means only clearing pages, not metadata.
+> > So it's different semantic. No need to mix out.
+> 
+> No, __GFP_ZERO is specified to clear the allocated memory whether
+> you're allocating from alloc_pages or from slab.  What makes no sense
+> is allocating an object from slab with a constructor *and* __GFP_ZERO.
+> They're in conflict, and slab can't fulfill both of those requirements.
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- drivers/virtio/virtio_balloon.c     | 10 ++++++++++
- include/uapi/linux/virtio_balloon.h |  3 +++
- 2 files changed, 13 insertions(+)
+It's a stable material. If you really think it does make sense,
+please submit patch separately.
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 197f865..aea91ab 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -730,6 +730,7 @@ static struct file_system_type balloon_fs = {
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-+	__u32 poison_val;
- 	int err;
- 
- 	if (!vdev->config->get) {
-@@ -775,6 +776,11 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 		vb->stop_cmd_id = cpu_to_virtio32(vb->vdev,
- 				VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
- 		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
-+		if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
-+			memset(&poison_val, PAGE_POISON, sizeof(poison_val));
-+			virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+				      poison_val, &poison_val);
-+		}
- 	}
- 
- 	vb->nb.notifier_call = virtballoon_oom_notify;
-@@ -893,6 +899,9 @@ static int virtballoon_restore(struct virtio_device *vdev)
- 
- static int virtballoon_validate(struct virtio_device *vdev)
- {
-+	if (!page_poisoning_enabled())
-+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
-+
- 	__virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
- 	return 0;
- }
-@@ -902,6 +911,7 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
- 	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
-+	VIRTIO_BALLOON_F_PAGE_POISON,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index b2d86c2..8b93581 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -35,6 +35,7 @@
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
- #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
-+#define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
-@@ -47,6 +48,8 @@ struct virtio_balloon_config {
- 	__u32 actual;
- 	/* Free page report command id, readonly by guest */
- 	__u32 free_page_report_cmd_id;
-+	/* Stores PAGE_POISON if page poisoning is in use */
-+	__u32 poison_val;
- };
- 
- #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
--- 
-2.7.4
+> 
+> > > thread), but the right place to filter this out is in the caller of
+> > > radix_tree_maybe_preload -- it's already filtering out HIGHMEM pages,
+> > > and should filter out GFP_ZERO too.
+> > 
+> > radix_tree_[maybe]_preload is exported API, which are error-prone
+> > for out of modules or upcoming customers.
+> > 
+> > More proper place is __radix_tree_preload.
+> 
+> I could not disagree with you more.  It is the responsibility of the
+> callers of radix_tree_preload to avoid calling it with nonsense flags
+> like __GFP_DMA, __GFP_HIGHMEM or __GFP_ZERO.
+
+How about this?
+
+It would fix current problem and warn potential bugs as well.
+radix_tree_preload already has done such warning and
+radix_tree_maybe_preload has skipping for misbehaivor gfp.
