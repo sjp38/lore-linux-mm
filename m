@@ -1,44 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B3E286B005C
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:51:09 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q22so7490435pfh.20
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:51:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e92-v6sor1555995pld.34.2018.04.10.13.51.08
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 095E06B0062
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:54:32 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id h12-v6so572140pls.23
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:54:32 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f34-v6si3460155ple.622.2018.04.10.13.54.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Apr 2018 13:51:08 -0700 (PDT)
-Date: Tue, 10 Apr 2018 13:51:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2 1/2] mm: introduce ARCH_HAS_PTE_SPECIAL
-In-Reply-To: <a732ef2b-445f-9ad8-014b-247c8c5d500b@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.21.1804101350250.79494@chino.kir.corp.google.com>
-References: <1523373951-10981-1-git-send-email-ldufour@linux.vnet.ibm.com> <1523373951-10981-2-git-send-email-ldufour@linux.vnet.ibm.com> <20180410160932.GB3614@bombadil.infradead.org> <a732ef2b-445f-9ad8-014b-247c8c5d500b@linux.vnet.ibm.com>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Apr 2018 13:54:30 -0700 (PDT)
+Date: Tue, 10 Apr 2018 13:54:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v29 1/4] mm: support reporting free page blocks
+Message-Id: <20180410135429.d1aeeb91d7f2754ffe7fb80e@linux-foundation.org>
+In-Reply-To: <20180410211719-mutt-send-email-mst@kernel.org>
+References: <1522031994-7246-1-git-send-email-wei.w.wang@intel.com>
+	<1522031994-7246-2-git-send-email-wei.w.wang@intel.com>
+	<20180326142254.c4129c3a54ade686ee2a5e21@linux-foundation.org>
+	<20180410211719-mutt-send-email-mst@kernel.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Jerome Glisse <jglisse@redhat.com>, mhocko@kernel.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S . Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Vineet Gupta <vgupta@synopsys.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <albert@sifive.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, huangzhichao@huawei.com
 
-On Tue, 10 Apr 2018, Laurent Dufour wrote:
+On Tue, 10 Apr 2018 21:19:31 +0300 "Michael S. Tsirkin" <mst@redhat.com> wrote:
 
-> > On Tue, Apr 10, 2018 at 05:25:50PM +0200, Laurent Dufour wrote:
-> >>  arch/powerpc/include/asm/pte-common.h                  | 3 ---
-> >>  arch/riscv/Kconfig                                     | 1 +
-> >>  arch/s390/Kconfig                                      | 1 +
-> > 
-> > You forgot to delete __HAVE_ARCH_PTE_SPECIAL from
-> > arch/riscv/include/asm/pgtable-bits.h
 > 
-> Damned !
-> Thanks for catching it.
+> Andrew, were your questions answered? If yes could I bother you for an ack on this?
 > 
 
-Squashing the two patches together at least allowed it to be caught 
-easily.  After it's fixed, feel free to add
+Still not very happy that readers are told that "this function may
+sleep" when it clearly doesn't do so.  If we wish to be able to change
+it to sleep in the future then that should be mentioned.  And even put a
+might_sleep() in there, to catch people who didn't read the comments...
 
-	Acked-by: David Rientjes <rientjes@google.com>
-
-Thanks for doing this!
+Otherwise it looks OK.
