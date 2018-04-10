@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A088D6B0026
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:33:11 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t1-v6so9444499plb.5
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:33:11 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c6-v6si2674395plr.620.2018.04.10.05.33.10
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 56A646B0028
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:38:26 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id o3so164558wri.5
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:38:26 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id c30si2798760edf.429.2018.04.10.05.38.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Apr 2018 05:33:10 -0700 (PDT)
-Date: Tue, 10 Apr 2018 14:33:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 10 Apr 2018 05:38:25 -0700 (PDT)
+Date: Tue, 10 Apr 2018 08:39:46 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
-Message-ID: <20180410123306.GI21835@dhcp22.suse.cz>
+Message-ID: <20180410123946.GA6334@cmpxchg.org>
 References: <20180409015815.235943-1-minchan@kernel.org>
  <20180409024925.GA21889@bombadil.infradead.org>
  <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
@@ -29,9 +29,9 @@ In-Reply-To: <20180410120528.GB22118@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Jaegeuk Kim <jaegeuk@kernel.org>, Minchan Kim <minchan@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>, Jaegeuk Kim <jaegeuk@kernel.org>, Minchan Kim <minchan@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
 
-On Tue 10-04-18 05:05:28, Matthew Wilcox wrote:
+On Tue, Apr 10, 2018 at 05:05:28AM -0700, Matthew Wilcox wrote:
 > On Tue, Apr 10, 2018 at 10:26:43AM +0200, Michal Hocko wrote:
 > > On Mon 09-04-18 12:40:44, Matthew Wilcox wrote:
 > > > The problem is that the mapping gfp flags are used not only for allocating
@@ -52,9 +52,8 @@ On Tue 10-04-18 05:05:28, Matthew Wilcox wrote:
 > state, then the user will restore the object to that state when it frees
 > the object to slab.
 
-And that is fundamentally subtle semantic and leads to bugs. So we
-should reconsider whether that is really worth keeping for the radix
-tree.
+Fully agreed. I'm surprised there is so much pushback to what Willy is
+saying here, this stuff has been established for years.
 
 > > Are you going to blacklist all potential gfp flags that come
 > > from the mapping? This is just unmaintainable! If anything this should
@@ -67,11 +66,5 @@ tree.
 > 
 > -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
 > +	error = radix_tree_preload(gfp_mask & GFP_RECLAIM_MASK);
-> 
-> correct?
 
-Something like that, yes.
-
--- 
-Michal Hocko
-SUSE Labs
+That looks reasonable to me.
