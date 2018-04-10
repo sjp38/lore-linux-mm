@@ -1,66 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 220C46B0003
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 21:12:16 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id y7-v6so8192619plh.7
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 18:12:16 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k15si993257pgs.726.2018.04.09.18.12.15
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E97CC6B0003
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 21:28:58 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 91-v6so8167524pla.18
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 18:28:58 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id q1si1011647pgr.455.2018.04.09.18.28.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 09 Apr 2018 18:12:15 -0700 (PDT)
-Date: Mon, 9 Apr 2018 18:12:11 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
-Message-ID: <20180410011211.GA31282@bombadil.infradead.org>
-References: <20180409015815.235943-1-minchan@kernel.org>
- <20180409024925.GA21889@bombadil.infradead.org>
- <20180409030930.GA214930@rodete-desktop-imager.corp.google.com>
- <20180409111403.GA31652@bombadil.infradead.org>
- <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
- <7706245c-2661-f28b-f7f9-8f11e1ae932b@huawei.com>
- <20180409144958.GA211679@rodete-laptop-imager.corp.google.com>
- <20180409152032.GB11756@bombadil.infradead.org>
- <20180409230409.GA214542@rodete-desktop-imager.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Apr 2018 18:28:57 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm] mm, pagemap: Fix swap offset value for PMD migration entry
+References: <20180408033737.10897-1-ying.huang@intel.com>
+Date: Tue, 10 Apr 2018 09:28:54 +0800
+In-Reply-To: <20180408033737.10897-1-ying.huang@intel.com> (Ying Huang's
+	message of "Sun, 8 Apr 2018 11:37:37 +0800")
+Message-ID: <87fu43lui1.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180409230409.GA214542@rodete-desktop-imager.corp.google.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Chao Yu <yuchao0@huawei.com>, Jaegeuk Kim <jaegeuk@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrei Vagin <avagin@openvz.org>, Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Tue, Apr 10, 2018 at 08:04:09AM +0900, Minchan Kim wrote:
-> On Mon, Apr 09, 2018 at 08:20:32AM -0700, Matthew Wilcox wrote:
-> > I don't think this is something the radix tree should know about.
-> 
-> Because shadow entry implementation is hidden by radix tree implemetation.
-> IOW, radix tree user cannot know how it works.
+Hi, Andrew,
 
-I have no idea what you mean.
+"Huang, Ying" <ying.huang@intel.com> writes:
 
-> > SLAB should be checking for it (the patch I posted earlier in this
-> 
-> I don't think it's right approach. SLAB constructor can initialize
-> some metadata for slab page populated as well as page zeroing.
-> However, __GFP_ZERO means only clearing pages, not metadata.
-> So it's different semantic. No need to mix out.
+> From: Huang Ying <ying.huang@intel.com>
+>
+> The swap offset reported by /proc/<pid>/pagemap may be not correct for
+> PMD migration entry.  If addr passed into pagemap_range() isn't
+> aligned with PMD start address, the swap offset reported doesn't
+> reflect this.  And in the loop to report information of each sub-page,
+> the swap offset isn't increased accordingly as that for PFN.
+>
+> BTW: migration swap entries have PFN information, do we need to
+> restrict whether to show them?
+>
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Andrei Vagin <avagin@openvz.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: "Jerome Glisse" <jglisse@redhat.com>
+> Cc: Daniel Colascione <dancol@google.com>
+> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  fs/proc/task_mmu.c | 6 +++++-
+>  1 file changed, 5 insertions(+), 1 deletion(-)
+>
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 65ae54659833..757e748da613 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1310,9 +1310,11 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+>  #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+>  		else if (is_swap_pmd(pmd)) {
+>  			swp_entry_t entry = pmd_to_swp_entry(pmd);
+> +			unsigned long offset = swp_offset(entry);
+>  
+> +			offset += (addr & ~PMD_MASK) >> PAGE_SHIFT;
+>  			frame = swp_type(entry) |
+> -				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
+> +				(offset << MAX_SWAPFILES_SHIFT);
+>  			flags |= PM_SWAP;
+>  			if (pmd_swp_soft_dirty(pmd))
+>  				flags |= PM_SOFT_DIRTY;
+> @@ -1332,6 +1334,8 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+>  				break;
+>  			if (pm->show_pfn && (flags & PM_PRESENT))
+>  				frame++;
+> +			else if (flags | PM_SWAP)
 
-No, __GFP_ZERO is specified to clear the allocated memory whether
-you're allocating from alloc_pages or from slab.  What makes no sense
-is allocating an object from slab with a constructor *and* __GFP_ZERO.
-They're in conflict, and slab can't fulfill both of those requirements.
+Oops, I just found a typo here, it should be,
 
-> > thread), but the right place to filter this out is in the caller of
-> > radix_tree_maybe_preload -- it's already filtering out HIGHMEM pages,
-> > and should filter out GFP_ZERO too.
-> 
-> radix_tree_[maybe]_preload is exported API, which are error-prone
-> for out of modules or upcoming customers.
-> 
-> More proper place is __radix_tree_preload.
++			else if (flags & PM_SWAP)
 
-I could not disagree with you more.  It is the responsibility of the
-callers of radix_tree_preload to avoid calling it with nonsense flags
-like __GFP_DMA, __GFP_HIGHMEM or __GFP_ZERO.
+Sorry about that.  Do I need to refresh the patch or you will fix it
+inline?
+
+Best Regards,
+Huang, Ying
+
+> +				frame += (1 << MAX_SWAPFILES_SHIFT);
+>  		}
+>  		spin_unlock(ptl);
+>  		return err;
