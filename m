@@ -1,47 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 49EFA6B0011
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:06:54 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id h16-v6so2812188lfg.13
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:06:54 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 141sor893026ljf.77.2018.04.10.13.06.52
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B6F4D6B0022
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:13:25 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w9-v6so10294125plp.0
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:13:25 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id 1-v6si3247451plz.279.2018.04.10.13.13.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Apr 2018 13:06:52 -0700 (PDT)
-Date: Tue, 10 Apr 2018 23:06:51 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [v3 PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-Message-ID: <20180410200651.GF2041@uranus.lan>
-References: <20180410090917.GZ21835@dhcp22.suse.cz>
- <20180410094047.GB2041@uranus.lan>
- <20180410104215.GB21835@dhcp22.suse.cz>
- <20180410110242.GC2041@uranus.lan>
- <20180410111001.GD21835@dhcp22.suse.cz>
- <20180410122804.GD2041@uranus.lan>
- <097488c7-ab18-367b-c435-7c26d149c619@linux.alibaba.com>
- <8c19f1fb-7baf-fef3-032d-4e93cfc63932@linux.alibaba.com>
- <20180410191742.GE2041@uranus.lan>
- <e868b50d-88a3-a649-d998-b7f2bb2c40aa@linux.alibaba.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e868b50d-88a3-a649-d998-b7f2bb2c40aa@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Apr 2018 13:13:24 -0700 (PDT)
+Subject: [PATCH] x86, boot: initialize __default_kernel_pte_mask in KASLR code
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Tue, 10 Apr 2018 13:10:11 -0700
+Message-Id: <20180410201011.F823E22B@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Michal Hocko <mhocko@kernel.org>, adobriyan@gmail.com, willy@infradead.org, mguzik@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, thomas.lendacky@amd.com, efault@gmx.de, luto@kernel.org, arjan@linux.intel.com, bp@alien8.de, dan.j.williams@intel.com, dwmw2@infradead.org, gregkh@linuxfoundation.org, hughd@google.com, jpoimboe@redhat.com, jgross@suse.com, keescook@google.com, torvalds@linux-foundation.org, namit@vmware.com, peterz@infradead.org, tglx@linutronix.de, linux-mm@kvack.org
 
-On Tue, Apr 10, 2018 at 12:33:35PM -0700, Yang Shi wrote:
-...
-> 
-> The race condition is just valid when protecting start_brk, brk, start_data
-> and end_data with the new lock, but keep using mmap_sem in brk path.
-> 
-> So, we should just need make a little tweak to have mmap_sem protect
-> start_brk, brk, start_data and end_data, then have the new lock protect
-> others so that we still can remove mmap_sem in proc as the patch is aimed to
-> do.
 
-+1. Sounds like a plan.
+The somewhat discrete arch/x86/boot/compressed code shares headers with
+the main kernel, but needs its own copies of some variables.  The copy
+of __default_kernel_pte_mask did not get initialized correctly and has
+been reported to cause boot failures when KASLR is in use by Tom
+Lendacky and Mike Galibrath.
+
+I've oddly been unable to reproduce these, but the fix is simple and
+confirmed to work by Tom and Mike.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Fixes: 64c80759408f ("x86/mm: Do not auto-massage page protections")
+Cc: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Mike Galbraith <efault@gmx.de>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Arjan van de Ven <arjan@linux.intel.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: David Woodhouse <dwmw2@infradead.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Kees Cook <keescook@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nadav Amit <namit@vmware.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+---
+
+ b/arch/x86/boot/compressed/kaslr.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff -puN arch/x86/boot/compressed/kaslr.c~x86-boot-initialize-__default_kernel_pte_mask arch/x86/boot/compressed/kaslr.c
+--- a/arch/x86/boot/compressed/kaslr.c~x86-boot-initialize-__default_kernel_pte_mask	2018-04-10 13:02:22.359914088 -0700
++++ b/arch/x86/boot/compressed/kaslr.c	2018-04-10 13:02:40.389914043 -0700
+@@ -54,8 +54,8 @@ unsigned int ptrs_per_p4d __ro_after_ini
+ 
+ extern unsigned long get_cmd_line_ptr(void);
+ 
+-/* Used by PAGE_KERN* macros: */
+-pteval_t __default_kernel_pte_mask __read_mostly;
++/* Used by PAGE_KERN* macros, do not mask off any bits by default: */
++pteval_t __default_kernel_pte_mask __read_mostly = ~0;
+ 
+ /* Simplified build-specific string for starting entropy. */
+ static const char build_str[] = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
+_
