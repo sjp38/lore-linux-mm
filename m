@@ -1,69 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B6F4D6B0022
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:13:25 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id w9-v6so10294125plp.0
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:13:25 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id 1-v6si3247451plz.279.2018.04.10.13.13.24
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A09996B0024
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:15:32 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id m6-v6so10224484pln.8
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:15:32 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w64si2293287pgd.176.2018.04.10.13.15.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Apr 2018 13:13:24 -0700 (PDT)
-Subject: [PATCH] x86, boot: initialize __default_kernel_pte_mask in KASLR code
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Tue, 10 Apr 2018 13:10:11 -0700
-Message-Id: <20180410201011.F823E22B@viggo.jf.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Apr 2018 13:15:31 -0700 (PDT)
+Subject: Re: [RFC] mm, slab: reschedule cache_reap() on the same CPU
+References: <20180410081531.18053-1-vbabka@suse.cz>
+ <alpine.DEB.2.20.1804100907160.27333@nuc-kabylake>
+ <983c61d1-1444-db1f-65c1-3b519ac4d57b@suse.cz>
+ <20180410195247.GQ3126663@devbig577.frc2.facebook.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d4983f13-2c02-6082-f980-a6623ab363e6@suse.cz>
+Date: Tue, 10 Apr 2018 22:13:33 +0200
+MIME-Version: 1.0
+In-Reply-To: <20180410195247.GQ3126663@devbig577.frc2.facebook.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, thomas.lendacky@amd.com, efault@gmx.de, luto@kernel.org, arjan@linux.intel.com, bp@alien8.de, dan.j.williams@intel.com, dwmw2@infradead.org, gregkh@linuxfoundation.org, hughd@google.com, jpoimboe@redhat.com, jgross@suse.com, keescook@google.com, torvalds@linux-foundation.org, namit@vmware.com, peterz@infradead.org, tglx@linutronix.de, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Christopher Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, John Stultz <john.stultz@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Stephen Boyd <sboyd@kernel.org>
 
+On 04/10/2018 09:53 PM, Tejun Heo wrote:
+> Hello,
+> 
+> On Tue, Apr 10, 2018 at 09:40:19PM +0200, Vlastimil Babka wrote:
+>> On 04/10/2018 04:12 PM, Christopher Lameter wrote:
+>>> On Tue, 10 Apr 2018, Vlastimil Babka wrote:
+>>>
+>>>> cache_reap() is initially scheduled in start_cpu_timer() via
+>>>> schedule_delayed_work_on(). But then the next iterations are scheduled via
+>>>> schedule_delayed_work(), thus using WORK_CPU_UNBOUND.
+>>>
+>>> That is a bug.. cache_reap must run on the same cpu since it deals with
+>>> the per cpu queues of the current cpu. Scheduled_delayed_work() used to
+>>> guarantee running on teh same cpu.
+>>
+>> Did it? When did it stop? (which stable kernels should we backport to?)
+> 
+> It goes back to v4.5 - ef557180447f ("workqueue: schedule
+> WORK_CPU_UNBOUND work on wq_unbound_cpumask CPUs") which made
+> WQ_CPU_UNBOUND on percpu workqueues honor wq_unbound_cpusmask so that
+> cpu isolation works better.  Unless the force_rr option or
+> unbound_cpumask is set, it still follows local cpu.
 
-The somewhat discrete arch/x86/boot/compressed code shares headers with
-the main kernel, but needs its own copies of some variables.  The copy
-of __default_kernel_pte_mask did not get initialized correctly and has
-been reported to cause boot failures when KASLR is in use by Tom
-Lendacky and Mike Galibrath.
+I see, thanks.
 
-I've oddly been unable to reproduce these, but the fix is simple and
-confirmed to work by Tom and Mike.
+>> So is my assumption correct that without specifying a CPU, the next work
+>> might be processed on a different cpu than the current one, *and also*
+>> be executed with a kthread/u* that can migrate to another cpu *in the
+>> middle of the work*? Tejun?
+> 
+> For percpu work items, they'll keep executing on the same cpu it
+> started on unless the cpu goes down while executing.
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Fixes: 64c80759408f ("x86/mm: Do not auto-massage page protections")
-Cc: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Mike Galbraith <efault@gmx.de>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Arjan van de Ven <arjan@linux.intel.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: David Woodhouse <dwmw2@infradead.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Kees Cook <keescook@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nadav Amit <namit@vmware.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
----
+Right, but before this patch, with just schedule_delayed_work() i.e.
+non-percpu? If such work can migrate in the middle, the slab bug is
+potentially much more serious.
 
- b/arch/x86/boot/compressed/kaslr.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+>>> schedule_delayed_work_on(smp_processor_id(), work, round_jiffies_relative(REAPTIMEOUT_AC));
+>>>
+>>> instead all of the other changes?
+>>
+>> If we can rely on that 100%, sure.
+> 
+> Yeah, you can.
 
-diff -puN arch/x86/boot/compressed/kaslr.c~x86-boot-initialize-__default_kernel_pte_mask arch/x86/boot/compressed/kaslr.c
---- a/arch/x86/boot/compressed/kaslr.c~x86-boot-initialize-__default_kernel_pte_mask	2018-04-10 13:02:22.359914088 -0700
-+++ b/arch/x86/boot/compressed/kaslr.c	2018-04-10 13:02:40.389914043 -0700
-@@ -54,8 +54,8 @@ unsigned int ptrs_per_p4d __ro_after_ini
- 
- extern unsigned long get_cmd_line_ptr(void);
- 
--/* Used by PAGE_KERN* macros: */
--pteval_t __default_kernel_pte_mask __read_mostly;
-+/* Used by PAGE_KERN* macros, do not mask off any bits by default: */
-+pteval_t __default_kernel_pte_mask __read_mostly = ~0;
- 
- /* Simplified build-specific string for starting entropy. */
- static const char build_str[] = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
-_
+Great, thanks.
+
+> Thanks.
+> 
