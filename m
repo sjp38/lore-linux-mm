@@ -1,45 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 122456B0005
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 10:17:12 -0400 (EDT)
-Received: by mail-yb0-f200.google.com with SMTP id l2-v6so5828172ybk.17
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 07:17:12 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y8-v6sor779452ybj.33.2018.04.10.07.17.10
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BEFF6B0005
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 10:22:23 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id e22-v6so3947520ita.0
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 07:22:23 -0700 (PDT)
+Received: from resqmta-po-06v.sys.comcast.net (resqmta-po-06v.sys.comcast.net. [96.114.154.165])
+        by mx.google.com with ESMTPS id m20-v6si1446926itm.161.2018.04.10.07.22.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Apr 2018 07:17:10 -0700 (PDT)
-Date: Tue, 10 Apr 2018 07:17:07 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC] mm, slab: reschedule cache_reap() on the same CPU
-Message-ID: <20180410141707.GL3126663@devbig577.frc2.facebook.com>
-References: <20180410081531.18053-1-vbabka@suse.cz>
- <alpine.DEB.2.20.1804100907160.27333@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Apr 2018 07:22:22 -0700 (PDT)
+Date: Tue, 10 Apr 2018 09:21:20 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/2] slab: __GFP_ZERO is incompatible with a
+ constructor
+In-Reply-To: <20180410125351.15837-1-willy@infradead.org>
+Message-ID: <alpine.DEB.2.20.1804100920110.27333@nuc-kabylake>
+References: <20180410125351.15837-1-willy@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1804100907160.27333@nuc-kabylake>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, John Stultz <john.stultz@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Stephen Boyd <sboyd@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, stable@vger.kernel.org
 
-On Tue, Apr 10, 2018 at 09:12:08AM -0500, Christopher Lameter wrote:
-> > @@ -4074,7 +4086,8 @@ static void cache_reap(struct work_struct *w)
-> >  	next_reap_node();
-> >  out:
-> >  	/* Set up the next iteration */
-> > -	schedule_delayed_work(work, round_jiffies_relative(REAPTIMEOUT_AC));
-> > +	schedule_delayed_work_on(reap_work->cpu, work,
-> > +					round_jiffies_relative(REAPTIMEOUT_AC));
-> 
-> schedule_delayed_work_on(smp_processor_id(), work, round_jiffies_relative(REAPTIMEOUT_AC));
-> 
-> instead all of the other changes?
+On Tue, 10 Apr 2018, Matthew Wilcox wrote:
 
-Yeah, that'd make more sense.
+> __GFP_ZERO requests that the object be initialised to all-zeroes,
+> while the purpose of a constructor is to initialise an object to a
+> particular pattern.  We cannot do both.  Add a warning to catch any
+> users who mistakenly pass a __GFP_ZERO flag when allocating a slab with
+> a constructor.
 
-Thanks.
-
--- 
-tejun
+Can we move this check out of the critical paths and check for
+a ctor and GFP_ZERO when calling the page allocator? F.e. in
+allocate_slab()?
