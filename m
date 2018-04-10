@@ -1,63 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F28826B0003
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 11:11:11 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id v189so6054361wmf.4
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:11:11 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s13si565911edc.335.2018.04.10.08.11.06
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 449596B0003
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 11:18:23 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b16so7071568pfi.5
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:18:23 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id b5-v6si2722280ple.584.2018.04.10.08.18.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Apr 2018 08:11:07 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3AF6Bw7016821
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 11:11:05 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2h8x55w805-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 11:11:05 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 10 Apr 2018 16:11:02 +0100
-Subject: Re: [PATCH 2/3] mm: replace __HAVE_ARCH_PTE_SPECIAL
-References: <1523282229-20731-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1523282229-20731-3-git-send-email-ldufour@linux.vnet.ibm.com>
- <20180409175757.GA12938@infradead.org>
- <alpine.DEB.2.21.1804091307480.56406@chino.kir.corp.google.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Tue, 10 Apr 2018 17:10:52 +0200
+        Tue, 10 Apr 2018 08:18:22 -0700 (PDT)
+Date: Tue, 10 Apr 2018 08:18:20 -0700
+From: Jaegeuk Kim <jaegeuk@kernel.org>
+Subject: Re: [PATCH 2/2] page cache: Mask off unwanted GFP flags
+Message-ID: <20180410151820.GA69325@jaegeuk-macbookpro.roam.corp.google.com>
+References: <20180410125351.15837-1-willy@infradead.org>
+ <20180410125351.15837-2-willy@infradead.org>
+ <20180410134545.GA35354@rodete-laptop-imager.corp.google.com>
+ <20180410140223.GE22118@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1804091307480.56406@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <3a330851-d545-ebd8-e74c-c44e12220c24@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180410140223.GE22118@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Christoph Hellwig <hch@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Jerome Glisse <jglisse@redhat.com>, mhocko@kernel.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S . Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Vineet Gupta <vgupta@synopsys.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <albert@sifive.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, stable@vger.kernel.org
 
-On 09/04/2018 22:08, David Rientjes wrote:
-> On Mon, 9 Apr 2018, Christoph Hellwig wrote:
+On 04/10, Matthew Wilcox wrote:
+> On Tue, Apr 10, 2018 at 10:45:45PM +0900, Minchan Kim wrote:
+> > On Tue, Apr 10, 2018 at 05:53:51AM -0700, Matthew Wilcox wrote:
+> > > From: Matthew Wilcox <mawilcox@microsoft.com>
+> > > 
+> > > The page cache has used the mapping's GFP flags for allocating
+> > > radix tree nodes for a long time.  It took care to always mask off the
+> > > __GFP_HIGHMEM flag, and masked off other flags in other paths, but the
+> > > __GFP_ZERO flag was still able to sneak through.  The __GFP_DMA and
+> > > __GFP_DMA32 flags would also have been able to sneak through if they
+> > > were ever used.  Fix them all by using GFP_RECLAIM_MASK at the innermost
+> > > location, and remove it from earlier in the callchain.
+> > > 
+> > > Fixes: 19f99cee206c ("f2fs: add core inode operations")
+> > 
+> > Why this patch fix 19f99cee206c instead of 449dd6984d0e?
+> > F2FS doesn't have any problem before introducing 449dd6984d0e?
 > 
->>> -#ifdef __HAVE_ARCH_PTE_SPECIAL
->>> +#ifdef CONFIG_ARCH_HAS_PTE_SPECIAL
->>>  # define HAVE_PTE_SPECIAL 1
->>>  #else
->>>  # define HAVE_PTE_SPECIAL 0
->>
->> I'd say kill this odd indirection and just use the
->> CONFIG_ARCH_HAS_PTE_SPECIAL symbol directly.
->>
->>
+> Well, there's the problem.  This bug is the combination of three different
+> things:
 > 
-> Agree, and I think it would be easier to audit/review if patches 1 and 3 
-> were folded together to see the relationship between the newly added 
-> selects and what #define's it is replacing.  Otherwise, looks good!
->
+> 1. The working set code relying on list_empty.
+> 2. The page cache not filtering out the bad flags.
+> 3. F2FS specifying a flag nobody had ever specified before.
+> 
+> So what single patch does this patch fix?  I don't think it really matters.
 
-Ok I will fold the 3 patches and introduce a new one removing HAVE_PTE_SPECIAL.
+Hope there'd be someone who does care about patch description though, IMHO,
+this fixes the MM regression introduced by:
+449dd6984d0e ("mm: keep page cache radix tree nodes in check") merged in v3.15,
+2014.
+
+19f99cee206c ("f2fs: add core inode operations) merged in v3.8, 2012, just
+revealed this out. In fact, I've never hit this bug in old kernels.
+
+>From the user viewpoint, may I suggest to describe what kind of symptom we're
+able to see due to this bug?
+
+Something like:
+
+[ 7858.792946] [<ffffff80086f4de0>] __list_del_entry+0x30/0xd0
+[ 7858.792951] [<ffffff8008362018>] list_lru_del+0xac/0x1ac
+[ 7858.792957] [<ffffff800830f04c>] page_cache_tree_insert+0xd8/0x110
+[ 7858.792962] [<ffffff8008310188>] __add_to_page_cache_locked+0xf8/0x4e0
+[ 7858.792967] [<ffffff800830ff34>] add_to_page_cache_lru+0x50/0x1ac
+[ 7858.792972] [<ffffff800830fdd0>] pagecache_get_page+0x468/0x57c
+[ 7858.792979] [<ffffff80085d081c>] __get_node_page+0x84/0x764
+[ 7858.792986] [<ffffff800859cd94>] f2fs_iget+0x264/0xdc8
+[ 7858.792991] [<ffffff800859ee00>] f2fs_lookup+0x3b4/0x660
+[ 7858.792998] [<ffffff80083d2540>] lookup_slow+0x1e4/0x348
+[ 7858.793003] [<ffffff80083d0eb8>] walk_component+0x21c/0x320
+[ 7858.793008] [<ffffff80083d0010>] path_lookupat+0x90/0x1bc
+[ 7858.793013] [<ffffff80083cfe6c>] filename_lookup+0x8c/0x1a0
+[ 7858.793018] [<ffffff80083c52d0>] vfs_fstatat+0x84/0x10c
+[ 7858.793023] [<ffffff80083c5b00>] SyS_newfstatat+0x28/0x64
 
 Thanks,
-Laurent.
