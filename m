@@ -1,131 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F05B96B0003
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 11:58:56 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id r7-v6so6948111oti.18
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 08:58:56 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g63-v6si1086539oia.25.2018.04.10.08.58.55
-        for <linux-mm@kvack.org>;
-        Tue, 10 Apr 2018 08:58:55 -0700 (PDT)
-Subject: Re: [PATCH v2 2/2] mm: remove odd HAVE_PTE_SPECIAL
-References: <1523373951-10981-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1523373951-10981-3-git-send-email-ldufour@linux.vnet.ibm.com>
-From: Robin Murphy <robin.murphy@arm.com>
-Message-ID: <3f20ac8b-20b8-f052-bc44-dcc0316354ca@arm.com>
-Date: Tue, 10 Apr 2018 16:58:48 +0100
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 45E186B0003
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 12:07:43 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id y4so11266036iod.5
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 09:07:43 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s67-v6sor1176284itg.27.2018.04.10.09.07.40
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 10 Apr 2018 09:07:40 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1523373951-10981-3-git-send-email-ldufour@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <0f448799-3a06-a25d-d604-21db3e8577fc@virtuozzo.com>
+References: <cover.1521828273.git.andreyknvl@google.com> <ba4a74ba1bc48dd66a3831143c3119d13c291fe3.1521828274.git.andreyknvl@google.com>
+ <805d1e85-2d3c-2327-6e6c-f14a56dc0b67@virtuozzo.com> <CAAeHK+yg5ODeDy7k9fako5mcCLLnBrO729Zp_-UtDuzh3hZgZA@mail.gmail.com>
+ <0c4397da-e231-0044-986f-b8468314be76@virtuozzo.com> <CAAeHK+xmCLe85_QNDam_BVTp9wVzjxgvko2+0JapJCzmciGa5g@mail.gmail.com>
+ <0857f052-a27a-501e-8923-c6f31510e4fe@virtuozzo.com> <CAAeHK+xnHeznZwofNQVDcBCCMnaEQ6fcRxOcrFM-qQFUsZ51Rg@mail.gmail.com>
+ <0f448799-3a06-a25d-d604-21db3e8577fc@virtuozzo.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 10 Apr 2018 18:07:39 +0200
+Message-ID: <CAAeHK+wWN=phNZgC_g5SMf61sCAVM7SGX9GdF1X4v+P3mK=uZA@mail.gmail.com>
+Subject: Re: [RFC PATCH v2 13/15] khwasan: add hooks implementation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Jerome Glisse <jglisse@redhat.com>, mhocko@kernel.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S . Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Vineet Gupta <vgupta@synopsys.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <albert@sifive.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, David Rientjes <rientjes@google.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-On 10/04/18 16:25, Laurent Dufour wrote:
-> Remove the additional define HAVE_PTE_SPECIAL and rely directly on
-> CONFIG_ARCH_HAS_PTE_SPECIAL.
-> 
-> There is no functional change introduced by this patch
-> 
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> ---
->   mm/memory.c | 23 ++++++++++-------------
->   1 file changed, 10 insertions(+), 13 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 96910c625daa..53b6344a90d2 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -817,19 +817,13 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
->    * PFNMAP mappings in order to support COWable mappings.
->    *
->    */
-> -#ifdef CONFIG_ARCH_HAS_PTE_SPECIAL
-> -# define HAVE_PTE_SPECIAL 1
-> -#else
-> -# define HAVE_PTE_SPECIAL 0
-> -#endif
->   struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
->   			     pte_t pte, bool with_public_device)
->   {
->   	unsigned long pfn = pte_pfn(pte);
->   
-> -	if (HAVE_PTE_SPECIAL) {
-> -		if (likely(!pte_special(pte)))
-> -			goto check_pfn;
-> +#ifdef CONFIG_ARCH_HAS_PTE_SPECIAL
+On Fri, Apr 6, 2018 at 2:27 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+> On 04/06/2018 03:14 PM, Andrey Konovalov wrote:
+>> On Thu, Apr 5, 2018 at 3:02 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>>> Nevertheless, this doesn't mean that we should ignore *all* accesses to !slab memory.
+>>
+>> So you mean we need to find a way to ignore accesses via pointers
+>> returned by page_address(), but still check accesses through all other
+>> pointers tagged with 0xFF? I don't see an obvious way to do this. I'm
+>> open to suggestions though.
+>>
+>
+> I'm saying that we need to ignore accesses to slab objects if pointer
+> to slab object obtained via page_address() + offset_in_page() trick, but don't ignore
+> anything else.
+>
+> So, save tag somewhere in page struct and poison shadow with that tag. Make page_address() to
+> return tagged address for all !PageSlab() pages. For PageSlab() pages page_address() should return
+> 0xff tagged address, so we could ignore such accesses.
 
-Nit: Couldn't you use IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL) within the 
-existing code structure to avoid having to add these #ifdefs?
-
-Robin.
-
-> +	if (unlikely(pte_special(pte))) {
->   		if (vma->vm_ops && vma->vm_ops->find_special_page)
->   			return vma->vm_ops->find_special_page(vma, addr);
->   		if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
-> @@ -862,7 +856,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
->   		return NULL;
->   	}
->   
-> -	/* !HAVE_PTE_SPECIAL case follows: */
-> +#else	/* CONFIG_ARCH_HAS_PTE_SPECIAL */
->   
->   	if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
->   		if (vma->vm_flags & VM_MIXEDMAP) {
-> @@ -881,7 +875,8 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
->   
->   	if (is_zero_pfn(pfn))
->   		return NULL;
-> -check_pfn:
-> +#endif /* CONFIG_ARCH_HAS_PTE_SPECIAL */
-> +
->   	if (unlikely(pfn > highest_memmap_pfn)) {
->   		print_bad_pte(vma, addr, pte, NULL);
->   		return NULL;
-> @@ -891,7 +886,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
->   	 * NOTE! We still have PageReserved() pages in the page tables.
->   	 * eg. VDSO mappings can cause them to exist.
->   	 */
-> -out:
-> +out: __maybe_unused
->   	return pfn_to_page(pfn);
->   }
->   
-> @@ -904,7 +899,7 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
->   	/*
->   	 * There is no pmd_special() but there may be special pmds, e.g.
->   	 * in a direct-access (dax) mapping, so let's just replicate the
-> -	 * !HAVE_PTE_SPECIAL case from vm_normal_page() here.
-> +	 * !CONFIG_ARCH_HAS_PTE_SPECIAL case from vm_normal_page() here.
->   	 */
->   	if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
->   		if (vma->vm_flags & VM_MIXEDMAP) {
-> @@ -1926,6 +1921,7 @@ static int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
->   
->   	track_pfn_insert(vma, &pgprot, pfn);
->   
-> +#ifndef CONFIG_ARCH_HAS_PTE_SPECIAL
->   	/*
->   	 * If we don't have pte special, then we have to use the pfn_valid()
->   	 * based VM_MIXEDMAP scheme (see vm_normal_page), and thus we *must*
-> @@ -1933,7 +1929,7 @@ static int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
->   	 * than insert_pfn).  If a zero_pfn were inserted into a VM_MIXEDMAP
->   	 * without pte special, it would there be refcounted as a normal page.
->   	 */
-> -	if (!HAVE_PTE_SPECIAL && !pfn_t_devmap(pfn) && pfn_t_valid(pfn)) {
-> +	if (!pfn_t_devmap(pfn) && pfn_t_valid(pfn)) {
->   		struct page *page;
->   
->   		/*
-> @@ -1944,6 +1940,7 @@ static int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
->   		page = pfn_to_page(pfn_t_to_pfn(pfn));
->   		return insert_page(vma, addr, page, pgprot);
->   	}
-> +#endif
->   	return insert_pfn(vma, addr, pfn, pgprot, mkwrite);
->   }
->   
-> 
+Which pages do you mean by !PageSlab()? The ones that are allocated
+and freed by pagealloc, but mot managed by the slab allocator? Perhaps
+we should then add tagging to the pagealloc hook instead?
