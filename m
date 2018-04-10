@@ -1,98 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B2FE46B0003
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 14:28:33 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 61-v6so10093898plz.20
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 11:28:33 -0700 (PDT)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id bi1-v6si120296plb.609.2018.04.10.11.28.32
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EC296B0005
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 15:14:18 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 2so7387859pft.4
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 12:14:18 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id bf12-v6sor1370056plb.124.2018.04.10.12.14.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Apr 2018 11:28:32 -0700 (PDT)
-Subject: Re: [v3 PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-From: Yang Shi <yang.shi@linux.alibaba.com>
-References: <1523310774-40300-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180410090917.GZ21835@dhcp22.suse.cz> <20180410094047.GB2041@uranus.lan>
- <20180410104215.GB21835@dhcp22.suse.cz> <20180410110242.GC2041@uranus.lan>
- <20180410111001.GD21835@dhcp22.suse.cz> <20180410122804.GD2041@uranus.lan>
- <097488c7-ab18-367b-c435-7c26d149c619@linux.alibaba.com>
-Message-ID: <8c19f1fb-7baf-fef3-032d-4e93cfc63932@linux.alibaba.com>
-Date: Tue, 10 Apr 2018 11:28:13 -0700
+        (Google Transport Security);
+        Tue, 10 Apr 2018 12:14:16 -0700 (PDT)
+Date: Tue, 10 Apr 2018 12:14:13 -0700
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: [PATCH] ipc/shm: fix use-after-free of shm file via
+ remap_file_pages()
+Message-ID: <20180410191413.GA214391@gmail.com>
+References: <94eb2c06f65e5e2467055d036889@google.com>
+ <20180409043039.28915-1-ebiggers3@gmail.com>
+ <20180409094813.bsjc3u2hnsrdyiuk@black.fi.intel.com>
+ <20180409185016.GA203367@gmail.com>
+ <20180409201232.3rweldbjtvxjj5ql@linux-n805>
+ <20180409203635.GD203367@gmail.com>
+ <20180410075822.wspmi4imsp3s7m27@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <097488c7-ab18-367b-c435-7c26d149c619@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180410075822.wspmi4imsp3s7m27@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>, Michal Hocko <mhocko@kernel.org>
-Cc: adobriyan@gmail.com, willy@infradead.org, mguzik@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Manfred Spraul <manfred@colorfullife.com>, "Eric W . Biederman" <ebiederm@xmission.com>, syzkaller-bugs@googlegroups.com
 
+On Tue, Apr 10, 2018 at 10:58:22AM +0300, Kirill A. Shutemov wrote:
+> On Mon, Apr 09, 2018 at 01:36:35PM -0700, Eric Biggers wrote:
+> > On Mon, Apr 09, 2018 at 01:12:32PM -0700, Davidlohr Bueso wrote:
+> > > On Mon, 09 Apr 2018, Eric Biggers wrote:
+> > > 
+> > > > It's necessary because if we don't hold a reference to sfd->file, then it can be
+> > > > a stale pointer when we compare it in __shm_open().  In particular, if the new
+> > > > struct file happened to be allocated at the same address as the old one, then
+> > > > 'sfd->file == shp->shm_file' so the mmap would be allowed.  But, it will be a
+> > > > different shm segment than was intended.  The caller may not even have
+> > > > permissions to map it normally, yet it would be done anyway.
+> > > > 
+> > > > In the end it's just broken to have a pointer to something that can be freed out
+> > > > from under you...
+> > > 
+> > > So this is actually handled by shm_nattch, serialized by the ipc perm->lock.
+> > > shm_destroy() is called when 0, which in turn does the fput(shm_file). Note
+> > > that shm_file is given a count of 1 when a new segment is created (deep in
+> > > get_empty_filp()). So I don't think the pointer is going anywhere, or am I missing
+> > > something?
+> > > 
+> > > Thanks,
+> > > Davidlohr
+> > 
+> > In the remap_file_pages() case, a reference is taken to the ->vm_file, then the
+> > segment is unmapped.  If that brings ->shm_nattch to 0, then the underlying shm
+> > segment and ID can be removed, which (currently) causes the real shm file to be
+> > freed.  But, the outer file still exists and will have ->mmap() called on it.
+> > That's why the outer file needs to hold a reference to the real shm file.
+> 
+> Okay, fair enough. Logic in SysV IPC implementation is often hard to follow.
+> Could you include the description in the commit message?
+> 
+> And feel free to use my
+> 
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> 
 
-
-On 4/10/18 9:21 AM, Yang Shi wrote:
->
->
-> On 4/10/18 5:28 AM, Cyrill Gorcunov wrote:
->> On Tue, Apr 10, 2018 at 01:10:01PM +0200, Michal Hocko wrote:
->>>> Because do_brk does vma manipulations, for this reason it's
->>>> running under down_write_killable(&mm->mmap_sem). Or you
->>>> mean something else?
->>> Yes, all we need the new lock for is to get a consistent view on brk
->>> values. I am simply asking whether there is something fundamentally
->>> wrong by doing the update inside the new lock while keeping the 
->>> original
->>> mmap_sem locking in the brk path. That would allow us to drop the
->>> mmap_sem lock in the proc path when looking at brk values.
->> Michal gimme some time. I guessA  we might do so, but I need some
->> spare time to take more precise look into the code, hopefully today
->> evening. Also I've a suspicion that we've wracked check_data_rlimit
->> with this new lock in prctl. Need to verify it again.
->
-> I see you guys points. We might be able to move the drop of mmap_sem 
-> before setting mm->brk in sys_brk since mmap_sem should be used to 
-> protect vma manipulation only, then protect the value modify with the 
-> new arg_lock. Then we can eliminate mmap_sem stuff in prctl path, and 
-> it also prevents from wrecking check_data_rlimit.
->
-> At the first glance, it looks feasible to me. Will look into deeper 
-> later.
-
-A further look told me this might be *not* feasible.
-
-It looks the new lock will not break check_data_rlimit since in my patch 
-both start_brk and brk is protected by mmap_sem. The code flow might 
-look like below:
-
-CPU AA A A A A A A A A A A A A A A A A A A A A A A A A A A A  CPU B
---------A A A A A A A A A A A A A A A A A A A A A A  --------
-prctlA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  sys_brk
- A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  down_write
-check_data_rlimitA A A A A A A A A A  check_data_rlimit (need mm->start_brk)
- A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  set brk
-down_writeA A A A A A A A A A A A A A A A A A A  up_write
-set start_brk
-set brk
-up_write
-
-
-If CPU A gets the mmap_sem first, it will set start_brk and brk, then 
-CPU B will check with the new start_brk. And, prctl doesn't care if 
-sys_brk is run before it since it gets the new start_brk and brk from 
-parameter.
-
-If we protect start_brk and brk with the new lock, sys_brk might get old 
-start_brk, then sys_brk might break rlimit check silently, is that right?
-
-So, it looks using new lock in prctl and keeping mmap_sem in brk path 
-has race condition.
+I'll send v2 to update the commit message and add a comment.
 
 Thanks,
-Yang
 
->
-> Thanks,
-> Yang
->
->
+Eric
