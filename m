@@ -1,90 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5832D6B0007
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:48:15 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id g13-v6so2244074lfl.15
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 01:48:15 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a10-v6sor594370lfc.54.2018.04.10.01.48.12
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E7376B0007
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:50:55 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x18so3401717pfm.18
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 01:50:55 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r1si1784528pff.24.2018.04.10.01.50.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Apr 2018 01:48:13 -0700 (PDT)
-Date: Tue, 10 Apr 2018 11:48:10 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [v3 PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-Message-ID: <20180410084810.GA2041@uranus.lan>
-References: <1523310774-40300-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Apr 2018 01:50:53 -0700 (PDT)
+Date: Tue, 10 Apr 2018 10:50:49 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
+Message-ID: <20180410085049.7ysheqavwuykjkvn@quack2.suse.cz>
+References: <20180409111403.GA31652@bombadil.infradead.org>
+ <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
+ <7706245c-2661-f28b-f7f9-8f11e1ae932b@huawei.com>
+ <20180409144958.GA211679@rodete-laptop-imager.corp.google.com>
+ <20180409152032.GB11756@bombadil.infradead.org>
+ <20180409230409.GA214542@rodete-desktop-imager.corp.google.com>
+ <20180410011211.GA31282@bombadil.infradead.org>
+ <20180410023339.GB214542@rodete-desktop-imager.corp.google.com>
+ <20180410024152.GC31282@bombadil.infradead.org>
+ <20180410025903.GA38000@rodete-desktop-imager.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1523310774-40300-1-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <20180410025903.GA38000@rodete-desktop-imager.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: adobriyan@gmail.com, mhocko@kernel.org, willy@infradead.org, mguzik@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Chao Yu <yuchao0@huawei.com>, Jaegeuk Kim <jaegeuk@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
 
-On Tue, Apr 10, 2018 at 05:52:54AM +0800, Yang Shi wrote:
-> mmap_sem is on the hot path of kernel, and it very contended, but it is
-> abused too. It is used to protect arg_start|end and evn_start|end when
-> reading /proc/$PID/cmdline and /proc/$PID/environ, but it doesn't make
-> sense since those proc files just expect to read 4 values atomically and
-> not related to VM, they could be set to arbitrary values by C/R.
+On Tue 10-04-18 11:59:03, Minchan Kim wrote:
+> On Mon, Apr 09, 2018 at 07:41:52PM -0700, Matthew Wilcox wrote:
+> > On Tue, Apr 10, 2018 at 11:33:39AM +0900, Minchan Kim wrote:
+> > > @@ -522,7 +532,7 @@ EXPORT_SYMBOL(radix_tree_preload);
+> > >   */
+> > >  int radix_tree_maybe_preload(gfp_t gfp_mask)
+> > >  {
+> > > -	if (gfpflags_allow_blocking(gfp_mask))
+> > > +	if (gfpflags_allow_blocking(gfp_mask) && !(gfp_mask & __GFP_ZERO))
+> > >  		return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
+> > >  	/* Preloading doesn't help anything with this gfp mask, skip it */
+> > >  	preempt_disable();
+> > 
+> > No, you've completely misunderstood what's going on in this function.
 > 
-> And, the mmap_sem contention may cause unexpected issue like below:
+> Okay, I hope this version clear current concerns.
 > 
-> INFO: task ps:14018 blocked for more than 120 seconds.
->        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-> message.
->  ps              D    0 14018      1 0x00000004
->   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->  Call Trace:
->   [<ffffffff817154d0>] ? __schedule+0x250/0x730
->   [<ffffffff817159e6>] schedule+0x36/0x80
->   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->   [<ffffffff81717db0>] down_read+0x20/0x40
->   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
->   [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
->   [<ffffffff81241d87>] __vfs_read+0x37/0x150
->   [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
->   [<ffffffff81242266>] vfs_read+0x96/0x130
->   [<ffffffff812437b5>] SyS_read+0x55/0xc0
->   [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+> From fb37c41b90f7d3ead1798e5cb7baef76709afd94 Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan@kernel.org>
+> Date: Tue, 10 Apr 2018 11:54:57 +0900
+> Subject: [PATCH v3] mm: workingset: fix NULL ptr dereference
 > 
-> Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
-> for them to mitigate the abuse of mmap_sem.
+> It assumes shadow entries of radix tree rely on the init state
+> that node->private_list allocated newly is list_empty state
+> for the working. Currently, it's initailized in SLAB constructor
+> which means node of radix tree would be initialized only when
+> *slub allocates new page*, not *slub alloctes new object*.
 > 
-> So, introduce a new spinlock in mm_struct to protect the concurrent
-> access to arg_start|end, env_start|end and others except start_brk and
-> brk, which are still protected by mmap_sem to avoid concurrent access
-> from do_brk().
+> If some FS or subsystem pass gfp_mask to __GFP_ZERO, that means
+> newly allocated node can have !list_empty(node->private_list)
+> by memset of slab allocator. It ends up calling NULL deference
+> at workingset_update_node by failing list_empty check.
 > 
-> This patch just eliminates the abuse of mmap_sem, but it can't resolve the
-> above hung task warning completely since the later access_remote_vm() call
-> needs acquire mmap_sem. The mmap_sem scalability issue will be solved in the
-> future.
+> This patch fixes it.
+
+The patch looks good. I'd just rephrase the changelog to be more
+understandable. Something like:
+
+GFP mask passed to page cache functions (often coming from
+mapping->gfp_mask) is used both for allocation of page cache page and for
+allocation of radix tree metadata necessary to add the page to the page
+cache. When the mask contains __GFP_ZERO (as is the case for some f2fs
+metadata mappings), this breaks radix tree code as that code expects
+allocated radix tree nodes to be properly initialized by the slab
+constructor and not zeroed. In particular node->private_list is failing
+list_empty() check and the following list operation in
+workingset_update_node() will dereference NULL.
+
+Fix the problem by removing __GFP_ZERO from the mask for radix tree
+allocations. Also warn if __GFP_ZERO gets passed to __radix_tree_preload()
+to avoid silent breakage in the future for other radix tree users.
+
+With that fixed you can add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
 > 
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Alexey Dobriyan <adobriyan@gmail.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
+> Fixes: 449dd6984d0e ("mm: keep page cache radix tree nodes in check")
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Jan Kara <jack@suse.cz>
 > Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Mateusz Guzik <mguzik@redhat.com>
-> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+> Cc: Jaegeuk Kim <jaegeuk@kernel.org>
+> Cc: Chao Yu <yuchao0@huawei.com>
+> Cc: Christopher Lameter <cl@linux.com>
+> Cc: linux-fsdevel@vger.kernel.org
+> Cc: stable@vger.kernel.org
+> Reported-by: Chris Fries <cfries@google.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
-> v2 --> v3:
-> * Restored down_write in prctl syscall
-> * Elaborate the limitation of this patch suggested by Michal
-> * Protect those fields by the new lock except brk and start_brk per Michal's
->   suggestion
-> * Based off Cyrill's non PR_SET_MM_MAP oprations deprecation patch
->   (https://lkml.org/lkml/2018/4/5/541)
-
-For prctl part
-
-Acked-by: Cyrill Gorcunov <gorcunov@openvz.org>
-
-thanks!
+>  lib/radix-tree.c | 9 +++++++++
+>  mm/filemap.c     | 5 +++--
+>  2 files changed, 12 insertions(+), 2 deletions(-)
+> 
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index da9e10c827df..7569e637dbaa 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -470,6 +470,15 @@ static __must_check int __radix_tree_preload(gfp_t gfp_mask, unsigned nr)
+>  	struct radix_tree_node *node;
+>  	int ret = -ENOMEM;
+>  
+> +	/*
+> +	 * New allocate node must have node->private_list as INIT_LIST_HEAD
+> +	 * state by workingset shadow memory implementation.
+> +	 * If user pass  __GFP_ZERO by mistake, slab allocator will clear
+> +	 * node->private_list, which makes a BUG. Rather than going Oops,
+> +	 * just fix and warn about it.
+> +	 */
+> +	if (WARN_ON(gfp_mask & __GFP_ZERO))
+> +		gfp_mask &= ~__GFP_ZERO;
+>  	/*
+>  	 * Nodes preloaded by one cgroup can be be used by another cgroup, so
+>  	 * they should never be accounted to any particular memory cgroup.
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index ab77e19ab09c..b6de9d691c8a 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -786,7 +786,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+>  	VM_BUG_ON_PAGE(!PageLocked(new), new);
+>  	VM_BUG_ON_PAGE(new->mapping, new);
+>  
+> -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+> +	error = radix_tree_preload(gfp_mask & ~(__GFP_HIGHMEM | __GFP_ZERO));
+>  	if (!error) {
+>  		struct address_space *mapping = old->mapping;
+>  		void (*freepage)(struct page *);
+> @@ -842,7 +842,8 @@ static int __add_to_page_cache_locked(struct page *page,
+>  			return error;
+>  	}
+>  
+> -	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
+> +	error = radix_tree_maybe_preload(gfp_mask &
+> +					~(__GFP_HIGHMEM | __GFP_ZERO));
+>  	if (error) {
+>  		if (!huge)
+>  			mem_cgroup_cancel_charge(page, memcg, false);
+> -- 
+> 2.17.0.484.g0c8726318c-goog
+> 
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
