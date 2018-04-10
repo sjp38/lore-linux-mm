@@ -1,52 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 097576B002F
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:47:31 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id e22-v6so4865030ita.0
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:47:31 -0700 (PDT)
-Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
-        by mx.google.com with ESMTPS id y6-v6si1985802itd.110.2018.04.10.13.47.30
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 898806B0031
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 16:47:36 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z15so8743550wrh.10
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 13:47:36 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m78sor714808wma.38.2018.04.10.13.47.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Apr 2018 13:47:30 -0700 (PDT)
-Date: Tue, 10 Apr 2018 15:47:28 -0500 (CDT)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Remove use of page->counter
-In-Reply-To: <20180410195429.GB21336@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1804101545350.30437@nuc-kabylake>
-References: <20180410195429.GB21336@bombadil.infradead.org>
+        (Google Transport Security);
+        Tue, 10 Apr 2018 13:47:35 -0700 (PDT)
+Date: Tue, 10 Apr 2018 23:47:32 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: [PATCH 01/25] slab: fixup calculate_alignment() argument type
+Message-ID: <20180410204732.GA11918@avx2>
+References: <20180305200730.15812-1-adobriyan@gmail.com>
+ <20180410202546.GC21336@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180410202546.GC21336@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org
 
-On Tue, 10 Apr 2018, Matthew Wilcox wrote:
+On Tue, Apr 10, 2018 at 01:25:46PM -0700, Matthew Wilcox wrote:
+> I came across this:
+> 
+>         for (order = max(min_order, (unsigned int)get_order(min_objects * size + reserved));
+> 
+> Do you want to work on making get_order() return an unsigned int?
+> 
+> Also, I think get_order(0) should probably be 0, but you might develop
+> a different feeling for it as you work your way around the kernel looking
+> at how it's used.
 
-> In my continued attempt to clean up struct page, I've got to the point
-> where it'd be really nice to get rid of 'counters'.  I like the patch
-> below because it makes it clear when & where we're doing "weird" things
-> to access the various counters.
+IIRC total size increased when I made it return "unsigned int".
 
-Well sounds good.
-
-> struct {
-> 	unsigned long flags;
-> 	union {
-> 		struct {
-> 			struct address_space *mapping;
-> 			pgoff_t index;
-> 		};
-> 		struct {
-> 			void *s_mem;
-> 			void *freelist;
-> 		};
-> 		...
-> 	};
-> 	union {
-> 		atomic_t _mapcount;
-> 		unsigned int active;
-
-Is this aligned on a doubleword boundary? Maybe move the refcount below
-the flags field?
+Another thing is that there should be 3 get_order's corresponding
+to 32-bit, 64-bit and unsigned long versions of fls() which correspond
+to REX and non-REX versions of BSR.
