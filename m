@@ -1,74 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ED14B6B0007
-	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 20:38:23 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id az8-v6so3748368plb.2
-        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 17:38:23 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 852BF6B0007
+	for <linux-mm@kvack.org>; Mon,  9 Apr 2018 20:47:56 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id o33-v6so8116895plb.16
+        for <linux-mm@kvack.org>; Mon, 09 Apr 2018 17:47:56 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f4-v6si1415307plm.378.2018.04.09.17.38.22
+        by mx.google.com with ESMTPS id m1-v6si1423577plk.577.2018.04.09.17.47.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Apr 2018 17:38:22 -0700 (PDT)
-Date: Mon, 9 Apr 2018 17:38:21 -0700
+        Mon, 09 Apr 2018 17:47:55 -0700 (PDT)
+Date: Mon, 9 Apr 2018 17:47:53 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/3] mm/gup_benchmark: handle gup failures
-Message-Id: <20180409173821.889f0a2dd4385ee2428c16b8@linux-foundation.org>
-In-Reply-To: <20180408060935-mutt-send-email-mst@kernel.org>
-References: <1522962072-182137-1-git-send-email-mst@redhat.com>
-	<1522962072-182137-3-git-send-email-mst@redhat.com>
-	<CA+55aFywfktB83dERzYaC1NCYxD+Lg+NRft5ypjmbbcM_qdxpQ@mail.gmail.com>
-	<20180408060935-mutt-send-email-mst@kernel.org>
+Subject: Re: [PATCH -mm] mm, pagemap: Fix swap offset value for PMD
+ migration entry
+Message-Id: <20180409174753.4b959a5b3ff732b8f96f5a14@linux-foundation.org>
+In-Reply-To: <20180408033737.10897-1-ying.huang@intel.com>
+References: <20180408033737.10897-1-ying.huang@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Thorsten Leemhuis <regressions@leemhuis.info>, stable <stable@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrei Vagin <avagin@openvz.org>, Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Sun, 8 Apr 2018 06:12:13 +0300 "Michael S. Tsirkin" <mst@redhat.com> wrote:
+On Sun,  8 Apr 2018 11:37:37 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
 
-> On Sat, Apr 07, 2018 at 01:08:43PM -0700, Linus Torvalds wrote:
-> > On Thu, Apr 5, 2018 at 2:03 PM, Michael S. Tsirkin <mst@redhat.com> wrote:
-> > >
-> > >                 nr = get_user_pages_fast(addr, nr, gup->flags & 1, pages + i);
-> > > -               i += nr;
-> > > +               if (nr > 0)
-> > > +                       i += nr;
-> > 
-> > Can we just make this robust while at it, and just make it
-> > 
-> >         if (nr <= 0)
-> >                 break;
-> > 
-> > instead? Then it doesn't care about zero vs negative error, and
-> > wouldn't get stuck in an endless loop if it got zero.
-> > 
-> >              Linus
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> I don't mind though it alredy breaks out on the next cycle:
-> 
->                 if (nr != gup->nr_pages_per_call)
->                         break;
-> 
-> the only issue is i getting corrupted when nr < 0;
-> 
+> The swap offset reported by /proc/<pid>/pagemap may be not correct for
+> PMD migration entry.  If addr passed into pagemap_range() isn't
 
-It does help readability to have the thing bail out as soon as we see
-something go bad.  This?
+pagemap_pmd_range(), yes?
 
---- a/mm/gup_benchmark.c~mm-gup_benchmark-handle-gup-failures-fix
-+++ a/mm/gup_benchmark.c
-@@ -41,8 +41,9 @@ static int __gup_benchmark_ioctl(unsigne
- 		}
- 
- 		nr = get_user_pages_fast(addr, nr, gup->flags & 1, pages + i);
--		if (nr > 0)
--			i += nr;
-+		if (nr <= 0)
-+			break;
-+		i += nr;
- 	}
- 	end_time = ktime_get();
- 
-_
+> aligned with PMD start address,
+
+How can this situation come about?
+
+> the swap offset reported doesn't
+> reflect this.  And in the loop to report information of each sub-page,
+> the swap offset isn't increased accordingly as that for PFN.
+> 
+> BTW: migration swap entries have PFN information, do we need to
+> restrict whether to show them?
+
+For what reason?  Address obfuscation?
