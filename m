@@ -1,158 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E7376B0007
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:50:55 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x18so3401717pfm.18
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 01:50:55 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 00A9C6B0007
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 04:55:36 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id x18so3407769pfm.18
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 01:55:35 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r1si1784528pff.24.2018.04.10.01.50.53
+        by mx.google.com with ESMTPS id q10-v6si1604061plr.680.2018.04.10.01.55.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Apr 2018 01:50:53 -0700 (PDT)
-Date: Tue, 10 Apr 2018 10:50:49 +0200
+        Tue, 10 Apr 2018 01:55:35 -0700 (PDT)
+Date: Tue, 10 Apr 2018 10:55:31 +0200
 From: Jan Kara <jack@suse.cz>
 Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
-Message-ID: <20180410085049.7ysheqavwuykjkvn@quack2.suse.cz>
-References: <20180409111403.GA31652@bombadil.infradead.org>
- <20180409112514.GA195937@rodete-laptop-imager.corp.google.com>
- <7706245c-2661-f28b-f7f9-8f11e1ae932b@huawei.com>
- <20180409144958.GA211679@rodete-laptop-imager.corp.google.com>
- <20180409152032.GB11756@bombadil.infradead.org>
- <20180409230409.GA214542@rodete-desktop-imager.corp.google.com>
- <20180410011211.GA31282@bombadil.infradead.org>
- <20180410023339.GB214542@rodete-desktop-imager.corp.google.com>
- <20180410024152.GC31282@bombadil.infradead.org>
- <20180410025903.GA38000@rodete-desktop-imager.corp.google.com>
+Message-ID: <20180410085531.m2xvzi7nenbrgbve@quack2.suse.cz>
+References: <20180409015815.235943-1-minchan@kernel.org>
+ <20180410082243.GW21835@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180410025903.GA38000@rodete-desktop-imager.corp.google.com>
+In-Reply-To: <20180410082243.GW21835@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Chao Yu <yuchao0@huawei.com>, Jaegeuk Kim <jaegeuk@kernel.org>, Christopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>, linux-f2fs-devel@lists.sourceforge.net, linux-fsdevel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Chris Fries <cfries@google.com>
 
-On Tue 10-04-18 11:59:03, Minchan Kim wrote:
-> On Mon, Apr 09, 2018 at 07:41:52PM -0700, Matthew Wilcox wrote:
-> > On Tue, Apr 10, 2018 at 11:33:39AM +0900, Minchan Kim wrote:
-> > > @@ -522,7 +532,7 @@ EXPORT_SYMBOL(radix_tree_preload);
-> > >   */
-> > >  int radix_tree_maybe_preload(gfp_t gfp_mask)
-> > >  {
-> > > -	if (gfpflags_allow_blocking(gfp_mask))
-> > > +	if (gfpflags_allow_blocking(gfp_mask) && !(gfp_mask & __GFP_ZERO))
-> > >  		return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
-> > >  	/* Preloading doesn't help anything with this gfp mask, skip it */
-> > >  	preempt_disable();
+On Tue 10-04-18 10:22:43, Michal Hocko wrote:
+> On Mon 09-04-18 10:58:15, Minchan Kim wrote:
+> > Recently, I got a report like below.
 > > 
-> > No, you've completely misunderstood what's going on in this function.
+> > [ 7858.792946] [<ffffff80086f4de0>] __list_del_entry+0x30/0xd0
+> > [ 7858.792951] [<ffffff8008362018>] list_lru_del+0xac/0x1ac
+> > [ 7858.792957] [<ffffff800830f04c>] page_cache_tree_insert+0xd8/0x110
+> > [ 7858.792962] [<ffffff8008310188>] __add_to_page_cache_locked+0xf8/0x4e0
+> > [ 7858.792967] [<ffffff800830ff34>] add_to_page_cache_lru+0x50/0x1ac
+> > [ 7858.792972] [<ffffff800830fdd0>] pagecache_get_page+0x468/0x57c
+> > [ 7858.792979] [<ffffff80085d081c>] __get_node_page+0x84/0x764
+> > [ 7858.792986] [<ffffff800859cd94>] f2fs_iget+0x264/0xdc8
+> > [ 7858.792991] [<ffffff800859ee00>] f2fs_lookup+0x3b4/0x660
+> > [ 7858.792998] [<ffffff80083d2540>] lookup_slow+0x1e4/0x348
+> > [ 7858.793003] [<ffffff80083d0eb8>] walk_component+0x21c/0x320
+> > [ 7858.793008] [<ffffff80083d0010>] path_lookupat+0x90/0x1bc
+> > [ 7858.793013] [<ffffff80083cfe6c>] filename_lookup+0x8c/0x1a0
+> > [ 7858.793018] [<ffffff80083c52d0>] vfs_fstatat+0x84/0x10c
+> > [ 7858.793023] [<ffffff80083c5b00>] SyS_newfstatat+0x28/0x64
+> > 
+> > v4.9 kenrel already has the d3798ae8c6f3,("mm: filemap: don't
+> > plant shadow entries without radix tree node") so I thought
+> > it should be okay. When I was googling, I found others report
+> > such problem and I think current kernel still has the problem.
+> > 
+> > https://bugzilla.redhat.com/show_bug.cgi?id=1431567
+> > https://bugzilla.redhat.com/show_bug.cgi?id=1420335
+> > 
+> > It assumes shadow entry of radix tree relies on the init state
+> > that node->private_list allocated should be list_empty state.
+> > Currently, it's initailized in SLAB constructor which means
+> > node of radix tree would be initialized only when *slub allocates
+> > new page*, not *new object*. So, if some FS or subsystem pass
+> > gfp_mask to __GFP_ZERO, slub allocator will do memset blindly.
+> > That means allocated node can have !list_empty(node->private_list).
+> > It ends up calling NULL deference at workingset_update_node by
+> > failing list_empty check.
+> > 
+> > This patch should fix it.
+> > 
+> > Fixes: 449dd6984d0e ("mm: keep page cache radix tree nodes in check")
+> > Reported-by: Chris Fries <cfries@google.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Jan Kara <jack@suse.cz>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
 > 
-> Okay, I hope this version clear current concerns.
+> Regardless of whether it makes sense to use __GFP_ZERO from the upper
+> layer or not, it is subtle as hell to rely on the pre-existing state
+> for a newly allocated object. So yes this makes perfect sense.
 > 
-> From fb37c41b90f7d3ead1798e5cb7baef76709afd94 Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Tue, 10 Apr 2018 11:54:57 +0900
-> Subject: [PATCH v3] mm: workingset: fix NULL ptr dereference
-> 
-> It assumes shadow entries of radix tree rely on the init state
-> that node->private_list allocated newly is list_empty state
-> for the working. Currently, it's initailized in SLAB constructor
-> which means node of radix tree would be initialized only when
-> *slub allocates new page*, not *slub alloctes new object*.
-> 
-> If some FS or subsystem pass gfp_mask to __GFP_ZERO, that means
-> newly allocated node can have !list_empty(node->private_list)
-> by memset of slab allocator. It ends up calling NULL deference
-> at workingset_update_node by failing list_empty check.
-> 
-> This patch fixes it.
+> Do we want CC: stable?
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-The patch looks good. I'd just rephrase the changelog to be more
-understandable. Something like:
-
-GFP mask passed to page cache functions (often coming from
-mapping->gfp_mask) is used both for allocation of page cache page and for
-allocation of radix tree metadata necessary to add the page to the page
-cache. When the mask contains __GFP_ZERO (as is the case for some f2fs
-metadata mappings), this breaks radix tree code as that code expects
-allocated radix tree nodes to be properly initialized by the slab
-constructor and not zeroed. In particular node->private_list is failing
-list_empty() check and the following list operation in
-workingset_update_node() will dereference NULL.
-
-Fix the problem by removing __GFP_ZERO from the mask for radix tree
-allocations. Also warn if __GFP_ZERO gets passed to __radix_tree_preload()
-to avoid silent breakage in the future for other radix tree users.
-
-With that fixed you can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
+Well, for hot allocations we do rely on previous state a lot. After all
+that's what slab constructor was created for. Whether radix tree node
+allocation is such a hot path is a question for debate, I agree.
 
 								Honza
-> 
-> Fixes: 449dd6984d0e ("mm: keep page cache radix tree nodes in check")
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Jaegeuk Kim <jaegeuk@kernel.org>
-> Cc: Chao Yu <yuchao0@huawei.com>
-> Cc: Christopher Lameter <cl@linux.com>
-> Cc: linux-fsdevel@vger.kernel.org
-> Cc: stable@vger.kernel.org
-> Reported-by: Chris Fries <cfries@google.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  lib/radix-tree.c | 9 +++++++++
->  mm/filemap.c     | 5 +++--
->  2 files changed, 12 insertions(+), 2 deletions(-)
-> 
-> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-> index da9e10c827df..7569e637dbaa 100644
-> --- a/lib/radix-tree.c
-> +++ b/lib/radix-tree.c
-> @@ -470,6 +470,15 @@ static __must_check int __radix_tree_preload(gfp_t gfp_mask, unsigned nr)
->  	struct radix_tree_node *node;
->  	int ret = -ENOMEM;
->  
-> +	/*
-> +	 * New allocate node must have node->private_list as INIT_LIST_HEAD
-> +	 * state by workingset shadow memory implementation.
-> +	 * If user pass  __GFP_ZERO by mistake, slab allocator will clear
-> +	 * node->private_list, which makes a BUG. Rather than going Oops,
-> +	 * just fix and warn about it.
-> +	 */
-> +	if (WARN_ON(gfp_mask & __GFP_ZERO))
-> +		gfp_mask &= ~__GFP_ZERO;
->  	/*
->  	 * Nodes preloaded by one cgroup can be be used by another cgroup, so
->  	 * they should never be accounted to any particular memory cgroup.
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index ab77e19ab09c..b6de9d691c8a 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -786,7 +786,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
->  	VM_BUG_ON_PAGE(!PageLocked(new), new);
->  	VM_BUG_ON_PAGE(new->mapping, new);
->  
-> -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-> +	error = radix_tree_preload(gfp_mask & ~(__GFP_HIGHMEM | __GFP_ZERO));
->  	if (!error) {
->  		struct address_space *mapping = old->mapping;
->  		void (*freepage)(struct page *);
-> @@ -842,7 +842,8 @@ static int __add_to_page_cache_locked(struct page *page,
->  			return error;
->  	}
->  
-> -	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
-> +	error = radix_tree_maybe_preload(gfp_mask &
-> +					~(__GFP_HIGHMEM | __GFP_ZERO));
->  	if (error) {
->  		if (!huge)
->  			mem_cgroup_cancel_charge(page, memcg, false);
-> -- 
-> 2.17.0.484.g0c8726318c-goog
-> 
-> 
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
