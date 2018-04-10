@@ -1,94 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 22F896B0003
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:32:46 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id f3-v6so9152047plf.1
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 02:32:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e10si1537343pgp.193.2018.04.10.02.32.44
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3802A6B0006
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 05:33:46 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id w9-v6so9144877plp.0
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 02:33:46 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id q10si1762458pff.124.2018.04.10.02.33.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Apr 2018 02:32:45 -0700 (PDT)
-Date: Tue, 10 Apr 2018 11:32:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: workingset: fix NULL ptr dereference
-Message-ID: <20180410093241.GA21835@dhcp22.suse.cz>
-References: <20180409015815.235943-1-minchan@kernel.org>
- <20180410082243.GW21835@dhcp22.suse.cz>
- <20180410085531.m2xvzi7nenbrgbve@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180410085531.m2xvzi7nenbrgbve@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Apr 2018 02:33:45 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] x86/mm: Decouple dynamic __PHYSICAL_MASK from AMD SME
+Date: Tue, 10 Apr 2018 12:33:39 +0300
+Message-Id: <20180410093339.49257-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Fries <cfries@google.com>
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue 10-04-18 10:55:31, Jan Kara wrote:
-> On Tue 10-04-18 10:22:43, Michal Hocko wrote:
-> > On Mon 09-04-18 10:58:15, Minchan Kim wrote:
-> > > Recently, I got a report like below.
-> > > 
-> > > [ 7858.792946] [<ffffff80086f4de0>] __list_del_entry+0x30/0xd0
-> > > [ 7858.792951] [<ffffff8008362018>] list_lru_del+0xac/0x1ac
-> > > [ 7858.792957] [<ffffff800830f04c>] page_cache_tree_insert+0xd8/0x110
-> > > [ 7858.792962] [<ffffff8008310188>] __add_to_page_cache_locked+0xf8/0x4e0
-> > > [ 7858.792967] [<ffffff800830ff34>] add_to_page_cache_lru+0x50/0x1ac
-> > > [ 7858.792972] [<ffffff800830fdd0>] pagecache_get_page+0x468/0x57c
-> > > [ 7858.792979] [<ffffff80085d081c>] __get_node_page+0x84/0x764
-> > > [ 7858.792986] [<ffffff800859cd94>] f2fs_iget+0x264/0xdc8
-> > > [ 7858.792991] [<ffffff800859ee00>] f2fs_lookup+0x3b4/0x660
-> > > [ 7858.792998] [<ffffff80083d2540>] lookup_slow+0x1e4/0x348
-> > > [ 7858.793003] [<ffffff80083d0eb8>] walk_component+0x21c/0x320
-> > > [ 7858.793008] [<ffffff80083d0010>] path_lookupat+0x90/0x1bc
-> > > [ 7858.793013] [<ffffff80083cfe6c>] filename_lookup+0x8c/0x1a0
-> > > [ 7858.793018] [<ffffff80083c52d0>] vfs_fstatat+0x84/0x10c
-> > > [ 7858.793023] [<ffffff80083c5b00>] SyS_newfstatat+0x28/0x64
-> > > 
-> > > v4.9 kenrel already has the d3798ae8c6f3,("mm: filemap: don't
-> > > plant shadow entries without radix tree node") so I thought
-> > > it should be okay. When I was googling, I found others report
-> > > such problem and I think current kernel still has the problem.
-> > > 
-> > > https://bugzilla.redhat.com/show_bug.cgi?id=1431567
-> > > https://bugzilla.redhat.com/show_bug.cgi?id=1420335
-> > > 
-> > > It assumes shadow entry of radix tree relies on the init state
-> > > that node->private_list allocated should be list_empty state.
-> > > Currently, it's initailized in SLAB constructor which means
-> > > node of radix tree would be initialized only when *slub allocates
-> > > new page*, not *new object*. So, if some FS or subsystem pass
-> > > gfp_mask to __GFP_ZERO, slub allocator will do memset blindly.
-> > > That means allocated node can have !list_empty(node->private_list).
-> > > It ends up calling NULL deference at workingset_update_node by
-> > > failing list_empty check.
-> > > 
-> > > This patch should fix it.
-> > > 
-> > > Fixes: 449dd6984d0e ("mm: keep page cache radix tree nodes in check")
-> > > Reported-by: Chris Fries <cfries@google.com>
-> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > > Cc: Jan Kara <jack@suse.cz>
-> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > 
-> > Regardless of whether it makes sense to use __GFP_ZERO from the upper
-> > layer or not, it is subtle as hell to rely on the pre-existing state
-> > for a newly allocated object. So yes this makes perfect sense.
-> > 
-> > Do we want CC: stable?
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Well, for hot allocations we do rely on previous state a lot. After all
-> that's what slab constructor was created for. Whether radix tree node
-> allocation is such a hot path is a question for debate, I agree.
+AMD SME claims one bit from physical address to indicate whether the
+page is encrypted or not. To achieve that we clear out the bit from
+__PHYSICAL_MASK.
 
-I really doubt that LIST_INIT is something to notice for the radix tree
-allocation. So I would rather have safe code than rely on the previous
-state which is really subtle.
+The capability to adjust __PHYSICAL_MASK is required beyond AMD SME.
+For instance for upcoming Intel Multi-Key Total Memory Encryption.
 
-Btw. I am not a huge fan of ctor semantic as we have it. I am not really
-sure all users understand when it is called...
+Factor it out into a separate feature with own Kconfig handle.
+
+It also helps with overhead of AMD SME. It saves more than 3k in .text
+on defconfig + AMD_MEM_ENCRYPT:
+
+	add/remove: 3/2 grow/shrink: 5/110 up/down: 189/-3753 (-3564)
+
+We would need to return to this once we have infrastructure to patch
+constants in code. That's good candidate for it.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Tom Lendacky <thomas.lendacky@amd.com>
+---
+
+Previously, I've posted the patch with MKTME patchset, but it's useful on
+its own as it reduces text size for kernel with AMD_MEM_ENCRYPT enabled.
+
+Please consider applying.
+
+---
+ arch/x86/Kconfig                    | 4 ++++
+ arch/x86/boot/compressed/kaslr_64.c | 5 +++++
+ arch/x86/include/asm/page_types.h   | 8 +++++++-
+ arch/x86/mm/mem_encrypt_identity.c  | 3 +++
+ arch/x86/mm/pgtable.c               | 5 +++++
+ 5 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index bcdd3e0e2ef5..8e2d0ee0e366 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -333,6 +333,9 @@ config ARCH_SUPPORTS_UPROBES
+ config FIX_EARLYCON_MEM
+ 	def_bool y
+ 
++config DYNAMIC_PHYSICAL_MASK
++	bool
++
+ config PGTABLE_LEVELS
+ 	int
+ 	default 5 if X86_5LEVEL
+@@ -1504,6 +1507,7 @@ config ARCH_HAS_MEM_ENCRYPT
+ config AMD_MEM_ENCRYPT
+ 	bool "AMD Secure Memory Encryption (SME) support"
+ 	depends on X86_64 && CPU_SUP_AMD
++	select DYNAMIC_PHYSICAL_MASK
+ 	---help---
+ 	  Say yes to enable support for the encryption of system memory.
+ 	  This requires an AMD processor that supports Secure Memory
+diff --git a/arch/x86/boot/compressed/kaslr_64.c b/arch/x86/boot/compressed/kaslr_64.c
+index 522d11431433..748456c365f4 100644
+--- a/arch/x86/boot/compressed/kaslr_64.c
++++ b/arch/x86/boot/compressed/kaslr_64.c
+@@ -69,6 +69,8 @@ static struct alloc_pgt_data pgt_data;
+ /* The top level page table entry pointer. */
+ static unsigned long top_level_pgt;
+ 
++phys_addr_t physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
++
+ /*
+  * Mapping information structure passed to kernel_ident_mapping_init().
+  * Due to relocation, pointers must be assigned at run time not build time.
+@@ -81,6 +83,9 @@ void initialize_identity_maps(void)
+ 	/* If running as an SEV guest, the encryption mask is required. */
+ 	set_sev_encryption_mask();
+ 
++	/* Exclude the encryption mask from __PHYSICAL_MASK */
++	physical_mask &= ~sme_me_mask;
++
+ 	/* Init mapping_info with run-time function/buffer pointers. */
+ 	mapping_info.alloc_pgt_page = alloc_pgt_page;
+ 	mapping_info.context = &pgt_data;
+diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
+index 1e53560a84bb..c85e15010f48 100644
+--- a/arch/x86/include/asm/page_types.h
++++ b/arch/x86/include/asm/page_types.h
+@@ -17,7 +17,6 @@
+ #define PUD_PAGE_SIZE		(_AC(1, UL) << PUD_SHIFT)
+ #define PUD_PAGE_MASK		(~(PUD_PAGE_SIZE-1))
+ 
+-#define __PHYSICAL_MASK		((phys_addr_t)(__sme_clr((1ULL << __PHYSICAL_MASK_SHIFT) - 1)))
+ #define __VIRTUAL_MASK		((1UL << __VIRTUAL_MASK_SHIFT) - 1)
+ 
+ /* Cast *PAGE_MASK to a signed type so that it is sign-extended if
+@@ -55,6 +54,13 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
++#ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
++extern phys_addr_t physical_mask;
++#define __PHYSICAL_MASK		physical_mask
++#else
++#define __PHYSICAL_MASK		((phys_addr_t)((1ULL << __PHYSICAL_MASK_SHIFT) - 1))
++#endif
++
+ extern int devmem_is_allowed(unsigned long pagenr);
+ 
+ extern unsigned long max_low_pfn_mapped;
+diff --git a/arch/x86/mm/mem_encrypt_identity.c b/arch/x86/mm/mem_encrypt_identity.c
+index 1b2197d13832..7ae36868aed2 100644
+--- a/arch/x86/mm/mem_encrypt_identity.c
++++ b/arch/x86/mm/mem_encrypt_identity.c
+@@ -527,6 +527,7 @@ void __init sme_enable(struct boot_params *bp)
+ 		/* SEV state cannot be controlled by a command line option */
+ 		sme_me_mask = me_mask;
+ 		sev_enabled = true;
++		physical_mask &= ~sme_me_mask;
+ 		return;
+ 	}
+ 
+@@ -561,4 +562,6 @@ void __init sme_enable(struct boot_params *bp)
+ 		sme_me_mask = 0;
+ 	else
+ 		sme_me_mask = active_by_default ? me_mask : 0;
++
++	physical_mask &= ~sme_me_mask;
+ }
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 34cda7e0551b..0199b94e6b40 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -7,6 +7,11 @@
+ #include <asm/fixmap.h>
+ #include <asm/mtrr.h>
+ 
++#ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
++phys_addr_t physical_mask __ro_after_init = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
++EXPORT_SYMBOL(physical_mask);
++#endif
++
+ #define PGALLOC_GFP (GFP_KERNEL_ACCOUNT | __GFP_ZERO)
+ 
+ #ifdef CONFIG_HIGHPTE
 -- 
-Michal Hocko
-SUSE Labs
+2.16.3
