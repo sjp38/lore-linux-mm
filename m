@@ -1,102 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AB966B026C
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 09:40:56 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x184so5198644pfd.14
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 06:40:56 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f123si1847332pfc.374.2018.04.10.06.40.52
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 991F96B000A
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 09:45:55 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id w9-v6so9587233plp.0
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 06:45:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p26-v6sor1118423pli.128.2018.04.10.06.45.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Apr 2018 06:40:53 -0700 (PDT)
-Subject: Re: [PATCH 1/2] slab: __GFP_ZERO is incompatible with a constructor
+        (Google Transport Security);
+        Tue, 10 Apr 2018 06:45:54 -0700 (PDT)
+Date: Tue, 10 Apr 2018 22:45:45 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 2/2] page cache: Mask off unwanted GFP flags
+Message-ID: <20180410134545.GA35354@rodete-laptop-imager.corp.google.com>
 References: <20180410125351.15837-1-willy@infradead.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <84575e2b-1d67-905d-9d04-023622b49855@suse.cz>
-Date: Tue, 10 Apr 2018 15:40:49 +0200
+ <20180410125351.15837-2-willy@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180410125351.15837-1-willy@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180410125351.15837-2-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, stable@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, stable@vger.kernel.org, jaegeuk@kernel.org
 
-On 04/10/2018 02:53 PM, Matthew Wilcox wrote:
+On Tue, Apr 10, 2018 at 05:53:51AM -0700, Matthew Wilcox wrote:
 > From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> __GFP_ZERO requests that the object be initialised to all-zeroes,
-> while the purpose of a constructor is to initialise an object to a
-> particular pattern.  We cannot do both.  Add a warning to catch any
-> users who mistakenly pass a __GFP_ZERO flag when allocating a slab with
-> a constructor.
+> The page cache has used the mapping's GFP flags for allocating
+> radix tree nodes for a long time.  It took care to always mask off the
+> __GFP_HIGHMEM flag, and masked off other flags in other paths, but the
+> __GFP_ZERO flag was still able to sneak through.  The __GFP_DMA and
+> __GFP_DMA32 flags would also have been able to sneak through if they
+> were ever used.  Fix them all by using GFP_RECLAIM_MASK at the innermost
+> location, and remove it from earlier in the callchain.
 > 
-> Fixes: d07dbea46405 ("Slab allocators: support __GFP_ZERO in all allocators")
+> Fixes: 19f99cee206c ("f2fs: add core inode operations")
+
+Why this patch fix 19f99cee206c instead of 449dd6984d0e?
+F2FS doesn't have any problem before introducing 449dd6984d0e?
+
+
+> Reported-by: Minchan Kim <minchan@kernel.org>
 > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 > Cc: stable@vger.kernel.org
-
-It doesn't fix any known problem, does it? Then the stable tag seems too
-much IMHO. Especially for fixing a 2007 commit.
-
-Otherwise
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
 > ---
->  mm/slab.c | 6 ++++--
->  mm/slob.c | 4 +++-
->  mm/slub.c | 6 ++++--
->  3 files changed, 11 insertions(+), 5 deletions(-)
+>  mm/filemap.c | 9 ++++-----
+>  1 file changed, 4 insertions(+), 5 deletions(-)
 > 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 38d3f4fd17d7..8b2cb7db85db 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -3313,8 +3313,10 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
->  	local_irq_restore(save_flags);
->  	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index c2147682f4c3..1a4bfc5ed3dc 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -785,7 +785,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+>  	VM_BUG_ON_PAGE(!PageLocked(new), new);
+>  	VM_BUG_ON_PAGE(new->mapping, new);
 >  
-> -	if (unlikely(flags & __GFP_ZERO) && ptr)
-> -		memset(ptr, 0, cachep->object_size);
-> +	if (unlikely(flags & __GFP_ZERO) && ptr) {
-> +		if (!WARN_ON_ONCE(cachep->ctor))
-> +			memset(ptr, 0, cachep->object_size);
-> +	}
->  
->  	slab_post_alloc_hook(cachep, flags, 1, &ptr);
->  	return ptr;
-> diff --git a/mm/slob.c b/mm/slob.c
-> index 1a46181b675c..958173fd7c24 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -556,8 +556,10 @@ static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
->  					    flags, node);
+> -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+> +	error = radix_tree_preload(gfp_mask & GFP_RECLAIM_MASK);
+>  	if (!error) {
+>  		struct address_space *mapping = old->mapping;
+>  		void (*freepage)(struct page *);
+> @@ -841,7 +841,7 @@ static int __add_to_page_cache_locked(struct page *page,
+>  			return error;
 >  	}
 >  
-> -	if (b && c->ctor)
-> +	if (b && c->ctor) {
-> +		WARN_ON_ONCE(flags & __GFP_ZERO);
->  		c->ctor(b);
-> +	}
+> -	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
+> +	error = radix_tree_maybe_preload(gfp_mask & GFP_RECLAIM_MASK);
+>  	if (error) {
+>  		if (!huge)
+>  			mem_cgroup_cancel_charge(page, memcg, false);
+> @@ -1574,8 +1574,7 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+>  		if (fgp_flags & FGP_ACCESSED)
+>  			__SetPageReferenced(page);
 >  
->  	kmemleak_alloc_recursive(b, c->size, 1, c->flags, flags);
->  	return b;
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 9e1100f9298f..0f55f0a0dcaa 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2714,8 +2714,10 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
->  		stat(s, ALLOC_FASTPATH);
->  	}
+> -		err = add_to_page_cache_lru(page, mapping, offset,
+> -				gfp_mask & GFP_RECLAIM_MASK);
+> +		err = add_to_page_cache_lru(page, mapping, offset, gfp_mask);
+>  		if (unlikely(err)) {
+>  			put_page(page);
+>  			page = NULL;
+> @@ -2378,7 +2377,7 @@ static int page_cache_read(struct file *file, pgoff_t offset, gfp_t gfp_mask)
+>  		if (!page)
+>  			return -ENOMEM;
 >  
-> -	if (unlikely(gfpflags & __GFP_ZERO) && object)
-> -		memset(object, 0, s->object_size);
-> +	if (unlikely(gfpflags & __GFP_ZERO) && object) {
-> +		if (!WARN_ON_ONCE(s->ctor))
-> +			memset(object, 0, s->object_size);
-> +	}
->  
->  	slab_post_alloc_hook(s, gfpflags, 1, &object);
->  
+> -		ret = add_to_page_cache_lru(page, mapping, offset, gfp_mask & GFP_KERNEL);
+> +		ret = add_to_page_cache_lru(page, mapping, offset, gfp_mask);
+>  		if (ret == 0)
+>  			ret = mapping->a_ops->readpage(file, page);
+>  		else if (ret == -EEXIST)
+> -- 
+> 2.16.3
 > 
