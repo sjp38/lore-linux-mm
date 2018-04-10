@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 991F96B000A
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 09:45:55 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id w9-v6so9587233plp.0
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 06:45:55 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p26-v6sor1118423pli.128.2018.04.10.06.45.54
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B1266B0010
+	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 09:46:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p10so6908792pfl.22
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 06:46:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c16si1854378pgv.220.2018.04.10.06.46.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Apr 2018 06:45:54 -0700 (PDT)
-Date: Tue, 10 Apr 2018 22:45:45 +0900
-From: Minchan Kim <minchan@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Apr 2018 06:46:49 -0700 (PDT)
+Date: Tue, 10 Apr 2018 15:46:46 +0200
+From: Jan Kara <jack@suse.cz>
 Subject: Re: [PATCH 2/2] page cache: Mask off unwanted GFP flags
-Message-ID: <20180410134545.GA35354@rodete-laptop-imager.corp.google.com>
+Message-ID: <20180410134646.p5wuhl6fwtg6megr@quack2.suse.cz>
 References: <20180410125351.15837-1-willy@infradead.org>
  <20180410125351.15837-2-willy@infradead.org>
 MIME-Version: 1.0
@@ -22,9 +22,9 @@ In-Reply-To: <20180410125351.15837-2-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, stable@vger.kernel.org, jaegeuk@kernel.org
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, stable@vger.kernel.org
 
-On Tue, Apr 10, 2018 at 05:53:51AM -0700, Matthew Wilcox wrote:
+On Tue 10-04-18 05:53:51, Matthew Wilcox wrote:
 > From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
 > The page cache has used the mapping's GFP flags for allocating
@@ -36,14 +36,16 @@ On Tue, Apr 10, 2018 at 05:53:51AM -0700, Matthew Wilcox wrote:
 > location, and remove it from earlier in the callchain.
 > 
 > Fixes: 19f99cee206c ("f2fs: add core inode operations")
-
-Why this patch fix 19f99cee206c instead of 449dd6984d0e?
-F2FS doesn't have any problem before introducing 449dd6984d0e?
-
-
 > Reported-by: Minchan Kim <minchan@kernel.org>
 > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 > Cc: stable@vger.kernel.org
+
+Looks good to me. You can add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
 > ---
 >  mm/filemap.c | 9 ++++-----
 >  1 file changed, 4 insertions(+), 5 deletions(-)
@@ -92,3 +94,6 @@ F2FS doesn't have any problem before introducing 449dd6984d0e?
 > -- 
 > 2.16.3
 > 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
