@@ -1,90 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BC0D6B0003
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 15:43:32 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id y7-v6so1812542plh.7
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 12:43:32 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e17si1174085pgr.475.2018.04.11.12.43.30
+	by kanga.kvack.org (Postfix) with ESMTP id A3E0A6B0003
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 15:55:07 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id o2-v6so1823699plk.14
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 12:55:07 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id t186sor455241pgc.135.2018.04.11.12.55.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Apr 2018 12:43:31 -0700 (PDT)
-Date: Wed, 11 Apr 2018 21:43:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: shmem: enable thp migration (Re: [PATCH v1] mm:
- consider non-anonymous thp as unmovable page)
-Message-ID: <20180411194326.GN23400@dhcp22.suse.cz>
-References: <20180405085927.GC6312@dhcp22.suse.cz>
- <20180405122838.6a6b35psizem4tcy@node.shutemov.name>
- <20180405124830.GJ6312@dhcp22.suse.cz>
- <20180405134045.7axuun6d7ufobzj4@node.shutemov.name>
- <20180405150547.GN6312@dhcp22.suse.cz>
- <20180405155551.wchleyaf4rxooj6m@node.shutemov.name>
- <20180405160317.GP6312@dhcp22.suse.cz>
- <20180406030706.GA2434@hori1.linux.bs1.fc.nec.co.jp>
- <20180411092611.GE23400@dhcp22.suse.cz>
- <20180411122739.25d1700099222eb647b0c620@linux-foundation.org>
+        (Google Transport Security);
+        Wed, 11 Apr 2018 12:55:06 -0700 (PDT)
+Subject: Re: [LSF/MM TOPIC] CMA and larger page sizes
+References: <3a3d724e-4d74-9bd8-60f3-f6896cffac7a@redhat.com>
+ <20180126172527.GI5027@dhcp22.suse.cz> <20180404051115.GC6628@js1304-desktop>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <075843db-ec6e-3822-a60c-ae7487981f09@redhat.com>
+Date: Wed, 11 Apr 2018 12:55:00 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180411122739.25d1700099222eb647b0c620@linux-foundation.org>
+In-Reply-To: <20180404051115.GC6628@js1304-desktop>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Zi Yan <zi.yan@sent.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Wed 11-04-18 12:27:39, Andrew Morton wrote:
-> On Wed, 11 Apr 2018 11:26:11 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+On 04/03/2018 10:11 PM, Joonsoo Kim wrote:
+> Hello, Laura.
+> Sorry for a late response.
 > 
-> > On Fri 06-04-18 03:07:11, Naoya Horiguchi wrote:
-> > > >From e31ec037701d1cc76b26226e4b66d8c783d40889 Mon Sep 17 00:00:00 2001
-> > > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > > Date: Fri, 6 Apr 2018 10:58:35 +0900
-> > > Subject: [PATCH] mm: enable thp migration for shmem thp
-> > > 
-> > > My testing for the latest kernel supporting thp migration showed an
-> > > infinite loop in offlining the memory block that is filled with shmem
-> > > thps.  We can get out of the loop with a signal, but kernel should
-> > > return with failure in this case.
-> > > 
-> > > What happens in the loop is that scan_movable_pages() repeats returning
-> > > the same pfn without any progress. That's because page migration always
-> > > fails for shmem thps.
-> > > 
-> > > In memory offline code, memory blocks containing unmovable pages should
-> > > be prevented from being offline targets by has_unmovable_pages() inside
-> > > start_isolate_page_range().
-> > >
-> > > So it's possible to change migratability
-> > > for non-anonymous thps to avoid the issue, but it introduces more complex
-> > > and thp-specific handling in migration code, so it might not good.
-> > > 
-> > > So this patch is suggesting to fix the issue by enabling thp migration
-> > > for shmem thp. Both of anon/shmem thp are migratable so we don't need
-> > > precheck about the type of thps.
-> > > 
-> > > Fixes: commit 72b39cfc4d75 ("mm, memory_hotplug: do not fail offlining too early")
-> > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > > Cc: stable@vger.kernel.org # v4.15+
-> > 
-> > I do not really feel qualified to give my ack but this is the right
-> > approach for the fix. We simply do expect that LRU pages are migrateable
-> > as well as zone_movable pages.
-> > 
-> > Andrew, do you plan to take it (with Kirill's ack).
-> > 
 > 
-> Sure.  What happened with "Michal's fix in another email"
-> (https://lkml.kernel.org/r/20180406051452.GB23467@hori1.linux.bs1.fc.nec.co.jp)?
+> On Fri, Jan 26, 2018 at 06:25:27PM +0100, Michal Hocko wrote:
+>> [Ccing Joonsoo]
+> 
+> Thanks! Michal.
+> 
+>>
+>> On Fri 26-01-18 02:08:14, Laura Abbott wrote:
+>>> CMA as it's currently designed requires alignment to the pageblock size c.f.
+>>>
+>>>          /*
+>>>           * Sanitise input arguments.
+>>>           * Pages both ends in CMA area could be merged into adjacent unmovable
+>>>           * migratetype page by page allocator's buddy algorithm. In the case,
+>>>           * you couldn't get a contiguous memory, which is not what we want.
+>>>           */
+>>>          alignment = max(alignment,  (phys_addr_t)PAGE_SIZE <<
+>>>                            max_t(unsigned long, MAX_ORDER - 1, pageblock_order));
+>>>
+>>>
+>>> On arm64 with 64K page size and transparent huge page, this gives an alignment
+>>> of 512MB. This is quite restrictive and can eat up significant portions of
+>>> memory on smaller memory targets. Adjusting the configuration options really
+>>> isn't ideal for distributions that aim to have a single image which runs on
+>>> all targets.
+>>>
+>>> Approaches I've thought about:
+>>> - Making CMA alignment less restrictive (and dealing with the fallout from
+>>> the comment above)
+>>> - Command line option to force a reasonable alignment
+> 
+> If the patchset 'manage the memory of the CMA area by using the ZONE_MOVABLE' is
+> merged, this restriction can be removed since there is no unmovable
+> pageblock in ZONE_MOVABLE. Just quick thought. :)
+> 
+> Thanks.
+> 
 
-I guess you meant http://lkml.kernel.org/r/20180405190405.GS6312@dhcp22.suse.cz
+Thanks for that pointer. What's the current status of that patchset? Was that
+one that needed more review/testing?
 
-Well, that would be a workaround in case we didn't have a proper fix. It
-is much simpler but it wouldn't make backporting to older kernels any
-easier because it depends on other non-trivial changes you already have
-in your tree. So having a full THP pagecache migration support is
-preferred of course.
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Laura
