@@ -1,82 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 274C46B0005
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 08:05:03 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m190so512318pgm.4
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 05:05:03 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b72sor270892pfm.1.2018.04.11.05.05.01
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C204F6B0007
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 08:25:08 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p10so797271pfl.22
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 05:25:08 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 1-v6si1078659plu.127.2018.04.11.05.25.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Apr 2018 05:05:01 -0700 (PDT)
-From: mhocko@kernel.org
-Subject: [PATCH] mmap.2: document new MAP_FIXED_NOREPLACE flag
-Date: Wed, 11 Apr 2018 14:04:52 +0200
-Message-Id: <20180411120452.1736-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Apr 2018 05:25:07 -0700 (PDT)
+From: "Li, Philip" <philip.li@intel.com>
+Subject: RE: [kbuild-all] [memcg:since-4.16 207/224]
+ arch/tile/mm/mmap.c:53:6: error: conflicting types for
+ 'arch_pick_mmap_layout'
+Date: Wed, 11 Apr 2018 12:25:03 +0000
+Message-ID: <831EE4E5E37DCC428EB295A351E662494CAA60E6@shsmsx102.ccr.corp.intel.com>
+References: <201804111943.GtB7X93z%fengguang.wu@intel.com>
+ <20180411113349.GI23400@dhcp22.suse.cz>
+In-Reply-To: <20180411113349.GI23400@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@suse.com>, lkp <lkp@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, "kbuild-all@01.org" <kbuild-all@01.org>
 
-From: Michal Hocko <mhocko@suse.com>
+> On Wed 11-04-18 19:16:50, kbuild test robot wrote:
+> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git s=
+ince-4.16
+> > head:   e5edc6faef45baae632fc4c76096a2ab69145c11
+> > commit: a18ed29e39bde6c1aaf0fb449732ba8423bc5964 [207/224] exec: pass
+> stack rlimit into mm layout functions
+> > config: tile-tilegx_defconfig (attached as .config)
+> > compiler: tilegx-linux-gcc (GCC) 7.2.0
+> > reproduce:
+> >         wget https://raw.githubusercontent.com/intel/lkp-
+> tests/master/sbin/make.cross -O ~/bin/make.cross
+> >         chmod +x ~/bin/make.cross
+> >         git checkout a18ed29e39bde6c1aaf0fb449732ba8423bc5964
+> >         # save the attached .config to linux build tree
+> >         make.cross ARCH=3Dtile
+> >
+> > All errors (new ones prefixed by >>):
+> >
+> > >> arch/tile/mm/mmap.c:53:6: error: conflicting types for
+> 'arch_pick_mmap_layout'
+> >     void arch_pick_mmap_layout(struct mm_struct *mm)
+>=20
+> Isn't tile dead? Does it make any sense to compile test it?
+thanks for feedback, we will look into this and remove the non-supported ar=
+chs.
 
-4.17+ kernels offer a new MAP_FIXED_NOREPLACE flag which allows the caller to
-atomicaly probe for a given address range.
-
-[wording heavily updated by John Hubbard <jhubbard@nvidia.com>]
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-Andrew's sent the MAP_FIXED_NOREPLACE to Linus for the upcoming merge
-window. So here we go with the man page update.
-
- man2/mmap.2 | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
-
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index ea64eb8f0dcc..f702f3e4eba2 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -261,6 +261,27 @@ Examples include
- and the PAM libraries
- .UR http://www.linux-pam.org
- .UE .
-+Newer kernels
-+(Linux 4.17 and later) have a
-+.B MAP_FIXED_NOREPLACE
-+option that avoids the corruption problem; if available, MAP_FIXED_NOREPLACE
-+should be preferred over MAP_FIXED.
-+.TP
-+.BR MAP_FIXED_NOREPLACE " (since Linux 4.17)"
-+Similar to MAP_FIXED with respect to the
-+.I
-+addr
-+enforcement, but different in that MAP_FIXED_NOREPLACE never clobbers a pre-existing
-+mapped range. If the requested range would collide with an existing
-+mapping, then this call fails with
-+.B EEXIST.
-+This flag can therefore be used as a way to atomically (with respect to other
-+threads) attempt to map an address range: one thread will succeed; all others
-+will report failure. Please note that older kernels which do not recognize this
-+flag will typically (upon detecting a collision with a pre-existing mapping)
-+fall back to a "non-MAP_FIXED" type of behavior: they will return an address that
-+is different than the requested one. Therefore, backward-compatible software
-+should check the returned address against the requested address.
- .TP
- .B MAP_GROWSDOWN
- This flag is used for stacks.
-@@ -487,6 +508,12 @@ is not a valid file descriptor (and
- .B MAP_ANONYMOUS
- was not set).
- .TP
-+.B EEXIST
-+range covered by
-+.IR addr ,
-+.IR length
-+is clashing with an existing mapping.
-+.TP
- .B EINVAL
- We don't like
- .IR addr ,
--- 
-2.16.3
+> --
+> Michal Hocko
+> SUSE Labs
+> _______________________________________________
+> kbuild-all mailing list
+> kbuild-all@lists.01.org
+> https://lists.01.org/mailman/listinfo/kbuild-all
