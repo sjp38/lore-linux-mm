@@ -1,96 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DFDF6B0005
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 14:26:08 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e14so1223053pfi.9
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 11:26:08 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v9-v6si1601501plp.614.2018.04.11.11.26.07
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BA2226B0005
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 15:07:34 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v77so1533729wrc.18
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 12:07:34 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id c16si1304253wrc.322.2018.04.11.12.07.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 11 Apr 2018 11:26:07 -0700 (PDT)
-Date: Wed, 11 Apr 2018 11:26:06 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] slub: Remove use of page->counter
-Message-ID: <20180411182606.GA22494@bombadil.infradead.org>
-References: <20180410195429.GB21336@bombadil.infradead.org>
- <alpine.DEB.2.20.1804101545350.30437@nuc-kabylake>
- <20180410205757.GD21336@bombadil.infradead.org>
- <alpine.DEB.2.20.1804101702240.30842@nuc-kabylake>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 11 Apr 2018 12:07:33 -0700 (PDT)
+Date: Wed, 11 Apr 2018 21:07:30 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Subject: Re: [PATCH] Revert mm/vmstat.c: fix vmstat_update() preemption BUG
+Message-ID: <20180411190729.7sbmbsxtkcng7ddx@linutronix.de>
+References: <20180411095757.28585-1-bigeasy@linutronix.de>
+ <ef663b6d-9e9f-65c6-25ec-ffa88347c58d@suse.cz>
+ <20180411140913.GE793541@devbig577.frc2.facebook.com>
+ <20180411144221.o3v73v536tpnc6n3@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1804101702240.30842@nuc-kabylake>
+In-Reply-To: <20180411144221.o3v73v536tpnc6n3@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org
+To: Tejun Heo <htejun@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, "Steven J . Hill" <steven.hill@cavium.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-On Tue, Apr 10, 2018 at 05:03:17PM -0500, Christopher Lameter wrote:
-> On Tue, 10 Apr 2018, Matthew Wilcox wrote:
+On 2018-04-11 16:42:21 [+0200], To Tejun Heo wrote:
+> > > So is this perhaps related to the cpu hotplug that [1] mentions? e.g. is
+> > > the cpu being hotplugged cpu 1, the worker started too early before
+> > > stuff can be scheduled on the CPU, so it has to run on different than
+> > > designated CPU?
+> > > 
+> > > [1] https://marc.info/?l=linux-mm&m=152088260625433&w=2
+> > 
+> > The report says that it happens when hotplug is attempted.  Per-cpu
+> > doesn't pin the cpu alive, so if the cpu goes down while a work item
+> > is in flight or a work item is queued while a cpu is offline it'll end
+> > up executing on some other cpu.  So, if a piece of code doesn't want
+> > that happening, it gotta interlock itself - ie. start queueing when
+> > the cpu comes online and flush and prevent further queueing when its
+> > cpu goes down.
 > 
-> > > Is this aligned on a doubleword boundary? Maybe move the refcount below
-> > > the flags field?
-> >
-> > You need freelist and _mapcount to be in the same dword.  There's no
-> > space to put them both in dword 0, so that's used for flags and mapping
-> > / s_mem.  Then freelist, mapcount and refcount are in dword 1 (on 64-bit),
-> > or freelist & mapcount are in dword 1 on 32-bit.  After that, 32 and 64-bit
-> > no longer line up on the same dword boundaries.
-> 
-> Well its no longer clear from the definitions that this must be the case.
-> Clarify that in the next version?
+> I missed that cpuhotplug part while reading it. So in that case, let me
+> add a CPU-hotplug notifier which cancels that work. After all it is not
+> need once the CPU is gone.
 
-I had a Thought.  And it seems to work:
+This already happens:
+- vmstat_shepherd() does get_online_cpus() and within this block it does
+  queue_delayed_work_on(). So this has to wait until cpuhotplug
+  completed before it can schedule something and then it won't schedule
+  anything on the "off" CPU.
 
-struct page {
-	unsigned long flags;
-	union {		/* Five words */
-		struct {	/* Page cache & anonymous pages */
-			struct list_head lru;
-			unsigned long private;
-			struct address_space *mapping;
-			pgoff_t index;
-		};
-		struct {	/* Slab / Slob / Slub */
-			struct page *next;
-			void *freelist;
-			union {
-				unsigned int active;		/* slab */
-				struct {			/* slub */
-					unsigned inuse:16;
-					unsigned objects:15;
-					unsigned frozen:1;
-				};
-				int units;			/* slob */
-			};
-#ifdef CONFIG_64BIT
-			int pages;
-#endif
-			void *s_mem;
-			struct kmem_cache *slab_cache;
-		};
-		struct rcu_head rcu_head;
-		... tail pages, page tables, etc, etc ...
-	};
-	union {
-		atomic_t _mapcount;
-		unsigned int page_type;
-#ifdef CONFIG_64BIT
-		unsigned int pobjects;			/* slab */
-#else
-		struct {
-			short int pages;
-			short int pobjects;
-		};
-#endif
-	};
-	atomic_t _refcount;
-	struct mem_cgroup *mem_cgroup;
-};
+- The work item itself (vmstat_update()) schedules itself
+  (conditionally) again.
 
-Now everybody gets 5 contiguous words to use as they want with the only
-caveat that they can't use bit 0 of the first word (PageTail).  It looks
-a little messy to split up pages & pobjects like that -- as far as I
-can see there's no reason we couldn't make them unsigned short on 64BIT?
-pages is always <= pobjects, and pobjects is limited to 2^15.
+- vmstat_cpu_down_prep() is the down event and does
+  cancel_delayed_work_sync(). So it waits for the work-item to complete
+  and cancels it.
+
+This looks all good to me.
+
+> > Thanks.
+
+Sebastian
