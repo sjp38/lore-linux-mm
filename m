@@ -1,79 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 73D386B0003
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 16:36:25 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id v187so1953865qka.5
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 13:36:25 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id d21si2475703qkg.289.2018.04.11.13.36.23
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 44C2D6B0003
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 17:12:20 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id n5so2230757qtl.13
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 14:12:20 -0700 (PDT)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [69.252.207.41])
+        by mx.google.com with ESMTPS id p17si2686014qtb.139.2018.04.11.14.12.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Apr 2018 13:36:23 -0700 (PDT)
-Subject: Re: [PATCH] mmap.2: document new MAP_FIXED_NOREPLACE flag
-References: <20180411120452.1736-1-mhocko@kernel.org>
- <CAG48ez3BS5EtnrhFQUGYY9MKGOUHzFbhauJQd361uTwy2pBEeg@mail.gmail.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <827ead33-5d93-7696-9c5e-1cd04f772476@nvidia.com>
-Date: Wed, 11 Apr 2018 13:36:21 -0700
+        Wed, 11 Apr 2018 14:12:19 -0700 (PDT)
+Date: Wed, 11 Apr 2018 16:11:17 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 2/2] slab: __GFP_ZERO is incompatible with a
+ constructor
+In-Reply-To: <20180411192448.GD22494@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1804111601090.7458@nuc-kabylake>
+References: <20180411060320.14458-1-willy@infradead.org> <20180411060320.14458-3-willy@infradead.org> <alpine.DEB.2.20.1804110842560.3788@nuc-kabylake> <20180411192448.GD22494@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <CAG48ez3BS5EtnrhFQUGYY9MKGOUHzFbhauJQd361uTwy2pBEeg@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On 04/11/2018 08:37 AM, Jann Horn wrote:
-> On Wed, Apr 11, 2018 at 2:04 PM,  <mhocko@kernel.org> wrote:
->> From: Michal Hocko <mhocko@suse.com>
->>
->> 4.17+ kernels offer a new MAP_FIXED_NOREPLACE flag which allows the caller to
->> atomicaly probe for a given address range.
->>
->> [wording heavily updated by John Hubbard <jhubbard@nvidia.com>]
->> Signed-off-by: Michal Hocko <mhocko@suse.com>
->> ---
->> Hi,
->> Andrew's sent the MAP_FIXED_NOREPLACE to Linus for the upcoming merge
->> window. So here we go with the man page update.
->>
->>  man2/mmap.2 | 27 +++++++++++++++++++++++++++
->>  1 file changed, 27 insertions(+)
->>
->> diff --git a/man2/mmap.2 b/man2/mmap.2
->> index ea64eb8f0dcc..f702f3e4eba2 100644
->> --- a/man2/mmap.2
->> +++ b/man2/mmap.2
->> @@ -261,6 +261,27 @@ Examples include
->>  and the PAM libraries
->>  .UR http://www.linux-pam.org
->>  .UE .
->> +Newer kernels
->> +(Linux 4.17 and later) have a
->> +.B MAP_FIXED_NOREPLACE
->> +option that avoids the corruption problem; if available, MAP_FIXED_NOREPLACE
->> +should be preferred over MAP_FIXED.
-> 
-> This still looks wrong to me. There are legitimate uses for MAP_FIXED,
-> and for most users of MAP_FIXED that I'm aware of, MAP_FIXED_NOREPLACE
-> wouldn't work while MAP_FIXED works perfectly well.
-> 
-> MAP_FIXED is for when you have already reserved the targeted memory
-> area using another VMA; MAP_FIXED_NOREPLACE is for when you haven't.
+On Wed, 11 Apr 2018, Matthew Wilcox wrote:
 
-That's a nice summary, I hope it shows up in your upcoming patch. I recall
-that we went back and forth, trying to find a balance of explaining
-this feature, without providing overly-elaborate examples (which I tend
-toward).
+> > >  	slab_post_alloc_hook(s, gfpflags, 1, &object);
+> >
+> > Please put this in a code path that is enabled by specifying
+> >
+> > slub_debug
+> >
+> > on the kernel command line.
+>
+> I don't understand.  First, I had:
+>
+> 	if (unlikely(gfpflags & __GFP_ZERO) && object && !WARN_ON_ONCE(s->ctor))
+>
+> and you didn't like that because it was putting checking into a (semi)fast
+> path.  Now you want me to add a check for slub_debug somewhere?  I dont
+> see an existing one I can leverage that will hit on every allocation.
+> Perhaps I'm missing something.
 
-> Please don't make it sound as if MAP_FIXED is always wrong.
-> 
+The WARN_ON is only enabled when you configure and build the kernel with
+debugging enabled (CONFIG_VM_DEBUG). That is a compile time debugging
+feature like supported by SLAB.
 
-Agreed.
+SLUB debugging is different because we had problems isolating memory
+corruption bugs in the production kernels for years. The debug code is
+always included in the build but kept out of the hotpaths.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+
+The debug can be enabled when needed to find memory corruption errors
+without the need to rebuild a kernel for a prod environment (which may
+change race conditions etc) because we only then need to add a kernel
+parameter.
+
+"slub_debug" enables kmem_cache->flags & SLAB_DEBUG and that forces all
+fastpath processing to be disabled. Thus you can check reliably in the
+slow path only for the GFP_ZERO problem.
+
+Add the check to the other debug stuff already there. F.e. in
+alloc_debug_processing() or after
+
+if (kmem_cache_debug(s) ...
+
+in ____slab_alloc()
