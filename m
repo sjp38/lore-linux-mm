@@ -1,260 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A40EF6B0005
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 06:10:25 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id w17so666824pfn.17
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 03:10:25 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id k3si534681pgq.83.2018.04.11.03.10.23
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CD596B0005
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 06:32:25 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id q15so870319qkj.3
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 03:32:25 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id r9si1023594qtf.374.2018.04.11.03.32.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Apr 2018 03:10:23 -0700 (PDT)
-Subject: Re: WARNING in kill_block_super
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <6c95e826-4b9f-fb21-b311-830411e58480@I-love.SAKURA.ne.jp>
-	<20180411005938.GN30522@ZenIV.linux.org.uk>
-	<201804110128.w3B1S6M6092645@www262.sakura.ne.jp>
-	<20180411013836.GO30522@ZenIV.linux.org.uk>
-In-Reply-To: <20180411013836.GO30522@ZenIV.linux.org.uk>
-Message-Id: <201804111909.EGC64586.QSFLFJFOVHOOtM@I-love.SAKURA.ne.jp>
-Date: Wed, 11 Apr 2018 19:09:41 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Wed, 11 Apr 2018 03:32:24 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3BATgUC019412
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 06:32:23 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2h9e9exscn-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 06:32:22 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 11 Apr 2018 11:32:19 +0100
+Subject: Re: [PATCH v3 2/2] mm: remove odd HAVE_PTE_SPECIAL
+References: <1523433816-14460-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1523433816-14460-3-git-send-email-ldufour@linux.vnet.ibm.com>
+ <de6ee514-8b7e-24d0-a7ee-a8887e8b0ae9@c-s.fr>
+ <93ed4fe4-dd1e-51be-948b-d53b16de21c5@linux.vnet.ibm.com>
+ <278a5212-b962-9a3a-cc86-76cac744afab@c-s.fr>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 11 Apr 2018 12:32:07 +0200
+MIME-Version: 1.0
+In-Reply-To: <278a5212-b962-9a3a-cc86-76cac744afab@c-s.fr>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Message-Id: <32655c37-91cb-17aa-58e7-74254e2673a0@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: viro@ZenIV.linux.org.uk, mhocko@suse.com
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, syzkaller-bugs@googlegroups.com, linux-mm@kvack.org, dvyukov@google.com, syzbot+5a170e19c963a2e0df79@syzkaller.appspotmail.com
+To: Christophe LEROY <christophe.leroy@c-s.fr>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Jerome Glisse <jglisse@redhat.com>, mhocko@kernel.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S . Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Vineet Gupta <vgupta@synopsys.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <albert@sifive.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, David Rientjes <rientjes@google.com>, Robin Murphy <robin.murphy@arm.com>
 
-Al Viro wrote:
-> On Wed, Apr 11, 2018 at 10:28:06AM +0900, Tetsuo Handa wrote:
-> > Al Viro wrote:
-> > > On Wed, Apr 04, 2018 at 07:53:07PM +0900, Tetsuo Handa wrote:
-> > > > Al and Michal, are you OK with this patch?
-> > > 
-> > > First of all, it does *NOT* fix the problems with careless ->kill_sb().
-> > > The fuse-blk case is the only real rationale so far.  Said that,
-> > > 
-> > 
-> > Please notice below one as well. Fixing all careless ->kill_sb() will be too
-> > difficult to backport. For now, avoid calling deactivate_locked_super() is
-> > safer.
-> 
-> How will that fix e.g. jffs2?
-
-You can send patches which my patch does not fix.
-
-> 
-> > [upstream] WARNING: refcount bug in put_pid_ns
-> > https://syzkaller.appspot.com/bug?id=17e202b4794da213570ba33ac2f70277ef1ce015
-> 
-> Should be fixed by 8e666cb33597 in that series, AFAICS.
-
-OK.
-
-
-
-Al Viro wrote:
-> On Wed, Apr 04, 2018 at 07:53:07PM +0900, Tetsuo Handa wrote:
-> > Al and Michal, are you OK with this patch?
-> 
-> First of all, it does *NOT* fix the problems with careless ->kill_sb().
-> The fuse-blk case is the only real rationale so far.  Said that,
-> 
-> > @@ -166,6 +166,7 @@ static void destroy_unused_super(struct super_block *s)
-> >  	security_sb_free(s);
-> >  	put_user_ns(s->s_user_ns);
-> >  	kfree(s->s_subtype);
-> > +	kfree(s->s_shrink.nr_deferred);
-> 
-> is probably better done with an inlined helper (fs/super.c has no business knowing
-> about ->nr_deferred name, and there probably will be other users of that
-> preallocation of yours).  And the same helper would be better off zeroing the
-> pointer, same as unregister_shrinker() does.
+On 11/04/2018 11:09, Christophe LEROY wrote:
 > 
 > 
-> > -int register_shrinker(struct shrinker *shrinker)
-> > +int prepare_shrinker(struct shrinker *shrinker)
+> Le 11/04/2018 A  11:03, Laurent Dufour a A(C)critA :
+>>
+>>
+>> On 11/04/2018 10:58, Christophe LEROY wrote:
+>>>
+>>>
+>>> Le 11/04/2018 A  10:03, Laurent Dufour a A(C)critA :
+>>>> Remove the additional define HAVE_PTE_SPECIAL and rely directly on
+>>>> CONFIG_ARCH_HAS_PTE_SPECIAL.
+>>>>
+>>>> There is no functional change introduced by this patch
+>>>>
+>>>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>>>> ---
+>>>> A A  mm/memory.c | 19 ++++++++-----------
+>>>> A A  1 file changed, 8 insertions(+), 11 deletions(-)
+>>>>
+>>>> diff --git a/mm/memory.c b/mm/memory.c
+>>>> index 96910c625daa..7f7dc7b2a341 100644
+>>>> --- a/mm/memory.c
+>>>> +++ b/mm/memory.c
+>>>> @@ -817,17 +817,12 @@ static void print_bad_pte(struct vm_area_struct *vma,
+>>>> unsigned long addr,
+>>>> A A A  * PFNMAP mappings in order to support COWable mappings.
+>>>> A A A  *
+>>>> A A A  */
+>>>> -#ifdef CONFIG_ARCH_HAS_PTE_SPECIAL
+>>>> -# define HAVE_PTE_SPECIAL 1
+>>>> -#else
+>>>> -# define HAVE_PTE_SPECIAL 0
+>>>> -#endif
+>>>> A A  struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long
+>>>> addr,
+>>>> A A A A A A A A A A A A A A A A A A A  pte_t pte, bool with_public_device)
+>>>> A A  {
+>>>> A A A A A A  unsigned long pfn = pte_pfn(pte);
+>>>> A A  -A A A  if (HAVE_PTE_SPECIAL) {
+>>>> +A A A  if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL)) {
+>>>> A A A A A A A A A A  if (likely(!pte_special(pte)))
+>>>> A A A A A A A A A A A A A A  goto check_pfn;
+>>>> A A A A A A A A A A  if (vma->vm_ops && vma->vm_ops->find_special_page)
+>>>> @@ -862,7 +857,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma,
+>>>> unsigned long addr,
+>>>> A A A A A A A A A A  return NULL;
+>>>> A A A A A A  }
+>>>> A A  -A A A  /* !HAVE_PTE_SPECIAL case follows: */
+>>>> +A A A  /* !CONFIG_ARCH_HAS_PTE_SPECIAL case follows: */
+>>>> A A  A A A A A  if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
+>>>> A A A A A A A A A A  if (vma->vm_flags & VM_MIXEDMAP) {
+>>>> @@ -881,7 +876,8 @@ struct page *_vm_normal_page(struct vm_area_struct *vma,
+>>>> unsigned long addr,
+>>>> A A  A A A A A  if (is_zero_pfn(pfn))
+>>>> A A A A A A A A A A  return NULL;
+>>>> -check_pfn:
+>>>> +
+>>>> +check_pfn: __maybe_unused
+>>>
+>>> See below
+>>>
+>>>> A A A A A A  if (unlikely(pfn > highest_memmap_pfn)) {
+>>>> A A A A A A A A A A  print_bad_pte(vma, addr, pte, NULL);
+>>>> A A A A A A A A A A  return NULL;
+>>>> @@ -891,7 +887,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma,
+>>>> unsigned long addr,
+>>>> A A A A A A A  * NOTE! We still have PageReserved() pages in the page tables.
+>>>> A A A A A A A  * eg. VDSO mappings can cause them to exist.
+>>>> A A A A A A A  */
+>>>> -out:
+>>>> +out: __maybe_unused
+>>>
+>>> Why do you need that change ?
+>>>
+>>> There is no reason for the compiler to complain. It would complain if the goto
+>>> was within a #ifdef, but all the purpose of using IS_ENABLED() is to allow the
+>>> compiler to properly handle all possible cases. That's all the force of
+>>> IS_ENABLED() compared to ifdefs, and that the reason why they are plebicited,
+>>> ref Linux Codying style for a detailed explanation.
+>>
+>> Fair enough.
+>>
+>> Should I submit a v4 just to remove these so ugly __maybe_unused ?
+>>
 > 
-> preallocate_shrinker(), perhaps?
-> 
-> > +int register_shrinker(struct shrinker *shrinker)
-> > +{
-> > +	int err = prepare_shrinker(shrinker);
-> > +
-> > +	if (err)
-> > +		return err;
-> > +	register_shrinker_prepared(shrinker);
-> 
-> 	if (!err)
-> 		register_....;
-> 	return err;
-> 
-> would be better, IMO.
-> 
+> Most likely, unless the mm maintainer agrees to remove them by himself when
+> applying your patch ?
 
-OK. Here is version 2. What do you think?
+That was my point.
 
+Andrew, should I send a v4 or could you wipe the 2 __maybe_unsued when applying
+the patch ?
 
-
->From 9d035f5bee3861cb73c4d323c03121f431edf760 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Wed, 11 Apr 2018 11:44:46 +0900
-Subject: [PATCH v2] mm,vmscan: Allow preallocating memory for
- register_shrinker().
-
-syzbot is catching so many bugs triggered by commit 9ee332d99e4d5a97
-("sget(): handle failures of register_shrinker()"). That commit expected
-that calling kill_sb() from deactivate_locked_super() without successful
-fill_super() is safe. But it turned out that there are many bugs which
-exist before that commit, and also that that commit caused regressions
-in several cases.
-
-For example, [1] is a report where sb->s_mode (which seems to be either
-FMODE_READ | FMODE_EXCL | FMODE_WRITE or FMODE_READ | FMODE_EXCL) is not
-assigned unless sget() succeeds. But it does not worth complicate sget()
-so that register_shrinker() failure path can safely call
-kill_block_super() via kill_sb(). Making alloc_super() fail if memory
-allocation for register_shrinker() failed is much simpler.
-
-Although this patch hides some of bugs revealed by that commit, this patch
-allows preallocating memory for the shrinker. By this change, we can avoid
-calling deactivate_locked_super() from sget_userns(). Manual auditing and
-syzbot tests will eventually reveal remaining bugs.
-
-[1] https://syzkaller.appspot.com/bug?id=588996a25a2587be2e3a54e8646728fb9cae44e7
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Reported-by: syzbot <syzbot+84371b6062cb639d797e@syzkaller.appspotmail.com> # WARNING: refcount bug in should_fail
-Reported-by: syzbot <syzbot+5a170e19c963a2e0df79@syzkaller.appspotmail.com> # WARNING in kill_block_super
-Reported-by: syzbot <syzbot+66a731f39da94bb14930@syzkaller.appspotmail.com> # WARNING: refcount bug in put_pid_ns
-Reported-by: syzbot <syzbot+7a1cff37dbbef9e7ba4c@syzkaller.appspotmail.com> # KASAN: use-after-free Read in alloc_pid
-Reported-by: syzbot <syzbot+151de3f2be6b40ac8026@syzkaller.appspotmail.com> # general protection fault in kernfs_kill_sb
-Cc: stable <stable@vger.kernel.org> # 4.15+
-Cc: Al Viro <vilo@zeniv.linux.org.uk>
-Cc: Michal Hocko <mhocko@suse.com>
----
- fs/super.c               |  9 ++++-----
- include/linux/shrinker.h | 21 +++++++++++++++++++--
- mm/vmscan.c              | 20 +++++++++++++++-----
- 3 files changed, 38 insertions(+), 12 deletions(-)
-
-diff --git a/fs/super.c b/fs/super.c
-index 672538c..5a839cd8 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -166,6 +166,7 @@ static void destroy_unused_super(struct super_block *s)
- 	security_sb_free(s);
- 	put_user_ns(s->s_user_ns);
- 	kfree(s->s_subtype);
-+	unallocate_shrinker(&s->s_shrink);
- 	/* no delays needed */
- 	destroy_super_work(&s->destroy_work);
- }
-@@ -251,6 +252,8 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
- 	s->s_shrink.count_objects = super_cache_count;
- 	s->s_shrink.batch = 1024;
- 	s->s_shrink.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
-+	if (preallocate_shrinker(&s->s_shrink))
-+		goto fail;
- 	return s;
- 
- fail:
-@@ -517,11 +520,7 @@ struct super_block *sget_userns(struct file_system_type *type,
- 	hlist_add_head(&s->s_instances, &type->fs_supers);
- 	spin_unlock(&sb_lock);
- 	get_filesystem(type);
--	err = register_shrinker(&s->s_shrink);
--	if (err) {
--		deactivate_locked_super(s);
--		s = ERR_PTR(err);
--	}
-+	register_preallocated_shrinker(&s->s_shrink);
- 	return s;
- }
- 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 388ff29..ae5f557 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -75,6 +75,23 @@ struct shrinker {
- #define SHRINKER_NUMA_AWARE	(1 << 0)
- #define SHRINKER_MEMCG_AWARE	(1 << 1)
- 
--extern int register_shrinker(struct shrinker *);
--extern void unregister_shrinker(struct shrinker *);
-+extern int preallocate_shrinker(struct shrinker *shrinker);
-+extern void register_preallocated_shrinker(struct shrinker *shrinker);
-+extern void unallocate_shrinker(struct shrinker *shrinker);
-+extern void unregister_shrinker(struct shrinker *shrinker);
-+
-+/*
-+ * Try to replace register_shrinker() with preallocate_shrinker() and
-+ * register_preallocated_shrinker() if that makes error handling easier.
-+ * Call unallocate_shrinker() if a shrinker is discarded between after
-+ * preallocate_shrinker() and before register_preallocated_shrinker().
-+ */
-+static inline int register_shrinker(struct shrinker *shrinker)
-+{
-+	int err = preallocate_shrinker(shrinker);
-+
-+	if (!err)
-+		register_preallocated_shrinker(shrinker);
-+	return err;
-+}
- #endif
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4390a8d..17b3073 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -258,7 +258,7 @@ unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone
- /*
-  * Add a shrinker callback to be called from the vm.
-  */
--int register_shrinker(struct shrinker *shrinker)
-+int preallocate_shrinker(struct shrinker *shrinker)
- {
- 	size_t size = sizeof(*shrinker->nr_deferred);
- 
-@@ -268,17 +268,28 @@ int register_shrinker(struct shrinker *shrinker)
- 	shrinker->nr_deferred = kzalloc(size, GFP_KERNEL);
- 	if (!shrinker->nr_deferred)
- 		return -ENOMEM;
-+	return 0;
-+}
-+EXPORT_SYMBOL(preallocate_shrinker);
- 
-+void register_preallocated_shrinker(struct shrinker *shrinker)
-+{
- 	down_write(&shrinker_rwsem);
- 	list_add_tail(&shrinker->list, &shrinker_list);
- 	up_write(&shrinker_rwsem);
--	return 0;
- }
--EXPORT_SYMBOL(register_shrinker);
-+EXPORT_SYMBOL(register_preallocated_shrinker);
- 
- /*
-  * Remove one
-  */
-+void unallocate_shrinker(struct shrinker *shrinker)
-+{
-+	kfree(shrinker->nr_deferred);
-+	shrinker->nr_deferred = NULL;
-+}
-+EXPORT_SYMBOL(unallocate_shrinker);
-+
- void unregister_shrinker(struct shrinker *shrinker)
- {
- 	if (!shrinker->nr_deferred)
-@@ -286,8 +297,7 @@ void unregister_shrinker(struct shrinker *shrinker)
- 	down_write(&shrinker_rwsem);
- 	list_del(&shrinker->list);
- 	up_write(&shrinker_rwsem);
--	kfree(shrinker->nr_deferred);
--	shrinker->nr_deferred = NULL;
-+	unallocate_shrinker(shrinker);
- }
- EXPORT_SYMBOL(unregister_shrinker);
- 
--- 
-1.8.3.1
+Thanks,
+Laurent.
