@@ -1,94 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D23C26B0003
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 11:38:08 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id r7-v6so1262141oti.18
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 08:38:08 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 16-v6sor620757oii.115.2018.04.11.08.38.07
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 272906B0003
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 11:48:28 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e9so1024368pfn.16
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 08:48:28 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id g74si1084096pfd.351.2018.04.11.08.48.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Apr 2018 08:38:07 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Apr 2018 08:48:26 -0700 (PDT)
+Subject: Re: [PATCH v3 4/4] mm/sparse: Optimize memmap allocation during
+ sparse_init()
+References: <20180228032657.32385-1-bhe@redhat.com>
+ <20180228032657.32385-5-bhe@redhat.com>
+ <5dd3942a-cf66-f749-b1c6-217b0c3c94dc@intel.com>
+ <20180408082038.GB19345@localhost.localdomain>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <7cc53287-4570-84d6-502c-c3dfbd279b78@intel.com>
+Date: Wed, 11 Apr 2018 08:48:25 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180411120452.1736-1-mhocko@kernel.org>
-References: <20180411120452.1736-1-mhocko@kernel.org>
-From: Jann Horn <jannh@google.com>
-Date: Wed, 11 Apr 2018 17:37:46 +0200
-Message-ID: <CAG48ez3BS5EtnrhFQUGYY9MKGOUHzFbhauJQd361uTwy2pBEeg@mail.gmail.com>
-Subject: Re: [PATCH] mmap.2: document new MAP_FIXED_NOREPLACE flag
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180408082038.GB19345@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, John Hubbard <jhubbard@nvidia.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Baoquan He <bhe@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On Wed, Apr 11, 2018 at 2:04 PM,  <mhocko@kernel.org> wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> 4.17+ kernels offer a new MAP_FIXED_NOREPLACE flag which allows the caller to
-> atomicaly probe for a given address range.
->
-> [wording heavily updated by John Hubbard <jhubbard@nvidia.com>]
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> Hi,
-> Andrew's sent the MAP_FIXED_NOREPLACE to Linus for the upcoming merge
-> window. So here we go with the man page update.
->
->  man2/mmap.2 | 27 +++++++++++++++++++++++++++
->  1 file changed, 27 insertions(+)
->
-> diff --git a/man2/mmap.2 b/man2/mmap.2
-> index ea64eb8f0dcc..f702f3e4eba2 100644
-> --- a/man2/mmap.2
-> +++ b/man2/mmap.2
-> @@ -261,6 +261,27 @@ Examples include
->  and the PAM libraries
->  .UR http://www.linux-pam.org
->  .UE .
-> +Newer kernels
-> +(Linux 4.17 and later) have a
-> +.B MAP_FIXED_NOREPLACE
-> +option that avoids the corruption problem; if available, MAP_FIXED_NOREPLACE
-> +should be preferred over MAP_FIXED.
+On 04/08/2018 01:20 AM, Baoquan He wrote:
+> On 04/06/18 at 07:50am, Dave Hansen wrote:
+>> The code looks fine to me.  It's a bit of a shame that there's no
+>> verification to ensure that idx_present never goes beyond the shiny new
+>> nr_present_sections. 
+> 
+> This is a good point. Do you think it's OK to replace (section_nr <
+> NR_MEM_SECTIONS) with (section_nr < nr_present_sections) in below
+> for_each macro? This for_each_present_section_nr() is only used
+> during sparse_init() execution.
+> 
+> #define for_each_present_section_nr(start, section_nr)          \
+>         for (section_nr = next_present_section_nr(start-1);     \
+>              ((section_nr >= 0) &&                              \
+>               (section_nr < NR_MEM_SECTIONS) &&                 \                                                                                 
+>               (section_nr <= __highest_present_section_nr));    \
+>              section_nr = next_present_section_nr(section_nr))
 
-This still looks wrong to me. There are legitimate uses for MAP_FIXED,
-and for most users of MAP_FIXED that I'm aware of, MAP_FIXED_NOREPLACE
-wouldn't work while MAP_FIXED works perfectly well.
+I was more concerned about the loops that "consume" the section maps.
+It seems like they might run over the end of the array.
 
-MAP_FIXED is for when you have already reserved the targeted memory
-area using another VMA; MAP_FIXED_NOREPLACE is for when you haven't.
-Please don't make it sound as if MAP_FIXED is always wrong.
+>>> @@ -583,6 +592,7 @@ void __init sparse_init(void)
+>>>  	unsigned long *usemap;
+>>>  	unsigned long **usemap_map;
+>>>  	int size;
+>>> +	int idx_present = 0;
+>>
+>> I wonder whether idx_present is a good name.  Isn't it the number of
+>> consumed mem_map[]s or usemaps?
+> 
+> Yeah, in sparse_init(), it's the index of present memory sections, and
+> also the number of consumed mem_map[]s or usemaps. And I remember you
+> suggested nr_consumed_maps instead. seems nr_consumed_maps is a little
+> long to index array to make code line longer than 80 chars. How about
+> name it idx_present in sparse_init(), nr_consumed_maps in
+> alloc_usemap_and_memmap(), the maps allocation function? I am also fine
+> to use nr_consumed_maps for all of them.
 
-> +.TP
-> +.BR MAP_FIXED_NOREPLACE " (since Linux 4.17)"
-> +Similar to MAP_FIXED with respect to the
-> +.I
-> +addr
-> +enforcement, but different in that MAP_FIXED_NOREPLACE never clobbers a pre-existing
-> +mapped range. If the requested range would collide with an existing
-> +mapping, then this call fails with
-> +.B EEXIST.
-> +This flag can therefore be used as a way to atomically (with respect to other
-> +threads) attempt to map an address range: one thread will succeed; all others
-> +will report failure. Please note that older kernels which do not recognize this
-> +flag will typically (upon detecting a collision with a pre-existing mapping)
-> +fall back to a "non-MAP_FIXED" type of behavior: they will return an address that
-> +is different than the requested one. Therefore, backward-compatible software
-> +should check the returned address against the requested address.
->  .TP
->  .B MAP_GROWSDOWN
->  This flag is used for stacks.
-> @@ -487,6 +508,12 @@ is not a valid file descriptor (and
->  .B MAP_ANONYMOUS
->  was not set).
->  .TP
-> +.B EEXIST
-> +range covered by
-> +.IR addr ,
-> +.IR length
-> +is clashing with an existing mapping.
+Does the large array index make a bunch of lines wrap or something?  If
+not, I'd just use the long name.
 
-Maybe add something like ", and MAP_FIXED_NOREPLACE was specified"? I
-think most manpages explicitly document which error conditions can be
-triggered by which flags.
+>>>  		if (!map) {
+>>>  			ms->section_mem_map = 0;
+>>> +			idx_present++;
+>>>  			continue;
+>>>  		}
+>>>  
+>>
+>>
+>> This hunk seems logically odd to me.  I would expect a non-used section
+>> to *not* consume an entry from the temporary array.  Why does it?  The
+>> error and success paths seem to do the same thing.
+> 
+> Yes, this place is the hardest to understand. The temorary arrays are
+> allocated beforehand with the size of 'nr_present_sections'. The error
+> paths you mentioned is caused by allocation failure of mem_map or
+> map_map, but whatever it's error or success paths, the sections must be
+> marked as present in memory_present(). Error or success paths happened
+> in alloc_usemap_and_memmap(), while checking if it's erorr or success
+> paths happened in the last for_each_present_section_nr() of
+> sparse_init(), and clear the ms->section_mem_map if it goes along error
+> paths. This is the key point of this new allocation way.
+
+I think you owe some commenting because this is so hard to understand.
