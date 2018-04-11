@@ -1,66 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 983886B0024
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 03:24:15 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s6so296268pgn.16
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 00:24:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g9sor98095pgo.145.2018.04.11.00.24.14
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2455D6B0006
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 04:03:59 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id h6so652120qkj.11
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 01:03:59 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p14si250696qtj.447.2018.04.11.01.03.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Apr 2018 00:24:14 -0700 (PDT)
-From: Jia He <hejianet@gmail.com>
-Subject: [PATCH v8 6/6] mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
-Date: Wed, 11 Apr 2018 00:21:57 -0700
-Message-Id: <1523431317-30612-7-git-send-email-hejianet@gmail.com>
-In-Reply-To: <1523431317-30612-1-git-send-email-hejianet@gmail.com>
-References: <1523431317-30612-1-git-send-email-hejianet@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Apr 2018 01:03:57 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3B83i4p010590
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 04:03:56 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2h9agy9kb1-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 04:03:55 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 11 Apr 2018 09:03:48 +0100
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: [PATCH v3 0/2] move __HAVE_ARCH_PTE_SPECIAL in Kconfig
+Date: Wed, 11 Apr 2018 10:03:34 +0200
+Message-Id: <1523433816-14460-1-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jia He <hejianet@gmail.com>, Jia He <jia.he@hxt-semitech.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Jerome Glisse <jglisse@redhat.com>, mhocko@kernel.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S . Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Vineet Gupta <vgupta@synopsys.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <albert@sifive.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, David Rientjes <rientjes@google.com>, Robin Murphy <robin.murphy@arm.com>
 
-Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-where possible") optimized the loop in memmap_init_zone(). But there is
-still some room for improvement. E.g. in early_pfn_valid(), if pfn and
-pfn+1 are in the same memblock region, we can record the last returned
-memblock region index and check whether pfn++ is still in the same
-region.
+The per architecture __HAVE_ARCH_PTE_SPECIAL is defined statically in the
+per architecture header files. This doesn't allow to make other
+configuration dependent on it.
 
-Currently it only improve the performance on arm/arm64 and will have no
-impact on other arches.
+The first patch of this series is replacing __HAVE_ARCH_PTE_SPECIAL by
+CONFIG_ARCH_HAS_PTE_SPECIAL defined into the Kconfig files,
+setting it automatically when architectures was already setting it in
+header file.
 
-For the performance improvement, after this set, I can see the time
-overhead of memmap_init() is reduced from 41313 us to 24345 us in my
-armv8a server(QDF2400 with 96G memory).
+The second patch is removing the odd define HAVE_PTE_SPECIAL which is a
+duplicate of CONFIG_ARCH_HAS_PTE_SPECIAL.
 
-Signed-off-by: Jia He <jia.he@hxt-semitech.com>
----
- include/linux/mmzone.h | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+There is no functional change introduced by this series.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index c40297d..426db40 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1271,11 +1271,16 @@ static inline int pfn_present(unsigned long pfn)
- #define pfn_to_nid(pfn)		(0)
- #endif
- 
--#define early_pfn_valid(pfn)	pfn_valid(pfn)
- #ifdef CONFIG_HAVE_MEMBLOCK_PFN_VALID
- extern ulong memblock_next_valid_pfn(ulong pfn);
- #define next_valid_pfn(pfn)	memblock_next_valid_pfn(pfn)
--#endif
-+
-+extern int pfn_valid_region(ulong pfn);
-+#define early_pfn_valid(pfn)	pfn_valid_region(pfn)
-+#else
-+#define early_pfn_valid(pfn)    pfn_valid(pfn)
-+#endif /*CONFIG_HAVE_ARCH_PFN_VALID*/
-+
- void sparse_init(void);
- #else
- #define sparse_init()	do {} while (0)
+--
+Changes since v2:
+ * remove __HAVE_ARCH_PTE_SPECIAL in arch/riscv/include/asm/pgtable-bits.h
+ * use IS_ENABLED() instead of #ifdef blocks in patch 2
+
+Laurent Dufour (2):
+  mm: introduce ARCH_HAS_PTE_SPECIAL
+  mm: remove odd HAVE_PTE_SPECIAL
+
+ .../features/vm/pte_special/arch-support.txt          |  2 +-
+ arch/arc/Kconfig                                      |  1 +
+ arch/arc/include/asm/pgtable.h                        |  2 --
+ arch/arm/Kconfig                                      |  1 +
+ arch/arm/include/asm/pgtable-3level.h                 |  1 -
+ arch/arm64/Kconfig                                    |  1 +
+ arch/arm64/include/asm/pgtable.h                      |  2 --
+ arch/powerpc/Kconfig                                  |  1 +
+ arch/powerpc/include/asm/book3s/64/pgtable.h          |  3 ---
+ arch/powerpc/include/asm/pte-common.h                 |  3 ---
+ arch/riscv/Kconfig                                    |  1 +
+ arch/riscv/include/asm/pgtable-bits.h                 |  3 ---
+ arch/s390/Kconfig                                     |  1 +
+ arch/s390/include/asm/pgtable.h                       |  1 -
+ arch/sh/Kconfig                                       |  1 +
+ arch/sh/include/asm/pgtable.h                         |  2 --
+ arch/sparc/Kconfig                                    |  1 +
+ arch/sparc/include/asm/pgtable_64.h                   |  3 ---
+ arch/x86/Kconfig                                      |  1 +
+ arch/x86/include/asm/pgtable_types.h                  |  1 -
+ include/linux/pfn_t.h                                 |  4 ++--
+ mm/Kconfig                                            |  3 +++
+ mm/gup.c                                              |  4 ++--
+ mm/memory.c                                           | 19 ++++++++-----------
+ 24 files changed, 25 insertions(+), 37 deletions(-)
+
 -- 
 2.7.4
