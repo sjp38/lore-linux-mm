@@ -1,87 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E60896B0006
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 09:56:46 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id i128so908028pfg.2
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 06:56:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 69-v6si1171144pla.390.2018.04.11.06.56.45
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 705216B0008
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 09:57:03 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id v191so1168266wmd.1
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 06:57:03 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id r14si1471662edm.281.2018.04.11.06.57.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Apr 2018 06:56:45 -0700 (PDT)
-Subject: Re: [PATCH] Revert mm/vmstat.c: fix vmstat_update() preemption BUG
-References: <20180411095757.28585-1-bigeasy@linutronix.de>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <ef663b6d-9e9f-65c6-25ec-ffa88347c58d@suse.cz>
-Date: Wed, 11 Apr 2018 15:56:43 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Apr 2018 06:57:02 -0700 (PDT)
+Date: Wed, 11 Apr 2018 14:56:31 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
+Message-ID: <20180411135624.GA24260@castle.DHCP.thefacebook.com>
+References: <20180305133743.12746-1-guro@fb.com>
+ <20180305133743.12746-2-guro@fb.com>
+ <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180411095757.28585-1-bigeasy@linutronix.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, "Steven J . Hill" <steven.hill@cavium.com>, Tejun Heo <htejun@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
 
-On 04/11/2018 11:57 AM, Sebastian Andrzej Siewior wrote:
-> This patch reverts commit c7f26ccfb2c3 ("mm/vmstat.c: fix
-> vmstat_update() preemption BUG").
-> Steven saw a "using smp_processor_id() in preemptible" message and
-> added a preempt_disable() section around it to keep it quiet. This is
-> not the right thing to do it does not fix the real problem.
+On Wed, Apr 11, 2018 at 03:16:08PM +0200, Vlastimil Babka wrote:
+> [+CC linux-api]
 > 
-> vmstat_update() is invoked by a kworker on a specific CPU. This worker
-> it bound to this CPU. The name of the worker was "kworker/1:1" so it
-> should have been a worker which was bound to CPU1. A worker which can
-> run on any CPU would have a `u' before the first digit.
-
-Oh my, and I have just been assured by Tejun that his cannot happen :)
-And yet, in the original report [1] I see:
-
-CPU: 0 PID: 269 Comm: kworker/1:1 Not tainted
-
-So is this perhaps related to the cpu hotplug that [1] mentions? e.g. is
-the cpu being hotplugged cpu 1, the worker started too early before
-stuff can be scheduled on the CPU, so it has to run on different than
-designated CPU?
-
-[1] https://marc.info/?l=linux-mm&m=152088260625433&w=2
-
-> smp_processor_id() can be used in a preempt-enabled region as long as
-> the task is bound to a single CPU which is the case here. If it could
-> run on an arbitrary CPU then this is the problem we have an should seek
-> to resolve.
-> Not only this smp_processor_id() must not be migrated to another CPU but
-> also refresh_cpu_vm_stats() which might access wrong per-CPU variables.
-> Not to mention that other code relies on the fact that such a worker
-> runs on one specific CPU only.
+> On 03/05/2018 02:37 PM, Roman Gushchin wrote:
+> > This patch introduces a concept of indirectly reclaimable memory
+> > and adds the corresponding memory counter and /proc/vmstat item.
+> > 
+> > Indirectly reclaimable memory is any sort of memory, used by
+> > the kernel (except of reclaimable slabs), which is actually
+> > reclaimable, i.e. will be released under memory pressure.
+> > 
+> > The counter is in bytes, as it's not always possible to
+> > count such objects in pages. The name contains BYTES
+> > by analogy to NR_KERNEL_STACK_KB.
+> > 
+> > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: linux-fsdevel@vger.kernel.org
+> > Cc: linux-kernel@vger.kernel.org
+> > Cc: linux-mm@kvack.org
+> > Cc: kernel-team@fb.com
 > 
-> Therefore I revert that commit and we should look instead what broke the
-> affinity mask of the kworker.
+> Hmm, looks like I'm late and this user-visible API change was just
+> merged. But it's for rc1, so we can still change it, hopefully?
 > 
-> Cc: Steven J. Hill <steven.hill@cavium.com>
-> Cc: Tejun Heo <htejun@gmail.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-> ---
->  mm/vmstat.c | 2 --
->  1 file changed, 2 deletions(-)
+> One problem I see with the counter is that it's in bytes, but among
+> counters that use pages, and the name doesn't indicate it.
+
+Here I just followed "nr_kernel_stack" path, which is measured in kB,
+but this is not mentioned in the field name.
+
+> Then, I don't
+> see why users should care about the "indirectly" part, as that's just an
+> implementation detail. It is reclaimable and that's what matters, right?
+> (I also wanted to complain about lack of Documentation/... update, but
+> looks like there's no general file about vmstat, ugh)
+
+I agree, that it's a bit weird, and it's probably better to not expose
+it at all; but this is how all vm counters work. We do expose them all
+in /proc/vmstat. A good number of them is useless until you are not a
+mm developer, so it's arguable more "debug info" rather than "api".
+It's definitely not a reason to make them messy.
+Does "nr_indirectly_reclaimable_bytes" look better to you?
+
 > 
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 33581be705f0..40b2db6db6b1 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1839,11 +1839,9 @@ static void vmstat_update(struct work_struct *w)
->  		 * to occur in the future. Keep on running the
->  		 * update worker thread.
->  		 */
-> -		preempt_disable();
->  		queue_delayed_work_on(smp_processor_id(), mm_percpu_wq,
->  				this_cpu_ptr(&vmstat_work),
->  				round_jiffies_relative(sysctl_stat_interval));
-> -		preempt_enable();
->  	}
->  }
->  
+> I also kind of liked the idea from v1 rfc posting that there would be a
+> separate set of reclaimable kmalloc-X caches for these kind of
+> allocations. Besides accounting, it should also help reduce memory
+> fragmentation. The right variant of cache would be detected via
+> __GFP_RECLAIMABLE.
+
+Well, the downside is that we have to introduce X new caches
+just for this particular problem. I'm not strictly against the idea,
+but not convinced that it's much better.
+
+> 
+> With that in mind, can we at least for now put the (manually maintained)
+> byte counter in a variable that's not directly exposed via /proc/vmstat,
+> and then when printing nr_slab_reclaimable, simply add the value
+> (divided by PAGE_SIZE), and when printing nr_slab_unreclaimable,
+> subtract the same value. This way we would be simply making the existing
+> counters more precise, in line with their semantics.
+
+Idk, I don't like the idea of adding a counter outside of the vm counters
+infrastructure, and I definitely wouldn't touch the exposed
+nr_slab_reclaimable and nr_slab_unreclaimable fields.
+We do have some stats in /proc/slabinfo, /proc/meminfo and /sys/kernel/slab
+and I think that we should keep it consistent.
+
+Thanks!
+
+> 
+> Thoughts?
+> Vlastimil
+> 
+> > ---
+> >  include/linux/mmzone.h | 1 +
+> >  mm/vmstat.c            | 1 +
+> >  2 files changed, 2 insertions(+)
+> > 
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index e09fe563d5dc..15e783f29e21 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -180,6 +180,7 @@ enum node_stat_item {
+> >  	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
+> >  	NR_DIRTIED,		/* page dirtyings since bootup */
+> >  	NR_WRITTEN,		/* page writings since bootup */
+> > +	NR_INDIRECTLY_RECLAIMABLE_BYTES, /* measured in bytes */
+> >  	NR_VM_NODE_STAT_ITEMS
+> >  };
+> >  
+> > diff --git a/mm/vmstat.c b/mm/vmstat.c
+> > index 40b2db6db6b1..b6b5684f31fe 100644
+> > --- a/mm/vmstat.c
+> > +++ b/mm/vmstat.c
+> > @@ -1161,6 +1161,7 @@ const char * const vmstat_text[] = {
+> >  	"nr_vmscan_immediate_reclaim",
+> >  	"nr_dirtied",
+> >  	"nr_written",
+> > +	"nr_indirectly_reclaimable",
+> >  
+> >  	/* enum writeback_stat_item counters */
+> >  	"nr_dirty_threshold",
+> > 
 > 
