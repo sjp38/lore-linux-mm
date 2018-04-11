@@ -1,48 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4572B6B0005
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 01:50:08 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id 61-v6so548735plz.20
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 22:50:08 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z79si337723pfa.120.2018.04.10.22.50.06
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AF1876B0007
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 02:03:27 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id z13so403396pfe.21
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 23:03:27 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j87si352836pfk.78.2018.04.10.23.03.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Apr 2018 22:50:07 -0700 (PDT)
-Date: Wed, 11 Apr 2018 07:50:02 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] writeback: safer lock nesting
-Message-ID: <20180411055002.GA30893@dhcp22.suse.cz>
-References: <201804080259.VS5U0mKT%fengguang.wu@intel.com>
- <20180410005908.167976-1-gthelen@google.com>
- <20180410063357.GS21835@dhcp22.suse.cz>
- <20180410134837.d2b0f2d1cd940bb08c2bad0a@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180410134837.d2b0f2d1cd940bb08c2bad0a@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 10 Apr 2018 23:03:26 -0700 (PDT)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH v2 0/2] Fix __GFP_ZERO vs constructor
+Date: Tue, 10 Apr 2018 23:03:18 -0700
+Message-Id: <20180411060320.14458-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, Wang Long <wanglong19@meituan.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, npiggin@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Tue 10-04-18 13:48:37, Andrew Morton wrote:
-> On Tue, 10 Apr 2018 08:33:57 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > > Reported-by: Wang Long <wanglong19@meituan.com>
-> > > Signed-off-by: Greg Thelen <gthelen@google.com>
-> > > Change-Id: Ibb773e8045852978f6207074491d262f1b3fb613
-> > 
-> > Not a stable material IMHO
-> 
-> Why's that?  Wang Long said he's observed the deadlock three times?
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-I thought it is just too unlikely to hit all the conditions. My fault,
-I have completely missed/forgot the fact Wang Long is seeing the issue
-happening.
+v1->v2:
+ - Added review/ack tags (thanks!)
+ - Switched the order of the patches
+ - Reworded commit message of the patch which actually fixes the bug
+ - Moved slab debug patches under CONFIG_DEBUG_VM to check _every_
+   allocation and added checks in the slowpath for the allocations which
+   end up allocating a page.
 
-No real objection for the stable backport from me.
+Matthew Wilcox (2):
+  Fix NULL pointer in page_cache_tree_insert
+  slab: __GFP_ZERO is incompatible with a constructor
+
+ mm/filemap.c | 9 ++++-----
+ mm/slab.c    | 7 ++++---
+ mm/slab.h    | 7 +++++++
+ mm/slob.c    | 4 +++-
+ mm/slub.c    | 5 +++--
+ 5 files changed, 21 insertions(+), 11 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.16.3
