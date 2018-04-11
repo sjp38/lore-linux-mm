@@ -1,31 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5907F6B0003
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 09:42:37 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id f10so1305182qtc.0
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 06:42:37 -0700 (PDT)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [69.252.207.40])
-        by mx.google.com with ESMTPS id w73si1407118qkb.483.2018.04.11.06.42.36
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BB2716B0006
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 09:46:58 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id i4so1123950wrh.4
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 06:46:58 -0700 (PDT)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id v12si1513002eda.271.2018.04.11.06.46.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Apr 2018 06:42:36 -0700 (PDT)
-Date: Wed, 11 Apr 2018 08:41:33 -0500 (CDT)
+        Wed, 11 Apr 2018 06:46:57 -0700 (PDT)
+Date: Wed, 11 Apr 2018 08:44:23 -0500 (CDT)
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm, slab: reschedule cache_reap() on the same CPU
-In-Reply-To: <71010251-e1bc-e934-cecf-ae37a1cede90@iki.fi>
-Message-ID: <alpine.DEB.2.20.1804110841040.3763@nuc-kabylake>
-References: <20180410081531.18053-1-vbabka@suse.cz> <20180411070007.32225-1-vbabka@suse.cz> <71010251-e1bc-e934-cecf-ae37a1cede90@iki.fi>
+Subject: Re: [PATCH v2 2/2] slab: __GFP_ZERO is incompatible with a
+ constructor
+In-Reply-To: <20180411060320.14458-3-willy@infradead.org>
+Message-ID: <alpine.DEB.2.20.1804110842560.3788@nuc-kabylake>
+References: <20180411060320.14458-1-willy@infradead.org> <20180411060320.14458-3-willy@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@iki.fi>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Tejun Heo <tj@kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, John Stultz <john.stultz@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Stephen Boyd <sboyd@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Wed, 11 Apr 2018, Pekka Enberg wrote:
+On Tue, 10 Apr 2018, Matthew Wilcox wrote:
 
-> Acked-by: Pekka Enberg <penberg@kernel.org>
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 3cd4677953c6..896818c7b30a 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -515,6 +515,13 @@ static inline void dump_unreclaimable_slab(void)
+>
+>  void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
+>
+> +static inline bool slab_no_ctor(struct kmem_cache *s)
+> +{
+> +	if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +		return !WARN_ON_ONCE(s->ctor);
+> +	return true;
+> +}
+> +
+>  #ifdef CONFIG_SLAB_FREELIST_RANDOM
+>  int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
+>  			gfp_t gfp);
 
-Good to hear from you again.
+Move that to mm/slab.c? Debugging is runtime enabled with SLUB not compile
+time as with SLAB.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+> +++ b/mm/slub.c
+> @@ -2725,7 +2726,7 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
+>  		stat(s, ALLOC_FASTPATH);
+>  	}
+>
+> -	if (unlikely(gfpflags & __GFP_ZERO) && object)
+> +	if (unlikely(gfpflags & __GFP_ZERO) && object && slab_no_ctor(s))
+>  		memset(object, 0, s->object_size);
+>
+>  	slab_post_alloc_hook(s, gfpflags, 1, &object);
+
+Please put this in a code path that is enabled by specifying
+
+slub_debug
+
+on the kernel command line.
