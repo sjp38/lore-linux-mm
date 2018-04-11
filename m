@@ -1,73 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AF8A6B0005
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 00:28:32 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e6so4635490wmh.0
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 21:28:32 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r14si569075edm.281.2018.04.10.21.28.30
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A9A096B0005
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 00:47:33 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 61-v6so464888plz.20
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 21:47:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b7-v6sor39168pls.24.2018.04.10.21.47.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Apr 2018 21:28:30 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3B4O0pD037171
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 00:28:29 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2h97q4qa34-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 00:28:28 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
-	Wed, 11 Apr 2018 05:28:26 +0100
-Subject: Re: [PATCH v2 7/9] trace_uprobe/sdt: Fix multiple update of same
- reference counter
-References: <20180404083110.18647-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180404083110.18647-8-ravi.bangoria@linux.vnet.ibm.com>
- <20180409132928.GA25722@redhat.com>
- <84c1e60f-8aad-a0ce-59af-4fcb3f77df94@linux.vnet.ibm.com>
- <20180410110633.GA29063@redhat.com>
-From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Date: Wed, 11 Apr 2018 09:58:13 +0530
+        (Google Transport Security);
+        Tue, 10 Apr 2018 21:47:32 -0700 (PDT)
+Subject: Re: [PATCH v5 1/5] mm: page_alloc: remain memblock_next_valid_pfn()
+ on arm and arm64
+References: <1522636236-12625-1-git-send-email-hejianet@gmail.com>
+ <1522636236-12625-2-git-send-email-hejianet@gmail.com>
+ <CAKv+Gu96_sC1Q6-w4O-AXFZzNnH1WoGwJfqvSR+Q_k_bZbrUGg@mail.gmail.com>
+ <41445229-043c-976f-3961-13770163444f@gmail.com>
+ <CAKv+Gu_CwWnW15jyTCY55akAikEjbgK4zRq_9=YuSDot3O3dQg@mail.gmail.com>
+From: Jia He <hejianet@gmail.com>
+Message-ID: <4577f3be-1183-c857-6933-ca182fb34a2f@gmail.com>
+Date: Wed, 11 Apr 2018 12:47:18 +0800
 MIME-Version: 1.0
-In-Reply-To: <20180410110633.GA29063@redhat.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <CAKv+Gu_CwWnW15jyTCY55akAikEjbgK4zRq_9=YuSDot3O3dQg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-Message-Id: <c3bd7507-977e-67b5-9ab0-d70b4908a6f2@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com, Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jia He <jia.he@hxt-semitech.com>
 
-Hi Oleg,
 
-On 04/10/2018 04:36 PM, Oleg Nesterov wrote:
-> Hi Ravi,
->
-> On 04/10, Ravi Bangoria wrote:
->>> and what if __mmu_notifier_register() fails simply because signal_pending() == T?
->>> see mm_take_all_locks().
+
+On 4/2/2018 3:53 PM, Ard Biesheuvel Wrote:
+> On 2 April 2018 at 09:49, Jia He <hejianet@gmail.com> wrote:
+>>
+>> On 4/2/2018 2:55 PM, Ard Biesheuvel Wrote:
+>>> On 2 April 2018 at 04:30, Jia He <hejianet@gmail.com> wrote:
+>>>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>>>> where possible") optimized the loop in memmap_init_zone(). But it causes
+>>>> possible panic bug. So Daniel Vacek reverted it later.
+>>>>
+>>>> But as suggested by Daniel Vacek, it is fine to using memblock to skip
+>>>> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
+>>>>
+>>>> On arm and arm64, memblock is used by default. But generic version of
+>>>> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
+>>>> not always return the next valid one but skips more resulting in some
+>>>> valid frames to be skipped (as if they were invalid). And that's why
+>>>> kernel was eventually crashing on some !arm machines.
+>>>>
+>>>> And as verified by Eugeniu Rosca, arm can benifit from commit
+>>>> b92df1de5d28. So remain the memblock_next_valid_pfn on arm{,64} and move
+>>>> the related codes to arm64 arch directory.
+>>>>
+>>>> Suggested-by: Daniel Vacek <neelx@redhat.com>
+>>>> Signed-off-by: Jia He <jia.he@hxt-semitech.com>
+>>> Hello Jia,
 >>>
->>> at first glance this all look suspicious and sub-optimal,
->> Yes. I should have added checks for failure cases.
->> Will fix them in v3.
-> And what can you do if it fails? Nothing except report the problem. But
-> signal_pending() is not the unlikely or error condition, it should not
-> cause the tracing errors.
+>>> Apologies for chiming in late.
+>> no problem, thanks for your comments  ;-)
+>>>
+>>> If we are going to rearchitect this, I'd rather we change the loop in
+>>> memmap_init_zone() so that we skip to the next valid PFN directly
+>>> rather than skipping to the last invalid PFN so that the pfn++ in the
+>> hmm... Maybe this macro name makes you confused
+>>
+>> pfn = skip_to_last_invalid_pfn(pfn);
+>>
+>> how about skip_to_next_valid_pfn?
+>>
+>>> for () results in the next value. Can we replace the pfn++ there with
+>>> a function calls that defaults to 'return pfn + 1', but does the skip
+>>> for architectures that implement it?
+>> I am not sure I understand your question here.
+>> With this patch, on !arm arches, skip_to_last_invalid_pfn is equal to (pfn),
+>> and will be increased
+>> when for{} loop continue. We only *skip* to the start pfn of next valid
+>> region when
+>> CONFIG_HAVE_MEMBLOCK and CONFIG_HAVE_ARCH_PFN_VALID(arm/arm64 supports
+>> both).
+>>
+> What I am saying is that the loop in memmap_init_zone
+>
+> for (pfn = start_pfn; pfn < end_pfn; pfn++) { ... }
+>
+> should be replaced by something like
+>
+> for (pfn = start_pfn; pfn < end_pfn; pfn = next_valid_pfn(pfn))
+After further thinking, IMO, pfn = next_valid_pfn(pfn) might have impact on
 
-...
+memmap_init_zone loop.
 
-> Plus mm_take_all_locks() is very heavy... BTW, uprobe_mmap_callback() is
-> called unconditionally. Whatever it does, can we at least move it after
-> the no_uprobe_events() check? Can't we also check MMF_HAS_UPROBES?
+e.g.context != MEMMAP_EARLY, pfn will not be checked by early_pfn_valid, thus
+It will change the memhotplug logic.
 
-Sure, I'll move it after these conditions.
+So I would choose the old implementation:
+		if (!early_pfn_valid(pfn)) {
+			pfn = next_valid_pfn(pfn) - 1;
+			continue;
+		}
+Any comments? Thanks
 
-> Either way, I do not feel that mmu_notifier is the right tool... Did you
-> consider the uprobe_clear_state() hook we already have?
-
-Ah! This is really a good idea. We don't need mmu_notifier then.
-
-Thanks for suggestion,
-Ravi
+-- 
+Cheers,
+Jia
