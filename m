@@ -1,166 +1,548 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 51CBD6B0005
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 05:26:18 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m190so408648pgm.4
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 02:26:18 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y73-v6si742756plh.393.2018.04.11.02.26.16
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FD2F6B0005
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 05:35:11 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id z39-v6so716866ota.11
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 02:35:11 -0700 (PDT)
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id 32-v6si260321otr.343.2018.04.11.02.35.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Apr 2018 02:26:17 -0700 (PDT)
-Date: Wed, 11 Apr 2018 11:26:11 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: shmem: enable thp migration (Re: [PATCH v1] mm:
- consider non-anonymous thp as unmovable page)
-Message-ID: <20180411092611.GE23400@dhcp22.suse.cz>
-References: <20180403083451.GG5501@dhcp22.suse.cz>
- <20180403105411.hknofkbn6rzs26oz@node.shutemov.name>
- <20180405085927.GC6312@dhcp22.suse.cz>
- <20180405122838.6a6b35psizem4tcy@node.shutemov.name>
- <20180405124830.GJ6312@dhcp22.suse.cz>
- <20180405134045.7axuun6d7ufobzj4@node.shutemov.name>
- <20180405150547.GN6312@dhcp22.suse.cz>
- <20180405155551.wchleyaf4rxooj6m@node.shutemov.name>
- <20180405160317.GP6312@dhcp22.suse.cz>
- <20180406030706.GA2434@hori1.linux.bs1.fc.nec.co.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Apr 2018 02:35:09 -0700 (PDT)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [RFC] linux 3.4 BUG on lib/prio_tree.c:280!
+Message-ID: <e0575035-54b2-c3a0-b34c-e9124c9bc756@huawei.com>
+Date: Wed, 11 Apr 2018 17:33:31 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180406030706.GA2434@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Zi Yan <zi.yan@sent.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: zhongjiang <zhongjiang@huawei.com>, wu.wujiangtao@huawei.com, yanaijie@huawei.com, mgorman@techsingularity.net, jack@suse.cz, jlayton@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Yisheng Xie <xieyisheng1@huawei.com>
 
-On Fri 06-04-18 03:07:11, Naoya Horiguchi wrote:
-> >From e31ec037701d1cc76b26226e4b66d8c783d40889 Mon Sep 17 00:00:00 2001
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Date: Fri, 6 Apr 2018 10:58:35 +0900
-> Subject: [PATCH] mm: enable thp migration for shmem thp
-> 
-> My testing for the latest kernel supporting thp migration showed an
-> infinite loop in offlining the memory block that is filled with shmem
-> thps.  We can get out of the loop with a signal, but kernel should
-> return with failure in this case.
-> 
-> What happens in the loop is that scan_movable_pages() repeats returning
-> the same pfn without any progress. That's because page migration always
-> fails for shmem thps.
-> 
-> In memory offline code, memory blocks containing unmovable pages should
-> be prevented from being offline targets by has_unmovable_pages() inside
-> start_isolate_page_range().
->
-> So it's possible to change migratability
-> for non-anonymous thps to avoid the issue, but it introduces more complex
-> and thp-specific handling in migration code, so it might not good.
-> 
-> So this patch is suggesting to fix the issue by enabling thp migration
-> for shmem thp. Both of anon/shmem thp are migratable so we don't need
-> precheck about the type of thps.
-> 
-> Fixes: commit 72b39cfc4d75 ("mm, memory_hotplug: do not fail offlining too early")
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: stable@vger.kernel.org # v4.15+
+Hi all,
 
-I do not really feel qualified to give my ack but this is the right
-approach for the fix. We simply do expect that LRU pages are migrateable
-as well as zone_movable pages.
+We meet a problem with linux 3.4, which trigger BUG on lib/prio_tree.c:280!
 
-Andrew, do you plan to take it (with Kirill's ack).
+kernel BUG at /usr/src/packages/BUILD/kernel-default-3.4.24.25/linux-3.4/lib/prio_tree.c:280!
+[...]
+Process: grep (pid: 64867, threadinfo: ffff880005010000, task: ffff8800022d5c80) on CPU: 2
+Pid: 64867, comm: grep
+RIP: 0010:[<ffffffff812259c9>]  [<ffffffff812259c9>] prio_tree_remove+0xe9/0xf0
+RSP: 0018:ffff880005011d00 EFLAGS: 00010283
+RAX: ffff880001eb6650 RBX: ffff880001eb6650 RCX: ffff88013d0ecb38
+RDX: ffff88013d0ecb00 RSI: ffff880001eb6650 RDI: ffff88013d0ecb38
+RBP: ffff880005011d38 R08: 2222222222222222 R09: 2222222222222222
+R10: 0000000000000000 R11: 0000000000000000 R12: ffff88013d0ecb38
+R13: ffff880001eb6650 R14: ffff88013d0ecb00 R15: ffff880001eb6600
+FS: 00007f366dd35700(0000) GS:ffff88016d840000(0000) knlGS:0000000000000000
+CS: 0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000402008 CR3: 000000000ac65000 CR4: 00000000001607f0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Call Trace:
+ [<ffffffff8110476b>] vma_prio_tree_remove+0x9b/0x130
+ [<ffffffff81114efb>] __remove_shared_vm_struct.isra.27+0x3b/0x60
+ [<ffffffff811153f9>] unlink_file_vma+0x49/0x70
+ [<ffffffff8110e5f1>] free_pgtables+0x41/0x120
+ [<ffffffff81115102>] unmap_region+0xe2/0x140
+ [<ffffffff811163b6>] do_munmap+0x2f6/0x3d0
+ [<ffffffff811164dc>] vm_munmap+0x4c/0x70
+ [<ffffffff81117bc6>] sys_munmap+0x26/0x40
+ [<ffffffff81467965>] system_call_fastpath+0x16/0x1b
 
-Thanks!
+we have checked the vmcore, and find the vma was added to a prio tree which is no
+belong to its present vma->vm_file->f_mapping->i_mmap, but I do not know how this
+could happen, any clue about this?
 
-> ---
->  mm/huge_memory.c |  5 ++++-
->  mm/migrate.c     | 19 ++++++++++++++++---
->  mm/rmap.c        |  3 ---
->  3 files changed, 20 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 2aff58624886..933c1bbd3464 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2926,7 +2926,10 @@ void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
->  		pmde = maybe_pmd_mkwrite(pmde, vma);
->  
->  	flush_cache_range(vma, mmun_start, mmun_start + HPAGE_PMD_SIZE);
-> -	page_add_anon_rmap(new, vma, mmun_start, true);
-> +	if (PageAnon(new))
-> +		page_add_anon_rmap(new, vma, mmun_start, true);
-> +	else
-> +		page_add_file_rmap(new, true);
->  	set_pmd_at(mm, mmun_start, pvmw->pmd, pmde);
->  	if (vma->vm_flags & VM_LOCKED)
->  		mlock_vma_page(new);
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index bdef905b1737..f92dd9f50981 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -472,7 +472,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
->  	pslot = radix_tree_lookup_slot(&mapping->i_pages,
->   					page_index(page));
->  
-> -	expected_count += 1 + page_has_private(page);
-> +	expected_count += hpage_nr_pages(page) + page_has_private(page);
->  	if (page_count(page) != expected_count ||
->  		radix_tree_deref_slot_protected(pslot,
->  					&mapping->i_pages.xa_lock) != page) {
-> @@ -505,7 +505,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
->  	 */
->  	newpage->index = page->index;
->  	newpage->mapping = page->mapping;
-> -	get_page(newpage);	/* add cache reference */
-> +	page_ref_add(newpage, hpage_nr_pages(page)); /* add cache reference */
->  	if (PageSwapBacked(page)) {
->  		__SetPageSwapBacked(newpage);
->  		if (PageSwapCache(page)) {
-> @@ -524,13 +524,26 @@ int migrate_page_move_mapping(struct address_space *mapping,
->  	}
->  
->  	radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
-> +	if (PageTransHuge(page)) {
-> +		int i;
-> +		int index = page_index(page);
-> +
-> +		for (i = 0; i < HPAGE_PMD_NR; i++) {
-> +			pslot = radix_tree_lookup_slot(&mapping->i_pages,
-> +						       index + i);
-> +			radix_tree_replace_slot(&mapping->i_pages, pslot,
-> +						newpage + i);
-> +		}
-> +	} else {
-> +		radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
-> +	}
->  
->  	/*
->  	 * Drop cache reference from old page by unfreezing
->  	 * to one less reference.
->  	 * We know this isn't the last reference.
->  	 */
-> -	page_ref_unfreeze(page, expected_count - 1);
-> +	page_ref_unfreeze(page, expected_count - hpage_nr_pages(page));
->  
->  	xa_unlock(&mapping->i_pages);
->  	/* Leave irq disabled to prevent preemption while updating stats */
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index f0dd4e4565bc..8d5337fed37b 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1374,9 +1374,6 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  		if (!pvmw.pte && (flags & TTU_MIGRATION)) {
->  			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
->  
-> -			if (!PageAnon(page))
-> -				continue;
-> -
->  			set_pmd_migration_entry(&pvmw, page);
->  			continue;
->  		}
-> -- 
-> 2.7.4
+I know maybe it is not suitable to discuss a problem for this old kernel here, but
+do hope to get some help from some more specialist. Thanks for any of comment.
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks
+Yisheng
+
+The more detail steps I debug as following:
+crash> dis -l prio_tree_remove
+[...]
+and find r13 is node, rbx is the cur, (r13 is the same as rbx, so cur is the same as node)
+for cur we get its vma:
+
+crash> struct -x vm_area_struct 0xffff880001eb6600
+struct vm_area_struct {
+  vm_mm = 0xffff880004f04400,
+  vm_start = 0x7f366dd37000,
+  vm_end = 0x7f366dd3d000,
+  vm_next = 0x0,
+  vm_prev = 0x0,
+  vm_page_prot = {
+    pgprot = 0x8000000000000025
+  },
+  vm_flags = 0x8000071,
+  vm_rb = {
+    rb_parent_color = 0xffff880001eb7d79,
+    rb_right = 0x0,
+    rb_left = 0xffff880001eb73b8
+  },
+  shared = {
+    vm_set = {
+      list = {
+        next = 0xffff880001eb6650,
+        prev = 0xffff880001eb6650
+      },
+      parent = 0xffff880001eb6650,
+      head = 0xffff8800096da000
+    },
+    prio_tree_node = {
+      left = 0xffff880001eb6650,
+      right = 0xffff880001eb6650,
+      parent = 0xffff880001eb6650
+    }
+  },
+  anon_vma_chain = {
+    next = 0xffff880001eb6670,
+    prev = 0xffff880001eb6670
+  },
+  anon_vma = 0x0,
+  vm_ops = 0xffffffff81614640,
+  vm_pgoff = 0x0,
+  vm_file = 0xffff880036c5c700,
+  vm_private_data = 0x0,
+  vm_policy = 0x0,
+  euler_kabi_padding = {0x0, 0x0}
+}
+
+then file and dentry:
+crash> struct -x file 0xffff880036c5c700
+struct file {
+  f_u = {
+    fu_list_deprecated = {
+      next = 0x0,
+      prev = 0x0
+    },
+    fu_rcuhead = {
+      next = 0x0,
+      func = 0
+    }
+  },
+  f_path = {
+    mnt = 0xffff8801550b82a0,
+    dentry = 0xffff88013f531368
+  },
+  f_op = 0xffffffff81614480,
+  f_lock = {
+    {
+      rlock = {
+        raw_lock = {
+          {
+            head_tail = 0x0,
+            tickets = {
+              head = 0x0,
+              tail = 0x0
+            }
+          }
+        },
+        magic = 0xdead4ead,
+        owner_cpu = 0xffffffff,
+        owner = 0xffffffffffffffff
+      }
+    }
+  },
+  f_sb_list_cpu_deprecated = 0x0,
+  f_count = {
+    counter = 0x4
+  },
+  f_flags = 0x8000,
+  f_mode = 0x1d,
+  f_pos = 0x340,
+  f_owner = {
+    lock = {
+      raw_lock = {
+        lock = 0x100000,
+        write = 0x100000
+      },
+      magic = 0xdeaf1eed,
+      owner_cpu = 0xffffffff,
+      owner = 0xffffffffffffffff
+    },
+    pid = 0x0,
+    pid_type = PIDTYPE_PID,
+    uid = 0x0,
+    euid = 0x0,
+    signum = 0x0
+  },
+  f_cred = 0xffff88000ac2ccc0,
+  f_ra = {
+    start = 0x0,
+    size = 0x0,
+    async_size = 0x0,
+    ra_pages = 0x0,
+    mmap_miss = 0x0,
+    prev_pos = 0xffffffffffffffff
+  },
+  f_version = 0x0,
+  f_security = 0x0,
+  private_data = 0x0,
+  f_ep_links = {
+    next = 0xffff880036c5c7d0,
+    prev = 0xffff880036c5c7d0
+  },
+  f_tfile_llink = {
+    next = 0xffff880036c5c7e0,
+    prev = 0xffff880036c5c7e0
+  },
+  f_mapping = 0xffff88013d0ecb00
+}
+
+crash> struct -x dentry 0xffff88013f531368
+struct dentry {
+  d_flags = 0x88,
+  d_seq = {
+    sequence = 0x4
+  },
+  d_hash = {
+    next = 0x0,
+    pprev = 0xffffc9000233bec8
+  },
+  d_parent = 0xffff88013f573e60,
+  d_name = {
+    hash = 0x67491608,
+    len = 0xe,
+    name = 0xffff88013f5313a0 "libc-2.11.3.so"
+  },
+  d_inode = 0xffff88013d0ec980,
+  d_iname = "libc-2.11.3.so\000lect_nvram.sh\000\000\000",
+  d_count = 0x4f,
+  d_lock = {
+    {
+      rlock = {
+        raw_lock = {
+          {
+            head_tail = 0x7878,
+            tickets = {
+              head = 0x78,
+              tail = 0x78
+            }
+          }
+        },
+        magic = 0xdead4ead,
+        owner_cpu = 0xffffffff,
+        owner = 0xffffffffffffffff
+      }
+    }
+  },
+  d_op = 0xffffffff81618f80,
+  d_sb = 0xffff88016d411800,
+  d_time = 0x0,
+  d_fsdata = 0x0,
+  d_lru = {
+    next = 0xffff88013f531400,
+    prev = 0xffff88013f531400
+  },
+  d_child = {
+    next = 0xffff88013f525c80,
+    prev = 0xffff88013f524f00
+  },
+  d_subdirs = {
+    next = 0xffff88013f531420,
+    prev = 0xffff88013f531420
+  },
+  d_u = {
+    d_alias = {
+      next = 0xffff88013d0ecac8,
+      prev = 0xffff88013d0ecac8
+    },
+    d_rcu = {
+      next = 0xffff88013d0ecac8,
+      func = 0xffff88013d0ecac8
+    }
+  }
+}
+
+
+ok, go back to vma itself find it has head, and the head is another vma: 0xffff8800096da000;
+crash> struct -x vm_area_struct 0xffff8800096da000
+struct vm_area_struct {
+  vm_mm = 0xffff880073fbbc00,
+  vm_start = 0x7f555fc20000,
+  vm_end = 0x7f555fc26000,
+  vm_next = 0xffff8800096dba40,
+  vm_prev = 0xffff8800096dacc0,
+  vm_page_prot = {
+    pgprot = 0x8000000000000025
+  },
+  vm_flags = 0x8000071,
+  vm_rb = {
+    rb_parent_color = 0xffff8800096dba78,
+    rb_right = 0x0,
+    rb_left = 0x0
+  },
+  shared = {
+    vm_set = {
+      list = {
+        next = 0xffff880002477910,
+        prev = 0xffff88002499cc50
+      },
+      parent = 0x0,
+      head = 0xffff880001eb6600
+    },
+    prio_tree_node = {
+      left = 0xffff880002477910,
+      right = 0xffff88002499cc50,
+      parent = 0x0
+    }
+  },
+  anon_vma_chain = {
+    next = 0xffff8800096da070,
+    prev = 0xffff8800096da070
+  },
+  anon_vma = 0x0,
+  vm_ops = 0xffffffff81614640,
+  vm_pgoff = 0x0,
+  vm_file = 0xffff880039facb00,
+  vm_private_data = 0x0,
+  vm_policy = 0x0,
+  euler_kabi_padding = {0x0, 0x0}
+}
+
+Then file and dentry:
+
+crash> struct -x file 0xffff880039facb00
+struct file {
+  f_u = {
+    fu_list_deprecated = {
+      next = 0x0,
+      prev = 0x0
+    },
+    fu_rcuhead = {
+      next = 0x0,
+      func = 0
+    }
+  },
+  f_path = {
+    mnt = 0xffff8801550b82a0,
+    dentry = 0xffff880056495290
+  },
+  f_op = 0xffffffff81614480,
+  f_lock = {
+    {
+      rlock = {
+        raw_lock = {
+          {
+            head_tail = 0x0,
+            tickets = {
+              head = 0x0,
+              tail = 0x0
+            }
+          }
+        },
+        magic = 0xdead4ead,
+        owner_cpu = 0xffffffff,
+        owner = 0xffffffffffffffff
+      }
+    }
+  },
+  f_sb_list_cpu_deprecated = 0x0,
+  f_count = {
+    counter = 0x1
+  },
+  f_flags = 0x8000,
+  f_mode = 0x1d,
+  f_pos = 0x0,
+  f_owner = {
+    lock = {
+      raw_lock = {
+        lock = 0x100000,
+        write = 0x100000
+      },
+      magic = 0xdeaf1eed,
+      owner_cpu = 0xffffffff,
+      owner = 0xffffffffffffffff
+    },
+    pid = 0x0,
+    pid_type = PIDTYPE_PID,
+    uid = 0x0,
+    euid = 0x0,
+    signum = 0x0
+  },
+  f_cred = 0xffff880002477980,
+  f_ra = {
+    start = 0x0,
+    size = 0x0,
+    async_size = 0x0,
+    ra_pages = 0x0,
+    mmap_miss = 0x0,
+    prev_pos = 0xffffffffffffffff
+  },
+  f_version = 0x0,
+  f_security = 0x0,
+  private_data = 0x0,
+  f_ep_links = {
+    next = 0xffff880039facbd0,
+    prev = 0xffff880039facbd0
+  },
+  f_tfile_llink = {
+    next = 0xffff880039facbe0,
+    prev = 0xffff880039facbe0
+  },
+  f_mapping = 0xffff88013d235b90               ----> oh, no the same address_space
+}
+
+Check this address_space:
+crash> struct -x address_space 0xffff88013d235b90
+struct address_space {
+  host = 0xffff88013d235a10,
+  page_tree = {
+    height = 0x1,
+    gfp_mask = 0x20,
+    rnode = 0xffff88011b9ff599
+  },
+  tree_lock = {
+    {
+      rlock = {
+        raw_lock = {
+          {
+            head_tail = 0x2a2a,
+            tickets = {
+              head = 0x2a,
+              tail = 0x2a
+            }
+          }
+        },
+        magic = 0xdead4ead,
+        owner_cpu = 0xffffffff,
+        owner = 0xffffffffffffffff
+      }
+    }
+  },
+  i_mmap_writable = 0x0,
+  i_mmap = {
+    prio_tree_node = 0xffff880001eb6650,     -----> this is rbx(cur and also the node)
+    index_bits = 0x3,
+    raw = 0x1
+  },
+  i_mmap_nonlinear = {
+    next = 0xffff88013d235bd8,
+    prev = 0xffff88013d235bd8
+  },
+  i_mmap_mutex = {
+    count = {
+      counter = 0x1
+    },
+    wait_lock = {
+      {
+        rlock = {
+          raw_lock = {
+            {
+              head_tail = 0x8f8f,
+              tickets = {
+                head = 0x8f,
+                tail = 0x8f
+              }
+            }
+          },
+          magic = 0xdead4ead,
+          owner_cpu = 0xffffffff,
+          owner = 0xffffffffffffffff
+        }
+      }
+    },
+    wait_list = {
+      next = 0xffff88013d235c08,
+      prev = 0xffff88013d235c08
+    },
+    owner = 0xffff88004cfec560,
+    name = 0x0,
+    magic = 0xffff88013d235be8
+  },
+  nrpages = 0x6,
+  writeback_index = 0x0,
+  a_ops = 0xffffffff81614240,
+  flags = 0x200da,
+  backing_dev_info = 0xffffffff818890e0,
+  private_lock = {
+    {
+      rlock = {
+        raw_lock = {
+          {
+            head_tail = 0x0,
+            tickets = {
+              head = 0x0,
+              tail = 0x0
+            }
+          }
+        },
+        magic = 0xdead4ead,
+        owner_cpu = 0xffffffff,
+        owner = 0xffffffffffffffff
+      }
+    }
+  },
+  private_list = {
+    next = 0xffff88013d235c70,
+    prev = 0xffff88013d235c70
+  },
+  assoc_mapping = 0x0
+}
+crash> struct dentry -x 0xffff880056495290
+struct dentry {
+  d_flags = 0x88,
+  d_seq = {
+    sequence = 0x8
+  },
+  d_hash = {
+    next = 0x0,
+    pprev = 0xffffc900000bf508
+  },
+  d_parent = 0xffff88013f79e288,
+  d_name = {
+    hash = 0x7983921a,
+    len = 0xb,
+    name = 0xffff8800564952c8 "ld.so.cache"
+  },
+  d_inode = 0xffff88013d235a10,
+  d_iname = "ld.so.cache\000\000e\000l\000ournal\000\020SIV\000\210\377\377",
+  d_count = 0x5,
+  d_lock = {
+    {
+      rlock = {
+        raw_lock = {
+          {
+            head_tail = 0x3232,
+            tickets = {
+              head = 0x32,
+              tail = 0x32
+            }
+          }
+        },
+        magic = 0xdead4ead,
+        owner_cpu = 0xffffffff,
+        owner = 0xffffffffffffffff
+      }
+    }
+  },
+  d_op = 0xffffffff81618f80,
+  d_sb = 0xffff88016d411800,
+  d_time = 0x0,
+  d_fsdata = 0x0,
+  d_lru = {
+    next = 0xffff880056495328,
+    prev = 0xffff880056495328
+  },
+  d_child = {
+    next = 0xffff88010e91d770,
+    prev = 0xffff8800584ae408
+  },
+  d_subdirs = {
+    next = 0xffff880056495348,
+    prev = 0xffff880056495348
+  },
+  d_u = {
+    d_alias = {
+      next = 0xffff88013d235b58,
+      prev = 0xffff88013d235b58
+    },
+    d_rcu = {
+      next = 0xffff88013d235b58,
+      func = 0xffff88013d235b58
+    }
