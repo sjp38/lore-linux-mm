@@ -1,156 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 571696B0005
-	for <linux-mm@kvack.org>; Tue, 10 Apr 2018 23:53:22 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id 72so724499iod.16
-        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 20:53:22 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id k69si169689ioi.19.2018.04.10.20.53.20
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AF8A6B0005
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 00:28:32 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e6so4635490wmh.0
+        for <linux-mm@kvack.org>; Tue, 10 Apr 2018 21:28:32 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id r14si569075edm.281.2018.04.10.21.28.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Apr 2018 20:53:20 -0700 (PDT)
+        Tue, 10 Apr 2018 21:28:30 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3B4O0pD037171
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 00:28:29 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2h97q4qa34-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 00:28:28 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
+	Wed, 11 Apr 2018 05:28:26 +0100
+Subject: Re: [PATCH v2 7/9] trace_uprobe/sdt: Fix multiple update of same
+ reference counter
+References: <20180404083110.18647-1-ravi.bangoria@linux.vnet.ibm.com>
+ <20180404083110.18647-8-ravi.bangoria@linux.vnet.ibm.com>
+ <20180409132928.GA25722@redhat.com>
+ <84c1e60f-8aad-a0ce-59af-4fcb3f77df94@linux.vnet.ibm.com>
+ <20180410110633.GA29063@redhat.com>
+From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
+Date: Wed, 11 Apr 2018 09:58:13 +0530
+MIME-Version: 1.0
+In-Reply-To: <20180410110633.GA29063@redhat.com>
 Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [RFC PATCH 1/1] vmscan: Support multiple kswapd threads per node
-From: Buddy Lumpkin <buddy.lumpkin@oracle.com>
-In-Reply-To: <20180403190759.GB6779@bombadil.infradead.org>
-Date: Tue, 10 Apr 2018 20:52:55 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <2E72CC2C-871C-41C1-8238-6BA04C361D4E@oracle.com>
-References: <1522661062-39745-1-git-send-email-buddy.lumpkin@oracle.com>
- <1522661062-39745-2-git-send-email-buddy.lumpkin@oracle.com>
- <20180403133115.GA5501@dhcp22.suse.cz>
- <20180403190759.GB6779@bombadil.infradead.org>
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+Message-Id: <c3bd7507-977e-67b5-9ab0-d70b4908a6f2@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, riel@surriel.com, mgorman@suse.de, akpm@linux-foundation.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com, Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
 
+Hi Oleg,
 
-> On Apr 3, 2018, at 12:07 PM, Matthew Wilcox <willy@infradead.org> =
-wrote:
->=20
-> On Tue, Apr 03, 2018 at 03:31:15PM +0200, Michal Hocko wrote:
->> On Mon 02-04-18 09:24:22, Buddy Lumpkin wrote:
->>> The presence of direct reclaims 10 years ago was a fairly reliable
->>> indicator that too much was being asked of a Linux system. Kswapd =
-was
->>> likely wasting time scanning pages that were ineligible for =
-eviction.
->>> Adding RAM or reducing the working set size would usually make the =
-problem
->>> go away. Since then hardware has evolved to bring a new struggle for
->>> kswapd. Storage speeds have increased by orders of magnitude while =
-CPU
->>> clock speeds stayed the same or even slowed down in exchange for =
-more
->>> cores per package. This presents a throughput problem for a single
->>> threaded kswapd that will get worse with each generation of new =
-hardware.
->>=20
->> AFAIR we used to scale the number of kswapd workers many years ago. =
-It
->> just turned out to be not all that great. We have a kswapd reclaim
->> window for quite some time and that can allow to tune how much =
-proactive
->> kswapd should be.
->>=20
->> Also please note that the direct reclaim is a way to throttle overly
->> aggressive memory consumers. The more we do in the background context
->> the easier for them it will be to allocate faster. So I am not really
->> sure that more background threads will solve the underlying problem. =
-It
->> is just a matter of memory hogs tunning to end in the very same
->> situtation AFAICS. Moreover the more they are going to allocate the =
-more
->> less CPU time will _other_ (non-allocating) task get.
->>=20
->>> Test Details
->>=20
->> I will have to study this more to comment.
->>=20
->> [...]
->>> By increasing the number of kswapd threads, throughput increased by =
-~50%
->>> while kernel mode CPU utilization decreased or stayed the same, =
-likely due
->>> to a decrease in the number of parallel tasks at any given time =
-doing page
->>> replacement.
->>=20
->> Well, isn't that just an effect of more work being done on behalf of
->> other workload that might run along with your tests (and which =
-doesn't
->> really need to allocate a lot of memory)? In other words how
->> does the patch behaves with a non-artificial mixed workloads?
->>=20
->> Please note that I am not saying that we absolutely have to stick =
-with the
->> current single-thread-per-node implementation but I would really like =
-to
->> see more background on why we should be allowing heavy memory hogs to
->> allocate faster or how to prevent that. I would be also very =
-interested
->> to see how to scale the number of threads based on how CPUs are =
-utilized
->> by other workloads.
->=20
-> Yes, very much this.  If you have a single-threaded workload which is
-> using the entirety of memory and would like to use even more, then it
-> makes sense to use as many CPUs as necessary getting memory out of its
-> way.  If you have N CPUs and N-1 threads happily occupying themselves =
-in
-> their own reasonably-sized working sets with one monster process =
-trying
-> to use as much RAM as possible, then I'd be pretty unimpressed to see
-> the N-1 well-behaved threads preempted by kswapd.
+On 04/10/2018 04:36 PM, Oleg Nesterov wrote:
+> Hi Ravi,
+>
+> On 04/10, Ravi Bangoria wrote:
+>>> and what if __mmu_notifier_register() fails simply because signal_pending() == T?
+>>> see mm_take_all_locks().
+>>>
+>>> at first glance this all look suspicious and sub-optimal,
+>> Yes. I should have added checks for failure cases.
+>> Will fix them in v3.
+> And what can you do if it fails? Nothing except report the problem. But
+> signal_pending() is not the unlikely or error condition, it should not
+> cause the tracing errors.
 
-A single thread cannot create the demand to keep any number of kswapd =
-tasks
-busy, so this memory hog is going to need to have multiple threads if it =
-is going
-to do any measurable damage to the amount of work performed by the =
-compute
-bound tasks, and once we increase the number of tasks used for the =
-memory
-hog, preemption is already happening.
+...
 
-So let=E2=80=99s say we are willing to accept that it is going to take =
-multiple threads to
-create enough demand to keep multiple kswapd tasks busy, we just do not =
-want
-any additional preemptions strictly due to additional kswapd tasks. You =
-have to
-consider, If we managed to create enough demand to keep multiple kswapd =
-tasks
-busy, then we are creating enough demand to trigger direct reclaims. A =
-_lot_ of
-direct reclaims, and direct reclaims consume A _lot_ of cpu. So if we =
-are running
-multiple kswapd threads, they might be preempting your N-1 threads, but =
-if they
-were not running, the memory hog tasks would be preempting your N-1 =
-threads.
+> Plus mm_take_all_locks() is very heavy... BTW, uprobe_mmap_callback() is
+> called unconditionally. Whatever it does, can we at least move it after
+> the no_uprobe_events() check? Can't we also check MMF_HAS_UPROBES?
 
->=20
-> My biggest problem with the patch-as-presented is that it's yet one =
-more
-> thing for admins to get wrong.  We should spawn more threads =
-automatically
-> if system conditions are right to do that.
+Sure, I'll move it after these conditions.
 
-One thing about this patch-as-presented that an admin could get wrong is =
-by
-starting with a setting of 16, deciding that it didn=E2=80=99t help and =
-reducing it back to
-one. It allows for 16 threads because I actually saw a benefit with =
-large numbers
-of kswapd threads when a substantial amount of the memory pressure was=20=
+> Either way, I do not feel that mmu_notifier is the right tool... Did you
+> consider the uprobe_clear_state() hook we already have?
 
-created using anonymous memory mappings that do not involve the page =
-cache.
-This really is a special case, and the maximum number of threads allowed =
-should
-probably be reduced to a more sensible value like 8 or even 6 if there =
-is concern
-about admins doing the wrong thing.
+Ah! This is really a good idea. We don't need mmu_notifier then.
+
+Thanks for suggestion,
+Ravi
