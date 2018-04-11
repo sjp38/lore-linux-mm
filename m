@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FFBA6B0007
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 04:45:41 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id i137so589996pfe.0
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 01:45:41 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 10A806B0008
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 04:47:09 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id z2-v6so819559plk.3
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 01:47:09 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b8sor158585pff.77.2018.04.11.01.45.39
+        by mx.google.com with SMTPS id q6-v6sor277075pll.101.2018.04.11.01.47.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 11 Apr 2018 01:45:39 -0700 (PDT)
+        Wed, 11 Apr 2018 01:47:07 -0700 (PDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH for-4.4] writeback: safer lock nesting
-Date: Wed, 11 Apr 2018 01:45:21 -0700
-Message-Id: <20180411084521.254006-1-gthelen@google.com>
-In-Reply-To: <CAHH2K0bcehi-OH3AQs-VK7+d4-THOVXARTXik2UxRhZOuDrHTQ@mail.gmail.com>
-References: <CAHH2K0bcehi-OH3AQs-VK7+d4-THOVXARTXik2UxRhZOuDrHTQ@mail.gmail.com>
+Subject: [PATCH v4] writeback: safer lock nesting
+Date: Wed, 11 Apr 2018 01:46:53 -0700
+Message-Id: <20180411084653.254724-1-gthelen@google.com>
+In-Reply-To: <CAHH2K0b1q8+WgR1SmXE8F_yz+MH6Gju3+d-7RR4j_Q3E4Rk-SQ@mail.gmail.com>
+References: <CAHH2K0b1q8+WgR1SmXE8F_yz+MH6Gju3+d-7RR4j_Q3E4Rk-SQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wang Long <wanglong19@meituan.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Sasha Levin <Alexander.Levin@microsoft.com>
@@ -85,9 +85,9 @@ The deadlock does not seem possible, so it's debatable if there's
 any reason to modify the kernel.  I suggest we should to prevent future
 surprises.  And Wang Long said "this deadlock occurs three times in our
 environment", so there's more reason to apply this, even to stable.
-
-[ This patch is only for 4.4 stable.  Newer stable kernels should use be able to
-  cherry pick the upstream "writeback: safer lock nesting" patch. ]
+Stable 4.4 has minor conflicts applying this patch.
+For a clean 4.4 patch see "[PATCH for-4.4] writeback: safer lock nesting"
+https://lkml.org/lkml/2018/4/11/146
 
 Fixes: 682aa8e1a6a1 ("writeback: implement unlocked_inode_to_wb transaction and use it for stat updates")
 Cc: stable@vger.kernel.org # v4.2+
@@ -96,6 +96,19 @@ Signed-off-by: Greg Thelen <gthelen@google.com>
 Acked-by: Michal Hocko <mhocko@suse.com>
 Acked-by: Wang Long <wanglong19@meituan.com>
 ---
+
+Changelog since v3:
+- initialize wb_lock_cookie wiht {} rather than {0}.
+- comment grammar fix
+- commit log footer cleanup (-Change-Id, +Fixes, +Acks, +stable), though patch
+  does not cleanly apply to 4.4.  I'll post a 4.4-stable specific patch.
+
+Changelog since v2:
+- explicitly initialize wb_lock_cookie to silence compiler warnings.
+
+Changelog since v1:
+- add wb_lock_cookie to record lock context.
+
  fs/fs-writeback.c                |  7 ++++---
  include/linux/backing-dev-defs.h |  5 +++++
  include/linux/backing-dev.h      | 31 +++++++++++++++++--------------
@@ -103,10 +116,10 @@ Acked-by: Wang Long <wanglong19@meituan.com>
  4 files changed, 35 insertions(+), 26 deletions(-)
 
 diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 22b30249fbcb..0fe667875852 100644
+index 1280f915079b..b1178acfcb08 100644
 --- a/fs/fs-writeback.c
 +++ b/fs/fs-writeback.c
-@@ -747,11 +747,12 @@ int inode_congested(struct inode *inode, int cong_bits)
+@@ -745,11 +745,12 @@ int inode_congested(struct inode *inode, int cong_bits)
  	 */
  	if (inode && inode_to_wb_is_valid(inode)) {
  		struct bdi_writeback *wb;
@@ -123,10 +136,10 @@ index 22b30249fbcb..0fe667875852 100644
  	}
  
 diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index 140c29635069..a307c37c2e6c 100644
+index bfe86b54f6c1..0bd432a4d7bd 100644
 --- a/include/linux/backing-dev-defs.h
 +++ b/include/linux/backing-dev-defs.h
-@@ -191,6 +191,11 @@ static inline void set_bdi_congested(struct backing_dev_info *bdi, int sync)
+@@ -223,6 +223,11 @@ static inline void set_bdi_congested(struct backing_dev_info *bdi, int sync)
  	set_wb_congested(bdi->wb.congested, sync);
  }
  
@@ -139,10 +152,10 @@ index 140c29635069..a307c37c2e6c 100644
  
  /**
 diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 89d3de3e096b..361274ce5815 100644
+index 3e4ce54d84ab..96f4a3ddfb81 100644
 --- a/include/linux/backing-dev.h
 +++ b/include/linux/backing-dev.h
-@@ -366,7 +366,7 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
+@@ -346,7 +346,7 @@ static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
  /**
   * unlocked_inode_to_wb_begin - begin unlocked inode wb access transaction
   * @inode: target inode
@@ -151,7 +164,7 @@ index 89d3de3e096b..361274ce5815 100644
   *
   * The caller wants to access the wb associated with @inode but isn't
   * holding inode->i_lock, mapping->tree_lock or wb->list_lock.  This
-@@ -374,12 +374,12 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
+@@ -354,12 +354,12 @@ static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
   * association doesn't change until the transaction is finished with
   * unlocked_inode_to_wb_end().
   *
@@ -168,7 +181,7 @@ index 89d3de3e096b..361274ce5815 100644
  {
  	rcu_read_lock();
  
-@@ -387,10 +387,10 @@ unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
+@@ -367,10 +367,10 @@ unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
  	 * Paired with store_release in inode_switch_wb_work_fn() and
  	 * ensures that we see the new wb if we see cleared I_WB_SWITCH.
  	 */
@@ -182,7 +195,7 @@ index 89d3de3e096b..361274ce5815 100644
  
  	/*
  	 * Protected by either !I_WB_SWITCH + rcu_read_lock() or tree_lock.
-@@ -402,12 +402,14 @@ unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
+@@ -382,12 +382,14 @@ unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
  /**
   * unlocked_inode_to_wb_end - end inode wb access transaction
   * @inode: target inode
@@ -201,7 +214,7 @@ index 89d3de3e096b..361274ce5815 100644
  
  	rcu_read_unlock();
  }
-@@ -454,12 +456,13 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
+@@ -434,12 +436,13 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
  }
  
  static inline struct bdi_writeback *
@@ -218,10 +231,10 @@ index 89d3de3e096b..361274ce5815 100644
  }
  
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 6d0dbde4503b..3309dbda7ffa 100644
+index 586f31261c83..8369572e1f7d 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -2510,13 +2510,13 @@ void account_page_redirty(struct page *page)
+@@ -2501,13 +2501,13 @@ void account_page_redirty(struct page *page)
  	if (mapping && mapping_cap_account_dirty(mapping)) {
  		struct inode *inode = mapping->host;
  		struct bdi_writeback *wb;
@@ -231,57 +244,57 @@ index 6d0dbde4503b..3309dbda7ffa 100644
 -		wb = unlocked_inode_to_wb_begin(inode, &locked);
 +		wb = unlocked_inode_to_wb_begin(inode, &cookie);
  		current->nr_dirtied--;
- 		dec_zone_page_state(page, NR_DIRTIED);
+ 		dec_node_page_state(page, NR_DIRTIED);
  		dec_wb_stat(wb, WB_DIRTIED);
 -		unlocked_inode_to_wb_end(inode, locked);
 +		unlocked_inode_to_wb_end(inode, &cookie);
  	}
  }
  EXPORT_SYMBOL(account_page_redirty);
-@@ -2622,15 +2622,15 @@ void cancel_dirty_page(struct page *page)
+@@ -2613,15 +2613,15 @@ void __cancel_dirty_page(struct page *page)
+ 	if (mapping_cap_account_dirty(mapping)) {
  		struct inode *inode = mapping->host;
  		struct bdi_writeback *wb;
- 		struct mem_cgroup *memcg;
 -		bool locked;
 +		struct wb_lock_cookie cookie = {};
  
- 		memcg = mem_cgroup_begin_page_stat(page);
+ 		lock_page_memcg(page);
 -		wb = unlocked_inode_to_wb_begin(inode, &locked);
 +		wb = unlocked_inode_to_wb_begin(inode, &cookie);
  
  		if (TestClearPageDirty(page))
- 			account_page_cleaned(page, mapping, memcg, wb);
+ 			account_page_cleaned(page, mapping, wb);
  
 -		unlocked_inode_to_wb_end(inode, locked);
 +		unlocked_inode_to_wb_end(inode, &cookie);
- 		mem_cgroup_end_page_stat(memcg);
+ 		unlock_page_memcg(page);
  	} else {
  		ClearPageDirty(page);
-@@ -2663,7 +2663,7 @@ int clear_page_dirty_for_io(struct page *page)
+@@ -2653,7 +2653,7 @@ int clear_page_dirty_for_io(struct page *page)
+ 	if (mapping && mapping_cap_account_dirty(mapping)) {
  		struct inode *inode = mapping->host;
  		struct bdi_writeback *wb;
- 		struct mem_cgroup *memcg;
 -		bool locked;
 +		struct wb_lock_cookie cookie = {};
  
  		/*
  		 * Yes, Virginia, this is indeed insane.
-@@ -2701,14 +2701,14 @@ int clear_page_dirty_for_io(struct page *page)
+@@ -2690,14 +2690,14 @@ int clear_page_dirty_for_io(struct page *page)
+ 		 * always locked coming in here, so we get the desired
  		 * exclusion.
  		 */
- 		memcg = mem_cgroup_begin_page_stat(page);
 -		wb = unlocked_inode_to_wb_begin(inode, &locked);
 +		wb = unlocked_inode_to_wb_begin(inode, &cookie);
  		if (TestClearPageDirty(page)) {
- 			mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
+ 			dec_lruvec_page_state(page, NR_FILE_DIRTY);
+ 			dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
  			dec_wb_stat(wb, WB_RECLAIMABLE);
  			ret = 1;
  		}
 -		unlocked_inode_to_wb_end(inode, locked);
 +		unlocked_inode_to_wb_end(inode, &cookie);
- 		mem_cgroup_end_page_stat(memcg);
  		return ret;
  	}
+ 	return TestClearPageDirty(page);
 -- 
 2.17.0.484.g0c8726318c-goog
