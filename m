@@ -1,317 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FB726B0007
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 04:50:41 -0400 (EDT)
-Received: by mail-yb0-f200.google.com with SMTP id g8-v6so445075ybf.23
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 01:50:41 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l187-v6sor118270ybl.185.2018.04.11.01.50.40
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5E76B0005
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 04:58:52 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z15so673383wrh.10
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 01:58:52 -0700 (PDT)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id x12si522581wrb.379.2018.04.11.01.58.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Apr 2018 01:50:40 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Apr 2018 01:58:51 -0700 (PDT)
+Subject: Re: [PATCH v3 2/2] mm: remove odd HAVE_PTE_SPECIAL
+References: <1523433816-14460-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1523433816-14460-3-git-send-email-ldufour@linux.vnet.ibm.com>
+From: Christophe LEROY <christophe.leroy@c-s.fr>
+Message-ID: <de6ee514-8b7e-24d0-a7ee-a8887e8b0ae9@c-s.fr>
+Date: Wed, 11 Apr 2018 10:58:44 +0200
 MIME-Version: 1.0
-References: <CAHH2K0bcehi-OH3AQs-VK7+d4-THOVXARTXik2UxRhZOuDrHTQ@mail.gmail.com>
- <20180411084521.254006-1-gthelen@google.com>
-In-Reply-To: <20180411084521.254006-1-gthelen@google.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Wed, 11 Apr 2018 08:50:28 +0000
-Message-ID: <CAHH2K0a_6Z3O4KPfLmZd9PRYfj-kZ8RFzOrXj2PZz4M-Xfxf9w@mail.gmail.com>
-Subject: Re: [PATCH for-4.4] writeback: safer lock nesting
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1523433816-14460-3-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Long <wanglong19@meituan.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Sasha Levin <Alexander.Levin@microsoft.com>
-Cc: npiggin@gmail.com, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, stable@vger.kernel.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Jerome Glisse <jglisse@redhat.com>, mhocko@kernel.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S . Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Vineet Gupta <vgupta@synopsys.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <albert@sifive.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, David Rientjes <rientjes@google.com>, Robin Murphy <robin.murphy@arm.com>
 
-On Wed, Apr 11, 2018 at 1:45 AM Greg Thelen <gthelen@google.com> wrote:
 
-> lock_page_memcg()/unlock_page_memcg() use spin_lock_irqsave/restore() if
-> the page's memcg is undergoing move accounting, which occurs when a
-> process leaves its memcg for a new one that has
-> memory.move_charge_at_immigrate set.
 
-> unlocked_inode_to_wb_begin,end() use spin_lock_irq/spin_unlock_irq() if
-the
-> given inode is switching writeback domains.  Switches occur when enough
-> writes are issued from a new domain.
-
-> This existing pattern is thus suspicious:
->      lock_page_memcg(page);
->      unlocked_inode_to_wb_begin(inode, &locked);
->      ...
->      unlocked_inode_to_wb_end(inode, locked);
->      unlock_page_memcg(page);
-
-> If both inode switch and process memcg migration are both in-flight then
-> unlocked_inode_to_wb_end() will unconditionally enable interrupts while
-> still holding the lock_page_memcg() irq spinlock.  This suggests the
-> possibility of deadlock if an interrupt occurs before
-> unlock_page_memcg().
-
->      truncate
->      __cancel_dirty_page
->      lock_page_memcg
->      unlocked_inode_to_wb_begin
->      unlocked_inode_to_wb_end
->      <interrupts mistakenly enabled>
->                                      <interrupt>
->                                      end_page_writeback
->                                      test_clear_page_writeback
->                                      lock_page_memcg
->                                      <deadlock>
->      unlock_page_memcg
-
-> Due to configuration limitations this deadlock is not currently possible
-> because we don't mix cgroup writeback (a cgroupv2 feature) and
-> memory.move_charge_at_immigrate (a cgroupv1 feature).
-
-> If the kernel is hacked to always claim inode switching and memcg
-> moving_account, then this script triggers lockup in less than a minute:
->    cd /mnt/cgroup/memory
->    mkdir a b
->    echo 1 > a/memory.move_charge_at_immigrate
->    echo 1 > b/memory.move_charge_at_immigrate
->    (
->      echo $BASHPID > a/cgroup.procs
->      while true; do
->        dd if=/dev/zero of=/mnt/big bs=1M count=256
->      done
->    ) &
->    while true; do
->      sync
->    done &
->    sleep 1h &
->    SLEEP=$!
->    while true; do
->      echo $SLEEP > a/cgroup.procs
->      echo $SLEEP > b/cgroup.procs
->    done
-
-> The deadlock does not seem possible, so it's debatable if there's
-> any reason to modify the kernel.  I suggest we should to prevent future
-> surprises.  And Wang Long said "this deadlock occurs three times in our
-> environment", so there's more reason to apply this, even to stable.
-
-Wang Long: I wasn't able to reproduce the 4.4 problem.  But tracing
-suggests this 4.4 patch is effective.  If you can reproduce the problem in
-your 4.4 environment, then it'd be nice to confirm this fixes it.  Thanks!
-
-> [ This patch is only for 4.4 stable.  Newer stable kernels should use be
-able to
->    cherry pick the upstream "writeback: safer lock nesting" patch. ]
-
-> Fixes: 682aa8e1a6a1 ("writeback: implement unlocked_inode_to_wb
-transaction and use it for stat updates")
-> Cc: stable@vger.kernel.org # v4.2+
-> Reported-by: Wang Long <wanglong19@meituan.com>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Acked-by: Wang Long <wanglong19@meituan.com>
+Le 11/04/2018 A  10:03, Laurent Dufour a A(C)critA :
+> Remove the additional define HAVE_PTE_SPECIAL and rely directly on
+> CONFIG_ARCH_HAS_PTE_SPECIAL.
+> 
+> There is no functional change introduced by this patch
+> 
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 > ---
->   fs/fs-writeback.c                |  7 ++++---
->   include/linux/backing-dev-defs.h |  5 +++++
->   include/linux/backing-dev.h      | 31 +++++++++++++++++--------------
->   mm/page-writeback.c              | 18 +++++++++---------
->   4 files changed, 35 insertions(+), 26 deletions(-)
-
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 22b30249fbcb..0fe667875852 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -747,11 +747,12 @@ int inode_congested(struct inode *inode, int
-cong_bits)
->           */
->          if (inode && inode_to_wb_is_valid(inode)) {
->                  struct bdi_writeback *wb;
-> -               bool locked, congested;
-> +               struct wb_lock_cookie lock_cookie = {};
-> +               bool congested;
-
-> -               wb = unlocked_inode_to_wb_begin(inode, &locked);
-> +               wb = unlocked_inode_to_wb_begin(inode, &lock_cookie);
->                  congested = wb_congested(wb, cong_bits);
-> -               unlocked_inode_to_wb_end(inode, locked);
-> +               unlocked_inode_to_wb_end(inode, &lock_cookie);
->                  return congested;
->          }
-
-> diff --git a/include/linux/backing-dev-defs.h
-b/include/linux/backing-dev-defs.h
-> index 140c29635069..a307c37c2e6c 100644
-> --- a/include/linux/backing-dev-defs.h
-> +++ b/include/linux/backing-dev-defs.h
-> @@ -191,6 +191,11 @@ static inline void set_bdi_congested(struct
-backing_dev_info *bdi, int sync)
->          set_wb_congested(bdi->wb.congested, sync);
->   }
-
-> +struct wb_lock_cookie {
-> +       bool locked;
-> +       unsigned long flags;
-> +};
+>   mm/memory.c | 19 ++++++++-----------
+>   1 file changed, 8 insertions(+), 11 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 96910c625daa..7f7dc7b2a341 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -817,17 +817,12 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
+>    * PFNMAP mappings in order to support COWable mappings.
+>    *
+>    */
+> -#ifdef CONFIG_ARCH_HAS_PTE_SPECIAL
+> -# define HAVE_PTE_SPECIAL 1
+> -#else
+> -# define HAVE_PTE_SPECIAL 0
+> -#endif
+>   struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+>   			     pte_t pte, bool with_public_device)
+>   {
+>   	unsigned long pfn = pte_pfn(pte);
+>   
+> -	if (HAVE_PTE_SPECIAL) {
+> +	if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL)) {
+>   		if (likely(!pte_special(pte)))
+>   			goto check_pfn;
+>   		if (vma->vm_ops && vma->vm_ops->find_special_page)
+> @@ -862,7 +857,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+>   		return NULL;
+>   	}
+>   
+> -	/* !HAVE_PTE_SPECIAL case follows: */
+> +	/* !CONFIG_ARCH_HAS_PTE_SPECIAL case follows: */
+>   
+>   	if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
+>   		if (vma->vm_flags & VM_MIXEDMAP) {
+> @@ -881,7 +876,8 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+>   
+>   	if (is_zero_pfn(pfn))
+>   		return NULL;
+> -check_pfn:
 > +
->   #ifdef CONFIG_CGROUP_WRITEBACK
+> +check_pfn: __maybe_unused
 
->   /**
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index 89d3de3e096b..361274ce5815 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -366,7 +366,7 @@ static inline struct bdi_writeback
-*inode_to_wb(struct inode *inode)
->   /**
->    * unlocked_inode_to_wb_begin - begin unlocked inode wb access
-transaction
->    * @inode: target inode
-> - * @lockedp: temp bool output param, to be passed to the end function
-> + * @cookie: output param, to be passed to the end function
->    *
->    * The caller wants to access the wb associated with @inode but isn't
->    * holding inode->i_lock, mapping->tree_lock or wb->list_lock.  This
-> @@ -374,12 +374,12 @@ static inline struct bdi_writeback
-*inode_to_wb(struct inode *inode)
->    * association doesn't change until the transaction is finished with
->    * unlocked_inode_to_wb_end().
->    *
-> - * The caller must call unlocked_inode_to_wb_end() with *@lockdep
-> - * afterwards and can't sleep during transaction.  IRQ may or may not be
-> - * disabled on return.
-> + * The caller must call unlocked_inode_to_wb_end() with *@cookie
-afterwards and
-> + * can't sleep during the transaction.  IRQs may or may not be disabled
-on
-> + * return.
->    */
->   static inline struct bdi_writeback *
-> -unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
-> +unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie
-*cookie)
->   {
->          rcu_read_lock();
+See below
 
-> @@ -387,10 +387,10 @@ unlocked_inode_to_wb_begin(struct inode *inode,
-bool *lockedp)
->           * Paired with store_release in inode_switch_wb_work_fn() and
->           * ensures that we see the new wb if we see cleared I_WB_SWITCH.
->           */
-> -       *lockedp = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
-> +       cookie->locked = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
+>   	if (unlikely(pfn > highest_memmap_pfn)) {
+>   		print_bad_pte(vma, addr, pte, NULL);
+>   		return NULL;
+> @@ -891,7 +887,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+>   	 * NOTE! We still have PageReserved() pages in the page tables.
+>   	 * eg. VDSO mappings can cause them to exist.
+>   	 */
+> -out:
+> +out: __maybe_unused
 
-> -       if (unlikely(*lockedp))
-> -               spin_lock_irq(&inode->i_mapping->tree_lock);
-> +       if (unlikely(cookie->locked))
-> +               spin_lock_irqsave(&inode->i_mapping->tree_lock,
-cookie->flags);
+Why do you need that change ?
 
->          /*
->           * Protected by either !I_WB_SWITCH + rcu_read_lock() or
-tree_lock.
-> @@ -402,12 +402,14 @@ unlocked_inode_to_wb_begin(struct inode *inode,
-bool *lockedp)
->   /**
->    * unlocked_inode_to_wb_end - end inode wb access transaction
->    * @inode: target inode
-> - * @locked: *@lockedp from unlocked_inode_to_wb_begin()
-> + * @cookie: @cookie from unlocked_inode_to_wb_begin()
->    */
-> -static inline void unlocked_inode_to_wb_end(struct inode *inode, bool
-locked)
-> +static inline void unlocked_inode_to_wb_end(struct inode *inode,
-> +                                           struct wb_lock_cookie *cookie)
->   {
-> -       if (unlikely(locked))
-> -               spin_unlock_irq(&inode->i_mapping->tree_lock);
-> +       if (unlikely(cookie->locked))
-> +               spin_unlock_irqrestore(&inode->i_mapping->tree_lock,
-> +                                      cookie->flags);
+There is no reason for the compiler to complain. It would complain if 
+the goto was within a #ifdef, but all the purpose of using IS_ENABLED() 
+is to allow the compiler to properly handle all possible cases. That's 
+all the force of IS_ENABLED() compared to ifdefs, and that the reason 
+why they are plebicited, ref Linux Codying style for a detailed explanation.
 
->          rcu_read_unlock();
+Christophe
+
+
+>   	return pfn_to_page(pfn);
 >   }
-> @@ -454,12 +456,13 @@ static inline struct bdi_writeback
-*inode_to_wb(struct inode *inode)
->   }
-
->   static inline struct bdi_writeback *
-> -unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
-> +unlocked_inode_to_wb_begin(struct inode *inode, struct wb_lock_cookie
-*cookie)
->   {
->          return inode_to_wb(inode);
->   }
-
-> -static inline void unlocked_inode_to_wb_end(struct inode *inode, bool
-locked)
-> +static inline void unlocked_inode_to_wb_end(struct inode *inode,
-> +                                           struct wb_lock_cookie *cookie)
->   {
->   }
-
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 6d0dbde4503b..3309dbda7ffa 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2510,13 +2510,13 @@ void account_page_redirty(struct page *page)
->          if (mapping && mapping_cap_account_dirty(mapping)) {
->                  struct inode *inode = mapping->host;
->                  struct bdi_writeback *wb;
-> -               bool locked;
-> +               struct wb_lock_cookie cookie = {};
-
-> -               wb = unlocked_inode_to_wb_begin(inode, &locked);
-> +               wb = unlocked_inode_to_wb_begin(inode, &cookie);
->                  current->nr_dirtied--;
->                  dec_zone_page_state(page, NR_DIRTIED);
->                  dec_wb_stat(wb, WB_DIRTIED);
-> -               unlocked_inode_to_wb_end(inode, locked);
-> +               unlocked_inode_to_wb_end(inode, &cookie);
->          }
->   }
->   EXPORT_SYMBOL(account_page_redirty);
-> @@ -2622,15 +2622,15 @@ void cancel_dirty_page(struct page *page)
->                  struct inode *inode = mapping->host;
->                  struct bdi_writeback *wb;
->                  struct mem_cgroup *memcg;
-> -               bool locked;
-> +               struct wb_lock_cookie cookie = {};
-
->                  memcg = mem_cgroup_begin_page_stat(page);
-> -               wb = unlocked_inode_to_wb_begin(inode, &locked);
-> +               wb = unlocked_inode_to_wb_begin(inode, &cookie);
-
->                  if (TestClearPageDirty(page))
->                          account_page_cleaned(page, mapping, memcg, wb);
-
-> -               unlocked_inode_to_wb_end(inode, locked);
-> +               unlocked_inode_to_wb_end(inode, &cookie);
->                  mem_cgroup_end_page_stat(memcg);
->          } else {
->                  ClearPageDirty(page);
-> @@ -2663,7 +2663,7 @@ int clear_page_dirty_for_io(struct page *page)
->                  struct inode *inode = mapping->host;
->                  struct bdi_writeback *wb;
->                  struct mem_cgroup *memcg;
-> -               bool locked;
-> +               struct wb_lock_cookie cookie = {};
-
->                  /*
->                   * Yes, Virginia, this is indeed insane.
-> @@ -2701,14 +2701,14 @@ int clear_page_dirty_for_io(struct page *page)
->                   * exclusion.
->                   */
->                  memcg = mem_cgroup_begin_page_stat(page);
-> -               wb = unlocked_inode_to_wb_begin(inode, &locked);
-> +               wb = unlocked_inode_to_wb_begin(inode, &cookie);
->                  if (TestClearPageDirty(page)) {
->                          mem_cgroup_dec_page_stat(memcg,
-MEM_CGROUP_STAT_DIRTY);
->                          dec_zone_page_state(page, NR_FILE_DIRTY);
->                          dec_wb_stat(wb, WB_RECLAIMABLE);
->                          ret = 1;
->                  }
-> -               unlocked_inode_to_wb_end(inode, locked);
-> +               unlocked_inode_to_wb_end(inode, &cookie);
->                  mem_cgroup_end_page_stat(memcg);
->                  return ret;
->          }
-> --
-> 2.17.0.484.g0c8726318c-goog
+>   
+> @@ -904,7 +900,7 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
+>   	/*
+>   	 * There is no pmd_special() but there may be special pmds, e.g.
+>   	 * in a direct-access (dax) mapping, so let's just replicate the
+> -	 * !HAVE_PTE_SPECIAL case from vm_normal_page() here.
+> +	 * !CONFIG_ARCH_HAS_PTE_SPECIAL case from vm_normal_page() here.
+>   	 */
+>   	if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
+>   		if (vma->vm_flags & VM_MIXEDMAP) {
+> @@ -1933,7 +1929,8 @@ static int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+>   	 * than insert_pfn).  If a zero_pfn were inserted into a VM_MIXEDMAP
+>   	 * without pte special, it would there be refcounted as a normal page.
+>   	 */
+> -	if (!HAVE_PTE_SPECIAL && !pfn_t_devmap(pfn) && pfn_t_valid(pfn)) {
+> +	if (!IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL) &&
+> +	    !pfn_t_devmap(pfn) && pfn_t_valid(pfn)) {
+>   		struct page *page;
+>   
+>   		/*
+> 
