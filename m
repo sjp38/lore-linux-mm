@@ -1,116 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CF9E6B000C
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 05:09:11 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id z83so790253wmc.2
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 02:09:11 -0700 (PDT)
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id j14si615133wme.149.2018.04.11.02.09.09
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 51CBD6B0005
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 05:26:18 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m190so408648pgm.4
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 02:26:18 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y73-v6si742756plh.393.2018.04.11.02.26.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Apr 2018 02:09:09 -0700 (PDT)
-Subject: Re: [PATCH v3 2/2] mm: remove odd HAVE_PTE_SPECIAL
-References: <1523433816-14460-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1523433816-14460-3-git-send-email-ldufour@linux.vnet.ibm.com>
- <de6ee514-8b7e-24d0-a7ee-a8887e8b0ae9@c-s.fr>
- <93ed4fe4-dd1e-51be-948b-d53b16de21c5@linux.vnet.ibm.com>
-From: Christophe LEROY <christophe.leroy@c-s.fr>
-Message-ID: <278a5212-b962-9a3a-cc86-76cac744afab@c-s.fr>
-Date: Wed, 11 Apr 2018 11:09:05 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 11 Apr 2018 02:26:17 -0700 (PDT)
+Date: Wed, 11 Apr 2018 11:26:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: shmem: enable thp migration (Re: [PATCH v1] mm:
+ consider non-anonymous thp as unmovable page)
+Message-ID: <20180411092611.GE23400@dhcp22.suse.cz>
+References: <20180403083451.GG5501@dhcp22.suse.cz>
+ <20180403105411.hknofkbn6rzs26oz@node.shutemov.name>
+ <20180405085927.GC6312@dhcp22.suse.cz>
+ <20180405122838.6a6b35psizem4tcy@node.shutemov.name>
+ <20180405124830.GJ6312@dhcp22.suse.cz>
+ <20180405134045.7axuun6d7ufobzj4@node.shutemov.name>
+ <20180405150547.GN6312@dhcp22.suse.cz>
+ <20180405155551.wchleyaf4rxooj6m@node.shutemov.name>
+ <20180405160317.GP6312@dhcp22.suse.cz>
+ <20180406030706.GA2434@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
-In-Reply-To: <93ed4fe4-dd1e-51be-948b-d53b16de21c5@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180406030706.GA2434@hori1.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-snps-arc@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-riscv@lists.infradead.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Jerome Glisse <jglisse@redhat.com>, mhocko@kernel.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, mpe@ellerman.id.au, benh@kernel.crashing.org, paulus@samba.org, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S . Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Vineet Gupta <vgupta@synopsys.com>, Palmer Dabbelt <palmer@sifive.com>, Albert Ou <albert@sifive.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, David Rientjes <rientjes@google.com>, Robin Murphy <robin.murphy@arm.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Zi Yan <zi.yan@sent.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
+On Fri 06-04-18 03:07:11, Naoya Horiguchi wrote:
+> >From e31ec037701d1cc76b26226e4b66d8c783d40889 Mon Sep 17 00:00:00 2001
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date: Fri, 6 Apr 2018 10:58:35 +0900
+> Subject: [PATCH] mm: enable thp migration for shmem thp
+> 
+> My testing for the latest kernel supporting thp migration showed an
+> infinite loop in offlining the memory block that is filled with shmem
+> thps.  We can get out of the loop with a signal, but kernel should
+> return with failure in this case.
+> 
+> What happens in the loop is that scan_movable_pages() repeats returning
+> the same pfn without any progress. That's because page migration always
+> fails for shmem thps.
+> 
+> In memory offline code, memory blocks containing unmovable pages should
+> be prevented from being offline targets by has_unmovable_pages() inside
+> start_isolate_page_range().
+>
+> So it's possible to change migratability
+> for non-anonymous thps to avoid the issue, but it introduces more complex
+> and thp-specific handling in migration code, so it might not good.
+> 
+> So this patch is suggesting to fix the issue by enabling thp migration
+> for shmem thp. Both of anon/shmem thp are migratable so we don't need
+> precheck about the type of thps.
+> 
+> Fixes: commit 72b39cfc4d75 ("mm, memory_hotplug: do not fail offlining too early")
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: stable@vger.kernel.org # v4.15+
 
+I do not really feel qualified to give my ack but this is the right
+approach for the fix. We simply do expect that LRU pages are migrateable
+as well as zone_movable pages.
 
-Le 11/04/2018 A  11:03, Laurent Dufour a A(C)critA :
-> 
-> 
-> On 11/04/2018 10:58, Christophe LEROY wrote:
->>
->>
->> Le 11/04/2018 A  10:03, Laurent Dufour a A(C)critA :
->>> Remove the additional define HAVE_PTE_SPECIAL and rely directly on
->>> CONFIG_ARCH_HAS_PTE_SPECIAL.
->>>
->>> There is no functional change introduced by this patch
->>>
->>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
->>> ---
->>>  A  mm/memory.c | 19 ++++++++-----------
->>>  A  1 file changed, 8 insertions(+), 11 deletions(-)
->>>
->>> diff --git a/mm/memory.c b/mm/memory.c
->>> index 96910c625daa..7f7dc7b2a341 100644
->>> --- a/mm/memory.c
->>> +++ b/mm/memory.c
->>> @@ -817,17 +817,12 @@ static void print_bad_pte(struct vm_area_struct *vma,
->>> unsigned long addr,
->>>  A A  * PFNMAP mappings in order to support COWable mappings.
->>>  A A  *
->>>  A A  */
->>> -#ifdef CONFIG_ARCH_HAS_PTE_SPECIAL
->>> -# define HAVE_PTE_SPECIAL 1
->>> -#else
->>> -# define HAVE_PTE_SPECIAL 0
->>> -#endif
->>>  A  struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
->>>  A A A A A A A A A A A A A A A A A A  pte_t pte, bool with_public_device)
->>>  A  {
->>>  A A A A A  unsigned long pfn = pte_pfn(pte);
->>>  A  -A A A  if (HAVE_PTE_SPECIAL) {
->>> +A A A  if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL)) {
->>>  A A A A A A A A A  if (likely(!pte_special(pte)))
->>>  A A A A A A A A A A A A A  goto check_pfn;
->>>  A A A A A A A A A  if (vma->vm_ops && vma->vm_ops->find_special_page)
->>> @@ -862,7 +857,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma,
->>> unsigned long addr,
->>>  A A A A A A A A A  return NULL;
->>>  A A A A A  }
->>>  A  -A A A  /* !HAVE_PTE_SPECIAL case follows: */
->>> +A A A  /* !CONFIG_ARCH_HAS_PTE_SPECIAL case follows: */
->>>  A  A A A A A  if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
->>>  A A A A A A A A A  if (vma->vm_flags & VM_MIXEDMAP) {
->>> @@ -881,7 +876,8 @@ struct page *_vm_normal_page(struct vm_area_struct *vma,
->>> unsigned long addr,
->>>  A  A A A A A  if (is_zero_pfn(pfn))
->>>  A A A A A A A A A  return NULL;
->>> -check_pfn:
->>> +
->>> +check_pfn: __maybe_unused
->>
->> See below
->>
->>>  A A A A A  if (unlikely(pfn > highest_memmap_pfn)) {
->>>  A A A A A A A A A  print_bad_pte(vma, addr, pte, NULL);
->>>  A A A A A A A A A  return NULL;
->>> @@ -891,7 +887,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma,
->>> unsigned long addr,
->>>  A A A A A A  * NOTE! We still have PageReserved() pages in the page tables.
->>>  A A A A A A  * eg. VDSO mappings can cause them to exist.
->>>  A A A A A A  */
->>> -out:
->>> +out: __maybe_unused
->>
->> Why do you need that change ?
->>
->> There is no reason for the compiler to complain. It would complain if the goto
->> was within a #ifdef, but all the purpose of using IS_ENABLED() is to allow the
->> compiler to properly handle all possible cases. That's all the force of
->> IS_ENABLED() compared to ifdefs, and that the reason why they are plebicited,
->> ref Linux Codying style for a detailed explanation.
-> 
-> Fair enough.
-> 
-> Should I submit a v4 just to remove these so ugly __maybe_unused ?
-> 
+Andrew, do you plan to take it (with Kirill's ack).
 
-Most likely, unless the mm maintainer agrees to remove them by himself 
-when applying your patch ?
+Thanks!
 
-Christophe
+> ---
+>  mm/huge_memory.c |  5 ++++-
+>  mm/migrate.c     | 19 ++++++++++++++++---
+>  mm/rmap.c        |  3 ---
+>  3 files changed, 20 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 2aff58624886..933c1bbd3464 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2926,7 +2926,10 @@ void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
+>  		pmde = maybe_pmd_mkwrite(pmde, vma);
+>  
+>  	flush_cache_range(vma, mmun_start, mmun_start + HPAGE_PMD_SIZE);
+> -	page_add_anon_rmap(new, vma, mmun_start, true);
+> +	if (PageAnon(new))
+> +		page_add_anon_rmap(new, vma, mmun_start, true);
+> +	else
+> +		page_add_file_rmap(new, true);
+>  	set_pmd_at(mm, mmun_start, pvmw->pmd, pmde);
+>  	if (vma->vm_flags & VM_LOCKED)
+>  		mlock_vma_page(new);
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index bdef905b1737..f92dd9f50981 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -472,7 +472,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
+>  	pslot = radix_tree_lookup_slot(&mapping->i_pages,
+>   					page_index(page));
+>  
+> -	expected_count += 1 + page_has_private(page);
+> +	expected_count += hpage_nr_pages(page) + page_has_private(page);
+>  	if (page_count(page) != expected_count ||
+>  		radix_tree_deref_slot_protected(pslot,
+>  					&mapping->i_pages.xa_lock) != page) {
+> @@ -505,7 +505,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
+>  	 */
+>  	newpage->index = page->index;
+>  	newpage->mapping = page->mapping;
+> -	get_page(newpage);	/* add cache reference */
+> +	page_ref_add(newpage, hpage_nr_pages(page)); /* add cache reference */
+>  	if (PageSwapBacked(page)) {
+>  		__SetPageSwapBacked(newpage);
+>  		if (PageSwapCache(page)) {
+> @@ -524,13 +524,26 @@ int migrate_page_move_mapping(struct address_space *mapping,
+>  	}
+>  
+>  	radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
+> +	if (PageTransHuge(page)) {
+> +		int i;
+> +		int index = page_index(page);
+> +
+> +		for (i = 0; i < HPAGE_PMD_NR; i++) {
+> +			pslot = radix_tree_lookup_slot(&mapping->i_pages,
+> +						       index + i);
+> +			radix_tree_replace_slot(&mapping->i_pages, pslot,
+> +						newpage + i);
+> +		}
+> +	} else {
+> +		radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
+> +	}
+>  
+>  	/*
+>  	 * Drop cache reference from old page by unfreezing
+>  	 * to one less reference.
+>  	 * We know this isn't the last reference.
+>  	 */
+> -	page_ref_unfreeze(page, expected_count - 1);
+> +	page_ref_unfreeze(page, expected_count - hpage_nr_pages(page));
+>  
+>  	xa_unlock(&mapping->i_pages);
+>  	/* Leave irq disabled to prevent preemption while updating stats */
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index f0dd4e4565bc..8d5337fed37b 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1374,9 +1374,6 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  		if (!pvmw.pte && (flags & TTU_MIGRATION)) {
+>  			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
+>  
+> -			if (!PageAnon(page))
+> -				continue;
+> -
+>  			set_pmd_migration_entry(&pvmw, page);
+>  			continue;
+>  		}
+> -- 
+> 2.7.4
+
+-- 
+Michal Hocko
+SUSE Labs
