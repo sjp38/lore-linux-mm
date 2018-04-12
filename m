@@ -1,55 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 696CE6B0003
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 20:54:59 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v19so1764666pfn.7
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 17:54:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 137sor487733pgd.266.2018.04.11.17.54.58
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AFB66B0003
+	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 21:07:06 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id z2-v6so2465928plk.3
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 18:07:06 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s1sor657652pfj.81.2018.04.11.18.07.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 11 Apr 2018 17:54:58 -0700 (PDT)
-Date: Thu, 12 Apr 2018 09:54:51 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 0/2] Fix __GFP_ZERO vs constructor
-Message-ID: <20180412005451.GB253442@rodete-desktop-imager.corp.google.com>
-References: <20180411060320.14458-1-willy@infradead.org>
+        Wed, 11 Apr 2018 18:07:05 -0700 (PDT)
+Subject: Re: [LSF/MM TOPIC] CMA and larger page sizes
+References: <3a3d724e-4d74-9bd8-60f3-f6896cffac7a@redhat.com>
+ <20180126172527.GI5027@dhcp22.suse.cz> <20180404051115.GC6628@js1304-desktop>
+ <075843db-ec6e-3822-a60c-ae7487981f09@redhat.com>
+ <d88676d9-8f42-2519-56bf-776e46b1180e@suse.cz>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <b1420dd8-23ae-89e8-3b9d-62663bd69e24@redhat.com>
+Date: Wed, 11 Apr 2018 18:06:59 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180411060320.14458-1-willy@infradead.org>
+In-Reply-To: <d88676d9-8f42-2519-56bf-776e46b1180e@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Chris Fries <cfries@google.com>, jaegeuk@kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-Matthew,
+On 04/11/2018 01:02 PM, Vlastimil Babka wrote:
+> On 04/11/2018 09:55 PM, Laura Abbott wrote:
+>> On 04/03/2018 10:11 PM, Joonsoo Kim wrote:
+>>> If the patchset 'manage the memory of the CMA area by using the ZONE_MOVABLE' is
+>>> merged, this restriction can be removed since there is no unmovable
+>>> pageblock in ZONE_MOVABLE. Just quick thought. :)
+>>>
+>>> Thanks.
+>>>
+>>
+>> Thanks for that pointer. What's the current status of that patchset? Was that
+>> one that needed more review/testing?
+> 
+> It was merged by Linus today, see around commit bad8c6c0b114 ("mm/cma:
+> manage the memory of the CMA area by using the ZONE_MOVABLE")
+> 
+> Congrats, Joonsoo :)
+> 
 
-Please Cced relevant people so they know what's going on the problem
-they spent on much time. Everyone doesn't keep an eye on mailing list.
+I took a look at this a little bit more and while it's true we don't
+have the unmovable restriction anymore, CMA is still tied to the pageblock
+size (512MB) because we still have MIGRATE_CMA. I guess making the
+pageblock smaller seems like the most plausible approach?
 
-On Tue, Apr 10, 2018 at 11:03:18PM -0700, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> 
-> v1->v2:
->  - Added review/ack tags (thanks!)
->  - Switched the order of the patches
->  - Reworded commit message of the patch which actually fixes the bug
->  - Moved slab debug patches under CONFIG_DEBUG_VM to check _every_
->    allocation and added checks in the slowpath for the allocations which
->    end up allocating a page.
-> 
-> Matthew Wilcox (2):
->   Fix NULL pointer in page_cache_tree_insert
->   slab: __GFP_ZERO is incompatible with a constructor
-> 
->  mm/filemap.c | 9 ++++-----
->  mm/slab.c    | 7 ++++---
->  mm/slab.h    | 7 +++++++
->  mm/slob.c    | 4 +++-
->  mm/slub.c    | 5 +++--
->  5 files changed, 21 insertions(+), 11 deletions(-)
-> 
-> -- 
-> 2.16.3
-> 
+Thanks,
+Laura
