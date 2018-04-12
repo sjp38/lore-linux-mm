@@ -1,134 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C3F5A6B0007
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:37:10 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id r132-v6so3051768oig.16
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:37:10 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id g6-v6si1348489otk.285.2018.04.12.07.37.09
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CA9896B0007
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:39:18 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id o8so3061933wra.12
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:39:18 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id h2si809869edi.469.2018.04.12.07.39.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Apr 2018 07:37:09 -0700 (PDT)
-Date: Thu, 12 Apr 2018 10:36:48 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCHv2, RESEND] x86/mm: Do not lose cpuinfo_x86::x86_phys_bits
- adjustment
-Message-ID: <20180412143648.GI25481@char.us.oracle.com>
-References: <20180410092704.41106-1-kirill.shutemov@linux.intel.com>
+        Thu, 12 Apr 2018 07:39:17 -0700 (PDT)
+Date: Thu, 12 Apr 2018 15:38:33 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
+Message-ID: <20180412143826.GA30714@castle.DHCP.thefacebook.com>
+References: <20180305133743.12746-1-guro@fb.com>
+ <20180305133743.12746-2-guro@fb.com>
+ <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
+ <20180411135624.GA24260@castle.DHCP.thefacebook.com>
+ <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz>
+ <20180412115217.GC23400@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20180410092704.41106-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180412115217.GC23400@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
 
-On Tue, Apr 10, 2018 at 12:27:04PM +0300, Kirill A. Shutemov wrote:
-> Some features (Intel MKTME, AMD SME) reduce number of effectively
-> available physical address bits. We adjust x86_phys_bits accordingly.
+On Thu, Apr 12, 2018 at 01:52:17PM +0200, Michal Hocko wrote:
+> On Thu 12-04-18 08:52:52, Vlastimil Babka wrote:
+> > On 04/11/2018 03:56 PM, Roman Gushchin wrote:
+> > > On Wed, Apr 11, 2018 at 03:16:08PM +0200, Vlastimil Babka wrote:
+> [...]
+> > >> With that in mind, can we at least for now put the (manually maintained)
+> > >> byte counter in a variable that's not directly exposed via /proc/vmstat,
+> > >> and then when printing nr_slab_reclaimable, simply add the value
+> > >> (divided by PAGE_SIZE), and when printing nr_slab_unreclaimable,
+> > >> subtract the same value. This way we would be simply making the existing
+> > >> counters more precise, in line with their semantics.
+> > > 
+> > > Idk, I don't like the idea of adding a counter outside of the vm counters
+> > > infrastructure, and I definitely wouldn't touch the exposed
+> > > nr_slab_reclaimable and nr_slab_unreclaimable fields.
 > 
-> If get_cpu_cap() got called more than one time we lose this adjustement.
+> Why?
+
+Both nr_slab_reclaimable and nr_slab_unreclaimable have a very simple
+meaning: they are numbers of pages used by corresponding slab caches.
+
+In the answer to the very first version of this patchset
+Andrew suggested to generalize the idea to allow further
+accounting of non-kmalloc() allocations.
+I like the idea, even if don't have a good example right now.
+
+The problem with external names existed for many years before
+we've accidentally hit it, so if we don't have other examples
+right now, it doesn't mean that we wouldn't have them in the future.
+
 > 
-> That's exactly what happens in setup_pku(): it gets called after
-> detect_tme() and cpuinfo_x86::x86_phys_bits gets overwritten.
+> > We would be just making the reported values more precise wrt reality.
 > 
-> Extract address sizes enumeration into a separate routine and get it
-> called only from early_identify_cpu() and from generic_identify().
+> I was suggesting something similar in an earlier discussion. I am not
+> really happy about the new exposed counter either. It is just arbitrary
+> by name yet very specific for this particular usecase.
 > 
-> It makes get_cpu_cap() safe to be called later during boot proccess
-> without risk to overwrite cpuinfo_x86::x86_phys_bits.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Kai Huang <kai.huang@linux.intel.com>
-> Fixes: cb06d8e3d020 ("x86/tme: Detect if TME and MKTME is activated by BIOS")
-> ---
->  arch/x86/kernel/cpu/common.c | 32 ++++++++++++++++++++------------
->  1 file changed, 20 insertions(+), 12 deletions(-)
-> 
-> diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
-> index 348cf4821240..2981bf287ef5 100644
-> --- a/arch/x86/kernel/cpu/common.c
-> +++ b/arch/x86/kernel/cpu/common.c
-> @@ -848,18 +848,6 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
->  		c->x86_power = edx;
->  	}
->  
-> -	if (c->extended_cpuid_level >= 0x80000008) {
-> -		cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
-> -
-> -		c->x86_virt_bits = (eax >> 8) & 0xff;
-> -		c->x86_phys_bits = eax & 0xff;
-> -		c->x86_capability[CPUID_8000_0008_EBX] = ebx;
-> -	}
-> -#ifdef CONFIG_X86_32
-> -	else if (cpu_has(c, X86_FEATURE_PAE) || cpu_has(c, X86_FEATURE_PSE36))
-> -		c->x86_phys_bits = 36;
-> -#endif
-> -
->  	if (c->extended_cpuid_level >= 0x8000000a)
->  		c->x86_capability[CPUID_8000_000A_EDX] = cpuid_edx(0x8000000a);
->  
-> @@ -874,6 +862,23 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
->  	apply_forced_caps(c);
->  }
->  
-> +static void get_cpu_address_sizes(struct cpuinfo_x86 *c)
-> +{
-> +	u32 eax, ebx, ecx, edx;
+> What is a poor user supposed to do with the new counter? Can this be
+> used for any calculations?
 
-Since you aren't using those in the else condition, could you move
-them in:
-> +
-> +	if (c->extended_cpuid_level >= 0x80000008) {
+For me the most important part is to fix the overcommit logic, because it's
+a real security and production issue. Adjusting MemAvailable is important too.
 
-Here?
+I really open here for any concrete suggestions on how to do it without exporting
+of a new value, and without adding too much complexity to the code
+(e.g. skipping this particular mm counter on printing will be quite messy).
 
-And just to be on the safe side since the cpuid can be interecepted
-by the hypervisor and give you nothing (that is not touch the registers),
-perhaps also set eax = ebx, ecx and edx to zero?
-
-Granted it would have to be a pretty messed up hypervisor to first
-say  - yeah you can look at leaf 0x80000008, and then not fill out the
-register values <shrugs>.
-
-Either way you can add:
-
-Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-
-Thank you!
-> +		cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
-> +
-> +		c->x86_virt_bits = (eax >> 8) & 0xff;
-> +		c->x86_phys_bits = eax & 0xff;
-> +		c->x86_capability[CPUID_8000_0008_EBX] = ebx;
-> +	}
-> +#ifdef CONFIG_X86_32
-> +	else if (cpu_has(c, X86_FEATURE_PAE) || cpu_has(c, X86_FEATURE_PSE36))
-> +		c->x86_phys_bits = 36;
-> +#endif
-> +}
-> +
->  static void identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
->  {
->  #ifdef CONFIG_X86_32
-> @@ -965,6 +970,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
->  		cpu_detect(c);
->  		get_cpu_vendor(c);
->  		get_cpu_cap(c);
-> +		get_cpu_address_sizes(c);
->  		setup_force_cpu_cap(X86_FEATURE_CPUID);
->  
->  		if (this_cpu->c_early_init)
-> @@ -1097,6 +1103,8 @@ static void generic_identify(struct cpuinfo_x86 *c)
->  
->  	get_cpu_cap(c);
->  
-> +	get_cpu_address_sizes(c);
-> +
->  	if (c->cpuid_level >= 0x00000001) {
->  		c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xFF;
->  #ifdef CONFIG_X86_32
-> -- 
-> 2.16.3
-> 
+Thanks!
