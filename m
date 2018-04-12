@@ -1,90 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7515D6B0009
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:46:57 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p12so2985405pfn.13
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:46:57 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k4-v6si3464924pls.4.2018.04.12.07.46.56
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1F16B0005
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:52:12 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id y7-v6so3970941plh.7
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:52:12 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30109.outbound.protection.outlook.com. [40.107.3.109])
+        by mx.google.com with ESMTPS id y26si2346650pgv.504.2018.04.12.07.52.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Apr 2018 07:46:56 -0700 (PDT)
-Date: Thu, 12 Apr 2018 16:46:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
-Message-ID: <20180412144651.GI23400@dhcp22.suse.cz>
-References: <20180305133743.12746-1-guro@fb.com>
- <20180305133743.12746-2-guro@fb.com>
- <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
- <20180411135624.GA24260@castle.DHCP.thefacebook.com>
- <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz>
- <20180412115217.GC23400@dhcp22.suse.cz>
- <20180412143826.GA30714@castle.DHCP.thefacebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 12 Apr 2018 07:52:11 -0700 (PDT)
+Subject: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
+ mem_cgroup_css_alloc() failure
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Thu, 12 Apr 2018 17:52:04 +0300
+Message-ID: <152354470916.22460.14397070748001974638.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180412143826.GA30714@castle.DHCP.thefacebook.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
+To: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 12-04-18 15:38:33, Roman Gushchin wrote:
-> On Thu, Apr 12, 2018 at 01:52:17PM +0200, Michal Hocko wrote:
-> > On Thu 12-04-18 08:52:52, Vlastimil Babka wrote:
-> > > On 04/11/2018 03:56 PM, Roman Gushchin wrote:
-> > > > On Wed, Apr 11, 2018 at 03:16:08PM +0200, Vlastimil Babka wrote:
-> > [...]
-> > > >> With that in mind, can we at least for now put the (manually maintained)
-> > > >> byte counter in a variable that's not directly exposed via /proc/vmstat,
-> > > >> and then when printing nr_slab_reclaimable, simply add the value
-> > > >> (divided by PAGE_SIZE), and when printing nr_slab_unreclaimable,
-> > > >> subtract the same value. This way we would be simply making the existing
-> > > >> counters more precise, in line with their semantics.
-> > > > 
-> > > > Idk, I don't like the idea of adding a counter outside of the vm counters
-> > > > infrastructure, and I definitely wouldn't touch the exposed
-> > > > nr_slab_reclaimable and nr_slab_unreclaimable fields.
-> > 
-> > Why?
-> 
-> Both nr_slab_reclaimable and nr_slab_unreclaimable have a very simple
-> meaning: they are numbers of pages used by corresponding slab caches.
+In case of memcg_online_kmem() fail, memcg_cgroup::id remains hashed
+in mem_cgroup_idr even after memcg memory is freed. This leads to leak
+of ID in mem_cgroup_idr.
 
-Right, but if names are reclaimable then they should end up in the
-reclaimable slabs and to be accounted as such. Objects themselves are
-not sufficient to reclaim the accounted memory.
+This patch adds removing into mem_cgroup_css_alloc(), which fixes
+the problem. For better readability, it adds generic helper, which
+will be used in mem_cgroup_alloc() and mem_cgroup_id_put_many() too.
 
-> In the answer to the very first version of this patchset
-> Andrew suggested to generalize the idea to allow further
-> accounting of non-kmalloc() allocations.
-> I like the idea, even if don't have a good example right now.
+Fixes 73f576c04b94 "mm: memcontrol: fix cgroup creation failure after many small jobs"
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+ mm/memcontrol.c |   15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
 
-Well, I have to disagree here. It sounds completely ad-hoc without
-a reasoable semantic. Or how does it help users when they do not know
-what is the indirect dependency and how to trigger it.
-
-> The problem with external names existed for many years before
-> we've accidentally hit it, so if we don't have other examples
-> right now, it doesn't mean that we wouldn't have them in the future.
-> 
-> > 
-> > > We would be just making the reported values more precise wrt reality.
-> > 
-> > I was suggesting something similar in an earlier discussion. I am not
-> > really happy about the new exposed counter either. It is just arbitrary
-> > by name yet very specific for this particular usecase.
-> > 
-> > What is a poor user supposed to do with the new counter? Can this be
-> > used for any calculations?
-> 
-> For me the most important part is to fix the overcommit logic, because it's
-> a real security and production issue.
-
-Sure, the problem is ugly. Not the first one when the unaccounted kernel
-allocation can eat a lot of memory. We have many other such. The usual
-answer was to use kmemcg accounting.
-
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 3e7942c301a8..448db08d97a0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4263,6 +4263,14 @@ static struct cftype mem_cgroup_legacy_files[] = {
+ 
+ static DEFINE_IDR(mem_cgroup_idr);
+ 
++static void mem_cgroup_id_remove(struct mem_cgroup *memcg)
++{
++	if (memcg->id.id > 0) {
++		idr_remove(&mem_cgroup_idr, memcg->id.id);
++		memcg->id.id = 0;
++	}
++}
++
+ static void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n)
+ {
+ 	VM_BUG_ON(atomic_read(&memcg->id.ref) <= 0);
+@@ -4273,8 +4281,7 @@ static void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n)
+ {
+ 	VM_BUG_ON(atomic_read(&memcg->id.ref) < n);
+ 	if (atomic_sub_and_test(n, &memcg->id.ref)) {
+-		idr_remove(&mem_cgroup_idr, memcg->id.id);
+-		memcg->id.id = 0;
++		mem_cgroup_id_remove(memcg);
+ 
+ 		/* Memcg ID pins CSS */
+ 		css_put(&memcg->css);
+@@ -4411,8 +4418,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
+ 	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
+ 	return memcg;
+ fail:
+-	if (memcg->id.id > 0)
+-		idr_remove(&mem_cgroup_idr, memcg->id.id);
++	mem_cgroup_id_remove(memcg);
+ 	__mem_cgroup_free(memcg);
+ 	return NULL;
+ }
+@@ -4471,6 +4477,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ 
+ 	return &memcg->css;
+ fail:
++	mem_cgroup_id_remove(memcg);
+ 	mem_cgroup_free(memcg);
+ 	return ERR_PTR(-ENOMEM);
+ }
