@@ -1,65 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 680936B0005
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 17:19:45 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 2so3594888pft.4
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 14:19:45 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D6426B0005
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 17:22:06 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id z20so3584509pfn.11
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 14:22:06 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f91-v6si4284924plb.178.2018.04.12.14.19.44
+        by mx.google.com with ESMTPS id p91-v6si4003575plb.705.2018.04.12.14.22.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 12 Apr 2018 14:19:44 -0700 (PDT)
-Date: Thu, 12 Apr 2018 14:19:41 -0700
+        Thu, 12 Apr 2018 14:22:05 -0700 (PDT)
+Date: Thu, 12 Apr 2018 14:22:03 -0700
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] radix tree test suite: fix mapshift build target
-Message-ID: <20180412211941.GC18364@bombadil.infradead.org>
-References: <20180412210518.27557-1-ross.zwisler@linux.intel.com>
- <20180412141543.a9d587c3836338e78de33d30@linux-foundation.org>
+Subject: Re: [PATCH v9 07/61] xarray: Add the xa_lock to the radix_tree_root
+Message-ID: <20180412212203.GD18364@bombadil.infradead.org>
+References: <20180313132639.17387-1-willy@infradead.org>
+ <20180313132639.17387-8-willy@infradead.org>
+ <CAOxpaSXDX1fyrOnnsehEoRgQz2_K1OmOn9TikZzJcXmwMLEfnA@mail.gmail.com>
+ <20180412211036.GB18364@bombadil.infradead.org>
+ <CAOxpaSV5L_O9zO_+JLXk9e3SMjm0Gc90ZxSEHaJmvN5YsYpjMA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180412141543.a9d587c3836338e78de33d30@linux-foundation.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAOxpaSV5L_O9zO_+JLXk9e3SMjm0Gc90ZxSEHaJmvN5YsYpjMA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org
+To: Ross Zwisler <zwisler@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org
 
-On Thu, Apr 12, 2018 at 02:15:43PM -0700, Andrew Morton wrote:
-> On Thu, 12 Apr 2018 15:05:18 -0600 Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
+On Thu, Apr 12, 2018 at 03:16:23PM -0600, Ross Zwisler wrote:
+> On Thu, Apr 12, 2018 at 3:10 PM, Matthew Wilcox <willy@infradead.org> wrote:
+> > On Thu, Apr 12, 2018 at 02:59:32PM -0600, Ross Zwisler wrote:
+> >> This is causing build breakage in the radix tree test suite in the
+> >> current linux/master:
+> >>
+> >> ./linux/../../../../include/linux/idr.h: In function a??idr_init_basea??:
+> >> ./linux/../../../../include/linux/radix-tree.h:129:2: warning:
+> >> implicit declaration of function a??spin_lock_inita??; did you mean
+> >> a??spinlock_ta??? [-Wimplicit-function-declaration]
+> >
+> > Argh.  That was added two patches later in
+> > "xarray: Add definition of struct xarray":
+> >
+> > diff --git a/tools/include/linux/spinlock.h b/tools/include/linux/spinlock.h
+> > index b21b586b9854..4ec4d2cbe27a 100644
+> > --- a/tools/include/linux/spinlock.h
+> > +++ b/tools/include/linux/spinlock.h
+> > @@ -6,8 +6,9 @@
+> >  #include <stdbool.h>
+> >
+> >  #define spinlock_t             pthread_mutex_t
+> > -#define DEFINE_SPINLOCK(x)     pthread_mutex_t x = PTHREAD_MUTEX_INITIALIZER;
+> > +#define DEFINE_SPINLOCK(x)     pthread_mutex_t x = PTHREAD_MUTEX_INITIALIZER
+> >  #define __SPIN_LOCK_UNLOCKED(x)        (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER
+> > +#define spin_lock_init(x)      pthread_mutex_init(x, NULL)
+> >
+> >  #define spin_lock_irqsave(x, f)                (void)f, pthread_mutex_lock(x)
+> >  #define spin_unlock_irqrestore(x, f)   (void)f, pthread_mutex_unlock(x)
+> >
+> > I didn't pick up that it was needed this early on in the patch series.
 > 
-> > The following commit
-> > 
-> >   commit c6ce3e2fe3da ("radix tree test suite: Add config option for map
-> >   shift")
-> > 
-> > Introduced a phony makefile target called 'mapshift' that ends up
-> > generating the file generated/map-shift.h.  This phony target was then
-> > added as a dependency of the top level 'targets' build target, which is
-> > what is run when you go to tools/testing/radix-tree and just type 'make'.
-> > 
-> > Unfortunately, this phony target doesn't actually work as a dependency, so
-> > you end up getting:
-> > 
-> > $ make
-> > make: *** No rule to make target 'generated/map-shift.h', needed by 'main.o'.  Stop.
-> > make: *** Waiting for unfinished jobs....
-> > 
-> > Fix this by making the file generated/map-shift.h our real makefile target,
-> > and add this a dependency of the top level build target.
-> 
-> I still get
-> 
-> akpm3:/usr/src/25/tools/testing/radix-tree> make
-> cc -I. -I../../include -g -O2 -Wall -D_LGPL_SOURCE -fsanitize=address   -c -o main.o main.c
-> In file included from ./linux/../../../../include/linux/radix-tree.h:28:0,
->                  from ./linux/radix-tree.h:6,
->                  from main.c:10:
-> ./linux/rcupdate.h:5:10: fatal error: urcu.h: No such file or directory
+> Hmmm..I don't know if it's a patch ordering issue, because this
+> happens with the current linux/master where presumably all the patches
+> are present?
 
-apt-get install liburcu-dev
+No, Andrew only merged the first 8 or so because of lack of review of
+the remaining patches.  Even though I cc'd people as hard as I could.
+Including you.  :-P
 
->  #include <urcu.h>
-> 
-> 
-> lots of breakage here :(
-> 
+You could, for example, review the DAX patches ...
