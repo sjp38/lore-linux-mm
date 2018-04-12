@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC9B6B0007
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:52:23 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 91-v6so3618056pla.18
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 04:52:23 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 217FD6B0007
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 08:01:38 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id i137so2761620pfe.0
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 05:01:38 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f11-v6si3283661plm.19.2018.04.12.04.52.22
+        by mx.google.com with ESMTPS id n1-v6si3213263pld.238.2018.04.12.05.01.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Apr 2018 04:52:22 -0700 (PDT)
-Date: Thu, 12 Apr 2018 13:52:17 +0200
+        Thu, 12 Apr 2018 05:01:36 -0700 (PDT)
+Date: Thu, 12 Apr 2018 14:01:33 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
-Message-ID: <20180412115217.GC23400@dhcp22.suse.cz>
-References: <20180305133743.12746-1-guro@fb.com>
- <20180305133743.12746-2-guro@fb.com>
- <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
- <20180411135624.GA24260@castle.DHCP.thefacebook.com>
- <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz>
+Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+Message-ID: <20180412120133.GD23400@dhcp22.suse.cz>
+References: <1504672525-17915-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20170914132452.d5klyizce72rhjaa@dhcp22.suse.cz>
+ <CAAmzW4NGv7RyCYyokPoj4aR3ySKub4jaBZ3k=pt_YReFbByvsw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz>
+In-Reply-To: <CAAmzW4NGv7RyCYyokPoj4aR3ySKub4jaBZ3k=pt_YReFbByvsw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-api@vger.kernel.org
 
-On Thu 12-04-18 08:52:52, Vlastimil Babka wrote:
-> On 04/11/2018 03:56 PM, Roman Gushchin wrote:
-> > On Wed, Apr 11, 2018 at 03:16:08PM +0200, Vlastimil Babka wrote:
-[...]
-> >> With that in mind, can we at least for now put the (manually maintained)
-> >> byte counter in a variable that's not directly exposed via /proc/vmstat,
-> >> and then when printing nr_slab_reclaimable, simply add the value
-> >> (divided by PAGE_SIZE), and when printing nr_slab_unreclaimable,
-> >> subtract the same value. This way we would be simply making the existing
-> >> counters more precise, in line with their semantics.
-> > 
-> > Idk, I don't like the idea of adding a counter outside of the vm counters
-> > infrastructure, and I definitely wouldn't touch the exposed
-> > nr_slab_reclaimable and nr_slab_unreclaimable fields.
+On Wed 04-04-18 09:24:06, Joonsoo Kim wrote:
+> 2017-09-14 22:24 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> > [Sorry for a later reply]
+> >
+> > On Wed 06-09-17 13:35:25, Joonsoo Kim wrote:
+> >> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >>
+> >> Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+> >> important to reserve.
+> >
+> > I am still not convinced this is a good idea. I do agree that reserving
+> > memory in both HIGHMEM and MOVABLE is just wasting memory but removing
+> > the reserve from the highmem as well will result that an oom victim will
+> > allocate from lower zones and that might have unexpected side effects.
+> 
+> Looks like you are confused.
+> 
+> This patch only affects the situation that ZONE_HIGHMEM and ZONE_MOVABLE is
+> used at the same time. In that case, before this patch, ZONE_HIGHMEM has
+> reserve for GFP_HIGHMEM | GFP_MOVABLE request, but, with this patch,  no reserve
+> in ZONE_HIGHMEM for GFP_HIGHMEM | GFP_MOVABLE request. This perfectly
+> matchs with your hope. :)
 
-Why?
-
-> We would be just making the reported values more precise wrt reality.
-
-I was suggesting something similar in an earlier discussion. I am not
-really happy about the new exposed counter either. It is just arbitrary
-by name yet very specific for this particular usecase.
-
-What is a poor user supposed to do with the new counter? Can this be
-used for any calculations?
+I have forgot all the details but my vague recollection is that the
+concern was that GFP_HIGHUSER_MOVABLE etc. wouldn't keep any reserve in
+the highmem zone and so emergency allocations - e.g. those during OOM
+will have to fallback to kernel zones and might lead to hard to predict
+results. Am I still confused and this will not happen after the patch?
 -- 
 Michal Hocko
-SUSE Lab
+SUSE Labs
