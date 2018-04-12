@@ -1,67 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A6D346B000E
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 09:44:54 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id z83so2810723wmc.2
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 06:44:54 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id e43si557618edd.37.2018.04.12.06.44.52
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 608126B0011
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:01:03 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w9-v6so3890603plp.0
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:01:03 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id q7si2169793pgp.552.2018.04.12.07.01.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Apr 2018 06:44:53 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3CDeGDl003867
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 09:44:51 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ha79hc2yk-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 09:44:51 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 12 Apr 2018 14:44:46 +0100
-Subject: Re: [PATCH v9 21/24] perf tools: Add support for the SPF perf event
-References: <1520963994-28477-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1520963994-28477-22-git-send-email-ldufour@linux.vnet.ibm.com>
- <alpine.DEB.2.20.1803261443560.255554@chino.kir.corp.google.com>
- <20180327034936.GO13724@tassilo.jf.intel.com>
- <alpine.DEB.2.21.1804092346090.225864@chino.kir.corp.google.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Thu, 12 Apr 2018 15:44:36 +0200
+        Thu, 12 Apr 2018 07:01:01 -0700 (PDT)
+Date: Thu, 12 Apr 2018 08:00:59 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] mmap.2: Add description of MAP_SHARED_VALIDATE and
+ MAP_SYNC
+Message-ID: <20180412140059.GA7992@linux.intel.com>
+References: <20171101153648.30166-1-jack@suse.cz>
+ <20171101153648.30166-20-jack@suse.cz>
+ <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1804092346090.225864@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <de5f854b-fd39-21e1-1ce9-1c5c2d292eb8@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andi Kleen <ak@linux.intel.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Ext4 Developers List <linux-ext4@vger.kernel.org>, xfs <linux-xfs@vger.kernel.org>, "Darrick J . Wong" <darrick.wong@oracle.com>
 
-On 10/04/2018 08:47, David Rientjes wrote:
-> On Mon, 26 Mar 2018, Andi Kleen wrote:
+On Thu, Apr 12, 2018 at 03:00:49PM +0200, Michael Kerrisk (man-pages) wrote:
+> Hello Jan,
 > 
->>> Aside: should there be a new spec_flt field for struct task_struct that 
->>> complements maj_flt and min_flt and be exported through /proc/pid/stat?
->>
->> No. task_struct is already too bloated. If you need per process tracking 
->> you can always get it through trace points.
->>
+> I have applied your patch, and tweaked the text a little, and pushed
+> the result to the git repo.
 > 
-> Hi Andi,
+> On 1 November 2017 at 16:36, Jan Kara <jack@suse.cz> wrote:
+> > Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > Signed-off-by: Jan Kara <jack@suse.cz>
 > 
-> We have
+> I have a question below.
 > 
-> 	count_vm_event(PGFAULT);
-> 	count_memcg_event_mm(vma->vm_mm, PGFAULT);
+> > ---
+> >  man2/mmap.2 | 35 ++++++++++++++++++++++++++++++++++-
+> >  1 file changed, 34 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/man2/mmap.2 b/man2/mmap.2
+> > index 47c3148653be..b38ee6809327 100644
+> > --- a/man2/mmap.2
+> > +++ b/man2/mmap.2
+> > @@ -125,6 +125,21 @@ are carried through to the underlying file.
+> >  to the underlying file requires the use of
+> >  .BR msync (2).)
+> >  .TP
+> > +.BR MAP_SHARED_VALIDATE " (since Linux 4.15)"
+> > +The same as
+> > +.B MAP_SHARED
+> > +except that
+> > +.B MAP_SHARED
+> > +mappings ignore unknown flags in
+> > +.IR flags .
+> > +In contrast when creating mapping of
+> > +.B MAP_SHARED_VALIDATE
+> > +mapping type, the kernel verifies all passed flags are known and fails the
+> > +mapping with
+> > +.BR EOPNOTSUPP
+> > +otherwise. This mapping type is also required to be able to use some mapping
+> > +flags.
+> > +.TP
+> >  .B MAP_PRIVATE
+> >  Create a private copy-on-write mapping.
+> >  Updates to the mapping are not visible to other processes
+> > @@ -134,7 +149,10 @@ It is unspecified whether changes made to the file after the
+> >  .BR mmap ()
+> >  call are visible in the mapped region.
+> >  .PP
+> > -Both of these flags are described in POSIX.1-2001 and POSIX.1-2008.
+> > +.B MAP_SHARED
+> > +and
+> > +.B MAP_PRIVATE
+> > +are described in POSIX.1-2001 and POSIX.1-2008.
+> >  .PP
+> >  In addition, zero or more of the following values can be ORed in
+> >  .IR flags :
+> > @@ -352,6 +370,21 @@ option.
+> >  Because of the security implications,
+> >  that option is normally enabled only on embedded devices
+> >  (i.e., devices where one has complete control of the contents of user memory).
+> > +.TP
+> > +.BR MAP_SYNC " (since Linux 4.15)"
+> > +This flags is available only with
+> > +.B MAP_SHARED_VALIDATE
+> > +mapping type. Mappings of
+> > +.B MAP_SHARED
+> > +type will silently ignore this flag.
+> > +This flag is supported only for files supporting DAX (direct mapping of persistent
+> > +memory). For other files, creating mapping with this flag results in
+> > +.B EOPNOTSUPP
+> > +error. Shared file mappings with this flag provide the guarantee that while
+> > +some memory is writeably mapped in the address space of the process, it will
+> > +be visible in the same file at the same offset even after the system crashes or
+> > +is rebooted. This allows users of such mappings to make data modifications
+> > +persistent in a more efficient way using appropriate CPU instructions.
 > 
-> in handle_mm_fault() but not counterpart for spf.  I think it would be 
-> helpful to be able to determine how much faulting can be done 
-> speculatively if there is no per-process tracking without tracing.
+> It feels like there's a word missing/unclear wording in the previous
+> line, before "using". Without that word, the sentence feels a bit
+> ambiguous.
+> 
+> Should it be:
+> 
+> persistent in a more efficient way *through the use of* appropriate
+> CPU instructions.
+> 
+> or:
+> 
+> persistent in a more efficient way *than using* appropriate CPU instructions.
+> 
+> ?
+> 
+> Is suspect the first is correct, but need to check.
 
-That sounds to be a good idea, I will create a separate patch a dedicated
-speculative_pgfault counter as PGFAULT is.
-
-Thanks,
-Laurent.
+You're right, the first one is correct.
