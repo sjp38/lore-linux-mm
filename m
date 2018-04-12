@@ -1,66 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BEF796B0005
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:13:48 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id o33-v6so3896742plb.16
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:13:48 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B7F006B0005
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:22:17 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id o33-v6so3910981plb.16
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:22:17 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j10-v6si3475905plt.616.2018.04.12.07.13.47
+        by mx.google.com with ESMTPS id s66si2294782pgb.59.2018.04.12.07.22.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Apr 2018 07:13:47 -0700 (PDT)
-Date: Thu, 12 Apr 2018 16:13:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCHSET] mm, memcontrol: Implement memory.swap.events
-Message-ID: <20180412141345.GH23400@dhcp22.suse.cz>
-References: <20180324165127.701194-1-tj@kernel.org>
+        Thu, 12 Apr 2018 07:22:16 -0700 (PDT)
+Date: Thu, 12 Apr 2018 16:22:14 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mmap.2: Add description of MAP_SHARED_VALIDATE and
+ MAP_SYNC
+Message-ID: <20180412142214.fcxw3g2jxv6bvn7d@quack2.suse.cz>
+References: <20171101153648.30166-1-jack@suse.cz>
+ <20171101153648.30166-20-jack@suse.cz>
+ <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180324165127.701194-1-tj@kernel.org>
+In-Reply-To: <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, vdavydov.dev@gmail.com, guro@fb.com, riel@surriel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Ext4 Developers List <linux-ext4@vger.kernel.org>, xfs <linux-xfs@vger.kernel.org>, "Darrick J . Wong" <darrick.wong@oracle.com>
 
-Hi Tejun,
-sorry for the late response. Are you plannig to repost?
+Hello Michael!
 
-On Sat 24-03-18 09:51:25, Tejun Heo wrote:
-> Hello,
+On Thu 12-04-18 15:00:49, Michael Kerrisk (man-pages) wrote:
+> Hello Jan,
 > 
-> This patchset implements memory.swap.events which contains max and
-> fail events so that userland can monitor and respond to swap running
-> out.  It contains the following two patches.
-> 
->  0001-mm-memcontrol-Move-swap-charge-handling-into-get_swa.patch
->  0002-mm-memcontrol-Implement-memory.swap.events.patch
-> 
-> This patchset is on top of the "cgroup/for-4.17: Make cgroup_rstat
-> available to controllers" patchset[1] and "mm, memcontrol: Make
-> cgroup_rstat available to controllers" patchset[2] and also available
-> in the following git branch.
-> 
->  git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-memcg-swap.events
-> 
-> diffstat follows.
-> 
->  Documentation/cgroup-v2.txt |   16 ++++++++++++++++
->  include/linux/memcontrol.h  |    5 +++++
->  mm/memcontrol.c             |   25 +++++++++++++++++++++++++
->  mm/shmem.c                  |    4 ----
->  mm/swap_slots.c             |   10 +++++++---
->  mm/swap_state.c             |    3 ---
->  6 files changed, 53 insertions(+), 10 deletions(-)
-> 
-> Thanks.
-> 
-> --
-> tejun
-> 
-> [1] http://lkml.kernel.org/r/20180323231313.1254142-1-tj@kernel.org
-> [2] http://lkml.kernel.org/r/20180324160901.512135-1-tj@kernel.org
+> I have applied your patch, and tweaked the text a little, and pushed
+> the result to the git repo.
 
+Thanks!
+
+> > +.B MAP_SHARED
+> > +type will silently ignore this flag.
+> > +This flag is supported only for files supporting DAX (direct mapping of persistent
+> > +memory). For other files, creating mapping with this flag results in
+> > +.B EOPNOTSUPP
+> > +error. Shared file mappings with this flag provide the guarantee that while
+> > +some memory is writeably mapped in the address space of the process, it will
+> > +be visible in the same file at the same offset even after the system crashes or
+> > +is rebooted. This allows users of such mappings to make data modifications
+> > +persistent in a more efficient way using appropriate CPU instructions.
+> 
+> It feels like there's a word missing/unclear wording in the previous
+> line, before "using". Without that word, the sentence feels a bit
+> ambiguous.
+> 
+> Should it be:
+> 
+> persistent in a more efficient way *through the use of* appropriate
+> CPU instructions.
+> 
+> or:
+> 
+> persistent in a more efficient way *than using* appropriate CPU instructions.
+> 
+> ?
+> 
+> Is suspect the first is correct, but need to check.
+
+Yes, the first is correct.
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
