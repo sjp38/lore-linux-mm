@@ -1,72 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B7F006B0005
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:22:17 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id o33-v6so3910981plb.16
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:22:17 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s66si2294782pgb.59.2018.04.12.07.22.16
+	by kanga.kvack.org (Postfix) with ESMTP id 0BD306B0005
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:27:21 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id h32-v6so3923686pld.15
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:27:21 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id q6-v6si2597018pls.457.2018.04.12.07.27.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Apr 2018 07:22:16 -0700 (PDT)
-Date: Thu, 12 Apr 2018 16:22:14 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mmap.2: Add description of MAP_SHARED_VALIDATE and
- MAP_SYNC
-Message-ID: <20180412142214.fcxw3g2jxv6bvn7d@quack2.suse.cz>
-References: <20171101153648.30166-1-jack@suse.cz>
- <20171101153648.30166-20-jack@suse.cz>
- <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 12 Apr 2018 07:27:19 -0700 (PDT)
+Date: Thu, 12 Apr 2018 07:27:18 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2 2/2] slab: __GFP_ZERO is incompatible with a
+ constructor
+Message-ID: <20180412142718.GA20398@bombadil.infradead.org>
+References: <20180411060320.14458-1-willy@infradead.org>
+ <20180411060320.14458-3-willy@infradead.org>
+ <alpine.DEB.2.20.1804110842560.3788@nuc-kabylake>
+ <20180411192448.GD22494@bombadil.infradead.org>
+ <alpine.DEB.2.20.1804111601090.7458@nuc-kabylake>
+ <20180411235652.GA28279@bombadil.infradead.org>
+ <alpine.DEB.2.20.1804120907100.11220@nuc-kabylake>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.20.1804120907100.11220@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Ext4 Developers List <linux-ext4@vger.kernel.org>, xfs <linux-xfs@vger.kernel.org>, "Darrick J . Wong" <darrick.wong@oracle.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-Hello Michael!
+On Thu, Apr 12, 2018 at 09:10:23AM -0500, Christopher Lameter wrote:
+> On Wed, 11 Apr 2018, Matthew Wilcox wrote:
+> > I don't see how that works ... can you explain a little more?
+>
+> c->freelist is NULL and thus ___slab_alloc (slowpath) is called.
+> ___slab_alloc populates c->freelist and gets the new object pointer.
+> 
+> if debugging is on then c->freelist is set to NULL at the end of
+> ___slab_alloc because deactivate_slab() is called.
+> 
+> Thus the next invocation of the fastpath will find that c->freelist is
+> NULL and go to the slowpath. ...
 
-On Thu 12-04-18 15:00:49, Michael Kerrisk (man-pages) wrote:
-> Hello Jan,
-> 
-> I have applied your patch, and tweaked the text a little, and pushed
-> the result to the git repo.
-
-Thanks!
-
-> > +.B MAP_SHARED
-> > +type will silently ignore this flag.
-> > +This flag is supported only for files supporting DAX (direct mapping of persistent
-> > +memory). For other files, creating mapping with this flag results in
-> > +.B EOPNOTSUPP
-> > +error. Shared file mappings with this flag provide the guarantee that while
-> > +some memory is writeably mapped in the address space of the process, it will
-> > +be visible in the same file at the same offset even after the system crashes or
-> > +is rebooted. This allows users of such mappings to make data modifications
-> > +persistent in a more efficient way using appropriate CPU instructions.
-> 
-> It feels like there's a word missing/unclear wording in the previous
-> line, before "using". Without that word, the sentence feels a bit
-> ambiguous.
-> 
-> Should it be:
-> 
-> persistent in a more efficient way *through the use of* appropriate
-> CPU instructions.
-> 
-> or:
-> 
-> persistent in a more efficient way *than using* appropriate CPU instructions.
-> 
-> ?
-> 
-> Is suspect the first is correct, but need to check.
-
-Yes, the first is correct.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+_ah_.  I hadn't figured out that c->page was always NULL in the debugging
+case too, so ___slab_alloc() always hits the 'new_slab' case.  Thanks!
