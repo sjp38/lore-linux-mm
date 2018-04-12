@@ -1,62 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 922666B0003
-	for <linux-mm@kvack.org>; Wed, 11 Apr 2018 23:26:26 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f9-v6so2710142plo.17
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 20:26:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k193sor593015pgc.86.2018.04.11.20.26.24
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A5EEC6B0003
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 01:51:27 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id f9-v6so2955350plo.17
+        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 22:51:27 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n2si1826508pgs.500.2018.04.11.22.51.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Apr 2018 20:26:25 -0700 (PDT)
-Date: Thu, 12 Apr 2018 11:26:16 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 1/2] mm/sparse: pass the __highest_present_section_nr + 1
- to alloc_func()
-Message-ID: <20180412032616.GA56479@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20180326081956.75275-1-richard.weiyang@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 11 Apr 2018 22:51:26 -0700 (PDT)
+Date: Thu, 12 Apr 2018 07:51:22 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [LSF/MM TOPIC] CMA and larger page sizes
+Message-ID: <20180412055122.GP23400@dhcp22.suse.cz>
+References: <3a3d724e-4d74-9bd8-60f3-f6896cffac7a@redhat.com>
+ <20180126172527.GI5027@dhcp22.suse.cz>
+ <20180404051115.GC6628@js1304-desktop>
+ <075843db-ec6e-3822-a60c-ae7487981f09@redhat.com>
+ <d88676d9-8f42-2519-56bf-776e46b1180e@suse.cz>
+ <b1420dd8-23ae-89e8-3b9d-62663bd69e24@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180326081956.75275-1-richard.weiyang@gmail.com>
+In-Reply-To: <b1420dd8-23ae-89e8-3b9d-62663bd69e24@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: dave.hansen@linux.intel.com, Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, linux-mm@kvack.org
+To: Laura Abbott <labbott@redhat.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-Hi, Andrew
-
-I saw you merged one related patch recently, not sure you would take these two?
-
-On Mon, Mar 26, 2018 at 04:19:55PM +0800, Wei Yang wrote:
->In 'commit c4e1be9ec113 ("mm, sparsemem: break out of loops early")',
->__highest_present_section_nr is introduced to reduce the loop counts for
->present section. This is also helpful for usemap and memmap allocation.
->
->This patch uses __highest_present_section_nr + 1 to optimize the loop.
->
->Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
->---
-> mm/sparse.c | 2 +-
-> 1 file changed, 1 insertion(+), 1 deletion(-)
->
->diff --git a/mm/sparse.c b/mm/sparse.c
->index 7af5e7a92528..505050346249 100644
->--- a/mm/sparse.c
->+++ b/mm/sparse.c
->@@ -561,7 +561,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
-> 		map_count = 1;
-> 	}
-> 	/* ok, last chunk */
->-	alloc_func(data, pnum_begin, NR_MEM_SECTIONS,
->+	alloc_func(data, pnum_begin, __highest_present_section_nr+1,
-> 						map_count, nodeid_begin);
-> }
+On Wed 11-04-18 18:06:59, Laura Abbott wrote:
+> On 04/11/2018 01:02 PM, Vlastimil Babka wrote:
+> > On 04/11/2018 09:55 PM, Laura Abbott wrote:
+> > > On 04/03/2018 10:11 PM, Joonsoo Kim wrote:
+> > > > If the patchset 'manage the memory of the CMA area by using the ZONE_MOVABLE' is
+> > > > merged, this restriction can be removed since there is no unmovable
+> > > > pageblock in ZONE_MOVABLE. Just quick thought. :)
+> > > > 
+> > > > Thanks.
+> > > > 
+> > > 
+> > > Thanks for that pointer. What's the current status of that patchset? Was that
+> > > one that needed more review/testing?
+> > 
+> > It was merged by Linus today, see around commit bad8c6c0b114 ("mm/cma:
+> > manage the memory of the CMA area by using the ZONE_MOVABLE")
+> > 
+> > Congrats, Joonsoo :)
+> > 
 > 
->-- 
->2.15.1
+> I took a look at this a little bit more and while it's true we don't
+> have the unmovable restriction anymore, CMA is still tied to the pageblock
+> size (512MB) because we still have MIGRATE_CMA. I guess making the
+> pageblock smaller seems like the most plausible approach?
 
+Maybe I am wrong but my take on what Joonsoo said is that we really do
+not have to care about page blocks and MIGRATE_CMA because GFP_MOVABLE
+can be allocated from that migrate type as it is by definition movable.
+The size of the page block shouldn't matter.
 -- 
-Wei Yang
-Help you, Help me
+Michal Hocko
+SUSE Labs
