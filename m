@@ -1,51 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A7C066B0005
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 13:12:12 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id c11-v6so4255574pll.13
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:12:12 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a10si2509865pgq.272.2018.04.12.10.12.11
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A7BC6B0005
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 13:20:04 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x184so3225609pfd.14
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:20:04 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00094.outbound.protection.outlook.com. [40.107.0.94])
+        by mx.google.com with ESMTPS id s10-v6si3865925plq.240.2018.04.12.10.20.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Apr 2018 10:12:11 -0700 (PDT)
-Date: Thu, 12 Apr 2018 10:12:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 198497] New: handle_mm_fault / xen_pmd_val /
- radix_tree_lookup_slot Null pointer
-Message-Id: <20180412101209.311c5ee1759449877b233183@linux-foundation.org>
-In-Reply-To: <20180209144726.GD16666@bombadil.infradead.org>
-References: <20180118135518.639141f0b0ea8bb047ab6306@linux-foundation.org>
-	<7ba7635e-249a-9071-75bb-7874506bd2b2@redhat.com>
-	<20180119030447.GA26245@bombadil.infradead.org>
-	<d38ff996-8294-81a6-075f-d7b2a60aa2f4@rimuhosting.com>
-	<20180119132145.GB2897@bombadil.infradead.org>
-	<9d2ddba4-3fb3-0fb4-a058-f2cfd1b05538@redhat.com>
-	<32ab6fd6-e3c6-9489-8163-aa73861aa71a@rimuhosting.com>
-	<20180126194058.GA31600@bombadil.infradead.org>
-	<9ff38687-edde-6b4e-4532-9c150f8ea647@rimuhosting.com>
-	<20180131105456.GC28275@bombadil.infradead.org>
-	<20180209144726.GD16666@bombadil.infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 12 Apr 2018 10:20:03 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 13/15] khwasan: add hooks implementation
+References: <cover.1521828273.git.andreyknvl@google.com>
+ <ba4a74ba1bc48dd66a3831143c3119d13c291fe3.1521828274.git.andreyknvl@google.com>
+ <805d1e85-2d3c-2327-6e6c-f14a56dc0b67@virtuozzo.com>
+ <CAAeHK+yg5ODeDy7k9fako5mcCLLnBrO729Zp_-UtDuzh3hZgZA@mail.gmail.com>
+ <0c4397da-e231-0044-986f-b8468314be76@virtuozzo.com>
+ <CAAeHK+xmCLe85_QNDam_BVTp9wVzjxgvko2+0JapJCzmciGa5g@mail.gmail.com>
+ <0857f052-a27a-501e-8923-c6f31510e4fe@virtuozzo.com>
+ <CAAeHK+xnHeznZwofNQVDcBCCMnaEQ6fcRxOcrFM-qQFUsZ51Rg@mail.gmail.com>
+ <0f448799-3a06-a25d-d604-21db3e8577fc@virtuozzo.com>
+ <CAAeHK+wWN=phNZgC_g5SMf61sCAVM7SGX9GdF1X4v+P3mK=uZA@mail.gmail.com>
+ <bfc3da50-66df-c6ed-ad6a-a285efe617ec@virtuozzo.com>
+ <CAAeHK+wzwXnJh1bbhUN6bm788q52BA2EfC+Q3dMS=peP7Px4Rg@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <a29d22c7-bcae-ec8d-1810-95eef013e699@virtuozzo.com>
+Date: Thu, 12 Apr 2018 20:20:47 +0300
+MIME-Version: 1.0
+In-Reply-To: <CAAeHK+wzwXnJh1bbhUN6bm788q52BA2EfC+Q3dMS=peP7Px4Rg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: xen@randonwebstuff.com, Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-On Fri, 9 Feb 2018 06:47:26 -0800 Matthew Wilcox <willy@infradead.org> wrote:
 
+
+On 04/12/2018 07:45 PM, Andrey Konovalov wrote:
+> On Tue, Apr 10, 2018 at 6:31 PM, Andrey Ryabinin
+> <aryabinin@virtuozzo.com> wrote:
+>>
+>>
+>> On 04/10/2018 07:07 PM, Andrey Konovalov wrote:
+>>> On Fri, Apr 6, 2018 at 2:27 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>>>> On 04/06/2018 03:14 PM, Andrey Konovalov wrote:
+>>>>> On Thu, Apr 5, 2018 at 3:02 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>>>>>> Nevertheless, this doesn't mean that we should ignore *all* accesses to !slab memory.
+>>>>>
+>>>>> So you mean we need to find a way to ignore accesses via pointers
+>>>>> returned by page_address(), but still check accesses through all other
+>>>>> pointers tagged with 0xFF? I don't see an obvious way to do this. I'm
+>>>>> open to suggestions though.
+>>>>>
+>>>>
+>>>> I'm saying that we need to ignore accesses to slab objects if pointer
+>>>> to slab object obtained via page_address() + offset_in_page() trick, but don't ignore
+>>>> anything else.
+>>>>
+>>>> So, save tag somewhere in page struct and poison shadow with that tag. Make page_address() to
+>>>> return tagged address for all !PageSlab() pages. For PageSlab() pages page_address() should return
+>>>> 0xff tagged address, so we could ignore such accesses.
+>>>
+>>> Which pages do you mean by !PageSlab()?
+>>
+>> Literally the "PageSlab(page) == false" pages.
+>>
+>>> The ones that are allocated and freed by pagealloc, but mot managed by the slab allocator?
+>>
+>> Yes.
+>>
+>>> Perhaps we should then add tagging to the pagealloc hook instead?
+>>>
+>>
+>> Of course the tagging would be in kasan_alloc_pages(), where else that could be? And instead of what?
 > 
-> ping?
+> I think I misunderstood your suggestion twice already :)
+> 
+> To make it clear, you're suggesting:
+> 
+> 1. Tag memory with a random tag in kasan_alloc_pages() and returned a
+> tagged pointer from pagealloc.
+ 
+Tag memory with a random tag in kasan_alloc_pages() and store that tag in page struct (that part is also in kasan_alloc_pages()).
+page_address(page) will retrieve that tag from struct page to return tagged address.
+
+I've no idea what do you mean by "returning a tagged pointer from pagealloc".
+Once again, the page allocator (__alloc_pages_nodemask()) returns pointer to *struct page*,
+not the address in the linear mapping where is that page mapped (or not mapped at all if this is highmem).
+One have to call page_address()/kmap() to use that page.
+
+
+> 2. Restore the tag for the pointers returned from page_address for
+> !PageSlab() pages.
 > 
 
-There have been a bunch of updates to this issue in bugzilla
-(https://bugzilla.kernel.org/show_bug.cgi?id=198497).  Sigh, I don't
-know what to do about this - maybe there's some way of getting bugzilla
-to echo everything to linux-mm or something.
+Right.
 
-Anyway, please take a look - we appear to have a bug here.  Perhaps
-this bug is sufficiently gnarly for you to prepare a debugging patch
-which we can add to the mainline kernel so we get (much) more debugging
-info when people hit it?
+> 3. Set the tag to 0xff for the pointers returned from page_address for
+> PageSlab() pages.
+> 
+
+Right.
+
+> Is this correct?
+> 
+> In 2 instead of storing the tag in page_struct, we can just recover it
+> from the shadow memory that corresponds to that page. What do you
+> think about this?
+
+Sounds ok. Don't see any problem with that.
