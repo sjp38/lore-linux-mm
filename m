@@ -1,120 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 608126B0011
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:01:03 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id w9-v6so3890603plp.0
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:01:03 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id q7si2169793pgp.552.2018.04.12.07.01.01
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EFB86B0005
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:10:26 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id k23so3804460qtj.16
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 07:10:26 -0700 (PDT)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id n8si4822495qtc.341.2018.04.12.07.10.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Apr 2018 07:01:01 -0700 (PDT)
-Date: Thu, 12 Apr 2018 08:00:59 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH] mmap.2: Add description of MAP_SHARED_VALIDATE and
- MAP_SYNC
-Message-ID: <20180412140059.GA7992@linux.intel.com>
-References: <20171101153648.30166-1-jack@suse.cz>
- <20171101153648.30166-20-jack@suse.cz>
- <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com>
+        Thu, 12 Apr 2018 07:10:25 -0700 (PDT)
+Date: Thu, 12 Apr 2018 09:10:23 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 2/2] slab: __GFP_ZERO is incompatible with a
+ constructor
+In-Reply-To: <20180411235652.GA28279@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1804120907100.11220@nuc-kabylake>
+References: <20180411060320.14458-1-willy@infradead.org> <20180411060320.14458-3-willy@infradead.org> <alpine.DEB.2.20.1804110842560.3788@nuc-kabylake> <20180411192448.GD22494@bombadil.infradead.org> <alpine.DEB.2.20.1804111601090.7458@nuc-kabylake>
+ <20180411235652.GA28279@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Ext4 Developers List <linux-ext4@vger.kernel.org>, xfs <linux-xfs@vger.kernel.org>, "Darrick J . Wong" <darrick.wong@oracle.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Thu, Apr 12, 2018 at 03:00:49PM +0200, Michael Kerrisk (man-pages) wrote:
-> Hello Jan,
-> 
-> I have applied your patch, and tweaked the text a little, and pushed
-> the result to the git repo.
-> 
-> On 1 November 2017 at 16:36, Jan Kara <jack@suse.cz> wrote:
-> > Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> 
-> I have a question below.
-> 
-> > ---
-> >  man2/mmap.2 | 35 ++++++++++++++++++++++++++++++++++-
-> >  1 file changed, 34 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/man2/mmap.2 b/man2/mmap.2
-> > index 47c3148653be..b38ee6809327 100644
-> > --- a/man2/mmap.2
-> > +++ b/man2/mmap.2
-> > @@ -125,6 +125,21 @@ are carried through to the underlying file.
-> >  to the underlying file requires the use of
-> >  .BR msync (2).)
-> >  .TP
-> > +.BR MAP_SHARED_VALIDATE " (since Linux 4.15)"
-> > +The same as
-> > +.B MAP_SHARED
-> > +except that
-> > +.B MAP_SHARED
-> > +mappings ignore unknown flags in
-> > +.IR flags .
-> > +In contrast when creating mapping of
-> > +.B MAP_SHARED_VALIDATE
-> > +mapping type, the kernel verifies all passed flags are known and fails the
-> > +mapping with
-> > +.BR EOPNOTSUPP
-> > +otherwise. This mapping type is also required to be able to use some mapping
-> > +flags.
-> > +.TP
-> >  .B MAP_PRIVATE
-> >  Create a private copy-on-write mapping.
-> >  Updates to the mapping are not visible to other processes
-> > @@ -134,7 +149,10 @@ It is unspecified whether changes made to the file after the
-> >  .BR mmap ()
-> >  call are visible in the mapped region.
-> >  .PP
-> > -Both of these flags are described in POSIX.1-2001 and POSIX.1-2008.
-> > +.B MAP_SHARED
-> > +and
-> > +.B MAP_PRIVATE
-> > +are described in POSIX.1-2001 and POSIX.1-2008.
-> >  .PP
-> >  In addition, zero or more of the following values can be ORed in
-> >  .IR flags :
-> > @@ -352,6 +370,21 @@ option.
-> >  Because of the security implications,
-> >  that option is normally enabled only on embedded devices
-> >  (i.e., devices where one has complete control of the contents of user memory).
-> > +.TP
-> > +.BR MAP_SYNC " (since Linux 4.15)"
-> > +This flags is available only with
-> > +.B MAP_SHARED_VALIDATE
-> > +mapping type. Mappings of
-> > +.B MAP_SHARED
-> > +type will silently ignore this flag.
-> > +This flag is supported only for files supporting DAX (direct mapping of persistent
-> > +memory). For other files, creating mapping with this flag results in
-> > +.B EOPNOTSUPP
-> > +error. Shared file mappings with this flag provide the guarantee that while
-> > +some memory is writeably mapped in the address space of the process, it will
-> > +be visible in the same file at the same offset even after the system crashes or
-> > +is rebooted. This allows users of such mappings to make data modifications
-> > +persistent in a more efficient way using appropriate CPU instructions.
-> 
-> It feels like there's a word missing/unclear wording in the previous
-> line, before "using". Without that word, the sentence feels a bit
-> ambiguous.
-> 
-> Should it be:
-> 
-> persistent in a more efficient way *through the use of* appropriate
-> CPU instructions.
-> 
-> or:
-> 
-> persistent in a more efficient way *than using* appropriate CPU instructions.
-> 
-> ?
-> 
-> Is suspect the first is correct, but need to check.
+On Wed, 11 Apr 2018, Matthew Wilcox wrote:
 
-You're right, the first one is correct.
+>
+> I don't see how that works ... can you explain a little more?
+>
+> I see ___slab_alloc() is called from __slab_alloc().  And I see
+> slab_alloc_node does this:
+>
+>         object = c->freelist;
+>         page = c->page;
+>         if (unlikely(!object || !node_match(page, node))) {
+>                 object = __slab_alloc(s, gfpflags, node, addr, c);
+>                 stat(s, ALLOC_SLOWPATH);
+>
+> But I don't see how slub_debug leads to c->freelist always being NULL.
+> It looks like it gets repopulated from page->freelist in ___slab_alloc()
+> at the load_freelist label.
+
+c->freelist is NULL and thus ___slab_alloc (slowpath) is called.
+___slab_alloc populates c->freelist and gets the new object pointer.
+
+if debugging is on then c->freelist is set to NULL at the end of
+___slab_alloc because deactivate_slab() is called.
+
+Thus the next invocation of the fastpath will find that c->freelist is
+NULL and go to the slowpath. ...
