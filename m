@@ -1,72 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CEF186B0005
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 13:37:30 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id o132so5302762iod.11
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 10:37:30 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CB3D36B0005
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 14:20:37 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p4so3420063wrf.17
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 11:20:37 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x2sor2006720ioc.258.2018.04.12.10.37.29
+        by mx.google.com with SMTPS id x23sor3472203edi.29.2018.04.12.11.20.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 12 Apr 2018 10:37:29 -0700 (PDT)
+        Thu, 12 Apr 2018 11:20:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <a29d22c7-bcae-ec8d-1810-95eef013e699@virtuozzo.com>
-References: <cover.1521828273.git.andreyknvl@google.com> <ba4a74ba1bc48dd66a3831143c3119d13c291fe3.1521828274.git.andreyknvl@google.com>
- <805d1e85-2d3c-2327-6e6c-f14a56dc0b67@virtuozzo.com> <CAAeHK+yg5ODeDy7k9fako5mcCLLnBrO729Zp_-UtDuzh3hZgZA@mail.gmail.com>
- <0c4397da-e231-0044-986f-b8468314be76@virtuozzo.com> <CAAeHK+xmCLe85_QNDam_BVTp9wVzjxgvko2+0JapJCzmciGa5g@mail.gmail.com>
- <0857f052-a27a-501e-8923-c6f31510e4fe@virtuozzo.com> <CAAeHK+xnHeznZwofNQVDcBCCMnaEQ6fcRxOcrFM-qQFUsZ51Rg@mail.gmail.com>
- <0f448799-3a06-a25d-d604-21db3e8577fc@virtuozzo.com> <CAAeHK+wWN=phNZgC_g5SMf61sCAVM7SGX9GdF1X4v+P3mK=uZA@mail.gmail.com>
- <bfc3da50-66df-c6ed-ad6a-a285efe617ec@virtuozzo.com> <CAAeHK+wzwXnJh1bbhUN6bm788q52BA2EfC+Q3dMS=peP7Px4Rg@mail.gmail.com>
- <a29d22c7-bcae-ec8d-1810-95eef013e699@virtuozzo.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 12 Apr 2018 19:37:27 +0200
-Message-ID: <CAAeHK+w1f4QSuan4onv-2ZxxSsi-ZYsdPOSuJ4=2ygJ2=q=VmA@mail.gmail.com>
-Subject: Re: [RFC PATCH v2 13/15] khwasan: add hooks implementation
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <20180412142214.fcxw3g2jxv6bvn7d@quack2.suse.cz>
+References: <20171101153648.30166-1-jack@suse.cz> <20171101153648.30166-20-jack@suse.cz>
+ <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com> <20180412142214.fcxw3g2jxv6bvn7d@quack2.suse.cz>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Thu, 12 Apr 2018 20:20:12 +0200
+Message-ID: <CAKgNAkgtVryFb81QgzwPq8SD241yKDN1xNxOWUUQH9QBYV13SA@mail.gmail.com>
+Subject: Re: [PATCH] mmap.2: Add description of MAP_SHARED_VALIDATE and MAP_SYNC
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Ext4 Developers List <linux-ext4@vger.kernel.org>, xfs <linux-xfs@vger.kernel.org>, "Darrick J . Wong" <darrick.wong@oracle.com>
 
-On Thu, Apr 12, 2018 at 7:20 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->> 1. Tag memory with a random tag in kasan_alloc_pages() and returned a
->> tagged pointer from pagealloc.
+Jan, Ross.
+
+On 12 April 2018 at 16:22, Jan Kara <jack@suse.cz> wrote:
+> Hello Michael!
 >
-> Tag memory with a random tag in kasan_alloc_pages() and store that tag in page struct (that part is also in kasan_alloc_pages()).
-> page_address(page) will retrieve that tag from struct page to return tagged address.
->
-> I've no idea what do you mean by "returning a tagged pointer from pagealloc".
-> Once again, the page allocator (__alloc_pages_nodemask()) returns pointer to *struct page*,
-> not the address in the linear mapping where is that page mapped (or not mapped at all if this is highmem).
-> One have to call page_address()/kmap() to use that page.
-
-Ah, that's what I've been missing.
-
-OK, I'll do that.
-
-Thanks!
-
->
->
->> 2. Restore the tag for the pointers returned from page_address for
->> !PageSlab() pages.
+> On Thu 12-04-18 15:00:49, Michael Kerrisk (man-pages) wrote:
+>> Hello Jan,
 >>
+>> I have applied your patch, and tweaked the text a little, and pushed
+>> the result to the git repo.
 >
-> Right.
+> Thanks!
 >
->> 3. Set the tag to 0xff for the pointers returned from page_address for
->> PageSlab() pages.
+>> > +.B MAP_SHARED
+>> > +type will silently ignore this flag.
+>> > +This flag is supported only for files supporting DAX (direct mapping =
+of persistent
+>> > +memory). For other files, creating mapping with this flag results in
+>> > +.B EOPNOTSUPP
+>> > +error. Shared file mappings with this flag provide the guarantee that=
+ while
+>> > +some memory is writeably mapped in the address space of the process, =
+it will
+>> > +be visible in the same file at the same offset even after the system =
+crashes or
+>> > +is rebooted. This allows users of such mappings to make data modifica=
+tions
+>> > +persistent in a more efficient way using appropriate CPU instructions=
+.
 >>
->
-> Right.
->
->> Is this correct?
+>> It feels like there's a word missing/unclear wording in the previous
+>> line, before "using". Without that word, the sentence feels a bit
+>> ambiguous.
 >>
->> In 2 instead of storing the tag in page_struct, we can just recover it
->> from the shadow memory that corresponds to that page. What do you
->> think about this?
+>> Should it be:
+>>
+>> persistent in a more efficient way *through the use of* appropriate
+>> CPU instructions.
+>>
+>> or:
+>>
+>> persistent in a more efficient way *than using* appropriate CPU instruct=
+ions.
+>>
+>> ?
+>>
+>> Is suspect the first is correct, but need to check.
 >
-> Sounds ok. Don't see any problem with that.
->
->
+> Yes, the first is correct.
+
+Thanks for both checking that phrasing. In the end I decided to reword
+the sentence a bot more substantially:
+
+              In  conjunction  with  the  use of appropriate CPU
+              instructions, this provides users of such mappings
+              with a more efficient way of making data modifica=E2=80=90
+              tions persistent.
+
+Thanks,
+
+Michael
+
+--=20
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
