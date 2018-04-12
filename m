@@ -1,162 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D2DA96B0003
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 02:52:56 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x184so2284232pfd.14
-        for <linux-mm@kvack.org>; Wed, 11 Apr 2018 23:52:56 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v90si2111081pfk.350.2018.04.11.23.52.55
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AE1746B0003
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 03:41:13 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id u15-v6so4057315ita.8
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 00:41:13 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id m192-v6si2403199itb.140.2018.04.12.00.41.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Apr 2018 23:52:55 -0700 (PDT)
-Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
-References: <20180305133743.12746-1-guro@fb.com>
- <20180305133743.12746-2-guro@fb.com>
- <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
- <20180411135624.GA24260@castle.DHCP.thefacebook.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz>
-Date: Thu, 12 Apr 2018 08:52:52 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Apr 2018 00:41:12 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v1 0/2] mm: migrate: vm event counter for hugepage
+ migration
+Date: Thu, 12 Apr 2018 07:40:41 +0000
+Message-ID: <20180412074039.GA3340@hori1.linux.bs1.fc.nec.co.jp>
+References: <1523434167-19995-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20180412061859.GR23400@dhcp22.suse.cz>
+In-Reply-To: <20180412061859.GR23400@dhcp22.suse.cz>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <26566DB56A5F954CB0641A6E02F3BC84@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20180411135624.GA24260@castle.DHCP.thefacebook.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Zi Yan <zi.yan@sent.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 04/11/2018 03:56 PM, Roman Gushchin wrote:
-> On Wed, Apr 11, 2018 at 03:16:08PM +0200, Vlastimil Babka wrote:
->> [+CC linux-api]
->>
->> On 03/05/2018 02:37 PM, Roman Gushchin wrote:
->>> This patch introduces a concept of indirectly reclaimable memory
->>> and adds the corresponding memory counter and /proc/vmstat item.
->>>
->>> Indirectly reclaimable memory is any sort of memory, used by
->>> the kernel (except of reclaimable slabs), which is actually
->>> reclaimable, i.e. will be released under memory pressure.
->>>
->>> The counter is in bytes, as it's not always possible to
->>> count such objects in pages. The name contains BYTES
->>> by analogy to NR_KERNEL_STACK_KB.
->>>
->>> Signed-off-by: Roman Gushchin <guro@fb.com>
->>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
->>> Cc: Michal Hocko <mhocko@suse.com>
->>> Cc: Johannes Weiner <hannes@cmpxchg.org>
->>> Cc: linux-fsdevel@vger.kernel.org
->>> Cc: linux-kernel@vger.kernel.org
->>> Cc: linux-mm@kvack.org
->>> Cc: kernel-team@fb.com
->>
->> Hmm, looks like I'm late and this user-visible API change was just
->> merged. But it's for rc1, so we can still change it, hopefully?
->>
->> One problem I see with the counter is that it's in bytes, but among
->> counters that use pages, and the name doesn't indicate it.
-> 
-> Here I just followed "nr_kernel_stack" path, which is measured in kB,
-> but this is not mentioned in the field name.
+On Thu, Apr 12, 2018 at 08:18:59AM +0200, Michal Hocko wrote:
+> On Wed 11-04-18 17:09:25, Naoya Horiguchi wrote:
+> > Hi everyone,
+> >=20
+> > I wrote patches introducing separate vm event counters for hugepage mig=
+ration
+> > (both for hugetlb and thp.)
+> > Hugepage migration is different from normal page migration in event fre=
+quency
+> > and/or how likely it succeeds, so maintaining statistics for them in mi=
+xed
+> > counters might not be helpful both for develors and users.
+>=20
+> This is quite a lot of code to be added se we should better document
+> what it is intended for. Sure I understand your reasonaning about huge
+> pages are more likely to fail but is this really worth a separate
+> counter? Do you have an example of how this would be useful?
 
-Oh, didn't know. Bad example to follow :P
+Our customers periodically collect some log info to understand what
+happened after system failures happen.  Then if we have separate counters
+for hugepage migration and the values show some anomaly, that might
+help admins and developers understand the issue more quickly.
+We have other ways to get this info like checking /proc/pid/pagemap and
+/proc/kpageflags, but they are costly and most users decide not to
+collect them in periodical logging.
 
->> Then, I don't
->> see why users should care about the "indirectly" part, as that's just an
->> implementation detail. It is reclaimable and that's what matters, right?
->> (I also wanted to complain about lack of Documentation/... update, but
->> looks like there's no general file about vmstat, ugh)
-> 
-> I agree, that it's a bit weird, and it's probably better to not expose
-> it at all; but this is how all vm counters work. We do expose them all
-> in /proc/vmstat. A good number of them is useless until you are not a
-> mm developer, so it's arguable more "debug info" rather than "api".
+>=20
+> If we are there then what about different huge page sizes (for hugetlb)?
+> Do we need per-hstate stats?
 
-Yeah the problem is that once tools start rely on them, they fall under
-the "do not break userspace" rule, however we call them. So being
-cautious and conservative can't hurt.
+Yes, per-hstate counters are better. And existing hugetlb counters
+htlb_buddy_alloc_* are also affected by this point.
 
-> It's definitely not a reason to make them messy.
-> Does "nr_indirectly_reclaimable_bytes" look better to you?
+>=20
+> In other words, is this really worth it?
 
-It still has has the "indirecly" part and feels arbitrary :/
+Actually, I'm not sure at this point.
 
->>
->> I also kind of liked the idea from v1 rfc posting that there would be a
->> separate set of reclaimable kmalloc-X caches for these kind of
->> allocations. Besides accounting, it should also help reduce memory
->> fragmentation. The right variant of cache would be detected via
->> __GFP_RECLAIMABLE.
-> 
-> Well, the downside is that we have to introduce X new caches
-> just for this particular problem. I'm not strictly against the idea,
-> but not convinced that it's much better.
+Thanks,
+Naoya Horiguchi
 
-Maybe we can find more cases that would benefit from it. Heck, even slab
-itself allocates some management structures from the generic kmalloc
-caches, and if they are used for reclaimable caches, they could be
-tracked as reclaimable as well.
-
->>
->> With that in mind, can we at least for now put the (manually maintained)
->> byte counter in a variable that's not directly exposed via /proc/vmstat,
->> and then when printing nr_slab_reclaimable, simply add the value
->> (divided by PAGE_SIZE), and when printing nr_slab_unreclaimable,
->> subtract the same value. This way we would be simply making the existing
->> counters more precise, in line with their semantics.
-> 
-> Idk, I don't like the idea of adding a counter outside of the vm counters
-> infrastructure, and I definitely wouldn't touch the exposed
-> nr_slab_reclaimable and nr_slab_unreclaimable fields.
-
-We would be just making the reported values more precise wrt reality.
-
-> We do have some stats in /proc/slabinfo, /proc/meminfo and /sys/kernel/slab
-> and I think that we should keep it consistent.
-
-Right, meminfo would be adjusted the same. slabinfo doesn't indicate
-which caches are reclaimable, so there will be no change.
-/sys/kernel/slab/cache/reclaim_account does, but I doubt anything will
-break.
-
-> Thanks!
-> 
->>
->> Thoughts?
->> Vlastimil
->>
->>> ---
->>>  include/linux/mmzone.h | 1 +
->>>  mm/vmstat.c            | 1 +
->>>  2 files changed, 2 insertions(+)
->>>
->>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->>> index e09fe563d5dc..15e783f29e21 100644
->>> --- a/include/linux/mmzone.h
->>> +++ b/include/linux/mmzone.h
->>> @@ -180,6 +180,7 @@ enum node_stat_item {
->>>  	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
->>>  	NR_DIRTIED,		/* page dirtyings since bootup */
->>>  	NR_WRITTEN,		/* page writings since bootup */
->>> +	NR_INDIRECTLY_RECLAIMABLE_BYTES, /* measured in bytes */
->>>  	NR_VM_NODE_STAT_ITEMS
->>>  };
->>>  
->>> diff --git a/mm/vmstat.c b/mm/vmstat.c
->>> index 40b2db6db6b1..b6b5684f31fe 100644
->>> --- a/mm/vmstat.c
->>> +++ b/mm/vmstat.c
->>> @@ -1161,6 +1161,7 @@ const char * const vmstat_text[] = {
->>>  	"nr_vmscan_immediate_reclaim",
->>>  	"nr_dirtied",
->>>  	"nr_written",
->>> +	"nr_indirectly_reclaimable",
->>>  
->>>  	/* enum writeback_stat_item counters */
->>>  	"nr_dirty_threshold",
->>>
->>
-> 
+>=20
+> >  include/linux/vm_event_item.h |   7 +++
+> >  mm/migrate.c                  | 103 ++++++++++++++++++++++++++++++++++=
++-------
+> >  mm/vmstat.c                   |   8 ++++
+> >  3 files changed, 102 insertions(+), 16 deletions(-)
+>=20
+> --=20
+> Michal Hocko
+> SUSE Labs
+> =
