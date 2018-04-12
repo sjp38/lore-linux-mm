@@ -1,103 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D34876B0007
-	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 08:18:07 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e14so2779686pfi.9
-        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 05:18:07 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 69-v6si3135489pla.390.2018.04.12.05.18.05
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BB68E6B0005
+	for <linux-mm@kvack.org>; Thu, 12 Apr 2018 09:01:11 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k18so2995310wri.9
+        for <linux-mm@kvack.org>; Thu, 12 Apr 2018 06:01:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i58sor2954778ede.52.2018.04.12.06.01.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Apr 2018 05:18:06 -0700 (PDT)
-Date: Thu, 12 Apr 2018 14:18:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v3 PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-Message-ID: <20180412121801.GE23400@dhcp22.suse.cz>
-References: <1523310774-40300-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180410090917.GZ21835@dhcp22.suse.cz>
- <20180410094047.GB2041@uranus.lan>
- <20180410104215.GB21835@dhcp22.suse.cz>
- <20180410110242.GC2041@uranus.lan>
- <20180410111001.GD21835@dhcp22.suse.cz>
- <20180410122804.GD2041@uranus.lan>
- <097488c7-ab18-367b-c435-7c26d149c619@linux.alibaba.com>
- <8c19f1fb-7baf-fef3-032d-4e93cfc63932@linux.alibaba.com>
+        (Google Transport Security);
+        Thu, 12 Apr 2018 06:01:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <8c19f1fb-7baf-fef3-032d-4e93cfc63932@linux.alibaba.com>
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <20171101153648.30166-20-jack@suse.cz>
+References: <20171101153648.30166-1-jack@suse.cz> <20171101153648.30166-20-jack@suse.cz>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Thu, 12 Apr 2018 15:00:49 +0200
+Message-ID: <CAKgNAkhsFrcdkXNA2cw3o0gJV0uLRtBg9ybaCe5xy1QBC2PgqA@mail.gmail.com>
+Subject: Re: [PATCH] mmap.2: Add description of MAP_SHARED_VALIDATE and MAP_SYNC
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, adobriyan@gmail.com, willy@infradead.org, mguzik@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Ext4 Developers List <linux-ext4@vger.kernel.org>, xfs <linux-xfs@vger.kernel.org>, "Darrick J . Wong" <darrick.wong@oracle.com>
 
-On Tue 10-04-18 11:28:13, Yang Shi wrote:
-> 
-> 
-> On 4/10/18 9:21 AM, Yang Shi wrote:
-> > 
-> > 
-> > On 4/10/18 5:28 AM, Cyrill Gorcunov wrote:
-> > > On Tue, Apr 10, 2018 at 01:10:01PM +0200, Michal Hocko wrote:
-> > > > > Because do_brk does vma manipulations, for this reason it's
-> > > > > running under down_write_killable(&mm->mmap_sem). Or you
-> > > > > mean something else?
-> > > > Yes, all we need the new lock for is to get a consistent view on brk
-> > > > values. I am simply asking whether there is something fundamentally
-> > > > wrong by doing the update inside the new lock while keeping the
-> > > > original
-> > > > mmap_sem locking in the brk path. That would allow us to drop the
-> > > > mmap_sem lock in the proc path when looking at brk values.
-> > > Michal gimme some time. I guess  we might do so, but I need some
-> > > spare time to take more precise look into the code, hopefully today
-> > > evening. Also I've a suspicion that we've wracked check_data_rlimit
-> > > with this new lock in prctl. Need to verify it again.
-> > 
-> > I see you guys points. We might be able to move the drop of mmap_sem
-> > before setting mm->brk in sys_brk since mmap_sem should be used to
-> > protect vma manipulation only, then protect the value modify with the
-> > new arg_lock. Then we can eliminate mmap_sem stuff in prctl path, and it
-> > also prevents from wrecking check_data_rlimit.
-> > 
-> > At the first glance, it looks feasible to me. Will look into deeper
-> > later.
-> 
-> A further look told me this might be *not* feasible.
-> 
-> It looks the new lock will not break check_data_rlimit since in my patch
-> both start_brk and brk is protected by mmap_sem. The code flow might look
-> like below:
-> 
-> CPU A                             CPU B
-> --------                       --------
-> prctl                               sys_brk
->                                       down_write
-> check_data_rlimit           check_data_rlimit (need mm->start_brk)
->                                       set brk
-> down_write                    up_write
-> set start_brk
-> set brk
-> up_write
-> 
-> 
-> If CPU A gets the mmap_sem first, it will set start_brk and brk, then CPU B
-> will check with the new start_brk. And, prctl doesn't care if sys_brk is run
-> before it since it gets the new start_brk and brk from parameter.
-> 
-> If we protect start_brk and brk with the new lock, sys_brk might get old
-> start_brk, then sys_brk might break rlimit check silently, is that right?
-> 
-> So, it looks using new lock in prctl and keeping mmap_sem in brk path has
-> race condition.
+Hello Jan,
 
-OK, I've admittedly didn't give it too much time to think about. Maybe
-we do something clever to remove the race but can we start at least by
-reducing the write lock to read on prctl side and use the dedicated
-spinlock for updating values? That should close the above race AFAICS
-and the read lock would be much more friendly to other VM operations.
+I have applied your patch, and tweaked the text a little, and pushed
+the result to the git repo.
+
+On 1 November 2017 at 16:36, Jan Kara <jack@suse.cz> wrote:
+> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Signed-off-by: Jan Kara <jack@suse.cz>
+
+I have a question below.
+
+> ---
+>  man2/mmap.2 | 35 ++++++++++++++++++++++++++++++++++-
+>  1 file changed, 34 insertions(+), 1 deletion(-)
+>
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index 47c3148653be..b38ee6809327 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -125,6 +125,21 @@ are carried through to the underlying file.
+>  to the underlying file requires the use of
+>  .BR msync (2).)
+>  .TP
+> +.BR MAP_SHARED_VALIDATE " (since Linux 4.15)"
+> +The same as
+> +.B MAP_SHARED
+> +except that
+> +.B MAP_SHARED
+> +mappings ignore unknown flags in
+> +.IR flags .
+> +In contrast when creating mapping of
+> +.B MAP_SHARED_VALIDATE
+> +mapping type, the kernel verifies all passed flags are known and fails the
+> +mapping with
+> +.BR EOPNOTSUPP
+> +otherwise. This mapping type is also required to be able to use some mapping
+> +flags.
+> +.TP
+>  .B MAP_PRIVATE
+>  Create a private copy-on-write mapping.
+>  Updates to the mapping are not visible to other processes
+> @@ -134,7 +149,10 @@ It is unspecified whether changes made to the file after the
+>  .BR mmap ()
+>  call are visible in the mapped region.
+>  .PP
+> -Both of these flags are described in POSIX.1-2001 and POSIX.1-2008.
+> +.B MAP_SHARED
+> +and
+> +.B MAP_PRIVATE
+> +are described in POSIX.1-2001 and POSIX.1-2008.
+>  .PP
+>  In addition, zero or more of the following values can be ORed in
+>  .IR flags :
+> @@ -352,6 +370,21 @@ option.
+>  Because of the security implications,
+>  that option is normally enabled only on embedded devices
+>  (i.e., devices where one has complete control of the contents of user memory).
+> +.TP
+> +.BR MAP_SYNC " (since Linux 4.15)"
+> +This flags is available only with
+> +.B MAP_SHARED_VALIDATE
+> +mapping type. Mappings of
+> +.B MAP_SHARED
+> +type will silently ignore this flag.
+> +This flag is supported only for files supporting DAX (direct mapping of persistent
+> +memory). For other files, creating mapping with this flag results in
+> +.B EOPNOTSUPP
+> +error. Shared file mappings with this flag provide the guarantee that while
+> +some memory is writeably mapped in the address space of the process, it will
+> +be visible in the same file at the same offset even after the system crashes or
+> +is rebooted. This allows users of such mappings to make data modifications
+> +persistent in a more efficient way using appropriate CPU instructions.
+
+It feels like there's a word missing/unclear wording in the previous
+line, before "using". Without that word, the sentence feels a bit
+ambiguous.
+
+Should it be:
+
+persistent in a more efficient way *through the use of* appropriate
+CPU instructions.
+
+or:
+
+persistent in a more efficient way *than using* appropriate CPU instructions.
+
+?
+
+Is suspect the first is correct, but need to check.
+
+Cheers,
+
+Michael
+
 
 -- 
-Michal Hocko
-SUSE Labs
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
