@@ -1,22 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0851E6B0024
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:32:34 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id j2so5549464qtl.1
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 06:32:34 -0700 (PDT)
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EFEB06B0026
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:33:13 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id s7-v6so5148000ybo.4
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 06:33:13 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q19si2082820qtf.287.2018.04.13.06.32.33
+        by mx.google.com with ESMTPS id y18si366412qtj.150.2018.04.13.06.33.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Apr 2018 06:32:33 -0700 (PDT)
+        Fri, 13 Apr 2018 06:33:13 -0700 (PDT)
 From: David Hildenbrand <david@redhat.com>
 Subject: [PATCH RFC 5/8] mm: only mark section offline when all pages are offline
-Date: Fri, 13 Apr 2018 15:32:26 +0200
-Message-Id: <20180413133229.3257-1-david@redhat.com>
+Date: Fri, 13 Apr 2018 15:33:06 +0200
+Message-Id: <20180413133309.3501-1-david@redhat.com>
+In-Reply-To: <20180413131632.1413-1-david@redhat.com>
+References: <20180413131632.1413-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: David Hildenbrand <david@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, Dave Hansen <dave.hansen@linux.intel.com>, David Rientjes <rientjes@google.com>, open list <linux-kernel@vger.kernel.org>
+Cc: David Hildenbrand <david@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, David Rientjes <rientjes@google.com>, Arnd Bergmann <arnd@arndb.de>, open list <linux-kernel@vger.kernel.org>
 
 If any page is still online, the section should stay online.
 
