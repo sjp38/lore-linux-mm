@@ -1,99 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E7E396B005D
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:42:56 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id u129-v6so2685642lff.9
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 06:42:56 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y17sor1608104lji.67.2018.04.13.06.42.54
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C29C26B0068
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:43:03 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id h22-v6so1986539lfj.21
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 06:43:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f9sor1634709ljk.104.2018.04.13.06.43.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 13 Apr 2018 06:42:54 -0700 (PDT)
+        Fri, 13 Apr 2018 06:43:02 -0700 (PDT)
 From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [RFC PATCH v22 0/6] mm: security: ro protection for dynamic data
-Date: Fri, 13 Apr 2018 17:41:25 +0400
-Message-Id: <20180413134131.4651-1-igor.stoppa@huawei.com>
+Subject: [PATCH 1/6] struct page: add field for vm_struct
+Date: Fri, 13 Apr 2018 17:41:26 +0400
+Message-Id: <20180413134131.4651-2-igor.stoppa@huawei.com>
+In-Reply-To: <20180413134131.4651-1-igor.stoppa@huawei.com>
+References: <20180413134131.4651-1-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: willy@infradead.org, keescook@chromium.org, mhocko@kernel.org, corbet@lwn.net
 Cc: david@fromorbit.com, rppt@linux.vnet.ibm.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-This patch-set introduces the possibility of protecting memory that has
-been allocated dynamically.
+When a page is used for virtual memory, it is often necessary to obtain
+a handler to the corresponding vm_struct, which refers to the virtually
+continuous area generated when invoking vmalloc.
 
-The memory is managed in pools: when a memory pool is protected, all the
-memory that is currently part of it, will become R/O.
+The struct page has a "mapping" field, which can be re-used, to store a
+pointer to the parent area.
 
-A R/O pool can be expanded (adding more protectable memory).
-It can also be destroyed, to recover its memory, but it cannot be
-turned back into R/W mode.
+This will avoid more expensive searches, later on.
 
-This is intentional. This feature is meant for data that doesn't need
-further modifications after initialization.
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+Reviewed-by: Jay Freyensee <why2jjj.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ include/linux/mm_types.h | 1 +
+ mm/vmalloc.c             | 2 ++
+ 2 files changed, 3 insertions(+)
 
-However the data might need to be released, for example as part of module
-unloading. The pool, therefore, can be destroyed.
-
-An example is provided, in the form of self-testing.
-
-Since it was advised to give an example of protecting real kernel data
-[1],
-a well known vulnerability has been used to demo an effective use of
-pmalloc.
-
-[1] http://www.openwall.com/lists/kernel-hardening/2018/03/29/7
-
-However it turned out to be almost an how-to for attacking the kernel, so
-it was sent first to security@kernel.org, for obtaining clearance about
-the
-publication.
-
-Changes since v21:
-
-[http://www.openwall.com/lists/kernel-hardening/2018/03/27/23]
-
-* fixed type mismatch error in use of max(), detected by gcc 7.3
-* converted internal types into size_t
-* fixed leak of vmalloc memory in the self-test code
-
-Igor Stoppa (6):
-  struct page: add field for vm_struct
-  vmalloc: rename llist field in vmap_area
-  Protectable Memory
-  Documentation for Pmalloc
-  Pmalloc selftest
-  lkdtm: crash on overwriting protected pmalloc var
-
-Igor Stoppa (6):
-  struct page: add field for vm_struct
-  vmalloc: rename llist field in vmap_area
-  Protectable Memory
-  Documentation for Pmalloc
-  Pmalloc selftest
-  lkdtm: crash on overwriting protected pmalloc var
-
- Documentation/core-api/index.rst   |   1 +
- Documentation/core-api/pmalloc.rst | 107 +++++++++++++++
- drivers/misc/lkdtm/core.c          |   3 +
- drivers/misc/lkdtm/lkdtm.h         |   1 +
- drivers/misc/lkdtm/perms.c         |  25 ++++
- include/linux/mm_types.h           |   1 +
- include/linux/pmalloc.h            | 166 +++++++++++++++++++++++
- include/linux/test_pmalloc.h       |  24 ++++
- include/linux/vmalloc.h            |   5 +-
- init/main.c                        |   2 +
- mm/Kconfig                         |  16 +++
- mm/Makefile                        |   2 +
- mm/pmalloc.c                       | 265 +++++++++++++++++++++++++++++++++++++
- mm/test_pmalloc.c                  | 137 +++++++++++++++++++
- mm/usercopy.c                      |  33 +++++
- mm/vmalloc.c                       |  10 +-
- 16 files changed, 793 insertions(+), 5 deletions(-)
- create mode 100644 Documentation/core-api/pmalloc.rst
- create mode 100644 include/linux/pmalloc.h
- create mode 100644 include/linux/test_pmalloc.h
- create mode 100644 mm/pmalloc.c
- create mode 100644 mm/test_pmalloc.c
-
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 21612347d311..c74e2aa9a48b 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -86,6 +86,7 @@ struct page {
+ 		void *s_mem;			/* slab first object */
+ 		atomic_t compound_mapcount;	/* first tail page */
+ 		/* page_deferred_list().next	 -- second tail page */
++		struct vm_struct *area;
+ 	};
+ 
+ 	/* Second double word */
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index ebff729cc956..61a1ca22b0f6 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1536,6 +1536,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 			struct page *page = area->pages[i];
+ 
+ 			BUG_ON(!page);
++			page->area = NULL;
+ 			__free_pages(page, 0);
+ 		}
+ 
+@@ -1705,6 +1706,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 			area->nr_pages = i;
+ 			goto fail;
+ 		}
++		page->area = area;
+ 		area->pages[i] = page;
+ 		if (gfpflags_allow_blocking(gfp_mask|highmem_mask))
+ 			cond_resched();
 -- 
 2.14.1
