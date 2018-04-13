@@ -1,133 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E64FD6B000D
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:13:41 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 31so4820106wrr.2
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 05:13:41 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 73sor524664wmo.26.2018.04.13.05.13.40
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A9C6B6B000C
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:14:36 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id f19so4427446pfn.6
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 05:14:36 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t16si4536380pfj.10.2018.04.13.05.14.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Apr 2018 05:13:40 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 13 Apr 2018 05:14:35 -0700 (PDT)
+Date: Fri, 13 Apr 2018 14:14:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
+ mem_cgroup_css_alloc() failure
+Message-ID: <20180413121433.GM17484@dhcp22.suse.cz>
+References: <20180413085553.GF17484@dhcp22.suse.cz>
+ <ed75d18c-f516-2feb-53a8-6d2836e1da59@virtuozzo.com>
+ <20180413110200.GG17484@dhcp22.suse.cz>
+ <06931a83-91d2-3dcf-31cf-0b98d82e957f@virtuozzo.com>
+ <20180413112036.GH17484@dhcp22.suse.cz>
+ <6dbc33bb-f3d5-1a46-b454-13c6f5865fcd@virtuozzo.com>
+ <20180413113855.GI17484@dhcp22.suse.cz>
+ <8a81c801-35c8-767d-54b0-df9f1ca0abc0@virtuozzo.com>
+ <20180413115454.GL17484@dhcp22.suse.cz>
+ <abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20180412145702.GB30714@castle.DHCP.thefacebook.com>
-References: <20180305133743.12746-1-guro@fb.com> <20180305133743.12746-2-guro@fb.com>
- <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz> <20180411135624.GA24260@castle.DHCP.thefacebook.com>
- <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz> <20180412145702.GB30714@castle.DHCP.thefacebook.com>
-From: vinayak menon <vinayakm.list@gmail.com>
-Date: Fri, 13 Apr 2018 17:43:39 +0530
-Message-ID: <CAOaiJ-=JtFWNPqdtf+5uim0-LcPE9zSDZmocAa_6K3yGpW2fCQ@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <abfd4903-c455-fac2-7ed6-73707cda64d1@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Apr 12, 2018 at 8:27 PM, Roman Gushchin <guro@fb.com> wrote:
-> On Thu, Apr 12, 2018 at 08:52:52AM +0200, Vlastimil Babka wrote:
->> On 04/11/2018 03:56 PM, Roman Gushchin wrote:
->> > On Wed, Apr 11, 2018 at 03:16:08PM +0200, Vlastimil Babka wrote:
->> >> [+CC linux-api]
->> >>
->> >> On 03/05/2018 02:37 PM, Roman Gushchin wrote:
->> >>> This patch introduces a concept of indirectly reclaimable memory
->> >>> and adds the corresponding memory counter and /proc/vmstat item.
->> >>>
->> >>> Indirectly reclaimable memory is any sort of memory, used by
->> >>> the kernel (except of reclaimable slabs), which is actually
->> >>> reclaimable, i.e. will be released under memory pressure.
->> >>>
->> >>> The counter is in bytes, as it's not always possible to
->> >>> count such objects in pages. The name contains BYTES
->> >>> by analogy to NR_KERNEL_STACK_KB.
->> >>>
->> >>> Signed-off-by: Roman Gushchin <guro@fb.com>
->> >>> Cc: Andrew Morton <akpm@linux-foundation.org>
->> >>> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
->> >>> Cc: Michal Hocko <mhocko@suse.com>
->> >>> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> >>> Cc: linux-fsdevel@vger.kernel.org
->> >>> Cc: linux-kernel@vger.kernel.org
->> >>> Cc: linux-mm@kvack.org
->> >>> Cc: kernel-team@fb.com
->> >>
->> >> Hmm, looks like I'm late and this user-visible API change was just
->> >> merged. But it's for rc1, so we can still change it, hopefully?
->> >>
->> >> One problem I see with the counter is that it's in bytes, but among
->> >> counters that use pages, and the name doesn't indicate it.
->> >
->> > Here I just followed "nr_kernel_stack" path, which is measured in kB,
->> > but this is not mentioned in the field name.
->>
->> Oh, didn't know. Bad example to follow :P
->>
->> >> Then, I don't
->> >> see why users should care about the "indirectly" part, as that's just an
->> >> implementation detail. It is reclaimable and that's what matters, right?
->> >> (I also wanted to complain about lack of Documentation/... update, but
->> >> looks like there's no general file about vmstat, ugh)
->> >
->> > I agree, that it's a bit weird, and it's probably better to not expose
->> > it at all; but this is how all vm counters work. We do expose them all
->> > in /proc/vmstat. A good number of them is useless until you are not a
->> > mm developer, so it's arguable more "debug info" rather than "api".
->>
->> Yeah the problem is that once tools start rely on them, they fall under
->> the "do not break userspace" rule, however we call them. So being
->> cautious and conservative can't hurt.
->>
->> > It's definitely not a reason to make them messy.
->> > Does "nr_indirectly_reclaimable_bytes" look better to you?
->>
->> It still has has the "indirecly" part and feels arbitrary :/
->>
->> >>
->> >> I also kind of liked the idea from v1 rfc posting that there would be a
->> >> separate set of reclaimable kmalloc-X caches for these kind of
->> >> allocations. Besides accounting, it should also help reduce memory
->> >> fragmentation. The right variant of cache would be detected via
->> >> __GFP_RECLAIMABLE.
->> >
->> > Well, the downside is that we have to introduce X new caches
->> > just for this particular problem. I'm not strictly against the idea,
->> > but not convinced that it's much better.
->>
->> Maybe we can find more cases that would benefit from it. Heck, even slab
->> itself allocates some management structures from the generic kmalloc
->> caches, and if they are used for reclaimable caches, they could be
->> tracked as reclaimable as well.
->
-> This is a good catch!
->
->>
->> >>
->> >> With that in mind, can we at least for now put the (manually maintained)
->> >> byte counter in a variable that's not directly exposed via /proc/vmstat,
->> >> and then when printing nr_slab_reclaimable, simply add the value
->> >> (divided by PAGE_SIZE), and when printing nr_slab_unreclaimable,
->> >> subtract the same value. This way we would be simply making the existing
->> >> counters more precise, in line with their semantics.
->> >
->> > Idk, I don't like the idea of adding a counter outside of the vm counters
->> > infrastructure, and I definitely wouldn't touch the exposed
->> > nr_slab_reclaimable and nr_slab_unreclaimable fields.
->>
->> We would be just making the reported values more precise wrt reality.
->
-> It depends on if we believe that only slab memory can be reclaimable
-> or not. If yes, this is true, otherwise not.
->
-> My guess is that some drivers (e.g. networking) might have buffers,
-> which are reclaimable under mempressure, and are allocated using
-> the page allocator. But I have to look closer...
->
+On Fri 13-04-18 15:07:14, Kirill Tkhai wrote:
+> On 13.04.2018 14:54, Michal Hocko wrote:
+> > On Fri 13-04-18 14:49:32, Kirill Tkhai wrote:
+> >> On 13.04.2018 14:38, Michal Hocko wrote:
+> >>> On Fri 13-04-18 14:29:11, Kirill Tkhai wrote:
+> > [...]
+> >>>> mem_cgroup_id_put_many() unpins css, but this may be not the last reference to the css.
+> >>>> Thus, we release ID earlier, then all references to css are freed.
+> >>>
+> >>> Right and so what. If we have released the idr then we are not going to
+> >>> do that again in css_free. That is why we have that memcg->id.id > 0
+> >>> check before idr_remove and memcg->id.id = 0 for the last memcg ref.
+> >>> count. So again, why cannot we do the clean up in mem_cgroup_free and
+> >>> have a less confusing code? Or am I just not getting your point and
+> >>> being dense here?
+> >>
+> >> We can, but mem_cgroup_free() called from mem_cgroup_css_alloc() is unlikely case.
+> >> The likely case is mem_cgroup_free() is called from mem_cgroup_css_free(), where
+> >> this idr manipulations will be a noop. Noop in likely case looks more confusing
+> >> for me.
+> > 
+> > Well, I would really prefer to have _free being symmetric to _alloc so
+> > that you can rely that the full state is gone after _free is called.
+> > This confused the hell out of me. Because I _did_ expect that
+> > mem_cgroup_free would do that and so I was looking at completely
+> > different place.
+> >  
+> >> Less confusing will be to move
+> >>
+> >>         memcg->id.id = idr_alloc(&mem_cgroup_idr, NULL,
+> >>                                  1, MEM_CGROUP_ID_MAX,
+> >>                                  GFP_KERNEL);
+> >>
+> >> into mem_cgroup_css_alloc(). How are you think about this?
+> > 
+> > I would have to double check. Maybe it can be done on top. But for the
+> > actual fix and a stable backport potentially should be as clear as
+> > possible. Your original patch would be just fine but if I would prefer 
+> > mem_cgroup_free for the symmetry.
+> 
+> We definitely can move id allocation to mem_cgroup_css_alloc(), but this
+> is really not for an easy fix, which will be backported to stable.
+> 
+> Moving idr destroy to mem_cgroup_free() hides IDR trick. My IMHO it's less
+> readable for a reader.
+> 
+> The main problem is allocation asymmetric, and we shouldn't handle it on free path...
 
-One such case I have encountered is that of the ION page pool. The page pool
-registers a shrinker. When not in any memory pressure page pool can go high
-and thus cause an mmap to fail when OVERCOMMIT_GUESS is set. I can send
-a patch to account ION page pool pages in NR_INDIRECTLY_RECLAIMABLE_BYTES.
-
-Thanks,
-Vinayak
+Well, this is probably a matter of taste. I will not argue. I will not
+object if Johannes is OK with your patch. But the whole thing confused
+hell out of me so I would rather un-clutter it...
+-- 
+Michal Hocko
+SUSE Labs
