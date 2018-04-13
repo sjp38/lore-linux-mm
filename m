@@ -1,46 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B3966B0005
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 13:11:23 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q11so5026928pfd.8
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 10:11:23 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c22si4901817pfe.29.2018.04.13.10.11.21
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CAA36B0005
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 13:34:50 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id m11so2727307iob.14
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 10:34:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h77sor1143426ioe.325.2018.04.13.10.34.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 13 Apr 2018 10:11:22 -0700 (PDT)
-Date: Fri, 13 Apr 2018 10:11:20 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH RFC 2/8] mm: introduce PG_offline
-Message-ID: <20180413171120.GA1245@bombadil.infradead.org>
-References: <20180413131632.1413-1-david@redhat.com>
- <20180413131632.1413-3-david@redhat.com>
+        (Google Transport Security);
+        Fri, 13 Apr 2018 10:34:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180413131632.1413-3-david@redhat.com>
+In-Reply-To: <b849e2ff-3693-9546-5850-1ddcea23ee29@virtuozzo.com>
+References: <4ad725cc903f8534f8c8a60f0daade5e3d674f8d.1523554166.git.andreyknvl@google.com>
+ <b849e2ff-3693-9546-5850-1ddcea23ee29@virtuozzo.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Fri, 13 Apr 2018 19:34:47 +0200
+Message-ID: <CAAeHK+y18zU_PAS5KB82PNqtvGNex+S0Jk3bWaE19=YjThaNow@mail.gmail.com>
+Subject: Re: [PATCH] kasan: add no_sanitize attribute for clang builds
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, James Hogan <jhogan@kernel.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, open list <linux-kernel@vger.kernel.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, David Woodhouse <dwmw@amazon.co.uk>, Will Deacon <will.deacon@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paul Lawrence <paullawrence@google.com>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, Kostya Serebryany <kcc@google.com>
 
-On Fri, Apr 13, 2018 at 03:16:26PM +0200, David Hildenbrand wrote:
-> online_pages()/offline_pages() theoretically allows us to work on
-> sub-section sizes. This is especially relevant in the context of
-> virtualization. It e.g. allows us to add/remove memory to Linux in a VM in
-> 4MB chunks.
-> 
-> While the whole section is marked as online/offline, we have to know
-> the state of each page. E.g. to not read memory that is not online
-> during kexec() or to properly mark a section as offline as soon as all
-> contained pages are offline.
+On Fri, Apr 13, 2018 at 5:31 PM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+>
+>
+> On 04/12/2018 08:29 PM, Andrey Konovalov wrote:
+>> KASAN uses the __no_sanitize_address macro to disable instrumentation
+>> of particular functions. Right now it's defined only for GCC build,
+>> which causes false positives when clang is used.
+>>
+>> This patch adds a definition for clang.
+>>
+>> Note, that clang's revision 329612 or higher is required.
+>>
+>> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+>> ---
+>>  include/linux/compiler-clang.h | 5 +++++
+>>  1 file changed, 5 insertions(+)
+>>
+>> diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
+>> index ceb96ecab96e..5a1d8580febe 100644
+>> --- a/include/linux/compiler-clang.h
+>> +++ b/include/linux/compiler-clang.h
+>> @@ -25,6 +25,11 @@
+>>  #define __SANITIZE_ADDRESS__
+>>  #endif
+>>
+>> +#ifdef CONFIG_KASAN
+>
+> If, for whatever reason, developer decides to add __no_sanitize_address to some
+> generic function, guess what will happen next when he/she will try to build CONFIG_KASAN=n kernel?
 
-Can you not use PG_reserved for this purpose?
+It's defined to nothing in compiler-gcc.h and redefined in
+compiler-clang.h only if CONFIG_KASAN is enabled, so everything should
+be fine. Am I missing something?
 
-> + * PG_offline indicates that a page is offline and the backing storage
-> + * might already have been removed (virtualization). Don't touch!
-
- * PG_reserved is set for special pages, which can never be swapped out. Some
- * of them might not even exist...
-
-They seem pretty congruent to me.
+>
+>> +#undef __no_sanitize_address
+>> +#define __no_sanitize_address __attribute__((no_sanitize("address")))
+>> +#endif
+>> +
+>>  /* Clang doesn't have a way to turn it off per-function, yet. */
+>>  #ifdef __noretpoline
+>>  #undef __noretpoline
+>>
