@@ -1,48 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 63B916B0022
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:31:55 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id b7-v6so5142350ybn.14
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 06:31:55 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0851E6B0024
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:32:34 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id j2so5549464qtl.1
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 06:32:34 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id m4si107966qtc.170.2018.04.13.06.31.54
+        by mx.google.com with ESMTPS id q19si2082820qtf.287.2018.04.13.06.32.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Apr 2018 06:31:54 -0700 (PDT)
+        Fri, 13 Apr 2018 06:32:33 -0700 (PDT)
 From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH RFC 4/8] kdump: expose PG_offline
-Date: Fri, 13 Apr 2018 15:31:51 +0200
-Message-Id: <20180413133151.3199-1-david@redhat.com>
-In-Reply-To: <20180413131632.1413-1-david@redhat.com>
-References: <20180413131632.1413-1-david@redhat.com>
+Subject: [PATCH RFC 5/8] mm: only mark section offline when all pages are offline
+Date: Fri, 13 Apr 2018 15:32:26 +0200
+Message-Id: <20180413133229.3257-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Dave Young <dyoung@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Baoquan He <bhe@redhat.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Pavel Tatashin <pasha.tatashin@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, Dave Hansen <dave.hansen@linux.intel.com>, David Rientjes <rientjes@google.com>, open list <linux-kernel@vger.kernel.org>
 
-This allows user space to skip pages that are offline when dumping. This is
-especially relevant when dealing with pages that have been unplugged in
-the context of virtualization, and their backing storage has already
-been freed.
+If any page is still online, the section should stay online.
 
 Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- kernel/crash_core.c | 3 +++
- 1 file changed, 3 insertions(+)
+ mm/page_alloc.c |  2 +-
+ mm/sparse.c     | 25 ++++++++++++++++++++++++-
+ 2 files changed, 25 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/crash_core.c b/kernel/crash_core.c
-index a93590cdd9e1..d6f21b19aeb3 100644
---- a/kernel/crash_core.c
-+++ b/kernel/crash_core.c
-@@ -463,6 +463,9 @@ static int __init crash_save_vmcoreinfo_init(void)
- #ifdef CONFIG_HUGETLB_PAGE
- 	VMCOREINFO_NUMBER(HUGETLB_PAGE_DTOR);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2e5dcfdb0908..ae9023da2ca2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -8013,7 +8013,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 			break;
+ 	if (pfn == end_pfn)
+ 		return;
+-	offline_mem_sections(pfn, end_pfn);
+ 	zone = page_zone(pfn_to_page(pfn));
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	pfn = start_pfn;
+@@ -8051,6 +8050,7 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		pfn += (1 << order);
+ 	}
+ 	spin_unlock_irqrestore(&zone->lock, flags);
++	offline_mem_sections(start_pfn, end_pfn);
+ }
  #endif
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	VMCOREINFO_NUMBER(PG_offline);
-+#endif
  
- 	arch_crash_save_vmcoreinfo();
- 	update_vmcoreinfo_note();
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 58cab483e81b..44978cb18fed 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -623,7 +623,27 @@ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-/* Mark all memory sections within the pfn range as online */
++static bool all_pages_in_section_offline(unsigned long section_nr)
++{
++	unsigned long pfn = section_nr_to_pfn(section_nr);
++	struct page *page;
++	int i;
++
++	for (i = 0; i < PAGES_PER_SECTION; i++, pfn++) {
++		if (!pfn_valid(pfn))
++			continue;
++
++		page = pfn_to_page(pfn);
++		if (!PageOffline(page))
++			return false;
++	}
++	return true;
++}
++
++/*
++ * Mark all memory sections within the pfn range as offline (if all pages
++ * of a memory section are already offline)
++ */
+ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ {
+ 	unsigned long pfn;
+@@ -639,6 +659,9 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ 		if (WARN_ON(!valid_section_nr(section_nr)))
+ 			continue;
+ 
++		if (!all_pages_in_section_offline(section_nr))
++			continue;
++
+ 		ms = __nr_to_section(section_nr);
+ 		ms->section_mem_map &= ~SECTION_IS_ONLINE;
+ 	}
 -- 
 2.14.3
