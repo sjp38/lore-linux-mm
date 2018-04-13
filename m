@@ -1,82 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 479FE6B0005
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 05:24:08 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 47so2002837wru.19
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 02:24:08 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l41si2327520edd.268.2018.04.13.02.24.06
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A49086B0005
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 05:35:29 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k15so7176194ioc.4
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 02:35:29 -0700 (PDT)
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20113.outbound.protection.outlook.com. [40.107.2.113])
+        by mx.google.com with ESMTPS id b123-v6si1115666iti.91.2018.04.13.02.35.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Apr 2018 02:24:06 -0700 (PDT)
-Subject: Re: [PATCH] slab: introduce the flag SLAB_MINIMIZE_WASTE
-References: <alpine.LRH.2.02.1803200954590.18995@file01.intranet.prod.int.rdu2.redhat.com>
- <20180320173512.GA19669@bombadil.infradead.org>
- <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake>
- <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
- <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
- <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
- <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz>
-Date: Fri, 13 Apr 2018 11:22:07 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 13 Apr 2018 02:35:28 -0700 (PDT)
+Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
+ mem_cgroup_css_alloc() failure
+References: <152354470916.22460.14397070748001974638.stgit@localhost.localdomain>
+ <20180413085553.GF17484@dhcp22.suse.cz>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <ed75d18c-f516-2feb-53a8-6d2836e1da59@virtuozzo.com>
+Date: Fri, 13 Apr 2018 12:35:22 +0300
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <20180413085553.GF17484@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>, Christopher Lameter <cl@linux.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mike Snitzer <msnitzer@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/21/2018 07:36 PM, Mikulas Patocka wrote:
+On 13.04.2018 11:55, Michal Hocko wrote:
+> On Thu 12-04-18 17:52:04, Kirill Tkhai wrote:
+> [...]
+>> @@ -4471,6 +4477,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+>>  
+>>  	return &memcg->css;
+>>  fail:
+>> +	mem_cgroup_id_remove(memcg);
+>>  	mem_cgroup_free(memcg);
+>>  	return ERR_PTR(-ENOMEM);
+>>  }
 > 
+> The only path which jumps to fail: here (in the current mmotm tree) is 
+> 	error = memcg_online_kmem(memcg);
+> 	if (error)
+> 		goto fail;
 > 
-> On Wed, 21 Mar 2018, Christopher Lameter wrote:
+> AFAICS and the only failure path in memcg_online_kmem
+> 	memcg_id = memcg_alloc_cache_id();
+> 	if (memcg_id < 0)
+> 		return memcg_id;
 > 
->> On Wed, 21 Mar 2018, Mikulas Patocka wrote:
->>
->>>> You should not be using the slab allocators for these. Allocate higher
->>>> order pages or numbers of consecutive smaller pagess from the page
->>>> allocator. The slab allocators are written for objects smaller than page
->>>> size.
->>>
->>> So, do you argue that I need to write my own slab cache functionality
->>> instead of using the existing slab code?
->>
->> Just use the existing page allocator calls to allocate and free the
->> memory you need.
->>
->>> I can do it - but duplicating code is bad thing.
->>
->> There is no need to duplicate anything. There is lots of infrastructure
->> already in the kernel. You just need to use the right allocation / freeing
->> calls.
-> 
-> So, what would you recommend for allocating 640KB objects while minimizing 
-> wasted space?
-> * alloc_pages - rounds up to the next power of two
-> * kmalloc - rounds up to the next power of two
-> * alloc_pages_exact - O(n*log n) complexity; and causes memory 
->   fragmentation if used excesivelly
-> * vmalloc - horrible performance (modifies page tables and that causes 
->   synchronization across all CPUs)
-> 
-> anything else?
-> 
-> The slab cache with large order seems as a best choice for this.
+> I am not entirely clear on memcg_alloc_cache_id but it seems we do clean
+> up properly. Or am I missing something?
 
-Sorry for being late, I just read this thread and tend to agree with
-Mikulas, that this is a good use case for SL*B. If we extend the
-use-case from "space-efficient allocator of objects smaller than page
-size" to "space-efficient allocator of objects that are not power-of-two
-pages" then IMHO it turns out the implementation would be almost the
-same. All other variants listed above would lead to waste of memory or
-fragmentation.
+memcg_alloc_cache_id() may allocate a lot of memory, in case of the system reached
+memcg_nr_cache_ids cgroups. In this case it iterates over all LRU lists, and double
+size of every of them. In case of memory pressure it can fail. If this occurs,
+mem_cgroup::id is not unhashed from IDR and we leak this id.
 
-Would this perhaps be a good LSF/MM discussion topic? Mikulas, are you
-attending, or anyone else that can vouch for your usecase?
+After further iterations, all IDs may be occupied, and there won't be able to create
+a memcg in the system ever. You may reproduce the situation with the patch:
+
+[root@localhost ~]# cd /sys/fs/cgroup/memory/
+[root@localhost memory]# mkdir 1
+mkdir: cannot create directory `1': Cannot allocate memory
+[root@localhost memory]# for i in {1..65535}; do mkdir 1 2>/dev/null; done
+[root@localhost memory]# mkdir 1
+mkdir: cannot create directory `1': No space left on device
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 3e7942c301a8..5e17bfee9e6f 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2156,6 +2156,7 @@ static int memcg_alloc_cache_id(void)
+ 	err = memcg_update_all_caches(size);
+ 	if (!err)
+ 		err = memcg_update_all_list_lrus(size);
++	err = -ENOMEM;
+ 	if (!err)
+ 		memcg_nr_cache_ids = size;
+ 
+@@ -4422,7 +4423,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ {
+ 	struct mem_cgroup *parent = mem_cgroup_from_css(parent_css);
+ 	struct mem_cgroup *memcg;
+-	long error = -ENOMEM;
++	long error = -ENOSPC;
+ 
+ 	memcg = mem_cgroup_alloc();
+ 	if (!memcg)
+
+ENOSPC was added to the second hunk to show that the function fails on IDR allocation.
+
+Kirill
