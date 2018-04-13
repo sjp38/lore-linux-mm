@@ -1,54 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D6C6B0005
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 12:32:44 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id j130so5577614qke.13
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:32:44 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CCB76B0005
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 12:36:03 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id 20so5593354qkd.2
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:36:03 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id x48si2166678qtc.355.2018.04.13.09.32.43
+        by mx.google.com with ESMTPS id i26si8116613qtc.356.2018.04.13.09.36.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Apr 2018 09:32:43 -0700 (PDT)
-Subject: Re: [PATCH RFC 7/8] mm: allow to control onlining/offlining of memory
- by a driver
+        Fri, 13 Apr 2018 09:36:02 -0700 (PDT)
+Subject: Re: [PATCH RFC 0/8] mm: online/offline 4MB chunks controlled by
+ device driver
 References: <20180413131632.1413-1-david@redhat.com>
- <20180413133334.3612-1-david@redhat.com>
- <20180413155943.GY17484@dhcp22.suse.cz>
+ <20180413134414.GS17484@dhcp22.suse.cz>
+ <85887556-9497-4beb-261e-6cba46794c9c@redhat.com>
+ <20180413160331.GZ17484@dhcp22.suse.cz>
 From: David Hildenbrand <david@redhat.com>
-Message-ID: <92ff9057-7f1e-d9b7-610e-0a7022b8da01@redhat.com>
-Date: Fri, 13 Apr 2018 18:32:39 +0200
+Message-ID: <26b2f679-147e-0fe8-63d4-188d3ae77fd5@redhat.com>
+Date: Fri, 13 Apr 2018 18:36:01 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180413155943.GY17484@dhcp22.suse.cz>
+In-Reply-To: <20180413160331.GZ17484@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, open list <linux-kernel@vger.kernel.org>, "moderated list:XEN HYPERVISOR INTERFACE" <xen-devel@lists.xenproject.org>
+Cc: linux-mm@kvack.org
 
-On 13.04.2018 17:59, Michal Hocko wrote:
-> On Fri 13-04-18 15:33:28, David Hildenbrand wrote:
->> Some devices (esp. paravirtualized) might want to control
->> - when to online/offline a memory block
->> - how to online memory (MOVABLE/NORMAL)
->> - in which granularity to online/offline memory
+On 13.04.2018 18:03, Michal Hocko wrote:
+> On Fri 13-04-18 17:02:17, David Hildenbrand wrote:
+>> On 13.04.2018 15:44, Michal Hocko wrote:
+>>> [If you choose to not CC the same set of people on all patches - which
+>>> is sometimes a legit thing to do - then please cc them to the cover
+>>> letter at least.]
 >>
->> So let's add a new flag "driver_managed" and disallow to change the
->> state by user space. Device onlining/offlining will still work, however
->> the memory will not be actually onlined/offlined. That has to be handled
->> by the device driver that owns the memory.
+>> BTW, sorry for that. The list of people to cc was just too big to handle
+>> manually, so I used get_maintainers.sh with git for the same time ...
+>> something I will most likely avoid next time :)
 > 
-> Is there any reason to create the memblock sysfs interface to this
-> memory at all? ZONE_DEVICE mem hotplug users currently do not do that
-> and manage the memory themselves. It seems you want to achieve the same
-> thing, no?
+> I usually have Cc: in all commits and then use the following script as
+> --cc-cmd. You just have to git format-patch the series and then
+> git send-email --cc-cmd=./cc-cmd.sh *.patch
+> + some mailing lists
+> 
+> #!/bin/bash
+> 
+> if [[ $1 == *gitsendemail.msg* || $1 == *cover-letter* ]]; then
+>         grep '<.*@.*>' -h *.patch | sed 's/^.*: //' | sort | uniq
+> fi
 > 
 
-Yes, I think so, namely kdump. We have to retrigger kexec() whenever a
-memory block is added/removed. udev events are sent for that reason when
-a memory block is created/deleted. And I think this is not done for
-ZONE_DEVICE devices, or am I wrong?
+Thanks for that, very helpful!
+
+BTW I just found an article stating I did (almost) the right thing:
+https://lwn.net/Articles/585782/
+
+But I 100% agree with you, I would also like to see the cover letter of
+an RFC patch series :)
 
 -- 
 
