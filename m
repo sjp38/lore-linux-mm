@@ -1,69 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B697C6B0007
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 10:20:32 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id y10so262569wrg.9
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 07:20:32 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 03FAE6B0007
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 10:22:00 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 31so5072410wrr.2
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 07:21:59 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 65si1313242edb.361.2018.04.13.07.20.31
+        by mx.google.com with ESMTPS id x25si766853edb.276.2018.04.13.07.21.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Apr 2018 07:20:31 -0700 (PDT)
-Date: Fri, 13 Apr 2018 16:20:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC 0/8] mm: online/offline 4MB chunks controlled by
- device driver
-Message-ID: <20180413142030.GU17484@dhcp22.suse.cz>
-References: <20180413131632.1413-1-david@redhat.com>
- <20180413134414.GS17484@dhcp22.suse.cz>
- <3545ef32-14db-25ab-bf1a-56044402add3@redhat.com>
+        Fri, 13 Apr 2018 07:21:58 -0700 (PDT)
+Subject: Re: [PATCH 3/3] dcache: account external names as indirectly
+ reclaimable memory
+References: <20180305133743.12746-1-guro@fb.com>
+ <20180305133743.12746-5-guro@fb.com>
+ <20180413133519.GA213834@rodete-laptop-imager.corp.google.com>
+ <20180413135923.GT17484@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <13f1f5b5-f3f8-956c-145a-4641fb996048@suse.cz>
+Date: Fri, 13 Apr 2018 16:20:00 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3545ef32-14db-25ab-bf1a-56044402add3@redhat.com>
+In-Reply-To: <20180413135923.GT17484@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri 13-04-18 16:01:43, David Hildenbrand wrote:
-> On 13.04.2018 15:44, Michal Hocko wrote:
-> > [If you choose to not CC the same set of people on all patches - which
-> > is sometimes a legit thing to do - then please cc them to the cover
-> > letter at least.]
-> > 
-> > On Fri 13-04-18 15:16:24, David Hildenbrand wrote:
-> >> I am right now working on a paravirtualized memory device ("virtio-mem").
-> >> These devices control a memory region and the amount of memory available
-> >> via it. Memory will not be indicated via ACPI and friends, the device
-> >> driver is responsible for it.
-> > 
-> > How does this compare to other ballooning solutions? And why your driver
-> > cannot simply use the existing sections and maintain subsections on top?
-> > 
+On 04/13/2018 03:59 PM, Michal Hocko wrote:
+> On Fri 13-04-18 22:35:19, Minchan Kim wrote:
+>> On Mon, Mar 05, 2018 at 01:37:43PM +0000, Roman Gushchin wrote:
+> [...]
+>>> @@ -1614,9 +1623,11 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+>>>  		name = &slash_name;
+>>>  		dname = dentry->d_iname;
+>>>  	} else if (name->len > DNAME_INLINE_LEN-1) {
+>>> -		size_t size = offsetof(struct external_name, name[1]);
+>>> -		struct external_name *p = kmalloc(size + name->len,
+>>> -						  GFP_KERNEL_ACCOUNT);
+>>> +		struct external_name *p;
+>>> +
+>>> +		reclaimable = offsetof(struct external_name, name[1]) +
+>>> +			name->len;
+>>> +		p = kmalloc(reclaimable, GFP_KERNEL_ACCOUNT);
+>>
+>> Can't we use kmem_cache_alloc with own cache created with SLAB_RECLAIM_ACCOUNT
+>> if they are reclaimable? 
 > 
-> (further down in this mail is a small paragraph about that)
+> No, because names have different sizes and so we would basically have to
+> duplicate many caches.
 
-Sorry, I just stopped right there and didn't even finsh to the end.
-Shame on me! I will do my homework and read it carefully (next week).
+We would need kmalloc-reclaimable-X variants. It could be worth it,
+especially if we find more similar usages. I suspect they would be more
+useful than the existing dma-kmalloc-X :)
 
-[...]
-> "And why your driver cannot simply use the existing sections and
-> maintain subsections on top?"
-> 
-> Can you elaborate how that is going to work? What I do as of now, is to
-> remember for each memory block (basically a section because I want to
-> make it as small as possible) which chunks ("subsections") are
-> online/offline. This works just fine. Is this what you are referring to?
-
-Well, basically yes. I meant to suggest you simply mark pages reserved
-and pull them out. You can reuse some parts of such a struct page for
-your metadata because we should simply ignore those.
-
-You still have to allocate memmap for the full section but 128MB
-sections have a nice effect that they fit into a single PMD for
-sparse-vmemmap. So you do not really need to touch mem sections, all you
-need is to keep your metadata on top.
--- 
-Michal Hocko
-SUSE Labs
+Maybe create both (dma and reclaimable) on demand?
