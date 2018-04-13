@@ -1,114 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DCC636B000C
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:13:02 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b11-v6so5812488pla.19
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 05:13:02 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id u23-v6si4889721plk.516.2018.04.13.05.13.01
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E64FD6B000D
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:13:41 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 31so4820106wrr.2
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 05:13:41 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 73sor524664wmo.26.2018.04.13.05.13.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Apr 2018 05:13:01 -0700 (PDT)
-Subject: Re: [PATCH] mm: vmalloc: Remove double execution of vunmap_page_range
-References: <1523611019-17679-1-git-send-email-cpandya@codeaurora.org>
- <a623e12b-bb5e-58fa-c026-de9ea53c5bd9@linux.vnet.ibm.com>
- <8da9f826-2a3d-e618-e512-4fc8d45c16f2@codeaurora.org>
- <bbef0a92-f81b-5ba8-c5c1-d8c08444955b@linux.vnet.ibm.com>
- <fa104cc6-c32a-9081-280f-2e03e4279f65@codeaurora.org>
- <20180413110949.GA17670@dhcp22.suse.cz>
- <696fedc5-6bcd-f0a0-62f5-4f9e7b7c602a@codeaurora.org>
- <20180413114133.GJ17484@dhcp22.suse.cz>
-From: Chintan Pandya <cpandya@codeaurora.org>
-Message-ID: <7674bfda-6186-8b32-0144-62c666e05e3c@codeaurora.org>
-Date: Fri, 13 Apr 2018 17:42:53 +0530
+        (Google Transport Security);
+        Fri, 13 Apr 2018 05:13:40 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180413114133.GJ17484@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180412145702.GB30714@castle.DHCP.thefacebook.com>
+References: <20180305133743.12746-1-guro@fb.com> <20180305133743.12746-2-guro@fb.com>
+ <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz> <20180411135624.GA24260@castle.DHCP.thefacebook.com>
+ <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz> <20180412145702.GB30714@castle.DHCP.thefacebook.com>
+From: vinayak menon <vinayakm.list@gmail.com>
+Date: Fri, 13 Apr 2018 17:43:39 +0530
+Message-ID: <CAOaiJ-=JtFWNPqdtf+5uim0-LcPE9zSDZmocAa_6K3yGpW2fCQ@mail.gmail.com>
+Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
 
-
-
-On 4/13/2018 5:11 PM, Michal Hocko wrote:
-> On Fri 13-04-18 16:57:06, Chintan Pandya wrote:
+On Thu, Apr 12, 2018 at 8:27 PM, Roman Gushchin <guro@fb.com> wrote:
+> On Thu, Apr 12, 2018 at 08:52:52AM +0200, Vlastimil Babka wrote:
+>> On 04/11/2018 03:56 PM, Roman Gushchin wrote:
+>> > On Wed, Apr 11, 2018 at 03:16:08PM +0200, Vlastimil Babka wrote:
+>> >> [+CC linux-api]
+>> >>
+>> >> On 03/05/2018 02:37 PM, Roman Gushchin wrote:
+>> >>> This patch introduces a concept of indirectly reclaimable memory
+>> >>> and adds the corresponding memory counter and /proc/vmstat item.
+>> >>>
+>> >>> Indirectly reclaimable memory is any sort of memory, used by
+>> >>> the kernel (except of reclaimable slabs), which is actually
+>> >>> reclaimable, i.e. will be released under memory pressure.
+>> >>>
+>> >>> The counter is in bytes, as it's not always possible to
+>> >>> count such objects in pages. The name contains BYTES
+>> >>> by analogy to NR_KERNEL_STACK_KB.
+>> >>>
+>> >>> Signed-off-by: Roman Gushchin <guro@fb.com>
+>> >>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> >>> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+>> >>> Cc: Michal Hocko <mhocko@suse.com>
+>> >>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> >>> Cc: linux-fsdevel@vger.kernel.org
+>> >>> Cc: linux-kernel@vger.kernel.org
+>> >>> Cc: linux-mm@kvack.org
+>> >>> Cc: kernel-team@fb.com
+>> >>
+>> >> Hmm, looks like I'm late and this user-visible API change was just
+>> >> merged. But it's for rc1, so we can still change it, hopefully?
+>> >>
+>> >> One problem I see with the counter is that it's in bytes, but among
+>> >> counters that use pages, and the name doesn't indicate it.
+>> >
+>> > Here I just followed "nr_kernel_stack" path, which is measured in kB,
+>> > but this is not mentioned in the field name.
 >>
+>> Oh, didn't know. Bad example to follow :P
 >>
->> On 4/13/2018 4:39 PM, Michal Hocko wrote:
->>> On Fri 13-04-18 16:15:26, Chintan Pandya wrote:
->>>>
->>>>
->>>> On 4/13/2018 4:10 PM, Anshuman Khandual wrote:
->>>>> On 04/13/2018 03:47 PM, Chintan Pandya wrote:
->>>>>>
->>>>>>
->>>>>> On 4/13/2018 3:29 PM, Anshuman Khandual wrote:
->>>>>>> On 04/13/2018 02:46 PM, Chintan Pandya wrote:
->>>>>>>> Unmap legs do call vunmap_page_range() irrespective of
->>>>>>>> debug_pagealloc_enabled() is enabled or not. So, remove
->>>>>>>> redundant check and optional vunmap_page_range() routines.
->>>>>>>
->>>>>>> vunmap_page_range() tears down the page table entries and does
->>>>>>> not really flush related TLB entries normally unless page alloc
->>>>>>> debug is enabled where it wants to make sure no stale mapping is
->>>>>>> still around for debug purpose. Deferring TLB flush improves
->>>>>>> performance. This patch will force TLB flush during each page
->>>>>>> table tear down and hence not desirable.
->>>>>>>
->>>>>> Deferred TLB invalidation will surely improve performance. But force
->>>>>> flush can help in detecting invalid access right then and there. I
->>>>>
->>>>> Deferred TLB invalidation was a choice made some time ago with the
->>>>> commit db64fe02258f1507e ("mm: rewrite vmap layer") as these vmalloc
->>>>> mappings wont be used other than inside the kernel and TLB gets
->>>>> flushed when they are reused. This way it can still avail the benefit
->>>>> of deferred TLB flushing without exposing itself to invalid accesses.
->>>>>
->>>>>> chose later. May be I should have clean up the vmap tear down code
->>>>>> as well where it actually does the TLB invalidation.
->>>>>>
->>>>>> Or make TLB invalidation in free_unmap_vmap_area() be dependent upon
->>>>>> debug_pagealloc_enabled().
->>>>>
->>>>> Immediate TLB invalidation needs to be dependent on debug_pagealloc_
->>>>> enabled() and should be done only for debug purpose. Contrary to that
->>>>> is not desirable.
->>>>>
->>>> Okay. I will raise v2 for that.
->>>
->>> More importantly. Your changelog absolutely lacks the _why_ part. It
->>> just states what the code does which is not all that hard to read from
->>> the diff. It is usually much more important to present _why_ the patch
->>> is an improvement and worth merging.
->>>
+>> >> Then, I don't
+>> >> see why users should care about the "indirectly" part, as that's just an
+>> >> implementation detail. It is reclaimable and that's what matters, right?
+>> >> (I also wanted to complain about lack of Documentation/... update, but
+>> >> looks like there's no general file about vmstat, ugh)
+>> >
+>> > I agree, that it's a bit weird, and it's probably better to not expose
+>> > it at all; but this is how all vm counters work. We do expose them all
+>> > in /proc/vmstat. A good number of them is useless until you are not a
+>> > mm developer, so it's arguable more "debug info" rather than "api".
 >>
->> It is improving performance in debug scenario.
-> 
-> Do not forget to add some numbers presenting the benefits when
-> resubmitting.
-Okay.
+>> Yeah the problem is that once tools start rely on them, they fall under
+>> the "do not break userspace" rule, however we call them. So being
+>> cautious and conservative can't hurt.
+>>
+>> > It's definitely not a reason to make them messy.
+>> > Does "nr_indirectly_reclaimable_bytes" look better to you?
+>>
+>> It still has has the "indirecly" part and feels arbitrary :/
+>>
+>> >>
+>> >> I also kind of liked the idea from v1 rfc posting that there would be a
+>> >> separate set of reclaimable kmalloc-X caches for these kind of
+>> >> allocations. Besides accounting, it should also help reduce memory
+>> >> fragmentation. The right variant of cache would be detected via
+>> >> __GFP_RECLAIMABLE.
+>> >
+>> > Well, the downside is that we have to introduce X new caches
+>> > just for this particular problem. I'm not strictly against the idea,
+>> > but not convinced that it's much better.
+>>
+>> Maybe we can find more cases that would benefit from it. Heck, even slab
+>> itself allocates some management structures from the generic kmalloc
+>> caches, and if they are used for reclaimable caches, they could be
+>> tracked as reclaimable as well.
+>
+> This is a good catch!
+>
+>>
+>> >>
+>> >> With that in mind, can we at least for now put the (manually maintained)
+>> >> byte counter in a variable that's not directly exposed via /proc/vmstat,
+>> >> and then when printing nr_slab_reclaimable, simply add the value
+>> >> (divided by PAGE_SIZE), and when printing nr_slab_unreclaimable,
+>> >> subtract the same value. This way we would be simply making the existing
+>> >> counters more precise, in line with their semantics.
+>> >
+>> > Idk, I don't like the idea of adding a counter outside of the vm counters
+>> > infrastructure, and I definitely wouldn't touch the exposed
+>> > nr_slab_reclaimable and nr_slab_unreclaimable fields.
+>>
+>> We would be just making the reported values more precise wrt reality.
+>
+> It depends on if we believe that only slab memory can be reclaimable
+> or not. If yes, this is true, otherwise not.
+>
+> My guess is that some drivers (e.g. networking) might have buffers,
+> which are reclaimable under mempressure, and are allocated using
+> the page allocator. But I have to look closer...
+>
 
-> 
->> More than that, I see it
->> as a clean up. Sure, I will try to address *why* in next change log. >
-> As Anshuman pointed out the current code layout is deliberate. If you
-> believe that reasons mentioned previously are not valid then dispute
-> them and provide your arguments in the changelog.
-> 
-Here, the trade off is, performance vs catching use-after-free. Original
-code is preferring performance gains. At first, it seemed to me that
-stability is more important than performance. But giving more thoughts
-on this (and reading commit db64fe02258f1507e ("mm: rewrite vmap
-layer")), I feel that use-after-free is client side wrong-doing. vmap
-layer need not loose its best case settings for potential client side
-mistakes. For that, vmap layer can provide debug settings. So, I plan
-to do TLB flush conditional on debug settings.
+One such case I have encountered is that of the ION page pool. The page pool
+registers a shrinker. When not in any memory pressure page pool can go high
+and thus cause an mmap to fail when OVERCOMMIT_GUESS is set. I can send
+a patch to account ION page pool pages in NR_INDIRECTLY_RECLAIMABLE_BYTES.
 
-Chintan
--- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, a Linux Foundation
-Collaborative Project
+Thanks,
+Vinayak
