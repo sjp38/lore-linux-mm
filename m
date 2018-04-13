@@ -1,63 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C8B16B0005
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 11:30:58 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id k3so3061222pff.23
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:30:58 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0119.outbound.protection.outlook.com. [104.47.0.119])
-        by mx.google.com with ESMTPS id g15si4237583pgu.112.2018.04.13.08.30.56
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 04FBE6B0005
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 11:59:25 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id j10so1249565wri.11
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:59:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b15si6365878edh.143.2018.04.13.08.59.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 13 Apr 2018 08:30:57 -0700 (PDT)
-Subject: Re: [PATCH] kasan: add no_sanitize attribute for clang builds
-References: <4ad725cc903f8534f8c8a60f0daade5e3d674f8d.1523554166.git.andreyknvl@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <b849e2ff-3693-9546-5850-1ddcea23ee29@virtuozzo.com>
-Date: Fri, 13 Apr 2018 18:31:46 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 13 Apr 2018 08:59:23 -0700 (PDT)
+Date: Fri, 13 Apr 2018 17:59:17 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC 0/8] mm: online/offline 4MB chunks controlled by
+ device driver
+Message-ID: <20180413155917.GX17484@dhcp22.suse.cz>
+References: <20180413131632.1413-1-david@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <4ad725cc903f8534f8c8a60f0daade5e3d674f8d.1523554166.git.andreyknvl@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180413131632.1413-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, David Woodhouse <dwmw@amazon.co.uk>, Will Deacon <will.deacon@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paul Lawrence <paullawrence@google.com>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Cc: Kostya Serebryany <kcc@google.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org
 
+On Fri 13-04-18 15:16:24, David Hildenbrand wrote:
+[...]
+> In contrast to existing balloon solutions:
+> - The device is responsible for its own memory only.
 
+Please be more specific. Any ballooning driver is responsible for its
+own memory. So what exactly does that mean?
 
-On 04/12/2018 08:29 PM, Andrey Konovalov wrote:
-> KASAN uses the __no_sanitize_address macro to disable instrumentation
-> of particular functions. Right now it's defined only for GCC build,
-> which causes false positives when clang is used.
-> 
-> This patch adds a definition for clang.
-> 
-> Note, that clang's revision 329612 or higher is required.
-> 
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  include/linux/compiler-clang.h | 5 +++++
->  1 file changed, 5 insertions(+)
-> 
-> diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
-> index ceb96ecab96e..5a1d8580febe 100644
-> --- a/include/linux/compiler-clang.h
-> +++ b/include/linux/compiler-clang.h
-> @@ -25,6 +25,11 @@
->  #define __SANITIZE_ADDRESS__
->  #endif
->  
-> +#ifdef CONFIG_KASAN
+> - Works on a coarser granularity (e.g. 4MB because that's what we can
+>   online/offline in Linux). We are not using the buddy allocator when unplugging
+>   but really search for chunks of memory we can offline.
 
-If, for whatever reason, developer decides to add __no_sanitize_address to some
-generic function, guess what will happen next when he/she will try to build CONFIG_KASAN=n kernel?
+Again, more details please. Virtio driver already tries to scan suitable
+pages to balloon AFAIK.
 
-> +#undef __no_sanitize_address
-> +#define __no_sanitize_address __attribute__((no_sanitize("address")))
-> +#endif
-> +
->  /* Clang doesn't have a way to turn it off per-function, yet. */
->  #ifdef __noretpoline
->  #undef __noretpoline
-> 
+> - A device can belong to exactly one NUMA node. This way we can online/offline
+>   memory in a fine granularity NUMA aware.
+
+What does prevent existing balloon solutions to be NUMA aware?
+
+> - Architectures that don't have proper memory hotplug interfaces (e.g. s390x)
+>   get memory hotplug support. I have a prototype for s390x.
+
+I am pretty sure that s390 does support memory hotplug. Or what do you
+mean?
+
+> - Once all 4MB chunks of a memory block are offline, we can remove the
+>   memory block and therefore the struct pages (seems to work in my prototype),
+>   which is nice.
+
+OK, so our existing ballooning solutions indeed do not free up memmaps
+which is suboptimal.
+
+> Todo:
+> - We might have to add a parameter to offline_pages(), telling it to not
+>   try forever but abort in case it takes too long.
+
+Offlining fails when it see non-migrateable pages but other than that it
+should always succeed in the finite time. If not then there is a bug to
+be fixed.
+
+-- 
+Michal Hocko
+SUSE Labs
