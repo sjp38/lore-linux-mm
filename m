@@ -1,103 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 425886B026A
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:43:17 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id h82-v6so1519520lfi.8
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 06:43:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g77-v6sor1680313lfl.87.2018.04.13.06.43.15
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 950076B026E
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:44:17 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id y7-v6so5904603plh.7
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 06:44:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m18si3935620pgu.352.2018.04.13.06.44.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Apr 2018 06:43:15 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 6/6] lkdtm: crash on overwriting protected pmalloc var
-Date: Fri, 13 Apr 2018 17:41:31 +0400
-Message-Id: <20180413134131.4651-7-igor.stoppa@huawei.com>
-In-Reply-To: <20180413134131.4651-1-igor.stoppa@huawei.com>
-References: <20180413134131.4651-1-igor.stoppa@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 13 Apr 2018 06:44:16 -0700 (PDT)
+Date: Fri, 13 Apr 2018 15:44:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC 0/8] mm: online/offline 4MB chunks controlled by
+ device driver
+Message-ID: <20180413134414.GS17484@dhcp22.suse.cz>
+References: <20180413131632.1413-1-david@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180413131632.1413-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: willy@infradead.org, keescook@chromium.org, mhocko@kernel.org, corbet@lwn.net
-Cc: david@fromorbit.com, rppt@linux.vnet.ibm.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org
 
-Verify that pmalloc read-only protection is in place: trying to
-overwrite a protected variable will crash the kernel.
+[If you choose to not CC the same set of people on all patches - which
+is sometimes a legit thing to do - then please cc them to the cover
+letter at least.]
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
----
- drivers/misc/lkdtm/core.c  |  3 +++
- drivers/misc/lkdtm/lkdtm.h |  1 +
- drivers/misc/lkdtm/perms.c | 25 +++++++++++++++++++++++++
- 3 files changed, 29 insertions(+)
+On Fri 13-04-18 15:16:24, David Hildenbrand wrote:
+> I am right now working on a paravirtualized memory device ("virtio-mem").
+> These devices control a memory region and the amount of memory available
+> via it. Memory will not be indicated via ACPI and friends, the device
+> driver is responsible for it.
 
-diff --git a/drivers/misc/lkdtm/core.c b/drivers/misc/lkdtm/core.c
-index 2154d1bfd18b..c9fd42bda6ee 100644
---- a/drivers/misc/lkdtm/core.c
-+++ b/drivers/misc/lkdtm/core.c
-@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
- 	CRASHTYPE(ACCESS_USERSPACE),
- 	CRASHTYPE(WRITE_RO),
- 	CRASHTYPE(WRITE_RO_AFTER_INIT),
-+#ifdef CONFIG_PROTECTABLE_MEMORY
-+	CRASHTYPE(WRITE_RO_PMALLOC),
-+#endif
- 	CRASHTYPE(WRITE_KERN),
- 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
- 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
-diff --git a/drivers/misc/lkdtm/lkdtm.h b/drivers/misc/lkdtm/lkdtm.h
-index 9e513dcfd809..dcda3ae76ceb 100644
---- a/drivers/misc/lkdtm/lkdtm.h
-+++ b/drivers/misc/lkdtm/lkdtm.h
-@@ -38,6 +38,7 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
- void __init lkdtm_perms_init(void);
- void lkdtm_WRITE_RO(void);
- void lkdtm_WRITE_RO_AFTER_INIT(void);
-+void lkdtm_WRITE_RO_PMALLOC(void);
- void lkdtm_WRITE_KERN(void);
- void lkdtm_EXEC_DATA(void);
- void lkdtm_EXEC_STACK(void);
-diff --git a/drivers/misc/lkdtm/perms.c b/drivers/misc/lkdtm/perms.c
-index 53b85c9d16b8..4660ff0bfa44 100644
---- a/drivers/misc/lkdtm/perms.c
-+++ b/drivers/misc/lkdtm/perms.c
-@@ -9,6 +9,7 @@
- #include <linux/vmalloc.h>
- #include <linux/mman.h>
- #include <linux/uaccess.h>
-+#include <linux/pmalloc.h>
- #include <asm/cacheflush.h>
- 
- /* Whether or not to fill the target memory area with do_nothing(). */
-@@ -104,6 +105,30 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
- 	*ptr ^= 0xabcd1234;
- }
- 
-+#ifdef CONFIG_PROTECTABLE_MEMORY
-+void lkdtm_WRITE_RO_PMALLOC(void)
-+{
-+	struct pmalloc_pool *pool;
-+	int *i;
-+
-+	pool = pmalloc_create_pool();
-+	if (WARN(!pool, "Failed preparing pool for pmalloc test."))
-+		return;
-+
-+	i = (int *)pmalloc(pool, sizeof(int));
-+	if (WARN(!i, "Failed allocating memory for pmalloc test.")) {
-+		pmalloc_destroy_pool(pool);
-+		return;
-+	}
-+
-+	*i = INT_MAX;
-+	pmalloc_protect_pool(pool);
-+
-+	pr_info("attempting bad pmalloc write at %p\n", i);
-+	*i = 0;
-+}
-+#endif
-+
- void lkdtm_WRITE_KERN(void)
- {
- 	size_t size;
+How does this compare to other ballooning solutions? And why your driver
+cannot simply use the existing sections and maintain subsections on top?
 -- 
-2.14.1
+Michal Hocko
+SUSE Labs
