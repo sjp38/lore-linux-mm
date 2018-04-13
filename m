@@ -1,83 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A3A2A6B0007
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 07:20:38 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id u13so4756673wre.1
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 04:20:38 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q35si804287eda.93.2018.04.13.04.20.37
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C55C96B0009
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 07:27:14 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id n2so1469484pgs.2
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 04:27:14 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id v9si3784038pgr.550.2018.04.13.04.27.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Apr 2018 04:20:37 -0700 (PDT)
-Date: Fri, 13 Apr 2018 13:20:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
- mem_cgroup_css_alloc() failure
-Message-ID: <20180413112036.GH17484@dhcp22.suse.cz>
-References: <152354470916.22460.14397070748001974638.stgit@localhost.localdomain>
- <20180413085553.GF17484@dhcp22.suse.cz>
- <ed75d18c-f516-2feb-53a8-6d2836e1da59@virtuozzo.com>
- <20180413110200.GG17484@dhcp22.suse.cz>
- <06931a83-91d2-3dcf-31cf-0b98d82e957f@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Apr 2018 04:27:13 -0700 (PDT)
+Subject: Re: [PATCH] mm: vmalloc: Remove double execution of vunmap_page_range
+References: <1523611019-17679-1-git-send-email-cpandya@codeaurora.org>
+ <a623e12b-bb5e-58fa-c026-de9ea53c5bd9@linux.vnet.ibm.com>
+ <8da9f826-2a3d-e618-e512-4fc8d45c16f2@codeaurora.org>
+ <bbef0a92-f81b-5ba8-c5c1-d8c08444955b@linux.vnet.ibm.com>
+ <fa104cc6-c32a-9081-280f-2e03e4279f65@codeaurora.org>
+ <20180413110949.GA17670@dhcp22.suse.cz>
+From: Chintan Pandya <cpandya@codeaurora.org>
+Message-ID: <696fedc5-6bcd-f0a0-62f5-4f9e7b7c602a@codeaurora.org>
+Date: Fri, 13 Apr 2018 16:57:06 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <06931a83-91d2-3dcf-31cf-0b98d82e957f@virtuozzo.com>
+In-Reply-To: <20180413110949.GA17670@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 13-04-18 14:06:40, Kirill Tkhai wrote:
-> On 13.04.2018 14:02, Michal Hocko wrote:
-> > On Fri 13-04-18 12:35:22, Kirill Tkhai wrote:
-> >> On 13.04.2018 11:55, Michal Hocko wrote:
-> >>> On Thu 12-04-18 17:52:04, Kirill Tkhai wrote:
-> >>> [...]
-> >>>> @@ -4471,6 +4477,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
-> >>>>  
-> >>>>  	return &memcg->css;
-> >>>>  fail:
-> >>>> +	mem_cgroup_id_remove(memcg);
-> >>>>  	mem_cgroup_free(memcg);
-> >>>>  	return ERR_PTR(-ENOMEM);
-> >>>>  }
-> >>>
-> >>> The only path which jumps to fail: here (in the current mmotm tree) is 
-> >>> 	error = memcg_online_kmem(memcg);
-> >>> 	if (error)
-> >>> 		goto fail;
-> >>>
-> >>> AFAICS and the only failure path in memcg_online_kmem
-> >>> 	memcg_id = memcg_alloc_cache_id();
-> >>> 	if (memcg_id < 0)
-> >>> 		return memcg_id;
-> >>>
-> >>> I am not entirely clear on memcg_alloc_cache_id but it seems we do clean
-> >>> up properly. Or am I missing something?
-> >>
-> >> memcg_alloc_cache_id() may allocate a lot of memory, in case of the system reached
-> >> memcg_nr_cache_ids cgroups. In this case it iterates over all LRU lists, and double
-> >> size of every of them. In case of memory pressure it can fail. If this occurs,
-> >> mem_cgroup::id is not unhashed from IDR and we leak this id.
-> > 
-> > OK, my bad I was looking at the bad code path. So you want to clean up
-> > after mem_cgroup_alloc not memcg_online_kmem. Now it makes much more
-> > sense. Sorry for the confusion on my end.
-> > 
-> > Anyway, shouldn't we do the thing in mem_cgroup_free() to be symmetric
-> > to mem_cgroup_alloc?
+
+
+On 4/13/2018 4:39 PM, Michal Hocko wrote:
+> On Fri 13-04-18 16:15:26, Chintan Pandya wrote:
+>>
+>>
+>> On 4/13/2018 4:10 PM, Anshuman Khandual wrote:
+>>> On 04/13/2018 03:47 PM, Chintan Pandya wrote:
+>>>>
+>>>>
+>>>> On 4/13/2018 3:29 PM, Anshuman Khandual wrote:
+>>>>> On 04/13/2018 02:46 PM, Chintan Pandya wrote:
+>>>>>> Unmap legs do call vunmap_page_range() irrespective of
+>>>>>> debug_pagealloc_enabled() is enabled or not. So, remove
+>>>>>> redundant check and optional vunmap_page_range() routines.
+>>>>>
+>>>>> vunmap_page_range() tears down the page table entries and does
+>>>>> not really flush related TLB entries normally unless page alloc
+>>>>> debug is enabled where it wants to make sure no stale mapping is
+>>>>> still around for debug purpose. Deferring TLB flush improves
+>>>>> performance. This patch will force TLB flush during each page
+>>>>> table tear down and hence not desirable.
+>>>>>
+>>>> Deferred TLB invalidation will surely improve performance. But force
+>>>> flush can help in detecting invalid access right then and there. I
+>>>
+>>> Deferred TLB invalidation was a choice made some time ago with the
+>>> commit db64fe02258f1507e ("mm: rewrite vmap layer") as these vmalloc
+>>> mappings wont be used other than inside the kernel and TLB gets
+>>> flushed when they are reused. This way it can still avail the benefit
+>>> of deferred TLB flushing without exposing itself to invalid accesses.
+>>>
+>>>> chose later. May be I should have clean up the vmap tear down code
+>>>> as well where it actually does the TLB invalidation.
+>>>>
+>>>> Or make TLB invalidation in free_unmap_vmap_area() be dependent upon
+>>>> debug_pagealloc_enabled().
+>>>
+>>> Immediate TLB invalidation needs to be dependent on debug_pagealloc_
+>>> enabled() and should be done only for debug purpose. Contrary to that
+>>> is not desirable.
+>>>
+>> Okay. I will raise v2 for that.
 > 
-> We can't, since it's called from mem_cgroup_css_free(), which doesn't have a deal
-> with idr freeing. All the asymmetry, we see, is because of the trick to unhash ID
-> earlier, then from mem_cgroup_css_free().
+> More importantly. Your changelog absolutely lacks the _why_ part. It
+> just states what the code does which is not all that hard to read from
+> the diff. It is usually much more important to present _why_ the patch
+> is an improvement and worth merging.
+> 
 
-Are you sure. It's been some time since I've looked at the quite complex
-cgroup tear down code but from what I remember, css_free is called on
-the css release (aka when the reference count drops to zero). mem_cgroup_id_put_many
-seems to unpin the css reference so we should have idr_remove by the
-time when css_free is called. Or am I still wrong and should go over the
-brain hurting cgroup removal code again?
+It is improving performance in debug scenario. More than that, I see it
+as a clean up. Sure, I will try to address *why* in next change log.
+
+Chintan
 -- 
-Michal Hocko
-SUSE Labs
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
+Inc. is a member of the Code Aurora Forum, a Linux Foundation
+Collaborative Project
