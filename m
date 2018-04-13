@@ -1,74 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 215006B0007
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 07:54:56 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id q6so4795412wre.20
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 04:54:56 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 34si638338edm.8.2018.04.13.04.54.54
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C1CF6B0007
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:02:04 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id i12so4771247wre.6
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 05:02:03 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id y63si279871edy.17.2018.04.13.05.02.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Apr 2018 04:54:55 -0700 (PDT)
-Date: Fri, 13 Apr 2018 13:54:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memcg: Remove memcg_cgroup::id from IDR on
- mem_cgroup_css_alloc() failure
-Message-ID: <20180413115454.GL17484@dhcp22.suse.cz>
-References: <152354470916.22460.14397070748001974638.stgit@localhost.localdomain>
- <20180413085553.GF17484@dhcp22.suse.cz>
- <ed75d18c-f516-2feb-53a8-6d2836e1da59@virtuozzo.com>
- <20180413110200.GG17484@dhcp22.suse.cz>
- <06931a83-91d2-3dcf-31cf-0b98d82e957f@virtuozzo.com>
- <20180413112036.GH17484@dhcp22.suse.cz>
- <6dbc33bb-f3d5-1a46-b454-13c6f5865fcd@virtuozzo.com>
- <20180413113855.GI17484@dhcp22.suse.cz>
- <8a81c801-35c8-767d-54b0-df9f1ca0abc0@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Apr 2018 05:02:02 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3DC0NQf003985
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:02:01 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2hasbsqjhg-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:02:01 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 13 Apr 2018 13:01:58 +0100
+Subject: Re: [PATCH 2/2] mm: vmalloc: Pass proper vm_start into debugobjects
+References: <1523619234-17635-1-git-send-email-cpandya@codeaurora.org>
+ <1523619234-17635-3-git-send-email-cpandya@codeaurora.org>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 13 Apr 2018 17:31:49 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8a81c801-35c8-767d-54b0-df9f1ca0abc0@virtuozzo.com>
+In-Reply-To: <1523619234-17635-3-git-send-email-cpandya@codeaurora.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <ee1e7036-ecdf-0f5b-f460-0d71b4a38dd7@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chintan Pandya <cpandya@codeaurora.org>, vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 13-04-18 14:49:32, Kirill Tkhai wrote:
-> On 13.04.2018 14:38, Michal Hocko wrote:
-> > On Fri 13-04-18 14:29:11, Kirill Tkhai wrote:
-[...]
-> >> mem_cgroup_id_put_many() unpins css, but this may be not the last reference to the css.
-> >> Thus, we release ID earlier, then all references to css are freed.
-> > 
-> > Right and so what. If we have released the idr then we are not going to
-> > do that again in css_free. That is why we have that memcg->id.id > 0
-> > check before idr_remove and memcg->id.id = 0 for the last memcg ref.
-> > count. So again, why cannot we do the clean up in mem_cgroup_free and
-> > have a less confusing code? Or am I just not getting your point and
-> > being dense here?
+On 04/13/2018 05:03 PM, Chintan Pandya wrote:
+> Client can call vunmap with some intermediate 'addr'
+> which may not be the start of the VM area. Entire
+> unmap code works with vm->vm_start which is proper
+> but debug object API is called with 'addr'. This
+> could be a problem within debug objects.
 > 
-> We can, but mem_cgroup_free() called from mem_cgroup_css_alloc() is unlikely case.
-> The likely case is mem_cgroup_free() is called from mem_cgroup_css_free(), where
-> this idr manipulations will be a noop. Noop in likely case looks more confusing
-> for me.
+> Pass proper start address into debug object API.
+> 
+> Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
+> ---
+>  mm/vmalloc.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 9ff21a1..28034c55 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1526,8 +1526,8 @@ static void __vunmap(const void *addr, int deallocate_pages)
+>  		return;
+>  	}
+>  
+> -	debug_check_no_locks_freed(addr, get_vm_area_size(area));
+> -	debug_check_no_obj_freed(addr, get_vm_area_size(area));
+> +	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
+> +	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
 
-Well, I would really prefer to have _free being symmetric to _alloc so
-that you can rely that the full state is gone after _free is called.
-This confused the hell out of me. Because I _did_ expect that
-mem_cgroup_free would do that and so I was looking at completely
-different place.
- 
-> Less confusing will be to move
-> 
->         memcg->id.id = idr_alloc(&mem_cgroup_idr, NULL,
->                                  1, MEM_CGROUP_ID_MAX,
->                                  GFP_KERNEL);
-> 
-> into mem_cgroup_css_alloc(). How are you think about this?
-
-I would have to double check. Maybe it can be done on top. But for the
-actual fix and a stable backport potentially should be as clear as
-possible. Your original patch would be just fine but if I would prefer 
-mem_cgroup_free for the symmetry.
--- 
-Michal Hocko
-SUSE Labs
+This kind of makes sense to me but I am not sure. We also have another
+instance of this inside the function vm_unmap_ram() where we call for
+debug on locks without even finding the vmap_area first. But it is true
+that in both these functions the vmap_area gets freed eventually. Hence
+the entire mapping [va->va_start --> va->va_end] gets unmapped. Sounds
+like these debug functions should have the entire range as argument.
+But I am not sure and will seek Michal's input on this.
