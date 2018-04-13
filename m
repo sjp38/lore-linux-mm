@@ -1,56 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ECA46B0005
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 11:04:32 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id o34-v6so5235186otc.12
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:04:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s30-v6sor2746723ota.171.2018.04.13.08.04.31
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C1C246B0005
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 11:10:22 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id a11-v6so5362963ybl.19
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 08:10:22 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id c84si8196032qkh.117.2018.04.13.08.10.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Apr 2018 08:04:31 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Apr 2018 08:10:21 -0700 (PDT)
+Date: Fri, 13 Apr 2018 11:10:19 -0400
+From: Mike Snitzer <snitzer@redhat.com>
+Subject: Re: slab: introduce the flag SLAB_MINIMIZE_WASTE
+Message-ID: <20180413151019.GA5660@redhat.com>
+References: <20180320173512.GA19669@bombadil.infradead.org>
+ <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake>
+ <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
+ <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
+ <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
+ <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com>
+ <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180413064917.GC17484@dhcp22.suse.cz>
-References: <20180412153941.170849-1-jannh@google.com> <b617740b-fd07-e248-2ba0-9e99b0240594@nvidia.com>
- <CAKgNAkgcJ2kCTff0=7=D3zPFwpJt-9EM8yis6-4qDjfvvb8ukw@mail.gmail.com>
- <CAG48ez2NtCr8+HqnKJTFBcLW+kCKUa=2pz=7HD9p9u1p-MfJqw@mail.gmail.com>
- <13801e2a-c44d-e940-f872-890a0612a483@nvidia.com> <CAG48ez085cASur3kZTRkdJY20dFZ4Yqc1KVOHxnCAn58_NtW8w@mail.gmail.com>
- <cfbbbe06-5e63-e43c-fb28-c5afef9e1e1d@nvidia.com> <9c714917-fc29-4d12-b5e8-cff28761a2c1@gmail.com>
- <20180413064917.GC17484@dhcp22.suse.cz>
-From: Jann Horn <jannh@google.com>
-Date: Fri, 13 Apr 2018 17:04:09 +0200
-Message-ID: <CAG48ez2w+3FDh9LM3+P2EHowicjM2Xw6giR6uq=26JfWHYsTAQ@mail.gmail.com>
-Subject: Re: [PATCH] mmap.2: MAP_FIXED is okay if the address range has been reserved
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, John Hubbard <jhubbard@nvidia.com>, linux-man <linux-man@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Apr 13, 2018 at 8:49 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Fri 13-04-18 08:43:27, Michael Kerrisk wrote:
-> [...]
->> So, you mean remove this entire paragraph:
->>
->>               For cases in which the specified memory region has not been
->>               reserved using an existing mapping,  newer  kernels  (Linux
->>               4.17  and later) provide an option MAP_FIXED_NOREPLACE that
->>               should be used instead; older kernels require the caller to
->>               use addr as a hint (without MAP_FIXED) and take appropriate
->>               action if the kernel places the new mapping at a  different
->>               address.
->>
->> It seems like some version of the first half of the paragraph is worth
->> keeping, though, so as to point the reader in the direction of a remedy.
->> How about replacing that text with the following:
->>
->>               Since  Linux 4.17, the MAP_FIXED_NOREPLACE flag can be used
->>               in a multithreaded program to avoid  the  hazard  described
->>               above.
->
-> Yes, that sounds reasonable to me.
+On Fri, Apr 13 2018 at  5:22am -0400,
+Vlastimil Babka <vbabka@suse.cz> wrote:
 
-But that kind of sounds as if you can't avoid it before Linux 4.17,
-when actually, you just have to call mmap() with the address as hint,
-and if mmap() returns a different address, munmap() it and go on your
-normal error path.
+> On 03/21/2018 07:36 PM, Mikulas Patocka wrote:
+> > 
+> > 
+> > On Wed, 21 Mar 2018, Christopher Lameter wrote:
+> > 
+> >> On Wed, 21 Mar 2018, Mikulas Patocka wrote:
+> >>
+> >>>> You should not be using the slab allocators for these. Allocate higher
+> >>>> order pages or numbers of consecutive smaller pagess from the page
+> >>>> allocator. The slab allocators are written for objects smaller than page
+> >>>> size.
+> >>>
+> >>> So, do you argue that I need to write my own slab cache functionality
+> >>> instead of using the existing slab code?
+> >>
+> >> Just use the existing page allocator calls to allocate and free the
+> >> memory you need.
+> >>
+> >>> I can do it - but duplicating code is bad thing.
+> >>
+> >> There is no need to duplicate anything. There is lots of infrastructure
+> >> already in the kernel. You just need to use the right allocation / freeing
+> >> calls.
+> > 
+> > So, what would you recommend for allocating 640KB objects while minimizing 
+> > wasted space?
+> > * alloc_pages - rounds up to the next power of two
+> > * kmalloc - rounds up to the next power of two
+> > * alloc_pages_exact - O(n*log n) complexity; and causes memory 
+> >   fragmentation if used excesivelly
+> > * vmalloc - horrible performance (modifies page tables and that causes 
+> >   synchronization across all CPUs)
+> > 
+> > anything else?
+> > 
+> > The slab cache with large order seems as a best choice for this.
+> 
+> Sorry for being late, I just read this thread and tend to agree with
+> Mikulas, that this is a good use case for SL*B. If we extend the
+> use-case from "space-efficient allocator of objects smaller than page
+> size" to "space-efficient allocator of objects that are not power-of-two
+> pages" then IMHO it turns out the implementation would be almost the
+> same. All other variants listed above would lead to waste of memory or
+> fragmentation.
+> 
+> Would this perhaps be a good LSF/MM discussion topic? Mikulas, are you
+> attending, or anyone else that can vouch for your usecase?
+
+Any further discussion on SLAB_MINIMIZE_WASTE should continue on list.
+
+Mikulas won't be at LSF/MM.  But I included Mikulas' dm-bufio changes
+that no longer depend on this proposed SLAB_MINIMIZE_WASTE (as part of
+the 4.17 merge window).
+
+Mike
