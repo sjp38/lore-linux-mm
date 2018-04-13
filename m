@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CCB76B0005
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 12:36:03 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id 20so5593354qkd.2
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:36:03 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id i26si8116613qtc.356.2018.04.13.09.36.02
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B3966B0005
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 13:11:23 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q11so5026928pfd.8
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 10:11:23 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c22si4901817pfe.29.2018.04.13.10.11.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Apr 2018 09:36:02 -0700 (PDT)
-Subject: Re: [PATCH RFC 0/8] mm: online/offline 4MB chunks controlled by
- device driver
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 13 Apr 2018 10:11:22 -0700 (PDT)
+Date: Fri, 13 Apr 2018 10:11:20 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH RFC 2/8] mm: introduce PG_offline
+Message-ID: <20180413171120.GA1245@bombadil.infradead.org>
 References: <20180413131632.1413-1-david@redhat.com>
- <20180413134414.GS17484@dhcp22.suse.cz>
- <85887556-9497-4beb-261e-6cba46794c9c@redhat.com>
- <20180413160331.GZ17484@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <26b2f679-147e-0fe8-63d4-188d3ae77fd5@redhat.com>
-Date: Fri, 13 Apr 2018 18:36:01 +0200
+ <20180413131632.1413-3-david@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180413160331.GZ17484@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180413131632.1413-3-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, James Hogan <jhogan@kernel.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, open list <linux-kernel@vger.kernel.org>
 
-On 13.04.2018 18:03, Michal Hocko wrote:
-> On Fri 13-04-18 17:02:17, David Hildenbrand wrote:
->> On 13.04.2018 15:44, Michal Hocko wrote:
->>> [If you choose to not CC the same set of people on all patches - which
->>> is sometimes a legit thing to do - then please cc them to the cover
->>> letter at least.]
->>
->> BTW, sorry for that. The list of people to cc was just too big to handle
->> manually, so I used get_maintainers.sh with git for the same time ...
->> something I will most likely avoid next time :)
+On Fri, Apr 13, 2018 at 03:16:26PM +0200, David Hildenbrand wrote:
+> online_pages()/offline_pages() theoretically allows us to work on
+> sub-section sizes. This is especially relevant in the context of
+> virtualization. It e.g. allows us to add/remove memory to Linux in a VM in
+> 4MB chunks.
 > 
-> I usually have Cc: in all commits and then use the following script as
-> --cc-cmd. You just have to git format-patch the series and then
-> git send-email --cc-cmd=./cc-cmd.sh *.patch
-> + some mailing lists
-> 
-> #!/bin/bash
-> 
-> if [[ $1 == *gitsendemail.msg* || $1 == *cover-letter* ]]; then
->         grep '<.*@.*>' -h *.patch | sed 's/^.*: //' | sort | uniq
-> fi
-> 
+> While the whole section is marked as online/offline, we have to know
+> the state of each page. E.g. to not read memory that is not online
+> during kexec() or to properly mark a section as offline as soon as all
+> contained pages are offline.
 
-Thanks for that, very helpful!
+Can you not use PG_reserved for this purpose?
 
-BTW I just found an article stating I did (almost) the right thing:
-https://lwn.net/Articles/585782/
+> + * PG_offline indicates that a page is offline and the backing storage
+> + * might already have been removed (virtualization). Don't touch!
 
-But I 100% agree with you, I would also like to see the cover letter of
-an RFC patch series :)
+ * PG_reserved is set for special pages, which can never be swapped out. Some
+ * of them might not even exist...
 
--- 
-
-Thanks,
-
-David / dhildenb
+They seem pretty congruent to me.
