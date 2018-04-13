@@ -1,52 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6359C6B0272
-	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 09:59:27 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id v189so1247660wmf.4
-        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 06:59:27 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t24si283316edb.353.2018.04.13.06.59.25
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B86DB6B0273
+	for <linux-mm@kvack.org>; Fri, 13 Apr 2018 10:01:45 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id j2so5595658qtl.1
+        for <linux-mm@kvack.org>; Fri, 13 Apr 2018 07:01:45 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id k11si7563546qtb.3.2018.04.13.07.01.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Apr 2018 06:59:26 -0700 (PDT)
-Date: Fri, 13 Apr 2018 15:59:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/3] dcache: account external names as indirectly
- reclaimable memory
-Message-ID: <20180413135923.GT17484@dhcp22.suse.cz>
-References: <20180305133743.12746-1-guro@fb.com>
- <20180305133743.12746-5-guro@fb.com>
- <20180413133519.GA213834@rodete-laptop-imager.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Apr 2018 07:01:44 -0700 (PDT)
+Subject: Re: [PATCH RFC 0/8] mm: online/offline 4MB chunks controlled by
+ device driver
+References: <20180413131632.1413-1-david@redhat.com>
+ <20180413134414.GS17484@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <3545ef32-14db-25ab-bf1a-56044402add3@redhat.com>
+Date: Fri, 13 Apr 2018 16:01:43 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180413133519.GA213834@rodete-laptop-imager.corp.google.com>
+In-Reply-To: <20180413134414.GS17484@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org
 
-On Fri 13-04-18 22:35:19, Minchan Kim wrote:
-> On Mon, Mar 05, 2018 at 01:37:43PM +0000, Roman Gushchin wrote:
-[...]
-> > @@ -1614,9 +1623,11 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
-> >  		name = &slash_name;
-> >  		dname = dentry->d_iname;
-> >  	} else if (name->len > DNAME_INLINE_LEN-1) {
-> > -		size_t size = offsetof(struct external_name, name[1]);
-> > -		struct external_name *p = kmalloc(size + name->len,
-> > -						  GFP_KERNEL_ACCOUNT);
-> > +		struct external_name *p;
-> > +
-> > +		reclaimable = offsetof(struct external_name, name[1]) +
-> > +			name->len;
-> > +		p = kmalloc(reclaimable, GFP_KERNEL_ACCOUNT);
+On 13.04.2018 15:44, Michal Hocko wrote:
+> [If you choose to not CC the same set of people on all patches - which
+> is sometimes a legit thing to do - then please cc them to the cover
+> letter at least.]
 > 
-> Can't we use kmem_cache_alloc with own cache created with SLAB_RECLAIM_ACCOUNT
-> if they are reclaimable? 
+> On Fri 13-04-18 15:16:24, David Hildenbrand wrote:
+>> I am right now working on a paravirtualized memory device ("virtio-mem").
+>> These devices control a memory region and the amount of memory available
+>> via it. Memory will not be indicated via ACPI and friends, the device
+>> driver is responsible for it.
+> 
+> How does this compare to other ballooning solutions? And why your driver
+> cannot simply use the existing sections and maintain subsections on top?
+> 
 
-No, because names have different sizes and so we would basically have to
-duplicate many caches.
+(further down in this mail is a small paragraph about that)
+
+All existing balloon implementations work on all memory available in the
+system. Some of them are able to add memory later on (XEN, Hyper-V),
+others are not (virtio-balloon). Having this model allows to plug/unplug
+memory NUMA aware on a fine granularity (e.g. 4MB), while making the
+implementation in the hypervisor a level of magnitudes easier.
+
+We could have multiple paravirtualized memory devices, e.g. one for each
+NUMA node.
+
+E.g. when rebooting we don't have to resize any initial system memory
+(a820, ACPI ...), but only care about the memory region of this one
+device. By adding memory by the device driver, we can actually remove
+the memory blocks again, freeing up the struct pages.
+
+Also, I tend to not call the solution a balloon driver, rather
+"paravirtualized memory". It is something like a balloon, but we are not
+going to start fragmenting on a page level.
+
+There is more to it, but this should cover the basics.
+
+
+"And why your driver cannot simply use the existing sections and
+maintain subsections on top?"
+
+Can you elaborate how that is going to work? What I do as of now, is to
+remember for each memory block (basically a section because I want to
+make it as small as possible) which chunks ("subsections") are
+online/offline. This works just fine. Is this what you are referring to?
+
+However when it comes to marking a section finally offline or telling
+kdump to not touch offline pages, I need the PG_offline.
+
+(I had a prototype where I marked the sections manually offline once I
+knew everything in it was offline, but that looked rather hackish)
+
+Thanks for having a look!
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
