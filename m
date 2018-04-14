@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3232D6B0022
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 42A346B000D
 	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:29 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id 91-v6so7585374plf.6
+Received: by mail-pf0-f197.google.com with SMTP id c85so6449551pfb.12
         for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:29 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id o1-v6si7685752pld.255.2018.04.14.07.13.27
+        by mx.google.com with ESMTPS id y17-v6si8153578pll.296.2018.04.14.07.13.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 07:13:27 -0700 (PDT)
+        Sat, 14 Apr 2018 07:13:28 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 16/63] page cache: Rearrange address_space
-Date: Sat, 14 Apr 2018 07:12:29 -0700
-Message-Id: <20180414141316.7167-17-willy@infradead.org>
+Subject: [PATCH v11 41/63] shmem: Convert shmem_partial_swap_usage to XArray
+Date: Sat, 14 Apr 2018 07:12:54 -0700
+Message-Id: <20180414141316.7167-42-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,74 +22,51 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Change i_pages from a radix_tree_root to an xarray, convert the
-documentation into kernel-doc format and change the order of the elements
-to pack them better on 64-bit systems.
+Simpler code because the xarray takes care of things like the limit and
+dereferencing the slot.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/fs.h | 46 +++++++++++++++++++++++++++++++---------------
- 1 file changed, 31 insertions(+), 15 deletions(-)
+ mm/shmem.c | 18 ++++--------------
+ 1 file changed, 4 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index bf3d5039c708..0a4e213f1069 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -389,24 +389,40 @@ int pagecache_write_end(struct file *, struct address_space *mapping,
- 				loff_t pos, unsigned len, unsigned copied,
- 				struct page *page, void *fsdata);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 0ead678725c4..e1a0d1c7513e 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -667,29 +667,19 @@ static int shmem_free_swap(struct address_space *mapping,
+ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+ 						pgoff_t start, pgoff_t end)
+ {
+-	struct radix_tree_iter iter;
+-	void **slot;
++	XA_STATE(xas, &mapping->i_pages, start);
+ 	struct page *page;
+ 	unsigned long swapped = 0;
  
-+/**
-+ * struct address_space - Contents of a cacheable, mappable object.
-+ * @host: Owner, either the inode or the block_device.
-+ * @i_pages: Cached pages.
-+ * @gfp_mask: Memory allocation flags to use for allocating pages.
-+ * @i_mmap_writable: Number of VM_SHARED mappings.
-+ * @i_mmap: Tree of private and shared mappings.
-+ * @i_mmap_rwsem: Protects @i_mmap and @i_mmap_writable.
-+ * @nrpages: Number of page entries, protected by the i_pages lock.
-+ * @nrexceptional: Shadow or DAX entries, protected by the i_pages lock.
-+ * @writeback_index: Writeback starts here.
-+ * @a_ops: Methods.
-+ * @flags: Error bits and flags (AS_*).
-+ * @wb_err: The most recent error which has occurred.
-+ * @private_lock: For use by the owner of the address_space.
-+ * @private_list: For use by the owner of the address_space.
-+ * @private_data: For use by the owner of the address_space.
-+ */
- struct address_space {
--	struct inode		*host;		/* owner: inode, block_device */
--	struct radix_tree_root	i_pages;	/* cached pages */
--	atomic_t		i_mmap_writable;/* count VM_SHARED mappings */
--	struct rb_root_cached	i_mmap;		/* tree of private and shared mappings */
--	struct rw_semaphore	i_mmap_rwsem;	/* protect tree, count, list */
--	/* Protected by the i_pages lock */
--	unsigned long		nrpages;	/* number of total pages */
--	/* number of shadow or DAX exceptional entries */
-+	struct inode		*host;
-+	struct xarray		i_pages;
-+	gfp_t			gfp_mask;
-+	atomic_t		i_mmap_writable;
-+	struct rb_root_cached	i_mmap;
-+	struct rw_semaphore	i_mmap_rwsem;
-+	unsigned long		nrpages;
- 	unsigned long		nrexceptional;
--	pgoff_t			writeback_index;/* writeback starts here */
--	const struct address_space_operations *a_ops;	/* methods */
--	unsigned long		flags;		/* error bits */
--	spinlock_t		private_lock;	/* for use by the address_space */
--	gfp_t			gfp_mask;	/* implicit gfp mask for allocations */
--	struct list_head	private_list;	/* for use by the address_space */
--	void			*private_data;	/* ditto */
-+	pgoff_t			writeback_index;
-+	const struct address_space_operations *a_ops;
-+	unsigned long		flags;
- 	errseq_t		wb_err;
-+	spinlock_t		private_lock;
-+	struct list_head	private_list;
-+	void			*private_data;
- } __attribute__((aligned(sizeof(long)))) __randomize_layout;
- 	/*
- 	 * On most architectures that alignment is already the case; but
+ 	rcu_read_lock();
+-
+-	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
+-		if (iter.index >= end)
+-			break;
+-
+-		page = radix_tree_deref_slot(slot);
+-
+-		if (radix_tree_deref_retry(page)) {
+-			slot = radix_tree_iter_retry(&iter);
++	xas_for_each(&xas, page, end - 1) {
++		if (xas_retry(&xas, page))
+ 			continue;
+-		}
+-
+ 		if (xa_is_value(page))
+ 			swapped++;
+ 
+ 		if (need_resched()) {
+-			slot = radix_tree_iter_resume(slot, &iter);
++			xas_pause(&xas);
+ 			cond_resched_rcu();
+ 		}
+ 	}
 -- 
 2.17.0
