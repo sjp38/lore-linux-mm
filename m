@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ADDD6B0031
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 805816B005D
 	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:35 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p189so6497539pfp.1
+Received: by mail-pf0-f198.google.com with SMTP id v19so6476546pfn.7
         for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:35 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a3si6754009pfe.19.2018.04.14.07.13.33
+        by mx.google.com with ESMTPS id e7-v6si7875031plk.397.2018.04.14.07.13.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 07:13:33 -0700 (PDT)
+        Sat, 14 Apr 2018 07:13:34 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 62/63] radix tree: Remove radix_tree_update_node_t
-Date: Sat, 14 Apr 2018 07:13:15 -0700
-Message-Id: <20180414141316.7167-63-willy@infradead.org>
+Subject: [PATCH v11 63/63] radix tree: Remove radix_tree_clear_tags
+Date: Sat, 14 Apr 2018 07:13:16 -0700
+Message-Id: <20180414141316.7167-64-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,156 +22,132 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The only user of this functionality was the page cache, and it's now
-been converted to the XArray.
+The page cache was the only user of this interface and it has now
+been converted to the XArray.  Transform the test into a test of
+xas_init_tags().
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/radix-tree.h            |  4 +---
- lib/idr.c                             |  2 +-
- lib/radix-tree.c                      | 25 ++++++++-----------------
- tools/testing/radix-tree/multiorder.c |  2 +-
- 4 files changed, 11 insertions(+), 22 deletions(-)
+ include/linux/radix-tree.h           |  2 --
+ lib/radix-tree.c                     | 13 -----------
+ tools/testing/radix-tree/main.c      | 12 +++++------
+ tools/testing/radix-tree/tag_check.c | 32 +++++++++++++---------------
+ 4 files changed, 21 insertions(+), 38 deletions(-)
 
 diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 3f0cecc6122c..ceff6856470a 100644
+index ceff6856470a..3f778e3beba6 100644
 --- a/include/linux/radix-tree.h
 +++ b/include/linux/radix-tree.h
-@@ -245,10 +245,8 @@ void *__radix_tree_lookup(const struct radix_tree_root *, unsigned long index,
- void *radix_tree_lookup(const struct radix_tree_root *, unsigned long);
- void __rcu **radix_tree_lookup_slot(const struct radix_tree_root *,
- 					unsigned long index);
--typedef void (*radix_tree_update_node_t)(struct radix_tree_node *);
- void __radix_tree_replace(struct radix_tree_root *, struct radix_tree_node *,
--			  void __rcu **slot, void *entry,
--			  radix_tree_update_node_t update_node);
-+			  void __rcu **slot, void *entry);
- void radix_tree_iter_replace(struct radix_tree_root *,
- 		const struct radix_tree_iter *, void __rcu **slot, void *entry);
- void radix_tree_replace_slot(struct radix_tree_root *,
-diff --git a/lib/idr.c b/lib/idr.c
-index 696f9df87e4e..7d1e7a9f8702 100644
---- a/lib/idr.c
-+++ b/lib/idr.c
-@@ -304,7 +304,7 @@ void *idr_replace(struct idr *idr, void *ptr, unsigned long id)
- 	if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE))
- 		return ERR_PTR(-ENOENT);
- 
--	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL);
-+	__radix_tree_replace(&idr->idr_rt, node, slot, ptr);
- 
- 	return entry;
- }
+@@ -255,8 +255,6 @@ void radix_tree_iter_delete(struct radix_tree_root *,
+ 			struct radix_tree_iter *iter, void __rcu **slot);
+ void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
+ void *radix_tree_delete(struct radix_tree_root *, unsigned long);
+-void radix_tree_clear_tags(struct radix_tree_root *, struct radix_tree_node *,
+-			   void __rcu **slot);
+ unsigned int radix_tree_gang_lookup(const struct radix_tree_root *,
+ 			void **results, unsigned long first_index,
+ 			unsigned int max_items);
 diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 5a1f2b052194..f15b9ee000b8 100644
+index f15b9ee000b8..13a2eb2baddc 100644
 --- a/lib/radix-tree.c
 +++ b/lib/radix-tree.c
-@@ -540,8 +540,7 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
-  *	radix_tree_shrink    -    shrink radix tree to minimum height
-  *	@root		radix tree root
-  */
--static inline bool radix_tree_shrink(struct radix_tree_root *root,
--				     radix_tree_update_node_t update_node)
-+static inline bool radix_tree_shrink(struct radix_tree_root *root)
- {
- 	bool shrunk = false;
- 
-@@ -601,8 +600,6 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
- 		node->count = 0;
- 		if (!radix_tree_is_internal_node(child)) {
- 			node->slots[0] = (void __rcu *)RADIX_TREE_RETRY;
--			if (update_node)
--				update_node(node);
- 		}
- 
- 		WARN_ON_ONCE(!list_empty(&node->private_list));
-@@ -614,8 +611,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
+@@ -1709,19 +1709,6 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
  }
+ EXPORT_SYMBOL(radix_tree_delete);
  
- static bool delete_node(struct radix_tree_root *root,
--			struct radix_tree_node *node,
--			radix_tree_update_node_t update_node)
-+			struct radix_tree_node *node)
- {
- 	bool deleted = false;
- 
-@@ -625,7 +621,7 @@ static bool delete_node(struct radix_tree_root *root,
- 		if (node->count) {
- 			if (node_to_entry(node) ==
- 					rcu_dereference_raw(root->xa_head))
--				deleted |= radix_tree_shrink(root, update_node);
-+				deleted |= radix_tree_shrink(root);
- 			return deleted;
- 		}
- 
-@@ -1030,15 +1026,13 @@ static int calculate_count(struct radix_tree_root *root,
-  * @node:		pointer to tree node
-  * @slot:		pointer to slot in @node
-  * @item:		new item to store in the slot.
-- * @update_node:	callback for changing leaf nodes
-  *
-  * For use with __radix_tree_lookup().  Caller must hold tree write locked
-  * across slot lookup and replacement.
-  */
- void __radix_tree_replace(struct radix_tree_root *root,
- 			  struct radix_tree_node *node,
--			  void __rcu **slot, void *item,
--			  radix_tree_update_node_t update_node)
-+			  void __rcu **slot, void *item)
- {
- 	void *old = rcu_dereference_raw(*slot);
- 	int values = !!xa_is_value(item) - !!xa_is_value(old);
-@@ -1056,10 +1050,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
- 	if (!node)
- 		return;
- 
--	if (update_node)
--		update_node(node);
+-void radix_tree_clear_tags(struct radix_tree_root *root,
+-			   struct radix_tree_node *node,
+-			   void __rcu **slot)
+-{
+-	if (node) {
+-		unsigned int tag, offset = get_slot_offset(node, slot);
+-		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+-			node_tag_clear(root, node, tag, offset);
+-	} else {
+-		root_tag_clear_all(root);
+-	}
+-}
 -
--	delete_node(root, node, update_node);
-+	delete_node(root, node);
- }
- 
  /**
-@@ -1081,7 +1072,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
- void radix_tree_replace_slot(struct radix_tree_root *root,
- 			     void __rcu **slot, void *item)
+  *	radix_tree_tagged - test whether any items in the tree are tagged
+  *	@root:		radix tree root
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 257f3f8aacaa..13987313311c 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -35,12 +35,12 @@ void __gang_check(unsigned long middle, long down, long up, int chunk, int hop)
+ 
+ void gang_check(void)
  {
--	__radix_tree_replace(root, NULL, slot, item, NULL);
-+	__radix_tree_replace(root, NULL, slot, item);
+-	__gang_check(1 << 30, 128, 128, 35, 2);
+-	__gang_check(1 << 31, 128, 128, 32, 32);
+-	__gang_check(1 << 31, 128, 128, 32, 100);
+-	__gang_check(1 << 31, 128, 128, 17, 7);
+-	__gang_check(0xffff0000, 0, 65536, 17, 7);
+-	__gang_check(0xfffffffe, 1, 1, 17, 7);
++	__gang_check(1UL << 30, 128, 128, 35, 2);
++	__gang_check(1UL << 31, 128, 128, 32, 32);
++	__gang_check(1UL << 31, 128, 128, 32, 100);
++	__gang_check(1UL << 31, 128, 128, 17, 7);
++	__gang_check(0xffff0000UL, 0, 65536, 17, 7);
++	__gang_check(0xfffffffeUL, 1, 1, 17, 7);
  }
- EXPORT_SYMBOL(radix_tree_replace_slot);
  
-@@ -1098,7 +1089,7 @@ void radix_tree_iter_replace(struct radix_tree_root *root,
- 				const struct radix_tree_iter *iter,
- 				void __rcu **slot, void *item)
+ void __big_gang_check(void)
+diff --git a/tools/testing/radix-tree/tag_check.c b/tools/testing/radix-tree/tag_check.c
+index 543181e4847b..340bc4f72f34 100644
+--- a/tools/testing/radix-tree/tag_check.c
++++ b/tools/testing/radix-tree/tag_check.c
+@@ -331,29 +331,27 @@ static void single_check(void)
+ 	item_kill_tree(&tree);
+ }
+ 
+-void radix_tree_clear_tags_test(void)
++void init_tags_test(void)
  {
--	__radix_tree_replace(root, iter->node, slot, item, NULL);
-+	__radix_tree_replace(root, iter->node, slot, item);
- }
++	DEFINE_XARRAY(tree);
++	XA_STATE(xas, &tree, 0);
+ 	unsigned long index;
+-	struct radix_tree_node *node;
+-	struct radix_tree_iter iter;
+-	void **slot;
++	void *entry;
  
- static void node_tag_set(struct radix_tree_root *root,
-@@ -1648,7 +1639,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
- 			node_tag_clear(root, node, tag, offset);
+-	RADIX_TREE(tree, GFP_KERNEL);
+-
+-	item_insert(&tree, 0);
+-	item_tag_set(&tree, 0, 0);
+-	__radix_tree_lookup(&tree, 0, &node, &slot);
+-	radix_tree_clear_tags(&tree, node, slot);
+-	assert(item_tag_get(&tree, 0, 0) == 0);
++	xa_store(&tree, 0, xa_mk_value(0), GFP_KERNEL);
++	item_tag_set(&tree, 0, XA_TAG_0);
++	xas_load(&xas);
++	xas_init_tags(&xas);
++	assert(item_tag_get(&tree, 0, XA_TAG_0) == 0);
  
- 	replace_slot(slot, NULL, node, -1, values);
--	return node && delete_node(root, node, NULL);
-+	return node && delete_node(root, node);
- }
+ 	for (index = 0; index < 1000; index++) {
+-		item_insert(&tree, index);
+-		item_tag_set(&tree, index, 0);
++		xa_store(&tree, index, xa_mk_value(index), GFP_KERNEL);
++		item_tag_set(&tree, index, XA_TAG_0);
+ 	}
  
- /**
-diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index 146b490d5823..26212bd33c9d 100644
---- a/tools/testing/radix-tree/multiorder.c
-+++ b/tools/testing/radix-tree/multiorder.c
-@@ -372,7 +372,7 @@ static void multiorder_account(void)
- 	__radix_tree_insert(&tree, 1 << 5, 5, xa_mk_value(5));
- 	__radix_tree_lookup(&tree, 1 << 5, &node, &slot);
- 	assert(node->count == node->nr_values * 2);
--	__radix_tree_replace(&tree, node, slot, NULL, NULL);
-+	__radix_tree_replace(&tree, node, slot, NULL);
- 	assert(node->nr_values == 0);
+-	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+-		radix_tree_clear_tags(&tree, iter.node, slot);
+-		assert(item_tag_get(&tree, iter.index, 0) == 0);
++	xas_for_each(&xas, entry, ULONG_MAX) {
++		xas_init_tags(&xas);
++		assert(item_tag_get(&tree, xas.xa_index, XA_TAG_0) == 0);
+ 	}
  
  	item_kill_tree(&tree);
+@@ -376,5 +374,5 @@ void tag_check(void)
+ 	thrash_tags();
+ 	rcu_barrier();
+ 	printv(2, "after thrash_tags: %d allocated\n", nr_allocated);
+-	radix_tree_clear_tags_test();
++	init_tags_test();
+ }
 -- 
 2.17.0
