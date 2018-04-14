@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AD99F6B0003
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CE5CD6B000D
 	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:27 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id n17-v6so1839710plp.14
+Received: by mail-pf0-f197.google.com with SMTP id x17so6477873pfn.10
         for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:27 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h34-v6si8189330pld.360.2018.04.14.07.13.25
+        by mx.google.com with ESMTPS id w20-v6si1098121plp.7.2018.04.14.07.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Sat, 14 Apr 2018 07:13:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 31/63] mm: Convert huge_memory to XArray
-Date: Sat, 14 Apr 2018 07:12:44 -0700
-Message-Id: <20180414141316.7167-32-willy@infradead.org>
+Subject: [PATCH v11 29/63] mm: Convert __do_page_cache_readahead to XArray
+Date: Sat, 14 Apr 2018 07:12:42 -0700
+Message-Id: <20180414141316.7167-30-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,63 +22,27 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Quite a straightforward conversion.
+This one is trivial.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/huge_memory.c | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+ mm/readahead.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 14ed6ee5e02f..f2d6b53cb8e9 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2442,13 +2442,13 @@ static void __split_huge_page(struct page *page, struct list_head *list,
- 	ClearPageCompound(head);
- 	/* See comment in __split_huge_page_tail() */
- 	if (PageAnon(head)) {
--		/* Additional pin to radix tree of swap cache */
-+		/* Additional pin to swap cache */
- 		if (PageSwapCache(head))
- 			page_ref_add(head, 2);
- 		else
- 			page_ref_inc(head);
- 	} else {
--		/* Additional pin to radix tree */
-+		/* Additional pin to page cache */
- 		page_ref_add(head, 2);
- 		xa_unlock(&head->mapping->i_pages);
- 	}
-@@ -2560,7 +2560,7 @@ bool can_split_huge_page(struct page *page, int *pextra_pins)
- {
- 	int extra_pins;
+diff --git a/mm/readahead.c b/mm/readahead.c
+index c7ddcf60ac6d..50910c27b372 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -174,9 +174,7 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 		if (page_offset > end_index)
+ 			break;
  
--	/* Additional pins from radix tree */
-+	/* Additional pins from page cache */
- 	if (PageAnon(page))
- 		extra_pins = PageSwapCache(page) ? HPAGE_PMD_NR : 0;
- 	else
-@@ -2656,17 +2656,14 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 	spin_lock_irqsave(zone_lru_lock(page_zone(head)), flags);
- 
- 	if (mapping) {
--		void **pslot;
-+		XA_STATE(xas, &mapping->i_pages, page_index(head));
- 
--		xa_lock(&mapping->i_pages);
--		pslot = radix_tree_lookup_slot(&mapping->i_pages,
--				page_index(head));
- 		/*
--		 * Check if the head page is present in radix tree.
-+		 * Check if the head page is present in page cache.
- 		 * We assume all tail are present too, if head is there.
- 		 */
--		if (radix_tree_deref_slot_protected(pslot,
--					&mapping->i_pages.xa_lock) != head)
-+		xa_lock(&mapping->i_pages);
-+		if (xas_load(&xas) != head)
- 			goto fail;
- 	}
+-		rcu_read_lock();
+-		page = radix_tree_lookup(&mapping->i_pages, page_offset);
+-		rcu_read_unlock();
++		page = xa_load(&mapping->i_pages, page_offset);
+ 		if (page && !xa_is_value(page))
+ 			continue;
  
 -- 
 2.17.0
