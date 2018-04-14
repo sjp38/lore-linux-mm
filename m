@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 59B1F6B0003
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6171E6B0006
 	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:27 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p189so6497404pfp.1
+Received: by mail-pl0-f72.google.com with SMTP id z2-v6so7610499plk.3
         for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:27 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id x12-v6si3238894plo.28.2018.04.14.07.13.25
+        by mx.google.com with ESMTPS id f4-v6si1200661plo.316.2018.04.14.07.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Sat, 14 Apr 2018 07:13:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 14/63] xarray: Add xas_create_range
-Date: Sat, 14 Apr 2018 07:12:27 -0700
-Message-Id: <20180414141316.7167-15-willy@infradead.org>
+Subject: [PATCH v11 26/63] mm: Convert truncate to XArray
+Date: Sat, 14 Apr 2018 07:12:39 -0700
+Message-Id: <20180414141316.7167-27-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,60 +22,50 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This hopefully temporary function is useful for users who have not yet
-been converted to multi-index entries.
+This is essentially xa_cmpxchg() with the locking handled above us,
+and it doesn't have to handle replacing a NULL entry.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/xarray.h |  2 ++
- lib/xarray.c           | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ mm/truncate.c | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index 6f764705382b..b158433b1924 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -761,6 +761,8 @@ void xas_init_tags(const struct xa_state *);
- bool xas_nomem(struct xa_state *, gfp_t);
- void xas_pause(struct xa_state *);
- 
-+void xas_create_range(struct xa_state *, unsigned long max);
-+
- /**
-  * xas_reload() - Refetch an entry from the xarray.
-  * @xas: XArray operation state.
-diff --git a/lib/xarray.c b/lib/xarray.c
-index 7574bafbc6ff..653ab0555673 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -626,6 +626,28 @@ void *xas_create(struct xa_state *xas)
- }
- EXPORT_SYMBOL_GPL(xas_create);
- 
-+/**
-+ * xas_create_range() - Ensure that stores to this range will succeed
-+ * @xas: XArray operation state.
-+ * @max: The highest index to create a slot for.
-+ *
-+ * Creates all of the slots in the range between the current position of
-+ * @xas and @max.  This is for the benefit of users who have not yet been
-+ * converted to multi-index entries.
-+ *
-+ * The implementation is naive.
-+ */
-+void xas_create_range(struct xa_state *xas, unsigned long max)
-+{
-+	XA_STATE(tmp, xas->xa, xas->xa_index);
-+
-+	do {
-+		xas_create(&tmp);
-+		xas_set(&tmp, tmp.xa_index + XA_CHUNK_SIZE);
-+	} while (tmp.xa_index < max);
-+}
-+EXPORT_SYMBOL_GPL(xas_create_range);
-+
- static void store_siblings(struct xa_state *xas, void *entry, void *curr,
- 				int *countp, int *valuesp)
+diff --git a/mm/truncate.c b/mm/truncate.c
+index ed778555c9f3..45d68e90b703 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -33,15 +33,12 @@
+ static inline void __clear_shadow_entry(struct address_space *mapping,
+ 				pgoff_t index, void *entry)
  {
+-	struct radix_tree_node *node;
+-	void **slot;
++	XA_STATE(xas, &mapping->i_pages, index);
+ 
+-	if (!__radix_tree_lookup(&mapping->i_pages, index, &node, &slot))
++	xas_set_update(&xas, workingset_update_node);
++	if (xas_load(&xas) != entry)
+ 		return;
+-	if (*slot != entry)
+-		return;
+-	__radix_tree_replace(&mapping->i_pages, node, slot, NULL,
+-			     workingset_update_node);
++	xas_store(&xas, NULL);
+ 	mapping->nrexceptional--;
+ }
+ 
+@@ -738,10 +735,10 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
+ 		index++;
+ 	}
+ 	/*
+-	 * For DAX we invalidate page tables after invalidating radix tree.  We
++	 * For DAX we invalidate page tables after invalidating page cache.  We
+ 	 * could invalidate page tables while invalidating each entry however
+ 	 * that would be expensive. And doing range unmapping before doesn't
+-	 * work as we have no cheap way to find whether radix tree entry didn't
++	 * work as we have no cheap way to find whether page cache entry didn't
+ 	 * get remapped later.
+ 	 */
+ 	if (dax_mapping(mapping)) {
 -- 
 2.17.0
