@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2481B6B0023
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 46C586B0025
 	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:30 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a6so6498254pfn.3
+Received: by mail-pl0-f70.google.com with SMTP id t4-v6so7596408plo.9
         for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:30 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z5si5996463pgu.377.2018.04.14.07.13.28
+        by mx.google.com with ESMTPS id d23si6142911pgn.3.2018.04.14.07.13.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Sat, 14 Apr 2018 07:13:29 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 44/63] shmem: Comment fixups
-Date: Sat, 14 Apr 2018 07:12:57 -0700
-Message-Id: <20180414141316.7167-45-willy@infradead.org>
+Subject: [PATCH v11 45/63] btrfs: Convert page cache to XArray
+Date: Sat, 14 Apr 2018 07:12:58 -0700
+Message-Id: <20180414141316.7167-46-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,65 +22,46 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Remove the last mentions of radix tree from various comments.
-
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Acked-by: David Sterba <dsterba@suse.com>
 ---
- mm/shmem.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ fs/btrfs/compression.c | 4 +---
+ fs/btrfs/extent_io.c   | 8 +++-----
+ 2 files changed, 4 insertions(+), 8 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 2283872a84a1..075b19da8327 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -754,7 +754,7 @@ void shmem_unlock_mapping(struct address_space *mapping)
- }
+diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
+index dfd73e7265cf..54448d5d86e8 100644
+--- a/fs/btrfs/compression.c
++++ b/fs/btrfs/compression.c
+@@ -444,9 +444,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
+ 		if (pg_index > end_index)
+ 			break;
  
- /*
-- * Remove range of pages and swap entries from radix tree, and free them.
-+ * Remove range of pages and swap entries from page cache, and free them.
-  * If !unfalloc, truncate or punch hole; if unfalloc, undo failed fallocate.
-  */
- static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
-@@ -1129,10 +1129,10 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
- 		 * We needed to drop mutex to make that restrictive page
- 		 * allocation, but the inode might have been freed while we
- 		 * dropped it: although a racing shmem_evict_inode() cannot
--		 * complete without emptying the radix_tree, our page lock
-+		 * complete without emptying the page cache, our page lock
- 		 * on this swapcache page is not enough to prevent that -
- 		 * free_swap_and_cache() of our swap entry will only
--		 * trylock_page(), removing swap from radix_tree whatever.
-+		 * trylock_page(), removing swap from page cache whatever.
- 		 *
- 		 * We must not proceed to shmem_add_to_page_cache() if the
- 		 * inode has been freed, but of course we cannot rely on
-@@ -1198,7 +1198,7 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
- 			false);
- 	if (error)
- 		goto out;
--	/* No radix_tree_preload: swap entry keeps a place for page in tree */
-+	/* No memory allocation: swap entry occupies the slot for the page */
- 	error = -EAGAIN;
+-		rcu_read_lock();
+-		page = radix_tree_lookup(&mapping->i_pages, pg_index);
+-		rcu_read_unlock();
++		page = xa_load(&mapping->i_pages, pg_index);
+ 		if (page && !xa_is_value(page)) {
+ 			misses++;
+ 			if (misses > 4)
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 85092edb0c99..82fb72cb9118 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -5176,11 +5176,9 @@ void clear_extent_buffer_dirty(struct extent_buffer *eb)
  
- 	mutex_lock(&shmem_swaplist_mutex);
-@@ -1877,7 +1877,7 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, inode,
- 		spin_unlock_irq(&info->lock);
- 		goto repeat;
- 	}
--	if (error == -EEXIST)	/* from above or from radix_tree_insert */
-+	if (error == -EEXIST)
- 		goto repeat;
- 	return error;
- }
-@@ -2489,7 +2489,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
- }
- 
- /*
-- * llseek SEEK_DATA or SEEK_HOLE through the radix_tree.
-+ * llseek SEEK_DATA or SEEK_HOLE through the page cache.
-  */
- static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
- 				    pgoff_t index, pgoff_t end, int whence)
+ 		clear_page_dirty_for_io(page);
+ 		xa_lock_irq(&page->mapping->i_pages);
+-		if (!PageDirty(page)) {
+-			radix_tree_tag_clear(&page->mapping->i_pages,
+-						page_index(page),
+-						PAGECACHE_TAG_DIRTY);
+-		}
++		if (!PageDirty(page))
++			__xa_clear_tag(&page->mapping->i_pages,
++					page_index(page), PAGECACHE_TAG_DIRTY);
+ 		xa_unlock_irq(&page->mapping->i_pages);
+ 		ClearPageError(page);
+ 		unlock_page(page);
 -- 
 2.17.0
