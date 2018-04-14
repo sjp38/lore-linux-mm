@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7142D6B0030
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:33 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id p12so6493181pfn.13
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:33 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F5286B0031
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:34 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id h12-v6so7536708pls.23
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:34 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id l12-v6si5758112plk.380.2018.04.14.07.13.32
+        by mx.google.com with ESMTPS id 2-v6si8130210pld.596.2018.04.14.07.13.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 07:13:32 -0700 (PDT)
+        Sat, 14 Apr 2018 07:13:33 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 56/63] dax: Convert __dax_invalidate_entry to XArray
-Date: Sat, 14 Apr 2018 07:13:09 -0700
-Message-Id: <20180414141316.7167-57-willy@infradead.org>
+Subject: [PATCH v11 59/63] dax: Return fault code from dax_load_hole
+Date: Sat, 14 Apr 2018 07:13:12 -0700
+Message-Id: <20180414141316.7167-60-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,53 +22,42 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Avoids walking the radix tree multiple times looking for tags.
+dax_load_hole was swallowing the errors from vm_insert_mixed().
+Use vmf_insert_mixed() instead to get a vm_fault_t, and convert
+dax_load_hole() to the vm_fault_t convention.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/dax.c | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
+ fs/dax.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index 19ac013204a1..b68b2f81fa47 100644
+index bcc3fd05ab03..44785346c02f 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -586,27 +586,28 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
- static int __dax_invalidate_entry(struct address_space *mapping,
- 					  pgoff_t index, bool trunc)
+@@ -808,18 +808,19 @@ static int dax_iomap_pfn(struct iomap *iomap, loff_t pos, size_t size,
+  * If this page is ever written to we will re-fault and change the mapping to
+  * point to real DAX storage instead.
+  */
+-static int dax_load_hole(struct xa_state *xas, struct address_space *mapping,
+-		void **entry, struct vm_fault *vmf)
++static vm_fault_t dax_load_hole(struct xa_state *xas,
++		struct address_space *mapping, void **entry,
++		struct vm_fault *vmf)
  {
-+	XA_STATE(xas, &mapping->i_pages, index);
- 	int ret = 0;
- 	void *entry;
--	struct radix_tree_root *pages = &mapping->i_pages;
+ 	struct inode *inode = mapping->host;
+ 	unsigned long vaddr = vmf->address;
+-	int ret = VM_FAULT_NOPAGE;
++	vm_fault_t ret;
+ 	pfn_t pfn = pfn_to_pfn_t(my_zero_pfn(vaddr));
  
--	xa_lock_irq(pages);
--	entry = get_unlocked_mapping_entry(mapping, index, NULL);
-+	xas_lock_irq(&xas);
-+	entry = get_unlocked_entry(&xas);
- 	if (!entry || WARN_ON_ONCE(!xa_is_value(entry)))
- 		goto out;
- 	if (!trunc &&
--	    (radix_tree_tag_get(pages, index, PAGECACHE_TAG_DIRTY) ||
--	     radix_tree_tag_get(pages, index, PAGECACHE_TAG_TOWRITE)))
-+	    (xas_get_tag(&xas, PAGECACHE_TAG_DIRTY) ||
-+	     xas_get_tag(&xas, PAGECACHE_TAG_TOWRITE)))
- 		goto out;
- 	dax_disassociate_entry(entry, mapping, trunc);
--	radix_tree_delete(pages, index);
-+	xas_store(&xas, NULL);
- 	mapping->nrexceptional--;
- 	ret = 1;
- out:
--	put_unlocked_mapping_entry(mapping, index, entry);
--	xa_unlock_irq(pages);
-+	put_unlocked_entry(&xas, entry);
-+	xas_unlock_irq(&xas);
+ 	*entry = dax_insert_entry(xas, mapping, *entry, pfn, DAX_ZERO_PAGE,
+ 			false);
+ 
+-	vm_insert_mixed(vmf->vma, vaddr, pfn);
++	ret = vmf_insert_mixed(vmf->vma, vaddr, pfn);
+ 	trace_dax_load_hole(inode, vmf, ret);
  	return ret;
  }
-+
- /*
-  * Delete DAX entry at @index from @mapping.  Wait for it
-  * to be unlocked before deleting it.
 -- 
 2.17.0
