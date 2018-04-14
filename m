@@ -1,56 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DFCE56B0003
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 15:59:02 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id o2-v6so148164plk.0
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 12:59:02 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d11si5312124pgf.490.2018.04.14.12.59.01
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A97376B0003
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 16:57:00 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id i137so6934400pfe.0
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 13:57:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o33-v6sor3697812plb.122.2018.04.14.13.56.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 12:59:01 -0700 (PDT)
-Date: Sat, 14 Apr 2018 12:58:59 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v10 00/62] Convert page cache to XArray
-Message-ID: <20180414195859.GC31523@bombadil.infradead.org>
-References: <20180330034245.10462-1-willy@infradead.org>
- <a27d5689-49d9-2802-3819-afd0f1f98483@suse.com>
- <20180414195030.GB31523@bombadil.infradead.org>
+        (Google Transport Security);
+        Sat, 14 Apr 2018 13:56:59 -0700 (PDT)
+Date: Sun, 15 Apr 2018 02:28:50 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH] mm: Adding new return type vm_fault_t
+Message-ID: <20180414205850.GA20500@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180414195030.GB31523@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Goldwyn Rodrigues <rgoldwyn@suse.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: linux-mm@kvack.org
+Cc: willy@infradead.org
 
-On Sat, Apr 14, 2018 at 12:50:30PM -0700, Matthew Wilcox wrote:
-> On Mon, Apr 09, 2018 at 04:18:07PM -0500, Goldwyn Rodrigues wrote:
-> 
-> I'm sorry I missed this email.  My inbox is a disaster :(
-> 
-> > I tried these patches against next-20180329 and added the patch for the
-> > bug reported by Mike Kravetz. I am getting the following BUG on ext4 and
-> > xfs, running generic/048 tests of fstests. Each trace is from a
-> > different instance/run.
-> 
-> Yikes.  I haven't been able to reproduce this.  Maybe it's a matter of
-> filesystem or some other quirk.
-> 
-> It seems easy for you to reproduce it, so would you mind bisecting it?
-> Should be fairly straightforward; I'd start at commit "xarray: Add
-> MAINTAINERS entry", since the page cache shouldn't be affected by anything
-> up to that point, then bisect forwards from there.
-> 
-> > BTW, for my convenience, do you have these patches in a public git tree?
-> 
-> I didn't publish it; it's hard to push out a tree based on linux-next.
-> I'll try to make that happen.
+Use new return type vm_fault_t for filemap_fault() and
+filemap_page_mkwrite().
 
-Figured it out:
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ include/linux/mm.h | 4 ++--
+ mm/filemap.c       | 8 ++++----
+ mm/nommu.c         | 2 +-
+ 3 files changed, 7 insertions(+), 7 deletions(-)
 
-http://git.infradead.org/users/willy/linux-dax.git/shortlog/refs/heads/xarray-20180413
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ad06d42..7fc4baf 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2281,10 +2281,10 @@ extern void truncate_inode_pages_range(struct address_space *,
+ extern void truncate_inode_pages_final(struct address_space *);
 
-aka
- 	git://git.infradead.org/users/willy/linux-dax.git xarray-20180413
+ /* generic vm_area_ops exported for stackable file systems */
+-extern int filemap_fault(struct vm_fault *vmf);
++extern vm_fault_t filemap_fault(struct vm_fault *vmf);
+ extern void filemap_map_pages(struct vm_fault *vmf,
+ 		pgoff_t start_pgoff, pgoff_t end_pgoff);
+-extern int filemap_page_mkwrite(struct vm_fault *vmf);
++extern vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf);
+
+ /* mm/page-writeback.c */
+ int __must_check write_one_page(struct page *page);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 693f622..cae7e4f 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2491,7 +2491,7 @@ static void do_async_mmap_readahead(struct vm_area_struct *vma,
+  *
+  * We never return with VM_FAULT_RETRY and a bit from VM_FAULT_ERROR set.
+  */
+-int filemap_fault(struct vm_fault *vmf)
++vm_fault_t filemap_fault(struct vm_fault *vmf)
+ {
+ 	int error;
+ 	struct file *file = vmf->vma->vm_file;
+@@ -2501,7 +2501,7 @@ int filemap_fault(struct vm_fault *vmf)
+ 	pgoff_t offset = vmf->pgoff;
+ 	pgoff_t max_off;
+ 	struct page *page;
+-	int ret = 0;
++	vm_fault_t ret = 0;
+
+ 	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+ 	if (unlikely(offset >= max_off))
+@@ -2696,11 +2696,11 @@ void filemap_map_pages(struct vm_fault *vmf,
+ }
+ EXPORT_SYMBOL(filemap_map_pages);
+
+-int filemap_page_mkwrite(struct vm_fault *vmf)
++vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf)
+ {
+ 	struct page *page = vmf->page;
+ 	struct inode *inode = file_inode(vmf->vma->vm_file);
+-	int ret = VM_FAULT_LOCKED;
++	vm_fault_t ret = VM_FAULT_LOCKED;
+
+ 	sb_start_pagefault(inode->i_sb);
+ 	file_update_time(vmf->vma->vm_file);
+diff --git a/mm/nommu.c b/mm/nommu.c
+index ebb6e61..90456a6 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1788,7 +1788,7 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
+ 	return -ENOMEM;
+ }
+
+-int filemap_fault(struct vm_fault *vmf)
++vm_fault_t filemap_fault(struct vm_fault *vmf)
+ {
+ 	BUG();
+ 	return 0;
+--
+1.9.1
