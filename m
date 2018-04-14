@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B14536B02B8
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:15:29 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b16so6496755pfi.5
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:15:29 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 92EBB6B02B9
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:15:30 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q22so6483339pfh.20
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:15:30 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m6si6135059pgc.234.2018.04.14.07.13.27
+        by mx.google.com with ESMTPS id d30-v6si7853458pld.92.2018.04.14.07.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 07:13:27 -0700 (PDT)
+        Sat, 14 Apr 2018 07:13:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 10/63] xarray: Add xa_for_each
-Date: Sat, 14 Apr 2018 07:12:23 -0700
-Message-Id: <20180414141316.7167-11-willy@infradead.org>
+Subject: [PATCH v11 07/63] xarray: Add xa_get_tag, xa_set_tag and xa_clear_tag
+Date: Sat, 14 Apr 2018 07:12:20 -0700
+Message-Id: <20180414141316.7167-8-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,741 +22,388 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This iterator allows the user to efficiently walk a range of the array,
-executing the loop body once for each entry in that range that matches
-the filter.  This commit also includes xa_find() and xa_find_above()
-which are helper functions for xa_for_each() but may also be useful in
-their own right.
-
-In the xas family of functions, we also have xas_for_each(), xas_find(),
-xas_next_entry(), xas_for_each_tag(), xas_find_tag(), xas_next_tag()
-and xas_pause().
+XArray tags are slightly more strongly typed than the radix tree tags,
+but occupy the same bits.  This commit also adds the xas_ family of tag
+operations, for cases where the caller is already holding the lock, and
+xa_tagged() to ask whether any array member has a particular tag set.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/xarray.h                 | 175 ++++++++++++++++
- lib/xarray.c                           | 274 +++++++++++++++++++++++++
- tools/testing/radix-tree/test.c        |  13 ++
- tools/testing/radix-tree/test.h        |   1 +
- tools/testing/radix-tree/xarray-test.c | 122 +++++++++++
- 5 files changed, 585 insertions(+)
+ include/linux/xarray.h         |  41 ++++++
+ lib/xarray.c                   | 235 +++++++++++++++++++++++++++++++++
+ tools/include/linux/spinlock.h |   6 +
+ 3 files changed, 282 insertions(+)
 
 diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index 78acafe109ab..4162dadef9b2 100644
+index 099fc36177b9..f5996f6ccb8e 100644
 --- a/include/linux/xarray.h
 +++ b/include/linux/xarray.h
-@@ -223,6 +223,10 @@ void *xa_cmpxchg(struct xarray *, unsigned long index,
- bool xa_get_tag(struct xarray *, unsigned long index, xa_tag_t);
- void xa_set_tag(struct xarray *, unsigned long index, xa_tag_t);
- void xa_clear_tag(struct xarray *, unsigned long index, xa_tag_t);
-+void *xa_find(struct xarray *xa, unsigned long *index,
-+		unsigned long max, xa_tag_t) __attribute__((nonnull(2)));
-+void *xa_find_after(struct xarray *xa, unsigned long *index,
-+		unsigned long max, xa_tag_t) __attribute__((nonnull(2)));
+@@ -11,6 +11,7 @@
+ 
+ #include <linux/bug.h>
+ #include <linux/compiler.h>
++#include <linux/gfp.h>
+ #include <linux/kconfig.h>
+ #include <linux/kernel.h>
+ #include <linux/rcupdate.h>
+@@ -149,6 +150,20 @@ static inline int xa_err(void *entry)
+ 	return 0;
+ }
+ 
++typedef unsigned __bitwise xa_tag_t;
++#define XA_TAG_0		((__force xa_tag_t)0U)
++#define XA_TAG_1		((__force xa_tag_t)1U)
++#define XA_TAG_2		((__force xa_tag_t)2U)
++#define XA_PRESENT		((__force xa_tag_t)8U)
++#define XA_TAG_MAX		XA_TAG_2
++
++/*
++ * Values for xa_flags.  The radix tree stores its GFP flags in the xa_flags,
++ * and we remain compatible with that.
++ */
++#define XA_FLAGS_TAG(tag)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
++						(__force unsigned)(tag)))
++
+ /**
+  * struct xarray - The anchor of the XArray.
+  * @xa_lock: Lock that protects the contents of the XArray.
+@@ -195,6 +210,9 @@ struct xarray {
+ 
+ void xa_init_flags(struct xarray *, gfp_t flags);
+ void *xa_load(struct xarray *, unsigned long index);
++bool xa_get_tag(struct xarray *, unsigned long index, xa_tag_t);
++void xa_set_tag(struct xarray *, unsigned long index, xa_tag_t);
++void xa_clear_tag(struct xarray *, unsigned long index, xa_tag_t);
  
  /**
   * xa_init() - Initialise an empty XArray.
-@@ -279,6 +283,35 @@ static inline bool xa_tagged(const struct xarray *xa, xa_tag_t tag)
- 	return xa->xa_flags & XA_FLAGS_TAG(tag);
+@@ -209,6 +227,19 @@ static inline void xa_init(struct xarray *xa)
+ 	xa_init_flags(xa, 0);
  }
  
 +/**
-+ * xa_for_each() - Iterate over a portion of an XArray.
-+ * @xa: XArray.
-+ * @entry: Entry retrieved from array.
-+ * @index: Index of @entry.
-+ * @max: Maximum index to retrieve from array.
-+ * @filter: Selection criterion.
++ * xa_tagged() - Inquire whether any entry in this array has a tag set
++ * @xa: Array
++ * @tag: Tag value
 + *
-+ * Initialise @index to the minimum index you want to retrieve from
-+ * the array.  During the iteration, @entry will have the value of the
-+ * entry stored in @xa at @index.  The iteration will skip all entries in
-+ * the array which do not match @filter.  You may modify @index during the
-+ * iteration if you want to skip or reprocess indices.  It is safe to modify
-+ * the array during the iteration.  At the end of the iteration, @entry will
-+ * be set to NULL and @index will have a value less than or equal to max.
-+ *
-+ * xa_for_each() is O(n.log(n)) while xas_for_each() is O(n).  You have
-+ * to handle your own locking with xas_for_each(), and if you have to unlock
-+ * after each iteration, it will also end up being O(n.log(n)).  xa_for_each()
-+ * will spin if it hits a retry entry; if you intend to see retry entries,
-+ * you should use the xas_for_each() iterator instead.  The xas_for_each()
-+ * iterator will expand into more inline code than xa_for_each().
-+ *
-+ * Context: Any context.  Takes and releases the RCU lock.
++ * Context: Any context.
++ * Return: %true if any entry has this tag set.
 + */
-+#define xa_for_each(xa, entry, index, max, filter) \
-+	for (entry = xa_find(xa, &index, max, filter); entry; \
-+	     entry = xa_find_after(xa, &index, max, filter))
-+
- /**
-  * xa_insert() - Store this entry in the XArray unless another entry is
-  *			already present.
-@@ -658,6 +691,12 @@ static inline bool xas_valid(const struct xa_state *xas)
- 	return !xas_invalid(xas);
- }
- 
-+/* True if the pointer is something other than a node */
-+static inline bool xas_not_node(struct xa_node *node)
++static inline bool xa_tagged(const struct xarray *xa, xa_tag_t tag)
 +{
-+	return ((unsigned long)node & 3) || !node;
++	return xa->xa_flags & XA_FLAGS_TAG(tag);
 +}
 +
- /* True if the node represents head-of-tree, RESTART or BOUNDS */
- static inline bool xas_top(struct xa_node *node)
- {
-@@ -702,13 +741,16 @@ static inline bool xas_retry(struct xa_state *xas, const void *entry)
+ #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
+ #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
+ #define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
+@@ -221,6 +252,12 @@ static inline void xa_init(struct xarray *xa)
+ #define xa_unlock_irqrestore(xa, flags) \
+ 				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
+ 
++/*
++ * Versions of the normal API which require the caller to hold the xa_lock.
++ */
++void __xa_set_tag(struct xarray *, unsigned long index, xa_tag_t);
++void __xa_clear_tag(struct xarray *, unsigned long index, xa_tag_t);
++
+ /* Everything below here is the Advanced API.  Proceed with caution. */
+ 
+ /*
+@@ -551,6 +588,10 @@ static inline bool xas_retry(struct xa_state *xas, const void *entry)
+ 
  void *xas_load(struct xa_state *);
- void *xas_store(struct xa_state *, void *entry);
- void *xas_create(struct xa_state *);
-+void *xas_find(struct xa_state *, unsigned long max);
  
- bool xas_get_tag(const struct xa_state *, xa_tag_t);
- void xas_set_tag(const struct xa_state *, xa_tag_t);
- void xas_clear_tag(const struct xa_state *, xa_tag_t);
-+void *xas_find_tag(struct xa_state *, unsigned long max, xa_tag_t);
- void xas_init_tags(const struct xa_state *);
- 
- bool xas_nomem(struct xa_state *, gfp_t);
-+void xas_pause(struct xa_state *);
- 
++bool xas_get_tag(const struct xa_state *, xa_tag_t);
++void xas_set_tag(const struct xa_state *, xa_tag_t);
++void xas_clear_tag(const struct xa_state *, xa_tag_t);
++
  /**
   * xas_reload() - Refetch an entry from the xarray.
-@@ -781,6 +823,139 @@ static inline void xas_set_update(struct xa_state *xas, xa_update_node_t update)
- 	xas->xa_update = update;
- }
- 
-+/* Skip over any of these entries when iterating */
-+static inline bool xa_iter_skip(const void *entry)
-+{
-+	return unlikely(!entry ||
-+			(xa_is_internal(entry) && entry < XA_RETRY_ENTRY));
-+}
-+
-+/**
-+ * xas_next_entry() - Advance iterator to next present entry.
-+ * @xas: XArray operation state.
-+ * @max: Highest index to return.
-+ *
-+ * xas_next_entry() is an inline function to optimise xarray traversal for
-+ * speed.  It is equivalent to calling xas_find(), and will call xas_find()
-+ * for all the hard cases.
-+ *
-+ * Return: The next present entry after the one currently referred to by @xas.
-+ */
-+static inline void *xas_next_entry(struct xa_state *xas, unsigned long max)
-+{
-+	struct xa_node *node = xas->xa_node;
-+	void *entry;
-+
-+	if (unlikely(xas_not_node(node) || node->shift))
-+		return xas_find(xas, max);
-+
-+	do {
-+		if (unlikely(xas->xa_index >= max))
-+			return xas_find(xas, max);
-+		if (unlikely(xas->xa_offset == XA_CHUNK_MASK))
-+			return xas_find(xas, max);
-+		xas->xa_index++;
-+		xas->xa_offset++;
-+		entry = xa_entry(xas->xa, node, xas->xa_offset);
-+	} while (xa_iter_skip(entry));
-+
-+	return entry;
-+}
-+
-+/* Private */
-+static inline unsigned int xas_find_chunk(struct xa_state *xas, bool advance,
-+		xa_tag_t tag)
-+{
-+	unsigned long *addr = xas->xa_node->tags[(__force unsigned)tag];
-+	unsigned int offset = xas->xa_offset;
-+
-+	if (advance)
-+		offset++;
-+	if (XA_CHUNK_SIZE == BITS_PER_LONG) {
-+		if (offset < XA_CHUNK_SIZE) {
-+			unsigned long data = *addr & (~0UL << offset);
-+			if (data)
-+				return __ffs(data);
-+		}
-+		return XA_CHUNK_SIZE;
-+	}
-+
-+	return find_next_bit(addr, XA_CHUNK_SIZE, offset);
-+}
-+
-+/**
-+ * xas_next_tag() - Advance iterator to next tagged entry.
-+ * @xas: XArray operation state.
-+ * @max: Highest index to return.
-+ * @tag: Tag to search for.
-+ *
-+ * xas_next_tag() is an inline function to optimise xarray traversal for
-+ * speed.  It is equivalent to calling xas_find_tag(), and will call
-+ * xas_find_tag() for all the hard cases.
-+ *
-+ * Return: The next tagged entry after the one currently referred to by @xas.
-+ */
-+static inline void *xas_next_tag(struct xa_state *xas, unsigned long max,
-+								xa_tag_t tag)
-+{
-+	struct xa_node *node = xas->xa_node;
-+	unsigned int offset;
-+
-+	if (unlikely(xas_not_node(node) || node->shift))
-+		return xas_find_tag(xas, max, tag);
-+	offset = xas_find_chunk(xas, true, tag);
-+	xas->xa_offset = offset;
-+	xas->xa_index = (xas->xa_index & ~XA_CHUNK_MASK) + offset;
-+	if (xas->xa_index > max)
-+		return NULL;
-+	if (offset == XA_CHUNK_SIZE)
-+		return xas_find_tag(xas, max, tag);
-+	return xa_entry(xas->xa, node, offset);
-+}
-+
-+/*
-+ * If iterating while holding a lock, drop the lock and reschedule
-+ * every %XA_CHECK_SCHED loops.
-+ */
-+enum {
-+	XA_CHECK_SCHED = 4096,
-+};
-+
-+/**
-+ * xas_for_each() - Iterate over a range of an XArray
-+ * @xas: XArray operation state.
-+ * @entry: Entry retrieved from array.
-+ * @max: Maximum index to retrieve from array.
-+ *
-+ * The loop body will be executed for each entry present in the xarray
-+ * between the current xas position and @max.  @entry will be set to
-+ * the entry retrieved from the xarray.  It is safe to delete entries
-+ * from the array in the loop body.  You should hold either the RCU lock
-+ * or the xa_lock while iterating.  If you need to drop the lock, call
-+ * xas_pause() first.
-+ */
-+#define xas_for_each(xas, entry, max) \
-+	for (entry = xas_find(xas, max); entry; \
-+	     entry = xas_next_entry(xas, max))
-+
-+/**
-+ * xas_for_each_tag() - Iterate over a range of an XArray
-+ * @xas: XArray operation state.
-+ * @entry: Entry retrieved from array.
-+ * @max: Maximum index to retrieve from array.
-+ * @tag: Tag to search for.
-+ *
-+ * The loop body will be executed for each tagged entry in the xarray
-+ * between the current xas position and @max.  @entry will be set to
-+ * the entry retrieved from the xarray.  It is safe to delete entries
-+ * from the array in the loop body.  You should hold either the RCU lock
-+ * or the xa_lock while iterating.  If you need to drop the lock, call
-+ * xas_pause() first.
-+ */
-+#define xas_for_each_tag(xas, entry, max, tag) \
-+	for (entry = xas_find_tag(xas, max, tag); entry; \
-+	     entry = xas_next_tag(xas, max, tag))
-+
- /* Internal functions, mostly shared between radix-tree.c, xarray.c and idr.c */
- void xas_destroy(struct xa_state *);
- 
+  * @xas: XArray operation state.
 diff --git a/lib/xarray.c b/lib/xarray.c
-index c9228a0953d7..73cf4c984c2d 100644
+index caa997535174..07c1155fa933 100644
 --- a/lib/xarray.c
 +++ b/lib/xarray.c
-@@ -91,6 +91,11 @@ static unsigned int get_offset(unsigned long index, struct xa_node *node)
- 	return (index >> node->shift) & XA_CHUNK_MASK;
- }
+@@ -5,6 +5,7 @@
+  * Author: Matthew Wilcox <mawilcox@microsoft.com>
+  */
  
-+static void xas_set_offset(struct xa_state *xas)
++#include <linux/bitmap.h>
+ #include <linux/export.h>
+ #include <linux/xarray.h>
+ 
+@@ -24,6 +25,55 @@
+  * @entry refers to something stored in a slot in the xarray
+  */
+ 
++static inline struct xa_node *xa_parent(struct xarray *xa,
++					const struct xa_node *node)
 +{
-+	xas->xa_offset = get_offset(xas->xa_index, xas->xa_node);
++	return rcu_dereference_check(node->parent,
++						lockdep_is_held(&xa->xa_lock));
 +}
 +
- /* move the index either forwards (find) or backwards (sibling slot) */
- static void xas_move_index(struct xa_state *xas, unsigned long offset)
- {
-@@ -99,6 +104,12 @@ static void xas_move_index(struct xa_state *xas, unsigned long offset)
- 	xas->xa_index += offset << shift;
- }
- 
-+static void xas_advance(struct xa_state *xas)
++static inline struct xa_node *xa_parent_locked(struct xarray *xa,
++					const struct xa_node *node)
 +{
-+	xas->xa_offset++;
-+	xas_move_index(xas, xas->xa_offset);
++	return rcu_dereference_protected(node->parent,
++						lockdep_is_held(&xa->xa_lock));
 +}
 +
- static void *set_bounds(struct xa_state *xas)
++static inline void xa_tag_set(struct xarray *xa, xa_tag_t tag)
++{
++	if (!(xa->xa_flags & XA_FLAGS_TAG(tag)))
++		xa->xa_flags |= XA_FLAGS_TAG(tag);
++}
++
++static inline void xa_tag_clear(struct xarray *xa, xa_tag_t tag)
++{
++	if (xa->xa_flags & XA_FLAGS_TAG(tag))
++		xa->xa_flags &= ~(XA_FLAGS_TAG(tag));
++}
++
++static inline bool node_get_tag(const struct xa_node *node, unsigned int offset,
++				xa_tag_t tag)
++{
++	return test_bit(offset, node->tags[(__force unsigned)tag]);
++}
++
++static inline void node_set_tag(struct xa_node *node, unsigned int offset,
++				xa_tag_t tag)
++{
++	__set_bit(offset, node->tags[(__force unsigned)tag]);
++}
++
++static inline void node_clear_tag(struct xa_node *node, unsigned int offset,
++				xa_tag_t tag)
++{
++	__clear_bit(offset, node->tags[(__force unsigned)tag]);
++}
++
++static inline bool node_any_tag(struct xa_node *node, xa_tag_t tag)
++{
++	return !bitmap_empty(node->tags[(__force unsigned)tag], XA_CHUNK_SIZE);
++}
++
+ /* extracts the offset within this node from the index */
+ static unsigned int get_offset(unsigned long index, struct xa_node *node)
  {
- 	xas->xa_node = XAS_BOUNDS;
-@@ -805,6 +816,191 @@ void xas_init_tags(const struct xa_state *xas)
+@@ -132,6 +182,85 @@ void *xas_load(struct xa_state *xas)
  }
- EXPORT_SYMBOL_GPL(xas_init_tags);
+ EXPORT_SYMBOL_GPL(xas_load);
  
 +/**
-+ * xas_pause() - Pause a walk to drop a lock.
++ * xas_get_tag() - Returns the state of this tag.
 + * @xas: XArray operation state.
++ * @tag: Tag number.
 + *
-+ * Some users need to pause a walk and drop the lock they're holding in
-+ * order to yield to a higher priority thread or carry out an operation
-+ * on an entry.  Those users should call this function before they drop
-+ * the lock.  It resets the @xas to be suitable for the next iteration
-+ * of the loop after the user has reacquired the lock.  If most entries
-+ * found during a walk require you to call xas_pause(), the xa_for_each()
-+ * iterator may be more appropriate.
-+ *
-+ * Note that xas_pause() only works for forward iteration.  If a user needs
-+ * to pause a reverse iteration, we will need a xas_pause_rev().
++ * Return: true if the tag is set, false if the tag is clear or @xas
++ * is in an error state.
 + */
-+void xas_pause(struct xa_state *xas)
++bool xas_get_tag(const struct xa_state *xas, xa_tag_t tag)
++{
++	if (xas_invalid(xas))
++		return false;
++	if (!xas->xa_node)
++		return xa_tagged(xas->xa, tag);
++	return node_get_tag(xas->xa_node, xas->xa_offset, tag);
++}
++EXPORT_SYMBOL_GPL(xas_get_tag);
++
++/**
++ * xas_set_tag() - Sets the tag on this entry and its parents.
++ * @xas: XArray operation state.
++ * @tag: Tag number.
++ *
++ * Sets the specified tag on this entry, and walks up the tree setting it
++ * on all the ancestor entries.  Does nothing if @xas has not been walked to
++ * an entry, or is in an error state.
++ */
++void xas_set_tag(const struct xa_state *xas, xa_tag_t tag)
 +{
 +	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
 +
 +	if (xas_invalid(xas))
 +		return;
 +
-+	if (node) {
-+		unsigned int offset = xas->xa_offset;
-+		while (++offset < XA_CHUNK_SIZE) {
-+			if (!xa_is_sibling(xa_entry(xas->xa, node, offset)))
-+				break;
-+		}
-+		xas->xa_index += (offset - xas->xa_offset) << node->shift;
-+	} else {
-+		xas->xa_index++;
++	while (node) {
++		if (node_get_tag(node, offset, tag))
++			return;
++		node_set_tag(node, offset, tag);
++		offset = node->offset;
++		node = xa_parent_locked(xas->xa, node);
 +	}
-+	xas->xa_node = XAS_RESTART;
++
++	if (!xa_tagged(xas->xa, tag))
++		xa_tag_set(xas->xa, tag);
 +}
-+EXPORT_SYMBOL_GPL(xas_pause);
++EXPORT_SYMBOL_GPL(xas_set_tag);
 +
 +/**
-+ * xas_find() - Find the next present entry in the XArray.
++ * xas_clear_tag() - Clears the tag on this entry and its parents.
 + * @xas: XArray operation state.
-+ * @max: Highest index to return.
++ * @tag: Tag number.
 + *
-+ * If the xas has not yet been walked to an entry, return the entry
-+ * which has an index >= xas.xa_index.  If it has been walked, the entry
-+ * currently being pointed at has been processed, and so we move to the
-+ * next entry.
-+ *
-+ * If no entry is found and the array is smaller than @max, the iterator
-+ * is set to the smallest index not yet in the array.  This allows @xas
-+ * to be immediately passed to xas_create().
-+ *
-+ * Return: The entry, if found, otherwise NULL.
++ * Clears the specified tag on this entry, and walks back to the head
++ * attempting to clear it on all the ancestor entries.  Does nothing if
++ * @xas has not been walked to an entry, or is in an error state.
 + */
-+void *xas_find(struct xa_state *xas, unsigned long max)
++void xas_clear_tag(const struct xa_state *xas, xa_tag_t tag)
 +{
-+	void *entry;
++	struct xa_node *node = xas->xa_node;
++	unsigned int offset = xas->xa_offset;
 +
-+	if (xas_error(xas))
-+		return NULL;
++	if (xas_invalid(xas))
++		return;
 +
-+	if (!xas->xa_node) {
-+		xas->xa_index = 1;
-+		return set_bounds(xas);
-+	} else if (xas_top(xas->xa_node)) {
-+		entry = xas_load(xas);
-+		if (entry || xas_not_node(xas->xa_node))
-+			return entry;
++	while (node) {
++		node_clear_tag(node, offset, tag);
++		if (node_any_tag(node, tag))
++			return;
++
++		offset = node->offset;
++		node = xa_parent_locked(xas->xa, node);
 +	}
 +
-+	xas_advance(xas);
-+
-+	while (xas->xa_node && (xas->xa_index <= max)) {
-+		if (unlikely(xas->xa_offset == XA_CHUNK_SIZE)) {
-+			xas->xa_offset = xas->xa_node->offset + 1;
-+			xas->xa_node = xa_parent(xas->xa, xas->xa_node);
-+			continue;
-+		}
-+
-+		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-+		if (xa_is_node(entry)) {
-+			xas->xa_node = xa_to_node(entry);
-+			xas->xa_offset = 0;
-+			continue;
-+		}
-+		if (!xa_iter_skip(entry))
-+			return entry;
-+
-+		xas_advance(xas);
-+	}
-+
-+	if (!xas->xa_node)
-+		xas->xa_node = XAS_BOUNDS;
-+	return NULL;
++	if (xa_tagged(xas->xa, tag))
++		xa_tag_clear(xas->xa, tag);
 +}
-+EXPORT_SYMBOL_GPL(xas_find);
-+
-+/**
-+ * xas_find_tag() - Find the next tagged entry in the XArray.
-+ * @xas: XArray operation state.
-+ * @max: Highest index to return.
-+ * @tag: Tag number to search for.
-+ *
-+ * If the xas has not yet been walked to an entry, return the tagged entry
-+ * which has an index >= xas.xa_index.  If it has been walked, the entry
-+ * currently being pointed at has been processed, and so we move to the
-+ * next tagged entry.
-+ *
-+ * If no tagged entry is found and the array is smaller than @max, @xas is
-+ * set to the bounds state and xas->xa_index is set to the smallest index
-+ * not yet in the array.  This allows @xas to be immediately passed to
-+ * xas_create().
-+ *
-+ * Return: The entry, if found, otherwise %NULL.
-+ */
-+void *xas_find_tag(struct xa_state *xas, unsigned long max, xa_tag_t tag)
-+{
-+	bool advance = true;
-+	unsigned int offset;
-+	void *entry;
-+
-+	if (xas_error(xas))
-+		return NULL;
-+
-+	if (!xas->xa_node) {
-+		xas->xa_index = 1;
-+		goto out;
-+	} else if (xas_top(xas->xa_node)) {
-+		advance = false;
-+		entry = xa_head(xas->xa);
-+		if (xas->xa_index > max_index(entry))
-+			goto out;
-+		if (!xa_is_node(entry)) {
-+			if (xa_tagged(xas->xa, tag)) {
-+				xas->xa_node = NULL;
-+				return entry;
-+			}
-+			xas->xa_index = 1;
-+			goto out;
-+		}
-+		xas->xa_node = xa_to_node(entry);
-+		xas->xa_offset = xas->xa_index >> xas->xa_node->shift;
-+	}
-+
-+	while (xas->xa_index <= max) {
-+		if (unlikely(xas->xa_offset == XA_CHUNK_SIZE)) {
-+			xas->xa_offset = xas->xa_node->offset + 1;
-+			xas->xa_node = xa_parent(xas->xa, xas->xa_node);
-+			if (!xas->xa_node)
-+				break;
-+			advance = false;
-+			continue;
-+		}
-+
-+		if (!advance) {
-+			entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-+			if (xa_is_sibling(entry)) {
-+				xas->xa_offset = xa_to_sibling(entry);
-+				xas_move_index(xas, xas->xa_offset);
-+			}
-+		}
-+
-+		offset = xas_find_chunk(xas, advance, tag);
-+		if (offset > xas->xa_offset) {
-+			advance = false;
-+			xas_move_index(xas, offset);
-+			xas->xa_offset = offset;
-+			if (offset == XA_CHUNK_SIZE)
-+				continue;
-+			if (xas->xa_index > max)
-+				break;
-+		}
-+
-+		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-+		if (!xa_is_node(entry))
-+			return entry;
-+		xas->xa_node = xa_to_node(entry);
-+		xas_set_offset(xas);
-+	}
-+
-+ out:
-+	if (!xas->xa_node)
-+		xas->xa_node = XAS_BOUNDS;
-+	return NULL;
-+}
-+EXPORT_SYMBOL_GPL(xas_find_tag);
++EXPORT_SYMBOL_GPL(xas_clear_tag);
 +
  /**
   * xa_init_flags() - Initialise an empty XArray with flags.
   * @xa: XArray.
-@@ -1128,6 +1324,84 @@ void xa_clear_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
+@@ -174,6 +303,112 @@ void *xa_load(struct xarray *xa, unsigned long index)
  }
- EXPORT_SYMBOL(xa_clear_tag);
+ EXPORT_SYMBOL(xa_load);
  
 +/**
-+ * xa_find() - Search the XArray for an entry.
++ * __xa_set_tag() - Set this tag on this entry while locked.
 + * @xa: XArray.
-+ * @indexp: Pointer to an index.
-+ * @max: Maximum index to search to.
-+ * @filter: Selection criterion.
++ * @index: Index of entry.
++ * @tag: Tag number.
 + *
-+ * Finds the entry in @xa which matches the @filter, and has the lowest
-+ * index that is at least @indexp and no more than @max.
-+ * If an entry is found, @indexp is updated to be the index of the entry.
-+ * This function is protected by the RCU read lock, so it may not find
-+ * entries which are being simultaneously added.  It will not return an
-+ * %XA_RETRY_ENTRY; if you need to see retry entries, use xas_find().
++ * Attempting to set a tag on a NULL entry does not succeed.
 + *
-+ * Context: Any context.  Takes and releases the RCU lock.
-+ * Return: The entry, if found, otherwise NULL.
++ * Context: Any context.  Expects xa_lock to be held on entry.
 + */
-+void *xa_find(struct xarray *xa, unsigned long *indexp,
-+			unsigned long max, xa_tag_t filter)
++void __xa_set_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
 +{
-+	XA_STATE(xas, xa, *indexp);
-+	void *entry;
-+
-+	rcu_read_lock();
-+	do {
-+		if ((__force unsigned int)filter < XA_MAX_TAGS)
-+			entry = xas_find_tag(&xas, max, filter);
-+		else
-+			entry = xas_find(&xas, max);
-+	} while (xas_retry(&xas, entry));
-+	rcu_read_unlock();
++	XA_STATE(xas, xa, index);
++	void *entry = xas_load(&xas);
 +
 +	if (entry)
-+		*indexp = xas.xa_index;
-+	return entry;
++		xas_set_tag(&xas, tag);
 +}
-+EXPORT_SYMBOL(xa_find);
++EXPORT_SYMBOL_GPL(__xa_set_tag);
 +
 +/**
-+ * xa_find_after() - Search the XArray for a present entry.
++ * __xa_clear_tag() - Clear this tag on this entry while locked.
 + * @xa: XArray.
-+ * @indexp: Pointer to an index.
-+ * @max: Maximum index to search to.
-+ * @filter: Selection criterion.
++ * @index: Index of entry.
++ * @tag: Tag number.
 + *
-+ * Finds the entry in @xa which matches the @filter and has the lowest
-+ * index that is above @indexp and no more than @max.
-+ * If an entry is found, @indexp is updated to be the index of the entry.
-+ * This function is protected by the RCU read lock, so it may miss entries
-+ * which are being simultaneously added.  It will not return an
-+ * %XA_RETRY_ENTRY; if you need to see retry entries, use xas_find().
++ * Context: Any context.  Expects xa_lock to be held on entry.
++ */
++void __xa_clear_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
++{
++	XA_STATE(xas, xa, index);
++	void *entry = xas_load(&xas);
++
++	if (entry)
++		xas_clear_tag(&xas, tag);
++}
++EXPORT_SYMBOL_GPL(__xa_clear_tag);
++
++/**
++ * xa_get_tag() - Inquire whether this tag is set on this entry.
++ * @xa: XArray.
++ * @index: Index of entry.
++ * @tag: Tag number.
++ *
++ * This function uses the RCU read lock, so the result may be out of date
++ * by the time it returns.  If you need the result to be stable, use a lock.
 + *
 + * Context: Any context.  Takes and releases the RCU lock.
-+ * Return: The pointer, if found, otherwise NULL.
++ * Return: True if the entry at @index has this tag set, false if it doesn't.
 + */
-+void *xa_find_after(struct xarray *xa, unsigned long *indexp,
-+			unsigned long max, xa_tag_t filter)
++bool xa_get_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
 +{
-+	XA_STATE(xas, xa, *indexp + 1);
++	XA_STATE(xas, xa, index);
 +	void *entry;
 +
 +	rcu_read_lock();
-+	do {
-+		if ((__force unsigned int)filter < XA_MAX_TAGS)
-+			entry = xas_find_tag(&xas, max, filter);
-+		else
-+			entry = xas_find(&xas, max);
-+		if (*indexp >= xas.xa_index)
-+			entry = xas_next_entry(&xas, max);
-+	} while (xas_retry(&xas, entry));
++	entry = xas_start(&xas);
++	while (xas_get_tag(&xas, tag)) {
++		if (!xa_is_node(entry))
++			goto found;
++		entry = xas_descend(&xas, xa_to_node(entry));
++	}
 +	rcu_read_unlock();
-+
-+	if (entry)
-+		*indexp = xas.xa_index;
-+	return entry;
++	return false;
++ found:
++	rcu_read_unlock();
++	return true;
 +}
-+EXPORT_SYMBOL(xa_find_after);
++EXPORT_SYMBOL(xa_get_tag);
++
++/**
++ * xa_set_tag() - Set this tag on this entry.
++ * @xa: XArray.
++ * @index: Index of entry.
++ * @tag: Tag number.
++ *
++ * Attempting to set a tag on a NULL entry does not succeed.
++ *
++ * Context: Process context.  Takes and releases the xa_lock.
++ */
++void xa_set_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
++{
++	xa_lock(xa);
++	__xa_set_tag(xa, index, tag);
++	xa_unlock(xa);
++}
++EXPORT_SYMBOL(xa_set_tag);
++
++/**
++ * xa_clear_tag() - Clear this tag on this entry.
++ * @xa: XArray.
++ * @index: Index of entry.
++ * @tag: Tag number.
++ *
++ * Clearing a tag always succeeds.
++ *
++ * Context: Process context.  Takes and releases the xa_lock.
++ */
++void xa_clear_tag(struct xarray *xa, unsigned long index, xa_tag_t tag)
++{
++	xa_lock(xa);
++	__xa_clear_tag(xa, index, tag);
++	xa_unlock(xa);
++}
++EXPORT_SYMBOL(xa_clear_tag);
 +
  #ifdef XA_DEBUG
  void xa_dump_node(const struct xa_node *node)
  {
-diff --git a/tools/testing/radix-tree/test.c b/tools/testing/radix-tree/test.c
-index f151588d04a0..e9b4a4ed9bf5 100644
---- a/tools/testing/radix-tree/test.c
-+++ b/tools/testing/radix-tree/test.c
-@@ -244,6 +244,19 @@ unsigned long find_item(struct radix_tree_root *root, void *item)
- 	return found;
- }
+diff --git a/tools/include/linux/spinlock.h b/tools/include/linux/spinlock.h
+index 4ec4d2cbe27a..622266b197d0 100644
+--- a/tools/include/linux/spinlock.h
++++ b/tools/include/linux/spinlock.h
+@@ -10,6 +10,12 @@
+ #define __SPIN_LOCK_UNLOCKED(x)	(pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER
+ #define spin_lock_init(x)	pthread_mutex_init(x, NULL)
  
-+static LIST_HEAD(item_nodes);
-+
-+void item_update_node(struct xa_node *node)
-+{
-+	if (node->count) {
-+		if (list_empty(&node->private_list))
-+			list_add(&node->private_list, &item_nodes);
-+	} else {
-+		if (!list_empty(&node->private_list))
-+			list_del_init(&node->private_list);
-+        }
-+}
-+
- static int verify_node(struct radix_tree_node *slot, unsigned int tag,
- 			int tagged)
- {
-diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
-index ffd162645c11..f97cacd1422d 100644
---- a/tools/testing/radix-tree/test.h
-+++ b/tools/testing/radix-tree/test.h
-@@ -30,6 +30,7 @@ void item_gang_check_present(struct radix_tree_root *root,
- void item_full_scan(struct radix_tree_root *root, unsigned long start,
- 			unsigned long nr, int chunk);
- void item_kill_tree(struct radix_tree_root *root);
-+void item_update_node(struct xa_node *node);
++#define spin_lock(x)			pthread_mutex_lock(x)
++#define spin_unlock(x)			pthread_mutex_unlock(x)
++#define spin_lock_bh(x)			pthread_mutex_lock(x)
++#define spin_unlock_bh(x)		pthread_mutex_unlock(x)
++#define spin_lock_irq(x)		pthread_mutex_lock(x)
++#define spin_unlock_irq(x)		pthread_mutex_unlock(x)
+ #define spin_lock_irqsave(x, f)		(void)f, pthread_mutex_lock(x)
+ #define spin_unlock_irqrestore(x, f)	(void)f, pthread_mutex_unlock(x)
  
- int tag_tagged_items(struct radix_tree_root *, pthread_mutex_t *,
- 			unsigned long start, unsigned long end, unsigned batch,
-diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
-index d71603bfa41d..90c49e0f06aa 100644
---- a/tools/testing/radix-tree/xarray-test.c
-+++ b/tools/testing/radix-tree/xarray-test.c
-@@ -42,6 +42,29 @@ void check_xa_tag(struct xarray *xa)
- 	assert(xa_get_tag(xa, 0, XA_TAG_0) == false);
- }
- 
-+void check_xas_retry(struct xarray *xa)
-+{
-+	XA_STATE(xas, xa, 0);
-+
-+	xa_store(xa, 0, xa_mk_value(0), GFP_KERNEL);
-+	xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+
-+	assert(xas_find(&xas, ULONG_MAX) == xa_mk_value(0));
-+	xa_erase(xa, 1);
-+	assert(xa_is_retry(xas_reload(&xas)));
-+	assert(!xas_retry(&xas, NULL));
-+	assert(!xas_retry(&xas, xa_mk_value(0)));
-+	assert(xas_retry(&xas, XA_RETRY_ENTRY));
-+	assert(xas.xa_node == XAS_RESTART);
-+	assert(xas_next_entry(&xas, ULONG_MAX) == xa_mk_value(0));
-+	assert(xas.xa_node == NULL);
-+
-+	xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+	assert(xa_is_internal(xas_reload(&xas)));
-+	xas.xa_node = XAS_RESTART;
-+	assert(xas_next_entry(&xas, ULONG_MAX) == xa_mk_value(0));
-+}
-+
- void check_xa_load(struct xarray *xa)
- {
- 	unsigned long i, j;
-@@ -179,6 +202,98 @@ void check_multi_load(struct xarray *xa)
- 	__check_multi_load(xa, 8192, 13);
- }
- 
-+void check_multi_find(struct xarray *xa)
-+{
-+	unsigned long index;
-+	xa_store_order(xa, 12, 2, xa_mk_value(12), GFP_KERNEL);
-+	xa_store(xa, 16, xa_mk_value(16), GFP_KERNEL);
-+
-+	index = 0;
-+	assert(xa_find(xa, &index, ULONG_MAX, XA_PRESENT) == xa_mk_value(12));
-+	assert(index == 12);
-+	index = 13;
-+	assert(xa_find(xa, &index, ULONG_MAX, XA_PRESENT) == xa_mk_value(12));
-+	assert(index >= 12 && index < 16);
-+	assert(xa_find_after(xa, &index, ULONG_MAX, XA_PRESENT) == xa_mk_value(16));
-+	assert(index == 16);
-+	xa_erase(xa, 12);
-+	xa_erase(xa, 16);
-+	assert(xa_empty(xa));
-+}
-+
-+void check_find(struct xarray *xa)
-+{
-+	unsigned long i, j, k;
-+
-+	assert(xa_empty(xa));
-+
-+	for (i = 0; i < 100; i++) {
-+		xa_store(xa, i, xa_mk_value(i), GFP_KERNEL);
-+		xa_set_tag(xa, i, XA_TAG_0);
-+		for (j = 0; j < i; j++) {
-+			xa_store(xa, j, xa_mk_value(j), GFP_KERNEL);
-+			xa_set_tag(xa, j, XA_TAG_0);
-+			for (k = 0; k < 100; k++) {
-+				unsigned long index = k;
-+				void *entry = xa_find(xa, &index, ULONG_MAX,
-+								XA_PRESENT);
-+				if (k <= j)
-+					assert(index == j);
-+				else if (k <= i)
-+					assert(index == i);
-+				else
-+					assert(entry == NULL);
-+
-+				index = k;
-+				entry = xa_find(xa, &index, ULONG_MAX,
-+								XA_TAG_0);
-+				if (k <= j)
-+					assert(index == j);
-+				else if (k <= i)
-+					assert(index == i);
-+				else
-+					assert(entry == NULL);
-+			}
-+			xa_erase(xa, j);
-+		}
-+		xa_erase(xa, i);
-+	}
-+	assert(xa_empty(xa));
-+	check_multi_find(xa);
-+}
-+
-+void check_xas_delete(struct xarray *xa)
-+{
-+	XA_STATE(xas, xa, 0);
-+	void *entry;
-+	unsigned long i, j;
-+
-+	xas_set_update(&xas, item_update_node);
-+	for (i = 0; i < 200; i++) {
-+		for (j = i; j < 2 * i + 17; j++) {
-+			xas_set(&xas, j);
-+			do {
-+				xas_store(&xas, xa_mk_value(j));
-+			} while (xas_nomem(&xas, GFP_KERNEL));
-+		}
-+
-+		xas_set(&xas, ULONG_MAX);
-+		do {
-+			xas_store(&xas, xa_mk_value(0));
-+		} while (xas_nomem(&xas, GFP_KERNEL));
-+		xas_store(&xas, NULL);
-+
-+		xas_set(&xas, 0);
-+		j = i;
-+		xas_for_each(&xas, entry, ULONG_MAX) {
-+			assert(entry == xa_mk_value(j));
-+			xas_store(&xas, NULL);
-+			j++;
-+		}
-+		assert(xa_empty(xa));
-+	}
-+}
-+
- void xarray_checks(void)
- {
- 	DEFINE_XARRAY(array);
-@@ -189,6 +304,9 @@ void xarray_checks(void)
- 	check_xa_tag(&array);
- 	item_kill_tree(&array);
- 
-+	check_xas_retry(&array);
-+	item_kill_tree(&array);
-+
- 	check_xa_load(&array);
- 	item_kill_tree(&array);
- 
-@@ -199,6 +317,10 @@ void xarray_checks(void)
- 	check_multi_store(&array);
- 	item_kill_tree(&array);
- 	check_multi_load(&array);
-+
-+	check_find(&array);
-+	check_xas_delete(&array);
-+	item_kill_tree(&array);
- }
- 
- int __weak main(void)
 -- 
 2.17.0
