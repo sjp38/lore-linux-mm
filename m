@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CE5CD6B000D
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C21A56B0008
 	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:27 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x17so6477873pfn.10
+Received: by mail-pf0-f199.google.com with SMTP id x17so6477870pfn.10
         for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:27 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w20-v6si1098121plp.7.2018.04.14.07.13.25
+        by mx.google.com with ESMTPS id v8si6659896pfm.241.2018.04.14.07.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Sat, 14 Apr 2018 07:13:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 29/63] mm: Convert __do_page_cache_readahead to XArray
-Date: Sat, 14 Apr 2018 07:12:42 -0700
-Message-Id: <20180414141316.7167-30-willy@infradead.org>
+Subject: [PATCH v11 22/63] page cache: Remove stray radix comment
+Date: Sat, 14 Apr 2018 07:12:35 -0700
+Message-Id: <20180414141316.7167-23-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,27 +22,23 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This one is trivial.
-
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/readahead.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ mm/filemap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/readahead.c b/mm/readahead.c
-index c7ddcf60ac6d..50910c27b372 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -174,9 +174,7 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 		if (page_offset > end_index)
- 			break;
- 
--		rcu_read_lock();
--		page = radix_tree_lookup(&mapping->i_pages, page_offset);
--		rcu_read_unlock();
-+		page = xa_load(&mapping->i_pages, page_offset);
- 		if (page && !xa_is_value(page))
- 			continue;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index f85cdda6744f..bf231ebadb86 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2583,7 +2583,7 @@ static struct page *do_read_cache_page(struct address_space *mapping,
+ 			put_page(page);
+ 			if (err == -EEXIST)
+ 				goto repeat;
+-			/* Presumably ENOMEM for radix tree node */
++			/* Presumably ENOMEM for xarray node */
+ 			return ERR_PTR(err);
+ 		}
  
 -- 
 2.17.0
