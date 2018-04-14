@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BC89D6B0028
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E3A166B002B
 	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:31 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v19so6476481pfn.7
+Received: by mail-pl0-f71.google.com with SMTP id 61-v6so7586101plz.20
         for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:31 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n1-v6si7764863pld.87.2018.04.14.07.13.30
+        by mx.google.com with ESMTPS id h23-v6si8499162plr.576.2018.04.14.07.13.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Sat, 14 Apr 2018 07:13:30 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 50/63] lustre: Convert to XArray
-Date: Sat, 14 Apr 2018 07:13:03 -0700
-Message-Id: <20180414141316.7167-51-willy@infradead.org>
+Subject: [PATCH v11 51/63] dax: Fix use of zero page
+Date: Sat, 14 Apr 2018 07:13:04 -0700
+Message-Id: <20180414141316.7167-52-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,84 +22,36 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
+Use my_zero_pfn instead of ZERO_PAGE, and pass the vaddr to it so it
+works on MIPS and s390.
+
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- drivers/staging/lustre/lustre/llite/glimpse.c   | 12 +++++-------
- drivers/staging/lustre/lustre/mdc/mdc_request.c | 16 ++++++++--------
- 2 files changed, 13 insertions(+), 15 deletions(-)
+ fs/dax.c | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)
 
-diff --git a/drivers/staging/lustre/lustre/llite/glimpse.c b/drivers/staging/lustre/lustre/llite/glimpse.c
-index 3075358f3f08..014035be5ac7 100644
---- a/drivers/staging/lustre/lustre/llite/glimpse.c
-+++ b/drivers/staging/lustre/lustre/llite/glimpse.c
-@@ -57,7 +57,7 @@ static const struct cl_lock_descr whole_file = {
- };
+diff --git a/fs/dax.c b/fs/dax.c
+index e014c99b21fd..b0efb0a9604a 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -909,17 +909,9 @@ static int dax_load_hole(struct address_space *mapping, void *entry,
+ 	struct inode *inode = mapping->host;
+ 	unsigned long vaddr = vmf->address;
+ 	int ret = VM_FAULT_NOPAGE;
+-	struct page *zero_page;
+ 	void *entry2;
+-	pfn_t pfn;
+-
+-	zero_page = ZERO_PAGE(0);
+-	if (unlikely(!zero_page)) {
+-		ret = VM_FAULT_OOM;
+-		goto out;
+-	}
++	pfn_t pfn = pfn_to_pfn_t(my_zero_pfn(vaddr));
  
- /*
-- * Check whether file has possible unwriten pages.
-+ * Check whether file has possible unwritten pages.
-  *
-  * \retval 1    file is mmap-ed or has dirty pages
-  *	 0    otherwise
-@@ -66,16 +66,14 @@ blkcnt_t dirty_cnt(struct inode *inode)
- {
- 	blkcnt_t cnt = 0;
- 	struct vvp_object *vob = cl_inode2vvp(inode);
--	void	      *results[1];
- 
--	if (inode->i_mapping)
--		cnt += radix_tree_gang_lookup_tag(&inode->i_mapping->i_pages,
--						  results, 0, 1,
--						  PAGECACHE_TAG_DIRTY);
-+	if (inode->i_mapping && xa_tagged(&inode->i_mapping->i_pages,
-+				PAGECACHE_TAG_DIRTY))
-+		cnt = 1;
- 	if (cnt == 0 && atomic_read(&vob->vob_mmap_cnt) > 0)
- 		cnt = 1;
- 
--	return (cnt > 0) ? 1 : 0;
-+	return cnt;
- }
- 
- int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
-diff --git a/drivers/staging/lustre/lustre/mdc/mdc_request.c b/drivers/staging/lustre/lustre/mdc/mdc_request.c
-index 6950cb21638e..dbda8a9e351d 100644
---- a/drivers/staging/lustre/lustre/mdc/mdc_request.c
-+++ b/drivers/staging/lustre/lustre/mdc/mdc_request.c
-@@ -931,17 +931,18 @@ static struct page *mdc_page_locate(struct address_space *mapping, __u64 *hash,
- 	 * hash _smaller_ than one we are looking for.
- 	 */
- 	unsigned long offset = hash_x_index(*hash, hash64);
-+	XA_STATE(xas, &mapping->i_pages, offset);
- 	struct page *page;
--	int found;
- 
--	xa_lock_irq(&mapping->i_pages);
--	found = radix_tree_gang_lookup(&mapping->i_pages,
--				       (void **)&page, offset, 1);
--	if (found > 0 && !xa_is_value(page)) {
-+	xas_lock_irq(&xas);
-+	page = xas_find(&xas, ULONG_MAX);
-+	if (xa_is_value(page))
-+		page = NULL;
-+	if (page) {
- 		struct lu_dirpage *dp;
- 
- 		get_page(page);
--		xa_unlock_irq(&mapping->i_pages);
-+		xas_unlock_irq(&xas);
- 		/*
- 		 * In contrast to find_lock_page() we are sure that directory
- 		 * page cannot be truncated (while DLM lock is held) and,
-@@ -989,8 +990,7 @@ static struct page *mdc_page_locate(struct address_space *mapping, __u64 *hash,
- 			page = ERR_PTR(-EIO);
- 		}
- 	} else {
--		xa_unlock_irq(&mapping->i_pages);
--		page = NULL;
-+		xas_unlock_irq(&xas);
- 	}
- 	return page;
- }
+-	pfn = page_to_pfn_t(zero_page);
+ 	entry2 = dax_insert_mapping_entry(mapping, vmf, entry, pfn,
+ 			DAX_ZERO_PAGE, false);
+ 	if (IS_ERR(entry2)) {
 -- 
 2.17.0
