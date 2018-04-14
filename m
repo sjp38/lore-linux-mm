@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B7FC6B0011
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:28 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id m6-v6so7560259pln.8
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:28 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3232D6B0022
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:29 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 91-v6so7585374plf.6
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:29 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w20-v6si1098157plp.7.2018.04.14.07.13.27
+        by mx.google.com with ESMTPS id o1-v6si7685752pld.255.2018.04.14.07.13.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Sat, 14 Apr 2018 07:13:27 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 39/63] shmem: Convert shmem_alloc_hugepage to XArray
-Date: Sat, 14 Apr 2018 07:12:52 -0700
-Message-Id: <20180414141316.7167-40-willy@infradead.org>
+Subject: [PATCH v11 16/63] page cache: Rearrange address_space
+Date: Sat, 14 Apr 2018 07:12:29 -0700
+Message-Id: <20180414141316.7167-17-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,45 +22,74 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-xa_find() is a slightly easier API to use than
-radix_tree_gang_lookup_slot() because it contains its own RCU locking.
+Change i_pages from a radix_tree_root to an xarray, convert the
+documentation into kernel-doc format and change the order of the elements
+to pack them better on 64-bit systems.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 14 ++++----------
- 1 file changed, 4 insertions(+), 10 deletions(-)
+ include/linux/fs.h | 46 +++++++++++++++++++++++++++++++---------------
+ 1 file changed, 31 insertions(+), 15 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 8d24d59b0e67..985c5cdec7f7 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1425,23 +1425,17 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
- 		struct shmem_inode_info *info, pgoff_t index)
- {
- 	struct vm_area_struct pvma;
--	struct inode *inode = &info->vfs_inode;
--	struct address_space *mapping = inode->i_mapping;
--	pgoff_t idx, hindex;
--	void __rcu **results;
-+	struct address_space *mapping = info->vfs_inode.i_mapping;
-+	pgoff_t hindex;
- 	struct page *page;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index bf3d5039c708..0a4e213f1069 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -389,24 +389,40 @@ int pagecache_write_end(struct file *, struct address_space *mapping,
+ 				loff_t pos, unsigned len, unsigned copied,
+ 				struct page *page, void *fsdata);
  
- 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
- 		return NULL;
- 
- 	hindex = round_down(index, HPAGE_PMD_NR);
--	rcu_read_lock();
--	if (radix_tree_gang_lookup_slot(&mapping->i_pages, &results, &idx,
--				hindex, 1) && idx < hindex + HPAGE_PMD_NR) {
--		rcu_read_unlock();
-+	if (xa_find(&mapping->i_pages, &hindex, hindex + HPAGE_PMD_NR - 1,
-+								XA_PRESENT))
- 		return NULL;
--	}
--	rcu_read_unlock();
- 
- 	shmem_pseudo_vma_init(&pvma, info, hindex);
- 	page = alloc_pages_vma(gfp | __GFP_COMP | __GFP_NORETRY | __GFP_NOWARN,
++/**
++ * struct address_space - Contents of a cacheable, mappable object.
++ * @host: Owner, either the inode or the block_device.
++ * @i_pages: Cached pages.
++ * @gfp_mask: Memory allocation flags to use for allocating pages.
++ * @i_mmap_writable: Number of VM_SHARED mappings.
++ * @i_mmap: Tree of private and shared mappings.
++ * @i_mmap_rwsem: Protects @i_mmap and @i_mmap_writable.
++ * @nrpages: Number of page entries, protected by the i_pages lock.
++ * @nrexceptional: Shadow or DAX entries, protected by the i_pages lock.
++ * @writeback_index: Writeback starts here.
++ * @a_ops: Methods.
++ * @flags: Error bits and flags (AS_*).
++ * @wb_err: The most recent error which has occurred.
++ * @private_lock: For use by the owner of the address_space.
++ * @private_list: For use by the owner of the address_space.
++ * @private_data: For use by the owner of the address_space.
++ */
+ struct address_space {
+-	struct inode		*host;		/* owner: inode, block_device */
+-	struct radix_tree_root	i_pages;	/* cached pages */
+-	atomic_t		i_mmap_writable;/* count VM_SHARED mappings */
+-	struct rb_root_cached	i_mmap;		/* tree of private and shared mappings */
+-	struct rw_semaphore	i_mmap_rwsem;	/* protect tree, count, list */
+-	/* Protected by the i_pages lock */
+-	unsigned long		nrpages;	/* number of total pages */
+-	/* number of shadow or DAX exceptional entries */
++	struct inode		*host;
++	struct xarray		i_pages;
++	gfp_t			gfp_mask;
++	atomic_t		i_mmap_writable;
++	struct rb_root_cached	i_mmap;
++	struct rw_semaphore	i_mmap_rwsem;
++	unsigned long		nrpages;
+ 	unsigned long		nrexceptional;
+-	pgoff_t			writeback_index;/* writeback starts here */
+-	const struct address_space_operations *a_ops;	/* methods */
+-	unsigned long		flags;		/* error bits */
+-	spinlock_t		private_lock;	/* for use by the address_space */
+-	gfp_t			gfp_mask;	/* implicit gfp mask for allocations */
+-	struct list_head	private_list;	/* for use by the address_space */
+-	void			*private_data;	/* ditto */
++	pgoff_t			writeback_index;
++	const struct address_space_operations *a_ops;
++	unsigned long		flags;
+ 	errseq_t		wb_err;
++	spinlock_t		private_lock;
++	struct list_head	private_list;
++	void			*private_data;
+ } __attribute__((aligned(sizeof(long)))) __randomize_layout;
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
 -- 
 2.17.0
