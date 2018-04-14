@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DFF76B02A5
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:15:16 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id u11-v6so7568714pls.22
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:15:16 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C15216B02A9
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:15:17 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b16so6496572pfi.5
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:15:17 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id r8si6040074pgq.593.2018.04.14.07.13.27
+        by mx.google.com with ESMTPS id x10-v6si1424349plm.5.2018.04.14.07.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 07:13:27 -0700 (PDT)
+        Sat, 14 Apr 2018 07:13:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 06/63] xarray: Add xa_load
-Date: Sat, 14 Apr 2018 07:12:19 -0700
-Message-Id: <20180414141316.7167-7-willy@infradead.org>
+Subject: [PATCH v11 02/63] xarray: Change definition of sibling entries
+Date: Sat, 14 Apr 2018 07:12:15 -0700
+Message-Id: <20180414141316.7167-3-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,800 +22,313 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This first function in the XArray API brings with it a lot of support
-infrastructure.  The advanced API is based around the xa_state which is
-a more capable version of the radix_tree_iter.
-
-As the test-suite demonstrates, it is possible to use the xarray and
-radix tree APIs on the same data structure.
+Instead of storing a pointer to the slot containing the canonical entry,
+store the offset of the slot.  Produces slightly more efficient code
+(~300 bytes) and simplifies the implementation.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Reviewed-by: Josef Bacik <jbacik@fb.com>
 ---
- include/linux/xarray.h                      | 321 ++++++++++++++++++++
- lib/radix-tree.c                            |  43 ---
- lib/xarray.c                                | 205 +++++++++++++
- tools/testing/radix-tree/.gitignore         |   1 +
- tools/testing/radix-tree/Makefile           |   7 +-
- tools/testing/radix-tree/linux/kernel.h     |   1 +
- tools/testing/radix-tree/linux/radix-tree.h |   1 -
- tools/testing/radix-tree/linux/rcupdate.h   |   1 +
- tools/testing/radix-tree/linux/xarray.h     |   1 +
- tools/testing/radix-tree/xarray-test.c      |  49 +++
- 10 files changed, 584 insertions(+), 46 deletions(-)
- create mode 100644 tools/testing/radix-tree/xarray-test.c
+ include/linux/xarray.h | 93 ++++++++++++++++++++++++++++++++++++++++++
+ lib/radix-tree.c       | 66 +++++++++---------------------
+ 2 files changed, 112 insertions(+), 47 deletions(-)
 
 diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index b51f354dfbf0..099fc36177b9 100644
+index f61806fd8002..283beb5aac58 100644
 --- a/include/linux/xarray.h
 +++ b/include/linux/xarray.h
-@@ -12,6 +12,8 @@
- #include <linux/bug.h>
- #include <linux/compiler.h>
- #include <linux/kconfig.h>
-+#include <linux/kernel.h>
-+#include <linux/rcupdate.h>
- #include <linux/spinlock.h>
- #include <linux/types.h>
- 
-@@ -30,6 +32,10 @@
+@@ -22,6 +22,12 @@
+  * x1: Value entry
   *
-  * 0-62: Sibling entries
-  * 256: Retry entry
+  * Attempting to store internal entries in the XArray is a bug.
 + *
-+ * Errors are also represented as internal entries, but use the negative
-+ * space (-4094 to -2).  They're never stored in the slots array; only
-+ * returned by the normal API.
++ * Most internal entries are pointers to the next node in the tree.
++ * The following internal entries have a special meaning:
++ *
++ * 0-62: Sibling entries
++ * 256: Retry entry
   */
  
  #define BITS_PER_XA_VALUE	(BITS_PER_LONG - 1)
-@@ -107,6 +113,42 @@ static inline bool xa_is_internal(const void *entry)
- 	return ((unsigned long)entry & 3) == 2;
+@@ -63,6 +69,42 @@ static inline bool xa_is_value(const void *entry)
+ 	return (unsigned long)entry & 1;
  }
  
-+/**
-+ * xa_is_err() - Report whether an XArray operation returned an error
-+ * @entry: Result from calling an XArray function
-+ *
-+ * If an XArray operation cannot complete an operation, it will return
-+ * a special value indicating an error.  This function tells you
-+ * whether an error occurred; xa_err() tells you which error occurred.
++/*
++ * xa_mk_internal() - Create an internal entry.
++ * @v: Value to turn into an internal entry.
 + *
 + * Context: Any context.
-+ * Return: %true if the entry indicates an error.
++ * Return: An XArray internal entry corresponding to this value.
 + */
-+static inline bool xa_is_err(const void *entry)
++static inline void *xa_mk_internal(unsigned long v)
 +{
-+	return unlikely(xa_is_internal(entry));
++	return (void *)((v << 2) | 2);
 +}
 +
-+/**
-+ * xa_err() - Turn an XArray result into an errno.
-+ * @entry: Result from calling an XArray function.
-+ *
-+ * If an XArray operation cannot complete an operation, it will return
-+ * a special pointer value which encodes an errno.  This function extracts
-+ * the errno from the pointer value, or returns 0 if the pointer does not
-+ * represent an errno.
++/*
++ * xa_to_internal() - Extract the value from an internal entry.
++ * @entry: XArray entry.
 + *
 + * Context: Any context.
-+ * Return: A negative errno or 0.
++ * Return: The value which was stored in the internal entry.
 + */
-+static inline int xa_err(void *entry)
++static inline unsigned long xa_to_internal(const void *entry)
 +{
-+	/* xa_to_internal() would not do sign extension. */
-+	if (xa_is_err(entry))
-+		return (long)entry >> 2;
-+	return 0;
++	return (unsigned long)entry >> 2;
 +}
 +
- /**
-  * struct xarray - The anchor of the XArray.
-  * @xa_lock: Lock that protects the contents of the XArray.
-@@ -152,6 +194,7 @@ struct xarray {
- 			struct xarray name = XARRAY_INIT_FLAGS(name, flags)
++/*
++ * xa_is_internal() - Is the entry an internal entry?
++ * @entry: XArray entry.
++ *
++ * Context: Any context.
++ * Return: %true if the entry is an internal entry.
++ */
++static inline bool xa_is_internal(const void *entry)
++{
++	return ((unsigned long)entry & 3) == 2;
++}
++
+ #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
+ #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
+ #define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
+@@ -75,4 +117,55 @@ static inline bool xa_is_value(const void *entry)
+ #define xa_unlock_irqrestore(xa, flags) \
+ 				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
  
- void xa_init_flags(struct xarray *, gfp_t flags);
-+void *xa_load(struct xarray *, unsigned long index);
- 
- /**
-  * xa_init() - Initialise an empty XArray.
-@@ -220,6 +263,62 @@ struct xa_node {
- 	unsigned long	tags[XA_MAX_TAGS][XA_TAG_LONGS];
- };
- 
-+#ifdef XA_DEBUG
-+void xa_dump(const struct xarray *);
-+void xa_dump_node(const struct xa_node *);
-+#define XA_BUG_ON(xa, x) do { \
-+		if (x) \
-+			xa_dump(xa); \
-+		BUG_ON(x); \
-+	} while (0)
-+#define XA_NODE_BUG_ON(node, x) do { \
-+		if ((x) && (node)) \
-+			xa_dump_node(node); \
-+		BUG_ON(x); \
-+	} while (0)
-+#else
-+#define XA_BUG_ON(xa, x)	do { } while (0)
-+#define XA_NODE_BUG_ON(node, x)	do { } while (0)
++/* Everything below here is the Advanced API.  Proceed with caution. */
++
++/*
++ * The xarray is constructed out of a set of 'chunks' of pointers.  Choosing
++ * the best chunk size requires some tradeoffs.  A power of two recommends
++ * itself so that we can walk the tree based purely on shifts and masks.
++ * Generally, the larger the better; as the number of slots per level of the
++ * tree increases, the less tall the tree needs to be.  But that needs to be
++ * balanced against the memory consumption of each node.  On a 64-bit system,
++ * xa_node is currently 576 bytes, and we get 7 of them per 4kB page.  If we
++ * doubled the number of slots per node, we'd get only 3 nodes per 4kB page.
++ */
++#ifndef XA_CHUNK_SHIFT
++#define XA_CHUNK_SHIFT		(CONFIG_BASE_SMALL ? 4 : 6)
 +#endif
++#define XA_CHUNK_SIZE		(1UL << XA_CHUNK_SHIFT)
++#define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
 +
 +/* Private */
-+static inline void *xa_head(struct xarray *xa)
++static inline bool xa_is_node(const void *entry)
 +{
-+	return rcu_dereference_check(xa->xa_head,
-+						lockdep_is_held(&xa->xa_lock));
++	return xa_is_internal(entry) && (unsigned long)entry > 4096;
 +}
 +
 +/* Private */
-+static inline void *xa_head_locked(struct xarray *xa)
++static inline void *xa_mk_sibling(unsigned int offset)
 +{
-+	return rcu_dereference_protected(xa->xa_head,
-+						lockdep_is_held(&xa->xa_lock));
++	return xa_mk_internal(offset);
 +}
 +
 +/* Private */
-+static inline void *xa_entry(struct xarray *xa,
-+				const struct xa_node *node, unsigned int offset)
++static inline unsigned long xa_to_sibling(const void *entry)
 +{
-+	XA_NODE_BUG_ON(node, offset >= XA_CHUNK_SIZE);
-+	return rcu_dereference_check(node->slots[offset],
-+						lockdep_is_held(&xa->xa_lock));
++	return xa_to_internal(entry);
 +}
 +
-+/* Private */
-+static inline void *xa_entry_locked(struct xarray *xa,
-+				const struct xa_node *node, unsigned int offset)
-+{
-+	XA_NODE_BUG_ON(node, offset >= XA_CHUNK_SIZE);
-+	return rcu_dereference_protected(node->slots[offset],
-+						lockdep_is_held(&xa->xa_lock));
-+}
-+
-+/* Private */
-+static inline struct xa_node *xa_to_node(const void *entry)
-+{
-+	return (struct xa_node *)((unsigned long)entry - 2);
-+}
-+
- /* Private */
- static inline bool xa_is_node(const void *entry)
- {
-@@ -253,4 +352,226 @@ static inline bool xa_is_sibling(const void *entry)
- 
- #define XA_RETRY_ENTRY		xa_mk_internal(256)
- 
 +/**
-+ * xa_is_retry() - Is the entry a retry entry?
++ * xa_is_sibling() - Is the entry a sibling entry?
 + * @entry: Entry retrieved from the XArray
 + *
-+ * Return: %true if the entry is a retry entry.
++ * Return: %true if the entry is a sibling entry.
 + */
-+static inline bool xa_is_retry(const void *entry)
++static inline bool xa_is_sibling(const void *entry)
 +{
-+	return unlikely(entry == XA_RETRY_ENTRY);
++	return IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
++		xa_is_internal(entry) &&
++		(entry < xa_mk_sibling(XA_CHUNK_SIZE - 1));
 +}
 +
-+/**
-+ * typedef xa_update_node_t - A callback function from the XArray.
-+ * @node: The node which is being processed
-+ *
-+ * This function is called every time the XArray updates the count of
-+ * present and value entries in a node.  It allows advanced users to
-+ * maintain the private_list in the node.
-+ *
-+ * Context: The xa_lock is held and interrupts may be disabled.
-+ *	    Implementations should not drop the xa_lock, nor re-enable
-+ *	    interrupts.
-+ */
-+typedef void (*xa_update_node_t)(struct xa_node *node);
-+
-+/*
-+ * The xa_state is opaque to its users.  It contains various different pieces
-+ * of state involved in the current operation on the XArray.  It should be
-+ * declared on the stack and passed between the various internal routines.
-+ * The various elements in it should not be accessed directly, but only
-+ * through the provided accessor functions.  The below documentation is for
-+ * the benefit of those working on the code, not for users of the XArray.
-+ *
-+ * @xa_node usually points to the xa_node containing the slot we're operating
-+ * on (and @xa_offset is the offset in the slots array).  If there is a
-+ * single entry in the array at index 0, there are no allocated xa_nodes to
-+ * point to, and so we store %NULL in @xa_node.  @xa_node is set to
-+ * the value %XAS_RESTART if the xa_state is not walked to the correct
-+ * position in the tree of nodes for this operation.  If an error occurs
-+ * during an operation, it is set to an %XAS_ERROR value.  If we run off the
-+ * end of the allocated nodes, it is set to %XAS_BOUNDS.
-+ */
-+struct xa_state {
-+	struct xarray *xa;
-+	unsigned long xa_index;
-+	unsigned char xa_shift;
-+	unsigned char xa_sibs;
-+	unsigned char xa_offset;
-+	unsigned char xa_pad;		/* Helps gcc generate better code */
-+	struct xa_node *xa_node;
-+	struct xa_node *xa_alloc;
-+	xa_update_node_t xa_update;
-+};
-+
-+/*
-+ * We encode errnos in the xas->xa_node.  If an error has happened, we need to
-+ * drop the lock to fix it, and once we've done so the xa_state is invalid.
-+ */
-+#define XA_ERROR(errno) ((struct xa_node *)(((unsigned long)errno << 2) | 2UL))
-+#define XAS_BOUNDS	((struct xa_node *)1UL)
-+#define XAS_RESTART	((struct xa_node *)3UL)
-+
-+#define __XA_STATE(array, index, shift, sibs)  {	\
-+	.xa = array,					\
-+	.xa_index = index,				\
-+	.xa_shift = shift,				\
-+	.xa_sibs = sibs,				\
-+	.xa_offset = 0,					\
-+	.xa_pad = 0,					\
-+	.xa_node = XAS_RESTART,				\
-+	.xa_alloc = NULL,				\
-+	.xa_update = NULL				\
-+}
-+
-+/**
-+ * XA_STATE() - Declare an XArray operation state.
-+ * @name: Name of this operation state (usually xas).
-+ * @array: Array to operate on.
-+ * @index: Initial index of interest.
-+ *
-+ * Declare and initialise an xa_state on the stack.
-+ */
-+#define XA_STATE(name, array, index)				\
-+	struct xa_state name = __XA_STATE(array, index, 0, 0)
-+
-+/**
-+ * XA_STATE_ORDER() - Declare an XArray operation state.
-+ * @name: Name of this operation state (usually xas).
-+ * @array: Array to operate on.
-+ * @index: Initial index of interest.
-+ * @order: Order of entry.
-+ *
-+ * Declare and initialise an xa_state on the stack.  This variant of
-+ * XA_STATE() allows you to specify the 'order' of the element you
-+ * want to operate on.`
-+ */
-+#define XA_STATE_ORDER(name, array, index, order)		\
-+	struct xa_state name = __XA_STATE(array,		\
-+			(index >> order) << order,		\
-+			order - (order % XA_CHUNK_SHIFT),	\
-+			(1U << (order % XA_CHUNK_SHIFT)) - 1)
-+
-+#define xas_tagged(xas, tag)	xa_tagged((xas)->xa, (tag))
-+#define xas_trylock(xas)	xa_trylock((xas)->xa)
-+#define xas_lock(xas)		xa_lock((xas)->xa)
-+#define xas_unlock(xas)		xa_unlock((xas)->xa)
-+#define xas_lock_bh(xas)	xa_lock_bh((xas)->xa)
-+#define xas_unlock_bh(xas)	xa_unlock_bh((xas)->xa)
-+#define xas_lock_irq(xas)	xa_lock_irq((xas)->xa)
-+#define xas_unlock_irq(xas)	xa_unlock_irq((xas)->xa)
-+#define xas_lock_irqsave(xas, flags) \
-+				xa_lock_irqsave((xas)->xa, flags)
-+#define xas_unlock_irqrestore(xas, flags) \
-+				xa_unlock_irqrestore((xas)->xa, flags)
-+
-+/**
-+ * xas_error() - Return an errno stored in the xa_state.
-+ * @xas: XArray operation state.
-+ *
-+ * Return: 0 if no error has been noted.  A negative errno if one has.
-+ */
-+static inline int xas_error(const struct xa_state *xas)
-+{
-+	return xa_err(xas->xa_node);
-+}
-+
-+/**
-+ * xas_set_err() - Note an error in the xa_state.
-+ * @xas: XArray operation state.
-+ * @err: Negative error number.
-+ *
-+ * Only call this function with a negative @err; zero or positive errors
-+ * will probably not behave the way you think they should.  If you want
-+ * to clear the error from an xa_state, use xas_reset().
-+ */
-+static inline void xas_set_err(struct xa_state *xas, long err)
-+{
-+	xas->xa_node = XA_ERROR(err);
-+}
-+
-+/**
-+ * xas_invalid() - Is the xas in a retry or error state?
-+ * @xas: XArray operation state.
-+ *
-+ * Return: %true if the xas cannot be used for operations.
-+ */
-+static inline bool xas_invalid(const struct xa_state *xas)
-+{
-+	return (unsigned long)xas->xa_node & 3;
-+}
-+
-+/**
-+ * xas_valid() - Is the xas a valid cursor into the array?
-+ * @xas: XArray operation state.
-+ *
-+ * Return: %true if the xas can be used for operations.
-+ */
-+static inline bool xas_valid(const struct xa_state *xas)
-+{
-+	return !xas_invalid(xas);
-+}
-+
-+/**
-+ * xas_reset() - Reset an XArray operation state.
-+ * @xas: XArray operation state.
-+ *
-+ * Resets the error or walk state of the @xas so future walks of the
-+ * array will start from the root.  Use this if you have dropped the
-+ * xarray lock and want to reuse the xa_state.
-+ *
-+ * Context: Any context.
-+ */
-+static inline void xas_reset(struct xa_state *xas)
-+{
-+	xas->xa_node = XAS_RESTART;
-+}
-+
-+/**
-+ * xas_retry() - Handle a retry entry.
-+ * @xas: XArray operation state.
-+ * @entry: Entry from xarray.
-+ *
-+ * An RCU-protected read may see a retry entry as a side-effect of a
-+ * simultaneous modification.  This function sets up the @xas to retry
-+ * the walk from the head of the array.
-+ *
-+ * Context: Any context.
-+ * Return: true if the operation needs to be retried.
-+ */
-+static inline bool xas_retry(struct xa_state *xas, const void *entry)
-+{
-+	if (!xa_is_retry(entry))
-+		return false;
-+	xas_reset(xas);
-+	return true;
-+}
-+
-+void *xas_load(struct xa_state *);
-+
-+/**
-+ * xas_reload() - Refetch an entry from the xarray.
-+ * @xas: XArray operation state.
-+ *
-+ * Use this function to check that a previously loaded entry still has
-+ * the same value.  This is useful for the lockless pagecache lookup where
-+ * we walk the array with only the RCU lock to protect us, lock the page,
-+ * then check that the page hasn't moved since we looked it up.
-+ *
-+ * The caller guarantees that @xas is still valid.  If it may be in an
-+ * error or restart state, call xas_load() instead.
-+ *
-+ * Return: The entry at this location in the xarray.
-+ */
-+static inline void *xas_reload(struct xa_state *xas)
-+{
-+	struct xa_node *node = xas->xa_node;
-+
-+	if (node)
-+		return xa_entry(xas->xa, node, xas->xa_offset);
-+	return xa_head(xas->xa);
-+}
++#define XA_RETRY_ENTRY		xa_mk_internal(256)
 +
  #endif /* _LINUX_XARRAY_H */
 diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index e98de16b1648..dd219aa4ba78 100644
+index c7246de3f367..dd4669b3c30e 100644
 --- a/lib/radix-tree.c
 +++ b/lib/radix-tree.c
-@@ -256,49 +256,6 @@ static unsigned long next_index(unsigned long index,
+@@ -38,6 +38,7 @@
+ #include <linux/rcupdate.h>
+ #include <linux/slab.h>
+ #include <linux/string.h>
++#include <linux/xarray.h>
+ 
+ 
+ /* Number of nodes in fully populated tree of given height */
+@@ -98,24 +99,7 @@ static inline void *node_to_entry(void *ptr)
+ 	return (void *)((unsigned long)ptr | RADIX_TREE_INTERNAL_NODE);
  }
  
- #ifndef __KERNEL__
--static void dump_node(struct radix_tree_node *node, unsigned long index)
+-#define RADIX_TREE_RETRY	node_to_entry(NULL)
+-
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-/* Sibling slots point directly to another slot in the same node */
+-static inline
+-bool is_sibling_entry(const struct radix_tree_node *parent, void *node)
 -{
--	unsigned long i;
--
--	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d nr_values %d\n",
--		node, node->offset, index, index | node_maxindex(node),
--		node->parent,
--		node->tags[0][0], node->tags[1][0], node->tags[2][0],
--		node->shift, node->count, node->nr_values);
--
--	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
--		unsigned long first = index | (i << node->shift);
--		unsigned long last = first | ((1UL << node->shift) - 1);
--		void *entry = node->slots[i];
--		if (!entry)
--			continue;
--		if (entry == RADIX_TREE_RETRY) {
--			pr_debug("radix retry offset %ld indices %lu-%lu parent %p\n",
--					i, first, last, node);
--		} else if (!radix_tree_is_internal_node(entry)) {
--			pr_debug("radix entry %p offset %ld indices %lu-%lu parent %p\n",
--					entry, i, first, last, node);
--		} else if (xa_is_sibling(entry)) {
--			pr_debug("radix sblng %p offset %ld indices %lu-%lu parent %p val %p\n",
--					entry, i, first, last, node,
--					node->slots[xa_to_sibling(entry)]);
--		} else {
--			dump_node(entry_to_node(entry), first);
--		}
--	}
+-	void __rcu **ptr = node;
+-	return (parent->slots <= ptr) &&
+-			(ptr < parent->slots + RADIX_TREE_MAP_SIZE);
 -}
--
--/* For debug */
--static void radix_tree_dump(struct radix_tree_root *root)
+-#else
+-static inline
+-bool is_sibling_entry(const struct radix_tree_node *parent, void *node)
 -{
--	pr_debug("radix root: %p xa_head %p tags %x\n",
--			root, root->xa_head,
--			root->xa_flags >> ROOT_TAG_SHIFT);
--	if (!radix_tree_is_internal_node(root->xa_head))
--		return;
--	dump_node(entry_to_node(root->xa_head), 0);
+-	return false;
 -}
--
- static void dump_ida_node(void *entry, unsigned long index)
- {
- 	unsigned long i;
-diff --git a/lib/xarray.c b/lib/xarray.c
-index 382458f602cc..caa997535174 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -24,6 +24,114 @@
-  * @entry refers to something stored in a slot in the xarray
-  */
+-#endif
++#define RADIX_TREE_RETRY	XA_RETRY_ENTRY
  
-+/* extracts the offset within this node from the index */
-+static unsigned int get_offset(unsigned long index, struct xa_node *node)
-+{
-+	return (index >> node->shift) & XA_CHUNK_MASK;
-+}
-+
-+/* move the index either forwards (find) or backwards (sibling slot) */
-+static void xas_move_index(struct xa_state *xas, unsigned long offset)
-+{
-+	unsigned int shift = xas->xa_node->shift;
-+	xas->xa_index &= ~XA_CHUNK_MASK << shift;
-+	xas->xa_index += offset << shift;
-+}
-+
-+static void *set_bounds(struct xa_state *xas)
-+{
-+	xas->xa_node = XAS_BOUNDS;
-+	return NULL;
-+}
-+
-+/*
-+ * Starts a walk.  If the @xas is already valid, we assume that it's on
-+ * the right path and just return where we've got to.  If we're in an
-+ * error state, return NULL.  If the index is outside the current scope
-+ * of the xarray, return NULL without changing @xas->xa_node.  Otherwise
-+ * set @xas->xa_node to NULL and return the current head of the array.
-+ */
-+static void *xas_start(struct xa_state *xas)
-+{
-+	void *entry;
-+
-+	if (xas_valid(xas))
-+		return xas_reload(xas);
-+	if (xas_error(xas))
-+		return NULL;
-+
-+	entry = xa_head(xas->xa);
-+	if (!xa_is_node(entry)) {
-+		if (xas->xa_index)
-+			return set_bounds(xas);
-+	} else {
-+		if ((xas->xa_index >> xa_to_node(entry)->shift) > XA_CHUNK_MASK)
-+			return set_bounds(xas);
-+	}
-+
-+	xas->xa_node = NULL;
-+	return entry;
-+}
-+
-+static void *xas_descend(struct xa_state *xas, struct xa_node *node)
-+{
-+	unsigned int offset = get_offset(xas->xa_index, node);
-+	void *entry = xa_entry(xas->xa, node, offset);
-+
-+	xas->xa_node = node;
+ static inline unsigned long
+ get_slot_offset(const struct radix_tree_node *parent, void __rcu **slot)
+@@ -129,16 +113,10 @@ static unsigned int radix_tree_descend(const struct radix_tree_node *parent,
+ 	unsigned int offset = (index >> parent->shift) & RADIX_TREE_MAP_MASK;
+ 	void __rcu **entry = rcu_dereference_raw(parent->slots[offset]);
+ 
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-	if (radix_tree_is_internal_node(entry)) {
+-		if (is_sibling_entry(parent, entry)) {
+-			void __rcu **sibentry;
+-			sibentry = (void __rcu **) entry_to_node(entry);
+-			offset = get_slot_offset(parent, sibentry);
+-			entry = rcu_dereference_raw(*sibentry);
+-		}
 +	if (xa_is_sibling(entry)) {
 +		offset = xa_to_sibling(entry);
-+		entry = xa_entry(xas->xa, node, offset);
-+		xas_move_index(xas, offset);
-+	}
-+
-+	xas->xa_offset = offset;
-+	return entry;
-+}
-+
-+/**
-+ * xas_load() - Load an entry from the XArray (advanced).
-+ * @xas: XArray operation state.
-+ *
-+ * Usually walks the @xas to the appropriate state to load the entry stored
-+ * at xa_index.  However, it will do nothing and return %NULL if @xas is
-+ * holding an error.  xas_load() will never expand the tree (see xas_create()).
-+ *
-+ * If the xa_state indicates we're operating on a multi-slot entry, it will
-+ * return %NULL if there are no entries which overlap with the load.  If
-+ * there are any entries in the tree which do overlap, it may return one
-+ * of the entries, or it may return an internal entry.
-+ *
-+ * The caller should hold the xa_lock or the RCU lock.
-+ *
-+ * Return: Usually an entry in the XArray, but see description for exceptions.
-+ */
-+void *xas_load(struct xa_state *xas)
-+{
-+	unsigned int sib;
-+	void *entry = xas_start(xas);
-+
-+	while (xa_is_node(entry)) {
-+		struct xa_node *node = xa_to_node(entry);
-+
-+		if (xas->xa_shift > node->shift)
-+			break;
-+		entry = xas_descend(xas, node);
-+	}
-+
-+	if (entry || !xas->xa_sibs || xas_not_node(xas->xa_node) ||
-+			xas->xa_node->shift > xas->xa_shift)
-+		return entry;
-+	sib = xas->xa_sibs;
-+	do {
-+		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset + sib);
-+		if (entry)
-+			break;
-+	} while (--sib);
-+	return entry;
-+}
-+EXPORT_SYMBOL_GPL(xas_load);
-+
- /**
-  * xa_init_flags() - Initialise an empty XArray with flags.
-  * @xa: XArray.
-@@ -42,3 +150,100 @@ void xa_init_flags(struct xarray *xa, gfp_t flags)
- 	xa->xa_head = NULL;
- }
- EXPORT_SYMBOL(xa_init_flags);
-+
-+/**
-+ * xa_load() - Load an entry from an XArray.
-+ * @xa: XArray.
-+ * @index: index into array.
-+ *
-+ * Context: Any context.  Takes and releases the RCU lock.
-+ * Return: The entry at @index in @xa.
-+ */
-+void *xa_load(struct xarray *xa, unsigned long index)
-+{
-+	XA_STATE(xas, xa, index);
-+	void *entry;
-+
-+	rcu_read_lock();
-+	do {
-+		entry = xas_load(&xas);
-+	} while (xas_retry(&xas, entry));
-+	rcu_read_unlock();
-+
-+	return entry;
-+}
-+EXPORT_SYMBOL(xa_load);
-+
-+#ifdef XA_DEBUG
-+void xa_dump_node(const struct xa_node *node)
-+{
-+	unsigned i, j;
-+
-+	if (!node)
-+		return;
-+	if ((unsigned long)node & 3) {
-+		pr_cont("node %px\n", node);
-+		return;
-+	}
-+
-+	pr_cont("node %px %s %d parent %px shift %d count %d values %d "
-+		"array %px list %px %px tags",
-+		node, node->parent ? "offset" : "max", node->offset,
-+		node->parent, node->shift, node->count, node->nr_values,
-+		node->array, node->private_list.prev, node->private_list.next);
-+	for (i = 0; i < XA_MAX_TAGS; i++)
-+		for (j = 0; j < XA_TAG_LONGS; j++)
-+			pr_cont(" %lx", node->tags[i][j]);
-+	pr_cont("\n");
-+}
-+
-+void xa_dump_index(unsigned long index, unsigned int shift)
-+{
-+	if (!shift)
-+		pr_info("%lu: ", index);
-+	else if (shift >= BITS_PER_LONG)
-+		pr_info("0-%lu: ", ~0UL);
-+	else
-+		pr_info("%lu-%lu: ", index, index | ((1UL << shift) - 1));
-+}
-+
-+void xa_dump_entry(const void *entry, unsigned long index, unsigned long shift)
-+{
-+	if (!entry)
-+		return;
-+
-+	xa_dump_index(index, shift);
-+
-+	if (xa_is_node(entry)) {
-+		unsigned long i;
-+		struct xa_node *node = xa_to_node(entry);
-+		xa_dump_node(node);
-+		for (i = 0; i < XA_CHUNK_SIZE; i++)
-+			xa_dump_entry(node->slots[i],
-+				      index + (i << node->shift), node->shift);
-+	} else if (xa_is_value(entry))
-+		pr_cont("value %ld (0x%lx)\n", xa_to_value(entry),
-+							xa_to_value(entry));
-+	else if (!xa_is_internal(entry))
-+		pr_cont("%px\n", entry);
-+	else if (xa_is_retry(entry))
-+		pr_cont("retry (%ld)\n", xa_to_internal(entry));
-+	else if (xa_is_sibling(entry))
-+		pr_cont("sibling (slot %ld)\n", xa_to_sibling(entry));
-+	else
-+		pr_cont("UNKNOWN ENTRY (%px)\n", entry);
-+}
-+
-+void xa_dump(const struct xarray *xa)
-+{
-+	void *entry = xa->xa_head;
-+	unsigned int shift = 0;
-+
-+	pr_info("xarray: %px head %px flags %x tags %d %d %d\n", xa, entry,
-+			xa->xa_flags, xa_tagged(xa, XA_TAG_0),
-+			xa_tagged(xa, XA_TAG_1), xa_tagged(xa, XA_TAG_2));
-+	if (xa_is_node(entry))
-+		shift = xa_to_node(entry)->shift + XA_CHUNK_SHIFT;
-+	xa_dump_entry(entry, 0, shift);
-+}
-+#endif
-diff --git a/tools/testing/radix-tree/.gitignore b/tools/testing/radix-tree/.gitignore
-index 8d4df7a72a8e..833136896b91 100644
---- a/tools/testing/radix-tree/.gitignore
-+++ b/tools/testing/radix-tree/.gitignore
-@@ -5,3 +5,4 @@ main
- multiorder
- radix-tree.c
- xarray.c
-+xarray-test
-diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
-index 3868bc189199..951a8fbf15bd 100644
---- a/tools/testing/radix-tree/Makefile
-+++ b/tools/testing/radix-tree/Makefile
-@@ -3,10 +3,11 @@
- CFLAGS += -I. -I../../include -g -O2 -Wall -D_LGPL_SOURCE -fsanitize=address
- LDFLAGS += -fsanitize=address
- LDLIBS+= -lpthread -lurcu
--TARGETS = main idr-test multiorder
-+TARGETS = main idr-test multiorder xarray-test
- CORE_OFILES := xarray.o radix-tree.o idr.o linux.o test.o find_bit.o
- OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
--	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o
-+	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o \
-+	 xarray-test.o
++		entry = rcu_dereference_raw(parent->slots[offset]);
+ 	}
+-#endif
  
- ifndef SHIFT
- 	SHIFT=3
-@@ -23,6 +24,8 @@ main:	$(OFILES)
+ 	*nodep = (void *)entry;
+ 	return offset;
+@@ -300,10 +278,10 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
+ 		} else if (!radix_tree_is_internal_node(entry)) {
+ 			pr_debug("radix entry %p offset %ld indices %lu-%lu parent %p\n",
+ 					entry, i, first, last, node);
+-		} else if (is_sibling_entry(node, entry)) {
++		} else if (xa_is_sibling(entry)) {
+ 			pr_debug("radix sblng %p offset %ld indices %lu-%lu parent %p val %p\n",
+ 					entry, i, first, last, node,
+-					*(void **)entry_to_node(entry));
++					node->slots[xa_to_sibling(entry)]);
+ 		} else {
+ 			dump_node(entry_to_node(entry), first);
+ 		}
+@@ -873,8 +851,7 @@ static void radix_tree_free_nodes(struct radix_tree_node *node)
  
- idr-test: idr-test.o $(CORE_OFILES)
+ 	for (;;) {
+ 		void *entry = rcu_dereference_raw(child->slots[offset]);
+-		if (radix_tree_is_internal_node(entry) &&
+-					!is_sibling_entry(child, entry)) {
++		if (xa_is_node(entry)) {
+ 			child = entry_to_node(entry);
+ 			offset = 0;
+ 			continue;
+@@ -896,7 +873,7 @@ static void radix_tree_free_nodes(struct radix_tree_node *node)
+ static inline int insert_entries(struct radix_tree_node *node,
+ 		void __rcu **slot, void *item, unsigned order, bool replace)
+ {
+-	struct radix_tree_node *child;
++	void *sibling;
+ 	unsigned i, n, tag, offset, tags = 0;
  
-+xarray-test: $(CORE_OFILES)
-+
- multiorder: multiorder.o $(CORE_OFILES)
+ 	if (node) {
+@@ -914,7 +891,7 @@ static inline int insert_entries(struct radix_tree_node *node,
+ 		offset = offset & ~(n - 1);
+ 		slot = &node->slots[offset];
+ 	}
+-	child = node_to_entry(slot);
++	sibling = xa_mk_sibling(offset);
  
- clean:
-diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
-index 426f32f28547..5d06ac75a14d 100644
---- a/tools/testing/radix-tree/linux/kernel.h
-+++ b/tools/testing/radix-tree/linux/kernel.h
-@@ -14,6 +14,7 @@
- #include "../../../include/linux/kconfig.h"
+ 	for (i = 0; i < n; i++) {
+ 		if (slot[i]) {
+@@ -931,7 +908,7 @@ static inline int insert_entries(struct radix_tree_node *node,
+ 	for (i = 0; i < n; i++) {
+ 		struct radix_tree_node *old = rcu_dereference_raw(slot[i]);
+ 		if (i) {
+-			rcu_assign_pointer(slot[i], child);
++			rcu_assign_pointer(slot[i], sibling);
+ 			for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+ 				if (tags & (1 << tag))
+ 					tag_clear(node, tag, offset + i);
+@@ -941,9 +918,7 @@ static inline int insert_entries(struct radix_tree_node *node,
+ 				if (tags & (1 << tag))
+ 					tag_set(node, tag, offset);
+ 		}
+-		if (radix_tree_is_internal_node(old) &&
+-					!is_sibling_entry(node, old) &&
+-					(old != RADIX_TREE_RETRY))
++		if (xa_is_node(old))
+ 			radix_tree_free_nodes(old);
+ 		if (xa_is_value(old))
+ 			node->exceptional--;
+@@ -1102,10 +1077,10 @@ static inline void replace_sibling_entries(struct radix_tree_node *node,
+ 				void __rcu **slot, int count, int exceptional)
+ {
+ #ifdef CONFIG_RADIX_TREE_MULTIORDER
+-	void *ptr = node_to_entry(slot);
+-	unsigned offset = get_slot_offset(node, slot) + 1;
++	unsigned offset = get_slot_offset(node, slot);
++	void *ptr = xa_mk_sibling(offset);
  
- #define printk printf
-+#define pr_info printk
- #define pr_debug printk
- #define pr_cont printk
- 
-diff --git a/tools/testing/radix-tree/linux/radix-tree.h b/tools/testing/radix-tree/linux/radix-tree.h
-index de3f655caca3..24f13d27a8da 100644
---- a/tools/testing/radix-tree/linux/radix-tree.h
-+++ b/tools/testing/radix-tree/linux/radix-tree.h
-@@ -4,7 +4,6 @@
- 
- #include "generated/map-shift.h"
- #include "../../../../include/linux/radix-tree.h"
--#include <linux/xarray.h>
- 
- extern int kmalloc_verbose;
- extern int test_verbose;
-diff --git a/tools/testing/radix-tree/linux/rcupdate.h b/tools/testing/radix-tree/linux/rcupdate.h
-index 73ed33658203..25010bf86c1d 100644
---- a/tools/testing/radix-tree/linux/rcupdate.h
-+++ b/tools/testing/radix-tree/linux/rcupdate.h
-@@ -6,5 +6,6 @@
- 
- #define rcu_dereference_raw(p) rcu_dereference(p)
- #define rcu_dereference_protected(p, cond) rcu_dereference(p)
-+#define rcu_dereference_check(p, cond) rcu_dereference(p)
- 
+-	while (offset < RADIX_TREE_MAP_SIZE) {
++	while (++offset < RADIX_TREE_MAP_SIZE) {
+ 		if (rcu_dereference_raw(node->slots[offset]) != ptr)
+ 			break;
+ 		if (count < 0) {
+@@ -1113,7 +1088,6 @@ static inline void replace_sibling_entries(struct radix_tree_node *node,
+ 			node->count--;
+ 		}
+ 		node->exceptional += exceptional;
+-		offset++;
+ 	}
  #endif
-diff --git a/tools/testing/radix-tree/linux/xarray.h b/tools/testing/radix-tree/linux/xarray.h
-index df3812cda376..3eaf9596c2a6 100644
---- a/tools/testing/radix-tree/linux/xarray.h
-+++ b/tools/testing/radix-tree/linux/xarray.h
-@@ -1,2 +1,3 @@
- #include "generated/map-shift.h"
-+#define XA_DEBUG
- #include "../../../../include/linux/xarray.h"
-diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
-new file mode 100644
-index 000000000000..99f726693aa4
---- /dev/null
-+++ b/tools/testing/radix-tree/xarray-test.c
-@@ -0,0 +1,49 @@
-+// SPDX-License-Identifier: GPL-2.0+
-+/*
-+ * xarray-test.c: Test the XArray API
-+ * Copyright (c) 2017 Microsoft Corporation
-+ * Author: Matthew Wilcox <mawilcox@microsoft.com>
-+ */
-+#include <linux/bitmap.h>
-+#include <linux/xarray.h>
-+#include <linux/slab.h>
-+#include <linux/kernel.h>
-+#include <linux/errno.h>
-+
-+#include "test.h"
-+
-+void check_xa_load(struct xarray *xa)
-+{
-+	unsigned long i, j;
-+
-+	for (i = 0; i < 1024; i++) {
-+		for (j = 0; j < 1024; j++) {
-+			void *entry = xa_load(xa, j);
-+			if (j < i)
-+				assert(xa_to_value(entry) == j);
-+			else
-+				assert(!entry);
-+		}
-+		radix_tree_insert(xa, i, xa_mk_value(i));
-+	}
-+}
-+
-+void xarray_checks(void)
-+{
-+	RADIX_TREE(array, GFP_KERNEL);
-+
-+	check_xa_load(&array);
-+
-+	item_kill_tree(&array);
-+}
-+
-+int __weak main(void)
-+{
-+	radix_tree_init();
-+	xarray_checks();
-+	radix_tree_cpu_dead(1);
-+	rcu_barrier();
-+	if (nr_allocated)
-+		printf("nr_allocated = %d\n", nr_allocated);
-+	return 0;
-+}
+ }
+@@ -1312,8 +1286,7 @@ int radix_tree_split(struct radix_tree_root *root, unsigned long index,
+ 			tags |= 1 << tag;
+ 
+ 	for (end = offset + 1; end < RADIX_TREE_MAP_SIZE; end++) {
+-		if (!is_sibling_entry(parent,
+-				rcu_dereference_raw(parent->slots[end])))
++		if (!xa_is_sibling(rcu_dereference_raw(parent->slots[end])))
+ 			break;
+ 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+ 			if (tags & (1 << tag))
+@@ -1609,11 +1582,9 @@ static void set_iter_tags(struct radix_tree_iter *iter,
+ static void __rcu **skip_siblings(struct radix_tree_node **nodep,
+ 			void __rcu **slot, struct radix_tree_iter *iter)
+ {
+-	void *sib = node_to_entry(slot - 1);
+-
+ 	while (iter->index < iter->next_index) {
+ 		*nodep = rcu_dereference_raw(*slot);
+-		if (*nodep && *nodep != sib)
++		if (*nodep && !xa_is_sibling(*nodep))
+ 			return slot;
+ 		slot++;
+ 		iter->index = __radix_tree_iter_add(iter, 1);
+@@ -1764,7 +1735,7 @@ void __rcu **radix_tree_next_chunk(const struct radix_tree_root *root,
+ 				while (++offset	< RADIX_TREE_MAP_SIZE) {
+ 					void *slot = rcu_dereference_raw(
+ 							node->slots[offset]);
+-					if (is_sibling_entry(node, slot))
++					if (xa_is_sibling(slot))
+ 						continue;
+ 					if (slot)
+ 						break;
+@@ -2283,6 +2254,7 @@ void __init radix_tree_init(void)
+ 
+ 	BUILD_BUG_ON(RADIX_TREE_MAX_TAGS + __GFP_BITS_SHIFT > 32);
+ 	BUILD_BUG_ON(ROOT_IS_IDR & ~GFP_ZONEMASK);
++	BUILD_BUG_ON(XA_CHUNK_SIZE > 255);
+ 	radix_tree_node_cachep = kmem_cache_create("radix_tree_node",
+ 			sizeof(struct radix_tree_node), 0,
+ 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
 -- 
 2.17.0
