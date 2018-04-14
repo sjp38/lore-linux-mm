@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 80EF66B02AF
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ECDB96B02B0
 	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:15:25 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id p189so6499188pfp.1
+Received: by mail-pl0-f72.google.com with SMTP id e8-v6so817756plb.5
         for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:15:25 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j8-v6si7584453pli.9.2018.04.14.07.13.27
+        by mx.google.com with ESMTPS id r25si6642770pfh.2.2018.04.14.07.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 07:13:27 -0700 (PDT)
+        Sat, 14 Apr 2018 07:13:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 40/63] shmem: Convert shmem_free_swap to XArray
-Date: Sat, 14 Apr 2018 07:12:53 -0700
-Message-Id: <20180414141316.7167-41-willy@infradead.org>
+Subject: [PATCH v11 23/63] page cache: Convert filemap_range_has_page to XArray
+Date: Sat, 14 Apr 2018 07:12:36 -0700
+Message-Id: <20180414141316.7167-24-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,36 +22,57 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This is a perfect use for xa_cmpxchg().  Note the use of 0 for GFP
-flags; we won't be allocating memory.
+Instead of calling find_get_pages_range() and putting any reference,
+use xas_find() to iterate over any entries in the range, skipping the
+shadow/swap entries.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ mm/filemap.c | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 985c5cdec7f7..0ead678725c4 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -644,16 +644,13 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
- }
- 
- /*
-- * Remove swap entry from radix tree, free the swap and its page cache.
-+ * Remove swap entry from page cache, free the swap and its page cache.
-  */
- static int shmem_free_swap(struct address_space *mapping,
- 			   pgoff_t index, void *radswap)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index bf231ebadb86..b260c83751b8 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -458,20 +458,30 @@ EXPORT_SYMBOL(filemap_flush);
+ bool filemap_range_has_page(struct address_space *mapping,
+ 			   loff_t start_byte, loff_t end_byte)
  {
--	void *old;
-+	void *old = xa_cmpxchg(&mapping->i_pages, index, radswap, NULL, 0);
+-	pgoff_t index = start_byte >> PAGE_SHIFT;
+-	pgoff_t end = end_byte >> PAGE_SHIFT;
+ 	struct page *page;
++	XA_STATE(xas, &mapping->i_pages, start_byte >> PAGE_SHIFT);
++	pgoff_t max = end_byte >> PAGE_SHIFT;
  
--	xa_lock_irq(&mapping->i_pages);
--	old = radix_tree_delete_item(&mapping->i_pages, index, radswap);
--	xa_unlock_irq(&mapping->i_pages);
- 	if (old != radswap)
- 		return -ENOENT;
- 	free_swap_and_cache(radix_to_swp_entry(radswap));
+ 	if (end_byte < start_byte)
+ 		return false;
+ 
+-	if (mapping->nrpages == 0)
+-		return false;
++	rcu_read_lock();
++	do {
++		page = xas_find(&xas, max);
++		if (xas_retry(&xas, page))
++			continue;
++		/* Shadow entries don't count */
++		if (xa_is_value(page))
++			continue;
++		/*
++		 * We don't need to try to pin this page; we're about to
++		 * release the RCU lock anyway.  It is enough to know that
++		 * there was a page here recently.
++		 */
++	} while (0);
++	rcu_read_unlock();
+ 
+-	if (!find_get_pages_range(mapping, &index, end, 1, &page))
+-		return false;
+-	put_page(page);
+-	return true;
++	return page != NULL;
+ }
+ EXPORT_SYMBOL(filemap_range_has_page);
+ 
 -- 
 2.17.0
