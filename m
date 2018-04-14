@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D7FD86B0285
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:14:53 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id o33-v6so7575940plb.16
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:14:53 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C7696B028A
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:14:55 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id n17-v6so1840934plp.14
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:14:55 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h10si6168116pgn.30.2018.04.14.07.13.25
+        by mx.google.com with ESMTPS id q10si5919882pgs.133.2018.04.14.07.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 07:13:26 -0700 (PDT)
+        Sat, 14 Apr 2018 07:13:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 34/63] pagevec: Use xa_tag_t
-Date: Sat, 14 Apr 2018 07:12:47 -0700
-Message-Id: <20180414141316.7167-35-willy@infradead.org>
+Subject: [PATCH v11 12/63] xarray: Add xa_destroy
+Date: Sat, 14 Apr 2018 07:12:25 -0700
+Message-Id: <20180414141316.7167-13-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,129 +22,65 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Removes sparse warnings.
+This function frees all the internal memory allocated to the xarray
+and reinitialises it to be empty.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/btrfs/extent_io.c    | 4 ++--
- fs/ext4/inode.c         | 2 +-
- fs/f2fs/data.c          | 2 +-
- fs/gfs2/aops.c          | 2 +-
- include/linux/pagevec.h | 8 +++++---
- mm/swap.c               | 4 ++--
- 6 files changed, 12 insertions(+), 10 deletions(-)
+ include/linux/xarray.h |  1 +
+ lib/xarray.c           | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)
 
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index e99b329002cf..85092edb0c99 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -3795,7 +3795,7 @@ int btree_write_cache_pages(struct address_space *mapping,
- 	pgoff_t index;
- 	pgoff_t end;		/* Inclusive */
- 	int scanned = 0;
--	int tag;
-+	xa_tag_t tag;
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index 4ee606957019..00f74b962def 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -229,6 +229,7 @@ void *xa_find_after(struct xarray *xa, unsigned long *index,
+ 		unsigned long max, xa_tag_t) __attribute__((nonnull(2)));
+ unsigned int xa_extract(struct xarray *, void **dst, unsigned long start,
+ 		unsigned long max, unsigned int n, xa_tag_t);
++void xa_destroy(struct xarray *);
  
- 	pagevec_init(&pvec);
- 	if (wbc->range_cyclic) {
-@@ -3920,7 +3920,7 @@ static int extent_write_cache_pages(struct address_space *mapping,
- 	pgoff_t done_index;
- 	int range_whole = 0;
- 	int scanned = 0;
--	int tag;
-+	xa_tag_t tag;
- 
- 	/*
- 	 * We have to hold onto the inode so that ordered extents can do their
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 37a2f7a2b66a..6c071d63e5f1 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -2615,7 +2615,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
- 	long left = mpd->wbc->nr_to_write;
- 	pgoff_t index = mpd->first_page;
- 	pgoff_t end = mpd->last_page;
--	int tag;
-+	xa_tag_t tag;
- 	int i, err = 0;
- 	int blkbits = mpd->inode->i_blkbits;
- 	ext4_lblk_t lblk;
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index 02237d4d91f5..d836bfc160f1 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -1874,7 +1874,7 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
- 	pgoff_t last_idx = ULONG_MAX;
- 	int cycled;
- 	int range_whole = 0;
--	int tag;
-+	xa_tag_t tag;
- 
- 	pagevec_init(&pvec);
- 
-diff --git a/fs/gfs2/aops.c b/fs/gfs2/aops.c
-index f58716567972..8376d1358379 100644
---- a/fs/gfs2/aops.c
-+++ b/fs/gfs2/aops.c
-@@ -371,7 +371,7 @@ static int gfs2_write_cache_jdata(struct address_space *mapping,
- 	pgoff_t done_index;
- 	int cycled;
- 	int range_whole = 0;
--	int tag;
-+	xa_tag_t tag;
- 
- 	pagevec_init(&pvec);
- 	if (wbc->range_cyclic) {
-diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
-index 6dc456ac6136..955bd6425903 100644
---- a/include/linux/pagevec.h
-+++ b/include/linux/pagevec.h
-@@ -9,6 +9,8 @@
- #ifndef _LINUX_PAGEVEC_H
- #define _LINUX_PAGEVEC_H
- 
-+#include <linux/xarray.h>
-+
- /* 15 pointers + header align the pagevec structure to a power of two */
- #define PAGEVEC_SIZE	15
- 
-@@ -40,12 +42,12 @@ static inline unsigned pagevec_lookup(struct pagevec *pvec,
- 
- unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
- 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
--		int tag);
-+		xa_tag_t tag);
- unsigned pagevec_lookup_range_nr_tag(struct pagevec *pvec,
- 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
--		int tag, unsigned max_pages);
-+		xa_tag_t tag, unsigned max_pages);
- static inline unsigned pagevec_lookup_tag(struct pagevec *pvec,
--		struct address_space *mapping, pgoff_t *index, int tag)
-+		struct address_space *mapping, pgoff_t *index, xa_tag_t tag)
- {
- 	return pagevec_lookup_range_tag(pvec, mapping, index, (pgoff_t)-1, tag);
+ /**
+  * xa_init() - Initialise an empty XArray.
+diff --git a/lib/xarray.c b/lib/xarray.c
+index 77133bc5419f..940d22d8e76c 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -1482,6 +1482,34 @@ unsigned int xa_extract(struct xarray *xa, void **dst, unsigned long start,
  }
-diff --git a/mm/swap.c b/mm/swap.c
-index 79ded98f8c7a..5a217947802c 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -1001,7 +1001,7 @@ EXPORT_SYMBOL(pagevec_lookup_range);
+ EXPORT_SYMBOL(xa_extract);
  
- unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
- 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
--		int tag)
-+		xa_tag_t tag)
++/**
++ * xa_destroy() - Free all internal data structures.
++ * @xa: XArray.
++ *
++ * After calling this function, the XArray is empty and has freed all memory
++ * allocated for its internal data structures.  You are responsible for
++ * freeing the objects referenced by the XArray.
++ *
++ * Context: Any context.  Takes and releases the xa_lock, interrupt-safe.
++ */
++void xa_destroy(struct xarray *xa)
++{
++	XA_STATE(xas, xa, 0);
++	unsigned long flags;
++	void *entry;
++
++	xas.xa_node = NULL;
++	xas_lock_irqsave(&xas, flags);
++	entry = xa_head_locked(xa);
++	RCU_INIT_POINTER(xa->xa_head, NULL);
++	xas_init_tags(&xas);
++	/* lockdep checks we're still holding the lock in xas_free_nodes() */
++	if (xa_is_node(entry))
++		xas_free_nodes(&xas, xa_to_node(entry));
++	xas_unlock_irqrestore(&xas, flags);
++}
++EXPORT_SYMBOL(xa_destroy);
++
+ #ifdef XA_DEBUG
+ void xa_dump_node(const struct xa_node *node)
  {
- 	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
- 					PAGEVEC_SIZE, pvec->pages);
-@@ -1011,7 +1011,7 @@ EXPORT_SYMBOL(pagevec_lookup_range_tag);
- 
- unsigned pagevec_lookup_range_nr_tag(struct pagevec *pvec,
- 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
--		int tag, unsigned max_pages)
-+		xa_tag_t tag, unsigned max_pages)
- {
- 	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
- 		min_t(unsigned int, max_pages, PAGEVEC_SIZE), pvec->pages);
 -- 
 2.17.0
