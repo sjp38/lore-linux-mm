@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 42A346B000D
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5668B6B0010
 	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:13:29 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c85so6449551pfb.12
+Received: by mail-pl0-f71.google.com with SMTP id y7-v6so7579787plh.7
         for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:13:29 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y17-v6si8153578pll.296.2018.04.14.07.13.28
+        by mx.google.com with ESMTPS id t198si6189591pgc.600.2018.04.14.07.13.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 07:13:28 -0700 (PDT)
+        Sat, 14 Apr 2018 07:13:27 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 41/63] shmem: Convert shmem_partial_swap_usage to XArray
-Date: Sat, 14 Apr 2018 07:12:54 -0700
-Message-Id: <20180414141316.7167-42-willy@infradead.org>
+Subject: [PATCH v11 15/63] xarray: Add MAINTAINERS entry
+Date: Sat, 14 Apr 2018 07:12:28 -0700
+Message-Id: <20180414141316.7167-16-willy@infradead.org>
 In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
 References: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,51 +22,35 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Simpler code because the xarray takes care of things like the limit and
-dereferencing the slot.
+Add myself as XArray and IDR maintainer.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 18 ++++--------------
- 1 file changed, 4 insertions(+), 14 deletions(-)
+ MAINTAINERS | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 0ead678725c4..e1a0d1c7513e 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -667,29 +667,19 @@ static int shmem_free_swap(struct address_space *mapping,
- unsigned long shmem_partial_swap_usage(struct address_space *mapping,
- 						pgoff_t start, pgoff_t end)
- {
--	struct radix_tree_iter iter;
--	void **slot;
-+	XA_STATE(xas, &mapping->i_pages, start);
- 	struct page *page;
- 	unsigned long swapped = 0;
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 0a1410d5a621..3fec61e86022 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -15386,6 +15386,18 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/vdso
+ S:	Maintained
+ F:	arch/x86/entry/vdso/
  
- 	rcu_read_lock();
--
--	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
--		if (iter.index >= end)
--			break;
--
--		page = radix_tree_deref_slot(slot);
--
--		if (radix_tree_deref_retry(page)) {
--			slot = radix_tree_iter_retry(&iter);
-+	xas_for_each(&xas, page, end - 1) {
-+		if (xas_retry(&xas, page))
- 			continue;
--		}
--
- 		if (xa_is_value(page))
- 			swapped++;
- 
- 		if (need_resched()) {
--			slot = radix_tree_iter_resume(slot, &iter);
-+			xas_pause(&xas);
- 			cond_resched_rcu();
- 		}
- 	}
++XARRAY
++M:	Matthew Wilcox <mawilcox@microsoft.com>
++M:	Matthew Wilcox <willy@infradead.org>
++L:	linux-fsdevel@vger.kernel.org
++S:	Supported
++F:	Documentation/core-api/xarray.rst
++F:	lib/idr.c
++F:	lib/xarray.c
++F:	include/linux/idr.h
++F:	include/linux/xarray.h
++F:	tools/testing/radix-tree
++
+ XC2028/3028 TUNER DRIVER
+ M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+ M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 -- 
 2.17.0
