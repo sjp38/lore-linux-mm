@@ -1,151 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D451E6B02BD
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:15:33 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id e8-v6so817894plb.5
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:15:33 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z2si5899109pgu.655.2018.04.14.07.13.30
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 329106B002B
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 11:43:02 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id q15so6593146pff.15
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 08:43:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x22-v6sor3508351pln.60.2018.04.14.08.43.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 14 Apr 2018 07:13:30 -0700 (PDT)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 30/63] mm: Convert page migration to XArray
-Date: Sat, 14 Apr 2018 07:12:43 -0700
-Message-Id: <20180414141316.7167-31-willy@infradead.org>
-In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
-References: <20180414141316.7167-1-willy@infradead.org>
+        (Google Transport Security);
+        Sat, 14 Apr 2018 08:43:00 -0700 (PDT)
+Date: Sat, 14 Apr 2018 21:14:52 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH] mm: huge_memory: Change return type to vm_fault_t
+Message-ID: <20180414154452.GA17964@jordon-HP-15-Notebook-PC>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: linux-mm@kvack.org
+Cc: willy@infradead.org
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+Use new return type vm_fault_t for vmf_insert_pfn_pud()
+and vmf_insert_pfn_pmd()
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/migrate.c | 41 ++++++++++++++++-------------------------
- 1 file changed, 16 insertions(+), 25 deletions(-)
+ include/linux/huge_mm.h | 5 +++--
+ mm/huge_memory.c        | 4 ++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f65dd69e1fd1..de1a602d0056 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -323,7 +323,7 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
- 	page = migration_entry_to_page(entry);
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index a8a1262..d3bbf6b 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -3,6 +3,7 @@
+ #define _LINUX_HUGE_MM_H
  
- 	/*
--	 * Once radix-tree replacement of page migration started, page_count
-+	 * Once page cache replacement of page migration started, page_count
- 	 * *must* be zero. And, we don't want to call wait_on_page_locked()
- 	 * against a page without get_page().
- 	 * So, we use get_page_unless_zero(), here. Even failed, page fault
-@@ -438,10 +438,10 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 		struct buffer_head *head, enum migrate_mode mode,
- 		int extra_count)
- {
-+	XA_STATE(xas, &mapping->i_pages, page_index(page));
- 	struct zone *oldzone, *newzone;
- 	int dirty;
- 	int expected_count = 1 + extra_count;
--	void **pslot;
+ #include <linux/sched/coredump.h>
++#include <linux/mm_types.h>
  
- 	/*
- 	 * Device public or private pages have an extra refcount as they are
-@@ -467,21 +467,16 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 	oldzone = page_zone(page);
- 	newzone = page_zone(newpage);
+ #include <linux/fs.h> /* only for vma_is_dax() */
  
--	xa_lock_irq(&mapping->i_pages);
--
--	pslot = radix_tree_lookup_slot(&mapping->i_pages,
-- 					page_index(page));
-+	xas_lock_irq(&xas);
- 
- 	expected_count += 1 + page_has_private(page);
--	if (page_count(page) != expected_count ||
--		radix_tree_deref_slot_protected(pslot,
--					&mapping->i_pages.xa_lock) != page) {
--		xa_unlock_irq(&mapping->i_pages);
-+	if (page_count(page) != expected_count || xas_load(&xas) != page) {
-+		xas_unlock_irq(&xas);
- 		return -EAGAIN;
- 	}
- 
- 	if (!page_ref_freeze(page, expected_count)) {
--		xa_unlock_irq(&mapping->i_pages);
-+		xas_unlock_irq(&xas);
- 		return -EAGAIN;
- 	}
- 
-@@ -495,7 +490,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 	if (mode == MIGRATE_ASYNC && head &&
- 			!buffer_migrate_lock_buffers(head, mode)) {
- 		page_ref_unfreeze(page, expected_count);
--		xa_unlock_irq(&mapping->i_pages);
-+		xas_unlock_irq(&xas);
- 		return -EAGAIN;
- 	}
- 
-@@ -523,7 +518,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 		SetPageDirty(newpage);
- 	}
- 
--	radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
-+	xas_store(&xas, newpage);
- 
- 	/*
- 	 * Drop cache reference from old page by unfreezing
-@@ -532,7 +527,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 	 */
- 	page_ref_unfreeze(page, expected_count - 1);
- 
--	xa_unlock(&mapping->i_pages);
-+	xas_unlock(&xas);
- 	/* Leave irq disabled to prevent preemption while updating stats */
- 
- 	/*
-@@ -572,22 +567,18 @@ EXPORT_SYMBOL(migrate_page_move_mapping);
- int migrate_huge_page_move_mapping(struct address_space *mapping,
- 				   struct page *newpage, struct page *page)
- {
-+	XA_STATE(xas, &mapping->i_pages, page_index(page));
- 	int expected_count;
--	void **pslot;
--
--	xa_lock_irq(&mapping->i_pages);
--
--	pslot = radix_tree_lookup_slot(&mapping->i_pages, page_index(page));
- 
-+	xas_lock_irq(&xas);
- 	expected_count = 2 + page_has_private(page);
--	if (page_count(page) != expected_count ||
--		radix_tree_deref_slot_protected(pslot, &mapping->i_pages.xa_lock) != page) {
--		xa_unlock_irq(&mapping->i_pages);
-+	if (page_count(page) != expected_count || xas_load(&xas) != page) {
-+		xas_unlock_irq(&xas);
- 		return -EAGAIN;
- 	}
- 
- 	if (!page_ref_freeze(page, expected_count)) {
--		xa_unlock_irq(&mapping->i_pages);
-+		xas_unlock_irq(&xas);
- 		return -EAGAIN;
- 	}
- 
-@@ -596,11 +587,11 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
- 
- 	get_page(newpage);
- 
--	radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
-+	xas_store(&xas, newpage);
- 
- 	page_ref_unfreeze(page, expected_count - 1);
- 
--	xa_unlock_irq(&mapping->i_pages);
-+	xas_unlock_irq(&xas);
- 
- 	return MIGRATEPAGE_SUCCESS;
+@@ -46,9 +47,9 @@ extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
+ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			unsigned long addr, pgprot_t newprot,
+ 			int prot_numa);
+-int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
++vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 			pmd_t *pmd, pfn_t pfn, bool write);
+-int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
++vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+ 			pud_t *pud, pfn_t pfn, bool write);
+ enum transparent_hugepage_flag {
+ 	TRANSPARENT_HUGEPAGE_FLAG,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 87ab9b8..1fe4705 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -755,7 +755,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 	spin_unlock(ptl);
  }
+ 
+-int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
++vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 			pmd_t *pmd, pfn_t pfn, bool write)
+ {
+ 	pgprot_t pgprot = vma->vm_page_prot;
+@@ -815,7 +815,7 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+ 	spin_unlock(ptl);
+ }
+ 
+-int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
++vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+ 			pud_t *pud, pfn_t pfn, bool write)
+ {
+ 	pgprot_t pgprot = vma->vm_page_prot;
 -- 
-2.17.0
+1.9.1
