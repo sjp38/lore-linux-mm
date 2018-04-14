@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C15216B02A9
-	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:15:17 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b16so6496572pfi.5
-        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:15:17 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 995F06B02A9
+	for <linux-mm@kvack.org>; Sat, 14 Apr 2018 10:15:23 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id g61-v6so7581963plb.10
+        for <linux-mm@kvack.org>; Sat, 14 Apr 2018 07:15:23 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id x10-v6si1424349plm.5.2018.04.14.07.13.25
+        by mx.google.com with ESMTPS id k186si5957439pga.676.2018.04.14.07.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Sat, 14 Apr 2018 07:13:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v11 02/63] xarray: Change definition of sibling entries
-Date: Sat, 14 Apr 2018 07:12:15 -0700
-Message-Id: <20180414141316.7167-3-willy@infradead.org>
-In-Reply-To: <20180414141316.7167-1-willy@infradead.org>
-References: <20180414141316.7167-1-willy@infradead.org>
+Subject: [PATCH v11 00/63] Convert page cache to XArray
+Date: Sat, 14 Apr 2018 07:12:13 -0700
+Message-Id: <20180414141316.7167-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
@@ -22,313 +20,235 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Instead of storing a pointer to the slot containing the canonical entry,
-store the offset of the slot.  Produces slightly more efficient code
-(~300 bytes) and simplifies the implementation.
+This conversion keeps the radix tree and XArray data structures in sync
+at all times.  That allows us to convert the page cache one function at
+a time and should allow for easier bisection.  Other than renaming some
+elements of the structures, the data structures are fundamentally
+unchanged; a radix tree walk and an XArray walk will touch the same
+number of cachelines.  I have changes planned to the XArray data
+structure, but those will happen in future patches.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-Reviewed-by: Josef Bacik <jbacik@fb.com>
----
- include/linux/xarray.h | 93 ++++++++++++++++++++++++++++++++++++++++++
- lib/radix-tree.c       | 66 +++++++++---------------------
- 2 files changed, 112 insertions(+), 47 deletions(-)
+Improvements the XArray has over the radix tree:
 
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index f61806fd8002..283beb5aac58 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -22,6 +22,12 @@
-  * x1: Value entry
-  *
-  * Attempting to store internal entries in the XArray is a bug.
-+ *
-+ * Most internal entries are pointers to the next node in the tree.
-+ * The following internal entries have a special meaning:
-+ *
-+ * 0-62: Sibling entries
-+ * 256: Retry entry
-  */
- 
- #define BITS_PER_XA_VALUE	(BITS_PER_LONG - 1)
-@@ -63,6 +69,42 @@ static inline bool xa_is_value(const void *entry)
- 	return (unsigned long)entry & 1;
- }
- 
-+/*
-+ * xa_mk_internal() - Create an internal entry.
-+ * @v: Value to turn into an internal entry.
-+ *
-+ * Context: Any context.
-+ * Return: An XArray internal entry corresponding to this value.
-+ */
-+static inline void *xa_mk_internal(unsigned long v)
-+{
-+	return (void *)((v << 2) | 2);
-+}
-+
-+/*
-+ * xa_to_internal() - Extract the value from an internal entry.
-+ * @entry: XArray entry.
-+ *
-+ * Context: Any context.
-+ * Return: The value which was stored in the internal entry.
-+ */
-+static inline unsigned long xa_to_internal(const void *entry)
-+{
-+	return (unsigned long)entry >> 2;
-+}
-+
-+/*
-+ * xa_is_internal() - Is the entry an internal entry?
-+ * @entry: XArray entry.
-+ *
-+ * Context: Any context.
-+ * Return: %true if the entry is an internal entry.
-+ */
-+static inline bool xa_is_internal(const void *entry)
-+{
-+	return ((unsigned long)entry & 3) == 2;
-+}
-+
- #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
- #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
- #define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
-@@ -75,4 +117,55 @@ static inline bool xa_is_value(const void *entry)
- #define xa_unlock_irqrestore(xa, flags) \
- 				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
- 
-+/* Everything below here is the Advanced API.  Proceed with caution. */
-+
-+/*
-+ * The xarray is constructed out of a set of 'chunks' of pointers.  Choosing
-+ * the best chunk size requires some tradeoffs.  A power of two recommends
-+ * itself so that we can walk the tree based purely on shifts and masks.
-+ * Generally, the larger the better; as the number of slots per level of the
-+ * tree increases, the less tall the tree needs to be.  But that needs to be
-+ * balanced against the memory consumption of each node.  On a 64-bit system,
-+ * xa_node is currently 576 bytes, and we get 7 of them per 4kB page.  If we
-+ * doubled the number of slots per node, we'd get only 3 nodes per 4kB page.
-+ */
-+#ifndef XA_CHUNK_SHIFT
-+#define XA_CHUNK_SHIFT		(CONFIG_BASE_SMALL ? 4 : 6)
-+#endif
-+#define XA_CHUNK_SIZE		(1UL << XA_CHUNK_SHIFT)
-+#define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
-+
-+/* Private */
-+static inline bool xa_is_node(const void *entry)
-+{
-+	return xa_is_internal(entry) && (unsigned long)entry > 4096;
-+}
-+
-+/* Private */
-+static inline void *xa_mk_sibling(unsigned int offset)
-+{
-+	return xa_mk_internal(offset);
-+}
-+
-+/* Private */
-+static inline unsigned long xa_to_sibling(const void *entry)
-+{
-+	return xa_to_internal(entry);
-+}
-+
-+/**
-+ * xa_is_sibling() - Is the entry a sibling entry?
-+ * @entry: Entry retrieved from the XArray
-+ *
-+ * Return: %true if the entry is a sibling entry.
-+ */
-+static inline bool xa_is_sibling(const void *entry)
-+{
-+	return IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
-+		xa_is_internal(entry) &&
-+		(entry < xa_mk_sibling(XA_CHUNK_SIZE - 1));
-+}
-+
-+#define XA_RETRY_ENTRY		xa_mk_internal(256)
-+
- #endif /* _LINUX_XARRAY_H */
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index c7246de3f367..dd4669b3c30e 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -38,6 +38,7 @@
- #include <linux/rcupdate.h>
- #include <linux/slab.h>
- #include <linux/string.h>
-+#include <linux/xarray.h>
- 
- 
- /* Number of nodes in fully populated tree of given height */
-@@ -98,24 +99,7 @@ static inline void *node_to_entry(void *ptr)
- 	return (void *)((unsigned long)ptr | RADIX_TREE_INTERNAL_NODE);
- }
- 
--#define RADIX_TREE_RETRY	node_to_entry(NULL)
--
--#ifdef CONFIG_RADIX_TREE_MULTIORDER
--/* Sibling slots point directly to another slot in the same node */
--static inline
--bool is_sibling_entry(const struct radix_tree_node *parent, void *node)
--{
--	void __rcu **ptr = node;
--	return (parent->slots <= ptr) &&
--			(ptr < parent->slots + RADIX_TREE_MAP_SIZE);
--}
--#else
--static inline
--bool is_sibling_entry(const struct radix_tree_node *parent, void *node)
--{
--	return false;
--}
--#endif
-+#define RADIX_TREE_RETRY	XA_RETRY_ENTRY
- 
- static inline unsigned long
- get_slot_offset(const struct radix_tree_node *parent, void __rcu **slot)
-@@ -129,16 +113,10 @@ static unsigned int radix_tree_descend(const struct radix_tree_node *parent,
- 	unsigned int offset = (index >> parent->shift) & RADIX_TREE_MAP_MASK;
- 	void __rcu **entry = rcu_dereference_raw(parent->slots[offset]);
- 
--#ifdef CONFIG_RADIX_TREE_MULTIORDER
--	if (radix_tree_is_internal_node(entry)) {
--		if (is_sibling_entry(parent, entry)) {
--			void __rcu **sibentry;
--			sibentry = (void __rcu **) entry_to_node(entry);
--			offset = get_slot_offset(parent, sibentry);
--			entry = rcu_dereference_raw(*sibentry);
--		}
-+	if (xa_is_sibling(entry)) {
-+		offset = xa_to_sibling(entry);
-+		entry = rcu_dereference_raw(parent->slots[offset]);
- 	}
--#endif
- 
- 	*nodep = (void *)entry;
- 	return offset;
-@@ -300,10 +278,10 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
- 		} else if (!radix_tree_is_internal_node(entry)) {
- 			pr_debug("radix entry %p offset %ld indices %lu-%lu parent %p\n",
- 					entry, i, first, last, node);
--		} else if (is_sibling_entry(node, entry)) {
-+		} else if (xa_is_sibling(entry)) {
- 			pr_debug("radix sblng %p offset %ld indices %lu-%lu parent %p val %p\n",
- 					entry, i, first, last, node,
--					*(void **)entry_to_node(entry));
-+					node->slots[xa_to_sibling(entry)]);
- 		} else {
- 			dump_node(entry_to_node(entry), first);
- 		}
-@@ -873,8 +851,7 @@ static void radix_tree_free_nodes(struct radix_tree_node *node)
- 
- 	for (;;) {
- 		void *entry = rcu_dereference_raw(child->slots[offset]);
--		if (radix_tree_is_internal_node(entry) &&
--					!is_sibling_entry(child, entry)) {
-+		if (xa_is_node(entry)) {
- 			child = entry_to_node(entry);
- 			offset = 0;
- 			continue;
-@@ -896,7 +873,7 @@ static void radix_tree_free_nodes(struct radix_tree_node *node)
- static inline int insert_entries(struct radix_tree_node *node,
- 		void __rcu **slot, void *item, unsigned order, bool replace)
- {
--	struct radix_tree_node *child;
-+	void *sibling;
- 	unsigned i, n, tag, offset, tags = 0;
- 
- 	if (node) {
-@@ -914,7 +891,7 @@ static inline int insert_entries(struct radix_tree_node *node,
- 		offset = offset & ~(n - 1);
- 		slot = &node->slots[offset];
- 	}
--	child = node_to_entry(slot);
-+	sibling = xa_mk_sibling(offset);
- 
- 	for (i = 0; i < n; i++) {
- 		if (slot[i]) {
-@@ -931,7 +908,7 @@ static inline int insert_entries(struct radix_tree_node *node,
- 	for (i = 0; i < n; i++) {
- 		struct radix_tree_node *old = rcu_dereference_raw(slot[i]);
- 		if (i) {
--			rcu_assign_pointer(slot[i], child);
-+			rcu_assign_pointer(slot[i], sibling);
- 			for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
- 				if (tags & (1 << tag))
- 					tag_clear(node, tag, offset + i);
-@@ -941,9 +918,7 @@ static inline int insert_entries(struct radix_tree_node *node,
- 				if (tags & (1 << tag))
- 					tag_set(node, tag, offset);
- 		}
--		if (radix_tree_is_internal_node(old) &&
--					!is_sibling_entry(node, old) &&
--					(old != RADIX_TREE_RETRY))
-+		if (xa_is_node(old))
- 			radix_tree_free_nodes(old);
- 		if (xa_is_value(old))
- 			node->exceptional--;
-@@ -1102,10 +1077,10 @@ static inline void replace_sibling_entries(struct radix_tree_node *node,
- 				void __rcu **slot, int count, int exceptional)
- {
- #ifdef CONFIG_RADIX_TREE_MULTIORDER
--	void *ptr = node_to_entry(slot);
--	unsigned offset = get_slot_offset(node, slot) + 1;
-+	unsigned offset = get_slot_offset(node, slot);
-+	void *ptr = xa_mk_sibling(offset);
- 
--	while (offset < RADIX_TREE_MAP_SIZE) {
-+	while (++offset < RADIX_TREE_MAP_SIZE) {
- 		if (rcu_dereference_raw(node->slots[offset]) != ptr)
- 			break;
- 		if (count < 0) {
-@@ -1113,7 +1088,6 @@ static inline void replace_sibling_entries(struct radix_tree_node *node,
- 			node->count--;
- 		}
- 		node->exceptional += exceptional;
--		offset++;
- 	}
- #endif
- }
-@@ -1312,8 +1286,7 @@ int radix_tree_split(struct radix_tree_root *root, unsigned long index,
- 			tags |= 1 << tag;
- 
- 	for (end = offset + 1; end < RADIX_TREE_MAP_SIZE; end++) {
--		if (!is_sibling_entry(parent,
--				rcu_dereference_raw(parent->slots[end])))
-+		if (!xa_is_sibling(rcu_dereference_raw(parent->slots[end])))
- 			break;
- 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
- 			if (tags & (1 << tag))
-@@ -1609,11 +1582,9 @@ static void set_iter_tags(struct radix_tree_iter *iter,
- static void __rcu **skip_siblings(struct radix_tree_node **nodep,
- 			void __rcu **slot, struct radix_tree_iter *iter)
- {
--	void *sib = node_to_entry(slot - 1);
--
- 	while (iter->index < iter->next_index) {
- 		*nodep = rcu_dereference_raw(*slot);
--		if (*nodep && *nodep != sib)
-+		if (*nodep && !xa_is_sibling(*nodep))
- 			return slot;
- 		slot++;
- 		iter->index = __radix_tree_iter_add(iter, 1);
-@@ -1764,7 +1735,7 @@ void __rcu **radix_tree_next_chunk(const struct radix_tree_root *root,
- 				while (++offset	< RADIX_TREE_MAP_SIZE) {
- 					void *slot = rcu_dereference_raw(
- 							node->slots[offset]);
--					if (is_sibling_entry(node, slot))
-+					if (xa_is_sibling(slot))
- 						continue;
- 					if (slot)
- 						break;
-@@ -2283,6 +2254,7 @@ void __init radix_tree_init(void)
- 
- 	BUILD_BUG_ON(RADIX_TREE_MAX_TAGS + __GFP_BITS_SHIFT > 32);
- 	BUILD_BUG_ON(ROOT_IS_IDR & ~GFP_ZONEMASK);
-+	BUILD_BUG_ON(XA_CHUNK_SIZE > 255);
- 	radix_tree_node_cachep = kmem_cache_create("radix_tree_node",
- 			sizeof(struct radix_tree_node), 0,
- 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
+ - The radix tree provides operations like other trees do; 'insert' and
+   'delete'.  But what most users really want is an automatically resizing
+   array, and so it makes more sense to give users an API that is like
+   an array -- 'load' and 'store'.  We still have an 'insert' operation
+   for users that really want that semantic.
+ - The XArray considers locking as part of its API.  This simplifies a lot
+   of users who formerly had to manage their own locking just for the
+   radix tree.  It also improves code generation as we can now tell RCU
+   that we're holding a lock and it doesn't need to generate as much
+   fencing code.  The other advantage is that tree nodes can be moved
+   (not yet implemented).
+ - GFP flags are now parameters to calls which may need to allocate
+   memory.  The radix tree forced users to decide what the allocation
+   flags would be at creation time.  It's much clearer to specify them
+   at allocation time.
+ - Memory is not preloaded; we don't tie up dozens of pages on the
+   off chance that the slab allocator fails.  Instead, we drop the lock,
+   allocate a new node and retry the operation.  We have to convert all
+   the radix tree, IDA and IDR preload users before we can realise this
+   benefit, but I have not yet found a user which cannot be converted.
+ - The XArray provides a cmpxchg operation.  The radix tree forces users
+   to roll their own (and at least four have).
+ - Iterators take a 'max' parameter.  That simplifies many users and
+   will reduce the amount of iteration done.
+ - Iteration can proceed backwards.  We only have one user for this, but
+   since it's called as part of the pagefault readahead algorithm, that
+   seemed worth mentioning.
+ - RCU-protected pointers are not exposed as part of the API.  There are
+   some fun bugs where the page cache forgets to use rcu_dereference()
+   in the current codebase.
+ - Value entries gain an extra bit compared to radix tree exceptional
+   entries.  That gives us the extra bit we need to put huge page swap
+   entries in the page cache.
+ - Some iterators now take a 'filter' argument instead of having
+   separate iterators for tagged/untagged iterations.
+
+The page cache is improved by this:
+ - Shorter, easier to read code
+ - More efficient iterations
+ - Reduction in size of struct address_space
+ - Fewer walks from the top of the data structure; the XArray API
+   encourages staying at the leaf node and conducting operations there.
+
+Since version 10, I've fixed a few bugs.
+
+ - There were some places in f2fs where the spinlock was being taken in a
+   not-irq-safe manner.  I spotted it by review, but lockdep would have
+   noticed if anybody had tested this patchset on f2fs.
+ - Fixed the bug that Mike Kravetz found where we could end up in an
+   infinite loop when doing a tagged iteration.
+ - Added UBSAN to the userspace testing framework and fixed some
+   problems that it caught (shifting a negative number, shifting by
+   BITS_PER_LONG).
+ - Fixed an unlikely bug in shmem_partial_swap_usage() where I'd
+   forgotten to call xas_retry() in an RCU-protected iteration.
+ - Added a patch to fix dax_load_hole; it wasn't returning errors
+   properly.
+
+Things that aren't bug fixes:
+
+ - dax_layout_busy_page() got removed, so I dropped the adaptation of
+   that function.
+ - Made __test_set_page_writeback more efficient by only walking the
+   tree once instead of up to three times (once per tag).
+ - Redid the shmem_wait_for_pins / shmem_tag_pins patches so they share
+   an xa_state between them.  Cuts down stack usage a bit.
+ - Removed more radix tree functionality that's not being used
+   - radix_tree_for_each_contig
+   - radix_tree_update_node_t
+   - radix_tree_clear_tags
+
+This is against next-20180413.
+
+If you're going to review anything, please review anything in patches 16
+and higher; they're the ones mostly missing review, and most likely where
+the bugs are going to be.
+
+Matthew Wilcox (63):
+  xarray: Replace exceptional entries
+  xarray: Change definition of sibling entries
+  xarray: Add definition of struct xarray
+  xarray: Define struct xa_node
+  xarray: Add documentation
+  xarray: Add xa_load
+  xarray: Add xa_get_tag, xa_set_tag and xa_clear_tag
+  xarray: Add xa_store
+  xarray: Add xa_cmpxchg and xa_insert
+  xarray: Add xa_for_each
+  xarray: Add xa_extract
+  xarray: Add xa_destroy
+  xarray: Add xas_next and xas_prev
+  xarray: Add xas_create_range
+  xarray: Add MAINTAINERS entry
+  page cache: Rearrange address_space
+  page cache: Convert hole search to XArray
+  page cache: Add and replace pages using the XArray
+  page cache: Convert page deletion to XArray
+  page cache: Convert page cache lookups to XArray
+  page cache: Convert delete_batch to XArray
+  page cache: Remove stray radix comment
+  page cache: Convert filemap_range_has_page to XArray
+  mm: Convert page-writeback to XArray
+  mm: Convert workingset to XArray
+  mm: Convert truncate to XArray
+  mm: Convert add_to_swap_cache to XArray
+  mm: Convert delete_from_swap_cache to XArray
+  mm: Convert __do_page_cache_readahead to XArray
+  mm: Convert page migration to XArray
+  mm: Convert huge_memory to XArray
+  mm: Convert collapse_shmem to XArray
+  mm: Convert khugepaged_scan_shmem to XArray
+  pagevec: Use xa_tag_t
+  shmem: Convert replace to XArray
+  shmem: Convert shmem_confirm_swap to XArray
+  shmem: Convert find_swap_entry to XArray
+  shmem: Convert shmem_add_to_page_cache to XArray
+  shmem: Convert shmem_alloc_hugepage to XArray
+  shmem: Convert shmem_free_swap to XArray
+  shmem: Convert shmem_partial_swap_usage to XArray
+  memfd: Convert shmem_wait_for_pins to XArray
+  memfd: Convert shmem_tag_pins to XArray
+  shmem: Comment fixups
+  btrfs: Convert page cache to XArray
+  fs: Convert buffer to XArray
+  fs: Convert writeback to XArray
+  nilfs2: Convert to XArray
+  f2fs: Convert to XArray
+  lustre: Convert to XArray
+  dax: Fix use of zero page
+  dax: dax_insert_mapping_entry always succeeds
+  dax: Rename some functions
+  dax: Hash on XArray instead of mapping
+  dax: Convert dax_insert_pfn_mkwrite to XArray
+  dax: Convert __dax_invalidate_entry to XArray
+  dax: Convert dax writeback to XArray
+  dax: Convert page fault handlers to XArray
+  dax: Return fault code from dax_load_hole
+  page cache: Finish XArray conversion
+  radix tree: Remove unused functions
+  radix tree: Remove radix_tree_update_node_t
+  radix tree: Remove radix_tree_clear_tags
+
+ .clang-format                                 |    1 -
+ Documentation/core-api/index.rst              |    1 +
+ Documentation/core-api/xarray.rst             |  361 ++++
+ MAINTAINERS                                   |   12 +
+ arch/powerpc/include/asm/book3s/64/pgtable.h  |    4 +-
+ arch/powerpc/include/asm/nohash/64/pgtable.h  |    4 +-
+ drivers/gpu/drm/i915/i915_gem.c               |   17 +-
+ drivers/staging/lustre/lustre/llite/glimpse.c |   12 +-
+ .../staging/lustre/lustre/mdc/mdc_request.c   |   16 +-
+ fs/btrfs/compression.c                        |    6 +-
+ fs/btrfs/extent_io.c                          |   12 +-
+ fs/buffer.c                                   |   14 +-
+ fs/dax.c                                      |  725 +++----
+ fs/ext4/inode.c                               |    2 +-
+ fs/f2fs/data.c                                |    5 +-
+ fs/f2fs/dir.c                                 |    2 +-
+ fs/f2fs/inline.c                              |    4 +-
+ fs/f2fs/node.c                                |    9 +-
+ fs/fs-writeback.c                             |   25 +-
+ fs/gfs2/aops.c                                |    2 +-
+ fs/inode.c                                    |    2 +-
+ fs/nfs/blocklayout/blocklayout.c              |    2 +-
+ fs/nilfs2/btnode.c                            |   37 +-
+ fs/nilfs2/page.c                              |   72 +-
+ fs/proc/task_mmu.c                            |    2 +-
+ include/linux/fs.h                            |   63 +-
+ include/linux/pagemap.h                       |   10 +-
+ include/linux/pagevec.h                       |    8 +-
+ include/linux/radix-tree.h                    |  133 +-
+ include/linux/swap.h                          |   22 +-
+ include/linux/swapops.h                       |   19 +-
+ include/linux/xarray.h                        | 1010 ++++++++++
+ lib/Makefile                                  |    2 +-
+ lib/idr.c                                     |   67 +-
+ lib/radix-tree.c                              |  571 +-----
+ lib/xarray.c                                  | 1681 +++++++++++++++++
+ mm/filemap.c                                  |  723 +++----
+ mm/huge_memory.c                              |   17 +-
+ mm/khugepaged.c                               |  177 +-
+ mm/madvise.c                                  |    2 +-
+ mm/memcontrol.c                               |    2 +-
+ mm/migrate.c                                  |   41 +-
+ mm/mincore.c                                  |    2 +-
+ mm/page-writeback.c                           |   72 +-
+ mm/readahead.c                                |   10 +-
+ mm/shmem.c                                    |  301 ++-
+ mm/swap.c                                     |    6 +-
+ mm/swap_state.c                               |  119 +-
+ mm/truncate.c                                 |   27 +-
+ mm/vmscan.c                                   |    2 +-
+ mm/workingset.c                               |   71 +-
+ tools/include/linux/spinlock.h                |   13 +-
+ tools/testing/radix-tree/.gitignore           |    2 +
+ tools/testing/radix-tree/Makefile             |   15 +-
+ tools/testing/radix-tree/benchmark.c          |   91 -
+ tools/testing/radix-tree/idr-test.c           |    6 +-
+ tools/testing/radix-tree/linux/bug.h          |    1 +
+ tools/testing/radix-tree/linux/kconfig.h      |    1 +
+ tools/testing/radix-tree/linux/kernel.h       |    5 +
+ tools/testing/radix-tree/linux/lockdep.h      |   11 +
+ tools/testing/radix-tree/linux/rcupdate.h     |    2 +
+ tools/testing/radix-tree/linux/xarray.h       |    3 +
+ tools/testing/radix-tree/main.c               |   12 +-
+ tools/testing/radix-tree/multiorder.c         |  272 +--
+ tools/testing/radix-tree/regression1.c        |   68 +-
+ tools/testing/radix-tree/regression3.c        |   22 -
+ tools/testing/radix-tree/tag_check.c          |   32 +-
+ tools/testing/radix-tree/test.c               |   53 +-
+ tools/testing/radix-tree/test.h               |    6 +
+ tools/testing/radix-tree/xarray-test.c        |  594 ++++++
+ 70 files changed, 5032 insertions(+), 2684 deletions(-)
+ create mode 100644 Documentation/core-api/xarray.rst
+ create mode 100644 lib/xarray.c
+ create mode 100644 tools/testing/radix-tree/linux/kconfig.h
+ create mode 100644 tools/testing/radix-tree/linux/lockdep.h
+ create mode 100644 tools/testing/radix-tree/linux/xarray.h
+ create mode 100644 tools/testing/radix-tree/xarray-test.c
+
 -- 
 2.17.0
