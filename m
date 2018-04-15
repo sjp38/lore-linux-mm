@@ -1,319 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AE7A86B0027
-	for <linux-mm@kvack.org>; Sun, 15 Apr 2018 11:00:56 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id n17-v6so3088639plp.14
-        for <linux-mm@kvack.org>; Sun, 15 Apr 2018 08:00:56 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e6si871737pgt.519.2018.04.15.08.00.50
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DB5D6B0003
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2018 13:29:27 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v11so10522598wri.13
+        for <linux-mm@kvack.org>; Sun, 15 Apr 2018 10:29:27 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j2si1539796edf.459.2018.04.15.10.29.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 15 Apr 2018 08:00:50 -0700 (PDT)
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 11/12] swiotlb: move the SWIOTLB config symbol to lib/Kconfig
-Date: Sun, 15 Apr 2018 16:59:46 +0200
-Message-Id: <20180415145947.1248-12-hch@lst.de>
-In-Reply-To: <20180415145947.1248-1-hch@lst.de>
-References: <20180415145947.1248-1-hch@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 15 Apr 2018 10:29:26 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3FHT07n007569
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2018 13:29:24 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2hbyjx38wk-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2018 13:29:24 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sun, 15 Apr 2018 18:29:21 +0100
+Date: Sun, 15 Apr 2018 20:29:11 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 00/32] docs/vm: convert to ReST format
+References: <1521660168-14372-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20180329154607.3d8bda75@lwn.net>
+ <20180401063857.GA3357@rapoport-lnx>
+ <20180413135551.0e6d1b12@lwn.net>
+ <20180413202108.GA30271@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180413202108.GA30271@bombadil.infradead.org>
+Message-Id: <20180415172910.GA31176@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org
-Cc: x86@kernel.org, linux-block@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-ide@vger.kernel.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-This way we have one central definition of it, and user can select it as
-needed.  Note that we also add a second ARCH_HAS_SWIOTLB symbol to
-indicate the architecture supports swiotlb at all, so that we can still
-make the usage optional for a few architectures that want this feature
-to be user selectable.
+On Fri, Apr 13, 2018 at 01:21:08PM -0700, Matthew Wilcox wrote:
+> On Fri, Apr 13, 2018 at 01:55:51PM -0600, Jonathan Corbet wrote:
+> > > I believe that keeping the mm docs together will give better visibility of
+> > > what (little) mm documentation we have and will make the updates easier.
+> > > The documents that fit well into a certain topic could be linked there. For
+> > > instance:
+> > 
+> > ...but this sounds like just the opposite...?  
+> > 
+> > I've had this conversation with folks in a number of subsystems.
+> > Everybody wants to keep their documentation together in one place - it's
+> > easier for the developers after all.  But for the readers I think it's
+> > objectively worse.  It perpetuates the mess that Documentation/ is, and
+> > forces readers to go digging through all kinds of inappropriate material
+> > in the hope of finding something that tells them what they need to know.
+> > 
+> > So I would *really* like to split the documentation by audience, as has
+> > been done for a number of other kernel subsystems (and eventually all, I
+> > hope).
+> > 
+> > I can go ahead and apply the RST conversion, that seems like a step in
+> > the right direction regardless.  But I sure hope we don't really have to
+> > keep it as an unorganized jumble of stuff...
+> 
+> I've started on Documentation/core-api/memory.rst which covers just
+> memory allocation.  So far it has the Overview and GFP flags sections
+> written and an outline for 'The slab allocator', 'The page allocator',
+> 'The vmalloc allocator' and 'The page_frag allocator'.  And typing this
+> up, I realise we need a 'The percpu allocator'.  I'm thinking that this
+> is *not* the right document for the DMA memory allocators (although it
+> should link to that documentation).
+> 
+> I suspect the existing Documentation/vm/ should probably stay as an
+> unorganised jumble of stuff.  Developers mostly talking to other MM
+> developers.  Stuff that people outside the MM fraternity should know
+> about needs to be centrally documented.  By all means convert it to
+> ReST ... I don't much care, and it may make it easier to steal bits
+> or link to it from the organised documentation.
+ 
+The existing Documentation/vm contains different types of documents. Some
+are indeed "Developers mostly talking to other MM developers". Some are
+really user/administrator guides. Others are somewhat in between.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- arch/arm/Kconfig                |  4 +---
- arch/arm64/Kconfig              |  5 ++---
- arch/ia64/Kconfig               |  9 +--------
- arch/mips/Kconfig               |  3 +++
- arch/mips/cavium-octeon/Kconfig |  5 -----
- arch/mips/loongson64/Kconfig    |  8 --------
- arch/powerpc/Kconfig            |  9 ---------
- arch/unicore32/mm/Kconfig       |  5 -----
- arch/x86/Kconfig                | 14 +++-----------
- lib/Kconfig                     | 15 +++++++++++++++
- 10 files changed, 25 insertions(+), 52 deletions(-)
+I took another look at what's there and I think we can actually move part
+of Documentation/vm to Documentation/admin-guide. We can add
+Documentation/admin-guide/vm/ and title it "Memory Management Tuning" or
+something like that. And several files, e.g. hugetlbpage, ksm, soft-dirty
+can be moved there.
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 90b81a3a28a7..f91f69174630 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -106,6 +106,7 @@ config ARM
- 	select REFCOUNT_FULL
- 	select RTC_LIB
- 	select SYS_SUPPORTS_APM_EMULATION
-+	select ARCH_HAS_SWIOTLB
- 	# Above selects are sorted alphabetically; please add new ones
- 	# according to that.  Thanks.
- 	help
-@@ -1773,9 +1774,6 @@ config SECCOMP
- 	  and the task is only allowed to execute a few safe syscalls
- 	  defined by each seccomp mode.
- 
--config SWIOTLB
--	bool
--
- config PARAVIRT
- 	bool "Enable paravirtualization code"
- 	help
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 4d924eb32e7f..056bc7365adf 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -21,6 +21,7 @@ config ARM64
- 	select ARCH_HAS_SG_CHAIN
- 	select ARCH_HAS_STRICT_KERNEL_RWX
- 	select ARCH_HAS_STRICT_MODULE_RWX
-+	select ARCH_HAS_SWIOTLB
- 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
- 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
- 	select ARCH_INLINE_READ_LOCK if !PREEMPT
-@@ -144,6 +145,7 @@ config ARM64
- 	select POWER_SUPPLY
- 	select REFCOUNT_FULL
- 	select SPARSE_IRQ
-+	select SWIOTLB
- 	select SYSCTL_EXCEPTION_TRACE
- 	select THREAD_INFO_IN_TASK
- 	help
-@@ -239,9 +241,6 @@ config HAVE_GENERIC_GUP
- config SMP
- 	def_bool y
- 
--config SWIOTLB
--	def_bool y
--
- config KERNEL_MODE_NEON
- 	def_bool y
- 
-diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index 685d557eea48..d396230913e6 100644
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -56,6 +56,7 @@ config IA64
- 	select HAVE_ARCH_AUDITSYSCALL
- 	select NEED_DMA_MAP_STATE
- 	select NEED_SG_DMA_LENGTH
-+	select ARCH_HAS_SWIOTLB
- 	default y
- 	help
- 	  The Itanium Processor Family is Intel's 64-bit successor to
-@@ -80,9 +81,6 @@ config MMU
- 	bool
- 	default y
- 
--config SWIOTLB
--       bool
--
- config STACKTRACE_SUPPORT
- 	def_bool y
- 
-@@ -139,7 +137,6 @@ config IA64_GENERIC
- 	bool "generic"
- 	select NUMA
- 	select ACPI_NUMA
--	select DMA_DIRECT_OPS
- 	select SWIOTLB
- 	select PCI_MSI
- 	help
-@@ -160,7 +157,6 @@ config IA64_GENERIC
- 
- config IA64_DIG
- 	bool "DIG-compliant"
--	select DMA_DIRECT_OPS
- 	select SWIOTLB
- 
- config IA64_DIG_VTD
-@@ -176,7 +172,6 @@ config IA64_HP_ZX1
- 
- config IA64_HP_ZX1_SWIOTLB
- 	bool "HP-zx1/sx1000 with software I/O TLB"
--	select DMA_DIRECT_OPS
- 	select SWIOTLB
- 	help
- 	  Build a kernel that runs on HP zx1 and sx1000 systems even when they
-@@ -200,7 +195,6 @@ config IA64_SGI_UV
- 	bool "SGI-UV"
- 	select NUMA
- 	select ACPI_NUMA
--	select DMA_DIRECT_OPS
- 	select SWIOTLB
- 	help
- 	  Selecting this option will optimize the kernel for use on UV based
-@@ -211,7 +205,6 @@ config IA64_SGI_UV
- 
- config IA64_HP_SIM
- 	bool "Ski-simulator"
--	select DMA_DIRECT_OPS
- 	select SWIOTLB
- 	depends on !PM
- 
-diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
-index e10cc5c7be69..b6b4c1e154f8 100644
---- a/arch/mips/Kconfig
-+++ b/arch/mips/Kconfig
-@@ -912,6 +912,8 @@ config CAVIUM_OCTEON_SOC
- 	select MIPS_NR_CPU_NR_MAP_1024
- 	select BUILTIN_DTB
- 	select MTD_COMPLEX_MAPPINGS
-+	select ARCH_HAS_SWIOTLB
-+	select SWIOTLB
- 	select SYS_SUPPORTS_RELOCATABLE
- 	help
- 	  This option supports all of the Octeon reference boards from Cavium
-@@ -1367,6 +1369,7 @@ config CPU_LOONGSON3
- 	select MIPS_PGD_C0_CONTEXT
- 	select MIPS_L1_CACHE_SHIFT_6
- 	select GPIOLIB
-+	select ARCH_HAS_SWIOTLB
- 	help
- 		The Loongson 3 processor implements the MIPS64R2 instruction
- 		set with many extensions.
-diff --git a/arch/mips/cavium-octeon/Kconfig b/arch/mips/cavium-octeon/Kconfig
-index 5d73041547a7..4984e462be30 100644
---- a/arch/mips/cavium-octeon/Kconfig
-+++ b/arch/mips/cavium-octeon/Kconfig
-@@ -67,11 +67,6 @@ config CAVIUM_OCTEON_LOCK_L2_MEMCPY
- 	help
- 	  Lock the kernel's implementation of memcpy() into L2.
- 
--config SWIOTLB
--	def_bool y
--	select DMA_DIRECT_OPS
--	select NEED_SG_DMA_LENGTH
--
- config OCTEON_ILM
- 	tristate "Module to measure interrupt latency using Octeon CIU Timer"
- 	help
-diff --git a/arch/mips/loongson64/Kconfig b/arch/mips/loongson64/Kconfig
-index 641a1477031e..c79e6a565572 100644
---- a/arch/mips/loongson64/Kconfig
-+++ b/arch/mips/loongson64/Kconfig
-@@ -130,14 +130,6 @@ config LOONGSON_UART_BASE
- 	default y
- 	depends on EARLY_PRINTK || SERIAL_8250
- 
--config SWIOTLB
--	bool "Soft IOMMU Support for All-Memory DMA"
--	default y
--	depends on CPU_LOONGSON3
--	select DMA_DIRECT_OPS
--	select NEED_SG_DMA_LENGTH
--	select NEED_DMA_MAP_STATE
--
- config PHYS48_TO_HT40
- 	bool
- 	default y if CPU_LOONGSON3
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index b85a537421b8..beb28153fcb2 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -474,15 +474,6 @@ config MPROFILE_KERNEL
- 	depends on PPC64 && CPU_LITTLE_ENDIAN
- 	def_bool !DISABLE_MPROFILE_KERNEL
- 
--config SWIOTLB
--	bool "SWIOTLB support"
--	default n
--	---help---
--	  Support for IO bounce buffering for systems without an IOMMU.
--	  This allows us to DMA to the full physical address space on
--	  platforms where the size of a physical address is larger
--	  than the bus address.  Not all platforms support this.
--
- config HOTPLUG_CPU
- 	bool "Support for enabling/disabling CPUs"
- 	depends on SMP && (PPC_PSERIES || \
-diff --git a/arch/unicore32/mm/Kconfig b/arch/unicore32/mm/Kconfig
-index 1d9fed0ada71..82759b6aba67 100644
---- a/arch/unicore32/mm/Kconfig
-+++ b/arch/unicore32/mm/Kconfig
-@@ -39,8 +39,3 @@ config CPU_TLB_SINGLE_ENTRY_DISABLE
- 	default y
- 	help
- 	  Say Y here to disable the TLB single entry operations.
--
--config SWIOTLB
--	def_bool y
--	select DMA_DIRECT_OPS
--	select NEED_SG_DMA_LENGTH
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index a95eb9ef3311..063bef5f830f 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -24,6 +24,7 @@ config X86_64
- 	depends on 64BIT
- 	# Options that are inherently 64-bit kernel only:
- 	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
-+	select ARCH_HAS_SWIOTLB
- 	select ARCH_SUPPORTS_INT128
- 	select ARCH_USE_CMPXCHG_LOCKREF
- 	select HAVE_ARCH_SOFT_DIRTY
-@@ -676,6 +677,7 @@ config STA2X11
- 	bool "STA2X11 Companion Chip Support"
- 	depends on X86_32_NON_STANDARD && PCI
- 	select ARCH_HAS_PHYS_TO_DMA
-+	select ARCH_HAS_SWIOTLB
- 	select X86_DEV_DMA_OPS
- 	select X86_DMA_REMAP
- 	select SWIOTLB
-@@ -915,17 +917,6 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
- 	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
- 	  If unsure, say Y.
- 
--# need this always selected by IOMMU for the VIA workaround
--config SWIOTLB
--	def_bool y if X86_64
--	select NEED_DMA_MAP_STATE
--	---help---
--	  Support for software bounce buffers used on x86-64 systems
--	  which don't have a hardware IOMMU. Using this PCI devices
--	  which can only access 32-bits of memory can be used on systems
--	  with more than 3 GB of memory.
--	  If unsure, say Y.
--
- config MAXSMP
- 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
- 	depends on X86_64 && SMP && DEBUG_KERNEL
-@@ -1447,6 +1438,7 @@ config HIGHMEM
- config X86_PAE
- 	bool "PAE (Physical Address Extension) Support"
- 	depends on X86_32 && !HIGHMEM4G
-+	select ARCH_HAS_SWIOTLB
- 	select PHYS_ADDR_T_64BIT
- 	select SWIOTLB
- 	---help---
-diff --git a/lib/Kconfig b/lib/Kconfig
-index 1f12faf03819..01a37920949c 100644
---- a/lib/Kconfig
-+++ b/lib/Kconfig
-@@ -451,6 +451,21 @@ config DMA_VIRT_OPS
- 	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)
- 	default n
- 
-+config ARCH_HAS_SWIOTLB
-+	bool
-+
-+config SWIOTLB
-+	bool "SWIOTLB support"
-+	default ARCH_HAS_SWIOTLB
-+	select DMA_DIRECT_OPS
-+	select NEED_DMA_MAP_STATE
-+	select NEED_SG_DMA_LENGTH
-+	---help---
-+	  Support for IO bounce buffering for systems without an IOMMU.
-+	  This allows us to DMA to the full physical address space on
-+	  platforms where the size of a physical address is larger
-+	  than the bus address.  If unsure, say Y.
-+
- config CHECK_SIGNATURE
- 	bool
- 
 -- 
-2.17.0
+Sincerely yours,
+Mike.
