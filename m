@@ -1,451 +1,265 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-Date: Tue, 3 Apr 2018 23:59:13 +0200
-From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-Subject: [RFC PATCH] mm: use rbtree for page-wait
-Message-ID: <20180403215912.pcnam27taalnl7nh@breakpoint.cc>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Kan Liang <kan.liang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
-List-ID: <linux-mm.kvack.org>
+From: Christoph Hellwig <hch-jcswGhMUV9g@public.gmane.org>
+Subject: [PATCH 03/12] iommu-helper: mark iommu_is_span_boundary as inline
+Date: Sun, 15 Apr 2018 16:59:38 +0200
+Message-ID: <20180415145947.1248-4-hch@lst.de>
+References: <20180415145947.1248-1-hch@lst.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+In-Reply-To: <20180415145947.1248-1-hch-jcswGhMUV9g@public.gmane.org>
+List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
+List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
+Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+To: Konrad Rzeszutek Wilk <konrad.wilk-QHcLZuEGTsvQT0dZR+AlfA@public.gmane.org>, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Cc: linux-mips-6z/3iImG2C8G8FEW9MqTrA@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-block-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-ide-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, sparclinux-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org
+List-Id: linux-mm.kvack.org
 
-I noticed commit 2554db916586 ("sched/wait: Break up long wake list
-walk") in which it is claimed that
-|We saw page wait list that are up to 3700+ entries long in tests of
-|large 4 and 8 socket systems.
+This avoids selecting IOMMU_HELPER just for this function.  And we only
+use it once or twice in normal builds so this often even is a size
+reduction.
 
-Here is another approach: instead of a waitlist a rbtree is used. The
-tree is ordered by page and bit_nr that it waits for. A wake up request
-for specific page + bit_nr combination does not need to browse through
-the whole set of waiters but does only look for the specific waiter(s).
-For the actual wake up wake_q mechanism is used. That means we enqueue
-all to-be-woken tasks on a queue and perform the actual wakeup without
-holding the queue lock.
-
-add_page_wait_queue() is currently not wired up which means it breaks
-the one user we have right now. Instead of fixing that I would be
-interrested in some specific benchmark to see if that is any help or
-just making things worse.
-
-Cc: Kan Liang <kan.liang@intel.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+Signed-off-by: Christoph Hellwig <hch-jcswGhMUV9g@public.gmane.org>
 ---
- mm/filemap.c | 286 +++++++++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 208 insertions(+), 78 deletions(-)
+ arch/alpha/Kconfig              |  3 ---
+ arch/arm/Kconfig                |  3 ---
+ arch/arm64/Kconfig              |  3 ---
+ arch/ia64/Kconfig               |  3 ---
+ arch/mips/cavium-octeon/Kconfig |  4 ----
+ arch/mips/loongson64/Kconfig    |  4 ----
+ arch/mips/netlogic/Kconfig      |  3 ---
+ arch/powerpc/Kconfig            |  1 -
+ arch/unicore32/mm/Kconfig       |  3 ---
+ arch/x86/Kconfig                |  2 +-
+ drivers/parisc/Kconfig          |  5 -----
+ include/linux/iommu-helper.h    | 13 ++++++++++---
+ lib/iommu-helper.c              | 12 +-----------
+ 13 files changed, 12 insertions(+), 47 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 693f62212a59..6f44eaac1a53 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -36,6 +36,7 @@
- #include <linux/cleancache.h>
- #include <linux/shmem_fs.h>
- #include <linux/rmap.h>
-+#include <linux/sched/wake_q.h>
- #include "internal.h"
+diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
+index b2022885ced8..3ff735a722af 100644
+--- a/arch/alpha/Kconfig
++++ b/arch/alpha/Kconfig
+@@ -345,9 +345,6 @@ config PCI_DOMAINS
+ config PCI_SYSCALL
+ 	def_bool PCI
  
- #define CREATE_TRACE_POINTS
-@@ -957,11 +958,15 @@ EXPORT_SYMBOL(__page_cache_alloc);
-  * at a cost of "thundering herd" phenomena during rare hash
-  * collisions.
+-config IOMMU_HELPER
+-	def_bool PCI
+-
+ config ALPHA_NONAME
+ 	bool
+ 	depends on ALPHA_BOOK1 || ALPHA_NONAME_CH
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index a7f8e7f4b88f..2f79222c5c02 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -1781,9 +1781,6 @@ config SECCOMP
+ config SWIOTLB
+ 	def_bool y
+ 
+-config IOMMU_HELPER
+-	def_bool SWIOTLB
+-
+ config PARAVIRT
+ 	bool "Enable paravirtualization code"
+ 	help
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index eb2cf4938f6d..fbef5d3de83f 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -252,9 +252,6 @@ config SMP
+ config SWIOTLB
+ 	def_bool y
+ 
+-config IOMMU_HELPER
+-	def_bool SWIOTLB
+-
+ config KERNEL_MODE_NEON
+ 	def_bool y
+ 
+diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
+index bbe12a038d21..862c5160c09d 100644
+--- a/arch/ia64/Kconfig
++++ b/arch/ia64/Kconfig
+@@ -613,6 +613,3 @@ source "security/Kconfig"
+ source "crypto/Kconfig"
+ 
+ source "lib/Kconfig"
+-
+-config IOMMU_HELPER
+-	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC || SWIOTLB)
+diff --git a/arch/mips/cavium-octeon/Kconfig b/arch/mips/cavium-octeon/Kconfig
+index b5eee1a57d6c..647ed158ac98 100644
+--- a/arch/mips/cavium-octeon/Kconfig
++++ b/arch/mips/cavium-octeon/Kconfig
+@@ -67,16 +67,12 @@ config CAVIUM_OCTEON_LOCK_L2_MEMCPY
+ 	help
+ 	  Lock the kernel's implementation of memcpy() into L2.
+ 
+-config IOMMU_HELPER
+-	bool
+-
+ config NEED_SG_DMA_LENGTH
+ 	bool
+ 
+ config SWIOTLB
+ 	def_bool y
+ 	select DMA_DIRECT_OPS
+-	select IOMMU_HELPER
+ 	select NEED_SG_DMA_LENGTH
+ 
+ config OCTEON_ILM
+diff --git a/arch/mips/loongson64/Kconfig b/arch/mips/loongson64/Kconfig
+index 72af0c183969..5efb2e63878e 100644
+--- a/arch/mips/loongson64/Kconfig
++++ b/arch/mips/loongson64/Kconfig
+@@ -130,9 +130,6 @@ config LOONGSON_UART_BASE
+ 	default y
+ 	depends on EARLY_PRINTK || SERIAL_8250
+ 
+-config IOMMU_HELPER
+-	bool
+-
+ config NEED_SG_DMA_LENGTH
+ 	bool
+ 
+@@ -141,7 +138,6 @@ config SWIOTLB
+ 	default y
+ 	depends on CPU_LOONGSON3
+ 	select DMA_DIRECT_OPS
+-	select IOMMU_HELPER
+ 	select NEED_SG_DMA_LENGTH
+ 	select NEED_DMA_MAP_STATE
+ 
+diff --git a/arch/mips/netlogic/Kconfig b/arch/mips/netlogic/Kconfig
+index 7fcfc7fe9f14..5c5ee0e05a17 100644
+--- a/arch/mips/netlogic/Kconfig
++++ b/arch/mips/netlogic/Kconfig
+@@ -83,9 +83,6 @@ endif
+ config NLM_COMMON
+ 	bool
+ 
+-config IOMMU_HELPER
+-	bool
+-
+ config NEED_SG_DMA_LENGTH
+ 	bool
+ 
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index 73ce5dd07642..eb23f2949bf6 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -484,7 +484,6 @@ config IOMMU_HELPER
+ config SWIOTLB
+ 	bool "SWIOTLB support"
+ 	default n
+-	select IOMMU_HELPER
+ 	---help---
+ 	  Support for IO bounce buffering for systems without an IOMMU.
+ 	  This allows us to DMA to the full physical address space on
+diff --git a/arch/unicore32/mm/Kconfig b/arch/unicore32/mm/Kconfig
+index e9154a59d561..3f105e00c432 100644
+--- a/arch/unicore32/mm/Kconfig
++++ b/arch/unicore32/mm/Kconfig
+@@ -44,9 +44,6 @@ config SWIOTLB
+ 	def_bool y
+ 	select DMA_DIRECT_OPS
+ 
+-config IOMMU_HELPER
+-	def_bool SWIOTLB
+-
+ config NEED_SG_DMA_LENGTH
+ 	def_bool SWIOTLB
+ 
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index d234cca296db..336b1378ee62 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -930,7 +930,7 @@ config SWIOTLB
+ 
+ config IOMMU_HELPER
+ 	def_bool y
+-	depends on CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU
++	depends on CALGARY_IOMMU || GART_IOMMU
+ 
+ config MAXSMP
+ 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
+diff --git a/drivers/parisc/Kconfig b/drivers/parisc/Kconfig
+index 3a102a84d637..5a48b5606110 100644
+--- a/drivers/parisc/Kconfig
++++ b/drivers/parisc/Kconfig
+@@ -103,11 +103,6 @@ config IOMMU_SBA
+ 	depends on PCI_LBA
+ 	default PCI_LBA
+ 
+-config IOMMU_HELPER
+-	bool
+-	depends on IOMMU_SBA || IOMMU_CCIO
+-	default y
+-
+ source "drivers/pcmcia/Kconfig"
+ 
+ endmenu
+diff --git a/include/linux/iommu-helper.h b/include/linux/iommu-helper.h
+index cb9a9248c8c0..70d01edcbf8b 100644
+--- a/include/linux/iommu-helper.h
++++ b/include/linux/iommu-helper.h
+@@ -2,6 +2,7 @@
+ #ifndef _LINUX_IOMMU_HELPER_H
+ #define _LINUX_IOMMU_HELPER_H
+ 
++#include <linux/bug.h>
+ #include <linux/kernel.h>
+ 
+ static inline unsigned long iommu_device_max_index(unsigned long size,
+@@ -14,9 +15,15 @@ static inline unsigned long iommu_device_max_index(unsigned long size,
+ 		return size;
+ }
+ 
+-extern int iommu_is_span_boundary(unsigned int index, unsigned int nr,
+-				  unsigned long shift,
+-				  unsigned long boundary_size);
++static inline int iommu_is_span_boundary(unsigned int index, unsigned int nr,
++		unsigned long shift, unsigned long boundary_size)
++{
++	BUG_ON(!is_power_of_2(boundary_size));
++
++	shift = (shift + index) & (boundary_size - 1);
++	return shift + nr > boundary_size;
++}
++
+ extern unsigned long iommu_area_alloc(unsigned long *map, unsigned long size,
+ 				      unsigned long start, unsigned int nr,
+ 				      unsigned long shift,
+diff --git a/lib/iommu-helper.c b/lib/iommu-helper.c
+index ded1703e7e64..92a9f243c0e2 100644
+--- a/lib/iommu-helper.c
++++ b/lib/iommu-helper.c
+@@ -4,17 +4,7 @@
   */
-+struct page_wait_rb {
-+	struct rb_root	tree;
-+	spinlock_t	lock;
-+};
-+
- #define PAGE_WAIT_TABLE_BITS 8
- #define PAGE_WAIT_TABLE_SIZE (1 << PAGE_WAIT_TABLE_BITS)
--static wait_queue_head_t page_wait_table[PAGE_WAIT_TABLE_SIZE] __cacheline_aligned;
+ 
+ #include <linux/bitmap.h>
+-#include <linux/bug.h>
 -
--static wait_queue_head_t *page_waitqueue(struct page *page)
-+static struct page_wait_rb page_wait_table[PAGE_WAIT_TABLE_SIZE] __cacheline_aligned;
-+static struct page_wait_rb *page_waitqueue(struct page *page)
- {
- 	return &page_wait_table[hash_ptr(page, PAGE_WAIT_TABLE_BITS)];
- }
-@@ -970,77 +975,134 @@ void __init pagecache_init(void)
- {
- 	int i;
- 
--	for (i = 0; i < PAGE_WAIT_TABLE_SIZE; i++)
--		init_waitqueue_head(&page_wait_table[i]);
-+	for (i = 0; i < PAGE_WAIT_TABLE_SIZE; i++) {
-+		spin_lock_init(&page_wait_table[i].lock);
-+		page_wait_table[i].tree = RB_ROOT;
-+	}
- 
- 	page_writeback_init();
- }
- 
- /* This has the same layout as wait_bit_key - see fs/cachefiles/rdwr.c */
--struct wait_page_key {
--	struct page *page;
--	int bit_nr;
--	int page_match;
--};
+-int iommu_is_span_boundary(unsigned int index, unsigned int nr,
+-			   unsigned long shift,
+-			   unsigned long boundary_size)
+-{
+-	BUG_ON(!is_power_of_2(boundary_size));
 -
- struct wait_page_queue {
-+	struct rb_node node;
- 	struct page *page;
- 	int bit_nr;
--	wait_queue_entry_t wait;
-+	bool one;
-+	bool dequeued;
-+	struct task_struct *task;
-+	struct list_head queue;
-+	struct list_head head;
- };
+-	shift = (shift + index) & (boundary_size - 1);
+-	return shift + nr > boundary_size;
+-}
++#include <linux/iommu-helper.h>
  
--static int wake_page_function(wait_queue_entry_t *wait, unsigned mode, int sync, void *arg)
-+static int wake_page_match(struct page *page, int bit_nr,
-+			   struct wait_page_queue *page_q, bool *page_match)
- {
--	struct wait_page_key *key = arg;
--	struct wait_page_queue *wait_page
--		= container_of(wait, struct wait_page_queue, wait);
--
--	if (wait_page->page != key->page)
--	       return 0;
--	key->page_match = 1;
--
--	if (wait_page->bit_nr != key->bit_nr)
--		return 0;
--
--	/* Stop walking if it's locked */
--	if (test_bit(key->bit_nr, &key->page->flags))
-+	if ((unsigned long)page < (unsigned long)page_q->page)
- 		return -1;
- 
--	return autoremove_wake_function(wait, mode, sync, key);
-+	if ((unsigned long)page > (unsigned long)page_q->page)
-+		return 1;
-+
-+	/* page hit */
-+	*page_match = true;
-+
-+	if (bit_nr < page_q->bit_nr)
-+		return -1;
-+
-+	if (bit_nr > page_q->bit_nr)
-+		return 1;
-+
-+	return 0;
-+}
-+
-+static struct rb_node *find_wake_page(struct page_wait_rb *rb,
-+				      struct page *page, int bit_nr,
-+				      bool *page_match)
-+{
-+	struct rb_node *node;
-+
-+	node = rb->tree.rb_node;
-+	while (node) {
-+		struct wait_page_queue *page_q;
-+		int match;
-+
-+		page_q = rb_entry(node, struct wait_page_queue, node);
-+		match = wake_page_match(page, bit_nr, page_q, page_match);
-+
-+		if (match < 0)
-+			node = node->rb_left;
-+		else if (match > 0)
-+			node = node->rb_right;
-+		else
-+			break;
-+	}
-+	return node;
-+}
-+
-+static void wake_up_rb(struct page_wait_rb *rb, struct wake_q_head *wake_q,
-+		       struct wait_page_queue *page_q)
-+{
-+	struct wait_page_queue *next;
-+	struct rb_node *node = &page_q->node;
-+
-+	while (1) {
-+		struct task_struct *t;
-+		bool one;
-+
-+		if (list_empty(&page_q->head)) {
-+
-+			rb_erase(node, &rb->tree);
-+			RB_CLEAR_NODE(node);
-+
-+			t = READ_ONCE(page_q->task);
-+			/* full barrier in wake_q_add() */
-+			page_q->dequeued = true;
-+			wake_q_add(wake_q, t);
-+			break;
-+		}
-+
-+		next = list_first_entry(&page_q->head, struct wait_page_queue,
-+					queue);
-+
-+		list_del_init(&next->queue);
-+		list_splice_init(&page_q->head, &next->head);
-+
-+		rb_replace_node(node, &next->node, &rb->tree);
-+		RB_CLEAR_NODE(node);
-+		t = READ_ONCE(page_q->task);
-+		one = READ_ONCE(page_q->one);
-+
-+		/* full barrier in wake_q_add() */
-+		page_q->dequeued = true;
-+		wake_q_add(wake_q, t);
-+		if (one == true)
-+			break;
-+		page_q = next;
-+		node = &page_q->node;
-+	}
- }
- 
- static void wake_up_page_bit(struct page *page, int bit_nr)
- {
--	wait_queue_head_t *q = page_waitqueue(page);
--	struct wait_page_key key;
-+	struct page_wait_rb *rb = page_waitqueue(page);
-+	struct wait_page_queue *page_q;
-+	struct rb_node *node;
- 	unsigned long flags;
--	wait_queue_entry_t bookmark;
-+	bool page_match = false;
-+	DEFINE_WAKE_Q(wake_q);
- 
--	key.page = page;
--	key.bit_nr = bit_nr;
--	key.page_match = 0;
-+	spin_lock_irqsave(&rb->lock, flags);
- 
--	bookmark.flags = 0;
--	bookmark.private = NULL;
--	bookmark.func = NULL;
--	INIT_LIST_HEAD(&bookmark.entry);
-+	node = find_wake_page(rb, page, bit_nr, &page_match);
-+	if (node) {
- 
--	spin_lock_irqsave(&q->lock, flags);
--	__wake_up_locked_key_bookmark(q, TASK_NORMAL, &key, &bookmark);
--
--	while (bookmark.flags & WQ_FLAG_BOOKMARK) {
--		/*
--		 * Take a breather from holding the lock,
--		 * allow pages that finish wake up asynchronously
--		 * to acquire the lock and remove themselves
--		 * from wait queue
--		 */
--		spin_unlock_irqrestore(&q->lock, flags);
--		cpu_relax();
--		spin_lock_irqsave(&q->lock, flags);
--		__wake_up_locked_key_bookmark(q, TASK_NORMAL, &key, &bookmark);
-+		page_q = rb_entry(node, struct wait_page_queue, node);
-+		/* Stop walking if it's locked */
-+		if (test_bit(bit_nr, &page->flags))
-+			goto no_wakeup;
-+		wake_up_rb(rb, &wake_q, page_q);
- 	}
--
- 	/*
- 	 * It is possible for other pages to have collided on the waitqueue
- 	 * hash, so in that case check for a page match. That prevents a long-
-@@ -1050,7 +1112,7 @@ static void wake_up_page_bit(struct page *page, int bit_nr)
- 	 * and removed them from the waitqueue, but there are still other
- 	 * page waiters.
- 	 */
--	if (!waitqueue_active(q) || !key.page_match) {
-+	if (!page_match || RB_EMPTY_ROOT(&rb->tree)) {
- 		ClearPageWaiters(page);
- 		/*
- 		 * It's possible to miss clearing Waiters here, when we woke
-@@ -1060,7 +1122,10 @@ static void wake_up_page_bit(struct page *page, int bit_nr)
- 		 * That's okay, it's a rare case. The next waker will clear it.
- 		 */
- 	}
--	spin_unlock_irqrestore(&q->lock, flags);
-+no_wakeup:
-+
-+	spin_unlock_irqrestore(&rb->lock, flags);
-+	wake_up_q(&wake_q);
- }
- 
- static void wake_up_page(struct page *page, int bit)
-@@ -1070,30 +1135,63 @@ static void wake_up_page(struct page *page, int bit)
- 	wake_up_page_bit(page, bit);
- }
- 
--static inline int wait_on_page_bit_common(wait_queue_head_t *q,
--		struct page *page, int bit_nr, int state, bool lock)
-+static int wait_on_page_bit_common(struct page_wait_rb *rb, struct page *page,
-+				   int bit_nr, int state, bool lock)
- {
--	struct wait_page_queue wait_page;
--	wait_queue_entry_t *wait = &wait_page.wait;
-+	struct wait_page_queue page_q;
-+	struct rb_node *node = &page_q.node;
-+	struct rb_node **p;
-+	struct rb_node *parent;
- 	int ret = 0;
- 
--	init_wait(wait);
--	wait->flags = lock ? WQ_FLAG_EXCLUSIVE : 0;
--	wait->func = wake_page_function;
--	wait_page.page = page;
--	wait_page.bit_nr = bit_nr;
-+	page_q.page = page;
-+	page_q.bit_nr = bit_nr;
-+	page_q.task = current;
-+	page_q.one = lock;
-+	INIT_LIST_HEAD(&page_q.queue);
-+	INIT_LIST_HEAD(&page_q.head);
-+	RB_CLEAR_NODE(&page_q.node);
- 
- 	for (;;) {
--		spin_lock_irq(&q->lock);
-+		spin_lock_irq(&rb->lock);
- 
--		if (likely(list_empty(&wait->entry))) {
--			__add_wait_queue_entry_tail(q, wait);
--			SetPageWaiters(page);
-+		if (likely(RB_EMPTY_NODE(node)) &&
-+			list_empty(&page_q.queue)) {
-+
-+			page_q.dequeued = false;
-+
-+			p = &rb->tree.rb_node;
-+			parent = NULL;
-+			while (*p) {
-+				struct wait_page_queue *tmp;
-+				int match;
-+				bool page_match;
-+
-+				parent = *p;
-+				tmp = rb_entry(parent, struct wait_page_queue, node);
-+
-+				match = wake_page_match(page, bit_nr, tmp, &page_match);
-+
-+				if (match < 0) {
-+					p = &parent->rb_left;
-+
-+				} else if (match > 0) {
-+					p = &parent->rb_right;
-+				} else {
-+					list_add_tail(&page_q.queue,
-+						      &tmp->head);
-+					break;
-+				}
-+			}
-+			if (list_empty(&page_q.queue)) {
-+				rb_link_node(node, parent, p);
-+				rb_insert_color(node, &rb->tree);
-+			}
- 		}
--
-+		SetPageWaiters(page);
- 		set_current_state(state);
- 
--		spin_unlock_irq(&q->lock);
-+		spin_unlock_irq(&rb->lock);
- 
- 		if (likely(test_bit(bit_nr, &page->flags))) {
- 			io_schedule();
-@@ -1112,8 +1210,34 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
- 			break;
- 		}
- 	}
-+	__set_current_state(TASK_RUNNING);
- 
--	finish_wait(q, wait);
-+	/* paired with the full barrier in wake_q_add() */
-+	smp_rmb();
-+	if (!page_q.dequeued) {
-+		spin_lock_irq(&rb->lock);
-+
-+		if (!list_empty(&page_q.queue))
-+			list_del_init(&page_q.queue);
-+
-+		if (!list_empty(&page_q.head)) {
-+			struct wait_page_queue *tmp;
-+
-+			BUG_ON(RB_EMPTY_NODE(node));
-+
-+			tmp = list_first_entry(&page_q.head,
-+					       struct wait_page_queue,
-+					       queue);
-+			list_del_init(&tmp->queue);
-+			list_splice(&page_q.head, &tmp->head);
-+
-+			rb_replace_node(node, &tmp->node, &rb->tree);
-+
-+		} else if (!RB_EMPTY_NODE(node)) {
-+			rb_erase(node, &rb->tree);
-+		}
-+		spin_unlock_irq(&rb->lock);
-+	}
- 
- 	/*
- 	 * A signal could leave PageWaiters set. Clearing it here if
-@@ -1128,18 +1252,21 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
- 
- void wait_on_page_bit(struct page *page, int bit_nr)
- {
--	wait_queue_head_t *q = page_waitqueue(page);
--	wait_on_page_bit_common(q, page, bit_nr, TASK_UNINTERRUPTIBLE, false);
-+	struct page_wait_rb *rb = page_waitqueue(page);
-+
-+	wait_on_page_bit_common(rb, page, bit_nr, TASK_UNINTERRUPTIBLE, false);
- }
- EXPORT_SYMBOL(wait_on_page_bit);
- 
- int wait_on_page_bit_killable(struct page *page, int bit_nr)
- {
--	wait_queue_head_t *q = page_waitqueue(page);
--	return wait_on_page_bit_common(q, page, bit_nr, TASK_KILLABLE, false);
-+	struct page_wait_rb *rb = page_waitqueue(page);
-+
-+	return wait_on_page_bit_common(rb, page, bit_nr, TASK_KILLABLE, false);
- }
- EXPORT_SYMBOL(wait_on_page_bit_killable);
- 
-+#if 0
- /**
-  * add_page_wait_queue - Add an arbitrary waiter to a page's wait queue
-  * @page: Page defining the wait queue of interest
-@@ -1158,6 +1285,7 @@ void add_page_wait_queue(struct page *page, wait_queue_entry_t *waiter)
- 	spin_unlock_irqrestore(&q->lock, flags);
- }
- EXPORT_SYMBOL_GPL(add_page_wait_queue);
-+#endif
- 
- #ifndef clear_bit_unlock_is_negative_byte
- 
-@@ -1268,16 +1396,18 @@ EXPORT_SYMBOL_GPL(page_endio);
- void __lock_page(struct page *__page)
- {
- 	struct page *page = compound_head(__page);
--	wait_queue_head_t *q = page_waitqueue(page);
--	wait_on_page_bit_common(q, page, PG_locked, TASK_UNINTERRUPTIBLE, true);
-+	struct page_wait_rb *rb = page_waitqueue(page);
-+
-+	wait_on_page_bit_common(rb, page, PG_locked, TASK_UNINTERRUPTIBLE, true);
- }
- EXPORT_SYMBOL(__lock_page);
- 
- int __lock_page_killable(struct page *__page)
- {
- 	struct page *page = compound_head(__page);
--	wait_queue_head_t *q = page_waitqueue(page);
--	return wait_on_page_bit_common(q, page, PG_locked, TASK_KILLABLE, true);
-+	struct page_wait_rb *rb = page_waitqueue(page);
-+
-+	return wait_on_page_bit_common(rb, page, PG_locked, TASK_KILLABLE, true);
- }
- EXPORT_SYMBOL_GPL(__lock_page_killable);
- 
+ unsigned long iommu_area_alloc(unsigned long *map, unsigned long size,
+ 			       unsigned long start, unsigned int nr,
 -- 
-2.16.3
+2.17.0
