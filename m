@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 196C36B000D
-	for <linux-mm@kvack.org>; Sun, 15 Apr 2018 11:00:21 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q11so7841624pfd.8
-        for <linux-mm@kvack.org>; Sun, 15 Apr 2018 08:00:21 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CA336B000E
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2018 11:00:22 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id c11-v6so8846721pll.13
+        for <linux-mm@kvack.org>; Sun, 15 Apr 2018 08:00:22 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 66si4002251pgh.491.2018.04.15.08.00.18
+        by mx.google.com with ESMTPS id q9si8668218pff.109.2018.04.15.08.00.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 15 Apr 2018 08:00:18 -0700 (PDT)
+        Sun, 15 Apr 2018 08:00:20 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 04/12] iommu-helper: move the IOMMU_HELPER config symbol to lib/
-Date: Sun, 15 Apr 2018 16:59:39 +0200
-Message-Id: <20180415145947.1248-5-hch@lst.de>
+Subject: [PATCH 05/12] scatterlist: move the NEED_SG_DMA_LENGTH config symbol to lib/Kconfig
+Date: Sun, 15 Apr 2018 16:59:40 +0200
+Message-Id: <20180415145947.1248-6-hch@lst.de>
 In-Reply-To: <20180415145947.1248-1-hch@lst.de>
 References: <20180415145947.1248-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -25,126 +25,325 @@ needed.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/Kconfig | 4 +---
- arch/s390/Kconfig    | 5 ++---
- arch/sparc/Kconfig   | 5 +----
- arch/x86/Kconfig     | 6 ++----
- lib/Kconfig          | 3 +++
- 5 files changed, 9 insertions(+), 14 deletions(-)
+ arch/alpha/Kconfig              | 4 +---
+ arch/arm/Kconfig                | 3 ---
+ arch/arm64/Kconfig              | 4 +---
+ arch/hexagon/Kconfig            | 4 +---
+ arch/ia64/Kconfig               | 4 +---
+ arch/mips/cavium-octeon/Kconfig | 3 ---
+ arch/mips/loongson64/Kconfig    | 3 ---
+ arch/mips/netlogic/Kconfig      | 3 ---
+ arch/parisc/Kconfig             | 4 +---
+ arch/powerpc/Kconfig            | 4 +---
+ arch/s390/Kconfig               | 4 +---
+ arch/sh/Kconfig                 | 5 ++---
+ arch/sparc/Kconfig              | 4 +---
+ arch/unicore32/mm/Kconfig       | 5 +----
+ arch/x86/Kconfig                | 4 +---
+ lib/Kconfig                     | 3 +++
+ 16 files changed, 15 insertions(+), 46 deletions(-)
 
+diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
+index 3ff735a722af..8e6a67ecf069 100644
+--- a/arch/alpha/Kconfig
++++ b/arch/alpha/Kconfig
+@@ -10,6 +10,7 @@ config ALPHA
+ 	select HAVE_OPROFILE
+ 	select HAVE_PCSPKR_PLATFORM
+ 	select HAVE_PERF_EVENTS
++	select NEED_SG_DMA_LENGTH
+ 	select VIRT_TO_BUS
+ 	select GENERIC_IRQ_PROBE
+ 	select AUTO_IRQ_AFFINITY if SMP
+@@ -70,9 +71,6 @@ config ARCH_DMA_ADDR_T_64BIT
+ config NEED_DMA_MAP_STATE
+        def_bool y
+ 
+-config NEED_SG_DMA_LENGTH
+-	def_bool y
+-
+ config GENERIC_ISA_DMA
+ 	bool
+ 	default y
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 2f79222c5c02..602c8320282f 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -119,9 +119,6 @@ config ARM_HAS_SG_CHAIN
+ 	select ARCH_HAS_SG_CHAIN
+ 	bool
+ 
+-config NEED_SG_DMA_LENGTH
+-	bool
+-
+ config ARM_DMA_USE_IOMMU
+ 	bool
+ 	select ARM_HAS_SG_CHAIN
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index fbef5d3de83f..3b441c5587f1 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -133,6 +133,7 @@ config ARM64
+ 	select IRQ_FORCED_THREADING
+ 	select MODULES_USE_ELF_RELA
+ 	select MULTI_IRQ_HANDLER
++	select NEED_SG_DMA_LENGTH
+ 	select NO_BOOTMEM
+ 	select OF
+ 	select OF_EARLY_FLATTREE
+@@ -243,9 +244,6 @@ config ARCH_DMA_ADDR_T_64BIT
+ config NEED_DMA_MAP_STATE
+ 	def_bool y
+ 
+-config NEED_SG_DMA_LENGTH
+-	def_bool y
+-
+ config SMP
+ 	def_bool y
+ 
+diff --git a/arch/hexagon/Kconfig b/arch/hexagon/Kconfig
+index 76d2f20d525e..37adb2003033 100644
+--- a/arch/hexagon/Kconfig
++++ b/arch/hexagon/Kconfig
+@@ -19,6 +19,7 @@ config HEXAGON
+ 	select GENERIC_IRQ_SHOW
+ 	select HAVE_ARCH_KGDB
+ 	select HAVE_ARCH_TRACEHOOK
++	select NEED_SG_DMA_LENGTH
+ 	select NO_IOPORT_MAP
+ 	select GENERIC_IOMAP
+ 	select GENERIC_SMP_IDLE_THREAD
+@@ -63,9 +64,6 @@ config GENERIC_CSUM
+ config GENERIC_IRQ_PROBE
+ 	def_bool y
+ 
+-config NEED_SG_DMA_LENGTH
+-	def_bool y
+-
+ config RWSEM_GENERIC_SPINLOCK
+ 	def_bool n
+ 
+diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
+index 862c5160c09d..333917676f7f 100644
+--- a/arch/ia64/Kconfig
++++ b/arch/ia64/Kconfig
+@@ -54,6 +54,7 @@ config IA64
+ 	select MODULES_USE_ELF_RELA
+ 	select ARCH_USE_CMPXCHG_LOCKREF
+ 	select HAVE_ARCH_AUDITSYSCALL
++	select NEED_SG_DMA_LENGTH
+ 	default y
+ 	help
+ 	  The Itanium Processor Family is Intel's 64-bit successor to
+@@ -84,9 +85,6 @@ config ARCH_DMA_ADDR_T_64BIT
+ config NEED_DMA_MAP_STATE
+ 	def_bool y
+ 
+-config NEED_SG_DMA_LENGTH
+-	def_bool y
+-
+ config SWIOTLB
+        bool
+ 
+diff --git a/arch/mips/cavium-octeon/Kconfig b/arch/mips/cavium-octeon/Kconfig
+index 647ed158ac98..5d73041547a7 100644
+--- a/arch/mips/cavium-octeon/Kconfig
++++ b/arch/mips/cavium-octeon/Kconfig
+@@ -67,9 +67,6 @@ config CAVIUM_OCTEON_LOCK_L2_MEMCPY
+ 	help
+ 	  Lock the kernel's implementation of memcpy() into L2.
+ 
+-config NEED_SG_DMA_LENGTH
+-	bool
+-
+ config SWIOTLB
+ 	def_bool y
+ 	select DMA_DIRECT_OPS
+diff --git a/arch/mips/loongson64/Kconfig b/arch/mips/loongson64/Kconfig
+index 5efb2e63878e..641a1477031e 100644
+--- a/arch/mips/loongson64/Kconfig
++++ b/arch/mips/loongson64/Kconfig
+@@ -130,9 +130,6 @@ config LOONGSON_UART_BASE
+ 	default y
+ 	depends on EARLY_PRINTK || SERIAL_8250
+ 
+-config NEED_SG_DMA_LENGTH
+-	bool
+-
+ config SWIOTLB
+ 	bool "Soft IOMMU Support for All-Memory DMA"
+ 	default y
+diff --git a/arch/mips/netlogic/Kconfig b/arch/mips/netlogic/Kconfig
+index 5c5ee0e05a17..412351c5acc6 100644
+--- a/arch/mips/netlogic/Kconfig
++++ b/arch/mips/netlogic/Kconfig
+@@ -83,7 +83,4 @@ endif
+ config NLM_COMMON
+ 	bool
+ 
+-config NEED_SG_DMA_LENGTH
+-	bool
+-
+ endif
+diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
+index 7e0bb9836b58..491912f9b978 100644
+--- a/arch/parisc/Kconfig
++++ b/arch/parisc/Kconfig
+@@ -51,6 +51,7 @@ config PARISC
+ 	select GENERIC_CLOCKEVENTS
+ 	select ARCH_NO_COHERENT_DMA_MMAP
+ 	select CPU_NO_EFFICIENT_FFS
++	select NEED_SG_DMA_LENGTH
+ 
+ 	help
+ 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
+@@ -114,9 +115,6 @@ config STACKTRACE_SUPPORT
+ config NEED_DMA_MAP_STATE
+ 	def_bool y
+ 
+-config NEED_SG_DMA_LENGTH
+-	def_bool y
+-
+ config ISA_DMA_API
+ 	bool
+ 
 diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index eb23f2949bf6..3ca617cd4807 100644
+index 3ca617cd4807..39c5377a5460 100644
 --- a/arch/powerpc/Kconfig
 +++ b/arch/powerpc/Kconfig
-@@ -223,6 +223,7 @@ config PPC
- 	select HAVE_SYSCALL_TRACEPOINTS
- 	select HAVE_VIRT_CPU_ACCOUNTING
- 	select HAVE_IRQ_TIME_ACCOUNTING
-+	select IOMMU_HELPER			if PPC64
+@@ -227,6 +227,7 @@ config PPC
  	select IRQ_DOMAIN
  	select IRQ_FORCED_THREADING
  	select MODULES_USE_ELF_RELA
-@@ -478,9 +479,6 @@ config MPROFILE_KERNEL
- 	depends on PPC64 && CPU_LITTLE_ENDIAN
- 	def_bool !DISABLE_MPROFILE_KERNEL
++	select NEED_SG_DMA_LENGTH
+ 	select NO_BOOTMEM
+ 	select OF
+ 	select OF_EARLY_FLATTREE
+@@ -907,9 +908,6 @@ config ZONE_DMA
+ config NEED_DMA_MAP_STATE
+ 	def_bool (PPC64 || NOT_COHERENT_CACHE)
  
--config IOMMU_HELPER
--	def_bool PPC64
+-config NEED_SG_DMA_LENGTH
+-	def_bool y
 -
- config SWIOTLB
- 	bool "SWIOTLB support"
- 	default n
+ config GENERIC_ISA_DMA
+ 	bool
+ 	depends on ISA_DMA_API
 diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-index 32a0d5b958bf..bfa449fdeb19 100644
+index bfa449fdeb19..4fa47b1445a2 100644
 --- a/arch/s390/Kconfig
 +++ b/arch/s390/Kconfig
-@@ -693,7 +693,9 @@ config QDIO
- menuconfig PCI
- 	bool "PCI support"
+@@ -695,6 +695,7 @@ menuconfig PCI
  	select PCI_MSI
-+	select IOMMU_HELPER
+ 	select IOMMU_HELPER
  	select IOMMU_SUPPORT
-+
++	select NEED_SG_DMA_LENGTH
+ 
  	help
  	  Enable PCI support.
- 
-@@ -717,9 +719,6 @@ config PCI_DOMAINS
+@@ -719,9 +720,6 @@ config PCI_DOMAINS
  config HAS_IOMEM
  	def_bool PCI
  
--config IOMMU_HELPER
+-config NEED_SG_DMA_LENGTH
 -	def_bool PCI
 -
- config NEED_SG_DMA_LENGTH
+ config NEED_DMA_MAP_STATE
  	def_bool PCI
  
+diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
+index 97fe29316476..e127e0cbe30f 100644
+--- a/arch/sh/Kconfig
++++ b/arch/sh/Kconfig
+@@ -50,6 +50,8 @@ config SUPERH
+ 	select HAVE_ARCH_AUDITSYSCALL
+ 	select HAVE_FUTEX_CMPXCHG if FUTEX
+ 	select HAVE_NMI
++	select NEED_SG_DMA_LENGTH
++
+ 	help
+ 	  The SuperH is a RISC processor targeted for use in embedded systems
+ 	  and consumer electronics; it was also used in the Sega Dreamcast
+@@ -163,9 +165,6 @@ config DMA_NONCOHERENT
+ config NEED_DMA_MAP_STATE
+ 	def_bool DMA_NONCOHERENT
+ 
+-config NEED_SG_DMA_LENGTH
+-	def_bool y
+-
+ config PGTABLE_LEVELS
+ 	default 3 if X2TLB
+ 	default 2
 diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
-index 8767e45f1b2b..44e0f3cd7988 100644
+index 44e0f3cd7988..e79badc8a682 100644
 --- a/arch/sparc/Kconfig
 +++ b/arch/sparc/Kconfig
-@@ -67,6 +67,7 @@ config SPARC64
- 	select HAVE_SYSCALL_TRACEPOINTS
- 	select HAVE_CONTEXT_TRACKING
- 	select HAVE_DEBUG_KMEMLEAK
-+	select IOMMU_HELPER
- 	select SPARSE_IRQ
- 	select RTC_DRV_CMOS
- 	select RTC_DRV_BQ4802
-@@ -106,10 +107,6 @@ config ARCH_DMA_ADDR_T_64BIT
- 	bool
- 	default y if ARCH_ATU
+@@ -44,6 +44,7 @@ config SPARC
+ 	select ARCH_HAS_SG_CHAIN
+ 	select CPU_NO_EFFICIENT_FFS
+ 	select LOCKDEP_SMALL if LOCKDEP
++	select NEED_SG_DMA_LENGTH
  
--config IOMMU_HELPER
--	bool
--	default y if SPARC64
+ config SPARC32
+ 	def_bool !64BIT
+@@ -146,9 +147,6 @@ config ZONE_DMA
+ config NEED_DMA_MAP_STATE
+ 	def_bool y
+ 
+-config NEED_SG_DMA_LENGTH
+-	def_bool y
 -
- config STACKTRACE_SUPPORT
+ config GENERIC_ISA_DMA
  	bool
- 	default y if SPARC64
+ 	default y if SPARC32
+diff --git a/arch/unicore32/mm/Kconfig b/arch/unicore32/mm/Kconfig
+index 3f105e00c432..1d9fed0ada71 100644
+--- a/arch/unicore32/mm/Kconfig
++++ b/arch/unicore32/mm/Kconfig
+@@ -43,7 +43,4 @@ config CPU_TLB_SINGLE_ENTRY_DISABLE
+ config SWIOTLB
+ 	def_bool y
+ 	select DMA_DIRECT_OPS
+-
+-config NEED_SG_DMA_LENGTH
+-	def_bool SWIOTLB
+-
++	select NEED_SG_DMA_LENGTH
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 336b1378ee62..06ca29e70d6b 100644
+index 06ca29e70d6b..491a723bc2b3 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -870,6 +870,7 @@ config DMI
+@@ -182,6 +182,7 @@ config X86
+ 	select HAVE_UNSTABLE_SCHED_CLOCK
+ 	select HAVE_USER_RETURN_NOTIFIER
+ 	select IRQ_FORCED_THREADING
++	select NEED_SG_DMA_LENGTH
+ 	select PCI_LOCKLESS_CONFIG
+ 	select PERF_EVENTS
+ 	select RTC_LIB
+@@ -238,9 +239,6 @@ config NEED_DMA_MAP_STATE
+ 	def_bool y
+ 	depends on X86_64 || INTEL_IOMMU || DMA_API_DEBUG || SWIOTLB
  
- config GART_IOMMU
- 	bool "Old AMD GART IOMMU support"
-+	select IOMMU_HELPER
- 	select SWIOTLB
- 	depends on X86_64 && PCI && AMD_NB
- 	---help---
-@@ -891,6 +892,7 @@ config GART_IOMMU
- 
- config CALGARY_IOMMU
- 	bool "IBM Calgary IOMMU support"
-+	select IOMMU_HELPER
- 	select SWIOTLB
- 	depends on X86_64 && PCI
- 	---help---
-@@ -928,10 +930,6 @@ config SWIOTLB
- 	  with more than 3 GB of memory.
- 	  If unsure, say Y.
- 
--config IOMMU_HELPER
+-config NEED_SG_DMA_LENGTH
 -	def_bool y
--	depends on CALGARY_IOMMU || GART_IOMMU
 -
- config MAXSMP
- 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
- 	depends on X86_64 && SMP && DEBUG_KERNEL
+ config GENERIC_ISA_DMA
+ 	def_bool y
+ 	depends on ISA_DMA_API
 diff --git a/lib/Kconfig b/lib/Kconfig
-index 5fe577673b98..2f6908577534 100644
+index 2f6908577534..aeb7fae16bc2 100644
 --- a/lib/Kconfig
 +++ b/lib/Kconfig
 @@ -429,6 +429,9 @@ config SGL_ALLOC
  	bool
  	default n
  
-+config IOMMU_HELPER
++config NEED_SG_DMA_LENGTH
 +	bool
 +
- config DMA_DIRECT_OPS
+ config IOMMU_HELPER
  	bool
- 	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)
+ 
 -- 
 2.17.0
