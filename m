@@ -1,118 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FC186B0003
-	for <linux-mm@kvack.org>; Sun, 15 Apr 2018 21:39:08 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id a20so9390752ywe.18
-        for <linux-mm@kvack.org>; Sun, 15 Apr 2018 18:39:08 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 142E86B0007
+	for <linux-mm@kvack.org>; Sun, 15 Apr 2018 21:47:36 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id x81so2299704pgx.21
+        for <linux-mm@kvack.org>; Sun, 15 Apr 2018 18:47:36 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c187-v6sor735235ybb.23.2018.04.15.18.39.07
+        by mx.google.com with SMTPS id g184sor2181807pgc.119.2018.04.15.18.47.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 15 Apr 2018 18:39:07 -0700 (PDT)
-Date: Sun, 15 Apr 2018 18:39:02 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm: allow to decrease swap.max below actual swap usage
-Message-ID: <20180416013902.GD1911913@devbig577.frc2.facebook.com>
-References: <20180412132705.30316-1-guro@fb.com>
+        Sun, 15 Apr 2018 18:47:34 -0700 (PDT)
+Date: Mon, 16 Apr 2018 10:47:29 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
+Message-ID: <20180416014729.GB1034@jagdpanzerIV>
+References: <20180413124704.19335-1-pmladek@suse.com>
+ <20180413101233.0792ebf0@gandalf.local.home>
+ <20180414023516.GA17806@tigerII.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180412132705.30316-1-guro@fb.com>
+In-Reply-To: <20180414023516.GA17806@tigerII.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Shaohua Li <shli@fb.com>, Rik van Riel <riel@surriel.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com
+To: Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Hello, Roman.
+On (04/14/18 11:35), Sergey Senozhatsky wrote:
+> On (04/13/18 10:12), Steven Rostedt wrote:
+> > 
+> > > The interval is set to one hour. It is rather arbitrary selected time.
+> > > It is supposed to be a compromise between never print these messages,
+> > > do not lockup the machine, do not fill the entire buffer too quickly,
+> > > and get information if something changes over time.
+> > 
+> > 
+> > I think an hour is incredibly long. We only allow 100 lines per hour for
+> > printks happening inside another printk?
+> > 
+> > I think 5 minutes (at most) would probably be plenty. One minute may be
+> > good enough.
+> 
+> Besides 100 lines is absolutely not enough for any real lockdep splat.
+> My call would be - up to 1000 lines in a 1 minute interval.
 
-The reclaim behavior is a bit worrisome.
+Well, if we want to basically turn printk_safe() into printk_safe_ratelimited().
+I'm not so sure about it.
 
-* It disables an entire swap area while reclaim is in progress.  Most
-  systems only have one swap area, so this would disable allocating
-  new swap area for everyone.
+Besides the patch also rate limits printk_nmi->logbuf - the logbuf
+PRINTK_NMI_DEFERRED_CONTEXT_MASK bypass, which is way too important
+to rate limit it - for no reason.
 
-* The reclaim seems very inefficient.  IIUC, it has to read every swap
-  page to see whether the page belongs to the target memcg and for
-  each matching page, which involves walking page mm's and page
-  tables.
+Dunno, can we keep printk_safe() the way it is and introduce a new
+printk_safe_ratelimited() specifically for call_console_drivers()?
 
-An easy optimization would be walking swap_cgroup_ctrl so that it only
-reads swap entries which belong to the target cgroup and avoid
-disabling swap for others, but looking at the code, I wonder whether
-we need active reclaim at all.
+Lockdep splat is a one time event, if we lose half of it - we, most
+like, lose the entire report. And call_console_drivers() is not the
+one and only source of warnings/errors/etc. So if we turn printk_safe
+into printk_safe_ratelimited() [not sure we want to do it] for all
+then I want restrictions to be as low as possible, IOW to log_store()
+as many lines as possible.
 
-Swap already tries to aggressively reclaim swap entries when swap
-usage > 50% of the limit, so simply reducing the limit already
-triggers aggressive reclaim, and given that it's swap, just waiting it
-out could be the better behavior anyway, so how about something like
-the following?
+Chatty console drivers is not exactly the case which printk_safe() was
+meant to fix. I'm pretty sure I put call_console_drivers() under printk_safe
+just because we call console_drivers with local IRQs disabled anyway and I
+was too lazy to do something like this
 
------- 8< ------
-From: Tejun Heo <tj@kernel.org>
-Subject: mm: memcg: allow lowering memory.swap.max below the current usage
-
-Currently an attempt to set swap.max into a value lower than the
-actual swap usage fails, which causes configuration problems as
-there's no way of lowering the configuration below the current usage
-short of turning off swap entirely.  This makes swap.max difficult to
-use and allows delegatees to lock the delegator out of reducing swap
-allocation.
-
-This patch updates swap_max_write() so that the limit can be lowered
-below the current usage.  It doesn't implement active reclaiming of
-swap entries for the following reasons.
-
-* mem_cgroup_swap_full() already tells the swap machinary to
-  aggressively reclaim swap entries if the usage is above 50% of
-  limit, so simply lowering the limit automatically triggers gradual
-  reclaim.
-
-* Forcing back swapped out pages is likely to heavily impact the
-  workload and mess up the working set.  Given that swap usually is a
-  lot less valuable and less scarce, letting the existing usage
-  dissipate over time through the above gradual reclaim and as they're
-  falted back in is likely the better behavior.
-
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Shaohua Li <shli@fb.com>
-Cc: Rik van Riel <riel@surriel.com>
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org
 ---
- Documentation/cgroup-v2.txt |    5 +++++
- mm/memcontrol.c             |    6 +-----
- 2 files changed, 6 insertions(+), 5 deletions(-)
 
---- a/Documentation/cgroup-v2.txt
-+++ b/Documentation/cgroup-v2.txt
-@@ -1199,6 +1199,11 @@ PAGE_SIZE multiple when read back.
- 	Swap usage hard limit.  If a cgroup's swap usage reaches this
- 	limit, anonymous memory of the cgroup will not be swapped out.
+@@ -2377,6 +2377,7 @@ void console_unlock(void)
+ 		console_idx = log_next(console_idx);
+ 		console_seq++;
+ 		raw_spin_unlock(&logbuf_lock);
++		__printk_safe_exit();
  
-+	When reduced under the current usage, the existing swap
-+	entries are reclaimed gradually and the swap usage may stay
-+	higher than the limit for an extended period of time.  This
-+	reduces the impact on the workload and memory management.
-+
+ 		/*
+ 		 * While actively printing out messages, if another printk()
+@@ -2390,6 +2391,7 @@ void console_unlock(void)
+ 		call_console_drivers(ext_text, ext_len, text, len);
+ 		start_critical_timings();
  
- Usage Guidelines
- ~~~~~~~~~~~~~~~~
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -6144,11 +6144,7 @@ static ssize_t swap_max_write(struct ker
- 	if (err)
- 		return err;
- 
--	mutex_lock(&memcg_limit_mutex);
--	err = page_counter_limit(&memcg->swap, max);
--	mutex_unlock(&memcg_limit_mutex);
--	if (err)
--		return err;
-+	xchg(&memcg->swap.limit, max);
- 
- 	return nbytes;
- }
++		__printk_safe_enter();
+ 		if (console_lock_spinning_disable_and_check()) {
+ 			printk_safe_exit_irqrestore(flags);
+ 			return;
+
+---
+
+But, in general, I don't think there are real reasons for us to call
+console drivers from printk_safe section: call_console_drivers()->printk()
+will not deadlock, because vprintk_emit()->console_trylock_spinning() will
+always fail.
+
+	-ss
