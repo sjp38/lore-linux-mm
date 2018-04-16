@@ -1,67 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 455C96B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 13:44:28 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id d9-v6so1725687plj.4
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 10:44:28 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id v127si8781169pgv.27.2018.04.16.10.44.27
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 299F76B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 13:47:44 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id t2so2990152pgb.19
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 10:47:44 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id n7si7993738pgu.88.2018.04.16.10.47.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 10:44:27 -0700 (PDT)
-Date: Mon, 16 Apr 2018 13:44:23 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Message-ID: <20180416134423.2b60ff13@gandalf.local.home>
-In-Reply-To: <20180416171607.GJ2341@sasha-vm>
-References: <20180409001936.162706-15-alexander.levin@microsoft.com>
-	<20180409082246.34hgp3ymkfqke3a4@pathway.suse.cz>
-	<20180415144248.GP2341@sasha-vm>
-	<20180416093058.6edca0bb@gandalf.local.home>
-	<CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
-	<20180416153031.GA5039@amd>
-	<20180416155031.GX2341@sasha-vm>
-	<20180416160608.GA7071@amd>
-	<20180416161412.GZ2341@sasha-vm>
-	<20180416170501.GB11034@amd>
-	<20180416171607.GJ2341@sasha-vm>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 16 Apr 2018 10:47:43 -0700 (PDT)
+Date: Mon, 16 Apr 2018 10:47:40 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] dax: Change return type to vm_fault_t
+Message-ID: <20180416174740.GA12686@bombadil.infradead.org>
+References: <20180414155059.GA18015@jordon-HP-15-Notebook-PC>
+ <CAPcyv4g+Gdc2tJ1qrM5Xn9vtARw-ZqFXaMbiaBKJJsYDtSNBig@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4g+Gdc2tJ1qrM5Xn9vtARw-ZqFXaMbiaBKJJsYDtSNBig@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <Alexander.Levin@microsoft.com>
-Cc: Pavel Machek <pavel@ucw.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon, 16 Apr 2018 17:16:10 +0000
-Sasha Levin <Alexander.Levin@microsoft.com> wrote:
-
- 
-> So if a user is operating a nuclear power plant, and has 2 leds: green
-> one that says "All OK!" and a red one saying "NUCLEAR MELTDOWN!", and
-> once in a blue moon a race condition is causing the red one to go on and
-> cause panic in the little province he lives in, we should tell that user
-> to fuck off?
+On Mon, Apr 16, 2018 at 09:14:48AM -0700, Dan Williams wrote:
+> > -       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
+> > -
+> > -       if (rc == -ENOMEM)
+> > -               return VM_FAULT_OOM;
+> > -       if (rc < 0 && rc != -EBUSY)
+> > -               return VM_FAULT_SIGBUS;
+> > -
+> > -       return VM_FAULT_NOPAGE;
+> > +       return vmf_insert_mixed(vmf->vma, vmf->address, pfn);
 > 
-> LEDs may not be critical for you, but they can be critical for someone
-> else. Think of all the different users we have and the wildly different
-> ways they use the kernel.
+> Ugh, so this change to vmf_insert_mixed() went upstream without fixing
+> the users? This changelog is now misleading as it does not mention
+> that is now an urgent standalone fix. On first read I assumed this was
+> part of a wider effort for 4.18.
 
-We can point them to the fix and have them backport it. Or they should
-ask their distribution to backport it.
+You read too quickly.  vmf_insert_mixed() is a *new* function which
+*replaces* vm_insert_mixed() and
+awful-mangling-of-return-values-done-per-driver.
 
-Hopefully they tested the kernel they are using for something like
-that, and only want critical fixes. What happens if they take the next
-stable assuming that it has critical fixes only, and this fix causes a
-regression that creates the "ALL OK!" when it wasn't.
-
-Basically, I rather have stable be more bug compatible with the version
-it is based on with only critical fixes (things that will cause an
-oops) than to try to be bug compatible with mainline, as then we get
-into a state where things are a frankenstein of the stable base version
-and mainline. I could say, "Yeah this feature works better on this
-4.x version of the kernel" and not worry about "4.x.y" versions having
-it better.
-
--- Steve
+Eventually vm_insert_mixed() will be deleted.  But today is not that day.
