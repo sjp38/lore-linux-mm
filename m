@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D2596B0027
+	by kanga.kvack.org (Postfix) with ESMTP id 5FEA56B0024
 	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:45 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id d37so13316684wrd.21
+Received: by mail-wr0-f199.google.com with SMTP id 38so12166541wrv.8
         for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:45 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id r2si138660edm.137.2018.04.16.08.25.43
+        by mx.google.com with ESMTPS id d35si1238536edc.198.2018.04.16.08.25.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 08:25:43 -0700 (PDT)
+        Mon, 16 Apr 2018 08:25:44 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 12/35] x86/32: Use tss.sp1 as cpu_current_top_of_stack
-Date: Mon, 16 Apr 2018 17:25:00 +0200
-Message-Id: <1523892323-14741-13-git-send-email-joro@8bytes.org>
+Subject: [PATCH 11/35] x86/entry/32: Simplify debug entry point
+Date: Mon, 16 Apr 2018 17:24:59 +0200
+Message-Id: <1523892323-14741-12-git-send-email-joro@8bytes.org>
 In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,80 +22,66 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Now that we store the task-stack in tss.sp1 we can also use
-it as cpu_current_top_of_stack. This unifies the handling
-with x86-64.
+The common exception entry code now handles the
+entry-from-sysenter stack situation and makes sure to leave
+with the same stack as it entered the kernel.
+
+So there is no need anymore for the special handling in the
+debug entry code.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/processor.h   | 4 ----
- arch/x86/include/asm/thread_info.h | 2 --
- arch/x86/kernel/cpu/common.c       | 4 ----
- arch/x86/kernel/process_32.c       | 6 ------
- 4 files changed, 16 deletions(-)
+ arch/x86/entry/entry_32.S | 35 +++--------------------------------
+ 1 file changed, 3 insertions(+), 32 deletions(-)
 
-diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index 4fa4206..3894f63 100644
---- a/arch/x86/include/asm/processor.h
-+++ b/arch/x86/include/asm/processor.h
-@@ -374,12 +374,8 @@ DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
- #define __KERNEL_TSS_LIMIT	\
- 	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index b3477ff..71e1cb3 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -1231,41 +1231,12 @@ END(common_exception)
  
--#ifdef CONFIG_X86_32
--DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
--#else
- /* The RO copy can't be accessed with this_cpu_xyz(), so use the RW copy. */
- #define cpu_current_top_of_stack cpu_tss_rw.x86_tss.sp1
--#endif
+ ENTRY(debug)
+ 	/*
+-	 * #DB can happen at the first instruction of
+-	 * entry_SYSENTER_32 or in Xen's SYSENTER prologue.  If this
+-	 * happens, then we will be running on a very small stack.  We
+-	 * need to detect this condition and switch to the thread
+-	 * stack before calling any C code at all.
+-	 *
+-	 * If you edit this code, keep in mind that NMIs can happen in here.
++	 * Entry from sysenter is now handled in common_exception
+ 	 */
+ 	ASM_CLAC
+ 	pushl	$-1				# mark this as an int
+-
+-	SAVE_ALL
+-	ENCODE_FRAME_POINTER
+-	xorl	%edx, %edx			# error code 0
+-	movl	%esp, %eax			# pt_regs pointer
+-
+-	/* Are we currently on the SYSENTER stack? */
+-	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+-	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+-	subl	%eax, %ecx	/* ecx = (end of entry_stack) - esp */
+-	cmpl	$SIZEOF_entry_stack, %ecx
+-	jb	.Ldebug_from_sysenter_stack
+-
+-	TRACE_IRQS_OFF
+-	call	do_debug
+-	jmp	ret_from_exception
+-
+-.Ldebug_from_sysenter_stack:
+-	/* We're on the SYSENTER stack.  Switch off. */
+-	movl	%esp, %ebx
+-	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+-	TRACE_IRQS_OFF
+-	call	do_debug
+-	movl	%ebx, %esp
+-	jmp	ret_from_exception
++	pushl	$do_debug
++	jmp	common_exception
+ END(debug)
  
  /*
-  * Save the original ist values for checking stack pointers during debugging
-diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
-index a5d9521..943c673 100644
---- a/arch/x86/include/asm/thread_info.h
-+++ b/arch/x86/include/asm/thread_info.h
-@@ -205,9 +205,7 @@ static inline int arch_within_stack_frames(const void * const stack,
- 
- #else /* !__ASSEMBLY__ */
- 
--#ifdef CONFIG_X86_64
- # define cpu_current_top_of_stack (cpu_tss_rw + TSS_sp1)
--#endif
- 
- #endif
- 
-diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
-index 311e988..2d67ad0 100644
---- a/arch/x86/kernel/cpu/common.c
-+++ b/arch/x86/kernel/cpu/common.c
-@@ -1512,10 +1512,6 @@ EXPORT_PER_CPU_SYMBOL(__preempt_count);
-  * the top of the kernel stack.  Use an extra percpu variable to track the
-  * top of the kernel stack directly.
-  */
--DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
--	(unsigned long)&init_thread_union + THREAD_SIZE;
--EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
--
- #ifdef CONFIG_CC_STACKPROTECTOR
- DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
- #endif
-diff --git a/arch/x86/kernel/process_32.c b/arch/x86/kernel/process_32.c
-index 3f3a8c6..8c29fd5 100644
---- a/arch/x86/kernel/process_32.c
-+++ b/arch/x86/kernel/process_32.c
-@@ -290,12 +290,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
- 	update_sp0(next_p);
- 	refresh_sysenter_cs(next);
- 	this_cpu_write(cpu_current_top_of_stack, task_top_of_stack(next_p));
--	/*
--	 * TODO: Find a way to let cpu_current_top_of_stack point to
--	 * cpu_tss_rw.x86_tss.sp1. Doing so now results in stack corruption with
--	 * iret exceptions.
--	 */
--	this_cpu_write(cpu_tss_rw.x86_tss.sp1, next_p->thread.sp0);
- 
- 	/*
- 	 * Restore %gs if needed (which is common)
 -- 
 2.7.4
