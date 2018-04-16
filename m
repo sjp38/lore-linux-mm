@@ -1,69 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 997606B0007
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 15:55:48 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id p18so15205733ioe.9
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:55:48 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t7-v6sor4572566itf.49.2018.04.16.12.55.47
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F136E6B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 15:57:29 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id z13so9949136pfe.21
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:57:29 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g3-v6si12541029plb.536.2018.04.16.12.57.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Apr 2018 12:55:47 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 Apr 2018 12:57:28 -0700 (PDT)
+Date: Mon, 16 Apr 2018 21:57:26 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mmap.2: MAP_FIXED is okay if the address range has been
+ reserved
+Message-ID: <20180416195726.GT17484@dhcp22.suse.cz>
+References: <9c714917-fc29-4d12-b5e8-cff28761a2c1@gmail.com>
+ <20180413064917.GC17484@dhcp22.suse.cz>
+ <CAG48ez2w+3FDh9LM3+P2EHowicjM2Xw6giR6uq=26JfWHYsTAQ@mail.gmail.com>
+ <20180413160435.GA17484@dhcp22.suse.cz>
+ <CAG48ez3-xtmAt2EpRFR8GNKKPcsDsyg7XdwQ=D5w3Ym6w4Krjw@mail.gmail.com>
+ <CAG48ez1PdzMs8hkatbzSLBWYucjTc75o8ovSmeC66+e9mLvSfA@mail.gmail.com>
+ <20180416100736.GG17484@dhcp22.suse.cz>
+ <CAG48ez3DwRXMtiinUWKnan6hAppLYLdx-w+VzXG6ubioZUacQg@mail.gmail.com>
+ <20180416191805.GS17484@dhcp22.suse.cz>
+ <CAG48ez1nf96nHj8a+aZy22RwqYTUZBGrsGFcz=ZhZBUWzaEZ9w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180416153816.292a5b5c@gandalf.local.home>
-References: <20180416153031.GA5039@amd> <20180416155031.GX2341@sasha-vm>
- <20180416160608.GA7071@amd> <20180416122019.1c175925@gandalf.local.home>
- <20180416162757.GB2341@sasha-vm> <20180416163952.GA8740@amd>
- <20180416164310.GF2341@sasha-vm> <20180416125307.0c4f6f28@gandalf.local.home>
- <20180416170936.GI2341@sasha-vm> <20180416133321.40a166a4@gandalf.local.home>
- <20180416174236.GL2341@sasha-vm> <20180416142653.0f017647@gandalf.local.home>
- <CA+55aFzggPvS2MwFnKfXs6yHUQrbrJH7uyY4=znwetcdEXmZrw@mail.gmail.com>
- <20180416144117.5757ee70@gandalf.local.home> <CA+55aFyyZ7KmXbEa151JP287vypJAkxugW17YC7Q1B9=TnyHkw@mail.gmail.com>
- <20180416152429.529e3cba@gandalf.local.home> <CA+55aFwjSRZDT1f99QdY-Q5R4W_asb_1mZgM69YOqRR9-efmwA@mail.gmail.com>
- <20180416153816.292a5b5c@gandalf.local.home>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 16 Apr 2018 12:55:46 -0700
-Message-ID: <CA+55aFwXRjgfLfAWSaLBdajjzh4gt8-5M2N-bmjKt8nrJT+vWQ@mail.gmail.com>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAG48ez1nf96nHj8a+aZy22RwqYTUZBGrsGFcz=ZhZBUWzaEZ9w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Sasha Levin <Alexander.Levin@microsoft.com>, Pavel Machek <pavel@ucw.cz>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Greg KH <gregkh@linuxfoundation.org>
+To: Jann Horn <jannh@google.com>
+Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, John Hubbard <jhubbard@nvidia.com>, linux-man <linux-man@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Mon, Apr 16, 2018 at 12:38 PM, Steven Rostedt <rostedt@goodmis.org> wrote:
->
-> But I don't see in the git history that this was ever reverted. My reply
-> saying that "I hope it wasn't reverted", was a response for it being
-> reverted in stable, not mainline.
+On Mon 16-04-18 21:30:09, Jann Horn wrote:
+> On Mon, Apr 16, 2018 at 9:18 PM, Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > Yes, reasonably well written application will not have this problem.
+> > That, however, requires an external synchronization and that's why
+> > called it error prone and racy. I guess that was the main motivation for
+> > that part of the man page.
+> 
+> What requires external synchronization? I still don't understand at
+> all what you're talking about.
+> 
+> The following code:
+> 
+> void *try_to_alloc_addr(void *hint, size_t len) {
+>   char *x = mmap(hint, len, ...);
+>   if (x == MAP_FAILED) return NULL;
+>   if (x == hint) return x;
 
-See my other email.
+Any other thread can modify the address space at this moment. Just
+consider that another thread would does mmap(x, MAP_FIXED) (or any other
+address overlapping [x, x+len] range) becaus it is seemingly safe as x
+!= hint. This will succeed and ...
+>   munmap(x, len);
+... now you are munmaping somebody's else memory range
 
-If your'e stable maintainer, and you get a report of a commit that
-causes problems, your first reaction probably really should just be
-"revert it".
+>   return NULL;
 
-You can always re-apply it later, but a patch that causes problems is
-absolutely very much suspect, and automatically should make any stable
-maintainer go "that needs much more analysis".
+Do code _is_ buggy but it is not obvious at all.
 
-Sure, hopefully automation finds the fix too (ie commit 21b81716c6bf
-"ipr: Fix regression when loading firmware") in mainline.
+> }
+> 
+> has no need for any form of external synchronization.
 
-It did have the proper "fixes" tag, so it should hopefully have been
-easy to find by the automation that stable people use.
-
-But at the same time, I still  maintain that "just revert it" is
-rather likely the right solution for stable. If it had a bug once,
-maybe it shouldn't have been applied in the first place.
-
-The author can then get notified by the other stable automation, and
-at that point argue for "yeah, it was buggy, but together with this
-other fix it's really important".
-
-But even when that is the case, I really don't see that the author
-should complain about it being reverted. Because it's *such* a
-no-brainer in stable.
-
-               Linus
+If the above mmap/munmap section was protected by a lock and _all_ other
+mmaps (direct or indirect) would use the same lock then you are safe
+against that.
+-- 
+Michal Hocko
+SUSE Labs
