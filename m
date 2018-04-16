@@ -1,103 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5083A6B0007
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 10:57:52 -0400 (EDT)
-Received: by mail-yb0-f199.google.com with SMTP id h184-v6so10171455ybg.16
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 07:57:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 15si17332520qkp.330.2018.04.16.07.57.51
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 23CF06B0007
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:07:28 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id j80so10373914ywg.1
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:07:28 -0700 (PDT)
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id u32si1905314qte.332.2018.04.16.08.07.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 07:57:51 -0700 (PDT)
-Date: Mon, 16 Apr 2018 10:57:45 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: slab: introduce the flag SLAB_MINIMIZE_WASTE
-In-Reply-To: <20180416144638.GA22484@redhat.com>
-Message-ID: <alpine.LRH.2.02.1804161054410.17807@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
- <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz> <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com>
- <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Mon, 16 Apr 2018 08:07:25 -0700 (PDT)
+Message-ID: <1523891242.27555.9.camel@surriel.com>
+Subject: Re: [PATCH] mm: allow to decrease swap.max below actual swap usage
+From: Rik van Riel <riel@surriel.com>
+Date: Mon, 16 Apr 2018 11:07:22 -0400
+In-Reply-To: <20180416013902.GD1911913@devbig577.frc2.facebook.com>
+References: <20180412132705.30316-1-guro@fb.com>
+	 <20180416013902.GD1911913@devbig577.frc2.facebook.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-tBA0idIUGrNb7kCfECyR"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Shaohua Li <shli@fb.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
 
+--=-tBA0idIUGrNb7kCfECyR
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-On Mon, 16 Apr 2018, Mike Snitzer wrote:
+On Sun, 2018-04-15 at 18:39 -0700, Tejun Heo wrote:
+> Hello, Roman.
+>=20
+> The reclaim behavior is a bit worrisome.
+>=20
+> * It disables an entire swap area while reclaim is in progress.  Most
+>   systems only have one swap area, so this would disable allocating
+>   new swap area for everyone.
 
-> On Mon, Apr 16 2018 at 10:37am -0400,
-> Mikulas Patocka <mpatocka@redhat.com> wrote:
-> 
-> > 
-> > 
-> > On Mon, 16 Apr 2018, Mike Snitzer wrote:
-> > 
-> > > On Mon, Apr 16 2018 at  8:38am -0400,
-> > > Vlastimil Babka <vbabka@suse.cz> wrote:
-> > > 
-> > > > On 04/13/2018 05:10 PM, Mike Snitzer wrote:
-> > > > > On Fri, Apr 13 2018 at  5:22am -0400,
-> > > > > Vlastimil Babka <vbabka@suse.cz> wrote:
-> > > > >>
-> > > > >> Would this perhaps be a good LSF/MM discussion topic? Mikulas, are you
-> > > > >> attending, or anyone else that can vouch for your usecase?
-> > > > > 
-> > > > > Any further discussion on SLAB_MINIMIZE_WASTE should continue on list.
-> > > > > 
-> > > > > Mikulas won't be at LSF/MM.  But I included Mikulas' dm-bufio changes
-> > > > > that no longer depend on this proposed SLAB_MINIMIZE_WASTE (as part of
-> > > > > the 4.17 merge window).
-> > > > 
-> > > > Can you or Mikulas briefly summarize how the dependency is avoided, and
-> > > > whether if (something like) SLAB_MINIMIZE_WASTE were implemented, the
-> > > > dm-bufio code would happily switch to it, or not?
-> > > 
-> > > git log eeb67a0ba04df^..45354f1eb67224669a1 -- drivers/md/dm-bufio.c
-> > > 
-> > > But the most signficant commit relative to SLAB_MINIMIZE_WASTE is: 
-> > > 359dbf19ab524652a2208a2a2cddccec2eede2ad ("dm bufio: use slab cache for 
-> > > dm_buffer structure allocations")
-> > > 
-> > > So no, I don't see why dm-bufio would need to switch to
-> > > SLAB_MINIMIZE_WASTE if it were introduced in the future.
-> > 
-> > Currently, the slab cache rounds up the size of the slab to the next power 
-> > of two (if the size is large). And that wastes memory if that memory were 
-> > to be used for deduplication tables.
-> 
-> You mean on an overall size of the cache level?  Or on a per-object
-> level?  I can only imagine you mean the former.
+That could easily cause OOM kills on systems.
 
-Unfortunatelly, it rounds up every object. So, if you have six 640KB 
-objects, it consumes 6MB.
+I prefer Tejun's simple approach, of having
+the system slowly reduce swap use below the
+new maximum limit.
 
-> > Generally, the performance of the deduplication solution depends on how 
-> > much data can you put to memory. If you round 640KB buffer to 1MB (this is 
-> > what the slab and slub subsystem currently do), you waste a lot of memory. 
-> > Deduplication indices with 640KB blocks are already used in the wild, so 
-> > it can't be easily changed.
-> 
-> OK, seems you're suggesting a single object is rounded up.. so then this
-> header is very wrong?:
-> 
-> commit 359dbf19ab524652a2208a2a2cddccec2eede2ad
-> Author: Mikulas Patocka <mpatocka@redhat.com>
-> Date:   Mon Mar 26 20:29:45 2018 +0200
-> 
->     dm bufio: use slab cache for dm_buffer structure allocations
-> 
->     kmalloc padded to the next power of two, using a slab cache avoids this.
-> 
->     Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
->     Signed-off-by: Mike Snitzer <snitzer@redhat.com>
-> 
-> Please clarify further, thanks!
-> Mike
+> * The reclaim seems very inefficient.  IIUC, it has to read every
+> swap
+>   page to see whether the page belongs to the target memcg and for
+>   each matching page, which involves walking page mm's and page
+>   tables.
 
-Yes, using a slab cache currently doesn't avoid this rouding (it needs the 
-SLAB_MINIMIZE_WASTE patch to do that).
+One of my Outreachy interns, Kelley Nielsen,
+worked on making swap reclaim more efficient
+by scanning the virtual address space of
+processes.
 
-Mikulas
+Unfortunately, we ran into some unforseen
+issues with that approach that we never managed
+to sort out :(
+
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+
+Acked-by: Rik van Riel <riel@surriel.com>
+
+--=20
+All Rights Reversed.
+--=-tBA0idIUGrNb7kCfECyR
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlrUvCoACgkQznnekoTE
+3oP/Bwf+Nc+IRCKzX3QEdvTpUJOaiAFrdGROFUtrGHvZSc9qSvdN+z6TMsCUi6r6
+FnXQf1Uf0TRve+ASaJq7O69vpGQTpdhWPQimB1U+aE/JsNmOqAbxwOfsj7fMrkbA
+NjsP69KQ8/lAoDEP5ZdZda8VAPm5+psbqj+wagvTTP5IiVAUN/56iafSgHZ+3zmU
+NPsEfjXSDUrn7TwoNhTAdM55E5fCgZoUTuajhO6nsROlEqH5k/P+L/o2FPmdUYd2
+CzCuKoWprBjrf8MAmX8W0a90DtWiu7q5MKeAwVfEh29OO+kf1w5hVXhBKHf0BVUX
+Z4K0PBihXKOZMhzCTq8+IU83zeFeFw==
+=YMrS
+-----END PGP SIGNATURE-----
+
+--=-tBA0idIUGrNb7kCfECyR--
