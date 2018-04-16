@@ -1,91 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EBD96B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 04:31:58 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id y2so344576qki.21
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 01:31:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id f21si3151562qtm.354.2018.04.16.01.31.56
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A9B686B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 04:56:20 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id q185so10021095qke.0
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 01:56:20 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id l41si12901066qtc.246.2018.04.16.01.56.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 01:31:57 -0700 (PDT)
-Subject: Re: [PATCH RFC 2/8] mm: introduce PG_offline
-References: <20180413131632.1413-1-david@redhat.com>
- <20180413131632.1413-3-david@redhat.com>
- <20180413171120.GA1245@bombadil.infradead.org>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <1ecb2fe4-a22e-813f-a157-1fdaf3cbc8d1@redhat.com>
-Date: Mon, 16 Apr 2018 10:31:48 +0200
+        Mon, 16 Apr 2018 01:56:19 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3G8sNxg105415
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 04:56:18 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2hcqq1jt7d-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 04:56:18 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 16 Apr 2018 09:56:15 +0100
+Subject: Re: [PATCH 01/12] iommu-common: move to arch/sparc
+References: <20180415145947.1248-1-hch@lst.de>
+ <20180415145947.1248-2-hch@lst.de>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Mon, 16 Apr 2018 14:26:07 +0530
 MIME-Version: 1.0
-In-Reply-To: <20180413171120.GA1245@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180415145947.1248-2-hch@lst.de>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <f0305a92-b206-1567-3c25-67fbd194047d@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, James Hogan <jhogan@kernel.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, open list <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@lst.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org
+Cc: x86@kernel.org, linux-block@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-ide@vger.kernel.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On 13.04.2018 19:11, Matthew Wilcox wrote:
-> On Fri, Apr 13, 2018 at 03:16:26PM +0200, David Hildenbrand wrote:
->> online_pages()/offline_pages() theoretically allows us to work on
->> sub-section sizes. This is especially relevant in the context of
->> virtualization. It e.g. allows us to add/remove memory to Linux in a VM in
->> 4MB chunks.
->>
->> While the whole section is marked as online/offline, we have to know
->> the state of each page. E.g. to not read memory that is not online
->> during kexec() or to properly mark a section as offline as soon as all
->> contained pages are offline.
+On 04/15/2018 08:29 PM, Christoph Hellwig wrote:
+> This code is only used by sparc, and all new iommu drivers should use the
+> drivers/iommu/ framework.  Also remove the unused exports.
 > 
-> Can you not use PG_reserved for this purpose?
-> 
->> + * PG_offline indicates that a page is offline and the backing storage
->> + * might already have been removed (virtualization). Don't touch!
-> 
->  * PG_reserved is set for special pages, which can never be swapped out. Some
->  * of them might not even exist...
-> 
-> They seem pretty congruent to me.
-> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Can we really go ahead and make dump tools exclude any PG_reserved page
-from a memory dump? While it might be true for ballooned pages, I doubt
-that this assumption holds in general. ("cannot be swapped out" doesn't
-imply "content should never be read/dumped")
+Right, these functions are used only from SPARC architecture. Simple
+git grep confirms it as well. Hence it makes sense to move them into
+arch code instead.
 
+git grep iommu_tbl_pool_init
+----------------------------
 
-I need PG_offline right now for two reasons:
+arch/sparc/include/asm/iommu-common.h:extern void iommu_tbl_pool_init(struct iommu_map_table *iommu,
+arch/sparc/kernel/iommu-common.c:void iommu_tbl_pool_init(struct iommu_map_table *iommu,
+arch/sparc/kernel/iommu.c:      iommu_tbl_pool_init(&iommu->tbl, num_tsb_entries, IO_PAGE_SHIFT,
+arch/sparc/kernel/ldc.c:        iommu_tbl_pool_init(iommu, num_tsb_entries, PAGE_SHIFT,
+arch/sparc/kernel/pci_sun4v.c:  iommu_tbl_pool_init(&atu->tbl, num_iotte, IO_PAGE_SHIFT,
+arch/sparc/kernel/pci_sun4v.c:  iommu_tbl_pool_init(&iommu->tbl, num_tsb_entries, IO_PAGE_SHIFT,
 
-1. Make kdump skip these pages (like PG_hwpoison), because they might
-not even be readable anymore as the hypervisor might have restricted
-memory access completely.
+git grep iommu_tbl_range_alloc
+------------------------------
 
-2. Detect when all pages of a memory section are offline, so we can mark
-the section as offline and eventually remove it.
+arch/sparc/include/asm/iommu-common.h:extern unsigned long iommu_tbl_range_alloc(struct device *dev,
+arch/sparc/kernel/iommu-common.c:unsigned long iommu_tbl_range_alloc(struct device *dev,
+arch/sparc/kernel/iommu.c:      entry = iommu_tbl_range_alloc(dev, &iommu->tbl, npages, NULL,
+arch/sparc/kernel/iommu.c:              entry = iommu_tbl_range_alloc(dev, &iommu->tbl, npages,
+arch/sparc/kernel/ldc.c:        entry = iommu_tbl_range_alloc(NULL, &iommu->iommu_map_table,
+arch/sparc/kernel/pci_sun4v.c:  entry = iommu_tbl_range_alloc(dev, tbl, npages, NULL,
+arch/sparc/kernel/pci_sun4v.c:  entry = iommu_tbl_range_alloc(dev, tbl, npages, NULL,
+arch/sparc/kernel/pci_sun4v.c:          entry = iommu_tbl_range_alloc(dev, tbl, npages,
 
+git grep iommu_tbl_range_free
+-----------------------------
 
-A clear point speaking against using PG_reserved for 2. is the following
-simple example.
+arch/sparc/include/asm/iommu-common.h:extern void iommu_tbl_range_free(struct iommu_map_table *iommu,
+arch/sparc/kernel/iommu-common.c:void iommu_tbl_range_free(struct iommu_map_table *iommu, u64 dma_addr,
+arch/sparc/kernel/iommu.c:      iommu_tbl_range_free(&iommu->tbl, dvma, npages, IOMMU_ERROR_CODE);
+arch/sparc/kernel/iommu.c:      iommu_tbl_range_free(&iommu->tbl, bus_addr, npages, IOMMU_ERROR_CODE);
+arch/sparc/kernel/iommu.c:                      iommu_tbl_range_free(&iommu->tbl, vaddr, npages,
+arch/sparc/kernel/iommu.c:              iommu_tbl_range_free(&iommu->tbl, dma_handle, npages,
+arch/sparc/kernel/ldc.c:        iommu_tbl_range_free(&iommu->iommu_map_table, cookie, npages, entry);
+arch/sparc/kernel/pci_sun4v.c:  iommu_tbl_range_free(tbl, *dma_addrp, npages, IOMMU_ERROR_CODE);
+arch/sparc/kernel/pci_sun4v.c:  iommu_tbl_range_free(tbl, dvma, npages, IOMMU_ERROR_CODE);
+arch/sparc/kernel/pci_sun4v.c:  iommu_tbl_range_free(tbl, bus_addr, npages, IOMMU_ERROR_CODE);
+arch/sparc/kernel/pci_sun4v.c:  iommu_tbl_range_free(tbl, bus_addr, npages, IOMMU_ERROR_CODE);
+arch/sparc/kernel/pci_sun4v.c:                  iommu_tbl_range_free(tbl, vaddr, npages,
+arch/sparc/kernel/pci_sun4v.c:          iommu_tbl_range_free(tbl, dma_handle, npages,
 
-Let's assume we use virtio-balloon and inflated some chunk of memory in
-a section (let's say 4MB). Now we offline (using the new driver) all
-other chunks in a section, except the memory allocated by
-virtio-balloon. We would suddenly mark the section as offline and
-eventually remove it. This is of course very bad.
-
-
-I think using PG_reserved for 1. is wrong. PG_reserved is usually used
-for pages _after_ coming from an allocator. Using PG_reserved for 2.
-will not work.
-
-
-An ugly way for 2. would be, remembering for each section which pages
-are actually online, but I would like to avoid that, especially as it
-only solves part of a problem.
-
--- 
-
-Thanks,
-
-David / dhildenb
+Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
