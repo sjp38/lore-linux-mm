@@ -1,51 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4479E6B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:31:04 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id d9-v6so1388636plj.4
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 06:31:04 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y9si9666201pgr.180.2018.04.16.06.31.02
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 857906B0007
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:53:23 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x184so9479369pfd.14
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 06:53:23 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y2si10281177pfm.283.2018.04.16.06.53.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 06:31:02 -0700 (PDT)
-Date: Mon, 16 Apr 2018 09:30:58 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Message-ID: <20180416093058.6edca0bb@gandalf.local.home>
-In-Reply-To: <20180415144248.GP2341@sasha-vm>
-References: <20180409001936.162706-1-alexander.levin@microsoft.com>
-	<20180409001936.162706-15-alexander.levin@microsoft.com>
-	<20180409082246.34hgp3ymkfqke3a4@pathway.suse.cz>
-	<20180415144248.GP2341@sasha-vm>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 16 Apr 2018 06:53:22 -0700 (PDT)
+Date: Mon, 16 Apr 2018 06:53:21 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] slub: Remove use of page->counter
+Message-ID: <20180416135321.GD26022@bombadil.infradead.org>
+References: <20180410195429.GB21336@bombadil.infradead.org>
+ <alpine.DEB.2.20.1804101545350.30437@nuc-kabylake>
+ <20180410205757.GD21336@bombadil.infradead.org>
+ <alpine.DEB.2.20.1804101702240.30842@nuc-kabylake>
+ <20180411182606.GA22494@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180411182606.GA22494@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <Alexander.Levin@microsoft.com>
-Cc: Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
+To: Christopher Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org
 
-On Sun, 15 Apr 2018 14:42:51 +0000
-Sasha Levin <Alexander.Levin@microsoft.com> wrote:
+On Wed, Apr 11, 2018 at 11:26:06AM -0700, Matthew Wilcox wrote:
+> I had a Thought.  And it seems to work:
 
-> On Mon, Apr 09, 2018 at 10:22:46AM +0200, Petr Mladek wrote:
-> >PS: I wonder how much time you give people to react before releasing
-> >this. The number of autosel mails is increasing and I am involved
-> >only in very small amount of them. I wonder if some other people
-> >gets overwhelmed by this.  
-> 
-> My review cycle gives at least a week, and there's usually another week
-> until Greg releases them.
-> 
-> I know it's a lot of mails, but in reality it's a lot of commits that
-> should go in -stable.
-> 
-> Would a different format for review would make it easier?
+Now I realised that slub doesn't use s_mem.  That gives us more space
+to use for pages/pobjects.
 
-I wonder if the "AUTOSEL" patches should at least have an "ack-by" from
-someone before they are pulled in. Otherwise there may be some subtle
-issues that can find their way into stable releases.
+struct page {
+	unsigned long flags;
+	union {		/* Five words */
+		struct {	/* Page cache & anonymous pages */
+			struct list_head lru;
+			unsigned long private;
+			struct address_space *mapping;
+			pgoff_t index;
+		};
+		struct {	/* Slob */
+			struct list_head slob_list;
+			int units;
+		};
+		struct {	/* Slab */
+			struct kmem_cache *slab_cache;
+			void *freelist;
+			void *s_mem;
+			unsigned int active;
+		};
+		struct {	/* Slub */
+			struct kmem_cache *slub_cache;
+			/* Dword boundary */
+			void *slub_freelist;
+			unsigned short inuse;
+			unsigned short objects:15;
+			unsigned short frozen:1;
+			struct page *next;
+#ifdef CONFIG_64BIT
+			int pobjects;
+			int pages;
+#endif
+			short int pages;
+			short int pobjects;
+#endif
+		};
+		struct rcu_head rcu_head;
+		... tail pages, page tables, etc, etc ...
+	};
+	union {
+		atomic_t _mapcount;
+		unsigned int page_type;
+	};
+	atomic_t _refcount;
+	struct mem_cgroup *mem_cgroup;
+};
 
--- Steve
+> Now everybody gets 5 contiguous words to use as they want with the only
+> caveat that they can't use bit 0 of the first word (PageTail).
+
+^^^ still true ;-)
+
+I'd want to change slob to use slob_list instead of ->lru.  Or maybe even do
+something radical like _naming_ the struct in the union so we don't have to
+manually namespace the names of the elements.
