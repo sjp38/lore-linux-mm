@@ -1,88 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4983A6B0006
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 16:18:02 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id q83-v6so9682982oif.2
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 13:18:02 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 19-v6sor5837341oir.110.2018.04.16.13.18.01
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 081BA6B0007
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 16:18:08 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id o8so13680638wra.12
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 13:18:07 -0700 (PDT)
+Received: from twin.jikos.cz (twin.jikos.cz. [91.219.245.39])
+        by mx.google.com with ESMTPS id m7si5678379wmb.115.2018.04.16.13.18.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Apr 2018 13:18:01 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 Apr 2018 13:18:06 -0700 (PDT)
+Date: Mon, 16 Apr 2018 22:17:17 +0200 (CEST)
+From: Jiri Kosina <jikos@kernel.org>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+In-Reply-To: <20180416171607.GJ2341@sasha-vm>
+Message-ID: <alpine.LRH.2.00.1804162214260.26111@gjva.wvxbf.pm>
+References: <20180409001936.162706-15-alexander.levin@microsoft.com> <20180409082246.34hgp3ymkfqke3a4@pathway.suse.cz> <20180415144248.GP2341@sasha-vm> <20180416093058.6edca0bb@gandalf.local.home> <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
+ <20180416153031.GA5039@amd> <20180416155031.GX2341@sasha-vm> <20180416160608.GA7071@amd> <20180416161412.GZ2341@sasha-vm> <20180416170501.GB11034@amd> <20180416171607.GJ2341@sasha-vm>
 MIME-Version: 1.0
-In-Reply-To: <20180416195726.GT17484@dhcp22.suse.cz>
-References: <9c714917-fc29-4d12-b5e8-cff28761a2c1@gmail.com>
- <20180413064917.GC17484@dhcp22.suse.cz> <CAG48ez2w+3FDh9LM3+P2EHowicjM2Xw6giR6uq=26JfWHYsTAQ@mail.gmail.com>
- <20180413160435.GA17484@dhcp22.suse.cz> <CAG48ez3-xtmAt2EpRFR8GNKKPcsDsyg7XdwQ=D5w3Ym6w4Krjw@mail.gmail.com>
- <CAG48ez1PdzMs8hkatbzSLBWYucjTc75o8ovSmeC66+e9mLvSfA@mail.gmail.com>
- <20180416100736.GG17484@dhcp22.suse.cz> <CAG48ez3DwRXMtiinUWKnan6hAppLYLdx-w+VzXG6ubioZUacQg@mail.gmail.com>
- <20180416191805.GS17484@dhcp22.suse.cz> <CAG48ez1nf96nHj8a+aZy22RwqYTUZBGrsGFcz=ZhZBUWzaEZ9w@mail.gmail.com>
- <20180416195726.GT17484@dhcp22.suse.cz>
-From: Jann Horn <jannh@google.com>
-Date: Mon, 16 Apr 2018 22:17:40 +0200
-Message-ID: <CAG48ez1bV_zZP3Y2ioDndP+H8mLCcxOtU1vCbWe7Q8myEGfXQQ@mail.gmail.com>
-Subject: Re: [PATCH] mmap.2: MAP_FIXED is okay if the address range has been reserved
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, John Hubbard <jhubbard@nvidia.com>, linux-man <linux-man@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Sasha Levin <Alexander.Levin@microsoft.com>
+Cc: Pavel Machek <pavel@ucw.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
 
-On Mon, Apr 16, 2018 at 9:57 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Mon 16-04-18 21:30:09, Jann Horn wrote:
->> On Mon, Apr 16, 2018 at 9:18 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> [...]
->> > Yes, reasonably well written application will not have this problem.
->> > That, however, requires an external synchronization and that's why
->> > called it error prone and racy. I guess that was the main motivation for
->> > that part of the man page.
->>
->> What requires external synchronization? I still don't understand at
->> all what you're talking about.
->>
->> The following code:
->>
->> void *try_to_alloc_addr(void *hint, size_t len) {
->>   char *x = mmap(hint, len, ...);
->>   if (x == MAP_FAILED) return NULL;
->>   if (x == hint) return x;
->
-> Any other thread can modify the address space at this moment.
+On Mon, 16 Apr 2018, Sasha Levin wrote:
 
-But not parts of the address space that were returned by this mmap() call.
+> So if a user is operating a nuclear power plant, and has 2 leds: green 
+> one that says "All OK!" and a red one saying "NUCLEAR MELTDOWN!", and 
+> once in a blue moon a race condition is causing the red one to go on and 
+> cause panic in the little province he lives in, we should tell that user 
+> to fuck off?
+> 
+> LEDs may not be critical for you, but they can be critical for someone
+> else. Think of all the different users we have and the wildly different
+> ways they use the kernel.
 
-> Just
-> consider that another thread would does mmap(x, MAP_FIXED) (or any other
-> address overlapping [x, x+len] range)
+I am pretty sure that for almost every fix there is a person on a planet 
+that'd rate it "critical". We can't really use this as an argument for 
+inclusion of code into -stable, as that'd mean that -stable and Linus' 
+tree would have to be basically the same.
 
-If the other thread does that without previously having created a
-mapping covering the area in question, that would be a bug in the
-other thread. MAP_FIXED on an unmapped address is almost always a bug
-(excluding single-threaded cases with no library code, and even then
-it's quite weird) - for example, any malloc() call could also cause
-libc to start using the memory range you're trying to map with
-MAP_FIXED.
-
-> becaus it is seemingly safe as x
-> != hint.
-
-I don't understand this part. Are you talking about a hypothetical
-scenario in which a programmer attempts to segment the virtual memory
-space into areas that are exclusively used by threads without creating
-memory mappings for those areas?
-
-> This will succeed and ...
->>   munmap(x, len);
-> ... now you are munmaping somebody's else memory range
->
->>   return NULL;
->
-> Do code _is_ buggy but it is not obvious at all.
->
->> }
->>
->> has no need for any form of external synchronization.
->
-> If the above mmap/munmap section was protected by a lock and _all_ other
-> mmaps (direct or indirect) would use the same lock then you are safe
-> against that.
+-- 
+Jiri Kosina
+SUSE Labs
