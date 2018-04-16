@@ -1,73 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E9CB6B026F
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:14:51 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id 6-v6so2141893oij.6
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:14:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h134-v6sor5505276oib.260.2018.04.16.09.14.48
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B8246B026E
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:15:57 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id d3so14397869iod.22
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:15:57 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y62-v6sor3436483itg.97.2018.04.16.09.15.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 16 Apr 2018 09:14:49 -0700 (PDT)
+        Mon, 16 Apr 2018 09:15:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180414155059.GA18015@jordon-HP-15-Notebook-PC>
-References: <20180414155059.GA18015@jordon-HP-15-Notebook-PC>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 16 Apr 2018 09:14:48 -0700
-Message-ID: <CAPcyv4g+Gdc2tJ1qrM5Xn9vtARw-ZqFXaMbiaBKJJsYDtSNBig@mail.gmail.com>
-Subject: Re: [PATCH] dax: Change return type to vm_fault_t
+References: <20180414195921.GA10437@avx2> <20180414224419.GA21830@thunk.org> <CAGXu5j+qQE-MmpB7xq6z_SsXm9AhJe2QQAEVQnenYD=iLzJqWQ@mail.gmail.com>
+In-Reply-To: <CAGXu5j+qQE-MmpB7xq6z_SsXm9AhJe2QQAEVQnenYD=iLzJqWQ@mail.gmail.com>
+From: Thomas Garnier <thgarnie@google.com>
+Date: Mon, 16 Apr 2018 16:15:44 +0000
+Message-ID: <CAJcbSZGpqZB2OjqdjoPtoUJrNw9nmms+U=CKvOLLptqjBn=YMQ@mail.gmail.com>
+Subject: Re: repeatable boot randomness inside KVM guest
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Matthew Wilcox <willy@infradead.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: tytso@mit.edu, Alexey Dobriyan <adobriyan@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Sat, Apr 14, 2018 at 8:50 AM, Souptick Joarder <jrdr.linux@gmail.com> wrote:
-> Use new return type vm_fault_t for fault and
-> huge_fault handler.
->
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
-> ---
->  drivers/dax/device.c | 26 +++++++++++---------------
->  1 file changed, 11 insertions(+), 15 deletions(-)
->
-> diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-> index 2137dbc..a122701 100644
-> --- a/drivers/dax/device.c
-> +++ b/drivers/dax/device.c
-> @@ -243,11 +243,11 @@ __weak phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
->         return -1;
->  }
->
-> -static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
-> +static vm_fault_t __dev_dax_pte_fault(struct dev_dax *dev_dax,
-> +                               struct vm_fault *vmf)
->  {
->         struct device *dev = &dev_dax->dev;
->         struct dax_region *dax_region;
-> -       int rc = VM_FAULT_SIGBUS;
->         phys_addr_t phys;
->         pfn_t pfn;
->         unsigned int fault_size = PAGE_SIZE;
-> @@ -274,17 +274,11 @@ static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
->
->         pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
->
-> -       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
-> -
-> -       if (rc == -ENOMEM)
-> -               return VM_FAULT_OOM;
-> -       if (rc < 0 && rc != -EBUSY)
-> -               return VM_FAULT_SIGBUS;
-> -
-> -       return VM_FAULT_NOPAGE;
-> +       return vmf_insert_mixed(vmf->vma, vmf->address, pfn);
+On Mon, Apr 16, 2018 at 8:54 AM Kees Cook <keescook@chromium.org> wrote:
 
-Ugh, so this change to vmf_insert_mixed() went upstream without fixing
-the users? This changelog is now misleading as it does not mention
-that is now an urgent standalone fix. On first read I assumed this was
-part of a wider effort for 4.18.
+> On Sat, Apr 14, 2018 at 3:44 PM, Theodore Y. Ts'o <tytso@mit.edu> wrote:
+> > +linux-mm@kvack.org
+> > kvm@vger.kernel.org, security@kernel.org moved to bcc
+> >
+> > On Sat, Apr 14, 2018 at 10:59:21PM +0300, Alexey Dobriyan wrote:
+> >> SLAB allocators got CONFIG_SLAB_FREELIST_RANDOM option which randomizes
+> >> allocation pattern inside a slab:
+> >>
+> >>       int cache_random_seq_create(struct kmem_cache *cachep, unsigned
+int count, gfp_t gfp)
+> >>       {
+> >>               ...
+> >>               /* Get best entropy at this stage of boot */
+> >>               prandom_seed_state(&state, get_random_long());
+> >>
+> >> Then I printed actual random sequences for each kmem cache.
+> >> Turned out they were all the same for most of the caches and
+> >> they didn't vary across guest reboots.
+> >
+> > The problem is at the super-early state of the boot path, kernel code
+> > can't allocate memory.  This is something most device drivers kinda
+> > assume they can do.  :-)
+> >
+> > So it means we haven't yet initialized the virtio-rng driver, and it's
+> > before interrupts have been enabled, so we can't harvest any entropy
+> > from interrupt timing.  So that's why trying to use virtio-rng didn't
+> > help.
+> >
+> >> The only way to get randomness for SLAB is to enable RDRAND inside
+guest.
+> >>
+> >> Is it KVM bug?
+> >
+> > No, it's not a KVM bug.  The fundamental issue is in how the
+> > CONFIG_SLAB_FREELIST_RANDOM is currently implemented.
 
-Grumble, we'll get this applied with a 'Fixes: 1c8f422059ae ("mm:
-change return type to vm_fault_t")' tag.
+Entropy at early boot in VM has always been a problem for this feature or
+others. Did you look at the impact on other boot security features fetching
+random values? Does your VM had RDRAND support (we use get_random_long()
+which will fetch from RDRAND to provide as much entropy as possible at this
+point)?
+
+> >
+> > What needs to happen is freelist should get randomized much later in
+> > the boot sequence.  Doing it later will require locking; I don't know
+> > enough about the slab/slub code to know whether the slab_mutex would
+> > be sufficient, or some other lock might need to be added.
+
+You can't re-randomize pre-allocated pages that's why the cache is
+randomized that early. If you don't have RDRAND, we could re-randomize
+later at boot with more entropy that could be useful in this specific case.
+
+> >
+> > The other thing I would note that is that using prandom_u32_state()
+doesn't
+> > really provide much security.  In fact, if the the goal is to protect
+> > against a malicious attacker trying to guess what addresses will be
+> > returned by the slab allocator, I suspect it's much like the security
+> > patdowns done at airports.  It might protect against a really stupid
+> > attacker, but it's mostly security theater.
+> >
+> > The freelist randomization is only being done once; so it's not like
+> > performance is really an issue.  It would be much better to just use
+> > get_random_u32() and be done with it.  I'd drop using prandom_*
+> > functions in slab.c and slubct and slab_common.c, and just use a
+> > really random number generator, if the goal is real security as
+> > opposed to security for show....
+
+The state is seeded with get_random_long() which will use RDRAND and any
+available entropy at this point. I am not sure the value of calling
+get_random_long() on each iteration especially if you don't have RDRAND.
+
+> >
+> > (Not that there's necessarily any thing wrong with security theater;
+> > the US spends over 3 billion dollars a year on security theater.  As
+> > politicians know, symbolism can be important.  :-)
+
+> I've added Thomas Garnier to CC (since he wrote this originally). He
+> can speak to its position in the boot ordering and the effective
+> entropy.
+
+Thanks for including me.
+
+
+> -Kees
+
+> --
+> Kees Cook
+> Pixel Security
+
+
+
+--
+Thomas
