@@ -1,110 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 371616B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:09:43 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id o9so2820280pgv.8
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 06:09:43 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f8si9406978pgr.419.2018.04.16.06.09.40
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 996BC6B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:14:25 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id i4so13082806wrh.4
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 06:14:25 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w7si1428677edk.140.2018.04.16.06.14.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 16 Apr 2018 06:09:41 -0700 (PDT)
-Date: Mon, 16 Apr 2018 06:09:36 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 3/3] dcache: account external names as indirectly
- reclaimable memory
-Message-ID: <20180416130936.GC26022@bombadil.infradead.org>
-References: <20180305133743.12746-1-guro@fb.com>
- <20180305133743.12746-5-guro@fb.com>
- <20180413133519.GA213834@rodete-laptop-imager.corp.google.com>
- <20180413135923.GT17484@dhcp22.suse.cz>
- <13f1f5b5-f3f8-956c-145a-4641fb996048@suse.cz>
- <20180413142821.GW17484@dhcp22.suse.cz>
- <20180413143716.GA5378@cmpxchg.org>
- <20180416114144.GK17484@dhcp22.suse.cz>
- <1475594b-c1ad-9625-7aeb-ad8ad385b793@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 Apr 2018 06:14:24 -0700 (PDT)
+Date: Mon, 16 Apr 2018 15:14:21 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 0/3] Interface for higher order contiguous allocations
+Message-ID: <20180416131421.GQ17484@dhcp22.suse.cz>
+References: <20180212222056.9735-1-mike.kravetz@oracle.com>
+ <770445b3-6caa-a87a-5de7-3157fc5280c2@intel.com>
+ <74b7c6e5-bce6-a70a-287a-af44765836c7@intel.com>
+ <8f67cb20-3d70-274b-871b-11bedc687bd9@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1475594b-c1ad-9625-7aeb-ad8ad385b793@suse.cz>
+In-Reply-To: <8f67cb20-3d70-274b-871b-11bedc687bd9@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Reinette Chatre <reinette.chatre@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>
 
-On Mon, Apr 16, 2018 at 02:06:21PM +0200, Vlastimil Babka wrote:
-> On 04/16/2018 01:41 PM, Michal Hocko wrote:
-> > On Fri 13-04-18 10:37:16, Johannes Weiner wrote:
-> >> On Fri, Apr 13, 2018 at 04:28:21PM +0200, Michal Hocko wrote:
-> >>> On Fri 13-04-18 16:20:00, Vlastimil Babka wrote:
-> >>>> We would need kmalloc-reclaimable-X variants. It could be worth it,
-> >>>> especially if we find more similar usages. I suspect they would be more
-> >>>> useful than the existing dma-kmalloc-X :)
-> >>>
-> >>> I am still not sure why __GFP_RECLAIMABLE cannot be made work as
-> >>> expected and account slab pages as SLAB_RECLAIMABLE
-> >>
-> >> Can you outline how this would work without separate caches?
+On Thu 12-04-18 13:58:47, Mike Kravetz wrote:
+> On 04/12/2018 01:40 PM, Reinette Chatre wrote:
+> > Hi Mike,
 > > 
-> > I thought that the cache would only maintain two sets of slab pages
-> > depending on the allocation reuquests. I am pretty sure there will be
-> > other details to iron out and
+> > On 2/15/2018 12:22 PM, Reinette Chatre wrote:
+> >> On 2/12/2018 2:20 PM, Mike Kravetz wrote:
+> >>> These patches came out of the "[RFC] mmap(MAP_CONTIG)" discussions at:
+> >>> http://lkml.kernel.org/r/21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com
+> >>>
+> >>> One suggestion in that thread was to create a friendlier interface that
+> >>> could be used by drivers and others outside core mm code to allocate a
+> >>> contiguous set of pages.  The alloc_contig_range() interface is used for
+> >>> this purpose today by CMA and gigantic page allocation.  However, this is
+> >>> not a general purpose interface.  So, wrap alloc_contig_range() in the
+> >>> more general interface:
+> >>>
+> >>> struct page *find_alloc_contig_pages(unsigned int order, gfp_t gfp, int nid,
+> >>> 					nodemask_t *nodemask)
+> >>>
+> >>> No underlying changes are made to increase the likelihood that a contiguous
+> >>> set of pages can be found and allocated.  Therefore, any user of this
+> >>> interface must deal with failure.  The hope is that this interface will be
+> >>> able to satisfy some use cases today.
+> >>
+> >> As discussed in another thread a new feature, Cache Pseudo-Locking,
+> >> requires large contiguous regions. Until now I just exposed
+> >> alloc_gigantic_page() to handle these allocations in my testing. I now
+> >> moved to using find_alloc_contig_pages() as introduced here and all my
+> >> tests passed. I do hope that an API supporting large contiguous regions
+> >> become available.
+> >>
+> >> Thank you very much for creating this.
+> >>
+> >> Tested-by: Reinette Chatre <reinette.chatre@intel.com>
+> > 
+> > Do you still intend on submitting these changes for inclusion?
+> > 
+> > I would really like to use this work but unfortunately the original
+> > patches submitted here do not apply anymore. I am encountering conflicts
+> > with, for example:
+> > 
+> > commit d9cc948f6fa1c3384037f500e0acd35f03850d15
+> > Author: Michal Hocko <mhocko@suse.com>
+> > Date:   Wed Jan 31 16:20:44 2018 -0800
+> > 
+> >     mm, hugetlb: integrate giga hugetlb more naturally to the allocation
+> > path
+> > 
+> > Thank you very much
 > 
-> For example the percpu (and other) array caches...
+> Thanks for the reminder Reinette.
 > 
-> > maybe it will turn out that such a large
-> > portion of the chache would need to duplicate the state that a
-> > completely new cache would be more reasonable.
+> You were the only one to comment on the original proposal.  In addition,
+> my original use case may have gone away.  So, this effort went to the
+> bottom of my priority list.
 > 
-> I'm afraid that's the case, yes.
+> I am happy rebase the patches, but would really like to get additional
+> comments.  Allocation of hugetlbfs gigantic pages is the only existing
+> user.  Perhaps this is a natural progression of Michal's patch above
+> as it moves all that special pfn range scanning out of hugetlb code.
 
-I'm not sure it'll be so bad, at least for SLUB ... I think everything
-we need to duplicate is already percpu, and if we combine GFP_DMA
-and GFP_RECLAIMABLE into this, we might even get more savings.  Also,
-we only need to do this for the kmalloc slabs; currently 13 of them.
-So we eliminate 13 caches and in return allocate 13 * 2 * NR_CPU pointers.
-That'll be a win on some machines and a loss on others, but the machines
-where it's consuming more memory should have more memory to begin with,
-so I'd count it as a win.
-
-The node partial list probably wants to be trebled in size to have one
-list per memory type.  But I think the allocation path only changes
-like this:
-
-@@ -2663,10 +2663,13 @@ static __always_inline void *slab_alloc_node(struct kmem
-_cache *s,
-        struct kmem_cache_cpu *c;
-        struct page *page;
-        unsigned long tid;
-+       unsigned int offset = 0;
- 
-        s = slab_pre_alloc_hook(s, gfpflags);
-        if (!s)
-                return NULL;
-        if (s->flags & SLAB_KMALLOC)
-                offset = flags_to_slab_id(gfpflags);
- redo:
-        /*
-         * Must read kmem_cache cpu data via this cpu ptr. Preemption is
-@@ -2679,8 +2682,8 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
-         * to check if it is matched or not.
-         */
-        do {
--               tid = this_cpu_read(s->cpu_slab->tid);
--               c = raw_cpu_ptr(s->cpu_slab);
-+               tid = this_cpu_read((&s->cpu_slab[offset])->tid);
-+               c = raw_cpu_ptr(&s->cpu_slab[offset]);
-        } while (IS_ENABLED(CONFIG_PREEMPT) &&
-                 unlikely(tid != READ_ONCE(c->tid)));
- 
-
-> > Is this worth exploring
-> > at least? I mean something like this should help with the fragmentation
-> > already AFAIU. Accounting would be just free on top.
-> 
-> Yep. It could be also CONFIG_urable so smaller systems don't need to
-> deal with the memory overhead of this.
-> 
-> So do we put it on LSF/MM agenda?
-
-We have an agenda?  :-)
+Yes, that was and still is the plan. Turn the hackish contig allocator
+into something more usable so I guess it would be in line with what
+Reinette is after.
+-- 
+Michal Hocko
+SUSE Labs
