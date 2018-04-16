@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4660E6B002B
+	by kanga.kvack.org (Postfix) with ESMTP id 833B86B002D
 	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:47 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id a38so11144828wra.10
+Received: by mail-wr0-f198.google.com with SMTP id k27so12977726wre.23
         for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:47 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id d5si1139234edi.418.2018.04.16.08.25.45
+        by mx.google.com with ESMTPS id b15si892024edh.143.2018.04.16.08.25.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 16 Apr 2018 08:25:46 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 16/35] x86/pgtable/pae: Unshare kernel PMDs when PTI is enabled
-Date: Mon, 16 Apr 2018 17:25:04 +0200
-Message-Id: <1523892323-14741-17-git-send-email-joro@8bytes.org>
+Subject: [PATCH 19/35] x86/pgtable: Move pti_set_user_pgtbl() to pgtable.h
+Date: Mon, 16 Apr 2018 17:25:07 +0200
+Message-Id: <1523892323-14741-20-git-send-email-joro@8bytes.org>
 In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,31 +22,81 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-With PTI we need to map the per-process LDT into the kernel
-address-space for each process, so we need separate kernel
-PMDs per PGD.
+There it is also usable from 32 bit code.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable-3level_types.h | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/pgtable.h    | 23 +++++++++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h | 21 ---------------------
+ 2 files changed, 23 insertions(+), 21 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
-index 6a59a6d..78038e0 100644
---- a/arch/x86/include/asm/pgtable-3level_types.h
-+++ b/arch/x86/include/asm/pgtable-3level_types.h
-@@ -21,9 +21,10 @@ typedef union {
- #endif	/* !__ASSEMBLY__ */
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 3055c77..557ddf8 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -635,8 +635,31 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
  
- #ifdef CONFIG_PARAVIRT
--#define SHARED_KERNEL_PMD	(pv_info.shared_kernel_pmd)
-+#define SHARED_KERNEL_PMD	((!static_cpu_has(X86_FEATURE_PTI) &&	\
-+				 (pv_info.shared_kernel_pmd)))
+ pmd_t *populate_extra_pmd(unsigned long vaddr);
+ pte_t *populate_extra_pte(unsigned long vaddr);
++
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
++
++/*
++ * Take a PGD location (pgdp) and a pgd value that needs to be set there.
++ * Populates the user and returns the resulting PGD that must be set in
++ * the kernel copy of the page tables.
++ */
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
++{
++	if (!static_cpu_has(X86_FEATURE_PTI))
++		return pgd;
++	return __pti_set_user_pgtbl(pgdp, pgd);
++}
++#else   /* CONFIG_PAGE_TABLE_ISOLATION */
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
++{
++	return pgd;
++}
++#endif  /* CONFIG_PAGE_TABLE_ISOLATION */
++
+ #endif	/* __ASSEMBLY__ */
+ 
++
+ #ifdef CONFIG_X86_32
+ # include <asm/pgtable_32.h>
  #else
--#define SHARED_KERNEL_PMD	1
-+#define SHARED_KERNEL_PMD	(!static_cpu_has(X86_FEATURE_PTI))
- #endif
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 9934115..6dd2eb6 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -146,27 +146,6 @@ static inline bool pgdp_maps_userspace(void *__ptr)
+ 	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
+ }
  
- /*
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
+-
+-/*
+- * Take a PGD location (pgdp) and a pgd value that needs to be set there.
+- * Populates the user and returns the resulting PGD that must be set in
+- * the kernel copy of the page tables.
+- */
+-static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+-{
+-	if (!static_cpu_has(X86_FEATURE_PTI))
+-		return pgd;
+-	return __pti_set_user_pgtbl(pgdp, pgd);
+-}
+-#else
+-static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+-{
+-	return pgd;
+-}
+-#endif
+-
+ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ {
+ 	pgd_t pgd;
 -- 
 2.7.4
