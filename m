@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55A126B005A
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 92CBA6B0055
 	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:50 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id h1so12924015wre.0
+Received: by mail-wr0-f199.google.com with SMTP id k27so12977855wre.23
         for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:50 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id p1si441831edb.110.2018.04.16.08.25.48
+        by mx.google.com with ESMTPS id x36si2594645edd.215.2018.04.16.08.25.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 16 Apr 2018 08:25:49 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 24/35] x86/mm/pti: Add an overflow check to pti_clone_pmds()
-Date: Mon, 16 Apr 2018 17:25:12 +0200
-Message-Id: <1523892323-14741-25-git-send-email-joro@8bytes.org>
+Subject: [PATCH 23/35] x86/mm/legacy: Populate the user page-table with user pgd's
+Date: Mon, 16 Apr 2018 17:25:11 +0200
+Message-Id: <1523892323-14741-24-git-send-email-joro@8bytes.org>
 In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,30 +22,46 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The addr counter will overflow if we clone the last PMD of
-the address space, resulting in an endless loop.
-
-Check for that and bail out of the loop when it happens.
+Also populate the user-spage pgd's in the user page-table.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ arch/x86/include/asm/pgtable-2level.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index 9bea9c3..f967b51 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -297,6 +297,10 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
- 		p4d_t *p4d;
- 		pud_t *pud;
+diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
+index 685ffe8..c399ea5 100644
+--- a/arch/x86/include/asm/pgtable-2level.h
++++ b/arch/x86/include/asm/pgtable-2level.h
+@@ -19,6 +19,9 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
  
-+		/* Overflow check */
-+		if (addr < start)
-+			break;
-+
- 		pgd = pgd_offset_k(addr);
- 		if (WARN_ON(pgd_none(*pgd)))
- 			return;
+ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pmd.pud.p4d.pgd = pti_set_user_pgtbl(&pmdp->pud.p4d.pgd, pmd.pud.p4d.pgd);
++#endif
+ 	*pmdp = pmd;
+ }
+ 
+@@ -58,6 +61,9 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&xp->pud.p4d.pgd, __pgd(0));
++#endif
+ 	return __pmd(xchg((pmdval_t *)xp, 0));
+ }
+ #else
+@@ -67,6 +73,9 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&xp->p4d.pgd, __pgd(0));
++#endif
+ 	return __pud(xchg((pudval_t *)xp, 0));
+ }
+ #else
 -- 
 2.7.4
