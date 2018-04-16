@@ -1,40 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 87DE56B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 13:59:30 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id n78so2518763pfj.4
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 10:59:30 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [198.137.202.136])
-        by mx.google.com with ESMTPS id k2si4021121pgo.509.2018.04.16.10.59.29
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 014AE6B000A
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 14:00:29 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id e21-v6so10671128otf.23
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:00:28 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i3-v6sor4502686oib.127.2018.04.16.11.00.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 16 Apr 2018 10:59:29 -0700 (PDT)
-Subject: Re: [PATCH 00/35 v5] PTI support for x32
-References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
-From: "H. Peter Anvin" <hpa@zytor.com>
-Message-ID: <db40f8f6-7990-676c-e536-b876254e66c0@zytor.com>
-Date: Mon, 16 Apr 2018 10:57:49 -0700
+        (Google Transport Security);
+        Mon, 16 Apr 2018 11:00:27 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180416174740.GA12686@bombadil.infradead.org>
+References: <20180414155059.GA18015@jordon-HP-15-Notebook-PC>
+ <CAPcyv4g+Gdc2tJ1qrM5Xn9vtARw-ZqFXaMbiaBKJJsYDtSNBig@mail.gmail.com> <20180416174740.GA12686@bombadil.infradead.org>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 16 Apr 2018 11:00:26 -0700
+Message-ID: <CAPcyv4hUsADs9ueDfLKvcqHvz3Z4ziW=a1V6rkcOtTvoJhw7xg@mail.gmail.com>
+Subject: Re: [PATCH] dax: Change return type to vm_fault_t
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On 04/16/18 08:24, Joerg Roedel wrote:
-> Hi,
-> 
-> here is the 5th iteration of my PTI enablement patches for
-> x86-32. There are no real changes between v4 and v5 besides
-> that I rebased the whole patch-set to v4.17-rc1 and resolved
-> the numerous conflicts that this caused.
-> 
+On Mon, Apr 16, 2018 at 10:47 AM, Matthew Wilcox <willy@infradead.org> wrote:
+> On Mon, Apr 16, 2018 at 09:14:48AM -0700, Dan Williams wrote:
+>> > -       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
+>> > -
+>> > -       if (rc == -ENOMEM)
+>> > -               return VM_FAULT_OOM;
+>> > -       if (rc < 0 && rc != -EBUSY)
+>> > -               return VM_FAULT_SIGBUS;
+>> > -
+>> > -       return VM_FAULT_NOPAGE;
+>> > +       return vmf_insert_mixed(vmf->vma, vmf->address, pfn);
+>>
+>> Ugh, so this change to vmf_insert_mixed() went upstream without fixing
+>> the users? This changelog is now misleading as it does not mention
+>> that is now an urgent standalone fix. On first read I assumed this was
+>> part of a wider effort for 4.18.
+>
+> You read too quickly.  vmf_insert_mixed() is a *new* function which
+> *replaces* vm_insert_mixed() and
+> awful-mangling-of-return-values-done-per-driver.
+>
+> Eventually vm_insert_mixed() will be deleted.  But today is not that day.
 
-Please don't use the term "x32" for i386/x86-32.  "x32" generally refers
-to the x32 ABI for x86-64.  "x64" in Microsoft terminology for x86-64
-corresponds to "x86" for x86-32.
-
-	-hpa
+Ah, ok, thanks for the clarification. Then this patch should
+definitely be re-titled to "dax: convert to the new vmf_insert_mixed()
+helper". The vm_fault_t conversion is just a minor side-effect of that
+larger change. I assume this can wait for v4.18.
