@@ -1,45 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F35736B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:18:11 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id y131-v6so9463406itc.5
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:18:11 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m21-v6sor4221999iti.79.2018.04.16.08.18.10
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 11C5D6B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:19:26 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id h184-v6so10233021ybg.16
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:19:26 -0700 (PDT)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [69.252.207.39])
+        by mx.google.com with ESMTPS id e62si9267384qkd.41.2018.04.16.08.19.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Apr 2018 08:18:10 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Apr 2018 08:19:25 -0700 (PDT)
+Date: Mon, 16 Apr 2018 10:18:22 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.LRH.2.02.1804161054410.17807@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.20.1804161018030.9397@nuc-kabylake>
+References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
+ <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz> <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com>
+ <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com> <alpine.LRH.2.02.1804161054410.17807@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180416093058.6edca0bb@gandalf.local.home>
-References: <20180409001936.162706-1-alexander.levin@microsoft.com>
- <20180409001936.162706-15-alexander.levin@microsoft.com> <20180409082246.34hgp3ymkfqke3a4@pathway.suse.cz>
- <20180415144248.GP2341@sasha-vm> <20180416093058.6edca0bb@gandalf.local.home>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 16 Apr 2018 08:18:09 -0700
-Message-ID: <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Sasha Levin <Alexander.Levin@microsoft.com>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Mike Snitzer <snitzer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Apr 16, 2018 at 6:30 AM, Steven Rostedt <rostedt@goodmis.org> wrote:
+On Mon, 16 Apr 2018, Mikulas Patocka wrote:
+
+> > Please clarify further, thanks!
+> > Mike
 >
-> I wonder if the "AUTOSEL" patches should at least have an "ack-by" from
-> someone before they are pulled in. Otherwise there may be some subtle
-> issues that can find their way into stable releases.
+> Yes, using a slab cache currently doesn't avoid this rouding (it needs the
+> SLAB_MINIMIZE_WASTE patch to do that).
 
-I don't know about anybody else, but I  get so many of the patch-bot
-patches for stable etc that I will *not* reply to normal cases. Only
-if there's some issue with a patch will I reply.
-
-I probably do get more than most, but still - requiring active
-participation for the steady flow of normal stable patches is almost
-pointless.
-
-Just look at the subject line of this thread. The numbers are so big
-that you almost need exponential notation for them.
-
-           Linus
+Or an increase in slab_max_order
