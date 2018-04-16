@@ -1,58 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 617706B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:40:48 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k27so12507415wre.23
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 05:40:48 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a5si592932eda.293.2018.04.16.05.40.46
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 371616B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:09:43 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id o9so2820280pgv.8
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 06:09:43 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f8si9406978pgr.419.2018.04.16.06.09.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Apr 2018 05:40:47 -0700 (PDT)
-Subject: Re: slab: introduce the flag SLAB_MINIMIZE_WASTE
-References: <20180320173512.GA19669@bombadil.infradead.org>
- <alpine.DEB.2.20.1803201250480.27540@nuc-kabylake>
- <alpine.LRH.2.02.1803201510030.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803201536590.28319@nuc-kabylake>
- <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
- <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
- <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com>
- <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz>
- <20180413151019.GA5660@redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz>
-Date: Mon, 16 Apr 2018 14:38:49 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 16 Apr 2018 06:09:41 -0700 (PDT)
+Date: Mon, 16 Apr 2018 06:09:36 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 3/3] dcache: account external names as indirectly
+ reclaimable memory
+Message-ID: <20180416130936.GC26022@bombadil.infradead.org>
+References: <20180305133743.12746-1-guro@fb.com>
+ <20180305133743.12746-5-guro@fb.com>
+ <20180413133519.GA213834@rodete-laptop-imager.corp.google.com>
+ <20180413135923.GT17484@dhcp22.suse.cz>
+ <13f1f5b5-f3f8-956c-145a-4641fb996048@suse.cz>
+ <20180413142821.GW17484@dhcp22.suse.cz>
+ <20180413143716.GA5378@cmpxchg.org>
+ <20180416114144.GK17484@dhcp22.suse.cz>
+ <1475594b-c1ad-9625-7aeb-ad8ad385b793@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180413151019.GA5660@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1475594b-c1ad-9625-7aeb-ad8ad385b793@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 04/13/2018 05:10 PM, Mike Snitzer wrote:
-> On Fri, Apr 13 2018 at  5:22am -0400,
-> Vlastimil Babka <vbabka@suse.cz> wrote:
->>
->> Would this perhaps be a good LSF/MM discussion topic? Mikulas, are you
->> attending, or anyone else that can vouch for your usecase?
+On Mon, Apr 16, 2018 at 02:06:21PM +0200, Vlastimil Babka wrote:
+> On 04/16/2018 01:41 PM, Michal Hocko wrote:
+> > On Fri 13-04-18 10:37:16, Johannes Weiner wrote:
+> >> On Fri, Apr 13, 2018 at 04:28:21PM +0200, Michal Hocko wrote:
+> >>> On Fri 13-04-18 16:20:00, Vlastimil Babka wrote:
+> >>>> We would need kmalloc-reclaimable-X variants. It could be worth it,
+> >>>> especially if we find more similar usages. I suspect they would be more
+> >>>> useful than the existing dma-kmalloc-X :)
+> >>>
+> >>> I am still not sure why __GFP_RECLAIMABLE cannot be made work as
+> >>> expected and account slab pages as SLAB_RECLAIMABLE
+> >>
+> >> Can you outline how this would work without separate caches?
+> > 
+> > I thought that the cache would only maintain two sets of slab pages
+> > depending on the allocation reuquests. I am pretty sure there will be
+> > other details to iron out and
 > 
-> Any further discussion on SLAB_MINIMIZE_WASTE should continue on list.
+> For example the percpu (and other) array caches...
 > 
-> Mikulas won't be at LSF/MM.  But I included Mikulas' dm-bufio changes
-> that no longer depend on this proposed SLAB_MINIMIZE_WASTE (as part of
-> the 4.17 merge window).
-
-Can you or Mikulas briefly summarize how the dependency is avoided, and
-whether if (something like) SLAB_MINIMIZE_WASTE were implemented, the
-dm-bufio code would happily switch to it, or not?
-
-Thanks,
-Vlastimil
-
-> Mike
+> > maybe it will turn out that such a large
+> > portion of the chache would need to duplicate the state that a
+> > completely new cache would be more reasonable.
 > 
+> I'm afraid that's the case, yes.
+
+I'm not sure it'll be so bad, at least for SLUB ... I think everything
+we need to duplicate is already percpu, and if we combine GFP_DMA
+and GFP_RECLAIMABLE into this, we might even get more savings.  Also,
+we only need to do this for the kmalloc slabs; currently 13 of them.
+So we eliminate 13 caches and in return allocate 13 * 2 * NR_CPU pointers.
+That'll be a win on some machines and a loss on others, but the machines
+where it's consuming more memory should have more memory to begin with,
+so I'd count it as a win.
+
+The node partial list probably wants to be trebled in size to have one
+list per memory type.  But I think the allocation path only changes
+like this:
+
+@@ -2663,10 +2663,13 @@ static __always_inline void *slab_alloc_node(struct kmem
+_cache *s,
+        struct kmem_cache_cpu *c;
+        struct page *page;
+        unsigned long tid;
++       unsigned int offset = 0;
+ 
+        s = slab_pre_alloc_hook(s, gfpflags);
+        if (!s)
+                return NULL;
+        if (s->flags & SLAB_KMALLOC)
+                offset = flags_to_slab_id(gfpflags);
+ redo:
+        /*
+         * Must read kmem_cache cpu data via this cpu ptr. Preemption is
+@@ -2679,8 +2682,8 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
+         * to check if it is matched or not.
+         */
+        do {
+-               tid = this_cpu_read(s->cpu_slab->tid);
+-               c = raw_cpu_ptr(s->cpu_slab);
++               tid = this_cpu_read((&s->cpu_slab[offset])->tid);
++               c = raw_cpu_ptr(&s->cpu_slab[offset]);
+        } while (IS_ENABLED(CONFIG_PREEMPT) &&
+                 unlikely(tid != READ_ONCE(c->tid)));
+ 
+
+> > Is this worth exploring
+> > at least? I mean something like this should help with the fragmentation
+> > already AFAIU. Accounting would be just free on top.
+> 
+> Yep. It could be also CONFIG_urable so smaller systems don't need to
+> deal with the memory overhead of this.
+> 
+> So do we put it on LSF/MM agenda?
+
+We have an agenda?  :-)
