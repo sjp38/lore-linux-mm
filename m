@@ -1,149 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BF9216B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 03:04:22 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id n10so762293pgq.3
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 00:04:22 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id b3si9127617pgc.479.2018.04.16.00.04.21
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B7B206B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 04:07:45 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p189so9018243pfp.1
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 01:07:45 -0700 (PDT)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id p5-v6si2801778plk.441.2018.04.16.01.07.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 00:04:21 -0700 (PDT)
-From: Youquan Song <youquan.song@intel.com>
-Subject: [PATCH 11/23] x86/mm: Give each mm TLB flush generation a unique ID
-Date: Mon, 16 Apr 2018 14:32:50 -0400
-Message-Id: <1523903583-14881-11-git-send-email-youquan.song@intel.com>
-In-Reply-To: <1523903583-14881-1-git-send-email-youquan.song@intel.com>
-References: <1523903583-14881-1-git-send-email-youquan.song@intel.com>
+        Mon, 16 Apr 2018 01:07:44 -0700 (PDT)
+Received: from epcas5p2.samsung.com (unknown [182.195.41.40])
+	by mailout1.samsung.com (KnoxPortal) with ESMTP id 20180416080742epoutp0133f75ae359c86b8ee4d2141b881d8672~l3Bw2azsI3235932359epoutp01O
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:07:42 +0000 (GMT)
+Mime-Version: 1.0
+Subject: Re: [PATCH v3] mm/page_owner: ignore everything below the IRQ entry
+ point
+Reply-To: maninder1.s@samsung.com
+From: Maninder Singh <maninder1.s@samsung.com>
+In-Reply-To: <201803272356.6XjvciDF%fengguang.wu@intel.com>
+Message-ID: <20180416054459epcms5p85f343635408abccfd12080d7fc322911@epcms5p8>
+Date: Mon, 16 Apr 2018 11:14:59 +0530
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
+References: <201803272356.6XjvciDF%fengguang.wu@intel.com>
+	<1522150907-33547-1-git-send-email-maninder1.s@samsung.com>
+	<CGME20180327160057epcas5p30597e515a359dc6a5d54767a8bcb78a7@epcms5p8>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: youquan.song@intel.com
-Cc: youquan.song@linux.intel.com, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: "dvyukov@google.com" <dvyukov@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "arnd@arndb.de" <arnd@arndb.de>
+Cc: kbuild test robot <lkp@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "glider@google.com" <glider@google.com>, "kstewart@linuxfoundation.org" <kstewart@linuxfoundation.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "pombredanne@nexb.com" <pombredanne@nexb.com>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "mhocko@suse.com" <mhocko@suse.com>, "vinmenon@codeaurora.org" <vinmenon@codeaurora.org>, "gomonovych@gmail.com" <gomonovych@gmail.com>, Ayush Mittal <ayush.m@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, AMIT SAHRAWAT <a.sahrawat@samsung.com>, PANKAJ MISHRA <pankaj.m@samsung.com>, Vaneet Narang <v.narang@samsung.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "jdike@addtoit.com" <jdike@addtoit.com>, "richard@nod.at" <richard@nod.at>, "user-mode-linux-devel@lists.sourceforge.net" <user-mode-linux-devel@lists.sourceforge.net>, "user-mode-linux-user@lists.sourceforge.net" <user-mode-linux-user@lists.sourceforge.net>
 
-From: Andy Lutomirski <luto@kernel.org>
-
-(cherry picked from commit f39681ed0f48498b80455095376f11535feea332)
-
-This adds two new variables to mmu_context_t: ctx_id and tlb_gen.
-ctx_id uniquely identifies the mm_struct and will never be reused.
-For a given mm_struct (and hence ctx_id), tlb_gen is a monotonic
-count of the number of times that a TLB flush has been requested.
-The pair (ctx_id, tlb_gen) can be used as an identifier for TLB
-flush actions and will be used in subsequent patches to reliably
-determine whether all needed TLB flushes have occurred on a given
-CPU.
-
-This patch is split out for ease of review.  By itself, it has no
-real effect other than creating and updating the new variables.
-
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Reviewed-by: Nadav Amit <nadav.amit@gmail.com>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arjan van de Ven <arjan@linux.intel.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/413a91c24dab3ed0caa5f4e4d017d87b0857f920.1498751203.git.luto@kernel.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-[Youquan Song: port to 4.4]
-Signed-off-by: Youquan Song <youquan.song@linux.intel.com>
----
- arch/x86/include/asm/mmu.h         | 15 +++++++++++++--
- arch/x86/include/asm/mmu_context.h |  4 ++++
- arch/x86/kernel/ldt.c              |  1 +
- arch/x86/mm/tlb.c                  |  2 ++
- 4 files changed, 20 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/include/asm/mmu.h b/arch/x86/include/asm/mmu.h
-index 7680b76..3359dfe 100644
---- a/arch/x86/include/asm/mmu.h
-+++ b/arch/x86/include/asm/mmu.h
-@@ -3,12 +3,18 @@
- 
- #include <linux/spinlock.h>
- #include <linux/mutex.h>
-+#include <linux/atomic.h>
- 
- /*
-- * The x86 doesn't have a mmu context, but
-- * we put the segment information here.
-+ * x86 has arch-specific MMU state beyond what lives in mm_struct.
-  */
- typedef struct {
-+	/*
-+	 * ctx_id uniquely identifies this mm_struct.  A ctx_id will never
-+	 * be reused, and zero is not a valid ctx_id.
-+	 */
-+	u64 ctx_id;
-+
- #ifdef CONFIG_MODIFY_LDT_SYSCALL
- 	struct ldt_struct *ldt;
- #endif
-@@ -24,6 +30,11 @@ typedef struct {
- 	atomic_t perf_rdpmc_allowed;	/* nonzero if rdpmc is allowed */
- } mm_context_t;
- 
-+#define INIT_MM_CONTEXT(mm)						\
-+	.context = {							\
-+		.ctx_id = 1,						\
-+	}
-+
- void leave_mm(int cpu);
- 
- #endif /* _ASM_X86_MMU_H */
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 9bfc5fd..24bc41a 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -11,6 +11,9 @@
- #include <asm/tlbflush.h>
- #include <asm/paravirt.h>
- #include <asm/mpx.h>
-+
-+extern atomic64_t last_mm_ctx_id;
-+
- #ifndef CONFIG_PARAVIRT
- static inline void paravirt_activate_mm(struct mm_struct *prev,
- 					struct mm_struct *next)
-@@ -58,6 +61,7 @@ void destroy_context(struct mm_struct *mm);
- static inline int init_new_context(struct task_struct *tsk,
- 				   struct mm_struct *mm)
- {
-+	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
- 	return 0;
- }
- static inline void destroy_context(struct mm_struct *mm) {}
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index bc42936..323590e 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -125,6 +125,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
- 	struct mm_struct *old_mm;
- 	int retval = 0;
- 
-+	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
- 	mutex_init(&mm->context.lock);
- 	old_mm = current->mm;
- 	if (!old_mm) {
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 7cad01af..efec198 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -29,6 +29,8 @@
-  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
-  */
- 
-+atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
-+
- struct flush_tlb_info {
- 	struct mm_struct *flush_mm;
- 	unsigned long flush_start;
--- 
-1.9.1
+=C2=A0=0D=0AHi=20Arnd,=0D=0A=0D=0A=0D=0AWe=20sent=20one=20patch=20for=20ign=
+oring=20entries=20below=20IRQ=20point=20in=20page_onwer=20using=20stackdepo=
+t.=0D=0A=0D=0AV2:-=20https://lkml.org/lkml/2018/3/26/178=0D=0A=0D=0AV3:-=20=
+https://lkml.org/lkml/2018/3/27/357=0D=0A=0D=0ABut=20it's=20breaking=20buil=
+d=20for=20um=20target=20with=20below=20reason.=0D=0A=0D=0A=0D=0A=C2=A0=C2=
+=A0=C2=A0kernel/stacktrace.o:=C2=A0In=C2=A0function=C2=A0=60filter_irq_stac=
+ks':=0D=0A>>=C2=A0stacktrace.c:(.text+0x20e):=C2=A0undefined=C2=A0reference=
+=C2=A0to=C2=A0=60__irqentry_text_start'=0D=0A>>=C2=A0stacktrace.c:(.text+0x=
+218):=C2=A0undefined=C2=A0reference=C2=A0to=C2=A0=60__irqentry_text_end'=0D=
+=0A>>=C2=A0stacktrace.c:(.text+0x222):=C2=A0undefined=C2=A0reference=C2=A0t=
+o=C2=A0=60__softirqentry_text_start'=0D=0A>>=C2=A0stacktrace.c:(.text+0x22c=
+):=C2=A0undefined=C2=A0reference=C2=A0to=C2=A0=60__softirqentry_text_end'=
+=0D=0A=C2=A0=C2=A0=C2=A0collect2:=C2=A0error:=C2=A0ld=C2=A0returned=C2=A01=
+=C2=A0exit=C2=A0status=0D=0A=0D=0ASo=20can=20we=20add=20below=20fix=20for=
+=20this=20build=20break,=20can=20you=20suggest=20if=20it=20is=20ok=20or=20w=
+e=20need=20to=20find=0D=0Asome=20other=20way:-=0D=0A=0D=0Adiff=20--git=20a/=
+include/asm-generic/vmlinux.lds.h=20b/include/asm-generic/vmlinux.lds.h=0D=
+=0Aindex=2076b63f5..0f3b7f8=20100644=0D=0A---=20a/include/asm-generic/vmlin=
+ux.lds.h=0D=0A+++=20b/include/asm-generic/vmlinux.lds.h=0D=0A=40=40=20-460,=
+6=20+460,10=20=40=40=0D=0A=20=20*=20to=20use=20=22..=22=20first.=0D=0A=20=
+=20*/=0D=0A=20=23define=20TEXT_TEXT=20=20=20=20=20=20=20=20=20=20=20=20=20=
+=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=
+=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=5C=0D=0A+=20=20=20=20=20=
+=20=20=20=20=20=20=20=20=20=20VMLINUX_SYMBOL(__irqentry_text_start)=20=3D=
+=20.;=20=20=20=20=20=20=20=20=20=20=20=20=20=20=5C=0D=0A+=20=20=20=20=20=20=
+=20=20=20=20=20=20=20=20=20VMLINUX_SYMBOL(__irqentry_text_end)=20=3D=20.;=
+=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=5C=0D=0A+=20=20=20=20=20=
+=20=20=20=20=20=20=20=20=20=20VMLINUX_SYMBOL(__softirqentry_text_start)=20=
+=3D=20.;=20=20=20=20=20=20=20=20=20=20=5C=0D=0A+=20=20=20=20=20=20=20=20=20=
+=20=20=20=20=20=20VMLINUX_SYMBOL(__softirqentry_text_end)=20=3D=20.;=20=20=
+=20=20=20=20=20=20=20=20=20=20=5C=0D=0A=20=20=20=20=20=20=20=20=20=20=20=20=
+=20=20=20=20ALIGN_FUNCTION();=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=
+=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=5C=
+=0D=0A=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20*(.text.hot=20TEXT_MA=
+IN=20.text.fixup=20.text.unlikely)=20=20=20=20=20=20=20=5C=0D=0A=20=20=20=
+=20=20=20=20=20=20=20=20=20=20=20=20=20*(.text..refcount)=20=20=20=20=20=20=
+=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=20=
+=20=20=20=20=20=20=20=5C=0D=0Adiff=20--git=20a/include/linux/kallsyms.h=20b=
+/include/linux/kallsyms.h=0D=0A=0D=0A=0D=0ATo=20make=20solution=20generic=
+=20for=20all=20architecture=20we=20declared=204=20dummy=20variables=20which=
+=20we=20used=20in=20our=20patch.=0D=0A=0D=0A=0D=0AThanks=20,=0D=0AManinder=
+=20Singh
