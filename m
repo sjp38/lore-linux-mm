@@ -1,95 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 70DB66B0008
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 14:41:34 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 35-v6so6618849pla.18
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:41:34 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id p13si9070920pgn.267.2018.04.16.11.41.33
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 323D06B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 14:52:50 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id m3so14751421ioe.17
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:52:50 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d1sor5070865ioj.263.2018.04.16.11.52.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 16 Apr 2018 11:41:33 -0700 (PDT)
-Subject: Re: [PATCH] dax: Change return type to vm_fault_t
-References: <20180414155059.GA18015@jordon-HP-15-Notebook-PC>
- <CAPcyv4g+Gdc2tJ1qrM5Xn9vtARw-ZqFXaMbiaBKJJsYDtSNBig@mail.gmail.com>
- <20180416174740.GA12686@bombadil.infradead.org>
- <CAPcyv4hUsADs9ueDfLKvcqHvz3Z4ziW=a1V6rkcOtTvoJhw7xg@mail.gmail.com>
- <20180416182146.GC12686@bombadil.infradead.org>
- <CAFqt6zZ9BJXjBxjJy06fOTZo8ybVYg3YOQjGbdaWK0NoAhzofg@mail.gmail.com>
- <CAPcyv4hYDADk_-52XHAWBNXqrVuef7Q9Dz9q+x4Y++mP0bxp2A@mail.gmail.com>
- <CAFqt6zarE3N4Ha5w54ez9aGPDGh4Qr5uxcAfYnUYZUnzDb26yg@mail.gmail.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <79c1622b-71a3-a8f6-e814-3510ca0dc60e@infradead.org>
-Date: Mon, 16 Apr 2018 11:41:27 -0700
+        (Google Transport Security);
+        Mon, 16 Apr 2018 11:52:49 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAFqt6zarE3N4Ha5w54ez9aGPDGh4Qr5uxcAfYnUYZUnzDb26yg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180416144117.5757ee70@gandalf.local.home>
+References: <20180416153031.GA5039@amd> <20180416155031.GX2341@sasha-vm>
+ <20180416160608.GA7071@amd> <20180416122019.1c175925@gandalf.local.home>
+ <20180416162757.GB2341@sasha-vm> <20180416163952.GA8740@amd>
+ <20180416164310.GF2341@sasha-vm> <20180416125307.0c4f6f28@gandalf.local.home>
+ <20180416170936.GI2341@sasha-vm> <20180416133321.40a166a4@gandalf.local.home>
+ <20180416174236.GL2341@sasha-vm> <20180416142653.0f017647@gandalf.local.home>
+ <CA+55aFzggPvS2MwFnKfXs6yHUQrbrJH7uyY4=znwetcdEXmZrw@mail.gmail.com> <20180416144117.5757ee70@gandalf.local.home>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 16 Apr 2018 11:52:48 -0700
+Message-ID: <CA+55aFyyZ7KmXbEa151JP287vypJAkxugW17YC7Q1B9=TnyHkw@mail.gmail.com>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>, Dan Williams <dan.j.williams@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Sasha Levin <Alexander.Levin@microsoft.com>, Pavel Machek <pavel@ucw.cz>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Greg KH <gregkh@linuxfoundation.org>
 
-On 04/16/2018 11:37 AM, Souptick Joarder wrote:
-> On Tue, Apr 17, 2018 at 12:05 AM, Dan Williams <dan.j.williams@intel.com> wrote:
->> On Mon, Apr 16, 2018 at 11:28 AM, Souptick Joarder <jrdr.linux@gmail.com> wrote:
->>> On Mon, Apr 16, 2018 at 11:51 PM, Matthew Wilcox <willy@infradead.org> wrote:
->>>> On Mon, Apr 16, 2018 at 11:00:26AM -0700, Dan Williams wrote:
->>>>> On Mon, Apr 16, 2018 at 10:47 AM, Matthew Wilcox <willy@infradead.org> wrote:
->>>>>> On Mon, Apr 16, 2018 at 09:14:48AM -0700, Dan Williams wrote:
->>>>>>>> -       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
->>>>>>>> -
->>>>>>>> -       if (rc == -ENOMEM)
->>>>>>>> -               return VM_FAULT_OOM;
->>>>>>>> -       if (rc < 0 && rc != -EBUSY)
->>>>>>>> -               return VM_FAULT_SIGBUS;
->>>>>>>> -
->>>>>>>> -       return VM_FAULT_NOPAGE;
->>>>>>>> +       return vmf_insert_mixed(vmf->vma, vmf->address, pfn);
->>>>>>>
->>>>>>> Ugh, so this change to vmf_insert_mixed() went upstream without fixing
->>>>>>> the users? This changelog is now misleading as it does not mention
->>>>>>> that is now an urgent standalone fix. On first read I assumed this was
->>>>>>> part of a wider effort for 4.18.
->>>>>>
->>>>>> You read too quickly.  vmf_insert_mixed() is a *new* function which
->>>>>> *replaces* vm_insert_mixed() and
->>>>>> awful-mangling-of-return-values-done-per-driver.
->>>>>>
->>>>>> Eventually vm_insert_mixed() will be deleted.  But today is not that day.
->>>>>
->>>>> Ah, ok, thanks for the clarification. Then this patch should
->>>>> definitely be re-titled to "dax: convert to the new vmf_insert_mixed()
->>>>> helper". The vm_fault_t conversion is just a minor side-effect of that
->>>>> larger change. I assume this can wait for v4.18.
->>>
->>> The primary objective is to change the return type to
->>> vm_fault_t in all fault handlers and to support that
->>> we have replace vm_insert_mixed() with vmf_insert_
->>> mixed() within one fault handler function.
->>>
->>> Do I really need to change the patch title ?
->>
->> At this point, yes, or at least mention the vm_insert_mixed -->
->> vmf_insert_mixed conversion in the changelog.
-> 
-> Ok, I will add this in change log and send v2.
-> 
+On Mon, Apr 16, 2018 at 11:41 AM, Steven Rostedt <rostedt@goodmis.org> wrote:
+>
+>I never said the second
+> bug fix should not have been backported. I even said that the first bug
+> "didn't go far enough".
 
-and please try to use more columns per line of text.
+You're still not getting it.
 
-E.g. from the uio: patch:
+The "didn't go far enough" means that the bug fix is *BUGGY*. It needs
+to be reverted.
 
-Use new return type vm_fault_t for fault handler
-in struct vm_operations_struct. For now, this is
-just documenting that the function returns a VM_
-FAULT value rather than an errno.  Once all inst
-ances are converted, vm_fault_t will become a di
-stinct type
+> I hope the answer was not to revert the bug and put back the possible
+> bad memory access in to keep API.
 
+But that very must *IS* the answer. If there isn't a fix for the ABI
+breakage, then the first bugfix needs to be reverted.
 
-Several of those lines are chopped at odd places.
+Really. There is no such thing as "but the fix was more important than
+the bug it introduced".
 
--- 
-~Randy
+This is why we started with the whole "actively revert things that
+introduce regressions". Because people always kept claiming that "but
+but I fixed a worse bug, and it's better to fix the worse bug even if
+it then introduces another problem, because the other problem is
+lesser".
+
+NO.
+
+We're better off making *no* progress, than making "unsteady progress".
+
+Really. Seriously.
+
+If you cannot fix a bug without introducing another one, don't do it.
+Don't do kernel development.
+
+The whole mentality you show is NOT ACCEPTABLE.
+
+So the *only* answer is: "fix the bug _and_ keep the API".  There is
+no other choice.
+
+The whole "I fixed one problem but introduced another" is not how we
+work. You should damn well know that. There are no excuses.
+
+And yes, sometimes that means jumping through hoops. But that's what
+it takes to keep users happy.
+
+                 Linus
