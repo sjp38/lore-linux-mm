@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 129E86B0022
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D2596B0027
 	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:45 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z7so2789157wrg.11
+Received: by mail-wr0-f199.google.com with SMTP id d37so13316684wrd.21
         for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:45 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id u5si1218644edp.440.2018.04.16.08.25.43
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id r2si138660edm.137.2018.04.16.08.25.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 16 Apr 2018 08:25:43 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 09/35] x86/entry/32: Introduce SAVE_ALL_NMI and RESTORE_ALL_NMI
-Date: Mon, 16 Apr 2018 17:24:57 +0200
-Message-Id: <1523892323-14741-10-git-send-email-joro@8bytes.org>
+Subject: [PATCH 12/35] x86/32: Use tss.sp1 as cpu_current_top_of_stack
+Date: Mon, 16 Apr 2018 17:25:00 +0200
+Message-Id: <1523892323-14741-13-git-send-email-joro@8bytes.org>
 In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,72 +22,80 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-These macros will be used in the NMI handler code and
-replace plain SAVE_ALL and RESTORE_REGS there. We will add
-the NMI-specific CR3-switch to these macros later.
+Now that we store the task-stack in tss.sp1 we can also use
+it as cpu_current_top_of_stack. This unifies the handling
+with x86-64.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/processor.h   | 4 ----
+ arch/x86/include/asm/thread_info.h | 2 --
+ arch/x86/kernel/cpu/common.c       | 4 ----
+ arch/x86/kernel/process_32.c       | 6 ------
+ 4 files changed, 16 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index 927df80..e2621bf 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -186,6 +186,9 @@
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 4fa4206..3894f63 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -374,12 +374,8 @@ DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
+ #define __KERNEL_TSS_LIMIT	\
+ 	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
  
- .endm
+-#ifdef CONFIG_X86_32
+-DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
+-#else
+ /* The RO copy can't be accessed with this_cpu_xyz(), so use the RW copy. */
+ #define cpu_current_top_of_stack cpu_tss_rw.x86_tss.sp1
+-#endif
  
-+.macro SAVE_ALL_NMI
-+	SAVE_ALL
-+.endm
  /*
-  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
-  * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
-@@ -232,6 +235,10 @@
- 	POP_GS_EX
- .endm
+  * Save the original ist values for checking stack pointers during debugging
+diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
+index a5d9521..943c673 100644
+--- a/arch/x86/include/asm/thread_info.h
++++ b/arch/x86/include/asm/thread_info.h
+@@ -205,9 +205,7 @@ static inline int arch_within_stack_frames(const void * const stack,
  
-+.macro RESTORE_ALL_NMI pop=0
-+	RESTORE_REGS pop=\pop
-+.endm
-+
- .macro CHECK_AND_APPLY_ESPFIX
- #ifdef CONFIG_X86_ESPFIX32
- #define GDT_ESPFIX_SS PER_CPU_VAR(gdt_page) + (GDT_ENTRY_ESPFIX_SS * 8)
-@@ -1166,7 +1173,7 @@ ENTRY(nmi)
+ #else /* !__ASSEMBLY__ */
+ 
+-#ifdef CONFIG_X86_64
+ # define cpu_current_top_of_stack (cpu_tss_rw + TSS_sp1)
+-#endif
+ 
  #endif
  
- 	pushl	%eax				# pt_regs->orig_ax
--	SAVE_ALL
-+	SAVE_ALL_NMI
- 	ENCODE_FRAME_POINTER
- 	xorl	%edx, %edx			# zero error code
- 	movl	%esp, %eax			# pt_regs pointer
-@@ -1194,7 +1201,7 @@ ENTRY(nmi)
- 
- .Lnmi_return:
- 	CHECK_AND_APPLY_ESPFIX
--	RESTORE_REGS 4
-+	RESTORE_ALL_NMI pop=4
- 	jmp	.Lirq_return
- 
- #ifdef CONFIG_X86_ESPFIX32
-@@ -1210,12 +1217,12 @@ ENTRY(nmi)
- 	pushl	16(%esp)
- 	.endr
- 	pushl	%eax
--	SAVE_ALL
-+	SAVE_ALL_NMI
- 	ENCODE_FRAME_POINTER
- 	FIXUP_ESPFIX_STACK			# %eax == %esp
- 	xorl	%edx, %edx			# zero error code
- 	call	do_nmi
--	RESTORE_REGS
-+	RESTORE_ALL_NMI
- 	lss	12+4(%esp), %esp		# back to espfix stack
- 	jmp	.Lirq_return
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index 311e988..2d67ad0 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -1512,10 +1512,6 @@ EXPORT_PER_CPU_SYMBOL(__preempt_count);
+  * the top of the kernel stack.  Use an extra percpu variable to track the
+  * top of the kernel stack directly.
+  */
+-DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
+-	(unsigned long)&init_thread_union + THREAD_SIZE;
+-EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
+-
+ #ifdef CONFIG_CC_STACKPROTECTOR
+ DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
  #endif
+diff --git a/arch/x86/kernel/process_32.c b/arch/x86/kernel/process_32.c
+index 3f3a8c6..8c29fd5 100644
+--- a/arch/x86/kernel/process_32.c
++++ b/arch/x86/kernel/process_32.c
+@@ -290,12 +290,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+ 	update_sp0(next_p);
+ 	refresh_sysenter_cs(next);
+ 	this_cpu_write(cpu_current_top_of_stack, task_top_of_stack(next_p));
+-	/*
+-	 * TODO: Find a way to let cpu_current_top_of_stack point to
+-	 * cpu_tss_rw.x86_tss.sp1. Doing so now results in stack corruption with
+-	 * iret exceptions.
+-	 */
+-	this_cpu_write(cpu_tss_rw.x86_tss.sp1, next_p->thread.sp0);
+ 
+ 	/*
+ 	 * Restore %gs if needed (which is common)
 -- 
 2.7.4
