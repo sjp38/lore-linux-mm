@@ -1,95 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 48F566B0007
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 06:07:40 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id y22-v6so1702978pll.12
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 03:07:40 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b17-v6si6386520plz.469.2018.04.16.03.07.38
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DDFB96B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 06:59:16 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f19so8995142pfn.6
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 03:59:16 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id c23-v6si11216215plo.80.2018.04.16.03.59.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Apr 2018 03:07:39 -0700 (PDT)
-Date: Mon, 16 Apr 2018 12:07:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mmap.2: MAP_FIXED is okay if the address range has been
- reserved
-Message-ID: <20180416100736.GG17484@dhcp22.suse.cz>
-References: <CAG48ez2NtCr8+HqnKJTFBcLW+kCKUa=2pz=7HD9p9u1p-MfJqw@mail.gmail.com>
- <13801e2a-c44d-e940-f872-890a0612a483@nvidia.com>
- <CAG48ez085cASur3kZTRkdJY20dFZ4Yqc1KVOHxnCAn58_NtW8w@mail.gmail.com>
- <cfbbbe06-5e63-e43c-fb28-c5afef9e1e1d@nvidia.com>
- <9c714917-fc29-4d12-b5e8-cff28761a2c1@gmail.com>
- <20180413064917.GC17484@dhcp22.suse.cz>
- <CAG48ez2w+3FDh9LM3+P2EHowicjM2Xw6giR6uq=26JfWHYsTAQ@mail.gmail.com>
- <20180413160435.GA17484@dhcp22.suse.cz>
- <CAG48ez3-xtmAt2EpRFR8GNKKPcsDsyg7XdwQ=D5w3Ym6w4Krjw@mail.gmail.com>
- <CAG48ez1PdzMs8hkatbzSLBWYucjTc75o8ovSmeC66+e9mLvSfA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAG48ez1PdzMs8hkatbzSLBWYucjTc75o8ovSmeC66+e9mLvSfA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Apr 2018 03:59:15 -0700 (PDT)
+From: Chintan Pandya <cpandya@codeaurora.org>
+Subject: [PATCH v2] mm: vmalloc: Clean up vunmap to avoid pgtable ops twice
+Date: Mon, 16 Apr 2018 16:29:02 +0530
+Message-Id: <1523876342-10545-1-git-send-email-cpandya@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jannh@google.com>
-Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, John Hubbard <jhubbard@nvidia.com>, linux-man <linux-man@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>
 
-On Fri 13-04-18 18:17:36, Jann Horn wrote:
-> On Fri, Apr 13, 2018 at 6:05 PM, Jann Horn <jannh@google.com> wrote:
-> > On Fri, Apr 13, 2018 at 6:04 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> >> On Fri 13-04-18 17:04:09, Jann Horn wrote:
-> >>> On Fri, Apr 13, 2018 at 8:49 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> >>> > On Fri 13-04-18 08:43:27, Michael Kerrisk wrote:
-> >>> > [...]
-> >>> >> So, you mean remove this entire paragraph:
-> >>> >>
-> >>> >>               For cases in which the specified memory region has not been
-> >>> >>               reserved using an existing mapping,  newer  kernels  (Linux
-> >>> >>               4.17  and later) provide an option MAP_FIXED_NOREPLACE that
-> >>> >>               should be used instead; older kernels require the caller to
-> >>> >>               use addr as a hint (without MAP_FIXED) and take appropriate
-> >>> >>               action if the kernel places the new mapping at a  different
-> >>> >>               address.
-> >>> >>
-> >>> >> It seems like some version of the first half of the paragraph is worth
-> >>> >> keeping, though, so as to point the reader in the direction of a remedy.
-> >>> >> How about replacing that text with the following:
-> >>> >>
-> >>> >>               Since  Linux 4.17, the MAP_FIXED_NOREPLACE flag can be used
-> >>> >>               in a multithreaded program to avoid  the  hazard  described
-> >>> >>               above.
-> >>> >
-> >>> > Yes, that sounds reasonable to me.
-> >>>
-> >>> But that kind of sounds as if you can't avoid it before Linux 4.17,
-> >>> when actually, you just have to call mmap() with the address as hint,
-> >>> and if mmap() returns a different address, munmap() it and go on your
-> >>> normal error path.
-> >>
-> >> This is still racy in multithreaded application which is the main point
-> >> of the whole section, no?
-> >
-> > No, it isn't.
+vunmap does page table clear operations twice in the
+case when DEBUG_PAGEALLOC_ENABLE_DEFAULT is enabled.
 
-I could have been more specific, sorry.
+So, clean up the code as that is unintended.
 
-> mmap() with a hint (without MAP_FIXED) will always non-racily allocate
-> a memory region for you or return an error code. If it does allocate a
-> memory region, it belongs to you until you deallocate it. It might be
-> at a different address than you requested -
+As a perf gain, we save few us. Below ftrace data was
+obtained while doing 1 MB of vmalloc/vfree on ARM64
+based SoC *without* this patch applied. After this
+patch, we can save ~3 us (on 1 extra vunmap_page_range).
 
-Yes, this all is true. Except the atomicity is guaranteed only for the
-syscall. Once you return to the userspace any error handling is error
-prone and racy because your mapping might change under you feet. So...
+  CPU  DURATION                  FUNCTION CALLS
+  |     |   |                     |   |   |   |
+ 6)               |  __vunmap() {
+ 6)               |    vmap_debug_free_range() {
+ 6)   3.281 us    |      vunmap_page_range();
+ 6) + 45.468 us   |    }
+ 6)   2.760 us    |    vunmap_page_range();
+ 6) ! 505.105 us  |  }
 
-> in that case you can
-> emulate MAP_FIXED_NOREPLACE by calling munmap() and treating it as an
-> error; or you can do something else with it.
-> 
-> MAP_FIXED_NOREPLACE is just a performance optimization.
+Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
+---
+ mm/vmalloc.c | 25 +++----------------------
+ 1 file changed, 3 insertions(+), 22 deletions(-)
 
-This is not quite true because you get _your_ area or _an error_
-atomically which is not possible with 2 syscalls.
-
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index ebff729..6729400 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -603,26 +603,6 @@ static void unmap_vmap_area(struct vmap_area *va)
+ 	vunmap_page_range(va->va_start, va->va_end);
+ }
+ 
+-static void vmap_debug_free_range(unsigned long start, unsigned long end)
+-{
+-	/*
+-	 * Unmap page tables and force a TLB flush immediately if pagealloc
+-	 * debugging is enabled.  This catches use after free bugs similarly to
+-	 * those in linear kernel virtual address space after a page has been
+-	 * freed.
+-	 *
+-	 * All the lazy freeing logic is still retained, in order to minimise
+-	 * intrusiveness of this debugging feature.
+-	 *
+-	 * This is going to be *slow* (linear kernel virtual address debugging
+-	 * doesn't do a broadcast TLB flush so it is a lot faster).
+-	 */
+-	if (debug_pagealloc_enabled()) {
+-		vunmap_page_range(start, end);
+-		flush_tlb_kernel_range(start, end);
+-	}
+-}
+-
+ /*
+  * lazy_max_pages is the maximum amount of virtual address space we gather up
+  * before attempting to purge with a TLB flush.
+@@ -756,6 +736,9 @@ static void free_unmap_vmap_area(struct vmap_area *va)
+ {
+ 	flush_cache_vunmap(va->va_start, va->va_end);
+ 	unmap_vmap_area(va);
++	if (debug_pagealloc_enabled())
++		flush_tlb_kernel_range(va->va_start, va->va_end);
++
+ 	free_vmap_area_noflush(va);
+ }
+ 
+@@ -1142,7 +1125,6 @@ void vm_unmap_ram(const void *mem, unsigned int count)
+ 	BUG_ON(!PAGE_ALIGNED(addr));
+ 
+ 	debug_check_no_locks_freed(mem, size);
+-	vmap_debug_free_range(addr, addr+size);
+ 
+ 	if (likely(count <= VMAP_MAX_ALLOC)) {
+ 		vb_free(mem, size);
+@@ -1499,7 +1481,6 @@ struct vm_struct *remove_vm_area(const void *addr)
+ 		va->flags |= VM_LAZY_FREE;
+ 		spin_unlock(&vmap_area_lock);
+ 
+-		vmap_debug_free_range(va->va_start, va->va_end);
+ 		kasan_free_shadow(vm);
+ 		free_unmap_vmap_area(va);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation
+Center, Inc., is a member of Code Aurora Forum, a Linux Foundation
+Collaborative Project
