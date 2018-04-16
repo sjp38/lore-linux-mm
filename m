@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E89736B005D
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:51 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p17so13184528wre.7
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:51 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id m1si6280423edb.388.2018.04.16.08.25.50
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 92AFB6B0253
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:52 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id o8so12980901wra.12
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:52 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id h13si338010edi.37.2018.04.16.08.25.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 08:25:50 -0700 (PDT)
+        Mon, 16 Apr 2018 08:25:51 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 30/35] x86/ldt: Define LDT_END_ADDR
-Date: Mon, 16 Apr 2018 17:25:18 +0200
-Message-Id: <1523892323-14741-31-git-send-email-joro@8bytes.org>
+Subject: [PATCH 27/35] x86/mm/dump_pagetables: Define INIT_PGD
+Date: Mon, 16 Apr 2018 17:25:15 +0200
+Message-Id: <1523892323-14741-28-git-send-email-joro@8bytes.org>
 In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,52 +22,56 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-It marks the end of the address-space range reserved for the
-LDT. The LDT-code will use it when unmapping the LDT for
-user-space.
+Define INIT_PGD to point to the correct initial page-table
+for 32 and 64 bit and use it where needed. This fixes the
+build on 32 bit with CONFIG_PAGE_TABLE_ISOLATION enabled.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable_32_types.h | 2 ++
- arch/x86/include/asm/pgtable_64_types.h | 1 +
- arch/x86/kernel/ldt.c                   | 2 +-
- 3 files changed, 4 insertions(+), 1 deletion(-)
+ arch/x86/mm/dump_pagetables.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
-index 1fa76c9..6d5f795 100644
---- a/arch/x86/include/asm/pgtable_32_types.h
-+++ b/arch/x86/include/asm/pgtable_32_types.h
-@@ -53,6 +53,8 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
- #define LDT_BASE_ADDR		\
- 	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 62a7e9f..84498da 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -110,6 +110,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
  
-+#define LDT_END_ADDR		(LDT_BASE_ADDR + PMD_SIZE)
++#define INIT_PGD	((pgd_t *) &init_top_pgt)
 +
- #define PKMAP_BASE		\
- 	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
+ #else /* CONFIG_X86_64 */
  
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 355b488..f78ded7 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -104,6 +104,7 @@ extern unsigned int ptrs_per_p4d;
- #define LDT_PGD_ENTRY_L5	-112UL
- #define LDT_PGD_ENTRY		(pgtable_l5_enabled ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
- #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
-+#define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
+ enum address_markers_idx {
+@@ -138,6 +140,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
  
- #define __VMALLOC_BASE_L4	0xffffc90000000000
- #define __VMALLOC_BASE_L5 	0xffa0000000000000
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index d41d896..46c349c 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -206,7 +206,7 @@ static void free_ldt_pgtables(struct mm_struct *mm)
++#define INIT_PGD	(swapper_pg_dir)
++
+ #endif /* !CONFIG_X86_64 */
+ 
+ /* Multipliers for offsets within the PTEs */
+@@ -495,11 +499,7 @@ static inline bool is_hypervisor_range(int idx)
+ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+ 				       bool checkwx, bool dmesg)
+ {
+-#ifdef CONFIG_X86_64
+-	pgd_t *start = (pgd_t *) &init_top_pgt;
+-#else
+-	pgd_t *start = swapper_pg_dir;
+-#endif
++	pgd_t *start = INIT_PGD;
+ 	pgprotval_t prot, eff;
+ 	int i;
+ 	struct pg_state st = {};
+@@ -565,7 +565,7 @@ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
+ static void ptdump_walk_user_pgd_level_checkwx(void)
+ {
  #ifdef CONFIG_PAGE_TABLE_ISOLATION
- 	struct mmu_gather tlb;
- 	unsigned long start = LDT_BASE_ADDR;
--	unsigned long end = start + (1UL << PGDIR_SHIFT);
-+	unsigned long end = LDT_END_ADDR;
+-	pgd_t *pgd = (pgd_t *) &init_top_pgt;
++	pgd_t *pgd = INIT_PGD;
  
  	if (!static_cpu_has(X86_FEATURE_PTI))
  		return;
