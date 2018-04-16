@@ -1,81 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CCC106B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 00:25:59 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id i8-v6so1171678plt.8
-        for <linux-mm@kvack.org>; Sun, 15 Apr 2018 21:25:59 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g19sor3068803pfb.70.2018.04.15.21.25.58
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 643BD6B0007
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 00:36:18 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id d9-v6so641171plj.4
+        for <linux-mm@kvack.org>; Sun, 15 Apr 2018 21:36:18 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id u9-v6si11686871plz.10.2018.04.15.21.36.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 15 Apr 2018 21:25:58 -0700 (PDT)
-Date: Mon, 16 Apr 2018 13:25:53 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
-Message-ID: <20180416042553.GA555@jagdpanzerIV>
-References: <20180413124704.19335-1-pmladek@suse.com>
- <20180413101233.0792ebf0@gandalf.local.home>
- <20180414023516.GA17806@tigerII.localdomain>
- <20180416014729.GB1034@jagdpanzerIV>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 15 Apr 2018 21:36:17 -0700 (PDT)
+Subject: Re: [PATCH v3 4/4] mm/sparse: Optimize memmap allocation during
+ sparse_init()
+References: <20180228032657.32385-1-bhe@redhat.com>
+ <20180228032657.32385-5-bhe@redhat.com>
+ <5dd3942a-cf66-f749-b1c6-217b0c3c94dc@intel.com>
+ <20180408082038.GB19345@localhost.localdomain>
+ <7cc53287-4570-84d6-502c-c3dfbd279b78@intel.com>
+ <20180415021940.GA1750@localhost.localdomain>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <11c4796f-865e-9e0c-076a-f750d5da0ea7@intel.com>
+Date: Sun, 15 Apr 2018 21:36:16 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180416014729.GB1034@jagdpanzerIV>
+In-Reply-To: <20180415021940.GA1750@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Baoquan He <bhe@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-On (04/16/18 10:47), Sergey Senozhatsky wrote:
-> On (04/14/18 11:35), Sergey Senozhatsky wrote:
-> > On (04/13/18 10:12), Steven Rostedt wrote:
-> > > 
-> > > > The interval is set to one hour. It is rather arbitrary selected time.
-> > > > It is supposed to be a compromise between never print these messages,
-> > > > do not lockup the machine, do not fill the entire buffer too quickly,
-> > > > and get information if something changes over time.
-> > > 
-> > > 
-> > > I think an hour is incredibly long. We only allow 100 lines per hour for
-> > > printks happening inside another printk?
-> > > 
-> > > I think 5 minutes (at most) would probably be plenty. One minute may be
-> > > good enough.
-> > 
-> > Besides 100 lines is absolutely not enough for any real lockdep splat.
-> > My call would be - up to 1000 lines in a 1 minute interval.
+On 04/14/2018 07:19 PM, Baoquan He wrote:
+>>> Yes, this place is the hardest to understand. The temorary arrays are
+>>> allocated beforehand with the size of 'nr_present_sections'. The error
+>>> paths you mentioned is caused by allocation failure of mem_map or
+>>> map_map, but whatever it's error or success paths, the sections must be
+>>> marked as present in memory_present(). Error or success paths happened
+>>> in alloc_usemap_and_memmap(), while checking if it's erorr or success
+>>> paths happened in the last for_each_present_section_nr() of
+>>> sparse_init(), and clear the ms->section_mem_map if it goes along error
+>>> paths. This is the key point of this new allocation way.
+>> I think you owe some commenting because this is so hard to understand.
+> I can arrange and write a code comment above sparse_init() according to
+> this patch's git log, do you think it's OK?
 > 
-> Well, if we want to basically turn printk_safe() into printk_safe_ratelimited().
-> I'm not so sure about it.
-> 
-> Besides the patch also rate limits printk_nmi->logbuf - the logbuf
-> PRINTK_NMI_DEFERRED_CONTEXT_MASK bypass, which is way too important
-> to rate limit it - for no reason.
-> 
-> Dunno, can we keep printk_safe() the way it is and introduce a new
-> printk_safe_ratelimited() specifically for call_console_drivers()?
-> 
-> Lockdep splat is a one time event, if we lose half of it - we, most
-> like, lose the entire report. And call_console_drivers() is not the
-> one and only source of warnings/errors/etc. So if we turn printk_safe
-> into printk_safe_ratelimited() [not sure we want to do it] for all
-> then I want restrictions to be as low as possible, IOW to log_store()
-> as many lines as possible.
+> Honestly, it took me several days to write code, while I spent more
+> than one week to write the patch log. Writing patch log is really a
+> headache to me.
 
-One more thing,
-I'd really prefer to rate limit the function which flushes per-CPU
-printk_safe buffers; not the function that appends new messages to
-the per-CPU printk_safe buffers. There is a significant difference.
-
-printk_safe does not help us when we are dealing with any external
-locks - and call_console_drivers() is precisely that type of case.
-The very next thing to happen after lockdep splat, or spin_lock
-debugging report, etc. can be an actual deadlock->panic(). Thus I
-want to have the entire report in per-CPU buffer [if possible],
-so we can flush_on_panic() per-CPU buffers, or at least move the
-data to the logbuf and make it accessible in vmcore. If we rate
-limit the function that appends data to the per-CPU buffer then we
-may simply suppress [rate limit] the report, so there will be
-nothing to flush_on_panic().
-
-	-ss
+I often find the same: writing the code is the easy part.  Explaining
+why it is right is the hard part.
