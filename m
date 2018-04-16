@@ -1,45 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BEC76B0289
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:45:53 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id l9so10614054qtp.23
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:45:53 -0700 (PDT)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id q28si5303045qkh.252.2018.04.16.08.45.52
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D54AE6B0266
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:50:39 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id q6so2909451pgv.12
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:50:39 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0129.outbound.protection.outlook.com. [104.47.32.129])
+        by mx.google.com with ESMTPS id t20si11260551pfk.228.2018.04.16.08.50.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 08:45:52 -0700 (PDT)
-Date: Mon, 16 Apr 2018 10:45:48 -0500 (CDT)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: slab: introduce the flag SLAB_MINIMIZE_WASTE
-In-Reply-To: <alpine.LRH.2.02.1804161123400.17807@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <alpine.DEB.2.20.1804161043430.9622@nuc-kabylake>
-References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
- <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz> <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com>
- <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com> <alpine.LRH.2.02.1804161054410.17807@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804161018030.9397@nuc-kabylake>
- <alpine.LRH.2.02.1804161123400.17807@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 16 Apr 2018 08:50:38 -0700 (PDT)
+From: Sasha Levin <Alexander.Levin@microsoft.com>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Date: Mon, 16 Apr 2018 15:50:34 +0000
+Message-ID: <20180416155031.GX2341@sasha-vm>
+References: <20180409001936.162706-1-alexander.levin@microsoft.com>
+ <20180409001936.162706-15-alexander.levin@microsoft.com>
+ <20180409082246.34hgp3ymkfqke3a4@pathway.suse.cz>
+ <20180415144248.GP2341@sasha-vm> <20180416093058.6edca0bb@gandalf.local.home>
+ <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
+ <20180416153031.GA5039@amd>
+In-Reply-To: <20180416153031.GA5039@amd>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <F0FE53AA5F1E3943A62B6A5ED90CC075@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Mike Snitzer <snitzer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
 
-On Mon, 16 Apr 2018, Mikulas Patocka wrote:
-
-> >
-> > Or an increase in slab_max_order
+On Mon, Apr 16, 2018 at 05:30:31PM +0200, Pavel Machek wrote:
+>On Mon 2018-04-16 08:18:09, Linus Torvalds wrote:
+>> On Mon, Apr 16, 2018 at 6:30 AM, Steven Rostedt <rostedt@goodmis.org> wr=
+ote:
+>> >
+>> > I wonder if the "AUTOSEL" patches should at least have an "ack-by" fro=
+m
+>> > someone before they are pulled in. Otherwise there may be some subtle
+>> > issues that can find their way into stable releases.
+>>
+>> I don't know about anybody else, but I  get so many of the patch-bot
+>> patches for stable etc that I will *not* reply to normal cases. Only
+>> if there's some issue with a patch will I reply.
+>>
+>> I probably do get more than most, but still - requiring active
+>> participation for the steady flow of normal stable patches is almost
+>> pointless.
+>>
+>> Just look at the subject line of this thread. The numbers are so big
+>> that you almost need exponential notation for them.
 >
-> But that will increase it for all slabs (often senselessly - i.e.
-> kmalloc-4096 would have order 4MB).
+>Question is if we need that many stable patches? Autosel seems to be
+>picking up race conditions in LED state and W+X page fixes... I'd
+>really like to see less stable patches.
 
-4MB? Nope.... That is a power of two slab so no wasted space even with
-order 0.
+Why? Given that the kernel keeps seeing more and more lines of code in
+each new release, tools around the kernel keep evolving (new fuzzers,
+testing suites, etc), and code gets more eyes, this guarantees that
+you'll see more and more stable patches for each release as well.
 
-Its not a senseless increase. The more objects you fit into a slab page
-the higher the performance of the allocator.
-
-
-> I need to increase it just for dm-bufio slabs.
-
-If you do this then others will want the same...
+Is there a reason not to take LED fixes if they fix a bug and don't
+cause a regression? Sure, we can draw some arbitrary line, maybe
+designate some subsystems that are more "important" than others, but
+what's the point?=
