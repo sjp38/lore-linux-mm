@@ -1,120 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B8246B026E
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:15:57 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id d3so14397869iod.22
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:15:57 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y62-v6sor3436483itg.97.2018.04.16.09.15.55
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 97BDC6B026E
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:19:18 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id o3-v6so10589319pls.11
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:19:18 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0108.outbound.protection.outlook.com. [104.47.32.108])
+        by mx.google.com with ESMTPS id q21-v6si11640435pls.3.2018.04.16.09.19.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Apr 2018 09:15:55 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 16 Apr 2018 09:19:17 -0700 (PDT)
+From: Sasha Levin <Alexander.Levin@microsoft.com>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Date: Mon, 16 Apr 2018 16:19:14 +0000
+Message-ID: <20180416161911.GA2341@sasha-vm>
+References: <20180409001936.162706-1-alexander.levin@microsoft.com>
+ <20180409001936.162706-15-alexander.levin@microsoft.com>
+ <20180409082246.34hgp3ymkfqke3a4@pathway.suse.cz>
+ <20180415144248.GP2341@sasha-vm> <20180416093058.6edca0bb@gandalf.local.home>
+ <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
+ <20180416113629.2474ae74@gandalf.local.home> <20180416160200.GY2341@sasha-vm>
+ <20180416121224.2138b806@gandalf.local.home>
+In-Reply-To: <20180416121224.2138b806@gandalf.local.home>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <EB8C4AF0D5C5FB49A87D67FEF8EE2DB7@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-References: <20180414195921.GA10437@avx2> <20180414224419.GA21830@thunk.org> <CAGXu5j+qQE-MmpB7xq6z_SsXm9AhJe2QQAEVQnenYD=iLzJqWQ@mail.gmail.com>
-In-Reply-To: <CAGXu5j+qQE-MmpB7xq6z_SsXm9AhJe2QQAEVQnenYD=iLzJqWQ@mail.gmail.com>
-From: Thomas Garnier <thgarnie@google.com>
-Date: Mon, 16 Apr 2018 16:15:44 +0000
-Message-ID: <CAJcbSZGpqZB2OjqdjoPtoUJrNw9nmms+U=CKvOLLptqjBn=YMQ@mail.gmail.com>
-Subject: Re: repeatable boot randomness inside KVM guest
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: tytso@mit.edu, Alexey Dobriyan <adobriyan@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
 
-On Mon, Apr 16, 2018 at 8:54 AM Kees Cook <keescook@chromium.org> wrote:
+On Mon, Apr 16, 2018 at 12:12:24PM -0400, Steven Rostedt wrote:
+>On Mon, 16 Apr 2018 16:02:03 +0000
+>Sasha Levin <Alexander.Levin@microsoft.com> wrote:
+>
+>> One of the things Greg is pushing strongly for is "bug compatibility":
+>> we want the kernel to behave the same way between mainline and stable.
+>> If the code is broken, it should be broken in the same way.
+>
+>Wait! What does that mean? What's the purpose of stable if it is as
+>broken as mainline?
 
-> On Sat, Apr 14, 2018 at 3:44 PM, Theodore Y. Ts'o <tytso@mit.edu> wrote:
-> > +linux-mm@kvack.org
-> > kvm@vger.kernel.org, security@kernel.org moved to bcc
-> >
-> > On Sat, Apr 14, 2018 at 10:59:21PM +0300, Alexey Dobriyan wrote:
-> >> SLAB allocators got CONFIG_SLAB_FREELIST_RANDOM option which randomizes
-> >> allocation pattern inside a slab:
-> >>
-> >>       int cache_random_seq_create(struct kmem_cache *cachep, unsigned
-int count, gfp_t gfp)
-> >>       {
-> >>               ...
-> >>               /* Get best entropy at this stage of boot */
-> >>               prandom_seed_state(&state, get_random_long());
-> >>
-> >> Then I printed actual random sequences for each kmem cache.
-> >> Turned out they were all the same for most of the caches and
-> >> they didn't vary across guest reboots.
-> >
-> > The problem is at the super-early state of the boot path, kernel code
-> > can't allocate memory.  This is something most device drivers kinda
-> > assume they can do.  :-)
-> >
-> > So it means we haven't yet initialized the virtio-rng driver, and it's
-> > before interrupts have been enabled, so we can't harvest any entropy
-> > from interrupt timing.  So that's why trying to use virtio-rng didn't
-> > help.
-> >
-> >> The only way to get randomness for SLAB is to enable RDRAND inside
-guest.
-> >>
-> >> Is it KVM bug?
-> >
-> > No, it's not a KVM bug.  The fundamental issue is in how the
-> > CONFIG_SLAB_FREELIST_RANDOM is currently implemented.
+This just means that if there is a fix that went in mainline, and the
+fix is broken somehow, we'd rather take the broken fix than not.
 
-Entropy at early boot in VM has always been a problem for this feature or
-others. Did you look at the impact on other boot security features fetching
-random values? Does your VM had RDRAND support (we use get_random_long()
-which will fetch from RDRAND to provide as much entropy as possible at this
-point)?
-
-> >
-> > What needs to happen is freelist should get randomized much later in
-> > the boot sequence.  Doing it later will require locking; I don't know
-> > enough about the slab/slub code to know whether the slab_mutex would
-> > be sufficient, or some other lock might need to be added.
-
-You can't re-randomize pre-allocated pages that's why the cache is
-randomized that early. If you don't have RDRAND, we could re-randomize
-later at boot with more entropy that could be useful in this specific case.
-
-> >
-> > The other thing I would note that is that using prandom_u32_state()
-doesn't
-> > really provide much security.  In fact, if the the goal is to protect
-> > against a malicious attacker trying to guess what addresses will be
-> > returned by the slab allocator, I suspect it's much like the security
-> > patdowns done at airports.  It might protect against a really stupid
-> > attacker, but it's mostly security theater.
-> >
-> > The freelist randomization is only being done once; so it's not like
-> > performance is really an issue.  It would be much better to just use
-> > get_random_u32() and be done with it.  I'd drop using prandom_*
-> > functions in slab.c and slubct and slab_common.c, and just use a
-> > really random number generator, if the goal is real security as
-> > opposed to security for show....
-
-The state is seeded with get_random_long() which will use RDRAND and any
-available entropy at this point. I am not sure the value of calling
-get_random_long() on each iteration especially if you don't have RDRAND.
-
-> >
-> > (Not that there's necessarily any thing wrong with security theater;
-> > the US spends over 3 billion dollars a year on security theater.  As
-> > politicians know, symbolism can be important.  :-)
-
-> I've added Thomas Garnier to CC (since he wrote this originally). He
-> can speak to its position in the boot ordering and the effective
-> entropy.
-
-Thanks for including me.
-
-
-> -Kees
-
-> --
-> Kees Cook
-> Pixel Security
-
-
-
---
-Thomas
+In this scenario, *something* will be broken, it's just a matter of
+what. We'd rather have the same thing broken between mainline and
+stable.=
