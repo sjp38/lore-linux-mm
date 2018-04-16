@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 36EFE6B0253
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:53 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id m7so13317746wrb.16
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:53 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 225A56B025E
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:54 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id p4so13175826wrf.17
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:54 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id w55si3016905edd.51.2018.04.16.08.25.51
+        by mx.google.com with ESMTPS id o6si5195988edj.73.2018.04.16.08.25.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 08:25:51 -0700 (PDT)
+        Mon, 16 Apr 2018 08:25:52 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 29/35] x86/ldt: Reserve address-space range on 32 bit for the LDT
-Date: Mon, 16 Apr 2018 17:25:17 +0200
-Message-Id: <1523892323-14741-30-git-send-email-joro@8bytes.org>
+Subject: [PATCH 34/35] x86/mm/pti: Add Warning when booting on a PCID capable CPU
+Date: Mon, 16 Apr 2018 17:25:22 +0200
+Message-Id: <1523892323-14741-35-git-send-email-joro@8bytes.org>
 In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,71 +22,41 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Reserve 2MB/4MB of address-space for mapping the LDT to
-user-space on 32 bit PTI kernels.
+Warn the user in case the performance can be significantly
+improved by switching to a 64-bit kernel.
 
+Suggested-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable_32_types.h | 7 +++++--
- arch/x86/mm/dump_pagetables.c           | 9 +++++++++
- 2 files changed, 14 insertions(+), 2 deletions(-)
+ arch/x86/mm/pti.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
-index e3225e8..1fa76c9 100644
---- a/arch/x86/include/asm/pgtable_32_types.h
-+++ b/arch/x86/include/asm/pgtable_32_types.h
-@@ -50,13 +50,16 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
- 	((FIXADDR_TOT_START - PAGE_SIZE * (CPU_ENTRY_AREA_PAGES + 1))   \
- 	 & PMD_MASK)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index 60a1ee0..ad905e0 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -497,6 +497,22 @@ void __init pti_init(void)
  
--#define PKMAP_BASE		\
-+#define LDT_BASE_ADDR		\
- 	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
+ 	pr_info("enabled\n");
  
-+#define PKMAP_BASE		\
-+	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
++#ifdef CONFIG_X86_32
++	if (boot_cpu_has(X86_FEATURE_PCID)) {
++		/* Use printk to work around pr_fmt() */
++		printk(KERN_WARNING "\n");
++		printk(KERN_WARNING "************************************************************\n");
++		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
++		printk(KERN_WARNING "**                                                        **\n");
++		printk(KERN_WARNING "** You are using 32-bit PTI on a 64-bit PCID-capable CPU. **\n");
++		printk(KERN_WARNING "** Your performance will increase dramatically if you     **\n");
++		printk(KERN_WARNING "** switch to a 64-bit kernel!                             **\n");
++		printk(KERN_WARNING "**                                                        **\n");
++		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
++		printk(KERN_WARNING "************************************************************\n");
++	}
++#endif
 +
- #ifdef CONFIG_HIGHMEM
- # define VMALLOC_END	(PKMAP_BASE - 2 * PAGE_SIZE)
- #else
--# define VMALLOC_END	(CPU_ENTRY_AREA_BASE - 2 * PAGE_SIZE)
-+# define VMALLOC_END	(LDT_BASE_ADDR - 2 * PAGE_SIZE)
- #endif
+ 	pti_clone_user_shared();
  
- #define MODULES_VADDR	VMALLOC_START
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 84498da..956c886 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -122,6 +122,9 @@ enum address_markers_idx {
- #ifdef CONFIG_HIGHMEM
- 	PKMAP_BASE_NR,
- #endif
-+#ifdef CONFIG_MODIFY_LDT_SYSCALL
-+	LDT_NR,
-+#endif
- 	CPU_ENTRY_AREA_NR,
- 	FIXADDR_START_NR,
- 	END_OF_SPACE_NR,
-@@ -135,6 +138,9 @@ static struct addr_marker address_markers[] = {
- #ifdef CONFIG_HIGHMEM
- 	[PKMAP_BASE_NR]		= { 0UL,		"Persistent kmap() Area" },
- #endif
-+#ifdef CONFIG_MODIFY_LDT_SYSCALL
-+	[LDT_NR]		= { 0UL,		"LDT remap" },
-+#endif
- 	[CPU_ENTRY_AREA_NR]	= { 0UL,		"CPU entry area" },
- 	[FIXADDR_START_NR]	= { 0UL,		"Fixmap area" },
- 	[END_OF_SPACE_NR]	= { -1,			NULL }
-@@ -608,6 +614,9 @@ static int __init pt_dump_init(void)
- # endif
- 	address_markers[FIXADDR_START_NR].start_address = FIXADDR_START;
- 	address_markers[CPU_ENTRY_AREA_NR].start_address = CPU_ENTRY_AREA_BASE;
-+# ifdef CONFIG_MODIFY_LDT_SYSCALL
-+	address_markers[LDT_NR].start_address = LDT_BASE_ADDR;
-+# endif
- #endif
- 	return 0;
- }
+ 	/* Undo all global bits from the init pagetables in head_64.S: */
 -- 
 2.7.4
