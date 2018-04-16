@@ -1,75 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 931526B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 15:00:10 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id y131-v6so10050997itc.5
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:00:10 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k81sor1462343iod.251.2018.04.16.12.00.09
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CBC2B6B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 15:18:11 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id k3so8034140pff.23
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:18:11 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 1-v6si12997339plu.127.2018.04.16.12.18.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Apr 2018 12:00:09 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 Apr 2018 12:18:10 -0700 (PDT)
+Date: Mon, 16 Apr 2018 21:18:05 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mmap.2: MAP_FIXED is okay if the address range has been
+ reserved
+Message-ID: <20180416191805.GS17484@dhcp22.suse.cz>
+References: <CAG48ez085cASur3kZTRkdJY20dFZ4Yqc1KVOHxnCAn58_NtW8w@mail.gmail.com>
+ <cfbbbe06-5e63-e43c-fb28-c5afef9e1e1d@nvidia.com>
+ <9c714917-fc29-4d12-b5e8-cff28761a2c1@gmail.com>
+ <20180413064917.GC17484@dhcp22.suse.cz>
+ <CAG48ez2w+3FDh9LM3+P2EHowicjM2Xw6giR6uq=26JfWHYsTAQ@mail.gmail.com>
+ <20180413160435.GA17484@dhcp22.suse.cz>
+ <CAG48ez3-xtmAt2EpRFR8GNKKPcsDsyg7XdwQ=D5w3Ym6w4Krjw@mail.gmail.com>
+ <CAG48ez1PdzMs8hkatbzSLBWYucjTc75o8ovSmeC66+e9mLvSfA@mail.gmail.com>
+ <20180416100736.GG17484@dhcp22.suse.cz>
+ <CAG48ez3DwRXMtiinUWKnan6hAppLYLdx-w+VzXG6ubioZUacQg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFyyZ7KmXbEa151JP287vypJAkxugW17YC7Q1B9=TnyHkw@mail.gmail.com>
-References: <20180416153031.GA5039@amd> <20180416155031.GX2341@sasha-vm>
- <20180416160608.GA7071@amd> <20180416122019.1c175925@gandalf.local.home>
- <20180416162757.GB2341@sasha-vm> <20180416163952.GA8740@amd>
- <20180416164310.GF2341@sasha-vm> <20180416125307.0c4f6f28@gandalf.local.home>
- <20180416170936.GI2341@sasha-vm> <20180416133321.40a166a4@gandalf.local.home>
- <20180416174236.GL2341@sasha-vm> <20180416142653.0f017647@gandalf.local.home>
- <CA+55aFzggPvS2MwFnKfXs6yHUQrbrJH7uyY4=znwetcdEXmZrw@mail.gmail.com>
- <20180416144117.5757ee70@gandalf.local.home> <CA+55aFyyZ7KmXbEa151JP287vypJAkxugW17YC7Q1B9=TnyHkw@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 16 Apr 2018 12:00:08 -0700
-Message-ID: <CA+55aFz0obg3SmCpa7Ff2d91CATF8p-syYjkm4s5FrR+cp5XRA@mail.gmail.com>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAG48ez3DwRXMtiinUWKnan6hAppLYLdx-w+VzXG6ubioZUacQg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Sasha Levin <Alexander.Levin@microsoft.com>, Pavel Machek <pavel@ucw.cz>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Greg KH <gregkh@linuxfoundation.org>
+To: Jann Horn <jannh@google.com>
+Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, John Hubbard <jhubbard@nvidia.com>, linux-man <linux-man@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Mon, Apr 16, 2018 at 11:52 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> We're better off making *no* progress, than making "unsteady progress".
->
-> Really. Seriously.
+On Mon 16-04-18 15:55:36, Jann Horn wrote:
+> On Mon, Apr 16, 2018 at 12:07 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Fri 13-04-18 18:17:36, Jann Horn wrote:
+> >> On Fri, Apr 13, 2018 at 6:05 PM, Jann Horn <jannh@google.com> wrote:
+> >> > On Fri, Apr 13, 2018 at 6:04 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> >> >> On Fri 13-04-18 17:04:09, Jann Horn wrote:
+> >> >>> On Fri, Apr 13, 2018 at 8:49 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >> >>> > On Fri 13-04-18 08:43:27, Michael Kerrisk wrote:
+> >> >>> > [...]
+> >> >>> >> So, you mean remove this entire paragraph:
+> >> >>> >>
+> >> >>> >>               For cases in which the specified memory region has not been
+> >> >>> >>               reserved using an existing mapping,  newer  kernels  (Linux
+> >> >>> >>               4.17  and later) provide an option MAP_FIXED_NOREPLACE that
+> >> >>> >>               should be used instead; older kernels require the caller to
+> >> >>> >>               use addr as a hint (without MAP_FIXED) and take appropriate
+> >> >>> >>               action if the kernel places the new mapping at a  different
+> >> >>> >>               address.
+> >> >>> >>
+> >> >>> >> It seems like some version of the first half of the paragraph is worth
+> >> >>> >> keeping, though, so as to point the reader in the direction of a remedy.
+> >> >>> >> How about replacing that text with the following:
+> >> >>> >>
+> >> >>> >>               Since  Linux 4.17, the MAP_FIXED_NOREPLACE flag can be used
+> >> >>> >>               in a multithreaded program to avoid  the  hazard  described
+> >> >>> >>               above.
+> >> >>> >
+> >> >>> > Yes, that sounds reasonable to me.
+> >> >>>
+> >> >>> But that kind of sounds as if you can't avoid it before Linux 4.17,
+> >> >>> when actually, you just have to call mmap() with the address as hint,
+> >> >>> and if mmap() returns a different address, munmap() it and go on your
+> >> >>> normal error path.
+> >> >>
+> >> >> This is still racy in multithreaded application which is the main point
+> >> >> of the whole section, no?
+> >> >
+> >> > No, it isn't.
+> >
+> > I could have been more specific, sorry.
+> >
+> >> mmap() with a hint (without MAP_FIXED) will always non-racily allocate
+> >> a memory region for you or return an error code. If it does allocate a
+> >> memory region, it belongs to you until you deallocate it. It might be
+> >> at a different address than you requested -
+> >
+> > Yes, this all is true. Except the atomicity is guaranteed only for the
+> > syscall. Once you return to the userspace any error handling is error
+> > prone and racy because your mapping might change under you feet. So...
+> 
+> Can you please elaborate on why you think anything could change the
+> mapping returned by mmap() under the caller's feet?
 
-Side note: the original impetus for this was our suspend/resume mess.
-It went on for *YEARS*, and it was absolutely chock-full of exactly
-this "I fixed the worse problem, and introduced another one".
+Because as soon as the mmap_sem is dropped then any other thread can
+modify the shared address space.
 
-There's a reason I'm a hardliner on the regression issue.  We've been
-there, we've done that.
+> When mmap() returns a memory area to the caller, that memory area
+> belongs to the caller. No unrelated code will touch it, unless that
+> code is buggy.
 
-The whole "two steps forwards, one step back" mentality may work
-really well if you're doing line dancing.
-
-BUT WE ARE NOT LINE DANCING. We do kernel development.
-
-Absolutely NOTHING else is more important than the "no regressions"
-rule. NOTHING.
-
-And just since everybody always tries to weasel about this: the only
-regressions that matter are the ones that people notice in real loads.
-
-So if you write a test-case that tests that "system call number 345
-returns -ENOSYS", and we add a new system call, and you say "hey, you
-regressed my system call test", that's not a regression. That's just a
-"change in behavior".
-
-It becomes a regression only if there are people using tools or
-workflows that actually depend on it. So if it turns out (for example)
-that Firefox had some really odd bug, and the intent was to do system
-call 123, but a typo had caused it to do system call 345 instead, and
-another bug meant that the end result worked fine as long as system
-call 345 returned ENOSYS, then the addition of that system call
-actually does turn into a regression.
-
-See? Even adding a system call can be a regression, because what
-matters is not behavior per se, but users _depending_ on some specific
-behavior.
-
-               Linus
+Yes, reasonably well written application will not have this problem.
+That, however, requires an external synchronization and that's why
+called it error prone and racy. I guess that was the main motivation for
+that part of the man page.
+-- 
+Michal Hocko
+SUSE Labs
