@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AF3516B000D
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:40 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id m7so13317233wrb.16
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:40 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B7BF6B000E
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:41 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p17so13184129wre.7
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:41 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id l2si1774065edn.434.2018.04.16.08.25.39
+        by mx.google.com with ESMTPS id j34si1762173edd.141.2018.04.16.08.25.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 08:25:39 -0700 (PDT)
+        Mon, 16 Apr 2018 08:25:40 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 02/35] x86/entry/32: Rename TSS_sysenter_sp0 to TSS_entry_stack
-Date: Mon, 16 Apr 2018 17:24:50 +0200
-Message-Id: <1523892323-14741-3-git-send-email-joro@8bytes.org>
+Subject: [PATCH 03/35] x86/entry/32: Load task stack from x86_tss.sp1 in SYSENTER handler
+Date: Mon, 16 Apr 2018 17:24:51 +0200
+Message-Id: <1523892323-14741-4-git-send-email-joro@8bytes.org>
 In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,44 +22,45 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The stack address doesn't need to be stored in tss.sp0 if
-we switch manually like on sysenter. Rename the offset so
-that it still makes sense when we change its location.
+We want x86_tss.sp0 point to the entry stack later to use
+it as a trampoline stack for other kernel entry points
+besides SYSENTER.
 
-We will also use this stack for all kernel-entry points, not
-just sysenter. Reflect that in the name as well.
+So store the task stack pointer in x86_tss.sp1, which is
+otherwise unused by the hardware, as Linux doesn't make use
+of Ring 1.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S        | 2 +-
  arch/x86/kernel/asm-offsets_32.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ arch/x86/kernel/process_32.c     | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index bef8e2b..ec288be 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -412,7 +412,7 @@ ENTRY(xen_sysenter_target)
-  * 0(%ebp) arg6
-  */
- ENTRY(entry_SYSENTER_32)
--	movl	TSS_sysenter_sp0(%esp), %esp
-+	movl	TSS_entry_stack(%esp), %esp
- .Lsysenter_past_esp:
- 	pushl	$__USER_DS		/* pt_regs->ss */
- 	pushl	%ebp			/* pt_regs->sp (stashed in bp) */
 diff --git a/arch/x86/kernel/asm-offsets_32.c b/arch/x86/kernel/asm-offsets_32.c
-index f91ba53..c6ac48f 100644
+index c6ac48f..5f05329 100644
 --- a/arch/x86/kernel/asm-offsets_32.c
 +++ b/arch/x86/kernel/asm-offsets_32.c
 @@ -47,7 +47,7 @@ void foo(void)
  	BLANK();
  
  	/* Offset from the sysenter stack to tss.sp0 */
--	DEFINE(TSS_sysenter_sp0, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
-+	DEFINE(TSS_entry_stack, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
+-	DEFINE(TSS_entry_stack, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
++	DEFINE(TSS_entry_stack, offsetof(struct cpu_entry_area, tss.x86_tss.sp1) -
  	       offsetofend(struct cpu_entry_area, entry_stack_page.stack));
  
  #ifdef CONFIG_CC_STACKPROTECTOR
+diff --git a/arch/x86/kernel/process_32.c b/arch/x86/kernel/process_32.c
+index 5224c60..097d36a 100644
+--- a/arch/x86/kernel/process_32.c
++++ b/arch/x86/kernel/process_32.c
+@@ -292,6 +292,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+ 	this_cpu_write(cpu_current_top_of_stack,
+ 		       (unsigned long)task_stack_page(next_p) +
+ 		       THREAD_SIZE);
++	/* SYSENTER reads the task-stack from tss.sp1 */
++	this_cpu_write(cpu_tss_rw.x86_tss.sp1, next_p->thread.sp0);
+ 
+ 	/*
+ 	 * Restore %gs if needed (which is common)
 -- 
 2.7.4
