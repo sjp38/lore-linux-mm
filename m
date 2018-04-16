@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BB38E6B0261
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F08A46B0266
 	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:56 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id d37so13317169wrd.21
+Received: by mail-wr0-f200.google.com with SMTP id h1so12924282wre.0
         for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:56 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id x58si682038edx.338.2018.04.16.08.25.54
+        by mx.google.com with ESMTPS id 11si137862edv.142.2018.04.16.08.25.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 08:25:54 -0700 (PDT)
+        Mon, 16 Apr 2018 08:25:55 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 33/35] x86/pti: Allow CONFIG_PAGE_TABLE_ISOLATION for x86_32
-Date: Mon, 16 Apr 2018 17:25:21 +0200
-Message-Id: <1523892323-14741-34-git-send-email-joro@8bytes.org>
+Subject: [PATCH 32/35] x86/ldt: Enable LDT user-mapping for PAE
+Date: Mon, 16 Apr 2018 17:25:20 +0200
+Message-Id: <1523892323-14741-33-git-send-email-joro@8bytes.org>
 In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,25 +22,105 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Allow PTI to be compiled on x86_32.
+This adds the needed special case for PAE to get the LDT
+mapped into the user page-table when PTI is enabled. The big
+difference to the other paging modes is that we don't have a
+full top-level PGD entry available for the LDT, but only PMD
+entry.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- security/Kconfig | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/include/asm/mmu_context.h |  5 ----
+ arch/x86/kernel/ldt.c              | 53 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 5 deletions(-)
 
-diff --git a/security/Kconfig b/security/Kconfig
-index c430206..afa91c6 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -57,7 +57,7 @@ config SECURITY_NETWORK
- config PAGE_TABLE_ISOLATION
- 	bool "Remove the kernel mapping in user mode"
- 	default y
--	depends on X86_64 && !UML
-+	depends on X86 && !UML
- 	help
- 	  This feature reduces the number of hardware side channels by
- 	  ensuring that the majority of kernel addresses are not mapped
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index 57e3785..28b2376 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -71,12 +71,7 @@ struct ldt_struct {
+ 
+ static inline void *ldt_slot_va(int slot)
+ {
+-#ifdef CONFIG_X86_64
+ 	return (void *)(LDT_BASE_ADDR + LDT_SLOT_STRIDE * slot);
+-#else
+-	BUG();
+-	return (void *)fix_to_virt(FIX_HOLE);
+-#endif
+ }
+ 
+ /*
+diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
+index e68ce37..da80296 100644
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -126,6 +126,57 @@ static void do_sanity_check(struct mm_struct *mm,
+ 	}
+ }
+ 
++#ifdef CONFIG_X86_PAE
++
++static pmd_t *pgd_to_pmd_walk(pgd_t *pgd, unsigned long va)
++{
++	p4d_t *p4d;
++	pud_t *pud;
++
++	if (pgd->pgd == 0)
++		return NULL;
++
++	p4d = p4d_offset(pgd, va);
++	if (p4d_none(*p4d))
++		return NULL;
++
++	pud = pud_offset(p4d, va);
++	if (pud_none(*pud))
++		return NULL;
++
++	return pmd_offset(pud, va);
++}
++
++static void map_ldt_struct_to_user(struct mm_struct *mm)
++{
++	pgd_t *k_pgd = pgd_offset(mm, LDT_BASE_ADDR);
++	pgd_t *u_pgd = kernel_to_user_pgdp(k_pgd);
++	pmd_t *k_pmd, *u_pmd;
++
++	k_pmd = pgd_to_pmd_walk(k_pgd, LDT_BASE_ADDR);
++	u_pmd = pgd_to_pmd_walk(u_pgd, LDT_BASE_ADDR);
++
++	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
++		set_pmd(u_pmd, *k_pmd);
++}
++
++static void sanity_check_ldt_mapping(struct mm_struct *mm)
++{
++	pgd_t *k_pgd = pgd_offset(mm, LDT_BASE_ADDR);
++	pgd_t *u_pgd = kernel_to_user_pgdp(k_pgd);
++	bool had_kernel, had_user;
++	pmd_t *k_pmd, *u_pmd;
++
++	k_pmd      = pgd_to_pmd_walk(k_pgd, LDT_BASE_ADDR);
++	u_pmd      = pgd_to_pmd_walk(u_pgd, LDT_BASE_ADDR);
++	had_kernel = (k_pmd->pmd != 0);
++	had_user   = (u_pmd->pmd != 0);
++
++	do_sanity_check(mm, had_kernel, had_user);
++}
++
++#else /* !CONFIG_X86_PAE */
++
+ static void map_ldt_struct_to_user(struct mm_struct *mm)
+ {
+ 	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
+@@ -143,6 +194,8 @@ static void sanity_check_ldt_mapping(struct mm_struct *mm)
+ 	do_sanity_check(mm, had_kernel, had_user);
+ }
+ 
++#endif /* CONFIG_X86_PAE */
++
+ /*
+  * If PTI is enabled, this maps the LDT into the kernelmode and
+  * usermode tables for the given mm.
 -- 
 2.7.4
