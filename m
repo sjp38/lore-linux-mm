@@ -1,71 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D00476B0006
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 14:37:29 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id h16-v6so5120257lfg.13
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:37:29 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x4-v6sor1828486lfa.86.2018.04.16.11.37.28
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B22176B0006
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 14:41:22 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q15so9883314pff.15
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:41:22 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id s16-v6si836403plp.487.2018.04.16.11.41.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Apr 2018 11:37:28 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Apr 2018 11:41:21 -0700 (PDT)
+Date: Mon, 16 Apr 2018 14:41:17 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Message-ID: <20180416144117.5757ee70@gandalf.local.home>
+In-Reply-To: <CA+55aFzggPvS2MwFnKfXs6yHUQrbrJH7uyY4=znwetcdEXmZrw@mail.gmail.com>
+References: <20180416153031.GA5039@amd>
+	<20180416155031.GX2341@sasha-vm>
+	<20180416160608.GA7071@amd>
+	<20180416122019.1c175925@gandalf.local.home>
+	<20180416162757.GB2341@sasha-vm>
+	<20180416163952.GA8740@amd>
+	<20180416164310.GF2341@sasha-vm>
+	<20180416125307.0c4f6f28@gandalf.local.home>
+	<20180416170936.GI2341@sasha-vm>
+	<20180416133321.40a166a4@gandalf.local.home>
+	<20180416174236.GL2341@sasha-vm>
+	<20180416142653.0f017647@gandalf.local.home>
+	<CA+55aFzggPvS2MwFnKfXs6yHUQrbrJH7uyY4=znwetcdEXmZrw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4hYDADk_-52XHAWBNXqrVuef7Q9Dz9q+x4Y++mP0bxp2A@mail.gmail.com>
-References: <20180414155059.GA18015@jordon-HP-15-Notebook-PC>
- <CAPcyv4g+Gdc2tJ1qrM5Xn9vtARw-ZqFXaMbiaBKJJsYDtSNBig@mail.gmail.com>
- <20180416174740.GA12686@bombadil.infradead.org> <CAPcyv4hUsADs9ueDfLKvcqHvz3Z4ziW=a1V6rkcOtTvoJhw7xg@mail.gmail.com>
- <20180416182146.GC12686@bombadil.infradead.org> <CAFqt6zZ9BJXjBxjJy06fOTZo8ybVYg3YOQjGbdaWK0NoAhzofg@mail.gmail.com>
- <CAPcyv4hYDADk_-52XHAWBNXqrVuef7Q9Dz9q+x4Y++mP0bxp2A@mail.gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 17 Apr 2018 00:07:27 +0530
-Message-ID: <CAFqt6zarE3N4Ha5w54ez9aGPDGh4Qr5uxcAfYnUYZUnzDb26yg@mail.gmail.com>
-Subject: Re: [PATCH] dax: Change return type to vm_fault_t
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Sasha Levin <Alexander.Levin@microsoft.com>, Pavel Machek <pavel@ucw.cz>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Greg KH <gregkh@linuxfoundation.org>
 
-On Tue, Apr 17, 2018 at 12:05 AM, Dan Williams <dan.j.williams@intel.com> wrote:
-> On Mon, Apr 16, 2018 at 11:28 AM, Souptick Joarder <jrdr.linux@gmail.com> wrote:
->> On Mon, Apr 16, 2018 at 11:51 PM, Matthew Wilcox <willy@infradead.org> wrote:
->>> On Mon, Apr 16, 2018 at 11:00:26AM -0700, Dan Williams wrote:
->>>> On Mon, Apr 16, 2018 at 10:47 AM, Matthew Wilcox <willy@infradead.org> wrote:
->>>> > On Mon, Apr 16, 2018 at 09:14:48AM -0700, Dan Williams wrote:
->>>> >> > -       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
->>>> >> > -
->>>> >> > -       if (rc == -ENOMEM)
->>>> >> > -               return VM_FAULT_OOM;
->>>> >> > -       if (rc < 0 && rc != -EBUSY)
->>>> >> > -               return VM_FAULT_SIGBUS;
->>>> >> > -
->>>> >> > -       return VM_FAULT_NOPAGE;
->>>> >> > +       return vmf_insert_mixed(vmf->vma, vmf->address, pfn);
->>>> >>
->>>> >> Ugh, so this change to vmf_insert_mixed() went upstream without fixing
->>>> >> the users? This changelog is now misleading as it does not mention
->>>> >> that is now an urgent standalone fix. On first read I assumed this was
->>>> >> part of a wider effort for 4.18.
->>>> >
->>>> > You read too quickly.  vmf_insert_mixed() is a *new* function which
->>>> > *replaces* vm_insert_mixed() and
->>>> > awful-mangling-of-return-values-done-per-driver.
->>>> >
->>>> > Eventually vm_insert_mixed() will be deleted.  But today is not that day.
->>>>
->>>> Ah, ok, thanks for the clarification. Then this patch should
->>>> definitely be re-titled to "dax: convert to the new vmf_insert_mixed()
->>>> helper". The vm_fault_t conversion is just a minor side-effect of that
->>>> larger change. I assume this can wait for v4.18.
->>
->> The primary objective is to change the return type to
->> vm_fault_t in all fault handlers and to support that
->> we have replace vm_insert_mixed() with vmf_insert_
->> mixed() within one fault handler function.
->>
->> Do I really need to change the patch title ?
->
-> At this point, yes, or at least mention the vm_insert_mixed -->
-> vmf_insert_mixed conversion in the changelog.
+On Mon, 16 Apr 2018 11:30:06 -0700
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-Ok, I will add this in change log and send v2.
+> On Mon, Apr 16, 2018 at 11:26 AM, Steven Rostedt <rostedt@goodmis.org> wrote:
+> >
+> > The problem is that it only fixed a critical bug, but didn't go far
+> > enough to keep the bug fix from breaking API.  
+> 
+> An API breakage that gets noticed *is* a crtitical bug.
+
+I totally agree with you. You misunderstood what I wrote.
+
+I said there were two bugs here. The first bug was a possible accessing
+bad memory bug. That needed to be fixed. The problem was by fixing
+that, it broke API. But that's because the original code was broken
+where it relied on broken code to get right. I never said the second
+bug fix should not have been backported. I even said that the first bug
+"didn't go far enough".
+
+I hope the answer was not to revert the bug and put back the possible
+bad memory access in to keep API. But it was to backport the second bug
+fix that still has the first fix, but fixes the API breakage.
+
+Yes, an API breakage is something I would label as critical to be
+backported.
+
+-- Steve
