@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D4E186B025F
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:54 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id q6so13438874wre.20
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:54 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D3FE6B0260
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:25:56 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 31so13431918wrr.2
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:25:56 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id u14si1912748edm.124.2018.04.16.08.25.53
+        by mx.google.com with ESMTPS id 65si4123046edl.279.2018.04.16.08.25.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 08:25:53 -0700 (PDT)
+        Mon, 16 Apr 2018 08:25:55 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 31/35] x86/ldt: Split out sanity check in map_ldt_struct()
-Date: Mon, 16 Apr 2018 17:25:19 +0200
-Message-Id: <1523892323-14741-32-git-send-email-joro@8bytes.org>
+Subject: [PATCH 35/35] x86/entry/32: Add debug code to check entry/exit cr3
+Date: Mon, 16 Apr 2018 17:25:23 +0200
+Message-Id: <1523892323-14741-36-git-send-email-joro@8bytes.org>
 In-Reply-To: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,143 +22,157 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-This splits out the mapping sanity check and the actual
-mapping of the LDT to user-space from the map_ldt_struct()
-function in a way so that it is re-usable for PAE paging.
+Add a config option that enabled code to check that we enter
+and leave the kernel with the correct cr3. This is needed
+because we have no NX protection of user-addresses in the
+kernel-cr3 on x86-32 and wouldn't notice that type of bug
+otherwise.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/kernel/ldt.c | 82 ++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 58 insertions(+), 24 deletions(-)
+ arch/x86/Kconfig.debug    | 12 ++++++++++++
+ arch/x86/entry/entry_32.S | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)
 
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index 46c349c..e68ce37 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -100,6 +100,49 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- 	return new_ldt;
- }
+diff --git a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
+index 192e4d2..a57f556 100644
+--- a/arch/x86/Kconfig.debug
++++ b/arch/x86/Kconfig.debug
+@@ -337,6 +337,18 @@ config X86_DEBUG_FPU
  
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+ 	  If unsure, say N.
+ 
++config X86_DEBUG_ENTRY_CR3
++	bool	"Debug CR3 for Kernel entry/exit"
++	depends on X86_32 && PAGE_TABLE_ISOLATION
++	---help---
++	  Add instructions to the x86-32 entry code to check whether the kernel
++	  is entered and left with the correct CR3. When PTI is enabled, this
++	  checks whether we enter the kernel with the user-space cr3 when
++	  coming from user-mode and if we leave with user-cr3 back to
++	  user-space.
 +
-+static void do_sanity_check(struct mm_struct *mm,
-+			    bool had_kernel_mapping,
-+			    bool had_user_mapping)
-+{
-+	if (mm->context.ldt) {
-+		/*
-+		 * We already had an LDT.  The top-level entry should already
-+		 * have been allocated and synchronized with the usermode
-+		 * tables.
-+		 */
-+		WARN_ON(!had_kernel_mapping);
-+		if (static_cpu_has(X86_FEATURE_PTI))
-+			WARN_ON(!had_user_mapping);
-+	} else {
-+		/*
-+		 * This is the first time we're mapping an LDT for this process.
-+		 * Sync the pgd to the usermode tables.
-+		 */
-+		WARN_ON(had_kernel_mapping);
-+		if (static_cpu_has(X86_FEATURE_PTI))
-+			WARN_ON(had_user_mapping);
-+	}
-+}
++	  If unsure, say N.
 +
-+static void map_ldt_struct_to_user(struct mm_struct *mm)
-+{
-+	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+
-+	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
-+		set_pgd(kernel_to_user_pgdp(pgd), *pgd);
-+}
-+
-+static void sanity_check_ldt_mapping(struct mm_struct *mm)
-+{
-+	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+	bool had_kernel = (pgd->pgd != 0);
-+	bool had_user   = (kernel_to_user_pgdp(pgd)->pgd != 0);
-+
-+	do_sanity_check(mm, had_kernel, had_user);
-+}
+ config PUNIT_ATOM_DEBUG
+ 	tristate "ATOM Punit debug driver"
+ 	depends on PCI
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index f47e535..6b371a9 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -166,6 +166,24 @@
+ .Lend_\@:
+ .endm
+ 
++.macro BUG_IF_WRONG_CR3 no_user_check=0
++#ifdef CONFIG_X86_DEBUG_ENTRY_CR3
++	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
++	.if \no_user_check == 0
++	/* coming from usermode? */
++	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
++	jz	.Lend_\@
++	.endif
++	/* On user-cr3? */
++	movl	%cr3, %eax
++	testl	$PTI_SWITCH_MASK, %eax
++	jnz	.Lend_\@
++	/* From userspace with kernel cr3 - BUG */
++	ud2
++.Lend_\@:
++#endif
++.endm
 +
  /*
-  * If PTI is enabled, this maps the LDT into the kernelmode and
-  * usermode tables for the given mm.
-@@ -115,9 +158,8 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- static int
- map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- {
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--	bool is_vmalloc, had_top_level_entry;
- 	unsigned long va;
-+	bool is_vmalloc;
- 	spinlock_t *ptl;
- 	pgd_t *pgd;
- 	int i;
-@@ -131,13 +173,15 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 	 */
- 	WARN_ON(ldt->slot != -1);
+  * Switch to kernel cr3 if not already loaded and return current cr3 in
+  * \scratch_reg
+@@ -218,6 +236,8 @@
+ .macro SAVE_ALL_NMI cr3_reg:req
+ 	SAVE_ALL
  
-+	/* Check if the current mappings are sane */
-+	sanity_check_ldt_mapping(mm);
++	BUG_IF_WRONG_CR3
 +
  	/*
- 	 * Did we already have the top level entry allocated?  We can't
- 	 * use pgd_none() for this because it doens't do anything on
- 	 * 4-level page table kernels.
+ 	 * Now switch the CR3 when PTI is enabled.
+ 	 *
+@@ -229,6 +249,7 @@
+ 
+ .Lend_\@:
+ .endm
++
+ /*
+  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
+  * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
+@@ -292,6 +313,8 @@
+ 
+ .Lswitched_\@:
+ 
++	BUG_IF_WRONG_CR3
++
+ 	RESTORE_REGS pop=\pop
+ .endm
+ 
+@@ -362,6 +385,8 @@
+ 
+ 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
+ 
++	BUG_IF_WRONG_CR3
++
+ 	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
+ 
+ 	/*
+@@ -803,6 +828,7 @@ ENTRY(entry_SYSENTER_32)
  	 */
- 	pgd = pgd_offset(mm, LDT_BASE_ADDR);
--	had_top_level_entry = (pgd->pgd != 0);
+ 	pushfl
+ 	pushl	%eax
++	BUG_IF_WRONG_CR3 no_user_check=1
+ 	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
+ 	popl	%eax
+ 	popfl
+@@ -897,6 +923,7 @@ ENTRY(entry_SYSENTER_32)
+ 	 * whereas POPF does not.)
+ 	 */
+ 	btr	$X86_EFLAGS_IF_BIT, (%esp)
++	BUG_IF_WRONG_CR3 no_user_check=1
+ 	popfl
+ 	popl	%eax
  
- 	is_vmalloc = is_vmalloc_addr(ldt->entries);
+@@ -974,6 +1001,8 @@ restore_all:
+ 	/* Switch back to user CR3 */
+ 	SWITCH_TO_USER_CR3 scratch_reg=%eax
  
-@@ -172,35 +216,25 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 		pte_unmap_unlock(ptep, ptl);
- 	}
- 
--	if (mm->context.ldt) {
--		/*
--		 * We already had an LDT.  The top-level entry should already
--		 * have been allocated and synchronized with the usermode
--		 * tables.
--		 */
--		WARN_ON(!had_top_level_entry);
--		if (static_cpu_has(X86_FEATURE_PTI))
--			WARN_ON(!kernel_to_user_pgdp(pgd)->pgd);
--	} else {
--		/*
--		 * This is the first time we're mapping an LDT for this process.
--		 * Sync the pgd to the usermode tables.
--		 */
--		WARN_ON(had_top_level_entry);
--		if (static_cpu_has(X86_FEATURE_PTI)) {
--			WARN_ON(kernel_to_user_pgdp(pgd)->pgd);
--			set_pgd(kernel_to_user_pgdp(pgd), *pgd);
--		}
--	}
-+	/* Propagate LDT mapping to the user page-table */
-+	map_ldt_struct_to_user(mm);
- 
- 	va = (unsigned long)ldt_slot_va(slot);
- 	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
- 
- 	ldt->slot = slot;
--#endif
- 	return 0;
- }
- 
-+#else /* !CONFIG_PAGE_TABLE_ISOLATION */
++	BUG_IF_WRONG_CR3
 +
-+static int
-+map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
+ 	/* Restore user state */
+ 	RESTORE_REGS pop=4			# skip orig_eax/error_code
+ .Lirq_return:
+@@ -987,6 +1016,7 @@ restore_all:
+ restore_all_kernel:
+ 	TRACE_IRQS_IRET
+ 	PARANOID_EXIT_TO_KERNEL_MODE
++	BUG_IF_WRONG_CR3
+ 	RESTORE_REGS 4
+ 	jmp	.Lirq_return
+ 
+@@ -994,6 +1024,19 @@ restore_all_kernel:
+ ENTRY(iret_exc	)
+ 	pushl	$0				# no error code
+ 	pushl	$do_iret_error
 +
- static void free_ldt_pgtables(struct mm_struct *mm)
- {
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
++#ifdef CONFIG_X86_DEBUG_ENTRY_CR3
++	/*
++	 * The stack-frame here is the one that iret faulted on, so its a
++	 * return-to-user frame. We are on kernel-cr3 because we come here from
++	 * the fixup code. This confuses the CR3 checker, so switch to user-cr3
++	 * as the checker expects it.
++	 */
++	pushl	%eax
++	SWITCH_TO_USER_CR3 scratch_reg=%eax
++	popl	%eax
++#endif
++
+ 	jmp	common_exception
+ .previous
+ 	_ASM_EXTABLE(.Lirq_return, iret_exc)
 -- 
 2.7.4
