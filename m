@@ -1,85 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 23CF06B0007
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:07:28 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id j80so10373914ywg.1
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:07:28 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id u32si1905314qte.332.2018.04.16.08.07.25
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D607F6B0009
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 11:08:56 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id l19so2489703qkk.11
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 08:08:56 -0700 (PDT)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id h39si3574028qtk.13.2018.04.16.08.08.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 08:07:25 -0700 (PDT)
-Message-ID: <1523891242.27555.9.camel@surriel.com>
-Subject: Re: [PATCH] mm: allow to decrease swap.max below actual swap usage
-From: Rik van Riel <riel@surriel.com>
-Date: Mon, 16 Apr 2018 11:07:22 -0400
-In-Reply-To: <20180416013902.GD1911913@devbig577.frc2.facebook.com>
-References: <20180412132705.30316-1-guro@fb.com>
-	 <20180416013902.GD1911913@devbig577.frc2.facebook.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-tBA0idIUGrNb7kCfECyR"
-Mime-Version: 1.0
+        Mon, 16 Apr 2018 08:08:55 -0700 (PDT)
+Date: Mon, 16 Apr 2018 10:08:54 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: Remove use of page->counter
+In-Reply-To: <20180416135321.GD26022@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1804161007450.8424@nuc-kabylake>
+References: <20180410195429.GB21336@bombadil.infradead.org> <alpine.DEB.2.20.1804101545350.30437@nuc-kabylake> <20180410205757.GD21336@bombadil.infradead.org> <alpine.DEB.2.20.1804101702240.30842@nuc-kabylake> <20180411182606.GA22494@bombadil.infradead.org>
+ <20180416135321.GD26022@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Shaohua Li <shli@fb.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org
 
+On Mon, 16 Apr 2018, Matthew Wilcox wrote:
 
---=-tBA0idIUGrNb7kCfECyR
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+> 		struct {	/* Slub */
+> 			struct kmem_cache *slub_cache;
+> 			/* Dword boundary */
+> 			void *slub_freelist;
+> 			unsigned short inuse;
+> 			unsigned short objects:15;
+> 			unsigned short frozen:1;
+> 			struct page *next;
+> #ifdef CONFIG_64BIT
+> 			int pobjects;
+> 			int pages;
+> #endif
+> 			short int pages;
+> 			short int pobjects;
+> #endif
 
-On Sun, 2018-04-15 at 18:39 -0700, Tejun Heo wrote:
-> Hello, Roman.
->=20
-> The reclaim behavior is a bit worrisome.
->=20
-> * It disables an entire swap area while reclaim is in progress.  Most
->   systems only have one swap area, so this would disable allocating
->   new swap area for everyone.
+That looks better.
 
-That could easily cause OOM kills on systems.
+> I'd want to change slob to use slob_list instead of ->lru.  Or maybe even do
+> something radical like _naming_ the struct in the union so we don't have to
+> manually namespace the names of the elements.
 
-I prefer Tejun's simple approach, of having
-the system slowly reduce swap use below the
-new maximum limit.
-
-> * The reclaim seems very inefficient.  IIUC, it has to read every
-> swap
->   page to see whether the page belongs to the target memcg and for
->   each matching page, which involves walking page mm's and page
->   tables.
-
-One of my Outreachy interns, Kelley Nielsen,
-worked on making swap reclaim more efficient
-by scanning the virtual address space of
-processes.
-
-Unfortunately, we ran into some unforseen
-issues with that approach that we never managed
-to sort out :(
-
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-
-Acked-by: Rik van Riel <riel@surriel.com>
-
---=20
-All Rights Reversed.
---=-tBA0idIUGrNb7kCfECyR
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlrUvCoACgkQznnekoTE
-3oP/Bwf+Nc+IRCKzX3QEdvTpUJOaiAFrdGROFUtrGHvZSc9qSvdN+z6TMsCUi6r6
-FnXQf1Uf0TRve+ASaJq7O69vpGQTpdhWPQimB1U+aE/JsNmOqAbxwOfsj7fMrkbA
-NjsP69KQ8/lAoDEP5ZdZda8VAPm5+psbqj+wagvTTP5IiVAUN/56iafSgHZ+3zmU
-NPsEfjXSDUrn7TwoNhTAdM55E5fCgZoUTuajhO6nsROlEqH5k/P+L/o2FPmdUYd2
-CzCuKoWprBjrf8MAmX8W0a90DtWiu7q5MKeAwVfEh29OO+kf1w5hVXhBKHf0BVUX
-Z4K0PBihXKOZMhzCTq8+IU83zeFeFw==
-=YMrS
------END PGP SIGNATURE-----
-
---=-tBA0idIUGrNb7kCfECyR--
+Hmmm... How would that look?
