@@ -1,80 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AF4F6B0027
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:38:00 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q15so9718431pff.15
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:38:00 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0091.outbound.protection.outlook.com. [104.47.34.91])
-        by mx.google.com with ESMTPS id d17si9616201pgo.310.2018.04.16.09.37.59
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AC55E6B0007
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:38:04 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id a1-v6so2727860lfa.16
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:38:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q9-v6sor2841131lfe.44.2018.04.16.09.38.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 16 Apr 2018 09:37:59 -0700 (PDT)
-From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Date: Mon, 16 Apr 2018 16:37:56 +0000
-Message-ID: <20180416163754.GD2341@sasha-vm>
-References: <20180409001936.162706-15-alexander.levin@microsoft.com>
- <20180409082246.34hgp3ymkfqke3a4@pathway.suse.cz>
- <20180415144248.GP2341@sasha-vm> <20180416093058.6edca0bb@gandalf.local.home>
- <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
- <20180416113629.2474ae74@gandalf.local.home> <20180416160200.GY2341@sasha-vm>
- <20180416121224.2138b806@gandalf.local.home> <20180416161911.GA2341@sasha-vm>
- <20180416123019.4d235374@gandalf.local.home>
-In-Reply-To: <20180416123019.4d235374@gandalf.local.home>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <6F4DE755B469B843A412DBA81A8E3C33@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Mon, 16 Apr 2018 09:38:03 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <e20daa13-b756-8e8e-c98c-22030fb0a5f8@infradead.org>
+References: <20180414155059.GA18015@jordon-HP-15-Notebook-PC>
+ <CAPcyv4g+Gdc2tJ1qrM5Xn9vtARw-ZqFXaMbiaBKJJsYDtSNBig@mail.gmail.com> <e20daa13-b756-8e8e-c98c-22030fb0a5f8@infradead.org>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 16 Apr 2018 22:08:01 +0530
+Message-ID: <CAFqt6zZpPTY0mX5d9NVJ=imBkFw+1yVEDvo0OVKhBpZaYn0vAw@mail.gmail.com>
+Subject: Re: [PATCH] dax: Change return type to vm_fault_t
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Matthew Wilcox <willy@infradead.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon, Apr 16, 2018 at 12:30:19PM -0400, Steven Rostedt wrote:
->On Mon, 16 Apr 2018 16:19:14 +0000
->Sasha Levin <Alexander.Levin@microsoft.com> wrote:
->
->> >Wait! What does that mean? What's the purpose of stable if it is as
->> >broken as mainline?
+On Mon, Apr 16, 2018 at 9:59 PM, Randy Dunlap <rdunlap@infradead.org> wrote:
+> On 04/16/2018 09:14 AM, Dan Williams wrote:
+>> On Sat, Apr 14, 2018 at 8:50 AM, Souptick Joarder <jrdr.linux@gmail.com> wrote:
+>>> Use new return type vm_fault_t for fault and
+>>> huge_fault handler.
+>>>
+>>> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+>>> Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+>>> ---
+>>>  drivers/dax/device.c | 26 +++++++++++---------------
+>>>  1 file changed, 11 insertions(+), 15 deletions(-)
+>>>
+>>> diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+>>> index 2137dbc..a122701 100644
+>>> --- a/drivers/dax/device.c
+>>> +++ b/drivers/dax/device.c
+>>> @@ -243,11 +243,11 @@ __weak phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
+>>>         return -1;
+>>>  }
+>>>
+>>> -static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
+>>> +static vm_fault_t __dev_dax_pte_fault(struct dev_dax *dev_dax,
+>>> +                               struct vm_fault *vmf)
+>>>  {
+>>>         struct device *dev = &dev_dax->dev;
+>>>         struct dax_region *dax_region;
+>>> -       int rc = VM_FAULT_SIGBUS;
+>>>         phys_addr_t phys;
+>>>         pfn_t pfn;
+>>>         unsigned int fault_size = PAGE_SIZE;
+>>> @@ -274,17 +274,11 @@ static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
+>>>
+>>>         pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+>>>
+>>> -       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
+>>> -
+>>> -       if (rc == -ENOMEM)
+>>> -               return VM_FAULT_OOM;
+>>> -       if (rc < 0 && rc != -EBUSY)
+>>> -               return VM_FAULT_SIGBUS;
+>>> -
+>>> -       return VM_FAULT_NOPAGE;
+>>> +       return vmf_insert_mixed(vmf->vma, vmf->address, pfn);
 >>
->> This just means that if there is a fix that went in mainline, and the
->> fix is broken somehow, we'd rather take the broken fix than not.
+>> Ugh, so this change to vmf_insert_mixed() went upstream without fixing
+>> the users? This changelog is now misleading as it does not mention
+>> that is now an urgent standalone fix. On first read I assumed this was
+>> part of a wider effort for 4.18.
 >>
->> In this scenario, *something* will be broken, it's just a matter of
->> what. We'd rather have the same thing broken between mainline and
->> stable.
+>> Grumble, we'll get this applied with a 'Fixes: 1c8f422059ae ("mm:
+>> change return type to vm_fault_t")' tag.
+>>
 >
->Honestly, I think that removes all value of the stable series. I
->remember when the stable series were first created. People were saying
->that it wouldn't even get to more than 5 versions, because the bar for
->backporting was suppose to be very high. Today it's just a fork of the
->kernel at a given version. No more features, but we will be OK with
->regressions. I'm struggling to see what the benefit of it is suppose to
->be?
+> Thanks for that explanation. The patch description is missing any kind
+> of "why" (justification).
 
-It's not "OK with regressions".
+ok, I will send v2 with description.
 
-Let's look at a hypothetical example: You have a 4.15.1 kernel that has
-a broken printf() behaviour so that when you:
-
-	pr_err("%d", 5)
-
-Would print:
-
-	"Microsoft Rulez"
-
-Bad, right? So you went ahead and fixed it, and now it prints "5" as you
-might expect. But alas, with your patch, running:
-
-	pr_err("%s", "hi!")
-
-Would show a cat picture for 5 seconds.
-
-Should we take your patch in -stable or not? If we don't, we're stuck
-with the original issue while the mainline kernel will behave
-differently, but if we do - we introduce a new regression.
-
-So it's not the case that a -stable kernel will have *more* regression,
-it'll just have similar ones to mainline.=
+>
+>
+> --
+> ~Randy
