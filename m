@@ -1,112 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 470EA6B000A
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:56:38 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id a124so1574407qkb.19
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:56:38 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CE7ED6B0005
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 18:46:57 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 203so12133594pfz.19
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 15:46:57 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 16sor11001468qtp.35.2018.04.17.14.56.37
+        by mx.google.com with SMTPS id l185sor3876115pgl.18.2018.04.17.15.46.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 17 Apr 2018 14:56:37 -0700 (PDT)
+        Tue, 17 Apr 2018 15:46:56 -0700 (PDT)
+Date: Tue, 17 Apr 2018 15:46:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, oom: fix concurrent munlock and oom reaper unmap
+Message-ID: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Reply-To: mceier+kernel@gmail.com
-In-Reply-To: <20180417211304.7B3F1FDB@viggo.jf.intel.com>
-References: <20180417211302.421F6442@viggo.jf.intel.com> <20180417211304.7B3F1FDB@viggo.jf.intel.com>
-From: Mariusz Ceier <mceier+kernel@gmail.com>
-Date: Tue, 17 Apr 2018 23:56:36 +0200
-Message-ID: <CAJTyqKMLh4QoNYUF1BZ5D51L8ZEt_fxqNRWYBON+27icavY8tQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] x86, pti: fix boot warning from Global-bit setting
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Aaro Koskinen <aaro.koskinen@nokia.com>, aarcange@redhat.com, luto@kernel.org, arjan@linux.intel.com, Borislav Petkov <bp@alien8.de>, dan.j.williams@intel.com, dwmw2@infradead.org, gregkh@linuxfoundation.org, hughd@google.com, jpoimboe@redhat.com, jgross@suse.com, keescook@google.com, Linus Torvalds <torvalds@linux-foundation.org>, namit@vmware.com, peterz@infradead.org, Thomas Gleixner <tglx@linutronix.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 17 April 2018 at 23:13, Dave Hansen <dave.hansen@linux.intel.com> wrote:
->
-> These are _very_ lightly tested.  I'm throwing them out there for
-> folks are looking for a fix.
->
-> ---
->
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->
-> pageattr.c is not friendly when it encounters empty (zero) PTEs.  The
-> kernel linear map is exempt from these checks, but kernel text is not.
-> This patch adds the code to also exempt kernel text from these checks.
-> The proximate cause of these warnings was most likely an __init area
-> that spanned a 2MB page boundary that resulted in a "zero" PMD.
->
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Fixes: 39114b7a7 (x86/pti: Never implicitly clear _PAGE_GLOBAL for kernel image)
-> Reported-by: Mariusz Ceier <mceier@gmail.com>
-> Reported-by: Aaro Koskinen <aaro.koskinen@nokia.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Arjan van de Ven <arjan@linux.intel.com>
-> Cc: Borislav Petkov <bp@alien8.de>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: David Woodhouse <dwmw2@infradead.org>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-> Cc: Juergen Gross <jgross@suse.com>
-> Cc: Kees Cook <keescook@google.com>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Nadav Amit <namit@vmware.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: linux-mm@kvack.org
-> ---
->
->  b/arch/x86/mm/pageattr.c |   17 +++++++++++++++--
->  1 file changed, 15 insertions(+), 2 deletions(-)
->
-> diff -puN arch/x86/mm/pageattr.c~pti-glb-warning-inpageattr arch/x86/mm/pageattr.c
-> --- a/arch/x86/mm/pageattr.c~pti-glb-warning-inpageattr 2018-04-17 14:10:22.695395554 -0700
-> +++ b/arch/x86/mm/pageattr.c    2018-04-17 14:10:22.721395554 -0700
-> @@ -1151,6 +1151,16 @@ static int populate_pgd(struct cpa_data
->         return 0;
->  }
->
-> +bool __cpa_pfn_in_highmap(unsigned long pfn)
-> +{
-> +       /*
-> +        * Kernel text has an alias mapping at a high address, known
-> +        * here as "highmap".
-> +        */
-> +       return within_inclusive(pfn, highmap_start_pfn(),
-> +                       highmap_end_pfn());
-> +}
-> +
->  static int __cpa_process_fault(struct cpa_data *cpa, unsigned long vaddr,
->                                int primary)
->  {
-> @@ -1183,6 +1193,10 @@ static int __cpa_process_fault(struct cp
->                 cpa->numpages = 1;
->                 cpa->pfn = __pa(vaddr) >> PAGE_SHIFT;
->                 return 0;
-> +
-> +       } else if (__cpa_pfn_in_highmap(cpa->pfn)) {
-> +               /* Faults in the highmap are OK, so do not warn: */
-> +               return -EFAULT;
->         } else {
->                 WARN(1, KERN_WARNING "CPA: called for zero pte. "
->                         "vaddr = %lx cpa->vaddr = %lx\n", vaddr,
-> @@ -1335,8 +1349,7 @@ static int cpa_process_alias(struct cpa_
->          * to touch the high mapped kernel as well:
->          */
->         if (!within(vaddr, (unsigned long)_text, _brk_end) &&
-> -           within_inclusive(cpa->pfn, highmap_start_pfn(),
-> -                            highmap_end_pfn())) {
-> +           __cpa_pfn_in_highmap(cpa->pfn)) {
->                 unsigned long temp_cpa_vaddr = (cpa->pfn << PAGE_SHIFT) +
->                                                __START_KERNEL_map - phys_base;
->                 alias_cpa = *cpa;
-> _
+Since exit_mmap() is done without the protection of mm->mmap_sem, it is
+possible for the oom reaper to concurrently operate on an mm until
+MMF_OOM_SKIP is set.
 
+This allows munlock_vma_pages_all() to concurrently run while the oom
+reaper is operating on a vma.  Since munlock_vma_pages_range() depends on
+clearing VM_LOCKED from vm_flags before actually doing the munlock to
+determine if any other vmas are locking the same memory, the check for
+VM_LOCKED in the oom reaper is racy.
 
-I confirm that these 2 patches fix the BUG for me in kernel 4.17.0-rc1.
+This is especially noticeable on architectures such as powerpc where
+clearing a huge pmd requires kick_all_cpus_sync().  If the pmd is zapped
+by the oom reaper during follow_page_mask() after the check for pmd_none()
+is bypassed, this ends up deferencing a NULL ptl.
 
-Thanks
+Fix this by reusing MMF_UNSTABLE to specify that an mm should not be
+reaped.  This prevents the concurrent munlock_vma_pages_range() and
+unmap_page_range().  The oom reaper will simply not operate on an mm that
+has the bit set and leave the unmapping to exit_mmap().
+
+Fixes: 212925802454 ("mm: oom: let oom_reap_task and exit_mmap run concurrently")
+Cc: stable@vger.kernel.org [4.14+]
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/mmap.c     | 38 ++++++++++++++++++++------------------
+ mm/oom_kill.c | 19 ++++++++-----------
+ 2 files changed, 28 insertions(+), 29 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3015,6 +3015,25 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* mm's last user has gone, and its about to be pulled down */
+ 	mmu_notifier_release(mm);
+ 
++	if (unlikely(mm_is_oom_victim(mm))) {
++		/*
++		 * Wait for oom_reap_task() to stop working on this mm.  Because
++		 * MMF_UNSTABLE is already set before calling down_read(),
++		 * oom_reap_task() will not run on this mm after up_write().
++		 * oom_reap_task() also depends on a stable VM_LOCKED flag to
++		 * indicate it should not unmap during munlock_vma_pages_all().
++		 *
++		 * mm_is_oom_victim() cannot be set from under us because
++		 * victim->mm is already set to NULL under task_lock before
++		 * calling mmput() and victim->signal->oom_mm is set by the oom
++		 * killer only if victim->mm is non-NULL while holding
++		 * task_lock().
++		 */
++		set_bit(MMF_UNSTABLE, &mm->flags);
++		down_write(&mm->mmap_sem);
++		up_write(&mm->mmap_sem);
++	}
++
+ 	if (mm->locked_vm) {
+ 		vma = mm->mmap;
+ 		while (vma) {
+@@ -3036,26 +3055,9 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* update_hiwater_rss(mm) here? but nobody should be looking */
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	unmap_vmas(&tlb, vma, 0, -1);
+-
+-	if (unlikely(mm_is_oom_victim(mm))) {
+-		/*
+-		 * Wait for oom_reap_task() to stop working on this
+-		 * mm. Because MMF_OOM_SKIP is already set before
+-		 * calling down_read(), oom_reap_task() will not run
+-		 * on this "mm" post up_write().
+-		 *
+-		 * mm_is_oom_victim() cannot be set from under us
+-		 * either because victim->mm is already set to NULL
+-		 * under task_lock before calling mmput and oom_mm is
+-		 * set not NULL by the OOM killer only if victim->mm
+-		 * is found not NULL while holding the task_lock.
+-		 */
+-		set_bit(MMF_OOM_SKIP, &mm->flags);
+-		down_write(&mm->mmap_sem);
+-		up_write(&mm->mmap_sem);
+-	}
+ 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+ 	tlb_finish_mmu(&tlb, 0, -1);
++	set_bit(MMF_OOM_SKIP, &mm->flags);
+ 
+ 	/*
+ 	 * Walk the list again, actually closing and freeing it,
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -521,12 +521,17 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	}
+ 
+ 	/*
+-	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
+-	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
++	 * Tell all users of get_user/copy_from_user etc... that the content
++	 * is no longer stable. No barriers really needed because unmapping
++	 * should imply barriers already and the reader would hit a page fault
++	 * if it stumbled over reaped memory.
++	 *
++	 * MMF_UNSTABLE is also set by exit_mmap when the OOM reaper shouldn't
++	 * work on the mm anymore. The check for MMF_OOM_UNSTABLE must run
+ 	 * under mmap_sem for reading because it serializes against the
+ 	 * down_write();up_write() cycle in exit_mmap().
+ 	 */
+-	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
++	if (test_and_set_bit(MMF_UNSTABLE, &mm->flags)) {
+ 		up_read(&mm->mmap_sem);
+ 		trace_skip_task_reaping(tsk->pid);
+ 		goto unlock_oom;
+@@ -534,14 +539,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 
+ 	trace_start_task_reaping(tsk->pid);
+ 
+-	/*
+-	 * Tell all users of get_user/copy_from_user etc... that the content
+-	 * is no longer stable. No barriers really needed because unmapping
+-	 * should imply barriers already and the reader would hit a page fault
+-	 * if it stumbled over a reaped memory.
+-	 */
+-	set_bit(MMF_UNSTABLE, &mm->flags);
+-
+ 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+ 		if (!can_madv_dontneed_vma(vma))
+ 			continue;
