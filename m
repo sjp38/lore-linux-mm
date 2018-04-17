@@ -1,34 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BB3A26B000D
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 00:34:09 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id v74so11826883qkl.9
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 21:34:09 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f4si3099274qte.92.2018.04.16.21.34.02
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA036B000E
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 00:34:12 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id d15so6230836wra.5
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 21:34:12 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x50si634316edb.80.2018.04.16.21.34.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 21:34:02 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3H4Y0h6057031
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 00:34:01 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2hd6dnfnps-1
+        Mon, 16 Apr 2018 21:34:11 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3H4XvaI123556
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 00:34:09 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2hd9dwhb8u-1
 	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 00:34:00 -0400
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 00:34:09 -0400
 Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
-	Tue, 17 Apr 2018 05:33:50 +0100
+	Tue, 17 Apr 2018 05:34:07 +0100
 From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Subject: [PATCH v3 5/9] Uprobe: Export uprobe_map_info along with uprobe_{build/free}_map_info()
-Date: Tue, 17 Apr 2018 10:02:40 +0530
+Subject: [PATCH v3 8/9] trace_uprobe/sdt: Document about reference counter
+Date: Tue, 17 Apr 2018 10:02:43 +0530
 In-Reply-To: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
 References: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Message-Id: <20180417043244.7501-6-ravi.bangoria@linux.vnet.ibm.com>
+Message-Id: <20180417043244.7501-9-ravi.bangoria@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org
@@ -36,83 +33,65 @@ Cc: acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexa
 
 From: Ravi Bangoria <ravi.bangoria@linux.ibm.com>
 
-Given the file(inode) and offset, build_map_info() finds all
-existing mm that map the portion of file containing offset.
+Reference counter gate the invocation of probe. If present,
+by default reference count is 0. Kernel needs to increment
+it before tracing the probe and decrement it when done. This
+is identical to semaphore in Userspace Statically Defined
+Tracepoints (USDT).
 
-Exporting these functions and data structure will help to use
-them in other set of files.
+Document usage of reference counter.
 
 Signed-off-by: Ravi Bangoria <ravi.bangoria@linux.ibm.com>
-Reviewed-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- include/linux/uprobes.h |  9 +++++++++
- kernel/events/uprobes.c | 14 +++-----------
- 2 files changed, 12 insertions(+), 11 deletions(-)
+ Documentation/trace/uprobetracer.txt | 16 +++++++++++++---
+ kernel/trace/trace.c                 |  2 +-
+ 2 files changed, 14 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index 0a294e9..7bd2760 100644
---- a/include/linux/uprobes.h
-+++ b/include/linux/uprobes.h
-@@ -109,12 +109,19 @@ enum rp_check {
- 	RP_CHECK_RET,
- };
+diff --git a/Documentation/trace/uprobetracer.txt b/Documentation/trace/uprobetracer.txt
+index bf526a7c..cb6751d 100644
+--- a/Documentation/trace/uprobetracer.txt
++++ b/Documentation/trace/uprobetracer.txt
+@@ -19,15 +19,25 @@ user to calculate the offset of the probepoint in the object.
  
-+struct address_space;
- struct xol_area;
- 
- struct uprobes_state {
- 	struct xol_area		*xol_area;
- };
- 
-+struct uprobe_map_info {
-+	struct uprobe_map_info *next;
-+	struct mm_struct *mm;
-+	unsigned long vaddr;
-+};
+ Synopsis of uprobe_tracer
+ -------------------------
+-  p[:[GRP/]EVENT] PATH:OFFSET [FETCHARGS] : Set a uprobe
+-  r[:[GRP/]EVENT] PATH:OFFSET [FETCHARGS] : Set a return uprobe (uretprobe)
+-  -:[GRP/]EVENT                           : Clear uprobe or uretprobe event
++  p[:[GRP/]EVENT] PATH:OFFSET[(REF_CTR_OFFSET)] [FETCHARGS]
++  r[:[GRP/]EVENT] PATH:OFFSET[(REF_CTR_OFFSET)] [FETCHARGS]
++  -:[GRP/]EVENT
 +
- extern int set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
- extern int set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
- extern bool is_swbp_insn(uprobe_opcode_t *insn);
-@@ -149,6 +156,8 @@ struct uprobes_state {
- extern bool arch_uprobe_ignore(struct arch_uprobe *aup, struct pt_regs *regs);
- extern void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
- 					 void *src, unsigned long len);
-+extern struct uprobe_map_info *uprobe_free_map_info(struct uprobe_map_info *info);
-+extern struct uprobe_map_info *uprobe_build_map_info(struct address_space *mapping, loff_t offset, bool is_register);
- #else /* !CONFIG_UPROBES */
- struct uprobes_state {
- };
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 477dc42..096d1e6 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -695,14 +695,7 @@ static void delete_uprobe(struct uprobe *uprobe)
- 	put_uprobe(uprobe);
- }
++  p : Set a uprobe
++  r : Set a return uprobe (uretprobe)
++  - : Clear uprobe or uretprobe event
  
--struct uprobe_map_info {
--	struct uprobe_map_info *next;
--	struct mm_struct *mm;
--	unsigned long vaddr;
--};
--
--static inline struct uprobe_map_info *
--uprobe_free_map_info(struct uprobe_map_info *info)
-+struct uprobe_map_info *uprobe_free_map_info(struct uprobe_map_info *info)
- {
- 	struct uprobe_map_info *next = info->next;
- 	mmput(info->mm);
-@@ -710,9 +703,8 @@ struct uprobe_map_info {
- 	return next;
- }
+   GRP           : Group name. If omitted, "uprobes" is the default value.
+   EVENT         : Event name. If omitted, the event name is generated based
+                   on PATH+OFFSET.
+   PATH          : Path to an executable or a library.
+   OFFSET        : Offset where the probe is inserted.
++  REF_CTR_OFFSET: Reference counter offset. Optional field. Reference count
++		  gate the invocation of probe. If present, by default
++		  reference count is 0. Kernel needs to increment it before
++		  tracing the probe and decrement it when done. This is
++		  identical to semaphore in Userspace Statically Defined
++		  Tracepoints (USDT).
  
--static struct uprobe_map_info *
--uprobe_build_map_info(struct address_space *mapping, loff_t offset,
--		      bool is_register)
-+struct uprobe_map_info *uprobe_build_map_info(struct address_space *mapping,
-+					      loff_t offset, bool is_register)
- {
- 	unsigned long pgoff = offset >> PAGE_SHIFT;
- 	struct vm_area_struct *vma;
+   FETCHARGS     : Arguments. Each probe can have up to 128 args.
+    %REG         : Fetch register REG
+diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
+index 300f4ea..d211937 100644
+--- a/kernel/trace/trace.c
++++ b/kernel/trace/trace.c
+@@ -4604,7 +4604,7 @@ static int tracing_trace_options_open(struct inode *inode, struct file *file)
+   "place (kretprobe): [<module>:]<symbol>[+<offset>]|<memaddr>\n"
+ #endif
+ #ifdef CONFIG_UPROBE_EVENTS
+-	"\t    place: <path>:<offset>\n"
++  "   place (uprobe): <path>:<offset>[(ref_ctr_offset)]\n"
+ #endif
+ 	"\t     args: <name>=fetcharg[:type]\n"
+ 	"\t fetcharg: %<register>, @<address>, @<symbol>[+|-<offset>],\n"
 -- 
 1.8.3.1
