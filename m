@@ -1,86 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F7DB6B000E
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 12:06:35 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id t126-v6so12776184itc.1
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 09:06:35 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0110.outbound.protection.outlook.com. [104.47.33.110])
-        by mx.google.com with ESMTPS id t188-v6si8037531itc.8.2018.04.17.09.06.33
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 139906B0012
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 12:18:14 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 38so15516174wrv.8
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 09:18:14 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p25si1848526edi.103.2018.04.17.09.18.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 17 Apr 2018 09:06:34 -0700 (PDT)
-From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Date: Tue, 17 Apr 2018 16:06:29 +0000
-Message-ID: <20180417160627.GX2341@sasha-vm>
-References: <20180416203629.GO2341@sasha-vm>
- <nycvar.YFH.7.76.1804162238500.28129@cbobk.fhfr.pm>
- <20180416211845.GP2341@sasha-vm>
- <nycvar.YFH.7.76.1804162326210.28129@cbobk.fhfr.pm>
- <20180417103936.GC8445@kroah.com> <20180417110717.GB17484@dhcp22.suse.cz>
- <20180417140434.GU2341@sasha-vm> <20180417143631.GI17484@dhcp22.suse.cz>
- <20180417145531.GW2341@sasha-vm>
- <nycvar.YFH.7.76.1804171742450.28129@cbobk.fhfr.pm>
-In-Reply-To: <nycvar.YFH.7.76.1804171742450.28129@cbobk.fhfr.pm>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <2DBF7BC322379548A28EE157D5D0E93D@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Apr 2018 09:18:12 -0700 (PDT)
+Subject: Re: [PATCH RESEND] slab: introduce the flag SLAB_MINIMIZE_WASTE
+References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake>
+ <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
+ <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com>
+ <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz>
+ <20180413151019.GA5660@redhat.com>
+ <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz>
+ <20180416142703.GA22422@redhat.com>
+ <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180416144638.GA22484@redhat.com>
+ <alpine.LRH.2.02.1804161530360.19492@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.20.1804170940340.17557@nuc-kabylake>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f8f736fe-9e0e-acd2-8040-f4f25ea5a7a2@suse.cz>
+Date: Tue, 17 Apr 2018 18:16:13 +0200
 MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1804170940340.17557@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Greg KH <greg@kroah.com>, Pavel Machek <pavel@ucw.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
+To: Christopher Lameter <cl@linux.com>, Mikulas Patocka <mpatocka@redhat.com>
+Cc: Mike Snitzer <snitzer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Tue, Apr 17, 2018 at 05:52:30PM +0200, Jiri Kosina wrote:
->On Tue, 17 Apr 2018, Sasha Levin wrote:
->
->> How do I get the XFS folks to send their stuff to -stable? (we have
->> quite a few customers who use XFS)
->
->If XFS (or *any* other subsystem) doesn't have enough manpower of upstream
->maintainers to deal with stable, we just have to accept that and find an
->answer to that.
+On 04/17/2018 04:45 PM, Christopher Lameter wrote:
+> On Mon, 16 Apr 2018, Mikulas Patocka wrote:
+> 
+>> This patch introduces a flag SLAB_MINIMIZE_WASTE for slab and slub. This
+>> flag causes allocation of larger slab caches in order to minimize wasted
+>> space.
+>>
+>> This is needed because we want to use dm-bufio for deduplication index and
+>> there are existing installations with non-power-of-two block sizes (such
+>> as 640KB). The performance of the whole solution depends on efficient
+>> memory use, so we must waste as little memory as possible.
+> 
+> Hmmm. Can we come up with a generic solution instead?
 
-This is exactly what I'm doing. Many subsystems don't have enough
-manpower to deal with -stable, so I'm trying to help.
+Yes please.
 
->If XFS folks claim that they don't have enough mental capacity to
->create/verify XFS backports, I totally don't see how any kind of AI would
->have.
+> This may mean relaxing the enforcement of the allocation max order a bit
+> so that we can get dense allocation through higher order allocs.
+> 
+> But then higher order allocs are generally seen as problematic.
 
-Because creating backports is not all about mental capacity!
+I think in this case they are better than wasting/fragmenting 384kB for
+640kB object.
 
-A lot of time gets wasted on going through the list of commits,
-backporting each of those commits into every -stable tree we have,
-building it, running tests, etc.
+> Note that SLUB will fall back to smallest order already if a failure
+> occurs so increasing slub_max_order may not be that much of an issue.
+> 
+> Maybe drop the max order limit completely and use MAX_ORDER instead?
 
-So it's not all about pure mental capacity, but more about the time
-per-patch it takes to get -stable done.
+For packing, sure. For performance, please no (i.e. don't try to
+allocate MAX_ORDER for each and every cache).
 
-If I can cut down on that, by suggesting a list of commits, doing builds
-and tests, what's the problem?
+> That
+> means that callers need to be able to tolerate failures.
 
->If your business relies on XFS (and so does ours, BTW) or any other
->subsystem that doesn't have enough manpower to care for stable, the proper
->solution (and contribution) would be just bringing more people into the
->XFS community.
+Is it any different from now? I suppose there would still be
+smallest-order fallback involved in sl*b itself? And if your allocation
+is so large it can fail even with the fallback (i.e. >= costly order),
+you need to tolerate failures anyway?
 
-Microsoft's business relies on quite a few kernel subsystems. While we
-try to bring more people in the kernel (we're hiring!), as you might
-know it's not easy getting kernel folks.
+One corner case I see is if there is anyone who would rather use their
+own fallback instead of the space-wasting smallest-order fallback.
+Maybe we could map some GFP flag to indicate that.
 
-So just "get more people" isn't a good solution. It doesn't scale
-either.
-
->To put it simply -- I don't think the simple lack of actual human
->brainpower can be reasonably resolved in other way than bringing more of
->it in.
->
->Thanks,
->
->--=20
->Jiri Kosina
->SUSE Labs
->=
+> 
