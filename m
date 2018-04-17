@@ -1,143 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C0E076B026C
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 11:55:06 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id y22-v6so4190021pll.12
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 08:55:06 -0700 (PDT)
-Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30095.outbound.protection.outlook.com. [40.107.3.95])
-        by mx.google.com with ESMTPS id 62si13196777pfw.173.2018.04.17.08.55.05
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FE9A6B0271
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 11:55:58 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id m190so3903366pgm.4
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 08:55:58 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k2-v6si13485675pli.539.2018.04.17.08.55.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 17 Apr 2018 08:55:05 -0700 (PDT)
-Subject: [PATCH v2 12/12] mm: Clear shrinker bit if there are no objects
- related to memcg
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 17 Apr 2018 21:54:51 +0300
-Message-ID: <152399129187.3456.5685999465635300270.stgit@localhost.localdomain>
-In-Reply-To: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
-References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Apr 2018 08:55:52 -0700 (PDT)
+Date: Tue, 17 Apr 2018 17:55:49 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Message-ID: <20180417155549.6lxmoiwnlwtwdgld@quack2.suse.cz>
+References: <20180416113629.2474ae74@gandalf.local.home>
+ <20180416160200.GY2341@sasha-vm>
+ <20180416121224.2138b806@gandalf.local.home>
+ <20180416161911.GA2341@sasha-vm>
+ <20180416123019.4d235374@gandalf.local.home>
+ <20180416163754.GD2341@sasha-vm>
+ <20180416170604.GC11034@amd>
+ <20180416172327.GK2341@sasha-vm>
+ <20180417114144.ov27khlig5thqvyo@quack2.suse.cz>
+ <20180417133149.GR2341@sasha-vm>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180417133149.GR2341@sasha-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Sasha Levin <Alexander.Levin@microsoft.com>
+Cc: Jan Kara <jack@suse.cz>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
 
-To avoid further unneed calls of do_shrink_slab()
-for shrinkers, which already do not have any charged
-objects in a memcg, their bits have to be cleared.
+On Tue 17-04-18 13:31:51, Sasha Levin wrote:
+> On Tue, Apr 17, 2018 at 01:41:44PM +0200, Jan Kara wrote:
+> >On Mon 16-04-18 17:23:30, Sasha Levin wrote:
+> >> On Mon, Apr 16, 2018 at 07:06:04PM +0200, Pavel Machek wrote:
+> >> >On Mon 2018-04-16 16:37:56, Sasha Levin wrote:
+> >> >> On Mon, Apr 16, 2018 at 12:30:19PM -0400, Steven Rostedt wrote:
+> >> >> >On Mon, 16 Apr 2018 16:19:14 +0000
+> >> >> >Sasha Levin <Alexander.Levin@microsoft.com> wrote:
+> >> >> >
+> >> >> >> >Wait! What does that mean? What's the purpose of stable if it is as
+> >> >> >> >broken as mainline?
+> >> >> >>
+> >> >> >> This just means that if there is a fix that went in mainline, and the
+> >> >> >> fix is broken somehow, we'd rather take the broken fix than not.
+> >> >> >>
+> >> >> >> In this scenario, *something* will be broken, it's just a matter of
+> >> >> >> what. We'd rather have the same thing broken between mainline and
+> >> >> >> stable.
+> >> >> >
+> >> >> >Honestly, I think that removes all value of the stable series. I
+> >> >> >remember when the stable series were first created. People were saying
+> >> >> >that it wouldn't even get to more than 5 versions, because the bar for
+> >> >> >backporting was suppose to be very high. Today it's just a fork of the
+> >> >> >kernel at a given version. No more features, but we will be OK with
+> >> >> >regressions. I'm struggling to see what the benefit of it is suppose to
+> >> >> >be?
+> >> >>
+> >> >> It's not "OK with regressions".
+> >> >>
+> >> >> Let's look at a hypothetical example: You have a 4.15.1 kernel that has
+> >> >> a broken printf() behaviour so that when you:
+> >> >>
+> >> >> 	pr_err("%d", 5)
+> >> >>
+> >> >> Would print:
+> >> >>
+> >> >> 	"Microsoft Rulez"
+> >> >>
+> >> >> Bad, right? So you went ahead and fixed it, and now it prints "5" as you
+> >> >> might expect. But alas, with your patch, running:
+> >> >>
+> >> >> 	pr_err("%s", "hi!")
+> >> >>
+> >> >> Would show a cat picture for 5 seconds.
+> >> >>
+> >> >> Should we take your patch in -stable or not? If we don't, we're stuck
+> >> >> with the original issue while the mainline kernel will behave
+> >> >> differently, but if we do - we introduce a new regression.
+> >> >
+> >> >Of course not.
+> >> >
+> >> >- It must be obviously correct and tested.
+> >> >
+> >> >If it introduces new bug, it is not correct, and certainly not
+> >> >obviously correct.
+> >>
+> >> As you might have noticed, we don't strictly follow the rules.
+> >>
+> >> Take a look at the whole PTI story as an example. It's way more than 100
+> >> lines, it's not obviously corrent, it fixed more than 1 thing, and so
+> >> on, and yet it went in -stable!
+> >>
+> >> Would you argue we shouldn't have backported PTI to -stable?
+> >
+> >So I agree with that being backported. But I think this nicely demostrates
+> >a point some people are trying to make in this thread. We do take fixes
+> >with high risk or regression if they fix serious enough issue. Also we do
+> >take fixes to non-serious stuff (such as addition of device ID) if the
+> >chances of regression are really low.
+> >
+> >So IMHO the metric for including the fix is not solely "how annoying to
+> >user this can be" but rather something like:
+> >
+> >score = (how annoying the bug is) * ((1 / (chance of regression due to
+> >	including this)) - 1)^3
+> >
+> >(constants are somewhat arbitrary subject to tuning ;). Now both 'annoying'
+> >and 'regression chance' parts are subjective and sometimes difficult to
+> >estimate so don't take the formula too seriously but it demonstrates the
+> >point. I think we all agree we want to fix annoying stuff and we don't want
+> >regressions. But you need to somehow weight this over your expected
+> >userbase - and this is where your argument "but someone might be annoyed by
+> >LEDs not working so let's include it" has problems - it should rather be
+> >"is the annoyance of non-working leds over expected user base high enough
+> >to risk a regression due to this patch for someone in the expected user
+> >base"? The answer to this second question is not clear at all to a casual
+> >reviewer and that's why we IMHO have CC stable tag as maintainer is
+> >supposed to have at least a bit better clue.
+> 
+> We may be able to guesstimate the 'regression chance', but there's no
+> way we can guess the 'annoyance' once. There are so many different use
+> cases that we just can't even guess how many people would get "annoyed"
+> by something.
 
-This patch introduces a lockless mechanism to do that
-without races without parallel list lru add. After
-do_shrink_slab() returns SHRINK_EMPTY the first time,
-we clear the bit and call it once again. Then we restore
-the bit, if the new return value is different.
+As a maintainer, I hope I have reasonable idea what are common use cases
+for my subsystem. Those I cater to when estimating 'annoyance'. Sure I don't
+know all of the use cases so people doing unusual stuff hit more bugs and
+have to report them to get fixes included in -stable. But for me this is a
+preferable tradeoff over the risk of regression so this is the rule I use
+when tagging for stable. Now I'm not a -stable maintainer and I fully agree
+with "those who do the work decide" principle so pick whatever patches you
+think are appropriate, I just wanted explain why I don't think more patches
+in stable are necessarily good. 
 
-Note, that single smp_mb__after_atomic() in shrink_slab_memcg()
-covers two situations:
+> Even regression chance is tricky, look at the commits I've linked
+> earlier in the thread. Even the most trivial looking commits that end up
+> in stable have a chance for regression.
 
-1)list_lru_add()     shrink_slab_memcg
-    list_add_tail()    for_each_set_bit() <--- read bit
-                         do_shrink_slab() <--- missed list update (no barrier)
-    <MB>                 <MB>
-    set_bit()            do_shrink_slab() <--- seen list update
+Sure, you can never be certain and I think people (including me)
+underestimate the chance of regressions for "trivial" patches. But you just
+estimate a chance, you may be lucky, you may not...
 
-This situation, when the first do_shrink_slab() sees set bit,
-but it doesn't see list update (i.e., race with the first element
-queueing), is rare. So we don't add <MB> before the first call
-of do_shrink_slab() instead of this to do not slow down generic
-case. Also, it's need the second call as seen in below in (2).
+> >Another point I wanted to make is that if chance a patch causes a
+> >regression is about 2% as you said somewhere else in a thread, then by
+> >adding 20 patches that "may fix a bug that is annoying for someone" you've
+> >just increased a chance there's a regression in the release by 34%. And
+> 
+> So I've said that the rejection rate is less than 2%. This includes
+> all commits that I have proposed for -stable, but didn't end up being
+> included in -stable.
+> 
+> This includes commits that the author/maintainers NACKed, commits that
+> didn't do anything on older kernels, commits that were buggy but were
+> caught before the kernel was released, commits that failed to build on
+> an arch I didn't test it on originally and so on.
+> 
+> After thousands of merged AUTOSEL patches I can count the number of
+> times a commit has caused a regression and had to be removed on one
+> hand.
+> 
+> >this is not just a math game, this also roughly matches a real experience
+> >with maintaining our enterprise kernels. Do 20 "maybe" fixes outweight such
+> >regression chance? And I also note that for a regression to get reported so
+> >that it gets included into your 2% estimate of a patch regression rate,
+> >someone must be bothered enough by it to triage it and send an email
+> >somewhere so that already falls into a category of "serious" stuff to me.
+> 
+> It is indeed a numbers game, but the regression rate isn't 2%, it's
+> closer to 0.05%.
 
-2)list_lru_add()      shrink_slab_memcg()
-    list_add_tail()     ...
-    set_bit()           ...
-  ...                   for_each_set_bit()
-  do_shrink_slab()        do_shrink_slab()
-    clear_bit()           ...
-  ...                     ...
-  list_lru_add()          ...
-    list_add_tail()       clear_bit()
-    <MB>                  <MB>
-    set_bit()             do_shrink_slab()
+Honestly, I think 0.05% is too optimististic :) Quick grepping of 4.14
+stable tree suggests some 13 commits were reverted from stable due to bugs.
+That's some 0.4% and that doesn't count fixes that were applied to
+fix other regressions.
 
-The barriers guarantees, the second do_shrink_slab()
-in the right side task sees list update if really
-cleared the bit. This case is drawn in the code comment.
+But the actual numbers don't really matter that much, in principle the more
+patches you add the higher is the chance of regression. You can't change
+that so you better have a good reason to include a patch...
 
-[Results/performance of the patchset]
-
-After the whole patchset applied the below test shows signify
-increase of performance:
-
-$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
-$mkdir /sys/fs/cgroup/memory/ct
-$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
-    $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i; echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs; mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file; done
-
-Then, 4 sequential calls of drop caches:
-$time echo 3 > /proc/sys/vm/drop_caches
-
-1)Before:
-0.00user 8.99system 0:08.99elapsed 99%CPU
-0.00user 5.97system 0:05.97elapsed 100%CPU
-0.00user 5.97system 0:05.97elapsed 100%CPU
-0.00user 5.85system 0:05.85elapsed 100%CPU
-
-2)After
-0.00user 1.11system 0:01.12elapsed 99%CPU
-0.00user 0.00system 0:00.00elapsed 100%CPU
-0.00user 0.00system 0:00.00elapsed 100%CPU
-0.00user 0.00system 0:00.00elapsed 100%CPU
-
-Even if we round 0:00.00 up to 0:00.01, the results shows
-the performance increases at least in 585 times.
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- include/linux/memcontrol.h |    2 ++
- mm/vmscan.c                |   19 +++++++++++++++++--
- 2 files changed, 19 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index e1c1fa8e417a..1c5c68550e2f 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -1245,6 +1245,8 @@ static inline void set_shrinker_bit(struct mem_cgroup *memcg, int nid, int nr)
- 
- 		rcu_read_lock();
- 		map = SHRINKERS_MAP(memcg, nid);
-+		/* Pairs with smp mb in shrink_slab() */
-+		smp_mb__before_atomic();
- 		set_bit(nr, map->map);
- 		rcu_read_unlock();
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3be9b4d81c13..a8733bc5377b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -579,8 +579,23 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 		}
- 
- 		ret = do_shrink_slab(&sc, shrinker, priority);
--		if (ret == SHRINK_EMPTY)
--			ret = 0;
-+		if (ret == SHRINK_EMPTY) {
-+			clear_bit(i, map->map);
-+			/*
-+			 * Pairs with mb in set_shrinker_bit():
-+			 *
-+			 * list_lru_add()     shrink_slab_memcg()
-+			 *   list_add_tail()    clear_bit()
-+			 *   <MB>               <MB>
-+			 *   set_bit()          do_shrink_slab()
-+			 */
-+			smp_mb__after_atomic();
-+			ret = do_shrink_slab(&sc, shrinker, priority);
-+			if (ret == SHRINK_EMPTY)
-+				ret = 0;
-+			else
-+				set_shrinker_bit(memcg, nid, i);
-+		}
- 		freed += ret;
- 
- 		if (rwsem_is_contended(&shrinker_rwsem)) {
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
