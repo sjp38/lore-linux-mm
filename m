@@ -1,105 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 63D3C6B0003
-	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:54:54 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id b10so2203888wrf.3
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:54:54 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id b97si8876987wrd.260.2018.04.16.09.54.53
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EA526B0003
+	for <linux-mm@kvack.org>; Mon, 16 Apr 2018 12:58:19 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id e8-v6so3875517plb.5
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 09:58:19 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id v40-v6si3407533plg.84.2018.04.16.09.58.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 09:54:53 -0700 (PDT)
-Date: Mon, 16 Apr 2018 18:54:51 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Message-ID: <20180416165451.GB9807@amd>
-References: <20180416093058.6edca0bb@gandalf.local.home>
- <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
- <20180416153031.GA5039@amd>
- <20180416155031.GX2341@sasha-vm>
- <20180416160608.GA7071@amd>
- <20180416161412.GZ2341@sasha-vm>
- <20180416162850.GA7553@amd>
- <20180416163917.GE2341@sasha-vm>
- <20180416164230.GA9807@amd>
- <20180416164514.GG2341@sasha-vm>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="VrqPEDrXMn8OVzN4"
-Content-Disposition: inline
-In-Reply-To: <20180416164514.GG2341@sasha-vm>
+        Mon, 16 Apr 2018 09:58:17 -0700 (PDT)
+From: Youquan Song <youquan.song@intel.com>
+Subject: [PATCH 11/24] x86/mm: Give each mm TLB flush generation a unique ID
+Date: Tue, 17 Apr 2018 00:27:07 -0400
+Message-Id: <1523939240-16508-11-git-send-email-youquan.song@intel.com>
+In-Reply-To: <1523939240-16508-1-git-send-email-youquan.song@intel.com>
+References: <1523939240-16508-1-git-send-email-youquan.song@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <Alexander.Levin@microsoft.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
+To: stable@vger.kernel.org, gregkh@linuxfoundation.org
+Cc: tim.c.chen@linux.intel.com, ashok.raj@intel.com, dave.hansen@intel.com, yi.y.sun@linux.intel.com, youquan.song@intel.com, youquan.song@linux.intel.com, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 
+From: Andy Lutomirski <luto@kernel.org>
 
---VrqPEDrXMn8OVzN4
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+(cherry picked from commit f39681ed0f48498b80455095376f11535feea332)
 
-On Mon 2018-04-16 16:45:16, Sasha Levin wrote:
-> On Mon, Apr 16, 2018 at 06:42:30PM +0200, Pavel Machek wrote:
-> >On Mon 2018-04-16 16:39:20, Sasha Levin wrote:
-> >> On Mon, Apr 16, 2018 at 06:28:50PM +0200, Pavel Machek wrote:
-> >> >
-> >> >> >> Is there a reason not to take LED fixes if they fix a bug and do=
-n't
-> >> >> >> cause a regression? Sure, we can draw some arbitrary line, maybe
-> >> >> >> designate some subsystems that are more "important" than others,=
- but
-> >> >> >> what's the point?
-> >> >> >
-> >> >> >There's a tradeoff.
-> >> >> >
-> >> >> >You want to fix serious bugs in stable, and you really don't want
-> >> >> >regressions in stable. And ... stable not having 1000s of patches
-> >> >> >would be nice, too.
-> >> >>
-> >> >> I don't think we should use a number cap here, but rather look at t=
-he
-> >> >> regression rate: how many patches broke something?
-> >> >>
-> >> >> Since the rate we're seeing now with AUTOSEL is similar to what we =
-were
-> >> >> seeing before AUTOSEL, what's the problem it's causing?
-> >> >
-> >> >Regression rate should not be the only criteria.
-> >> >
-> >> >More patches mean bigger chance customer's patches will have a
-> >> >conflict with something in -stable, for example.
-> >>
-> >> Out of tree patches can't be a consideration here. There are no
-> >> guarantees for out of tree code, ever.
-> >
-> >Out of tree code is not consideration for mainline, agreed. Stable
-> >should be different.
->=20
-> This is a discussion we could have with in right forum, but FYI stable
-> doesn't even guarantee KABI compatibility between minor versions at this
-> point.
+This adds two new variables to mmu_context_t: ctx_id and tlb_gen.
+ctx_id uniquely identifies the mm_struct and will never be reused.
+For a given mm_struct (and hence ctx_id), tlb_gen is a monotonic
+count of the number of times that a TLB flush has been requested.
+The pair (ctx_id, tlb_gen) can be used as an identifier for TLB
+flush actions and will be used in subsequent patches to reliably
+determine whether all needed TLB flushes have occurred on a given
+CPU.
 
-Stable should be useful base for distributions. They carry out of tree
-patches, and yes, you should try to make their lives easy.
+This patch is split out for ease of review.  By itself, it has no
+real effect other than creating and updating the new variables.
 
-									Pavel
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Reviewed-by: Nadav Amit <nadav.amit@gmail.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arjan van de Ven <arjan@linux.intel.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/413a91c24dab3ed0caa5f4e4d017d87b0857f920.1498751203.git.luto@kernel.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+Signed-off-by: Youquan Song <youquan.song@linux.intel.com> [v4.4 backport]
+---
+ arch/x86/include/asm/mmu.h         | 15 +++++++++++++--
+ arch/x86/include/asm/mmu_context.h |  4 ++++
+ arch/x86/kernel/ldt.c              |  1 +
+ arch/x86/mm/tlb.c                  |  2 ++
+ 4 files changed, 20 insertions(+), 2 deletions(-)
 
---VrqPEDrXMn8OVzN4
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlrU1VsACgkQMOfwapXb+vLrpACfZfYG+++ePuNgKiIufAF8pCZk
-cXAAn217Ofaj72rXdJQjIhhz7la4TSsT
-=YGfb
------END PGP SIGNATURE-----
-
---VrqPEDrXMn8OVzN4--
+diff --git a/arch/x86/include/asm/mmu.h b/arch/x86/include/asm/mmu.h
+index 7680b76..3359dfe 100644
+--- a/arch/x86/include/asm/mmu.h
++++ b/arch/x86/include/asm/mmu.h
+@@ -3,12 +3,18 @@
+ 
+ #include <linux/spinlock.h>
+ #include <linux/mutex.h>
++#include <linux/atomic.h>
+ 
+ /*
+- * The x86 doesn't have a mmu context, but
+- * we put the segment information here.
++ * x86 has arch-specific MMU state beyond what lives in mm_struct.
+  */
+ typedef struct {
++	/*
++	 * ctx_id uniquely identifies this mm_struct.  A ctx_id will never
++	 * be reused, and zero is not a valid ctx_id.
++	 */
++	u64 ctx_id;
++
+ #ifdef CONFIG_MODIFY_LDT_SYSCALL
+ 	struct ldt_struct *ldt;
+ #endif
+@@ -24,6 +30,11 @@ typedef struct {
+ 	atomic_t perf_rdpmc_allowed;	/* nonzero if rdpmc is allowed */
+ } mm_context_t;
+ 
++#define INIT_MM_CONTEXT(mm)						\
++	.context = {							\
++		.ctx_id = 1,						\
++	}
++
+ void leave_mm(int cpu);
+ 
+ #endif /* _ASM_X86_MMU_H */
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index 9bfc5fd..24bc41a 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -11,6 +11,9 @@
+ #include <asm/tlbflush.h>
+ #include <asm/paravirt.h>
+ #include <asm/mpx.h>
++
++extern atomic64_t last_mm_ctx_id;
++
+ #ifndef CONFIG_PARAVIRT
+ static inline void paravirt_activate_mm(struct mm_struct *prev,
+ 					struct mm_struct *next)
+@@ -58,6 +61,7 @@ void destroy_context(struct mm_struct *mm);
+ static inline int init_new_context(struct task_struct *tsk,
+ 				   struct mm_struct *mm)
+ {
++	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
+ 	return 0;
+ }
+ static inline void destroy_context(struct mm_struct *mm) {}
+diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
+index bc42936..323590e 100644
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -125,6 +125,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+ 	struct mm_struct *old_mm;
+ 	int retval = 0;
+ 
++	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
+ 	mutex_init(&mm->context.lock);
+ 	old_mm = current->mm;
+ 	if (!old_mm) {
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 7cad01af..efec198 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -29,6 +29,8 @@
+  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
+  */
+ 
++atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
++
+ struct flush_tlb_info {
+ 	struct mm_struct *flush_mm;
+ 	unsigned long flush_start;
+-- 
+1.8.3.1
