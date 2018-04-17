@@ -1,75 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 45CFE6B0008
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:49:39 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 47so15089596wru.19
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:49:39 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i62si3762888edi.355.2018.04.17.14.49.37
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D0926B0008
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:51:28 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f19so11780688pfn.6
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:51:28 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id bh10-v6si12097829plb.322.2018.04.17.14.51.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Apr 2018 14:49:37 -0700 (PDT)
-Subject: Re: [PATCH v10 00/62] Convert page cache to XArray
-References: <20180330034245.10462-1-willy@infradead.org>
- <a27d5689-49d9-2802-3819-afd0f1f98483@suse.com>
- <20180414195030.GB31523@bombadil.infradead.org>
- <20180414195859.GC31523@bombadil.infradead.org>
-From: Goldwyn Rodrigues <rgoldwyn@suse.de>
-Message-ID: <72e416d6-c723-fa0e-7411-8c8f1e9fbc22@suse.de>
-Date: Tue, 17 Apr 2018 16:49:30 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Apr 2018 14:51:26 -0700 (PDT)
+Subject: Re: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and
+ hugetlbfs
+References: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180417143144.b7ffb07fad28875bad546247@linux-foundation.org>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <8f01845c-51dd-20a6-1d75-64f9de0ccb0b@linux.alibaba.com>
+Date: Tue, 17 Apr 2018 14:51:17 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180414195859.GC31523@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20180417143144.b7ffb07fad28875bad546247@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: viro@zeniv.linux.org.uk, nyc@holomorphy.com, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, hughd@google.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, linux-api@vger.kernel.org
 
 
 
-On 04/14/2018 02:58 PM, Matthew Wilcox wrote:
-> On Sat, Apr 14, 2018 at 12:50:30PM -0700, Matthew Wilcox wrote:
->> On Mon, Apr 09, 2018 at 04:18:07PM -0500, Goldwyn Rodrigues wrote:
+On 4/17/18 2:31 PM, Andrew Morton wrote:
+> On Wed, 18 Apr 2018 05:08:13 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
+>
+>> Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
+>> filesystem with huge page support anymore. tmpfs can use huge page via
+>> THP when mounting by "huge=" mount option.
 >>
->> I'm sorry I missed this email.  My inbox is a disaster :(
+>> When applications use huge page on hugetlbfs, it just need check the
+>> filesystem magic number, but it is not enough for tmpfs. So, introduce
+>> ST_HUGE flag to statfs if super block has SB_HUGE set which indicates
+>> huge page is supported on the specific filesystem.
 >>
->>> I tried these patches against next-20180329 and added the patch for the
->>> bug reported by Mike Kravetz. I am getting the following BUG on ext4 and
->>> xfs, running generic/048 tests of fstests. Each trace is from a
->>> different instance/run.
+>> Some applications could benefit from this change, for example QEMU.
+>> When use mmap file as guest VM backend memory, QEMU typically mmap the
+>> file size plus one extra page. If the file is on hugetlbfs the extra
+>> page is huge page size (i.e. 2MB), but it is still 4KB on tmpfs even
+>> though THP is enabled. tmpfs THP requires VMA is huge page aligned, so
+>> if 4KB page is used THP will not be used at all. The below /proc/meminfo
+>> fragment shows the THP use of QEMU with 4K page:
 >>
->> Yikes.  I haven't been able to reproduce this.  Maybe it's a matter of
->> filesystem or some other quirk.
+>> ShmemHugePages:   679936 kB
+>> ShmemPmdMapped:        0 kB
 >>
->> It seems easy for you to reproduce it, so would you mind bisecting it?
->> Should be fairly straightforward; I'd start at commit "xarray: Add
->> MAINTAINERS entry", since the page cache shouldn't be affected by anything
->> up to that point, then bisect forwards from there.
+>> With ST_HUGE flag, QEMU can get huge page, then /proc/meminfo looks
+>> like:
 >>
->>> BTW, for my convenience, do you have these patches in a public git tree?
+>> ShmemHugePages:    77824 kB
+>> ShmemPmdMapped:     6144 kB
 >>
->> I didn't publish it; it's hard to push out a tree based on linux-next.
->> I'll try to make that happen.
-> 
-> Figured it out:
-> 
-> http://git.infradead.org/users/willy/linux-dax.git/shortlog/refs/heads/xarray-20180413
-> 
-> aka
->  	git://git.infradead.org/users/willy/linux-dax.git xarray-20180413
+>> With this flag, the applications can know if huge page is supported on
+>> the filesystem then optimize the behavior of the applications
+>> accordingly. Although the similar function can be implemented in
+>> applications by traversing the mount options, it looks more convenient
+>> if kernel can provide such flag.
+>>
+>> Even though ST_HUGE is set, f_bsize still returns 4KB for tmpfs since
+>> THP could be split, and it also my fallback to 4KB page silently if
+>> there is not enough huge page.
+>>
+>> And, set the flag for hugetlbfs as well to keep the consistency, and the
+>> applications don't have to know what filesystem is used to use huge
+>> page, just need to check ST_HUGE flag.
+>>
+> Patch is simple enough, although I'm having trouble forming an opinion
+> about it ;)
+>
+> It will call for an update to the statfs(2) manpage.  I'm not sure
+> which of linux-man@vger.kernel.org, mtk.manpages@gmail.com and
+> linux-api@vger.kernel.org is best for that, so I'd cc all three...
 
-
-Thanks.
-
-I found the erroneous commit is
-e14a33134244 mm: Convert workingset to XArray
-
-mapping->nrexceptional is becoming negative.
-
-An easy way to reproduce is to perform a large enough I/O to force it to
- swap out and inodes are evicted.
-
--- 
-Goldwyn
+Thanks, Andrew. Added cc to those 3 lists.
