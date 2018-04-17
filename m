@@ -1,88 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 83E726B0006
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 16:52:40 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id c11-v6so13043562pll.13
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 13:52:40 -0700 (PDT)
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id 9-v6si14392606plf.283.2018.04.17.13.52.38
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EDFC6B000A
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:08:48 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x17so11991287pfn.10
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:08:48 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id x1si11931857pgp.89.2018.04.17.14.08.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 13:52:39 -0700 (PDT)
-Subject: Re: [v4 PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-References: <1523730291-109696-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180417112957.84de526138f404a04298ec4c@linux-foundation.org>
+        Tue, 17 Apr 2018 14:08:46 -0700 (PDT)
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <abe8d19e-e317-71ed-cb40-799047f91702@linux.alibaba.com>
-Date: Tue, 17 Apr 2018 13:52:21 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180417112957.84de526138f404a04298ec4c@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Subject: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and hugetlbfs
+Date: Wed, 18 Apr 2018 05:08:13 +0800
+Message-Id: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: adobriyan@gmail.com, mhocko@kernel.org, willy@infradead.org, mguzik@redhat.com, gorcunov@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: viro@zeniv.linux.org.uk, nyc@holomorphy.com, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
+filesystem with huge page support anymore. tmpfs can use huge page via
+THP when mounting by "huge=" mount option.
 
+When applications use huge page on hugetlbfs, it just need check the
+filesystem magic number, but it is not enough for tmpfs. So, introduce
+ST_HUGE flag to statfs if super block has SB_HUGE set which indicates
+huge page is supported on the specific filesystem.
 
-On 4/17/18 11:29 AM, Andrew Morton wrote:
-> On Sun, 15 Apr 2018 02:24:51 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
->
->> mmap_sem is on the hot path of kernel, and it very contended, but it is
->> abused too. It is used to protect arg_start|end and evn_start|end when
->> reading /proc/$PID/cmdline and /proc/$PID/environ, but it doesn't make
->> sense since those proc files just expect to read 4 values atomically and
->> not related to VM, they could be set to arbitrary values by C/R.
->>
->> And, the mmap_sem contention may cause unexpected issue like below:
->>
->> INFO: task ps:14018 blocked for more than 120 seconds.
->>         Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->>   "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
->> message.
->>   ps              D    0 14018      1 0x00000004
->>    ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->>    ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->>    00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->>   Call Trace:
->>    [<ffffffff817154d0>] ? __schedule+0x250/0x730
->>    [<ffffffff817159e6>] schedule+0x36/0x80
->>    [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->>    [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->>    [<ffffffff81717db0>] down_read+0x20/0x40
->>    [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
->>    [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
->>    [<ffffffff81241d87>] __vfs_read+0x37/0x150
->>    [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
->>    [<ffffffff81242266>] vfs_read+0x96/0x130
->>    [<ffffffff812437b5>] SyS_read+0x55/0xc0
->>    [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
->>
->> Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
->> for them to mitigate the abuse of mmap_sem.
->>
->> So, introduce a new spinlock in mm_struct to protect the concurrent
->> access to arg_start|end, env_start|end and others, as well as replace
->> write map_sem to read to protect the race condition between prctl and
->> sys_brk which might break check_data_rlimit(), and makes prctl more
->> friendly to other VM operations.
-> (We should move check_data_rlimit() out of the .h file)
+Some applications could benefit from this change, for example QEMU.
+When use mmap file as guest VM backend memory, QEMU typically mmap the
+file size plus one extra page. If the file is on hugetlbfs the extra
+page is huge page size (i.e. 2MB), but it is still 4KB on tmpfs even
+though THP is enabled. tmpfs THP requires VMA is huge page aligned, so
+if 4KB page is used THP will not be used at all. The below /proc/meminfo
+fragment shows the THP use of QEMU with 4K page:
 
-I don't get the point, check_data_rlimit() is still used by both prctl 
-and sys_brk.
+ShmemHugePages:   679936 kB
+ShmemPmdMapped:        0 kB
 
->
-> It seems inconsistent to be using mmap_sem to protect ->start_brk and
-> friends in sys_brk().  We've already declared that these are protected
-> by arg_lock so that's what we should be using?  And getting this
-> consistent should permit us to stop using mmap_sem in prctl()
-> altogether?
+With ST_HUGE flag, QEMU can get huge page, then /proc/meminfo looks
+like:
 
-Cyrill already helped to elaborate the reason. arg_lock just can protect 
-the concurrent access of brk between prctl calls, but not sys_brk.
+ShmemHugePages:    77824 kB
+ShmemPmdMapped:     6144 kB
 
-Thanks,
-Yang
+With this flag, the applications can know if huge page is supported on
+the filesystem then optimize the behavior of the applications
+accordingly. Although the similar function can be implemented in
+applications by traversing the mount options, it looks more convenient
+if kernel can provide such flag.
+
+Even though ST_HUGE is set, f_bsize still returns 4KB for tmpfs since
+THP could be split, and it also my fallback to 4KB page silently if
+there is not enough huge page.
+
+And, set the flag for hugetlbfs as well to keep the consistency, and the
+applications don't have to know what filesystem is used to use huge
+page, just need to check ST_HUGE flag.
+
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+---
+ fs/hugetlbfs/inode.c   | 1 +
+ fs/statfs.c            | 2 ++
+ include/linux/fs.h     | 1 +
+ include/linux/statfs.h | 1 +
+ mm/shmem.c             | 8 ++++++++
+ 5 files changed, 13 insertions(+)
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index b9a254d..3754b45 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -1265,6 +1265,7 @@ static void init_once(void *foo)
+ 	sb->s_op = &hugetlbfs_ops;
+ 	sb->s_time_gran = 1;
+ 	sb->s_root = d_make_root(hugetlbfs_get_root(sb, &config));
++	sb->s_flags |= SB_HUGE;
+ 	if (!sb->s_root)
+ 		goto out_free;
+ 	return 0;
+diff --git a/fs/statfs.c b/fs/statfs.c
+index 5b2a24f..ac0403a 100644
+--- a/fs/statfs.c
++++ b/fs/statfs.c
+@@ -41,6 +41,8 @@ static int flags_by_sb(int s_flags)
+ 		flags |= ST_MANDLOCK;
+ 	if (s_flags & SB_RDONLY)
+ 		flags |= ST_RDONLY;
++	if (s_flags & SB_HUGE)
++		flags |= ST_HUGE;
+ 	return flags;
+ }
+ 
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index c6baf76..df246e9 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1287,6 +1287,7 @@ struct fasync_struct {
+ #define SB_SYNCHRONOUS	16	/* Writes are synced at once */
+ #define SB_MANDLOCK	64	/* Allow mandatory locks on an FS */
+ #define SB_DIRSYNC	128	/* Directory modifications are synchronous */
++#define SB_HUGE		256	/* Support hugepage/THP */
+ #define SB_NOATIME	1024	/* Do not update access times. */
+ #define SB_NODIRATIME	2048	/* Do not update directory access times */
+ #define SB_SILENT	32768
+diff --git a/include/linux/statfs.h b/include/linux/statfs.h
+index 3142e98..79a634b 100644
+--- a/include/linux/statfs.h
++++ b/include/linux/statfs.h
+@@ -40,5 +40,6 @@ struct kstatfs {
+ #define ST_NOATIME	0x0400	/* do not update access times */
+ #define ST_NODIRATIME	0x0800	/* do not update directory access times */
+ #define ST_RELATIME	0x1000	/* update atime relative to mtime/ctime */
++#define ST_HUGE		0x2000	/* support hugepage/thp */
+ 
+ #endif
+diff --git a/mm/shmem.c b/mm/shmem.c
+index b859192..d5312ec 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -3632,6 +3632,11 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
+ 	sbinfo->max_inodes  = config.max_inodes;
+ 	sbinfo->free_inodes = config.max_inodes - inodes;
+ 
++	if (sbinfo->huge > 0)
++		sb->s_flags |= SB_HUGE;
++	else
++		sb->s_flags &= ~SB_HUGE;
++
+ 	/*
+ 	 * Preserve previous mempolicy unless mpol remount option was specified.
+ 	 */
+@@ -3804,6 +3809,9 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
+ 	}
+ 	sb->s_export_op = &shmem_export_ops;
+ 	sb->s_flags |= SB_NOSEC;
++
++	if (sbinfo->huge > 0)
++		sb->s_flags |= SB_HUGE;
+ #else
+ 	sb->s_flags |= SB_NOUSER;
+ #endif
+-- 
+1.8.3.1
