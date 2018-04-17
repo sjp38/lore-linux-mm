@@ -1,138 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F02F6B0007
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 00:35:06 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id l9so11725546qtp.23
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 21:35:06 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z61si8193870qtd.125.2018.04.16.21.35.04
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BED36B0003
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 01:11:09 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id e8-v6so4834430plb.5
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 22:11:09 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id t2si11082664pgb.338.2018.04.16.22.11.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 21:35:05 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3H4Y0cN094664
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 00:34:02 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2hd3vbd3a9-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 00:34:01 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ravi.bangoria@linux.vnet.ibm.com>;
-	Tue, 17 Apr 2018 05:33:43 +0100
-From: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Subject: [PATCH v3 4/9] Uprobe: Rename map_info to uprobe_map_info
-Date: Tue, 17 Apr 2018 10:02:39 +0530
-In-Reply-To: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
-References: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
+        Mon, 16 Apr 2018 22:11:08 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm: vmalloc: Pass proper vm_start into debugobjects
+References: <1523619234-17635-1-git-send-email-cpandya@codeaurora.org>
+ <1523619234-17635-3-git-send-email-cpandya@codeaurora.org>
+ <ee1e7036-ecdf-0f5b-f460-0d71b4a38dd7@linux.vnet.ibm.com>
+ <72acd72a-7b92-c723-62d8-28dd81435457@codeaurora.org>
+ <e8d4c0b2-dfb5-8d4d-3bcc-30b8915d24cb@linux.vnet.ibm.com>
+From: Chintan Pandya <cpandya@codeaurora.org>
+Message-ID: <89438471-6e47-cb70-8909-0ffcc2d3e313@codeaurora.org>
+Date: Tue, 17 Apr 2018 10:40:57 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Message-Id: <20180417043244.7501-5-ravi.bangoria@linux.vnet.ibm.com>
+In-Reply-To: <e8d4c0b2-dfb5-8d4d-3bcc-30b8915d24cb@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org
-Cc: acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com, Ravi Bangoria <ravi.bangoria@linux.ibm.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Ravi Bangoria <ravi.bangoria@linux.ibm.com>
 
-map_info is very generic name, rename it to uprobe_map_info.
-Renaming will help to export this structure outside of the
-file.
 
-Also rename free_map_info() to uprobe_free_map_info() and
-build_map_info() to uprobe_build_map_info().
+On 4/17/2018 8:39 AM, Anshuman Khandual wrote:
+> On 04/16/2018 05:39 PM, Chintan Pandya wrote:
+>>
+>>
+>> On 4/13/2018 5:31 PM, Anshuman Khandual wrote:
+>>> On 04/13/2018 05:03 PM, Chintan Pandya wrote:
+>>>> Client can call vunmap with some intermediate 'addr'
+>>>> which may not be the start of the VM area. Entire
+>>>> unmap code works with vm->vm_start which is proper
+>>>> but debug object API is called with 'addr'. This
+>>>> could be a problem within debug objects.
+>>>>
+>>>> Pass proper start address into debug object API.
+>>>>
+>>>> Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
+>>>> ---
+>>>>    mm/vmalloc.c | 4 ++--
+>>>>    1 file changed, 2 insertions(+), 2 deletions(-)
+>>>>
+>>>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>>>> index 9ff21a1..28034c55 100644
+>>>> --- a/mm/vmalloc.c
+>>>> +++ b/mm/vmalloc.c
+>>>> @@ -1526,8 +1526,8 @@ static void __vunmap(const void *addr, int
+>>>> deallocate_pages)
+>>>>            return;
+>>>>        }
+>>>>    -    debug_check_no_locks_freed(addr, get_vm_area_size(area));
+>>>> -    debug_check_no_obj_freed(addr, get_vm_area_size(area));
+>>>> +    debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
+>>>> +    debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
+>>>
+>>> This kind of makes sense to me but I am not sure. We also have another
+>>> instance of this inside the function vm_unmap_ram() where we call for
+>> Right, I missed it. I plan to add below stub in v2.
+>>
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -1124,15 +1124,15 @@ void vm_unmap_ram(const void *mem, unsigned int
+>> count)
+>>          BUG_ON(addr > VMALLOC_END);
+>>          BUG_ON(!PAGE_ALIGNED(addr));
+>>
+>> -       debug_check_no_locks_freed(mem, size);
+>> -
+>>          if (likely(count <= VMAP_MAX_ALLOC)) {
+>> +               debug_check_no_locks_freed(mem, size);
+> 
+> It should have been 'va->va_start' instead of 'mem' in here but as
+> said before it looks correct to me but I am not really sure.
 
-Signed-off-by: Ravi Bangoria <ravi.bangoria@linux.ibm.com>
-Reviewed-by: JA(C)rA'me Glisse <jglisse@redhat.com>
----
- kernel/events/uprobes.c | 30 ++++++++++++++++--------------
- 1 file changed, 16 insertions(+), 14 deletions(-)
+vb_free() doesn't honor va->va_start. If mem is not va_start and
+deliberate, one will provide proper size. And that should be okay
+to do as per the code. So, I don't think this particular debug_check
+should have passed va_start in args.
 
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 1d439c7..477dc42 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -695,28 +695,30 @@ static void delete_uprobe(struct uprobe *uprobe)
- 	put_uprobe(uprobe);
- }
- 
--struct map_info {
--	struct map_info *next;
-+struct uprobe_map_info {
-+	struct uprobe_map_info *next;
- 	struct mm_struct *mm;
- 	unsigned long vaddr;
- };
- 
--static inline struct map_info *free_map_info(struct map_info *info)
-+static inline struct uprobe_map_info *
-+uprobe_free_map_info(struct uprobe_map_info *info)
- {
--	struct map_info *next = info->next;
-+	struct uprobe_map_info *next = info->next;
- 	mmput(info->mm);
- 	kfree(info);
- 	return next;
- }
- 
--static struct map_info *
--build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
-+static struct uprobe_map_info *
-+uprobe_build_map_info(struct address_space *mapping, loff_t offset,
-+		      bool is_register)
- {
- 	unsigned long pgoff = offset >> PAGE_SHIFT;
- 	struct vm_area_struct *vma;
--	struct map_info *curr = NULL;
--	struct map_info *prev = NULL;
--	struct map_info *info;
-+	struct uprobe_map_info *curr = NULL;
-+	struct uprobe_map_info *prev = NULL;
-+	struct uprobe_map_info *info;
- 	int more = 0;
- 
-  again:
-@@ -730,7 +732,7 @@ static inline struct map_info *free_map_info(struct map_info *info)
- 			 * Needs GFP_NOWAIT to avoid i_mmap_rwsem recursion through
- 			 * reclaim. This is optimistic, no harm done if it fails.
- 			 */
--			prev = kmalloc(sizeof(struct map_info),
-+			prev = kmalloc(sizeof(struct uprobe_map_info),
- 					GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN);
- 			if (prev)
- 				prev->next = NULL;
-@@ -763,7 +765,7 @@ static inline struct map_info *free_map_info(struct map_info *info)
- 	}
- 
- 	do {
--		info = kmalloc(sizeof(struct map_info), GFP_KERNEL);
-+		info = kmalloc(sizeof(struct uprobe_map_info), GFP_KERNEL);
- 		if (!info) {
- 			curr = ERR_PTR(-ENOMEM);
- 			goto out;
-@@ -786,11 +788,11 @@ static inline struct map_info *free_map_info(struct map_info *info)
- register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
- {
- 	bool is_register = !!new;
--	struct map_info *info;
-+	struct uprobe_map_info *info;
- 	int err = 0;
- 
- 	percpu_down_write(&dup_mmap_sem);
--	info = build_map_info(uprobe->inode->i_mapping,
-+	info = uprobe_build_map_info(uprobe->inode->i_mapping,
- 					uprobe->offset, is_register);
- 	if (IS_ERR(info)) {
- 		err = PTR_ERR(info);
-@@ -828,7 +830,7 @@ static inline struct map_info *free_map_info(struct map_info *info)
-  unlock:
- 		up_write(&mm->mmap_sem);
-  free:
--		info = free_map_info(info);
-+		info = uprobe_free_map_info(info);
- 	}
-  out:
- 	percpu_up_write(&dup_mmap_sem);
+> 
+
+Chintan
 -- 
-1.8.3.1
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
+Inc. is a member of the Code Aurora Forum, a Linux Foundation
+Collaborative Project
