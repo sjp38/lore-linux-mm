@@ -1,63 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 13FEA6B027B
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 11:02:01 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id o3-v6so3293471oti.8
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 08:02:01 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f72-v6sor7015768otf.258.2018.04.17.08.01.57
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FD1C6B005A
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 11:10:56 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id c56so968887wrc.5
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 08:10:56 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id 33si3969282wrr.175.2018.04.17.08.10.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 17 Apr 2018 08:01:57 -0700 (PDT)
-Subject: Re: [LSF/MM TOPIC] CMA and larger page sizes
-References: <3a3d724e-4d74-9bd8-60f3-f6896cffac7a@redhat.com>
- <20180417113656.GA16083@dhcp22.suse.cz>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <bc8e54d2-7224-0e8c-d7db-54fc4625eae8@redhat.com>
-Date: Tue, 17 Apr 2018 08:01:53 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Apr 2018 08:10:54 -0700 (PDT)
+Date: Tue, 17 Apr 2018 17:10:18 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 02/11] ACPI / APEI: Generalise the estatus queue's
+ add/remove and notify code
+Message-ID: <20180417151018.GE20840@pd.tnic>
+References: <20180215185606.26736-1-james.morse@arm.com>
+ <20180215185606.26736-3-james.morse@arm.com>
+ <20180301150144.GA4215@pd.tnic>
+ <87sh9jbrgc.fsf@e105922-lin.cambridge.arm.com>
+ <20180301223529.GA28811@pd.tnic>
+ <5AA02C26.10803@arm.com>
+ <20180308104408.GB21166@pd.tnic>
+ <5AAFC939.3010309@arm.com>
+ <20180327172510.GB32184@pd.tnic>
+ <d15ba145-479c-ffde-14ad-ab7170d0f06e@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180417113656.GA16083@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <d15ba145-479c-ffde-14ad-ab7170d0f06e@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: James Morse <james.morse@arm.com>
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
 
-On 04/17/2018 04:36 AM, Michal Hocko wrote:
-> On Fri 26-01-18 02:08:14, Laura Abbott wrote:
->> CMA as it's currently designed requires alignment to the pageblock size c.f.
->>
->>          /*
->>           * Sanitise input arguments.
->>           * Pages both ends in CMA area could be merged into adjacent unmovable
->>           * migratetype page by page allocator's buddy algorithm. In the case,
->>           * you couldn't get a contiguous memory, which is not what we want.
->>           */
->>          alignment = max(alignment,  (phys_addr_t)PAGE_SIZE <<
->>                            max_t(unsigned long, MAX_ORDER - 1, pageblock_order));
->>
->>
->> On arm64 with 64K page size and transparent huge page, this gives an alignment
->> of 512MB. This is quite restrictive and can eat up significant portions of
->> memory on smaller memory targets. Adjusting the configuration options really
->> isn't ideal for distributions that aim to have a single image which runs on
->> all targets.
->>
->> Approaches I've thought about:
->> - Making CMA alignment less restrictive (and dealing with the fallout from
->> the comment above)
->> - Command line option to force a reasonable alignment
+On Wed, Mar 28, 2018 at 05:30:55PM +0100, James Morse wrote:
+> -----------------%<-----------------
+>     ACPI / APEI: don't wait to serialise with oops messages when panic()ing
 > 
-> Laura, are you still interested discussing this or other CMA related
-> topic?
+>     oops_begin() exists to group printk() messages with the oops message
+>     printed by die(). To reach this caller we know that platform firmware
+>     took this error first, then notified the OS via NMI with a 'panic'
+>     severity.
 > 
+>     Don't wait for another CPU to release the die-lock before we can
+>     panic(), our only goal is to print this fatal error and panic().
+> 
+>     This code is always called in_nmi(), and since 42a0bb3f7138 ("printk/nmi:
+>     generic solution for safe printk in NMI"), it has been safe to call
+>     printk() from this context. Messages are batched in a per-cpu buffer
+>     and printed via irq-work, or a call back from panic().
+> 
+>     Signed-off-by: James Morse <james.morse@arm.com>
+> 
+> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+> index 22f6ea5b9ad5..f348e6540960 100644
+> --- a/drivers/acpi/apei/ghes.c
+> +++ b/drivers/acpi/apei/ghes.c
+> @@ -34,7 +34,6 @@
+>  #include <linux/interrupt.h>
+>  #include <linux/timer.h>
+>  #include <linux/cper.h>
+> -#include <linux/kdebug.h>
+>  #include <linux/platform_device.h>
+>  #include <linux/mutex.h>
+>  #include <linux/ratelimit.h>
+> @@ -736,9 +735,6 @@ static int _in_nmi_notify_one(struct ghes *ghes)
+> 
+>         sev = ghes_severity(ghes->estatus->error_severity);
+>         if (sev >= GHES_SEV_PANIC) {
+> -#ifdef CONFIG_X86
+> -               oops_begin();
+> -#endif
+>                 ghes_print_queued_estatus();
+>                 __ghes_panic(ghes);
+>         }
+> -----------------%<-----------------
 
-In light of Joonsoo's patches, I don't think we need a lot of time
-but I'd still like some chance to discuss. I think there was some
-other interest in CMA topics so it can be combined with those if
-they are happening as well.
+Acked-by: Borislav Petkov <bp@suse.de>
 
-Thanks,
-Laura
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
