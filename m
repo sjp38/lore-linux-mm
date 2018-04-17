@@ -1,69 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B0206B0003
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:14:47 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y16so9890870wrh.22
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:14:47 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d35si3365084edc.198.2018.04.17.07.14.44
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 866946B0005
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:15:07 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id w5-v6so2617054plz.17
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:15:07 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 72si13175288pfn.44.2018.04.17.07.15.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Apr 2018 07:14:44 -0700 (PDT)
-Date: Tue, 17 Apr 2018 16:14:42 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [RFC PATCH] mm: correct status code which move_pages() returns
- for zero page
-Message-ID: <20180417141442.GG17484@dhcp22.suse.cz>
-References: <20180417110615.16043-1-liwang@redhat.com>
- <20180417130300.GF17484@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Apr 2018 07:15:06 -0700 (PDT)
+Date: Tue, 17 Apr 2018 10:15:02 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Message-ID: <20180417101502.3f61d958@gandalf.local.home>
+In-Reply-To: <20180417140434.GU2341@sasha-vm>
+References: <20180416161412.GZ2341@sasha-vm>
+	<20180416170501.GB11034@amd>
+	<20180416171607.GJ2341@sasha-vm>
+	<alpine.LRH.2.00.1804162214260.26111@gjva.wvxbf.pm>
+	<20180416203629.GO2341@sasha-vm>
+	<nycvar.YFH.7.76.1804162238500.28129@cbobk.fhfr.pm>
+	<20180416211845.GP2341@sasha-vm>
+	<nycvar.YFH.7.76.1804162326210.28129@cbobk.fhfr.pm>
+	<20180417103936.GC8445@kroah.com>
+	<20180417110717.GB17484@dhcp22.suse.cz>
+	<20180417140434.GU2341@sasha-vm>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180417130300.GF17484@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@redhat.com>
-Cc: linux-mm@kvack.org, ltp@lists.linux.it, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Sasha Levin <Alexander.Levin@microsoft.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Greg KH <greg@kroah.com>, Jiri Kosina <jikos@kernel.org>, Pavel Machek <pavel@ucw.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
 
-On Tue 17-04-18 15:03:00, Michal Hocko wrote:
-> On Tue 17-04-18 19:06:15, Li Wang wrote:
-> [...]
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index f65dd69..2b315fc 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -1608,7 +1608,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
-> >  			continue;
-> >  
-> >  		err = store_status(status, i, err, 1);
-> > -		if (err)
-> > +		if (!err)
-> >  			goto out_flush;
+On Tue, 17 Apr 2018 14:04:36 +0000
+Sasha Levin <Alexander.Levin@microsoft.com> wrote:
+
+> The solution to this, in my opinion, is to automate the whole selection
+> and review process. We do selection using AI, and we run every possible
+> test that's relevant to that subsystem.
 > 
-> This change just doesn't make any sense to me. Why should we bail out if
-> the store_status is successul? I am trying to wrap my head around the
-> test case. 6b9d757ecafc ("mm, numa: rework do_pages_move") tried to
-> explain that move_pages has some semantic issues and the new
-> implementation might be not 100% replacement. Anyway I am studying the
-> test case to come up with a proper fix.
+> At which point, the amount of work a human needs to do to review a patch
+> shrinks into something far more managable for some maintainers.
 
-OK, I get what the test cases does. I've failed to see the subtle
-difference between alloc_pages_on_node and numa_alloc_onnode. The later
-doesn't faul in anything.
+I guess the real question is, who are the stable kernels for? Is it just
+a place to look at to see what distros should think about. A superset
+of what distros would take. Then distros would have a nice place to
+look to find what patches they should look at. But the stable tree
+itself wont be used. But it's not being used today by major distros
+(Red Hat and SuSE). Debian may be using it, but that's because the
+stable maintainer for its kernels is also the Debian maintainer.
 
-Why are we getting EPERM is quite not yet clear to me.
-add_page_for_migration uses FOLL_DUMP which should return EFAULT on
-zero pages (no_page_table()).
+Who are the customers of the stable trees? They are the ones that
+should be determining the "equation" for what goes into it.
 
-	err = PTR_ERR(page);
-	if (IS_ERR(page))
-		goto out;
+Personally, I use stable as a one off from mainline. Like I mentioned
+in another email. I'm currently on 4.15.x and will probably move to
+4.16.x next. Unless there's some critical bug announcement, I update my
+machines once a month. I originally just used mainline, but that was a
+bit too unstable for my work machines ;-)
 
-therefore bails out from add_page_for_migration and store_status should
-store that value. There shouldn't be any EPERM on the way.
-
-Let me try to reproduce and see what is going on. Btw. which kernel do
-you try this on?
--- 
-Michal Hocko
-SUSE Labs
+-- Steve
