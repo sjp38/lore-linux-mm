@@ -1,150 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EDFC6B000A
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:08:48 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x17so11991287pfn.10
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:08:48 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id x1si11931857pgp.89.2018.04.17.14.08.46
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 61E4F6B000A
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:12:44 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k27so16954089wre.23
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:12:44 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id o15si11787653wrh.126.2018.04.17.14.12.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 14:08:46 -0700 (PDT)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and hugetlbfs
-Date: Wed, 18 Apr 2018 05:08:13 +0800
-Message-Id: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 17 Apr 2018 14:12:43 -0700 (PDT)
+Subject: Re: [PATCH -mm 06/21] mm, THP, swap: Support PMD swap mapping when
+ splitting huge PMD
+References: <20180417020230.26412-1-ying.huang@intel.com>
+ <20180417020230.26412-7-ying.huang@intel.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <7ae64b5e-79ee-5768-34a3-75e33ea45246@infradead.org>
+Date: Tue, 17 Apr 2018 14:12:05 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180417020230.26412-7-ying.huang@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: viro@zeniv.linux.org.uk, nyc@holomorphy.com, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Tim Chen <tim.c.chen@intel.com>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
-filesystem with huge page support anymore. tmpfs can use huge page via
-THP when mounting by "huge=" mount option.
+On 04/16/18 19:02, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+> 
+> A huge PMD need to be split when zap a part of the PMD mapping etc.
+> If the PMD mapping is a swap mapping, we need to split it too.  This
+> patch implemented the support for this.  This is similar as splitting
+> the PMD page mapping, except we need to decrease the PMD swap mapping
+> count for the huge swap cluster too.  If the PMD swap mapping count
+> becomes 0, the huge swap cluster will be split.
+> 
+> Notice: is_huge_zero_pmd() and pmd_page() doesn't work well with swap
+> PMD, so pmd_present() check is called before them.
 
-When applications use huge page on hugetlbfs, it just need check the
-filesystem magic number, but it is not enough for tmpfs. So, introduce
-ST_HUGE flag to statfs if super block has SB_HUGE set which indicates
-huge page is supported on the specific filesystem.
+FWIW, I would prefer to see that comment in the source code, not just
+in the commit description.
 
-Some applications could benefit from this change, for example QEMU.
-When use mmap file as guest VM backend memory, QEMU typically mmap the
-file size plus one extra page. If the file is on hugetlbfs the extra
-page is huge page size (i.e. 2MB), but it is still 4KB on tmpfs even
-though THP is enabled. tmpfs THP requires VMA is huge page aligned, so
-if 4KB page is used THP will not be used at all. The below /proc/meminfo
-fragment shows the THP use of QEMU with 4K page:
+> 
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+> ---
+>  include/linux/swap.h |  6 +++++
+>  mm/huge_memory.c     | 54 ++++++++++++++++++++++++++++++++++++++++----
+>  mm/swapfile.c        | 28 +++++++++++++++++++++++
+>  3 files changed, 83 insertions(+), 5 deletions(-)
 
-ShmemHugePages:   679936 kB
-ShmemPmdMapped:        0 kB
 
-With ST_HUGE flag, QEMU can get huge page, then /proc/meminfo looks
-like:
-
-ShmemHugePages:    77824 kB
-ShmemPmdMapped:     6144 kB
-
-With this flag, the applications can know if huge page is supported on
-the filesystem then optimize the behavior of the applications
-accordingly. Although the similar function can be implemented in
-applications by traversing the mount options, it looks more convenient
-if kernel can provide such flag.
-
-Even though ST_HUGE is set, f_bsize still returns 4KB for tmpfs since
-THP could be split, and it also my fallback to 4KB page silently if
-there is not enough huge page.
-
-And, set the flag for hugetlbfs as well to keep the consistency, and the
-applications don't have to know what filesystem is used to use huge
-page, just need to check ST_HUGE flag.
-
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
----
- fs/hugetlbfs/inode.c   | 1 +
- fs/statfs.c            | 2 ++
- include/linux/fs.h     | 1 +
- include/linux/statfs.h | 1 +
- mm/shmem.c             | 8 ++++++++
- 5 files changed, 13 insertions(+)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index b9a254d..3754b45 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -1265,6 +1265,7 @@ static void init_once(void *foo)
- 	sb->s_op = &hugetlbfs_ops;
- 	sb->s_time_gran = 1;
- 	sb->s_root = d_make_root(hugetlbfs_get_root(sb, &config));
-+	sb->s_flags |= SB_HUGE;
- 	if (!sb->s_root)
- 		goto out_free;
- 	return 0;
-diff --git a/fs/statfs.c b/fs/statfs.c
-index 5b2a24f..ac0403a 100644
---- a/fs/statfs.c
-+++ b/fs/statfs.c
-@@ -41,6 +41,8 @@ static int flags_by_sb(int s_flags)
- 		flags |= ST_MANDLOCK;
- 	if (s_flags & SB_RDONLY)
- 		flags |= ST_RDONLY;
-+	if (s_flags & SB_HUGE)
-+		flags |= ST_HUGE;
- 	return flags;
- }
- 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index c6baf76..df246e9 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1287,6 +1287,7 @@ struct fasync_struct {
- #define SB_SYNCHRONOUS	16	/* Writes are synced at once */
- #define SB_MANDLOCK	64	/* Allow mandatory locks on an FS */
- #define SB_DIRSYNC	128	/* Directory modifications are synchronous */
-+#define SB_HUGE		256	/* Support hugepage/THP */
- #define SB_NOATIME	1024	/* Do not update access times. */
- #define SB_NODIRATIME	2048	/* Do not update directory access times */
- #define SB_SILENT	32768
-diff --git a/include/linux/statfs.h b/include/linux/statfs.h
-index 3142e98..79a634b 100644
---- a/include/linux/statfs.h
-+++ b/include/linux/statfs.h
-@@ -40,5 +40,6 @@ struct kstatfs {
- #define ST_NOATIME	0x0400	/* do not update access times */
- #define ST_NODIRATIME	0x0800	/* do not update directory access times */
- #define ST_RELATIME	0x1000	/* update atime relative to mtime/ctime */
-+#define ST_HUGE		0x2000	/* support hugepage/thp */
- 
- #endif
-diff --git a/mm/shmem.c b/mm/shmem.c
-index b859192..d5312ec 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -3632,6 +3632,11 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
- 	sbinfo->max_inodes  = config.max_inodes;
- 	sbinfo->free_inodes = config.max_inodes - inodes;
- 
-+	if (sbinfo->huge > 0)
-+		sb->s_flags |= SB_HUGE;
-+	else
-+		sb->s_flags &= ~SB_HUGE;
-+
- 	/*
- 	 * Preserve previous mempolicy unless mpol remount option was specified.
- 	 */
-@@ -3804,6 +3809,9 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
- 	}
- 	sb->s_export_op = &shmem_export_ops;
- 	sb->s_flags |= SB_NOSEC;
-+
-+	if (sbinfo->huge > 0)
-+		sb->s_flags |= SB_HUGE;
- #else
- 	sb->s_flags |= SB_NOUSER;
- #endif
 -- 
-1.8.3.1
+~Randy
