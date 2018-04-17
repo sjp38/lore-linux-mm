@@ -1,59 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E9BD66B0005
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:22:55 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id 61-v6so12468945plz.20
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:22:55 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a8si7585093pgu.535.2018.04.17.07.22.54
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C2BDD6B0005
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:28:34 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id z78so284518vkd.14
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:28:34 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 3sor3065813uah.141.2018.04.17.07.28.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Apr 2018 07:22:54 -0700 (PDT)
-Date: Tue, 17 Apr 2018 16:22:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Message-ID: <20180417142246.GH17484@dhcp22.suse.cz>
-References: <20180416161412.GZ2341@sasha-vm>
- <20180416122244.146aec48@gandalf.local.home>
- <20180416163107.GC2341@sasha-vm>
- <20180416124711.048f1858@gandalf.local.home>
- <20180416165258.GH2341@sasha-vm>
- <20180416170010.GA11034@amd>
- <20180417104637.GD8445@kroah.com>
- <20180417122454.rwkwpsfvyhpzvvx3@pathway.suse.cz>
- <20180417124924.GE17484@dhcp22.suse.cz>
- <20180417133931.GS2341@sasha-vm>
+        (Google Transport Security);
+        Tue, 17 Apr 2018 07:28:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180417133931.GS2341@sasha-vm>
+In-Reply-To: <20180417141442.GG17484@dhcp22.suse.cz>
+References: <20180417110615.16043-1-liwang@redhat.com> <20180417130300.GF17484@dhcp22.suse.cz>
+ <20180417141442.GG17484@dhcp22.suse.cz>
+From: Li Wang <liwang@redhat.com>
+Date: Tue, 17 Apr 2018 22:28:33 +0800
+Message-ID: <CAEemH2dQ+yQ-P-=5J3Y-n+0V0XV-vJkQ81uD=Q3Bh+rHZ4sb-Q@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: correct status code which move_pages() returns
+ for zero page
+Content-Type: multipart/alternative; boundary="089e08240fd0390290056a0c273b"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <Alexander.Levin@microsoft.com>
-Cc: Petr Mladek <pmladek@suse.com>, Greg KH <greg@kroah.com>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, ltp@lists.linux.it, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Tue 17-04-18 13:39:33, Sasha Levin wrote:
-[...]
-> But mm/ commits don't come only from these people. Here's a concrete
-> example we can discuss:
-> 
-> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=c61611f70958d86f659bca25c02ae69413747a8d
+--089e08240fd0390290056a0c273b
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-I would be really careful. Because that reqiures to audit all callers to
-be compliant with the change. This is just _too_ easy to backport
-without noticing a failure. Now consider the other side. Is there any
-real bug report backing this? This behavior was like that for quite some
-time but I do not remember any actual bug report and the changelog
-doesn't mention one either. It is about theoretical problem. 
+On Tue, Apr 17, 2018 at 10:14 PM, Michal Hocko <mhocko@suse.com> wrote:
 
-So if this was to be merged to stable then the changelog should contain
-a big fat warning about the existing users and how they should be
-checked.
+> On Tue 17-04-18 15:03:00, Michal Hocko wrote:
+> > On Tue 17-04-18 19:06:15, Li Wang wrote:
+> > [...]
+> > > diff --git a/mm/migrate.c b/mm/migrate.c
+> > > index f65dd69..2b315fc 100644
+> > > --- a/mm/migrate.c
+> > > +++ b/mm/migrate.c
+> > > @@ -1608,7 +1608,7 @@ static int do_pages_move(struct mm_struct *mm,
+> nodemask_t task_nodes,
+> > >                     continue;
+> > >
+> > >             err =3D store_status(status, i, err, 1);
+> > > -           if (err)
+> > > +           if (!err)
+> > >                     goto out_flush;
+> >
+> > This change just doesn't make any sense to me. Why should we bail out i=
+f
+> > the store_status is successul? I am trying to wrap my head around the
+> > test case. 6b9d757ecafc ("mm, numa: rework do_pages_move") tried to
+> > explain that move_pages has some semantic issues and the new
+> > implementation might be not 100% replacement. Anyway I am studying the
+> > test case to come up with a proper fix.
+>
+> OK, I get what the test cases does. I've failed to see the subtle
+> difference between alloc_pages_on_node and numa_alloc_onnode. The later
+> doesn't faul in anything.
+>
+> Why are we getting EPERM is quite not yet clear to me.
+> add_page_for_migration uses FOLL_DUMP which should return EFAULT on
+> zero pages (no_page_table()).
+>
+>         err =3D PTR_ERR(page);
+>         if (IS_ERR(page))
+>                 goto out;
+>
+> therefore bails out from add_page_for_migration and store_status should
+> store that value. There shouldn't be any EPERM on the way.
+>
 
-Besides that I can see Reviewed-by: akpm and Andrew is usually very
-careful about stable backports so there probably _was_ a reson to
-exclude stable.
--- 
-Michal Hocko
-SUSE Labs
+Yes, I print the the return value and confirmed the
+add_page_for_migration()=E2=80=8B
+do right things for zero page. and after store_status(...) the status saves
+-EFAULT.
+So I did the change above.
+
+
+
+>
+> Let me try to reproduce and see what is going on. Btw. which kernel do
+> you try this on?
+>
+
+=E2=80=8BThe latest mainline kernel-4.17-rc1.
+
+
+
+--=20
+Li Wang
+liwang@redhat.com
+
+--089e08240fd0390290056a0c273b
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_default" style=3D"font-family:arial,he=
+lvetica,sans-serif"><br></div><div class=3D"gmail_extra"><br><div class=3D"=
+gmail_quote">On Tue, Apr 17, 2018 at 10:14 PM, Michal Hocko <span dir=3D"lt=
+r">&lt;<a href=3D"mailto:mhocko@suse.com" target=3D"_blank">mhocko@suse.com=
+</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin=
+:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><span class=3D"">O=
+n Tue 17-04-18 15:03:00, Michal Hocko wrote:<br>
+&gt; On Tue 17-04-18 19:06:15, Li Wang wrote:<br>
+&gt; [...]<br>
+&gt; &gt; diff --git a/mm/migrate.c b/mm/migrate.c<br>
+&gt; &gt; index f65dd69..2b315fc 100644<br>
+&gt; &gt; --- a/mm/migrate.c<br>
+&gt; &gt; +++ b/mm/migrate.c<br>
+&gt; &gt; @@ -1608,7 +1608,7 @@ static int do_pages_move(struct mm_struct *=
+mm, nodemask_t task_nodes,<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0continue;<br>
+&gt; &gt;=C2=A0 <br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0err =3D store_stat=
+us(status, i, err, 1);<br>
+&gt; &gt; -=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (err)<br>
+&gt; &gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!err)<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0goto out_flush;<br>
+&gt; <br>
+&gt; This change just doesn&#39;t make any sense to me. Why should we bail =
+out if<br>
+&gt; the store_status is successul? I am trying to wrap my head around the<=
+br>
+&gt; test case. 6b9d757ecafc (&quot;mm, numa: rework do_pages_move&quot;) t=
+ried to<br>
+&gt; explain that move_pages has some semantic issues and the new<br>
+&gt; implementation might be not 100% replacement. Anyway I am studying the=
+<br>
+&gt; test case to come up with a proper fix.<br>
+<br>
+</span>OK, I get what the test cases does. I&#39;ve failed to see the subtl=
+e<br>
+difference between alloc_pages_on_node and numa_alloc_onnode. The later<br>
+doesn&#39;t faul in anything.<br>
+<br>
+Why are we getting EPERM is quite not yet clear to me.<br>
+add_page_for_migration uses FOLL_DUMP which should return EFAULT on<br>
+zero pages (no_page_table()).<br>
+<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 err =3D PTR_ERR(page);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (IS_ERR(page))<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto out;<br>
+<br>
+therefore bails out from add_page_for_migration and store_status should<br>
+store that value. There shouldn&#39;t be any EPERM on the way.<br></blockqu=
+ote><div><br></div><div><div style=3D"font-family:arial,helvetica,sans-seri=
+f" class=3D"gmail_default">Yes, I print the the return value and confirmed =
+the add_page_for_migration()=E2=80=8B</div><div style=3D"font-family:arial,=
+helvetica,sans-serif" class=3D"gmail_default">do right things for zero page=
+. and after store_status(...) the status saves -EFAULT.</div><div style=3D"=
+font-family:arial,helvetica,sans-serif" class=3D"gmail_default">So I did th=
+e change above.</div><div style=3D"font-family:arial,helvetica,sans-serif" =
+class=3D"gmail_default"><br></div></div><div>=C2=A0</div><blockquote class=
+=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padd=
+ing-left:1ex">
+<br>
+Let me try to reproduce and see what is going on. Btw. which kernel do<br>
+you try this on?<br>
+<div class=3D"HOEnZb"><div class=3D"h5"></div></div></blockquote><div><br><=
+/div><div style=3D"font-family:arial,helvetica,sans-serif" class=3D"gmail_d=
+efault">=E2=80=8BThe latest mainline kernel-4.17-rc1.</div></div><br><br cl=
+ear=3D"all"><br>-- <br><div class=3D"gmail_signature" data-smartmail=3D"gma=
+il_signature">Li Wang<br><a href=3D"mailto:liwang@redhat.com" target=3D"_bl=
+ank">liwang@redhat.com</a></div>
+</div></div>
+
+--089e08240fd0390290056a0c273b--
