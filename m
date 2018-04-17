@@ -1,69 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C070E6B0003
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 02:10:49 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id m7so15120230wrb.16
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 23:10:49 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h58si900686edh.321.2018.04.16.23.10.48
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C77B96B0003
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 02:23:16 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t2so3396438pgb.19
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 23:23:16 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m11si11335202pgc.224.2018.04.16.23.23.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 23:10:48 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3H69ucE034972
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 02:10:47 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2hdbbng5yb-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 02:10:46 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 17 Apr 2018 07:10:44 +0100
-Subject: Re: [PATCH 11/12] swiotlb: move the SWIOTLB config symbol to
- lib/Kconfig
-References: <20180415145947.1248-1-hch@lst.de>
- <20180415145947.1248-12-hch@lst.de>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 17 Apr 2018 11:40:36 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 Apr 2018 23:23:15 -0700 (PDT)
+Date: Tue, 17 Apr 2018 08:23:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mmap.2: MAP_FIXED is okay if the address range has been
+ reserved
+Message-ID: <20180417062310.GW17484@dhcp22.suse.cz>
+References: <CAG48ez3-xtmAt2EpRFR8GNKKPcsDsyg7XdwQ=D5w3Ym6w4Krjw@mail.gmail.com>
+ <CAG48ez1PdzMs8hkatbzSLBWYucjTc75o8ovSmeC66+e9mLvSfA@mail.gmail.com>
+ <20180416100736.GG17484@dhcp22.suse.cz>
+ <CAG48ez3DwRXMtiinUWKnan6hAppLYLdx-w+VzXG6ubioZUacQg@mail.gmail.com>
+ <20180416191805.GS17484@dhcp22.suse.cz>
+ <CAG48ez1nf96nHj8a+aZy22RwqYTUZBGrsGFcz=ZhZBUWzaEZ9w@mail.gmail.com>
+ <20180416195726.GT17484@dhcp22.suse.cz>
+ <CAG48ez1bV_zZP3Y2ioDndP+H8mLCcxOtU1vCbWe7Q8myEGfXQQ@mail.gmail.com>
+ <20180416211115.GU17484@dhcp22.suse.cz>
+ <CAG48ez2fXcQS7sw_aCC6_wBKjYphOxFRN4rrRzSk2+-T_mFaxw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180415145947.1248-12-hch@lst.de>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <1c4007b5-c0d4-7077-b2c1-767c6abbf79f@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAG48ez2fXcQS7sw_aCC6_wBKjYphOxFRN4rrRzSk2+-T_mFaxw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org
-Cc: x86@kernel.org, linux-block@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-ide@vger.kernel.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Jann Horn <jannh@google.com>
+Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, John Hubbard <jhubbard@nvidia.com>, linux-man <linux-man@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On 04/15/2018 08:29 PM, Christoph Hellwig wrote:
-> This way we have one central definition of it, and user can select it as
-> needed.  Note that we also add a second ARCH_HAS_SWIOTLB symbol to
-> indicate the architecture supports swiotlb at all, so that we can still
-> make the usage optional for a few architectures that want this feature
-> to be user selectable.
+On Mon 16-04-18 23:12:48, Jann Horn wrote:
+> On Mon, Apr 16, 2018 at 11:11 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Mon 16-04-18 22:17:40, Jann Horn wrote:
+> >> On Mon, Apr 16, 2018 at 9:57 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> >> > On Mon 16-04-18 21:30:09, Jann Horn wrote:
+> >> >> On Mon, Apr 16, 2018 at 9:18 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> >> > [...]
+> >> >> > Yes, reasonably well written application will not have this problem.
+> >> >> > That, however, requires an external synchronization and that's why
+> >> >> > called it error prone and racy. I guess that was the main motivation for
+> >> >> > that part of the man page.
+> >> >>
+> >> >> What requires external synchronization? I still don't understand at
+> >> >> all what you're talking about.
+> >> >>
+> >> >> The following code:
+> >> >>
+> >> >> void *try_to_alloc_addr(void *hint, size_t len) {
+> >> >>   char *x = mmap(hint, len, ...);
+> >> >>   if (x == MAP_FAILED) return NULL;
+> >> >>   if (x == hint) return x;
+> >> >
+> >> > Any other thread can modify the address space at this moment.
+> >>
+> >> But not parts of the address space that were returned by this mmap() call.
+> > ?
+> >> > Just
+> >> > consider that another thread would does mmap(x, MAP_FIXED) (or any other
+> >> > address overlapping [x, x+len] range)
+> >>
+> >> If the other thread does that without previously having created a
+> >> mapping covering the area in question, that would be a bug in the
+> >> other thread.
+> >
+> > MAP_FIXED is sometimes used without preallocated address ranges.
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Wow, really? Can you point to an example?
 
+Just from top of my head.
 
-snip
+Some of that is for historical reasons because the hint address used to
+be ignored on some operating systems so MAP_FIXED had to be used.
 
-> +
-> +config SWIOTLB
-> +	bool "SWIOTLB support"
-> +	default ARCH_HAS_SWIOTLB
-> +	select DMA_DIRECT_OPS
-> +	select NEED_DMA_MAP_STATE
-> +	select NEED_SG_DMA_LENGTH
-> +	---help---
-> +	  Support for IO bounce buffering for systems without an IOMMU.
-> +	  This allows us to DMA to the full physical address space on
-> +	  platforms where the size of a physical address is larger
-> +	  than the bus address.  If unsure, say Y.
-> +
->  config CHECK_SIGNATURE
->  	bool
+Currently not user I guess but MAP_FIXED for addresses above 47b address
+space AFAIR.
 
-Pulling DMA_DIRECT_OPS config option by default when SWIOTLB is enabled
-makes sense. This option was also needed to be enabled separately even
-to use swiotlb_dma_ops.
+And I am pretty sure there would be much more if you actually browsed
+code search.
+-- 
+Michal Hocko
+SUSE Labs
