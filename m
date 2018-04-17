@@ -1,79 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EE0286B000C
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 13:26:58 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id g138so9268633qke.22
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:26:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id a20si6755271qth.204.2018.04.17.10.26.57
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B5D286B000C
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 13:57:58 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id o8so16538115wra.12
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:57:58 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k13si1682880edl.344.2018.04.17.10.57.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 10:26:57 -0700 (PDT)
-Date: Tue, 17 Apr 2018 13:26:51 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH RESEND] slab: introduce the flag SLAB_MINIMIZE_WASTE
-In-Reply-To: <f8f736fe-9e0e-acd2-8040-f4f25ea5a7a2@suse.cz>
-Message-ID: <alpine.LRH.2.02.1804171318010.5023@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
- <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz> <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com>
- <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com> <alpine.LRH.2.02.1804161530360.19492@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804170940340.17557@nuc-kabylake>
- <f8f736fe-9e0e-acd2-8040-f4f25ea5a7a2@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Apr 2018 10:57:56 -0700 (PDT)
+Date: Tue, 17 Apr 2018 19:57:54 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Message-ID: <20180417175754.w4slhmwtf46hq3hm@quack2.suse.cz>
+References: <20180416121224.2138b806@gandalf.local.home>
+ <20180416161911.GA2341@sasha-vm>
+ <20180416123019.4d235374@gandalf.local.home>
+ <20180416163754.GD2341@sasha-vm>
+ <20180416170604.GC11034@amd>
+ <20180416172327.GK2341@sasha-vm>
+ <20180417114144.ov27khlig5thqvyo@quack2.suse.cz>
+ <20180417133149.GR2341@sasha-vm>
+ <20180417155549.6lxmoiwnlwtwdgld@quack2.suse.cz>
+ <20180417161933.GY2341@sasha-vm>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180417161933.GY2341@sasha-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Christopher Lameter <cl@linux.com>, Mike Snitzer <snitzer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Sasha Levin <Alexander.Levin@microsoft.com>
+Cc: Jan Kara <jack@suse.cz>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
 
-
-
-On Tue, 17 Apr 2018, Vlastimil Babka wrote:
-
-> On 04/17/2018 04:45 PM, Christopher Lameter wrote:
-> > On Mon, 16 Apr 2018, Mikulas Patocka wrote:
-> > 
-> >> This patch introduces a flag SLAB_MINIMIZE_WASTE for slab and slub. This
-> >> flag causes allocation of larger slab caches in order to minimize wasted
-> >> space.
+On Tue 17-04-18 16:19:35, Sasha Levin wrote:
+> On Tue, Apr 17, 2018 at 05:55:49PM +0200, Jan Kara wrote:
+> >> Even regression chance is tricky, look at the commits I've linked
+> >> earlier in the thread. Even the most trivial looking commits that end up
+> >> in stable have a chance for regression.
+> >
+> >Sure, you can never be certain and I think people (including me)
+> >underestimate the chance of regressions for "trivial" patches. But you just
+> >estimate a chance, you may be lucky, you may not...
+> >
+> >> >Another point I wanted to make is that if chance a patch causes a
+> >> >regression is about 2% as you said somewhere else in a thread, then by
+> >> >adding 20 patches that "may fix a bug that is annoying for someone" you've
+> >> >just increased a chance there's a regression in the release by 34%. And
 > >>
-> >> This is needed because we want to use dm-bufio for deduplication index and
-> >> there are existing installations with non-power-of-two block sizes (such
-> >> as 640KB). The performance of the whole solution depends on efficient
-> >> memory use, so we must waste as little memory as possible.
-> > 
-> > Hmmm. Can we come up with a generic solution instead?
+> >> So I've said that the rejection rate is less than 2%. This includes
+> >> all commits that I have proposed for -stable, but didn't end up being
+> >> included in -stable.
+> >>
+> >> This includes commits that the author/maintainers NACKed, commits that
+> >> didn't do anything on older kernels, commits that were buggy but were
+> >> caught before the kernel was released, commits that failed to build on
+> >> an arch I didn't test it on originally and so on.
+> >>
+> >> After thousands of merged AUTOSEL patches I can count the number of
+> >> times a commit has caused a regression and had to be removed on one
+> >> hand.
+> >>
+> >> >this is not just a math game, this also roughly matches a real experience
+> >> >with maintaining our enterprise kernels. Do 20 "maybe" fixes outweight such
+> >> >regression chance? And I also note that for a regression to get reported so
+> >> >that it gets included into your 2% estimate of a patch regression rate,
+> >> >someone must be bothered enough by it to triage it and send an email
+> >> >somewhere so that already falls into a category of "serious" stuff to me.
+> >>
+> >> It is indeed a numbers game, but the regression rate isn't 2%, it's
+> >> closer to 0.05%.
+> >
+> >Honestly, I think 0.05% is too optimististic :) Quick grepping of 4.14
+> >stable tree suggests some 13 commits were reverted from stable due to bugs.
+> >That's some 0.4% and that doesn't count fixes that were applied to
+> >fix other regressions.
 > 
-> Yes please.
+> 0.05% is for commits that were merged in stable but later fixed or
+> reverted because they introduced a regression. By grepping for reverts
+> you also include things such as:
 > 
-> > This may mean relaxing the enforcement of the allocation max order a bit
-> > so that we can get dense allocation through higher order allocs.
-> > 
-> > But then higher order allocs are generally seen as problematic.
-> 
-> I think in this case they are better than wasting/fragmenting 384kB for
-> 640kB object.
+>  - Reverts of commits that were in the corresponding mainline tree
+>  - Reverts of commits that didn't introduce regressions
 
-Wasting 37% of memory is still better than the kernel randomly returning 
--ENOMEM when higher-order allocation fails.
+Actually I was careful enough to include only commits that got merged as
+part of the stable process into 4.14.x but got later reverted in 4.14.y.
+That's where the 0.4% number came from. So I believe all of those cases
+(13 in absolute numbers) were user visible regressions during the stable
+process.
 
-> > That
-> > means that callers need to be able to tolerate failures.
-> 
-> Is it any different from now? I suppose there would still be
-> smallest-order fallback involved in sl*b itself? And if your allocation
-> is so large it can fail even with the fallback (i.e. >= costly order),
-> you need to tolerate failures anyway?
-> 
-> One corner case I see is if there is anyone who would rather use their
-> own fallback instead of the space-wasting smallest-order fallback.
-> Maybe we could map some GFP flag to indicate that.
-
-For example, if you create a cache with 17KB objects, the slab subsystem 
-will pad it up to 32KB. You are wasting almost 1/2 memory, but the 
-allocation is realiable and it won't fail.
-
-If you use order higher than 32KB, you get less wasted memory, but you 
-also get random -ENOMEMs (yes, we had a problem in dm-thin that it was 
-randomly failing during initialization due to 64KB allocation).
-
-Mikulas
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
