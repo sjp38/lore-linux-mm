@@ -1,71 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 148D86B0271
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:36:49 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id u11-v6so12455393pls.22
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:36:49 -0700 (PDT)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0126.outbound.protection.outlook.com. [104.47.37.126])
-        by mx.google.com with ESMTPS id u12-v6si11170995plm.83.2018.04.17.07.36.47
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DB7B6B0273
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:40:18 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id k32so6105129ywh.21
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:40:18 -0700 (PDT)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id m61si1227570qtd.184.2018.04.17.07.40.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 17 Apr 2018 07:36:47 -0700 (PDT)
-From: Sasha Levin <Alexander.Levin@microsoft.com>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Date: Tue, 17 Apr 2018 14:36:44 +0000
-Message-ID: <20180417143641.GV2341@sasha-vm>
-References: <20180416122244.146aec48@gandalf.local.home>
- <20180416163107.GC2341@sasha-vm> <20180416124711.048f1858@gandalf.local.home>
- <20180416165258.GH2341@sasha-vm> <20180416170010.GA11034@amd>
- <20180417104637.GD8445@kroah.com>
- <20180417122454.rwkwpsfvyhpzvvx3@pathway.suse.cz>
- <20180417124924.GE17484@dhcp22.suse.cz> <20180417133931.GS2341@sasha-vm>
- <20180417142246.GH17484@dhcp22.suse.cz>
-In-Reply-To: <20180417142246.GH17484@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <A72F5632B207064A8FD41BFF577BDC68@namprd21.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Apr 2018 07:40:17 -0700 (PDT)
+Date: Tue, 17 Apr 2018 09:40:15 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.LRH.2.02.1804161650170.7237@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.20.1804170939420.17557@nuc-kabylake>
+References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz>
+ <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com> <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com>
+ <alpine.LRH.2.02.1804161054410.17807@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804161018030.9397@nuc-kabylake> <alpine.LRH.2.02.1804161123400.17807@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804161043430.9622@nuc-kabylake>
+ <alpine.LRH.2.02.1804161532480.19492@file01.intranet.prod.int.rdu2.redhat.com> <b0e6ccf6-06ce-e50b-840e-c8d3072382fd@suse.cz> <alpine.LRH.2.02.1804161650170.7237@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Petr Mladek <pmladek@suse.com>, Greg KH <greg@kroah.com>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mike Snitzer <snitzer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Tue, Apr 17, 2018 at 04:22:46PM +0200, Michal Hocko wrote:
->On Tue 17-04-18 13:39:33, Sasha Levin wrote:
->[...]
->> But mm/ commits don't come only from these people. Here's a concrete
->> example we can discuss:
->>
->> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commi=
-t/?id=3Dc61611f70958d86f659bca25c02ae69413747a8d
+On Mon, 16 Apr 2018, Mikulas Patocka wrote:
+
+> dm-bufio deals gracefully with allocation failure, because it preallocates
+> some buffers with vmalloc, but other subsystems may not deal with it and
+> they cound return ENOMEM randomly or misbehave in other ways. So, the
+> "SLAB_MINIMIZE_WASTE" flag is also saying that the allocation may fail and
+> the caller is prepared to deal with it.
 >
->I would be really careful. Because that reqiures to audit all callers to
->be compliant with the change. This is just _too_ easy to backport
->without noticing a failure. Now consider the other side. Is there any
->real bug report backing this? This behavior was like that for quite some
->time but I do not remember any actual bug report and the changelog
->doesn't mention one either. It is about theoretical problem.
+> The slub subsystem does actual fallback to low-order when the allocation
+> fails (it allows different order for each slab in the same cache), but
+> slab doesn't fallback and you get NULL if higher-order allocation fails.
+> So, SLAB_MINIMIZE_WASTE is needed for slab because it will just randomly
+> fail with higher order.
 
-https://lkml.org/lkml/2018/3/19/430
-
-There's even a fun little reproducer that allowed me to confirm it's an
-issue (at least) on 4.15.
-
-Heck, it might even qualify as a CVE.
-
->So if this was to be merged to stable then the changelog should contain
->a big fat warning about the existing users and how they should be
->checked.
-
-So what I'm asking is why *wasn't* it sent to stable? Yes, it requires
-additional work backporting this, but what I'm saying is that this
-didn't happen at all.
-
->Besides that I can see Reviewed-by: akpm and Andrew is usually very
->careful about stable backports so there probably _was_ a reson to
->exclude stable.
->--=20
->Michal Hocko
->SUSE Labs=
+Fix Slab instead of adding a flag that is only useful for one allocator?
