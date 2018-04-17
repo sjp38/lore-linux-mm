@@ -1,78 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 797236B0003
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:07:27 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id i8-v6so3985502plt.8
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:07:27 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b34-v6si14517016pld.249.2018.04.17.07.07.24
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B0206B0003
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:14:47 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y16so9890870wrh.22
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:14:47 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d35si3365084edc.198.2018.04.17.07.14.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 17 Apr 2018 07:07:24 -0700 (PDT)
-Date: Tue, 17 Apr 2018 07:07:22 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: repeatable boot randomness inside KVM guest
-Message-ID: <20180417140722.GC21954@bombadil.infradead.org>
-References: <20180414195921.GA10437@avx2>
- <20180414224419.GA21830@thunk.org>
- <20180415004134.GB15294@bombadil.infradead.org>
- <1523956414.3250.5.camel@HansenPartnership.com>
- <20180417114728.GA21954@bombadil.infradead.org>
- <1523966232.3250.15.camel@HansenPartnership.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Apr 2018 07:14:44 -0700 (PDT)
+Date: Tue, 17 Apr 2018 16:14:42 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [RFC PATCH] mm: correct status code which move_pages() returns
+ for zero page
+Message-ID: <20180417141442.GG17484@dhcp22.suse.cz>
+References: <20180417110615.16043-1-liwang@redhat.com>
+ <20180417130300.GF17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1523966232.3250.15.camel@HansenPartnership.com>
+In-Reply-To: <20180417130300.GF17484@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: "Theodore Y. Ts'o" <tytso@mit.edu>, Alexey Dobriyan <adobriyan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Li Wang <liwang@redhat.com>
+Cc: linux-mm@kvack.org, ltp@lists.linux.it, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Tue, Apr 17, 2018 at 12:57:12PM +0100, James Bottomley wrote:
-> On Tue, 2018-04-17 at 04:47 -0700, Matthew Wilcox wrote:
-> > On Tue, Apr 17, 2018 at 10:13:34AM +0100, James Bottomley wrote:
-> > > On Sat, 2018-04-14 at 17:41 -0700, Matthew Wilcox wrote:
-> > > > On Sat, Apr 14, 2018 at 06:44:19PM -0400, Theodore Y. Ts'o wrote:
-> > > > > What needs to happen is freelist should get randomized much
-> > > > > later in the boot sequence.  Doing it later will require
-> > > > > locking; I don't know enough about the slab/slub code to know
-> > > > > whether the slab_mutex would be sufficient, or some other lock
-> > > > > might need to be added.
-> > > > 
-> > > > Could we have the bootloader pass in some initial randomness?
-> > > 
-> > > Where would the bootloader get it from (securely) that the kernel
-> > > can't?
-> > 
-> > In this particular case, qemu is booting the kernel, so it can apply
-> > to /dev/random for some entropy.
+On Tue 17-04-18 15:03:00, Michal Hocko wrote:
+> On Tue 17-04-18 19:06:15, Li Wang wrote:
+> [...]
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index f65dd69..2b315fc 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -1608,7 +1608,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+> >  			continue;
+> >  
+> >  		err = store_status(status, i, err, 1);
+> > -		if (err)
+> > +		if (!err)
+> >  			goto out_flush;
 > 
-> Well, yes, but wouldn't qemu virtualize /dev/random anyway so the guest
->  kernel can get it from the HWRNG provided by qemu?
+> This change just doesn't make any sense to me. Why should we bail out if
+> the store_status is successul? I am trying to wrap my head around the
+> test case. 6b9d757ecafc ("mm, numa: rework do_pages_move") tried to
+> explain that move_pages has some semantic issues and the new
+> implementation might be not 100% replacement. Anyway I am studying the
+> test case to come up with a proper fix.
 
-The part of Ted's mail that I snipped explained that virtio-rng relies on
-being able to kmalloc memory, so by definition it can't provide entropy
-before kmalloc is initialised.
+OK, I get what the test cases does. I've failed to see the subtle
+difference between alloc_pages_on_node and numa_alloc_onnode. The later
+doesn't faul in anything.
 
-> > I thought our model was that if somebody had compromised the
-> > bootloader, all bets were off.
-> 
-> You don't have to compromise the bootloader to influence this, you
-> merely have to trick it into providing the random number you wanted. 
-> The bigger you make the attack surface (the more inputs) the more
-> likelihood of finding a trick that works.
-> 
-> >   And also that we were free to mix in as many untrustworthy bytes of
-> > alleged entropy into the random pool as we liked.
-> 
-> No, entropy mixing ensures that all you do with bad entropy is degrade
-> the quality, but if the quality degrades to zero (as it might at boot
-> when you've no other entropy sources so you feed in 100% bad entropy),
-> then the random sequences become predictable.
+Why are we getting EPERM is quite not yet clear to me.
+add_page_for_migration uses FOLL_DUMP which should return EFAULT on
+zero pages (no_page_table()).
 
-I don't understand that.  If I estimate that I have 'k' bytes of entropy
-in my pool, and then I mix in 'n' entirely predictable bytes, I should
-still have k bytes of entropy in the pool.  If I withdraw k bytes from
-the pool, then yes the future output from the pool may be entirely
-predictable, but I have to know what those k bytes were.
+	err = PTR_ERR(page);
+	if (IS_ERR(page))
+		goto out;
+
+therefore bails out from add_page_for_migration and store_status should
+store that value. There shouldn't be any EPERM on the way.
+
+Let me try to reproduce and see what is going on. Btw. which kernel do
+you try this on?
+-- 
+Michal Hocko
+SUSE Labs
