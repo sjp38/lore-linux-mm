@@ -1,69 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DAA5B6B0003
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:41:03 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id o52so13392879qto.3
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:41:03 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id s81si19151195qkl.208.2018.04.17.14.41.02
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 78BC36B0006
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:42:27 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id w2so13273464qti.8
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:42:27 -0700 (PDT)
+Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
+        by mx.google.com with ESMTPS id y9si19023359qth.129.2018.04.17.14.42.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 17 Apr 2018 14:41:02 -0700 (PDT)
-Date: Tue, 17 Apr 2018 17:40:59 -0400
-From: "Theodore Y. Ts'o" <tytso@mit.edu>
-Subject: Re: repeatable boot randomness inside KVM guest
-Message-ID: <20180417214059.GA23194@thunk.org>
-References: <20180414195921.GA10437@avx2>
- <20180414224419.GA21830@thunk.org>
- <20180415004134.GB15294@bombadil.infradead.org>
- <1523956414.3250.5.camel@HansenPartnership.com>
- <20180417114728.GA21954@bombadil.infradead.org>
- <1523966232.3250.15.camel@HansenPartnership.com>
- <20180417151650.GA16738@thunk.org>
- <1523979759.3310.7.camel@HansenPartnership.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Apr 2018 14:42:26 -0700 (PDT)
+Date: Tue, 17 Apr 2018 16:42:24 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.LRH.2.02.1804171453190.26973@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.20.1804171641390.20702@nuc-kabylake>
+References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz> <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com>
+ <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com> <alpine.LRH.2.02.1804161054410.17807@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804161018030.9397@nuc-kabylake>
+ <alpine.LRH.2.02.1804161123400.17807@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804161043430.9622@nuc-kabylake> <alpine.LRH.2.02.1804161532480.19492@file01.intranet.prod.int.rdu2.redhat.com> <b0e6ccf6-06ce-e50b-840e-c8d3072382fd@suse.cz>
+ <alpine.LRH.2.02.1804161650170.7237@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804170939420.17557@nuc-kabylake> <alpine.LRH.2.02.1804171453190.26973@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1523979759.3310.7.camel@HansenPartnership.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mike Snitzer <snitzer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Tue, Apr 17, 2018 at 04:42:39PM +0100, James Bottomley wrote:
-> Depends how the parameter is passed.  If it can be influenced from the
-> command line then a large class of "trusted boot" systems actually
-> don't verify the command line, so you can boot a trusted system and
-> still inject bogus command line parameters.  This is definitely true of
-> PC class secure boot.  Not saying it will always be so, just
-> illustrating why you don't necessarily want to expand the attack
-> surface.
+On Tue, 17 Apr 2018, Mikulas Patocka wrote:
 
-Sure, this is why I don't really like the scheme of relying on the
-command line.  For one thing, the command-line is public, so if the
-attacker can read /proc/cmdline, they'll have access to the entropy.
+> > > The slub subsystem does actual fallback to low-order when the allocation
+> > > fails (it allows different order for each slab in the same cache), but
+> > > slab doesn't fallback and you get NULL if higher-order allocation fails.
+> > > So, SLAB_MINIMIZE_WASTE is needed for slab because it will just randomly
+> > > fail with higher order.
+> >
+> > Fix Slab instead of adding a flag that is only useful for one allocator?
+>
+> Slab assumes that all slabs have the same order, so it's not so easy to
+> fix it.
 
-What I would prefer is an extension to the boot protocol so that some
-number of bytes would be passed to the kernel as a separate bag of
-bytes alongside the kernel command line and the initrd.
-
-The kernel would mix that into the random driver (which is written so
-the basic input pool and primary_crng can accept input in super-early
-boot).  This woud be done *before* we relocate the kernel, so that
-kernel ASLR code can relocate the kernel test to a properly
-unpredictable number --- so this really is quite super-early boot.
-
-> OK, in the UEFI ideal world where every component is a perfectly
-> written OS, perhaps you're right.  In the more real world, do you trust
-> the people who wrote the bootloader to understand and correctly
-> implement the cryptographically secure process of obtaining a random
-> input?
-
-In the default setup, I would expect the bootloader (such as grub)
-would read the random initialization data from disk.  So it would work
-much like systemd reading from /var/lib/systemd/random-seed.  And I
-would trust the bootloader implementors to be able to do this about as
-well as I would trust the systemd implementors.  :-)  It's not that
-hard, after all....
-
-						- Ted
+Well since SLAB uses compound pages one could easily determine the order
+of the page and thus also support multiple page orders there.
