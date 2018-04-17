@@ -1,75 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FCEA6B0003
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:31:47 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id i8-v6so4623470plt.8
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:31:47 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s20-v6si4768882plp.303.2018.04.17.14.31.45
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DAA5B6B0003
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:41:03 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id o52so13392879qto.3
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:41:03 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id s81si19151195qkl.208.2018.04.17.14.41.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 14:31:45 -0700 (PDT)
-Date: Tue, 17 Apr 2018 14:31:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and
- hugetlbfs
-Message-Id: <20180417143144.b7ffb07fad28875bad546247@linux-foundation.org>
-In-Reply-To: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 17 Apr 2018 14:41:02 -0700 (PDT)
+Date: Tue, 17 Apr 2018 17:40:59 -0400
+From: "Theodore Y. Ts'o" <tytso@mit.edu>
+Subject: Re: repeatable boot randomness inside KVM guest
+Message-ID: <20180417214059.GA23194@thunk.org>
+References: <20180414195921.GA10437@avx2>
+ <20180414224419.GA21830@thunk.org>
+ <20180415004134.GB15294@bombadil.infradead.org>
+ <1523956414.3250.5.camel@HansenPartnership.com>
+ <20180417114728.GA21954@bombadil.infradead.org>
+ <1523966232.3250.15.camel@HansenPartnership.com>
+ <20180417151650.GA16738@thunk.org>
+ <1523979759.3310.7.camel@HansenPartnership.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1523979759.3310.7.camel@HansenPartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: viro@zeniv.linux.org.uk, nyc@holomorphy.com, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, hughd@google.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Alexey Dobriyan <adobriyan@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 18 Apr 2018 05:08:13 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
+On Tue, Apr 17, 2018 at 04:42:39PM +0100, James Bottomley wrote:
+> Depends how the parameter is passed.  If it can be influenced from the
+> command line then a large class of "trusted boot" systems actually
+> don't verify the command line, so you can boot a trusted system and
+> still inject bogus command line parameters.  This is definitely true of
+> PC class secure boot.  Not saying it will always be so, just
+> illustrating why you don't necessarily want to expand the attack
+> surface.
 
-> Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
-> filesystem with huge page support anymore. tmpfs can use huge page via
-> THP when mounting by "huge=" mount option.
-> 
-> When applications use huge page on hugetlbfs, it just need check the
-> filesystem magic number, but it is not enough for tmpfs. So, introduce
-> ST_HUGE flag to statfs if super block has SB_HUGE set which indicates
-> huge page is supported on the specific filesystem.
-> 
-> Some applications could benefit from this change, for example QEMU.
-> When use mmap file as guest VM backend memory, QEMU typically mmap the
-> file size plus one extra page. If the file is on hugetlbfs the extra
-> page is huge page size (i.e. 2MB), but it is still 4KB on tmpfs even
-> though THP is enabled. tmpfs THP requires VMA is huge page aligned, so
-> if 4KB page is used THP will not be used at all. The below /proc/meminfo
-> fragment shows the THP use of QEMU with 4K page:
-> 
-> ShmemHugePages:   679936 kB
-> ShmemPmdMapped:        0 kB
-> 
-> With ST_HUGE flag, QEMU can get huge page, then /proc/meminfo looks
-> like:
-> 
-> ShmemHugePages:    77824 kB
-> ShmemPmdMapped:     6144 kB
-> 
-> With this flag, the applications can know if huge page is supported on
-> the filesystem then optimize the behavior of the applications
-> accordingly. Although the similar function can be implemented in
-> applications by traversing the mount options, it looks more convenient
-> if kernel can provide such flag.
-> 
-> Even though ST_HUGE is set, f_bsize still returns 4KB for tmpfs since
-> THP could be split, and it also my fallback to 4KB page silently if
-> there is not enough huge page.
-> 
-> And, set the flag for hugetlbfs as well to keep the consistency, and the
-> applications don't have to know what filesystem is used to use huge
-> page, just need to check ST_HUGE flag.
-> 
+Sure, this is why I don't really like the scheme of relying on the
+command line.  For one thing, the command-line is public, so if the
+attacker can read /proc/cmdline, they'll have access to the entropy.
 
-Patch is simple enough, although I'm having trouble forming an opinion
-about it ;)
+What I would prefer is an extension to the boot protocol so that some
+number of bytes would be passed to the kernel as a separate bag of
+bytes alongside the kernel command line and the initrd.
 
-It will call for an update to the statfs(2) manpage.  I'm not sure
-which of linux-man@vger.kernel.org, mtk.manpages@gmail.com and
-linux-api@vger.kernel.org is best for that, so I'd cc all three...
+The kernel would mix that into the random driver (which is written so
+the basic input pool and primary_crng can accept input in super-early
+boot).  This woud be done *before* we relocate the kernel, so that
+kernel ASLR code can relocate the kernel test to a properly
+unpredictable number --- so this really is quite super-early boot.
+
+> OK, in the UEFI ideal world where every component is a perfectly
+> written OS, perhaps you're right.  In the more real world, do you trust
+> the people who wrote the bootloader to understand and correctly
+> implement the cryptographically secure process of obtaining a random
+> input?
+
+In the default setup, I would expect the bootloader (such as grub)
+would read the random initialization data from disk.  So it would work
+much like systemd reading from /var/lib/systemd/random-seed.  And I
+would trust the bootloader implementors to be able to do this about as
+well as I would trust the systemd implementors.  :-)  It's not that
+hard, after all....
+
+						- Ted
