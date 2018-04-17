@@ -1,116 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4666B026D
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:35:12 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p11so514932wrd.20
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:35:12 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r11si550504edc.362.2018.04.17.07.35.10
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 773126B026D
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:36:31 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id h1so16096635wre.0
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 07:36:31 -0700 (PDT)
+Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
+        by mx.google.com with ESMTPS id g3si626997edd.382.2018.04.17.07.36.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 07:35:11 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3HESu4m035297
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:35:10 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2hdj3savb9-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 10:35:09 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 17 Apr 2018 15:35:05 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH v10 25/25] powerpc/mm: add speculative page fault
-Date: Tue, 17 Apr 2018 16:33:31 +0200
-In-Reply-To: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
-References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1523975611-15978-26-git-send-email-ldufour@linux.vnet.ibm.com>
+        Tue, 17 Apr 2018 07:36:30 -0700 (PDT)
+Date: Tue, 17 Apr 2018 16:36:23 +0200
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Message-ID: <20180417143623.GA11772@kroah.com>
+References: <20180416171607.GJ2341@sasha-vm>
+ <alpine.LRH.2.00.1804162214260.26111@gjva.wvxbf.pm>
+ <20180416203629.GO2341@sasha-vm>
+ <nycvar.YFH.7.76.1804162238500.28129@cbobk.fhfr.pm>
+ <20180416211845.GP2341@sasha-vm>
+ <nycvar.YFH.7.76.1804162326210.28129@cbobk.fhfr.pm>
+ <20180417103936.GC8445@kroah.com>
+ <20180417110717.GB17484@dhcp22.suse.cz>
+ <20180417140434.GU2341@sasha-vm>
+ <20180417101502.3f61d958@gandalf.local.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180417101502.3f61d958@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Sasha Levin <Alexander.Levin@microsoft.com>, Michal Hocko <mhocko@kernel.org>, Jiri Kosina <jikos@kernel.org>, Pavel Machek <pavel@ucw.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
 
-This patch enable the speculative page fault on the PowerPC
-architecture.
+On Tue, Apr 17, 2018 at 10:15:02AM -0400, Steven Rostedt wrote:
+> On Tue, 17 Apr 2018 14:04:36 +0000
+> Sasha Levin <Alexander.Levin@microsoft.com> wrote:
+> 
+> > The solution to this, in my opinion, is to automate the whole selection
+> > and review process. We do selection using AI, and we run every possible
+> > test that's relevant to that subsystem.
+> > 
+> > At which point, the amount of work a human needs to do to review a patch
+> > shrinks into something far more managable for some maintainers.
+> 
+> I guess the real question is, who are the stable kernels for? Is it just
+> a place to look at to see what distros should think about. A superset
+> of what distros would take. Then distros would have a nice place to
+> look to find what patches they should look at. But the stable tree
+> itself wont be used. But it's not being used today by major distros
+> (Red Hat and SuSE). Debian may be using it, but that's because the
+> stable maintainer for its kernels is also the Debian maintainer.
+> 
+> Who are the customers of the stable trees? They are the ones that
+> should be determining the "equation" for what goes into it.
 
-This will try a speculative page fault without holding the mmap_sem,
-if it returns with VM_FAULT_RETRY, the mmap_sem is acquired and the
-traditional page fault processing is done.
+The "customers" of the stable trees are anyone who uses Linux.
 
-The speculative path is only tried for multithreaded process as there is no
-risk of contention on the mmap_sem otherwise.
+Right now, it's estimated that only about 1/3 of the kernels running out
+there, at the best, are an "enterprise" kernel/distro.  2/3 of the world
+either run a kernel.org-based release + their own patches, or Debian.
+And Debian piggy-backs on the stable kernel releases pretty regularily.
 
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
----
- arch/powerpc/mm/fault.c | 33 +++++++++++++++++++++++++++++++--
- 1 file changed, 31 insertions(+), 2 deletions(-)
+So the majority of the Linux users out there are what we are doing this
+for.  Those that do not pay for a company to sift through things and
+only cherry-pick what they want to pick out (hint, they almost always
+miss things, some do this better than others...)
 
-diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-index c01d627e687a..37191147026e 100644
---- a/arch/powerpc/mm/fault.c
-+++ b/arch/powerpc/mm/fault.c
-@@ -464,6 +464,26 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
- 	if (is_exec)
- 		flags |= FAULT_FLAG_INSTRUCTION;
- 
-+	if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT)) {
-+		fault = handle_speculative_fault(mm, address, flags, &vma);
-+		/*
-+		 * Page fault is done if VM_FAULT_RETRY is not returned.
-+		 * But if the memory protection keys are active, we don't know
-+		 * if the fault is due to key mistmatch or due to a
-+		 * classic protection check.
-+		 * To differentiate that, we will need the VMA we no
-+		 * more have, so let's retry with the mmap_sem held.
-+		 */
-+		if (fault != VM_FAULT_RETRY &&
-+		    (IS_ENABLED(CONFIG_PPC_MEM_KEYS) &&
-+		     fault != VM_FAULT_SIGSEGV)) {
-+			perf_sw_event(PERF_COUNT_SW_SPF, 1, regs, address);
-+			goto done;
-+		}
-+	} else {
-+		vma = NULL;
-+	}
-+
- 	/* When running in the kernel we expect faults to occur only to
- 	 * addresses in user space.  All other faults represent errors in the
- 	 * kernel and should generate an OOPS.  Unfortunately, in the case of an
-@@ -494,7 +514,8 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
- 		might_sleep();
- 	}
- 
--	vma = find_vma(mm, address);
-+	if (!vma || !can_reuse_spf_vma(vma, address))
-+		vma = find_vma(mm, address);
- 	if (unlikely(!vma))
- 		return bad_area(regs, address);
- 	if (likely(vma->vm_start <= address))
-@@ -551,8 +572,15 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
- 			 */
- 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
--			if (!fatal_signal_pending(current))
-+			if (!fatal_signal_pending(current)) {
-+				/*
-+				 * Do not try to reuse this vma and fetch it
-+				 * again since we will release the mmap_sem.
-+				 */
-+				if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT))
-+					vma = NULL;
- 				goto retry;
-+			}
- 		}
- 
- 		/*
-@@ -564,6 +592,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
- 
- 	up_read(&current->mm->mmap_sem);
- 
-+done:
- 	if (unlikely(fault & VM_FAULT_ERROR))
- 		return mm_fault_error(regs, address, fault);
- 
--- 
-2.7.4
+That's who this is all for, which is why we are doing our best to keep
+on top of the avalanche of patches going into upstream to get the needed
+fixes (both security and "normal" fixes) out to users as soon as
+possible.
+
+So again, if you are a subsystem maintainer, tag your patches for
+stable.  If you do not, you will get automated emails asking you about
+patches that should be applied (like the one that started this thread).
+If you want to just have us ignore your subsystem entirely, we will be
+glad to do so, and we will tell the world to not use your subsystem if
+at all possible (see previous comments about xfs, and I would argue IB
+right now...)
+
+> Personally, I use stable as a one off from mainline. Like I mentioned
+> in another email. I'm currently on 4.15.x and will probably move to
+> 4.16.x next. Unless there's some critical bug announcement, I update my
+> machines once a month. I originally just used mainline, but that was a
+> bit too unstable for my work machines ;-)
+
+That's great, you are a user of these trees then.  So you benifit
+directly, along with everyone else who relies on them.
+
+And again, I'm working with the SoC vendors to directly incorporate
+these trees into their device trees, and I've already seen some devices
+in the wild push out updated 4.4.y kernels a few weeks after they are
+released.  That's the end goal here, to have the world's devices in a
+much more secure and stable shape by relying on these kernels.
+
+thanks,
+
+greg k-h
