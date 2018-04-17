@@ -1,95 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BED36B0003
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 01:11:09 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id e8-v6so4834430plb.5
-        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 22:11:09 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id t2si11082664pgb.338.2018.04.16.22.11.08
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 269C36B0003
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 01:51:12 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id 132so2077646qkl.7
+        for <linux-mm@kvack.org>; Mon, 16 Apr 2018 22:51:12 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id v68si4827814qkc.392.2018.04.16.22.51.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Apr 2018 22:11:08 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm: vmalloc: Pass proper vm_start into debugobjects
-References: <1523619234-17635-1-git-send-email-cpandya@codeaurora.org>
- <1523619234-17635-3-git-send-email-cpandya@codeaurora.org>
- <ee1e7036-ecdf-0f5b-f460-0d71b4a38dd7@linux.vnet.ibm.com>
- <72acd72a-7b92-c723-62d8-28dd81435457@codeaurora.org>
- <e8d4c0b2-dfb5-8d4d-3bcc-30b8915d24cb@linux.vnet.ibm.com>
-From: Chintan Pandya <cpandya@codeaurora.org>
-Message-ID: <89438471-6e47-cb70-8909-0ffcc2d3e313@codeaurora.org>
-Date: Tue, 17 Apr 2018 10:40:57 +0530
+        Mon, 16 Apr 2018 22:51:11 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3H5nh06077320
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 01:51:10 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2hd4m8p1g4-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 01:51:09 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 17 Apr 2018 06:51:07 +0100
+Subject: Re: [PATCH 01/12] iommu-common: move to arch/sparc
+References: <20180415145947.1248-1-hch@lst.de>
+ <20180415145947.1248-2-hch@lst.de>
+ <f0305a92-b206-1567-3c25-67fbd194047d@linux.vnet.ibm.com>
+ <20180416.095833.969403163564136309.davem@davemloft.net>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 17 Apr 2018 11:20:58 +0530
 MIME-Version: 1.0
-In-Reply-To: <e8d4c0b2-dfb5-8d4d-3bcc-30b8915d24cb@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Language: en-US
+In-Reply-To: <20180416.095833.969403163564136309.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
+Message-Id: <f5741528-427d-3537-5498-2080766df0fe@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>, khandual@linux.vnet.ibm.com
+Cc: hch@lst.de, konrad.wilk@oracle.com, iommu@lists.linux-foundation.org, x86@kernel.org, linux-block@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-ide@vger.kernel.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Michael Ellerman <mpe@ellerman.id.au>
 
-
-
-On 4/17/2018 8:39 AM, Anshuman Khandual wrote:
-> On 04/16/2018 05:39 PM, Chintan Pandya wrote:
->>
->>
->> On 4/13/2018 5:31 PM, Anshuman Khandual wrote:
->>> On 04/13/2018 05:03 PM, Chintan Pandya wrote:
->>>> Client can call vunmap with some intermediate 'addr'
->>>> which may not be the start of the VM area. Entire
->>>> unmap code works with vm->vm_start which is proper
->>>> but debug object API is called with 'addr'. This
->>>> could be a problem within debug objects.
->>>>
->>>> Pass proper start address into debug object API.
->>>>
->>>> Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
->>>> ---
->>>>    mm/vmalloc.c | 4 ++--
->>>>    1 file changed, 2 insertions(+), 2 deletions(-)
->>>>
->>>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->>>> index 9ff21a1..28034c55 100644
->>>> --- a/mm/vmalloc.c
->>>> +++ b/mm/vmalloc.c
->>>> @@ -1526,8 +1526,8 @@ static void __vunmap(const void *addr, int
->>>> deallocate_pages)
->>>>            return;
->>>>        }
->>>>    -    debug_check_no_locks_freed(addr, get_vm_area_size(area));
->>>> -    debug_check_no_obj_freed(addr, get_vm_area_size(area));
->>>> +    debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
->>>> +    debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
+On 04/16/2018 07:28 PM, David Miller wrote:
+> From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> Date: Mon, 16 Apr 2018 14:26:07 +0530
+> 
+>> On 04/15/2018 08:29 PM, Christoph Hellwig wrote:
+>>> This code is only used by sparc, and all new iommu drivers should use the
+>>> drivers/iommu/ framework.  Also remove the unused exports.
 >>>
->>> This kind of makes sense to me but I am not sure. We also have another
->>> instance of this inside the function vm_unmap_ram() where we call for
->> Right, I missed it. I plan to add below stub in v2.
+>>> Signed-off-by: Christoph Hellwig <hch@lst.de>
 >>
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -1124,15 +1124,15 @@ void vm_unmap_ram(const void *mem, unsigned int
->> count)
->>          BUG_ON(addr > VMALLOC_END);
->>          BUG_ON(!PAGE_ALIGNED(addr));
->>
->> -       debug_check_no_locks_freed(mem, size);
->> -
->>          if (likely(count <= VMAP_MAX_ALLOC)) {
->> +               debug_check_no_locks_freed(mem, size);
+>> Right, these functions are used only from SPARC architecture. Simple
+>> git grep confirms it as well. Hence it makes sense to move them into
+>> arch code instead.
 > 
-> It should have been 'va->va_start' instead of 'mem' in here but as
-> said before it looks correct to me but I am not really sure.
-
-vb_free() doesn't honor va->va_start. If mem is not va_start and
-deliberate, one will provide proper size. And that should be okay
-to do as per the code. So, I don't think this particular debug_check
-should have passed va_start in args.
-
+> Well, we put these into a common location and used type friendly for
+> powerpc because we hoped powerpc would convert over to using this
+> common piece of code as well.
 > 
+> But nobody did the powerpc work.
+> 
+> If you look at the powerpc iommu support, it's the same code basically
+> for entry allocation.
 
-Chintan
--- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, a Linux Foundation
-Collaborative Project
+I understand. But there are some differences in iommu_table structure,
+how both regular and large IOMMU pools are being initialized etc. So
+if the movement of code into SPARC help cleaning up these generic config
+options in general, I guess we should do that. But I will leave it upto
+others who have more experience in this area.
+
++mpe
