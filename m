@@ -1,81 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D0926B0008
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:51:28 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f19so11780688pfn.6
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:51:28 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id bh10-v6si12097829plb.322.2018.04.17.14.51.26
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 470EA6B000A
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:56:38 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id a124so1574407qkb.19
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 14:56:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 16sor11001468qtp.35.2018.04.17.14.56.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 14:51:26 -0700 (PDT)
-Subject: Re: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and
- hugetlbfs
-References: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180417143144.b7ffb07fad28875bad546247@linux-foundation.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <8f01845c-51dd-20a6-1d75-64f9de0ccb0b@linux.alibaba.com>
-Date: Tue, 17 Apr 2018 14:51:17 -0700
+        (Google Transport Security);
+        Tue, 17 Apr 2018 14:56:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180417143144.b7ffb07fad28875bad546247@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Reply-To: mceier+kernel@gmail.com
+In-Reply-To: <20180417211304.7B3F1FDB@viggo.jf.intel.com>
+References: <20180417211302.421F6442@viggo.jf.intel.com> <20180417211304.7B3F1FDB@viggo.jf.intel.com>
+From: Mariusz Ceier <mceier+kernel@gmail.com>
+Date: Tue, 17 Apr 2018 23:56:36 +0200
+Message-ID: <CAJTyqKMLh4QoNYUF1BZ5D51L8ZEt_fxqNRWYBON+27icavY8tQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] x86, pti: fix boot warning from Global-bit setting
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: viro@zeniv.linux.org.uk, nyc@holomorphy.com, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, hughd@google.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, mtk.manpages@gmail.com, linux-api@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Aaro Koskinen <aaro.koskinen@nokia.com>, aarcange@redhat.com, luto@kernel.org, arjan@linux.intel.com, Borislav Petkov <bp@alien8.de>, dan.j.williams@intel.com, dwmw2@infradead.org, gregkh@linuxfoundation.org, hughd@google.com, jpoimboe@redhat.com, jgross@suse.com, keescook@google.com, Linus Torvalds <torvalds@linux-foundation.org>, namit@vmware.com, peterz@infradead.org, Thomas Gleixner <tglx@linutronix.de>
 
-
-
-On 4/17/18 2:31 PM, Andrew Morton wrote:
-> On Wed, 18 Apr 2018 05:08:13 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
+On 17 April 2018 at 23:13, Dave Hansen <dave.hansen@linux.intel.com> wrote:
 >
->> Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
->> filesystem with huge page support anymore. tmpfs can use huge page via
->> THP when mounting by "huge=" mount option.
->>
->> When applications use huge page on hugetlbfs, it just need check the
->> filesystem magic number, but it is not enough for tmpfs. So, introduce
->> ST_HUGE flag to statfs if super block has SB_HUGE set which indicates
->> huge page is supported on the specific filesystem.
->>
->> Some applications could benefit from this change, for example QEMU.
->> When use mmap file as guest VM backend memory, QEMU typically mmap the
->> file size plus one extra page. If the file is on hugetlbfs the extra
->> page is huge page size (i.e. 2MB), but it is still 4KB on tmpfs even
->> though THP is enabled. tmpfs THP requires VMA is huge page aligned, so
->> if 4KB page is used THP will not be used at all. The below /proc/meminfo
->> fragment shows the THP use of QEMU with 4K page:
->>
->> ShmemHugePages:   679936 kB
->> ShmemPmdMapped:        0 kB
->>
->> With ST_HUGE flag, QEMU can get huge page, then /proc/meminfo looks
->> like:
->>
->> ShmemHugePages:    77824 kB
->> ShmemPmdMapped:     6144 kB
->>
->> With this flag, the applications can know if huge page is supported on
->> the filesystem then optimize the behavior of the applications
->> accordingly. Although the similar function can be implemented in
->> applications by traversing the mount options, it looks more convenient
->> if kernel can provide such flag.
->>
->> Even though ST_HUGE is set, f_bsize still returns 4KB for tmpfs since
->> THP could be split, and it also my fallback to 4KB page silently if
->> there is not enough huge page.
->>
->> And, set the flag for hugetlbfs as well to keep the consistency, and the
->> applications don't have to know what filesystem is used to use huge
->> page, just need to check ST_HUGE flag.
->>
-> Patch is simple enough, although I'm having trouble forming an opinion
-> about it ;)
+> These are _very_ lightly tested.  I'm throwing them out there for
+> folks are looking for a fix.
 >
-> It will call for an update to the statfs(2) manpage.  I'm not sure
-> which of linux-man@vger.kernel.org, mtk.manpages@gmail.com and
-> linux-api@vger.kernel.org is best for that, so I'd cc all three...
+> ---
+>
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>
+> pageattr.c is not friendly when it encounters empty (zero) PTEs.  The
+> kernel linear map is exempt from these checks, but kernel text is not.
+> This patch adds the code to also exempt kernel text from these checks.
+> The proximate cause of these warnings was most likely an __init area
+> that spanned a 2MB page boundary that resulted in a "zero" PMD.
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Fixes: 39114b7a7 (x86/pti: Never implicitly clear _PAGE_GLOBAL for kernel image)
+> Reported-by: Mariusz Ceier <mceier@gmail.com>
+> Reported-by: Aaro Koskinen <aaro.koskinen@nokia.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Arjan van de Ven <arjan@linux.intel.com>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: David Woodhouse <dwmw2@infradead.org>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+> Cc: Juergen Gross <jgross@suse.com>
+> Cc: Kees Cook <keescook@google.com>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Nadav Amit <namit@vmware.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: linux-mm@kvack.org
+> ---
+>
+>  b/arch/x86/mm/pageattr.c |   17 +++++++++++++++--
+>  1 file changed, 15 insertions(+), 2 deletions(-)
+>
+> diff -puN arch/x86/mm/pageattr.c~pti-glb-warning-inpageattr arch/x86/mm/pageattr.c
+> --- a/arch/x86/mm/pageattr.c~pti-glb-warning-inpageattr 2018-04-17 14:10:22.695395554 -0700
+> +++ b/arch/x86/mm/pageattr.c    2018-04-17 14:10:22.721395554 -0700
+> @@ -1151,6 +1151,16 @@ static int populate_pgd(struct cpa_data
+>         return 0;
+>  }
+>
+> +bool __cpa_pfn_in_highmap(unsigned long pfn)
+> +{
+> +       /*
+> +        * Kernel text has an alias mapping at a high address, known
+> +        * here as "highmap".
+> +        */
+> +       return within_inclusive(pfn, highmap_start_pfn(),
+> +                       highmap_end_pfn());
+> +}
+> +
+>  static int __cpa_process_fault(struct cpa_data *cpa, unsigned long vaddr,
+>                                int primary)
+>  {
+> @@ -1183,6 +1193,10 @@ static int __cpa_process_fault(struct cp
+>                 cpa->numpages = 1;
+>                 cpa->pfn = __pa(vaddr) >> PAGE_SHIFT;
+>                 return 0;
+> +
+> +       } else if (__cpa_pfn_in_highmap(cpa->pfn)) {
+> +               /* Faults in the highmap are OK, so do not warn: */
+> +               return -EFAULT;
+>         } else {
+>                 WARN(1, KERN_WARNING "CPA: called for zero pte. "
+>                         "vaddr = %lx cpa->vaddr = %lx\n", vaddr,
+> @@ -1335,8 +1349,7 @@ static int cpa_process_alias(struct cpa_
+>          * to touch the high mapped kernel as well:
+>          */
+>         if (!within(vaddr, (unsigned long)_text, _brk_end) &&
+> -           within_inclusive(cpa->pfn, highmap_start_pfn(),
+> -                            highmap_end_pfn())) {
+> +           __cpa_pfn_in_highmap(cpa->pfn)) {
+>                 unsigned long temp_cpa_vaddr = (cpa->pfn << PAGE_SHIFT) +
+>                                                __START_KERNEL_map - phys_base;
+>                 alias_cpa = *cpa;
+> _
 
-Thanks, Andrew. Added cc to those 3 lists.
+
+I confirm that these 2 patches fix the BUG for me in kernel 4.17.0-rc1.
+
+Thanks
