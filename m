@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A0DA6B005D
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 11:54:32 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id b11-v6so12622192pla.19
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 08:54:32 -0700 (PDT)
-Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30118.outbound.protection.outlook.com. [40.107.3.118])
-        by mx.google.com with ESMTPS id t4si12796350pfh.139.2018.04.17.08.54.30
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 956BF6B025E
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 11:54:39 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q22so11591987pfh.20
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 08:54:39 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0091.outbound.protection.outlook.com. [104.47.0.91])
+        by mx.google.com with ESMTPS id w2-v6si9121697plz.226.2018.04.17.08.54.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 17 Apr 2018 08:54:31 -0700 (PDT)
-Subject: [PATCH v2 08/12] list_lru: Pass lru argument to
- memcg_drain_list_lru_node()
+        Tue, 17 Apr 2018 08:54:38 -0700 (PDT)
+Subject: [PATCH v2 09/12] mm: Set bit in memcg shrinker bitmap on first
+ list_lru item apearance
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 17 Apr 2018 21:54:16 +0300
-Message-ID: <152399125678.3456.3006876924386799577.stgit@localhost.localdomain>
+Date: Tue, 17 Apr 2018 21:54:26 +0300
+Message-ID: <152399126619.3456.6019144653654528911.stgit@localhost.localdomain>
 In-Reply-To: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
 References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -23,36 +23,114 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-This is just refactoring to allow next patches to have
-lru pointer in memcg_drain_list_lru_node().
+Introduce set_shrinker_bit() function to set shrinker-related
+bit in memcg shrinker bitmap, and set the bit after the first
+item is added and in case of reparenting destroyed memcg's items.
+
+This will allow next patch to make shrinkers be called only,
+in case of they have charged objects at the moment, and
+to improve shrink_slab() performance.
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- mm/list_lru.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ include/linux/memcontrol.h |   13 +++++++++++++
+ mm/list_lru.c              |   21 +++++++++++++++++++--
+ 2 files changed, 32 insertions(+), 2 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 2ec96ab46b01..e1c1fa8e417a 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -1238,6 +1238,17 @@ extern struct memcg_shrinker_map __rcu *root_shrinkers_map[];
+ 
+ extern int expand_shrinker_maps(int old_id, int id);
+ 
++static inline void set_shrinker_bit(struct mem_cgroup *memcg, int nid, int nr)
++{
++	if (nr >= 0) {
++		struct memcg_shrinker_map *map;
++
++		rcu_read_lock();
++		map = SHRINKERS_MAP(memcg, nid);
++		set_bit(nr, map->map);
++		rcu_read_unlock();
++	}
++}
+ #else
+ #define for_each_memcg_cache_index(_idx)	\
+ 	for (; NULL; )
+@@ -1260,6 +1271,8 @@ static inline void memcg_put_cache_ids(void)
+ {
+ }
+ 
++static inline void set_shrinker_bit(struct mem_cgroup *memcg, int node, int id) { }
++
+ #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
+ 
+ #endif /* _LINUX_MEMCONTROL_H */
 diff --git a/mm/list_lru.c b/mm/list_lru.c
-index a92850bc209f..ed0f97b0c087 100644
+index ed0f97b0c087..52d67ca391bb 100644
 --- a/mm/list_lru.c
 +++ b/mm/list_lru.c
-@@ -516,9 +516,10 @@ int memcg_update_all_list_lrus(int new_size)
- 	goto out;
+@@ -30,6 +30,11 @@ static void list_lru_unregister(struct list_lru *lru)
+ 	list_del(&lru->list);
+ 	mutex_unlock(&list_lrus_mutex);
  }
- 
--static void memcg_drain_list_lru_node(struct list_lru_node *nlru,
-+static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
- 				      int src_idx, struct mem_cgroup *dst_memcg)
++
++static int lru_shrinker_id(struct list_lru *lru)
++{
++	return lru->shrinker_id;
++}
+ #else
+ static void list_lru_register(struct list_lru *lru)
  {
-+	struct list_lru_node *nlru = &lru->node[nid];
+@@ -38,6 +43,11 @@ static void list_lru_register(struct list_lru *lru)
+ static void list_lru_unregister(struct list_lru *lru)
+ {
+ }
++
++static int lru_shrinker_id(struct list_lru *lru)
++{
++	return -1;
++}
+ #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
+ 
+ #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+@@ -121,13 +131,16 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
+ {
+ 	int nid = page_to_nid(virt_to_page(item));
+ 	struct list_lru_node *nlru = &lru->node[nid];
++	struct mem_cgroup *memcg;
+ 	struct list_lru_one *l;
+ 
+ 	spin_lock(&nlru->lock);
+ 	if (list_empty(item)) {
+-		l = list_lru_from_kmem(nlru, item, NULL);
++		l = list_lru_from_kmem(nlru, item, &memcg);
+ 		list_add_tail(item, &l->list);
+-		l->nr_items++;
++		/* Set shrinker bit if the first element was added */
++		if (!l->nr_items++)
++			set_shrinker_bit(memcg, nid, lru_shrinker_id(lru));
+ 		nlru->nr_items++;
+ 		spin_unlock(&nlru->lock);
+ 		return true;
+@@ -522,6 +535,7 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
+ 	struct list_lru_node *nlru = &lru->node[nid];
  	int dst_idx = dst_memcg->kmemcg_id;
  	struct list_lru_one *src, *dst;
++	bool set;
  
-@@ -547,7 +548,7 @@ static void memcg_drain_list_lru(struct list_lru *lru,
- 		return;
+ 	/*
+ 	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
+@@ -533,7 +547,10 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
+ 	dst = list_lru_from_memcg_idx(nlru, dst_idx);
  
- 	for_each_node(i)
--		memcg_drain_list_lru_node(&lru->node[i], src_idx, dst_memcg);
-+		memcg_drain_list_lru_node(lru, i, src_idx, dst_memcg);
- }
+ 	list_splice_init(&src->list, &dst->list);
++	set = (!dst->nr_items && src->nr_items);
+ 	dst->nr_items += src->nr_items;
++	if (set)
++		set_shrinker_bit(dst_memcg, nid, lru_shrinker_id(lru));
+ 	src->nr_items = 0;
  
- void memcg_drain_all_list_lrus(int src_idx, struct mem_cgroup *dst_memcg)
+ 	spin_unlock_irq(&nlru->lock);
