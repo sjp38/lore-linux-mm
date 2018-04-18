@@ -1,262 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FAF36B0011
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 14:49:24 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id d13so1390089pfn.21
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 11:49:24 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q20si1588554pfh.37.2018.04.18.11.49.22
+	by kanga.kvack.org (Postfix) with ESMTP id 428146B0012
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 14:49:25 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id x184so1398346pfd.14
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 11:49:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z5sor439939pgo.64.2018.04.18.11.49.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 18 Apr 2018 11:49:22 -0700 (PDT)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v3 07/14] slub: Remove page->counters
-Date: Wed, 18 Apr 2018 11:49:05 -0700
-Message-Id: <20180418184912.2851-8-willy@infradead.org>
-In-Reply-To: <20180418184912.2851-1-willy@infradead.org>
-References: <20180418184912.2851-1-willy@infradead.org>
+        (Google Transport Security);
+        Wed, 18 Apr 2018 11:49:24 -0700 (PDT)
+Date: Wed, 18 Apr 2018 11:49:22 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] SLUB: Do not fallback to mininum order if __GFP_NORETRY
+ is set
+In-Reply-To: <alpine.LRH.2.02.1804181102490.13213@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.21.1804181147100.227784@chino.kir.corp.google.com>
+References: <alpine.DEB.2.20.1804180944180.1062@nuc-kabylake> <alpine.LRH.2.02.1804181102490.13213@file01.intranet.prod.int.rdu2.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Christopher Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Snitzer <snitzer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+On Wed, 18 Apr 2018, Mikulas Patocka wrote:
 
-Use page->private instead, now that these two fields are in the same
-location.  Include a compile-time assert that the fields don't get out
-of sync.
+> > Mikulas Patoka wants to ensure that no fallback to lower order happens. I
+> > think __GFP_NORETRY should work correctly in that case too and not fall
+> > back.
+> > 
+> > 
+> > 
+> > Allocating at a smaller order is a retry operation and should not
+> > be attempted.
+> > 
+> > If the caller does not want retries then respect that.
+> > 
+> > GFP_NORETRY allows callers to ensure that only maximum order
+> > allocations are attempted.
+> > 
+> > Signed-off-by: Christoph Lameter <cl@linux.com>
+> > 
+> > Index: linux/mm/slub.c
+> > ===================================================================
+> > --- linux.orig/mm/slub.c
+> > +++ linux/mm/slub.c
+> > @@ -1598,7 +1598,7 @@ static struct page *allocate_slab(struct
+> >  		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
+> > 
+> >  	page = alloc_slab_page(s, alloc_gfp, node, oo);
+> > -	if (unlikely(!page)) {
+> > +	if (unlikely(!page) && !(flags & __GFP_NORETRY)) {
+> >  		oo = s->min;
+> >  		alloc_gfp = flags;
+> >  		/*
+> 
+> No, this would hit NULL pointer dereference if page is NULL and 
+> __GFP_NORETRY is set. You want this:
+> 
+> ---
+>  mm/slub.c |    2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> Index: linux-2.6/mm/slub.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slub.c	2018-04-17 20:58:23.000000000 +0200
+> +++ linux-2.6/mm/slub.c	2018-04-18 17:04:01.000000000 +0200
+> @@ -1599,6 +1599,8 @@ static struct page *allocate_slab(struct
+>  
+>  	page = alloc_slab_page(s, alloc_gfp, node, oo);
+>  	if (unlikely(!page)) {
+> +		if (flags & __GFP_NORETRY)
+> +			goto out;
+>  		oo = s->min;
+>  		alloc_gfp = flags;
+>  		/*
+> 
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- include/linux/mm_types.h |  5 ++-
- mm/slub.c                | 68 ++++++++++++++++++----------------------
- 2 files changed, 33 insertions(+), 40 deletions(-)
+I don't see the connection between the max order, which can be influenced 
+by userspace with slub_min_objects, slub_min_order, etc, and specifying 
+__GFP_NORETRY which means try to reclaim and free memory but don't loop.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 9c048a512695..04d9dc442029 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -65,9 +65,9 @@ struct hmm;
-  */
- #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
- #define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
--#else /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
-+#else
- #define _struct_page_alignment
--#endif /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
-+#endif
- 
- struct page {
- 	/* First double word block */
-@@ -105,7 +105,6 @@ struct page {
- #endif
- #endif
- 		void *s_mem;			/* slab first object */
--		unsigned long counters;		/* SLUB */
- 		struct {			/* SLUB */
- 			unsigned inuse:16;
- 			unsigned objects:15;
-diff --git a/mm/slub.c b/mm/slub.c
-index 27b6ba1c116a..f2f64568b25e 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -55,8 +55,9 @@
-  *   have the ability to do a cmpxchg_double. It only protects the second
-  *   double word in the page struct. Meaning
-  *	A. page->freelist	-> List of object free in a page
-- *	B. page->counters	-> Counters of objects
-- *	C. page->frozen		-> frozen state
-+ *	B. page->inuse		-> Number of objects in use
-+ *	C. page->objects	-> Number of objects in page
-+ *	D. page->frozen		-> frozen state
-  *
-  *   If a slab is frozen then it is exempt from list management. It is not
-  *   on any list. The processor that froze the slab is the one who can
-@@ -358,17 +359,10 @@ static __always_inline void slab_unlock(struct page *page)
- 
- static inline void set_page_slub_counters(struct page *page, unsigned long counters_new)
- {
--	struct page tmp;
--	tmp.counters = counters_new;
--	/*
--	 * page->counters can cover frozen/inuse/objects as well
--	 * as page->_refcount.  If we assign to ->counters directly
--	 * we run the risk of losing updates to page->_refcount, so
--	 * be careful and only assign to the fields we need.
--	 */
--	page->frozen  = tmp.frozen;
--	page->inuse   = tmp.inuse;
--	page->objects = tmp.objects;
-+	BUILD_BUG_ON(offsetof(struct page, freelist) + sizeof(void *) !=
-+			offsetof(struct page, private));
-+	BUILD_BUG_ON(offsetof(struct page, freelist) % (2 * sizeof(void *)));
-+	page->private = counters_new;
- }
- 
- /* Interrupts must be disabled (for the fallback code to work right) */
-@@ -381,7 +375,7 @@ static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct page *page
- #if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-     defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
- 	if (s->flags & __CMPXCHG_DOUBLE) {
--		if (cmpxchg_double(&page->freelist, &page->counters,
-+		if (cmpxchg_double(&page->freelist, &page->private,
- 				   freelist_old, counters_old,
- 				   freelist_new, counters_new))
- 			return true;
-@@ -390,7 +384,7 @@ static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct page *page
- 	{
- 		slab_lock(page);
- 		if (page->freelist == freelist_old &&
--					page->counters == counters_old) {
-+					page->private == counters_old) {
- 			page->freelist = freelist_new;
- 			set_page_slub_counters(page, counters_new);
- 			slab_unlock(page);
-@@ -417,7 +411,7 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
- #if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-     defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
- 	if (s->flags & __CMPXCHG_DOUBLE) {
--		if (cmpxchg_double(&page->freelist, &page->counters,
-+		if (cmpxchg_double(&page->freelist, &page->private,
- 				   freelist_old, counters_old,
- 				   freelist_new, counters_new))
- 			return true;
-@@ -429,7 +423,7 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
- 		local_irq_save(flags);
- 		slab_lock(page);
- 		if (page->freelist == freelist_old &&
--					page->counters == counters_old) {
-+					page->private == counters_old) {
- 			page->freelist = freelist_new;
- 			set_page_slub_counters(page, counters_new);
- 			slab_unlock(page);
-@@ -1788,8 +1782,8 @@ static inline void *acquire_slab(struct kmem_cache *s,
- 	 * per cpu allocation list.
- 	 */
- 	freelist = page->freelist;
--	counters = page->counters;
--	new.counters = counters;
-+	counters = page->private;
-+	new.private = counters;
- 	*objects = new.objects - new.inuse;
- 	if (mode) {
- 		new.inuse = page->objects;
-@@ -1803,7 +1797,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
- 
- 	if (!__cmpxchg_double_slab(s, page,
- 			freelist, counters,
--			new.freelist, new.counters,
-+			new.freelist, new.private,
- 			"acquire_slab"))
- 		return NULL;
- 
-@@ -2050,15 +2044,15 @@ static void deactivate_slab(struct kmem_cache *s, struct page *page,
- 
- 		do {
- 			prior = page->freelist;
--			counters = page->counters;
-+			counters = page->private;
- 			set_freepointer(s, freelist, prior);
--			new.counters = counters;
-+			new.private = counters;
- 			new.inuse--;
- 			VM_BUG_ON(!new.frozen);
- 
- 		} while (!__cmpxchg_double_slab(s, page,
- 			prior, counters,
--			freelist, new.counters,
-+			freelist, new.private,
- 			"drain percpu freelist"));
- 
- 		freelist = nextfree;
-@@ -2081,11 +2075,11 @@ static void deactivate_slab(struct kmem_cache *s, struct page *page,
- redo:
- 
- 	old.freelist = page->freelist;
--	old.counters = page->counters;
-+	old.private = page->private;
- 	VM_BUG_ON(!old.frozen);
- 
- 	/* Determine target state of the slab */
--	new.counters = old.counters;
-+	new.private = old.private;
- 	if (freelist) {
- 		new.inuse--;
- 		set_freepointer(s, freelist, old.freelist);
-@@ -2146,8 +2140,8 @@ static void deactivate_slab(struct kmem_cache *s, struct page *page,
- 
- 	l = m;
- 	if (!__cmpxchg_double_slab(s, page,
--				old.freelist, old.counters,
--				new.freelist, new.counters,
-+				old.freelist, old.private,
-+				new.freelist, new.private,
- 				"unfreezing slab"))
- 		goto redo;
- 
-@@ -2196,17 +2190,17 @@ static void unfreeze_partials(struct kmem_cache *s,
- 		do {
- 
- 			old.freelist = page->freelist;
--			old.counters = page->counters;
-+			old.private = page->private;
- 			VM_BUG_ON(!old.frozen);
- 
--			new.counters = old.counters;
-+			new.private = old.private;
- 			new.freelist = old.freelist;
- 
- 			new.frozen = 0;
- 
- 		} while (!__cmpxchg_double_slab(s, page,
--				old.freelist, old.counters,
--				new.freelist, new.counters,
-+				old.freelist, old.private,
-+				new.freelist, new.private,
- 				"unfreezing slab"));
- 
- 		if (unlikely(!new.inuse && n->nr_partial >= s->min_partial)) {
-@@ -2495,9 +2489,9 @@ static inline void *get_freelist(struct kmem_cache *s, struct page *page)
- 
- 	do {
- 		freelist = page->freelist;
--		counters = page->counters;
-+		counters = page->private;
- 
--		new.counters = counters;
-+		new.private = counters;
- 		VM_BUG_ON(!new.frozen);
- 
- 		new.inuse = page->objects;
-@@ -2505,7 +2499,7 @@ static inline void *get_freelist(struct kmem_cache *s, struct page *page)
- 
- 	} while (!__cmpxchg_double_slab(s, page,
- 		freelist, counters,
--		NULL, new.counters,
-+		NULL, new.private,
- 		"get_freelist"));
- 
- 	return freelist;
-@@ -2830,9 +2824,9 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 			n = NULL;
- 		}
- 		prior = page->freelist;
--		counters = page->counters;
-+		counters = page->private;
- 		set_freepointer(s, tail, prior);
--		new.counters = counters;
-+		new.private = counters;
- 		was_frozen = new.frozen;
- 		new.inuse -= cnt;
- 		if ((!new.inuse || !prior) && !was_frozen) {
-@@ -2865,7 +2859,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 
- 	} while (!cmpxchg_double_slab(s, page,
- 		prior, counters,
--		head, new.counters,
-+		head, new.private,
- 		"__slab_free"));
- 
- 	if (likely(!n)) {
--- 
-2.17.0
+If I force a slab cache to try a max order of 9 for hugepages as a best 
+effort, why does __GFP_NORETRY suddenly mean I won't fallback to 
+oo_order(s->min)?
