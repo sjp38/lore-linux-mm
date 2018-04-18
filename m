@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E93E26B000C
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 10:27:17 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id q15-v6so1982657itb.7
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 07:27:17 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0107.outbound.protection.outlook.com. [104.47.1.107])
-        by mx.google.com with ESMTPS id x189-v6si1462655ite.42.2018.04.18.07.27.16
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 925626B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 10:28:07 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id p131-v6so963648oig.10
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 07:28:07 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id y23-v6si439629otj.370.2018.04.18.07.28.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 18 Apr 2018 07:27:16 -0700 (PDT)
-Subject: Re: [PATCH v2 01/12] mm: Assign id to every memcg-aware shrinker
-References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
- <152399118252.3456.17590357803686895373.stgit@localhost.localdomain>
- <201804182314.IIG86990.MFVJSFQLFOtHOO@I-love.SAKURA.ne.jp>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <b544689c-718c-abda-889c-5ec5eb755854@virtuozzo.com>
-Date: Wed, 18 Apr 2018 17:27:08 +0300
-MIME-Version: 1.0
-In-Reply-To: <201804182314.IIG86990.MFVJSFQLFOtHOO@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Apr 2018 07:28:06 -0700 (PDT)
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20180418075051.GO17484@dhcp22.suse.cz>
+	<201804182049.EDJ21857.OHJOMOLFQVFFtS@I-love.SAKURA.ne.jp>
+	<20180418115830.GA17484@dhcp22.suse.cz>
+	<201804182225.EII57887.OLMHOFVtQSFJOF@I-love.SAKURA.ne.jp>
+	<20180418134401.GF17484@dhcp22.suse.cz>
+In-Reply-To: <20180418134401.GF17484@dhcp22.suse.cz>
+Message-Id: <201804182328.HIC57360.QHMFJtOLVFOSFO@I-love.SAKURA.ne.jp>
+Date: Wed, 18 Apr 2018 23:28:01 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: mhocko@kernel.org
+Cc: rientjes@google.com, akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 18.04.2018 17:14, Tetsuo Handa wrote:
-> Kirill Tkhai wrote:
->> The patch introduces shrinker::id number, which is used to enumerate
->> memcg-aware shrinkers. The number start from 0, and the code tries
->> to maintain it as small as possible.
->>
->> This will be used as to represent a memcg-aware shrinkers in memcg
->> shrinkers map.
+Michal Hocko wrote:
+> > > > Then, I'm tempted to call __oom_reap_task_mm() before holding mmap_sem for write.
+> > > > It would be OK to call __oom_reap_task_mm() at the beginning of __mmput()...
+> > > 
+> > > I am not sure I understand.
+> > 
+> > To reduce possibility of __oom_reap_task_mm() giving up reclaim and
+> > setting MMF_OOM_SKIP.
 > 
-> I'm not reading this thread. But is there reason "id" needs to be managed
-> using smallest numbers? Can't we use address of shrinker object as "id"
-> (which will be sparse bitmap, and would be managed using linked list for now)?
+> Still do not understand. Do you want to call __oom_reap_task_mm from
+> __mmput?
 
-Yes, it's needed to have the smallest numbers, as next patches introduce
-per-memcg bitmap containing ids of shrinkers.
+Yes.
 
-Kirill
+>          If yes why would you do so when exit_mmap does a stronger
+> version of it?
+
+Because memory which can be reclaimed by the OOM reaper is guaranteed
+to be reclaimed before setting MMF_OOM_SKIP when the OOM reaper and
+exit_mmap() contended, because the OOM reaper (weak reclaim) sets
+MMF_OOM_SKIP after one second for safety in case of exit_mmap()
+(strong reclaim) failing to make forward progress.
