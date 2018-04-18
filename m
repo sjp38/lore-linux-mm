@@ -1,7 +1,7 @@
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH 3/6] arm64: untag user addresses in copy_from_user and others
-Date: Wed, 18 Apr 2018 20:53:12 +0200
-Message-ID: <949c343a4b02b41b80f324c2b7cd56b75e6a04f3.1524077494.git.andreyknvl__39696.6648906984$1524077624$gmane$org@google.com>
+Subject: [PATCH 2/6] uaccess: add untagged_addr definition for other arches
+Date: Wed, 18 Apr 2018 20:53:11 +0200
+Message-ID: <3001f7c75f1f99b4c7b789cf91da06678df3435e.1524077494.git.andreyknvl__46153.3706672073$1524077671$gmane$org@google.com>
 References: <cover.1524077494.git.andreyknvl@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -23,47 +23,32 @@ To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 Cc: Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 List-Id: linux-mm.kvack.org
 
-copy_from_user (and a few other similar functions) are used to copy data
-from user memory into the kernel memory or vice versa. Since a user can
-provided a tagged pointer to one of the syscalls that use copy_from_user,
-we need to correctly handle such pointers.
+To allow arm64 syscalls accept tagged pointers from userspace, we must
+untag them when they are passed to the kernel. Since untagging is done in
+generic parts of the kernel (like the mm subsystem), the untagged_addr
+macro should be defined for all architectures.
 
-Do this by untagging user pointers in access_ok and in __uaccess_mask_ptr.
+Define it as a noop for other architectures besides arm64.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/include/asm/uaccess.h | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ include/linux/uaccess.h | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-index 2d6451cbaa86..24a221678fe3 100644
---- a/arch/arm64/include/asm/uaccess.h
-+++ b/arch/arm64/include/asm/uaccess.h
-@@ -105,7 +105,8 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
- #define untagged_addr(addr)		\
- 	((__typeof__(addr))sign_extend64((__u64)(addr), 55))
+diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
+index efe79c1cdd47..c045b4eff95e 100644
+--- a/include/linux/uaccess.h
++++ b/include/linux/uaccess.h
+@@ -13,6 +13,10 @@
  
--#define access_ok(type, addr, size)	__range_ok(addr, size)
-+#define access_ok(type, addr, size)	\
-+	__range_ok(untagged_addr(addr), size)
- #define user_addr_max			get_fs
+ #include <asm/uaccess.h>
  
- #define _ASM_EXTABLE(from, to)						\
-@@ -238,12 +239,15 @@ static inline void uaccess_enable_not_uao(void)
- /*
-  * Sanitise a uaccess pointer such that it becomes NULL if above the
-  * current addr_limit.
-+ * Also untag user pointers that have the top byte tag set.
-  */
- #define uaccess_mask_ptr(ptr) (__typeof__(ptr))__uaccess_mask_ptr(ptr)
- static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
- {
- 	void __user *safe_ptr;
- 
-+	ptr = untagged_addr(ptr);
++#ifndef untagged_addr
++#define untagged_addr(addr) addr
++#endif
 +
- 	asm volatile(
- 	"	bics	xzr, %1, %2\n"
- 	"	csel	%0, %1, xzr, eq\n"
+ /*
+  * Architectures should provide two primitives (raw_copy_{to,from}_user())
+  * and get rid of their private instances of copy_{to,from}_user() and
 -- 
 2.17.0.484.g0c8726318c-goog
