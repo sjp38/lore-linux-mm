@@ -1,57 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B4206B0008
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 15:59:19 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 35-v6so1553348pla.18
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 12:59:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g124si1623149pgc.163.2018.04.18.12.59.18
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D2ECA6B0008
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 16:26:44 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id f13-v6so1847824qtg.15
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 13:26:44 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id w131si2736923qkw.40.2018.04.18.13.26.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Apr 2018 12:59:18 -0700 (PDT)
-Date: Wed, 18 Apr 2018 12:59:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [do_execve] attempted to set unsupported pgprot
-Message-Id: <20180418125916.a8be1fac1ac017f41a10f0fb@linux-foundation.org>
-In-Reply-To: <20180418135933.t3dyszi2phhsvaah@wfg-t540p.sh.intel.com>
-References: <20180418135933.t3dyszi2phhsvaah@wfg-t540p.sh.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 18 Apr 2018 13:26:43 -0700 (PDT)
+Subject: Re: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and
+ hugetlbfs
+References: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <2804a1d0-9d68-ac43-3041-9490147b52b5@oracle.com>
+Date: Wed, 18 Apr 2018 13:26:35 -0700
+MIME-Version: 1.0
+In-Reply-To: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Serge Hallyn <serge@hallyn.com>, James Morris <james.l.morris@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, lkp@01.org, Dave Hansen <dave.hansen@linux.intel.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>, viro@zeniv.linux.org.uk, nyc@holomorphy.com, kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 18 Apr 2018 21:59:33 +0800 Fengguang Wu <fengguang.wu@intel.com> wrote:
+On 04/17/2018 02:08 PM, Yang Shi wrote:
+> And, set the flag for hugetlbfs as well to keep the consistency, and the
+> applications don't have to know what filesystem is used to use huge
+> page, just need to check ST_HUGE flag.
 
-> Hello,
-> 
-> FYI this happens in mainline kernel 4.17.0-rc1.
-> It looks like a new regression.
-> 
-> It occurs in 4 out of 4 boots.
-> 
-> [   12.345562] Write protecting the kernel text: 14376k
-> [   12.346649] Write protecting the kernel read-only data: 4740k
-> [   12.347584] rodata_test: all tests were successful
-> [   12.348499] ------------[ cut here ]------------
-> [   12.349193] attempted to set unsupported pgprot: 8000000000000025 bits: 8000000000000000 supported: 7fffffffffffffff
-> [   12.350792] WARNING: CPU: 0 PID: 1 at arch/x86/include/asm/pgtable.h:540 handle_mm_fault+0xfc1/0xfe0:
-> 						check_pgprot at arch/x86/include/asm/pgtable.h:535
-> 						 (inlined by) pfn_pte at arch/x86/include/asm/pgtable.h:549
-> 						 (inlined by) do_anonymous_page at mm/memory.c:3169
-> 						 (inlined by) handle_pte_fault at mm/memory.c:3961
-> 						 (inlined by) __handle_mm_fault at mm/memory.c:4087
-> 						 (inlined by) handle_mm_fault at mm/memory.c:4124
-> [   12.352294] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.17.0-rc1 #172
-> [   12.353357] EIP: handle_mm_fault+0xfc1/0xfe0:
-> 						check_pgprot at arch/x86/include/asm/pgtable.h:535
-> 						 (inlined by) pfn_pte at arch/x86/include/asm/pgtable.h:549
-> 						 (inlined by) do_anonymous_page at mm/memory.c:3169
-> 						 (inlined by) handle_pte_fault at mm/memory.c:3961
-> 						 (inlined by) __handle_mm_fault at mm/memory.c:4087
-> 						 (inlined by) handle_mm_fault at mm/memory.c:4124
+For hugetlbfs, setting such a flag would be for consistency only.  mapping
+hugetlbfs files REQUIRES huge page alignment and size.
 
-Dave, fb43d6cb91ef57 ("x86/mm: Do not auto-massage page protections")
-looks like a culprit?
+If an application would want to take advantage of this flag for tmpfs, it
+needs to map at a fixed address (MAP_FIXED) for huge page alignment.  So,
+it will need to do one of the 'mmap tricks' to get a mapping at a suitably
+aligned address.  
+
+IIRC, there is code to 'suitably align' DAX mappings to appropriate huge page
+boundaries.  Perhaps, something like this could be added for tmpfs mounted
+with huge=?  Of course, this would not take into account 'length' but may
+help some.
+
+-- 
+Mike Kravetz
