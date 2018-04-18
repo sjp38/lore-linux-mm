@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B6526B0009
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C8A06B000A
 	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 14:49:22 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t3so990508pgc.21
+Received: by mail-pl0-f70.google.com with SMTP id u11-v6so1466365pls.22
         for <linux-mm@kvack.org>; Wed, 18 Apr 2018 11:49:22 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y12-v6si1684238plt.175.2018.04.18.11.49.20
+        by mx.google.com with ESMTPS id d72si1602450pfe.291.2018.04.18.11.49.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Wed, 18 Apr 2018 11:49:20 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v3 04/14] mm: Switch s_mem and slab_cache in struct page
-Date: Wed, 18 Apr 2018 11:49:02 -0700
-Message-Id: <20180418184912.2851-5-willy@infradead.org>
-In-Reply-To: <20180418184912.2851-1-willy@infradead.org>
-References: <20180418184912.2851-1-willy@infradead.org>
+Subject: [PATCH v3 00/14] Rearrange struct page
+Date: Wed, 18 Apr 2018 11:48:58 -0700
+Message-Id: <20180418184912.2851-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -22,48 +20,55 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundatio
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-slub now needs to set page->mapping to NULL as it frees the page, just
-like slab does.
+This is actually the combination of two previously posted series.
+Since they both deal with rearranging struct page and the second series
+depends on the first, I thought it best to combine them.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- include/linux/mm_types.h | 4 ++--
- mm/slub.c                | 1 +
- 2 files changed, 3 insertions(+), 2 deletions(-)
+The overall motivation is to make it easier for people to use the space
+in struct page if they've allocated it for their own purposes.  By the
+end of the series, we end up with five consecutive words which can be
+used almost arbitrarily by the owner.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 41828fb34860..e97a310a6abe 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -83,7 +83,7 @@ struct page {
- 		/* See page-flags.h for the definition of PAGE_MAPPING_FLAGS */
- 		struct address_space *mapping;
- 
--		void *s_mem;			/* slab first object */
-+		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
- 		atomic_t compound_mapcount;	/* first tail page */
- 		/* page_deferred_list().next	 -- second tail page */
- 	};
-@@ -194,7 +194,7 @@ struct page {
- 		spinlock_t ptl;
- #endif
- #endif
--		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
-+		void *s_mem;			/* slab first object */
- 	};
- 
- #ifdef CONFIG_MEMCG
-diff --git a/mm/slub.c b/mm/slub.c
-index 099925cf456a..27b6ba1c116a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1690,6 +1690,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 	__ClearPageSlab(page);
- 
- 	page_mapcount_reset(page);
-+	page->mapping = NULL;
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
- 	memcg_uncharge_slab(page, order, s);
+Highlights:
+ - slub's counters no longer share space with _refcount.
+ - slub's freelist+counters are now naturally dword aligned.
+ - It's now more obvious what fields in struct page are used by which
+   owners (some owners still take advantage of the union aliasing).
+ - deferred_list now really exists in struct page instead of just a
+   comment.
+ - slub loses a parameter to a lot of functions.
+
+Matthew Wilcox (14):
+  s390: Use _refcount for pgtables
+  mm: Split page_type out from _mapcount
+  mm: Mark pages in use for page tables
+  mm: Switch s_mem and slab_cache in struct page
+  mm: Move 'private' union within struct page
+  mm: Move _refcount out of struct page union
+  slub: Remove page->counters
+  mm: Combine first three unions in struct page
+  mm: Use page->deferred_list
+  mm: Move lru union within struct page
+  mm: Combine first two unions in struct page
+  mm: Improve struct page documentation
+  slab,slub: Remove rcu_head size checks
+  slub: Remove kmem_slab_cache->reserved
+
+ arch/s390/mm/pgalloc.c                 |  21 +--
+ fs/proc/page.c                         |   2 +
+ include/linux/mm.h                     |   2 +
+ include/linux/mm_types.h               | 216 +++++++++++--------------
+ include/linux/page-flags.h             |  51 +++---
+ include/linux/slub_def.h               |   1 -
+ include/uapi/linux/kernel-page-flags.h |   2 +-
+ kernel/crash_core.c                    |   1 +
+ mm/huge_memory.c                       |   7 +-
+ mm/page_alloc.c                        |  17 +-
+ mm/slab.c                              |   2 -
+ mm/slub.c                              | 137 +++++++---------
+ scripts/tags.sh                        |   6 +-
+ tools/vm/page-types.c                  |   1 +
+ 14 files changed, 215 insertions(+), 251 deletions(-)
+
 -- 
 2.17.0
