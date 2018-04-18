@@ -1,234 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C4636B0005
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:12:00 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id y22-v6so813525pll.12
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 03:12:00 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0108.outbound.protection.outlook.com. [104.47.1.108])
-        by mx.google.com with ESMTPS id b4si828061pgn.145.2018.04.18.03.11.57
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D85526B0007
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:27:52 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id v14so604199pgq.11
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 03:27:52 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a17si869338pff.43.2018.04.18.03.27.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 18 Apr 2018 03:11:58 -0700 (PDT)
-Subject: Re: [v4 PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-References: <1523730291-109696-1-git-send-email-yang.shi@linux.alibaba.com>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <2697a481-b4ea-9d24-5df8-a30cd7dbdb8c@virtuozzo.com>
-Date: Wed, 18 Apr 2018 13:11:47 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 18 Apr 2018 03:27:51 -0700 (PDT)
+Date: Wed, 18 Apr 2018 03:27:44 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and
+ hugetlbfs
+Message-ID: <20180418102744.GA10397@infradead.org>
+References: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <1523730291-109696-1-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>, adobriyan@gmail.com, mhocko@kernel.org, willy@infradead.org, mguzik@redhat.com, gorcunov@gmail.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: viro@zeniv.linux.org.uk, nyc@holomorphy.com, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 14.04.2018 21:24, Yang Shi wrote:
-> mmap_sem is on the hot path of kernel, and it very contended, but it is
-> abused too. It is used to protect arg_start|end and evn_start|end when
-> reading /proc/$PID/cmdline and /proc/$PID/environ, but it doesn't make
-> sense since those proc files just expect to read 4 values atomically and
-> not related to VM, they could be set to arbitrary values by C/R.
+On Wed, Apr 18, 2018 at 05:08:13AM +0800, Yang Shi wrote:
+> Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
+> filesystem with huge page support anymore. tmpfs can use huge page via
+> THP when mounting by "huge=" mount option.
 > 
-> And, the mmap_sem contention may cause unexpected issue like below:
+> When applications use huge page on hugetlbfs, it just need check the
+> filesystem magic number, but it is not enough for tmpfs. So, introduce
+> ST_HUGE flag to statfs if super block has SB_HUGE set which indicates
+> huge page is supported on the specific filesystem.
 > 
-> INFO: task ps:14018 blocked for more than 120 seconds.
->        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-> message.
->  ps              D    0 14018      1 0x00000004
->   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->  Call Trace:
->   [<ffffffff817154d0>] ? __schedule+0x250/0x730
->   [<ffffffff817159e6>] schedule+0x36/0x80
->   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->   [<ffffffff81717db0>] down_read+0x20/0x40
->   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
->   [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
->   [<ffffffff81241d87>] __vfs_read+0x37/0x150
->   [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
->   [<ffffffff81242266>] vfs_read+0x96/0x130
->   [<ffffffff812437b5>] SyS_read+0x55/0xc0
->   [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
+> Some applications could benefit from this change, for example QEMU.
+> When use mmap file as guest VM backend memory, QEMU typically mmap the
+> file size plus one extra page. If the file is on hugetlbfs the extra
+> page is huge page size (i.e. 2MB), but it is still 4KB on tmpfs even
+> though THP is enabled. tmpfs THP requires VMA is huge page aligned, so
+> if 4KB page is used THP will not be used at all. The below /proc/meminfo
+> fragment shows the THP use of QEMU with 4K page:
 > 
-> Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
-> for them to mitigate the abuse of mmap_sem.
+> ShmemHugePages:   679936 kB
+> ShmemPmdMapped:        0 kB
 > 
-> So, introduce a new spinlock in mm_struct to protect the concurrent
-> access to arg_start|end, env_start|end and others, as well as replace
-> write map_sem to read to protect the race condition between prctl and
-> sys_brk which might break check_data_rlimit(), and makes prctl more
-> friendly to other VM operations.
+> With ST_HUGE flag, QEMU can get huge page, then /proc/meminfo looks
+> like:
 > 
-> This patch just eliminates the abuse of mmap_sem, but it can't resolve the
-> above hung task warning completely since the later access_remote_vm() call
-> needs acquire mmap_sem. The mmap_sem scalability issue will be solved in the
-> future.
+> ShmemHugePages:    77824 kB
+> ShmemPmdMapped:     6144 kB
 > 
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Alexey Dobriyan <adobriyan@gmail.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Mateusz Guzik <mguzik@redhat.com>
-> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-> ---
-> v3 --> v4:
-> * Protected values update with down_read + spin_lock to prevent from race
->   condition between prctl and sys_brk and made prctl more friendly to VM
->   operations per Michal's suggestion
+> With this flag, the applications can know if huge page is supported on
+> the filesystem then optimize the behavior of the applications
+> accordingly. Although the similar function can be implemented in
+> applications by traversing the mount options, it looks more convenient
+> if kernel can provide such flag.
 > 
-> v2 --> v3:
-> * Restored down_write in prctl syscall
-> * Elaborate the limitation of this patch suggested by Michal
-> * Protect those fields by the new lock except brk and start_brk per Michal's
->   suggestion
-> * Based off Cyrill's non PR_SET_MM_MAP oprations deprecation patch
->   (https://lkml.org/lkml/2018/4/5/541)
-> 
-> v1 --> v2:
-> * Use spinlock instead of rwlock per Mattew's suggestion
-> * Replace down_write to down_read in prctl_set_mm (see commit log for details)
->  fs/proc/base.c           | 8 ++++----
->  include/linux/mm_types.h | 2 ++
->  kernel/fork.c            | 1 +
->  kernel/sys.c             | 6 ++++--
->  mm/init-mm.c             | 1 +
->  5 files changed, 12 insertions(+), 6 deletions(-)
-> 
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index eafa39a..3551757 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -239,12 +239,12 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
->  		goto out_mmput;
->  	}
->  
-> -	down_read(&mm->mmap_sem);
-> +	spin_lock(&mm->arg_lock);
->  	arg_start = mm->arg_start;
->  	arg_end = mm->arg_end;
->  	env_start = mm->env_start;
->  	env_end = mm->env_end;
-> -	up_read(&mm->mmap_sem);
-> +	spin_unlock(&mm->arg_lock);
->  
->  	BUG_ON(arg_start > arg_end);
->  	BUG_ON(env_start > env_end);
-> @@ -929,10 +929,10 @@ static ssize_t environ_read(struct file *file, char __user *buf,
->  	if (!mmget_not_zero(mm))
->  		goto free;
->  
-> -	down_read(&mm->mmap_sem);
-> +	spin_lock(&mm->arg_lock);
->  	env_start = mm->env_start;
->  	env_end = mm->env_end;
-> -	up_read(&mm->mmap_sem);
-> +	spin_unlock(&mm->arg_lock);
->  
->  	while (count > 0) {
->  		size_t this_len, max_len;
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 2161234..49dd59e 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -413,6 +413,8 @@ struct mm_struct {
->  	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE & ~VM_STACK */
->  	unsigned long stack_vm;		/* VM_STACK */
->  	unsigned long def_flags;
-> +
-> +	spinlock_t arg_lock; /* protect the below fields */
+> Even though ST_HUGE is set, f_bsize still returns 4KB for tmpfs since
+> THP could be split, and it also my fallback to 4KB page silently if
+> there is not enough huge page.
 
-What the reason is spinlock is used to protect this fields?
-There may be several readers, say, doing "ps axf" and it's
-OK for them to access these fields in parallel. Why should
-we delay them by each other?
-
-rw_lock seems be more suitable for here.
-
->  	unsigned long start_code, end_code, start_data, end_data;
->  	unsigned long start_brk, brk, start_stack;
->  	unsigned long arg_start, arg_end, env_start, env_end;
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index 242c8c9..295f903 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -900,6 +900,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
->  	mm->pinned_vm = 0;
->  	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
->  	spin_lock_init(&mm->page_table_lock);
-> +	spin_lock_init(&mm->arg_lock);
->  	mm_init_cpumask(mm);
->  	mm_init_aio(mm);
->  	mm_init_owner(mm, p);
-> diff --git a/kernel/sys.c b/kernel/sys.c
-> index f16725e..0cc5a1c 100644
-> --- a/kernel/sys.c
-> +++ b/kernel/sys.c
-> @@ -2011,7 +2011,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
->  			return error;
->  	}
->  
-> -	down_write(&mm->mmap_sem);
-> +	down_read(&mm->mmap_sem);
-
-This down_read() looks confusing for a reader. Comment to spinlock says it protects the fields:
-
-	+	spinlock_t arg_lock; /* protect the below fields */
-
-but in real life there is not obvious dependence with sys_brk(), which is nowhere described.
-This hunk protects us from "execution of sys_brk()" and this looks very confusing.
-
-The generic locking theory says, we should protect data and not a function execution.
-Protection of function execution prevents their modification in the future, makes it
-more difficult.
-
-Can we take write_lock() (after we introduce it instead of spinlock) in sys_brk()
-and make the locking scheme more visible and intuitive?
-
->  
->  	/*
->  	 * We don't validate if these members are pointing to
-> @@ -2025,6 +2025,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
->  	 *    to any problem in kernel itself
->  	 */
->  
-> +	spin_lock(&mm->arg_lock);
->  	mm->start_code	= prctl_map.start_code;
->  	mm->end_code	= prctl_map.end_code;
->  	mm->start_data	= prctl_map.start_data;
-> @@ -2036,6 +2037,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
->  	mm->arg_end	= prctl_map.arg_end;
->  	mm->env_start	= prctl_map.env_start;
->  	mm->env_end	= prctl_map.env_end;
-> +	spin_unlock(&mm->arg_lock);
->  
->  	/*
->  	 * Note this update of @saved_auxv is lockless thus
-> @@ -2048,7 +2050,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
->  	if (prctl_map.auxv_size)
->  		memcpy(mm->saved_auxv, user_auxv, sizeof(user_auxv));
->  
-> -	up_write(&mm->mmap_sem);
-> +	up_read(&mm->mmap_sem);
->  	return 0;
->  }
->  #endif /* CONFIG_CHECKPOINT_RESTORE */
-> diff --git a/mm/init-mm.c b/mm/init-mm.c
-> index f94d5d1..f0179c9 100644
-> --- a/mm/init-mm.c
-> +++ b/mm/init-mm.c
-> @@ -22,6 +22,7 @@ struct mm_struct init_mm = {
->  	.mm_count	= ATOMIC_INIT(1),
->  	.mmap_sem	= __RWSEM_INITIALIZER(init_mm.mmap_sem),
->  	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
-> +	.arg_lock	=  __SPIN_LOCK_UNLOCKED(init_mm.arg_lock),
->  	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
->  	.user_ns	= &init_user_ns,
->  	INIT_MM_CONTEXT(init_mm)
-
-Kirill
+Seems like your should report it through the st_blksize field of struct
+stat then, instead of introducing a not very useful binary field then.
