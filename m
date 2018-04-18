@@ -1,86 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 428146B0012
+	by kanga.kvack.org (Postfix) with ESMTP id 874066B0022
 	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 14:49:25 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x184so1398346pfd.14
+Received: by mail-pf0-f197.google.com with SMTP id e14so1404945pfi.9
         for <linux-mm@kvack.org>; Wed, 18 Apr 2018 11:49:25 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z5sor439939pgo.64.2018.04.18.11.49.24
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id e15si1518705pgu.656.2018.04.18.11.49.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Wed, 18 Apr 2018 11:49:24 -0700 (PDT)
-Date: Wed, 18 Apr 2018 11:49:22 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] SLUB: Do not fallback to mininum order if __GFP_NORETRY
- is set
-In-Reply-To: <alpine.LRH.2.02.1804181102490.13213@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <alpine.DEB.2.21.1804181147100.227784@chino.kir.corp.google.com>
-References: <alpine.DEB.2.20.1804180944180.1062@nuc-kabylake> <alpine.LRH.2.02.1804181102490.13213@file01.intranet.prod.int.rdu2.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH v3 10/14] mm: Move lru union within struct page
+Date: Wed, 18 Apr 2018 11:49:08 -0700
+Message-Id: <20180418184912.2851-11-willy@infradead.org>
+In-Reply-To: <20180418184912.2851-1-willy@infradead.org>
+References: <20180418184912.2851-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Christopher Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Snitzer <snitzer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, 18 Apr 2018, Mikulas Patocka wrote:
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-> > Mikulas Patoka wants to ensure that no fallback to lower order happens. I
-> > think __GFP_NORETRY should work correctly in that case too and not fall
-> > back.
-> > 
-> > 
-> > 
-> > Allocating at a smaller order is a retry operation and should not
-> > be attempted.
-> > 
-> > If the caller does not want retries then respect that.
-> > 
-> > GFP_NORETRY allows callers to ensure that only maximum order
-> > allocations are attempted.
-> > 
-> > Signed-off-by: Christoph Lameter <cl@linux.com>
-> > 
-> > Index: linux/mm/slub.c
-> > ===================================================================
-> > --- linux.orig/mm/slub.c
-> > +++ linux/mm/slub.c
-> > @@ -1598,7 +1598,7 @@ static struct page *allocate_slab(struct
-> >  		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
-> > 
-> >  	page = alloc_slab_page(s, alloc_gfp, node, oo);
-> > -	if (unlikely(!page)) {
-> > +	if (unlikely(!page) && !(flags & __GFP_NORETRY)) {
-> >  		oo = s->min;
-> >  		alloc_gfp = flags;
-> >  		/*
-> 
-> No, this would hit NULL pointer dereference if page is NULL and 
-> __GFP_NORETRY is set. You want this:
-> 
-> ---
->  mm/slub.c |    2 ++
->  1 file changed, 2 insertions(+)
-> 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2018-04-17 20:58:23.000000000 +0200
-> +++ linux-2.6/mm/slub.c	2018-04-18 17:04:01.000000000 +0200
-> @@ -1599,6 +1599,8 @@ static struct page *allocate_slab(struct
->  
->  	page = alloc_slab_page(s, alloc_gfp, node, oo);
->  	if (unlikely(!page)) {
-> +		if (flags & __GFP_NORETRY)
-> +			goto out;
->  		oo = s->min;
->  		alloc_gfp = flags;
->  		/*
-> 
+Since the LRU is two words, this does not affect the double-word
+alignment of SLUB's freelist.
 
-I don't see the connection between the max order, which can be influenced 
-by userspace with slub_min_objects, slub_min_order, etc, and specifying 
-__GFP_NORETRY which means try to reclaim and free memory but don't loop.
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ include/linux/mm_types.h | 102 +++++++++++++++++++--------------------
+ 1 file changed, 51 insertions(+), 51 deletions(-)
 
-If I force a slab cache to try a max order of 9 for hugepages as a best 
-effort, why does __GFP_NORETRY suddenly mean I won't fallback to 
-oo_order(s->min)?
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 39521b8385c1..230d473f16da 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -72,6 +72,57 @@ struct hmm;
+ struct page {
+ 	unsigned long flags;		/* Atomic flags, some possibly
+ 					 * updated asynchronously */
++	/*
++	 * WARNING: bit 0 of the first word encode PageTail(). That means
++	 * the rest users of the storage space MUST NOT use the bit to
++	 * avoid collision and false-positive PageTail().
++	 */
++	union {
++		struct list_head lru;	/* Pageout list, eg. active_list
++					 * protected by zone_lru_lock !
++					 * Can be used as a generic list
++					 * by the page owner.
++					 */
++		struct dev_pagemap *pgmap; /* ZONE_DEVICE pages are never on an
++					    * lru or handled by a slab
++					    * allocator, this points to the
++					    * hosting device page map.
++					    */
++		struct {		/* slub per cpu partial pages */
++			struct page *next;	/* Next partial slab */
++#ifdef CONFIG_64BIT
++			int pages;	/* Nr of partial slabs left */
++			int pobjects;	/* Approximate # of objects */
++#else
++			short int pages;
++			short int pobjects;
++#endif
++		};
++
++		struct rcu_head rcu_head;	/* Used by SLAB
++						 * when destroying via RCU
++						 */
++		/* Tail pages of compound page */
++		struct {
++			unsigned long compound_head; /* If bit zero is set */
++
++			/* First tail page only */
++			unsigned char compound_dtor;
++			unsigned char compound_order;
++			/* two/six bytes available here */
++		};
++
++#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
++		struct {
++			unsigned long __pad;	/* do not overlay pmd_huge_pte
++						 * with compound_head to avoid
++						 * possible bit 0 collision.
++						 */
++			pgtable_t pmd_huge_pte; /* protected by page->ptl */
++		};
++#endif
++	};
++
+ 	union {		/* This union is three words (12/24 bytes) in size */
+ 		struct {	/* Page cache and anonymous pages */
+ 			/* See page-flags.h for PAGE_MAPPING_FLAGS */
+@@ -133,57 +184,6 @@ struct page {
+ 	/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
+ 	atomic_t _refcount;
+ 
+-	/*
+-	 * WARNING: bit 0 of the first word encode PageTail(). That means
+-	 * the rest users of the storage space MUST NOT use the bit to
+-	 * avoid collision and false-positive PageTail().
+-	 */
+-	union {
+-		struct list_head lru;	/* Pageout list, eg. active_list
+-					 * protected by zone_lru_lock !
+-					 * Can be used as a generic list
+-					 * by the page owner.
+-					 */
+-		struct dev_pagemap *pgmap; /* ZONE_DEVICE pages are never on an
+-					    * lru or handled by a slab
+-					    * allocator, this points to the
+-					    * hosting device page map.
+-					    */
+-		struct {		/* slub per cpu partial pages */
+-			struct page *next;	/* Next partial slab */
+-#ifdef CONFIG_64BIT
+-			int pages;	/* Nr of partial slabs left */
+-			int pobjects;	/* Approximate # of objects */
+-#else
+-			short int pages;
+-			short int pobjects;
+-#endif
+-		};
+-
+-		struct rcu_head rcu_head;	/* Used by SLAB
+-						 * when destroying via RCU
+-						 */
+-		/* Tail pages of compound page */
+-		struct {
+-			unsigned long compound_head; /* If bit zero is set */
+-
+-			/* First tail page only */
+-			unsigned char compound_dtor;
+-			unsigned char compound_order;
+-			/* two/six bytes available here */
+-		};
+-
+-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
+-		struct {
+-			unsigned long __pad;	/* do not overlay pmd_huge_pte
+-						 * with compound_head to avoid
+-						 * possible bit 0 collision.
+-						 */
+-			pgtable_t pmd_huge_pte; /* protected by page->ptl */
+-		};
+-#endif
+-	};
+-
+ #ifdef CONFIG_MEMCG
+ 	struct mem_cgroup *mem_cgroup;
+ #endif
+-- 
+2.17.0
