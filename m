@@ -1,65 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D85526B0007
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:27:52 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v14so604199pgq.11
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 03:27:52 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a17si869338pff.43.2018.04.18.03.27.51
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 41EB66B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:39:21 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id l75so892634vke.20
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 03:39:21 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x125sor82984vkg.163.2018.04.18.03.39.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 18 Apr 2018 03:27:51 -0700 (PDT)
-Date: Wed, 18 Apr 2018 03:27:44 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and
- hugetlbfs
-Message-ID: <20180418102744.GA10397@infradead.org>
-References: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
+        (Google Transport Security);
+        Wed, 18 Apr 2018 03:39:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <20180418091943.GW17484@dhcp22.suse.cz>
+References: <20180417110615.16043-1-liwang@redhat.com> <20180417130300.GF17484@dhcp22.suse.cz>
+ <20180417141442.GG17484@dhcp22.suse.cz> <CAEemH2dQ+yQ-P-=5J3Y-n+0V0XV-vJkQ81uD=Q3Bh+rHZ4sb-Q@mail.gmail.com>
+ <20180417190044.GK17484@dhcp22.suse.cz> <7674C632-FE3E-42D2-B19D-32F531617043@cs.rutgers.edu>
+ <20180418090722.GV17484@dhcp22.suse.cz> <20180418091943.GW17484@dhcp22.suse.cz>
+From: Li Wang <liwang@redhat.com>
+Date: Wed, 18 Apr 2018 18:39:19 +0800
+Message-ID: <CAEemH2evD8Gk6y_q41ygBZVwu--U9oKvnPh8xsrb5R27oLCBDA@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: correct status code which move_pages() returns
+ for zero page
+Content-Type: multipart/alternative; boundary="001a1143db8846cb59056a1d113c"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: viro@zeniv.linux.org.uk, nyc@holomorphy.com, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org, ltp@lists.linux.it, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Apr 18, 2018 at 05:08:13AM +0800, Yang Shi wrote:
-> Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
-> filesystem with huge page support anymore. tmpfs can use huge page via
-> THP when mounting by "huge=" mount option.
-> 
-> When applications use huge page on hugetlbfs, it just need check the
-> filesystem magic number, but it is not enough for tmpfs. So, introduce
-> ST_HUGE flag to statfs if super block has SB_HUGE set which indicates
-> huge page is supported on the specific filesystem.
-> 
-> Some applications could benefit from this change, for example QEMU.
-> When use mmap file as guest VM backend memory, QEMU typically mmap the
-> file size plus one extra page. If the file is on hugetlbfs the extra
-> page is huge page size (i.e. 2MB), but it is still 4KB on tmpfs even
-> though THP is enabled. tmpfs THP requires VMA is huge page aligned, so
-> if 4KB page is used THP will not be used at all. The below /proc/meminfo
-> fragment shows the THP use of QEMU with 4K page:
-> 
-> ShmemHugePages:   679936 kB
-> ShmemPmdMapped:        0 kB
-> 
-> With ST_HUGE flag, QEMU can get huge page, then /proc/meminfo looks
-> like:
-> 
-> ShmemHugePages:    77824 kB
-> ShmemPmdMapped:     6144 kB
-> 
-> With this flag, the applications can know if huge page is supported on
-> the filesystem then optimize the behavior of the applications
-> accordingly. Although the similar function can be implemented in
-> applications by traversing the mount options, it looks more convenient
-> if kernel can provide such flag.
-> 
-> Even though ST_HUGE is set, f_bsize still returns 4KB for tmpfs since
-> THP could be split, and it also my fallback to 4KB page silently if
-> there is not enough huge page.
+--001a1143db8846cb59056a1d113c
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Seems like your should report it through the st_blksize field of struct
-stat then, instead of introducing a not very useful binary field then.
+On Wed, Apr 18, 2018 at 5:19 PM, Michal Hocko <mhocko@suse.com> wrote:
+
+> On Wed 18-04-18 11:07:22, Michal Hocko wrote:
+> > On Tue 17-04-18 16:09:33, Zi Yan wrote:
+> [...]
+> > > diff --git a/mm/migrate.c b/mm/migrate.c
+> > > index f65dd69e1fd1..32afa4723e7f 100644
+> > > --- a/mm/migrate.c
+> > > +++ b/mm/migrate.c
+> > > @@ -1619,6 +1619,8 @@ static int do_pages_move(struct mm_struct *mm,
+> nodemask_t task_nodes,
+> > >                         if (err)
+> > >                                 goto out;
+> > >                 }
+> > > +               /* Move to next page (i+1), after we have saved page
+> status (until i) */
+> > > +               start =3D i + 1;
+> > >                 current_node =3D NUMA_NO_NODE;
+> > >         }
+> > >  out_flush:
+> > >
+> > > Feel free to check it by yourselves.
+> >
+> > Yes, you are right. I never update start if the last page in the range
+> > fails and so we overwrite the whole [start, i] range. I wish the code
+> > wasn't that ugly and subtle but considering how we can fail in differen=
+t
+> > ways and that we want to batch as much as possible I do not see an easy
+> > way.
+> >
+> > Care to send the patch? I would just drop the comment.
+>
+> Hmm, thinking about it some more. An alternative would be to check for
+> list_empty on the page list. It is a bit larger diff but maybe that
+> would be tiny bit cleaner because there is simply no point to call
+> do_move_pages_to_node on an empty list in the first place.
+>
+
+=E2=80=8BHi Michal, Zi
+
+I tried your patch separately, both of them works fine to me.
+
+
+--=20
+Li Wang
+liwang@redhat.com
+
+--001a1143db8846cb59056a1d113c
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_default" style=3D"font-family:arial,he=
+lvetica,sans-serif"><br></div><div class=3D"gmail_extra"><br><div class=3D"=
+gmail_quote">On Wed, Apr 18, 2018 at 5:19 PM, Michal Hocko <span dir=3D"ltr=
+">&lt;<a href=3D"mailto:mhocko@suse.com" target=3D"_blank">mhocko@suse.com<=
+/a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:=
+0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">=
+<span class=3D"gmail-">On Wed 18-04-18 11:07:22, Michal Hocko wrote:<br>
+&gt; On Tue 17-04-18 16:09:33, Zi Yan wrote:<br>
+</span><span class=3D"gmail-">[...]<br>
+&gt; &gt; diff --git a/mm/migrate.c b/mm/migrate.c<br>
+</span><span class=3D"gmail-">&gt; &gt; index f65dd69e1fd1..32afa4723e7f 10=
+0644<br>
+&gt; &gt; --- a/mm/migrate.c<br>
+&gt; &gt; +++ b/mm/migrate.c<br>
+&gt; &gt; @@ -1619,6 +1619,8 @@ static int do_pages_move(struct mm_struct *=
+mm, nodemask_t task_nodes,<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0if (err)<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0goto out;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}<br=
+>
+&gt; &gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Move t=
+o next page (i+1), after we have saved page status (until i) */<br>
+&gt; &gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0start =3D=
+ i + 1;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0curr=
+ent_node =3D NUMA_NO_NODE;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}<br>
+&gt; &gt;=C2=A0 out_flush:<br>
+&gt; &gt; <br>
+&gt; &gt; Feel free to check it by yourselves.<br>
+&gt; <br>
+&gt; Yes, you are right. I never update start if the last page in the range=
+<br>
+&gt; fails and so we overwrite the whole [start, i] range. I wish the code<=
+br>
+&gt; wasn&#39;t that ugly and subtle but considering how we can fail in dif=
+ferent<br>
+&gt; ways and that we want to batch as much as possible I do not see an eas=
+y<br>
+&gt; way.<br>
+&gt; <br>
+&gt; Care to send the patch? I would just drop the comment.<br>
+<br>
+</span>Hmm, thinking about it some more. An alternative would be to check f=
+or<br>
+list_empty on the page list. It is a bit larger diff but maybe that<br>
+would be tiny bit cleaner because there is simply no point to call<br>
+do_move_pages_to_node on an empty list in the first place.<br></blockquote>=
+<div><br><div style=3D"font-family:arial,helvetica,sans-serif" class=3D"gma=
+il_default">=E2=80=8BHi Michal, Zi<br><br></div><div style=3D"font-family:a=
+rial,helvetica,sans-serif" class=3D"gmail_default">I tried your patch separ=
+ately<span style=3D"color:rgb(51,51,51);font-family:arial;font-size:18px;fo=
+nt-style:normal;font-variant-ligatures:normal;font-variant-caps:normal;font=
+-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-=
+transform:none;white-space:normal;word-spacing:0px;background-color:rgb(255=
+,255,255);text-decoration-style:initial;text-decoration-color:initial;displ=
+ay:inline;float:none"></span>, both of them works fine to me.<br></div></di=
+v></div><br clear=3D"all"><br>-- <br><div class=3D"gmail_signature">Li Wang=
+<br><a href=3D"mailto:liwang@redhat.com" target=3D"_blank">liwang@redhat.co=
+m</a></div>
+</div></div>
+
+--001a1143db8846cb59056a1d113c--
