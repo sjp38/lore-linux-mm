@@ -1,85 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 229BA6B0005
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 09:23:36 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id j25so976741pfh.18
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:23:36 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q9sor318329pfa.109.2018.04.18.06.23.34
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D5A06B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 09:26:01 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t66-v6so882151oih.9
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:26:01 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id t207-v6si397385oif.126.2018.04.18.06.25.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Apr 2018 06:23:34 -0700 (PDT)
-Date: Wed, 18 Apr 2018 22:23:28 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm:memcg: add __GFP_NOWARN in
- __memcg_schedule_kmem_cache_create
-Message-ID: <20180418132328.GB210164@rodete-desktop-imager.corp.google.com>
-References: <20180418022912.248417-1-minchan@kernel.org>
- <20180418072002.GN17484@dhcp22.suse.cz>
- <20180418074117.GA210164@rodete-desktop-imager.corp.google.com>
- <20180418075437.GP17484@dhcp22.suse.cz>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Apr 2018 06:25:59 -0700 (PDT)
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
+	<alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
+	<20180418075051.GO17484@dhcp22.suse.cz>
+	<201804182049.EDJ21857.OHJOMOLFQVFFtS@I-love.SAKURA.ne.jp>
+	<20180418115830.GA17484@dhcp22.suse.cz>
+In-Reply-To: <20180418115830.GA17484@dhcp22.suse.cz>
+Message-Id: <201804182225.EII57887.OLMHOFVtQSFJOF@I-love.SAKURA.ne.jp>
+Date: Wed, 18 Apr 2018 22:25:54 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180418075437.GP17484@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: mhocko@kernel.org
+Cc: rientjes@google.com, akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Apr 18, 2018 at 09:54:37AM +0200, Michal Hocko wrote:
-> On Wed 18-04-18 16:41:17, Minchan Kim wrote:
-> > On Wed, Apr 18, 2018 at 09:20:02AM +0200, Michal Hocko wrote:
-> > > On Wed 18-04-18 11:29:12, Minchan Kim wrote:
-> [...]
-> > > > Let's not make user scared.
+Michal Hocko wrote:
+> > > Can we try a simpler way and get back to what I was suggesting before
+> > > [1] and simply not play tricks with
+> > > 		down_write(&mm->mmap_sem);
+> > > 		up_write(&mm->mmap_sem);
 > > > 
-> > > This is not a proper explanation. So what exactly happens when this
-> > > allocation fails? I would suggest something like the following
-> > > "
-> > > __memcg_schedule_kmem_cache_create tries to create a shadow slab cache
-> > > and the worker allocation failure is not really critical because we will
-> > > retry on the next kmem charge. We might miss some charges but that
-> > > shouldn't be critical. The excessive allocation failure report is not
-> > > very much helpful. Replace it with a rate limited single line output so
-> > > that we know that there is a lot of these failures and that we need to
-> > > do something about it in future.
-> > > "
-> > > 
-> > > With the last part to be implemented of course.
+> > > and use the write lock in exit_mmap for oom_victims?
 > > 
-> > If you want to see warning and catch on it in future, I don't see any reason
-> > to change it. Because I didn't see any excessive warning output that it could
-> > make system slow unless we did ratelimiting.
+> > You mean something like this?
 > 
-> Yeah, but a single line would be as much informative and less scary to
-> users.
+> or simply hold the write lock until we unmap and free page tables.
+
+That increases possibility of __oom_reap_task_mm() giving up reclaim and
+setting MMF_OOM_SKIP when exit_mmap() is making forward progress, doesn't it?
+I think that it is better that __oom_reap_task_mm() does not give up when
+exit_mmap() can make progress. In that aspect, the section protected by
+mmap_sem held for write should be as short as possible.
+
+> It would make the locking rules much more straightforward.
+> What you are proposing is more focused on this particular fix and it
+> would work as well but the subtle locking would still stay in place.
+
+Yes, this change is focused on -stable patch.
+
+> I am not sure we want the trickiness.
+
+I don't like the trickiness too. I think we can even consider direct OOM
+reaping suggested at https://patchwork.kernel.org/patch/10095661/ .
+
 > 
-> > It was a just report from non-MM guys who have a concern that somethings
-> > might go wrong on the system. I just wanted them relax since it's not
-> > critical.
+> > Then, I'm tempted to call __oom_reap_task_mm() before holding mmap_sem for write.
+> > It would be OK to call __oom_reap_task_mm() at the beginning of __mmput()...
 > 
-> I do agree with __GFP_NOWARN but I think a single line warning is due
-> and helpful for further debugging.
+> I am not sure I understand.
 
-Okay, no problem. However, I don't feel we need ratelimit at this moment.
-We can do when we got real report. Let's add just one line warning.
-However, I have no talent to write a poem to express with one line.
-Could you help me?
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 671d07e73a3b..e26f85cac63f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2201,8 +2201,11 @@ static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
-        struct memcg_kmem_cache_create_work *cw;
-
-        cw = kmalloc(sizeof(*cw), GFP_NOWAIT | __GFP_NOWARN);
--       if (!cw)
-+       if (!cw) {
-+               pr_warn("Fail to create shadow slab cache for memcg but it's not critical.\n");
-+               pr_warn("If you see lots of this message, send an email to linux-mm@kvack.org\n");
-                return;
-+       }
-
-        css_get(&memcg->css);
+To reduce possibility of __oom_reap_task_mm() giving up reclaim and
+setting MMF_OOM_SKIP.
