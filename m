@@ -1,265 +1,97 @@
-From: Christoph Hellwig <hch-jcswGhMUV9g@public.gmane.org>
-Subject: [PATCH 03/12] iommu-helper: mark iommu_is_span_boundary as inline
-Date: Sun, 15 Apr 2018 16:59:38 +0200
-Message-ID: <20180415145947.1248-4-hch@lst.de>
-References: <20180415145947.1248-1-hch@lst.de>
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH 4/6] mm, arm64: untag user addresses in mm/gup.c
+Date: Wed, 18 Apr 2018 20:53:13 +0200
+Message-ID: <0db34d04fa16be162336106e3b4a94f3dacc0af4.1524077494.git.andreyknvl__44781.9629022435$1524077514$gmane$org@google.com>
+References: <cover.1524077494.git.andreyknvl@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-In-Reply-To: <20180415145947.1248-1-hch-jcswGhMUV9g@public.gmane.org>
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
-List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: Konrad Rzeszutek Wilk <konrad.wilk-QHcLZuEGTsvQT0dZR+AlfA@public.gmane.org>, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Cc: linux-mips-6z/3iImG2C8G8FEW9MqTrA@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-block-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-ide-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, sparclinux-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org
+Return-path: <linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org>
+In-Reply-To: <cover.1524077494.git.andreyknvl@google.com>
+In-Reply-To: <cover.1524077494.git.andreyknvl@google.com>
+References: <cover.1524077494.git.andreyknvl@google.com>
+List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-arm-kernel>,
+ <mailto:linux-arm-kernel-request@lists.infradead.org?subject=unsubscribe>
+List-Archive: <http://lists.infradead.org/pipermail/linux-arm-kernel/>
+List-Post: <mailto:linux-arm-kernel@lists.infradead.org>
+List-Help: <mailto:linux-arm-kernel-request@lists.infradead.org?subject=help>
+List-Subscribe: <http://lists.infradead.org/mailman/listinfo/linux-arm-kernel>,
+ <mailto:linux-arm-kernel-request@lists.infradead.org?subject=subscribe>
+Sender: "linux-arm-kernel" <linux-arm-kernel-bounces@lists.infradead.org>
+Errors-To: linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrey Konovalov <andreyknvl@google.com>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.orglin
+Cc: Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 List-Id: linux-mm.kvack.org
 
-This avoids selecting IOMMU_HELPER just for this function.  And we only
-use it once or twice in normal builds so this often even is a size
-reduction.
+mm/gup.c provides a kernel interface that accepts user addresses and
+manipulates user pages directly (for example get_user_pages, that is used
+by the futex syscall). Here we also need to handle the case of tagged user
+pointers.
 
-Signed-off-by: Christoph Hellwig <hch-jcswGhMUV9g@public.gmane.org>
+Untag addresses passed to this interface.
+
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/alpha/Kconfig              |  3 ---
- arch/arm/Kconfig                |  3 ---
- arch/arm64/Kconfig              |  3 ---
- arch/ia64/Kconfig               |  3 ---
- arch/mips/cavium-octeon/Kconfig |  4 ----
- arch/mips/loongson64/Kconfig    |  4 ----
- arch/mips/netlogic/Kconfig      |  3 ---
- arch/powerpc/Kconfig            |  1 -
- arch/unicore32/mm/Kconfig       |  3 ---
- arch/x86/Kconfig                |  2 +-
- drivers/parisc/Kconfig          |  5 -----
- include/linux/iommu-helper.h    | 13 ++++++++++---
- lib/iommu-helper.c              | 12 +-----------
- 13 files changed, 12 insertions(+), 47 deletions(-)
+ mm/gup.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
-index b2022885ced8..3ff735a722af 100644
---- a/arch/alpha/Kconfig
-+++ b/arch/alpha/Kconfig
-@@ -345,9 +345,6 @@ config PCI_DOMAINS
- config PCI_SYSCALL
- 	def_bool PCI
+diff --git a/mm/gup.c b/mm/gup.c
+index 76af4cfeaf68..fb375de7d40d 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -386,6 +386,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 	struct page *page;
+ 	struct mm_struct *mm = vma->vm_mm;
  
--config IOMMU_HELPER
--	def_bool PCI
--
- config ALPHA_NONAME
- 	bool
- 	depends on ALPHA_BOOK1 || ALPHA_NONAME_CH
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index a7f8e7f4b88f..2f79222c5c02 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -1781,9 +1781,6 @@ config SECCOMP
- config SWIOTLB
- 	def_bool y
- 
--config IOMMU_HELPER
--	def_bool SWIOTLB
--
- config PARAVIRT
- 	bool "Enable paravirtualization code"
- 	help
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index eb2cf4938f6d..fbef5d3de83f 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -252,9 +252,6 @@ config SMP
- config SWIOTLB
- 	def_bool y
- 
--config IOMMU_HELPER
--	def_bool SWIOTLB
--
- config KERNEL_MODE_NEON
- 	def_bool y
- 
-diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index bbe12a038d21..862c5160c09d 100644
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -613,6 +613,3 @@ source "security/Kconfig"
- source "crypto/Kconfig"
- 
- source "lib/Kconfig"
--
--config IOMMU_HELPER
--	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC || SWIOTLB)
-diff --git a/arch/mips/cavium-octeon/Kconfig b/arch/mips/cavium-octeon/Kconfig
-index b5eee1a57d6c..647ed158ac98 100644
---- a/arch/mips/cavium-octeon/Kconfig
-+++ b/arch/mips/cavium-octeon/Kconfig
-@@ -67,16 +67,12 @@ config CAVIUM_OCTEON_LOCK_L2_MEMCPY
- 	help
- 	  Lock the kernel's implementation of memcpy() into L2.
- 
--config IOMMU_HELPER
--	bool
--
- config NEED_SG_DMA_LENGTH
- 	bool
- 
- config SWIOTLB
- 	def_bool y
- 	select DMA_DIRECT_OPS
--	select IOMMU_HELPER
- 	select NEED_SG_DMA_LENGTH
- 
- config OCTEON_ILM
-diff --git a/arch/mips/loongson64/Kconfig b/arch/mips/loongson64/Kconfig
-index 72af0c183969..5efb2e63878e 100644
---- a/arch/mips/loongson64/Kconfig
-+++ b/arch/mips/loongson64/Kconfig
-@@ -130,9 +130,6 @@ config LOONGSON_UART_BASE
- 	default y
- 	depends on EARLY_PRINTK || SERIAL_8250
- 
--config IOMMU_HELPER
--	bool
--
- config NEED_SG_DMA_LENGTH
- 	bool
- 
-@@ -141,7 +138,6 @@ config SWIOTLB
- 	default y
- 	depends on CPU_LOONGSON3
- 	select DMA_DIRECT_OPS
--	select IOMMU_HELPER
- 	select NEED_SG_DMA_LENGTH
- 	select NEED_DMA_MAP_STATE
- 
-diff --git a/arch/mips/netlogic/Kconfig b/arch/mips/netlogic/Kconfig
-index 7fcfc7fe9f14..5c5ee0e05a17 100644
---- a/arch/mips/netlogic/Kconfig
-+++ b/arch/mips/netlogic/Kconfig
-@@ -83,9 +83,6 @@ endif
- config NLM_COMMON
- 	bool
- 
--config IOMMU_HELPER
--	bool
--
- config NEED_SG_DMA_LENGTH
- 	bool
- 
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 73ce5dd07642..eb23f2949bf6 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -484,7 +484,6 @@ config IOMMU_HELPER
- config SWIOTLB
- 	bool "SWIOTLB support"
- 	default n
--	select IOMMU_HELPER
- 	---help---
- 	  Support for IO bounce buffering for systems without an IOMMU.
- 	  This allows us to DMA to the full physical address space on
-diff --git a/arch/unicore32/mm/Kconfig b/arch/unicore32/mm/Kconfig
-index e9154a59d561..3f105e00c432 100644
---- a/arch/unicore32/mm/Kconfig
-+++ b/arch/unicore32/mm/Kconfig
-@@ -44,9 +44,6 @@ config SWIOTLB
- 	def_bool y
- 	select DMA_DIRECT_OPS
- 
--config IOMMU_HELPER
--	def_bool SWIOTLB
--
- config NEED_SG_DMA_LENGTH
- 	def_bool SWIOTLB
- 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index d234cca296db..336b1378ee62 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -930,7 +930,7 @@ config SWIOTLB
- 
- config IOMMU_HELPER
- 	def_bool y
--	depends on CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU
-+	depends on CALGARY_IOMMU || GART_IOMMU
- 
- config MAXSMP
- 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
-diff --git a/drivers/parisc/Kconfig b/drivers/parisc/Kconfig
-index 3a102a84d637..5a48b5606110 100644
---- a/drivers/parisc/Kconfig
-+++ b/drivers/parisc/Kconfig
-@@ -103,11 +103,6 @@ config IOMMU_SBA
- 	depends on PCI_LBA
- 	default PCI_LBA
- 
--config IOMMU_HELPER
--	bool
--	depends on IOMMU_SBA || IOMMU_CCIO
--	default y
--
- source "drivers/pcmcia/Kconfig"
- 
- endmenu
-diff --git a/include/linux/iommu-helper.h b/include/linux/iommu-helper.h
-index cb9a9248c8c0..70d01edcbf8b 100644
---- a/include/linux/iommu-helper.h
-+++ b/include/linux/iommu-helper.h
-@@ -2,6 +2,7 @@
- #ifndef _LINUX_IOMMU_HELPER_H
- #define _LINUX_IOMMU_HELPER_H
- 
-+#include <linux/bug.h>
- #include <linux/kernel.h>
- 
- static inline unsigned long iommu_device_max_index(unsigned long size,
-@@ -14,9 +15,15 @@ static inline unsigned long iommu_device_max_index(unsigned long size,
- 		return size;
- }
- 
--extern int iommu_is_span_boundary(unsigned int index, unsigned int nr,
--				  unsigned long shift,
--				  unsigned long boundary_size);
-+static inline int iommu_is_span_boundary(unsigned int index, unsigned int nr,
-+		unsigned long shift, unsigned long boundary_size)
-+{
-+	BUG_ON(!is_power_of_2(boundary_size));
++	address = untagged_addr(address);
 +
-+	shift = (shift + index) & (boundary_size - 1);
-+	return shift + nr > boundary_size;
-+}
+ 	*page_mask = 0;
+ 
+ 	/* make this handle hugepd */
+@@ -647,6 +649,8 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 	if (!nr_pages)
+ 		return 0;
+ 
++	start = untagged_addr(start);
 +
- extern unsigned long iommu_area_alloc(unsigned long *map, unsigned long size,
- 				      unsigned long start, unsigned int nr,
- 				      unsigned long shift,
-diff --git a/lib/iommu-helper.c b/lib/iommu-helper.c
-index ded1703e7e64..92a9f243c0e2 100644
---- a/lib/iommu-helper.c
-+++ b/lib/iommu-helper.c
-@@ -4,17 +4,7 @@
-  */
+ 	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
  
- #include <linux/bitmap.h>
--#include <linux/bug.h>
--
--int iommu_is_span_boundary(unsigned int index, unsigned int nr,
--			   unsigned long shift,
--			   unsigned long boundary_size)
--{
--	BUG_ON(!is_power_of_2(boundary_size));
--
--	shift = (shift + index) & (boundary_size - 1);
--	return shift + nr > boundary_size;
--}
-+#include <linux/iommu-helper.h>
+ 	/*
+@@ -801,6 +805,8 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
+ 	struct vm_area_struct *vma;
+ 	int ret, major = 0;
  
- unsigned long iommu_area_alloc(unsigned long *map, unsigned long size,
- 			       unsigned long start, unsigned int nr,
++	address = untagged_addr(address);
++
+ 	if (unlocked)
+ 		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+ 
+@@ -854,6 +860,8 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
+ 	long ret, pages_done;
+ 	bool lock_dropped;
+ 
++	start = untagged_addr(start);
++
+ 	if (locked) {
+ 		/* if VM_FAULT_RETRY can be returned, vmas become invalid */
+ 		BUG_ON(vmas);
+@@ -1751,6 +1759,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	unsigned long flags;
+ 	int nr = 0;
+ 
++	start = untagged_addr(start);
++
+ 	start &= PAGE_MASK;
+ 	addr = start;
+ 	len = (unsigned long) nr_pages << PAGE_SHIFT;
+@@ -1803,6 +1813,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	unsigned long addr, len, end;
+ 	int nr = 0, ret = 0;
+ 
++	start = untagged_addr(start);
++
+ 	start &= PAGE_MASK;
+ 	addr = start;
+ 	len = (unsigned long) nr_pages << PAGE_SHIFT;
 -- 
-2.17.0
+2.17.0.484.g0c8726318c-goog
