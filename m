@@ -1,16 +1,11 @@
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH 5/6] lib,
- arm64: untag addrs passed to strncpy_from_user and strnlen_user
-Date: Wed, 18 Apr 2018 20:53:14 +0200
-Message-ID: <82ccccd82c350f9243fc4e1d377cdad9bf23809c.1524077494.git.andreyknvl__11587.7054668546$1524077736$gmane$org@google.com>
-References: <cover.1524077494.git.andreyknvl@google.com>
+Subject: [PATCH 0/6] arm64: untag user pointers passed to the kernel
+Date: Wed, 18 Apr 2018 20:53:09 +0200
+Message-ID: <cover.1524077494.git.andreyknvl__34633.8333948099$1524077781$gmane$org@google.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 Return-path: <linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org>
-In-Reply-To: <cover.1524077494.git.andreyknvl@google.com>
-In-Reply-To: <cover.1524077494.git.andreyknvl@google.com>
-References: <cover.1524077494.git.andreyknvl@google.com>
 List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-arm-kernel>,
  <mailto:linux-arm-kernel-request@lists.infradead.org?subject=unsubscribe>
 List-Archive: <http://lists.infradead.org/pipermail/linux-arm-kernel/>
@@ -24,43 +19,38 @@ To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 Cc: Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 List-Id: linux-mm.kvack.org
 
-strncpy_from_user and strnlen_user accept user addresses as arguments, and
-do not go through the same path as copy_from_user and others, so here we
-need to separately handle the case of tagged user addresses as well.
-
-Untag user pointers passed to these functions.
-
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- lib/strncpy_from_user.c | 2 ++
- lib/strnlen_user.c      | 2 ++
- 2 files changed, 4 insertions(+)
-
-diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
-index b53e1b5d80f4..97467cd2bc59 100644
---- a/lib/strncpy_from_user.c
-+++ b/lib/strncpy_from_user.c
-@@ -106,6 +106,8 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
- 	if (unlikely(count <= 0))
- 		return 0;
- 
-+	src = untagged_addr(src);
-+
- 	max_addr = user_addr_max();
- 	src_addr = (unsigned long)src;
- 	if (likely(src_addr < max_addr)) {
-diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
-index 60d0bbda8f5e..8b5f56466e00 100644
---- a/lib/strnlen_user.c
-+++ b/lib/strnlen_user.c
-@@ -108,6 +108,8 @@ long strnlen_user(const char __user *str, long count)
- 	if (unlikely(count <= 0))
- 		return 0;
- 
-+	str = untagged_addr(str);
-+
- 	max_addr = user_addr_max();
- 	src_addr = (unsigned long)str;
- 	if (likely(src_addr < max_addr)) {
--- 
-2.17.0.484.g0c8726318c-goog
+SGkhCgphcm02NCBoYXMgYSBmZWF0dXJlIGNhbGxlZCBUb3AgQnl0ZSBJZ25vcmUsIHdoaWNoIGFs
+bG93cyB0byBlbWJlZCBwb2ludGVyCnRhZ3MgaW50byB0aGUgdG9wIGJ5dGUgb2YgZWFjaCBwb2lu
+dGVyLiBVc2Vyc3BhY2UgcHJvZ3JhbXMgKHN1Y2ggYXMKSFdBU2FuLCBhIG1lbW9yeSBkZWJ1Z2dp
+bmcgdG9vbCBbMV0pIG1pZ2h0IHVzZSB0aGlzIGZlYXR1cmUgYW5kIHBhc3MKdGFnZ2VkIHVzZXIg
+cG9pbnRlcnMgdG8gdGhlIGtlcm5lbCB0aHJvdWdoIHN5c2NhbGxzIG9yIG90aGVyIGludGVyZmFj
+ZXMuCgpUaGlzIHBhdGNoIG1ha2VzIGEgZmV3IG9mIHRoZSBrZXJuZWwgaW50ZXJmYWNlcyBhY2Nl
+cHQgdGFnZ2VkIHVzZXIKcG9pbnRlcnMuIFRoZSBrZXJuZWwgaXMgYWxyZWFkeSBhYmxlIHRvIGhh
+bmRsZSB1c2VyIGZhdWx0cyB3aXRoIHRhZ2dlZApwb2ludGVycyBhbmQgaGFzIHRoZSB1bnRhZ2dl
+ZF9hZGRyIG1hY3JvLCB3aGljaCB0aGlzIHBhdGNoc2V0IHJldXNlcy4KCldlJ3JlIG5vdCB0cnlp
+bmcgdG8gY292ZXIgYWxsIHBvc3NpYmxlIHdheXMgdGhlIGtlcm5lbCBhY2NlcHRzIHVzZXIKcG9p
+bnRlcnMgaW4gb25lIHBhdGNoc2V0LCBzbyB0aGlzIG9uZSBzaG91bGQgYmUgY29uc2lkZXJlZCBh
+cyBhIHN0YXJ0LgoKVGhhbmtzIQoKWzFdIGh0dHA6Ly9jbGFuZy5sbHZtLm9yZy9kb2NzL0hhcmR3
+YXJlQXNzaXN0ZWRBZGRyZXNzU2FuaXRpemVyRGVzaWduLmh0bWwKCkNoYW5nZXMgaW4gdjE6Ci0g
+UmViYXNlZCBvbnRvIDQuMTctcmMxLgoKQ2hhbmdlcyBpbiBSRkMgdjI6Ci0gQWRkZWQgIiNpZm5k
+ZWYgdW50YWdnZWRfYWRkci4uLiIgZmFsbGJhY2sgaW4gbGludXgvdWFjY2Vzcy5oIGluc3RlYWQg
+b2YKICBkZWZpbmluZyBpdCBmb3IgZWFjaCBhcmNoIGluZGl2aWR1YWxseS4KLSBVcGRhdGVkIERv
+Y3VtZW50YXRpb24vYXJtNjQvdGFnZ2VkLXBvaW50ZXJzLnR4dC4KLSBEcm9wcGVkIOKAnG1tLCBh
+cm02NDogdW50YWcgdXNlciBhZGRyZXNzZXMgaW4gbWVtb3J5IHN5c2NhbGxz4oCdLgotIFJlYmFz
+ZWQgb250byAzZWIyY2U4MiAoNC4xNi1yYzcpLgoKQW5kcmV5IEtvbm92YWxvdiAoNik6CiAgYXJt
+NjQ6IGFkZCB0eXBlIGNhc3RzIHRvIHVudGFnZ2VkX2FkZHIgbWFjcm8KICB1YWNjZXNzOiBhZGQg
+dW50YWdnZWRfYWRkciBkZWZpbml0aW9uIGZvciBvdGhlciBhcmNoZXMKICBhcm02NDogdW50YWcg
+dXNlciBhZGRyZXNzZXMgaW4gY29weV9mcm9tX3VzZXIgYW5kIG90aGVycwogIG1tLCBhcm02NDog
+dW50YWcgdXNlciBhZGRyZXNzZXMgaW4gbW0vZ3VwLmMKICBsaWIsIGFybTY0OiB1bnRhZyBhZGRy
+cyBwYXNzZWQgdG8gc3RybmNweV9mcm9tX3VzZXIgYW5kIHN0cm5sZW5fdXNlcgogIGFybTY0OiB1
+cGRhdGUgRG9jdW1lbnRhdGlvbi9hcm02NC90YWdnZWQtcG9pbnRlcnMudHh0CgogRG9jdW1lbnRh
+dGlvbi9hcm02NC90YWdnZWQtcG9pbnRlcnMudHh0IHwgIDUgKysrLS0KIGFyY2gvYXJtNjQvaW5j
+bHVkZS9hc20vdWFjY2Vzcy5oICAgICAgICB8ICA5ICsrKysrKystLQogaW5jbHVkZS9saW51eC91
+YWNjZXNzLmggICAgICAgICAgICAgICAgIHwgIDQgKysrKwogbGliL3N0cm5jcHlfZnJvbV91c2Vy
+LmMgICAgICAgICAgICAgICAgIHwgIDIgKysKIGxpYi9zdHJubGVuX3VzZXIuYyAgICAgICAgICAg
+ICAgICAgICAgICB8ICAyICsrCiBtbS9ndXAuYyAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgfCAxMiArKysrKysrKysrKysKIDYgZmlsZXMgY2hhbmdlZCwgMzAgaW5zZXJ0aW9ucygrKSwg
+NCBkZWxldGlvbnMoLSkKCi0tIAoyLjE3LjAuNDg0LmcwYzg3MjYzMThjLWdvb2cKCgpfX19fX19f
+X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fXwpsaW51eC1hcm0ta2VybmVs
+IG1haWxpbmcgbGlzdApsaW51eC1hcm0ta2VybmVsQGxpc3RzLmluZnJhZGVhZC5vcmcKaHR0cDov
+L2xpc3RzLmluZnJhZGVhZC5vcmcvbWFpbG1hbi9saXN0aW5mby9saW51eC1hcm0ta2VybmVsCg==
