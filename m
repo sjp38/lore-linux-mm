@@ -1,32 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 985276B0005
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 19:55:12 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id c11-v6so13295551pll.13
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 16:55:12 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j61-v6si15698034plb.317.2018.04.17.16.55.11
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 85D336B0006
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 20:38:31 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id t13so14411pgu.23
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:38:31 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id j188si9774pgc.584.2018.04.17.17.38.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 16:55:11 -0700 (PDT)
-Date: Tue, 17 Apr 2018 16:55:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/page_alloc: remove realsize in free_area_init_core()
-Message-Id: <20180417165510.a3da1849194d4b7bbb60fdec@linux-foundation.org>
-In-Reply-To: <20180413083859.65888-1-richard.weiyang@gmail.com>
-References: <20180413083859.65888-1-richard.weiyang@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 17 Apr 2018 17:38:21 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm 06/21] mm, THP, swap: Support PMD swap mapping when splitting huge PMD
+References: <20180417020230.26412-1-ying.huang@intel.com>
+	<20180417020230.26412-7-ying.huang@intel.com>
+	<7ae64b5e-79ee-5768-34a3-75e33ea45246@infradead.org>
+Date: Wed, 18 Apr 2018 08:38:16 +0800
+In-Reply-To: <7ae64b5e-79ee-5768-34a3-75e33ea45246@infradead.org> (Randy
+	Dunlap's message of "Tue, 17 Apr 2018 14:12:05 -0700")
+Message-ID: <87tvs9z6vb.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: mhocko@suse.com, linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Fri, 13 Apr 2018 16:38:59 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+Randy Dunlap <rdunlap@infradead.org> writes:
 
-> Highmem's realsize always equals to freesize, so it is not necessary to
-> spare a variable to record this.
+> On 04/16/18 19:02, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> A huge PMD need to be split when zap a part of the PMD mapping etc.
+>> If the PMD mapping is a swap mapping, we need to split it too.  This
+>> patch implemented the support for this.  This is similar as splitting
+>> the PMD page mapping, except we need to decrease the PMD swap mapping
+>> count for the huge swap cluster too.  If the PMD swap mapping count
+>> becomes 0, the huge swap cluster will be split.
+>> 
+>> Notice: is_huge_zero_pmd() and pmd_page() doesn't work well with swap
+>> PMD, so pmd_present() check is called before them.
+>
+> FWIW, I would prefer to see that comment in the source code, not just
+> in the commit description.
 
-Agreed.  The code seems a bit more fragile after this alteration, but I
-guess the onus is on us, as always, to not screw it up later on.  hm..
+Sure.  I will add comment in source code too.
+
+Best Regards,
+Huang, Ying
+
+>> 
+>> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Shaohua Li <shli@kernel.org>
+>> Cc: Hugh Dickins <hughd@google.com>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+>> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+>> ---
+>>  include/linux/swap.h |  6 +++++
+>>  mm/huge_memory.c     | 54 ++++++++++++++++++++++++++++++++++++++++----
+>>  mm/swapfile.c        | 28 +++++++++++++++++++++++
+>>  3 files changed, 83 insertions(+), 5 deletions(-)
