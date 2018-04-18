@@ -1,56 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D1106B0008
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 16:33:58 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id c11-v6so1621542pll.13
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 13:33:58 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id r7-v6si1871857ple.401.2018.04.18.13.33.57
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 453036B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 16:53:37 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id g1-v6so1652616plm.2
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 13:53:37 -0700 (PDT)
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id f2si1702543pgn.320.2018.04.18.13.53.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Apr 2018 13:33:57 -0700 (PDT)
-Subject: Re: [do_execve] attempted to set unsupported pgprot
-References: <20180418135933.t3dyszi2phhsvaah@wfg-t540p.sh.intel.com>
- <20180418125916.a8be1fac1ac017f41a10f0fb@linux-foundation.org>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <361242c4-261c-1ddb-b948-c71f672779a8@linux.intel.com>
-Date: Wed, 18 Apr 2018 13:33:55 -0700
+        Wed, 18 Apr 2018 13:53:35 -0700 (PDT)
+Subject: Re: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and
+ hugetlbfs
+References: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
+ <2804a1d0-9d68-ac43-3041-9490147b52b5@oracle.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <293caaaf-39c0-7634-fbd2-70a540ea58db@linux.alibaba.com>
+Date: Wed, 18 Apr 2018 13:53:28 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180418125916.a8be1fac1ac017f41a10f0fb@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <2804a1d0-9d68-ac43-3041-9490147b52b5@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Serge Hallyn <serge@hallyn.com>, James Morris <james.l.morris@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, lkp@01.org
-
-On 04/18/2018 12:59 PM, Andrew Morton wrote:
->> [   12.348499] ------------[ cut here ]------------
->> [   12.349193] attempted to set unsupported pgprot: 8000000000000025 bits: 8000000000000000 supported: 7fffffffffffffff
->> [   12.350792] WARNING: CPU: 0 PID: 1 at arch/x86/include/asm/pgtable.h:540 handle_mm_fault+0xfc1/0xfe0:
->> 						check_pgprot at arch/x86/include/asm/pgtable.h:535
->> 						 (inlined by) pfn_pte at arch/x86/include/asm/pgtable.h:549
->> 						 (inlined by) do_anonymous_page at mm/memory.c:3169
->> 						 (inlined by) handle_pte_fault at mm/memory.c:3961
->> 						 (inlined by) __handle_mm_fault at mm/memory.c:4087
->> 						 (inlined by) handle_mm_fault at mm/memory.c:4124
->> [   12.352294] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.17.0-rc1 #172
->> [   12.353357] EIP: handle_mm_fault+0xfc1/0xfe0:
->> 						check_pgprot at arch/x86/include/asm/pgtable.h:535
->> 						 (inlined by) pfn_pte at arch/x86/include/asm/pgtable.h:549
->> 						 (inlined by) do_anonymous_page at mm/memory.c:3169
->> 						 (inlined by) handle_pte_fault at mm/memory.c:3961
->> 						 (inlined by) __handle_mm_fault at mm/memory.c:4087
->> 						 (inlined by) handle_mm_fault at mm/memory.c:4124
-> Dave, fb43d6cb91ef57 ("x86/mm: Do not auto-massage page protections")
-> looks like a culprit?
+To: Mike Kravetz <mike.kravetz@oracle.com>, viro@zeniv.linux.org.uk, nyc@holomorphy.com, kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
-This looks like NX somehow getting set on a system where it is
-unsupported.  Any idea what kind of VMA it is?  We probably should have
-kept NX from getting set in vm_page_prot to begin with.
->         entry = mk_pte(page, vma->vm_page_prot);
->         if (vma->vm_flags & VM_WRITE)
->                 entry = pte_mkwrite(pte_mkdirty(entry));
-> 
+
+On 4/18/18 1:26 PM, Mike Kravetz wrote:
+> On 04/17/2018 02:08 PM, Yang Shi wrote:
+>> And, set the flag for hugetlbfs as well to keep the consistency, and the
+>> applications don't have to know what filesystem is used to use huge
+>> page, just need to check ST_HUGE flag.
+> For hugetlbfs, setting such a flag would be for consistency only.  mapping
+> hugetlbfs files REQUIRES huge page alignment and size.
+
+Yes, applications don't have to read this flag if the underlying 
+filesystem is hugetlbfs. The fs magic number is good enough.
+
+>
+> If an application would want to take advantage of this flag for tmpfs, it
+> needs to map at a fixed address (MAP_FIXED) for huge page alignment.  So,
+> it will need to do one of the 'mmap tricks' to get a mapping at a suitably
+> aligned address.
+
+It doesn't have to be MAP_FIXED, but definitely has to be huge page 
+aligned. This flag is aimed for this case. With this flag, the 
+applications can know the underlying tmpfs with huge page supported, 
+then the applications can mmap memory with huge page alignment 
+intentionally.
+
+>
+> IIRC, there is code to 'suitably align' DAX mappings to appropriate huge page
+> boundaries.  Perhaps, something like this could be added for tmpfs mounted
+> with huge=?  Of course, this would not take into account 'length' but may
+> help some.
+
+Might be. However THP already exported huge page size to sysfs, the 
+applications can read it to get the alignment.
+
+Thanks,
+Yang
+
+>
