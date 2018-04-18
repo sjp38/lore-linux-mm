@@ -1,225 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F9346B0007
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:06:01 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id o9so464302pgv.8
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 01:06:01 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j18si658592pgn.78.2018.04.18.01.05.59
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C8216B0007
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:08:03 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z7-v6so910010wrg.11
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 01:08:03 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j10si875051edk.263.2018.04.18.01.08.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Apr 2018 01:05:59 -0700 (PDT)
-Date: Wed, 18 Apr 2018 10:05:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v4 PATCH] mm: introduce arg_lock to protect arg_start|end and
- env_start|end in mm_struct
-Message-ID: <20180418080555.GR17484@dhcp22.suse.cz>
-References: <1523730291-109696-1-git-send-email-yang.shi@linux.alibaba.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1523730291-109696-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Apr 2018 01:08:01 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3I85rp0113429
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:08:00 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2he24qrcwq-1
+	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:07:59 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Wed, 18 Apr 2018 09:07:58 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH 0/7]  docs/vm: start moving files do Documentation/admin-guide`
+Date: Wed, 18 Apr 2018 11:07:43 +0300
+Message-Id: <1524038870-413-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: adobriyan@gmail.com, willy@infradead.org, mguzik@redhat.com, gorcunov@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <willy@infradead.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Sun 15-04-18 02:24:51, Yang Shi wrote:
-> mmap_sem is on the hot path of kernel, and it very contended, but it is
-> abused too. It is used to protect arg_start|end and evn_start|end when
-> reading /proc/$PID/cmdline and /proc/$PID/environ, but it doesn't make
-> sense since those proc files just expect to read 4 values atomically and
-> not related to VM, they could be set to arbitrary values by C/R.
-> 
-> And, the mmap_sem contention may cause unexpected issue like below:
-> 
-> INFO: task ps:14018 blocked for more than 120 seconds.
->        Tainted: G            E 4.9.79-009.ali3000.alios7.x86_64 #1
->  "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this
-> message.
->  ps              D    0 14018      1 0x00000004
->   ffff885582f84000 ffff885e8682f000 ffff880972943000 ffff885ebf499bc0
->   ffff8828ee120000 ffffc900349bfca8 ffffffff817154d0 0000000000000040
->   00ffffff812f872a ffff885ebf499bc0 024000d000948300 ffff880972943000
->  Call Trace:
->   [<ffffffff817154d0>] ? __schedule+0x250/0x730
->   [<ffffffff817159e6>] schedule+0x36/0x80
->   [<ffffffff81718560>] rwsem_down_read_failed+0xf0/0x150
->   [<ffffffff81390a28>] call_rwsem_down_read_failed+0x18/0x30
->   [<ffffffff81717db0>] down_read+0x20/0x40
->   [<ffffffff812b9439>] proc_pid_cmdline_read+0xd9/0x4e0
->   [<ffffffff81253c95>] ? do_filp_open+0xa5/0x100
->   [<ffffffff81241d87>] __vfs_read+0x37/0x150
->   [<ffffffff812f824b>] ? security_file_permission+0x9b/0xc0
->   [<ffffffff81242266>] vfs_read+0x96/0x130
->   [<ffffffff812437b5>] SyS_read+0x55/0xc0
->   [<ffffffff8171a6da>] entry_SYSCALL_64_fastpath+0x1a/0xc5
-> 
-> Both Alexey Dobriyan and Michal Hocko suggested to use dedicated lock
-> for them to mitigate the abuse of mmap_sem.
-> 
-> So, introduce a new spinlock in mm_struct to protect the concurrent
-> access to arg_start|end, env_start|end and others, as well as replace
-> write map_sem to read to protect the race condition between prctl and
-> sys_brk which might break check_data_rlimit(), and makes prctl more
-> friendly to other VM operations.
-> 
-> This patch just eliminates the abuse of mmap_sem, but it can't resolve the
-> above hung task warning completely since the later access_remote_vm() call
-> needs acquire mmap_sem. The mmap_sem scalability issue will be solved in the
-> future.
-> 
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Alexey Dobriyan <adobriyan@gmail.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Mateusz Guzik <mguzik@redhat.com>
-> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+Hi,
 
-Yes, looks good to me. As mentioned in other emails prctl_set_mm_map
-really deserves a comment explaining why we are doing the down_read
+These pacthes begin categorizing memory management documentation.  The
+documents that describe userspace APIs and do not overload the reader with
+implementation details can be moved to Documentation/admin-guide, so let's
+do it :)
 
-What about something like the following?
-"
-arg_lock protects concurent updates but we still need mmap_sem for read
-to exclude races with do_brk.
-"
-Acked-by: Michal Hocko <mhocko@suse.com>
+Mike Rapoport (7):
+  docs/vm: hugetlbpage: minor improvements
+  docs/vm: hugetlbpage: move section about kernel development to
+    hugetlbfs_reserv
+  docs/vm: pagemap: formatting and spelling updates
+  docs/vm: pagemap: change document title
+  docs/admin-guide: introduce basic index for mm documentation
+  docs/admin-guide/mm: start moving here files from Documentation/vm
+  docs/admin-guide/mm: convert plain text cross references to hyperlinks
 
-> ---
-> v3 --> v4:
-> * Protected values update with down_read + spin_lock to prevent from race
->   condition between prctl and sys_brk and made prctl more friendly to VM
->   operations per Michal's suggestion
-> 
-> v2 --> v3:
-> * Restored down_write in prctl syscall
-> * Elaborate the limitation of this patch suggested by Michal
-> * Protect those fields by the new lock except brk and start_brk per Michal's
->   suggestion
-> * Based off Cyrill's non PR_SET_MM_MAP oprations deprecation patch
->   (https://lkml.org/lkml/2018/4/5/541)
-> 
-> v1 --> v2:
-> * Use spinlock instead of rwlock per Mattew's suggestion
-> * Replace down_write to down_read in prctl_set_mm (see commit log for details)
->  fs/proc/base.c           | 8 ++++----
->  include/linux/mm_types.h | 2 ++
->  kernel/fork.c            | 1 +
->  kernel/sys.c             | 6 ++++--
->  mm/init-mm.c             | 1 +
->  5 files changed, 12 insertions(+), 6 deletions(-)
-> 
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index eafa39a..3551757 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -239,12 +239,12 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
->  		goto out_mmput;
->  	}
->  
-> -	down_read(&mm->mmap_sem);
-> +	spin_lock(&mm->arg_lock);
->  	arg_start = mm->arg_start;
->  	arg_end = mm->arg_end;
->  	env_start = mm->env_start;
->  	env_end = mm->env_end;
-> -	up_read(&mm->mmap_sem);
-> +	spin_unlock(&mm->arg_lock);
->  
->  	BUG_ON(arg_start > arg_end);
->  	BUG_ON(env_start > env_end);
-> @@ -929,10 +929,10 @@ static ssize_t environ_read(struct file *file, char __user *buf,
->  	if (!mmget_not_zero(mm))
->  		goto free;
->  
-> -	down_read(&mm->mmap_sem);
-> +	spin_lock(&mm->arg_lock);
->  	env_start = mm->env_start;
->  	env_end = mm->env_end;
-> -	up_read(&mm->mmap_sem);
-> +	spin_unlock(&mm->arg_lock);
->  
->  	while (count > 0) {
->  		size_t this_len, max_len;
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 2161234..49dd59e 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -413,6 +413,8 @@ struct mm_struct {
->  	unsigned long exec_vm;		/* VM_EXEC & ~VM_WRITE & ~VM_STACK */
->  	unsigned long stack_vm;		/* VM_STACK */
->  	unsigned long def_flags;
-> +
-> +	spinlock_t arg_lock; /* protect the below fields */
->  	unsigned long start_code, end_code, start_data, end_data;
->  	unsigned long start_brk, brk, start_stack;
->  	unsigned long arg_start, arg_end, env_start, env_end;
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index 242c8c9..295f903 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -900,6 +900,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
->  	mm->pinned_vm = 0;
->  	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
->  	spin_lock_init(&mm->page_table_lock);
-> +	spin_lock_init(&mm->arg_lock);
->  	mm_init_cpumask(mm);
->  	mm_init_aio(mm);
->  	mm_init_owner(mm, p);
-> diff --git a/kernel/sys.c b/kernel/sys.c
-> index f16725e..0cc5a1c 100644
-> --- a/kernel/sys.c
-> +++ b/kernel/sys.c
-> @@ -2011,7 +2011,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
->  			return error;
->  	}
->  
-> -	down_write(&mm->mmap_sem);
-> +	down_read(&mm->mmap_sem);
->  
->  	/*
->  	 * We don't validate if these members are pointing to
-> @@ -2025,6 +2025,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
->  	 *    to any problem in kernel itself
->  	 */
->  
-> +	spin_lock(&mm->arg_lock);
->  	mm->start_code	= prctl_map.start_code;
->  	mm->end_code	= prctl_map.end_code;
->  	mm->start_data	= prctl_map.start_data;
-> @@ -2036,6 +2037,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
->  	mm->arg_end	= prctl_map.arg_end;
->  	mm->env_start	= prctl_map.env_start;
->  	mm->env_end	= prctl_map.env_end;
-> +	spin_unlock(&mm->arg_lock);
->  
->  	/*
->  	 * Note this update of @saved_auxv is lockless thus
-> @@ -2048,7 +2050,7 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
->  	if (prctl_map.auxv_size)
->  		memcpy(mm->saved_auxv, user_auxv, sizeof(user_auxv));
->  
-> -	up_write(&mm->mmap_sem);
-> +	up_read(&mm->mmap_sem);
->  	return 0;
->  }
->  #endif /* CONFIG_CHECKPOINT_RESTORE */
-> diff --git a/mm/init-mm.c b/mm/init-mm.c
-> index f94d5d1..f0179c9 100644
-> --- a/mm/init-mm.c
-> +++ b/mm/init-mm.c
-> @@ -22,6 +22,7 @@ struct mm_struct init_mm = {
->  	.mm_count	= ATOMIC_INIT(1),
->  	.mmap_sem	= __RWSEM_INITIALIZER(init_mm.mmap_sem),
->  	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
-> +	.arg_lock	=  __SPIN_LOCK_UNLOCKED(init_mm.arg_lock),
->  	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
->  	.user_ns	= &init_user_ns,
->  	INIT_MM_CONTEXT(init_mm)
-> -- 
-> 1.8.3.1
+ Documentation/ABI/stable/sysfs-devices-node        |  2 +-
+ .../ABI/testing/sysfs-kernel-mm-hugepages          |  2 +-
+ Documentation/admin-guide/index.rst                |  1 +
+ .../{vm => admin-guide/mm}/hugetlbpage.rst         | 28 +++++++--------
+ .../{vm => admin-guide/mm}/idle_page_tracking.rst  |  5 +--
+ Documentation/admin-guide/mm/index.rst             | 28 +++++++++++++++
+ Documentation/{vm => admin-guide/mm}/pagemap.rst   | 40 ++++++++++++----------
+ .../{vm => admin-guide/mm}/soft-dirty.rst          |  0
+ .../{vm => admin-guide/mm}/userfaultfd.rst         |  0
+ Documentation/filesystems/proc.txt                 |  6 ++--
+ Documentation/sysctl/vm.txt                        |  4 +--
+ Documentation/vm/00-INDEX                          | 10 ------
+ Documentation/vm/hugetlbfs_reserv.rst              |  8 +++++
+ Documentation/vm/hwpoison.rst                      |  2 +-
+ Documentation/vm/index.rst                         |  5 ---
+ fs/Kconfig                                         |  2 +-
+ fs/proc/task_mmu.c                                 |  4 +--
+ mm/Kconfig                                         |  5 +--
+ 18 files changed, 89 insertions(+), 63 deletions(-)
+ rename Documentation/{vm => admin-guide/mm}/hugetlbpage.rst (95%)
+ rename Documentation/{vm => admin-guide/mm}/idle_page_tracking.rst (96%)
+ create mode 100644 Documentation/admin-guide/mm/index.rst
+ rename Documentation/{vm => admin-guide/mm}/pagemap.rst (83%)
+ rename Documentation/{vm => admin-guide/mm}/soft-dirty.rst (100%)
+ rename Documentation/{vm => admin-guide/mm}/userfaultfd.rst (100%)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
