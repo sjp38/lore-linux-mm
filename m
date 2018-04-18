@@ -1,103 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EF2386B0005
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 09:06:10 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 127so722343pge.10
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:06:10 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0109.outbound.protection.outlook.com. [104.47.0.109])
-        by mx.google.com with ESMTPS id o69si1157276pfi.322.2018.04.18.06.06.09
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 229BA6B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 09:23:36 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id j25so976741pfh.18
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:23:36 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q9sor318329pfa.109.2018.04.18.06.23.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 18 Apr 2018 06:06:09 -0700 (PDT)
-Subject: Re: [PATCH v2 04/12] mm: Assign memcg-aware shrinkers bitmap to memcg
-References: <152399121146.3456.5459546288565589098.stgit@localhost.localdomain>
- <201804182053.71Pa9aRK%fengguang.wu@intel.com>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <9d2603ed-e7b9-3eb4-2e2c-9ce2060ff853@virtuozzo.com>
-Date: Wed, 18 Apr 2018 16:05:59 +0300
+        (Google Transport Security);
+        Wed, 18 Apr 2018 06:23:34 -0700 (PDT)
+Date: Wed, 18 Apr 2018 22:23:28 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm:memcg: add __GFP_NOWARN in
+ __memcg_schedule_kmem_cache_create
+Message-ID: <20180418132328.GB210164@rodete-desktop-imager.corp.google.com>
+References: <20180418022912.248417-1-minchan@kernel.org>
+ <20180418072002.GN17484@dhcp22.suse.cz>
+ <20180418074117.GA210164@rodete-desktop-imager.corp.google.com>
+ <20180418075437.GP17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <201804182053.71Pa9aRK%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180418075437.GP17484@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Hi,
+On Wed, Apr 18, 2018 at 09:54:37AM +0200, Michal Hocko wrote:
+> On Wed 18-04-18 16:41:17, Minchan Kim wrote:
+> > On Wed, Apr 18, 2018 at 09:20:02AM +0200, Michal Hocko wrote:
+> > > On Wed 18-04-18 11:29:12, Minchan Kim wrote:
+> [...]
+> > > > Let's not make user scared.
+> > > 
+> > > This is not a proper explanation. So what exactly happens when this
+> > > allocation fails? I would suggest something like the following
+> > > "
+> > > __memcg_schedule_kmem_cache_create tries to create a shadow slab cache
+> > > and the worker allocation failure is not really critical because we will
+> > > retry on the next kmem charge. We might miss some charges but that
+> > > shouldn't be critical. The excessive allocation failure report is not
+> > > very much helpful. Replace it with a rate limited single line output so
+> > > that we know that there is a lot of these failures and that we need to
+> > > do something about it in future.
+> > > "
+> > > 
+> > > With the last part to be implemented of course.
+> > 
+> > If you want to see warning and catch on it in future, I don't see any reason
+> > to change it. Because I didn't see any excessive warning output that it could
+> > make system slow unless we did ratelimiting.
+> 
+> Yeah, but a single line would be as much informative and less scary to
+> users.
+> 
+> > It was a just report from non-MM guys who have a concern that somethings
+> > might go wrong on the system. I just wanted them relax since it's not
+> > critical.
+> 
+> I do agree with __GFP_NOWARN but I think a single line warning is due
+> and helpful for further debugging.
 
-On 18.04.2018 15:55, kbuild test robot wrote:
-> Hi Kirill,
-> 
-> Thank you for the patch! Perhaps something to improve:
-> 
-> [auto build test WARNING on mmotm/master]
-> [also build test WARNING on next-20180418]
-> [cannot apply to v4.17-rc1]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> 
-> url:    https://github.com/0day-ci/linux/commits/Kirill-Tkhai/Improve-shrink_slab-scalability-old-complexity-was-O-n-2-new-is-O-n/20180418-184501
-> base:   git://git.cmpxchg.org/linux-mmotm.git master
-> config: x86_64-randconfig-x011-201815 (attached as .config)
-> compiler: gcc-7 (Debian 7.3.0-16) 7.3.0
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
-> 
-> Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
-> http://gcc.gnu.org/wiki/Better_Uninitialized_Warnings
-> 
-> All warnings (new ones prefixed by >>):
-> 
->    mm/memcontrol.c: In function 'expand_shrinker_maps':
->>> mm/memcontrol.c:402:9: warning: 'ret' may be used uninitialized in this function [-Wmaybe-uninitialized]
->      return ret;>             ^~~
+Okay, no problem. However, I don't feel we need ratelimit at this moment.
+We can do when we got real report. Let's add just one line warning.
+However, I have no talent to write a poem to express with one line.
+Could you help me?
 
-thanks for reporting this. Actually in terms of kernel it's a false positive
-(since this function is called at time, when for_each_node() iterates not empty
-list), but of course, I'll add ret initialization to silence the compiler.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 671d07e73a3b..e26f85cac63f 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2201,8 +2201,11 @@ static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
+        struct memcg_kmem_cache_create_work *cw;
 
-This should not prevent the review of the patchset, so I'm waiting for people's
-comments about it before resending v3.
+        cw = kmalloc(sizeof(*cw), GFP_NOWAIT | __GFP_NOWARN);
+-       if (!cw)
++       if (!cw) {
++               pr_warn("Fail to create shadow slab cache for memcg but it's not critical.\n");
++               pr_warn("If you see lots of this message, send an email to linux-mm@kvack.org\n");
+                return;
++       }
 
-> 
-> vim +/ret +402 mm/memcontrol.c
-> 
->    377	
->    378	int expand_shrinker_maps(int old_nr, int nr)
->    379	{
->    380		int id, size, old_size, node, ret;
->    381		struct mem_cgroup *memcg;
->    382	
->    383		old_size = old_nr / BITS_PER_BYTE;
->    384		size = nr / BITS_PER_BYTE;
->    385	
->    386		down_write(&shrinkers_max_nr_rwsem);
->    387		for_each_node(node) {
->    388			idr_for_each_entry(&mem_cgroup_idr, memcg, id) {
->    389				if (id == 1)
->    390					memcg = NULL;
->    391				ret = memcg_expand_maps(memcg, node, size, old_size);
->    392				if (ret)
->    393					goto unlock;
->    394			}
->    395	
->    396			/* root_mem_cgroup is not initialized yet */
->    397			if (id == 0)
->    398				ret = memcg_expand_maps(NULL, node, size, old_size);
->    399		}
->    400	unlock:
->    401		up_write(&shrinkers_max_nr_rwsem);
->  > 402		return ret;
->    403	}
->    404	#else /* CONFIG_SLOB */
->    405	static void get_shrinkers_max_nr(void) { }
->    406	static void put_shrinkers_max_nr(void) { }
->    407	
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
-Kirill
+        css_get(&memcg->css);
