@@ -1,194 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E7986B0005
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 22:50:42 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id k15-v6so499920ioc.4
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 19:50:42 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id e41-v6si182153iod.186.2018.04.17.19.50.40
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EFA616B0005
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 22:52:44 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v19so211251pfn.7
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 19:52:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 123sor52371pfy.115.2018.04.17.19.52.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 19:50:40 -0700 (PDT)
-Date: Tue, 17 Apr 2018 19:50:23 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: [PATCH] iomap: add a swapfile activation function
-Message-ID: <20180418025023.GM24738@magnolia>
+        (Google Transport Security);
+        Tue, 17 Apr 2018 19:52:43 -0700 (PDT)
+Date: Tue, 17 Apr 2018 19:52:41 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+In-Reply-To: <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com> <201804180057.w3I0vieV034949@www262.sakura.ne.jp> <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xfs <linux-xfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+Since exit_mmap() is done without the protection of mm->mmap_sem, it is
+possible for the oom reaper to concurrently operate on an mm until
+MMF_OOM_SKIP is set.
 
-Add a new iomap_swapfile_activate function so that filesystems can
-activate swap files without having to use the obsolete and slow bmap
-function.
+This allows munlock_vma_pages_all() to concurrently run while the oom
+reaper is operating on a vma.  Since munlock_vma_pages_range() depends on
+clearing VM_LOCKED from vm_flags before actually doing the munlock to
+determine if any other vmas are locking the same memory, the check for
+VM_LOCKED in the oom reaper is racy.
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+This is especially noticeable on architectures such as powerpc where
+clearing a huge pmd requires serialize_against_pte_lookup().  If the pmd
+is zapped by the oom reaper during follow_page_mask() after the check for
+pmd_none() is bypassed, this ends up deferencing a NULL ptl.
+
+Fix this by reusing MMF_UNSTABLE to specify that an mm should not be
+reaped.  This prevents the concurrent munlock_vma_pages_range() and
+unmap_page_range().  The oom reaper will simply not operate on an mm that
+has the bit set and leave the unmapping to exit_mmap().
+
+Fixes: 212925802454 ("mm: oom: let oom_reap_task and exit_mmap run concurrently")
+Cc: stable@vger.kernel.org [4.14+]
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- fs/iomap.c            |   99 +++++++++++++++++++++++++++++++++++++++++++++++++
- fs/xfs/xfs_aops.c     |   12 ++++++
- include/linux/iomap.h |    7 +++
- 3 files changed, 118 insertions(+)
+ v2:
+  - oom reaper only sets MMF_OOM_SKIP if MMF_UNSTABLE was never set (either
+    by itself or by exit_mmap(), per Tetsuo
+  - s/kick_all_cpus_sync/serialize_against_pte_lookup/ in changelog as more
+    isolated way of forcing cpus as non-idle on power
 
-diff --git a/fs/iomap.c b/fs/iomap.c
-index afd1635..ace921b 100644
---- a/fs/iomap.c
-+++ b/fs/iomap.c
-@@ -1089,3 +1089,102 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(iomap_dio_rw);
-+
-+/* Swapfile activation */
-+
-+struct iomap_swapfile_info {
-+	struct swap_info_struct *sis;
-+	uint64_t lowest_ppage;		/* lowest physical addr seen (pages) */
-+	uint64_t highest_ppage;		/* highest physical addr seen (pages) */
-+	unsigned long expected_page_no;	/* next logical offset wanted (pages) */
-+	int nr_extents;			/* extent count */
-+};
-+
-+static loff_t iomap_swapfile_activate_actor(struct inode *inode, loff_t pos,
-+		loff_t count, void *data, struct iomap *iomap)
-+{
-+	struct iomap_swapfile_info *isi = data;
-+	unsigned long page_no = iomap->offset >> PAGE_SHIFT;
-+	unsigned long nr_pages = iomap->length >> PAGE_SHIFT;
-+	uint64_t first_ppage = iomap->addr >> PAGE_SHIFT;
-+	uint64_t last_ppage = ((iomap->addr + iomap->length) >> PAGE_SHIFT) - 1;
-+
-+	/* Only one bdev per swap file. */
-+	if (iomap->bdev != isi->sis->bdev)
-+		goto err;
-+
-+	/* Must be aligned to a page boundary. */
-+	if ((iomap->offset & ~PAGE_MASK) || (iomap->addr & ~PAGE_MASK) ||
-+	    (iomap->length & ~PAGE_MASK))
-+		goto err;
-+
-+	/* Only real or unwritten extents. */
-+	if (iomap->type != IOMAP_MAPPED && iomap->type != IOMAP_UNWRITTEN)
-+		goto err;
-+
-+	/* No sparse files. */
-+	if (isi->expected_page_no != page_no)
-+		goto err;
-+
-+	/* No uncommitted metadata or shared blocks or inline data. */
-+	if (iomap->flags & (IOMAP_F_DIRTY | IOMAP_F_SHARED |
-+			    IOMAP_F_DATA_INLINE))
-+		goto err;
-+
-+	/*
-+	 * Calculate how much swap space we're adding; the first page contains
-+	 * the swap header and doesn't count.
-+	 */
-+	if (page_no == 0)
-+		first_ppage++;
-+	if (isi->lowest_ppage > first_ppage)
-+		isi->lowest_ppage = first_ppage;
-+	if (isi->highest_ppage < last_ppage)
-+		isi->highest_ppage = last_ppage;
-+
-+	/* Add extent, set up for the next call. */
-+	isi->nr_extents += add_swap_extent(isi->sis, page_no, nr_pages,
-+			first_ppage);
-+	isi->expected_page_no = page_no + nr_pages;
-+
-+	return count;
-+err:
-+	pr_err("swapon: swapfile has holes\n");
-+	return -EINVAL;
-+}
-+
-+int iomap_swapfile_activate(struct swap_info_struct *sis,
-+		struct file *swap_file, sector_t *pagespan,
-+		const struct iomap_ops *ops)
-+{
-+	struct iomap_swapfile_info isi = {
-+		.sis = sis,
-+		.lowest_ppage = (sector_t)-1ULL,
-+	};
-+	struct address_space *mapping = swap_file->f_mapping;
-+	struct inode *inode = mapping->host;
-+	loff_t pos = 0;
-+	loff_t len = i_size_read(inode);
-+	loff_t ret;
-+
-+	ret = filemap_write_and_wait(inode->i_mapping);
-+	if (ret)
-+		return ret;
-+
-+	while (len > 0) {
-+		ret = iomap_apply(inode, pos, len, IOMAP_REPORT,
-+				ops, &isi, iomap_swapfile_activate_actor);
-+		if (ret <= 0)
-+			return ret;
-+
-+		pos += ret;
-+		len -= ret;
+ mm/mmap.c     | 38 ++++++++++++++++++++------------------
+ mm/oom_kill.c | 28 +++++++++++++---------------
+ 2 files changed, 33 insertions(+), 33 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3015,6 +3015,25 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* mm's last user has gone, and its about to be pulled down */
+ 	mmu_notifier_release(mm);
+ 
++	if (unlikely(mm_is_oom_victim(mm))) {
++		/*
++		 * Wait for oom_reap_task() to stop working on this mm.  Because
++		 * MMF_UNSTABLE is already set before calling down_read(),
++		 * oom_reap_task() will not run on this mm after up_write().
++		 * oom_reap_task() also depends on a stable VM_LOCKED flag to
++		 * indicate it should not unmap during munlock_vma_pages_all().
++		 *
++		 * mm_is_oom_victim() cannot be set from under us because
++		 * victim->mm is already set to NULL under task_lock before
++		 * calling mmput() and victim->signal->oom_mm is set by the oom
++		 * killer only if victim->mm is non-NULL while holding
++		 * task_lock().
++		 */
++		set_bit(MMF_UNSTABLE, &mm->flags);
++		down_write(&mm->mmap_sem);
++		up_write(&mm->mmap_sem);
 +	}
 +
-+	*pagespan = 1 + isi.highest_ppage - isi.lowest_ppage;
-+	sis->max = isi.expected_page_no;
-+	sis->pages = isi.expected_page_no - 1;
-+	sis->highest_bit = isi.expected_page_no - 1;
-+	return isi.nr_extents;
-+}
-+EXPORT_SYMBOL_GPL(iomap_swapfile_activate);
-diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index 0ab824f..80de476 100644
---- a/fs/xfs/xfs_aops.c
-+++ b/fs/xfs/xfs_aops.c
-@@ -1475,6 +1475,16 @@ xfs_vm_set_page_dirty(
- 	return newly_dirty;
- }
+ 	if (mm->locked_vm) {
+ 		vma = mm->mmap;
+ 		while (vma) {
+@@ -3036,26 +3055,9 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* update_hiwater_rss(mm) here? but nobody should be looking */
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	unmap_vmas(&tlb, vma, 0, -1);
+-
+-	if (unlikely(mm_is_oom_victim(mm))) {
+-		/*
+-		 * Wait for oom_reap_task() to stop working on this
+-		 * mm. Because MMF_OOM_SKIP is already set before
+-		 * calling down_read(), oom_reap_task() will not run
+-		 * on this "mm" post up_write().
+-		 *
+-		 * mm_is_oom_victim() cannot be set from under us
+-		 * either because victim->mm is already set to NULL
+-		 * under task_lock before calling mmput and oom_mm is
+-		 * set not NULL by the OOM killer only if victim->mm
+-		 * is found not NULL while holding the task_lock.
+-		 */
+-		set_bit(MMF_OOM_SKIP, &mm->flags);
+-		down_write(&mm->mmap_sem);
+-		up_write(&mm->mmap_sem);
+-	}
+ 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+ 	tlb_finish_mmu(&tlb, 0, -1);
++	set_bit(MMF_OOM_SKIP, &mm->flags);
  
-+static int
-+xfs_iomap_swapfile_activate(
-+	struct swap_info_struct		*sis,
-+	struct file			*swap_file,
-+	sector_t			*span)
-+{
-+	sis->bdev = xfs_find_bdev_for_inode(file_inode(swap_file));
-+	return iomap_swapfile_activate(sis, swap_file, span, &xfs_iomap_ops);
-+}
-+
- const struct address_space_operations xfs_address_space_operations = {
- 	.readpage		= xfs_vm_readpage,
- 	.readpages		= xfs_vm_readpages,
-@@ -1488,6 +1498,7 @@ const struct address_space_operations xfs_address_space_operations = {
- 	.migratepage		= buffer_migrate_page,
- 	.is_partially_uptodate  = block_is_partially_uptodate,
- 	.error_remove_page	= generic_error_remove_page,
-+	.swap_activate		= xfs_iomap_swapfile_activate,
- };
+ 	/*
+ 	 * Walk the list again, actually closing and freeing it,
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -521,12 +521,17 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	}
  
- const struct address_space_operations xfs_dax_aops = {
-@@ -1495,4 +1506,5 @@ const struct address_space_operations xfs_dax_aops = {
- 	.direct_IO		= noop_direct_IO,
- 	.set_page_dirty		= noop_set_page_dirty,
- 	.invalidatepage		= noop_invalidatepage,
-+	.swap_activate		= xfs_iomap_swapfile_activate,
- };
-diff --git a/include/linux/iomap.h b/include/linux/iomap.h
-index 19a07de..66d1c35 100644
---- a/include/linux/iomap.h
-+++ b/include/linux/iomap.h
-@@ -106,4 +106,11 @@ typedef int (iomap_dio_end_io_t)(struct kiocb *iocb, ssize_t ret,
- ssize_t iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
- 		const struct iomap_ops *ops, iomap_dio_end_io_t end_io);
+ 	/*
+-	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
+-	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
++	 * Tell all users of get_user/copy_from_user etc... that the content
++	 * is no longer stable. No barriers really needed because unmapping
++	 * should imply barriers already and the reader would hit a page fault
++	 * if it stumbled over reaped memory.
++	 *
++	 * MMF_UNSTABLE is also set by exit_mmap when the OOM reaper shouldn't
++	 * work on the mm anymore. The check for MMF_OOM_UNSTABLE must run
+ 	 * under mmap_sem for reading because it serializes against the
+ 	 * down_write();up_write() cycle in exit_mmap().
+ 	 */
+-	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
++	if (test_and_set_bit(MMF_UNSTABLE, &mm->flags)) {
+ 		up_read(&mm->mmap_sem);
+ 		trace_skip_task_reaping(tsk->pid);
+ 		goto unlock_oom;
+@@ -534,14 +539,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
  
-+struct file;
-+struct swap_info_struct;
-+
-+int iomap_swapfile_activate(struct swap_info_struct *sis,
-+		struct file *swap_file, sector_t *pagespan,
-+		const struct iomap_ops *ops);
-+
- #endif /* LINUX_IOMAP_H */
+ 	trace_start_task_reaping(tsk->pid);
+ 
+-	/*
+-	 * Tell all users of get_user/copy_from_user etc... that the content
+-	 * is no longer stable. No barriers really needed because unmapping
+-	 * should imply barriers already and the reader would hit a page fault
+-	 * if it stumbled over a reaped memory.
+-	 */
+-	set_bit(MMF_UNSTABLE, &mm->flags);
+-
+ 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+ 		if (!can_madv_dontneed_vma(vma))
+ 			continue;
+@@ -567,6 +564,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 			tlb_finish_mmu(&tlb, start, end);
+ 		}
+ 	}
++	set_bit(MMF_OOM_SKIP, &mm->flags);
+ 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+ 			task_pid_nr(tsk), tsk->comm,
+ 			K(get_mm_counter(mm, MM_ANONPAGES)),
+@@ -594,7 +592,6 @@ static void oom_reap_task(struct task_struct *tsk)
+ 	    test_bit(MMF_OOM_SKIP, &mm->flags))
+ 		goto done;
+ 
+-
+ 	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
+ 		task_pid_nr(tsk), tsk->comm);
+ 	debug_show_all_locks();
+@@ -603,10 +600,11 @@ static void oom_reap_task(struct task_struct *tsk)
+ 	tsk->oom_reaper_list = NULL;
+ 
+ 	/*
+-	 * Hide this mm from OOM killer because it has been either reaped or
+-	 * somebody can't call up_write(mmap_sem).
++	 * If the oom reaper could not get started on this mm and it has not yet
++	 * reached exit_mmap(), set MMF_OOM_SKIP to disregard.
+ 	 */
+-	set_bit(MMF_OOM_SKIP, &mm->flags);
++	if (!test_bit(MMF_UNSTABLE, &mm->flags))
++		set_bit(MMF_OOM_SKIP, &mm->flags);
+ 
+ 	/* Drop a reference taken by wake_oom_reaper */
+ 	put_task_struct(tsk);
