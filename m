@@ -1,43 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C8C5A6B0005
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 09:39:49 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id o8-v6so1798000wra.12
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:39:49 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DB526B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 09:44:03 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 31-v6so1876524wrr.2
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 06:44:03 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t55si1270830edb.424.2018.04.18.06.39.48
+        by mx.google.com with ESMTPS id l14si1456224edk.462.2018.04.18.06.44.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Apr 2018 06:39:48 -0700 (PDT)
-Date: Wed, 18 Apr 2018 15:39:47 +0200
+        Wed, 18 Apr 2018 06:44:02 -0700 (PDT)
+Date: Wed, 18 Apr 2018 15:44:01 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm:memcg: add __GFP_NOWARN in
- __memcg_schedule_kmem_cache_create
-Message-ID: <20180418133947.GE17484@dhcp22.suse.cz>
-References: <20180418022912.248417-1-minchan@kernel.org>
- <20180418133139.GB27475@bombadil.infradead.org>
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+Message-ID: <20180418134401.GF17484@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
+ <20180418075051.GO17484@dhcp22.suse.cz>
+ <201804182049.EDJ21857.OHJOMOLFQVFFtS@I-love.SAKURA.ne.jp>
+ <20180418115830.GA17484@dhcp22.suse.cz>
+ <201804182225.EII57887.OLMHOFVtQSFJOF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180418133139.GB27475@bombadil.infradead.org>
+In-Reply-To: <201804182225.EII57887.OLMHOFVtQSFJOF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 18-04-18 06:31:39, Matthew Wilcox wrote:
-> On Wed, Apr 18, 2018 at 11:29:12AM +0900, Minchan Kim wrote:
-> > If there are heavy memory pressure, page allocation with __GFP_NOWAIT
-> > fails easily although it's order-0 request.
-> > I got below warning 9 times for normal boot.
+On Wed 18-04-18 22:25:54, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > > > Can we try a simpler way and get back to what I was suggesting before
+> > > > [1] and simply not play tricks with
+> > > > 		down_write(&mm->mmap_sem);
+> > > > 		up_write(&mm->mmap_sem);
+> > > > 
+> > > > and use the write lock in exit_mmap for oom_victims?
+> > > 
+> > > You mean something like this?
 > > 
-> > Let's not make user scared.
+> > or simply hold the write lock until we unmap and free page tables.
 > 
-> Actually, can you explain why it's OK if this fails?  As I understand this
-> code, we'll fail to create a kmalloc cache for this memcg.  What problems
-> does that cause?
+> That increases possibility of __oom_reap_task_mm() giving up reclaim and
+> setting MMF_OOM_SKIP when exit_mmap() is making forward progress, doesn't it?
 
-See http://lkml.kernel.org/r/20180418072002.GN17484@dhcp22.suse.cz
+Yes it does. But it is not that likely and easily noticeable from the
+logs so we can make the locking protocol more complex if this really
+hits two often.
+
+> I think that it is better that __oom_reap_task_mm() does not give up when
+> exit_mmap() can make progress. In that aspect, the section protected by
+> mmap_sem held for write should be as short as possible.
+
+Sure, but then weight the complexity on the other side and try to think
+whether simpler code which works most of the time is better than a buggy
+complex one. The current protocol has 2 followup fixes which speaks for
+itself.
+ 
+[...]
+> > > Then, I'm tempted to call __oom_reap_task_mm() before holding mmap_sem for write.
+> > > It would be OK to call __oom_reap_task_mm() at the beginning of __mmput()...
+> > 
+> > I am not sure I understand.
+> 
+> To reduce possibility of __oom_reap_task_mm() giving up reclaim and
+> setting MMF_OOM_SKIP.
+
+Still do not understand. Do you want to call __oom_reap_task_mm from
+__mmput? If yes why would you do so when exit_mmap does a stronger
+version of it?
 
 -- 
 Michal Hocko
