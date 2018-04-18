@@ -1,82 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E10B6B0005
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 07:29:21 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 88-v6so293123wrc.21
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:29:21 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 901F36B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 07:33:03 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p4-v6so1483014wrf.17
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:33:03 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i5si1144721edc.176.2018.04.18.04.29.19
+        by mx.google.com with ESMTPS id 40si799085edr.266.2018.04.18.04.33.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Apr 2018 04:29:19 -0700 (PDT)
-Date: Wed, 18 Apr 2018 13:29:16 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [RFC PATCH] mm: correct status code which move_pages() returns
- for zero page
-Message-ID: <20180418112916.GX17484@dhcp22.suse.cz>
-References: <20180417110615.16043-1-liwang@redhat.com>
- <20180417130300.GF17484@dhcp22.suse.cz>
- <20180417141442.GG17484@dhcp22.suse.cz>
- <CAEemH2dQ+yQ-P-=5J3Y-n+0V0XV-vJkQ81uD=Q3Bh+rHZ4sb-Q@mail.gmail.com>
- <20180417190044.GK17484@dhcp22.suse.cz>
- <7674C632-FE3E-42D2-B19D-32F531617043@cs.rutgers.edu>
- <20180418090722.GV17484@dhcp22.suse.cz>
- <20180418091943.GW17484@dhcp22.suse.cz>
- <CAEemH2evD8Gk6y_q41ygBZVwu--U9oKvnPh8xsrb5R27oLCBDA@mail.gmail.com>
+        Wed, 18 Apr 2018 04:33:02 -0700 (PDT)
+Date: Wed, 18 Apr 2018 13:33:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] fs, elf: drop MAP_FIXED usage from elf_map
+Message-ID: <20180418113301.GY17484@dhcp22.suse.cz>
+References: <20171213092550.2774-1-mhocko@kernel.org>
+ <20171213092550.2774-3-mhocko@kernel.org>
+ <0b5c541a-91ee-220b-3196-f64264f9f0bc@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAEemH2evD8Gk6y_q41ygBZVwu--U9oKvnPh8xsrb5R27oLCBDA@mail.gmail.com>
+In-Reply-To: <0b5c541a-91ee-220b-3196-f64264f9f0bc@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@redhat.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, linux-mm@kvack.org, ltp@lists.linux.it, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 18-04-18 18:39:19, Li Wang wrote:
-> On Wed, Apr 18, 2018 at 5:19 PM, Michal Hocko <mhocko@suse.com> wrote:
+On Wed 18-04-18 19:51:05, Tetsuo Handa wrote:
+> >From 0ba20dcbbc40b703413c9a6907a77968b087811b Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Wed, 18 Apr 2018 15:31:48 +0900
+> Subject: [PATCH] fs, elf: don't complain MAP_FIXED_NOREPLACE if mapping
+>  failed.
 > 
-> > On Wed 18-04-18 11:07:22, Michal Hocko wrote:
-> > > On Tue 17-04-18 16:09:33, Zi Yan wrote:
-> > [...]
-> > > > diff --git a/mm/migrate.c b/mm/migrate.c
-> > > > index f65dd69e1fd1..32afa4723e7f 100644
-> > > > --- a/mm/migrate.c
-> > > > +++ b/mm/migrate.c
-> > > > @@ -1619,6 +1619,8 @@ static int do_pages_move(struct mm_struct *mm,
-> > nodemask_t task_nodes,
-> > > >                         if (err)
-> > > >                                 goto out;
-> > > >                 }
-> > > > +               /* Move to next page (i+1), after we have saved page
-> > status (until i) */
-> > > > +               start = i + 1;
-> > > >                 current_node = NUMA_NO_NODE;
-> > > >         }
-> > > >  out_flush:
-> > > >
-> > > > Feel free to check it by yourselves.
-> > >
-> > > Yes, you are right. I never update start if the last page in the range
-> > > fails and so we overwrite the whole [start, i] range. I wish the code
-> > > wasn't that ugly and subtle but considering how we can fail in different
-> > > ways and that we want to batch as much as possible I do not see an easy
-> > > way.
-> > >
-> > > Care to send the patch? I would just drop the comment.
-> >
-> > Hmm, thinking about it some more. An alternative would be to check for
-> > list_empty on the page list. It is a bit larger diff but maybe that
-> > would be tiny bit cleaner because there is simply no point to call
-> > do_move_pages_to_node on an empty list in the first place.
-> >
+> Commit 4ed28639519c7bad ("fs, elf: drop MAP_FIXED usage from elf_map") is
+> printing spurious messages under memory pressure due to map_addr == -ENOMEM.
 > 
-> a??Hi Michal, Zi
-> 
-> I tried your patch separately, both of them works fine to me.
+>  9794 (a.out): Uhuuh, elf segment at 00007f2e34738000(fffffffffffffff4) requested but the memory is mapped already
+>  14104 (a.out): Uhuuh, elf segment at 00007f34fd76c000(fffffffffffffff4) requested but the memory is mapped already
+>  16843 (a.out): Uhuuh, elf segment at 00007f930ecc7000(fffffffffffffff4) requested but the memory is mapped already
 
-Thanks for retesting! Do you plan to post a patch with the changelog or
-should I do it?
+Hmm this is ENOMEM.
+
+> Don't complain if IS_ERR_VALUE(),
+
+this is simply wrong. We do want to warn on the failure because this is
+when the actual clash happens. We should just warn on EEXIST.
+
+> and use %px for printing the address.
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Andrei Vagin <avagin@openvz.org>
+> Cc: Khalid Aziz <khalid.aziz@oracle.com>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Abdul Haleem <abdhalee@linux.vnet.ibm.com>
+> Cc: Joel Stanley <joel@jms.id.au>
+> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> ---
+>  fs/binfmt_elf.c | 8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+> index 41e0418..559d35b 100644
+> --- a/fs/binfmt_elf.c
+> +++ b/fs/binfmt_elf.c
+> @@ -377,10 +377,10 @@ static unsigned long elf_map(struct file *filep, unsigned long addr,
+>  	} else
+>  		map_addr = vm_mmap(filep, addr, size, prot, type, off);
+>  
+> -	if ((type & MAP_FIXED_NOREPLACE) && BAD_ADDR(map_addr))
+> -		pr_info("%d (%s): Uhuuh, elf segment at %p requested but the memory is mapped already\n",
+> -				task_pid_nr(current), current->comm,
+> -				(void *)addr);
+> +	if ((type & MAP_FIXED_NOREPLACE) && BAD_ADDR(map_addr) &&
+> +	    !IS_ERR_VALUE(map_addr))
+> +		pr_info("%d (%s): Uhuuh, elf segment at %px requested but the memory is mapped already\n",
+> +			task_pid_nr(current), current->comm, (void *)addr);
+>  
+>  	return(map_addr);
+>  }
+> -- 
+> 1.8.3.1
+> 
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
