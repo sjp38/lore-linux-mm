@@ -1,98 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 691C56B0005
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 03:41:24 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id x32-v6so595917pld.16
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 00:41:24 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l25sor156608pfg.114.2018.04.18.00.41.23
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AD33B6B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 03:50:54 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id e15-v6so864843wrj.14
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 00:50:54 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y33si838815eda.16.2018.04.18.00.50.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Apr 2018 00:41:23 -0700 (PDT)
-Date: Wed, 18 Apr 2018 16:41:17 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm:memcg: add __GFP_NOWARN in
- __memcg_schedule_kmem_cache_create
-Message-ID: <20180418074117.GA210164@rodete-desktop-imager.corp.google.com>
-References: <20180418022912.248417-1-minchan@kernel.org>
- <20180418072002.GN17484@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Apr 2018 00:50:53 -0700 (PDT)
+Date: Wed, 18 Apr 2018 09:50:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+Message-ID: <20180418075051.GO17484@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com>
+ <201804180057.w3I0vieV034949@www262.sakura.ne.jp>
+ <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180418072002.GN17484@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Apr 18, 2018 at 09:20:02AM +0200, Michal Hocko wrote:
-> On Wed 18-04-18 11:29:12, Minchan Kim wrote:
-> > If there are heavy memory pressure, page allocation with __GFP_NOWAIT
-> > fails easily although it's order-0 request.
-> > I got below warning 9 times for normal boot.
-> > 
-> > [   17.072747] c0 0      <snip >: page allocation failure: order:0, mode:0x2200000(GFP_NOWAIT|__GFP_NOTRACK)
-> > < snip >
-> > [   17.072789] c0 0      Call trace:
-> > [   17.072803] c0 0      [<ffffff8009914da4>] dump_backtrace+0x0/0x4
-> > [   17.072813] c0 0      [<ffffff80086bfb5c>] dump_stack+0xa4/0xc0
-> > [   17.072822] c0 0      [<ffffff800831a4f8>] warn_alloc+0xd4/0x15c
-> > [   17.072829] c0 0      [<ffffff8008318c3c>] __alloc_pages_nodemask+0xf88/0x10fc
-> > [   17.072838] c0 0      [<ffffff8008392b34>] alloc_slab_page+0x40/0x18c
-> > [   17.072843] c0 0      [<ffffff8008392acc>] new_slab+0x2b8/0x2e0
-> > [   17.072849] c0 0      [<ffffff800839220c>] ___slab_alloc+0x25c/0x464
-> > [   17.072858] c0 0      [<ffffff8008393dd0>] __kmalloc+0x394/0x498
-> > [   17.072865] c0 0      [<ffffff80083a658c>] memcg_kmem_get_cache+0x114/0x2b8
-> > [   17.072870] c0 0      [<ffffff8008392f38>] kmem_cache_alloc+0x98/0x3e8
-> > [   17.072878] c0 0      [<ffffff8008370be8>] mmap_region+0x3bc/0x8c0
-> > [   17.072884] c0 0      [<ffffff80083707fc>] do_mmap+0x40c/0x43c
-> > [   17.072890] c0 0      [<ffffff8008343598>] vm_mmap_pgoff+0x15c/0x1e4
-> > [   17.072898] c0 0      [<ffffff800814be28>] sys_mmap+0xb0/0xc8
-> > [   17.072904] c0 0      [<ffffff8008083730>] el0_svc_naked+0x24/0x28
-> > [   17.072908] c0 0      Mem-Info:
-> > [   17.072920] c0 0      active_anon:17124 inactive_anon:193 isolated_anon:0
-> > [   17.072920] c0 0       active_file:7898 inactive_file:712955 isolated_file:55
-> > [   17.072920] c0 0       unevictable:0 dirty:27 writeback:18 unstable:0
-> > [   17.072920] c0 0       slab_reclaimable:12250 slab_unreclaimable:23334
-> > [   17.072920] c0 0       mapped:19310 shmem:212 pagetables:816 bounce:0
-> > [   17.072920] c0 0       free:36561 free_pcp:1205 free_cma:35615
-> > [   17.072933] c0 0      Node 0 active_anon:68496kB inactive_anon:772kB active_file:31592kB inactive_file:2851820kB unevictable:0kB isolated(anon):0kB isolated(file):220kB mapped:77240kB dirty:108kB writeback:72kB shmem:848kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
-> > [   17.072945] c0 0      DMA free:142188kB min:3056kB low:3820kB high:4584kB active_anon:10052kB inactive_anon:12kB active_file:312kB inactive_file:1412620kB unevictable:0kB writepending:0kB present:1781412kB managed:1604728kB mlocked:0kB slab_reclaimable:3592kB slab_unreclaimable:876kB kernel_stack:400kB pagetables:52kB bounce:0kB free_pcp:1436kB local_pcp:124kB free_cma:142492kB
-> > [   17.072949] c0 0      lowmem_reserve[]: 0 1842 1842
-> > [   17.072966] c0 0      Normal free:4056kB min:4172kB low:5212kB high:6252kB active_anon:58376kB inactive_anon:760kB active_file:31348kB inactive_file:1439040kB unevictable:0kB writepending:180kB present:2000636kB managed:1923688kB mlocked:0kB slab_reclaimable:45408kB slab_unreclaimable:92460kB kernel_stack:9680kB pagetables:3212kB bounce:0kB free_pcp:3392kB local_pcp:688kB free_cma:0kB
-> > [   17.072971] c0 0      lowmem_reserve[]: 0 0 0
-> > [   17.072982] c0 0      DMA: 0*4kB 0*8kB 1*16kB (C) 0*32kB 0*64kB 0*128kB 1*256kB (C) 1*512kB (C) 0*1024kB 1*2048kB (C) 34*4096kB (C) = 142096kB
-> > [   17.073024] c0 0      Normal: 228*4kB (UMEH) 172*8kB (UMH) 23*16kB (UH) 24*32kB (H) 5*64kB (H) 1*128kB (H) 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 3872kB
-> > [   17.073069] c0 0      721350 total pagecache pages
-> > [   17.073073] c0 0      0 pages in swap cache
-> > [   17.073078] c0 0      Swap cache stats: add 0, delete 0, find 0/0
-> > [   17.073081] c0 0      Free swap  = 0kB
-> > [   17.073085] c0 0      Total swap = 0kB
-> > [   17.073089] c0 0      945512 pages RAM
-> > [   17.073093] c0 0      0 pages HighMem/MovableOnly
-> > [   17.073097] c0 0      63408 pages reserved
-> > [   17.073100] c0 0      51200 pages cma reserved
-> > 
-> > Let's not make user scared.
+On Tue 17-04-18 19:52:41, David Rientjes wrote:
+> Since exit_mmap() is done without the protection of mm->mmap_sem, it is
+> possible for the oom reaper to concurrently operate on an mm until
+> MMF_OOM_SKIP is set.
 > 
-> This is not a proper explanation. So what exactly happens when this
-> allocation fails? I would suggest something like the following
-> "
-> __memcg_schedule_kmem_cache_create tries to create a shadow slab cache
-> and the worker allocation failure is not really critical because we will
-> retry on the next kmem charge. We might miss some charges but that
-> shouldn't be critical. The excessive allocation failure report is not
-> very much helpful. Replace it with a rate limited single line output so
-> that we know that there is a lot of these failures and that we need to
-> do something about it in future.
-> "
+> This allows munlock_vma_pages_all() to concurrently run while the oom
+> reaper is operating on a vma.  Since munlock_vma_pages_range() depends on
+> clearing VM_LOCKED from vm_flags before actually doing the munlock to
+> determine if any other vmas are locking the same memory, the check for
+> VM_LOCKED in the oom reaper is racy.
 > 
-> With the last part to be implemented of course.
+> This is especially noticeable on architectures such as powerpc where
+> clearing a huge pmd requires serialize_against_pte_lookup().  If the pmd
+> is zapped by the oom reaper during follow_page_mask() after the check for
+> pmd_none() is bypassed, this ends up deferencing a NULL ptl.
+> 
+> Fix this by reusing MMF_UNSTABLE to specify that an mm should not be
+> reaped.  This prevents the concurrent munlock_vma_pages_range() and
+> unmap_page_range().  The oom reaper will simply not operate on an mm that
+> has the bit set and leave the unmapping to exit_mmap().
 
-If you want to see warning and catch on it in future, I don't see any reason
-to change it. Because I didn't see any excessive warning output that it could
-make system slow unless we did ratelimiting.
+This will further complicate the protocol and actually theoretically
+restores the oom lockup issues because the oom reaper doesn't set
+MMF_OOM_SKIP when racing with exit_mmap so we fully rely that nothing
+blocks there... So the resulting code is more fragile and tricky.
 
-It was a just report from non-MM guys who have a concern that somethings
-might go wrong on the system. I just wanted them relax since it's not
-critical.
+Can we try a simpler way and get back to what I was suggesting before
+[1] and simply not play tricks with
+		down_write(&mm->mmap_sem);
+		up_write(&mm->mmap_sem);
+
+and use the write lock in exit_mmap for oom_victims?
+
+Andrea wanted to make this more clever but this is the second fallout
+which could have been prevented. The patch would be smaller and the
+locking protocol easier
+
+[1] http://lkml.kernel.org/r/20170727065023.GB20970@dhcp22.suse.cz
+
+> Fixes: 212925802454 ("mm: oom: let oom_reap_task and exit_mmap run concurrently")
+> Cc: stable@vger.kernel.org [4.14+]
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  v2:
+>   - oom reaper only sets MMF_OOM_SKIP if MMF_UNSTABLE was never set (either
+>     by itself or by exit_mmap(), per Tetsuo
+>   - s/kick_all_cpus_sync/serialize_against_pte_lookup/ in changelog as more
+>     isolated way of forcing cpus as non-idle on power
+> 
+>  mm/mmap.c     | 38 ++++++++++++++++++++------------------
+>  mm/oom_kill.c | 28 +++++++++++++---------------
+>  2 files changed, 33 insertions(+), 33 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -3015,6 +3015,25 @@ void exit_mmap(struct mm_struct *mm)
+>  	/* mm's last user has gone, and its about to be pulled down */
+>  	mmu_notifier_release(mm);
+>  
+> +	if (unlikely(mm_is_oom_victim(mm))) {
+> +		/*
+> +		 * Wait for oom_reap_task() to stop working on this mm.  Because
+> +		 * MMF_UNSTABLE is already set before calling down_read(),
+> +		 * oom_reap_task() will not run on this mm after up_write().
+> +		 * oom_reap_task() also depends on a stable VM_LOCKED flag to
+> +		 * indicate it should not unmap during munlock_vma_pages_all().
+> +		 *
+> +		 * mm_is_oom_victim() cannot be set from under us because
+> +		 * victim->mm is already set to NULL under task_lock before
+> +		 * calling mmput() and victim->signal->oom_mm is set by the oom
+> +		 * killer only if victim->mm is non-NULL while holding
+> +		 * task_lock().
+> +		 */
+> +		set_bit(MMF_UNSTABLE, &mm->flags);
+> +		down_write(&mm->mmap_sem);
+> +		up_write(&mm->mmap_sem);
+> +	}
+> +
+>  	if (mm->locked_vm) {
+>  		vma = mm->mmap;
+>  		while (vma) {
+> @@ -3036,26 +3055,9 @@ void exit_mmap(struct mm_struct *mm)
+>  	/* update_hiwater_rss(mm) here? but nobody should be looking */
+>  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+>  	unmap_vmas(&tlb, vma, 0, -1);
+> -
+> -	if (unlikely(mm_is_oom_victim(mm))) {
+> -		/*
+> -		 * Wait for oom_reap_task() to stop working on this
+> -		 * mm. Because MMF_OOM_SKIP is already set before
+> -		 * calling down_read(), oom_reap_task() will not run
+> -		 * on this "mm" post up_write().
+> -		 *
+> -		 * mm_is_oom_victim() cannot be set from under us
+> -		 * either because victim->mm is already set to NULL
+> -		 * under task_lock before calling mmput and oom_mm is
+> -		 * set not NULL by the OOM killer only if victim->mm
+> -		 * is found not NULL while holding the task_lock.
+> -		 */
+> -		set_bit(MMF_OOM_SKIP, &mm->flags);
+> -		down_write(&mm->mmap_sem);
+> -		up_write(&mm->mmap_sem);
+> -	}
+>  	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+>  	tlb_finish_mmu(&tlb, 0, -1);
+> +	set_bit(MMF_OOM_SKIP, &mm->flags);
+>  
+>  	/*
+>  	 * Walk the list again, actually closing and freeing it,
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -521,12 +521,17 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  	}
+>  
+>  	/*
+> -	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
+> -	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
+> +	 * Tell all users of get_user/copy_from_user etc... that the content
+> +	 * is no longer stable. No barriers really needed because unmapping
+> +	 * should imply barriers already and the reader would hit a page fault
+> +	 * if it stumbled over reaped memory.
+> +	 *
+> +	 * MMF_UNSTABLE is also set by exit_mmap when the OOM reaper shouldn't
+> +	 * work on the mm anymore. The check for MMF_OOM_UNSTABLE must run
+>  	 * under mmap_sem for reading because it serializes against the
+>  	 * down_write();up_write() cycle in exit_mmap().
+>  	 */
+> -	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
+> +	if (test_and_set_bit(MMF_UNSTABLE, &mm->flags)) {
+>  		up_read(&mm->mmap_sem);
+>  		trace_skip_task_reaping(tsk->pid);
+>  		goto unlock_oom;
+> @@ -534,14 +539,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  
+>  	trace_start_task_reaping(tsk->pid);
+>  
+> -	/*
+> -	 * Tell all users of get_user/copy_from_user etc... that the content
+> -	 * is no longer stable. No barriers really needed because unmapping
+> -	 * should imply barriers already and the reader would hit a page fault
+> -	 * if it stumbled over a reaped memory.
+> -	 */
+> -	set_bit(MMF_UNSTABLE, &mm->flags);
+> -
+>  	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+>  		if (!can_madv_dontneed_vma(vma))
+>  			continue;
+> @@ -567,6 +564,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  			tlb_finish_mmu(&tlb, start, end);
+>  		}
+>  	}
+> +	set_bit(MMF_OOM_SKIP, &mm->flags);
+>  	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+>  			task_pid_nr(tsk), tsk->comm,
+>  			K(get_mm_counter(mm, MM_ANONPAGES)),
+> @@ -594,7 +592,6 @@ static void oom_reap_task(struct task_struct *tsk)
+>  	    test_bit(MMF_OOM_SKIP, &mm->flags))
+>  		goto done;
+>  
+> -
+>  	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
+>  		task_pid_nr(tsk), tsk->comm);
+>  	debug_show_all_locks();
+> @@ -603,10 +600,11 @@ static void oom_reap_task(struct task_struct *tsk)
+>  	tsk->oom_reaper_list = NULL;
+>  
+>  	/*
+> -	 * Hide this mm from OOM killer because it has been either reaped or
+> -	 * somebody can't call up_write(mmap_sem).
+> +	 * If the oom reaper could not get started on this mm and it has not yet
+> +	 * reached exit_mmap(), set MMF_OOM_SKIP to disregard.
+>  	 */
+> -	set_bit(MMF_OOM_SKIP, &mm->flags);
+> +	if (!test_bit(MMF_UNSTABLE, &mm->flags))
+> +		set_bit(MMF_OOM_SKIP, &mm->flags);
+>  
+>  	/* Drop a reference taken by wake_oom_reaper */
+>  	put_task_struct(tsk);
+
+-- 
+Michal Hocko
+SUSE Labs
