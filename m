@@ -1,118 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CEEB6B0006
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 07:58:34 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y10-v6so1575960wrg.9
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:58:34 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 65si1222937edk.419.2018.04.18.04.58.32
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A1A986B0006
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 08:13:06 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s6so681794pgn.16
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 05:13:06 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h17sor258321pfn.93.2018.04.18.05.13.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Apr 2018 04:58:33 -0700 (PDT)
-Date: Wed, 18 Apr 2018 13:58:30 +0200
+        (Google Transport Security);
+        Wed, 18 Apr 2018 05:13:05 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
-Message-ID: <20180418115830.GA17484@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com>
- <201804180057.w3I0vieV034949@www262.sakura.ne.jp>
- <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
- <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
- <20180418075051.GO17484@dhcp22.suse.cz>
- <201804182049.EDJ21857.OHJOMOLFQVFFtS@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201804182049.EDJ21857.OHJOMOLFQVFFtS@I-love.SAKURA.ne.jp>
+Subject: [PATCH] mm: Fix do_pages_move status handling
+Date: Wed, 18 Apr 2018 14:12:55 +0200
+Message-Id: <20180418121255.334-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Li Wang <liwang@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill@shutemov.name>, ltp@lists.linux.it, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed 18-04-18 20:49:11, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 17-04-18 19:52:41, David Rientjes wrote:
-> > > Since exit_mmap() is done without the protection of mm->mmap_sem, it is
-> > > possible for the oom reaper to concurrently operate on an mm until
-> > > MMF_OOM_SKIP is set.
-> > > 
-> > > This allows munlock_vma_pages_all() to concurrently run while the oom
-> > > reaper is operating on a vma.  Since munlock_vma_pages_range() depends on
-> > > clearing VM_LOCKED from vm_flags before actually doing the munlock to
-> > > determine if any other vmas are locking the same memory, the check for
-> > > VM_LOCKED in the oom reaper is racy.
-> > > 
-> > > This is especially noticeable on architectures such as powerpc where
-> > > clearing a huge pmd requires serialize_against_pte_lookup().  If the pmd
-> > > is zapped by the oom reaper during follow_page_mask() after the check for
-> > > pmd_none() is bypassed, this ends up deferencing a NULL ptl.
-> > > 
-> > > Fix this by reusing MMF_UNSTABLE to specify that an mm should not be
-> > > reaped.  This prevents the concurrent munlock_vma_pages_range() and
-> > > unmap_page_range().  The oom reaper will simply not operate on an mm that
-> > > has the bit set and leave the unmapping to exit_mmap().
-> > 
-> > This will further complicate the protocol and actually theoretically
-> > restores the oom lockup issues because the oom reaper doesn't set
-> > MMF_OOM_SKIP when racing with exit_mmap so we fully rely that nothing
-> > blocks there... So the resulting code is more fragile and tricky.
-> > 
-> > Can we try a simpler way and get back to what I was suggesting before
-> > [1] and simply not play tricks with
-> > 		down_write(&mm->mmap_sem);
-> > 		up_write(&mm->mmap_sem);
-> > 
-> > and use the write lock in exit_mmap for oom_victims?
-> 
-> You mean something like this?
+From: Michal Hocko <mhocko@suse.com>
 
-or simply hold the write lock until we unmap and free page tables.
-It would make the locking rules much more straightforward.
-What you are proposing is more focused on this particular fix and it
-would work as well but the subtle locking would still stay in place.
-I am not sure we want the trickiness.
+Li Wang has reported that LTP move_pages04 test fails with the current
+tree:
+LTP move_pages04:
+   TFAIL  :  move_pages04.c:143: status[1] is EPERM, expected EFAULT
 
-> Then, I'm tempted to call __oom_reap_task_mm() before holding mmap_sem for write.
-> It would be OK to call __oom_reap_task_mm() at the beginning of __mmput()...
+The test allocates an array of two pages, one is present while the other
+is not (resp. backed by zero page) and it expects EFAULT for the second
+page as the man page suggests. We are reporting EPERM which doesn't make
+any sense and this is a result of a bug from cf5f16b23ec9 ("mm:
+unclutter THP migration").
 
-I am not sure I understand.
+do_pages_move tries to handle as many pages in one batch as possible so
+we queue all pages with the same node target together and that
+corresponds to [start, i] range which is then used to update status
+array. add_page_for_migration will correctly notice the zero (resp.
+!present) page and returns with EFAULT which gets written to the status.
+But if this is the last page in the array we do not update start and so
+the last store_status after the loop will overwrite the range of the
+last batch with NUMA_NO_NODE (which corresponds to EPERM).
 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 188f195..ba7083b 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -3011,17 +3011,22 @@ void exit_mmap(struct mm_struct *mm)
->  	struct mmu_gather tlb;
->  	struct vm_area_struct *vma;
->  	unsigned long nr_accounted = 0;
-> +	const bool is_oom_mm = mm_is_oom_victim(mm);
->  
->  	/* mm's last user has gone, and its about to be pulled down */
->  	mmu_notifier_release(mm);
->  
->  	if (mm->locked_vm) {
-> +		if (is_oom_mm)
-> +			down_write(&mm->mmap_sem);
->  		vma = mm->mmap;
->  		while (vma) {
->  			if (vma->vm_flags & VM_LOCKED)
->  				munlock_vma_pages_all(vma);
->  			vma = vma->vm_next;
->  		}
-> +		if (is_oom_mm)
-> +			up_write(&mm->mmap_sem);
->  	}
->  
->  	arch_exit_mmap(mm);
-> @@ -3037,7 +3042,7 @@ void exit_mmap(struct mm_struct *mm)
->  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
->  	unmap_vmas(&tlb, vma, 0, -1);
->  
-> -	if (unlikely(mm_is_oom_victim(mm))) {
-> +	if (unlikely(is_oom_mm)) {
->  		/*
->  		 * Wait for oom_reap_task() to stop working on this
->  		 * mm. Because MMF_OOM_SKIP is already set before
+Fix this by simply bailing out from the last flush if the pagelist
+is empty as there is clearly nothing more to do.
 
+Fixes: cf5f16b23ec9 ("mm: unclutter THP migration")
+Reported-and-Tested-by: Li Wang <liwang@redhat.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi Andrew,
+this is a new regression in 4.17-rc1 so it would be great to merge
+sooner rather than later. It is a user visible change. The original
+bug report is http://lkml.kernel.org/r/20180417110615.16043-1-liwang@redhat.com
+Thanks to Li Wang for his testing!
+
+ mm/migrate.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 507cf9ba21bf..c7e5f6447417 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1634,6 +1634,9 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+ 		current_node = NUMA_NO_NODE;
+ 	}
+ out_flush:
++	if (list_empty(&pagelist))
++		return err;
++
+ 	/* Make sure we do not overwrite the existing error */
+ 	err1 = do_move_pages_to_node(mm, &pagelist, current_node);
+ 	if (!err1)
 -- 
-Michal Hocko
-SUSE Labs
+2.16.3
