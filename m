@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 874066B0022
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 14:49:25 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e14so1404945pfi.9
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 11:49:25 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE8D16B0023
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 14:49:26 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id a21so1393363pfo.8
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 11:49:26 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e15si1518705pgu.656.2018.04.18.11.49.24
+        by mx.google.com with ESMTPS id 16si1627799pfh.354.2018.04.18.11.49.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 18 Apr 2018 11:49:24 -0700 (PDT)
+        Wed, 18 Apr 2018 11:49:25 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v3 10/14] mm: Move lru union within struct page
-Date: Wed, 18 Apr 2018 11:49:08 -0700
-Message-Id: <20180418184912.2851-11-willy@infradead.org>
+Subject: [PATCH v3 12/14] mm: Improve struct page documentation
+Date: Wed, 18 Apr 2018 11:49:10 -0700
+Message-Id: <20180418184912.2851-13-willy@infradead.org>
 In-Reply-To: <20180418184912.2851-1-willy@infradead.org>
 References: <20180418184912.2851-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,133 +22,66 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundatio
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Since the LRU is two words, this does not affect the double-word
-alignment of SLUB's freelist.
+Rewrite the documentation to describe what you can use in struct
+page rather than what you can't.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/mm_types.h | 102 +++++++++++++++++++--------------------
- 1 file changed, 51 insertions(+), 51 deletions(-)
+ include/linux/mm_types.h | 40 +++++++++++++++++++---------------------
+ 1 file changed, 19 insertions(+), 21 deletions(-)
 
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 39521b8385c1..230d473f16da 100644
+index 080ea97ad444..13c25b16913d 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -72,6 +72,57 @@ struct hmm;
- struct page {
- 	unsigned long flags;		/* Atomic flags, some possibly
- 					 * updated asynchronously */
-+	/*
-+	 * WARNING: bit 0 of the first word encode PageTail(). That means
-+	 * the rest users of the storage space MUST NOT use the bit to
-+	 * avoid collision and false-positive PageTail().
-+	 */
-+	union {
-+		struct list_head lru;	/* Pageout list, eg. active_list
-+					 * protected by zone_lru_lock !
-+					 * Can be used as a generic list
-+					 * by the page owner.
-+					 */
-+		struct dev_pagemap *pgmap; /* ZONE_DEVICE pages are never on an
-+					    * lru or handled by a slab
-+					    * allocator, this points to the
-+					    * hosting device page map.
-+					    */
-+		struct {		/* slub per cpu partial pages */
-+			struct page *next;	/* Next partial slab */
-+#ifdef CONFIG_64BIT
-+			int pages;	/* Nr of partial slabs left */
-+			int pobjects;	/* Approximate # of objects */
-+#else
-+			short int pages;
-+			short int pobjects;
-+#endif
-+		};
-+
-+		struct rcu_head rcu_head;	/* Used by SLAB
-+						 * when destroying via RCU
-+						 */
-+		/* Tail pages of compound page */
-+		struct {
-+			unsigned long compound_head; /* If bit zero is set */
-+
-+			/* First tail page only */
-+			unsigned char compound_dtor;
-+			unsigned char compound_order;
-+			/* two/six bytes available here */
-+		};
-+
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
-+		struct {
-+			unsigned long __pad;	/* do not overlay pmd_huge_pte
-+						 * with compound_head to avoid
-+						 * possible bit 0 collision.
-+						 */
-+			pgtable_t pmd_huge_pte; /* protected by page->ptl */
-+		};
-+#endif
-+	};
-+
- 	union {		/* This union is three words (12/24 bytes) in size */
- 		struct {	/* Page cache and anonymous pages */
- 			/* See page-flags.h for PAGE_MAPPING_FLAGS */
-@@ -133,57 +184,6 @@ struct page {
- 	/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */
- 	atomic_t _refcount;
- 
--	/*
--	 * WARNING: bit 0 of the first word encode PageTail(). That means
--	 * the rest users of the storage space MUST NOT use the bit to
--	 * avoid collision and false-positive PageTail().
--	 */
--	union {
--		struct list_head lru;	/* Pageout list, eg. active_list
--					 * protected by zone_lru_lock !
--					 * Can be used as a generic list
--					 * by the page owner.
--					 */
--		struct dev_pagemap *pgmap; /* ZONE_DEVICE pages are never on an
--					    * lru or handled by a slab
--					    * allocator, this points to the
--					    * hosting device page map.
--					    */
--		struct {		/* slub per cpu partial pages */
--			struct page *next;	/* Next partial slab */
--#ifdef CONFIG_64BIT
--			int pages;	/* Nr of partial slabs left */
--			int pobjects;	/* Approximate # of objects */
--#else
--			short int pages;
--			short int pobjects;
--#endif
--		};
--
--		struct rcu_head rcu_head;	/* Used by SLAB
--						 * when destroying via RCU
--						 */
--		/* Tail pages of compound page */
--		struct {
--			unsigned long compound_head; /* If bit zero is set */
--
--			/* First tail page only */
--			unsigned char compound_dtor;
--			unsigned char compound_order;
--			/* two/six bytes available here */
--		};
--
--#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
--		struct {
--			unsigned long __pad;	/* do not overlay pmd_huge_pte
--						 * with compound_head to avoid
--						 * possible bit 0 collision.
--						 */
--			pgtable_t pmd_huge_pte; /* protected by page->ptl */
--		};
--#endif
--	};
--
- #ifdef CONFIG_MEMCG
- 	struct mem_cgroup *mem_cgroup;
- #endif
+@@ -33,29 +33,27 @@ struct hmm;
+  * it to keep track of whatever it is we are using the page for at the
+  * moment. Note that we have no way to track which tasks are using
+  * a page, though if it is a pagecache page, rmap structures can tell us
+- * who is mapping it. If you allocate the page using alloc_pages(), you
+- * can use some of the space in struct page for your own purposes.
++ * who is mapping it.
+  *
+- * Pages that were once in the page cache may be found under the RCU lock
+- * even after they have been recycled to a different purpose.  The page
+- * cache reads and writes some of the fields in struct page to pin the
+- * page before checking that it's still in the page cache.  It is vital
+- * that all users of struct page:
+- * 1. Use the first word as PageFlags.
+- * 2. Clear or preserve bit 0 of page->compound_head.  It is used as
+- *    PageTail for compound pages, and the page cache must not see false
+- *    positives.  Some users put a pointer here (guaranteed to be at least
+- *    4-byte aligned), other users avoid using the field altogether.
+- * 3. page->_refcount must either not be used, or must be used in such a
+- *    way that other CPUs temporarily incrementing and then decrementing the
+- *    refcount does not cause problems.  On receiving the page from
+- *    alloc_pages(), the refcount will be positive.
+- * 4. Either preserve page->_mapcount or restore it to -1 before freeing it.
++ * If you allocate the page using alloc_pages(), you can use some of the
++ * space in struct page for your own purposes.  The five words in the first
++ * union are available, except for bit 0 of the first word which must be
++ * kept clear.  Many users use this word to store a pointer to an object
++ * which is guaranteed to be aligned.  If you use the same storage as
++ * page->mapping, you must restore it to NULL before freeing the page.
+  *
+- * If you allocate pages of order > 0, you can use the fields in the struct
+- * page associated with each page, but bear in mind that the pages may have
+- * been inserted individually into the page cache, so you must use the above
+- * four fields in a compatible way for each struct page.
++ * If your page will not be mapped to userspace, you can also use the 4
++ * bytes in the second union, but you must call page_mapcount_reset()
++ * before freeing it.
++ *
++ * If you want to use the refcount field, it must be used in such a way
++ * that other CPUs temporarily incrementing and then decrementing the
++ * refcount does not cause problems.  On receiving the page from
++ * alloc_pages(), the refcount will be positive.
++ *
++ * If you allocate pages of order > 0, you can use some of the fields
++ * in each subpage, but you may need to restore some of their values
++ * afterwards.
+  *
+  * SLUB uses cmpxchg_double() to atomically update its freelist and
+  * counters.  That requires that freelist & counters be adjacent and
 -- 
 2.17.0
