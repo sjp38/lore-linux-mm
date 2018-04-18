@@ -1,63 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A3826B0009
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 20:39:21 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id t13so15235pgu.23
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 17:39:21 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id k24si37787pgn.24.2018.04.17.17.39.20
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A18326B000C
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 21:36:52 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id x5-v6so89910pln.21
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 18:36:52 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id ba2-v6si140902plb.110.2018.04.17.18.36.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 17:39:20 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm 10/21] mm, THP, swap: Support to count THP swapin and its fallback
-References: <20180417020230.26412-1-ying.huang@intel.com>
-	<20180417020230.26412-11-ying.huang@intel.com>
-	<2d6c126d-eada-1791-4a31-fd0d806e3147@infradead.org>
-Date: Wed, 18 Apr 2018 08:39:15 +0800
-In-Reply-To: <2d6c126d-eada-1791-4a31-fd0d806e3147@infradead.org> (Randy
-	Dunlap's message of "Tue, 17 Apr 2018 14:18:08 -0700")
-Message-ID: <87po2xz6to.fsf@yhuang-dev.intel.com>
+        Tue, 17 Apr 2018 18:36:51 -0700 (PDT)
+Message-Id: <201804180057.w3I0vieV034949@www262.sakura.ne.jp>
+Subject: Re: [patch] mm, oom: fix concurrent munlock and oom reaper unmap
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Date: Wed, 18 Apr 2018 09:57:44 +0900
+References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Randy Dunlap <rdunlap@infradead.org> writes:
+David Rientjes wrote:
+> Since exit_mmap() is done without the protection of mm->mmap_sem, it is
+> possible for the oom reaper to concurrently operate on an mm until
+> MMF_OOM_SKIP is set.
+> 
+> This allows munlock_vma_pages_all() to concurrently run while the oom
+> reaper is operating on a vma.  Since munlock_vma_pages_range() depends on
+> clearing VM_LOCKED from vm_flags before actually doing the munlock to
+> determine if any other vmas are locking the same memory, the check for
+> VM_LOCKED in the oom reaper is racy.
+> 
+> This is especially noticeable on architectures such as powerpc where
+> clearing a huge pmd requires kick_all_cpus_sync().  If the pmd is zapped
+> by the oom reaper during follow_page_mask() after the check for pmd_none()
+> is bypassed, this ends up deferencing a NULL ptl.
 
-> On 04/16/18 19:02, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> 2 new /proc/vmstat fields are added, "thp_swapin" and
->> "thp_swapin_fallback" to count swapin a THP from swap device as a
->> whole and fallback to normal page swapin.
->> 
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: Shaohua Li <shli@kernel.org>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Dave Hansen <dave.hansen@linux.intel.com>
->> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
->> ---
->>  include/linux/vm_event_item.h |  2 ++
->>  mm/huge_memory.c              |  4 +++-
->>  mm/page_io.c                  | 15 ++++++++++++---
->>  mm/vmstat.c                   |  2 ++
->>  4 files changed, 19 insertions(+), 4 deletions(-)
->> 
->
-> Hi,
-> Please also update Documentation/vm/transhuge.rst.
+I don't know whether the explanation above is correct.
+Did you actually see a crash caused by this race?
 
-Thanks for reminding!  Will do that.
+> 
+> Fix this by reusing MMF_UNSTABLE to specify that an mm should not be
+> reaped.  This prevents the concurrent munlock_vma_pages_range() and
+> unmap_page_range().  The oom reaper will simply not operate on an mm that
+> has the bit set and leave the unmapping to exit_mmap().
 
-Best Regards,
-Huang, Ying
+But this patch is setting MMF_OOM_SKIP without reaping any memory as soon as
+MMF_UNSTABLE is set, which is the situation described in 212925802454:
+
+    At the same time if the OOM reaper doesn't wait at all for the memory of
+    the current OOM candidate to be freed by exit_mmap->unmap_vmas, it would
+    generate a spurious OOM kill.
+
+If exit_mmap() does not wait for any pages and __oom_reap_task_mm() can not
+handle mlock()ed pages, isn't it better to revert 212925802454 like I mentioned
+at https://patchwork.kernel.org/patch/10095661/ and let the OOM reaper reclaim
+as much as possible before setting MMF_OOM_SKIP?
