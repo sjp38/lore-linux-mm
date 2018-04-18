@@ -1,61 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A18326B000C
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 21:36:52 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id x5-v6so89910pln.21
-        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 18:36:52 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id ba2-v6si140902plb.110.2018.04.17.18.36.50
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F5D76B000E
+	for <linux-mm@kvack.org>; Tue, 17 Apr 2018 21:39:18 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id f6-v6so110056qth.11
+        for <linux-mm@kvack.org>; Tue, 17 Apr 2018 18:39:18 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id s2si189392qkf.36.2018.04.17.18.39.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Apr 2018 18:36:51 -0700 (PDT)
-Message-Id: <201804180057.w3I0vieV034949@www262.sakura.ne.jp>
-Subject: Re: [patch] mm, oom: fix concurrent munlock and oom reaper unmap
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+        Tue, 17 Apr 2018 18:39:17 -0700 (PDT)
+Subject: Re: [PATCH 2/3] mm: add find_alloc_contig_pages() interface
+References: <20180417020915.11786-3-mike.kravetz@oracle.com>
+ <201804172011.K5f3XeGz%fengguang.wu@intel.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <b340fd3f-9400-8d47-2125-6c51e26f583c@oracle.com>
+Date: Tue, 17 Apr 2018 18:39:03 -0700
 MIME-Version: 1.0
-Date: Wed, 18 Apr 2018 09:57:44 +0900
-References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+In-Reply-To: <201804172011.K5f3XeGz%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-David Rientjes wrote:
-> Since exit_mmap() is done without the protection of mm->mmap_sem, it is
-> possible for the oom reaper to concurrently operate on an mm until
-> MMF_OOM_SKIP is set.
+On 04/17/2018 05:10 AM, kbuild test robot wrote:
+> All errors (new ones prefixed by >>):
 > 
-> This allows munlock_vma_pages_all() to concurrently run while the oom
-> reaper is operating on a vma.  Since munlock_vma_pages_range() depends on
-> clearing VM_LOCKED from vm_flags before actually doing the munlock to
-> determine if any other vmas are locking the same memory, the check for
-> VM_LOCKED in the oom reaper is racy.
-> 
-> This is especially noticeable on architectures such as powerpc where
-> clearing a huge pmd requires kick_all_cpus_sync().  If the pmd is zapped
-> by the oom reaper during follow_page_mask() after the check for pmd_none()
-> is bypassed, this ends up deferencing a NULL ptl.
+>    In file included from include/linux/slab.h:15:0,
+>                     from include/linux/crypto.h:24,
+>                     from arch/x86/kernel/asm-offsets.c:9:
+>>> include/linux/gfp.h:580:15: error: unknown type name 'page'
+>     static inline page *find_alloc_contig_pages(unsigned int order, gfp_t gfp,
+>                   ^~~~
+>    include/linux/gfp.h:585:13: warning: 'free_contig_pages' defined but not used [-Wunused-function]
+>     static void free_contig_pages(struct page *page, unsigned long nr_pages)
+>                 ^~~~~~~~~~~~~~~~~
 
-I don't know whether the explanation above is correct.
-Did you actually see a crash caused by this race?
-
-> 
-> Fix this by reusing MMF_UNSTABLE to specify that an mm should not be
-> reaped.  This prevents the concurrent munlock_vma_pages_range() and
-> unmap_page_range().  The oom reaper will simply not operate on an mm that
-> has the bit set and leave the unmapping to exit_mmap().
-
-But this patch is setting MMF_OOM_SKIP without reaping any memory as soon as
-MMF_UNSTABLE is set, which is the situation described in 212925802454:
-
-    At the same time if the OOM reaper doesn't wait at all for the memory of
-    the current OOM candidate to be freed by exit_mmap->unmap_vmas, it would
-    generate a spurious OOM kill.
-
-If exit_mmap() does not wait for any pages and __oom_reap_task_mm() can not
-handle mlock()ed pages, isn't it better to revert 212925802454 like I mentioned
-at https://patchwork.kernel.org/patch/10095661/ and let the OOM reaper reclaim
-as much as possible before setting MMF_OOM_SKIP?
+Build issues fixed in updated patch below,
