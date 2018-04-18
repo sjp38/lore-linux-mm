@@ -1,96 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 675EE6B0025
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 15:14:32 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id g1-v6so1524580plm.2
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 12:14:32 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m1-v6sor646270plt.137.2018.04.18.12.14.31
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 23ADF6B0007
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 15:32:36 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id j69-v6so852117lfg.6
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 12:32:36 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l188-v6sor539191lfe.15.2018.04.18.12.32.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 18 Apr 2018 12:14:31 -0700 (PDT)
-Date: Wed, 18 Apr 2018 12:14:29 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper
- unmap
-In-Reply-To: <20180418075051.GO17484@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com> <201804180057.w3I0vieV034949@www262.sakura.ne.jp> <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com> <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
- <20180418075051.GO17484@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 18 Apr 2018 12:32:33 -0700 (PDT)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [PATCH V6 0/2 RESEND] KSM replace hash algo with faster hash
+Date: Wed, 18 Apr 2018 22:32:18 +0300
+Message-Id: <20180418193220.4603-1-timofey.titovets@synesis.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Timofey Titovets <nefelim4ag@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, leesioh <solee@os.korea.ac.kr>
 
-On Wed, 18 Apr 2018, Michal Hocko wrote:
+From: Timofey Titovets <nefelim4ag@gmail.com>
 
-> > Since exit_mmap() is done without the protection of mm->mmap_sem, it is
-> > possible for the oom reaper to concurrently operate on an mm until
-> > MMF_OOM_SKIP is set.
-> > 
-> > This allows munlock_vma_pages_all() to concurrently run while the oom
-> > reaper is operating on a vma.  Since munlock_vma_pages_range() depends on
-> > clearing VM_LOCKED from vm_flags before actually doing the munlock to
-> > determine if any other vmas are locking the same memory, the check for
-> > VM_LOCKED in the oom reaper is racy.
-> > 
-> > This is especially noticeable on architectures such as powerpc where
-> > clearing a huge pmd requires serialize_against_pte_lookup().  If the pmd
-> > is zapped by the oom reaper during follow_page_mask() after the check for
-> > pmd_none() is bypassed, this ends up deferencing a NULL ptl.
-> > 
-> > Fix this by reusing MMF_UNSTABLE to specify that an mm should not be
-> > reaped.  This prevents the concurrent munlock_vma_pages_range() and
-> > unmap_page_range().  The oom reaper will simply not operate on an mm that
-> > has the bit set and leave the unmapping to exit_mmap().
-> 
-> This will further complicate the protocol and actually theoretically
-> restores the oom lockup issues because the oom reaper doesn't set
-> MMF_OOM_SKIP when racing with exit_mmap so we fully rely that nothing
-> blocks there... So the resulting code is more fragile and tricky.
-> 
+Currently used jhash are slow enough and replace it allow as to make KSM
+less cpu hungry.
 
-exit_mmap() does not block before set_bit(MMF_OOM_SKIP) once it is 
-entered.
+About speed (in kernel):
+        ksm: crc32c   hash() 12081 MB/s
+        ksm: xxh64    hash()  8770 MB/s
+        ksm: xxh32    hash()  4529 MB/s
+        ksm: jhash2   hash()  1569 MB/s
 
-> Can we try a simpler way and get back to what I was suggesting before
-> [1] and simply not play tricks with
-> 		down_write(&mm->mmap_sem);
-> 		up_write(&mm->mmap_sem);
-> 
-> and use the write lock in exit_mmap for oom_victims?
-> 
-> Andrea wanted to make this more clever but this is the second fallout
-> which could have been prevented. The patch would be smaller and the
-> locking protocol easier
-> 
-> [1] http://lkml.kernel.org/r/20170727065023.GB20970@dhcp22.suse.cz
-> 
+By sioh Lee tests (copy from other mail):
+Test platform: openstack cloud platform (NEWTON version)
+Experiment node: openstack based cloud compute node (CPU: xeon E5-2620 v3, memory 64gb)
+VM: (2 VCPU, RAM 4GB, DISK 20GB) * 4
+Linux kernel: 4.14 (latest version)
+KSM setup - sleep_millisecs: 200ms, pages_to_scan: 200
 
-exit_mmap() doesn't need to protect munlock, unmap, or freeing pgtables 
-with mm->mmap_sem; the issue is that you need to start holding it in this 
-case before munlock and then until at least the end of free_pgtables().  
-Anything in between also needlessly holds it so could introduce weird 
-lockdep issues that only trigger for oom victims, i.e. they could be very 
-rare on some configs.  I don't necessarily like holding a mutex over 
-functions where it's actually not needed, not only as a general principle 
-but also because the oom reaper can now infer that reaping isn't possible 
-just because it can't do down_read() and isn't aware the thread is 
-actually in exit_mmap() needlessly holding it.
+Experiment process
+Firstly, we turn off KSM and launch 4 VMs.
+Then we turn on the KSM and measure the checksum computation time until full_scans become two.
 
-I like how the oom reaper currently retries on failing to grab 
-mm->mmap_sem and then backs out because it's assumed it can't make forward 
-progress.  Adding additional complication for situations where 
-mm->mmap_sem is contended (and munlock to free_pgtables() can take a long 
-time for certain processes) to check if it's actually already in 
-exit_mmap() would seem more complicated than this.
+The experimental results (the experimental value is the average of the measured values)
+crc32c_intel: 1084.10ns
+crc32c (no hardware acceleration): 7012.51ns
+xxhash32: 2227.75ns
+xxhash64: 1413.16ns
+jhash2: 5128.30ns
 
-The patch is simply using MMF_UNSTABLE rather than MMF_OOM_SKIP to 
-serialize exit_mmap() with the oom reaper and doing it before anything 
-interesting in exit_mmap() because without it the munlock can trivially 
-race with unmap_page_range() and cause a NULL pointer or #GP on a pmd or 
-pte.  The way Andrea implemented it is fine, we simply have revealed a 
-race between munlock_vma_pages_all() and unmap_page_range() that needs it 
-to do set_bit(); down_write(); up_write(); earlier.
+In summary, the result shows that crc32c_intel has advantages over all 
+of the hash function used in the experiment. (decreased by 84.54% compared to crc32c,
+78.86% compared to jhash2, 51.33% xxhash32, 23.28% compared to xxhash64)
+the results are similar to those of Timofey.
+
+So:
+  - Fisrt patch implement compile time pickup of fastest implementation of xxhash
+    for target platform.
+  - Second implement logic in ksm, what test speed of hashes and pickup fastest hash
+  
+Thanks.
+
+CC: Andrea Arcangeli <aarcange@redhat.com>
+CC: linux-mm@kvack.org
+CC: kvm@vger.kernel.org
+CC: leesioh <solee@os.korea.ac.kr>
+
+Timofey Titovets (2):
+  xxHash: create arch dependent 32/64-bit xxhash()
+  ksm: replace jhash2 with faster hash
+
+ include/linux/xxhash.h | 23 +++++++++++++
+ mm/Kconfig             |  2 ++
+ mm/ksm.c               | 93 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 114 insertions(+), 4 deletions(-)
+
+-- 
+2.14.1
