@@ -1,115 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3071C6B0012
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:08:23 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id d37-v6so900365wrd.21
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 01:08:23 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id y9si841969edh.277.2018.04.18.01.08.21
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A6BE56B0008
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:17:28 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id z2-v6so664581plk.3
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 01:17:28 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 32-v6si772510pla.348.2018.04.18.01.17.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Apr 2018 01:08:21 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3I86GIU053167
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:08:20 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2he2430fqg-1
-	(version=TLSv1.2 cipher=AES256-SHA256 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 04:08:20 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 18 Apr 2018 09:08:17 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 7/7] docs/admin-guide/mm: convert plain text cross references to hyperlinks
-Date: Wed, 18 Apr 2018 11:07:50 +0300
-In-Reply-To: <1524038870-413-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1524038870-413-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1524038870-413-8-git-send-email-rppt@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Apr 2018 01:17:27 -0700 (PDT)
+Date: Wed, 18 Apr 2018 10:17:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM TOPIC] CMA and larger page sizes
+Message-ID: <20180418081724.GS17484@dhcp22.suse.cz>
+References: <3a3d724e-4d74-9bd8-60f3-f6896cffac7a@redhat.com>
+ <20180417113656.GA16083@dhcp22.suse.cz>
+ <bc8e54d2-7224-0e8c-d7db-54fc4625eae8@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <bc8e54d2-7224-0e8c-d7db-54fc4625eae8@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <willy@infradead.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- Documentation/admin-guide/mm/hugetlbpage.rst        |  3 ++-
- Documentation/admin-guide/mm/idle_page_tracking.rst |  5 +++--
- Documentation/admin-guide/mm/pagemap.rst            | 18 +++++++++++-------
- 3 files changed, 16 insertions(+), 10 deletions(-)
+On Tue 17-04-18 08:01:53, Laura Abbott wrote:
+> On 04/17/2018 04:36 AM, Michal Hocko wrote:
+> > On Fri 26-01-18 02:08:14, Laura Abbott wrote:
+> > > CMA as it's currently designed requires alignment to the pageblock size c.f.
+> > > 
+> > >          /*
+> > >           * Sanitise input arguments.
+> > >           * Pages both ends in CMA area could be merged into adjacent unmovable
+> > >           * migratetype page by page allocator's buddy algorithm. In the case,
+> > >           * you couldn't get a contiguous memory, which is not what we want.
+> > >           */
+> > >          alignment = max(alignment,  (phys_addr_t)PAGE_SIZE <<
+> > >                            max_t(unsigned long, MAX_ORDER - 1, pageblock_order));
+> > > 
+> > > 
+> > > On arm64 with 64K page size and transparent huge page, this gives an alignment
+> > > of 512MB. This is quite restrictive and can eat up significant portions of
+> > > memory on smaller memory targets. Adjusting the configuration options really
+> > > isn't ideal for distributions that aim to have a single image which runs on
+> > > all targets.
+> > > 
+> > > Approaches I've thought about:
+> > > - Making CMA alignment less restrictive (and dealing with the fallout from
+> > > the comment above)
+> > > - Command line option to force a reasonable alignment
+> > 
+> > Laura, are you still interested discussing this or other CMA related
+> > topic?
+> > 
+> 
+> In light of Joonsoo's patches, I don't think we need a lot of time
+> but I'd still like some chance to discuss. I think there was some
+> other interest in CMA topics so it can be combined with those if
+> they are happening as well.
 
-diff --git a/Documentation/admin-guide/mm/hugetlbpage.rst b/Documentation/admin-guide/mm/hugetlbpage.rst
-index 2b374d1..a8b0806 100644
---- a/Documentation/admin-guide/mm/hugetlbpage.rst
-+++ b/Documentation/admin-guide/mm/hugetlbpage.rst
-@@ -219,7 +219,8 @@ When adjusting the persistent hugepage count via ``nr_hugepages_mempolicy``, any
- memory policy mode--bind, preferred, local or interleave--may be used.  The
- resulting effect on persistent huge page allocation is as follows:
- 
--#. Regardless of mempolicy mode [see Documentation/vm/numa_memory_policy.rst],
-+#. Regardless of mempolicy mode [see
-+   :ref:`Documentation/vm/numa_memory_policy.rst <numa_memory_policy>`],
-    persistent huge pages will be distributed across the node or nodes
-    specified in the mempolicy as if "interleave" had been specified.
-    However, if a node in the policy does not contain sufficient contiguous
-diff --git a/Documentation/admin-guide/mm/idle_page_tracking.rst b/Documentation/admin-guide/mm/idle_page_tracking.rst
-index 92e3a25..6f7b7ca 100644
---- a/Documentation/admin-guide/mm/idle_page_tracking.rst
-+++ b/Documentation/admin-guide/mm/idle_page_tracking.rst
-@@ -65,8 +65,9 @@ workload one should:
-     are not reclaimable, he or she can filter them out using
-     ``/proc/kpageflags``.
- 
--See Documentation/admin-guide/mm/pagemap.rst for more information about
--``/proc/pid/pagemap``, ``/proc/kpageflags``, and ``/proc/kpagecgroup``.
-+See :ref:`Documentation/admin-guide/mm/pagemap.rst <pagemap>` for more
-+information about ``/proc/pid/pagemap``, ``/proc/kpageflags``, and
-+``/proc/kpagecgroup``.
- 
- .. _impl_details:
- 
-diff --git a/Documentation/admin-guide/mm/pagemap.rst b/Documentation/admin-guide/mm/pagemap.rst
-index 053ca64..577af85 100644
---- a/Documentation/admin-guide/mm/pagemap.rst
-+++ b/Documentation/admin-guide/mm/pagemap.rst
-@@ -18,7 +18,8 @@ There are four components to pagemap:
-     * Bits 0-54  page frame number (PFN) if present
-     * Bits 0-4   swap type if swapped
-     * Bits 5-54  swap offset if swapped
--    * Bit  55    pte is soft-dirty (see Documentation/admin-guide/mm/soft-dirty.rst)
-+    * Bit  55    pte is soft-dirty (see
-+      :ref:`Documentation/admin-guide/mm/soft-dirty.rst <soft_dirty>`)
-     * Bit  56    page exclusively mapped (since 4.2)
-     * Bits 57-60 zero
-     * Bit  61    page is file-page or shared-anon (since 3.5)
-@@ -97,9 +98,11 @@ Short descriptions to the page flags
-     A compound page with order N consists of 2^N physically contiguous pages.
-     A compound page with order 2 takes the form of "HTTT", where H donates its
-     head page and T donates its tail page(s).  The major consumers of compound
--    pages are hugeTLB pages (Documentation/admin-guide/mm/hugetlbpage.rst), the SLUB etc.
--    memory allocators and various device drivers. However in this interface,
--    only huge/giga pages are made visible to end users.
-+    pages are hugeTLB pages
-+    (:ref:`Documentation/admin-guide/mm/hugetlbpage.rst <hugetlbpage>`),
-+    the SLUB etc.  memory allocators and various device drivers.
-+    However in this interface, only huge/giga pages are made visible
-+    to end users.
- 16 - COMPOUND_TAIL
-     A compound page tail (see description above).
- 17 - HUGE
-@@ -118,9 +121,10 @@ Short descriptions to the page flags
-     zero page for pfn_zero or huge_zero page
- 25 - IDLE
-     page has not been accessed since it was marked idle (see
--    Documentation/admin-guide/mm/idle_page_tracking.rst). Note that this flag may be
--    stale in case the page was accessed via a PTE. To make sure the flag
--    is up-to-date one has to read ``/sys/kernel/mm/page_idle/bitmap`` first.
-+    :ref:`Documentation/admin-guide/mm/idle_page_tracking.rst <idle_page_tracking>`).
-+    Note that this flag may be stale in case the page was accessed via
-+    a PTE. To make sure the flag is up-to-date one has to read
-+    ``/sys/kernel/mm/page_idle/bitmap`` first.
- 
- IO related page flags
- ---------------------
+OK, so I've put a placeholder for a CMA discussion. You have won the
+lead on that session ;) We can change that later of course.
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
