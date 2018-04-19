@@ -1,46 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF116B0003
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 05:30:42 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id p11-v6so4515635wrd.20
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 02:30:42 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y58si3095294edc.428.2018.04.19.02.30.40
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 010CC6B0003
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 05:48:53 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u56-v6so4437056wrf.18
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 02:48:52 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c24sor1079342wmi.69.2018.04.19.02.48.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Apr 2018 02:30:40 -0700 (PDT)
-Subject: Re: [PATCH v3 03/14] mm: Mark pages in use for page tables
-References: <20180418184912.2851-1-willy@infradead.org>
- <20180418184912.2851-4-willy@infradead.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e3716703-2ab3-e996-64bf-2191dc45a718@suse.cz>
-Date: Thu, 19 Apr 2018 11:30:38 +0200
-MIME-Version: 1.0
-In-Reply-To: <20180418184912.2851-4-willy@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 19 Apr 2018 02:48:51 -0700 (PDT)
+From: Dmitry Vyukov <dvyukov@google.com>
+Subject: [PATCH] KASAN: prohibit KASAN+STRUCTLEAK combination
+Date: Thu, 19 Apr 2018 11:48:47 +0200
+Message-Id: <20180419094847.56737-1-dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Fengguang Wu <fengguang.wu@intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@google.com>
 
-On 04/18/2018 08:49 PM, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> 
-> Define a new PageTable bit in the page_type and use it to mark pages in
-> use as page tables.  This can be helpful when debugging crashdumps or
+Currently STRUCTLEAK inserts initialization out of live scope of
+variables from KASAN point of view. This leads to KASAN false
+positive reports. Prohibit this combination for now.
 
-Yep, once I've added such flag for debugging myself :)
+Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+Cc: linux-mm@kvack.org
+Cc: kasan-dev@googlegroups.com
+Cc: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Kees Cook <keescook@google.com>
 
-> analysing memory fragmentation.  Add a KPF flag to report these pages
-> to userspace and update page-types.c to interpret that flag.
-> 
-> Note that only pages currently accounted as NR_PAGETABLES are tracked
-> as PageTable; this does not include pgd/p4d/pud/pmd pages.  Those will
-> be the subject of a later patch.
-> 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+This combination leads to periodic confusion
+and pointless debugging:
+
+https://marc.info/?l=linux-kernel&m=151991367323082
+https://marc.info/?l=linux-kernel&m=151992229326243
+https://lkml.org/lkml/2017/11/30/33
+---
+ arch/Kconfig | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 8e0d665c8d53..983578c44cca 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -464,6 +464,10 @@ config GCC_PLUGIN_LATENT_ENTROPY
+ config GCC_PLUGIN_STRUCTLEAK
+ 	bool "Force initialization of variables containing userspace addresses"
+ 	depends on GCC_PLUGINS
++	# Currently STRUCTLEAK inserts initialization out of live scope of
++	# variables from KASAN point of view. This leads to KASAN false
++	# positive reports. Prohibit this combination for now.
++	depends on !KASAN
+ 	help
+ 	  This plugin zero-initializes any structures containing a
+ 	  __user attribute. This can prevent some classes of information
+-- 
+2.17.0.484.g0c8726318c-goog
