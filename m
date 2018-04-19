@@ -1,201 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ABAA6B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 17:42:13 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id l6-v6so483410wrn.17
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 14:42:13 -0700 (PDT)
-Received: from mail.kmu-office.ch (mail.kmu-office.ch. [2a02:418:6a02::a2])
-        by mx.google.com with ESMTPS id r26si4890995eda.47.2018.04.19.14.42.11
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F2E86B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 17:47:56 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id i21-v6so4457075qtp.10
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 14:47:56 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id u19si2214910qke.222.2018.04.19.14.47.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 14:42:12 -0700 (PDT)
-From: Stefan Agner <stefan@agner.ch>
-Subject: [PATCH] treewide: use PHYS_ADDR_MAX to avoid type casting ULLONG_MAX
-Date: Thu, 19 Apr 2018 23:42:04 +0200
-Message-Id: <20180419214204.19322-1-stefan@agner.ch>
+        Thu, 19 Apr 2018 14:47:55 -0700 (PDT)
+Date: Thu, 19 Apr 2018 17:47:51 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [LSF/MM] schedule suggestion
+Message-ID: <20180419214751.GD4981@redhat.com>
+References: <20180418211939.GD3476@redhat.com>
+ <20180419015508.GJ27893@dastard>
+ <20180419143825.GA3519@redhat.com>
+ <20180419144356.GC25406@bombadil.infradead.org>
+ <20180419163036.GC3519@redhat.com>
+ <1524157119.2943.6.camel@kernel.org>
+ <20180419172609.GD3519@redhat.com>
+ <20180419203307.GJ30522@ZenIV.linux.org.uk>
+ <20180419205820.GB4981@redhat.com>
+ <20180419212137.GM30522@ZenIV.linux.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180419212137.GM30522@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, catalin.marinas@arm.com
-Cc: torvalds@linux-foundation.org, pasha.tatashin@oracle.com, ard.biesheuvel@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Stefan Agner <stefan@agner.ch>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Jeff Layton <jlayton@kernel.org>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-With PHYS_ADDR_MAX there is now a type safe variant for all
-bits set. Make use of it.
+On Thu, Apr 19, 2018 at 10:21:37PM +0100, Al Viro wrote:
+> On Thu, Apr 19, 2018 at 04:58:20PM -0400, Jerome Glisse wrote:
+> 
+> > I need a struct to link part of device context with mm struct for a
+> > process. Most of device context is link to the struct file of the
+> > device file (ie process open has a file descriptor for the device
+> > file).
+> 
+> Er...  You do realize that
+> 	fd = open(...)
+> 	mmap(fd, ...)
+> 	close(fd)
+> is absolutely legitimate, right?  IOW, existence/stability/etc. of
+> a file descriptor is absolutely *not* guaranteed - in fact, there might
+> be not a single file descriptor referring to a given openen and mmaped
+> file.
 
-Patch created using a sematic patch as follows:
+Yes and that's fine, on close(fd) the device driver is tear down and
+struct i want to store is tear down too and free.
 
-// <smpl>
-@@
-typedef phys_addr_t;
-@@
--(phys_addr_t)ULLONG_MAX
-+PHYS_ADDR_MAX
-// </smpl>
+> 
+> > Device driver for GPU have some part of their process context tied to
+> > the process mm (accessing process address space directly from the GPU).
+> > However we can not store this context information in the struct file
+> > private data because of clone (same struct file accross different mm).
+> > 
+> > So today driver have an hashtable in their global device structure to
+> > lookup context information for a given mm. This is sub-optimal and
+> > duplicate a lot of code among different drivers.
+> 
+> Umm...  Examples?
 
-Signed-off-by: Stefan Agner <stefan@agner.ch>
----
- arch/arm64/mm/init.c               | 6 +++---
- arch/mips/kernel/setup.c           | 4 ++--
- arch/powerpc/mm/mem.c              | 2 +-
- arch/sparc/mm/init_64.c            | 2 +-
- arch/x86/mm/init_32.c              | 2 +-
- arch/x86/mm/init_64.c              | 2 +-
- drivers/firmware/efi/arm-init.c    | 2 +-
- drivers/remoteproc/qcom_q6v5_pil.c | 2 +-
- drivers/soc/qcom/mdt_loader.c      | 4 ++--
- 9 files changed, 13 insertions(+), 13 deletions(-)
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/radeon/radeon_mn.c
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/i915/i915_gem_userptr.c
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
 
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 9f3c47acf8ff..f48b19496141 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -310,7 +310,7 @@ static void __init arm64_memory_present(void)
- }
- #endif
- 
--static phys_addr_t memory_limit = (phys_addr_t)ULLONG_MAX;
-+static phys_addr_t memory_limit = PHYS_ADDR_MAX;
- 
- /*
-  * Limit the memory size that was specified via FDT.
-@@ -401,7 +401,7 @@ void __init arm64_memblock_init(void)
- 	 * high up in memory, add back the kernel region that must be accessible
- 	 * via the linear mapping.
- 	 */
--	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
-+	if (memory_limit != PHYS_ADDR_MAX) {
- 		memblock_mem_limit_remove_map(memory_limit);
- 		memblock_add(__pa_symbol(_text), (u64)(_end - _text));
- 	}
-@@ -664,7 +664,7 @@ __setup("keepinitrd", keepinitrd_setup);
-  */
- static int dump_mem_limit(struct notifier_block *self, unsigned long v, void *p)
- {
--	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
-+	if (memory_limit != PHYS_ADDR_MAX) {
- 		pr_emerg("Memory Limit: %llu MB\n", memory_limit >> 20);
- 	} else {
- 		pr_emerg("Memory Limit: none\n");
-diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
-index 563188ac6fa2..2c96c0c68116 100644
---- a/arch/mips/kernel/setup.c
-+++ b/arch/mips/kernel/setup.c
-@@ -93,7 +93,7 @@ void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
- 	 * If the region reaches the top of the physical address space, adjust
- 	 * the size slightly so that (start + size) doesn't overflow
- 	 */
--	if (start + size - 1 == (phys_addr_t)ULLONG_MAX)
-+	if (start + size - 1 == PHYS_ADDR_MAX)
- 		--size;
- 
- 	/* Sanity check */
-@@ -376,7 +376,7 @@ static void __init bootmem_init(void)
- 	unsigned long reserved_end;
- 	unsigned long mapstart = ~0UL;
- 	unsigned long bootmap_size;
--	phys_addr_t ramstart = (phys_addr_t)ULLONG_MAX;
-+	phys_addr_t ramstart = PHYS_ADDR_MAX;
- 	bool bootmap_valid = false;
- 	int i;
- 
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index 737f8a4632cc..7607a509c695 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -213,7 +213,7 @@ void __init mem_topology_setup(void)
- 	/* Place all memblock_regions in the same node and merge contiguous
- 	 * memblock_regions
- 	 */
--	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
-+	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
- }
- 
- void __init initmem_init(void)
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 8aeb1aabe76e..f396048a0d68 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -1620,7 +1620,7 @@ static void __init bootmem_init_nonnuma(void)
- 	       (top_of_ram - total_ram) >> 20);
- 
- 	init_node_masks_nonnuma();
--	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
-+	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
- 	allocate_node_data(0);
- 	node_set_online(0);
- }
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index c893c6a3d707..979e0a02cbe1 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -692,7 +692,7 @@ void __init initmem_init(void)
- 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
- #endif
- 
--	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
-+	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
- 	sparse_memory_present_with_active_regions(0);
- 
- #ifdef CONFIG_FLATMEM
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 0a400606dea0..765a50fb6364 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -742,7 +742,7 @@ kernel_physical_mapping_init(unsigned long paddr_start,
- #ifndef CONFIG_NUMA
- void __init initmem_init(void)
- {
--	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
-+	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
- }
- #endif
- 
-diff --git a/drivers/firmware/efi/arm-init.c b/drivers/firmware/efi/arm-init.c
-index 80d1a885def5..b5214c143fee 100644
---- a/drivers/firmware/efi/arm-init.c
-+++ b/drivers/firmware/efi/arm-init.c
-@@ -193,7 +193,7 @@ static __init void reserve_regions(void)
- 	 * uses its own memory map instead.
- 	 */
- 	memblock_dump_all();
--	memblock_remove(0, (phys_addr_t)ULLONG_MAX);
-+	memblock_remove(0, PHYS_ADDR_MAX);
- 
- 	for_each_efi_memory_desc(md) {
- 		paddr = md->phys_addr;
-diff --git a/drivers/remoteproc/qcom_q6v5_pil.c b/drivers/remoteproc/qcom_q6v5_pil.c
-index 8e70a627e0bb..da8edf3f85b3 100644
---- a/drivers/remoteproc/qcom_q6v5_pil.c
-+++ b/drivers/remoteproc/qcom_q6v5_pil.c
-@@ -615,7 +615,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
- 	struct elf32_hdr *ehdr;
- 	phys_addr_t mpss_reloc;
- 	phys_addr_t boot_addr;
--	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
-+	phys_addr_t min_addr = PHYS_ADDR_MAX;
- 	phys_addr_t max_addr = 0;
- 	bool relocate = false;
- 	char seg_name[10];
-diff --git a/drivers/soc/qcom/mdt_loader.c b/drivers/soc/qcom/mdt_loader.c
-index 17b314d9a148..dc09d7ac905f 100644
---- a/drivers/soc/qcom/mdt_loader.c
-+++ b/drivers/soc/qcom/mdt_loader.c
-@@ -50,7 +50,7 @@ ssize_t qcom_mdt_get_size(const struct firmware *fw)
- 	const struct elf32_phdr *phdrs;
- 	const struct elf32_phdr *phdr;
- 	const struct elf32_hdr *ehdr;
--	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
-+	phys_addr_t min_addr = PHYS_ADDR_MAX;
- 	phys_addr_t max_addr = 0;
- 	int i;
- 
-@@ -97,7 +97,7 @@ int qcom_mdt_load(struct device *dev, const struct firmware *fw,
- 	const struct elf32_hdr *ehdr;
- 	const struct firmware *seg_fw;
- 	phys_addr_t mem_reloc;
--	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
-+	phys_addr_t min_addr = PHYS_ADDR_MAX;
- 	phys_addr_t max_addr = 0;
- 	size_t fw_name_len;
- 	ssize_t offset;
--- 
-2.17.0
+RDMA folks too have similar construct.
+
+> 
+> > Hence why i want something generic that allow a device driver to store
+> > context structure that is specific to a mm. I thought that adding a
+> > new array on the side of struct file array would be a good idea but it
+> > has too many kludges.
+> > 
+> > So i will do something inside mmu_notifier and there will be no tie to
+> > any fs aspect. I expect only a handful of driver to care about this and
+> > for a given platform you won't see that many devices hence you won't
+> > have that many pointer to deal with.
+> 
+> Let's step back for a second - lookups by _what_?  If you are associating
+> somethin with a mapping, vm_area_struct would be a natural candidate for
+> storing such data, wouldn't it?
+> 
+> What do you have and what do you want to find?
+
+So you are in an ioctl against the device file, you have struct file
+and driver store a pointer to some file context info in struct file
+private data which itself has a pointer to some global device driver
+structure which itself has a pointer to struct device.
+
+Hence i have struct mm (from current->mm), and dev_t easily available.
+
+The context information is tie to the mm for the device and can only
+be use against said mm. Even if the struct file of the device outlive
+the original process, no one can use that struct with a process that
+do not have the same mm. Moreover that struct is freed if the mm is
+destroy.
+
+If child, share the struct file but have a different and want to use
+same feature then a new structure is created and has same property ie
+can only be use against this new mm.
+
+The link with struct file is not explicit but you can only use objects
+tie to that struct through ioctl against the struct file.
+
+Hopes this clarify the use case.
+
+Cheers,
+Jerome
