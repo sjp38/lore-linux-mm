@@ -1,79 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B06B86B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 17:19:26 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id n5-v6so4441092qtl.13
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 14:19:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id o5si5770575qkb.160.2018.04.19.14.19.25
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 91D846B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 17:21:43 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id o16-v6so3899468wri.8
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 14:21:43 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id w6-v6si1046968wrk.170.2018.04.19.14.21.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 14:19:25 -0700 (PDT)
-Date: Thu, 19 Apr 2018 17:19:20 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
-In-Reply-To: <20180419124751.8884e516e99825d83da3d87a@linux-foundation.org>
-Message-ID: <alpine.LRH.2.02.1804191716100.10099@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com> <3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com> <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com> <20180418.134651.2225112489265654270.davem@davemloft.net>
- <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com> <20180419124751.8884e516e99825d83da3d87a@linux-foundation.org>
+        Thu, 19 Apr 2018 14:21:42 -0700 (PDT)
+Date: Thu, 19 Apr 2018 22:21:37 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [LSF/MM] schedule suggestion
+Message-ID: <20180419212137.GM30522@ZenIV.linux.org.uk>
+References: <20180418211939.GD3476@redhat.com>
+ <20180419015508.GJ27893@dastard>
+ <20180419143825.GA3519@redhat.com>
+ <20180419144356.GC25406@bombadil.infradead.org>
+ <20180419163036.GC3519@redhat.com>
+ <1524157119.2943.6.camel@kernel.org>
+ <20180419172609.GD3519@redhat.com>
+ <20180419203307.GJ30522@ZenIV.linux.org.uk>
+ <20180419205820.GB4981@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180419205820.GB4981@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Miller <davem@davemloft.net>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, bhutchings@solarflare.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Jeff Layton <jlayton@kernel.org>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
+On Thu, Apr 19, 2018 at 04:58:20PM -0400, Jerome Glisse wrote:
 
+> I need a struct to link part of device context with mm struct for a
+> process. Most of device context is link to the struct file of the
+> device file (ie process open has a file descriptor for the device
+> file).
 
-On Thu, 19 Apr 2018, Andrew Morton wrote:
+Er...  You do realize that
+	fd = open(...)
+	mmap(fd, ...)
+	close(fd)
+is absolutely legitimate, right?  IOW, existence/stability/etc. of
+a file descriptor is absolutely *not* guaranteed - in fact, there might
+be not a single file descriptor referring to a given openen and mmaped
+file.
 
-> On Thu, 19 Apr 2018 12:12:38 -0400 (EDT) Mikulas Patocka <mpatocka@redhat.com> wrote:
+> Device driver for GPU have some part of their process context tied to
+> the process mm (accessing process address space directly from the GPU).
+> However we can not store this context information in the struct file
+> private data because of clone (same struct file accross different mm).
 > 
-> > The kvmalloc function tries to use kmalloc and falls back to vmalloc if
-> > kmalloc fails.
-> > 
-> > Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
-> > uses DMA-API on the returned memory or frees it with kfree. Such bugs were
-> > found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
-> > code.
-> > 
-> > These bugs are hard to reproduce because vmalloc falls back to kmalloc
-> > only if memory is fragmented.
-> 
-> Yes, that's nasty.
-> 
-> > In order to detect these bugs reliably I submit this patch that changes
-> > kvmalloc to always use vmalloc if CONFIG_DEBUG_VM is turned on.
-> > 
-> > ...
-> >
-> > --- linux-2.6.orig/mm/util.c	2018-04-18 15:46:23.000000000 +0200
-> > +++ linux-2.6/mm/util.c	2018-04-18 16:00:43.000000000 +0200
-> > @@ -395,6 +395,7 @@ EXPORT_SYMBOL(vm_mmap);
-> >   */
-> >  void *kvmalloc_node(size_t size, gfp_t flags, int node)
-> >  {
-> > +#ifndef CONFIG_DEBUG_VM
-> >  	gfp_t kmalloc_flags = flags;
-> >  	void *ret;
-> >  
-> > @@ -426,6 +427,7 @@ void *kvmalloc_node(size_t size, gfp_t f
-> >  	 */
-> >  	if (ret || size <= PAGE_SIZE)
-> >  		return ret;
-> > +#endif
-> >  
-> >  	return __vmalloc_node_flags_caller(size, node, flags,
-> >  			__builtin_return_address(0));
-> 
-> Well, it doesn't have to be done at compile-time, does it?  We could
-> add a knob (in debugfs, presumably) which enables this at runtime. 
-> That's far more user-friendly.
+> So today driver have an hashtable in their global device structure to
+> lookup context information for a given mm. This is sub-optimal and
+> duplicate a lot of code among different drivers.
 
-But who will turn it on in debugfs? It should be default for debugging 
-kernels, so that users using them would report the error.
+Umm...  Examples?
 
-Conditioning it on CONFIG_DEBUG_SG is better than CONFIG_DEBUG_VM, it will 
-print a stacktrace where the incorrect use happened.
+> Hence why i want something generic that allow a device driver to store
+> context structure that is specific to a mm. I thought that adding a
+> new array on the side of struct file array would be a good idea but it
+> has too many kludges.
+> 
+> So i will do something inside mmu_notifier and there will be no tie to
+> any fs aspect. I expect only a handful of driver to care about this and
+> for a given platform you won't see that many devices hence you won't
+> have that many pointer to deal with.
 
-Mikulas
+Let's step back for a second - lookups by _what_?  If you are associating
+somethin with a mapping, vm_area_struct would be a natural candidate for
+storing such data, wouldn't it?
+
+What do you have and what do you want to find?
