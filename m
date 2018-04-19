@@ -1,36 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EC0B6B0005
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 20:02:04 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id y4-v6so3069969iod.5
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 17:02:04 -0700 (PDT)
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 75D0F6B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 20:11:41 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id h9so2433118uac.3
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 17:11:41 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 185-v6sor1371987itw.107.2018.04.18.17.02.03
+        by mx.google.com with SMTPS id a3sor890900uac.140.2018.04.18.17.11.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 18 Apr 2018 17:02:03 -0700 (PDT)
+        Wed, 18 Apr 2018 17:11:40 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <87k1t4t7tw.fsf@linux.intel.com>
-References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
- <1523892323-14741-4-git-send-email-joro@8bytes.org> <87k1t4t7tw.fsf@linux.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 18 Apr 2018 17:02:02 -0700
-Message-ID: <CA+55aFxKzsPQW4S4esvJY=wb7D3LKBdDDcXoMKJSqcOgnD3FuA@mail.gmail.com>
-Subject: Re: [PATCH 03/35] x86/entry/32: Load task stack from x86_tss.sp1 in
- SYSENTER handler
+In-Reply-To: <20180406205518.E3D989EB@viggo.jf.intel.com>
+References: <20180406205501.24A1A4E7@viggo.jf.intel.com> <20180406205518.E3D989EB@viggo.jf.intel.com>
+From: Kees Cook <keescook@google.com>
+Date: Wed, 18 Apr 2018 17:11:39 -0700
+Message-ID: <CAGXu5jJS-PYS7ONy_neDQCqVGRwrtjg=VdktXALQnzRe1+RNuA@mail.gmail.com>
+Subject: Re: [PATCH 11/11] x86/pti: leave kernel text global for !PCID
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waim@linux.intel.com
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Juergen Gross <jgross@suse.com>, X86 ML <x86@kernel.org>, namit@vmware.com
 
-On Wed, Apr 18, 2018 at 4:26 PM, Andi Kleen <ak@linux.intel.com> wrote:
->
-> Seems like a hack. Why can't that be stored in a per cpu variable?
+On Fri, Apr 6, 2018 at 1:55 PM, Dave Hansen <dave.hansen@linux.intel.com> wrote:
+> +/*
+> + * For some configurations, map all of kernel text into the user page
+> + * tables.  This reduces TLB misses, especially on non-PCID systems.
+> + */
+> +void pti_clone_kernel_text(void)
+> +{
+> +       unsigned long start = PFN_ALIGN(_text);
+> +       unsigned long end = ALIGN((unsigned long)_end, PMD_PAGE_SIZE);
 
-It *is* a percpu variable - the whole x86_tss structure is percpu.
+I think this is too much set global: _end is after data, bss, and brk,
+and all kinds of other stuff that could hold secrets. I think this
+should match what mark_rodata_ro() is doing and use
+__end_rodata_hpage_align. (And on i386, this should be maybe _etext.)
 
-I guess it could be a different (separate) percpu variable, but might
-as well use the space we already have allocated.
+-Kees
 
-             Linus
+-- 
+Kees Cook
+Pixel Security
