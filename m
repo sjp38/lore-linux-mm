@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 010CC6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 05:48:53 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u56-v6so4437056wrf.18
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 02:48:52 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c24sor1079342wmi.69.2018.04.19.02.48.51
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E11FA6B0003
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 05:50:41 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id x5-v6so2684004pln.21
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 02:50:41 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a7-v6sor1178442plp.27.2018.04.19.02.50.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 19 Apr 2018 02:48:51 -0700 (PDT)
+        Thu, 19 Apr 2018 02:50:41 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180419065531.l6kblbziddplgcwi@wfg-t540p.sh.intel.com>
+References: <20180419021757.66xxs5fgvlrusiup@wfg-t540p.sh.intel.com>
+ <CACT4Y+bmYk_A4NcOhCeHcG4t5_c=Q1fmQOPxHLtC8G0hLrxSLA@mail.gmail.com>
+ <20180419062050.GA8683@jagdpanzerIV> <20180419065531.l6kblbziddplgcwi@wfg-t540p.sh.intel.com>
 From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH] KASAN: prohibit KASAN+STRUCTLEAK combination
-Date: Thu, 19 Apr 2018 11:48:47 +0200
-Message-Id: <20180419094847.56737-1-dvyukov@google.com>
+Date: Thu, 19 Apr 2018 11:50:20 +0200
+Message-ID: <CACT4Y+ZL_xY-HJwgU+XQ-onqe+coxbNGOBno6HrPHwYuPdHRFA@mail.gmail.com>
+Subject: Re: [console_unlock] BUG: KASAN: use-after-scope in console_unlock+0x9cd/0xd10
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Fengguang Wu <fengguang.wu@intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@google.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Nikitas Angelinas <nikitas.angelinas@gmail.com>, Matt Redfearn <matt.redfearn@mips.com>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Bob Picco <bob.picco@oracle.com>, Linux Memory Management List <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-Currently STRUCTLEAK inserts initialization out of live scope of
-variables from KASAN point of view. This leads to KASAN false
-positive reports. Prohibit this combination for now.
+On Thu, Apr 19, 2018 at 8:55 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
+> On Thu, Apr 19, 2018 at 03:20:50PM +0900, Sergey Senozhatsky wrote:
+>>
+>> On (04/19/18 08:04), Dmitry Vyukov wrote:
+>> [..]
+>>>
+>>> We could also make them mutually exclusive in config to prevent people
+>>> from hitting these false positives again and again.
+>>
+>>
+>> Let's do it. Ard and Kees agreed on making them mutually exclusive [1][2].
+>> Dmitry, could send out a patch?
+>>
+>> [1]
+>> lkml.kernel.org/r/CAKv+Gu8HN-t2om8sCfjxCWbsgSir54fZw222dsed0Xwqph2aNg@mail.gmail.com
+>> [2]
+>> lkml.kernel.org/r/CAGXu5j+mcfo4aB3PM1We6O62bFBJcMFX-9obJE4jFU1Dp=gNwg@mail.gmail.com
+>
+>
+> That'd be great, thank you very much!
 
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-Cc: linux-mm@kvack.org
-Cc: kasan-dev@googlegroups.com
-Cc: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Kees Cook <keescook@google.com>
 
----
-
-This combination leads to periodic confusion
-and pointless debugging:
-
-https://marc.info/?l=linux-kernel&m=151991367323082
-https://marc.info/?l=linux-kernel&m=151992229326243
-https://lkml.org/lkml/2017/11/30/33
----
- arch/Kconfig | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/arch/Kconfig b/arch/Kconfig
-index 8e0d665c8d53..983578c44cca 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -464,6 +464,10 @@ config GCC_PLUGIN_LATENT_ENTROPY
- config GCC_PLUGIN_STRUCTLEAK
- 	bool "Force initialization of variables containing userspace addresses"
- 	depends on GCC_PLUGINS
-+	# Currently STRUCTLEAK inserts initialization out of live scope of
-+	# variables from KASAN point of view. This leads to KASAN false
-+	# positive reports. Prohibit this combination for now.
-+	depends on !KASAN
- 	help
- 	  This plugin zero-initializes any structures containing a
- 	  __user attribute. This can prevent some classes of information
--- 
-2.17.0.484.g0c8726318c-goog
+Just mailed "KASAN: prohibit KASAN+STRUCTLEAK combination":
+https://groups.google.com/d/msg/kasan-dev/Y1TEh7ZlHTQ/wR36C8uMCgAJ
