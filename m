@@ -1,99 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 629786B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 15:31:12 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id d128so4157428qkf.18
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:31:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id k188si594840qkc.154.2018.04.19.12.31.11
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B51E6B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 15:34:56 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id c11-v6so3536346pll.13
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:34:56 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id i192sor1064888pgc.343.2018.04.19.12.34.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 12:31:11 -0700 (PDT)
-Date: Thu, 19 Apr 2018 15:31:08 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [LSF/MM] schedule suggestion
-Message-ID: <20180419193108.GA4981@redhat.com>
-References: <20180418211939.GD3476@redhat.com>
- <20180419015508.GJ27893@dastard>
- <20180419143825.GA3519@redhat.com>
- <20180419144356.GC25406@bombadil.infradead.org>
- <20180419163036.GC3519@redhat.com>
- <1524157119.2943.6.camel@kernel.org>
- <20180419172609.GD3519@redhat.com>
- <1524162667.2943.22.camel@kernel.org>
+        (Google Transport Security);
+        Thu, 19 Apr 2018 12:34:55 -0700 (PDT)
+Date: Thu, 19 Apr 2018 12:34:53 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper
+ unmap
+In-Reply-To: <20180419063556.GK17484@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com> <201804180057.w3I0vieV034949@www262.sakura.ne.jp> <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com> <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
+ <20180418075051.GO17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com> <20180419063556.GK17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1524162667.2943.22.camel@kernel.org>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 19, 2018 at 02:31:07PM -0400, Jeff Layton wrote:
-> On Thu, 2018-04-19 at 13:26 -0400, Jerome Glisse wrote:
-> > On Thu, Apr 19, 2018 at 12:58:39PM -0400, Jeff Layton wrote:
-> > > On Thu, 2018-04-19 at 12:30 -0400, Jerome Glisse wrote:
-> > > > On Thu, Apr 19, 2018 at 07:43:56AM -0700, Matthew Wilcox wrote:
-> > > > > On Thu, Apr 19, 2018 at 10:38:25AM -0400, Jerome Glisse wrote:
-> > > > > > Oh can i get one more small slot for fs ? I want to ask if they are
-> > > > > > any people against having a callback everytime a struct file is added
-> > > > > > to a task_struct and also having a secondary array so that special
-> > > > > > file like device file can store something opaque per task_struct per
-> > > > > > struct file.
-> > > > > 
-> > > > > Do you really want something per _thread_, and not per _mm_?
-> > > > 
-> > > > Well per mm would be fine but i do not see how to make that happen with
-> > > > reasonable structure. So issue is that you can have multiple task with
-> > > > same mm but different file descriptors (or am i wrong here ?) thus there
-> > > > would be no easy way given a struct file to lookup the per mm struct.
-> > > > 
-> > > > So as a not perfect solution i see a new array in filedes which would
-> > > > allow device driver to store a pointer to their per mm data structure.
-> > > > To be fair usualy you will only have a single fd in a single task for
-> > > > a given device.
-> > > > 
-> > > > If you see an easy way to get a per mm per inode pointer store somewhere
-> > > > with easy lookup i am all ears :)
-> > > > 
-> > > 
-> > > I may be misunderstanding, but to be clear: struct files don't get
-> > > added to a thread, per-se.
-> > > 
-> > > When userland calls open() or similar, the struct file gets added to
-> > > the files_struct. Those are generally shared with other threads within
-> > > the same process. The files_struct can also be shared with other
-> > > processes if you clone() with the right flags.
-> > > 
-> > > Doing something per-thread on every open may be rather difficult to do.
-> > 
-> > Basicly i want a callback in __fd_install(), do_dup2(), dup_fd() and
-> > add void * *private_data; to struct fdtable (also a default array to
-> > struct files_struct). The callback would be part of struct file_operations.
-> > and only call if it exist (os overhead is only for device driver that
-> > care).
-> > 
-> > Did i miss something fundamental ? copy_files() call dup_fd() so i
-> > should be all set here.
-> > 
-> > I will work on patches i was hoping this would not be too much work.
-> > 
+On Thu, 19 Apr 2018, Michal Hocko wrote:
+
+> > exit_mmap() does not block before set_bit(MMF_OOM_SKIP) once it is 
+> > entered.
 > 
-> No, I think I misunderstood. I was thinking you wanted to iterate over
-> all of the threads that might be associated with a struct file, and
-> that's rather non-trivial.
+> Not true. munlock_vma_pages_all might take page_lock which can have
+> unpredictable dependences. This is the reason why we are ruling out
+> mlocked VMAs in the first place when reaping the address space.
 > 
-> A callback when you add a file to the files_struct seems like it would
-> probably be OK (in principle).
 
-Well scratch that whole idea, i would need to add a new array to task
-struct which make it a lot less appealing. Hence a better solution is
-to instead have this as part of mm (well indirectly).
+I don't find any occurrences in millions of oom kills in real-world 
+scenarios where this matters.  The solution is certainly not to hold 
+down_write(&mm->mmap_sem) during munlock_vma_pages_all() instead.  If 
+exit_mmap() is not making forward progress then that's a separate issue; 
+that would need to be fixed in one of two ways: (1) in oom_reap_task() to 
+try over a longer duration before setting MMF_OOM_SKIP itself, but that 
+would have to be a long duration to allow a large unmap and page table 
+free, or (2) in oom_evaluate_task() so that we defer for MMF_OOM_SKIP but 
+only if MMF_UNSTABLE has been set for a long period of time so we target 
+another process when the oom killer has given up.
 
-Thanks folks for chimming in. I will discuss this in my mmu_notifier
-session.
+Either of those two fixes are simple to implement, I'd just like to see a 
+bug report with stack traces to indicate that a victim getting stalled in 
+exit_mmap() is a problem to justify the patch.
 
-Cheers,
-Jerome
+I'm trying to fix the page table corruption that is trivial to trigger on 
+powerpc.  We simply cannot allow the oom reaper's unmap_page_range() to 
+race with munlock_vma_pages_range(), ever.  Holding down_write on 
+mm->mmap_sem otherwise needlessly over a large amount of code is riskier 
+(hasn't been done or tested here), more error prone (any code change over 
+this large area of code or in functions it calls are unnecessarily 
+burdened by unnecessary locking), makes exit_mmap() less extensible for 
+the same reason, and causes the oom reaper to give up and go set 
+MMF_OOM_SKIP itself because it depends on taking down_read while the 
+thread is still exiting.
+
+> On the
+> other hand your lock protocol introduces the MMF_OOM_SKIP problem I've
+> mentioned above and that really worries me. The primary objective of the
+> reaper is to guarantee a forward progress without relying on any
+> externalities. We might kill another OOM victim but that is safer than
+> lock up.
+> 
+
+I understand the concern, but it's the difference between the victim 
+getting stuck in exit_mmap() and actually taking a long time to free its 
+memory in exit_mmap().  I don't have evidence of the former.  If there are 
+bug reports for occurrences of the oom reaper being unable to reap, it 
+would be helpful to see.  The only reports about the "unable to reap" 
+message was that the message itself was racy, not that a thread got stuck.  
+This is more reason to not take down_write unnecessarily in the 
+exit_mmap() path, because it influences an oom reaper heurstic.
+
+> The current protocol has proven to be error prone so I really believe we
+> should back off and turn it into something much simpler and build on top
+> of that if needed.
+> 
+> So do you see any _technical_ reasons why not do [1] and have a simpler
+> protocol easily backportable to stable trees?
+
+It's not simpler per the above, and I agree with Andrea's assessment when 
+this was originally implemented.  The current method is not error prone, 
+it works, it just wasn't protecting enough of exit_mmap().  That's not a 
+critcism of the method itself, it's a bugfix that expands its critical 
+section.  
