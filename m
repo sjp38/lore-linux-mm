@@ -1,51 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 95DBA6B0011
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 11:08:15 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e14so2931894pfi.9
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 08:08:15 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id f4-v6si162842plm.448.2018.04.19.08.08.14
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FA496B0011
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 11:10:00 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b64so1424695pfl.13
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 08:10:00 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0128.outbound.protection.outlook.com. [104.47.34.128])
+        by mx.google.com with ESMTPS id y185si3172574pgd.316.2018.04.19.08.09.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 08:08:14 -0700 (PDT)
-Subject: Re: [LSF/MM] schedule suggestion
-From: "Martin K. Petersen" <martin.petersen@oracle.com>
-References: <20180418211939.GD3476@redhat.com>
-	<20180419015508.GJ27893@dastard>
-	<D8E1F46B-ACC2-4072-A4D1-769A6B4F40F4@fb.com>
-Date: Thu, 19 Apr 2018 11:07:58 -0400
-In-Reply-To: <D8E1F46B-ACC2-4072-A4D1-769A6B4F40F4@fb.com> (Chris Mason's
-	message of "Thu, 19 Apr 2018 10:51:45 -0400")
-Message-ID: <yq1vacnjktt.fsf@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 19 Apr 2018 08:09:59 -0700 (PDT)
+From: Sasha Levin <Alexander.Levin@microsoft.com>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Date: Thu, 19 Apr 2018 15:09:56 +0000
+Message-ID: <20180419150954.GC2341@sasha-vm>
+References: <20180415144248.GP2341@sasha-vm>
+ <20180416093058.6edca0bb@gandalf.local.home>
+ <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
+ <20180416113629.2474ae74@gandalf.local.home> <20180416160200.GY2341@sasha-vm>
+ <20180416121224.2138b806@gandalf.local.home> <20180416161911.GA2341@sasha-vm>
+ <7d5de770-aee7-ef71-3582-5354c38fc176@mageia.org>
+ <20180419135943.GC16862@kroah.com>
+ <6425991f-7d7f-b1f9-ba37-3212a01ad6cf@mageia.org>
+In-Reply-To: <6425991f-7d7f-b1f9-ba37-3212a01ad6cf@mageia.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <A71313D467590E4DBDC77A56E2945198@namprd21.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Mason <clm@fb.com>
-Cc: Dave Chinner <david@fromorbit.com>, Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Thomas Backlund <tmb@mageia.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
 
-
-Chris,
-
->> I'd like to propose that we compact the fs sessions so that we get a
->> 3-slot session reserved for "Individual filesystem discussions" one
->> afternoon. That way we've got time in the schedule for the all the
->> ext4/btrfs/XFS/NFS/CIFS devs to get together with each other and
->> talk about things of interest only to their own fileystems.
->>
->> That means we all don't have to find time outside the schedule to do
->> this, and think this wold be time very well spent for most fs people
->> at the conf....
+On Thu, Apr 19, 2018 at 06:04:26PM +0300, Thomas Backlund wrote:
+>Den 19.04.2018 kl. 16:59, skrev Greg KH:
+>>Anyway, we are trying not to do this, but it does, and will,
+>>occasionally happen.  Look, we just did that for one platform for
+>>4.9.94!  And the key to all of this is good testing, which we are now
+>>doing, and hopefully you are also doing as well.
 >
-> I'd love this as well.
+>Yeah, but having to test stuff with known breakages is no fun, so we=20
+>try to avoid that
 
-Based on feedback last year we explicitly added a third day to LSF/MM to
-facilitate hack time and project meetings.
+Known breakages are easier to deal with than unknown ones :)
 
-As usual the schedule is fluid and will be adjusted on the fly.
-Depending on track, I am hoping we'll be done with the scheduled topics
-either at the end of Tuesday or Wednesday morning.
+I think that that "bug compatability" is basically a policy on *which*
+regressions you'll see vs *if* you'll see a regression.
 
--- 
-Martin K. Petersen	Oracle Linux Engineering
+We'll never pull in a commit that introduces a bug but doesn't fix
+another one, right? So if you have to deal with a regression anyway,
+might as well deal with a regression that is also seen on mainline, so
+that when you upgrade your stable kernel you'll keep the same set of
+regressions to deal with.=
