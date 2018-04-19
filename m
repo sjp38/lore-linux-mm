@@ -1,102 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 85FAC6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:12:41 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id a124so3745560qkb.19
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 09:12:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id c4-v6si5198566qtg.119.2018.04.19.09.12.40
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 91C8F6B0003
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:20:07 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id k76-v6so267415lfg.9
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 09:20:07 -0700 (PDT)
+Received: from mx1.yrkesakademin.fi (mx1.yrkesakademin.fi. [85.134.45.194])
+        by mx.google.com with ESMTPS id s23si380250ljs.14.2018.04.19.09.20.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 09:12:40 -0700 (PDT)
-Date: Thu, 19 Apr 2018 12:12:38 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
-In-Reply-To: <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com> <3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com> <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com> <20180418.134651.2225112489265654270.davem@davemloft.net>
- <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1_2 cipher=AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Apr 2018 09:20:05 -0700 (PDT)
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+References: <20180415144248.GP2341@sasha-vm>
+ <20180416093058.6edca0bb@gandalf.local.home>
+ <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
+ <20180416113629.2474ae74@gandalf.local.home> <20180416160200.GY2341@sasha-vm>
+ <20180416121224.2138b806@gandalf.local.home> <20180416161911.GA2341@sasha-vm>
+ <7d5de770-aee7-ef71-3582-5354c38fc176@mageia.org>
+ <20180419135943.GC16862@kroah.com>
+ <6425991f-7d7f-b1f9-ba37-3212a01ad6cf@mageia.org>
+ <20180419150954.GC2341@sasha-vm>
+From: Thomas Backlund <tmb@mageia.org>
+Message-ID: <0714b77f-d659-3c8b-8225-f435d7c08ae7@mageia.org>
+Date: Thu, 19 Apr 2018 19:20:03 +0300
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20180419150954.GC2341@sasha-vm>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: eric.dumazet@gmail.com, edumazet@google.com, bhutchings@solarflare.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: Sasha Levin <Alexander.Levin@microsoft.com>, Thomas Backlund <tmb@mageia.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
+
+Den 19.04.2018 kl. 18:09, skrev Sasha Levin:
+> On Thu, Apr 19, 2018 at 06:04:26PM +0300, Thomas Backlund wrote:
+>> Den 19.04.2018 kl. 16:59, skrev Greg KH:
+>>> Anyway, we are trying not to do this, but it does, and will,
+>>> occasionally happen.  Look, we just did that for one platform for
+>>> 4.9.94!  And the key to all of this is good testing, which we are now
+>>> doing, and hopefully you are also doing as well.
+>>
+>> Yeah, but having to test stuff with known breakages is no fun, so we
+>> try to avoid that
+> 
+> Known breakages are easier to deal with than unknown ones :)
 
 
+well, if a system worked before the update, but not after...
+Guess wich one we want...
 
-On Wed, 18 Apr 2018, Mikulas Patocka wrote:
 
 > 
+> I think that that "bug compatability" is basically a policy on *which*
+> regressions you'll see vs *if* you'll see a regression.
 > 
-> On Wed, 18 Apr 2018, David Miller wrote:
+
+
+No. Intentionally breaking known working code in a stable branch is 
+never ok.
+
+As I said before... something that never worked is not a regression,
+but breaking a previously working setup is...
+
+That goes for security fixes too... there is not much point in a 
+security fix, if it basically turns into a local DOS when the system 
+stops working...
+
+People will just boot older code and there you have it...
+
+
+> We'll never pull in a commit that introduces a bug but doesn't fix
+> another one, right? So if you have to deal with a regression anyway,
+> might as well deal with a regression that is also seen on mainline, so
+> that when you upgrade your stable kernel you'll keep the same set of
+> regressions to deal with.
 > 
-> > From: Mikulas Patocka <mpatocka@redhat.com>
-> > Date: Wed, 18 Apr 2018 12:44:25 -0400 (EDT)
-> > 
-> > > The structure net_device is followed by arbitrary driver-specific data 
-> > > (accessible with the function netdev_priv). And for virtio-net, these 
-> > > driver-specific data must be in DMA memory.
-> > 
-> > And we are saying that this assumption is wrong and needs to be
-> > corrected.
-> 
-> So, try to find all the networking drivers that to DMA to the private 
-> area.
-> 
-> The problem here is that kvzalloc usually returns DMA-able area, but it 
-> may return non-DMA area rarely, if the memory is too fragmented. So, we 
-> are in a situation, where some networking drivers will randomly fail. Go 
-> and find them.
-> 
-> Mikulas
-
-Her I submit a patch that makes kvmalloc always use vmalloc if 
-CONFIG_DEBUG_VM is defined.
 
 
+Here I actually like the comment Linus posted about API breakage earlier 
+in this thread...
+
+<quote>
+If you break user workflows, NOTHING ELSE MATTERS.
+
+Even security is secondary to "people don't use the end result,
+because it doesn't work for them any more".
+</quote>
+
+_This_ same statement should be aknowledged / enforced in stable trees 
+too IMHO...
+
+Because this is what will happend...
+
+simple logic... if it does not work, the enduser will boot an earlier 
+kernel... missing "all the good fixes" (including security ones) just
+because one fix is bad.
+
+For example in this AUTOSEL round there is 161 fixes of wich the enduser
+never gets the 160 "supposedly good ones" when one is "bad"...
 
 
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
+How is that a "good thing" ?
 
-The kvmalloc function tries to use kmalloc and falls back to vmalloc if
-kmalloc fails.
 
-Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
-uses DMA-API on the returned memory or frees it with kfree. Such bugs were
-found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
-code.
+And trying to tell those that get hit "this will force upstream to fix 
+it faster, so you get a working setup in some days/weeks/months..." is
+not going to work...
 
-These bugs are hard to reproduce because vmalloc falls back to kmalloc
-only if memory is fragmented.
 
-In order to detect these bugs reliably I submit this patch that changes
-kvmalloc to always use vmalloc if CONFIG_DEBUG_VM is turned on.
+Heh, This even reminds me that this is just as annoying as when MS
+started to "bundle monthly security updates" and you get 95% installed
+just to realize that the last 5% does not work (or install at all) and
+you have to rollback to something working thus missing the needed
+security fixes...
 
-Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+Same flawed logic...
 
----
- mm/util.c |    2 ++
- 1 file changed, 2 insertions(+)
+Thnakfully we as distro maintainers can avoid some of the breakage for 
+our enduses...
 
-Index: linux-2.6/mm/util.c
-===================================================================
---- linux-2.6.orig/mm/util.c	2018-04-18 15:46:23.000000000 +0200
-+++ linux-2.6/mm/util.c	2018-04-18 16:00:43.000000000 +0200
-@@ -395,6 +395,7 @@ EXPORT_SYMBOL(vm_mmap);
-  */
- void *kvmalloc_node(size_t size, gfp_t flags, int node)
- {
-+#ifndef CONFIG_DEBUG_VM
- 	gfp_t kmalloc_flags = flags;
- 	void *ret;
- 
-@@ -426,6 +427,7 @@ void *kvmalloc_node(size_t size, gfp_t f
- 	 */
- 	if (ret || size <= PAGE_SIZE)
- 		return ret;
-+#endif
- 
- 	return __vmalloc_node_flags_caller(size, node, flags,
- 			__builtin_return_address(0));
+--
+Thomas
