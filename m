@@ -1,103 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F33766B0003
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 10:22:30 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h9so2455320pfn.22
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 07:22:30 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o13-v6si128915pli.76.2018.04.19.07.22.29
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FC6B6B0003
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 10:23:56 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id b13so1881447pgw.1
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 07:23:56 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g7si3434078pfm.106.2018.04.19.07.23.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 07:22:29 -0700 (PDT)
-Date: Thu, 19 Apr 2018 16:22:22 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-Message-ID: <20180419142222.GA29648@kroah.com>
-References: <20180415144248.GP2341@sasha-vm>
- <20180416093058.6edca0bb@gandalf.local.home>
- <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
- <20180416113629.2474ae74@gandalf.local.home>
- <20180416160200.GY2341@sasha-vm>
- <20180416121224.2138b806@gandalf.local.home>
- <20180416161911.GA2341@sasha-vm>
- <7d5de770-aee7-ef71-3582-5354c38fc176@mageia.org>
- <20180419135943.GC16862@kroah.com>
- <20180419140545.7hzpnyhiscgapkx4@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 19 Apr 2018 07:23:55 -0700 (PDT)
+Date: Thu, 19 Apr 2018 07:23:54 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v3 07/14] slub: Remove page->counters
+Message-ID: <20180419142354.GB25406@bombadil.infradead.org>
+References: <20180418184912.2851-1-willy@infradead.org>
+ <20180418184912.2851-8-willy@infradead.org>
+ <0d049d18-ebde-82ec-ed1d-85daabf6582f@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180419140545.7hzpnyhiscgapkx4@quack2.suse.cz>
+In-Reply-To: <0d049d18-ebde-82ec-ed1d-85daabf6582f@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Thomas Backlund <tmb@mageia.org>, Sasha Levin <Alexander.Levin@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>
 
-On Thu, Apr 19, 2018 at 04:05:45PM +0200, Jan Kara wrote:
-> On Thu 19-04-18 15:59:43, Greg KH wrote:
-> > On Thu, Apr 19, 2018 at 02:41:33PM +0300, Thomas Backlund wrote:
-> > > Den 16-04-2018 kl. 19:19, skrev Sasha Levin:
-> > > > On Mon, Apr 16, 2018 at 12:12:24PM -0400, Steven Rostedt wrote:
-> > > > > On Mon, 16 Apr 2018 16:02:03 +0000
-> > > > > Sasha Levin <Alexander.Levin@microsoft.com> wrote:
-> > > > > 
-> > > > > > One of the things Greg is pushing strongly for is "bug compatibility":
-> > > > > > we want the kernel to behave the same way between mainline and stable.
-> > > > > > If the code is broken, it should be broken in the same way.
-> > > > > 
-> > > > > Wait! What does that mean? What's the purpose of stable if it is as
-> > > > > broken as mainline?
-> > > > 
-> > > > This just means that if there is a fix that went in mainline, and the
-> > > > fix is broken somehow, we'd rather take the broken fix than not.
-> > > > 
-> > > > In this scenario, *something* will be broken, it's just a matter of
-> > > > what. We'd rather have the same thing broken between mainline and
-> > > > stable.
-> > > > 
-> > > 
-> > > Yeah, but _intentionally_ breaking existing setups to stay "bug compatible"
-> > > _is_ a _regression_ you _really_ _dont_ want in a stable
-> > > supported distro. Because end-users dont care about upstream breaking
-> > > stuff... its the distro that takes the heat for that...
-> > > 
-> > > Something "already broken" is not a regression...
-> > > 
-> > > As distro maintainer that means one now have to review _every_ patch that
-> > > carries "AUTOSEL", follow all the mail threads that comes up about it, then
-> > > track if it landed in -stable queue, and read every response and possible
-> > > objection to all patches in the -stable queue a second time around... then
-> > > check if it still got included in final stable point relase and then either
-> > > revert them in distro kernel or go track down all the follow-up fixes
-> > > needed...
-> > > 
-> > > Just to avoid being "bug compatible with master"
+On Thu, Apr 19, 2018 at 03:42:37PM +0200, Vlastimil Babka wrote:
+> On 04/18/2018 08:49 PM, Matthew Wilcox wrote:
+> > From: Matthew Wilcox <mawilcox@microsoft.com>
 > > 
-> > I've done this "bug compatible" "breakage" more than the AUTOSEL stuff
-> > has in the past, so you had better also be reviewing all of my normal
-> > commits as well :)
+> > Use page->private instead, now that these two fields are in the same
+> > location.  Include a compile-time assert that the fields don't get out
+> > of sync.
 > > 
-> > Anyway, we are trying not to do this, but it does, and will,
-> > occasionally happen.
+> > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> Sure, that's understood. So this was just misunderstanding. Sasha's
-> original comment really sounded like "bug compatibility" with current
-> master is desirable and that made me go "Are you serious?" as well...
+> Why not retain a small union of "counters" and inuse/objects/frozens
+> within the SLUB's sub-structure? IMHO it would be more obvious and
+> reduce churn?
 
-As I said before in this thread, yes, sometimes I do this on purpose.
+Could do.  Same issues with five layers of indentation though.
+If there's consensus that that's a better way to go, then I'll redo
+the series to look that way.
 
-As an specific example, see a recent bluetooth patch that caused a
-regression on some chromebook devices.  The chromeos developers
-rightfully complainied, and I left the commit in there to provide the
-needed "leverage" on the upstream developers to fix this properly.
-Otherwise if I had reverted the stable patch, when people move to a
-newer kernel version, things break, and no one remembers why.
+There is a way to reduce the indentation ... but we'd have to compile
+with -fms-extensions (or -fplan9-extensions, but that wasn't added until
+gcc 4.6, whereas -fms-extensions was added back in the egcs days).
 
-I also wrote a long response as to _why_ I do this, and even though it
-does happen, why it still is worth taking the stable updates.  Please
-see the archives for the full details.  I don't want to duplicate this
-again here.
+-fms-extensions lets you do this:
 
-thanks,
+struct a { int b; int c; };
+struct d { struct a; int e; };
+int init(struct d *);
 
-greg k-h
+int main(void)
+{
+	struct d d;
+	init(&d);
+	return d.b + d.c + d.e;
+}
+
+so we could then:
+
+struct slub_counters {
+	union {
+		unsigned long counters;
+		struct {
+			unsigned inuse:16;
+			unsigned objects:15;
+			unsigned frozen:1;
+		};
+	};
+};
+
+struct page {
+	union {
+		struct {
+			union {
+				void *s_mem;
+				struct slub_counters;
+
+Given my employer, a request to add -fms-extensions to the Makefile
+might be regarded with a certain amount of suspicion ;-)
+
+> > @@ -358,17 +359,10 @@ static __always_inline void slab_unlock(struct page *page)
+> >  
+> >  static inline void set_page_slub_counters(struct page *page, unsigned long counters_new)
+> >  {
+> > -	struct page tmp;
+> > -	tmp.counters = counters_new;
+> > -	/*
+> > -	 * page->counters can cover frozen/inuse/objects as well
+> > -	 * as page->_refcount.  If we assign to ->counters directly
+> > -	 * we run the risk of losing updates to page->_refcount, so
+> > -	 * be careful and only assign to the fields we need.
+> > -	 */
+> > -	page->frozen  = tmp.frozen;
+> > -	page->inuse   = tmp.inuse;
+> > -	page->objects = tmp.objects;
+> 
+> BTW was this ever safe to begin with? IIRC bitfields are frowned upon as
+> a potential RMW. Or is there still at least guarantee the RMW happens
+> only within the 32bit struct and not the whole 64bit word, which used to
+> include also _refcount?
+
+I prefer not to think about it.  Indeed, I don't think that doing
+page->tmp = tmp; where both are 32-bit quantities is guaranteed to not
+do an RMW.
