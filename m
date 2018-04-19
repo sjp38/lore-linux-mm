@@ -1,35 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0544C6B0006
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 10:44:00 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id q22so2878944pfh.20
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 07:43:59 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id r14si3005833pgt.292.2018.04.19.07.43.58
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F3E46B0009
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 10:52:05 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id w3-v6so3566550qtn.14
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 07:52:05 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id l41-v6si2638269qtc.246.2018.04.19.07.52.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 19 Apr 2018 07:43:58 -0700 (PDT)
-Date: Thu, 19 Apr 2018 07:43:56 -0700
-From: Matthew Wilcox <willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Apr 2018 07:52:04 -0700 (PDT)
+From: Chris Mason <clm@fb.com>
 Subject: Re: [LSF/MM] schedule suggestion
-Message-ID: <20180419144356.GC25406@bombadil.infradead.org>
+Date: Thu, 19 Apr 2018 10:51:45 -0400
+Message-ID: <D8E1F46B-ACC2-4072-A4D1-769A6B4F40F4@fb.com>
+In-Reply-To: <20180419015508.GJ27893@dastard>
 References: <20180418211939.GD3476@redhat.com>
  <20180419015508.GJ27893@dastard>
- <20180419143825.GA3519@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180419143825.GA3519@redhat.com>
+Content-Type: text/plain; markup=markdown
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Thu, Apr 19, 2018 at 10:38:25AM -0400, Jerome Glisse wrote:
-> Oh can i get one more small slot for fs ? I want to ask if they are
-> any people against having a callback everytime a struct file is added
-> to a task_struct and also having a secondary array so that special
-> file like device file can store something opaque per task_struct per
-> struct file.
+On 18 Apr 2018, at 21:55, Dave Chinner wrote:
 
-Do you really want something per _thread_, and not per _mm_?
+> On Wed, Apr 18, 2018 at 05:19:39PM -0400, Jerome Glisse wrote:
+>> Just wanted to suggest to push HMM status down one slot in the
+>> agenda to avoid having FS and MM first going into their own
+>> room and then merging back for GUP and DAX, and re-splitting
+>> after. More over HMM and NUMA talks will be good to have back
+>> to back as they deal with same kind of thing mostly.
+>
+> So while we are talking about schedule suggestions, we see that
+> there's lots of empty slots in the FS track. We (xfs guys) were just
+> chatting on #xfs about whether we'd have time to have a "XFS devel
+> meeting" at some point during LSF/MM as we are rarely in the same
+> place at the same time.
+>
+> I'd like to propose that we compact the fs sessions so that we get a
+> 3-slot session reserved for "Individual filesystem discussions" one
+> afternoon. That way we've got time in the schedule for the all the
+> ext4/btrfs/XFS/NFS/CIFS devs to get together with each other and
+> talk about things of interest only to their own fileystems.
+>
+> That means we all don't have to find time outside the schedule to do
+> this, and think this wold be time very well spent for most fs people
+> at the conf....
+
+I'd love this as well.
+
+-chris
