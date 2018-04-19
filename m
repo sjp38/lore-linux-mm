@@ -1,53 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C0E9E6B0006
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 16:36:38 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id ay8-v6so3622004plb.9
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 13:36:38 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n15si3888857pfj.212.2018.04.19.13.36.37
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D34876B0007
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 16:40:00 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id m7-v6so6405423wrb.16
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 13:40:00 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id f19-v6si3537422wrh.125.2018.04.19.13.39.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 13:36:37 -0700 (PDT)
-Date: Thu, 19 Apr 2018 13:36:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
- 4.x+/i386/16+RAM, compared to 3.x
-Message-Id: <20180419133634.77035d22766e017cd876e170@linux-foundation.org>
-In-Reply-To: <c84a30f7-0524-5a30-e825-7e73d0cb06e2@gmail.com>
-References: <bug-196157-27@https.bugzilla.kernel.org/>
-	<20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
-	<20170623071324.GD5308@dhcp22.suse.cz>
-	<3541d6c3-6c41-8210-ee94-fef313ecd83d@gmail.com>
-	<20170623113837.GM5308@dhcp22.suse.cz>
-	<a373c35d-7d83-973c-126e-a08c411115cb@gmail.com>
-	<20170626054623.GC31972@dhcp22.suse.cz>
-	<7b78db49-e0d8-9ace-bada-a48c9392a8ca@gmail.com>
-	<20170626091254.GG11534@dhcp22.suse.cz>
-	<5eff5b8f-51ab-9749-0da5-88c270f0df92@gmail.com>
-	<20170629071619.GB31603@dhcp22.suse.cz>
-	<c84a30f7-0524-5a30-e825-7e73d0cb06e2@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 19 Apr 2018 13:39:59 -0700 (PDT)
+Date: Thu, 19 Apr 2018 21:39:53 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [LSF/MM] schedule suggestion
+Message-ID: <20180419203953.GK30522@ZenIV.linux.org.uk>
+References: <20180419143825.GA3519@redhat.com>
+ <20180419144356.GC25406@bombadil.infradead.org>
+ <20180419163036.GC3519@redhat.com>
+ <1524157119.2943.6.camel@kernel.org>
+ <20180419172609.GD3519@redhat.com>
+ <1524162667.2943.22.camel@kernel.org>
+ <20180419193108.GA4981@redhat.com>
+ <20180419195637.GA14024@bombadil.infradead.org>
+ <20180419201502.GA11372@redhat.com>
+ <20180419202513.GB14024@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180419202513.GB14024@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alkis Georgopoulos <alkisg@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, reserv0@yahoo.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Jerome Glisse <jglisse@redhat.com>, Jeff Layton <jlayton@kernel.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
+On Thu, Apr 19, 2018 at 01:25:13PM -0700, Matthew Wilcox wrote:
+> On Thu, Apr 19, 2018 at 04:15:02PM -0400, Jerome Glisse wrote:
+> > On Thu, Apr 19, 2018 at 12:56:37PM -0700, Matthew Wilcox wrote:
+> > > > Well scratch that whole idea, i would need to add a new array to task
+> > > > struct which make it a lot less appealing. Hence a better solution is
+> > > > to instead have this as part of mm (well indirectly).
+> > > 
+> > > It shouldn't be too bad to add a struct radix_tree to the fdtable.
+> > > 
+> > > I'm sure we could just not support weird cases like sharing the fdtable
+> > > without sharing the mm.  Does anyone actually do that?
+> > 
+> > Well like you pointed out what i really want is a 1:1 structure linking
+> > a device struct an a mm_struct. Given that this need to be cleanup when
+> > mm goes away hence tying this to mmu_notifier sounds like a better idea.
+> > 
+> > I am thinking of adding a hashtable to mmu_notifier_mm using file id for
+> > hash as this should be a good hash value for common cases. I only expect
+> > few drivers to need that (GPU drivers, RDMA). Today GPU drivers do have
+> > a hashtable inside their driver and they has on the mm struct pointer,
+> > i believe hash mmu_notifier_mm using file id will be better.
+> 
+> file descriptors are small positive integers ...
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+... except when there's a lot of them.  Or when something uses dup2() in
+interesting ways, but hey - we could "just not support" that, right?
 
-https://bugzilla.kernel.org/show_bug.cgi?id=196157
+> ideal for the radix tree.
+> If you need to find your data based on the struct file address, then by
+> all means a hashtable is the better data structure.
 
-People are still hurting from this.  It does seem a pretty major
-regression for highmem machines.
+Perhaps it would be a good idea to describe whatever is being attempted?
 
-I'm surprised that we aren't hearing about this from distros.  Maybe it
-only affects a subset of highmem machines?
-
-Anyway, can we please take another look at it?  Seems that we messed up
-highmem dirty pagecache handling in the 4.2 timeframe.
-
-Thanks.
+FWIW, passing around descriptors is almost always a bloody bad idea.  There
+are very few things really associated with those and just about every time
+I'd seen internal APIs that work in terms of those "small positive numbers"
+they had been badly racy and required massive redesign to get something even
+remotely sane.
