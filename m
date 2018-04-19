@@ -1,68 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E0DD6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 06:44:35 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j25so2556802pfh.18
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 03:44:35 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id r14si2707142pgt.292.2018.04.19.03.44.33
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D1D46B0003
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 06:45:51 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id p131-v6so2431178oig.10
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 03:45:51 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id f30-v6si1111216otb.411.2018.04.19.03.45.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 03:44:34 -0700 (PDT)
-Date: Thu, 19 Apr 2018 11:43:42 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: Some questions about cgroup aware OOM killer.
-Message-ID: <20180419104336.GA20675@castle.DHCP.thefacebook.com>
-References: <1524122224-26670-1-git-send-email-ufo19890607@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1524122224-26670-1-git-send-email-ufo19890607@gmail.com>
+        Thu, 19 Apr 2018 03:45:50 -0700 (PDT)
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
+	<alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
+	<20180418075051.GO17484@dhcp22.suse.cz>
+	<alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com>
+	<20180419063556.GK17484@dhcp22.suse.cz>
+In-Reply-To: <20180419063556.GK17484@dhcp22.suse.cz>
+Message-Id: <201804191945.BBF87517.FVMLOQFOHSFJOt@I-love.SAKURA.ne.jp>
+Date: Thu, 19 Apr 2018 19:45:46 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ufo19890607 <ufo19890607@gmail.com>
-Cc: mhocko@suse.com, vdavydov.dev@gmail.com, penguin-kernel@i-love.sakura.ne.jp, rientjes@google.com, akpm@linux-foundation.org, tj@kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, yuzhoujian <yuzhoujian@didichuxing.com>
+To: mhocko@kernel.org, rientjes@google.com
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi!
-
-Please, pull the whole patchset from the next tree:
-git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-
-$ git log next/master --oneline --author=guro@fb.com
-1fecc970ac9e cgroup: list groupoom in cgroup features
-dff73d397f7f mm-oom-docs-describe-the-cgroup-aware-oom-killer-fix
-7cf83086511a mm, oom, docs: describe the cgroup-aware OOM killer
-e2194b2869f1 mm, oom: add cgroup v2 mount option for cgroup-aware OOM killer
-338fbcc52518 mm, oom: return error on access to memory.oom_group if groupoom is disabled
-96fb32250ded mm, oom: introduce memory.oom_group
-ed5f99985bf8 mm, oom: cgroup-aware OOM killer
-e33eba2c3273 mm: implement mem_cgroup_scan_tasks() for the root memory cgroup
-9bd3a4c529d4 mm, oom: refactor oom_kill_process()
-
-Thanks!
-
-On Thu, Apr 19, 2018 at 08:17:04AM +0100, ufo19890607 wrote:
-> From: yuzhoujian <yuzhoujian@didichuxing.com>
+Michal Hocko wrote:
+> > exit_mmap() does not block before set_bit(MMF_OOM_SKIP) once it is 
+> > entered.
 > 
-> Hi Roman
-> I've read your patchset about cgroup aware OOM killer, and try
-> to merge your patchset to the upstream kernel(v4.17-rc1). But
-> I found some functions which in your patch([PATCH v13 3/7] 
-> mm, oom: cgroup-aware OOM killer) does not exist in the upstream
-> kernel. Which version of the kernel do you patch on? And, do you
-> have the latest patchset?
-> 
-> The faults in PATCH v13 3/7:
-> 1. mm/oom_kill.o: In function `out_of_memory':
->    /linux/mm/oom_kill.c:1125: undefined reference to `alloc_pages_before_oomkill'
-> 2. mm/oom_kill.c: In function a??out_of_memorya??:
->    mm/oom_kill.c:1125:5: error: a??struct oom_controla?? has no member named a??pagea??
->    oc->page = alloc_pages_before_oomkill(oc);
->      ^
-> 
-> Best wishes
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Not true. munlock_vma_pages_all might take page_lock which can have
+> unpredictable dependences. This is the reason why we are ruling out
+> mlocked VMAs in the first place when reaping the address space.
+
+Wow! Then,
+
+> While you are correct, strictly speaking, because unmap_vmas can race
+> with the oom reaper. With the lock held during the whole operation we
+> can indeed trigger back off in the oom_repaer. It will keep retrying but
+> the tear down can take quite some time. This is a fair argument. On the
+> other hand your lock protocol introduces the MMF_OOM_SKIP problem I've
+> mentioned above and that really worries me. The primary objective of the
+> reaper is to guarantee a forward progress without relying on any
+> externalities. We might kill another OOM victim but that is safer than
+> lock up.
+
+current code has a possibility that the OOM reaper is disturbed by
+unpredictable dependencies, like I worried that
+
+  I think that there is a possibility that the OOM reaper tries to reclaim
+  mlocked pages as soon as exit_mmap() cleared VM_LOCKED flag by calling
+  munlock_vma_pages_all().
+
+when current approach was proposed. We currently have the MMF_OOM_SKIP problem.
+We need to teach the OOM reaper stop reaping as soon as entering exit_mmap().
+Maybe let the OOM reaper poll for progress (e.g. none of get_mm_counter(mm, *)
+decreased for last 1 second) ?
