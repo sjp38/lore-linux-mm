@@ -1,54 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FF1B6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:30:40 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id v74so3809232qkl.9
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 09:30:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 15si219140qkl.237.2018.04.19.09.30.38
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F36536B0006
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:41:29 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id e11so1982297pgv.15
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 09:41:29 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id v40-v6si3810509plg.84.2018.04.19.09.41.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 09:30:39 -0700 (PDT)
-Date: Thu, 19 Apr 2018 12:30:36 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [LSF/MM] schedule suggestion
-Message-ID: <20180419163036.GC3519@redhat.com>
-References: <20180418211939.GD3476@redhat.com>
- <20180419015508.GJ27893@dastard>
- <20180419143825.GA3519@redhat.com>
- <20180419144356.GC25406@bombadil.infradead.org>
+        Thu, 19 Apr 2018 09:41:28 -0700 (PDT)
+Date: Thu, 19 Apr 2018 18:41:22 +0200
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Message-ID: <20180419164122.GA5494@kroah.com>
+References: <20180416093058.6edca0bb@gandalf.local.home>
+ <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
+ <20180416113629.2474ae74@gandalf.local.home>
+ <20180416160200.GY2341@sasha-vm>
+ <20180416121224.2138b806@gandalf.local.home>
+ <20180416161911.GA2341@sasha-vm>
+ <7d5de770-aee7-ef71-3582-5354c38fc176@mageia.org>
+ <20180419135943.GC16862@kroah.com>
+ <20180419140545.7hzpnyhiscgapkx4@quack2.suse.cz>
+ <20180419142222.GA29648@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180419144356.GC25406@bombadil.infradead.org>
+In-Reply-To: <20180419142222.GA29648@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Thomas Backlund <tmb@mageia.org>, Sasha Levin <Alexander.Levin@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
 
-On Thu, Apr 19, 2018 at 07:43:56AM -0700, Matthew Wilcox wrote:
-> On Thu, Apr 19, 2018 at 10:38:25AM -0400, Jerome Glisse wrote:
-> > Oh can i get one more small slot for fs ? I want to ask if they are
-> > any people against having a callback everytime a struct file is added
-> > to a task_struct and also having a secondary array so that special
-> > file like device file can store something opaque per task_struct per
-> > struct file.
+On Thu, Apr 19, 2018 at 04:22:22PM +0200, Greg KH wrote:
+> On Thu, Apr 19, 2018 at 04:05:45PM +0200, Jan Kara wrote:
+> > On Thu 19-04-18 15:59:43, Greg KH wrote:
+> > > On Thu, Apr 19, 2018 at 02:41:33PM +0300, Thomas Backlund wrote:
+> > > > Den 16-04-2018 kl. 19:19, skrev Sasha Levin:
+> > > > > On Mon, Apr 16, 2018 at 12:12:24PM -0400, Steven Rostedt wrote:
+> > > > > > On Mon, 16 Apr 2018 16:02:03 +0000
+> > > > > > Sasha Levin <Alexander.Levin@microsoft.com> wrote:
+> > > > > > 
+> > > > > > > One of the things Greg is pushing strongly for is "bug compatibility":
+> > > > > > > we want the kernel to behave the same way between mainline and stable.
+> > > > > > > If the code is broken, it should be broken in the same way.
+> > > > > > 
+> > > > > > Wait! What does that mean? What's the purpose of stable if it is as
+> > > > > > broken as mainline?
+> > > > > 
+> > > > > This just means that if there is a fix that went in mainline, and the
+> > > > > fix is broken somehow, we'd rather take the broken fix than not.
+> > > > > 
+> > > > > In this scenario, *something* will be broken, it's just a matter of
+> > > > > what. We'd rather have the same thing broken between mainline and
+> > > > > stable.
+> > > > > 
+> > > > 
+> > > > Yeah, but _intentionally_ breaking existing setups to stay "bug compatible"
+> > > > _is_ a _regression_ you _really_ _dont_ want in a stable
+> > > > supported distro. Because end-users dont care about upstream breaking
+> > > > stuff... its the distro that takes the heat for that...
+> > > > 
+> > > > Something "already broken" is not a regression...
+> > > > 
+> > > > As distro maintainer that means one now have to review _every_ patch that
+> > > > carries "AUTOSEL", follow all the mail threads that comes up about it, then
+> > > > track if it landed in -stable queue, and read every response and possible
+> > > > objection to all patches in the -stable queue a second time around... then
+> > > > check if it still got included in final stable point relase and then either
+> > > > revert them in distro kernel or go track down all the follow-up fixes
+> > > > needed...
+> > > > 
+> > > > Just to avoid being "bug compatible with master"
+> > > 
+> > > I've done this "bug compatible" "breakage" more than the AUTOSEL stuff
+> > > has in the past, so you had better also be reviewing all of my normal
+> > > commits as well :)
+> > > 
+> > > Anyway, we are trying not to do this, but it does, and will,
+> > > occasionally happen.
+> > 
+> > Sure, that's understood. So this was just misunderstanding. Sasha's
+> > original comment really sounded like "bug compatibility" with current
+> > master is desirable and that made me go "Are you serious?" as well...
 > 
-> Do you really want something per _thread_, and not per _mm_?
+> As I said before in this thread, yes, sometimes I do this on purpose.
+> 
+> As an specific example, see a recent bluetooth patch that caused a
+> regression on some chromebook devices.  The chromeos developers
+> rightfully complainied, and I left the commit in there to provide the
+> needed "leverage" on the upstream developers to fix this properly.
+> Otherwise if I had reverted the stable patch, when people move to a
+> newer kernel version, things break, and no one remembers why.
+> 
+> I also wrote a long response as to _why_ I do this, and even though it
+> does happen, why it still is worth taking the stable updates.  Please
+> see the archives for the full details.  I don't want to duplicate this
+> again here.
 
-Well per mm would be fine but i do not see how to make that happen with
-reasonable structure. So issue is that you can have multiple task with
-same mm but different file descriptors (or am i wrong here ?) thus there
-would be no easy way given a struct file to lookup the per mm struct.
+And to be more specific, let's always take this as a case-by-case basis.
+The last time this happened was the bluetooth bug and it was a fix for a
+reported problem, but then the fix caused a regression so upstream
+reverted it and I reverted it in the stable trees.  No matter what I
+chose to do, someone would be upset so I followed what upstream did.
 
-So as a not perfect solution i see a new array in filedes which would
-allow device driver to store a pointer to their per mm data structure.
-To be fair usualy you will only have a single fd in a single task for
-a given device.
+thanks,
 
-If you see an easy way to get a per mm per inode pointer store somewhere
-with easy lookup i am all ears :)
-
-Cheers,
-Jerome
+greg k-h
