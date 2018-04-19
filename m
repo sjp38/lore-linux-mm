@@ -1,72 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D68586B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 15:47:53 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f19so3303285pfn.6
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:47:53 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id bh1-v6si3780674plb.246.2018.04.19.12.47.52
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DEC26B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 15:56:41 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id x5-v6so3545872pln.21
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:56:41 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k14si3840919pfg.321.2018.04.19.12.56.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 12:47:52 -0700 (PDT)
-Date: Thu, 19 Apr 2018 12:47:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
-Message-Id: <20180419124751.8884e516e99825d83da3d87a@linux-foundation.org>
-In-Reply-To: <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com>
-	<3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com>
-	<alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com>
-	<20180418.134651.2225112489265654270.davem@davemloft.net>
-	<alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
-	<alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 19 Apr 2018 12:56:40 -0700 (PDT)
+Date: Thu, 19 Apr 2018 12:56:37 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [LSF/MM] schedule suggestion
+Message-ID: <20180419195637.GA14024@bombadil.infradead.org>
+References: <20180418211939.GD3476@redhat.com>
+ <20180419015508.GJ27893@dastard>
+ <20180419143825.GA3519@redhat.com>
+ <20180419144356.GC25406@bombadil.infradead.org>
+ <20180419163036.GC3519@redhat.com>
+ <1524157119.2943.6.camel@kernel.org>
+ <20180419172609.GD3519@redhat.com>
+ <1524162667.2943.22.camel@kernel.org>
+ <20180419193108.GA4981@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180419193108.GA4981@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: David Miller <davem@davemloft.net>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, bhutchings@solarflare.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Jeff Layton <jlayton@kernel.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Thu, 19 Apr 2018 12:12:38 -0400 (EDT) Mikulas Patocka <mpatocka@redhat.com> wrote:
-
-> The kvmalloc function tries to use kmalloc and falls back to vmalloc if
-> kmalloc fails.
+On Thu, Apr 19, 2018 at 03:31:08PM -0400, Jerome Glisse wrote:
+> > > Basicly i want a callback in __fd_install(), do_dup2(), dup_fd() and
+> > > add void * *private_data; to struct fdtable (also a default array to
+> > > struct files_struct). The callback would be part of struct file_operations.
+> > > and only call if it exist (os overhead is only for device driver that
+> > > care).
+> > > 
+> > > Did i miss something fundamental ? copy_files() call dup_fd() so i
+> > > should be all set here.
+> > > 
+> > > I will work on patches i was hoping this would not be too much work.
 > 
-> Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
-> uses DMA-API on the returned memory or frees it with kfree. Such bugs were
-> found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
-> code.
-> 
-> These bugs are hard to reproduce because vmalloc falls back to kmalloc
-> only if memory is fragmented.
+> Well scratch that whole idea, i would need to add a new array to task
+> struct which make it a lot less appealing. Hence a better solution is
+> to instead have this as part of mm (well indirectly).
 
-Yes, that's nasty.
+It shouldn't be too bad to add a struct radix_tree to the fdtable.
 
-> In order to detect these bugs reliably I submit this patch that changes
-> kvmalloc to always use vmalloc if CONFIG_DEBUG_VM is turned on.
-> 
-> ...
->
-> --- linux-2.6.orig/mm/util.c	2018-04-18 15:46:23.000000000 +0200
-> +++ linux-2.6/mm/util.c	2018-04-18 16:00:43.000000000 +0200
-> @@ -395,6 +395,7 @@ EXPORT_SYMBOL(vm_mmap);
->   */
->  void *kvmalloc_node(size_t size, gfp_t flags, int node)
->  {
-> +#ifndef CONFIG_DEBUG_VM
->  	gfp_t kmalloc_flags = flags;
->  	void *ret;
->  
-> @@ -426,6 +427,7 @@ void *kvmalloc_node(size_t size, gfp_t f
->  	 */
->  	if (ret || size <= PAGE_SIZE)
->  		return ret;
-> +#endif
->  
->  	return __vmalloc_node_flags_caller(size, node, flags,
->  			__builtin_return_address(0));
-
-Well, it doesn't have to be done at compile-time, does it?  We could
-add a knob (in debugfs, presumably) which enables this at runtime. 
-That's far more user-friendly.
+I'm sure we could just not support weird cases like sharing the fdtable
+without sharing the mm.  Does anyone actually do that?
