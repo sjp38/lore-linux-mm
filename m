@@ -1,64 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AE0226B0006
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:58:43 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q15so3078411pff.15
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 09:58:43 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x11si3349136pgq.258.2018.04.19.09.58.42
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CB5696B0003
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 13:20:11 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id e11so2018932pgv.15
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 10:20:11 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30112.outbound.protection.outlook.com. [40.107.3.112])
+        by mx.google.com with ESMTPS id q21-v6si3954934pls.3.2018.04.19.10.20.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 09:58:42 -0700 (PDT)
-Message-ID: <1524157119.2943.6.camel@kernel.org>
-Subject: Re: [LSF/MM] schedule suggestion
-From: Jeff Layton <jlayton@kernel.org>
-Date: Thu, 19 Apr 2018 12:58:39 -0400
-In-Reply-To: <20180419163036.GC3519@redhat.com>
-References: <20180418211939.GD3476@redhat.com>
-	 <20180419015508.GJ27893@dastard> <20180419143825.GA3519@redhat.com>
-	 <20180419144356.GC25406@bombadil.infradead.org>
-	 <20180419163036.GC3519@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 19 Apr 2018 10:20:09 -0700 (PDT)
+Subject: Re: [PATCH] KASAN: prohibit KASAN+STRUCTLEAK combination
+References: <20180419094847.56737-1-dvyukov@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <d405534b-6d18-715a-85b9-7fc4305d75d3@virtuozzo.com>
+Date: Thu, 19 Apr 2018 20:21:02 +0300
+MIME-Version: 1.0
+In-Reply-To: <20180419094847.56737-1-dvyukov@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: kasan-dev@googlegroups.com, Fengguang Wu <fengguang.wu@intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Kees Cook <keescook@google.com>
 
-On Thu, 2018-04-19 at 12:30 -0400, Jerome Glisse wrote:
-> On Thu, Apr 19, 2018 at 07:43:56AM -0700, Matthew Wilcox wrote:
-> > On Thu, Apr 19, 2018 at 10:38:25AM -0400, Jerome Glisse wrote:
-> > > Oh can i get one more small slot for fs ? I want to ask if they are
-> > > any people against having a callback everytime a struct file is added
-> > > to a task_struct and also having a secondary array so that special
-> > > file like device file can store something opaque per task_struct per
-> > > struct file.
-> > 
-> > Do you really want something per _thread_, and not per _mm_?
-> 
-> Well per mm would be fine but i do not see how to make that happen with
-> reasonable structure. So issue is that you can have multiple task with
-> same mm but different file descriptors (or am i wrong here ?) thus there
-> would be no easy way given a struct file to lookup the per mm struct.
-> 
-> So as a not perfect solution i see a new array in filedes which would
-> allow device driver to store a pointer to their per mm data structure.
-> To be fair usualy you will only have a single fd in a single task for
-> a given device.
-> 
-> If you see an easy way to get a per mm per inode pointer store somewhere
-> with easy lookup i am all ears :)
-> 
 
-I may be misunderstanding, but to be clear: struct files don't get
-added to a thread, per-se.
 
-When userland calls open() or similar, the struct file gets added to
-the files_struct. Those are generally shared with other threads within
-the same process. The files_struct can also be shared with other
-processes if you clone() with the right flags.
+On 04/19/2018 12:48 PM, Dmitry Vyukov wrote:
 
-Doing something per-thread on every open may be rather difficult to do.
--- 
-Jeff Layton <jlayton@kernel.org>
+> --- a/arch/Kconfig
+> +++ b/arch/Kconfig
+> @@ -464,6 +464,10 @@ config GCC_PLUGIN_LATENT_ENTROPY
+>  config GCC_PLUGIN_STRUCTLEAK
+>  	bool "Force initialization of variables containing userspace addresses"
+>  	depends on GCC_PLUGINS
+> +	# Currently STRUCTLEAK inserts initialization out of live scope of
+> +	# variables from KASAN point of view. This leads to KASAN false
+> +	# positive reports. Prohibit this combination for now.
+> +	depends on !KASAN
+                    KASAN_EXTRA
