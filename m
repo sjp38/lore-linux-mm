@@ -1,36 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DE656B0007
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 19:40:45 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id d9-v6so3856232plj.4
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 16:40:45 -0700 (PDT)
-Received: from out4438.biz.mail.alibaba.com (out4438.biz.mail.alibaba.com. [47.88.44.38])
-        by mx.google.com with ESMTPS id x7si3883498pge.559.2018.04.19.16.40.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 16:40:44 -0700 (PDT)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [LSF/MM] May I sneak in a new topic to MM track?
-Message-ID: <72f799d6-2b50-3185-888f-48438d33f817@linux.alibaba.com>
-Date: Thu, 19 Apr 2018 16:40:15 -0700
+	by kanga.kvack.org (Postfix) with ESMTP id 0E2176B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 19:59:28 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id o3-v6so3866486pls.11
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 16:59:28 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id o11-v6si4548040plk.434.2018.04.19.16.59.26
+        for <linux-mm@kvack.org>;
+        Thu, 19 Apr 2018 16:59:26 -0700 (PDT)
+Date: Fri, 20 Apr 2018 09:59:23 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [LSF/MM] Ride sharing
+Message-ID: <20180419235923.GO27893@dastard>
+References: <20180419203432.GC14024@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180419203432.GC14024@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, mhocko@kernel.org, Rik van Riel <riel@redhat.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
 
-Hi folks,
+On Thu, Apr 19, 2018 at 01:34:32PM -0700, Matthew Wilcox wrote:
+> I hate renting unnecessary cars, and the various transportation companies
+> offer a better deal if multiple people book at once.
+> 
+> I'm scheduled to arrive on Sunday at 3:18pm local time if anyone wants to
+> share transport. Does anyone have a wiki we can use to coordinate this?
 
+Arriving 4.15pm sunday, so if you want to wait around for a bit I'm
+happy to share...
 
-I posted a patch series about mmap_sem scalability 
-(https://lkml.org/lkml/2018/3/20/786), and got a lot great feedback. I'm 
-working on v2 now (a little bit behind).A  Could we sneak this in if 
-anyone is interested? I saw Laurent has a topic about mmap_sem too, I'm 
-supposed it is speculative page fault related.
+Cheers,
 
-
-Thanks,
-
-Yang
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
