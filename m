@@ -1,42 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC1A6B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 03:17:23 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a6so2315041pfn.3
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 00:17:23 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z6-v6sor1112878pln.101.2018.04.19.00.17.22
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ECB5B6B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 03:33:26 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 88-v6so2991025wrc.21
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 00:33:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u26si1630902edl.251.2018.04.19.00.33.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Apr 2018 00:17:22 -0700 (PDT)
-From: ufo19890607 <ufo19890607@gmail.com>
-Subject: Some questions about cgroup aware OOM killer.
-Date: Thu, 19 Apr 2018 08:17:04 +0100
-Message-Id: <1524122224-26670-1-git-send-email-ufo19890607@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Apr 2018 00:33:25 -0700 (PDT)
+Date: Thu, 19 Apr 2018 09:33:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC 0/8] mm: online/offline 4MB chunks controlled by
+ device driver
+Message-ID: <20180419073323.GO17484@dhcp22.suse.cz>
+References: <20180413131632.1413-1-david@redhat.com>
+ <20180413155917.GX17484@dhcp22.suse.cz>
+ <b51ca7a1-c5ae-fbbb-8edf-e71f383da07e@redhat.com>
+ <20180416140810.GR17484@dhcp22.suse.cz>
+ <d39f5b5d-db9b-0729-e68b-b15c314ddd13@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d39f5b5d-db9b-0729-e68b-b15c314ddd13@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: guro@fb.com, mhocko@suse.com, vdavydov.dev@gmail.com, penguin-kernel@i-love.sakura.ne.jp, rientjes@google.com, akpm@linux-foundation.org, tj@kernel.org
-Cc: kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, yuzhoujian <yuzhoujian@didichuxing.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org
 
-From: yuzhoujian <yuzhoujian@didichuxing.com>
+On Wed 18-04-18 17:46:25, David Hildenbrand wrote:
+[...]
+> BTW I was able to easily produce the case where do_migrate_range() would
+> loop for ever (well at least for multiple minutes, but I assume this
+> would have went on :) )
 
-Hi Roman
-I've read your patchset about cgroup aware OOM killer, and try
-to merge your patchset to the upstream kernel(v4.17-rc1). But
-I found some functions which in your patch([PATCH v13 3/7] 
-mm, oom: cgroup-aware OOM killer) does not exist in the upstream
-kernel. Which version of the kernel do you patch on? And, do you
-have the latest patchset?
+I am definitely interested to hear details.
 
-The faults in PATCH v13 3/7:
-1. mm/oom_kill.o: In function `out_of_memory':
-   /linux/mm/oom_kill.c:1125: undefined reference to `alloc_pages_before_oomkill'
-2. mm/oom_kill.c: In function a??out_of_memorya??:
-   mm/oom_kill.c:1125:5: error: a??struct oom_controla?? has no member named a??pagea??
-   oc->page = alloc_pages_before_oomkill(oc);
-     ^
-
-Best wishes
+-- 
+Michal Hocko
+SUSE Labs
