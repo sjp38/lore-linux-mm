@@ -1,114 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F2E86B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 17:47:56 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id i21-v6so4457075qtp.10
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 14:47:56 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u19si2214910qke.222.2018.04.19.14.47.55
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C81E6B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 18:13:08 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id v31-v6so3919056otb.0
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 15:13:08 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id t65-v6si1424510oig.391.2018.04.19.15.13.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 14:47:55 -0700 (PDT)
-Date: Thu, 19 Apr 2018 17:47:51 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [LSF/MM] schedule suggestion
-Message-ID: <20180419214751.GD4981@redhat.com>
-References: <20180418211939.GD3476@redhat.com>
- <20180419015508.GJ27893@dastard>
- <20180419143825.GA3519@redhat.com>
- <20180419144356.GC25406@bombadil.infradead.org>
- <20180419163036.GC3519@redhat.com>
- <1524157119.2943.6.camel@kernel.org>
- <20180419172609.GD3519@redhat.com>
- <20180419203307.GJ30522@ZenIV.linux.org.uk>
- <20180419205820.GB4981@redhat.com>
- <20180419212137.GM30522@ZenIV.linux.org.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180419212137.GM30522@ZenIV.linux.org.uk>
+        Thu, 19 Apr 2018 15:13:06 -0700 (PDT)
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
+	<20180418075051.GO17484@dhcp22.suse.cz>
+	<alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com>
+	<20180419063556.GK17484@dhcp22.suse.cz>
+	<alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com>
+Message-Id: <201804200713.IJF15701.SOVFOMHtQJOFFL@I-love.SAKURA.ne.jp>
+Date: Fri, 20 Apr 2018 07:13:02 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Jeff Layton <jlayton@kernel.org>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: rientjes@google.com, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 19, 2018 at 10:21:37PM +0100, Al Viro wrote:
-> On Thu, Apr 19, 2018 at 04:58:20PM -0400, Jerome Glisse wrote:
+David Rientjes wrote:
+> On Thu, 19 Apr 2018, Michal Hocko wrote:
 > 
-> > I need a struct to link part of device context with mm struct for a
-> > process. Most of device context is link to the struct file of the
-> > device file (ie process open has a file descriptor for the device
-> > file).
-> 
-> Er...  You do realize that
-> 	fd = open(...)
-> 	mmap(fd, ...)
-> 	close(fd)
-> is absolutely legitimate, right?  IOW, existence/stability/etc. of
-> a file descriptor is absolutely *not* guaranteed - in fact, there might
-> be not a single file descriptor referring to a given openen and mmaped
-> file.
-
-Yes and that's fine, on close(fd) the device driver is tear down and
-struct i want to store is tear down too and free.
-
-> 
-> > Device driver for GPU have some part of their process context tied to
-> > the process mm (accessing process address space directly from the GPU).
-> > However we can not store this context information in the struct file
-> > private data because of clone (same struct file accross different mm).
+> > > exit_mmap() does not block before set_bit(MMF_OOM_SKIP) once it is 
+> > > entered.
 > > 
-> > So today driver have an hashtable in their global device structure to
-> > lookup context information for a given mm. This is sub-optimal and
-> > duplicate a lot of code among different drivers.
-> 
-> Umm...  Examples?
-
-https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/radeon/radeon_mn.c
-https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/i915/i915_gem_userptr.c
-https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-
-RDMA folks too have similar construct.
-
-> 
-> > Hence why i want something generic that allow a device driver to store
-> > context structure that is specific to a mm. I thought that adding a
-> > new array on the side of struct file array would be a good idea but it
-> > has too many kludges.
+> > Not true. munlock_vma_pages_all might take page_lock which can have
+> > unpredictable dependences. This is the reason why we are ruling out
+> > mlocked VMAs in the first place when reaping the address space.
 > > 
-> > So i will do something inside mmu_notifier and there will be no tie to
-> > any fs aspect. I expect only a handful of driver to care about this and
-> > for a given platform you won't see that many devices hence you won't
-> > have that many pointer to deal with.
 > 
-> Let's step back for a second - lookups by _what_?  If you are associating
-> somethin with a mapping, vm_area_struct would be a natural candidate for
-> storing such data, wouldn't it?
+> I don't find any occurrences in millions of oom kills in real-world 
+> scenarios where this matters.
+
+Is your OOM events system-wide rather than memcg?
+It is trivial to hide bugs in the details if your OOM events is memcg OOM.
+
+>                                The solution is certainly not to hold 
+> down_write(&mm->mmap_sem) during munlock_vma_pages_all() instead.  If 
+> exit_mmap() is not making forward progress then that's a separate issue; 
+
+Just a simple memory + CPU pressure is sufficient for making exit_mmap()
+unable to make forward progress. Try triggering system-wide OOM event by
+running below reproducer. We are ever ignoring this issue.
+
+-----
+#include <unistd.h>
+
+int main(int argc, char *argv[])
+{
+        while (1)
+                if (fork() == 0)
+                        execlp(argv[0], argv[0], NULL);
+        return 0;
+}
+-----
+
+> that would need to be fixed in one of two ways: (1) in oom_reap_task() to 
+> try over a longer duration before setting MMF_OOM_SKIP itself, but that 
+> would have to be a long duration to allow a large unmap and page table 
+> free, or (2) in oom_evaluate_task() so that we defer for MMF_OOM_SKIP but 
+> only if MMF_UNSTABLE has been set for a long period of time so we target 
+> another process when the oom killer has given up.
 > 
-> What do you have and what do you want to find?
+> Either of those two fixes are simple to implement, I'd just like to see a 
+> bug report with stack traces to indicate that a victim getting stalled in 
+> exit_mmap() is a problem to justify the patch.
 
-So you are in an ioctl against the device file, you have struct file
-and driver store a pointer to some file context info in struct file
-private data which itself has a pointer to some global device driver
-structure which itself has a pointer to struct device.
+It is too hard for normal users to report problems under memory pressure
+without a mean to help understand what is happening. See a bug report at
+https://lists.opensuse.org/opensuse-kernel/2018-04/msg00018.html for example.
 
-Hence i have struct mm (from current->mm), and dev_t easily available.
+> 
+> I'm trying to fix the page table corruption that is trivial to trigger on 
+> powerpc.  We simply cannot allow the oom reaper's unmap_page_range() to 
+> race with munlock_vma_pages_range(), ever.  Holding down_write on 
+> mm->mmap_sem otherwise needlessly over a large amount of code is riskier 
+> (hasn't been done or tested here), more error prone (any code change over 
+> this large area of code or in functions it calls are unnecessarily 
+> burdened by unnecessary locking), makes exit_mmap() less extensible for 
+> the same reason, and causes the oom reaper to give up and go set 
+> MMF_OOM_SKIP itself because it depends on taking down_read while the 
+> thread is still exiting.
 
-The context information is tie to the mm for the device and can only
-be use against said mm. Even if the struct file of the device outlive
-the original process, no one can use that struct with a process that
-do not have the same mm. Moreover that struct is freed if the mm is
-destroy.
-
-If child, share the struct file but have a different and want to use
-same feature then a new structure is created and has same property ie
-can only be use against this new mm.
-
-The link with struct file is not explicit but you can only use objects
-tie to that struct through ioctl against the struct file.
-
-Hopes this clarify the use case.
-
-Cheers,
-Jerome
+I suggest reverting 212925802454 ("mm: oom: let oom_reap_task and exit_mmap
+run concurrently"). We can check for progress for a while before setting
+MMF_OOM_SKIP after the OOM reaper completed or gave up reaping.
