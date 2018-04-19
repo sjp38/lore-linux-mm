@@ -1,50 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AE5036B0007
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 16:51:37 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id a38-v6so6447006wra.10
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 13:51:37 -0700 (PDT)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id w10-v6si3422380wrg.377.2018.04.19.13.51.36
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B55D6B0007
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 16:58:24 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id a125so4383995qkd.4
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 13:58:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id u190si410952qka.45.2018.04.19.13.58.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 13:51:36 -0700 (PDT)
-Date: Thu, 19 Apr 2018 21:51:30 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
+        Thu, 19 Apr 2018 13:58:23 -0700 (PDT)
+Date: Thu, 19 Apr 2018 16:58:20 -0400
+From: Jerome Glisse <jglisse@redhat.com>
 Subject: Re: [LSF/MM] schedule suggestion
-Message-ID: <20180419205130.GL30522@ZenIV.linux.org.uk>
-References: <20180419015508.GJ27893@dastard>
+Message-ID: <20180419205820.GB4981@redhat.com>
+References: <20180418211939.GD3476@redhat.com>
+ <20180419015508.GJ27893@dastard>
  <20180419143825.GA3519@redhat.com>
  <20180419144356.GC25406@bombadil.infradead.org>
  <20180419163036.GC3519@redhat.com>
  <1524157119.2943.6.camel@kernel.org>
  <20180419172609.GD3519@redhat.com>
- <1524162667.2943.22.camel@kernel.org>
- <20180419193108.GA4981@redhat.com>
- <20180419195637.GA14024@bombadil.infradead.org>
- <20180419201502.GA11372@redhat.com>
+ <20180419203307.GJ30522@ZenIV.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20180419201502.GA11372@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180419203307.GJ30522@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Jeff Layton <jlayton@kernel.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Jeff Layton <jlayton@kernel.org>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Thu, Apr 19, 2018 at 04:15:02PM -0400, Jerome Glisse wrote:
-
-> Well like you pointed out what i really want is a 1:1 structure linking
-> a device struct an a mm_struct. Given that this need to be cleanup when
-> mm goes away hence tying this to mmu_notifier sounds like a better idea.
+On Thu, Apr 19, 2018 at 09:33:07PM +0100, Al Viro wrote:
+> On Thu, Apr 19, 2018 at 01:26:10PM -0400, Jerome Glisse wrote:
 > 
-> I am thinking of adding a hashtable to mmu_notifier_mm using file id for
-> hash as this should be a good hash value for common cases. I only expect
-> few drivers to need that (GPU drivers, RDMA). Today GPU drivers do have
-> a hashtable inside their driver and they has on the mm struct pointer,
-> i believe hash mmu_notifier_mm using file id will be better.
+> > Basicly i want a callback in __fd_install(), do_dup2(), dup_fd() and
+> > add void * *private_data; to struct fdtable (also a default array to
+> > struct files_struct). The callback would be part of struct file_operations.
+> > and only call if it exist (os overhead is only for device driver that
+> > care).
+> 
+> Hell, *NO*.  This is insane - you would need to maintain extra counts
+> ("how many descriptors refer to this struct file... for this descriptor
+> table").
+> 
+> Besides, _what_ private_data?  What would own and maintain it?  A specific
+> driver?  What if more than one of them wants that thing?
 
-What _is_ "file id"?  If you are talking about file descriptors, you can
-very well have several for the same opened file.  Moreover, you can
-bloody well have it opened, then dup'ed, then original descriptor closed
-and reused by another open...
+I hadn't something complex in mind (ie timelife link to struct file and
+no refcouting changes). But anyway i gave up on that idea and will add
+what i need in mmu_notifier.
+
+>  
+> > Did i miss something fundamental ? copy_files() call dup_fd() so i
+> > should be all set here.
+> 
+> That looks like an extremely misguided kludge for hell knows what purpose,
+> almost certainly architecturally insane.  What are you actually trying to
+> achieve?
+
+I need a struct to link part of device context with mm struct for a
+process. Most of device context is link to the struct file of the
+device file (ie process open has a file descriptor for the device
+file).
+
+Device driver for GPU have some part of their process context tied to
+the process mm (accessing process address space directly from the GPU).
+However we can not store this context information in the struct file
+private data because of clone (same struct file accross different mm).
+
+So today driver have an hashtable in their global device structure to
+lookup context information for a given mm. This is sub-optimal and
+duplicate a lot of code among different drivers.
+
+Hence why i want something generic that allow a device driver to store
+context structure that is specific to a mm. I thought that adding a
+new array on the side of struct file array would be a good idea but it
+has too many kludges.
+
+So i will do something inside mmu_notifier and there will be no tie to
+any fs aspect. I expect only a handful of driver to care about this and
+for a given platform you won't see that many devices hence you won't
+have that many pointer to deal with.
+
+Cheers,
+Jerome
