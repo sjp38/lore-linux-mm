@@ -1,92 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9192E6B000E
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 11:04:30 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id k76-v6so197282lfg.9
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 08:04:30 -0700 (PDT)
-Received: from mx2.yrkesakademin.fi (mx2.yrkesakademin.fi. [85.134.45.195])
-        by mx.google.com with ESMTPS id n14si1511499ljg.43.2018.04.19.08.04.27
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 95DBA6B0011
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 11:08:15 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e14so2931894pfi.9
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 08:08:15 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id f4-v6si162842plm.448.2018.04.19.08.08.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 08:04:28 -0700 (PDT)
-Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
- waiter logic to load balance console writes
-References: <20180409001936.162706-15-alexander.levin@microsoft.com>
- <20180409082246.34hgp3ymkfqke3a4@pathway.suse.cz>
- <20180415144248.GP2341@sasha-vm> <20180416093058.6edca0bb@gandalf.local.home>
- <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
- <20180416113629.2474ae74@gandalf.local.home> <20180416160200.GY2341@sasha-vm>
- <20180416121224.2138b806@gandalf.local.home> <20180416161911.GA2341@sasha-vm>
- <7d5de770-aee7-ef71-3582-5354c38fc176@mageia.org>
- <20180419135943.GC16862@kroah.com>
-From: Thomas Backlund <tmb@mageia.org>
-Message-ID: <6425991f-7d7f-b1f9-ba37-3212a01ad6cf@mageia.org>
-Date: Thu, 19 Apr 2018 18:04:26 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Apr 2018 08:08:14 -0700 (PDT)
+Subject: Re: [LSF/MM] schedule suggestion
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
+References: <20180418211939.GD3476@redhat.com>
+	<20180419015508.GJ27893@dastard>
+	<D8E1F46B-ACC2-4072-A4D1-769A6B4F40F4@fb.com>
+Date: Thu, 19 Apr 2018 11:07:58 -0400
+In-Reply-To: <D8E1F46B-ACC2-4072-A4D1-769A6B4F40F4@fb.com> (Chris Mason's
+	message of "Thu, 19 Apr 2018 10:51:45 -0400")
+Message-ID: <yq1vacnjktt.fsf@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20180419135943.GC16862@kroah.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>, Thomas Backlund <tmb@mageia.org>
-Cc: Sasha Levin <Alexander.Levin@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
+To: Chris Mason <clm@fb.com>
+Cc: Dave Chinner <david@fromorbit.com>, Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-Den 19.04.2018 kl. 16:59, skrev Greg KH:
-> On Thu, Apr 19, 2018 at 02:41:33PM +0300, Thomas Backlund wrote:
->> Den 16-04-2018 kl. 19:19, skrev Sasha Levin:
->>> On Mon, Apr 16, 2018 at 12:12:24PM -0400, Steven Rostedt wrote:
->>>> On Mon, 16 Apr 2018 16:02:03 +0000
->>>> Sasha Levin <Alexander.Levin@microsoft.com> wrote:
->>>>
->>>>> One of the things Greg is pushing strongly for is "bug compatibility":
->>>>> we want the kernel to behave the same way between mainline and stable.
->>>>> If the code is broken, it should be broken in the same way.
->>>>
->>>> Wait! What does that mean? What's the purpose of stable if it is as
->>>> broken as mainline?
->>>
->>> This just means that if there is a fix that went in mainline, and the
->>> fix is broken somehow, we'd rather take the broken fix than not.
->>>
->>> In this scenario, *something* will be broken, it's just a matter of
->>> what. We'd rather have the same thing broken between mainline and
->>> stable.
->>>
+
+Chris,
+
+>> I'd like to propose that we compact the fs sessions so that we get a
+>> 3-slot session reserved for "Individual filesystem discussions" one
+>> afternoon. That way we've got time in the schedule for the all the
+>> ext4/btrfs/XFS/NFS/CIFS devs to get together with each other and
+>> talk about things of interest only to their own fileystems.
 >>
->> Yeah, but _intentionally_ breaking existing setups to stay "bug compatible"
->> _is_ a _regression_ you _really_ _dont_ want in a stable
->> supported distro. Because end-users dont care about upstream breaking
->> stuff... its the distro that takes the heat for that...
->>
->> Something "already broken" is not a regression...
->>
->> As distro maintainer that means one now have to review _every_ patch that
->> carries "AUTOSEL", follow all the mail threads that comes up about it, then
->> track if it landed in -stable queue, and read every response and possible
->> objection to all patches in the -stable queue a second time around... then
->> check if it still got included in final stable point relase and then either
->> revert them in distro kernel or go track down all the follow-up fixes
->> needed...
->>
->> Just to avoid being "bug compatible with master"
-> 
-> I've done this "bug compatible" "breakage" more than the AUTOSEL stuff
-> has in the past, so you had better also be reviewing all of my normal
-> commits as well :)
-> 
+>> That means we all don't have to find time outside the schedule to do
+>> this, and think this wold be time very well spent for most fs people
+>> at the conf....
+>
+> I'd love this as well.
 
-Yeah, I do... and same goes there ... if there is a known issue, then 
-same procedure... Either revert, or try to track down fixes...
+Based on feedback last year we explicitly added a third day to LSF/MM to
+facilitate hack time and project meetings.
 
+As usual the schedule is fluid and will be adjusted on the fly.
+Depending on track, I am hoping we'll be done with the scheduled topics
+either at the end of Tuesday or Wednesday morning.
 
-> Anyway, we are trying not to do this, but it does, and will,
-> occasionally happen.  Look, we just did that for one platform for
-> 4.9.94!  And the key to all of this is good testing, which we are now
-> doing, and hopefully you are also doing as well.
-
-Yeah, but having to test stuff with known breakages is no fun, so we try 
-to avoid that
-
---
-Thomas
+-- 
+Martin K. Petersen	Oracle Linux Engineering
