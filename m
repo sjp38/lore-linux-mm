@@ -1,91 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B51E6B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 15:34:56 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id c11-v6so3536346pll.13
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:34:56 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i192sor1064888pgc.343.2018.04.19.12.34.55
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D68586B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 15:47:53 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f19so3303285pfn.6
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 12:47:53 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id bh1-v6si3780674plb.246.2018.04.19.12.47.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Apr 2018 12:34:55 -0700 (PDT)
-Date: Thu, 19 Apr 2018 12:34:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper
- unmap
-In-Reply-To: <20180419063556.GK17484@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com> <201804180057.w3I0vieV034949@www262.sakura.ne.jp> <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com> <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
- <20180418075051.GO17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com> <20180419063556.GK17484@dhcp22.suse.cz>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Apr 2018 12:47:52 -0700 (PDT)
+Date: Thu, 19 Apr 2018 12:47:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
+Message-Id: <20180419124751.8884e516e99825d83da3d87a@linux-foundation.org>
+In-Reply-To: <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com>
+	<3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com>
+	<alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com>
+	<20180418.134651.2225112489265654270.davem@davemloft.net>
+	<alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
+	<alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: David Miller <davem@davemloft.net>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, bhutchings@solarflare.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, 19 Apr 2018, Michal Hocko wrote:
+On Thu, 19 Apr 2018 12:12:38 -0400 (EDT) Mikulas Patocka <mpatocka@redhat.com> wrote:
 
-> > exit_mmap() does not block before set_bit(MMF_OOM_SKIP) once it is 
-> > entered.
+> The kvmalloc function tries to use kmalloc and falls back to vmalloc if
+> kmalloc fails.
 > 
-> Not true. munlock_vma_pages_all might take page_lock which can have
-> unpredictable dependences. This is the reason why we are ruling out
-> mlocked VMAs in the first place when reaping the address space.
+> Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
+> uses DMA-API on the returned memory or frees it with kfree. Such bugs were
+> found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
+> code.
 > 
+> These bugs are hard to reproduce because vmalloc falls back to kmalloc
+> only if memory is fragmented.
 
-I don't find any occurrences in millions of oom kills in real-world 
-scenarios where this matters.  The solution is certainly not to hold 
-down_write(&mm->mmap_sem) during munlock_vma_pages_all() instead.  If 
-exit_mmap() is not making forward progress then that's a separate issue; 
-that would need to be fixed in one of two ways: (1) in oom_reap_task() to 
-try over a longer duration before setting MMF_OOM_SKIP itself, but that 
-would have to be a long duration to allow a large unmap and page table 
-free, or (2) in oom_evaluate_task() so that we defer for MMF_OOM_SKIP but 
-only if MMF_UNSTABLE has been set for a long period of time so we target 
-another process when the oom killer has given up.
+Yes, that's nasty.
 
-Either of those two fixes are simple to implement, I'd just like to see a 
-bug report with stack traces to indicate that a victim getting stalled in 
-exit_mmap() is a problem to justify the patch.
-
-I'm trying to fix the page table corruption that is trivial to trigger on 
-powerpc.  We simply cannot allow the oom reaper's unmap_page_range() to 
-race with munlock_vma_pages_range(), ever.  Holding down_write on 
-mm->mmap_sem otherwise needlessly over a large amount of code is riskier 
-(hasn't been done or tested here), more error prone (any code change over 
-this large area of code or in functions it calls are unnecessarily 
-burdened by unnecessary locking), makes exit_mmap() less extensible for 
-the same reason, and causes the oom reaper to give up and go set 
-MMF_OOM_SKIP itself because it depends on taking down_read while the 
-thread is still exiting.
-
-> On the
-> other hand your lock protocol introduces the MMF_OOM_SKIP problem I've
-> mentioned above and that really worries me. The primary objective of the
-> reaper is to guarantee a forward progress without relying on any
-> externalities. We might kill another OOM victim but that is safer than
-> lock up.
+> In order to detect these bugs reliably I submit this patch that changes
+> kvmalloc to always use vmalloc if CONFIG_DEBUG_VM is turned on.
 > 
+> ...
+>
+> --- linux-2.6.orig/mm/util.c	2018-04-18 15:46:23.000000000 +0200
+> +++ linux-2.6/mm/util.c	2018-04-18 16:00:43.000000000 +0200
+> @@ -395,6 +395,7 @@ EXPORT_SYMBOL(vm_mmap);
+>   */
+>  void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>  {
+> +#ifndef CONFIG_DEBUG_VM
+>  	gfp_t kmalloc_flags = flags;
+>  	void *ret;
+>  
+> @@ -426,6 +427,7 @@ void *kvmalloc_node(size_t size, gfp_t f
+>  	 */
+>  	if (ret || size <= PAGE_SIZE)
+>  		return ret;
+> +#endif
+>  
+>  	return __vmalloc_node_flags_caller(size, node, flags,
+>  			__builtin_return_address(0));
 
-I understand the concern, but it's the difference between the victim 
-getting stuck in exit_mmap() and actually taking a long time to free its 
-memory in exit_mmap().  I don't have evidence of the former.  If there are 
-bug reports for occurrences of the oom reaper being unable to reap, it 
-would be helpful to see.  The only reports about the "unable to reap" 
-message was that the message itself was racy, not that a thread got stuck.  
-This is more reason to not take down_write unnecessarily in the 
-exit_mmap() path, because it influences an oom reaper heurstic.
-
-> The current protocol has proven to be error prone so I really believe we
-> should back off and turn it into something much simpler and build on top
-> of that if needed.
-> 
-> So do you see any _technical_ reasons why not do [1] and have a simpler
-> protocol easily backportable to stable trees?
-
-It's not simpler per the above, and I agree with Andrea's assessment when 
-this was originally implemented.  The current method is not error prone, 
-it works, it just wasn't protecting enough of exit_mmap().  That's not a 
-critcism of the method itself, it's a bugfix that expands its critical 
-section.  
+Well, it doesn't have to be done at compile-time, does it?  We could
+add a knob (in debugfs, presumably) which enables this at runtime. 
+That's far more user-friendly.
