@@ -1,84 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 023D46B0006
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 17:27:08 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id u8so4424524qkg.15
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 14:27:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id t8si1209560qke.46.2018.04.19.14.27.07
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ABAA6B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 17:42:13 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id l6-v6so483410wrn.17
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 14:42:13 -0700 (PDT)
+Received: from mail.kmu-office.ch (mail.kmu-office.ch. [2a02:418:6a02::a2])
+        by mx.google.com with ESMTPS id r26si4890995eda.47.2018.04.19.14.42.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 14:27:07 -0700 (PDT)
-Date: Thu, 19 Apr 2018 17:27:06 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
-In-Reply-To: <20180419193554-mutt-send-email-mst@kernel.org>
-Message-ID: <alpine.LRH.2.02.1804191719400.10099@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com> <3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com> <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com> <20180418.134651.2225112489265654270.davem@davemloft.net>
- <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com> <20180419193554-mutt-send-email-mst@kernel.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 19 Apr 2018 14:42:12 -0700 (PDT)
+From: Stefan Agner <stefan@agner.ch>
+Subject: [PATCH] treewide: use PHYS_ADDR_MAX to avoid type casting ULLONG_MAX
+Date: Thu, 19 Apr 2018 23:42:04 +0200
+Message-Id: <20180419214204.19322-1-stefan@agner.ch>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: akpm@linux-foundation.org, mhocko@suse.com, catalin.marinas@arm.com
+Cc: torvalds@linux-foundation.org, pasha.tatashin@oracle.com, ard.biesheuvel@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Stefan Agner <stefan@agner.ch>
 
+With PHYS_ADDR_MAX there is now a type safe variant for all
+bits set. Make use of it.
 
+Patch created using a sematic patch as follows:
 
-On Thu, 19 Apr 2018, Michael S. Tsirkin wrote:
+// <smpl>
+@@
+typedef phys_addr_t;
+@@
+-(phys_addr_t)ULLONG_MAX
++PHYS_ADDR_MAX
+// </smpl>
 
-> Maybe make it conditional on CONFIG_DEBUG_SG too?
-> Otherwise I think you just trigger a hard to debug memory corruption.
-
-OK, here I resend the patch with CONFIG_DEBUG_SG. With CONFIG_DEBUG_SG, 
-the DMA API will print a stacktrace where the misuse happened, so it's 
-much easier to debug than with CONFIG_DEBUG_VM.
-
-Fedora doesn't use CONFIG_DEBUG_SG in its default kernel (it only uses it 
-in the debugging kernel), so users won't be hurt by this.
-
-
-
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
-
-The kvmalloc function tries to use kmalloc and falls back to vmalloc if
-kmalloc fails.
-
-Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
-uses DMA-API on the returned memory or frees it with kfree. Such bugs were
-found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
-code.
-
-These bugs are hard to reproduce because vmalloc falls back to kmalloc
-only if memory is fragmented.
-
-In order to detect these bugs reliably I submit this patch that changes
-kvmalloc to always use vmalloc if CONFIG_DEBUG_SG is turned on.
-
-Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
-
+Signed-off-by: Stefan Agner <stefan@agner.ch>
 ---
- mm/util.c |    2 ++
- 1 file changed, 2 insertions(+)
+ arch/arm64/mm/init.c               | 6 +++---
+ arch/mips/kernel/setup.c           | 4 ++--
+ arch/powerpc/mm/mem.c              | 2 +-
+ arch/sparc/mm/init_64.c            | 2 +-
+ arch/x86/mm/init_32.c              | 2 +-
+ arch/x86/mm/init_64.c              | 2 +-
+ drivers/firmware/efi/arm-init.c    | 2 +-
+ drivers/remoteproc/qcom_q6v5_pil.c | 2 +-
+ drivers/soc/qcom/mdt_loader.c      | 4 ++--
+ 9 files changed, 13 insertions(+), 13 deletions(-)
 
-Index: linux-2.6/mm/util.c
-===================================================================
---- linux-2.6.orig/mm/util.c	2018-04-18 15:46:23.000000000 +0200
-+++ linux-2.6/mm/util.c	2018-04-19 23:14:14.000000000 +0200
-@@ -395,6 +395,7 @@ EXPORT_SYMBOL(vm_mmap);
-  */
- void *kvmalloc_node(size_t size, gfp_t flags, int node)
- {
-+#ifndef CONFIG_DEBUG_SG
- 	gfp_t kmalloc_flags = flags;
- 	void *ret;
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 9f3c47acf8ff..f48b19496141 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -310,7 +310,7 @@ static void __init arm64_memory_present(void)
+ }
+ #endif
  
-@@ -426,6 +427,7 @@ void *kvmalloc_node(size_t size, gfp_t f
+-static phys_addr_t memory_limit = (phys_addr_t)ULLONG_MAX;
++static phys_addr_t memory_limit = PHYS_ADDR_MAX;
+ 
+ /*
+  * Limit the memory size that was specified via FDT.
+@@ -401,7 +401,7 @@ void __init arm64_memblock_init(void)
+ 	 * high up in memory, add back the kernel region that must be accessible
+ 	 * via the linear mapping.
  	 */
- 	if (ret || size <= PAGE_SIZE)
- 		return ret;
-+#endif
+-	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
++	if (memory_limit != PHYS_ADDR_MAX) {
+ 		memblock_mem_limit_remove_map(memory_limit);
+ 		memblock_add(__pa_symbol(_text), (u64)(_end - _text));
+ 	}
+@@ -664,7 +664,7 @@ __setup("keepinitrd", keepinitrd_setup);
+  */
+ static int dump_mem_limit(struct notifier_block *self, unsigned long v, void *p)
+ {
+-	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
++	if (memory_limit != PHYS_ADDR_MAX) {
+ 		pr_emerg("Memory Limit: %llu MB\n", memory_limit >> 20);
+ 	} else {
+ 		pr_emerg("Memory Limit: none\n");
+diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
+index 563188ac6fa2..2c96c0c68116 100644
+--- a/arch/mips/kernel/setup.c
++++ b/arch/mips/kernel/setup.c
+@@ -93,7 +93,7 @@ void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
+ 	 * If the region reaches the top of the physical address space, adjust
+ 	 * the size slightly so that (start + size) doesn't overflow
+ 	 */
+-	if (start + size - 1 == (phys_addr_t)ULLONG_MAX)
++	if (start + size - 1 == PHYS_ADDR_MAX)
+ 		--size;
  
- 	return __vmalloc_node_flags_caller(size, node, flags,
- 			__builtin_return_address(0));
+ 	/* Sanity check */
+@@ -376,7 +376,7 @@ static void __init bootmem_init(void)
+ 	unsigned long reserved_end;
+ 	unsigned long mapstart = ~0UL;
+ 	unsigned long bootmap_size;
+-	phys_addr_t ramstart = (phys_addr_t)ULLONG_MAX;
++	phys_addr_t ramstart = PHYS_ADDR_MAX;
+ 	bool bootmap_valid = false;
+ 	int i;
+ 
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 737f8a4632cc..7607a509c695 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -213,7 +213,7 @@ void __init mem_topology_setup(void)
+ 	/* Place all memblock_regions in the same node and merge contiguous
+ 	 * memblock_regions
+ 	 */
+-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
++	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+ }
+ 
+ void __init initmem_init(void)
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index 8aeb1aabe76e..f396048a0d68 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -1620,7 +1620,7 @@ static void __init bootmem_init_nonnuma(void)
+ 	       (top_of_ram - total_ram) >> 20);
+ 
+ 	init_node_masks_nonnuma();
+-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
++	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+ 	allocate_node_data(0);
+ 	node_set_online(0);
+ }
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index c893c6a3d707..979e0a02cbe1 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -692,7 +692,7 @@ void __init initmem_init(void)
+ 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
+ #endif
+ 
+-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
++	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+ 	sparse_memory_present_with_active_regions(0);
+ 
+ #ifdef CONFIG_FLATMEM
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 0a400606dea0..765a50fb6364 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -742,7 +742,7 @@ kernel_physical_mapping_init(unsigned long paddr_start,
+ #ifndef CONFIG_NUMA
+ void __init initmem_init(void)
+ {
+-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
++	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+ }
+ #endif
+ 
+diff --git a/drivers/firmware/efi/arm-init.c b/drivers/firmware/efi/arm-init.c
+index 80d1a885def5..b5214c143fee 100644
+--- a/drivers/firmware/efi/arm-init.c
++++ b/drivers/firmware/efi/arm-init.c
+@@ -193,7 +193,7 @@ static __init void reserve_regions(void)
+ 	 * uses its own memory map instead.
+ 	 */
+ 	memblock_dump_all();
+-	memblock_remove(0, (phys_addr_t)ULLONG_MAX);
++	memblock_remove(0, PHYS_ADDR_MAX);
+ 
+ 	for_each_efi_memory_desc(md) {
+ 		paddr = md->phys_addr;
+diff --git a/drivers/remoteproc/qcom_q6v5_pil.c b/drivers/remoteproc/qcom_q6v5_pil.c
+index 8e70a627e0bb..da8edf3f85b3 100644
+--- a/drivers/remoteproc/qcom_q6v5_pil.c
++++ b/drivers/remoteproc/qcom_q6v5_pil.c
+@@ -615,7 +615,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
+ 	struct elf32_hdr *ehdr;
+ 	phys_addr_t mpss_reloc;
+ 	phys_addr_t boot_addr;
+-	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
++	phys_addr_t min_addr = PHYS_ADDR_MAX;
+ 	phys_addr_t max_addr = 0;
+ 	bool relocate = false;
+ 	char seg_name[10];
+diff --git a/drivers/soc/qcom/mdt_loader.c b/drivers/soc/qcom/mdt_loader.c
+index 17b314d9a148..dc09d7ac905f 100644
+--- a/drivers/soc/qcom/mdt_loader.c
++++ b/drivers/soc/qcom/mdt_loader.c
+@@ -50,7 +50,7 @@ ssize_t qcom_mdt_get_size(const struct firmware *fw)
+ 	const struct elf32_phdr *phdrs;
+ 	const struct elf32_phdr *phdr;
+ 	const struct elf32_hdr *ehdr;
+-	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
++	phys_addr_t min_addr = PHYS_ADDR_MAX;
+ 	phys_addr_t max_addr = 0;
+ 	int i;
+ 
+@@ -97,7 +97,7 @@ int qcom_mdt_load(struct device *dev, const struct firmware *fw,
+ 	const struct elf32_hdr *ehdr;
+ 	const struct firmware *seg_fw;
+ 	phys_addr_t mem_reloc;
+-	phys_addr_t min_addr = (phys_addr_t)ULLONG_MAX;
++	phys_addr_t min_addr = PHYS_ADDR_MAX;
+ 	phys_addr_t max_addr = 0;
+ 	size_t fw_name_len;
+ 	ssize_t offset;
+-- 
+2.17.0
