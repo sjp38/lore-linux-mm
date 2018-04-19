@@ -1,59 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D1D46B0003
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 06:45:51 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id p131-v6so2431178oig.10
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 03:45:51 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id f30-v6si1111216otb.411.2018.04.19.03.45.50
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D60F6B0003
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 07:00:58 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b64so1097676pfl.13
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 04:00:58 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n23si2715068pgc.359.2018.04.19.04.00.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 03:45:50 -0700 (PDT)
-Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
-	<alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
-	<20180418075051.GO17484@dhcp22.suse.cz>
-	<alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com>
-	<20180419063556.GK17484@dhcp22.suse.cz>
-In-Reply-To: <20180419063556.GK17484@dhcp22.suse.cz>
-Message-Id: <201804191945.BBF87517.FVMLOQFOHSFJOt@I-love.SAKURA.ne.jp>
-Date: Thu, 19 Apr 2018 19:45:46 +0900
-Mime-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Apr 2018 04:00:57 -0700 (PDT)
+Date: Thu, 19 Apr 2018 13:00:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] SLUB: Do not fallback to mininum order if __GFP_NORETRY
+ is set
+Message-ID: <20180419110051.GB16083@dhcp22.suse.cz>
+References: <alpine.DEB.2.20.1804180944180.1062@nuc-kabylake>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1804180944180.1062@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, rientjes@google.com
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mikulas Patocka <mpatocka@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> > exit_mmap() does not block before set_bit(MMF_OOM_SKIP) once it is 
-> > entered.
+On Wed 18-04-18 09:45:39, Cristopher Lameter wrote:
+> Mikulas Patoka wants to ensure that no fallback to lower order happens. I
+> think __GFP_NORETRY should work correctly in that case too and not fall
+> back.
+
+Overriding __GFP_NORETRY is just a bad idea. It will make the semantic
+of the flag just more confusing. Note there are users who use
+__GFP_NORETRY as a way to suppress heavy memory pressure and/or the OOM
+killer. You do not want to change the semantic for them.
+
+Besides that the changelog is less than optimal. What is the actual
+problem? Why somebody doesn't want a fallback? Is there a configuration
+that could prevent the same?
+
+> Allocating at a smaller order is a retry operation and should not
+> be attempted.
 > 
-> Not true. munlock_vma_pages_all might take page_lock which can have
-> unpredictable dependences. This is the reason why we are ruling out
-> mlocked VMAs in the first place when reaping the address space.
+> If the caller does not want retries then respect that.
+> 
+> GFP_NORETRY allows callers to ensure that only maximum order
+> allocations are attempted.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c
+> +++ linux/mm/slub.c
+> @@ -1598,7 +1598,7 @@ static struct page *allocate_slab(struct
+>  		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
+> 
+>  	page = alloc_slab_page(s, alloc_gfp, node, oo);
+> -	if (unlikely(!page)) {
+> +	if (unlikely(!page) && !(flags & __GFP_NORETRY)) {
+>  		oo = s->min;
+>  		alloc_gfp = flags;
+>  		/*
 
-Wow! Then,
-
-> While you are correct, strictly speaking, because unmap_vmas can race
-> with the oom reaper. With the lock held during the whole operation we
-> can indeed trigger back off in the oom_repaer. It will keep retrying but
-> the tear down can take quite some time. This is a fair argument. On the
-> other hand your lock protocol introduces the MMF_OOM_SKIP problem I've
-> mentioned above and that really worries me. The primary objective of the
-> reaper is to guarantee a forward progress without relying on any
-> externalities. We might kill another OOM victim but that is safer than
-> lock up.
-
-current code has a possibility that the OOM reaper is disturbed by
-unpredictable dependencies, like I worried that
-
-  I think that there is a possibility that the OOM reaper tries to reclaim
-  mlocked pages as soon as exit_mmap() cleared VM_LOCKED flag by calling
-  munlock_vma_pages_all().
-
-when current approach was proposed. We currently have the MMF_OOM_SKIP problem.
-We need to teach the OOM reaper stop reaping as soon as entering exit_mmap().
-Maybe let the OOM reaper poll for progress (e.g. none of get_mm_counter(mm, *)
-decreased for last 1 second) ?
+-- 
+Michal Hocko
+SUSE Labs
