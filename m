@@ -1,52 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C89076B0003
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 07:19:41 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b16so2629133pfi.5
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 04:19:41 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c1-v6si3241917plo.88.2018.04.19.04.19.40
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B50A6B0003
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 07:31:39 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u56-v6so4706603wrf.18
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 04:31:39 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e12si2214103edm.403.2018.04.19.04.31.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 19 Apr 2018 04:19:40 -0700 (PDT)
-Date: Thu, 19 Apr 2018 04:19:39 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v3 04/14] mm: Switch s_mem and slab_cache in struct page
-Message-ID: <20180419111939.GB5556@bombadil.infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Apr 2018 04:31:38 -0700 (PDT)
+Subject: Re: [PATCH v3 05/14] mm: Move 'private' union within struct page
 References: <20180418184912.2851-1-willy@infradead.org>
- <20180418184912.2851-5-willy@infradead.org>
- <635be88e-c361-1773-eff7-9921de503566@suse.cz>
+ <20180418184912.2851-6-willy@infradead.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c02eb1b3-b3de-9b17-9a6a-0d1fecca1d4c@suse.cz>
+Date: Thu, 19 Apr 2018 13:31:35 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <635be88e-c361-1773-eff7-9921de503566@suse.cz>
+In-Reply-To: <20180418184912.2851-6-willy@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>
 
-On Thu, Apr 19, 2018 at 01:06:30PM +0200, Vlastimil Babka wrote:
-> On 04/18/2018 08:49 PM, Matthew Wilcox wrote:
-> > From: Matthew Wilcox <mawilcox@microsoft.com>
+On 04/18/2018 08:49 PM, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> More rationale? Such as "This will allow us to ... later in the series"?
-
-Sure.  Probably the best rationale at this point is that it'll allow us
-to move slub's counters into a union with s_mem later in the series.
-
-> > slub now needs to set page->mapping to NULL as it frees the page, just
-> > like slab does.
+> By moving page->private to the fourth word of struct page, we can put
+> the SLUB counters in the same word as SLAB's s_mem and still do the
+> cmpxchg_double trick.  Now the SLUB counters no longer overlap with
+> the refcount.
 > 
-> I wonder if they should be touching the mapping field, and rather not
-> the slab_cache field, with a comment why it has to be NULLed?
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 
-I add that to the documentation at the end of the series:
-
- * If you allocate the page using alloc_pages(), you can use some of the
- * space in struct page for your own purposes.  The five words in the first
- * union are available, except for bit 0 of the first word which must be
- * kept clear.  Many users use this word to store a pointer to an object
- * which is guaranteed to be aligned.  If you use the same storage as
- * page->mapping, you must restore it to NULL before freeing the page.
-
-Thanks for your review!
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
