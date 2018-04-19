@@ -1,84 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E1C66B0007
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 16:43:13 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id b195so4244744vkf.2
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 13:43:13 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d10sor1863133uad.215.2018.04.19.13.43.12
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AE5036B0007
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 16:51:37 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id a38-v6so6447006wra.10
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 13:51:37 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id w10-v6si3422380wrg.377.2018.04.19.13.51.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Apr 2018 13:43:12 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Apr 2018 13:51:36 -0700 (PDT)
+Date: Thu, 19 Apr 2018 21:51:30 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [LSF/MM] schedule suggestion
+Message-ID: <20180419205130.GL30522@ZenIV.linux.org.uk>
+References: <20180419015508.GJ27893@dastard>
+ <20180419143825.GA3519@redhat.com>
+ <20180419144356.GC25406@bombadil.infradead.org>
+ <20180419163036.GC3519@redhat.com>
+ <1524157119.2943.6.camel@kernel.org>
+ <20180419172609.GD3519@redhat.com>
+ <1524162667.2943.22.camel@kernel.org>
+ <20180419193108.GA4981@redhat.com>
+ <20180419195637.GA14024@bombadil.infradead.org>
+ <20180419201502.GA11372@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180419172451.104700-1-dvyukov@google.com>
-References: <20180419172451.104700-1-dvyukov@google.com>
-From: Kees Cook <keescook@google.com>
-Date: Thu, 19 Apr 2018 13:43:11 -0700
-Message-ID: <CAGXu5jK0fWnyQUYP3H5e8hP-6QbtmeC102a-2Mab4CSqj4bpgg@mail.gmail.com>
-Subject: Re: [PATCH v2] KASAN: prohibit KASAN+STRUCTLEAK combination
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180419201502.GA11372@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, Fengguang Wu <fengguang.wu@intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Jeff Layton <jlayton@kernel.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Thu, Apr 19, 2018 at 10:24 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> Currently STRUCTLEAK inserts initialization out of live scope of
-> variables from KASAN point of view. This leads to KASAN false
-> positive reports. Prohibit this combination for now.
->
-> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-> Cc: linux-mm@kvack.org
-> Cc: kasan-dev@googlegroups.com
-> Cc: Fengguang Wu <fengguang.wu@intel.com>
-> Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Kees Cook <keescook@google.com>
+On Thu, Apr 19, 2018 at 04:15:02PM -0400, Jerome Glisse wrote:
 
-This seems fine until we have a better solution. Thanks!
+> Well like you pointed out what i really want is a 1:1 structure linking
+> a device struct an a mm_struct. Given that this need to be cleanup when
+> mm goes away hence tying this to mmu_notifier sounds like a better idea.
+> 
+> I am thinking of adding a hashtable to mmu_notifier_mm using file id for
+> hash as this should be a good hash value for common cases. I only expect
+> few drivers to need that (GPU drivers, RDMA). Today GPU drivers do have
+> a hashtable inside their driver and they has on the mm struct pointer,
+> i believe hash mmu_notifier_mm using file id will be better.
 
-Acked-by: Kees Cook <keescook@chromium.org>
-
--Kees
-
->
-> ---
->
-> This combination leads to periodic confusion
-> and pointless debugging:
->
-> https://marc.info/?l=linux-kernel&m=151991367323082
-> https://marc.info/?l=linux-kernel&m=151992229326243
-> https://lkml.org/lkml/2017/11/30/33
->
-> Changes since v1:
->  - replace KASAN with KASAN_EXTRA
->    Only KASAN_EXTRA enables variable scope checking
-> ---
->  arch/Kconfig | 4 ++++
->  1 file changed, 4 insertions(+)
->
-> diff --git a/arch/Kconfig b/arch/Kconfig
-> index 8e0d665c8d53..75dd23acf133 100644
-> --- a/arch/Kconfig
-> +++ b/arch/Kconfig
-> @@ -464,6 +464,10 @@ config GCC_PLUGIN_LATENT_ENTROPY
->  config GCC_PLUGIN_STRUCTLEAK
->         bool "Force initialization of variables containing userspace addresses"
->         depends on GCC_PLUGINS
-> +       # Currently STRUCTLEAK inserts initialization out of live scope of
-> +       # variables from KASAN point of view. This leads to KASAN false
-> +       # positive reports. Prohibit this combination for now.
-> +       depends on !KASAN_EXTRA
->         help
->           This plugin zero-initializes any structures containing a
->           __user attribute. This can prevent some classes of information
-> --
-> 2.17.0.484.g0c8726318c-goog
->
-
-
-
--- 
-Kees Cook
-Pixel Security
+What _is_ "file id"?  If you are talking about file descriptors, you can
+very well have several for the same opened file.  Moreover, you can
+bloody well have it opened, then dup'ed, then original descriptor closed
+and reused by another open...
