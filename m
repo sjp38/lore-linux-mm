@@ -1,116 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C5F496B000A
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 10:52:23 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id p21so3543260qke.20
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 07:52:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id y8si774821qkb.402.2018.04.19.07.52.22
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9192E6B000E
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 11:04:30 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id k76-v6so197282lfg.9
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 08:04:30 -0700 (PDT)
+Received: from mx2.yrkesakademin.fi (mx2.yrkesakademin.fi. [85.134.45.195])
+        by mx.google.com with ESMTPS id n14si1511499ljg.43.2018.04.19.08.04.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 07:52:22 -0700 (PDT)
-Date: Thu, 19 Apr 2018 10:52:19 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 00/79] Generic page write protection and a solution
- to page waitqueue
-Message-ID: <20180419145219.GB3519@redhat.com>
-References: <20180404191831.5378-1-jglisse@redhat.com>
- <20180418141337.mrnxqolo6aar3ud3@quack2.suse.cz>
- <20180418155429.GA3476@redhat.com>
- <20180419103250.qvusqkjq6hlz3ch6@quack2.suse.cz>
+        (version=TLS1_2 cipher=AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Apr 2018 08:04:28 -0700 (PDT)
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+References: <20180409001936.162706-15-alexander.levin@microsoft.com>
+ <20180409082246.34hgp3ymkfqke3a4@pathway.suse.cz>
+ <20180415144248.GP2341@sasha-vm> <20180416093058.6edca0bb@gandalf.local.home>
+ <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
+ <20180416113629.2474ae74@gandalf.local.home> <20180416160200.GY2341@sasha-vm>
+ <20180416121224.2138b806@gandalf.local.home> <20180416161911.GA2341@sasha-vm>
+ <7d5de770-aee7-ef71-3582-5354c38fc176@mageia.org>
+ <20180419135943.GC16862@kroah.com>
+From: Thomas Backlund <tmb@mageia.org>
+Message-ID: <6425991f-7d7f-b1f9-ba37-3212a01ad6cf@mageia.org>
+Date: Thu, 19 Apr 2018 18:04:26 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180419103250.qvusqkjq6hlz3ch6@quack2.suse.cz>
+In-Reply-To: <20180419135943.GC16862@kroah.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Tim Chen <tim.c.chen@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Tejun Heo <tj@kernel.org>, Josef Bacik <jbacik@fb.com>, Mel Gorman <mgorman@techsingularity.net>, Jeff Layton <jlayton@redhat.com>
+To: Greg KH <gregkh@linuxfoundation.org>, Thomas Backlund <tmb@mageia.org>
+Cc: Sasha Levin <Alexander.Levin@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>
 
-On Thu, Apr 19, 2018 at 12:32:50PM +0200, Jan Kara wrote:
-> On Wed 18-04-18 11:54:30, Jerome Glisse wrote:
-
-[...]
-
-> > I am affraid truely generic write protection for metadata pages is bit
-> > out of scope of what i am doing. However the mechanism i am proposing
-> > can be extended for that too. Issue is that all place that want to write
-> > to those page need to be converted to something where write happens
-> > between write_begin and write_end section (mmap and CPU pte does give
-> > this implicitly through page fault, so does write syscall). Basicly
-> > there is a need to make sure that write and write protection can be
-> > ordered against one another without complex locking.
+Den 19.04.2018 kl. 16:59, skrev Greg KH:
+> On Thu, Apr 19, 2018 at 02:41:33PM +0300, Thomas Backlund wrote:
+>> Den 16-04-2018 kl. 19:19, skrev Sasha Levin:
+>>> On Mon, Apr 16, 2018 at 12:12:24PM -0400, Steven Rostedt wrote:
+>>>> On Mon, 16 Apr 2018 16:02:03 +0000
+>>>> Sasha Levin <Alexander.Levin@microsoft.com> wrote:
+>>>>
+>>>>> One of the things Greg is pushing strongly for is "bug compatibility":
+>>>>> we want the kernel to behave the same way between mainline and stable.
+>>>>> If the code is broken, it should be broken in the same way.
+>>>>
+>>>> Wait! What does that mean? What's the purpose of stable if it is as
+>>>> broken as mainline?
+>>>
+>>> This just means that if there is a fix that went in mainline, and the
+>>> fix is broken somehow, we'd rather take the broken fix than not.
+>>>
+>>> In this scenario, *something* will be broken, it's just a matter of
+>>> what. We'd rather have the same thing broken between mainline and
+>>> stable.
+>>>
+>>
+>> Yeah, but _intentionally_ breaking existing setups to stay "bug compatible"
+>> _is_ a _regression_ you _really_ _dont_ want in a stable
+>> supported distro. Because end-users dont care about upstream breaking
+>> stuff... its the distro that takes the heat for that...
+>>
+>> Something "already broken" is not a regression...
+>>
+>> As distro maintainer that means one now have to review _every_ patch that
+>> carries "AUTOSEL", follow all the mail threads that comes up about it, then
+>> track if it landed in -stable queue, and read every response and possible
+>> objection to all patches in the -stable queue a second time around... then
+>> check if it still got included in final stable point relase and then either
+>> revert them in distro kernel or go track down all the follow-up fixes
+>> needed...
+>>
+>> Just to avoid being "bug compatible with master"
 > 
-> I understand metadata pages are not interesting for your use case. However
-> from mm point of view these are page cache pages as any other. So maybe my
-> question should have been: How do we make sure this mechanism will not be
-> used for pages for which it cannot work?
-
-Oh that one is easy, the API take vma + addr or rather mm struct + addr
-(ie like KSM today kind of). I will change wording in v1 to almost
-generic write protection :) or process' page write protection (but this
-would not work for special pfn/vma so not generic their either).
-
-> > > > A write protected page has page->mapping pointing to a structure like
-> > > > struct rmap_item for KSM. So this structure has a list for each unique
-> > > > combination:
-> > > >     struct write_protect {
-> > > >         struct list_head *mappings; /* write_protect_mapping list */
-> > > >         ...
-> > > >     };
-> > > > 
-> > > >     struct write_protect_mapping {
-> > > >         struct list_head list
-> > > >         struct address_space *mapping;
-> > > >         unsigned long offset;
-> > > >         unsigned long private;
-> > > >         ...
-> > > >     };
-> > > 
-> > > Auch, the fact that we could share a page as data storage for several
-> > > inode+offset combinations that are not sharing underlying storage just
-> > > looks viciously twisted ;) But is it really that useful to warrant
-> > > complications? In particular I'm afraid that filesystems expect consistency
-> > > between their internal state (attached to page->private) and page state
-> > > (e.g. page->flags) and when there are multiple internal states attached to
-> > > the same page this could go easily wrong...
-> > 
-> > So at first i want to limit to write protect (not KSM) thus page->flags
-> > will stay consistent (ie page is only ever associated with a single
-> > mapping). For KSM yes the page->flags can be problematic, however here
-> > we can assume that page is clean (and uptodate) and not under write
-> > back. So problematic flags for KSM:
-> >   - private (page_has_buffers() or PagePrivate (nfs, metadata, ...))
-> >   - private_2 (FsCache)
-> >   - mappedtodisk
-> >   - swapcache
-> >   - error
-> > 
-> > Idea again would be to PageFlagsWithMapping(page, mapping) so that for
-> > non KSM write protected page you test the usual page->flags and for
-> > write protected page you find the flag value using mapping as lookup
-> > index. Usualy those flag are seldomly changed/accessed. Again the
-> > overhead (ignoring code size) would only be for page which are KSM.
-> > So maybe KSM will not make sense because perf overhead it has with
-> > page->flags access (i don't think so but i haven't tested this).
+> I've done this "bug compatible" "breakage" more than the AUTOSEL stuff
+> has in the past, so you had better also be reviewing all of my normal
+> commits as well :)
 > 
-> Yeah, sure, page->flags could be dealt with in a similar way but at this
-> point I don't think it's worth it. And without page->flags I don't think
-> abstracting page->private makes much sense - or am I missing something why
-> you need page->private depend on the mapping? So what I wanted to suggest
-> is that we leave page->private as is currently and just concentrate on
-> page->mapping hacks...
 
-Well i wanted to go up to KSM or at least as close as possible to KSM
-for file back page. But i can focus on page->mapping first, do write
-protection with that and also do the per page wait queue for page lock.
-Which i believe are both nice features. This will also make the patchset
-smaller and easier to review (less scary).
+Yeah, I do... and same goes there ... if there is a known issue, then 
+same procedure... Either revert, or try to track down fixes...
 
-KSM can be done on top of that latter and i will be happy to help. I
-have a bunch of coccinelle patches for page->private, page->index and
-i can do some for page->flags.
 
-Cheers,
-Jerome
+> Anyway, we are trying not to do this, but it does, and will,
+> occasionally happen.  Look, we just did that for one platform for
+> 4.9.94!  And the key to all of this is good testing, which we are now
+> doing, and hopefully you are also doing as well.
+
+Yeah, but having to test stuff with known breakages is no fun, so we try 
+to avoid that
+
+--
+Thomas
