@@ -1,109 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 11C5C6B0003
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 08:54:00 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id g1-v6so2948504plm.2
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 05:54:00 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 17E016B0003
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 09:23:17 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id c56-v6so5232804wrc.5
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 06:23:17 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z12si2770952pgv.226.2018.04.19.05.53.58
+        by mx.google.com with ESMTPS id 5si1135194edi.408.2018.04.19.06.23.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Apr 2018 05:53:58 -0700 (PDT)
-Date: Thu, 19 Apr 2018 14:53:53 +0200
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
-Message-ID: <20180419125353.lawdc3xna5oqlq7k@pathway.suse.cz>
-References: <20180413124704.19335-1-pmladek@suse.com>
- <20180413101233.0792ebf0@gandalf.local.home>
- <20180414023516.GA17806@tigerII.localdomain>
- <20180416014729.GB1034@jagdpanzerIV>
- <20180416042553.GA555@jagdpanzerIV>
+        Thu, 19 Apr 2018 06:23:15 -0700 (PDT)
+Subject: Re: [PATCH v3 09/14] mm: Use page->deferred_list
+References: <20180418184912.2851-1-willy@infradead.org>
+ <20180418184912.2851-10-willy@infradead.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c67f7169-a12d-0cdc-c198-bf499972eb83@suse.cz>
+Date: Thu, 19 Apr 2018 15:23:12 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180416042553.GA555@jagdpanzerIV>
+In-Reply-To: <20180418184912.2851-10-willy@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>
 
-On Mon 2018-04-16 13:25:53, Sergey Senozhatsky wrote:
-> On (04/16/18 10:47), Sergey Senozhatsky wrote:
-> > On (04/14/18 11:35), Sergey Senozhatsky wrote:
-> > > On (04/13/18 10:12), Steven Rostedt wrote:
-> > > > 
-> > > > > The interval is set to one hour. It is rather arbitrary selected time.
-> > > > > It is supposed to be a compromise between never print these messages,
-> > > > > do not lockup the machine, do not fill the entire buffer too quickly,
-> > > > > and get information if something changes over time.
-> > > > 
-> > > > 
-> > > > I think an hour is incredibly long. We only allow 100 lines per hour for
-> > > > printks happening inside another printk?
-> > > > 
-> > > > I think 5 minutes (at most) would probably be plenty. One minute may be
-> > > > good enough.
-> > > 
-> > > Besides 100 lines is absolutely not enough for any real lockdep splat.
-> > > My call would be - up to 1000 lines in a 1 minute interval.
+On 04/18/2018 08:49 PM, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> Now that we can represent the location of 'deferred_list' in C instead
+> of comments, make use of that ability.
+> 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 
-But this would break the intention of this patch. We need to flush all
-messages to the console before the timeout. Otherwise we would never
-break the possible infinite loop.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Come on guys! The first reaction how to fix the infinite loop was
-to fix the console drivers and remove the recursive messages. We are
-talking about messages that should not be there or they should
-get replaced by WARN_ONCE(), print_once() or so. This patch only
-give us a chance to see the problem and do not blow up immediately.
-
-I am fine with increasing the number of lines. But we need to keep
-the timeout long. In fact, 1 hour is still rather short from my POV.
-
-
-> > Well, if we want to basically turn printk_safe() into printk_safe_ratelimited().
-> > I'm not so sure about it.
-
-No, it is not about printk_safe(). The ratelimit is active when
-console_owner == current. It triggers when printk() is called
-inside
-
-	console_lock_spinning_enable();
-
-	  call_console_drivers(ext_text, ext_len, text, len);
-	    printk();
-
-	console_lock_spinning_disable_and_check()
-
-It will continue working even if we disable printk_safe() context
-earlier and the messages are stored into the main log buffer.
-
-
-> > Besides the patch also rate limits printk_nmi->logbuf - the logbuf
-> > PRINTK_NMI_DEFERRED_CONTEXT_MASK bypass, which is way too important
-> > to rate limit it - for no reason.
-
-Again. It has the effect only when console_owner == current. It means
-that it affects "only" NMIs that interrupt console_unlock() when calling
-console drivers.
-
-Anyway, it needs to get fixed. I suggest to update the check in
-printk_func():
-
-	if (console_owner == current && !in_nmi() &&
-	    !__ratelimit(&ratelimit_console))
-		return 0;
-
-
-> One more thing,
-> I'd really prefer to rate limit the function which flushes per-CPU
-> printk_safe buffers; not the function that appends new messages to
-> the per-CPU printk_safe buffers.
-
-I wonder if this opinion is still valid after explaining the
-dependency on printk_safe(). In each case, it sounds weird
-to block printk_safe buffers with some "unwanted" messages.
-Or maybe I miss something.
-
-Best Regards,
-Petr
+> ---
+>  mm/huge_memory.c | 7 ++-----
+>  mm/page_alloc.c  | 2 +-
+>  2 files changed, 3 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 14ed6ee5e02f..55ad852fbf17 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -483,11 +483,8 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+>  
+>  static inline struct list_head *page_deferred_list(struct page *page)
+>  {
+> -	/*
+> -	 * ->lru in the tail pages is occupied by compound_head.
+> -	 * Let's use ->mapping + ->index in the second tail page as list_head.
+> -	 */
+> -	return (struct list_head *)&page[2].mapping;
+> +	/* ->lru in the tail pages is occupied by compound_head. */
+> +	return &page[2].deferred_list;
+>  }
+>  
+>  void prep_transhuge_page(struct page *page)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 88e817d7ccef..18720eccbce1 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -953,7 +953,7 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
+>  	case 2:
+>  		/*
+>  		 * the second tail page: ->mapping is
+> -		 * page_deferred_list().next -- ignore value.
+> +		 * deferred_list.next -- ignore value.
+>  		 */
+>  		break;
+>  	default:
+> 
