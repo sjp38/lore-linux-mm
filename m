@@ -1,67 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 11E486B0005
-	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 19:43:07 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id h32-v6so1855848pld.15
-        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 16:43:07 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w1si1839955pgq.76.2018.04.18.16.43.05
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EC0B6B0005
+	for <linux-mm@kvack.org>; Wed, 18 Apr 2018 20:02:04 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id y4-v6so3069969iod.5
+        for <linux-mm@kvack.org>; Wed, 18 Apr 2018 17:02:04 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 185-v6sor1371987itw.107.2018.04.18.17.02.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 18 Apr 2018 16:43:05 -0700 (PDT)
-Date: Wed, 18 Apr 2018 16:43:04 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v3 12/14] mm: Improve struct page documentation
-Message-ID: <20180418234304.GA16782@bombadil.infradead.org>
-References: <20180418184912.2851-1-willy@infradead.org>
- <20180418184912.2851-13-willy@infradead.org>
- <f8606c8e-8fa6-da3d-676e-8ae36bae1ce7@infradead.org>
+        (Google Transport Security);
+        Wed, 18 Apr 2018 17:02:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f8606c8e-8fa6-da3d-676e-8ae36bae1ce7@infradead.org>
+In-Reply-To: <87k1t4t7tw.fsf@linux.intel.com>
+References: <1523892323-14741-1-git-send-email-joro@8bytes.org>
+ <1523892323-14741-4-git-send-email-joro@8bytes.org> <87k1t4t7tw.fsf@linux.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 18 Apr 2018 17:02:02 -0700
+Message-ID: <CA+55aFxKzsPQW4S4esvJY=wb7D3LKBdDDcXoMKJSqcOgnD3FuA@mail.gmail.com>
+Subject: Re: [PATCH 03/35] x86/entry/32: Load task stack from x86_tss.sp1 in
+ SYSENTER handler
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Joerg Roedel <joro@8bytes.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, "Liguori, Anthony" <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waim@linux.intel.com
 
-On Wed, Apr 18, 2018 at 04:32:27PM -0700, Randy Dunlap wrote:
-> > + * If you allocate the page using alloc_pages(), you can use some of the
-> > + * space in struct page for your own purposes.  The five words in the first
-> 
-> Using "first union" here...
-> 
-> > + * If your page will not be mapped to userspace, you can also use the 4
-> > + * bytes in the second union, but you must call page_mapcount_reset()
-> 
-> and "second union" here bother me, but it looks like they are anonymous.
-> 
-> I'm concerned about someone other than you modifying struct page at some
-> later time.  If these unions were named (and you could use that name here
-> instead of "first" or "second"), then there would be less chance for that
-> next person to miss modifying that comment or it just becoming stale.
+On Wed, Apr 18, 2018 at 4:26 PM, Andi Kleen <ak@linux.intel.com> wrote:
+>
+> Seems like a hack. Why can't that be stored in a per cpu variable?
 
-Yeah, it bothers me too.  I was first bothered by this when writing the
-patch descriptions for the earlier patches in the series "Combine first
-three unions in struct page" and "Combine first two unions in struct
-page" really suck as patch descriptions.  But I couldn't come up with
-anything better, so here we are ...
+It *is* a percpu variable - the whole x86_tss structure is percpu.
 
-If we name the union, then either we have to put in some grotty macros
-or change every instance of page->mapping to page->u1.mapping (repeat
-ad nauseam).  I mean, I'd rather leave the unions anonymous and name
-the structs (but again, I don't want to rename every user).
+I guess it could be a different (separate) percpu variable, but might
+as well use the space we already have allocated.
 
-We can put a comment on the union and name them that way, but I
-don't even know what to call them.  "main union" "auxiliary union".
-"secondary union".  I don't know.
-
-> Reviewed-by: Randy Dunlap <rdunlap@infradead.org>
-
-Thanks.  I also did some kernel-doc'ifying of some other comments earlier
-in the series.  I'm sure they could be improved.  And there's a whole
-bunch of comments which aren't in kernel-doc format and might or might
-not want to be.
-
-(eg: do we want to comment _refcount?  Other than to tell people to not
-use it?)
+             Linus
