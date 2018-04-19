@@ -1,95 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C81E6B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 18:13:08 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id v31-v6so3919056otb.0
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 15:13:08 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id t65-v6si1424510oig.391.2018.04.19.15.13.06
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FCA36B0006
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 18:13:55 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id k27-v6so6462927wre.23
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 15:13:55 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id s140si84026wmb.142.2018.04.19.15.13.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 15:13:06 -0700 (PDT)
-Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
-	<20180418075051.GO17484@dhcp22.suse.cz>
-	<alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com>
-	<20180419063556.GK17484@dhcp22.suse.cz>
-	<alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com>
-Message-Id: <201804200713.IJF15701.SOVFOMHtQJOFFL@I-love.SAKURA.ne.jp>
-Date: Fri, 20 Apr 2018 07:13:02 +0900
-Mime-Version: 1.0
+        Thu, 19 Apr 2018 15:13:54 -0700 (PDT)
+Date: Thu, 19 Apr 2018 23:13:50 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [LSF/MM] schedule suggestion
+Message-ID: <20180419221350.GN30522@ZenIV.linux.org.uk>
+References: <20180419015508.GJ27893@dastard>
+ <20180419143825.GA3519@redhat.com>
+ <20180419144356.GC25406@bombadil.infradead.org>
+ <20180419163036.GC3519@redhat.com>
+ <1524157119.2943.6.camel@kernel.org>
+ <20180419172609.GD3519@redhat.com>
+ <20180419203307.GJ30522@ZenIV.linux.org.uk>
+ <20180419205820.GB4981@redhat.com>
+ <20180419212137.GM30522@ZenIV.linux.org.uk>
+ <20180419214751.GD4981@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180419214751.GD4981@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com, mhocko@kernel.org
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Jeff Layton <jlayton@kernel.org>, Matthew Wilcox <willy@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-David Rientjes wrote:
-> On Thu, 19 Apr 2018, Michal Hocko wrote:
-> 
-> > > exit_mmap() does not block before set_bit(MMF_OOM_SKIP) once it is 
-> > > entered.
+On Thu, Apr 19, 2018 at 05:47:51PM -0400, Jerome Glisse wrote:
+> On Thu, Apr 19, 2018 at 10:21:37PM +0100, Al Viro wrote:
+> > On Thu, Apr 19, 2018 at 04:58:20PM -0400, Jerome Glisse wrote:
 > > 
-> > Not true. munlock_vma_pages_all might take page_lock which can have
-> > unpredictable dependences. This is the reason why we are ruling out
-> > mlocked VMAs in the first place when reaping the address space.
+> > > I need a struct to link part of device context with mm struct for a
+> > > process. Most of device context is link to the struct file of the
+> > > device file (ie process open has a file descriptor for the device
+> > > file).
 > > 
+> > Er...  You do realize that
+> > 	fd = open(...)
+> > 	mmap(fd, ...)
+> > 	close(fd)
+> > is absolutely legitimate, right?  IOW, existence/stability/etc. of
+> > a file descriptor is absolutely *not* guaranteed - in fact, there might
+> > be not a single file descriptor referring to a given openen and mmaped
+> > file.
 > 
-> I don't find any occurrences in millions of oom kills in real-world 
-> scenarios where this matters.
+> Yes and that's fine, on close(fd) the device driver is tear down
 
-Is your OOM events system-wide rather than memcg?
-It is trivial to hide bugs in the details if your OOM events is memcg OOM.
+No, it is not.  _NOTHING_ is done on that close(fd), other than removing
+a reference from descriptor table.  In this case struct file is still
+open and remains such until munmap().
 
->                                The solution is certainly not to hold 
-> down_write(&mm->mmap_sem) during munlock_vma_pages_all() instead.  If 
-> exit_mmap() is not making forward progress then that's a separate issue; 
+That's why descriptor table is a very bad place for sticking that kind of
+information.  Besides, as soon as your syscall (ioctl, write, whatever)
+has looked struct file up, the mapping from descriptors to struct file
+can change.  Literally before fdget() has returned to caller.  Another
+thread could do dup() and close() of the original descriptor.  Or
+just plain close(), for that matter - struct file will remain open until
+fdput().
 
-Just a simple memory + CPU pressure is sufficient for making exit_mmap()
-unable to make forward progress. Try triggering system-wide OOM event by
-running below reproducer. We are ever ignoring this issue.
+> and
+> struct i want to store is tear down too and free.
 
------
-#include <unistd.h>
-
-int main(int argc, char *argv[])
-{
-        while (1)
-                if (fork() == 0)
-                        execlp(argv[0], argv[0], NULL);
-        return 0;
-}
------
-
-> that would need to be fixed in one of two ways: (1) in oom_reap_task() to 
-> try over a longer duration before setting MMF_OOM_SKIP itself, but that 
-> would have to be a long duration to allow a large unmap and page table 
-> free, or (2) in oom_evaluate_task() so that we defer for MMF_OOM_SKIP but 
-> only if MMF_UNSTABLE has been set for a long period of time so we target 
-> another process when the oom killer has given up.
-> 
-> Either of those two fixes are simple to implement, I'd just like to see a 
-> bug report with stack traces to indicate that a victim getting stalled in 
-> exit_mmap() is a problem to justify the patch.
-
-It is too hard for normal users to report problems under memory pressure
-without a mean to help understand what is happening. See a bug report at
-https://lists.opensuse.org/opensuse-kernel/2018-04/msg00018.html for example.
-
-> 
-> I'm trying to fix the page table corruption that is trivial to trigger on 
-> powerpc.  We simply cannot allow the oom reaper's unmap_page_range() to 
-> race with munlock_vma_pages_range(), ever.  Holding down_write on 
-> mm->mmap_sem otherwise needlessly over a large amount of code is riskier 
-> (hasn't been done or tested here), more error prone (any code change over 
-> this large area of code or in functions it calls are unnecessarily 
-> burdened by unnecessary locking), makes exit_mmap() less extensible for 
-> the same reason, and causes the oom reaper to give up and go set 
-> MMF_OOM_SKIP itself because it depends on taking down_read while the 
-> thread is still exiting.
-
-I suggest reverting 212925802454 ("mm: oom: let oom_reap_task and exit_mmap
-run concurrently"). We can check for progress for a while before setting
-MMF_OOM_SKIP after the OOM reaper completed or gave up reaping.
+So do a hash table indexed by pair (void *, struct mm_struct *) and
+do lookups there...  And use radeon_device as the first half of the
+key.  Or struct file *, or pointer to whatever private data you maintain
+for an opened file...
