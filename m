@@ -1,52 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D29596B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 20:18:39 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id f19-v6so757774plr.20
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 17:18:39 -0700 (PDT)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id 7-v6si4486240pll.132.2018.04.19.17.18.37
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BACEF6B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 22:15:17 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n78so3792394pfj.4
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 19:15:17 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x20sor1144297pfk.56.2018.04.19.19.15.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 17:18:38 -0700 (PDT)
-Subject: Re: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and
- hugetlbfs
-References: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180418102744.GA10397@infradead.org>
- <73090d4b-6831-805b-8b9d-5dff267428d9@linux.alibaba.com>
- <20180419082810.GA8624@infradead.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <9d8c9198-46c4-fd34-3546-c6f9b3fef0fb@linux.alibaba.com>
-Date: Thu, 19 Apr 2018 17:18:20 -0700
+        (Google Transport Security);
+        Thu, 19 Apr 2018 19:15:16 -0700 (PDT)
+Date: Fri, 20 Apr 2018 11:15:11 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
+Message-ID: <20180420021511.GB6397@jagdpanzerIV>
+References: <20180413124704.19335-1-pmladek@suse.com>
+ <20180413101233.0792ebf0@gandalf.local.home>
+ <20180414023516.GA17806@tigerII.localdomain>
+ <20180416014729.GB1034@jagdpanzerIV>
+ <20180416042553.GA555@jagdpanzerIV>
+ <20180419125353.lawdc3xna5oqlq7k@pathway.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180419082810.GA8624@infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180419125353.lawdc3xna5oqlq7k@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: viro@zeniv.linux.org.uk, nyc@holomorphy.com, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Petr Mladek <pmladek@suse.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
+On (04/19/18 14:53), Petr Mladek wrote:
+> > > > 
+> > > > Besides 100 lines is absolutely not enough for any real lockdep splat.
+> > > > My call would be - up to 1000 lines in a 1 minute interval.
+> 
+> But this would break the intention of this patch.
 
+You picked an arbitrary value and now you are saying that any other
+value will not work?
 
-On 4/19/18 1:28 AM, Christoph Hellwig wrote:
-> On Wed, Apr 18, 2018 at 11:18:25AM -0700, Yang Shi wrote:
->> Yes, thanks for the suggestion. I did think about it before I went with the
->> new flag. Not like hugetlb, THP will *not* guarantee huge page is used all
->> the time, it may fallback to regular 4K page or may get split. I'm not sure
->> how the applications use f_bsize field, it might break existing applications
->> and the value might be abused by applications to have counter optimization.
->> So, IMHO, a new flag may sound safer.
-> But st_blksize isn't the block size, that is why I suggested it.  It is
-> the preferred I/O size, and various file systems can report way
-> larger values than the block size already.
+> Come on guys! The first reaction how to fix the infinite loop was
+> to fix the console drivers and remove the recursive messages. We are
+> talking about messages that should not be there or they should
+> get replaced by WARN_ONCE(), print_once() or so. This patch only
+> give us a chance to see the problem and do not blow up immediately.
+> 
+> I am fine with increasing the number of lines. But we need to keep
+> the timeout long. In fact, 1 hour is still rather short from my POV.
 
-Thanks. If it is safe to applications, It definitely can return huge 
-page size via st_blksize.
+Disagree.
 
-Is it safe to return huge page size via statfs->f_bsize? It sounds it 
-has not to be the physical block size too. The man page says it is 
-"Optimal transfer block size".
+I saw 3 or 4 lockdep reports coming from console drivers. "100 lines"
+is way too restrictive. I want to have a complete report; not the first
+50 lines, not the first 103 lines, which would "hint" me that "hey, there
+is something wrong there, but you are on your own to figure out the rest".
 
-Yang
+> > > Well, if we want to basically turn printk_safe() into printk_safe_ratelimited().
+> > > I'm not so sure about it.
+> 
+> No, it is not about printk_safe(). The ratelimit is active when
+> console_owner == current. It triggers when printk() is called
+> inside
+
+"console_owner == current" is exactly the point when we call console
+drivers and add scheduler, networking, timekeeping, etc. locks to the
+picture. And so far all of the lockdeps reports that we had were from
+call_console_drivers(). So it very much is about printk_safe().
+
+> > > Besides the patch also rate limits printk_nmi->logbuf - the logbuf
+> > > PRINTK_NMI_DEFERRED_CONTEXT_MASK bypass, which is way too important
+> > > to rate limit it - for no reason.
+> 
+> Again. It has the effect only when console_owner == current. It means
+> that it affects "only" NMIs that interrupt console_unlock() when calling
+> console drivers.
+
+What is your objection here? NMIs can come anytime.
+
+> > One more thing,
+> > I'd really prefer to rate limit the function which flushes per-CPU
+> > printk_safe buffers; not the function that appends new messages to
+> > the per-CPU printk_safe buffers.
+> 
+> I wonder if this opinion is still valid after explaining the
+> dependency on printk_safe(). In each case, it sounds weird
+> to block printk_safe buffers with some "unwanted" messages.
+> Or maybe I miss something.
+
+I'm not following.
+
+The fact that some consoles under some circumstances can add unwanted
+messages to the buffer does not look like a good enough reason to start
+rate limiting _all_ messages and to potentially discard the _important_
+ones.
+
+	-ss
