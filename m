@@ -1,118 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 44A106B0005
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 03:30:40 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id f13-v6so5389573qtg.15
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 00:30:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 13si7361658qkv.7.2018.04.20.00.30.38
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 093C26B0007
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 03:32:03 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z7-v6so7707620wrg.11
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 00:32:02 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m8si737354edr.146.2018.04.20.00.32.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Apr 2018 00:30:39 -0700 (PDT)
-Subject: Re: [PATCH RFC 2/8] mm: introduce PG_offline
-References: <20180413131632.1413-1-david@redhat.com>
- <20180413131632.1413-3-david@redhat.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <6624ec31-0b18-62dc-bcc3-5f8a2bf8da49@redhat.com>
-Date: Fri, 20 Apr 2018 09:30:26 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Apr 2018 00:32:01 -0700 (PDT)
+Date: Fri, 20 Apr 2018 09:31:58 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: general protection fault in kernfs_kill_sb
+Message-ID: <20180420073158.GS17484@dhcp22.suse.cz>
+References: <20180420024440.GB686@sol.localdomain>
+ <20180420033450.GC686@sol.localdomain>
+ <201804200529.w3K5TdvM009951@www262.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20180413131632.1413-3-david@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201804200529.w3K5TdvM009951@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, James Hogan <jhogan@kernel.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, open list <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Eric Biggers <ebiggers3@gmail.com>, Al Viro <viro@ZenIV.linux.org.uk>, syzbot <syzbot+151de3f2be6b40ac8026@syzkaller.appspotmail.com>, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-fsdevel@vger.kernel.org
 
-On 13.04.2018 15:16, David Hildenbrand wrote:
-> online_pages()/offline_pages() theoretically allows us to work on
-> sub-section sizes. This is especially relevant in the context of
-> virtualization. It e.g. allows us to add/remove memory to Linux in a VM in
-> 4MB chunks.
+On Fri 20-04-18 14:29:39, Tetsuo Handa wrote:
+> Eric Biggers wrote:
+> > But, there is still a related bug: when mounting sysfs, if register_shrinker()
+> > fails in sget_userns(), then kernfs_kill_sb() gets called, which frees the
+> > 'struct kernfs_super_info'.  But, the 'struct kernfs_super_info' is also freed
+> > in kernfs_mount_ns() by:
+> > 
+> >         sb = sget_userns(fs_type, kernfs_test_super, kernfs_set_super, flags,
+> >                          &init_user_ns, info);
+> >         if (IS_ERR(sb) || sb->s_fs_info != info)
+> >                 kfree(info);
+> >         if (IS_ERR(sb))
+> >                 return ERR_CAST(sb);
+> > 
+> > I guess the problem is that sget_userns() shouldn't take ownership of the 'info'
+> > if it returns an error -- but, it actually does if register_shrinker() fails,
+> > resulting in a double free.
+> > 
+> > Here is a reproducer and the KASAN splat.  This is on Linus' tree (87ef12027b9b)
+> > with vfs/for-linus merged in.
 > 
-> While the whole section is marked as online/offline, we have to know
-> the state of each page. E.g. to not read memory that is not online
-> during kexec() or to properly mark a section as offline as soon as all
-> contained pages are offline.
-> 
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->  include/linux/page-flags.h     | 10 ++++++++++
->  include/trace/events/mmflags.h |  9 ++++++++-
->  2 files changed, 18 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index e34a27727b9a..8ebc4bad7824 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -49,6 +49,9 @@
->   * PG_hwpoison indicates that a page got corrupted in hardware and contains
->   * data with incorrect ECC bits that triggered a machine check. Accessing is
->   * not safe since it may cause another machine check. Don't touch!
-> + *
-> + * PG_offline indicates that a page is offline and the backing storage
-> + * might already have been removed (virtualization). Don't touch!
->   */
->  
->  /*
-> @@ -100,6 +103,9 @@ enum pageflags {
->  #if defined(CONFIG_IDLE_PAGE_TRACKING) && defined(CONFIG_64BIT)
->  	PG_young,
->  	PG_idle,
-> +#endif
-> +#ifdef CONFIG_MEMORY_HOTPLUG
-> +	PG_offline,		/* Page is offline. Don't touch */
->  #endif
->  	__NR_PAGEFLAGS,
->  
-> @@ -381,6 +387,10 @@ TESTCLEARFLAG(Young, young, PF_ANY)
->  PAGEFLAG(Idle, idle, PF_ANY)
->  #endif
->  
-> +#ifdef CONFIG_MEMORY_HOTPLUG
-> +PAGEFLAG(Offline, offline, PF_ANY)
-> +#endif
-> +
->  /*
->   * On an anonymous page mapped into a user virtual memory area,
->   * page->mapping points to its anon_vma, not to a struct address_space;
-> diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-> index a81cffb76d89..14c31209e34a 100644
-> --- a/include/trace/events/mmflags.h
-> +++ b/include/trace/events/mmflags.h
-> @@ -79,6 +79,12 @@
->  #define IF_HAVE_PG_IDLE(flag,string)
->  #endif
->  
-> +#ifdef CONFIG_MEMORY_HOTPLUG
-> +#define IF_HAVE_PG_OFFLINE(flag,string) ,{1UL << flag, string}
-> +#else
-> +#define IF_HAVE_PG_OFFLINE(flag,string)
-> +#endif
-> +
->  #define __def_pageflag_names						\
->  	{1UL << PG_locked,		"locked"	},		\
->  	{1UL << PG_waiters,		"waiters"	},		\
-> @@ -104,7 +110,8 @@ IF_HAVE_PG_MLOCK(PG_mlocked,		"mlocked"	)		\
->  IF_HAVE_PG_UNCACHED(PG_uncached,	"uncached"	)		\
->  IF_HAVE_PG_HWPOISON(PG_hwpoison,	"hwpoison"	)		\
->  IF_HAVE_PG_IDLE(PG_young,		"young"		)		\
-> -IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
-> +IF_HAVE_PG_IDLE(PG_idle,		"idle"		)		\
-> +IF_HAVE_PG_OFFLINE(PG_offline,		"offline"	)
->  
->  #define show_page_flags(flags)						\
->  	(flags) ? __print_flags(flags, "|",				\
-> 
+> I'm waiting for response from Michal Hocko regarding
+> http://lkml.kernel.org/r/201804111909.EGC64586.QSFLFJFOVHOOtM@I-love.SAKURA.ne.jp .
 
-I am thinking right now of gluing this to CONFIG_MEMORY_PG_OFFLINE and
-allowing it to be used also for ordinary balloon drivers. It is then
-basically a way to signal using kdump "don't dump this page, the content
-is either invalid or not even accessible".
-
+I didn't plan to respond util all the Al's concerns with the existing
+scheme are resolved. This is not an urgent thing to fix so better fix it
+properly. Your API change is kinda ugly so it would be preferable to do
+it properly as suggested by Al. Maybe that will be more work but my
+understanding is that the resulting code would be better. If that is not
+the case then I do not really have any fundamental objection to your
+patch except it is ugly.
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
