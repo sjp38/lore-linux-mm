@@ -1,473 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C1D156B0009
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 12:37:16 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id a21-v6so6513229qtm.5
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 09:37:16 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id c142si3129536qke.91.2018.04.20.09.37.14
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 743726B0007
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 12:58:40 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id l9-v6so6495409qtp.23
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 09:58:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id h49-v6si7959718qtc.197.2018.04.20.09.58.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Apr 2018 09:37:15 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH 1/2] mm: introduce memory.min
-Date: Fri, 20 Apr 2018 17:36:31 +0100
-Message-ID: <20180420163632.3978-1-guro@fb.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Fri, 20 Apr 2018 09:58:39 -0700 (PDT)
+From: Chunyu Hu <chuhu@redhat.com>
+Subject: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in gfp_kmemleak_mask
+Date: Sat, 21 Apr 2018 00:58:33 +0800
+Message-Id: <1524243513-29118-1-git-send-email-chuhu@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>
+To: catalin.marinas@arm.com
+Cc: mhocko@suse.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Memory controller implements the memory.low best-effort memory
-protection mechanism, which works perfectly in many cases and
-allows protecting working sets of important workloads from
-sudden reclaim.
+__GFP_NORETRY and  __GFP_NOFAIL are combined in gfp_kmemleak_mask now.
+But it's a wrong combination. As __GFP_NOFAIL is blockable, but
+__GFP_NORETY is not blockable, make it self-contradiction.
 
-But it's semantics has a significant limitation: it works
-only until there is a supply of reclaimable memory.
-This makes it pretty useless against any sort of slow memory
-leaks or memory usage increases. This is especially true
-for swapless systems. If swap is enabled, memory soft protection
-effectively postpones problems, allowing a leaking application
-to fill all swap area, which makes no sense.
-The only effective way to guarantee the memory protection
-in this case is to invoke the OOM killer.
+__GFP_NOFAIL means 'The VM implementation _must_ retry infinitely'. But
+it's not the real intention, as kmemleak allow alloc failure happen in
+memory pressure, in that case kmemleak just disables itself.
 
-This patch introduces the memory.min interface for cgroup v2
-memory controller. It works very similarly to memory.low
-(sharing the same hierarchical behavior), except that it's
-not disabled if there is no more reclaimable memory in the system.
+commit 9a67f6488eca ("mm: consolidate GFP_NOFAIL checks in the allocator
+slowpath") documented that what user wants here should use GFP_NOWAIT, and
+the WARN in __alloc_pages_slowpath caught this weird usage.
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>
+ <snip>
+ WARNING: CPU: 3 PID: 64 at mm/page_alloc.c:4261 __alloc_pages_slowpath+0x1cc3/0x2780
+ CPU: 3 PID: 64 Comm: kswapd1 Not tainted 4.17.0-rc1.syzcaller+ #12
+ Hardware name: Red Hat KVM, BIOS 0.0.0 02/06/2015
+ RIP: 0010:__alloc_pages_slowpath+0x1cc3/0x2780
+ RSP: 0000:ffff88002fa5e6c8 EFLAGS: 00010046
+ RAX: 0000000000000000 RBX: 0000000000010000 RCX: 1ffff10005f4bcb6
+ RDX: 1ffff10007da3f46 RSI: 0000000000000000 RDI: ffff88003ed1fa38
+ RBP: 0000000001000000 R08: 0000000000000040 R09: 0000000000000030
+ R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
+ kmemleak: Kernel memory leak detector disabled
+ R13: ffff88002fa5ea68 R14: dffffc0000000000 R15: ffff88002fa5ea68
+ FS:  0000000000000000(0000) GS:ffff88003e900000(0000) knlGS:0000000000000000
+ CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+ CR2: 00007f5db91c6640 CR3: 0000000004014000 CR4: 00000000001406e0
+ Call Trace:
+  __alloc_pages_nodemask+0x5ce/0x7c0
+  alloc_pages_current+0xb6/0x230
+  new_slab+0x29d/0x9f0
+  ___slab_alloc+0x4e5/0xa90
+  __slab_alloc.isra.37+0x92/0x120
+  kmem_cache_alloc+0x35f/0x580
+  create_object+0xa6/0xaf0
+  kmem_cache_alloc+0x20a/0x580
+  mempool_alloc+0x13a/0x350
+  bio_alloc_bioset+0x3ef/0x6e0
+  get_swap_bio+0x125/0x490
+  __swap_writepage+0x7be/0x11f0
+  swap_writepage+0x46/0xb0
+  pageout.isra.33+0x435/0xe70
+  ? trace_event_raw_event_mm_shrink_slab_start+0x4d0/0x4d0
+  ? page_mapped+0x165/0x3f0
+  shrink_page_list+0x1ded/0x3960
+  shrink_inactive_list+0x737/0x14b0
+  shrink_node_memcg+0xa9f/0x1ef0
+  shrink_node+0x376/0x15f0
+  balance_pgdat+0x2c9/0x970
+  kswapd+0x537/0xfe0
+  kthread+0x387/0x510
+  <snip>
+
+Replace the __GFP_NOFAIL with GFP_NOWAIT in gfp_kmemleak_mask, __GFP_NORETRY
+and GFP_NOWAIT are in the gfp_kmemleak_mask. So kmemleak object allocaion
+is no blockable and no reclaim, making kmemleak less disruptive to user
+processes in pressure.
+
+Signed-off-by: Chunyu Hu <chuhu@redhat.com>
+CC: Michal Hocko <mhocko@suse.com>
 ---
- Documentation/cgroup-v2.txt  | 20 +++++++++
- include/linux/memcontrol.h   | 15 ++++++-
- include/linux/page_counter.h | 11 ++++-
- mm/memcontrol.c              | 99 ++++++++++++++++++++++++++++++++++++--------
- mm/page_counter.c            | 63 ++++++++++++++++++++--------
- mm/vmscan.c                  | 19 ++++++++-
- 6 files changed, 189 insertions(+), 38 deletions(-)
+ mm/kmemleak.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-index 657fe1769c75..49c846020f96 100644
---- a/Documentation/cgroup-v2.txt
-+++ b/Documentation/cgroup-v2.txt
-@@ -1002,6 +1002,26 @@ PAGE_SIZE multiple when read back.
- 	The total amount of memory currently being used by the cgroup
- 	and its descendants.
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 9a085d5..4ea07e4 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -126,7 +126,7 @@
+ /* GFP bitmask for kmemleak internal allocations */
+ #define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
+ 				 __GFP_NORETRY | __GFP_NOMEMALLOC | \
+-				 __GFP_NOWARN | __GFP_NOFAIL)
++				 __GFP_NOWARN | GFP_NOWAIT)
  
-+  memory.min
-+	A read-write single value file which exists on non-root
-+	cgroups.  The default is "0".
-+
-+	Hard memory protection.  If the memory usage of a cgroup
-+	is within its effectife min boundary, the cgroup's memory
-+	won't be reclaimed under any conditions. If there is no
-+	unprotected reclaimable memory available, OOM killer
-+	is invoked.
-+
-+	Effective low boundary is limited by memory.min values of
-+	all ancestor cgroups. If there is memory.mn overcommitment
-+	(child cgroup or cgroups are requiring more protected memory,
-+	than parent will allow), then each child cgroup will get
-+	the part of parent's protection proportional to the its
-+	actual memory usage below memory.min.
-+
-+	Putting more memory than generally available under this
-+	protection is discouraged and may lead to constant OOMs.
-+
-   memory.low
- 	A read-write single value file which exists on non-root
- 	cgroups.  The default is "0".
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index ab60ff55bdb3..6ee19532f567 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -297,7 +297,14 @@ static inline bool mem_cgroup_disabled(void)
- 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
- }
- 
--bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg);
-+enum mem_cgroup_protection {
-+	MEM_CGROUP_UNPROTECTED,
-+	MEM_CGROUP_PROTECTED_LOW,
-+	MEM_CGROUP_PROTECTED_MIN,
-+};
-+
-+enum mem_cgroup_protection
-+mem_cgroup_protected(struct mem_cgroup *root, struct mem_cgroup *memcg);
- 
- int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
- 			  gfp_t gfp_mask, struct mem_cgroup **memcgp,
-@@ -756,6 +763,12 @@ static inline void memcg_memory_event(struct mem_cgroup *memcg,
- {
- }
- 
-+static inline bool mem_cgroup_min(struct mem_cgroup *root,
-+				  struct mem_cgroup *memcg)
-+{
-+	return false;
-+}
-+
- static inline bool mem_cgroup_low(struct mem_cgroup *root,
- 				  struct mem_cgroup *memcg)
- {
-diff --git a/include/linux/page_counter.h b/include/linux/page_counter.h
-index 7902a727d3b6..bab7e57f659b 100644
---- a/include/linux/page_counter.h
-+++ b/include/linux/page_counter.h
-@@ -8,10 +8,16 @@
- 
- struct page_counter {
- 	atomic_long_t usage;
--	unsigned long max;
-+	unsigned long min;
- 	unsigned long low;
-+	unsigned long max;
- 	struct page_counter *parent;
- 
-+	/* effective memory.min and memory.min usage tracking */
-+	unsigned long emin;
-+	atomic_long_t min_usage;
-+	atomic_long_t children_min_usage;
-+
- 	/* effective memory.low and memory.low usage tracking */
- 	unsigned long elow;
- 	atomic_long_t low_usage;
-@@ -47,8 +53,9 @@ bool page_counter_try_charge(struct page_counter *counter,
- 			     unsigned long nr_pages,
- 			     struct page_counter **fail);
- void page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages);
--int page_counter_set_max(struct page_counter *counter, unsigned long nr_pages);
-+void page_counter_set_min(struct page_counter *counter, unsigned long nr_pages);
- void page_counter_set_low(struct page_counter *counter, unsigned long nr_pages);
-+int page_counter_set_max(struct page_counter *counter, unsigned long nr_pages);
- int page_counter_memparse(const char *buf, const char *max,
- 			  unsigned long *nr_pages);
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 25b148c2d222..9c65de7937d0 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4508,6 +4508,7 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
- 	}
- 	spin_unlock(&memcg->event_list_lock);
- 
-+	page_counter_set_min(&memcg->memory, 0);
- 	page_counter_set_low(&memcg->memory, 0);
- 
- 	memcg_offline_kmem(memcg);
-@@ -4562,6 +4563,7 @@ static void mem_cgroup_css_reset(struct cgroup_subsys_state *css)
- 	page_counter_set_max(&memcg->memsw, PAGE_COUNTER_MAX);
- 	page_counter_set_max(&memcg->kmem, PAGE_COUNTER_MAX);
- 	page_counter_set_max(&memcg->tcpmem, PAGE_COUNTER_MAX);
-+	page_counter_set_min(&memcg->memory, 0);
- 	page_counter_set_low(&memcg->memory, 0);
- 	memcg->high = PAGE_COUNTER_MAX;
- 	memcg->soft_limit = PAGE_COUNTER_MAX;
-@@ -5299,6 +5301,36 @@ static u64 memory_current_read(struct cgroup_subsys_state *css,
- 	return (u64)page_counter_read(&memcg->memory) * PAGE_SIZE;
- }
- 
-+static int memory_min_show(struct seq_file *m, void *v)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-+	unsigned long min = READ_ONCE(memcg->memory.min);
-+
-+	if (min == PAGE_COUNTER_MAX)
-+		seq_puts(m, "max\n");
-+	else
-+		seq_printf(m, "%llu\n", (u64)min * PAGE_SIZE);
-+
-+	return 0;
-+}
-+
-+static ssize_t memory_min_write(struct kernfs_open_file *of,
-+				char *buf, size_t nbytes, loff_t off)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-+	unsigned long min;
-+	int err;
-+
-+	buf = strstrip(buf);
-+	err = page_counter_memparse(buf, "max", &min);
-+	if (err)
-+		return err;
-+
-+	page_counter_set_min(&memcg->memory, min);
-+
-+	return nbytes;
-+}
-+
- static int memory_low_show(struct seq_file *m, void *v)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-@@ -5566,6 +5598,12 @@ static struct cftype memory_files[] = {
- 		.flags = CFTYPE_NOT_ON_ROOT,
- 		.read_u64 = memory_current_read,
- 	},
-+	{
-+		.name = "min",
-+		.flags = CFTYPE_NOT_ON_ROOT,
-+		.seq_show = memory_min_show,
-+		.write = memory_min_write,
-+	},
- 	{
- 		.name = "low",
- 		.flags = CFTYPE_NOT_ON_ROOT,
-@@ -5685,44 +5723,71 @@ struct cgroup_subsys memory_cgrp_subsys = {
-  * for next usage. This part is intentionally racy, but it's ok,
-  * as memory.low is a best-effort mechanism.
-  */
--bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg)
-+enum mem_cgroup_protection
-+mem_cgroup_protected(struct mem_cgroup *root, struct mem_cgroup *memcg)
- {
--	unsigned long usage, low_usage, siblings_low_usage;
--	unsigned long elow, parent_elow;
- 	struct mem_cgroup *parent;
-+	unsigned long emin, parent_emin;
-+	unsigned long elow, parent_elow;
-+	unsigned long usage;
- 
- 	if (mem_cgroup_disabled())
--		return false;
-+		return MEM_CGROUP_UNPROTECTED;
- 
- 	if (!root)
- 		root = root_mem_cgroup;
- 	if (memcg == root)
--		return false;
-+		return MEM_CGROUP_UNPROTECTED;
- 
--	elow = memcg->memory.low;
- 	usage = page_counter_read(&memcg->memory);
--	parent = parent_mem_cgroup(memcg);
-+	if (!usage)
-+		return MEM_CGROUP_UNPROTECTED;
-+
-+	emin = memcg->memory.min;
-+	elow = memcg->memory.low;
- 
-+	parent = parent_mem_cgroup(memcg);
- 	if (parent == root)
- 		goto exit;
- 
-+	parent_emin = READ_ONCE(parent->memory.emin);
-+	emin = min(emin, parent_emin);
-+	if (emin && parent_emin) {
-+		unsigned long min_usage, siblings_min_usage;
-+
-+		min_usage = min(usage, memcg->memory.min);
-+		siblings_min_usage = atomic_long_read(
-+			&parent->memory.children_min_usage);
-+
-+		if (min_usage && siblings_min_usage)
-+			emin = min(emin, parent_emin * min_usage /
-+				   siblings_min_usage);
-+	}
-+
- 	parent_elow = READ_ONCE(parent->memory.elow);
- 	elow = min(elow, parent_elow);
-+	if (elow && parent_elow) {
-+		unsigned long low_usage, siblings_low_usage;
- 
--	if (!elow || !parent_elow)
--		goto exit;
-+		low_usage = min(usage, memcg->memory.low);
-+		siblings_low_usage = atomic_long_read(
-+			&parent->memory.children_low_usage);
- 
--	low_usage = min(usage, memcg->memory.low);
--	siblings_low_usage = atomic_long_read(
--		&parent->memory.children_low_usage);
--
--	if (!low_usage || !siblings_low_usage)
--		goto exit;
-+		if (low_usage && siblings_low_usage)
-+			elow = min(elow, parent_elow * low_usage /
-+				   siblings_low_usage);
-+	}
- 
--	elow = min(elow, parent_elow * low_usage / siblings_low_usage);
- exit:
-+	memcg->memory.emin = emin;
- 	memcg->memory.elow = elow;
--	return usage && usage <= elow;
-+
-+	if (usage <= emin)
-+		return MEM_CGROUP_PROTECTED_MIN;
-+	else if (usage <= elow)
-+		return MEM_CGROUP_PROTECTED_LOW;
-+	else
-+		return MEM_CGROUP_UNPROTECTED;
- }
- 
- /**
-diff --git a/mm/page_counter.c b/mm/page_counter.c
-index a5ff4cbc355a..de31470655f6 100644
---- a/mm/page_counter.c
-+++ b/mm/page_counter.c
-@@ -13,26 +13,38 @@
- #include <linux/bug.h>
- #include <asm/page.h>
- 
--static void propagate_low_usage(struct page_counter *c, unsigned long usage)
-+static void propagate_protected_usage(struct page_counter *c,
-+				      unsigned long usage)
- {
--	unsigned long low_usage, old;
-+	unsigned long protected, old_protected;
- 	long delta;
- 
- 	if (!c->parent)
- 		return;
- 
--	if (!c->low && !atomic_long_read(&c->low_usage))
--		return;
-+	if (c->min || atomic_long_read(&c->min_usage)) {
-+		if (usage <= c->min)
-+			protected = usage;
-+		else
-+			protected = 0;
-+
-+		old_protected = atomic_long_xchg(&c->min_usage, protected);
-+		delta = protected - old_protected;
-+		if (delta)
-+			atomic_long_add(delta, &c->parent->children_min_usage);
-+	}
- 
--	if (usage <= c->low)
--		low_usage = usage;
--	else
--		low_usage = 0;
-+	if (c->low || atomic_long_read(&c->low_usage)) {
-+		if (usage <= c->low)
-+			protected = usage;
-+		else
-+			protected = 0;
- 
--	old = atomic_long_xchg(&c->low_usage, low_usage);
--	delta = low_usage - old;
--	if (delta)
--		atomic_long_add(delta, &c->parent->children_low_usage);
-+		old_protected = atomic_long_xchg(&c->low_usage, protected);
-+		delta = protected - old_protected;
-+		if (delta)
-+			atomic_long_add(delta, &c->parent->children_low_usage);
-+	}
- }
- 
- /**
-@@ -45,7 +57,7 @@ void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
- 	long new;
- 
- 	new = atomic_long_sub_return(nr_pages, &counter->usage);
--	propagate_low_usage(counter, new);
-+	propagate_protected_usage(counter, new);
- 	/* More uncharges than charges? */
- 	WARN_ON_ONCE(new < 0);
- }
-@@ -65,7 +77,7 @@ void page_counter_charge(struct page_counter *counter, unsigned long nr_pages)
- 		long new;
- 
- 		new = atomic_long_add_return(nr_pages, &c->usage);
--		propagate_low_usage(counter, new);
-+		propagate_protected_usage(counter, new);
- 		/*
- 		 * This is indeed racy, but we can live with some
- 		 * inaccuracy in the watermark.
-@@ -109,7 +121,7 @@ bool page_counter_try_charge(struct page_counter *counter,
- 		new = atomic_long_add_return(nr_pages, &c->usage);
- 		if (new > c->max) {
- 			atomic_long_sub(nr_pages, &c->usage);
--			propagate_low_usage(counter, new);
-+			propagate_protected_usage(counter, new);
- 			/*
- 			 * This is racy, but we can live with some
- 			 * inaccuracy in the failcnt.
-@@ -118,7 +130,7 @@ bool page_counter_try_charge(struct page_counter *counter,
- 			*fail = c;
- 			goto failed;
- 		}
--		propagate_low_usage(counter, new);
-+		propagate_protected_usage(counter, new);
- 		/*
- 		 * Just like with failcnt, we can live with some
- 		 * inaccuracy in the watermark.
-@@ -190,6 +202,23 @@ int page_counter_set_max(struct page_counter *counter, unsigned long nr_pages)
- 	}
- }
- 
-+/**
-+ * page_counter_set_min - set the amount of protected memory
-+ * @counter: counter
-+ * @nr_pages: value to set
-+ *
-+ * The caller must serialize invocations on the same counter.
-+ */
-+void page_counter_set_min(struct page_counter *counter, unsigned long nr_pages)
-+{
-+	struct page_counter *c;
-+
-+	counter->min = nr_pages;
-+
-+	for (c = counter; c; c = c->parent)
-+		propagate_protected_usage(c, atomic_long_read(&c->usage));
-+}
-+
- /**
-  * page_counter_set_low - set the amount of protected memory
-  * @counter: counter
-@@ -204,7 +233,7 @@ void page_counter_set_low(struct page_counter *counter, unsigned long nr_pages)
- 	counter->low = nr_pages;
- 
- 	for (c = counter; c; c = c->parent)
--		propagate_low_usage(c, atomic_long_read(&c->usage));
-+		propagate_protected_usage(c, atomic_long_read(&c->usage));
- }
- 
- /**
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8b920ce3ae02..39ef143cf781 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2525,12 +2525,29 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			unsigned long reclaimed;
- 			unsigned long scanned;
- 
--			if (mem_cgroup_low(root, memcg)) {
-+			switch (mem_cgroup_protected(root, memcg)) {
-+			case MEM_CGROUP_PROTECTED_MIN:
-+				/*
-+				 * Hard protection.
-+				 * If there is no reclaimable memory, OOM.
-+				 */
-+				continue;
-+
-+			case MEM_CGROUP_PROTECTED_LOW:
-+				/*
-+				 * Soft protection.
-+				 * Respect the protection only until there is
-+				 * a supply of reclaimable memory.
-+				 */
- 				if (!sc->memcg_low_reclaim) {
- 					sc->memcg_low_skipped = 1;
- 					continue;
- 				}
- 				memcg_memory_event(memcg, MEMCG_LOW);
-+				break;
-+
-+			case MEM_CGROUP_UNPROTECTED:
-+				break;
- 			}
- 
- 			reclaimed = sc->nr_reclaimed;
+ /* scanning area inside a memory block */
+ struct kmemleak_scan_area {
 -- 
-2.14.3
+1.8.3.1
