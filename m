@@ -1,230 +1,1155 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B9DE6B0005
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 10:47:00 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 31-v6so9120369wrr.2
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 07:47:00 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id A750A6B0006
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 10:47:03 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id e15-v6so9106125wrj.14
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 07:47:03 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v184sor464074wmd.3.2018.04.20.07.46.58
+        by mx.google.com with SMTPS id p15-v6sor2114002wrh.25.2018.04.20.07.47.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Apr 2018 07:46:58 -0700 (PDT)
+        Fri, 20 Apr 2018 07:47:01 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [RFC PATCH v3 00/15] khwasan: kernel hardware assisted address sanitizer
-Date: Fri, 20 Apr 2018 16:46:38 +0200
-Message-Id: <cover.1524235387.git.andreyknvl@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [RFC PATCH v3 01/15] khwasan: move common kasan and khwasan code to common.c
+Date: Fri, 20 Apr 2018 16:46:39 +0200
+Message-Id: <7352695daf7db78551bdd741936326da20e883ab.1524235387.git.andreyknvl@google.com>
+In-Reply-To: <cover.1524235387.git.andreyknvl@google.com>
+References: <cover.1524235387.git.andreyknvl@google.com>
+In-Reply-To: <cover.1524235387.git.andreyknvl@google.com>
+References: <cover.1524235387.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, "GitAuthor : Andrey Konovalov" <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Yury Norov <ynorov@caviumnetworks.com>, Nick Desaulniers <ndesaulniers@google.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <Dave.Martin@arm.com>, Michael Weiser <michael.weiser@gmx.de>, James Morse <james.morse@arm.com>, Julien Thierry <julien.thierry@arm.com>, Steve Capper <steve.capper@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Paul Lawrence <paullawrence@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Woodhouse <dwmw@amazon.co.uk>, Sandipan Das <sandipan@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Herbert Xu <herbert@gondor.apana.org.au>, Geert Uytterhoeven <geert@linux-m68k.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Arnd Bergmann <arnd@arndb.de>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvmarm@lists.cs.columbia.edu, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
 Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-Hi! This is the 3rd RFC version of the patchset.
+KHWASAN will reuse a significant part of KASAN code, so move the common
+parts to common.c without any functional changes.
 
-This patchset adds a new mode to KASAN [1], which is called KHWASAN
-(Kernel HardWare assisted Address SANitizer). There's still some work to
-do and there are a few TODOs in the code, so I'm publishing this as an RFC
-to collect some initial feedback.
-
-The plan is to implement HWASan [2] for the kernel with the incentive,
-that it's going to have comparable to KASAN performance, but in the same
-time consume much less memory, trading that off for somewhat imprecise
-bug detection and being supported only for arm64.
-
-The overall idea of the approach used by KHWASAN is the following:
-
-1. By using the Top Byte Ignore arm64 CPU feature, we can store pointer
-   tags in the top byte of each kernel pointer.
-
-2. Using shadow memory, we can store memory tags for each chunk of kernel
-   memory.
-
-3. On each memory allocation, we can generate a random tag, embed it into
-   the returned pointer and set the memory tags that correspond to this
-   chunk of memory to the same value.
-
-4. By using compiler instrumentation, before each memory access we can add
-   a check that the pointer tag matches the tag of the memory that is being
-   accessed.
-
-5. On a tag mismatch we report an error.
-
-[1] https://www.kernel.org/doc/html/latest/dev-tools/kasan.html
-
-[2] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
-
-
-====== Technical details
-
-KHWASAN is implemented in a very similar way to KASAN. This patchset
-essentially does the following:
-
-1. TCR_TBI1 is set to enable Top Byte Ignore.
-
-2. Shadow memory is used (with a different scale, 1:16, so each shadow
-   byte corresponds to 16 bytes of kernel memory) to store memory tags.
-
-3. All slab objects are aligned to shadow scale, which is 16 bytes.
-
-4. All pointers returned from the slab allocator are tagged with a random
-   tag and the corresponding shadow memory is poisoned with the same value.
-
-5. Compiler instrumentation is used to insert tag checks. Either by
-   calling callbacks or by inlining them (CONFIG_KASAN_OUTLINE and
-   CONFIG_KASAN_INLINE flags are reused).
-
-6. When a tag mismatch is detected in callback instrumentation mode
-   KHWASAN simply prints a bug report. In case of inline instrumentation,
-   clang inserts a brk instruction, and KHWASAN has it's own brk handler,
-   which reports the bug.
-
-7. The memory in between slab objects is marked with a reserved tag, and
-   acts as a redzone.
-
-8. When a slab object is freed it's marked with a reserved tag.
-
-Bug detection is imprecise for two reasons:
-
-1. We won't catch some small out-of-bounds accesses, that fall into the
-   same shadow cell, as the last byte of a slab object.
-
-2. We only have 1 byte to store tags, which means we have a 1/256
-   probability of a tag match for an incorrect access (actually even
-   slightly less due to reserved tag values).
-
-
-====== Benchmarks
-
-The following numbers were collected on Odroid C2 board. Both KASAN and
-KHWASAN were used in inline instrumentation mode. These are the numbers
-I got with the current prototype and they might change.
-
-Boot time [1]:
-* ~4.5 sec for clean kernel
-* ~5.0 sec for KASAN
-* ~5.1 sec for KHWASAN
-
-Slab memory usage after boot [2]:
-* ~32 kb for clean kernel
-* ~95 kb + 1/8th shadow ~= 107 kb for KASAN
-* ~38 kb + 1/16th shadow ~= 40 kb for KHWASAN
-
-Network performance [3]:
-* 11.9 Gbits/sec for clean kernel
-* 3.08 Gbits/sec for KASAN
-* 3.02 Gbits/sec for KHWASAN
-
-Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
-
-[1] Time before the ext4 driver is initialized.
-[2] Measured as `cat /proc/meminfo | grep Slab`.
-[3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
-
-
-====== Some notes
-
-A few notes:
-
-1. The patchset can be found here:
-   https://github.com/xairy/kasan-prototype/tree/khwasan
-
-2. Building requires a recent LLVM version (r330044 or later).
-
-3. Stack instrumentation is not supported yet (in progress).
-
-4. There are still a few TODOs in the code, that need to be addressed.
-
-
-====== Changes
-
-Changes in RFC v3:
-- Renamed CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS to
-  CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW respectively.
-- Switch to -fsanitize=kernel-hwaddress instead of -fsanitize=hwaddress.
-- Removed unnecessary excessive shadow initialization.
-- Removed khwasan_enabled flag (ita??s not needed since KHWASAN is
-  initialized before any slab caches are used).
-- Split out kasan_report.c and khwasan_report.c from report.c.
-- Moved more common KASAN and KHWASAN functions to common.c.
-- Added tagging to pagealloc.
-- Rebased onto 4.17-rc1.
-- Temporarily dropped patch that adds kvm support (arm64 + kvm + clang
-  combo is broken right now (https://lkml.org/lkml/2018/4/19/775)).
-
-Changes in RFC v2:
-- Removed explicit casts to u8 * for kasan_mem_to_shadow() calls.
-- Introduced KASAN_TCR_FLAGS for setting the TCR_TBI1 flag.
-- Added a comment regarding the non-atomic RMW sequence in
-  khwasan_random_tag().
-- Made all tag related functions accept const void *.
-- Untagged pointers in __kimg_to_phys, which is used by virt_to_phys.
-- Untagged pointers in show_ptr in fault handling logic.
-- Untagged pointers passed to KVM.
-- Added two reserved tag values: 0xFF and 0xFE.
-- Used the reserved tag 0xFF to disable validity checking (to resolve the
-  issue with pointer tag being lost after page_address + kmap usage).
-- Used the reserved tag 0xFE to mark redzones and freed objects.
-- Added mnemonics for esr manipulation in KHWASAN brk handler.
-- Added a comment about the -recover flag.
-- Some minor cleanups and fixes.
-- Rebased onto 3215b9d5 (4.16-rc6+).
-- Tested on real hardware (Odroid C2 board).
-- Added better benchmarks.
-
-Andrey Konovalov (15):
-  khwasan: move common kasan and khwasan code to common.c
-  khwasan: add CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW
-  khwasan, arm64: adjust shadow size for CONFIG_KASAN_HW
-  khwasan: initialize shadow to 0xff
-  khwasan, arm64: untag virt address in __kimg_to_phys
-  khwasan, arm64: fix up fault handling logic
-  khwasan: add tag related helper functions
-  khwasan, arm64: enable top byte ignore for the kernel
-  khwasan, mm: perform untagged pointers comparison in krealloc
-  khwasan: split out kasan_report.c from report.c
-  khwasan: add bug reporting routines
-  khwasan: add hooks implementation
-  khwasan, arm64: add brk handler for inline instrumentation
-  khwasan, mm, arm64: tag non slab memory allocated via pagealloc
-  khwasan: update kasan documentation
-
- Documentation/dev-tools/kasan.rst      | 212 +++++----
- arch/arm64/Kconfig                     |   1 +
- arch/arm64/Makefile                    |   2 +-
- arch/arm64/include/asm/brk-imm.h       |   2 +
- arch/arm64/include/asm/memory.h        |  35 +-
- arch/arm64/include/asm/pgtable-hwdef.h |   1 +
- arch/arm64/kernel/traps.c              |  69 ++-
- arch/arm64/mm/fault.c                  |   3 +
- arch/arm64/mm/kasan_init.c             |  18 +-
- arch/arm64/mm/proc.S                   |   8 +-
- include/linux/compiler-clang.h         |   5 +-
- include/linux/compiler-gcc.h           |   4 +
- include/linux/compiler.h               |   3 +-
- include/linux/kasan.h                  |  50 ++-
- include/linux/mm.h                     |  29 ++
- include/linux/page-flags-layout.h      |  10 +
- lib/Kconfig.kasan                      |  68 ++-
- mm/cma.c                               |   1 +
- mm/kasan/Makefile                      |   9 +-
- mm/kasan/common.c                      | 576 +++++++++++++++++++++++++
- mm/kasan/kasan.c                       | 493 +--------------------
- mm/kasan/kasan.h                       |  94 +++-
- mm/kasan/kasan_report.c                | 155 +++++++
- mm/kasan/khwasan.c                     | 163 +++++++
- mm/kasan/khwasan_report.c              |  60 +++
- mm/kasan/report.c                      | 271 ++++--------
- mm/page_alloc.c                        |   1 +
- mm/slab_common.c                       |   2 +-
- mm/slub.c                              |   2 +-
- scripts/Makefile.kasan                 |  27 +-
- 30 files changed, 1558 insertions(+), 816 deletions(-)
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ mm/kasan/Makefile |   5 +-
+ mm/kasan/common.c | 524 ++++++++++++++++++++++++++++++++++++++++++++++
+ mm/kasan/kasan.c  | 493 +------------------------------------------
+ mm/kasan/kasan.h  |   6 +
+ 4 files changed, 537 insertions(+), 491 deletions(-)
  create mode 100644 mm/kasan/common.c
- create mode 100644 mm/kasan/kasan_report.c
- create mode 100644 mm/kasan/khwasan.c
- create mode 100644 mm/kasan/khwasan_report.c
 
+diff --git a/mm/kasan/Makefile b/mm/kasan/Makefile
+index 3289db38bc87..a6df14bffb6b 100644
+--- a/mm/kasan/Makefile
++++ b/mm/kasan/Makefile
+@@ -1,11 +1,14 @@
+ # SPDX-License-Identifier: GPL-2.0
+ KASAN_SANITIZE := n
++UBSAN_SANITIZE_common.o := n
+ UBSAN_SANITIZE_kasan.o := n
+ KCOV_INSTRUMENT := n
+ 
+ CFLAGS_REMOVE_kasan.o = -pg
+ # Function splitter causes unnecessary splits in __asan_load1/__asan_store1
+ # see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63533
++
++CFLAGS_common.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+ CFLAGS_kasan.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+ 
+-obj-y := kasan.o report.o kasan_init.o quarantine.o
++obj-y := common.o kasan.o report.o kasan_init.o quarantine.o
+diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+new file mode 100644
+index 000000000000..ebb48415e4cf
+--- /dev/null
++++ b/mm/kasan/common.c
+@@ -0,0 +1,524 @@
++/*
++ * This file contains common KASAN and KHWASAN code.
++ *
++ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
++ * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
++ *
++ * Some code borrowed from https://github.com/xairy/kasan-prototype by
++ *        Andrey Konovalov <andreyknvl@gmail.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ */
++
++#include <linux/export.h>
++#include <linux/interrupt.h>
++#include <linux/init.h>
++#include <linux/kasan.h>
++#include <linux/kernel.h>
++#include <linux/kmemleak.h>
++#include <linux/linkage.h>
++#include <linux/memblock.h>
++#include <linux/memory.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/printk.h>
++#include <linux/sched.h>
++#include <linux/sched/task_stack.h>
++#include <linux/slab.h>
++#include <linux/stacktrace.h>
++#include <linux/string.h>
++#include <linux/types.h>
++#include <linux/vmalloc.h>
++#include <linux/bug.h>
++
++#include "kasan.h"
++#include "../slab.h"
++
++static inline int in_irqentry_text(unsigned long ptr)
++{
++	return (ptr >= (unsigned long)&__irqentry_text_start &&
++		ptr < (unsigned long)&__irqentry_text_end) ||
++		(ptr >= (unsigned long)&__softirqentry_text_start &&
++		 ptr < (unsigned long)&__softirqentry_text_end);
++}
++
++static inline void filter_irq_stacks(struct stack_trace *trace)
++{
++	int i;
++
++	if (!trace->nr_entries)
++		return;
++	for (i = 0; i < trace->nr_entries; i++)
++		if (in_irqentry_text(trace->entries[i])) {
++			/* Include the irqentry function into the stack. */
++			trace->nr_entries = i + 1;
++			break;
++		}
++}
++
++static inline depot_stack_handle_t save_stack(gfp_t flags)
++{
++	unsigned long entries[KASAN_STACK_DEPTH];
++	struct stack_trace trace = {
++		.nr_entries = 0,
++		.entries = entries,
++		.max_entries = KASAN_STACK_DEPTH,
++		.skip = 0
++	};
++
++	save_stack_trace(&trace);
++	filter_irq_stacks(&trace);
++	if (trace.nr_entries != 0 &&
++	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
++		trace.nr_entries--;
++
++	return depot_save_stack(&trace, flags);
++}
++
++void set_track(struct kasan_track *track, gfp_t flags)
++{
++	track->pid = current->pid;
++	track->stack = save_stack(flags);
++}
++
++void kasan_enable_current(void)
++{
++	current->kasan_depth++;
++}
++
++void kasan_disable_current(void)
++{
++	current->kasan_depth--;
++}
++
++void kasan_check_read(const volatile void *p, unsigned int size)
++{
++	check_memory_region((unsigned long)p, size, false, _RET_IP_);
++}
++EXPORT_SYMBOL(kasan_check_read);
++
++void kasan_check_write(const volatile void *p, unsigned int size)
++{
++	check_memory_region((unsigned long)p, size, true, _RET_IP_);
++}
++EXPORT_SYMBOL(kasan_check_write);
++
++#undef memset
++void *memset(void *addr, int c, size_t len)
++{
++	check_memory_region((unsigned long)addr, len, true, _RET_IP_);
++
++	return __memset(addr, c, len);
++}
++
++#undef memmove
++void *memmove(void *dest, const void *src, size_t len)
++{
++	check_memory_region((unsigned long)src, len, false, _RET_IP_);
++	check_memory_region((unsigned long)dest, len, true, _RET_IP_);
++
++	return __memmove(dest, src, len);
++}
++
++#undef memcpy
++void *memcpy(void *dest, const void *src, size_t len)
++{
++	check_memory_region((unsigned long)src, len, false, _RET_IP_);
++	check_memory_region((unsigned long)dest, len, true, _RET_IP_);
++
++	return __memcpy(dest, src, len);
++}
++
++/*
++ * Poisons the shadow memory for 'size' bytes starting from 'addr'.
++ * Memory addresses should be aligned to KASAN_SHADOW_SCALE_SIZE.
++ */
++void kasan_poison_shadow(const void *address, size_t size, u8 value)
++{
++	void *shadow_start, *shadow_end;
++
++	shadow_start = kasan_mem_to_shadow(address);
++	shadow_end = kasan_mem_to_shadow(address + size);
++
++	__memset(shadow_start, value, shadow_end - shadow_start);
++}
++
++void kasan_unpoison_shadow(const void *address, size_t size)
++{
++	kasan_poison_shadow(address, size, 0);
++
++	if (size & KASAN_SHADOW_MASK) {
++		u8 *shadow = (u8 *)kasan_mem_to_shadow(address + size);
++		*shadow = size & KASAN_SHADOW_MASK;
++	}
++}
++
++static void __kasan_unpoison_stack(struct task_struct *task, const void *sp)
++{
++	void *base = task_stack_page(task);
++	size_t size = sp - base;
++
++	kasan_unpoison_shadow(base, size);
++}
++
++/* Unpoison the entire stack for a task. */
++void kasan_unpoison_task_stack(struct task_struct *task)
++{
++	__kasan_unpoison_stack(task, task_stack_page(task) + THREAD_SIZE);
++}
++
++/* Unpoison the stack for the current task beyond a watermark sp value. */
++asmlinkage void kasan_unpoison_task_stack_below(const void *watermark)
++{
++	/*
++	 * Calculate the task stack base address.  Avoid using 'current'
++	 * because this function is called by early resume code which hasn't
++	 * yet set up the percpu register (%gs).
++	 */
++	void *base = (void *)((unsigned long)watermark & ~(THREAD_SIZE - 1));
++
++	kasan_unpoison_shadow(base, watermark - base);
++}
++
++/*
++ * Clear all poison for the region between the current SP and a provided
++ * watermark value, as is sometimes required prior to hand-crafted asm function
++ * returns in the middle of functions.
++ */
++void kasan_unpoison_stack_above_sp_to(const void *watermark)
++{
++	const void *sp = __builtin_frame_address(0);
++	size_t size = watermark - sp;
++
++	if (WARN_ON(sp > watermark))
++		return;
++	kasan_unpoison_shadow(sp, size);
++}
++
++void kasan_alloc_pages(struct page *page, unsigned int order)
++{
++	if (likely(!PageHighMem(page)))
++		kasan_unpoison_shadow(page_address(page), PAGE_SIZE << order);
++}
++
++void kasan_free_pages(struct page *page, unsigned int order)
++{
++	if (likely(!PageHighMem(page)))
++		kasan_poison_shadow(page_address(page),
++				PAGE_SIZE << order,
++				KASAN_FREE_PAGE);
++}
++
++void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
++			slab_flags_t *flags)
++{
++	unsigned int orig_size = *size;
++	int redzone_adjust;
++
++	/* Add alloc meta. */
++	cache->kasan_info.alloc_meta_offset = *size;
++	*size += sizeof(struct kasan_alloc_meta);
++
++	/* Add free meta. */
++	if (cache->flags & SLAB_TYPESAFE_BY_RCU || cache->ctor ||
++	    cache->object_size < sizeof(struct kasan_free_meta)) {
++		cache->kasan_info.free_meta_offset = *size;
++		*size += sizeof(struct kasan_free_meta);
++	}
++	redzone_adjust = optimal_redzone(cache->object_size) -
++		(*size - cache->object_size);
++
++	if (redzone_adjust > 0)
++		*size += redzone_adjust;
++
++	*size = min_t(unsigned int, KMALLOC_MAX_SIZE,
++			max(*size, cache->object_size +
++					optimal_redzone(cache->object_size)));
++
++	/*
++	 * If the metadata doesn't fit, don't enable KASAN at all.
++	 */
++	if (*size <= cache->kasan_info.alloc_meta_offset ||
++			*size <= cache->kasan_info.free_meta_offset) {
++		cache->kasan_info.alloc_meta_offset = 0;
++		cache->kasan_info.free_meta_offset = 0;
++		*size = orig_size;
++		return;
++	}
++
++	*flags |= SLAB_KASAN;
++}
++
++size_t kasan_metadata_size(struct kmem_cache *cache)
++{
++	return (cache->kasan_info.alloc_meta_offset ?
++		sizeof(struct kasan_alloc_meta) : 0) +
++		(cache->kasan_info.free_meta_offset ?
++		sizeof(struct kasan_free_meta) : 0);
++}
++
++struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
++					const void *object)
++{
++	BUILD_BUG_ON(sizeof(struct kasan_alloc_meta) > 32);
++	return (void *)object + cache->kasan_info.alloc_meta_offset;
++}
++
++struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
++				      const void *object)
++{
++	BUILD_BUG_ON(sizeof(struct kasan_free_meta) > 32);
++	return (void *)object + cache->kasan_info.free_meta_offset;
++}
++
++void kasan_poison_slab(struct page *page)
++{
++	kasan_poison_shadow(page_address(page),
++			PAGE_SIZE << compound_order(page),
++			KASAN_KMALLOC_REDZONE);
++}
++
++void kasan_unpoison_object_data(struct kmem_cache *cache, void *object)
++{
++	kasan_unpoison_shadow(object, cache->object_size);
++}
++
++void kasan_poison_object_data(struct kmem_cache *cache, void *object)
++{
++	kasan_poison_shadow(object,
++			round_up(cache->object_size, KASAN_SHADOW_SCALE_SIZE),
++			KASAN_KMALLOC_REDZONE);
++}
++
++void kasan_init_slab_obj(struct kmem_cache *cache, const void *object)
++{
++	struct kasan_alloc_meta *alloc_info;
++
++	if (!(cache->flags & SLAB_KASAN))
++		return;
++
++	alloc_info = get_alloc_info(cache, object);
++	__memset(alloc_info, 0, sizeof(*alloc_info));
++}
++
++void *kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
++{
++	return kasan_kmalloc(cache, object, cache->object_size, flags);
++}
++
++static bool __kasan_slab_free(struct kmem_cache *cache, void *object,
++			      unsigned long ip, bool quarantine)
++{
++	s8 shadow_byte;
++	unsigned long rounded_up_size;
++
++	if (unlikely(nearest_obj(cache, virt_to_head_page(object), object) !=
++	    object)) {
++		kasan_report_invalid_free(object, ip);
++		return true;
++	}
++
++	/* RCU slabs could be legally used after free within the RCU period */
++	if (unlikely(cache->flags & SLAB_TYPESAFE_BY_RCU))
++		return false;
++
++	shadow_byte = READ_ONCE(*(s8 *)kasan_mem_to_shadow(object));
++	if (shadow_byte < 0 || shadow_byte >= KASAN_SHADOW_SCALE_SIZE) {
++		kasan_report_invalid_free(object, ip);
++		return true;
++	}
++
++	rounded_up_size = round_up(cache->object_size, KASAN_SHADOW_SCALE_SIZE);
++	kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
++
++	if (!quarantine || unlikely(!(cache->flags & SLAB_KASAN)))
++		return false;
++
++	set_track(&get_alloc_info(cache, object)->free_track, GFP_NOWAIT);
++	quarantine_put(get_free_info(cache, object), cache);
++	return true;
++}
++
++bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
++{
++	return __kasan_slab_free(cache, object, ip, true);
++}
++
++void *kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
++		   gfp_t flags)
++{
++	unsigned long redzone_start;
++	unsigned long redzone_end;
++
++	if (gfpflags_allow_blocking(flags))
++		quarantine_reduce();
++
++	if (unlikely(object == NULL))
++		return NULL;
++
++	redzone_start = round_up((unsigned long)(object + size),
++				KASAN_SHADOW_SCALE_SIZE);
++	redzone_end = round_up((unsigned long)object + cache->object_size,
++				KASAN_SHADOW_SCALE_SIZE);
++
++	kasan_unpoison_shadow(object, size);
++	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
++		KASAN_KMALLOC_REDZONE);
++
++	if (cache->flags & SLAB_KASAN)
++		set_track(&get_alloc_info(cache, object)->alloc_track, flags);
++
++	return (void *)object;
++}
++EXPORT_SYMBOL(kasan_kmalloc);
++
++void *kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
++{
++	struct page *page;
++	unsigned long redzone_start;
++	unsigned long redzone_end;
++
++	if (gfpflags_allow_blocking(flags))
++		quarantine_reduce();
++
++	if (unlikely(ptr == NULL))
++		return NULL;
++
++	page = virt_to_page(ptr);
++	redzone_start = round_up((unsigned long)(ptr + size),
++				KASAN_SHADOW_SCALE_SIZE);
++	redzone_end = (unsigned long)ptr + (PAGE_SIZE << compound_order(page));
++
++	kasan_unpoison_shadow(ptr, size);
++	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
++		KASAN_PAGE_REDZONE);
++
++	return (void *)ptr;
++}
++
++void *kasan_krealloc(const void *object, size_t size, gfp_t flags)
++{
++	struct page *page;
++
++	if (unlikely(object == ZERO_SIZE_PTR))
++		return (void *)object;
++
++	page = virt_to_head_page(object);
++
++	if (unlikely(!PageSlab(page)))
++		return kasan_kmalloc_large(object, size, flags);
++	else
++		return kasan_kmalloc(page->slab_cache, object, size, flags);
++}
++
++void kasan_poison_kfree(void *ptr, unsigned long ip)
++{
++	struct page *page;
++
++	page = virt_to_head_page(ptr);
++
++	if (unlikely(!PageSlab(page))) {
++		if (ptr != page_address(page)) {
++			kasan_report_invalid_free(ptr, ip);
++			return;
++		}
++		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
++				KASAN_FREE_PAGE);
++	} else {
++		__kasan_slab_free(page->slab_cache, ptr, ip, false);
++	}
++}
++
++void kasan_kfree_large(void *ptr, unsigned long ip)
++{
++	if (ptr != page_address(virt_to_head_page(ptr)))
++		kasan_report_invalid_free(ptr, ip);
++	/* The object will be poisoned by page_alloc. */
++}
++
++int kasan_module_alloc(void *addr, size_t size)
++{
++	void *ret;
++	size_t shadow_size;
++	unsigned long shadow_start;
++
++	shadow_start = (unsigned long)kasan_mem_to_shadow(addr);
++	shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT,
++			PAGE_SIZE);
++
++	if (WARN_ON(!PAGE_ALIGNED(shadow_start)))
++		return -EINVAL;
++
++	ret = __vmalloc_node_range(shadow_size, 1, shadow_start,
++			shadow_start + shadow_size,
++			GFP_KERNEL | __GFP_ZERO,
++			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
++			__builtin_return_address(0));
++
++	if (ret) {
++		find_vm_area(addr)->flags |= VM_KASAN;
++		kmemleak_ignore(ret);
++		return 0;
++	}
++
++	return -ENOMEM;
++}
++
++void kasan_free_shadow(const struct vm_struct *vm)
++{
++	if (vm->flags & VM_KASAN)
++		vfree(kasan_mem_to_shadow(vm->addr));
++}
++
++#ifdef CONFIG_MEMORY_HOTPLUG
++static int __meminit kasan_mem_notifier(struct notifier_block *nb,
++			unsigned long action, void *data)
++{
++	struct memory_notify *mem_data = data;
++	unsigned long nr_shadow_pages, start_kaddr, shadow_start;
++	unsigned long shadow_end, shadow_size;
++
++	nr_shadow_pages = mem_data->nr_pages >> KASAN_SHADOW_SCALE_SHIFT;
++	start_kaddr = (unsigned long)pfn_to_kaddr(mem_data->start_pfn);
++	shadow_start = (unsigned long)kasan_mem_to_shadow((void *)start_kaddr);
++	shadow_size = nr_shadow_pages << PAGE_SHIFT;
++	shadow_end = shadow_start + shadow_size;
++
++	if (WARN_ON(mem_data->nr_pages % KASAN_SHADOW_SCALE_SIZE) ||
++		WARN_ON(start_kaddr % (KASAN_SHADOW_SCALE_SIZE << PAGE_SHIFT)))
++		return NOTIFY_BAD;
++
++	switch (action) {
++	case MEM_GOING_ONLINE: {
++		void *ret;
++
++		ret = __vmalloc_node_range(shadow_size, PAGE_SIZE, shadow_start,
++					shadow_end, GFP_KERNEL,
++					PAGE_KERNEL, VM_NO_GUARD,
++					pfn_to_nid(mem_data->start_pfn),
++					__builtin_return_address(0));
++		if (!ret)
++			return NOTIFY_BAD;
++
++		kmemleak_ignore(ret);
++		return NOTIFY_OK;
++	}
++	case MEM_OFFLINE:
++		vfree((void *)shadow_start);
++	}
++
++	return NOTIFY_OK;
++}
++
++static int __init kasan_memhotplug_init(void)
++{
++	hotplug_memory_notifier(kasan_mem_notifier, 0);
++
++	return 0;
++}
++
++module_init(kasan_memhotplug_init);
++#endif
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 2f5e52d72c2b..13151e437bef 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -1,5 +1,5 @@
+ /*
+- * This file contains shadow memory manipulation code.
++ * This file contains core KASAN code.
+  *
+  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
+  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+@@ -40,82 +40,6 @@
+ #include "kasan.h"
+ #include "../slab.h"
+ 
+-void kasan_enable_current(void)
+-{
+-	current->kasan_depth++;
+-}
+-
+-void kasan_disable_current(void)
+-{
+-	current->kasan_depth--;
+-}
+-
+-/*
+- * Poisons the shadow memory for 'size' bytes starting from 'addr'.
+- * Memory addresses should be aligned to KASAN_SHADOW_SCALE_SIZE.
+- */
+-static void kasan_poison_shadow(const void *address, size_t size, u8 value)
+-{
+-	void *shadow_start, *shadow_end;
+-
+-	shadow_start = kasan_mem_to_shadow(address);
+-	shadow_end = kasan_mem_to_shadow(address + size);
+-
+-	memset(shadow_start, value, shadow_end - shadow_start);
+-}
+-
+-void kasan_unpoison_shadow(const void *address, size_t size)
+-{
+-	kasan_poison_shadow(address, size, 0);
+-
+-	if (size & KASAN_SHADOW_MASK) {
+-		u8 *shadow = (u8 *)kasan_mem_to_shadow(address + size);
+-		*shadow = size & KASAN_SHADOW_MASK;
+-	}
+-}
+-
+-static void __kasan_unpoison_stack(struct task_struct *task, const void *sp)
+-{
+-	void *base = task_stack_page(task);
+-	size_t size = sp - base;
+-
+-	kasan_unpoison_shadow(base, size);
+-}
+-
+-/* Unpoison the entire stack for a task. */
+-void kasan_unpoison_task_stack(struct task_struct *task)
+-{
+-	__kasan_unpoison_stack(task, task_stack_page(task) + THREAD_SIZE);
+-}
+-
+-/* Unpoison the stack for the current task beyond a watermark sp value. */
+-asmlinkage void kasan_unpoison_task_stack_below(const void *watermark)
+-{
+-	/*
+-	 * Calculate the task stack base address.  Avoid using 'current'
+-	 * because this function is called by early resume code which hasn't
+-	 * yet set up the percpu register (%gs).
+-	 */
+-	void *base = (void *)((unsigned long)watermark & ~(THREAD_SIZE - 1));
+-
+-	kasan_unpoison_shadow(base, watermark - base);
+-}
+-
+-/*
+- * Clear all poison for the region between the current SP and a provided
+- * watermark value, as is sometimes required prior to hand-crafted asm function
+- * returns in the middle of functions.
+- */
+-void kasan_unpoison_stack_above_sp_to(const void *watermark)
+-{
+-	const void *sp = __builtin_frame_address(0);
+-	size_t size = watermark - sp;
+-
+-	if (WARN_ON(sp > watermark))
+-		return;
+-	kasan_unpoison_shadow(sp, size);
+-}
+-
+ /*
+  * All functions below always inlined so compiler could
+  * perform better optimizations in each of __asan_loadX/__assn_storeX
+@@ -260,70 +184,17 @@ static __always_inline void check_memory_region_inline(unsigned long addr,
+ 	kasan_report(addr, size, write, ret_ip);
+ }
+ 
+-static void check_memory_region(unsigned long addr,
+-				size_t size, bool write,
++void check_memory_region(unsigned long addr, size_t size, bool write,
+ 				unsigned long ret_ip)
+ {
+ 	check_memory_region_inline(addr, size, write, ret_ip);
+ }
+ 
+-void kasan_check_read(const volatile void *p, unsigned int size)
+-{
+-	check_memory_region((unsigned long)p, size, false, _RET_IP_);
+-}
+-EXPORT_SYMBOL(kasan_check_read);
+-
+-void kasan_check_write(const volatile void *p, unsigned int size)
+-{
+-	check_memory_region((unsigned long)p, size, true, _RET_IP_);
+-}
+-EXPORT_SYMBOL(kasan_check_write);
+-
+-#undef memset
+-void *memset(void *addr, int c, size_t len)
+-{
+-	check_memory_region((unsigned long)addr, len, true, _RET_IP_);
+-
+-	return __memset(addr, c, len);
+-}
+-
+-#undef memmove
+-void *memmove(void *dest, const void *src, size_t len)
+-{
+-	check_memory_region((unsigned long)src, len, false, _RET_IP_);
+-	check_memory_region((unsigned long)dest, len, true, _RET_IP_);
+-
+-	return __memmove(dest, src, len);
+-}
+-
+-#undef memcpy
+-void *memcpy(void *dest, const void *src, size_t len)
+-{
+-	check_memory_region((unsigned long)src, len, false, _RET_IP_);
+-	check_memory_region((unsigned long)dest, len, true, _RET_IP_);
+-
+-	return __memcpy(dest, src, len);
+-}
+-
+-void kasan_alloc_pages(struct page *page, unsigned int order)
+-{
+-	if (likely(!PageHighMem(page)))
+-		kasan_unpoison_shadow(page_address(page), PAGE_SIZE << order);
+-}
+-
+-void kasan_free_pages(struct page *page, unsigned int order)
+-{
+-	if (likely(!PageHighMem(page)))
+-		kasan_poison_shadow(page_address(page),
+-				PAGE_SIZE << order,
+-				KASAN_FREE_PAGE);
+-}
+-
+ /*
+  * Adaptive redzone policy taken from the userspace AddressSanitizer runtime.
+  * For larger allocations larger redzones are used.
+  */
+-static unsigned int optimal_redzone(unsigned int object_size)
++unsigned int optimal_redzone(unsigned int object_size)
+ {
+ 	return
+ 		object_size <= 64        - 16   ? 16 :
+@@ -335,46 +206,6 @@ static unsigned int optimal_redzone(unsigned int object_size)
+ 		object_size <= (1 << 16) - 1024 ? 1024 : 2048;
+ }
+ 
+-void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
+-			slab_flags_t *flags)
+-{
+-	unsigned int orig_size = *size;
+-	int redzone_adjust;
+-
+-	/* Add alloc meta. */
+-	cache->kasan_info.alloc_meta_offset = *size;
+-	*size += sizeof(struct kasan_alloc_meta);
+-
+-	/* Add free meta. */
+-	if (cache->flags & SLAB_TYPESAFE_BY_RCU || cache->ctor ||
+-	    cache->object_size < sizeof(struct kasan_free_meta)) {
+-		cache->kasan_info.free_meta_offset = *size;
+-		*size += sizeof(struct kasan_free_meta);
+-	}
+-	redzone_adjust = optimal_redzone(cache->object_size) -
+-		(*size - cache->object_size);
+-
+-	if (redzone_adjust > 0)
+-		*size += redzone_adjust;
+-
+-	*size = min_t(unsigned int, KMALLOC_MAX_SIZE,
+-			max(*size, cache->object_size +
+-					optimal_redzone(cache->object_size)));
+-
+-	/*
+-	 * If the metadata doesn't fit, don't enable KASAN at all.
+-	 */
+-	if (*size <= cache->kasan_info.alloc_meta_offset ||
+-			*size <= cache->kasan_info.free_meta_offset) {
+-		cache->kasan_info.alloc_meta_offset = 0;
+-		cache->kasan_info.free_meta_offset = 0;
+-		*size = orig_size;
+-		return;
+-	}
+-
+-	*flags |= SLAB_KASAN;
+-}
+-
+ void kasan_cache_shrink(struct kmem_cache *cache)
+ {
+ 	quarantine_remove_cache(cache);
+@@ -386,274 +217,6 @@ void kasan_cache_shutdown(struct kmem_cache *cache)
+ 		quarantine_remove_cache(cache);
+ }
+ 
+-size_t kasan_metadata_size(struct kmem_cache *cache)
+-{
+-	return (cache->kasan_info.alloc_meta_offset ?
+-		sizeof(struct kasan_alloc_meta) : 0) +
+-		(cache->kasan_info.free_meta_offset ?
+-		sizeof(struct kasan_free_meta) : 0);
+-}
+-
+-void kasan_poison_slab(struct page *page)
+-{
+-	kasan_poison_shadow(page_address(page),
+-			PAGE_SIZE << compound_order(page),
+-			KASAN_KMALLOC_REDZONE);
+-}
+-
+-void kasan_unpoison_object_data(struct kmem_cache *cache, void *object)
+-{
+-	kasan_unpoison_shadow(object, cache->object_size);
+-}
+-
+-void kasan_poison_object_data(struct kmem_cache *cache, void *object)
+-{
+-	kasan_poison_shadow(object,
+-			round_up(cache->object_size, KASAN_SHADOW_SCALE_SIZE),
+-			KASAN_KMALLOC_REDZONE);
+-}
+-
+-static inline int in_irqentry_text(unsigned long ptr)
+-{
+-	return (ptr >= (unsigned long)&__irqentry_text_start &&
+-		ptr < (unsigned long)&__irqentry_text_end) ||
+-		(ptr >= (unsigned long)&__softirqentry_text_start &&
+-		 ptr < (unsigned long)&__softirqentry_text_end);
+-}
+-
+-static inline void filter_irq_stacks(struct stack_trace *trace)
+-{
+-	int i;
+-
+-	if (!trace->nr_entries)
+-		return;
+-	for (i = 0; i < trace->nr_entries; i++)
+-		if (in_irqentry_text(trace->entries[i])) {
+-			/* Include the irqentry function into the stack. */
+-			trace->nr_entries = i + 1;
+-			break;
+-		}
+-}
+-
+-static inline depot_stack_handle_t save_stack(gfp_t flags)
+-{
+-	unsigned long entries[KASAN_STACK_DEPTH];
+-	struct stack_trace trace = {
+-		.nr_entries = 0,
+-		.entries = entries,
+-		.max_entries = KASAN_STACK_DEPTH,
+-		.skip = 0
+-	};
+-
+-	save_stack_trace(&trace);
+-	filter_irq_stacks(&trace);
+-	if (trace.nr_entries != 0 &&
+-	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
+-		trace.nr_entries--;
+-
+-	return depot_save_stack(&trace, flags);
+-}
+-
+-static inline void set_track(struct kasan_track *track, gfp_t flags)
+-{
+-	track->pid = current->pid;
+-	track->stack = save_stack(flags);
+-}
+-
+-struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
+-					const void *object)
+-{
+-	BUILD_BUG_ON(sizeof(struct kasan_alloc_meta) > 32);
+-	return (void *)object + cache->kasan_info.alloc_meta_offset;
+-}
+-
+-struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
+-				      const void *object)
+-{
+-	BUILD_BUG_ON(sizeof(struct kasan_free_meta) > 32);
+-	return (void *)object + cache->kasan_info.free_meta_offset;
+-}
+-
+-void kasan_init_slab_obj(struct kmem_cache *cache, const void *object)
+-{
+-	struct kasan_alloc_meta *alloc_info;
+-
+-	if (!(cache->flags & SLAB_KASAN))
+-		return;
+-
+-	alloc_info = get_alloc_info(cache, object);
+-	__memset(alloc_info, 0, sizeof(*alloc_info));
+-}
+-
+-void *kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
+-{
+-	return kasan_kmalloc(cache, object, cache->object_size, flags);
+-}
+-
+-static bool __kasan_slab_free(struct kmem_cache *cache, void *object,
+-			      unsigned long ip, bool quarantine)
+-{
+-	s8 shadow_byte;
+-	unsigned long rounded_up_size;
+-
+-	if (unlikely(nearest_obj(cache, virt_to_head_page(object), object) !=
+-	    object)) {
+-		kasan_report_invalid_free(object, ip);
+-		return true;
+-	}
+-
+-	/* RCU slabs could be legally used after free within the RCU period */
+-	if (unlikely(cache->flags & SLAB_TYPESAFE_BY_RCU))
+-		return false;
+-
+-	shadow_byte = READ_ONCE(*(s8 *)kasan_mem_to_shadow(object));
+-	if (shadow_byte < 0 || shadow_byte >= KASAN_SHADOW_SCALE_SIZE) {
+-		kasan_report_invalid_free(object, ip);
+-		return true;
+-	}
+-
+-	rounded_up_size = round_up(cache->object_size, KASAN_SHADOW_SCALE_SIZE);
+-	kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
+-
+-	if (!quarantine || unlikely(!(cache->flags & SLAB_KASAN)))
+-		return false;
+-
+-	set_track(&get_alloc_info(cache, object)->free_track, GFP_NOWAIT);
+-	quarantine_put(get_free_info(cache, object), cache);
+-	return true;
+-}
+-
+-bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
+-{
+-	return __kasan_slab_free(cache, object, ip, true);
+-}
+-
+-void *kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
+-		   gfp_t flags)
+-{
+-	unsigned long redzone_start;
+-	unsigned long redzone_end;
+-
+-	if (gfpflags_allow_blocking(flags))
+-		quarantine_reduce();
+-
+-	if (unlikely(object == NULL))
+-		return NULL;
+-
+-	redzone_start = round_up((unsigned long)(object + size),
+-				KASAN_SHADOW_SCALE_SIZE);
+-	redzone_end = round_up((unsigned long)object + cache->object_size,
+-				KASAN_SHADOW_SCALE_SIZE);
+-
+-	kasan_unpoison_shadow(object, size);
+-	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
+-		KASAN_KMALLOC_REDZONE);
+-
+-	if (cache->flags & SLAB_KASAN)
+-		set_track(&get_alloc_info(cache, object)->alloc_track, flags);
+-
+-	return (void *)object;
+-}
+-EXPORT_SYMBOL(kasan_kmalloc);
+-
+-void *kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
+-{
+-	struct page *page;
+-	unsigned long redzone_start;
+-	unsigned long redzone_end;
+-
+-	if (gfpflags_allow_blocking(flags))
+-		quarantine_reduce();
+-
+-	if (unlikely(ptr == NULL))
+-		return NULL;
+-
+-	page = virt_to_page(ptr);
+-	redzone_start = round_up((unsigned long)(ptr + size),
+-				KASAN_SHADOW_SCALE_SIZE);
+-	redzone_end = (unsigned long)ptr + (PAGE_SIZE << compound_order(page));
+-
+-	kasan_unpoison_shadow(ptr, size);
+-	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
+-		KASAN_PAGE_REDZONE);
+-
+-	return (void *)ptr;
+-}
+-
+-void *kasan_krealloc(const void *object, size_t size, gfp_t flags)
+-{
+-	struct page *page;
+-
+-	if (unlikely(object == ZERO_SIZE_PTR))
+-		return ZERO_SIZE_PTR;
+-
+-	page = virt_to_head_page(object);
+-
+-	if (unlikely(!PageSlab(page)))
+-		return kasan_kmalloc_large(object, size, flags);
+-	else
+-		return kasan_kmalloc(page->slab_cache, object, size, flags);
+-}
+-
+-void kasan_poison_kfree(void *ptr, unsigned long ip)
+-{
+-	struct page *page;
+-
+-	page = virt_to_head_page(ptr);
+-
+-	if (unlikely(!PageSlab(page))) {
+-		if (ptr != page_address(page)) {
+-			kasan_report_invalid_free(ptr, ip);
+-			return;
+-		}
+-		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
+-				KASAN_FREE_PAGE);
+-	} else {
+-		__kasan_slab_free(page->slab_cache, ptr, ip, false);
+-	}
+-}
+-
+-void kasan_kfree_large(void *ptr, unsigned long ip)
+-{
+-	if (ptr != page_address(virt_to_head_page(ptr)))
+-		kasan_report_invalid_free(ptr, ip);
+-	/* The object will be poisoned by page_alloc. */
+-}
+-
+-int kasan_module_alloc(void *addr, size_t size)
+-{
+-	void *ret;
+-	size_t shadow_size;
+-	unsigned long shadow_start;
+-
+-	shadow_start = (unsigned long)kasan_mem_to_shadow(addr);
+-	shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT,
+-			PAGE_SIZE);
+-
+-	if (WARN_ON(!PAGE_ALIGNED(shadow_start)))
+-		return -EINVAL;
+-
+-	ret = __vmalloc_node_range(shadow_size, 1, shadow_start,
+-			shadow_start + shadow_size,
+-			GFP_KERNEL | __GFP_ZERO,
+-			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
+-			__builtin_return_address(0));
+-
+-	if (ret) {
+-		find_vm_area(addr)->flags |= VM_KASAN;
+-		kmemleak_ignore(ret);
+-		return 0;
+-	}
+-
+-	return -ENOMEM;
+-}
+-
+-void kasan_free_shadow(const struct vm_struct *vm)
+-{
+-	if (vm->flags & VM_KASAN)
+-		vfree(kasan_mem_to_shadow(vm->addr));
+-}
+-
+ static void register_global(struct kasan_global *global)
+ {
+ 	size_t aligned_size = round_up(global->size, KASAN_SHADOW_SCALE_SIZE);
+@@ -794,53 +357,3 @@ DEFINE_ASAN_SET_SHADOW(f2);
+ DEFINE_ASAN_SET_SHADOW(f3);
+ DEFINE_ASAN_SET_SHADOW(f5);
+ DEFINE_ASAN_SET_SHADOW(f8);
+-
+-#ifdef CONFIG_MEMORY_HOTPLUG
+-static int __meminit kasan_mem_notifier(struct notifier_block *nb,
+-			unsigned long action, void *data)
+-{
+-	struct memory_notify *mem_data = data;
+-	unsigned long nr_shadow_pages, start_kaddr, shadow_start;
+-	unsigned long shadow_end, shadow_size;
+-
+-	nr_shadow_pages = mem_data->nr_pages >> KASAN_SHADOW_SCALE_SHIFT;
+-	start_kaddr = (unsigned long)pfn_to_kaddr(mem_data->start_pfn);
+-	shadow_start = (unsigned long)kasan_mem_to_shadow((void *)start_kaddr);
+-	shadow_size = nr_shadow_pages << PAGE_SHIFT;
+-	shadow_end = shadow_start + shadow_size;
+-
+-	if (WARN_ON(mem_data->nr_pages % KASAN_SHADOW_SCALE_SIZE) ||
+-		WARN_ON(start_kaddr % (KASAN_SHADOW_SCALE_SIZE << PAGE_SHIFT)))
+-		return NOTIFY_BAD;
+-
+-	switch (action) {
+-	case MEM_GOING_ONLINE: {
+-		void *ret;
+-
+-		ret = __vmalloc_node_range(shadow_size, PAGE_SIZE, shadow_start,
+-					shadow_end, GFP_KERNEL,
+-					PAGE_KERNEL, VM_NO_GUARD,
+-					pfn_to_nid(mem_data->start_pfn),
+-					__builtin_return_address(0));
+-		if (!ret)
+-			return NOTIFY_BAD;
+-
+-		kmemleak_ignore(ret);
+-		return NOTIFY_OK;
+-	}
+-	case MEM_OFFLINE:
+-		vfree((void *)shadow_start);
+-	}
+-
+-	return NOTIFY_OK;
+-}
+-
+-static int __init kasan_memhotplug_init(void)
+-{
+-	hotplug_memory_notifier(kasan_mem_notifier, 0);
+-
+-	return 0;
+-}
+-
+-module_init(kasan_memhotplug_init);
+-#endif
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index c12dcfde2ebd..c39039308b98 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -98,6 +98,7 @@ struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
+ 					const void *object);
+ struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
+ 					const void *object);
++unsigned int optimal_redzone(unsigned int object_size);
+ 
+ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
+ {
+@@ -105,6 +106,11 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
+ 		<< KASAN_SHADOW_SCALE_SHIFT);
+ }
+ 
++void kasan_poison_shadow(const void *address, size_t size, u8 value);
++
++void check_memory_region(unsigned long addr, size_t size, bool write,
++				unsigned long ret_ip);
++
+ void kasan_report(unsigned long addr, size_t size,
+ 		bool is_write, unsigned long ip);
+ void kasan_report_invalid_free(void *object, unsigned long ip);
 -- 
 2.17.0.484.g0c8726318c-goog
