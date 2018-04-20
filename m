@@ -1,73 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 806186B0005
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 01:30:25 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id x5-v6so4330844pln.21
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 22:30:25 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id s13-v6si4732851plp.102.2018.04.19.22.30.23
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 879246B0007
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 01:33:35 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id w126-v6so3945705oiw.7
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 22:33:35 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e30-v6sor2634383otc.202.2018.04.19.22.33.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Apr 2018 22:30:23 -0700 (PDT)
-Message-Id: <201804200529.w3K5TdvM009951@www262.sakura.ne.jp>
-Subject: Re: general protection fault in =?ISO-2022-JP?B?a2VybmZzX2tpbGxfc2I=?=
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+        (Google Transport Security);
+        Thu, 19 Apr 2018 22:33:34 -0700 (PDT)
+Date: Fri, 20 Apr 2018 00:33:29 -0500
+From: Dennis Zhou <dennisszhou@gmail.com>
+Subject: Re: [PATCH v2] KASAN: prohibit KASAN+STRUCTLEAK combination
+Message-ID: <20180420053329.GA37680@big-sky.local>
+References: <20180419172451.104700-1-dvyukov@google.com>
+ <CAGXu5jK0fWnyQUYP3H5e8hP-6QbtmeC102a-2Mab4CSqj4bpgg@mail.gmail.com>
 MIME-Version: 1.0
-Date: Fri, 20 Apr 2018 14:29:39 +0900
-References: <20180420024440.GB686@sol.localdomain> <20180420033450.GC686@sol.localdomain>
-In-Reply-To: <20180420033450.GC686@sol.localdomain>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5jK0fWnyQUYP3H5e8hP-6QbtmeC102a-2Mab4CSqj4bpgg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, syzbot <syzbot+151de3f2be6b40ac8026@syzkaller.appspotmail.com>, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-fsdevel@vger.kernel.org
+To: Kees Cook <keescook@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, Fengguang Wu <fengguang.wu@intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-Eric Biggers wrote:
-> But, there is still a related bug: when mounting sysfs, if register_shrinker()
-> fails in sget_userns(), then kernfs_kill_sb() gets called, which frees the
-> 'struct kernfs_super_info'.  But, the 'struct kernfs_super_info' is also freed
-> in kernfs_mount_ns() by:
-> 
->         sb = sget_userns(fs_type, kernfs_test_super, kernfs_set_super, flags,
->                          &init_user_ns, info);
->         if (IS_ERR(sb) || sb->s_fs_info != info)
->                 kfree(info);
->         if (IS_ERR(sb))
->                 return ERR_CAST(sb);
-> 
-> I guess the problem is that sget_userns() shouldn't take ownership of the 'info'
-> if it returns an error -- but, it actually does if register_shrinker() fails,
-> resulting in a double free.
-> 
-> Here is a reproducer and the KASAN splat.  This is on Linus' tree (87ef12027b9b)
-> with vfs/for-linus merged in.
+Hi,
 
-I'm waiting for response from Michal Hocko regarding
-http://lkml.kernel.org/r/201804111909.EGC64586.QSFLFJFOVHOOtM@I-love.SAKURA.ne.jp .
+On Thu, Apr 19, 2018 at 01:43:11PM -0700, Kees Cook wrote:
+> On Thu, Apr 19, 2018 at 10:24 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> > Currently STRUCTLEAK inserts initialization out of live scope of
+> > variables from KASAN point of view. This leads to KASAN false
+> > positive reports. Prohibit this combination for now.
+> >
 
-> 
-> #define _GNU_SOURCE
-> #include <fcntl.h>
-> #include <sched.h>
-> #include <stdio.h>
-> #include <stdlib.h>
-> #include <sys/mount.h>
-> #include <sys/stat.h>
-> #include <unistd.h>
-> 
-> int main()
-> {
->         int fd, i;
->         char buf[16];
-> 
->         unshare(CLONE_NEWNET);
->         system("echo N > /sys/kernel/debug/failslab/ignore-gfp-wait");
->         system("echo 0 | tee /sys/kernel/debug/fail*/verbose");
->         fd = open("/proc/thread-self/fail-nth", O_WRONLY);
->         for (i = 0; ; i++) {
->                 write(fd, buf, sprintf(buf, "%d", i));
->                 mount("sysfs", "mnt", "sysfs", 0, NULL);
->                 umount("mnt");
->         }
-> }
+I remember looking at this false positive in November. Please bear with
+me as this is my first time digging through into gcc. It seems address
+sanitizing is a process that starts adding instructions in the ompexp
+pass, with I presume additional passes later doing other things.
+
+It seems the structleak plugin isn't respecting the ASAN markings as it
+also runs after ASAN starts adding instructions and before inlining.
+Thus, the use-after-scope bugs from [1] and [2] get triggered by
+subsequent iterations when looping over an inlined building block.
+
+Would it be possible to run the structleak plugin say before
+"*all_optimizations" instead of "early_optimizations"? Doing so has the
+plugin run after inlining has been done placing initialization code in
+an earlier block that is not a part of the loop. This seems to resolve
+the issue for the latest one from [1] and the November repro case I had
+in [2].
+
+[1] https://lkml.org/lkml/2018/4/18/825
+[2] https://lkml.org/lkml/2017/11/29/868
+
+Thanks,
+Dennis
+
+--------
+diff --git a/scripts/gcc-plugins/structleak_plugin.c b/scripts/gcc-plugins/structleak_plugin.c
+index 10292f7..0061040 100644
+--- a/scripts/gcc-plugins/structleak_plugin.c
++++ b/scripts/gcc-plugins/structleak_plugin.c
+@@ -211,7 +211,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
+ 	const struct plugin_argument * const argv = plugin_info->argv;
+ 	bool enable = true;
+ 
+-	PASS_INFO(structleak, "early_optimizations", 1, PASS_POS_INSERT_BEFORE);
++	PASS_INFO(structleak, "*all_optimizations", 1, PASS_POS_INSERT_BEFORE);
+ 
+ 	if (!plugin_default_version_check(version, &gcc_version)) {
+ 		error(G_("incompatible gcc/plugin versions"));
