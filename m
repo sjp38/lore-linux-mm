@@ -1,96 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BACEF6B0005
-	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 22:15:17 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n78so3792394pfj.4
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 19:15:17 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x20sor1144297pfk.56.2018.04.19.19.15.16
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 542FC6B0005
+	for <linux-mm@kvack.org>; Thu, 19 Apr 2018 22:43:34 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id i8-v6so4105101plt.8
+        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 19:43:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q4-v6sor1735305plr.128.2018.04.19.19.43.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 19 Apr 2018 19:15:16 -0700 (PDT)
-Date: Fri, 20 Apr 2018 11:15:11 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
-Message-ID: <20180420021511.GB6397@jagdpanzerIV>
-References: <20180413124704.19335-1-pmladek@suse.com>
- <20180413101233.0792ebf0@gandalf.local.home>
- <20180414023516.GA17806@tigerII.localdomain>
- <20180416014729.GB1034@jagdpanzerIV>
- <20180416042553.GA555@jagdpanzerIV>
- <20180419125353.lawdc3xna5oqlq7k@pathway.suse.cz>
+        Thu, 19 Apr 2018 19:43:32 -0700 (PDT)
+Date: Thu, 19 Apr 2018 19:44:40 -0700
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: general protection fault in kernfs_kill_sb
+Message-ID: <20180420024440.GB686@sol.localdomain>
+References: <94eb2c0546040ebb4d0568cc6bdb@google.com>
+ <821c80d2-0b55-287a-09aa-d004f4ac4215@I-love.SAKURA.ne.jp>
+ <20180402143415.GC30522@ZenIV.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180419125353.lawdc3xna5oqlq7k@pathway.suse.cz>
+In-Reply-To: <20180402143415.GC30522@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, syzbot <syzbot+151de3f2be6b40ac8026@syzkaller.appspotmail.com>, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-fsdevel@vger.kernel.org
 
-On (04/19/18 14:53), Petr Mladek wrote:
-> > > > 
-> > > > Besides 100 lines is absolutely not enough for any real lockdep splat.
-> > > > My call would be - up to 1000 lines in a 1 minute interval.
+On Mon, Apr 02, 2018 at 03:34:15PM +0100, Al Viro wrote:
+> On Mon, Apr 02, 2018 at 07:40:22PM +0900, Tetsuo Handa wrote:
 > 
-> But this would break the intention of this patch.
-
-You picked an arbitrary value and now you are saying that any other
-value will not work?
-
-> Come on guys! The first reaction how to fix the infinite loop was
-> to fix the console drivers and remove the recursive messages. We are
-> talking about messages that should not be there or they should
-> get replaced by WARN_ONCE(), print_once() or so. This patch only
-> give us a chance to see the problem and do not blow up immediately.
+> > That commit assumes that calling kill_sb() from deactivate_locked_super(s)
+> > without corresponding fill_super() is safe. We have so far crashed with
+> > rpc_mount() and kernfs_mount_ns(). Is that really safe?
 > 
-> I am fine with increasing the number of lines. But we need to keep
-> the timeout long. In fact, 1 hour is still rather short from my POV.
-
-Disagree.
-
-I saw 3 or 4 lockdep reports coming from console drivers. "100 lines"
-is way too restrictive. I want to have a complete report; not the first
-50 lines, not the first 103 lines, which would "hint" me that "hey, there
-is something wrong there, but you are on your own to figure out the rest".
-
-> > > Well, if we want to basically turn printk_safe() into printk_safe_ratelimited().
-> > > I'm not so sure about it.
+> 	Consider the case when fill_super() returns an error immediately.
+> It is exactly the same situation.  And ->kill_sb() *is* called in cases
+> when fill_super() has failed.  Always had been - it's much less boilerplate
+> that way.
 > 
-> No, it is not about printk_safe(). The ratelimit is active when
-> console_owner == current. It triggers when printk() is called
-> inside
-
-"console_owner == current" is exactly the point when we call console
-drivers and add scheduler, networking, timekeeping, etc. locks to the
-picture. And so far all of the lockdeps reports that we had were from
-call_console_drivers(). So it very much is about printk_safe().
-
-> > > Besides the patch also rate limits printk_nmi->logbuf - the logbuf
-> > > PRINTK_NMI_DEFERRED_CONTEXT_MASK bypass, which is way too important
-> > > to rate limit it - for no reason.
+> 	deactivate_locked_super() on that failure exit is the least painful
+> variant, unfortunately.
 > 
-> Again. It has the effect only when console_owner == current. It means
-> that it affects "only" NMIs that interrupt console_unlock() when calling
-> console drivers.
-
-What is your objection here? NMIs can come anytime.
-
-> > One more thing,
-> > I'd really prefer to rate limit the function which flushes per-CPU
-> > printk_safe buffers; not the function that appends new messages to
-> > the per-CPU printk_safe buffers.
+> 	Filesystems with ->kill_sb() instances that rely upon something
+> done between sget() and the first failure exit after it need to be fixed.
+> And yes, that should've been spotted back then.  Sorry.
 > 
-> I wonder if this opinion is still valid after explaining the
-> dependency on printk_safe(). In each case, it sounds weird
-> to block printk_safe buffers with some "unwanted" messages.
-> Or maybe I miss something.
+> Fortunately, we don't have many of those - kill_{block,litter,anon}_super()
+> are safe and those are the majority.  Looking through the rest uncovers
+> some bugs; so far all I've seen were already there.  Note that normally
+> we have something like
+> static void affs_kill_sb(struct super_block *sb)
+> {
+>         struct affs_sb_info *sbi = AFFS_SB(sb);
+>         kill_block_super(sb);
+>         if (sbi) {
+>                 affs_free_bitmap(sb);
+>                 affs_brelse(sbi->s_root_bh);
+>                 kfree(sbi->s_prefix);
+>                 mutex_destroy(&sbi->s_bmlock);
+>                 kfree(sbi);
+>         }
+> }
+> which basically does one of the safe ones augmented with something that
+> takes care *not* to assume that e.g. ->s_fs_info has been allocated.
+> Not everyone does, though:
+> 
+> jffs2_fill_super():
+>         c = kzalloc(sizeof(*c), GFP_KERNEL);
+>         if (!c)
+>                 return -ENOMEM;
+> in the very beginning.  So we can return from it with NULL ->s_fs_info.
+> Now, consider
+>         struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
+>         if (!(sb->s_flags & MS_RDONLY))
+>                 jffs2_stop_garbage_collect_thread(c);
+> in jffs2_kill_sb() and
+> void jffs2_stop_garbage_collect_thread(struct jffs2_sb_info *c)
+> {
+>         int wait = 0;
+>         spin_lock(&c->erase_completion_lock);
+>         if (c->gc_task) {
+> 
+> IOW, fail that kzalloc() (or, indeed, an allocation in register_shrinker())
+> and eat an oops.  Always had been there, always hard to hit without
+> fault injectors and fortunately trivial to fix.
+> 
+> Similar in nfs_kill_super() calling nfs_free_server().
+> Similar in v9fs_kill_super() with v9fs_session_cancel()/v9fs_session_close() calls.
+> Similar in hypfs_kill_super(), afs_kill_super(), btrfs_kill_super(), cifs_kill_sb()
+> (all trivial to fix)
+> 
+> Aha... nfsd_umount() is a new regression.
+> 
+> orangefs: old, trivial to fix.
+> 
+> cgroup_kill_sb(): old, hopefully easy to fix.  Note that kernfs_root_from_sb()
+> can bloody well return NULL, making cgroup_root_from_kf() oops.  Always had been
+> there.
+> 
+> AFAICS, after discarding the instances that do the right thing we are left with:
+> hypfs_kill_super, rdt_kill_sb, v9fs_kill_super, afs_kill_super, btrfs_kill_super,
+> cifs_kill_sb, jffs2_kill_sb, nfs_kill_super, nfsd_umount, orangefs_kill_sb,
+> proc_kill_sb, sysfs_kill_sb, cgroup_kill_sb, rpc_kill_sb.
+> 
+> Out of those, nfsd_umount(), proc_kill_sb() and rpc_kill_sb() are regressions.
+> So are rdt_kill_sb() and sysfs_kill_sb() (victims of the issue you've spotted
+> in kernfs_kill_sb()).  The rest are old (and I wonder if syzbot had been
+> catching those - they are also dependent upon a specific allocation failing
+> at the right time).
+> 
 
-I'm not following.
+Fix for the kernfs bug is now queued in vfs/for-linus:
 
-The fact that some consoles under some circumstances can add unwanted
-messages to the buffer does not look like a good enough reason to start
-rate limiting _all_ messages and to potentially discard the _important_
-ones.
+#syz fix: kernfs: deal with early sget() failures
 
-	-ss
+syzkaller just recently (3 weeks ago) gained the ability to mount filesystem
+images, so that's the main reason for the increase in filesystem bug reports.
+Each time syzkaller is updated to cover more code, bugs are found.
+
+- Eric
