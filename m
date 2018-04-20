@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 760196B000E
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 08:20:25 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id d193so5641539qke.2
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 05:20:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 79si5221538qkr.197.2018.04.20.05.20.24
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1578F6B0005
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 08:40:50 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y10-v6so8721482wrg.9
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 05:40:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 89si3182215edh.72.2018.04.20.05.40.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Apr 2018 05:20:24 -0700 (PDT)
-Date: Fri, 20 Apr 2018 08:20:23 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
-In-Reply-To: <20180420114712.GB10788@bombadil.infradead.org>
-Message-ID: <alpine.LRH.2.02.1804200817230.22382@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com> <3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com> <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com> <20180418.134651.2225112489265654270.davem@davemloft.net>
- <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com> <20180420114712.GB10788@bombadil.infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Apr 2018 05:40:48 -0700 (PDT)
+Date: Fri, 20 Apr 2018 14:40:44 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+Message-ID: <20180420124044.GA17484@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com>
+ <201804180057.w3I0vieV034949@www262.sakura.ne.jp>
+ <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
+ <20180418075051.GO17484@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com>
+ <20180419063556.GK17484@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com>
+ <20180420082349.GW17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180420082349.GW17484@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-
-On Fri, 20 Apr 2018, Matthew Wilcox wrote:
-
-> On Thu, Apr 19, 2018 at 12:12:38PM -0400, Mikulas Patocka wrote:
-> > Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
-> > uses DMA-API on the returned memory or frees it with kfree. Such bugs were
-> > found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
-> > code.
+On Fri 20-04-18 10:23:49, Michal Hocko wrote:
+> On Thu 19-04-18 12:34:53, David Rientjes wrote:
+[...]
+> > I understand the concern, but it's the difference between the victim 
+> > getting stuck in exit_mmap() and actually taking a long time to free its 
+> > memory in exit_mmap().  I don't have evidence of the former.
 > 
-> Maybe it's time to have the SG code handle vmalloced pages?  This is
-> becoming more and more common with vmapped stacks (and some of our
-> workarounds are hideous -- allocate 4 bytes with kmalloc because we can't
-> DMA onto the stack any more?).  We already have a few places which do
-> handle sgs of vmalloced addresses, such as the nx crypto driver:
+> I do not really want to repeat myself. The primary purpose of the oom
+> reaper is to provide a _guarantee_ of the forward progress. I do not
+> care whether there is any evidences. All I know that lock_page has
+> plethora of different dependencies and we cannot clearly state this is
+> safe so we _must not_ depend on it when setting MMF_OOM_SKIP.
 > 
->         if (is_vmalloc_addr(start_addr))
->                 sg_addr = page_to_phys(vmalloc_to_page(start_addr))
->                           + offset_in_page(sg_addr);
->         else
->                 sg_addr = __pa(sg_addr);
+> The way how the oom path was fragile and lockup prone based on
+> optimistic assumptions shouldn't be repeated.
 > 
-> and videobuf:
+> That being said, I haven't heard any actual technical argument about why
+> locking the munmap path is a wrong thing to do while the MMF_OOM_SKIP
+> dependency on the page_lock really concerns me so
 > 
->                 pg = vmalloc_to_page(virt);
->                 if (NULL == pg)
->                         goto err;
->                 BUG_ON(page_to_pfn(pg) >= (1 << (32 - PAGE_SHIFT)));
->                 sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
+> Nacked-by: Michal Hocko <mhocko@suse.com>
 > 
-> Yes, there's the potential that we have to produce two SG entries for a
-> virtually contiguous region if it crosses a page boundary, and our APIs
-> aren't set up right to make it happen.  But this is something we should
-> consider fixing ... otherwise we'll end up with dozens of driver hacks.
-> The videobuf implementation was already copy-and-pasted into the saa7146
-> driver, for example.
+> If you want to keep the current locking protocol then you really have to
+> make sure that the oom reaper will set MMF_OOM_SKIP when racing with
+> exit_mmap.
 
-What if the device requires physically contiguous area and the vmalloc 
-area crosses a page? Will you use a bounce buffer? Where do you allocate 
-the bounce buffer from? What if you run out of bounce buffers?
-
-Mikulkas
+So here is my suggestion for the fix.
