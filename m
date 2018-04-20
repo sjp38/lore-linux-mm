@@ -1,85 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 051086B0003
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 09:08:56 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id h9so4238052pfn.22
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 06:08:55 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z23si5111763pgc.484.2018.04.20.06.08.54
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BCA26B0003
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 09:10:14 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id j69-v6so1174040lfg.6
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 06:10:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w89-v6sor497730lfk.66.2018.04.20.06.10.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 20 Apr 2018 06:08:54 -0700 (PDT)
-Date: Fri, 20 Apr 2018 15:08:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
-Message-ID: <20180420130852.GC16083@dhcp22.suse.cz>
-References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com>
- <3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com>
- <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com>
- <20180418.134651.2225112489265654270.davem@davemloft.net>
- <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
+        (Google Transport Security);
+        Fri, 20 Apr 2018 06:10:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <bug-198497-200779-43rwxa1kcg@https.bugzilla.kernel.org/>
+References: <bug-198497-200779@https.bugzilla.kernel.org/> <bug-198497-200779-43rwxa1kcg@https.bugzilla.kernel.org/>
+From: Jason Andryuk <jandryuk@gmail.com>
+Date: Fri, 20 Apr 2018 09:10:11 -0400
+Message-ID: <CAKf6xpuYvCMUVHdP71F8OWm=bQGFxeRd7SddH-5DDo-AQjbbQg@mail.gmail.com>
+Subject: Re: [Bug 198497] handle_mm_fault / xen_pmd_val / radix_tree_lookup_slot
+ Null pointer
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, bhutchings@solarflare.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: bugzilla-daemon@bugzilla.kernel.org, willy@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, labbott@redhat.com
 
-On Thu 19-04-18 12:12:38, Mikulas Patocka wrote:
-[...]
-> From: Mikulas Patocka <mpatocka@redhat.com>
-> Subject: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
-> 
-> The kvmalloc function tries to use kmalloc and falls back to vmalloc if
-> kmalloc fails.
-> 
-> Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
-> uses DMA-API on the returned memory or frees it with kfree. Such bugs were
-> found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
-> code.
-> 
-> These bugs are hard to reproduce because vmalloc falls back to kmalloc
-> only if memory is fragmented.
-> 
-> In order to detect these bugs reliably I submit this patch that changes
-> kvmalloc to always use vmalloc if CONFIG_DEBUG_VM is turned on.
+On Thu, Apr 12, 2018 at 1:28 PM,  <bugzilla-daemon@bugzilla.kernel.org> wrote:
+> https://bugzilla.kernel.org/show_bug.cgi?id=198497
+>
+> --- Comment #25 from willy@infradead.org ---
+> On Thu, Apr 12, 2018 at 10:12:09AM -0700, Andrew Morton wrote:
+>> On Fri, 9 Feb 2018 06:47:26 -0800 Matthew Wilcox <willy@infradead.org> wrote:
+>>
+>> >
+>> > ping?
+>> >
+>>
+>> There have been a bunch of updates to this issue in bugzilla
+>> (https://bugzilla.kernel.org/show_bug.cgi?id=198497).  Sigh, I don't
+>> know what to do about this - maybe there's some way of getting bugzilla
+>> to echo everything to linux-mm or something.
+>>
+>> Anyway, please take a look - we appear to have a bug here.  Perhaps
+>> this bug is sufficiently gnarly for you to prepare a debugging patch
+>> which we can add to the mainline kernel so we get (much) more debugging
+>> info when people hit it?
+>
+> I have a few thoughts ...
+>
+>  - The debugging patch I prepared appears to be doing its job well.
+>    People get the message and their machine stays working.
+>  - The commonality appears to be Xen running 32-bit kernels.  Maybe we
+>    can kick the problem over to them to solve?
+>  - If we are seeing corruption purely in the lower bits, *we'll never
+>    know*.  The radix tree lookup will simply not find anything, and all
+>    will be well.  That said, the bad PTE values reported in that bug have
+>    the NX bit and one other bit set; generally bit 32, 33 or 34.  I have
+>    an idea for adding a parity bit, but haven't had time to implement it.
+>    Anyone have an intern who wants an interesting kernel project to work on?
+>
+> Given that this is happening on Xen, I wonder if Xen is using some of the
+> bits in the page table for its own purposes.
 
-No way. This is just wrong! First of all, you will explode most likely
-on many allocations of small sizes. Second, CONFIG_DEBUG_VM tends to be
-enabled quite often.
+The backtraces include do_swap_page().  While I have a swap partition
+configured, I don't think it's being used.  Are we somehow
+misidentifying the page as a swap page?  I'm not familiar with the
+code, but is there an easy way to query global swap usage?  That way
+we can see if the check for a swap page is bogus.
 
-> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+My system works with the band-aid patch.  When that patch sets page =
+NULL, does that mean userspace is just going to get a zero-ed page?
+Userspace still works AFAICT, which makes me think it is a
+mis-identified page to start with.
 
-Nacked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/util.c |    2 ++
->  1 file changed, 2 insertions(+)
-> 
-> Index: linux-2.6/mm/util.c
-> ===================================================================
-> --- linux-2.6.orig/mm/util.c	2018-04-18 15:46:23.000000000 +0200
-> +++ linux-2.6/mm/util.c	2018-04-18 16:00:43.000000000 +0200
-> @@ -395,6 +395,7 @@ EXPORT_SYMBOL(vm_mmap);
->   */
->  void *kvmalloc_node(size_t size, gfp_t flags, int node)
->  {
-> +#ifndef CONFIG_DEBUG_VM
->  	gfp_t kmalloc_flags = flags;
->  	void *ret;
->  
-> @@ -426,6 +427,7 @@ void *kvmalloc_node(size_t size, gfp_t f
->  	 */
->  	if (ret || size <= PAGE_SIZE)
->  		return ret;
-> +#endif
->  
->  	return __vmalloc_node_flags_caller(size, node, flags,
->  			__builtin_return_address(0));
-
--- 
-Michal Hocko
-SUSE Labs
+Regards,
+Jason
