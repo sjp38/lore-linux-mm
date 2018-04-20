@@ -1,65 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 540BF6B0007
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 13:55:17 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id w5-v6so5356799plz.17
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 10:55:17 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f66sor1527528pgc.188.2018.04.20.10.55.15
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 88A6B6B0007
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 13:59:34 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id d13so5015153pfn.21
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 10:59:34 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id q7-v6si6202523plk.129.2018.04.20.10.59.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Apr 2018 10:55:16 -0700 (PDT)
-Date: Fri, 20 Apr 2018 10:55:13 -0700
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: general protection fault in kernfs_kill_sb
-Message-ID: <20180420175513.GA16820@gmail.com>
-References: <20180420024440.GB686@sol.localdomain>
- <20180420033450.GC686@sol.localdomain>
- <201804200529.w3K5TdvM009951@www262.sakura.ne.jp>
- <20180420073158.GS17484@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Apr 2018 10:59:32 -0700 (PDT)
+Date: Fri, 20 Apr 2018 20:59:28 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH] x86/mm: Decouple dynamic __PHYSICAL_MASK from AMD SME
+Message-ID: <20180420175928.nup3hcqxe2u4ugln@black.fi.intel.com>
+References: <20180410093339.49257-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180420073158.GS17484@dhcp22.suse.cz>
+In-Reply-To: <20180410093339.49257-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Al Viro <viro@ZenIV.linux.org.uk>, syzbot <syzbot+151de3f2be6b40ac8026@syzkaller.appspotmail.com>, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-fsdevel@vger.kernel.org
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Apr 20, 2018 at 09:31:58AM +0200, Michal Hocko wrote:
-> On Fri 20-04-18 14:29:39, Tetsuo Handa wrote:
-> > Eric Biggers wrote:
-> > > But, there is still a related bug: when mounting sysfs, if register_shrinker()
-> > > fails in sget_userns(), then kernfs_kill_sb() gets called, which frees the
-> > > 'struct kernfs_super_info'.  But, the 'struct kernfs_super_info' is also freed
-> > > in kernfs_mount_ns() by:
-> > > 
-> > >         sb = sget_userns(fs_type, kernfs_test_super, kernfs_set_super, flags,
-> > >                          &init_user_ns, info);
-> > >         if (IS_ERR(sb) || sb->s_fs_info != info)
-> > >                 kfree(info);
-> > >         if (IS_ERR(sb))
-> > >                 return ERR_CAST(sb);
-> > > 
-> > > I guess the problem is that sget_userns() shouldn't take ownership of the 'info'
-> > > if it returns an error -- but, it actually does if register_shrinker() fails,
-> > > resulting in a double free.
-> > > 
-> > > Here is a reproducer and the KASAN splat.  This is on Linus' tree (87ef12027b9b)
-> > > with vfs/for-linus merged in.
-> > 
-> > I'm waiting for response from Michal Hocko regarding
-> > http://lkml.kernel.org/r/201804111909.EGC64586.QSFLFJFOVHOOtM@I-love.SAKURA.ne.jp .
+On Tue, Apr 10, 2018 at 09:33:39AM +0000, Kirill A. Shutemov wrote:
+> AMD SME claims one bit from physical address to indicate whether the
+> page is encrypted or not. To achieve that we clear out the bit from
+> __PHYSICAL_MASK.
 > 
-> I didn't plan to respond util all the Al's concerns with the existing
-> scheme are resolved. This is not an urgent thing to fix so better fix it
-> properly. Your API change is kinda ugly so it would be preferable to do
-> it properly as suggested by Al. Maybe that will be more work but my
-> understanding is that the resulting code would be better. If that is not
-> the case then I do not really have any fundamental objection to your
-> patch except it is ugly.
+> The capability to adjust __PHYSICAL_MASK is required beyond AMD SME.
+> For instance for upcoming Intel Multi-Key Total Memory Encryption.
+> 
+> Factor it out into a separate feature with own Kconfig handle.
+> 
+> It also helps with overhead of AMD SME. It saves more than 3k in .text
+> on defconfig + AMD_MEM_ENCRYPT:
+> 
+> 	add/remove: 3/2 grow/shrink: 5/110 up/down: 189/-3753 (-3564)
+> 
+> We would need to return to this once we have infrastructure to patch
+> constants in code. That's good candidate for it.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reviewed-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+> 
+> Previously, I've posted the patch with MKTME patchset, but it's useful on
+> its own as it reduces text size for kernel with AMD_MEM_ENCRYPT enabled.
+> 
+> Please consider applying.
 
-Okay, the fix was merged already as commit 8e04944f0ea8b8 ("mm,vmscan: Allow
-preallocating memory for register_shrinker().").  Thanks Tetsuo!
+Any feedback on this?
 
-- Eric
+-- 
+ Kirill A. Shutemov
