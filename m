@@ -1,85 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BFFBB6B0007
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 13:53:20 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id z20so5013915pfn.11
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 10:53:20 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i3-v6sor2463893pli.47.2018.04.20.10.53.19
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 540BF6B0007
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 13:55:17 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id w5-v6so5356799plz.17
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 10:55:17 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f66sor1527528pgc.188.2018.04.20.10.55.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Apr 2018 10:53:19 -0700 (PDT)
+        Fri, 20 Apr 2018 10:55:16 -0700 (PDT)
+Date: Fri, 20 Apr 2018 10:55:13 -0700
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: general protection fault in kernfs_kill_sb
+Message-ID: <20180420175513.GA16820@gmail.com>
+References: <20180420024440.GB686@sol.localdomain>
+ <20180420033450.GC686@sol.localdomain>
+ <201804200529.w3K5TdvM009951@www262.sakura.ne.jp>
+ <20180420073158.GS17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180420175023.3c4okuayrcul2bom@armageddon.cambridge.arm.com>
-References: <1524243513-29118-1-git-send-email-chuhu@redhat.com> <20180420175023.3c4okuayrcul2bom@armageddon.cambridge.arm.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 20 Apr 2018 19:52:58 +0200
-Message-ID: <CACT4Y+ZLtpU2WK7zRyXTuMWsE-5_Tz4LYs7xtwZrYZ8zbHVOHg@mail.gmail.com>
-Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in gfp_kmemleak_mask
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180420073158.GS17484@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Chunyu Hu <chuhu@redhat.com>, Michal Hocko <mhocko@suse.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Al Viro <viro@ZenIV.linux.org.uk>, syzbot <syzbot+151de3f2be6b40ac8026@syzkaller.appspotmail.com>, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de, linux-fsdevel@vger.kernel.org
 
-On Fri, Apr 20, 2018 at 7:50 PM, Catalin Marinas
-<catalin.marinas@arm.com> wrote:
-> On Sat, Apr 21, 2018 at 12:58:33AM +0800, Chunyu Hu wrote:
->> __GFP_NORETRY and  __GFP_NOFAIL are combined in gfp_kmemleak_mask now.
->> But it's a wrong combination. As __GFP_NOFAIL is blockable, but
->> __GFP_NORETY is not blockable, make it self-contradiction.
->>
->> __GFP_NOFAIL means 'The VM implementation _must_ retry infinitely'. But
->> it's not the real intention, as kmemleak allow alloc failure happen in
->> memory pressure, in that case kmemleak just disables itself.
->
-> Good point. The __GFP_NOFAIL flag was added by commit d9570ee3bd1d
-> ("kmemleak: allow to coexist with fault injection") to keep kmemleak
-> usable under fault injection.
->
->> commit 9a67f6488eca ("mm: consolidate GFP_NOFAIL checks in the allocator
->> slowpath") documented that what user wants here should use GFP_NOWAIT, and
->> the WARN in __alloc_pages_slowpath caught this weird usage.
->>
->>  <snip>
->>  WARNING: CPU: 3 PID: 64 at mm/page_alloc.c:4261 __alloc_pages_slowpath+0x1cc3/0x2780
-> [...]
->> Replace the __GFP_NOFAIL with GFP_NOWAIT in gfp_kmemleak_mask, __GFP_NORETRY
->> and GFP_NOWAIT are in the gfp_kmemleak_mask. So kmemleak object allocaion
->> is no blockable and no reclaim, making kmemleak less disruptive to user
->> processes in pressure.
->
-> It doesn't solve the fault injection problem for kmemleak (unless we
-> change __should_failslab() somehow, not sure yet). An option would be to
-> replace __GFP_NORETRY with __GFP_NOFAIL in kmemleak when fault injection
-> is enabled.
->
-> BTW, does the combination of NOWAIT and NORETRY make kmemleak
-> allocations more likely to fail?
->
-> Cc'ing Dmitry as well.
+On Fri, Apr 20, 2018 at 09:31:58AM +0200, Michal Hocko wrote:
+> On Fri 20-04-18 14:29:39, Tetsuo Handa wrote:
+> > Eric Biggers wrote:
+> > > But, there is still a related bug: when mounting sysfs, if register_shrinker()
+> > > fails in sget_userns(), then kernfs_kill_sb() gets called, which frees the
+> > > 'struct kernfs_super_info'.  But, the 'struct kernfs_super_info' is also freed
+> > > in kernfs_mount_ns() by:
+> > > 
+> > >         sb = sget_userns(fs_type, kernfs_test_super, kernfs_set_super, flags,
+> > >                          &init_user_ns, info);
+> > >         if (IS_ERR(sb) || sb->s_fs_info != info)
+> > >                 kfree(info);
+> > >         if (IS_ERR(sb))
+> > >                 return ERR_CAST(sb);
+> > > 
+> > > I guess the problem is that sget_userns() shouldn't take ownership of the 'info'
+> > > if it returns an error -- but, it actually does if register_shrinker() fails,
+> > > resulting in a double free.
+> > > 
+> > > Here is a reproducer and the KASAN splat.  This is on Linus' tree (87ef12027b9b)
+> > > with vfs/for-linus merged in.
+> > 
+> > I'm waiting for response from Michal Hocko regarding
+> > http://lkml.kernel.org/r/201804111909.EGC64586.QSFLFJFOVHOOtM@I-love.SAKURA.ne.jp .
+> 
+> I didn't plan to respond util all the Al's concerns with the existing
+> scheme are resolved. This is not an urgent thing to fix so better fix it
+> properly. Your API change is kinda ugly so it would be preferable to do
+> it properly as suggested by Al. Maybe that will be more work but my
+> understanding is that the resulting code would be better. If that is not
+> the case then I do not really have any fundamental objection to your
+> patch except it is ugly.
 
-Yes, it would be bad if there allocations fail due to fault injection.
-These are both debugging tools and ideally should not interfere.
+Okay, the fix was merged already as commit 8e04944f0ea8b8 ("mm,vmscan: Allow
+preallocating memory for register_shrinker().").  Thanks Tetsuo!
 
->> Signed-off-by: Chunyu Hu <chuhu@redhat.com>
->> CC: Michal Hocko <mhocko@suse.com>
->> ---
->>  mm/kmemleak.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
->> index 9a085d5..4ea07e4 100644
->> --- a/mm/kmemleak.c
->> +++ b/mm/kmemleak.c
->> @@ -126,7 +126,7 @@
->>  /* GFP bitmask for kmemleak internal allocations */
->>  #define gfp_kmemleak_mask(gfp)       (((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
->>                                __GFP_NORETRY | __GFP_NOMEMALLOC | \
->> -                              __GFP_NOWARN | __GFP_NOFAIL)
->> +                              __GFP_NOWARN | GFP_NOWAIT)
->>
->>  /* scanning area inside a memory block */
->>  struct kmemleak_scan_area {
->> --
->> 1.8.3.1
+- Eric
