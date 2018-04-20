@@ -1,90 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D68246B0005
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 01:57:18 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id j6so2463266pgn.7
-        for <linux-mm@kvack.org>; Thu, 19 Apr 2018 22:57:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i127sor1264629pgc.70.2018.04.19.22.57.17
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 44A106B0005
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 03:30:40 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id f13-v6so5389573qtg.15
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 00:30:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 13si7361658qkv.7.2018.04.20.00.30.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Apr 2018 22:57:17 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Apr 2018 00:30:39 -0700 (PDT)
+Subject: Re: [PATCH RFC 2/8] mm: introduce PG_offline
+References: <20180413131632.1413-1-david@redhat.com>
+ <20180413131632.1413-3-david@redhat.com>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <6624ec31-0b18-62dc-bcc3-5f8a2bf8da49@redhat.com>
+Date: Fri, 20 Apr 2018 09:30:26 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180420053329.GA37680@big-sky.local>
-References: <20180419172451.104700-1-dvyukov@google.com> <CAGXu5jK0fWnyQUYP3H5e8hP-6QbtmeC102a-2Mab4CSqj4bpgg@mail.gmail.com>
- <20180420053329.GA37680@big-sky.local>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 20 Apr 2018 07:56:56 +0200
-Message-ID: <CACT4Y+ZZZvHDbiCXXWNVzACU25QZT0j-TbpMpSetuUQFb8Km=Q@mail.gmail.com>
-Subject: Re: [PATCH v2] KASAN: prohibit KASAN+STRUCTLEAK combination
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180413131632.1413-3-david@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dennis Zhou <dennisszhou@gmail.com>
-Cc: Kees Cook <keescook@google.com>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, Fengguang Wu <fengguang.wu@intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: linux-mm@kvack.org
+Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, James Hogan <jhogan@kernel.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, open list <linux-kernel@vger.kernel.org>
 
-On Fri, Apr 20, 2018 at 7:33 AM, Dennis Zhou <dennisszhou@gmail.com> wrote:
-> Hi,
->
-> On Thu, Apr 19, 2018 at 01:43:11PM -0700, Kees Cook wrote:
->> On Thu, Apr 19, 2018 at 10:24 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
->> > Currently STRUCTLEAK inserts initialization out of live scope of
->> > variables from KASAN point of view. This leads to KASAN false
->> > positive reports. Prohibit this combination for now.
->> >
->
-> I remember looking at this false positive in November. Please bear with
-> me as this is my first time digging through into gcc. It seems address
-> sanitizing is a process that starts adding instructions in the ompexp
-> pass, with I presume additional passes later doing other things.
->
-> It seems the structleak plugin isn't respecting the ASAN markings as it
-> also runs after ASAN starts adding instructions and before inlining.
-> Thus, the use-after-scope bugs from [1] and [2] get triggered by
-> subsequent iterations when looping over an inlined building block.
->
-> Would it be possible to run the structleak plugin say before
-> "*all_optimizations" instead of "early_optimizations"? Doing so has the
-> plugin run after inlining has been done placing initialization code in
-> an earlier block that is not a part of the loop. This seems to resolve
-> the issue for the latest one from [1] and the November repro case I had
-> in [2].
+On 13.04.2018 15:16, David Hildenbrand wrote:
+> online_pages()/offline_pages() theoretically allows us to work on
+> sub-section sizes. This is especially relevant in the context of
+> virtualization. It e.g. allows us to add/remove memory to Linux in a VM in
+> 4MB chunks.
+> 
+> While the whole section is marked as online/offline, we have to know
+> the state of each page. E.g. to not read memory that is not online
+> during kexec() or to properly mark a section as offline as soon as all
+> contained pages are offline.
+> 
+> Signed-off-by: David Hildenbrand <david@redhat.com>
+> ---
+>  include/linux/page-flags.h     | 10 ++++++++++
+>  include/trace/events/mmflags.h |  9 ++++++++-
+>  2 files changed, 18 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index e34a27727b9a..8ebc4bad7824 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -49,6 +49,9 @@
+>   * PG_hwpoison indicates that a page got corrupted in hardware and contains
+>   * data with incorrect ECC bits that triggered a machine check. Accessing is
+>   * not safe since it may cause another machine check. Don't touch!
+> + *
+> + * PG_offline indicates that a page is offline and the backing storage
+> + * might already have been removed (virtualization). Don't touch!
+>   */
+>  
+>  /*
+> @@ -100,6 +103,9 @@ enum pageflags {
+>  #if defined(CONFIG_IDLE_PAGE_TRACKING) && defined(CONFIG_64BIT)
+>  	PG_young,
+>  	PG_idle,
+> +#endif
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +	PG_offline,		/* Page is offline. Don't touch */
+>  #endif
+>  	__NR_PAGEFLAGS,
+>  
+> @@ -381,6 +387,10 @@ TESTCLEARFLAG(Young, young, PF_ANY)
+>  PAGEFLAG(Idle, idle, PF_ANY)
+>  #endif
+>  
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +PAGEFLAG(Offline, offline, PF_ANY)
+> +#endif
+> +
+>  /*
+>   * On an anonymous page mapped into a user virtual memory area,
+>   * page->mapping points to its anon_vma, not to a struct address_space;
+> diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+> index a81cffb76d89..14c31209e34a 100644
+> --- a/include/trace/events/mmflags.h
+> +++ b/include/trace/events/mmflags.h
+> @@ -79,6 +79,12 @@
+>  #define IF_HAVE_PG_IDLE(flag,string)
+>  #endif
+>  
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +#define IF_HAVE_PG_OFFLINE(flag,string) ,{1UL << flag, string}
+> +#else
+> +#define IF_HAVE_PG_OFFLINE(flag,string)
+> +#endif
+> +
+>  #define __def_pageflag_names						\
+>  	{1UL << PG_locked,		"locked"	},		\
+>  	{1UL << PG_waiters,		"waiters"	},		\
+> @@ -104,7 +110,8 @@ IF_HAVE_PG_MLOCK(PG_mlocked,		"mlocked"	)		\
+>  IF_HAVE_PG_UNCACHED(PG_uncached,	"uncached"	)		\
+>  IF_HAVE_PG_HWPOISON(PG_hwpoison,	"hwpoison"	)		\
+>  IF_HAVE_PG_IDLE(PG_young,		"young"		)		\
+> -IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
+> +IF_HAVE_PG_IDLE(PG_idle,		"idle"		)		\
+> +IF_HAVE_PG_OFFLINE(PG_offline,		"offline"	)
+>  
+>  #define show_page_flags(flags)						\
+>  	(flags) ? __print_flags(flags, "|",				\
+> 
 
+I am thinking right now of gluing this to CONFIG_MEMORY_PG_OFFLINE and
+allowing it to be used also for ordinary balloon drivers. It is then
+basically a way to signal using kdump "don't dump this page, the content
+is either invalid or not even accessible".
 
-In general, we either need to move the structleak pass or make it
-insert instructions at proper locations. I don't know what is the
-right way. Moving the pass looks easier.
+-- 
 
-As a sanity check, I would count number of zeroing inserted by the
-plugin it both cases and ensure that now it does not insert order of
-magnitude more/less. It's easy with function calls (count them in
-objdump output), not sure what's the easiest way to do it for inline
-instrumentation. We could insert printf into the pass itself, but it
-if runs before inlining and other optimization, it's not the final
-number.
+Thanks,
 
-Also note that asan pass is at different locations in the pipeline
-depending on optimization level:
-https://gcc.gnu.org/viewcvs/gcc/trunk/gcc/passes.def?view=markup
-
-
-> [1] https://lkml.org/lkml/2018/4/18/825
-> [2] https://lkml.org/lkml/2017/11/29/868
->
-> Thanks,
-> Dennis
->
-> --------
-> diff --git a/scripts/gcc-plugins/structleak_plugin.c b/scripts/gcc-plugins/structleak_plugin.c
-> index 10292f7..0061040 100644
-> --- a/scripts/gcc-plugins/structleak_plugin.c
-> +++ b/scripts/gcc-plugins/structleak_plugin.c
-> @@ -211,7 +211,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
->         const struct plugin_argument * const argv = plugin_info->argv;
->         bool enable = true;
->
-> -       PASS_INFO(structleak, "early_optimizations", 1, PASS_POS_INSERT_BEFORE);
-> +       PASS_INFO(structleak, "*all_optimizations", 1, PASS_POS_INSERT_BEFORE);
->
->         if (!plugin_default_version_check(version, &gcc_version)) {
->                 error(G_("incompatible gcc/plugin versions"));
+David / dhildenb
