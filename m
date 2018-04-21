@@ -1,94 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BE4F6B000C
-	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 19:19:33 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id z22so2766144pfi.7
-        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 16:19:33 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 778736B0003
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 19:51:03 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p7-v6so6620308wrj.4
+        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 16:51:03 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r6si7010589pgp.21.2018.04.21.16.19.32
+        by mx.google.com with ESMTPS id 62si3881263edf.265.2018.04.21.16.51.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 21 Apr 2018 16:19:32 -0700 (PDT)
-Date: Sat, 21 Apr 2018 14:33:01 +0200
+        Sat, 21 Apr 2018 16:51:02 -0700 (PDT)
+Date: Sun, 22 Apr 2018 01:50:57 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] iomap: add a swapfile activation function
-Message-ID: <20180421123301.v7bbofc2joaibpi6@quack2.suse.cz>
-References: <20180418025023.GM24738@magnolia>
+Subject: Re: [PATCH] memcg: writeback: use memcg->cgwb_list directly
+Message-ID: <20180421235057.iyl4sipppfx3qp3m@quack2.suse.cz>
+References: <1524317381-236318-1-git-send-email-wanglong19@meituan.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180418025023.GM24738@magnolia>
+In-Reply-To: <1524317381-236318-1-git-send-email-wanglong19@meituan.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: xfs <linux-xfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org
+To: Wang Long <wanglong19@meituan.com>
+Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org, khlebnikov@yandex-team.ru, xboe@kernel.dk, jack@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, tj@kernel.org
 
-On Tue 17-04-18 19:50:23, Darrick J. Wong wrote:
-> +
-> +/* Swapfile activation */
-> +
-> +struct iomap_swapfile_info {
-> +	struct swap_info_struct *sis;
-> +	uint64_t lowest_ppage;		/* lowest physical addr seen (pages) */
-> +	uint64_t highest_ppage;		/* highest physical addr seen (pages) */
-> +	unsigned long expected_page_no;	/* next logical offset wanted (pages) */
-> +	int nr_extents;			/* extent count */
-> +};
-> +
-> +static loff_t iomap_swapfile_activate_actor(struct inode *inode, loff_t pos,
-> +		loff_t count, void *data, struct iomap *iomap)
-> +{
-> +	struct iomap_swapfile_info *isi = data;
-> +	unsigned long page_no = iomap->offset >> PAGE_SHIFT;
-> +	unsigned long nr_pages = iomap->length >> PAGE_SHIFT;
-> +	uint64_t first_ppage = iomap->addr >> PAGE_SHIFT;
-> +	uint64_t last_ppage = ((iomap->addr + iomap->length) >> PAGE_SHIFT) - 1;
-> +
-> +	/* Only one bdev per swap file. */
-> +	if (iomap->bdev != isi->sis->bdev)
-> +		goto err;
-> +
-> +	/* Must be aligned to a page boundary. */
-> +	if ((iomap->offset & ~PAGE_MASK) || (iomap->addr & ~PAGE_MASK) ||
-> +	    (iomap->length & ~PAGE_MASK))
-> +		goto err;
+On Sat 21-04-18 21:29:41, Wang Long wrote:
+> Signed-off-by: Wang Long <wanglong19@meituan.com>
 
-Reporting error in this case does not look equivalent to
-generic_swapfile_activate()? That function just skips blocks with
-insufficient alignment... And I'm actually puzzled why alignment of
-physical block is needed but that's independent question.
+Yeah, looks good. I guess it was originally intended to avoid compilation
+errors if CONFIG_CGROUP_WRITEBACK was disabled. But it doesn't seem likely
+we'll ever need that list outside of code under CONFIG_CGROUP_WRITEBACK. So
+you can add:
 
-> +	/* Only real or unwritten extents. */
-> +	if (iomap->type != IOMAP_MAPPED && iomap->type != IOMAP_UNWRITTEN)
-> +		goto err;
-> +
-> +	/* No sparse files. */
-> +	if (isi->expected_page_no != page_no)
-> +		goto err;
-> +
-> +	/* No uncommitted metadata or shared blocks or inline data. */
-> +	if (iomap->flags & (IOMAP_F_DIRTY | IOMAP_F_SHARED |
-> +			    IOMAP_F_DATA_INLINE))
-> +		goto err;
-> +
-> +	/*
-> +	 * Calculate how much swap space we're adding; the first page contains
-> +	 * the swap header and doesn't count.
-> +	 */
-> +	if (page_no == 0)
-> +		first_ppage++;
-> +	if (isi->lowest_ppage > first_ppage)
-> +		isi->lowest_ppage = first_ppage;
-> +	if (isi->highest_ppage < last_ppage)
-> +		isi->highest_ppage = last_ppage;
-> +
-> +	/* Add extent, set up for the next call. */
-> +	isi->nr_extents += add_swap_extent(isi->sis, page_no, nr_pages,
-> +			first_ppage);
-
-And here add_swap_extent() can return error.
+Reviewed-by: Jan Kara <jack@suse.cz>
 
 								Honza
+
+> ---
+>  include/linux/memcontrol.h | 1 -
+>  mm/backing-dev.c           | 4 ++--
+>  mm/memcontrol.c            | 5 -----
+>  3 files changed, 2 insertions(+), 8 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index d99b71b..c0056e0 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -1093,7 +1093,6 @@ static inline void dec_lruvec_page_state(struct page *page,
+>  
+>  #ifdef CONFIG_CGROUP_WRITEBACK
+>  
+> -struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg);
+>  struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb);
+>  void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
+>  			 unsigned long *pheadroom, unsigned long *pdirty,
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 023190c..0a48e05 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -555,7 +555,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
+>  	memcg = mem_cgroup_from_css(memcg_css);
+>  	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &io_cgrp_subsys);
+>  	blkcg = css_to_blkcg(blkcg_css);
+> -	memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
+> +	memcg_cgwb_list = &memcg->cgwb_list;
+>  	blkcg_cgwb_list = &blkcg->cgwb_list;
+>  
+>  	/* look up again under lock and discard on blkcg mismatch */
+> @@ -734,7 +734,7 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
+>   */
+>  void wb_memcg_offline(struct mem_cgroup *memcg)
+>  {
+> -	struct list_head *memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
+> +	struct list_head *memcg_cgwb_list = &memcg->cgwb_list;
+>  	struct bdi_writeback *wb, *next;
+>  
+>  	spin_lock_irq(&cgwb_lock);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e074f7c..d1adb9c 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3562,11 +3562,6 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
+>  
+>  #ifdef CONFIG_CGROUP_WRITEBACK
+>  
+> -struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg)
+> -{
+> -	return &memcg->cgwb_list;
+> -}
+> -
+>  static int memcg_wb_domain_init(struct mem_cgroup *memcg, gfp_t gfp)
+>  {
+>  	return wb_domain_init(&memcg->cgwb_domain, gfp);
+> -- 
+> 1.8.3.1
+> 
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
