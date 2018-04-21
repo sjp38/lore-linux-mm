@@ -1,101 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BDF176B0005
-	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 02:17:25 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id i1-v6so1672630pld.11
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 23:17:25 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g14si1139572pgu.363.2018.04.20.23.17.23
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 73FC46B0005
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 04:14:41 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p189so5916992pfp.1
+        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 01:14:41 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 33-v6si7799064plb.19.2018.04.21.01.14.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 20 Apr 2018 23:17:24 -0700 (PDT)
-Subject: Re: [Xen-devel] [Bug 198497] handle_mm_fault / xen_pmd_val /
- radix_tree_lookup_slot Null pointer
-References: <bug-198497-200779@https.bugzilla.kernel.org/>
- <bug-198497-200779-43rwxa1kcg@https.bugzilla.kernel.org/>
- <CAKf6xpuYvCMUVHdP71F8OWm=bQGFxeRd7SddH-5DDo-AQjbbQg@mail.gmail.com>
- <20180420133951.GC10788@bombadil.infradead.org>
- <CAKf6xpuVrPwc=AxYruPVfdxx1Yv7NF7NKiGx7vT2WKLogUoqfA@mail.gmail.com>
- <76a4ee3b-e00a-5032-df90-07d8e207f707@citrix.com>
- <5ADA0A6D02000078001BD177@prv1-mh.provo.novell.com>
- <CAKf6xps4RiC48zCie0o7VzTOCDu8ik1hmFP=b_qMx8qTo8F3TQ@mail.gmail.com>
- <5ADA0F1502000078001BD1D2@prv1-mh.provo.novell.com>
- <547c3c73-5eb2-05de-aa2a-54690883bd52@oracle.com>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <0f55b773-3fcd-0300-cd03-3774b9d05ae3@suse.com>
-Date: Sat, 21 Apr 2018 08:17:18 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 21 Apr 2018 01:14:39 -0700 (PDT)
+Date: Sat, 21 Apr 2018 16:15:05 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: Page allocator bottleneck
+Message-ID: <20180421081505.GA24916@intel.com>
+References: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
+ <20170915102320.zqceocmvvkyybekj@techsingularity.net>
+ <d8cfaf8b-7601-2712-f9f2-8327c720db5a@mellanox.com>
+ <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
 MIME-Version: 1.0
-In-Reply-To: <547c3c73-5eb2-05de-aa2a-54690883bd52@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, Jan Beulich <JBeulich@suse.com>, Jason Andryuk <jandryuk@gmail.com>
-Cc: bugzilla-daemon@bugzilla.kernel.org, Andrew Cooper <andrew.cooper3@citrix.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, akpm@linux-foundation.org, xen-devel@lists.xen.org, labbott@redhat.com
+To: Tariq Toukan <tariqt@mellanox.com>
+Cc: Linux Kernel Network Developers <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On 20/04/18 21:20, Boris Ostrovsky wrote:
-> On 04/20/2018 12:02 PM, Jan Beulich wrote:
->>>>> On 20.04.18 at 17:52, <jandryuk@gmail.com> wrote:
->>> On Fri, Apr 20, 2018 at 11:42 AM, Jan Beulich <JBeulich@suse.com> wrote:
->>>>>>> On 20.04.18 at 17:25, <andrew.cooper3@citrix.com> wrote:
->>>>> On 20/04/18 16:20, Jason Andryuk wrote:
->>>>>> Adding xen-devel and the Linux Xen maintainers.
->>>>>>
->>>>>> Summary: Some Xen users (and maybe others) are hitting a BUG in
->>>>>> __radix_tree_lookup() under do_swap_page() - example backtrace is
->>>>>> provided at the end.  Matthew Wilcox provided a band-aid patch that
->>>>>> prints errors like the following instead of triggering the bug.
->>>>>>
->>>>>> Skylake 32bit PAE Dom0:
->>>>>> Bad swp_entry: 80000000
->>>>>> mm/swap_state.c:683: bad pte d3a39f1c(8000000400000000)
->>>>>>
->>>>>> Ivy Bridge 32bit PAE Dom0:
->>>>>> Bad swp_entry: 40000000
->>>>>> mm/swap_state.c:683: bad pte d3a05f1c(8000000200000000)
->>>>>>
->>>>>> Other 32bit DomU:
->>>>>> Bad swp_entry: 4000000
->>>>>> mm/swap_state.c:683: bad pte e2187f30(8000000200000000)
->>>>>>
->>>>>> Other 32bit:
->>>>>> Bad swp_entry: 2000000
->>>>>> mm/swap_state.c:683: bad pte ef3a3f38(8000000100000000)
->>>>>>
->>>>>> The Linux bugzilla has more info
->>>>>> https://bugzilla.kernel.org/show_bug.cgi?id=198497 
->>>>>>
->>>>>> This may not be exclusive to Xen Linux, but most of the reports are on
->>>>>> Xen.  Matthew wonders if Xen might be stepping on the upper bits of a
->>>>>> pte.
->>>>> Yes - Xen does use the upper bits of a PTE, but only 1 in release
->>>>> builds, and a second in debug builds.  I don't understand where you're
->>>>> getting the 3rd bit in there.
->>>> The former supposedly is _PAGE_GUEST_KERNEL, which we use for 64-bit
->>>> guests only. Above talk is of 32-bit guests only.
->>>>
->>>> In addition both this and _PAGE_GNTTAB are used on present PTEs only,
->>>> while above talk is about swap entries.
->>> This hits a BUG going through do_swap_page, but it seems like users
->>> don't think they are actually using swap at the time.  One reporter
->>> didn't have any swap configured.  Some of this information was further
->>> down in my original message.
->>>
->>> I'm wondering if somehow we have a PTE that should be empty and should
->>> be lazily filled.  For some reason, the entry has some bits set and is
->>> causing the trouble.  Would Xen mess with the PTEs in that case?
->> As said in my previous reply - both of the bits Andrew has mentioned can
->> only ever be set when the present bit is also set (which doesn't appear to
->> be the case here). The set bits above are actually in the range of bits
->> designated to the address, which Xen wouldn't ever play with.
+Sorry to bring up an old thread...
+
+On Thu, Nov 02, 2017 at 07:21:09PM +0200, Tariq Toukan wrote:
 > 
 > 
-> The bug description starts with: "On a Xen VM running as pvh"
+> On 18/09/2017 12:16 PM, Tariq Toukan wrote:
+> > 
+> > 
+> > On 15/09/2017 1:23 PM, Mel Gorman wrote:
+> > > On Thu, Sep 14, 2017 at 07:49:31PM +0300, Tariq Toukan wrote:
+> > > > Insights: Major degradation between #1 and #2, not getting any
+> > > > close to linerate! Degradation is fixed between #2 and #3. This is
+> > > > because page allocator cannot stand the higher allocation rate. In
+> > > > #2, we also see that the addition of rings (cores) reduces BW (!!),
+> > > > as result of increasing congestion over shared resources.
+> > > > 
+> > > 
+> > > Unfortunately, no surprises there.
+> > > 
+> > > > Congestion in this case is very clear. When monitored in perf
+> > > > top: 85.58% [kernel] [k] queued_spin_lock_slowpath
+> > > > 
+> > > 
+> > > While it's not proven, the most likely candidate is the zone lock
+> > > and that should be confirmed using a call-graph profile. If so, then
+> > > the suggestion to tune to the size of the per-cpu allocator would
+> > > mitigate the problem.
+> > > 
+> > Indeed, I tuned the per-cpu allocator and bottleneck is released.
+> > 
 > 
-> So is this a PV or a PVH guest?
+> Hi all,
+> 
+> After leaving this task for a while doing other tasks, I got back to it now
+> and see that the good behavior I observed earlier was not stable.
 
-The stack backtrace suggests PV.
+I posted a patchset to improve zone->lock contention for order-0 pages
+recently, it can almost eliminate 80% zone->lock contention for
+will-it-scale/page_fault1 testcase when tested on a 2 sockets Intel
+Skylake server and it doesn't require PCP size tune, so should have
+some effects on your workload where one CPU does allocation while
+another does free.
 
+It did this by some disruptive changes:
+1 on free path, it skipped doing merge(so could be bad for mixed
+  workloads where both 4K and high order pages are needed);
+2 on allocation path, it avoided touching multiple cachelines.
 
-Juergen
+RFC v2 patchset:
+https://lkml.org/lkml/2018/3/20/171
+
+repo:
+https://github.com/aaronlu/linux zone_lock_rfc_v2
+
+ 
+> Recall: I work with a modified driver that allocates a page (4K) per packet
+> (MTU=1500), in order to simulate the stress on page-allocator in 200Gbps
+> NICs.
+> 
+> Performance is good as long as pages are available in the allocating cores's
+> PCP.
+> Issue is that pages are allocated in one core, then free'd in another,
+> making it's hard for the PCP to work efficiently, and both the allocator
+> core and the freeing core need to access the buddy allocator very often.
+> 
+> I'd like to share with you some testing numbers:
+> 
+> Test: ./super_netperf 128 -H 24.134.0.51 -l 1000
+> 
+> 100% cpu on all cores, top func in perf:
+>    84.98%  [kernel]             [k] queued_spin_lock_slowpath
+> 
+> system wide (all cores)
+>            1135941      kmem:mm_page_alloc
+> 
+>            2606629      kmem:mm_page_free
+> 
+>                  0      kmem:mm_page_alloc_extfrag
+>            4784616      kmem:mm_page_alloc_zone_locked
+> 
+>               1337      kmem:mm_page_free_batched
+> 
+>            6488213      kmem:mm_page_pcpu_drain
+> 
+>            8925503      net:napi_gro_receive_entry
+> 
+> 
+> Two types of cores:
+> A core mostly running napi (8 such cores):
+>             221875      kmem:mm_page_alloc
+> 
+>              17100      kmem:mm_page_free
+> 
+>                  0      kmem:mm_page_alloc_extfrag
+>             766584      kmem:mm_page_alloc_zone_locked
+> 
+>                 16      kmem:mm_page_free_batched
+> 
+>                 35      kmem:mm_page_pcpu_drain
+> 
+>            1340139      net:napi_gro_receive_entry
+> 
+> 
+> Other core, mostly running user application (40 such):
+>                  2      kmem:mm_page_alloc
+> 
+>              38922      kmem:mm_page_free
+> 
+>                  0      kmem:mm_page_alloc_extfrag
+>                  1      kmem:mm_page_alloc_zone_locked
+> 
+>                  8      kmem:mm_page_free_batched
+> 
+>             107289      kmem:mm_page_pcpu_drain
+> 
+>                 34      net:napi_gro_receive_entry
+> 
+> 
+> As you can see, sync overhead is enormous.
+> 
+> PCP-wise, a key improvement in such scenarios would be reached if we could
+> (1) keep and handle the allocated page on same cpu, or (2) somehow get the
+> page back to the allocating core's PCP in a fast-path, without going through
+> the regular buddy allocator paths.
