@@ -1,103 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 599CD6B0005
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 19:48:25 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id 91-v6so5823870plf.6
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 16:48:25 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id t3si5610281pgt.547.2018.04.20.16.48.23
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DFF36B0005
+	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 21:21:05 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id f13-v6so7445581qtg.15
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 18:21:05 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0078.outbound.protection.outlook.com. [104.47.33.78])
+        by mx.google.com with ESMTPS id j12si1103112qkm.357.2018.04.20.18.21.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Apr 2018 16:48:23 -0700 (PDT)
-Subject: Re: [RFC PATCH 00/79] Generic page write protection and a solution to
- page waitqueue
-References: <20180404191831.5378-1-jglisse@redhat.com>
- <6f6e3602-c8a6-ae81-3ef0-9fe18e43c841@linux.intel.com>
- <20180420221905.GA4124@redhat.com>
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Message-ID: <1809b27e-e79d-f2c3-19f5-0f505c340519@linux.intel.com>
-Date: Fri, 20 Apr 2018 16:48:22 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180420221905.GA4124@redhat.com>
-Content-Type: text/plain; charset=utf-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 20 Apr 2018 18:21:04 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
+Subject: Re: [PATCH 5/5] x86, pti: filter at vma->vm_page_prot population
+Date: Sat, 21 Apr 2018 01:21:01 +0000
+Message-ID: <295DB0D1-CDFB-482C-93DF-63DAA36DAE22@vmware.com>
+References: <20180420222018.E7646EE1@viggo.jf.intel.com>
+ <20180420222028.99D72858@viggo.jf.intel.com>
+In-Reply-To: <20180420222028.99D72858@viggo.jf.intel.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <C077810B70D68746AC8E7EAAAC06FE6A@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Theodore Ts'o <tytso@mit.edu>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Josef Bacik <jbacik@fb.com>, Mel Gorman <mgorman@techsingularity.net>, Jeff Layton <jlayton@redhat.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Fengguang Wu <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>, Borislav Petkov <bp@alien8.de>, Dan Williams <dan.j.williams@intel.com>, David Woodhouse <dwmw2@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "hughd@google.com" <hughd@google.com>, "jpoimboe@redhat.com" <jpoimboe@redhat.com>, "jgross@suse.com" <jgross@suse.com>, "keescook@google.com" <keescook@google.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@kernel.org" <mingo@kernel.org>
 
-On 04/20/2018 03:19 PM, Jerome Glisse wrote:
-> On Fri, Apr 20, 2018 at 12:57:41PM -0700, Tim Chen wrote:
->> On 04/04/2018 12:17 PM, jglisse@redhat.com wrote:
->>
->>
->> Your approach seems useful if there are lots of locked pages sharing
->> the same wait queue.  
->>
->> That said, in the original workload from our customer with the long wait queue
->> problem, there was a single super hot page getting migrated, and it
->> is being accessed by all threads which caused the big log jam while they wait for
->> the migration to get completed.  
->> With your approach, we will still likely end up with a long queue 
->> in that workload even if we have per page wait queue.
->>
->> Thanks.
-> 
-> Ok so i re-read the thread, i was writting this cover letter from memory
-> and i had bad recollection of your issue, so sorry.
-> 
-> First, do you have a way to reproduce the issue ? Something easy would
-> be nice :)
-
-Unfortunately it is a customer workload that they guard closely and wouldn't let us
-look at the source code.  We have to profile and backtrace its behavior.
-
-Mel made a quick attempt to reproduce the behavior with a hot page migration, 
-but he wasn't quite able to duplicate the pathologic behavior.
-
-> 
-> So what i am proposing for per page wait queue would only marginaly help
-> you (it might not even be mesurable in your workload). It would certainly
-> make the code smaller and easier to understand i believe.
-
-In certain cases if we have lots of pages sharing a page wait queue,
-your solution would help, and we wouldn't be wasting time checking
-waiters not waiting on the page that's being unlocked.  Though I
-don't have a specific workload that has such behavior.
-
-> 
-> Now that i have look back at your issue i think there is 2 things we
-> should do. First keep migration page map read only, this would at least
-> avoid CPU read fault. In trace you captured i wasn't able to ascertain
-> if this were read or write fault.
-> 
-> Second idea i have is about NUMA, everytime we NUMA migrate a page we
-> could attach a temporary struct to the page (using page->mapping). So
-> if we scan that page again we can inspect information about previous
-> migration and see if we are not over migrating that page (ie bouncing
-> it all over). If so we can mark the page (maybe with a page flag if we
-> can find one) to protect it from further migration. That temporary
-> struct would be remove after a while, ie autonuma would preallocate a
-> bunch of those and keep an LRU of them and recycle the oldest when it
-> needs a new one to migrate another page.
-
-The goal to migrate a hot page with care, or avoid bouncing it around 
-frequently makes sense.  If it is a hot page shared by many threads
-running on different NUMA nodes, and moving it will only mildly improve NUMA
-locality, we should avoid the migration.
-
-Tim
-
-> 
-> 
-> LSF/MM slots:
-> 
-> Michal can i get 2 slots to talk about this ? MM only discussion, one
-> to talk about doing migration with page map read only but write
-> protected while migration is happening. The other one to talk about
-> attaching auto NUMA tracking struct to page.
-> 
-> Cheers,
-> JA(C)rA'me
-> 
+RGF2ZSBIYW5zZW4gPGRhdmUuaGFuc2VuQGxpbnV4LmludGVsLmNvbT4gd3JvdGU6DQoNCj4gDQo+
+IEZyb206IERhdmUgSGFuc2VuIDxkYXZlLmhhbnNlbkBsaW51eC5pbnRlbC5jb20+DQo+IA0KPiAw
+ZGF5IHJlcG9ydGVkIHdhcm5pbmdzIGF0IGJvb3Qgb24gMzItYml0IHN5c3RlbXMgd2l0aG91dCBO
+WCBzdXBwb3J0Og0KPiANCj4gWyAgIDEyLjM0OTE5M10gYXR0ZW1wdGVkIHRvIHNldCB1bnN1cHBv
+cnRlZCBwZ3Byb3Q6IDgwMDAwMDAwMDAwMDAwMjUgYml0czogODAwMDAwMDAwMDAwMDAwMCBzdXBw
+b3J0ZWQ6IDdmZmZmZmZmZmZmZmZmZmYNCj4gWyAgIDEyLjM1MDc5Ml0gV0FSTklORzogQ1BVOiAw
+IFBJRDogMSBhdCBhcmNoL3g4Ni9pbmNsdWRlL2FzbS9wZ3RhYmxlLmg6NTQwIGhhbmRsZV9tbV9m
+YXVsdCsweGZjMS8weGZlMDoNCj4gCQkJCQkJY2hlY2tfcGdwcm90IGF0IGFyY2gveDg2L2luY2x1
+ZGUvYXNtL3BndGFibGUuaDo1MzUNCj4gCQkJCQkJIChpbmxpbmVkIGJ5KSBwZm5fcHRlIGF0IGFy
+Y2gveDg2L2luY2x1ZGUvYXNtL3BndGFibGUuaDo1NDkNCj4gCQkJCQkJIChpbmxpbmVkIGJ5KSBk
+b19hbm9ueW1vdXNfcGFnZSBhdCBtbS9tZW1vcnkuYzozMTY5DQo+IAkJCQkJCSAoaW5saW5lZCBi
+eSkgaGFuZGxlX3B0ZV9mYXVsdCBhdCBtbS9tZW1vcnkuYzozOTYxDQo+IAkJCQkJCSAoaW5saW5l
+ZCBieSkgX19oYW5kbGVfbW1fZmF1bHQgYXQgbW0vbWVtb3J5LmM6NDA4Nw0KPiAJCQkJCQkgKGlu
+bGluZWQgYnkpIGhhbmRsZV9tbV9mYXVsdCBhdCBtbS9tZW1vcnkuYzo0MTI0DQo+IA0KPiBUaGUg
+cHJvYmxlbSB3YXMgdGhhdCB3ZSBzdG9wcGVkIG1hc3NhZ2luZyBwYWdlIHBlcm1pc3Npb25zIGF0
+IFBURSBjcmVhdGlvbg0KPiB0aW1lLCBzbyB2bWEtPnZtX3BhZ2VfcHJvdCB3YXMgcGFzc2VkIHVu
+ZmlsdGVyZWQgdG8gUFRFIGNyZWF0aW9uLg0KPiANCj4gVG8gZml4IGl0LCBmaWx0ZXIgdGhlIHBh
+Z2UgcHJvdGVjdGlvbnMgYmVmb3JlIHRoZXkgYXJlIGluc3RhbGxlZCBpbg0KPiB2bWEtPnZtX3Bh
+Z2VfcHJvdC4NCj4gDQo+IFNpZ25lZC1vZmYtYnk6IERhdmUgSGFuc2VuIDxkYXZlLmhhbnNlbkBs
+aW51eC5pbnRlbC5jb20+DQo+IFJlcG9ydGVkLWJ5OiBGZW5nZ3VhbmcgV3UgPGZlbmdndWFuZy53
+dUBpbnRlbC5jb20+DQo+IEZpeGVzOiBmYjQzZDZjYjkxICgieDg2L21tOiBEbyBub3QgYXV0by1t
+YXNzYWdlIHBhZ2UgcHJvdGVjdGlvbnMiKQ0KPiBDYzogQW5kcmVhIEFyY2FuZ2VsaSA8YWFyY2Fu
+Z2VAcmVkaGF0LmNvbT4NCj4gQ2M6IEFuZHkgTHV0b21pcnNraSA8bHV0b0BrZXJuZWwub3JnPg0K
+PiBDYzogQXJqYW4gdmFuIGRlIFZlbiA8YXJqYW5AbGludXguaW50ZWwuY29tPg0KPiBDYzogQm9y
+aXNsYXYgUGV0a292IDxicEBhbGllbjguZGU+DQo+IENjOiBEYW4gV2lsbGlhbXMgPGRhbi5qLndp
+bGxpYW1zQGludGVsLmNvbT4NCj4gQ2M6IERhdmlkIFdvb2Rob3VzZSA8ZHdtdzJAaW5mcmFkZWFk
+Lm9yZz4NCj4gQ2M6IEdyZWcgS3JvYWgtSGFydG1hbiA8Z3JlZ2toQGxpbnV4Zm91bmRhdGlvbi5v
+cmc+DQo+IENjOiBIdWdoIERpY2tpbnMgPGh1Z2hkQGdvb2dsZS5jb20+DQo+IENjOiBKb3NoIFBv
+aW1ib2V1ZiA8anBvaW1ib2VAcmVkaGF0LmNvbT4NCj4gQ2M6IEp1ZXJnZW4gR3Jvc3MgPGpncm9z
+c0BzdXNlLmNvbT4NCj4gQ2M6IEtlZXMgQ29vayA8a2Vlc2Nvb2tAZ29vZ2xlLmNvbT4NCj4gQ2M6
+IExpbnVzIFRvcnZhbGRzIDx0b3J2YWxkc0BsaW51eC1mb3VuZGF0aW9uLm9yZz4NCj4gQ2M6IE5h
+ZGF2IEFtaXQgPG5hbWl0QHZtd2FyZS5jb20+DQo+IENjOiBQZXRlciBaaWpsc3RyYSA8cGV0ZXJ6
+QGluZnJhZGVhZC5vcmc+DQo+IENjOiBUaG9tYXMgR2xlaXhuZXIgPHRnbHhAbGludXRyb25peC5k
+ZT4NCj4gQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZw0KPiBDYzogSW5nbyBNb2xuYXIgPG1pbmdvQGtl
+cm5lbC5vcmc+DQo+IC0tLQ0KPiANCj4gYi9hcmNoL3g4Ni9LY29uZmlnICAgICAgICAgICAgICAg
+fCAgICA0ICsrKysNCj4gYi9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9wZ3RhYmxlLmggfCAgICA1ICsr
+KysrDQo+IGIvbW0vbW1hcC5jICAgICAgICAgICAgICAgICAgICAgIHwgICAxMSArKysrKysrKysr
+LQ0KPiAzIGZpbGVzIGNoYW5nZWQsIDE5IGluc2VydGlvbnMoKyksIDEgZGVsZXRpb24oLSkNCj4g
+DQo+IGRpZmYgLXB1TiBhcmNoL3g4Ni9pbmNsdWRlL2FzbS9wZ3RhYmxlLmh+cHRpLWdsYi1wcm90
+ZWN0aW9uX21hcCBhcmNoL3g4Ni9pbmNsdWRlL2FzbS9wZ3RhYmxlLmgNCj4gLS0tIGEvYXJjaC94
+ODYvaW5jbHVkZS9hc20vcGd0YWJsZS5ofnB0aS1nbGItcHJvdGVjdGlvbl9tYXAJMjAxOC0wNC0y
+MCAxNDoxMDowOC4yNTE3NDkxNTEgLTA3MDANCj4gKysrIGIvYXJjaC94ODYvaW5jbHVkZS9hc20v
+cGd0YWJsZS5oCTIwMTgtMDQtMjAgMTQ6MTA6MDguMjYwNzQ5MTUxIC0wNzAwDQo+IEBAIC02MDEs
+NiArNjAxLDExIEBAIHN0YXRpYyBpbmxpbmUgcGdwcm90X3QgcGdwcm90X21vZGlmeShwZ3ANCj4g
+DQo+ICNkZWZpbmUgY2Fub25fcGdwcm90KHApIF9fcGdwcm90KG1hc3NhZ2VfcGdwcm90KHApKQ0K
+PiANCj4gK3N0YXRpYyBpbmxpbmUgcGdwcm90X3QgYXJjaF9maWx0ZXJfcGdwcm90KHBncHJvdF90
+IHByb3QpDQo+ICt7DQo+ICsJcmV0dXJuIGNhbm9uX3BncHJvdChwcm90KTsNCj4gK30NCj4gKw0K
+PiBzdGF0aWMgaW5saW5lIGludCBpc19uZXdfbWVtdHlwZV9hbGxvd2VkKHU2NCBwYWRkciwgdW5z
+aWduZWQgbG9uZyBzaXplLA0KPiAJCQkJCSBlbnVtIHBhZ2VfY2FjaGVfbW9kZSBwY20sDQo+IAkJ
+CQkJIGVudW0gcGFnZV9jYWNoZV9tb2RlIG5ld19wY20pDQo+IGRpZmYgLXB1TiBhcmNoL3g4Ni9L
+Y29uZmlnfnB0aS1nbGItcHJvdGVjdGlvbl9tYXAgYXJjaC94ODYvS2NvbmZpZw0KPiAtLS0gYS9h
+cmNoL3g4Ni9LY29uZmlnfnB0aS1nbGItcHJvdGVjdGlvbl9tYXAJMjAxOC0wNC0yMCAxNDoxMDow
+OC4yNTM3NDkxNTEgLTA3MDANCj4gKysrIGIvYXJjaC94ODYvS2NvbmZpZwkyMDE4LTA0LTIwIDE0
+OjEwOjA4LjI2MDc0OTE1MSAtMDcwMA0KPiBAQCAtNTIsNiArNTIsNyBAQCBjb25maWcgWDg2DQo+
+IAlzZWxlY3QgQVJDSF9IQVNfREVWTUVNX0lTX0FMTE9XRUQNCj4gCXNlbGVjdCBBUkNIX0hBU19F
+TEZfUkFORE9NSVpFDQo+IAlzZWxlY3QgQVJDSF9IQVNfRkFTVF9NVUxUSVBMSUVSDQo+ICsJc2Vs
+ZWN0IEFSQ0hfSEFTX0ZJTFRFUl9QR1BST1QNCj4gCXNlbGVjdCBBUkNIX0hBU19GT1JUSUZZX1NP
+VVJDRQ0KPiAJc2VsZWN0IEFSQ0hfSEFTX0dDT1ZfUFJPRklMRV9BTEwNCj4gCXNlbGVjdCBBUkNI
+X0hBU19LQ09WCQkJaWYgWDg2XzY0DQo+IEBAIC0yNzMsNiArMjc0LDkgQEAgY29uZmlnIEFSQ0hf
+SEFTX0NQVV9SRUxBWA0KPiBjb25maWcgQVJDSF9IQVNfQ0FDSEVfTElORV9TSVpFDQo+IAlkZWZf
+Ym9vbCB5DQo+IA0KPiArY29uZmlnIEFSQ0hfSEFTX0ZJTFRFUl9QR1BST1QNCj4gKwlkZWZfYm9v
+bCB5DQo+ICsNCj4gY29uZmlnIEhBVkVfU0VUVVBfUEVSX0NQVV9BUkVBDQo+IAlkZWZfYm9vbCB5
+DQo+IA0KPiBkaWZmIC1wdU4gbW0vbW1hcC5jfnB0aS1nbGItcHJvdGVjdGlvbl9tYXAgbW0vbW1h
+cC5jDQo+IC0tLSBhL21tL21tYXAuY35wdGktZ2xiLXByb3RlY3Rpb25fbWFwCTIwMTgtMDQtMjAg
+MTQ6MTA6MDguMjU2NzQ5MTUxIC0wNzAwDQo+ICsrKyBiL21tL21tYXAuYwkyMDE4LTA0LTIwIDE0
+OjEwOjA4LjI2MTc0OTE1MSAtMDcwMA0KPiBAQCAtMTAwLDExICsxMDAsMjAgQEAgcGdwcm90X3Qg
+cHJvdGVjdGlvbl9tYXBbMTZdIF9fcm9fYWZ0ZXJfaQ0KPiAJX19TMDAwLCBfX1MwMDEsIF9fUzAx
+MCwgX19TMDExLCBfX1MxMDAsIF9fUzEwMSwgX19TMTEwLCBfX1MxMTENCj4gfTsNCj4gDQo+ICsj
+aWZuZGVmIENPTkZJR19BUkNIX0hBU19GSUxURVJfUEdQUk9UDQo+ICtzdGF0aWMgaW5saW5lIHBn
+cHJvdF90IGFyY2hfZmlsdGVyX3BncHJvdChwZ3Byb3RfdCBwcm90KQ0KPiArew0KPiArCXJldHVy
+biBwcm90Ow0KPiArfQ0KPiArI2VuZGlmDQo+ICsNCj4gcGdwcm90X3Qgdm1fZ2V0X3BhZ2VfcHJv
+dCh1bnNpZ25lZCBsb25nIHZtX2ZsYWdzKQ0KPiB7DQo+IC0JcmV0dXJuIF9fcGdwcm90KHBncHJv
+dF92YWwocHJvdGVjdGlvbl9tYXBbdm1fZmxhZ3MgJg0KPiArCXBncHJvdF90IHJldCA9IF9fcGdw
+cm90KHBncHJvdF92YWwocHJvdGVjdGlvbl9tYXBbdm1fZmxhZ3MgJg0KPiAJCQkJKFZNX1JFQUR8
+Vk1fV1JJVEV8Vk1fRVhFQ3xWTV9TSEFSRUQpXSkgfA0KPiAJCQlwZ3Byb3RfdmFsKGFyY2hfdm1f
+Z2V0X3BhZ2VfcHJvdCh2bV9mbGFncykpKTsNCj4gKw0KPiArCXJldHVybiBhcmNoX2ZpbHRlcl9w
+Z3Byb3QocmV0KTsNCj4gfQ0KPiBFWFBPUlRfU1lNQk9MKHZtX2dldF9wYWdlX3Byb3QpOw0KDQpX
+b3VsZG7igJl0IGl0IGJlIHNpbXBsZXIgb3IgYXQgbGVhc3QgY2xlYW5lciB0byBjaGFuZ2UgdGhl
+IHByb3RlY3Rpb24gbWFwIGlmDQpOWCBpcyBub3Qgc3VwcG9ydGVkPyBJIHByZXN1bWUgaXQgY2Fu
+IGJlIGRvbmUgcGFnaW5nX2luaXQoKSBzaW1pbGFybHkgdG8gdGhlDQp3YXkgb3RoZXIgYXJjaHMg
+KGUuZy4sIGFybSwgbWlwcykgZG8uDQoNCg==
