@@ -1,61 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E64F6B0003
-	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 12:55:15 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id b18so3937921pgv.14
-        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 09:55:15 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B07376B0007
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 13:03:47 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id n5so3560281pgq.3
+        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 10:03:47 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n25sor1952524pgc.411.2018.04.21.09.55.10
+        by mx.google.com with SMTPS id z3sor2474323pfe.102.2018.04.21.10.03.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 21 Apr 2018 09:55:10 -0700 (PDT)
-Subject: Re: [PATCH net-next 0/4] mm,tcp: provide mmap_hook to solve lockdep
- issue
-References: <20180420155542.122183-1-edumazet@google.com>
- <20180421090722.GA11998@infradead.org>
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Message-ID: <f9d07a33-4fad-62a8-898a-ebf6ed47a721@gmail.com>
-Date: Sat, 21 Apr 2018 09:55:07 -0700
+        Sat, 21 Apr 2018 10:03:46 -0700 (PDT)
+Date: Sat, 21 Apr 2018 22:35:40 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH] mm: memory: Introduce new vmf_insert_mixed_mkwrite
+Message-ID: <20180421170540.GA17849@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-In-Reply-To: <20180421090722.GA11998@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Eric Dumazet <edumazet@google.com>
-Cc: "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Soheil Hassas Yeganeh <soheil@google.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: hughd@google.com, minchan@kernel.org, ying.huang@intel.com, ross.zwisler@linux.intel.com, willy@infradead.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org
 
+vm_insert_mixed_mkwrite() has inefficiency when it
+returns err, driver has to convert err to vm_fault_t
+type. With new vmf_insert_mixed_mkwrite we can handle
+this limitation.
 
+As of now vm_insert_mixed_mkwrite() is only getting
+invoked from fs/dax.c, so this change has to go first
+in linus tree before changes in dax.
 
-On 04/21/2018 02:07 AM, Christoph Hellwig wrote:
-> On Fri, Apr 20, 2018 at 08:55:38AM -0700, Eric Dumazet wrote:
->> This patch series provide a new mmap_hook to fs willing to grab
->> a mutex before mm->mmap_sem is taken, to ensure lockdep sanity.
->>
->> This hook allows us to shorten tcp_mmap() execution time (while mmap_sem
->> is held), and improve multi-threading scalability. 
-> 
-> Missing CC to linu-fsdevel and linux-mm that will have to decide.
-> 
-> We've rejected this approach multiple times before, so you better
-> make a really good argument for it.
-> 
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+---
+ include/linux/mm.h |  4 ++--
+ mm/memory.c        | 15 +++++++++++----
+ 2 files changed, 13 insertions(+), 6 deletions(-)
 
-Well, tcp code needs to hold socket lock before mm->mmap_sem, so current
-mmap hook can not fit. Or we need to revisit all code doing copyin/copyout while
-holding a socket lock. (Not feasible really)
-
-
-> introducing a multiplexer that overloads a single method certainly
-> doesn't help making that case.
-
-Well, if you refer to multiple hooks instead of a single one, I basically
-thought that since only TCP needs this hook at the moment,
-it was not worth adding extra 8-bytes loads for all other mmap() users.
-
-I have no issue adding more hooks and more memory pressure if this is the blocking factor.
-
-We need two actions at this moment, (to lock the socket or release it)
-and a third one would allow us to build the array of pages
-before grabbing mmap_sem (as I mentioned in the last patch changelog)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1ac1f06..9fe441c 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2423,8 +2423,8 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn, pgprot_t pgprot);
+ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ 			pfn_t pfn);
+-int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
+-			pfn_t pfn);
++vm_fault_t vmf_insert_mixed_mkwrite(struct vm_area_struct *vma,
++		unsigned long addr, pfn_t pfn);
+ int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
+ 
+ static inline vm_fault_t vmf_insert_page(struct vm_area_struct *vma,
+diff --git a/mm/memory.c b/mm/memory.c
+index 01f5464..721cfd5 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1955,12 +1955,19 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ }
+ EXPORT_SYMBOL(vm_insert_mixed);
+ 
+-int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
+-			pfn_t pfn)
++vm_fault_t vmf_insert_mixed_mkwrite(struct vm_area_struct *vma,
++		unsigned long addr, pfn_t pfn)
+ {
+-	return __vm_insert_mixed(vma, addr, pfn, true);
++	int err;
++
++	err =  __vm_insert_mixed(vma, addr, pfn, true);
++	if (err == -ENOMEM)
++		return VM_FAULT_OOM;
++	if (err < 0 && err != -EBUSY)
++		return VM_FAULT_SIGBUS;
++	return VM_FAULT_NOPAGE;
+ }
+-EXPORT_SYMBOL(vm_insert_mixed_mkwrite);
++EXPORT_SYMBOL(vmf_insert_mixed_mkwrite);
+ 
+ /*
+  * maps a range of physical memory into the requested pages. the old
+-- 
+1.9.1
