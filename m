@@ -1,214 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 03AB36B0003
-	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 19:15:32 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j18so7150139pfn.17
-        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 16:15:31 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E6586B0007
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 19:15:38 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id g15so4966567pfi.8
+        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 16:15:38 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w20-v6si8737617plp.7.2018.04.21.16.15.29
+        by mx.google.com with ESMTPS id b186si7271063pgc.569.2018.04.21.16.15.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 21 Apr 2018 16:15:29 -0700 (PDT)
+        Sat, 21 Apr 2018 16:15:37 -0700 (PDT)
+Subject: Re: [PATCH RFC 2/8] mm: introduce PG_offline
+References: <20180413131632.1413-1-david@redhat.com>
+ <20180413131632.1413-3-david@redhat.com>
+ <20180413171120.GA1245@bombadil.infradead.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 2/3] mm: add find_alloc_contig_pages() interface
-References: <20180417020915.11786-1-mike.kravetz@oracle.com>
- <20180417020915.11786-3-mike.kravetz@oracle.com>
-Message-ID: <deb9dd1d-84bf-75c7-2880-a7bcec880d47@suse.cz>
-Date: Sat, 21 Apr 2018 18:16:15 +0200
+Message-ID: <89329958-2ff8-9447-408e-fd478b914ec4@suse.cz>
+Date: Sat, 21 Apr 2018 18:52:18 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180417020915.11786-3-mike.kravetz@oracle.com>
+In-Reply-To: <20180413171120.GA1245@bombadil.infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Matthew Wilcox <willy@infradead.org>, David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, James Hogan <jhogan@kernel.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, open list <linux-kernel@vger.kernel.org>
 
-On 04/17/2018 04:09 AM, Mike Kravetz wrote:
-> find_alloc_contig_pages() is a new interface that attempts to locate
-> and allocate a contiguous range of pages.  It is provided as a more
-> convenient interface than alloc_contig_range() which is currently
-> used by CMA and gigantic huge pages.
+On 04/13/2018 07:11 PM, Matthew Wilcox wrote:
+> On Fri, Apr 13, 2018 at 03:16:26PM +0200, David Hildenbrand wrote:
+>> online_pages()/offline_pages() theoretically allows us to work on
+>> sub-section sizes. This is especially relevant in the context of
+>> virtualization. It e.g. allows us to add/remove memory to Linux in a VM in
+>> 4MB chunks.
+>>
+>> While the whole section is marked as online/offline, we have to know
+>> the state of each page. E.g. to not read memory that is not online
+>> during kexec() or to properly mark a section as offline as soon as all
+>> contained pages are offline.
 > 
-> When attempting to allocate a range of pages, migration is employed
-> if possible.  There is no guarantee that the routine will succeed.
-> So, the user must be prepared for failure and have a fall back plan.
+> Can you not use PG_reserved for this purpose?
+
+Sounds like your newly introduced "page types" could be useful here? I
+don't suppose those offline pages would be using mapcount which is
+aliased there?
+
+>> + * PG_offline indicates that a page is offline and the backing storage
+>> + * might already have been removed (virtualization). Don't touch!
 > 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-
-Hi, just two quick observations, maybe discussion pointers for the
-LSF/MM session:
-- it's weird that find_alloc_contig_pages() takes an order, and
-free_contig_pages() takes a nr_pages. I suspect the interface would be
-more future-proof with both using nr_pages? Perhaps also minimum
-alignment for the allocation side? Order is fine for hugetlb, but what
-about other potential users?
-- contig_alloc_migratetype_ok() says that MIGRATE_CMA blocks are OK to
-allocate from. This silently assumes that everything allocated by this
-will be migratable itself, or it might eat CMA reserves. Is it the case?
-Also you then call alloc_contig_range() with MIGRATE_MOVABLE, so it will
-skip/fail on MIGRATE_CMA anyway IIRC.
-
-Vlastimil
-
-> ---
->  include/linux/gfp.h | 12 ++++++++
->  mm/page_alloc.c     | 89 +++++++++++++++++++++++++++++++++++++++++++++++++++--
->  2 files changed, 99 insertions(+), 2 deletions(-)
+>  * PG_reserved is set for special pages, which can never be swapped out. Some
+>  * of them might not even exist...
 > 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 86a0d06463ab..528b194cc266 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -573,6 +573,18 @@ static inline bool pm_suspended_storage(void)
->  extern int alloc_contig_range(unsigned long start, unsigned long end,
->  			      unsigned migratetype, gfp_t gfp_mask);
->  extern void free_contig_range(unsigned long pfn, unsigned long nr_pages);
-> +extern struct page *find_alloc_contig_pages(unsigned int order, gfp_t gfp,
-> +						int nid, nodemask_t *nodemask);
-> +extern void free_contig_pages(struct page *page, unsigned long nr_pages);
-> +#else
-> +static inline page *find_alloc_contig_pages(unsigned int order, gfp_t gfp,
-> +						int nid, nodemask_t *nodemask)
-> +{
-> +	return NULL;
-> +}
-> +static void free_contig_pages(struct page *page, unsigned long nr_pages)
-> +{
-> +}
->  #endif
->  
->  #ifdef CONFIG_CMA
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 0fd5e8e2456e..81070fe55c44 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -67,6 +67,7 @@
->  #include <linux/ftrace.h>
->  #include <linux/lockdep.h>
->  #include <linux/nmi.h>
-> +#include <linux/mmzone.h>
->  
->  #include <asm/sections.h>
->  #include <asm/tlbflush.h>
-> @@ -2010,9 +2011,13 @@ static __always_inline struct page *__rmqueue_cma_fallback(struct zone *zone,
->  {
->  	return __rmqueue_smallest(zone, order, MIGRATE_CMA);
->  }
-> +#define contig_alloc_migratetype_ok(migratetype) \
-> +	((migratetype) == MIGRATE_CMA || (migratetype) == MIGRATE_MOVABLE)
->  #else
->  static inline struct page *__rmqueue_cma_fallback(struct zone *zone,
->  					unsigned int order) { return NULL; }
-> +#define contig_alloc_migratetype_ok(migratetype) \
-> +	((migratetype) == MIGRATE_MOVABLE)
->  #endif
->  
->  /*
-> @@ -7822,6 +7827,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
->  	};
->  	INIT_LIST_HEAD(&cc.migratepages);
->  
-> +	if (!contig_alloc_migratetype_ok(migratetype))
-> +		return -EINVAL;
-> +
->  	/*
->  	 * What we do here is we mark all pageblocks in range as
->  	 * MIGRATE_ISOLATE.  Because pageblock and max order pages may
-> @@ -7912,8 +7920,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
->  
->  	/* Make sure the range is really isolated. */
->  	if (test_pages_isolated(outer_start, end, false)) {
-> -		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
-> -			__func__, outer_start, end);
-> +		if (!(migratetype == MIGRATE_MOVABLE)) /* only print for CMA */
-> +			pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
-> +				__func__, outer_start, end);
->  		ret = -EBUSY;
->  		goto done;
->  	}
-> @@ -7949,6 +7958,82 @@ void free_contig_range(unsigned long pfn, unsigned long nr_pages)
->  	}
->  	WARN(count != 0, "%ld pages are still in use!\n", count);
->  }
-> +
-> +static bool contig_pfn_range_valid(struct zone *z, unsigned long start_pfn,
-> +					unsigned long nr_pages)
-> +{
-> +	unsigned long i, end_pfn = start_pfn + nr_pages;
-> +	struct page *page;
-> +
-> +	for (i = start_pfn; i < end_pfn; i++) {
-> +		if (!pfn_valid(i))
-> +			return false;
-> +
-> +		page = pfn_to_page(i);
-> +
-> +		if (page_zone(page) != z)
-> +			return false;
-> +
-> +	}
-> +
-> +	return true;
-> +}
-> +
-> +/**
-> + * find_alloc_contig_pages() -- attempt to find and allocate a contiguous
-> + *				range of pages
-> + * @order:	number of pages
-> + * @gfp:	gfp mask used to limit search as well as during compaction
-> + * @nid:	target node
-> + * @nodemask:	mask of other possible nodes
-> + *
-> + * Pages can be freed with a call to free_contig_pages(), or by manually
-> + * calling __free_page() for each page allocated.
-> + *
-> + * Return: pointer to 'order' pages on success, or NULL if not successful.
-> + */
-> +struct page *find_alloc_contig_pages(unsigned int order, gfp_t gfp,
-> +					int nid, nodemask_t *nodemask)
-> +{
-> +	unsigned long pfn, nr_pages, flags;
-> +	struct page *ret_page = NULL;
-> +	struct zonelist *zonelist;
-> +	struct zoneref *z;
-> +	struct zone *zone;
-> +	int rc;
-> +
-> +	nr_pages = 1 << order;
-> +	zonelist = node_zonelist(nid, gfp);
-> +	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp),
-> +					nodemask) {
-> +		spin_lock_irqsave(&zone->lock, flags);
-> +		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
-> +		while (zone_spans_pfn(zone, pfn + nr_pages - 1)) {
-> +			if (contig_pfn_range_valid(zone, pfn, nr_pages)) {
-> +				spin_unlock_irqrestore(&zone->lock, flags);
-> +
-> +				rc = alloc_contig_range(pfn, pfn + nr_pages,
-> +							MIGRATE_MOVABLE, gfp);
-> +				if (!rc) {
-> +					ret_page = pfn_to_page(pfn);
-> +					return ret_page;
-> +				}
-> +				spin_lock_irqsave(&zone->lock, flags);
-> +			}
-> +			pfn += nr_pages;
-> +		}
-> +		spin_unlock_irqrestore(&zone->lock, flags);
-> +	}
-> +
-> +	return ret_page;
-> +}
-> +EXPORT_SYMBOL_GPL(find_alloc_contig_pages);
-> +
-> +void free_contig_pages(struct page *page, unsigned long nr_pages)
-> +{
-> +	free_contig_range(page_to_pfn(page), nr_pages);
-> +}
-> +EXPORT_SYMBOL_GPL(free_contig_pages);
->  #endif
->  
->  #if defined CONFIG_MEMORY_HOTPLUG || defined CONFIG_CMA
+> They seem pretty congruent to me.
 > 
