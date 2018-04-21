@@ -1,55 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BBEA26B0007
-	for <linux-mm@kvack.org>; Fri, 20 Apr 2018 21:34:17 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id z6so3283302pgu.20
-        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 18:34:17 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a33-v6si3286653pli.275.2018.04.20.18.34.16
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BDF176B0005
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 02:17:25 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id i1-v6so1672630pld.11
+        for <linux-mm@kvack.org>; Fri, 20 Apr 2018 23:17:25 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g14si1139572pgu.363.2018.04.20.23.17.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 20 Apr 2018 18:34:16 -0700 (PDT)
-Date: Fri, 20 Apr 2018 18:34:06 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v11 10/63] xarray: Add xa_for_each
-Message-ID: <20180421013406.GM10788@bombadil.infradead.org>
-References: <20180414141316.7167-1-willy@infradead.org>
- <20180414141316.7167-11-willy@infradead.org>
- <35a3318d-69d7-a10c-1515-98ea6b59fb99@suse.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Apr 2018 23:17:24 -0700 (PDT)
+Subject: Re: [Xen-devel] [Bug 198497] handle_mm_fault / xen_pmd_val /
+ radix_tree_lookup_slot Null pointer
+References: <bug-198497-200779@https.bugzilla.kernel.org/>
+ <bug-198497-200779-43rwxa1kcg@https.bugzilla.kernel.org/>
+ <CAKf6xpuYvCMUVHdP71F8OWm=bQGFxeRd7SddH-5DDo-AQjbbQg@mail.gmail.com>
+ <20180420133951.GC10788@bombadil.infradead.org>
+ <CAKf6xpuVrPwc=AxYruPVfdxx1Yv7NF7NKiGx7vT2WKLogUoqfA@mail.gmail.com>
+ <76a4ee3b-e00a-5032-df90-07d8e207f707@citrix.com>
+ <5ADA0A6D02000078001BD177@prv1-mh.provo.novell.com>
+ <CAKf6xps4RiC48zCie0o7VzTOCDu8ik1hmFP=b_qMx8qTo8F3TQ@mail.gmail.com>
+ <5ADA0F1502000078001BD1D2@prv1-mh.provo.novell.com>
+ <547c3c73-5eb2-05de-aa2a-54690883bd52@oracle.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <0f55b773-3fcd-0300-cd03-3774b9d05ae3@suse.com>
+Date: Sat, 21 Apr 2018 08:17:18 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <35a3318d-69d7-a10c-1515-98ea6b59fb99@suse.de>
+In-Reply-To: <547c3c73-5eb2-05de-aa2a-54690883bd52@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Goldwyn Rodrigues <rgoldwyn@suse.de>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, Jan Beulich <JBeulich@suse.com>, Jason Andryuk <jandryuk@gmail.com>
+Cc: bugzilla-daemon@bugzilla.kernel.org, Andrew Cooper <andrew.cooper3@citrix.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, akpm@linux-foundation.org, xen-devel@lists.xen.org, labbott@redhat.com
 
-On Fri, Apr 20, 2018 at 07:00:47AM -0500, Goldwyn Rodrigues wrote:
-> > +/**
-> > + * xas_for_each_tag() - Iterate over a range of an XArray
-> > + * @xas: XArray operation state.
-> > + * @entry: Entry retrieved from array.
-> > + * @max: Maximum index to retrieve from array.
-> > + * @tag: Tag to search for.
-> > + *
-> > + * The loop body will be executed for each tagged entry in the xarray
-> > + * between the current xas position and @max.  @entry will be set to
-> > + * the entry retrieved from the xarray.  It is safe to delete entries
-> > + * from the array in the loop body.  You should hold either the RCU lock
-> > + * or the xa_lock while iterating.  If you need to drop the lock, call
-> > + * xas_pause() first.
-> > + */
-> > +#define xas_for_each_tag(xas, entry, max, tag) \
-> > +	for (entry = xas_find_tag(xas, max, tag); entry; \
-> > +	     entry = xas_next_tag(xas, max, tag))
-> > +
+On 20/04/18 21:20, Boris Ostrovsky wrote:
+> On 04/20/2018 12:02 PM, Jan Beulich wrote:
+>>>>> On 20.04.18 at 17:52, <jandryuk@gmail.com> wrote:
+>>> On Fri, Apr 20, 2018 at 11:42 AM, Jan Beulich <JBeulich@suse.com> wrote:
+>>>>>>> On 20.04.18 at 17:25, <andrew.cooper3@citrix.com> wrote:
+>>>>> On 20/04/18 16:20, Jason Andryuk wrote:
+>>>>>> Adding xen-devel and the Linux Xen maintainers.
+>>>>>>
+>>>>>> Summary: Some Xen users (and maybe others) are hitting a BUG in
+>>>>>> __radix_tree_lookup() under do_swap_page() - example backtrace is
+>>>>>> provided at the end.  Matthew Wilcox provided a band-aid patch that
+>>>>>> prints errors like the following instead of triggering the bug.
+>>>>>>
+>>>>>> Skylake 32bit PAE Dom0:
+>>>>>> Bad swp_entry: 80000000
+>>>>>> mm/swap_state.c:683: bad pte d3a39f1c(8000000400000000)
+>>>>>>
+>>>>>> Ivy Bridge 32bit PAE Dom0:
+>>>>>> Bad swp_entry: 40000000
+>>>>>> mm/swap_state.c:683: bad pte d3a05f1c(8000000200000000)
+>>>>>>
+>>>>>> Other 32bit DomU:
+>>>>>> Bad swp_entry: 4000000
+>>>>>> mm/swap_state.c:683: bad pte e2187f30(8000000200000000)
+>>>>>>
+>>>>>> Other 32bit:
+>>>>>> Bad swp_entry: 2000000
+>>>>>> mm/swap_state.c:683: bad pte ef3a3f38(8000000100000000)
+>>>>>>
+>>>>>> The Linux bugzilla has more info
+>>>>>> https://bugzilla.kernel.org/show_bug.cgi?id=198497 
+>>>>>>
+>>>>>> This may not be exclusive to Xen Linux, but most of the reports are on
+>>>>>> Xen.  Matthew wonders if Xen might be stepping on the upper bits of a
+>>>>>> pte.
+>>>>> Yes - Xen does use the upper bits of a PTE, but only 1 in release
+>>>>> builds, and a second in debug builds.  I don't understand where you're
+>>>>> getting the 3rd bit in there.
+>>>> The former supposedly is _PAGE_GUEST_KERNEL, which we use for 64-bit
+>>>> guests only. Above talk is of 32-bit guests only.
+>>>>
+>>>> In addition both this and _PAGE_GNTTAB are used on present PTEs only,
+>>>> while above talk is about swap entries.
+>>> This hits a BUG going through do_swap_page, but it seems like users
+>>> don't think they are actually using swap at the time.  One reporter
+>>> didn't have any swap configured.  Some of this information was further
+>>> down in my original message.
+>>>
+>>> I'm wondering if somehow we have a PTE that should be empty and should
+>>> be lazily filled.  For some reason, the entry has some bits set and is
+>>> causing the trouble.  Would Xen mess with the PTEs in that case?
+>> As said in my previous reply - both of the bits Andrew has mentioned can
+>> only ever be set when the present bit is also set (which doesn't appear to
+>> be the case here). The set bits above are actually in the range of bits
+>> designated to the address, which Xen wouldn't ever play with.
 > 
-> This function name sounds like you are performing the operation for each
-> tag.
 > 
-> Can it be called xas_for_each_tagged() or xas_tag_for_each() instead?
+> The bug description starts with: "On a Xen VM running as pvh"
+> 
+> So is this a PV or a PVH guest?
 
-I hadn't thought of that interpretation.  Yes, that makes sense.
-Should we also rename xas_find_tag -> xas_find_tagged and xas_next_tag
--> xas_next_tagged?
+The stack backtrace suggests PV.
+
+
+Juergen
