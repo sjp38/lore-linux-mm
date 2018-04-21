@@ -1,54 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E6586B0007
-	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 19:15:38 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id g15so4966567pfi.8
-        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 16:15:38 -0700 (PDT)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EF6166B0009
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 19:15:42 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id t4so1498152pgv.21
+        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 16:15:42 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b186si7271063pgc.569.2018.04.21.16.15.37
+        by mx.google.com with ESMTPS id 3si8201196pfp.161.2018.04.21.16.15.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 21 Apr 2018 16:15:37 -0700 (PDT)
-Subject: Re: [PATCH RFC 2/8] mm: introduce PG_offline
-References: <20180413131632.1413-1-david@redhat.com>
- <20180413131632.1413-3-david@redhat.com>
- <20180413171120.GA1245@bombadil.infradead.org>
+        Sat, 21 Apr 2018 16:15:41 -0700 (PDT)
+Subject: Re: [PATCH] SLUB: Do not fallback to mininum order if __GFP_NORETRY
+ is set
+References: <alpine.DEB.2.20.1804180944180.1062@nuc-kabylake>
+ <20180419110051.GB16083@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1804200952230.18006@nuc-kabylake>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <89329958-2ff8-9447-408e-fd478b914ec4@suse.cz>
-Date: Sat, 21 Apr 2018 18:52:18 +0200
+Message-ID: <26580de4-70b5-90f7-b3b9-22f57ba38843@suse.cz>
+Date: Sat, 21 Apr 2018 19:02:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180413171120.GA1245@bombadil.infradead.org>
+In-Reply-To: <alpine.DEB.2.20.1804200952230.18006@nuc-kabylake>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, James Hogan <jhogan@kernel.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, open list <linux-kernel@vger.kernel.org>
+To: Christopher Lameter <cl@linux.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On 04/13/2018 07:11 PM, Matthew Wilcox wrote:
-> On Fri, Apr 13, 2018 at 03:16:26PM +0200, David Hildenbrand wrote:
->> online_pages()/offline_pages() theoretically allows us to work on
->> sub-section sizes. This is especially relevant in the context of
->> virtualization. It e.g. allows us to add/remove memory to Linux in a VM in
->> 4MB chunks.
->>
->> While the whole section is marked as online/offline, we have to know
->> the state of each page. E.g. to not read memory that is not online
->> during kexec() or to properly mark a section as offline as soon as all
->> contained pages are offline.
+On 04/20/2018 04:53 PM, Christopher Lameter wrote:
+> On Thu, 19 Apr 2018, Michal Hocko wrote:
 > 
-> Can you not use PG_reserved for this purpose?
+>> Overriding __GFP_NORETRY is just a bad idea. It will make the semantic
+>> of the flag just more confusing. Note there are users who use
+>> __GFP_NORETRY as a way to suppress heavy memory pressure and/or the OOM
+>> killer. You do not want to change the semantic for them.
+> 
+> Redoing the allocation after failing a large order alloc is a retry. I
+> would say its confusing right now because a retry occurs despite
+> specifying GFP_NORETRY,
+> 
+>> Besides that the changelog is less than optimal. What is the actual
+>> problem? Why somebody doesn't want a fallback? Is there a configuration
+>> that could prevent the same?
+> 
+> The problem is that SLUB does not honor GFP_NORETRY. The semantics of
+> GFP_NORETRY are not followed.
 
-Sounds like your newly introduced "page types" could be useful here? I
-don't suppose those offline pages would be using mapcount which is
-aliased there?
+The caller might want SLUB to try hard to get that high-order page that
+will minimize memory waste (e.g. 2MB page for 3 640k objects), and
+__GFP_NORETRY will kill the effort on allocating that high-order page.
 
->> + * PG_offline indicates that a page is offline and the backing storage
->> + * might already have been removed (virtualization). Don't touch!
-> 
->  * PG_reserved is set for special pages, which can never be swapped out. Some
->  * of them might not even exist...
-> 
-> They seem pretty congruent to me.
-> 
+Thus, using __GPF_NORETRY for "please give me a space-optimized object,
+or nothing (because I have a fallback that's better than wasting memory,
+e.g. by using 1MB page for 640kb object)" is not ideal.
+
+Maybe __GFP_RETRY_MAYFAIL is a better fit? Or perhaps indicate this
+situation to SLUB with e.g. __GFP_COMP, although that's rather ugly?
