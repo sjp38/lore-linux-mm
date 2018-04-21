@@ -1,83 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 945B96B0009
-	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 10:48:03 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id z6so3786433pgu.20
-        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 07:48:03 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id i137si7649087pfe.97.2018.04.21.07.48.02
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E64F6B0003
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 12:55:15 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id b18so3937921pgv.14
+        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 09:55:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n25sor1952524pgc.411.2018.04.21.09.55.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 21 Apr 2018 07:48:02 -0700 (PDT)
-Date: Sat, 21 Apr 2018 07:47:57 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
-Message-ID: <20180421144757.GC14610@bombadil.infradead.org>
-References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com>
- <3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com>
- <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com>
- <20180418.134651.2225112489265654270.davem@davemloft.net>
- <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
- <20180420130852.GC16083@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com>
- <20180420210200.GH10788@bombadil.infradead.org>
- <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
+        (Google Transport Security);
+        Sat, 21 Apr 2018 09:55:10 -0700 (PDT)
+Subject: Re: [PATCH net-next 0/4] mm,tcp: provide mmap_hook to solve lockdep
+ issue
+References: <20180420155542.122183-1-edumazet@google.com>
+ <20180421090722.GA11998@infradead.org>
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Message-ID: <f9d07a33-4fad-62a8-898a-ebf6ed47a721@gmail.com>
+Date: Sat, 21 Apr 2018 09:55:07 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <20180421090722.GA11998@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, bhutchings@solarflare.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: Christoph Hellwig <hch@infradead.org>, Eric Dumazet <edumazet@google.com>
+Cc: "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Soheil Hassas Yeganeh <soheil@google.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Fri, Apr 20, 2018 at 05:21:26PM -0400, Mikulas Patocka wrote:
-> On Fri, 20 Apr 2018, Matthew Wilcox wrote:
-> > On Fri, Apr 20, 2018 at 04:54:53PM -0400, Mikulas Patocka wrote:
-> > > On Fri, 20 Apr 2018, Michal Hocko wrote:
-> > > > No way. This is just wrong! First of all, you will explode most likely
-> > > > on many allocations of small sizes. Second, CONFIG_DEBUG_VM tends to be
-> > > > enabled quite often.
-> > > 
-> > > You're an evil person who doesn't want to fix bugs.
-> > 
-> > Steady on.  There's no need for that.  Michal isn't evil.  Please
-> > apologise.
+
+
+On 04/21/2018 02:07 AM, Christoph Hellwig wrote:
+> On Fri, Apr 20, 2018 at 08:55:38AM -0700, Eric Dumazet wrote:
+>> This patch series provide a new mmap_hook to fs willing to grab
+>> a mutex before mm->mmap_sem is taken, to ensure lockdep sanity.
+>>
+>> This hook allows us to shorten tcp_mmap() execution time (while mmap_sem
+>> is held), and improve multi-threading scalability. 
 > 
-> I see this attitude from Michal again and again.
+> Missing CC to linu-fsdevel and linux-mm that will have to decide.
+> 
+> We've rejected this approach multiple times before, so you better
+> make a really good argument for it.
+> 
 
-Fine; then *say that*.  I also see Michal saying "No" a lot.  Sometimes
-I agree with him, sometimes I don't.  I think he genuinely wants the best
-code in the kernel, and saying "No" is part of it.
+Well, tcp code needs to hold socket lock before mm->mmap_sem, so current
+mmap hook can not fit. Or we need to revisit all code doing copyin/copyout while
+holding a socket lock. (Not feasible really)
 
-> He didn't want to fix vmalloc(GFP_NOIO)
 
-I don't remember that conversation, so I don't know whether I agree with
-his reasoning or not.  But we are supposed to be moving away from GFP_NOIO
-towards marking regions with memalloc_noio_save() / restore.  If you do
-that, you won't need vmalloc(GFP_NOIO).
+> introducing a multiplexer that overloads a single method certainly
+> doesn't help making that case.
 
-> he didn't want to fix alloc_pages sleeping when __GFP_NORETRY is used.
+Well, if you refer to multiple hooks instead of a single one, I basically
+thought that since only TCP needs this hook at the moment,
+it was not worth adding extra 8-bytes loads for all other mmap() users.
 
-The GFP flags are a mess, still.
+I have no issue adding more hooks and more memory pressure if this is the blocking factor.
 
-> So what should I say? Fix them and 
-> you won't be evil :-)
-
-No, you should reserve calling somebody evil for truly evil things.
-
-> (he could also fix the oom killer, so that it is triggered when 
-> free_memory+cache+free_swap goes beyond a threshold and not when you loop 
-> too long in the allocator)
-
-... that also doesn't make somebody evil.
-
-> I already said that we can change it from CONFIG_DEBUG_VM to 
-> CONFIG_DEBUG_SG - or to whatever other option you may want, just to make 
-> sure that it is enabled in distro debug kernels by default.
-
-Yes, and I think that's the right idea.  So send a v2 and ignore the
-replies that are clearly relating to an earlier version of the patch.
-Not everybody reads every mail in the thread before responding to one they
-find interesting.  Yes, ideally, one would, but sometimes one doesn't.
+We need two actions at this moment, (to lock the socket or release it)
+and a third one would allow us to build the array of pages
+before grabbing mmap_sem (as I mentioned in the last patch changelog)
