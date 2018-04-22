@@ -1,53 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 781576B0005
-	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 23:01:47 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t2so4407537pgb.19
-        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 20:01:47 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 33-v6si9487013plb.19.2018.04.21.20.01.43
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6802D6B0007
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 23:22:59 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id j6so4411408pgn.7
+        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 20:22:59 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 31-v6sor3718977plg.44.2018.04.21.20.22.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 21 Apr 2018 20:01:43 -0700 (PDT)
-Date: Sat, 21 Apr 2018 20:01:30 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH RFC 2/8] mm: introduce PG_offline
-Message-ID: <20180422030130.GG14610@bombadil.infradead.org>
-References: <20180413131632.1413-1-david@redhat.com>
- <20180413131632.1413-3-david@redhat.com>
- <20180413171120.GA1245@bombadil.infradead.org>
- <89329958-2ff8-9447-408e-fd478b914ec4@suse.cz>
+        (Google Transport Security);
+        Sat, 21 Apr 2018 20:22:58 -0700 (PDT)
+Date: Sat, 21 Apr 2018 20:22:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper
+ unmap
+In-Reply-To: <20180420124044.GA17484@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1804212019400.84222@chino.kir.corp.google.com>
+References: <alpine.DEB.2.21.1804171545460.53786@chino.kir.corp.google.com> <201804180057.w3I0vieV034949@www262.sakura.ne.jp> <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com> <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
+ <20180418075051.GO17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com> <20180419063556.GK17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com> <20180420082349.GW17484@dhcp22.suse.cz>
+ <20180420124044.GA17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <89329958-2ff8-9447-408e-fd478b914ec4@suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, James Hogan <jhogan@kernel.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, open list <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Apr 21, 2018 at 06:52:18PM +0200, Vlastimil Babka wrote:
-> On 04/13/2018 07:11 PM, Matthew Wilcox wrote:
-> > On Fri, Apr 13, 2018 at 03:16:26PM +0200, David Hildenbrand wrote:
-> >> online_pages()/offline_pages() theoretically allows us to work on
-> >> sub-section sizes. This is especially relevant in the context of
-> >> virtualization. It e.g. allows us to add/remove memory to Linux in a VM in
-> >> 4MB chunks.
-> >>
-> >> While the whole section is marked as online/offline, we have to know
-> >> the state of each page. E.g. to not read memory that is not online
-> >> during kexec() or to properly mark a section as offline as soon as all
-> >> contained pages are offline.
-> > 
-> > Can you not use PG_reserved for this purpose?
-> 
-> Sounds like your newly introduced "page types" could be useful here? I
-> don't suppose those offline pages would be using mapcount which is
-> aliased there?
+On Fri, 20 Apr 2018, Michal Hocko wrote:
 
-Oh, that's a good point!  Yes, this is a perfect use for page_type.
-We have something like twenty bits available there.
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index faf85699f1a1..216efa6d9f61 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -3004,10 +3004,21 @@ void exit_mmap(struct mm_struct *mm)
+>  	struct mmu_gather tlb;
+>  	struct vm_area_struct *vma;
+>  	unsigned long nr_accounted = 0;
+> +	bool locked = false;
+>  
+>  	/* mm's last user has gone, and its about to be pulled down */
+>  	mmu_notifier_release(mm);
+>  
+> +	/*
+> +	 * The mm is not accessible for anybody except for the oom reaper
+> +	 * which cannot race with munlocking so make sure we exclude the
+> +	 * two.
+> +	 */
+> +	if (unlikely(mm_is_oom_victim(mm))) {
+> +		down_write(&mm->mmap_sem);
+> +		locked = true;
+> +	}
+> +
+>  	if (mm->locked_vm) {
+>  		vma = mm->mmap;
+>  		while (vma) {
+> @@ -3021,7 +3032,7 @@ void exit_mmap(struct mm_struct *mm)
+>  
+>  	vma = mm->mmap;
+>  	if (!vma)	/* Can happen if dup_mmap() received an OOM */
+> -		return;
+> +		goto out_unlock;
+>  
+>  	lru_add_drain();
+>  	flush_cache_mm(mm);
+> @@ -3030,23 +3041,6 @@ void exit_mmap(struct mm_struct *mm)
+>  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+>  	unmap_vmas(&tlb, vma, 0, -1);
+>  
+> -	if (unlikely(mm_is_oom_victim(mm))) {
+> -		/*
+> -		 * Wait for oom_reap_task() to stop working on this
+> -		 * mm. Because MMF_OOM_SKIP is already set before
+> -		 * calling down_read(), oom_reap_task() will not run
+> -		 * on this "mm" post up_write().
+> -		 *
+> -		 * mm_is_oom_victim() cannot be set from under us
+> -		 * either because victim->mm is already set to NULL
+> -		 * under task_lock before calling mmput and oom_mm is
+> -		 * set not NULL by the OOM killer only if victim->mm
+> -		 * is found not NULL while holding the task_lock.
+> -		 */
+> -		set_bit(MMF_OOM_SKIP, &mm->flags);
+> -		down_write(&mm->mmap_sem);
+> -		up_write(&mm->mmap_sem);
+> -	}
+>  	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+>  	tlb_finish_mmu(&tlb, 0, -1);
+>  
+> @@ -3060,6 +3054,12 @@ void exit_mmap(struct mm_struct *mm)
+>  		vma = remove_vma(vma);
+>  	}
+>  	vm_unacct_memory(nr_accounted);
+> +
+> +out_unlock:
+> +	if (unlikely(locked)) {
+> +		set_bit(MMF_OOM_SKIP, &mm->flags);
+> +		up_write(&mm->mmap_sem);
+> +	}
+>  }
+>  
+>  /* Insert vm structure into process list sorted by address
 
-Now you've got me thinking that we can move PG_hwpoison and PG_reserved
-to be page_type flags too.  That'll take us from 23 to 21 bits (on 32-bit,
-with PG_UNCACHED)
+How have you tested this?
+
+I'm wondering why you do not see oom killing of many processes if the 
+victim is a very large process that takes a long time to free memory in 
+exit_mmap() as I do because the oom reaper gives up trying to acquire 
+mm->mmap_sem and just sets MMF_OOM_SKIP itself.
