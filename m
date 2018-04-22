@@ -1,59 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F3BE76B0003
-	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 19:56:57 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id g67-v6so1268874otb.10
-        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 16:56:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w3-v6sor4218995oiw.186.2018.04.21.16.56.57
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 062EC6B0005
+	for <linux-mm@kvack.org>; Sat, 21 Apr 2018 20:15:20 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id o66-v6so5083187iof.17
+        for <linux-mm@kvack.org>; Sat, 21 Apr 2018 17:15:20 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r64-v6sor2475715ith.89.2018.04.21.17.15.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 21 Apr 2018 16:56:57 -0700 (PDT)
+        Sat, 21 Apr 2018 17:15:19 -0700 (PDT)
+Date: Sat, 21 Apr 2018 19:15:13 -0500
+From: Dennis Zhou <dennisszhou@gmail.com>
+Subject: Re: [PATCH v2] KASAN: prohibit KASAN+STRUCTLEAK combination
+Message-ID: <20180422001513.GA45355@big-sky.restechservices.net>
+References: <20180419172451.104700-1-dvyukov@google.com>
+ <CAGXu5jK0fWnyQUYP3H5e8hP-6QbtmeC102a-2Mab4CSqj4bpgg@mail.gmail.com>
+ <20180420053329.GA37680@big-sky.local>
+ <CACT4Y+ZZZvHDbiCXXWNVzACU25QZT0j-TbpMpSetuUQFb8Km=Q@mail.gmail.com>
+ <20180421210629.GA44181@big-sky.restechservices.net>
+ <CAGXu5j+CnH4+6GQ4jsv=4ZZTYgh960QsV69iDpXr56FABzFE_w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAFqt6zZoU0O_w6stq+47ndBUY+yqk950nsyP_1ShTArQfxsSeQ@mail.gmail.com>
-References: <20180421210529.GA27238@jordon-HP-15-Notebook-PC>
- <20180421213401.GF14610@bombadil.infradead.org> <CAFqt6zZoU0O_w6stq+47ndBUY+yqk950nsyP_1ShTArQfxsSeQ@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Sat, 21 Apr 2018 16:56:56 -0700
-Message-ID: <CAPcyv4jzyofOTrymiQchXyRdNPZ+BXn3-W3hjCJ4mvtpDD2g4w@mail.gmail.com>
-Subject: Re: [PATCH v3] fs: dax: Adding new return type vm_fault_t
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5j+CnH4+6GQ4jsv=4ZZTYgh960QsV69iDpXr56FABzFE_w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Kees Cook <keescook@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, Fengguang Wu <fengguang.wu@intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On Sat, Apr 21, 2018 at 2:54 PM, Souptick Joarder <jrdr.linux@gmail.com> wrote:
-> On Sun, Apr 22, 2018 at 3:04 AM, Matthew Wilcox <willy@infradead.org> wrote:
->> On Sun, Apr 22, 2018 at 02:35:29AM +0530, Souptick Joarder wrote:
->>> Use new return type vm_fault_t for fault handler. For
->>> now, this is just documenting that the function returns
->>> a VM_FAULT value rather than an errno. Once all instances
->>> are converted, vm_fault_t will become a distinct type.
->>>
->>> commit 1c8f422059ae ("mm: change return type to vm_fault_t")
->>>
->>> There was an existing bug inside dax_load_hole()
->>> if vm_insert_mixed had failed to allocate a page table,
->>> we'd return VM_FAULT_NOPAGE instead of VM_FAULT_OOM.
->>> With new vmf_insert_mixed() this issue is addressed.
->>>
->>> vm_insert_mixed_mkwrite has inefficiency when it returns
->>> an error value, driver has to convert it to vm_fault_t
->>> type. With new vmf_insert_mixed_mkwrite() this limitation
->>> will be addressed.
->>>
->>> As new function vmf_insert_mixed_mkwrite() only called
->>> from fs/dax.c, so keeping both the changes in a single
->>> patch.
->>>
->>> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
->>
->> Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
->>
->> There's a couple of minor things which could be tidied up, but not worth
->> doing them as a revision to this patch.
->
-> Which tree this patch will go through ? mm or fsdevel ?
+On Sat, Apr 21, 2018 at 02:13:30PM -0700, Kees Cook wrote:
+> Does this mean we end up with redundant initializers, or are they
+> optimized away in later passes?
 
-nvdimm, since that tree has some pending reworks for dax-vs-truncate.
+I believe the plugin results in redundant initializers because the early
+inline phase puts the appropriate declarations in the caller's scope.
+I guess updating the inline function to have an initializer propagates
+the duplicate initializer. I don't understand the complete interactions
+here, but this is what I'm seeing. I also can't comment on why they
+aren't being optimized out, but I assume it's because they live in
+different basic blocks.
+
+By waiting to do it after inlining is done, the inlined functions are
+not modified to have initializers as the function that uses the inlined
+function should have the initializing code.
+
+Thanks,
+Dennis
