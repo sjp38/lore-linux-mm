@@ -1,49 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CE4A36B000C
-	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 16:33:31 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 31-v6so15774278wrr.2
-        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 13:33:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 667266B0005
+	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 19:09:54 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u13-v6so16010242wre.1
+        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 16:09:54 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b3si104306edh.368.2018.04.22.13.33.30
+        by mx.google.com with ESMTPS id d16si1600744edn.14.2018.04.22.16.09.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 22 Apr 2018 13:33:30 -0700 (PDT)
-Subject: Re: [PATCH v11 10/63] xarray: Add xa_for_each
-References: <20180414141316.7167-1-willy@infradead.org>
- <20180414141316.7167-11-willy@infradead.org>
- <35a3318d-69d7-a10c-1515-98ea6b59fb99@suse.de>
- <20180421013406.GM10788@bombadil.infradead.org>
-From: Goldwyn Rodrigues <rgoldwyn@suse.de>
-Message-ID: <3c759f62-a1fa-9bdd-9b02-7c4e1d2b3adb@suse.de>
-Date: Sun, 22 Apr 2018 15:33:23 -0500
+        Sun, 22 Apr 2018 16:09:52 -0700 (PDT)
+Date: Mon, 23 Apr 2018 01:09:48 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3] fs: dax: Adding new return type vm_fault_t
+Message-ID: <20180422230948.2mvimlf3zspry4ji@quack2.suse.cz>
+References: <20180421210529.GA27238@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-In-Reply-To: <20180421013406.GM10788@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180421210529.GA27238@jordon-HP-15-Notebook-PC>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: viro@zeniv.linux.org.uk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, jack@suse.cz, kirill.shutemov@linux.intel.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-
-On 04/20/2018 08:34 PM, Matthew Wilcox wrote:
-> On Fri, Apr 20, 2018 at 07:00:47AM -0500, Goldwyn Rodrigues wrote:
-
->> This function name sounds like you are performing the operation for each
->> tag.
->>
->> Can it be called xas_for_each_tagged() or xas_tag_for_each() instead?
+On Sun 22-04-18 02:35:29, Souptick Joarder wrote:
+> Use new return type vm_fault_t for fault handler. For
+> now, this is just documenting that the function returns
+> a VM_FAULT value rather than an errno. Once all instances
+> are converted, vm_fault_t will become a distinct type.
 > 
-> I hadn't thought of that interpretation.  Yes, that makes sense.
-> Should we also rename xas_find_tag -> xas_find_tagged and xas_next_tag
-> -> xas_next_tagged?
+> commit 1c8f422059ae ("mm: change return type to vm_fault_t")
+> 
+> There was an existing bug inside dax_load_hole()
+> if vm_insert_mixed had failed to allocate a page table,
+> we'd return VM_FAULT_NOPAGE instead of VM_FAULT_OOM.
+> With new vmf_insert_mixed() this issue is addressed.
+> 
+> vm_insert_mixed_mkwrite has inefficiency when it returns
+> an error value, driver has to convert it to vm_fault_t
+> type. With new vmf_insert_mixed_mkwrite() this limitation
+> will be addressed.
+> 
+> As new function vmf_insert_mixed_mkwrite() only called
+> from fs/dax.c, so keeping both the changes in a single
+> patch.
+> 
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 
-Yup. The family of functions that work with one tag should be renamed. I
-am fine with the names suggested.
+The patch looks good to me. Just one question:
 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 01f5464..721cfd5 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1955,12 +1955,19 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+>  }
+>  EXPORT_SYMBOL(vm_insert_mixed);
+>  
+> -int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
+> -			pfn_t pfn)
+> +vm_fault_t vmf_insert_mixed_mkwrite(struct vm_area_struct *vma,
+> +		unsigned long addr, pfn_t pfn)
+>  {
+> -	return __vm_insert_mixed(vma, addr, pfn, true);
+> +	int err;
+> +
+> +	err =  __vm_insert_mixed(vma, addr, pfn, true);
+> +	if (err == -ENOMEM)
+> +		return VM_FAULT_OOM;
+> +	if (err < 0 && err != -EBUSY)
+> +		return VM_FAULT_SIGBUS;
+> +	return VM_FAULT_NOPAGE;
+>  }
+> -EXPORT_SYMBOL(vm_insert_mixed_mkwrite);
+> +EXPORT_SYMBOL(vmf_insert_mixed_mkwrite);
 
+So are we sure that all the callers of this function (and also of
+vmf_insert_mixed()) are OK with EBUSY? Because especially in the
+vmf_insert_mixed() case other page than the caller provided is in page
+tables and thus possibly the caller needs to do some error recovery (such
+as drop page refcount) in such case...
+
+								Honza
 -- 
-Goldwyn
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
