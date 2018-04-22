@@ -1,190 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 12D136B0005
-	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 12:43:44 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id y129so4954207pgb.5
-        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 09:43:44 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0055.outbound.protection.outlook.com. [104.47.2.55])
-        by mx.google.com with ESMTPS id v23si9540956pfk.116.2018.04.22.09.43.42
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D51CC6B0005
+	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 13:17:01 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id f194-v6so2612605lfe.10
+        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 10:17:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 65-v6sor2373275lfv.35.2018.04.22.10.16.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 22 Apr 2018 09:43:42 -0700 (PDT)
-Subject: Re: Page allocator bottleneck
-References: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
- <20170915102320.zqceocmvvkyybekj@techsingularity.net>
- <d8cfaf8b-7601-2712-f9f2-8327c720db5a@mellanox.com>
- <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
- <20180421081505.GA24916@intel.com>
-From: Tariq Toukan <tariqt@mellanox.com>
-Message-ID: <127df719-b978-60b7-5d77-3c8efbf2ecff@mellanox.com>
-Date: Sun, 22 Apr 2018 19:43:29 +0300
+        (Google Transport Security);
+        Sun, 22 Apr 2018 10:16:59 -0700 (PDT)
+Date: Sun, 22 Apr 2018 20:16:55 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v2 01/12] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180422171655.llxowifnxzpf5hee@esperanza>
+References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
+ <152399118252.3456.17590357803686895373.stgit@localhost.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <20180421081505.GA24916@intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <152399118252.3456.17590357803686895373.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Linux Kernel Network Developers <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-
-
-On 21/04/2018 11:15 AM, Aaron Lu wrote:
-> Sorry to bring up an old thread...
+On Tue, Apr 17, 2018 at 09:53:02PM +0300, Kirill Tkhai wrote:
+> The patch introduces shrinker::id number, which is used to enumerate
+> memcg-aware shrinkers. The number start from 0, and the code tries
+> to maintain it as small as possible.
 > 
-
-I want to thank you very much for bringing this up!
-
-> On Thu, Nov 02, 2017 at 07:21:09PM +0200, Tariq Toukan wrote:
->>
->>
->> On 18/09/2017 12:16 PM, Tariq Toukan wrote:
->>>
->>>
->>> On 15/09/2017 1:23 PM, Mel Gorman wrote:
->>>> On Thu, Sep 14, 2017 at 07:49:31PM +0300, Tariq Toukan wrote:
->>>>> Insights: Major degradation between #1 and #2, not getting any
->>>>> close to linerate! Degradation is fixed between #2 and #3. This is
->>>>> because page allocator cannot stand the higher allocation rate. In
->>>>> #2, we also see that the addition of rings (cores) reduces BW (!!),
->>>>> as result of increasing congestion over shared resources.
->>>>>
->>>>
->>>> Unfortunately, no surprises there.
->>>>
->>>>> Congestion in this case is very clear. When monitored in perf
->>>>> top: 85.58% [kernel] [k] queued_spin_lock_slowpath
->>>>>
->>>>
->>>> While it's not proven, the most likely candidate is the zone lock
->>>> and that should be confirmed using a call-graph profile. If so, then
->>>> the suggestion to tune to the size of the per-cpu allocator would
->>>> mitigate the problem.
->>>>
->>> Indeed, I tuned the per-cpu allocator and bottleneck is released.
->>>
->>
->> Hi all,
->>
->> After leaving this task for a while doing other tasks, I got back to it now
->> and see that the good behavior I observed earlier was not stable.
+> This will be used as to represent a memcg-aware shrinkers in memcg
+> shrinkers map.
 > 
-> I posted a patchset to improve zone->lock contention for order-0 pages
-> recently, it can almost eliminate 80% zone->lock contention for
-> will-it-scale/page_fault1 testcase when tested on a 2 sockets Intel
-> Skylake server and it doesn't require PCP size tune, so should have
-> some effects on your workload where one CPU does allocation while
-> another does free.
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> ---
+>  include/linux/shrinker.h |    2 ++
+>  mm/vmscan.c              |   51 ++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 53 insertions(+)
 > 
+> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> index a3894918a436..86b651fa2846 100644
+> --- a/include/linux/shrinker.h
+> +++ b/include/linux/shrinker.h
+> @@ -66,6 +66,8 @@ struct shrinker {
+>  
+>  	/* These are for internal use */
+>  	struct list_head list;
 
-That is great news. In our driver's memory scheme (and many others as 
-well) we allocate only order-0 pages (the only flow that does not do 
-that yet in upstream will do so very soon, we already have the patches 
-in our internal branch).
-Allocation of order-0 pages is not only the common case, but is the only 
-type of allocation in our data-path. Let's optimize it!
+> +	/* ID in shrinkers_id_idr */
+> +	int id;
 
+This should be under ifdef CONFIG_MEMCG && CONFIG_SLOB.
 
-> It did this by some disruptive changes:
-> 1 on free path, it skipped doing merge(so could be bad for mixed
->    workloads where both 4K and high order pages are needed);
+>  	/* objs pending delete, per node */
+>  	atomic_long_t *nr_deferred;
+>  };
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 8b920ce3ae02..4f02fe83537e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -169,6 +169,43 @@ unsigned long vm_total_pages;
+>  static LIST_HEAD(shrinker_list);
+>  static DECLARE_RWSEM(shrinker_rwsem);
+>  
+> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
 
-I think there are so many advantages to not using high order 
-allocations, especially in production servers that are not rebooted for 
-long periods and become fragmented.
-AFAIK, the community direction (at least in networking) is using order-0 
-pages in datapath, so optimizing their allocaiton is a very good idea. 
-Need of course to perf evaluate possible degradations, and see how 
-important these use cases are.
+> +static DEFINE_IDR(shrinkers_id_idr);
 
-> 2 on allocation path, it avoided touching multiple cachelines.
+IMO shrinker_idr would be a better name.
+
+> +
+> +static int add_memcg_shrinker(struct shrinker *shrinker)
+> +{
+> +	int id, ret;
+> +
+> +	down_write(&shrinker_rwsem);
+> +	ret = id = idr_alloc(&shrinkers_id_idr, shrinker, 0, 0, GFP_KERNEL);
+> +	if (ret < 0)
+> +		goto unlock;
+> +	shrinker->id = id;
+> +	ret = 0;
+> +unlock:
+> +	up_write(&shrinker_rwsem);
+> +	return ret;
+> +}
+> +
+> +static void del_memcg_shrinker(struct shrinker *shrinker)
+> +{
+> +	int id = shrinker->id;
+> +
+> +	down_write(&shrinker_rwsem);
+> +	idr_remove(&shrinkers_id_idr, id);
+> +	up_write(&shrinker_rwsem);
+> +}
+> +#else /* CONFIG_MEMCG && !CONFIG_SLOB */
+> +static int add_memcg_shrinker(struct shrinker *shrinker)
+> +{
+> +	return 0;
+> +}
+> +
+> +static void del_memcg_shrinker(struct shrinker *shrinker)
+> +{
+> +}
+> +#endif /* CONFIG_MEMCG && !CONFIG_SLOB */
+> +
+>  #ifdef CONFIG_MEMCG
+>  static bool global_reclaim(struct scan_control *sc)
+>  {
+> @@ -306,6 +343,7 @@ unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone
+>  int register_shrinker(struct shrinker *shrinker)
+>  {
+>  	size_t size = sizeof(*shrinker->nr_deferred);
+> +	int ret;
+>  
+>  	if (shrinker->flags & SHRINKER_NUMA_AWARE)
+>  		size *= nr_node_ids;
+> @@ -314,10 +352,21 @@ int register_shrinker(struct shrinker *shrinker)
+>  	if (!shrinker->nr_deferred)
+>  		return -ENOMEM;
+>  
+> +	if (shrinker->flags & SHRINKER_MEMCG_AWARE) {
+> +		ret = add_memcg_shrinker(shrinker);
+> +		if (ret)
+> +			goto free_deferred;
+> +	}
+> +
+
+This doesn't apply anymore, not after commit 8e04944f0ea8a ("mm,vmscan:
+Allow preallocating memory for register_shrinker()"). Please rebase.
+
+I guess now you have to allocate an id in prealloc_shrinker and set the
+pointer (with idr_replace) in register_shrinker_prepared.
+
+>  	down_write(&shrinker_rwsem);
+>  	list_add_tail(&shrinker->list, &shrinker_list);
+>  	up_write(&shrinker_rwsem);
+>  	return 0;
+> +
+> +free_deferred:
+> +	kfree(shrinker->nr_deferred);
+> +	shrinker->nr_deferred = NULL;
+> +	return -ENOMEM;
+>  }
+>  EXPORT_SYMBOL(register_shrinker);
+>  
+> @@ -328,6 +377,8 @@ void unregister_shrinker(struct shrinker *shrinker)
+>  {
+>  	if (!shrinker->nr_deferred)
+>  		return;
+> +	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
+> +		del_memcg_shrinker(shrinker);
+>  	down_write(&shrinker_rwsem);
+>  	list_del(&shrinker->list);
+>  	up_write(&shrinker_rwsem);
 > 
-
-Great!
-
-> RFC v2 patchset:
-> https://lkml.org/lkml/2018/3/20/171
-> 
-> repo:
-> https://github.com/aaronlu/linux zone_lock_rfc_v2
-> 
-
-I will check them out first thing tomorrow!
-
-p.s., I will be on vacation for a week starting Tuesday.
-I hope I can make some progress before that :)
-
-Thanks,
-Tariq
-
->   
->> Recall: I work with a modified driver that allocates a page (4K) per packet
->> (MTU=1500), in order to simulate the stress on page-allocator in 200Gbps
->> NICs.
->>
->> Performance is good as long as pages are available in the allocating cores's
->> PCP.
->> Issue is that pages are allocated in one core, then free'd in another,
->> making it's hard for the PCP to work efficiently, and both the allocator
->> core and the freeing core need to access the buddy allocator very often.
->>
->> I'd like to share with you some testing numbers:
->>
->> Test: ./super_netperf 128 -H 24.134.0.51 -l 1000
->>
->> 100% cpu on all cores, top func in perf:
->>     84.98%  [kernel]             [k] queued_spin_lock_slowpath
->>
->> system wide (all cores)
->>             1135941      kmem:mm_page_alloc
->>
->>             2606629      kmem:mm_page_free
->>
->>                   0      kmem:mm_page_alloc_extfrag
->>             4784616      kmem:mm_page_alloc_zone_locked
->>
->>                1337      kmem:mm_page_free_batched
->>
->>             6488213      kmem:mm_page_pcpu_drain
->>
->>             8925503      net:napi_gro_receive_entry
->>
->>
->> Two types of cores:
->> A core mostly running napi (8 such cores):
->>              221875      kmem:mm_page_alloc
->>
->>               17100      kmem:mm_page_free
->>
->>                   0      kmem:mm_page_alloc_extfrag
->>              766584      kmem:mm_page_alloc_zone_locked
->>
->>                  16      kmem:mm_page_free_batched
->>
->>                  35      kmem:mm_page_pcpu_drain
->>
->>             1340139      net:napi_gro_receive_entry
->>
->>
->> Other core, mostly running user application (40 such):
->>                   2      kmem:mm_page_alloc
->>
->>               38922      kmem:mm_page_free
->>
->>                   0      kmem:mm_page_alloc_extfrag
->>                   1      kmem:mm_page_alloc_zone_locked
->>
->>                   8      kmem:mm_page_free_batched
->>
->>              107289      kmem:mm_page_pcpu_drain
->>
->>                  34      net:napi_gro_receive_entry
->>
->>
->> As you can see, sync overhead is enormous.
->>
->> PCP-wise, a key improvement in such scenarios would be reached if we could
->> (1) keep and handle the allocated page on same cpu, or (2) somehow get the
->> page back to the allocating core's PCP in a fast-path, without going through
->> the regular buddy allocator paths.
