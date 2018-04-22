@@ -1,219 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D4936B0005
-	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 14:19:17 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id h82-v6so2633578lfi.8
-        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 11:19:17 -0700 (PDT)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 130C86B0005
+	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 14:21:37 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id f194-v6so2636523lfe.10
+        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 11:21:36 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o9sor1247878ljh.114.2018.04.22.11.19.15
+        by mx.google.com with SMTPS id s4sor2460365ljh.106.2018.04.22.11.21.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 22 Apr 2018 11:19:15 -0700 (PDT)
-Date: Sun, 22 Apr 2018 21:19:11 +0300
+        Sun, 22 Apr 2018 11:21:35 -0700 (PDT)
+Date: Sun, 22 Apr 2018 21:21:32 +0300
 From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v2 10/12] mm: Iterate only over charged shrinkers during
- memcg shrink_slab()
-Message-ID: <20180422181911.axqiabv3cl7qtrpc@esperanza>
+Subject: Re: [PATCH v2 12/12] mm: Clear shrinker bit if there are no objects
+ related to memcg
+Message-ID: <20180422182132.c4tqkyy4ojgi7l7q@esperanza>
 References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
- <152399127400.3456.6644633244163904030.stgit@localhost.localdomain>
+ <152399129187.3456.5685999465635300270.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <152399127400.3456.6644633244163904030.stgit@localhost.localdomain>
+In-Reply-To: <152399129187.3456.5685999465635300270.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kirill Tkhai <ktkhai@virtuozzo.com>
 Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On Tue, Apr 17, 2018 at 09:54:34PM +0300, Kirill Tkhai wrote:
-> Using the preparations made in previous patches, in case of memcg
-> shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
-> bitmap. To do that, we separate iterations over memcg-aware and
-> !memcg-aware shrinkers, and memcg-aware shrinkers are chosen
-> via for_each_set_bit() from the bitmap. In case of big nodes,
-> having many isolated environments, this gives significant
-> performance growth. See next patches for the details.
+On Tue, Apr 17, 2018 at 09:54:51PM +0300, Kirill Tkhai wrote:
+> To avoid further unneed calls of do_shrink_slab()
+> for shrinkers, which already do not have any charged
+> objects in a memcg, their bits have to be cleared.
 > 
-> Note, that the patch does not respect to empty memcg shrinkers,
-> since we never clear the bitmap bits after we set it once.
-> Their shrinkers will be called again, with no shrinked objects
-> as result. This functionality is provided by next patches.
+> This patch introduces a lockless mechanism to do that
+> without races without parallel list lru add. After
+> do_shrink_slab() returns SHRINK_EMPTY the first time,
+> we clear the bit and call it once again. Then we restore
+> the bit, if the new return value is different.
+> 
+> Note, that single smp_mb__after_atomic() in shrink_slab_memcg()
+> covers two situations:
+> 
+> 1)list_lru_add()     shrink_slab_memcg
+>     list_add_tail()    for_each_set_bit() <--- read bit
+>                          do_shrink_slab() <--- missed list update (no barrier)
+>     <MB>                 <MB>
+>     set_bit()            do_shrink_slab() <--- seen list update
+> 
+> This situation, when the first do_shrink_slab() sees set bit,
+> but it doesn't see list update (i.e., race with the first element
+> queueing), is rare. So we don't add <MB> before the first call
+> of do_shrink_slab() instead of this to do not slow down generic
+> case. Also, it's need the second call as seen in below in (2).
+> 
+> 2)list_lru_add()      shrink_slab_memcg()
+>     list_add_tail()     ...
+>     set_bit()           ...
+>   ...                   for_each_set_bit()
+>   do_shrink_slab()        do_shrink_slab()
+>     clear_bit()           ...
+>   ...                     ...
+>   list_lru_add()          ...
+>     list_add_tail()       clear_bit()
+>     <MB>                  <MB>
+>     set_bit()             do_shrink_slab()
+> 
+> The barriers guarantees, the second do_shrink_slab()
+> in the right side task sees list update if really
+> cleared the bit. This case is drawn in the code comment.
+> 
+> [Results/performance of the patchset]
+> 
+> After the whole patchset applied the below test shows signify
+> increase of performance:
+> 
+> $echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+> $mkdir /sys/fs/cgroup/memory/ct
+> $echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+>     $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i; echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs; mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file; done
+> 
+> Then, 4 sequential calls of drop caches:
+> $time echo 3 > /proc/sys/vm/drop_caches
+> 
+> 1)Before:
+> 0.00user 8.99system 0:08.99elapsed 99%CPU
+> 0.00user 5.97system 0:05.97elapsed 100%CPU
+> 0.00user 5.97system 0:05.97elapsed 100%CPU
+> 0.00user 5.85system 0:05.85elapsed 100%CPU
+> 
+> 2)After
+> 0.00user 1.11system 0:01.12elapsed 99%CPU
+> 0.00user 0.00system 0:00.00elapsed 100%CPU
+> 0.00user 0.00system 0:00.00elapsed 100%CPU
+> 0.00user 0.00system 0:00.00elapsed 100%CPU
+> 
+> Even if we round 0:00.00 up to 0:00.01, the results shows
+> the performance increases at least in 585 times.
 > 
 > Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 > ---
->  mm/vmscan.c |   88 ++++++++++++++++++++++++++++++++++++++++++++++++-----------
->  1 file changed, 72 insertions(+), 16 deletions(-)
+>  include/linux/memcontrol.h |    2 ++
+>  mm/vmscan.c                |   19 +++++++++++++++++--
+>  2 files changed, 19 insertions(+), 2 deletions(-)
 > 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index e1c1fa8e417a..1c5c68550e2f 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -1245,6 +1245,8 @@ static inline void set_shrinker_bit(struct mem_cgroup *memcg, int nid, int nr)
+>  
+>  		rcu_read_lock();
+>  		map = SHRINKERS_MAP(memcg, nid);
+> +		/* Pairs with smp mb in shrink_slab() */
+> +		smp_mb__before_atomic();
+>  		set_bit(nr, map->map);
+>  		rcu_read_unlock();
+>  	}
 > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 34cd1d9b8b22..b81b8a7727b5 100644
+> index 3be9b4d81c13..a8733bc5377b 100644
 > --- a/mm/vmscan.c
 > +++ b/mm/vmscan.c
-> @@ -169,6 +169,20 @@ unsigned long vm_total_pages;
->  static LIST_HEAD(shrinker_list);
->  static DECLARE_RWSEM(shrinker_rwsem);
+> @@ -579,8 +579,23 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+>  		}
 >  
-> +static void link_shrinker(struct shrinker *shrinker)
-> +{
-> +	down_write(&shrinker_rwsem);
-> +	list_add_tail(&shrinker->list, &shrinker_list);
-> +	up_write(&shrinker_rwsem);
-> +}
-> +
-> +static void unlink_shrinker(struct shrinker *shrinker)
-> +{
-> +	down_write(&shrinker_rwsem);
-> +	list_del(&shrinker->list);
-> +	up_write(&shrinker_rwsem);
-> +}
-> +
->  #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
->  static DEFINE_IDR(shrinkers_id_idr);
->  
-> @@ -221,11 +235,13 @@ static void del_memcg_shrinker(struct shrinker *shrinker)
->  #else /* CONFIG_MEMCG && !CONFIG_SLOB */
->  static int add_memcg_shrinker(struct shrinker *shrinker, int nr, va_list args)
->  {
-> +	link_shrinker(shrinker);
->  	return 0;
->  }
->  
->  static void del_memcg_shrinker(struct shrinker *shrinker)
->  {
-> +	unlink_shrinker(shrinker);
->  }
->  #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
->  
-> @@ -382,11 +398,9 @@ int __register_shrinker(struct shrinker *shrinker, int nr, ...)
->  		va_end(args);
->  		if (ret)
->  			goto free_deferred;
-> -	}
-> +	} else
-> +		link_shrinker(shrinker);
->  
-> -	down_write(&shrinker_rwsem);
-> -	list_add_tail(&shrinker->list, &shrinker_list);
-> -	up_write(&shrinker_rwsem);
->  	return 0;
->  
->  free_deferred:
-> @@ -405,9 +419,8 @@ void unregister_shrinker(struct shrinker *shrinker)
->  		return;
->  	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
->  		del_memcg_shrinker(shrinker);
-> -	down_write(&shrinker_rwsem);
-> -	list_del(&shrinker->list);
-> -	up_write(&shrinker_rwsem);
-> +	else
-> +		unlink_shrinker(shrinker);
-
-I really don't like that depending on the config, the shrinker_list
-stores either all shrinkers or only memcg-unaware ones. I think it
-should always store all shrinkers and it should be used in case of
-global reclaim. That is IMO shrink_slab should look like this:
-
-shrink_slab(memcg)
-{
-        if (!mem_cgroup_is_root(memcg))
-                return shrink_slab_memcg()
-        list_for_each(shrinker, shrinker_list, link)
-                do_shrink_slab()
-}
-
-Yeah, that means that for the root mem cgroup we will always call all
-shrinkers, but IMO it is OK as there's the only root mem cgroup out
-there and it is visited only on global reclaim so it shouldn't degrade
-performance.
-
->  	kfree(shrinker->nr_deferred);
->  	shrinker->nr_deferred = NULL;
->  }
-> @@ -532,6 +545,53 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->  	return freed;
->  }
->  
-> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-> +static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
-> +				       struct mem_cgroup *memcg,
-> +				       int priority)
-> +{
-> +	struct memcg_shrinker_map *map;
-> +	unsigned long freed = 0;
-> +	int ret, i;
-> +
-> +	if (!down_read_trylock(&shrinker_rwsem))
-> +		return 0;
-> +
-> +	/*
-> +	 * 1)Caller passes only alive memcg, so map can't be NULL.
-> +	 * 2)shrinker_rwsem protects from maps expanding.
-> +	 */
-> +	map = rcu_dereference_protected(SHRINKERS_MAP(memcg, nid), true);
-> +	BUG_ON(!map);
-> +
-> +	for_each_set_bit(i, map->map, shrinkers_max_nr) {
-> +		struct shrink_control sc = {
-> +			.gfp_mask = gfp_mask,
-> +			.nid = nid,
-> +			.memcg = memcg,
-> +		};
-> +		struct shrinker *shrinker;
-> +
-> +		shrinker = idr_find(&shrinkers_id_idr, i);
-> +		if (!shrinker) {
+>  		ret = do_shrink_slab(&sc, shrinker, priority);
+> -		if (ret == SHRINK_EMPTY)
+> -			ret = 0;
+> +		if (ret == SHRINK_EMPTY) {
 > +			clear_bit(i, map->map);
-> +			continue;
+> +			/*
+> +			 * Pairs with mb in set_shrinker_bit():
+> +			 *
+> +			 * list_lru_add()     shrink_slab_memcg()
+> +			 *   list_add_tail()    clear_bit()
+> +			 *   <MB>               <MB>
+> +			 *   set_bit()          do_shrink_slab()
+> +			 */
+> +			smp_mb__after_atomic();
+> +			ret = do_shrink_slab(&sc, shrinker, priority);
+> +			if (ret == SHRINK_EMPTY)
+> +				ret = 0;
+> +			else
+> +				set_shrinker_bit(memcg, nid, i);
 > +		}
-> +
-> +		ret = do_shrink_slab(&sc, shrinker, priority);
-> +		freed += ret;
-> +
-> +		if (rwsem_is_contended(&shrinker_rwsem)) {
-> +			freed = freed ? : 1;
-> +			break;
-> +		}
-> +	}
-> +
-> +	up_read(&shrinker_rwsem);
-> +	return freed;
-> +}
-> +#endif
-> +
->  /**
->   * shrink_slab - shrink slab caches
->   * @gfp_mask: allocation context
-> @@ -564,6 +624,11 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
->  		return 0;
 
-The check above should be moved to shrink_slab_memcg.
+This is mind-boggling. Are there any alternatives? For instance, can't
+we clear the bit in list_lru_del, when we hold the list lock?
 
+>  		freed += ret;
 >  
-> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-
-Please don't use ifdef here - define a stub function for no-memcg case.
-
-> +	if (memcg)
-> +		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
-> +#endif
-> +
->  	if (!down_read_trylock(&shrinker_rwsem))
->  		goto out;
->  
-> @@ -574,15 +639,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  			.memcg = memcg,
->  		};
->  
-> -		/*
-> -		 * If kernel memory accounting is disabled, we ignore
-> -		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
-> -		 * passing NULL for memcg.
-> -		 */
-> -		if (memcg_kmem_enabled() &&
-> -		    !!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
-> -			continue;
-> -
->  		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
->  			sc.nid = 0;
->  
+>  		if (rwsem_is_contended(&shrinker_rwsem)) {
 > 
