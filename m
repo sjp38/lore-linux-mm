@@ -1,79 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 738D96B0005
-	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 10:02:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f19so8170596pfn.6
-        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 07:02:58 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 30-v6si7394000plf.104.2018.04.22.07.02.55
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 501A86B0005
+	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 10:07:48 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id n2so4833321pgs.2
+        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 07:07:48 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id g7si9596469pfm.106.2018.04.22.07.07.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 22 Apr 2018 07:02:55 -0700 (PDT)
-Date: Sun, 22 Apr 2018 07:02:46 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH RFC 2/8] mm: introduce PG_offline
-Message-ID: <20180422140246.GA30714@bombadil.infradead.org>
-References: <20180413131632.1413-1-david@redhat.com>
- <20180413131632.1413-3-david@redhat.com>
- <20180413171120.GA1245@bombadil.infradead.org>
- <89329958-2ff8-9447-408e-fd478b914ec4@suse.cz>
- <20180422030130.GG14610@bombadil.infradead.org>
- <7db70df4-c714-574c-5b14-898c1cf49af6@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 22 Apr 2018 07:07:46 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.14 099/164] ring-buffer: Check if memory is available before allocation
+Date: Sun, 22 Apr 2018 15:52:46 +0200
+Message-Id: <20180422135139.460623818@linuxfoundation.org>
+In-Reply-To: <20180422135135.400265110@linuxfoundation.org>
+References: <20180422135135.400265110@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <7db70df4-c714-574c-5b14-898c1cf49af6@redhat.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Miles Chen <miles.chen@mediatek.com>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, James Hogan <jhogan@kernel.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, open list <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, linux-mm@kvack.org, Zhaoyang Huang <huangzhaoyang@gmail.com>, Joel Fernandes <joelaf@google.com>, "Steven Rostedt (VMware)" <rostedt@goodmis.org>
 
-On Sun, Apr 22, 2018 at 10:17:31AM +0200, David Hildenbrand wrote:
-> On 22.04.2018 05:01, Matthew Wilcox wrote:
-> > On Sat, Apr 21, 2018 at 06:52:18PM +0200, Vlastimil Babka wrote:
-> >> Sounds like your newly introduced "page types" could be useful here? I
-> >> don't suppose those offline pages would be using mapcount which is
-> >> aliased there?
-> > 
-> > Oh, that's a good point!  Yes, this is a perfect use for page_type.
-> > We have something like twenty bits available there.
-> > 
-> > Now you've got me thinking that we can move PG_hwpoison and PG_reserved
-> > to be page_type flags too.  That'll take us from 23 to 21 bits (on 32-bit,
-> > with PG_UNCACHED)
-> 
-> Some things to clarify here. I modified the current RFC to also allow
-> PG_offline on allocated (ballooned) pages (e.g. virtio-balloon).
-> 
-> kdump based dump tools can then easily identify which pages are not to
-> be dumped (either because the content is invalid or not accessible).
-> 
-> I previously stated that ballooned pages would be marked as PG_reserved,
-> which is not true (at least not for virtio-balloon). However this allows
-> me to detect if all pages in a section are offline by looking at
-> (PG_reserved && PG_offline). So I can actually tell if a page is marked
-> as offline and allocated or really offline.
-> 
-> 
-> 1. The location (not the number!) of PG_hwpoison is basically ABI and
-> cannot be changed. Moving it around will most probably break dump tools.
-> (see kernel/crash_core.c)
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
-It's not ABI.  It already changed after 4.9 when PG_waiters was introduced
-by commit 62906027091f.
+------------------
 
-> 2. Exposing PG_offline via kdump will make it ABI as well. And we don't
-> want any complicated validity checks ("is the bit valid or not?"),
-> because that would imply having to make these bits ABI as well. So
-> having PG_offline just like PG_hwpoison part of page_flags is the right
-> thing to do. (see patch nr 4)
-> 
-> 3. For determining if all pages of a section are offline (see patch nr
-> 5), I will have to be able to check 1. PG_offline and 2. PG_reserved on
-> any page. Will this be possible by moving e.g. PG_reserved to page
-> types? (especially if some field is suddenly aliased?)
+From: Steven Rostedt (VMware) <rostedt@goodmis.org>
 
-It's possible to tell whether the field is in use as mapcount or
-page_types; mapcount should always be non-negative, and page_types
-reserves a few bits to detect under/overflow of mapcount.  The slab/slob
-users of the field will also be positive uses.
+commit 2a872fa4e9c8adc79c830e4009e1cc0c013a9d8a upstream.
+
+The ring buffer is made up of a link list of pages. When making the ring
+buffer bigger, it will allocate all the pages it needs before adding to the
+ring buffer, and if it fails, it frees them and returns an error. This makes
+increasing the ring buffer size an all or nothing action. When this was
+first created, the pages were allocated with "NORETRY". This was to not
+cause any Out-Of-Memory (OOM) actions from allocating the ring buffer. But
+NORETRY was too strict, as the ring buffer would fail to expand even when
+there's memory available, but was taken up in the page cache.
+
+Commit 848618857d253 ("tracing/ring_buffer: Try harder to allocate") changed
+the allocating from NORETRY to RETRY_MAYFAIL. The RETRY_MAYFAIL would
+allocate from the page cache, but if there was no memory available, it would
+simple fail the allocation and not trigger an OOM.
+
+This worked fine, but had one problem. As the ring buffer would allocate one
+page at a time, it could take up all memory in the system before it failed
+to allocate and free that memory. If the allocation is happening and the
+ring buffer allocates all memory and then tries to take more than available,
+its allocation will not trigger an OOM, but if there's any allocation that
+happens someplace else, that could trigger an OOM, even though once the ring
+buffer's allocation fails, it would free up all the previous memory it tried
+to allocate, and allow other memory allocations to succeed.
+
+Commit d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a
+separate function") separated out si_mem_availble() as a separate function
+that could be used to see how much memory is available in the system. Using
+this function to make sure that the ring buffer could be allocated before it
+tries to allocate pages we can avoid allocating all memory in the system and
+making it vulnerable to OOMs if other allocations are taking place.
+
+Link: http://lkml.kernel.org/r/1522320104-6573-1-git-send-email-zhaoyang.huang@spreadtrum.com
+
+CC: stable@vger.kernel.org
+Cc: linux-mm@kvack.org
+Fixes: 848618857d253 ("tracing/ring_buffer: Try harder to allocate")
+Requires: d02bd27bd33dd ("mm/page_alloc.c: calculate 'available' memory in a separate function")
+Reported-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Tested-by: Joel Fernandes <joelaf@google.com>
+Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ kernel/trace/ring_buffer.c |    5 +++++
+ 1 file changed, 5 insertions(+)
+
+--- a/kernel/trace/ring_buffer.c
++++ b/kernel/trace/ring_buffer.c
+@@ -1136,6 +1136,11 @@ static int __rb_allocate_pages(long nr_p
+ 	struct buffer_page *bpage, *tmp;
+ 	long i;
+ 
++	/* Check if the available memory is there first */
++	i = si_mem_available();
++	if (i < nr_pages)
++		return -ENOMEM;
++
+ 	for (i = 0; i < nr_pages; i++) {
+ 		struct page *page;
+ 		/*
