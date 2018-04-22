@@ -1,46 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 073CE6B0005
-	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 04:21:35 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id c56-v6so14246941wrc.5
-        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 01:21:34 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s6sor2797121edq.32.2018.04.22.01.21.33
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 035616B0005
+	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 08:43:31 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id f23-v6so10195086wra.20
+        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 05:43:30 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s52si416910edd.84.2018.04.22.05.43.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 22 Apr 2018 01:21:33 -0700 (PDT)
-Date: Thu, 19 Apr 2018 12:05:12 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC PATCH] fs: introduce ST_HUGE flag and set it to tmpfs and
- hugetlbfs
-Message-ID: <20180419090512.apnalks6s5z63lqq@node.shutemov.name>
-References: <1523999293-94152-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180418102744.GA10397@infradead.org>
- <73090d4b-6831-805b-8b9d-5dff267428d9@linux.alibaba.com>
- <20180419082810.GA8624@infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 22 Apr 2018 05:43:29 -0700 (PDT)
+Date: Sun, 22 Apr 2018 06:43:24 -0600
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memcg: writeback: use memcg->cgwb_list directly
+Message-ID: <20180422124324.GC17484@dhcp22.suse.cz>
+References: <1524317381-236318-1-git-send-email-wanglong19@meituan.com>
+ <20180421235057.iyl4sipppfx3qp3m@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180419082810.GA8624@infradead.org>
+In-Reply-To: <20180421235057.iyl4sipppfx3qp3m@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, viro@zeniv.linux.org.uk, nyc@holomorphy.com, mike.kravetz@oracle.com, kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wang Long <wanglong19@meituan.com>
+Cc: Jan Kara <jack@suse.cz>, hannes@cmpxchg.org, vdavydov.dev@gmail.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org, khlebnikov@yandex-team.ru, xboe@kernel.dk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, tj@kernel.org
 
-On Thu, Apr 19, 2018 at 01:28:10AM -0700, Christoph Hellwig wrote:
-> On Wed, Apr 18, 2018 at 11:18:25AM -0700, Yang Shi wrote:
-> > Yes, thanks for the suggestion. I did think about it before I went with the
-> > new flag. Not like hugetlb, THP will *not* guarantee huge page is used all
-> > the time, it may fallback to regular 4K page or may get split. I'm not sure
-> > how the applications use f_bsize field, it might break existing applications
-> > and the value might be abused by applications to have counter optimization.
-> > So, IMHO, a new flag may sound safer.
+On Sun 22-04-18 01:50:57, Jan Kara wrote:
+> On Sat 21-04-18 21:29:41, Wang Long wrote:
+> > Signed-off-by: Wang Long <wanglong19@meituan.com>
 > 
-> But st_blksize isn't the block size, that is why I suggested it.  It is
-> the preferred I/O size, and various file systems can report way
-> larger values than the block size already.
+> Yeah, looks good. I guess it was originally intended to avoid compilation
+> errors if CONFIG_CGROUP_WRITEBACK was disabled. But it doesn't seem likely
+> we'll ever need that list outside of code under CONFIG_CGROUP_WRITEBACK. So
+> you can add:
 
-I agree. This looks like a better fit.
+Yeah. Trivial wrappers like these are usualy more harm than goot.  But
+please add _some_ words in the changelog.
+
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> 
+> 								Honza
+> 
+> > ---
+> >  include/linux/memcontrol.h | 1 -
+> >  mm/backing-dev.c           | 4 ++--
+> >  mm/memcontrol.c            | 5 -----
+> >  3 files changed, 2 insertions(+), 8 deletions(-)
+> > 
+> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > index d99b71b..c0056e0 100644
+> > --- a/include/linux/memcontrol.h
+> > +++ b/include/linux/memcontrol.h
+> > @@ -1093,7 +1093,6 @@ static inline void dec_lruvec_page_state(struct page *page,
+> >  
+> >  #ifdef CONFIG_CGROUP_WRITEBACK
+> >  
+> > -struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg);
+> >  struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb);
+> >  void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
+> >  			 unsigned long *pheadroom, unsigned long *pdirty,
+> > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> > index 023190c..0a48e05 100644
+> > --- a/mm/backing-dev.c
+> > +++ b/mm/backing-dev.c
+> > @@ -555,7 +555,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
+> >  	memcg = mem_cgroup_from_css(memcg_css);
+> >  	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &io_cgrp_subsys);
+> >  	blkcg = css_to_blkcg(blkcg_css);
+> > -	memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
+> > +	memcg_cgwb_list = &memcg->cgwb_list;
+> >  	blkcg_cgwb_list = &blkcg->cgwb_list;
+> >  
+> >  	/* look up again under lock and discard on blkcg mismatch */
+> > @@ -734,7 +734,7 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
+> >   */
+> >  void wb_memcg_offline(struct mem_cgroup *memcg)
+> >  {
+> > -	struct list_head *memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
+> > +	struct list_head *memcg_cgwb_list = &memcg->cgwb_list;
+> >  	struct bdi_writeback *wb, *next;
+> >  
+> >  	spin_lock_irq(&cgwb_lock);
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index e074f7c..d1adb9c 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -3562,11 +3562,6 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
+> >  
+> >  #ifdef CONFIG_CGROUP_WRITEBACK
+> >  
+> > -struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg)
+> > -{
+> > -	return &memcg->cgwb_list;
+> > -}
+> > -
+> >  static int memcg_wb_domain_init(struct mem_cgroup *memcg, gfp_t gfp)
+> >  {
+> >  	return wb_domain_init(&memcg->cgwb_domain, gfp);
+> > -- 
+> > 1.8.3.1
+> > 
+> -- 
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
