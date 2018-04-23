@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1793D6B002C
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D5746B002F
 	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:57 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id f23-v6so14894950wra.20
+Received: by mail-wr0-f198.google.com with SMTP id a38-v6so19257499wra.10
         for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:57 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id 89si5683949edh.72.2018.04.23.08.47.55
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id e17si462980edb.318.2018.04.23.08.47.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:47:55 -0700 (PDT)
+        Mon, 23 Apr 2018 08:47:56 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 23/37] x86/mm/legacy: Populate the user page-table with user pgd's
-Date: Mon, 23 Apr 2018 17:47:26 +0200
-Message-Id: <1524498460-25530-24-git-send-email-joro@8bytes.org>
+Subject: [PATCH 27/37] x86/mm/pti: Keep permissions when cloning kernel text in pti_clone_kernel_text()
+Date: Mon, 23 Apr 2018 17:47:30 +0200
+Message-Id: <1524498460-25530-28-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,46 +22,34 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Also populate the user-spage pgd's in the user page-table.
+Mapping the kernel text area to user-space makes only sense
+if it has the same permissions as in the kernel page-table.
+If permissions are different this will cause a TLB reload
+when using the kernel page-table, which is as good as not
+mapping it at all.
+
+On 64-bit kernels this patch makes no difference, as the
+whole range cloned by pti_clone_kernel_text() is mapped RO
+anyway. On 32 bit there are writeable mappings in the range,
+so just keep the permissions as they are.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable-2level.h | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ arch/x86/mm/pti.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
-index 685ffe8..c399ea5 100644
---- a/arch/x86/include/asm/pgtable-2level.h
-+++ b/arch/x86/include/asm/pgtable-2level.h
-@@ -19,6 +19,9 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index 9cceae3..e3059bb0 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -460,7 +460,7 @@ void pti_clone_kernel_text(void)
+ 	if (!pti_kernel_image_global_ok())
+ 		return;
  
- static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
- {
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pmd.pud.p4d.pgd = pti_set_user_pgtbl(&pmdp->pud.p4d.pgd, pmd.pud.p4d.pgd);
-+#endif
- 	*pmdp = pmd;
+-	pti_clone_pmds(start, end, _PAGE_RW);
++	pti_clone_pmds(start, end, 0);
  }
  
-@@ -58,6 +61,9 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
- #ifdef CONFIG_SMP
- static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
- {
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pti_set_user_pgtbl(&xp->pud.p4d.pgd, __pgd(0));
-+#endif
- 	return __pmd(xchg((pmdval_t *)xp, 0));
- }
- #else
-@@ -67,6 +73,9 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
- #ifdef CONFIG_SMP
- static inline pud_t native_pudp_get_and_clear(pud_t *xp)
- {
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pti_set_user_pgtbl(&xp->p4d.pgd, __pgd(0));
-+#endif
- 	return __pud(xchg((pudval_t *)xp, 0));
- }
- #else
+ /*
 -- 
 2.7.4
