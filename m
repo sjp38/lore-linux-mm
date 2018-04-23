@@ -1,100 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 111BE6B0007
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:55:21 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id o17-v6so14086168iob.12
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 05:55:21 -0700 (PDT)
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 764626B0008
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:55:25 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id k15-v6so14380280ioc.4
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 05:55:25 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b186-v6sor4055921ith.105.2018.04.23.05.55.19
+        by mx.google.com with SMTPS id d13-v6sor1560859iob.179.2018.04.23.05.55.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 23 Apr 2018 05:55:19 -0700 (PDT)
+        Mon, 23 Apr 2018 05:55:24 -0700 (PDT)
 From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [RFC PATCH v23 0/6] mm: security: write protection for dynamic data
-Date: Mon, 23 Apr 2018 16:54:49 +0400
-Message-Id: <20180423125458.5338-1-igor.stoppa@huawei.com>
+Subject: [PATCH 1/9] struct page: add field for vm_struct
+Date: Mon, 23 Apr 2018 16:54:50 +0400
+Message-Id: <20180423125458.5338-2-igor.stoppa@huawei.com>
+In-Reply-To: <20180423125458.5338-1-igor.stoppa@huawei.com>
+References: <20180423125458.5338-1-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: willy@infradead.org, keescook@chromium.org, paul@paul-moore.com, sds@tycho.nsa.gov, mhocko@kernel.org, corbet@lwn.net
 Cc: labbott@redhat.com, linux-cc=david@fromorbit.com, --cc=rppt@linux.vnet.ibm.com, --security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, igor.stoppa@gmail.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-This patch-set introduces the possibility of protecting memory that has
-been allocated dynamically.
+When a page is used for virtual memory, it is often necessary to obtain
+a handler to the corresponding vm_struct, which refers to the virtually
+continuous area generated when invoking vmalloc.
 
-The memory is managed in pools: when a memory pool is protected, all the
-memory that is currently part of it, will become R/O.
+The struct page has a "mapping" field, which can be re-used, to store a
+pointer to the parent area.
 
-A R/O pool can be expanded (adding more protectable memory).
-It can also be destroyed, to recover its memory, but it cannot be
-turned back into normal R/W mode.
+This will avoid more expensive searches, later on.
 
-This is intentional. This feature is meant for data that either doesn't
-need further modifications after initialization, or it will change very
-seldom.
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+Reviewed-by: Jay Freyensee <why2jjj.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ include/linux/mm_types.h | 1 +
+ mm/vmalloc.c             | 2 ++
+ 2 files changed, 3 insertions(+)
 
-The data might need to be released, for example as part of module unloading.
-The pool, therefore, can be destroyed.
-
-For those cases where the data is never completely stable, however it can
-stay unmodified for very long periods, there is a possibility of
-allocating it from a "rare write" pool, which allows modification to its
-data, through an helper function.
-
-I did not want to overcomplicate the first version of rare write, but it
-might be needed to add disabling/enabling of preemption, however I would
-appreciate comments in general about the implementation through transient
-remapping.
-
-An example is provided, showing how to protect one of hte internal states
-of SELinux.
-
-Changes since v22:
-[http://www.openwall.com/lists/kernel-hardening/2018/04/13/3]
-
-- refactored some helper functions in a separate local header
-- expanded the documentation
-- introduction of rare write support
-- example with SELinux "initialized" field
-
-
-Igor Stoppa (9):
-  struct page: add field for vm_struct
-  vmalloc: rename llist field in vmap_area
-  Protectable Memory
-  Documentation for Pmalloc
-  Pmalloc selftest
-  lkdtm: crash on overwriting protected pmalloc var
-  Pmalloc Rare Write: modify selected pools
-  Preliminary self test for pmalloc rare write
-  Protect SELinux initialized state with pmalloc
-
- Documentation/core-api/index.rst    |   1 +
- Documentation/core-api/pmalloc.rst  | 189 ++++++++++++++++++++++++++
- drivers/misc/lkdtm/core.c           |   3 +
- drivers/misc/lkdtm/lkdtm.h          |   1 +
- drivers/misc/lkdtm/perms.c          |  25 ++++
- include/linux/mm_types.h            |   1 +
- include/linux/pmalloc.h             | 170 ++++++++++++++++++++++++
- include/linux/test_pmalloc.h        |  24 ++++
- include/linux/vmalloc.h             |   6 +-
- init/main.c                         |   2 +
- mm/Kconfig                          |  16 +++
- mm/Makefile                         |   2 +
- mm/pmalloc.c                        | 258 ++++++++++++++++++++++++++++++++++++
- mm/pmalloc_helpers.h                | 210 +++++++++++++++++++++++++++++
- mm/test_pmalloc.c                   | 213 +++++++++++++++++++++++++++++
- mm/usercopy.c                       |   9 ++
- mm/vmalloc.c                        |  10 +-
- security/selinux/hooks.c            |  12 +-
- security/selinux/include/security.h |   2 +-
- security/selinux/ss/services.c      |  51 ++++---
- 20 files changed, 1174 insertions(+), 31 deletions(-)
- create mode 100644 Documentation/core-api/pmalloc.rst
- create mode 100644 include/linux/pmalloc.h
- create mode 100644 include/linux/test_pmalloc.h
- create mode 100644 mm/pmalloc.c
- create mode 100644 mm/pmalloc_helpers.h
- create mode 100644 mm/test_pmalloc.c
-
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 21612347d311..c74e2aa9a48b 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -86,6 +86,7 @@ struct page {
+ 		void *s_mem;			/* slab first object */
+ 		atomic_t compound_mapcount;	/* first tail page */
+ 		/* page_deferred_list().next	 -- second tail page */
++		struct vm_struct *area;
+ 	};
+ 
+ 	/* Second double word */
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index ebff729cc956..61a1ca22b0f6 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1536,6 +1536,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 			struct page *page = area->pages[i];
+ 
+ 			BUG_ON(!page);
++			page->area = NULL;
+ 			__free_pages(page, 0);
+ 		}
+ 
+@@ -1705,6 +1706,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 			area->nr_pages = i;
+ 			goto fail;
+ 		}
++		page->area = area;
+ 		area->pages[i] = page;
+ 		if (gfpflags_allow_blocking(gfp_mask|highmem_mask))
+ 			cond_resched();
 -- 
 2.14.1
