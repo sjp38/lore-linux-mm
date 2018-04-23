@@ -1,56 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 866FF6B0005
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 01:35:37 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z22so5210396pfi.7
-        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 22:35:37 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BBE76B0005
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 01:58:22 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id k9so3733336pgo.15
+        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 22:58:22 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y5sor2432470pgp.291.2018.04.22.22.35.36
+        by mx.google.com with SMTPS id m3sor2214898pgr.73.2018.04.22.22.58.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 22 Apr 2018 22:35:36 -0700 (PDT)
-Date: Mon, 23 Apr 2018 14:35:31 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180423053531.GB3643@jagdpanzerIV>
-References: <20180117134201.0a9cbbbf@gandalf.local.home>
- <20180119132052.02b89626@gandalf.local.home>
- <20180120071402.GB8371@jagdpanzerIV>
- <20180120104931.1942483e@gandalf.local.home>
- <20180121141521.GA429@tigerII.localdomain>
- <20180123064023.GA492@jagdpanzerIV>
- <20180123095652.5e14da85@gandalf.local.home>
- <20180123152130.GB429@tigerII.localdomain>
- <20180123104121.2ef96d81@gandalf.local.home>
- <20180123154347.GE1771050@devbig577.frc2.facebook.com>
+        Sun, 22 Apr 2018 22:58:21 -0700 (PDT)
+Date: Mon, 23 Apr 2018 14:58:09 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v10 01/25] mm: introduce CONFIG_SPECULATIVE_PAGE_FAULT
+Message-ID: <20180423055809.GA114098@rodete-desktop-imager.corp.google.com>
+References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1523975611-15978-2-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180123154347.GE1771050@devbig577.frc2.facebook.com>
+In-Reply-To: <1523975611-15978-2-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Petr Mladek <pmladek@suse.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On (01/23/18 07:43), Tejun Heo wrote:
-> > 
-> > We can have more. But if printk is causing printks, that's a major bug.
-> > And work queues are not going to fix it, it will just spread out the
-> > pain. Have it be 100 printks, it needs to be fixed if it is happening.
-> > And having all printks just generate more printks is not helpful. Even
-> > if we slow them down. They will still never end.
+Hi Laurent,
+
+I guess it's good timing to review. Guess LSF/MM goes so might change
+a lot since then. :) Anyway, I grap a time to review.
+
+On Tue, Apr 17, 2018 at 04:33:07PM +0200, Laurent Dufour wrote:
+> This configuration variable will be used to build the code needed to
+> handle speculative page fault.
 > 
-> So, at least in the case that we were seeing, it isn't that black and
-> white.  printk keeps causing printks but only because printk buffer
-> flushing is preventing the printk'ing context from making forward
-> progress.  The key problem there is that a flushing context may get
-> pinned flushing indefinitely and using a separate context does solve
-> the problem.
+> By default it is turned off, and activated depending on architecture
+> support, SMP and MMU.
 
-Hello Tejun,
+Can we have description in here why it depends on architecture?
 
-I'm willing to take a look at those printk()-s from console drivers.
-Any chance you can send me some of the backtraces you see [the most
-common/disturbing]?
-
-	-ss
+> 
+> Suggested-by: Thomas Gleixner <tglx@linutronix.de>
+> Suggested-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> ---
+>  mm/Kconfig | 22 ++++++++++++++++++++++
+>  1 file changed, 22 insertions(+)
+> 
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index d5004d82a1d6..5484dca11199 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -752,3 +752,25 @@ config GUP_BENCHMARK
+>  	  performance of get_user_pages_fast().
+>  
+>  	  See tools/testing/selftests/vm/gup_benchmark.c
+> +
+> +config ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+> +       def_bool n
+> +
+> +config SPECULATIVE_PAGE_FAULT
+> +       bool "Speculative page faults"
+> +       default y
+> +       depends on ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+> +       depends on MMU && SMP
+> +       help
+> +         Try to handle user space page faults without holding the mmap_sem.
+> +
+> +	 This should allow better concurrency for massively threaded process
+> +	 since the page fault handler will not wait for other threads memory
+> +	 layout change to be done, assuming that this change is done in another
+> +	 part of the process's memory space. This type of page fault is named
+> +	 speculative page fault.
+> +
+> +	 If the speculative page fault fails because of a concurrency is
+> +	 detected or because underlying PMD or PTE tables are not yet
+> +	 allocating, it is failing its processing and a classic page fault
+> +	 is then tried.
+> -- 
+> 2.7.4
+> 
