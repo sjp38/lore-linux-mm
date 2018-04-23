@@ -1,70 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A4FBC6B000D
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 13:09:21 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id g76so8876067vki.9
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 10:09:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l65sor6207614vkb.207.2018.04.23.10.09.20
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F35826B0009
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 13:29:24 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id x205so614459pgx.19
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 10:29:24 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 1-v6si11950122plv.217.2018.04.23.10.29.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 23 Apr 2018 10:09:20 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 23 Apr 2018 10:29:23 -0700 (PDT)
+Date: Mon, 23 Apr 2018 10:28:40 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v3] fs: dax: Adding new return type vm_fault_t
+Message-ID: <20180423172840.GA13383@bombadil.infradead.org>
+References: <20180421210529.GA27238@jordon-HP-15-Notebook-PC>
+ <20180422230948.2mvimlf3zspry4ji@quack2.suse.cz>
+ <20180423022505.GA2308@bombadil.infradead.org>
+ <20180423135947.dovwxnhzknobmyog@quack2.suse.cz>
+ <CAFqt6zajJkFBs-OAbLyU5srCLnrtNJVt7NMfWdawcVYOvwETMg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1524498460-25530-29-git-send-email-joro@8bytes.org>
-References: <1524498460-25530-1-git-send-email-joro@8bytes.org> <1524498460-25530-29-git-send-email-joro@8bytes.org>
-From: Kees Cook <keescook@google.com>
-Date: Mon, 23 Apr 2018 10:09:19 -0700
-Message-ID: <CAGXu5jKYhqvgooq8q-2NoMC_Cqh-SR8J0y0c1x9LteinDfQELQ@mail.gmail.com>
-Subject: Re: [PATCH 28/37] x86/mm/pti: Map kernel-text to user-space on 32 bit kernels
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFqt6zajJkFBs-OAbLyU5srCLnrtNJVt7NMfWdawcVYOvwETMg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, Anthony Liguori <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, mawilcox@microsoft.com, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, kirill.shutemov@linux.intel.com, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Mon, Apr 23, 2018 at 8:47 AM, Joerg Roedel <joro@8bytes.org> wrote:
-> From: Joerg Roedel <jroedel@suse.de>
->
-> Keeping the kernel text mapped with G bit set keeps its
-> entries in the TLB across kernel entry/exit and improved the
-> performance. The 64 bit x86 kernels already do this when
-> there is no PCID, so do this in 32 bit as well since PCID is
-> not even supported there.
+On Mon, Apr 23, 2018 at 09:42:30PM +0530, Souptick Joarder wrote:
+> > OK, fair enough and thanks for doing an audit! So possibly just add a
+> > comment above vmf_insert_mixed() and vmf_insert_mixed_mkwrite() like:
+> >
+> > /*
+> >  * If the insertion of PTE failed because someone else already added a
+> >  * different entry in the mean time, we treat that as success as we assume
+> >  * the same entry was actually inserted.
+> >  */
+> >
+> > After that feel free to add:
+> >
+> > Reviewed-by: Jan Kara <jack@suse.cz>
+> >
+> > to the patch.
+> >
+> 
+> Thanks , will add this in change log and send v4.
 
-I think this should keep at least part of the logic as 64-bit since
-there are other reasons to turn off the Global flag:
-
-https://lkml.kernel.org/r/20180420222026.D0B4AAC9@viggo.jf.intel.com
-
--Kees
-
->
-> Signed-off-by: Joerg Roedel <jroedel@suse.de>
-> ---
->  arch/x86/mm/init_32.c | 6 ++++++
->  1 file changed, 6 insertions(+)
->
-> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-> index c893c6a..8299b98 100644
-> --- a/arch/x86/mm/init_32.c
-> +++ b/arch/x86/mm/init_32.c
-> @@ -956,4 +956,10 @@ void mark_rodata_ro(void)
->         mark_nxdata_nx();
->         if (__supported_pte_mask & _PAGE_NX)
->                 debug_checkwx();
-> +
-> +       /*
-> +        * Do this after all of the manipulation of the
-> +        * kernel text page tables are complete.
-> +        */
-> +       pti_clone_kernel_text();
->  }
-> --
-> 2.7.4
->
-
-
-
--- 
-Kees Cook
-Pixel Security
+Jan asked you to add this comment above vmf_insert_mixed_mkwrite()
+(I don't think it needs to be added above vmf_insert_mixed() because
+this comment will get moved in a later commit once we have no more callers
+of vm_insert_mixed()).
