@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 603686B0007
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 07:03:03 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id o9so6292359pgv.8
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 04:03:03 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0120.outbound.protection.outlook.com. [104.47.0.120])
-        by mx.google.com with ESMTPS id d92-v6si11703551pld.195.2018.04.23.04.03.00
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C23DA6B0008
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 07:06:44 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 203so10272679pfz.19
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 04:06:44 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30108.outbound.protection.outlook.com. [40.107.3.108])
+        by mx.google.com with ESMTPS id q66si11166342pfk.190.2018.04.23.04.06.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 23 Apr 2018 04:03:01 -0700 (PDT)
+        Mon, 23 Apr 2018 04:06:43 -0700 (PDT)
 Subject: Re: [PATCH v2 04/12] mm: Assign memcg-aware shrinkers bitmap to memcg
 References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
  <152399121146.3456.5459546288565589098.stgit@localhost.localdomain>
  <20180422175900.dsjmm7gt2nsqj3er@esperanza>
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <3e8cde1a-e133-8c09-a23b-388965f56f82@virtuozzo.com>
-Date: Mon, 23 Apr 2018 14:02:49 +0300
+Message-ID: <552aba74-c208-e959-0b4f-4784e68c6109@virtuozzo.com>
+Date: Mon, 23 Apr 2018 14:06:31 +0300
 MIME-Version: 1.0
 In-Reply-To: <20180422175900.dsjmm7gt2nsqj3er@esperanza>
 Content-Type: text/plain; charset=utf-8
@@ -236,10 +236,6 @@ On 22.04.2018 20:59, Vladimir Davydov wrote:
 > 
 > Iterating over cgroups first, numa nodes second seems like a better idea
 > to me. I think you should fold for_each_node in memcg_expand_maps.
-
-This function is also used in alloc_shrinker_maps(), which has node id argument.
-We can't change the order, since maps are stored into memcg_cgroup::nodeinfo[nid].
-
 > 
 >> +		idr_for_each_entry(&mem_cgroup_idr, memcg, id) {
 > 
@@ -368,7 +364,9 @@ We can't change the order, since maps are stored into memcg_cgroup::nodeinfo[nid
 > 
 > I think this function should live in memcontrol.c and shrinkers_max_nr
 > should be private to memcontrol.c.
-> 
+
+It can't be private as shrink_slab_memcg() uses this value to get the last bit of bitmap.
+
 >>  static int add_memcg_shrinker(struct shrinker *shrinker)
 >>  {
 >>  	int id, ret;
