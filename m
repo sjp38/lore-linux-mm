@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 617A66B005A
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:48:01 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id m7-v6so19252574wrb.16
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:48:01 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A1E16B005C
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:48:02 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id y16-v6so19092879wrh.22
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:48:02 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id h55si1505608edb.222.2018.04.23.08.47.59
+        by mx.google.com with ESMTPS id z37si7511488ede.315.2018.04.23.08.48.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:47:59 -0700 (PDT)
+        Mon, 23 Apr 2018 08:48:00 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 33/37] x86/ldt: Split out sanity check in map_ldt_struct()
-Date: Mon, 23 Apr 2018 17:47:36 +0200
-Message-Id: <1524498460-25530-34-git-send-email-joro@8bytes.org>
+Subject: [PATCH 32/37] x86/ldt: Define LDT_END_ADDR
+Date: Mon, 23 Apr 2018 17:47:35 +0200
+Message-Id: <1524498460-25530-33-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,143 +22,54 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-This splits out the mapping sanity check and the actual
-mapping of the LDT to user-space from the map_ldt_struct()
-function in a way so that it is re-usable for PAE paging.
+It marks the end of the address-space range reserved for the
+LDT. The LDT-code will use it when unmapping the LDT for
+user-space.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/kernel/ldt.c | 82 ++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 58 insertions(+), 24 deletions(-)
+ arch/x86/include/asm/pgtable_32_types.h | 2 ++
+ arch/x86/include/asm/pgtable_64_types.h | 1 +
+ arch/x86/kernel/ldt.c                   | 2 +-
+ 3 files changed, 4 insertions(+), 1 deletion(-)
 
+diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
+index 1fa76c9..6d5f795 100644
+--- a/arch/x86/include/asm/pgtable_32_types.h
++++ b/arch/x86/include/asm/pgtable_32_types.h
+@@ -53,6 +53,8 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
+ #define LDT_BASE_ADDR		\
+ 	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
+ 
++#define LDT_END_ADDR		(LDT_BASE_ADDR + PMD_SIZE)
++
+ #define PKMAP_BASE		\
+ 	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
+ 
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 355b488..f78ded7 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -104,6 +104,7 @@ extern unsigned int ptrs_per_p4d;
+ #define LDT_PGD_ENTRY_L5	-112UL
+ #define LDT_PGD_ENTRY		(pgtable_l5_enabled ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
+ #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
++#define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
+ 
+ #define __VMALLOC_BASE_L4	0xffffc90000000000
+ #define __VMALLOC_BASE_L5 	0xffa0000000000000
 diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index e921b3d..69af9a0 100644
+index c9b1402..e921b3d 100644
 --- a/arch/x86/kernel/ldt.c
 +++ b/arch/x86/kernel/ldt.c
-@@ -100,6 +100,49 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- 	return new_ldt;
- }
- 
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+
-+static void do_sanity_check(struct mm_struct *mm,
-+			    bool had_kernel_mapping,
-+			    bool had_user_mapping)
-+{
-+	if (mm->context.ldt) {
-+		/*
-+		 * We already had an LDT.  The top-level entry should already
-+		 * have been allocated and synchronized with the usermode
-+		 * tables.
-+		 */
-+		WARN_ON(!had_kernel_mapping);
-+		if (static_cpu_has(X86_FEATURE_PTI))
-+			WARN_ON(!had_user_mapping);
-+	} else {
-+		/*
-+		 * This is the first time we're mapping an LDT for this process.
-+		 * Sync the pgd to the usermode tables.
-+		 */
-+		WARN_ON(had_kernel_mapping);
-+		if (static_cpu_has(X86_FEATURE_PTI))
-+			WARN_ON(had_user_mapping);
-+	}
-+}
-+
-+static void map_ldt_struct_to_user(struct mm_struct *mm)
-+{
-+	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+
-+	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
-+		set_pgd(kernel_to_user_pgdp(pgd), *pgd);
-+}
-+
-+static void sanity_check_ldt_mapping(struct mm_struct *mm)
-+{
-+	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
-+	bool had_kernel = (pgd->pgd != 0);
-+	bool had_user   = (kernel_to_user_pgdp(pgd)->pgd != 0);
-+
-+	do_sanity_check(mm, had_kernel, had_user);
-+}
-+
- /*
-  * If PTI is enabled, this maps the LDT into the kernelmode and
-  * usermode tables for the given mm.
-@@ -115,9 +158,8 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- static int
- map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- {
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--	bool is_vmalloc, had_top_level_entry;
- 	unsigned long va;
-+	bool is_vmalloc;
- 	spinlock_t *ptl;
- 	pgd_t *pgd;
- 	int i;
-@@ -131,13 +173,15 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 	 */
- 	WARN_ON(ldt->slot != -1);
- 
-+	/* Check if the current mappings are sane */
-+	sanity_check_ldt_mapping(mm);
-+
- 	/*
- 	 * Did we already have the top level entry allocated?  We can't
- 	 * use pgd_none() for this because it doens't do anything on
- 	 * 4-level page table kernels.
- 	 */
- 	pgd = pgd_offset(mm, LDT_BASE_ADDR);
--	had_top_level_entry = (pgd->pgd != 0);
- 
- 	is_vmalloc = is_vmalloc_addr(ldt->entries);
- 
-@@ -172,35 +216,25 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
- 		pte_unmap_unlock(ptep, ptl);
- 	}
- 
--	if (mm->context.ldt) {
--		/*
--		 * We already had an LDT.  The top-level entry should already
--		 * have been allocated and synchronized with the usermode
--		 * tables.
--		 */
--		WARN_ON(!had_top_level_entry);
--		if (static_cpu_has(X86_FEATURE_PTI))
--			WARN_ON(!kernel_to_user_pgdp(pgd)->pgd);
--	} else {
--		/*
--		 * This is the first time we're mapping an LDT for this process.
--		 * Sync the pgd to the usermode tables.
--		 */
--		WARN_ON(had_top_level_entry);
--		if (static_cpu_has(X86_FEATURE_PTI)) {
--			WARN_ON(kernel_to_user_pgdp(pgd)->pgd);
--			set_pgd(kernel_to_user_pgdp(pgd), *pgd);
--		}
--	}
-+	/* Propagate LDT mapping to the user page-table */
-+	map_ldt_struct_to_user(mm);
- 
- 	va = (unsigned long)ldt_slot_va(slot);
- 	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
- 
- 	ldt->slot = slot;
--#endif
- 	return 0;
- }
- 
-+#else /* !CONFIG_PAGE_TABLE_ISOLATION */
-+
-+static int
-+map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
-+
- static void free_ldt_pgtables(struct mm_struct *mm)
- {
+@@ -206,7 +206,7 @@ static void free_ldt_pgtables(struct mm_struct *mm)
  #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ 	struct mmu_gather tlb;
+ 	unsigned long start = LDT_BASE_ADDR;
+-	unsigned long end = start + (1UL << PGDIR_SHIFT);
++	unsigned long end = LDT_END_ADDR;
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
 -- 
 2.7.4
