@@ -1,65 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B48AE6B026E
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 13:05:37 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id z22so6514882pfi.7
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 10:05:37 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j65si10114912pge.336.2018.04.23.10.05.36
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F9B66B0008
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 13:06:23 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id j139so7833000vke.8
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 10:06:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m129sor6303112vkg.287.2018.04.23.10.06.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 23 Apr 2018 10:05:36 -0700 (PDT)
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 12/12] swiotlb: remove the CONFIG_DMA_DIRECT_OPS ifdefs
-Date: Mon, 23 Apr 2018 19:04:19 +0200
-Message-Id: <20180423170419.20330-13-hch@lst.de>
-In-Reply-To: <20180423170419.20330-1-hch@lst.de>
-References: <20180423170419.20330-1-hch@lst.de>
+        (Google Transport Security);
+        Mon, 23 Apr 2018 10:06:22 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1524498460-25530-28-git-send-email-joro@8bytes.org>
+References: <1524498460-25530-1-git-send-email-joro@8bytes.org> <1524498460-25530-28-git-send-email-joro@8bytes.org>
+From: Kees Cook <keescook@google.com>
+Date: Mon, 23 Apr 2018 10:06:20 -0700
+Message-ID: <CAGXu5jLN_rzmfgM-Xne836ip+qMc8T1QX=mhozo3NFLNssgUfw@mail.gmail.com>
+Subject: Re: [PATCH 27/37] x86/mm/pti: Keep permissions when cloning kernel
+ text in pti_clone_kernel_text()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org
-Cc: x86@kernel.org, linux-block@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, Anthony Liguori <aliguori@amazon.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>
 
-swiotlb now selects the DMA_DIRECT_OPS config symbol, so this will
-always be true.
+On Mon, Apr 23, 2018 at 8:47 AM, Joerg Roedel <joro@8bytes.org> wrote:
+> From: Joerg Roedel <jroedel@suse.de>
+>
+> Mapping the kernel text area to user-space makes only sense
+> if it has the same permissions as in the kernel page-table.
+> If permissions are different this will cause a TLB reload
+> when using the kernel page-table, which is as good as not
+> mapping it at all.
+>
+> On 64-bit kernels this patch makes no difference, as the
+> whole range cloned by pti_clone_kernel_text() is mapped RO
+> anyway. On 32 bit there are writeable mappings in the range,
+> so just keep the permissions as they are.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- lib/swiotlb.c | 4 ----
- 1 file changed, 4 deletions(-)
+Why are there R/W text mappings in this range? I find that to be
+unexpected. Shouldn't CONFIG_DEBUG_WX already complain if that were
+true?
 
-diff --git a/lib/swiotlb.c b/lib/swiotlb.c
-index fece57566d45..6954f7ad200a 100644
---- a/lib/swiotlb.c
-+++ b/lib/swiotlb.c
-@@ -692,7 +692,6 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
- 	}
- }
- 
--#ifdef CONFIG_DMA_DIRECT_OPS
- static inline bool dma_coherent_ok(struct device *dev, dma_addr_t addr,
- 		size_t size)
- {
-@@ -764,7 +763,6 @@ static bool swiotlb_free_buffer(struct device *dev, size_t size,
- 				 DMA_ATTR_SKIP_CPU_SYNC);
- 	return true;
- }
--#endif
- 
- static void
- swiotlb_full(struct device *dev, size_t size, enum dma_data_direction dir,
-@@ -1045,7 +1043,6 @@ swiotlb_dma_supported(struct device *hwdev, u64 mask)
- 	return __phys_to_dma(hwdev, io_tlb_end - 1) <= mask;
- }
- 
--#ifdef CONFIG_DMA_DIRECT_OPS
- void *swiotlb_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
- 		gfp_t gfp, unsigned long attrs)
- {
-@@ -1089,4 +1086,3 @@ const struct dma_map_ops swiotlb_dma_ops = {
- 	.unmap_page		= swiotlb_unmap_page,
- 	.dma_supported		= dma_direct_supported,
- };
--#endif /* CONFIG_DMA_DIRECT_OPS */
+-Kees
+
 -- 
-2.17.0
+Kees Cook
+Pixel Security
