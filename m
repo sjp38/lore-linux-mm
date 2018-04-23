@@ -1,63 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 647606B0005
-	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 22:25:26 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a6so9301105pfn.3
-        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 19:25:26 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A963A6B0005
+	for <linux-mm@kvack.org>; Sun, 22 Apr 2018 23:03:56 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t4so2837339pgv.21
+        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 20:03:56 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e12-v6si5695210plj.143.2018.04.22.19.25.24
+        by mx.google.com with ESMTPS id s27si9310285pgo.12.2018.04.22.20.03.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 22 Apr 2018 19:25:25 -0700 (PDT)
-Date: Sun, 22 Apr 2018 19:25:05 -0700
+        Sun, 22 Apr 2018 20:03:55 -0700 (PDT)
+Date: Sun, 22 Apr 2018 20:03:49 -0700
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v3] fs: dax: Adding new return type vm_fault_t
-Message-ID: <20180423022505.GA2308@bombadil.infradead.org>
-References: <20180421210529.GA27238@jordon-HP-15-Notebook-PC>
- <20180422230948.2mvimlf3zspry4ji@quack2.suse.cz>
+Subject: Re: [PATCH] mm: shmem: enable thp migration (Re: [PATCH v1] mm:
+ consider non-anonymous thp as unmovable page)
+Message-ID: <20180423030349.GB2308@bombadil.infradead.org>
+References: <20180403083451.GG5501@dhcp22.suse.cz>
+ <20180403105411.hknofkbn6rzs26oz@node.shutemov.name>
+ <20180405085927.GC6312@dhcp22.suse.cz>
+ <20180405122838.6a6b35psizem4tcy@node.shutemov.name>
+ <20180405124830.GJ6312@dhcp22.suse.cz>
+ <20180405134045.7axuun6d7ufobzj4@node.shutemov.name>
+ <20180405150547.GN6312@dhcp22.suse.cz>
+ <20180405155551.wchleyaf4rxooj6m@node.shutemov.name>
+ <20180405160317.GP6312@dhcp22.suse.cz>
+ <20180406030706.GA2434@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180422230948.2mvimlf3zspry4ji@quack2.suse.cz>
+In-Reply-To: <20180406030706.GA2434@hori1.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>, viro@zeniv.linux.org.uk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Zi Yan <zi.yan@sent.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 23, 2018 at 01:09:48AM +0200, Jan Kara wrote:
-> > -int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
-> > -			pfn_t pfn)
-> > +vm_fault_t vmf_insert_mixed_mkwrite(struct vm_area_struct *vma,
-> > +		unsigned long addr, pfn_t pfn)
-> >  {
-> > -	return __vm_insert_mixed(vma, addr, pfn, true);
-> > +	int err;
-> > +
-> > +	err =  __vm_insert_mixed(vma, addr, pfn, true);
-> > +	if (err == -ENOMEM)
-> > +		return VM_FAULT_OOM;
-> > +	if (err < 0 && err != -EBUSY)
-> > +		return VM_FAULT_SIGBUS;
-> > +	return VM_FAULT_NOPAGE;
-> >  }
-> > -EXPORT_SYMBOL(vm_insert_mixed_mkwrite);
-> > +EXPORT_SYMBOL(vmf_insert_mixed_mkwrite);
-> 
-> So are we sure that all the callers of this function (and also of
-> vmf_insert_mixed()) are OK with EBUSY? Because especially in the
-> vmf_insert_mixed() case other page than the caller provided is in page
-> tables and thus possibly the caller needs to do some error recovery (such
-> as drop page refcount) in such case...
+On Fri, Apr 06, 2018 at 03:07:11AM +0000, Naoya Horiguchi wrote:
+> Subject: [PATCH] mm: enable thp migration for shmem thp
 
-I went through all the users and didn't find any that did anything
-with -EBUSY other than turn it into VM_FAULT_NOPAGE.  I agree that it's
-possible that there might have been someone who wanted to do that, but
-we tend to rely on mapcount (through rmap) rather than refcount (ie we
-use refcount to mean the number of kernel references to the page and then
-use mapcount for the number of times it's mapped into a process' address
-space).  All the drivers I audited would allocagte the page first, store
-it in their own data structures, then try to insert it into the virtual
-address space.  So an EBUSY always meant "the same page was inserted".
+This patch is buggy, but not in a significant way:
 
-If we did want to support "This happened already" in the future, we
-could define a VM_FAULT flag for that.
+> @@ -524,13 +524,26 @@ int migrate_page_move_mapping(struct address_space *mapping,
+>  	}
+>  
+>  	radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
+
+^^^ this line should have been deleted
+
+> +	if (PageTransHuge(page)) {
+> +		int i;
+> +		int index = page_index(page);
+> +
+> +		for (i = 0; i < HPAGE_PMD_NR; i++) {
+^^^ or this iteration should start at 1
+> +			pslot = radix_tree_lookup_slot(&mapping->i_pages,
+> +						       index + i);
+> +			radix_tree_replace_slot(&mapping->i_pages, pslot,
+> +						newpage + i);
+> +		}
+> +	} else {
+> +		radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
+^^^ and if the second option, then we don't need this line
+> +	}
+
+So either this:
+
+-	radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
++	if (PageTransHuge(page)) {
++		int i;
++		int index = page_index(page);
++
++		for (i = 0; i < HPAGE_PMD_NR; i++) {
++			pslot = radix_tree_lookup_slot(&mapping->i_pages,
++						       index + i);
++			radix_tree_replace_slot(&mapping->i_pages, pslot,
++						newpage + i);
++		}
++	} else {
++		radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
++	}
+
+Or this:
+
+ 	radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
++	if (PageTransHuge(page)) {
++		int i;
++		int index = page_index(page);
++
++		for (i = 1; i < HPAGE_PMD_NR; i++) {
++			pslot = radix_tree_lookup_slot(&mapping->i_pages,
++						       index + i);
++			radix_tree_replace_slot(&mapping->i_pages, pslot,
++						newpage + i);
++		}
++	}
+
+The second one is shorter and involves fewer lookups ...
