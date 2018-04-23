@@ -1,86 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 92AA86B0003
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 09:59:54 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k27-v6so18382937wre.23
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 06:59:54 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y5si2282810edj.92.2018.04.23.06.59.52
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 74C6E6B0003
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 10:06:16 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id l9-v6so11905333qtp.23
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 07:06:16 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id d42-v6si2771547qta.379.2018.04.23.07.06.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 23 Apr 2018 06:59:52 -0700 (PDT)
-Date: Mon, 23 Apr 2018 15:59:47 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3] fs: dax: Adding new return type vm_fault_t
-Message-ID: <20180423135947.dovwxnhzknobmyog@quack2.suse.cz>
-References: <20180421210529.GA27238@jordon-HP-15-Notebook-PC>
- <20180422230948.2mvimlf3zspry4ji@quack2.suse.cz>
- <20180423022505.GA2308@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Apr 2018 07:06:15 -0700 (PDT)
+Date: Mon, 23 Apr 2018 10:06:08 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
+In-Reply-To: <20180421144757.GC14610@bombadil.infradead.org>
+Message-ID: <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com> <3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com> <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com> <20180418.134651.2225112489265654270.davem@davemloft.net>
+ <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com> <20180420130852.GC16083@dhcp22.suse.cz> <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180420210200.GH10788@bombadil.infradead.org> <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com> <20180421144757.GC14610@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180423022505.GA2308@bombadil.infradead.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, Souptick Joarder <jrdr.linux@gmail.com>, viro@zeniv.linux.org.uk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
 
-On Sun 22-04-18 19:25:05, Matthew Wilcox wrote:
-> On Mon, Apr 23, 2018 at 01:09:48AM +0200, Jan Kara wrote:
-> > > -int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
-> > > -			pfn_t pfn)
-> > > +vm_fault_t vmf_insert_mixed_mkwrite(struct vm_area_struct *vma,
-> > > +		unsigned long addr, pfn_t pfn)
-> > >  {
-> > > -	return __vm_insert_mixed(vma, addr, pfn, true);
-> > > +	int err;
-> > > +
-> > > +	err =  __vm_insert_mixed(vma, addr, pfn, true);
-> > > +	if (err == -ENOMEM)
-> > > +		return VM_FAULT_OOM;
-> > > +	if (err < 0 && err != -EBUSY)
-> > > +		return VM_FAULT_SIGBUS;
-> > > +	return VM_FAULT_NOPAGE;
-> > >  }
-> > > -EXPORT_SYMBOL(vm_insert_mixed_mkwrite);
-> > > +EXPORT_SYMBOL(vmf_insert_mixed_mkwrite);
+
+
+On Sat, 21 Apr 2018, Matthew Wilcox wrote:
+
+> On Fri, Apr 20, 2018 at 05:21:26PM -0400, Mikulas Patocka wrote:
+> > On Fri, 20 Apr 2018, Matthew Wilcox wrote:
+> > > On Fri, Apr 20, 2018 at 04:54:53PM -0400, Mikulas Patocka wrote:
+> > > > On Fri, 20 Apr 2018, Michal Hocko wrote:
+> > > > > No way. This is just wrong! First of all, you will explode most likely
+> > > > > on many allocations of small sizes. Second, CONFIG_DEBUG_VM tends to be
+> > > > > enabled quite often.
+> > > > 
+> > > > You're an evil person who doesn't want to fix bugs.
+> > > 
+> > > Steady on.  There's no need for that.  Michal isn't evil.  Please
+> > > apologise.
 > > 
-> > So are we sure that all the callers of this function (and also of
-> > vmf_insert_mixed()) are OK with EBUSY? Because especially in the
-> > vmf_insert_mixed() case other page than the caller provided is in page
-> > tables and thus possibly the caller needs to do some error recovery (such
-> > as drop page refcount) in such case...
+> > I see this attitude from Michal again and again.
 > 
-> I went through all the users and didn't find any that did anything
-> with -EBUSY other than turn it into VM_FAULT_NOPAGE.  I agree that it's
-> possible that there might have been someone who wanted to do that, but
-> we tend to rely on mapcount (through rmap) rather than refcount (ie we
-> use refcount to mean the number of kernel references to the page and then
-> use mapcount for the number of times it's mapped into a process' address
-> space).  All the drivers I audited would allocagte the page first, store
-> it in their own data structures, then try to insert it into the virtual
-> address space.  So an EBUSY always meant "the same page was inserted".
+> Fine; then *say that*.  I also see Michal saying "No" a lot.  Sometimes
+> I agree with him, sometimes I don't.  I think he genuinely wants the best
+> code in the kernel, and saying "No" is part of it.
 > 
-> If we did want to support "This happened already" in the future, we
-> could define a VM_FAULT flag for that.
+> > He didn't want to fix vmalloc(GFP_NOIO)
+> 
+> I don't remember that conversation, so I don't know whether I agree with
+> his reasoning or not.  But we are supposed to be moving away from GFP_NOIO
+> towards marking regions with memalloc_noio_save() / restore.  If you do
+> that, you won't need vmalloc(GFP_NOIO).
 
-OK, fair enough and thanks for doing an audit! So possibly just add a
-comment above vmf_insert_mixed() and vmf_insert_mixed_mkwrite() like:
+He said the same thing a year ago. And there was small progress. 6 out of 
+27 __vmalloc calls were converted to memalloc_noio_save in a year - 5 in 
+infiniband and 1 in btrfs. (the whole discussion is here 
+http://lkml.iu.edu/hypermail/linux/kernel/1706.3/04681.html )
 
-/*
- * If the insertion of PTE failed because someone else already added a
- * different entry in the mean time, we treat that as success as we assume
- * the same entry was actually inserted.
- */
+He refuses 15-line patch to fix GFP_NOIO bug because he believes that in 4 
+years, the kernel will be refactored and GFP_NOIO will be eliminated. Why 
+does he have veto over this part of the code? I'd much rather argue with 
+people who have constructive comments about fixing bugs than with him.
 
-After that feel free to add:
+(note that even if the refactoring eventually succeeds, it will not be 
+backported to stable branches. The small vmalloc patch could be 
+backported)
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+> > he didn't want to fix alloc_pages sleeping when __GFP_NORETRY is used.
+> 
+> The GFP flags are a mess, still.
 
-to the patch.
+That's the problem - the flag doesn't have a clear contract and the 
+developers change behavior ad hoc according to bug reports.
 
-								Honza
+> > So what should I say? Fix them and you won't be evil :-)
+>
+> No, you should reserve calling somebody evil for truly evil things.
 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+How would you call it? Michal falsely believes that a 15-line patch would 
+prevent him from doing long-term refactoring work and so he refuses it.
+
+> > I already said that we can change it from CONFIG_DEBUG_VM to 
+> > CONFIG_DEBUG_SG - or to whatever other option you may want, just to make 
+> > sure that it is enabled in distro debug kernels by default.
+> 
+> Yes, and I think that's the right idea.  So send a v2 and ignore the
+> replies that are clearly relating to an earlier version of the patch.
+> Not everybody reads every mail in the thread before responding to one they
+> find interesting.  Yes, ideally, one would, but sometimes one doesn't.
+
+I sent the CONFIG_DEBUG_SG patch before (I wonder why he didn't repond to 
+it). I'll send a third version of the patch that actually randomly chooses 
+between kmalloc and vmalloc, because some abuses can only be detected with 
+kmalloc and we should test both.
+
+For bisecting, it is better to always fallback to vmalloc, but for general 
+testing, it is better to test both branches.
+
+Mikulas
