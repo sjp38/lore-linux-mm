@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1E16B005C
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:48:02 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y16-v6so19092879wrh.22
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:48:02 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C9CB6B005D
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:48:03 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id c56-v6so19511149wrc.5
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:48:03 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id z37si7511488ede.315.2018.04.23.08.48.00
+        by mx.google.com with ESMTPS id h33si294030edd.50.2018.04.23.08.48.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:48:00 -0700 (PDT)
+        Mon, 23 Apr 2018 08:48:01 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 32/37] x86/ldt: Define LDT_END_ADDR
-Date: Mon, 23 Apr 2018 17:47:35 +0200
-Message-Id: <1524498460-25530-33-git-send-email-joro@8bytes.org>
+Subject: [PATCH 36/37] x86/mm/pti: Add Warning when booting on a PCID capable CPU
+Date: Mon, 23 Apr 2018 17:47:39 +0200
+Message-Id: <1524498460-25530-37-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,54 +22,41 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-It marks the end of the address-space range reserved for the
-LDT. The LDT-code will use it when unmapping the LDT for
-user-space.
+Warn the user in case the performance can be significantly
+improved by switching to a 64-bit kernel.
 
+Suggested-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable_32_types.h | 2 ++
- arch/x86/include/asm/pgtable_64_types.h | 1 +
- arch/x86/kernel/ldt.c                   | 2 +-
- 3 files changed, 4 insertions(+), 1 deletion(-)
+ arch/x86/mm/pti.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
-index 1fa76c9..6d5f795 100644
---- a/arch/x86/include/asm/pgtable_32_types.h
-+++ b/arch/x86/include/asm/pgtable_32_types.h
-@@ -53,6 +53,8 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
- #define LDT_BASE_ADDR		\
- 	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index e3059bb0..0ab41fb 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -497,6 +497,22 @@ void __init pti_init(void)
  
-+#define LDT_END_ADDR		(LDT_BASE_ADDR + PMD_SIZE)
+ 	pr_info("enabled\n");
+ 
++#ifdef CONFIG_X86_32
++	if (boot_cpu_has(X86_FEATURE_PCID)) {
++		/* Use printk to work around pr_fmt() */
++		printk(KERN_WARNING "\n");
++		printk(KERN_WARNING "************************************************************\n");
++		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
++		printk(KERN_WARNING "**                                                        **\n");
++		printk(KERN_WARNING "** You are using 32-bit PTI on a 64-bit PCID-capable CPU. **\n");
++		printk(KERN_WARNING "** Your performance will increase dramatically if you     **\n");
++		printk(KERN_WARNING "** switch to a 64-bit kernel!                             **\n");
++		printk(KERN_WARNING "**                                                        **\n");
++		printk(KERN_WARNING "** WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!  **\n");
++		printk(KERN_WARNING "************************************************************\n");
++	}
++#endif
 +
- #define PKMAP_BASE		\
- 	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
+ 	pti_clone_user_shared();
  
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 355b488..f78ded7 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -104,6 +104,7 @@ extern unsigned int ptrs_per_p4d;
- #define LDT_PGD_ENTRY_L5	-112UL
- #define LDT_PGD_ENTRY		(pgtable_l5_enabled ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
- #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
-+#define LDT_END_ADDR		(LDT_BASE_ADDR + PGDIR_SIZE)
- 
- #define __VMALLOC_BASE_L4	0xffffc90000000000
- #define __VMALLOC_BASE_L5 	0xffa0000000000000
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index c9b1402..e921b3d 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -206,7 +206,7 @@ static void free_ldt_pgtables(struct mm_struct *mm)
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
- 	struct mmu_gather tlb;
- 	unsigned long start = LDT_BASE_ADDR;
--	unsigned long end = start + (1UL << PGDIR_SHIFT);
-+	unsigned long end = LDT_END_ADDR;
- 
- 	if (!static_cpu_has(X86_FEATURE_PTI))
- 		return;
+ 	/* Undo all global bits from the init pagetables in head_64.S: */
 -- 
 2.7.4
