@@ -1,70 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A7F1E6B0005
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 06:38:50 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id s6so6289592pgn.16
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 03:38:50 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id p11si9013023pfj.294.2018.04.23.03.38.48
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E00A66B0005
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 06:52:07 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id e22-v6so8333004ita.0
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 03:52:07 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0129.outbound.protection.outlook.com. [104.47.1.129])
+        by mx.google.com with ESMTPS id f9-v6si10035741ioh.129.2018.04.23.03.52.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 03:38:49 -0700 (PDT)
-Date: Mon, 23 Apr 2018 11:38:10 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [RFC PATCH 0/2] memory.low,min reclaim
-Message-ID: <20180423103804.GA12648@castle.DHCP.thefacebook.com>
-References: <20180320223353.5673-1-guro@fb.com>
- <20180422202612.127760-1-gthelen@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 23 Apr 2018 03:52:06 -0700 (PDT)
+Date: Mon, 23 Apr 2018 13:50:50 +0300
+From: Aaro Koskinen <aaro.koskinen@nokia.com>
+Subject: Re: [PATCH 1/5] x86, pti: fix boot problems from Global-bit setting
+Message-ID: <20180423105050.GA16237@ak-laptop.emea.nsn-net.net>
+References: <20180420222018.E7646EE1@viggo.jf.intel.com>
+ <20180420222019.20C4A410@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20180422202612.127760-1-gthelen@google.com>
+In-Reply-To: <20180420222019.20C4A410@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, Cgroups <cgroups@vger.kernel.org>, kernel-team@fb.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mceier@gmail.com, aarcange@redhat.com, luto@kernel.org, arjan@linux.intel.com, bp@alien8.de, dan.j.williams@intel.com, dwmw2@infradead.org, gregkh@linuxfoundation.org, hughd@google.com, jpoimboe@redhat.com, jgross@suse.com, keescook@google.com, torvalds@linux-foundation.org, namit@vmware.com, peterz@infradead.org, tglx@linutronix.de
 
-Hi, Greg!
+Hi,
 
-On Sun, Apr 22, 2018 at 01:26:10PM -0700, Greg Thelen wrote:
-> Roman's previously posted memory.low,min patches add per memcg effective
-> low limit to detect overcommitment of parental limits.  But if we flip
-> low,min reclaim to bail if usage<{low,min} at any level, then we don't need
-> an effective low limit, which makes the code simpler.  When parent limits
-> are overcommited memory.min will oom kill, which is more drastic but makes
-> the memory.low a simpler concept.  If memcg a/b wants oom kill before
-> reclaim, then give it to them.  It seems a bit strange for a/b/memory.low's
-> behaviour to depend on a/c/memory.low (i.e. a/b.low is strong unless
-> a/b.low+a/c.low exceed a.low).
-
-It's actually not strange: a/b and a/c are sharing a common resource:
-a/memory.low.
-
-Exactly as a/b/memory.max and a/c/memory.max are sharing a/memory.max.
-If there are sibling cgroups which are consuming memory, a cgroup can't
-exceed parent's memory.max, even if its memory.max is grater.
-
+On Fri, Apr 20, 2018 at 03:20:19PM -0700, Dave Hansen wrote:
+> Part of the global bit _setting_ patches also includes clearing the
+> Global bit when we do not want it.  That is done with
+> set_memory_nonglobal(), which uses change_page_attr_clear() in
+> pageattr.c under the covers.
 > 
-> I think there might be a simpler way (ableit it doesn't yet include
-> Documentation):
-> - memcg: fix memory.low
-> - memcg: add memory.min
->  3 files changed, 75 insertions(+), 6 deletions(-)
+> The TLB flushing code inside pageattr.c has has checks like
+> BUG_ON(irqs_disabled()), looking for interrupt disabling that might
+> cause deadlocks.  But, these also trip in early boot on certain
+> preempt configurations.  Just copy the existing BUG_ON() sequence from
+> cpa_flush_range() to the other two sites and check for early boot.
 > 
-> The idea of this alternate approach is for memory.low,min to avoid reclaim
-> if any portion of under-consideration memcg ancestry is under respective
-> limit.
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Fixes: 39114b7a7 (x86/pti: Never implicitly clear _PAGE_GLOBAL for kernel image)
+> Reported-by: Mariusz Ceier <mceier@gmail.com>
+> Reported-by: Aaro Koskinen <aaro.koskinen@nokia.com>
 
-This approach has a significant downside: it breaks hierarchical constraints
-for memory.low/min. There are two important outcomes:
+Tested-by: Aaro Koskinen <aaro.koskinen@nokia.com>
 
-1) Any leaf's memory.low/min value is respected, even if parent's value
-   is lower or even 0. It's not possible anymore to limit the amount of
-   protected memory for a sub-tree.
-   This is especially bad in case of delegation.
+A.
 
-2) If a cgroup has an ancestor with the usage under its memory.low/min,
-   it becomes protection, even if its memory.low/min is 0. So it becomes
-   impossible to have unprotected cgroups in protected sub-tree.
-
-Thanks!
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Arjan van de Ven <arjan@linux.intel.com>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: David Woodhouse <dwmw2@infradead.org>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+> Cc: Juergen Gross <jgross@suse.com>
+> Cc: Kees Cook <keescook@google.com>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Nadav Amit <namit@vmware.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: linux-mm@kvack.org
+> ---
+> 
+>  b/arch/x86/mm/pageattr.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff -puN arch/x86/mm/pageattr.c~pti-glb-boot-problem-fix arch/x86/mm/pageattr.c
+> --- a/arch/x86/mm/pageattr.c~pti-glb-boot-problem-fix	2018-04-20 14:10:01.086749169 -0700
+> +++ b/arch/x86/mm/pageattr.c	2018-04-20 14:10:01.090749169 -0700
+> @@ -172,7 +172,7 @@ static void __cpa_flush_all(void *arg)
+>  
+>  static void cpa_flush_all(unsigned long cache)
+>  {
+> -	BUG_ON(irqs_disabled());
+> +	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
+>  
+>  	on_each_cpu(__cpa_flush_all, (void *) cache, 1);
+>  }
+> @@ -236,7 +236,7 @@ static void cpa_flush_array(unsigned lon
+>  	unsigned long do_wbinvd = cache && numpages >= 1024; /* 4M threshold */
+>  #endif
+>  
+> -	BUG_ON(irqs_disabled());
+> +	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
+>  
+>  	on_each_cpu(__cpa_flush_all, (void *) do_wbinvd, 1);
+>  
+> _
