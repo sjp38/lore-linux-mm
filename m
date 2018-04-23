@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B99086B000C
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:55:43 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id f6-v6so13382480ioc.1
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 05:55:43 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D3736B000E
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:55:46 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id y4-v6so14329900iod.5
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 05:55:46 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 10-v6sor4138428ite.69.2018.04.23.05.55.42
+        by mx.google.com with SMTPS id 1-v6sor3185238itx.35.2018.04.23.05.55.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 23 Apr 2018 05:55:42 -0700 (PDT)
+        Mon, 23 Apr 2018 05:55:44 -0700 (PDT)
 From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 4/9] Documentation for Pmalloc
-Date: Mon, 23 Apr 2018 16:54:53 +0400
-Message-Id: <20180423125458.5338-5-igor.stoppa@huawei.com>
+Subject: [PATCH 5/9] Pmalloc selftest
+Date: Mon, 23 Apr 2018 16:54:54 +0400
+Message-Id: <20180423125458.5338-6-igor.stoppa@huawei.com>
 In-Reply-To: <20180423125458.5338-1-igor.stoppa@huawei.com>
 References: <20180423125458.5338-1-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,193 +20,246 @@ List-ID: <linux-mm.kvack.org>
 To: willy@infradead.org, keescook@chromium.org, paul@paul-moore.com, sds@tycho.nsa.gov, mhocko@kernel.org, corbet@lwn.net
 Cc: labbott@redhat.com, linux-cc=david@fromorbit.com, --cc=rppt@linux.vnet.ibm.com, --security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, igor.stoppa@gmail.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-Detailed documentation about the protectable memory allocator.
+Add basic self-test functionality for pmalloc.
+
+The testing is introduced as early as possible, right after the main
+dependency, genalloc, has passed successfully, so that it can help
+diagnosing failures in pmalloc users.
 
 Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 ---
- Documentation/core-api/index.rst   |   1 +
- Documentation/core-api/pmalloc.rst | 161 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 162 insertions(+)
- create mode 100644 Documentation/core-api/pmalloc.rst
+ include/linux/test_pmalloc.h |  24 ++++++++
+ init/main.c                  |   2 +
+ mm/Kconfig                   |  10 ++++
+ mm/Makefile                  |   1 +
+ mm/test_pmalloc.c            | 138 +++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 175 insertions(+)
+ create mode 100644 include/linux/test_pmalloc.h
+ create mode 100644 mm/test_pmalloc.c
 
-diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-index c670a8031786..8f5de42d6571 100644
---- a/Documentation/core-api/index.rst
-+++ b/Documentation/core-api/index.rst
-@@ -25,6 +25,7 @@ Core utilities
-    genalloc
-    errseq
-    printk-formats
-+   pmalloc
- 
- Interfaces for kernel debugging
- ===============================
-diff --git a/Documentation/core-api/pmalloc.rst b/Documentation/core-api/pmalloc.rst
+diff --git a/include/linux/test_pmalloc.h b/include/linux/test_pmalloc.h
 new file mode 100644
-index 000000000000..27eb7b3eafc4
+index 000000000000..c7e2e451c17c
 --- /dev/null
-+++ b/Documentation/core-api/pmalloc.rst
-@@ -0,0 +1,161 @@
-+.. SPDX-License-Identifier: GPL-2.0
-+
-+.. _pmalloc:
-+
-+Protectable memory allocator
-+============================
-+
-+Purpose
-+-------
-+
-+The pmalloc library is meant to provide read-only status to data that,
-+for some reason, could neither be declared as constant, nor could it take
-+advantage of the qualifier __ro_after_init, but it is in spirit
-+write-once/read-only.
-+At some point it might get teared down, however that doesn't affect how it
-+is treated, while it's still relevant.
-+Pmalloc protects data from both accidental and malicious overwrites.
-+
-+Example: A policy that is loaded from userspace.
++++ b/include/linux/test_pmalloc.h
+@@ -0,0 +1,24 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * test_pmalloc.h
++ *
++ * (C) Copyright 2018 Huawei Technologies Co. Ltd.
++ * Author: Igor Stoppa <igor.stoppa@huawei.com>
++ */
 +
 +
-+Concept
-+-------
-+
-+The MMU available in the system can be used to write protect memory pages.
-+Unfortunately this feature cannot be used as-it-is, to protect sensitive
-+data, because this potentially read-only data is typically interleaved
-+with other data, which must stay writeable.
-+
-+pmalloc introduces the concept of protectable memory pools.
-+A pool contains a list of areas of virtually contiguous pages of
-+memory. When memory is requested from a pool, the requests are satisfied
-+by reserving adequate amounts of memory from the active area of memory in
-+that pool. A request can cross page boundaries, therefore an area is the
-+minimum granularity that pmalloc allows to protect.
-+
-+There might be special cases where an area contains only one page, but
-+they are still addressed as areas.
-+
-+Areas are allocated on-the-fly, when the space available is insufficient
-+for satisfying the latest request received.
-+
-+To facilitate the conversion of existing code to pmalloc pools, several
-+helper functions are provided, mirroring their k/vmalloc counterparts.
-+
-+However, there is no pfree(), because the memory protected by a pool is
-+released exclusively when the pool is destroyed.
++#ifndef __LINUX_TEST_PMALLOC_H
++#define __LINUX_TEST_PMALLOC_H
 +
 +
-+When to use pmalloc
-+-------------------
++#ifdef CONFIG_TEST_PROTECTABLE_MEMORY
 +
-+- Pmalloc memory is intended to complement __ro_after_init.
-+  __ro_after_init requires that the initialization value is applied before
-+  init is completed. If this is not possible, then pmalloc can be used.
++void test_pmalloc(void);
 +
-+- Pmalloc can be useful also when the amount of data to protect is not
-+  known at compile time and the memory can only be allocated dynamically.
++#else
 +
-+- Finally, it can be useful also when it is desirable to control
-+  dynamically (for example throguh the kernel command line) if some
-+  specific data ought to be protected or not, without having to rebuild
-+  the kernel, for toggling a "const" qualifier.
-+  This can be used, for example, by a linux distro, to create a more
-+  versatile binary kernel and allow its users to toggle between developer
-+  (unprotected) or production (protected) modes by reconfiguring the
-+  bootloader.
++static inline void test_pmalloc(void){};
 +
++#endif
 +
-+When *not* to use pmalloc
-+-------------------------
++#endif
+diff --git a/init/main.c b/init/main.c
+index b795aa341a3a..27f8479c4578 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -91,6 +91,7 @@
+ #include <linux/cache.h>
+ #include <linux/rodata_test.h>
+ #include <linux/jump_label.h>
++#include <linux/test_pmalloc.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -679,6 +680,7 @@ asmlinkage __visible void __init start_kernel(void)
+ 	 */
+ 	mem_encrypt_init();
+ 
++	test_pmalloc();
+ #ifdef CONFIG_BLK_DEV_INITRD
+ 	if (initrd_start && !initrd_below_start_ok &&
+ 	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
+diff --git a/mm/Kconfig b/mm/Kconfig
+index d7ef40eaa4e8..f98b4c0aebce 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -758,3 +758,13 @@ config PROTECTABLE_MEMORY
+     depends on MMU
+     depends on ARCH_HAS_SET_MEMORY
+     default y
 +
-+Using pmalloc is not a good idea when optimizing TLB utilization is
-+paramount: pmalloc relies on virtual memory areas and will therefore use
-+more TLB entries. It still does a better job of it, compared to invoking
-+vmalloc for each allocation, but it is undeniably less optimized wrt to
-+TLB use than using the physmap directly, through kmalloc or similar.
++config TEST_PROTECTABLE_MEMORY
++	bool "Run self test for pmalloc memory allocator"
++        depends on MMU
++	depends on ARCH_HAS_SET_MEMORY
++	select PROTECTABLE_MEMORY
++	default n
++	help
++	  Tries to verify that pmalloc works correctly and that the memory
++	  is effectively protected.
+diff --git a/mm/Makefile b/mm/Makefile
+index 6a6668f99799..802cba37013b 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -66,6 +66,7 @@ obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
+ obj-$(CONFIG_SLOB) += slob.o
+ obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
+ obj-$(CONFIG_PROTECTABLE_MEMORY) += pmalloc.o
++obj-$(CONFIG_TEST_PROTECTABLE_MEMORY) += test_pmalloc.o
+ obj-$(CONFIG_KSM) += ksm.o
+ obj-$(CONFIG_PAGE_POISONING) += page_poison.o
+ obj-$(CONFIG_SLAB) += slab.o
+diff --git a/mm/test_pmalloc.c b/mm/test_pmalloc.c
+new file mode 100644
+index 000000000000..032e9741c5f1
+--- /dev/null
++++ b/mm/test_pmalloc.c
+@@ -0,0 +1,138 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * test_pmalloc.c
++ *
++ * (C) Copyright 2018 Huawei Technologies Co. Ltd.
++ * Author: Igor Stoppa <igor.stoppa@huawei.com>
++ */
 +
++#include <linux/pmalloc.h>
++#include <linux/mm.h>
++#include <linux/test_pmalloc.h>
++#include <linux/bug.h>
 +
-+Caveats
-+-------
++#include "pmalloc_helpers.h"
 +
-+- When a pool is protected, whatever memory would be still available in
-+  the current vmap_area (from which allocations are performed) is
-+  relinquished.
++#define SIZE_1 (PAGE_SIZE * 3)
++#define SIZE_2 1000
 +
-+- As already explained, freeing of memory is not supported. Pages will be
-+  returned to the system upon destruction of the memory pool that they
-+  belong to. For this reason, no pfree() function is provided
++/* wrapper for is_pmalloc_object() with messages */
++static inline bool validate_alloc(bool expected, void *addr,
++				  unsigned long size)
++{
++	bool test;
 +
-+- The address range available for vmalloc (and thus for pmalloc too) is
-+  limited, on 32-bit systems. However it shouldn't be an issue, since not
-+  much data is expected to be dynamically allocated and turned into
-+  read-only.
-+
-+- Regarding SMP systems, the allocations are expected to happen mostly
-+  during an initial transient, after which there should be no more need
-+  to perform cross-processor synchronizations of page tables.
-+  Loading of kernel modules is an exception to this, but it's not expected
-+  to happen with such high frequency to become a problem.
-+
-+- While pmalloc memory can be protected, since it is allocated dynamically,
-+  it is still subject to indirect attacks, where the memory itself is not
-+  touched, but anything used as reference to the allocation can be altered.
-+  In some cases the allocation from a pmalloc pool is referred to by another
-+  allocation, from either the same or another pool, however at some point,
-+  there will be a base reference which can be attacked, if it cannot be
-+  protected.
-+  This base reference, or "anchor" is suitable for protection using
-+  __ro_after_init, since it only needs to store the *address* of the
-+  pmalloc allocation that will be initialized and protected later on.
-+  But the allocation can take place during init, and its address is known
-+  and constant.
-+
-+
-+Utilization
-+-----------
-+
-+Typical sequence, when using pmalloc
-+
-+Steps to perforn during init:
-+
-+#. create an "anchor", with the modifier __ro_after_init
-+
-+#. create a pool
-+
-+   :c:func:`pmalloc_create_pool`
-+
-+#. issue an allocation requests to the pool with either
-+
-+   :c:func:`pmalloc`
-+
-+   or one of its variants, like
-+
-+   :c:func:`pzalloc`
-+
-+   assigning its address to the anchor
-+
-+#. iterate the previous points as needed
-+
-+The Following steps can be performed at any time, both during and after
-+init, as long as they strictly come after the previous sequence.
-+
-+#. initialize with the desired value the memory obtained from the pool(s)
-+
-+#. write-protect the memory so far allocated
-+
-+   :c::func:`pmalloc_protect_pool`
-+
-+#. iterate over the last 2 points as needed
-+
-+#. [optional] destroy the pool
-+
-+   :c:func:`pmalloc_destroy_pool`
++	test = is_pmalloc_object(addr, size) > 0;
++	pr_notice("must be %s: %s",
++		  expected ? "ok" : "no", test ? "ok" : "no");
++	return test == expected;
++}
 +
 +
-+API
-+---
++#define is_alloc_ok(variable, size)	\
++	validate_alloc(true, variable, size)
 +
-+.. kernel-doc:: include/linux/pmalloc.h
-+.. kernel-doc:: mm/pmalloc.c
++
++#define is_alloc_no(variable, size)	\
++	validate_alloc(false, variable, size)
++
++/* tests the basic life-cycle of a pool */
++static bool create_and_destroy_pool(void)
++{
++	static struct pmalloc_pool *pool;
++
++	pr_notice("Testing pool creation and destruction capability");
++
++	pool = pmalloc_create_pool();
++	if (WARN(!pool, "Cannot allocate memory for pmalloc selftest."))
++		return false;
++	pmalloc_destroy_pool(pool);
++	return true;
++}
++
++
++/*  verifies that it's possible to allocate from the pool */
++static bool test_alloc(void)
++{
++	static struct pmalloc_pool *pool;
++	static void *p;
++
++	pr_notice("Testing allocation capability");
++	pool = pmalloc_create_pool();
++	if (WARN(!pool, "Unable to allocate memory for pmalloc selftest."))
++		return false;
++	p = pmalloc(pool,  SIZE_1 - 1);
++	pmalloc_protect_pool(pool);
++	pmalloc_destroy_pool(pool);
++	if (WARN(!p, "Failed to allocate memory from the pool"))
++		return false;
++	return true;
++}
++
++
++/* tests the identification of pmalloc ranges */
++static bool test_is_pmalloc_object(void)
++{
++	struct pmalloc_pool *pool;
++	void *pmalloc_p;
++	void *vmalloc_p;
++	bool retval = false;
++
++	pr_notice("Test correctness of is_pmalloc_object()");
++
++	vmalloc_p = vmalloc(SIZE_1);
++	if (WARN(!vmalloc_p,
++		 "Unable to allocate memory for pmalloc selftest."))
++		return false;
++	pool = pmalloc_create_pool();
++	if (WARN(!pool, "Unable to allocate memory for pmalloc selftest."))
++		return false;
++	pmalloc_p = pmalloc(pool,  SIZE_1 - 1);
++	if (WARN(!pmalloc_p, "Failed to allocate memory from the pool"))
++		goto error;
++	if (WARN_ON(unlikely(!is_alloc_ok(pmalloc_p, 10))) ||
++	    WARN_ON(unlikely(!is_alloc_ok(pmalloc_p, SIZE_1))) ||
++	    WARN_ON(unlikely(!is_alloc_ok(pmalloc_p, PAGE_SIZE))) ||
++	    WARN_ON(unlikely(!is_alloc_no(pmalloc_p, SIZE_1 + 1))) ||
++	    WARN_ON(unlikely(!is_alloc_no(vmalloc_p, 10))))
++		goto error;
++	retval = true;
++error:
++	pmalloc_protect_pool(pool);
++	pmalloc_destroy_pool(pool);
++	vfree(vmalloc_p);
++	return retval;
++}
++
++/* Test out of virtually contiguous memory */
++static void test_oovm(void)
++{
++	struct pmalloc_pool *pool;
++	unsigned int i;
++
++	pr_notice("Exhaust vmalloc memory with doubling allocations.");
++	pool = pmalloc_create_pool();
++	if (WARN(!pool, "Failed to create pool"))
++		return;
++	for (i = 1; i; i *= 2)
++		if (unlikely(!pzalloc(pool, i - 1)))
++			break;
++	pr_notice("vmalloc oom at %d allocation", i - 1);
++	pmalloc_protect_pool(pool);
++	pmalloc_destroy_pool(pool);
++}
++
++/**
++ * test_pmalloc()  -main entry point for running the test cases
++ */
++void test_pmalloc(void)
++{
++
++	pr_notice("pmalloc-selftest");
++
++	if (unlikely(!(create_and_destroy_pool() &&
++		       test_alloc() &&
++		       test_is_pmalloc_object())))
++		return;
++	test_oovm();
++}
 -- 
 2.14.1
