@@ -1,193 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 525266B0005
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 00:17:35 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id m18-v6so2974298lfj.1
-        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 21:17:35 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c7sor2563309ljj.44.2018.04.22.21.17.33
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C60006B0005
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 00:22:21 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id p190so5171231qkc.17
+        for <linux-mm@kvack.org>; Sun, 22 Apr 2018 21:22:21 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id w2-v6si1825579qtn.260.2018.04.22.21.22.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 22 Apr 2018 21:17:33 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 22 Apr 2018 21:22:20 -0700 (PDT)
+Subject: Re: [PATCH 2/3] mm: add find_alloc_contig_pages() interface
+References: <20180417020915.11786-1-mike.kravetz@oracle.com>
+ <20180417020915.11786-3-mike.kravetz@oracle.com>
+ <20180423000943.GO17484@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <fc28bcb7-8f9a-e841-0fdf-8636523ebc2a@oracle.com>
+Date: Sun, 22 Apr 2018 21:22:07 -0700
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+YWUgyzCBadg+Oe8wDkFCaBzmcKDgu3rKjQxim7NXNLpg@mail.gmail.com>
-References: <1524243513-29118-1-git-send-email-chuhu@redhat.com>
- <20180420175023.3c4okuayrcul2bom@armageddon.cambridge.arm.com>
- <20180422125141.GF17484@dhcp22.suse.cz> <CACT4Y+YWUgyzCBadg+Oe8wDkFCaBzmcKDgu3rKjQxim7NXNLpg@mail.gmail.com>
-From: Chunyu Hu <chuhu.ncepu@gmail.com>
-Date: Mon, 23 Apr 2018 12:17:32 +0800
-Message-ID: <CABATaM6eWtssvuj3UW9LHLK3HWo8P9g0z9VzFnuqKPKO5KMJ3A@mail.gmail.com>
-Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in gfp_kmemleak_mask
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180423000943.GO17484@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Chunyu Hu <chuhu@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Reinette Chatre <reinette.chatre@intel.com>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 22 April 2018 at 23:00, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Sun, Apr 22, 2018 at 2:51 PM, Michal Hocko <mhocko@kernel.org> wrote:
->> On Fri 20-04-18 18:50:24, Catalin Marinas wrote:
->>> On Sat, Apr 21, 2018 at 12:58:33AM +0800, Chunyu Hu wrote:
->>> > __GFP_NORETRY and  __GFP_NOFAIL are combined in gfp_kmemleak_mask now.
->>> > But it's a wrong combination. As __GFP_NOFAIL is blockable, but
->>> > __GFP_NORETY is not blockable, make it self-contradiction.
->>> >
->>> > __GFP_NOFAIL means 'The VM implementation _must_ retry infinitely'. But
->>> > it's not the real intention, as kmemleak allow alloc failure happen in
->>> > memory pressure, in that case kmemleak just disables itself.
->>>
->>> Good point. The __GFP_NOFAIL flag was added by commit d9570ee3bd1d
->>> ("kmemleak: allow to coexist with fault injection") to keep kmemleak
->>> usable under fault injection.
->>>
->>> > commit 9a67f6488eca ("mm: consolidate GFP_NOFAIL checks in the allocator
->>> > slowpath") documented that what user wants here should use GFP_NOWAIT, and
->>> > the WARN in __alloc_pages_slowpath caught this weird usage.
->>> >
->>> >  <snip>
->>> >  WARNING: CPU: 3 PID: 64 at mm/page_alloc.c:4261 __alloc_pages_slowpath+0x1cc3/0x2780
->>> [...]
->>> > Replace the __GFP_NOFAIL with GFP_NOWAIT in gfp_kmemleak_mask, __GFP_NORETRY
->>> > and GFP_NOWAIT are in the gfp_kmemleak_mask. So kmemleak object allocaion
->>> > is no blockable and no reclaim, making kmemleak less disruptive to user
->>> > processes in pressure.
->>>
->>> It doesn't solve the fault injection problem for kmemleak (unless we
->>> change __should_failslab() somehow, not sure yet). An option would be to
->>> replace __GFP_NORETRY with __GFP_NOFAIL in kmemleak when fault injection
->>> is enabled.
+On 04/22/2018 05:09 PM, Michal Hocko wrote:
+> On Mon 16-04-18 19:09:14, Mike Kravetz wrote:
+> [...]
+>> @@ -2010,9 +2011,13 @@ static __always_inline struct page *__rmqueue_cma_fallback(struct zone *zone,
+>>  {
+>>  	return __rmqueue_smallest(zone, order, MIGRATE_CMA);
+>>  }
+>> +#define contig_alloc_migratetype_ok(migratetype) \
+>> +	((migratetype) == MIGRATE_CMA || (migratetype) == MIGRATE_MOVABLE)
+>>  #else
+>>  static inline struct page *__rmqueue_cma_fallback(struct zone *zone,
+>>  					unsigned int order) { return NULL; }
+>> +#define contig_alloc_migratetype_ok(migratetype) \
+>> +	((migratetype) == MIGRATE_MOVABLE)
+>>  #endif
+>>  
+>>  /*
+>> @@ -7822,6 +7827,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>>  	};
+>>  	INIT_LIST_HEAD(&cc.migratepages);
+>>  
+>> +	if (!contig_alloc_migratetype_ok(migratetype))
+>> +		return -EINVAL;
+>> +
 >>
->> Cannot we simply have a disable_fault_injection knob around the
->> allocation rather than playing this dirty tricks with gfp flags which do
->> not make any sense?
+>>  	/*
+>>  	 * What we do here is we mark all pageblocks in range as
+>>  	 * MIGRATE_ISOLATE.  Because pageblock and max order pages may
+>> @@ -7912,8 +7920,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>>  
+>>  	/* Make sure the range is really isolated. */
+>>  	if (test_pages_isolated(outer_start, end, false)) {
+>> -		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
+>> -			__func__, outer_start, end);
+>> +		if (!(migratetype == MIGRATE_MOVABLE)) /* only print for CMA */
+>> +			pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
+>> +				__func__, outer_start, end);
+>>  		ret = -EBUSY;
+>>  		goto done;
+>>  	}
+> 
+> This probably belongs to a separate patch. I would be tempted to say
+> that we should get rid of this migratetype thingy altogether. I confess
+> I have forgot everything about why this is required actually but it is
+> ugly as hell. Not your fault of course.
+> 
+>> @@ -7949,6 +7958,82 @@ void free_contig_range(unsigned long pfn, unsigned long nr_pages)
+>>  	}
+>>  	WARN(count != 0, "%ld pages are still in use!\n", count);
+>>  }
+>> +
+>> +static bool contig_pfn_range_valid(struct zone *z, unsigned long start_pfn,
+>> +					unsigned long nr_pages)
+>> +{
+>> +	unsigned long i, end_pfn = start_pfn + nr_pages;
+>> +	struct page *page;
+>> +
+>> +	for (i = start_pfn; i < end_pfn; i++) {
+>> +		if (!pfn_valid(i))
+>> +			return false;
+>> +
+>> +		page = pfn_to_page(i);
+> 
+> It believe we want pfn_to_online_page here. The old giga pages code is
+> buggy in that regard but nothing really critical because the
+> alloc_contig_range will notice that.
 
-To this way, looks like we need to change the attrs. but what we have stored in
-attr is also gfp flags, even we define a new member, ignore_flags, we still
-need a new flag, or did I miss something?  But looks like a new flag is simple.
+Ok
 
-For slab, it supports cache_filter, so it's possible to add a
-filer_out slab flag,
-and skip it.  But for page, it's just has gfp flag and size info for
-filter, no other info.
+> Also do we want to check other usual suspects? E.g. PageReserved? And
+> generally migrateable pages if page count > 0. Or do we want to leave
+> everything to the alloc_contig_range?
 
-#ifdef CONFIG_FAIL_PAGE_ALLOC
+I think you proposed something like the above with limited checking at
+some time in the past.  In my testing, allocations were more likely to
+succeed if we did limited testing here and let alloc_contig_range take
+a shot at migration/allocation.  There really are two ways to approach
+this, do as much checking up front or let it be handled by alloc_contig_range.
 
-static struct {
-    struct fault_attr attr;
+>> +
+>> +		if (page_zone(page) != z)
+>> +			return false;
+>> +
+>> +	}
+>> +
+>> +	return true;
+>> +}
+>> +
+>> +/**
+>> + * find_alloc_contig_pages() -- attempt to find and allocate a contiguous
+>> + *				range of pages
+>> + * @order:	number of pages
+>> + * @gfp:	gfp mask used to limit search as well as during compaction
+>> + * @nid:	target node
+>> + * @nodemask:	mask of other possible nodes
+>> + *
+>> + * Pages can be freed with a call to free_contig_pages(), or by manually
+>> + * calling __free_page() for each page allocated.
+>> + *
+>> + * Return: pointer to 'order' pages on success, or NULL if not successful.
+>> + */
+>> +struct page *find_alloc_contig_pages(unsigned int order, gfp_t gfp,
+>> +					int nid, nodemask_t *nodemask)
+> 
+> Vlastimil asked about this but I would even say that we do not want to
+> make this order based. Why would we want to restrict the api to 2^order
+> sizes in the first place? What if somebody wants to allocate 123 pages?
 
-    bool ignore_gfp_highmem;
-    bool ignore_gfp_reclaim;
-    u32 min_order;
-} fail_page_alloc = {
-    .attr = FAULT_ATTR_INITIALIZER,
-    .ignore_gfp_reclaim = true,
-    .ignore_gfp_highmem = true,
-    .min_order = 1,
-};
+After Vlastimil's question and again here, I realized that this routine
+has a HUGE gap.  For allocation sizes less than MAX_ORDER, it should be
+using the traditional paga allocation routines.  It is only when allocation
+size is greater than MAX_ORDER that we need to call into alloc_contig_range.
 
+Unless I am missing something, calls to alloc_contig range need to have
+a size that is a multiple of page block.  This is because isolation needs
+to take place at a page block level.  We can easily 'round up' and release
+excess pages.
 
-static struct {
-    struct fault_attr attr;
-    bool ignore_gfp_reclaim;
-    bool cache_filter;
-} failslab = {
-    .attr = FAULT_ATTR_INITIALIZER,
-    .ignore_gfp_reclaim = true,
-    .cache_filter = false,
-};
+Using number of pages instead of order makes sense.   I will rewrite with
+this in mind as well as taking the other issues into account.
 
->>
->>> BTW, does the combination of NOWAIT and NORETRY make kmemleak
->>> allocations more likely to fail?
->>
->> NOWAIT + NORETRY simply doesn't make much sesne. It is equivalent to
->> NOWAIT.
->
-> Specifying a flag that says "don't do fault injection for this
-> allocation" looks like a reasonable solution. Fewer lines of code and
-> no need to switch on interrupts. __GFP_NOFAIL seems to mean more than
-> that, so perhaps we need a separate flag that affects only fault
-> injection and should be used only in debugging code (no-op without
-> fault injection anyway).
+> 
+>> +{
+>> +	unsigned long pfn, nr_pages, flags;
+>> +	struct page *ret_page = NULL;
+>> +	struct zonelist *zonelist;
+>> +	struct zoneref *z;
+>> +	struct zone *zone;
+>> +	int rc;
+>> +
+>> +	nr_pages = 1 << order;
+>> +	zonelist = node_zonelist(nid, gfp);
+>> +	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp),
+>> +					nodemask) {
+>> +		spin_lock_irqsave(&zone->lock, flags);
+>> +		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
+>> +		while (zone_spans_pfn(zone, pfn + nr_pages - 1)) {
+>> +			if (contig_pfn_range_valid(zone, pfn, nr_pages)) {
+>> +				spin_unlock_irqrestore(&zone->lock, flags);
+> 
+> I know that the giga page allocation does use the zone lock but why? I
+> suspect it wants to stabilize zone_start_pfn but zone lock doesn't do
+> that.
+> 
 
+I am not sure.  As you suspected, this was copied from the giga page
+allocation code.  I'll look into it.
 
-Got the  two places for skipping fault injection, both they check the gfp flags
-as part of the work.  If we have the new no fault inject flag, and
-define the wrapper
-as below, then it will look like.
-#define _GFP_NOFAULTINJECT (__GFP_NOFAIL|___GFP_NOFAULTINJECT)
+>> +
+>> +				rc = alloc_contig_range(pfn, pfn + nr_pages,
+>> +							MIGRATE_MOVABLE, gfp);
+>> +				if (!rc) {
+>> +					ret_page = pfn_to_page(pfn);
+>> +					return ret_page;
+>> +				}
+>> +				spin_lock_irqsave(&zone->lock, flags);
+>> +			}
+>> +			pfn += nr_pages;
+>> +		}
+>> +		spin_unlock_irqrestore(&zone->lock, flags);
+>> +	}
+> 
+> Other than that this API looks much saner than alloc_contig_range. We
+> still need to sort out some details (e.g. alignment) but it should be an
+> improvement.
 
-bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
-{
-    /* No fault-injection for bootstrap cache */
-    if (unlikely(s == kmem_cache))
-        return false;
+Ok, I will continue to refine.  We now have at least one immediate use
+case for this type of functionality.
 
-    if (gfpflags &  _GFP_NOFAULTINJECTL)
-        return false;
-
-    if (failslab.ignore_gfp_reclaim && (gfpflags & __GFP_RECLAIM))
-        return false;
-
-    if (failslab.cache_filter && !(s->flags & SLAB_FAILSLAB))
-        return false;
-
-    return should_fail(&failslab.attr, s->object_size);
-}
-
-
-static bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-{
-    if (order < fail_page_alloc.min_order)
-        return false;
-    if (gfp_mask &  _GFP_NOFAULTINJECT)
-        return false;
-    if (fail_page_alloc.ignore_gfp_highmem && (gfp_mask & __GFP_HIGHMEM))
-        return false;
-    if (fail_page_alloc.ignore_gfp_reclaim &&
-            (gfp_mask & __GFP_DIRECT_RECLAIM))
-        return false;
-
-    return should_fail(&fail_page_alloc.attr, 1 << order);
-}
-
-the gfp flags defined in linux/gfp.h. we have now 24 flags already, and we have
-an precedent ___GFP_NOLOCKDEP for skipping lockdep.
-
-/* Plain integer GFP bitmasks. Do not use this directly. */
-#define ___GFP_DMA      0x01u
-#define ___GFP_HIGHMEM      0x02u
-#define ___GFP_DMA32        0x04u
-#define ___GFP_MOVABLE      0x08u
-#define ___GFP_RECLAIMABLE  0x10u
-#define ___GFP_HIGH     0x20u
-#define ___GFP_IO       0x40u
-#define ___GFP_FS       0x80u
-#define ___GFP_NOWARN       0x200u
-#define ___GFP_RETRY_MAYFAIL    0x400u
-#define ___GFP_NOFAIL       0x800u
-#define ___GFP_NORETRY      0x1000u
-#define ___GFP_MEMALLOC     0x2000u
-#define ___GFP_COMP     0x4000u
-#define ___GFP_ZERO     0x8000u
-#define ___GFP_NOMEMALLOC   0x10000u
-#define ___GFP_HARDWALL     0x20000u
-#define ___GFP_THISNODE     0x40000u
-#define ___GFP_ATOMIC       0x80000u
-#define ___GFP_ACCOUNT      0x100000u
-#define ___GFP_DIRECT_RECLAIM   0x400000u
-#define ___GFP_WRITE        0x800000u
-#define ___GFP_KSWAPD_RECLAIM   0x1000000u
-#ifdef CONFIG_LOCKDEP
-#define ___GFP_NOLOCKDEP    0x2000000u
-#else
-#define ___GFP_NOLOCKDEP    0
-#endif
-
-So if there is a new flag, it would be the 25th bits.
-
-#ifdef CONFIG_KMEMLEAK
-#define ___GFP_NOFAULTINJECT    0x4000000u
-#else
-#define ___GFP_NOFAULT_INJECT    0
-#endif
+-- 
+Mike Kravetz
