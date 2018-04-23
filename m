@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FEC36B0010
+	by kanga.kvack.org (Postfix) with ESMTP id CEAAD6B0024
 	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:52 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id b10-v6so19454518wrf.3
+Received: by mail-wr0-f198.google.com with SMTP id m7-v6so19252025wrb.16
         for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:52 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id x4si4727689edq.436.2018.04.23.08.47.50
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id t43si1285748edd.391.2018.04.23.08.47.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 23 Apr 2018 08:47:51 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 12/37] x86/32: Use tss.sp1 as cpu_current_top_of_stack
-Date: Mon, 23 Apr 2018 17:47:15 +0200
-Message-Id: <1524498460-25530-13-git-send-email-joro@8bytes.org>
+Subject: [PATCH 13/37] x86/entry/32: Add PTI cr3 switch to non-NMI entry/exit points
+Date: Mon, 23 Apr 2018 17:47:16 +0200
+Message-Id: <1524498460-25530-14-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,80 +22,182 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Now that we store the task-stack in tss.sp1 we can also use
-it as cpu_current_top_of_stack. This unifies the handling
-with x86-64.
+Add unconditional cr3 switches between user and kernel cr3
+to all non-NMI entry and exit points.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/processor.h   | 4 ----
- arch/x86/include/asm/thread_info.h | 2 --
- arch/x86/kernel/cpu/common.c       | 4 ----
- arch/x86/kernel/process_32.c       | 6 ------
- 4 files changed, 16 deletions(-)
+ arch/x86/entry/entry_32.S | 83 ++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 79 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index 21a1149..d65e852 100644
---- a/arch/x86/include/asm/processor.h
-+++ b/arch/x86/include/asm/processor.h
-@@ -374,12 +374,8 @@ DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
- #define __KERNEL_TSS_LIMIT	\
- 	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 71e1cb3..b2b0ecb 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -154,6 +154,33 @@
  
--#ifdef CONFIG_X86_32
--DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
--#else
- /* The RO copy can't be accessed with this_cpu_xyz(), so use the RW copy. */
- #define cpu_current_top_of_stack cpu_tss_rw.x86_tss.sp1
--#endif
+ #endif /* CONFIG_X86_32_LAZY_GS */
  
- /*
-  * Save the original ist values for checking stack pointers during debugging
-diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
-index a5d9521..943c673 100644
---- a/arch/x86/include/asm/thread_info.h
-+++ b/arch/x86/include/asm/thread_info.h
-@@ -205,9 +205,7 @@ static inline int arch_within_stack_frames(const void * const stack,
++/* Unconditionally switch to user cr3 */
++.macro SWITCH_TO_USER_CR3 scratch_reg:req
++	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
++
++	movl	%cr3, \scratch_reg
++	orl	$PTI_SWITCH_MASK, \scratch_reg
++	movl	\scratch_reg, %cr3
++.Lend_\@:
++.endm
++
++/*
++ * Switch to kernel cr3 if not already loaded and return current cr3 in
++ * \scratch_reg
++ */
++.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
++	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
++	movl	%cr3, \scratch_reg
++	/* Test if we are already on kernel CR3 */
++	testl	$PTI_SWITCH_MASK, \scratch_reg
++	jz	.Lend_\@
++	andl	$(~PTI_SWITCH_MASK), \scratch_reg
++	movl	\scratch_reg, %cr3
++	/* Return original CR3 in \scratch_reg */
++	orl	$PTI_SWITCH_MASK, \scratch_reg
++.Lend_\@:
++.endm
++
+ .macro SAVE_ALL pt_regs_ax=%eax switch_stacks=0
+ 	cld
+ 	/* Push segment registers and %eax */
+@@ -288,7 +315,6 @@
+ #endif /* CONFIG_X86_ESPFIX32 */
+ .endm
  
- #else /* !__ASSEMBLY__ */
- 
--#ifdef CONFIG_X86_64
- # define cpu_current_top_of_stack (cpu_tss_rw + TSS_sp1)
--#endif
- 
- #endif
- 
-diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
-index 311e988..2d67ad0 100644
---- a/arch/x86/kernel/cpu/common.c
-+++ b/arch/x86/kernel/cpu/common.c
-@@ -1512,10 +1512,6 @@ EXPORT_PER_CPU_SYMBOL(__preempt_count);
-  * the top of the kernel stack.  Use an extra percpu variable to track the
-  * top of the kernel stack directly.
-  */
--DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
--	(unsigned long)&init_thread_union + THREAD_SIZE;
--EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
 -
- #ifdef CONFIG_CC_STACKPROTECTOR
- DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
- #endif
-diff --git a/arch/x86/kernel/process_32.c b/arch/x86/kernel/process_32.c
-index 3f3a8c6..8c29fd5 100644
---- a/arch/x86/kernel/process_32.c
-+++ b/arch/x86/kernel/process_32.c
-@@ -290,12 +290,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
- 	update_sp0(next_p);
- 	refresh_sysenter_cs(next);
- 	this_cpu_write(cpu_current_top_of_stack, task_top_of_stack(next_p));
--	/*
--	 * TODO: Find a way to let cpu_current_top_of_stack point to
--	 * cpu_tss_rw.x86_tss.sp1. Doing so now results in stack corruption with
--	 * iret exceptions.
--	 */
--	this_cpu_write(cpu_tss_rw.x86_tss.sp1, next_p->thread.sp0);
+ /*
+  * Called with pt_regs fully populated and kernel segments loaded,
+  * so we can access PER_CPU and use the integer registers.
+@@ -301,11 +327,19 @@
+  */
+ 
+ #define CS_FROM_ENTRY_STACK	(1 << 31)
++#define CS_FROM_USER_CR3	(1 << 30)
+ 
+ .macro SWITCH_TO_KERNEL_STACK
+ 
+ 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
+ 
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
++
++	/*
++	 * %eax now contains the entry cr3 and we carry it forward in
++	 * that register for the time this macro runs
++	 */
++
+ 	/* Are we on the entry stack? Bail out if not! */
+ 	movl	PER_CPU_VAR(cpu_entry_area), %edi
+ 	addl	$CPU_ENTRY_AREA_entry_stack, %edi
+@@ -374,7 +408,8 @@
+ 	 * but switch back to the entry-stack again when we approach
+ 	 * iret and return to the interrupted code-path. This usually
+ 	 * happens when we hit an exception while restoring user-space
+-	 * segment registers on the way back to user-space.
++	 * segment registers on the way back to user-space or when the
++	 * sysenter handler runs with eflags.tf set.
+ 	 *
+ 	 * When we switch to the task-stack here, we can't trust the
+ 	 * contents of the entry-stack anymore, as the exception handler
+@@ -391,6 +426,7 @@
+ 	 *
+ 	 * %esi: Entry-Stack pointer (same as %esp)
+ 	 * %edi: Top of the task stack
++	 * %eax: CR3 on kernel entry
+ 	 */
+ 
+ 	/* Calculate number of bytes on the entry stack in %ecx */
+@@ -407,6 +443,14 @@
+ 	orl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
  
  	/*
- 	 * Restore %gs if needed (which is common)
++	 * Test the cr3 used to enter the kernel and add a marker
++	 * so that we can switch back to it before iret.
++	 */
++	testl	$PTI_SWITCH_MASK, %eax
++	jz	.Lcopy_pt_regs_\@
++	orl	$CS_FROM_USER_CR3, PT_CS(%esp)
++
++	/*
+ 	 * %esi and %edi are unchanged, %ecx contains the number of
+ 	 * bytes to copy. The code at .Lcopy_pt_regs_\@ will allocate
+ 	 * the stack-frame on task-stack and copy everything over
+@@ -472,7 +516,7 @@
+ 
+ /*
+  * This macro handles the case when we return to kernel-mode on the iret
+- * path and have to switch back to the entry stack.
++ * path and have to switch back to the entry stack and/or user-cr3
+  *
+  * See the comments below the .Lentry_from_kernel_\@ label in the
+  * SWITCH_TO_KERNEL_STACK macro for more details.
+@@ -518,6 +562,18 @@
+ 	/* Safe to switch to entry-stack now */
+ 	movl	%ebx, %esp
+ 
++	/*
++	 * We came from entry-stack and need to check if we also need to
++	 * switch back to user cr3.
++	 */
++	testl	$CS_FROM_USER_CR3, PT_CS(%esp)
++	jz	.Lend_\@
++
++	/* Clear marker from stack-frame */
++	andl	$(~CS_FROM_USER_CR3), PT_CS(%esp)
++
++	SWITCH_TO_USER_CR3 scratch_reg=%eax
++
+ .Lend_\@:
+ .endm
+ /*
+@@ -711,6 +767,18 @@ ENTRY(xen_sysenter_target)
+  * 0(%ebp) arg6
+  */
+ ENTRY(entry_SYSENTER_32)
++	/*
++	 * On entry-stack with all userspace-regs live - save and
++	 * restore eflags and %eax to use it as scratch-reg for the cr3
++	 * switch.
++	 */
++	pushfl
++	pushl	%eax
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
++	popl	%eax
++	popfl
++
++	/* Stack empty again, switch to task stack */
+ 	movl	TSS_entry_stack(%esp), %esp
+ 
+ .Lsysenter_past_esp:
+@@ -791,6 +859,9 @@ ENTRY(entry_SYSENTER_32)
+ 	/* Switch to entry stack */
+ 	movl	%eax, %esp
+ 
++	/* Now ready to switch the cr3 */
++	SWITCH_TO_USER_CR3 scratch_reg=%eax
++
+ 	/*
+ 	 * Restore all flags except IF. (We restore IF separately because
+ 	 * STI gives a one-instruction window in which we won't be interrupted,
+@@ -871,7 +942,11 @@ restore_all:
+ .Lrestore_all_notrace:
+ 	CHECK_AND_APPLY_ESPFIX
+ .Lrestore_nocheck:
+-	RESTORE_REGS 4				# skip orig_eax/error_code
++	/* Switch back to user CR3 */
++	SWITCH_TO_USER_CR3 scratch_reg=%eax
++
++	/* Restore user state */
++	RESTORE_REGS pop=4			# skip orig_eax/error_code
+ .Lirq_return:
+ 	/*
+ 	 * ARCH_HAS_MEMBARRIER_SYNC_CORE rely on IRET core serialization
 -- 
 2.7.4
