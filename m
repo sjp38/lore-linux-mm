@@ -1,88 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BD0C56B0007
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:26:02 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id c73so505617qke.2
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:26:02 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id k34-v6si3640591qtk.307.2018.04.23.08.26.01
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CB996B0008
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:29:33 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id d13so10726014pfn.21
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:29:33 -0700 (PDT)
+Received: from mail5.wrs.com (mail5.windriver.com. [192.103.53.11])
+        by mx.google.com with ESMTPS id t25si10935715pfh.101.2018.04.23.08.29.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:26:01 -0700 (PDT)
-Date: Mon, 23 Apr 2018 18:25:57 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
-Message-ID: <20180423181250-mutt-send-email-mst@kernel.org>
-References: <alpine.LRH.2.02.1804181029270.19294@file01.intranet.prod.int.rdu2.redhat.com>
- <3e65977e-53cd-bf09-bc4b-0ce40e9091fe@gmail.com>
- <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com>
- <20180418.134651.2225112489265654270.davem@davemloft.net>
- <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
- <20180420114712.GB10788@bombadil.infradead.org>
- <alpine.LRH.2.02.1804200817230.22382@file01.intranet.prod.int.rdu2.redhat.com>
+        Mon, 23 Apr 2018 08:29:32 -0700 (PDT)
+Message-ID: <5ADDFBD1.7010009@windriver.com>
+Date: Mon, 23 Apr 2018 11:29:21 -0400
+From: Chris Friesen <chris.friesen@windriver.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1804200817230.22382@file01.intranet.prod.int.rdu2.redhat.com>
+Subject: Re: per-NUMA memory limits in mem cgroup?
+References: <5ADA26AB.6080209@windriver.com> <20180422124648.GD17484@dhcp22.suse.cz>
+In-Reply-To: <20180422124648.GD17484@dhcp22.suse.cz>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Fri, Apr 20, 2018 at 08:20:23AM -0400, Mikulas Patocka wrote:
-> 
-> 
-> On Fri, 20 Apr 2018, Matthew Wilcox wrote:
-> 
-> > On Thu, Apr 19, 2018 at 12:12:38PM -0400, Mikulas Patocka wrote:
-> > > Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
-> > > uses DMA-API on the returned memory or frees it with kfree. Such bugs were
-> > > found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
-> > > code.
-> > 
-> > Maybe it's time to have the SG code handle vmalloced pages?  This is
-> > becoming more and more common with vmapped stacks (and some of our
-> > workarounds are hideous -- allocate 4 bytes with kmalloc because we can't
-> > DMA onto the stack any more?).  We already have a few places which do
-> > handle sgs of vmalloced addresses, such as the nx crypto driver:
-> > 
-> >         if (is_vmalloc_addr(start_addr))
-> >                 sg_addr = page_to_phys(vmalloc_to_page(start_addr))
-> >                           + offset_in_page(sg_addr);
-> >         else
-> >                 sg_addr = __pa(sg_addr);
-> > 
-> > and videobuf:
-> > 
-> >                 pg = vmalloc_to_page(virt);
-> >                 if (NULL == pg)
-> >                         goto err;
-> >                 BUG_ON(page_to_pfn(pg) >= (1 << (32 - PAGE_SHIFT)));
-> >                 sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
-> > 
-> > Yes, there's the potential that we have to produce two SG entries for a
-> > virtually contiguous region if it crosses a page boundary, and our APIs
-> > aren't set up right to make it happen.  But this is something we should
-> > consider fixing ... otherwise we'll end up with dozens of driver hacks.
-> > The videobuf implementation was already copy-and-pasted into the saa7146
-> > driver, for example.
-> 
-> What if the device requires physically contiguous area and the vmalloc 
-> area crosses a page? Will you use a bounce buffer? Where do you allocate 
-> the bounce buffer from? What if you run out of bounce buffers?
-> 
-> Mikulkas
+On 04/22/2018 08:46 AM, Michal Hocko wrote:
+> On Fri 20-04-18 11:43:07, Chris Friesen wrote:
 
-I agree with Matthew here.
+>> The specific scenario I'm considering is that of a hypervisor host.  I have
+>> system management stuff running on the host that may need more than one
+>> core, and currently these host tasks might be affined to cores from multiple
+>> NUMA nodes.  I'd like to put a cap on how much memory the host tasks can
+>> allocate from each NUMA node in order to ensure that there is a guaranteed
+>> amount of memory available for VMs on each NUMA node.
+>>
+>> Is this possible, or are the knobs just not there?
+>
+> Not possible right now. What would be the policy when you reach the
+> limit on one node? Fallback to other nodes? What if those hit the limit
+> as well? OOM killer or an allocation failure?
 
-4 byte variables are typically size aligned so won't cross a boundary.
+I'd envision it working exactly the same as the current memory cgroup, but with 
+the ability to specify optional per-NUMA-node limits in addition to system-wide.
 
-That's enough for virtio at least. People using structs can force
-alignment.
-
-We could wrap access in a macro (sizeof(x) >= alignof(x)) to help
-guarantee that.
-
--- 
-MST
+Chris
