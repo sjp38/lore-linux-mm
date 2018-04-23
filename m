@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B65216B0062
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:48:03 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v11-v6so19457436wri.13
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:48:03 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A60806B0068
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:48:04 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id a38-v6so19257893wra.10
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:48:04 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id z31si12125447edz.404.2018.04.23.08.48.02
+        by mx.google.com with ESMTPS id p14si1489460edi.24.2018.04.23.08.48.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:48:02 -0700 (PDT)
+        Mon, 23 Apr 2018 08:48:03 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 35/37] x86/pti: Allow CONFIG_PAGE_TABLE_ISOLATION for x86_32
-Date: Mon, 23 Apr 2018 17:47:38 +0200
-Message-Id: <1524498460-25530-36-git-send-email-joro@8bytes.org>
+Subject: [PATCH 31/37] x86/ldt: Reserve address-space range on 32 bit for the LDT
+Date: Mon, 23 Apr 2018 17:47:34 +0200
+Message-Id: <1524498460-25530-32-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,25 +22,71 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Allow PTI to be compiled on x86_32.
+Reserve 2MB/4MB of address-space for mapping the LDT to
+user-space on 32 bit PTI kernels.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- security/Kconfig | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/include/asm/pgtable_32_types.h | 7 +++++--
+ arch/x86/mm/dump_pagetables.c           | 9 +++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)
 
-diff --git a/security/Kconfig b/security/Kconfig
-index c430206..afa91c6 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -57,7 +57,7 @@ config SECURITY_NETWORK
- config PAGE_TABLE_ISOLATION
- 	bool "Remove the kernel mapping in user mode"
- 	default y
--	depends on X86_64 && !UML
-+	depends on X86 && !UML
- 	help
- 	  This feature reduces the number of hardware side channels by
- 	  ensuring that the majority of kernel addresses are not mapped
+diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
+index e3225e8..1fa76c9 100644
+--- a/arch/x86/include/asm/pgtable_32_types.h
++++ b/arch/x86/include/asm/pgtable_32_types.h
+@@ -50,13 +50,16 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
+ 	((FIXADDR_TOT_START - PAGE_SIZE * (CPU_ENTRY_AREA_PAGES + 1))   \
+ 	 & PMD_MASK)
+ 
+-#define PKMAP_BASE		\
++#define LDT_BASE_ADDR		\
+ 	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
+ 
++#define PKMAP_BASE		\
++	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
++
+ #ifdef CONFIG_HIGHMEM
+ # define VMALLOC_END	(PKMAP_BASE - 2 * PAGE_SIZE)
+ #else
+-# define VMALLOC_END	(CPU_ENTRY_AREA_BASE - 2 * PAGE_SIZE)
++# define VMALLOC_END	(LDT_BASE_ADDR - 2 * PAGE_SIZE)
+ #endif
+ 
+ #define MODULES_VADDR	VMALLOC_START
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 23d24d1..db1d7a0 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -123,6 +123,9 @@ enum address_markers_idx {
+ #ifdef CONFIG_HIGHMEM
+ 	PKMAP_BASE_NR,
+ #endif
++#ifdef CONFIG_MODIFY_LDT_SYSCALL
++	LDT_NR,
++#endif
+ 	CPU_ENTRY_AREA_NR,
+ 	FIXADDR_START_NR,
+ 	END_OF_SPACE_NR,
+@@ -136,6 +139,9 @@ static struct addr_marker address_markers[] = {
+ #ifdef CONFIG_HIGHMEM
+ 	[PKMAP_BASE_NR]		= { 0UL,		"Persistent kmap() Area" },
+ #endif
++#ifdef CONFIG_MODIFY_LDT_SYSCALL
++	[LDT_NR]		= { 0UL,		"LDT remap" },
++#endif
+ 	[CPU_ENTRY_AREA_NR]	= { 0UL,		"CPU entry area" },
+ 	[FIXADDR_START_NR]	= { 0UL,		"Fixmap area" },
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+@@ -609,6 +615,9 @@ static int __init pt_dump_init(void)
+ # endif
+ 	address_markers[FIXADDR_START_NR].start_address = FIXADDR_START;
+ 	address_markers[CPU_ENTRY_AREA_NR].start_address = CPU_ENTRY_AREA_BASE;
++# ifdef CONFIG_MODIFY_LDT_SYSCALL
++	address_markers[LDT_NR].start_address = LDT_BASE_ADDR;
++# endif
+ #endif
+ 	return 0;
+ }
 -- 
 2.7.4
