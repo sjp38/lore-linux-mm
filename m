@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 65EBB6B0022
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EA4C96B0022
 	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:53 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id y16-v6so19092295wrh.22
+Received: by mail-wr0-f200.google.com with SMTP id r23-v6so126709wrc.2
         for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:53 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id w47si10178151edb.342.2018.04.23.08.47.51
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id z49si672178edd.326.2018.04.23.08.47.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 23 Apr 2018 08:47:52 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 15/37] x86/pgtable: Rename pti_set_user_pgd to pti_set_user_pgtbl
-Date: Mon, 23 Apr 2018 17:47:18 +0200
-Message-Id: <1524498460-25530-16-git-send-email-joro@8bytes.org>
+Subject: [PATCH 18/37] x86/pgtable: Move pgdp kernel/user conversion functions to pgtable.h
+Date: Mon, 23 Apr 2018 17:47:21 +0200
+Message-Id: <1524498460-25530-19-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,77 +22,133 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-With the way page-table folding is implemented on 32 bit, we
-are not only setting PGDs with this functions, but also PUDs
-and even PMDs. Give the function a more generic name to
-reflect that.
+Make them available on 32 bit and clone_pgd_range() happy.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable_64.h | 12 ++++++------
- arch/x86/mm/pti.c                 |  2 +-
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ arch/x86/include/asm/pgtable.h    | 49 +++++++++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h | 49 ---------------------------------------
+ 2 files changed, 49 insertions(+), 49 deletions(-)
 
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 5f49b4f..3055c77 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1150,6 +1150,55 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
+ }
+ #endif
+ 
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++/*
++ * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
++ * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
++ * the user one is in the last 4k.  To switch between them, you
++ * just need to flip the 12th bit in their addresses.
++ */
++#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
++
++/*
++ * This generates better code than the inline assembly in
++ * __set_bit().
++ */
++static inline void *ptr_set_bit(void *ptr, int bit)
++{
++	unsigned long __ptr = (unsigned long)ptr;
++
++	__ptr |= BIT(bit);
++	return (void *)__ptr;
++}
++static inline void *ptr_clear_bit(void *ptr, int bit)
++{
++	unsigned long __ptr = (unsigned long)ptr;
++
++	__ptr &= ~BIT(bit);
++	return (void *)__ptr;
++}
++
++static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
++{
++	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
++}
++
++static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
++{
++	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
++}
++
++static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
++{
++	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
++}
++
++static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
++{
++	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
++}
++#endif /* CONFIG_PAGE_TABLE_ISOLATION */
++
+ /*
+  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
+  *
 diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 877bc27..c863816 100644
+index c863816..9934115 100644
 --- a/arch/x86/include/asm/pgtable_64.h
 +++ b/arch/x86/include/asm/pgtable_64.h
-@@ -196,21 +196,21 @@ static inline bool pgdp_maps_userspace(void *__ptr)
+@@ -132,55 +132,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ #endif
  }
  
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
--pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
-+pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
- 
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-/*
+- * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
+- * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
+- * the user one is in the last 4k.  To switch between them, you
+- * just need to flip the 12th bit in their addresses.
+- */
+-#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
+-
+-/*
+- * This generates better code than the inline assembly in
+- * __set_bit().
+- */
+-static inline void *ptr_set_bit(void *ptr, int bit)
+-{
+-	unsigned long __ptr = (unsigned long)ptr;
+-
+-	__ptr |= BIT(bit);
+-	return (void *)__ptr;
+-}
+-static inline void *ptr_clear_bit(void *ptr, int bit)
+-{
+-	unsigned long __ptr = (unsigned long)ptr;
+-
+-	__ptr &= ~BIT(bit);
+-	return (void *)__ptr;
+-}
+-
+-static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
+-{
+-	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-
+-static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
+-{
+-	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-
+-static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
+-{
+-	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-
+-static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
+-{
+-	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
+-}
+-#endif /* CONFIG_PAGE_TABLE_ISOLATION */
+-
  /*
-  * Take a PGD location (pgdp) and a pgd value that needs to be set there.
-  * Populates the user and returns the resulting PGD that must be set in
-  * the kernel copy of the page tables.
-  */
--static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
- {
- 	if (!static_cpu_has(X86_FEATURE_PTI))
- 		return pgd;
--	return __pti_set_user_pgd(pgdp, pgd);
-+	return __pti_set_user_pgtbl(pgdp, pgd);
- }
- #else
--static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
- {
- 	return pgd;
- }
-@@ -226,7 +226,7 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
- 	}
- 
- 	pgd = native_make_pgd(native_p4d_val(p4d));
--	pgd = pti_set_user_pgd((pgd_t *)p4dp, pgd);
-+	pgd = pti_set_user_pgtbl((pgd_t *)p4dp, pgd);
- 	*p4dp = native_make_p4d(native_pgd_val(pgd));
- }
- 
-@@ -237,7 +237,7 @@ static inline void native_p4d_clear(p4d_t *p4d)
- 
- static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
- {
--	*pgdp = pti_set_user_pgd(pgdp, pgd);
-+	*pgdp = pti_set_user_pgtbl(pgdp, pgd);
- }
- 
- static inline void native_pgd_clear(pgd_t *pgd)
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index f1fd52f..9bea9c3 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -117,7 +117,7 @@ void __init pti_check_boottime_disable(void)
- 	setup_force_cpu_cap(X86_FEATURE_PTI);
- }
- 
--pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
-+pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
- {
- 	/*
- 	 * Changes to the high (kernel) portion of the kernelmode page
+  * Page table pages are page-aligned.  The lower half of the top
+  * level is used for userspace and the top half for the kernel.
 -- 
 2.7.4
