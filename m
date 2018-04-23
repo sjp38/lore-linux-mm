@@ -1,63 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 805C86B0005
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 07:36:08 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id s8so6373537pgf.0
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 04:36:08 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 44-v6si11157955pla.376.2018.04.23.04.36.06
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D6956B0005
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 07:37:27 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id i137so10317602pfe.0
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 04:37:27 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id z1si9908413pgs.132.2018.04.23.04.37.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 04:36:07 -0700 (PDT)
-Date: Mon, 23 Apr 2018 07:36:03 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
-Message-ID: <20180423073603.6b3294ba@gandalf.local.home>
-In-Reply-To: <20180423103232.k23yulv2e7fah42r@pathway.suse.cz>
-References: <20180416014729.GB1034@jagdpanzerIV>
-	<20180416042553.GA555@jagdpanzerIV>
-	<20180419125353.lawdc3xna5oqlq7k@pathway.suse.cz>
-	<20180420021511.GB6397@jagdpanzerIV>
-	<20180420091224.cotxcfycmtt2hm4m@pathway.suse.cz>
-	<20180420080428.622a8e7f@gandalf.local.home>
-	<20180420140157.2nx5nkojj7l2y7if@pathway.suse.cz>
-	<20180420101751.6c1c70e8@gandalf.local.home>
-	<20180420145720.hb7bbyd5xbm5je32@pathway.suse.cz>
-	<20180420111307.44008fc7@gandalf.local.home>
-	<20180423103232.k23yulv2e7fah42r@pathway.suse.cz>
+        Mon, 23 Apr 2018 04:37:25 -0700 (PDT)
+Subject: Re: [PATCH 5/5] x86, pti: filter at vma->vm_page_prot population
+References: <20180420222018.E7646EE1@viggo.jf.intel.com>
+ <20180420222028.99D72858@viggo.jf.intel.com>
+ <295DB0D1-CDFB-482C-93DF-63DAA36DAE22@vmware.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <30d4fd5a-a82f-2a94-e8cb-ad9b7d2dc5e7@linux.intel.com>
+Date: Mon, 23 Apr 2018 04:37:24 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <295DB0D1-CDFB-482C-93DF-63DAA36DAE22@vmware.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Nadav Amit <namit@vmware.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Fengguang Wu <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>, Borislav Petkov <bp@alien8.de>, Dan Williams <dan.j.williams@intel.com>, David Woodhouse <dwmw2@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "hughd@google.com" <hughd@google.com>, "jpoimboe@redhat.com" <jpoimboe@redhat.com>, "jgross@suse.com" <jgross@suse.com>, "keescook@google.com" <keescook@google.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "peterz@infradead.org" <peterz@infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@kernel.org" <mingo@kernel.org>
 
-On Mon, 23 Apr 2018 12:32:32 +0200
-Petr Mladek <pmladek@suse.com> wrote:
+On 04/20/2018 06:21 PM, Nadav Amit wrote:
+>> pgprot_t vm_get_page_prot(unsigned long vm_flags)
+>> {
+>> -	return __pgprot(pgprot_val(protection_map[vm_flags &
+>> +	pgprot_t ret = __pgprot(pgprot_val(protection_map[vm_flags &
+>> 				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
+>> 			pgprot_val(arch_vm_get_page_prot(vm_flags)));
+>> +
+>> +	return arch_filter_pgprot(ret);
+>> }
+>> EXPORT_SYMBOL(vm_get_page_prot);
+> Wouldna??t it be simpler or at least cleaner to change the protection map if
+> NX is not supported? I presume it can be done paging_init() similarly to the
+> way other archs (e.g., arm, mips) do.
 
-> > Really?
-> > 
-> > 
-> >   console_trylock_spinning(); /* console_owner now equals current */  
-> 
-> No, console_trylock_spinning() does not modify console_owner. The
-> handshake is done using console_waiter variable.
+I thought about it, but doing it there requires getting the _timing_
+right.  You have to do it before the protection map gets used but after
+__supported_pte_mask is totally initialized.  This seemed more
+straightforward, especially as a bug fix.
 
-Ug, you're right. Somehow when I looked at where console_owner was set
-"console_lock_spinning_enabled" I saw it as "console_trylock_spinning".
-
-This is what I get when I'm trying to follow three threads at the same
-time :-/
-
-> 
-> console_owner is really set only between:
-> 
->     console_lock_spinning_enable()
->     console_lock_spinning_disable_and_check()
-> 
-> and this entire section is called with interrupts disabled.
-
-OK, I agree with you now. Although, one hour may still be too long.
-
--- Steve
+What you are talking about might be a good cleanup, though.
