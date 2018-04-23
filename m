@@ -1,53 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1135B6B0007
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:42:15 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id f23-v6so14247957wra.20
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 05:42:15 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id x1si4532908edc.117.2018.04.23.05.42.13
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A0FEC6B0007
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:45:05 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g7-v6so9253062wrb.19
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 05:45:05 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w39si4150000edw.282.2018.04.23.05.45.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 05:42:13 -0700 (PDT)
-Date: Mon, 23 Apr 2018 13:41:51 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH 2/2] mm: move the high field from struct mem_cgroup to
- page_counter
-Message-ID: <20180423124145.GA29016@castle.DHCP.thefacebook.com>
-References: <20180420163632.3978-1-guro@fb.com>
- <20180420163632.3978-2-guro@fb.com>
- <20180420205450.GB24563@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 23 Apr 2018 05:45:04 -0700 (PDT)
+Date: Mon, 23 Apr 2018 14:45:02 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
+Message-ID: <20180423124502.423fb57thvbf3zet@pathway.suse.cz>
+References: <20180419125353.lawdc3xna5oqlq7k@pathway.suse.cz>
+ <20180420021511.GB6397@jagdpanzerIV>
+ <20180420091224.cotxcfycmtt2hm4m@pathway.suse.cz>
+ <20180420080428.622a8e7f@gandalf.local.home>
+ <20180420140157.2nx5nkojj7l2y7if@pathway.suse.cz>
+ <20180420101751.6c1c70e8@gandalf.local.home>
+ <20180420145720.hb7bbyd5xbm5je32@pathway.suse.cz>
+ <20180420111307.44008fc7@gandalf.local.home>
+ <20180423103232.k23yulv2e7fah42r@pathway.suse.cz>
+ <20180423073603.6b3294ba@gandalf.local.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180420205450.GB24563@cmpxchg.org>
+In-Reply-To: <20180423073603.6b3294ba@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Fri, Apr 20, 2018 at 04:54:50PM -0400, Johannes Weiner wrote:
-> On Fri, Apr 20, 2018 at 05:36:32PM +0100, Roman Gushchin wrote:
-> > We do store memory.min, memory.low and memory.max actual values
-> > in struct page_counter fields, while memory.high value is located
-> > in the struct mem_cgroup directly, which is not very consistent.
+On Mon 2018-04-23 07:36:03, Steven Rostedt wrote:
+> On Mon, 23 Apr 2018 12:32:32 +0200
+> Ug, you're right. Somehow when I looked at where console_owner was set
+> "console_lock_spinning_enabled" I saw it as "console_trylock_spinning".
+> 
+> This is what I get when I'm trying to follow three threads at the same
+> time :-/
+
+They are not easy to follow :-/
+
+> > console_owner is really set only between:
 > > 
-> > This patch moves the high field from struct mem_cgroup to
-> > struct page_counter to simplify the code and make handling
-> > of all limits/boundaries clearer.
+> >     console_lock_spinning_enable()
+> >     console_lock_spinning_disable_and_check()
+> > 
+> > and this entire section is called with interrupts disabled.
 > 
-> I would prefer not doing this.
-> 
-> Yes, it looks a bit neater if all these things are next to each other
-> in the struct, but on the other hand it separates the high variable
-> from high_work, and it adds an unnecessary setter function as well.
-> 
-> Plus, nothing in the page_counter code actually uses the value, it
-> really isn't part of that abstraction layer.
-> 
+> OK, I agree with you now. Although, one hour may still be too long.
 
-Ok, not a problem.
-It's nice to have all 4 limits in one place, but separating
-high and high_work isn't good, I agree. Let's leave it as it is.
+I am not sure how slow are the slowest consoles. If I take that
+everything should be faster than 1200 bauds. Then 10 minutes
+should be enough for 1000 lines and 80 characters per-line:
 
-Thanks!
+   1000*80*8/1200/60 = 8.8888888
+
+
+Alternatively, it seems that we are going to call console drivers
+outside printk_safe context => the messages will appear in the main
+log buffer immediately => only small risk of a ping-pong with printk
+safe buffers. We might reset the counter when all messages are handled
+in console_unlock(). It will be more complex patch than when using
+ratelimiting but it still should be sane.
+
+Neither solution is perfect. But I think that the recursion is not
+worth any too complex solution.
+
+Best Regards,
+Petr
