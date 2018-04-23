@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B79746B002D
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:56 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u13-v6so19438785wre.1
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:56 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1793D6B002C
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:57 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id f23-v6so14894950wra.20
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:57 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id b39si2923794edf.255.2018.04.23.08.47.55
+        by mx.google.com with ESMTPS id 89si5683949edh.72.2018.04.23.08.47.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 23 Apr 2018 08:47:55 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 19/37] x86/pgtable: Move pti_set_user_pgtbl() to pgtable.h
-Date: Mon, 23 Apr 2018 17:47:22 +0200
-Message-Id: <1524498460-25530-20-git-send-email-joro@8bytes.org>
+Subject: [PATCH 23/37] x86/mm/legacy: Populate the user page-table with user pgd's
+Date: Mon, 23 Apr 2018 17:47:26 +0200
+Message-Id: <1524498460-25530-24-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,81 +22,46 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-There it is also usable from 32 bit code.
+Also populate the user-spage pgd's in the user page-table.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable.h    | 23 +++++++++++++++++++++++
- arch/x86/include/asm/pgtable_64.h | 21 ---------------------
- 2 files changed, 23 insertions(+), 21 deletions(-)
+ arch/x86/include/asm/pgtable-2level.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 3055c77..557ddf8 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -635,8 +635,31 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
+diff --git a/arch/x86/include/asm/pgtable-2level.h b/arch/x86/include/asm/pgtable-2level.h
+index 685ffe8..c399ea5 100644
+--- a/arch/x86/include/asm/pgtable-2level.h
++++ b/arch/x86/include/asm/pgtable-2level.h
+@@ -19,6 +19,9 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
  
- pmd_t *populate_extra_pmd(unsigned long vaddr);
- pte_t *populate_extra_pte(unsigned long vaddr);
-+
+ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+ {
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
-+
-+/*
-+ * Take a PGD location (pgdp) and a pgd value that needs to be set there.
-+ * Populates the user and returns the resulting PGD that must be set in
-+ * the kernel copy of the page tables.
-+ */
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
-+{
-+	if (!static_cpu_has(X86_FEATURE_PTI))
-+		return pgd;
-+	return __pti_set_user_pgtbl(pgdp, pgd);
-+}
-+#else   /* CONFIG_PAGE_TABLE_ISOLATION */
-+static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
-+{
-+	return pgd;
-+}
-+#endif  /* CONFIG_PAGE_TABLE_ISOLATION */
-+
- #endif	/* __ASSEMBLY__ */
- 
-+
- #ifdef CONFIG_X86_32
- # include <asm/pgtable_32.h>
- #else
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 9934115..6dd2eb6 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -146,27 +146,6 @@ static inline bool pgdp_maps_userspace(void *__ptr)
- 	return (ptr & ~PAGE_MASK) < (PAGE_SIZE / 2);
++	pmd.pud.p4d.pgd = pti_set_user_pgtbl(&pmdp->pud.p4d.pgd, pmd.pud.p4d.pgd);
++#endif
+ 	*pmdp = pmd;
  }
  
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
--
--/*
-- * Take a PGD location (pgdp) and a pgd value that needs to be set there.
-- * Populates the user and returns the resulting PGD that must be set in
-- * the kernel copy of the page tables.
-- */
--static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
--{
--	if (!static_cpu_has(X86_FEATURE_PTI))
--		return pgd;
--	return __pti_set_user_pgtbl(pgdp, pgd);
--}
--#else
--static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
--{
--	return pgd;
--}
--#endif
--
- static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+@@ -58,6 +61,9 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
  {
- 	pgd_t pgd;
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&xp->pud.p4d.pgd, __pgd(0));
++#endif
+ 	return __pmd(xchg((pmdval_t *)xp, 0));
+ }
+ #else
+@@ -67,6 +73,9 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+ #ifdef CONFIG_SMP
+ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+ {
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pti_set_user_pgtbl(&xp->p4d.pgd, __pgd(0));
++#endif
+ 	return __pud(xchg((pudval_t *)xp, 0));
+ }
+ #else
 -- 
 2.7.4
