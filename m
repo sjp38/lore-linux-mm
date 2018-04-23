@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DE5E6B0026
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:54 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p7-v6so12504901wrj.4
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:54 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1520E6B0026
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:55 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v11-v6so19456908wri.13
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:55 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id x25si5102825edq.34.2018.04.23.08.47.52
+        by mx.google.com with ESMTPS id 34si509393edm.8.2018.04.23.08.47.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 23 Apr 2018 08:47:53 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 14/37] x86/entry/32: Add PTI cr3 switches to NMI handler code
-Date: Mon, 23 Apr 2018 17:47:17 +0200
-Message-Id: <1524498460-25530-15-git-send-email-joro@8bytes.org>
+Subject: [PATCH 17/37] x86/pgtable/32: Allocate 8k page-tables when PTI is enabled
+Date: Mon, 23 Apr 2018 17:47:20 +0200
+Message-Id: <1524498460-25530-18-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,107 +22,94 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The NMI handler is special, as it needs to leave with the
-same cr3 as it was entered with. We need to do this because
-we could enter the NMI handler from kernel code with
-user-cr3 already loaded.
+Allocate a kernel and a user page-table root when PTI is
+enabled. Also allocate a full page per root for PAE because
+otherwise the bit to flip in cr3 to switch between them
+would be non-constant, which creates a lot of hassle.
+Keep that for a later optimization.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 41 +++++++++++++++++++++++++++++++++++------
- 1 file changed, 35 insertions(+), 6 deletions(-)
+ arch/x86/kernel/head_32.S | 20 +++++++++++++++-----
+ arch/x86/mm/pgtable.c     |  5 +++--
+ 2 files changed, 18 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index b2b0ecb..f47e535 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -77,6 +77,8 @@
- #endif
- .endm
+diff --git a/arch/x86/kernel/head_32.S b/arch/x86/kernel/head_32.S
+index b59e4fb..12a3e8c 100644
+--- a/arch/x86/kernel/head_32.S
++++ b/arch/x86/kernel/head_32.S
+@@ -512,11 +512,18 @@ ENTRY(initial_code)
+ ENTRY(setup_once_ref)
+ 	.long setup_once
  
-+#define PTI_SWITCH_MASK         (1 << PAGE_SHIFT)
-+
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++#define	PGD_ALIGN	(2 * PAGE_SIZE)
++#define PTI_USER_PGD_FILL	1024
++#else
++#define	PGD_ALIGN	(PAGE_SIZE)
++#define PTI_USER_PGD_FILL	0
++#endif
  /*
-  * User gs save/restore
-  *
-@@ -213,8 +215,19 @@
+  * BSS section
+  */
+ __PAGE_ALIGNED_BSS
+-	.align PAGE_SIZE
++	.align PGD_ALIGN
+ #ifdef CONFIG_X86_PAE
+ .globl initial_pg_pmd
+ initial_pg_pmd:
+@@ -526,14 +533,17 @@ initial_pg_pmd:
+ initial_page_table:
+ 	.fill 1024,4,0
+ #endif
++	.align PGD_ALIGN
+ initial_pg_fixmap:
+ 	.fill 1024,4,0
+-.globl empty_zero_page
+-empty_zero_page:
+-	.fill 4096,1,0
+ .globl swapper_pg_dir
++	.align PGD_ALIGN
+ swapper_pg_dir:
+ 	.fill 1024,4,0
++	.fill PTI_USER_PGD_FILL,4,0
++.globl empty_zero_page
++empty_zero_page:
++	.fill 4096,1,0
+ EXPORT_SYMBOL(empty_zero_page)
  
- .endm
- 
--.macro SAVE_ALL_NMI
-+.macro SAVE_ALL_NMI cr3_reg:req
- 	SAVE_ALL
-+
-+	/*
-+	 * Now switch the CR3 when PTI is enabled.
-+	 *
-+	 * We can enter with either user or kernel cr3, the code will
-+	 * store the old cr3 in \cr3_reg and switches to the kernel cr3
-+	 * if necessary.
-+	 */
-+	SWITCH_TO_KERNEL_CR3 scratch_reg=\cr3_reg
-+
-+.Lend_\@:
- .endm
  /*
-  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
-@@ -262,7 +275,23 @@
- 	POP_GS_EX
- .endm
+@@ -542,7 +552,7 @@ EXPORT_SYMBOL(empty_zero_page)
+ #ifdef CONFIG_X86_PAE
+ __PAGE_ALIGNED_DATA
+ 	/* Page-aligned for the benefit of paravirt? */
+-	.align PAGE_SIZE
++	.align PGD_ALIGN
+ ENTRY(initial_page_table)
+ 	.long	pa(initial_pg_pmd+PGD_IDENT_ATTR),0	/* low identity map */
+ # if KPMDS == 3
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index ffc8c13..f4211d2 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -339,7 +339,8 @@ static inline pgd_t *_pgd_alloc(void)
+ 	 * We allocate one page for pgd.
+ 	 */
+ 	if (!SHARED_KERNEL_PMD)
+-		return (pgd_t *)__get_free_page(PGALLOC_GFP);
++		return (pgd_t *)__get_free_pages(PGALLOC_GFP,
++						 PGD_ALLOCATION_ORDER);
  
--.macro RESTORE_ALL_NMI pop=0
-+.macro RESTORE_ALL_NMI cr3_reg:req pop=0
-+	/*
-+	 * Now switch the CR3 when PTI is enabled.
-+	 *
-+	 * We enter with kernel cr3 and switch the cr3 to the value
-+	 * stored on \cr3_reg, which is either a user or a kernel cr3.
-+	 */
-+	ALTERNATIVE "jmp .Lswitched_\@", "", X86_FEATURE_PTI
-+
-+	testl	$PTI_SWITCH_MASK, \cr3_reg
-+	jz	.Lswitched_\@
-+
-+	/* User cr3 in \cr3_reg - write it to hardware cr3 */
-+	movl	\cr3_reg, %cr3
-+
-+.Lswitched_\@:
-+
- 	RESTORE_REGS pop=\pop
- .endm
- 
-@@ -1333,7 +1362,7 @@ ENTRY(nmi)
- #endif
- 
- 	pushl	%eax				# pt_regs->orig_ax
--	SAVE_ALL_NMI
-+	SAVE_ALL_NMI cr3_reg=%edi
- 	ENCODE_FRAME_POINTER
- 	xorl	%edx, %edx			# zero error code
- 	movl	%esp, %eax			# pt_regs pointer
-@@ -1361,7 +1390,7 @@ ENTRY(nmi)
- 
- .Lnmi_return:
- 	CHECK_AND_APPLY_ESPFIX
--	RESTORE_ALL_NMI pop=4
-+	RESTORE_ALL_NMI cr3_reg=%edi pop=4
- 	jmp	.Lirq_return
- 
- #ifdef CONFIG_X86_ESPFIX32
-@@ -1377,12 +1406,12 @@ ENTRY(nmi)
- 	pushl	16(%esp)
- 	.endr
- 	pushl	%eax
--	SAVE_ALL_NMI
-+	SAVE_ALL_NMI cr3_reg=%edi
- 	ENCODE_FRAME_POINTER
- 	FIXUP_ESPFIX_STACK			# %eax == %esp
- 	xorl	%edx, %edx			# zero error code
- 	call	do_nmi
--	RESTORE_ALL_NMI
-+	RESTORE_ALL_NMI cr3_reg=%edi
- 	lss	12+4(%esp), %esp		# back to espfix stack
- 	jmp	.Lirq_return
- #endif
+ 	/*
+ 	 * Now PAE kernel is not running as a Xen domain. We can allocate
+@@ -351,7 +352,7 @@ static inline pgd_t *_pgd_alloc(void)
+ static inline void _pgd_free(pgd_t *pgd)
+ {
+ 	if (!SHARED_KERNEL_PMD)
+-		free_page((unsigned long)pgd);
++		free_pages((unsigned long)pgd, PGD_ALLOCATION_ORDER);
+ 	else
+ 		kmem_cache_free(pgd_cache, pgd);
+ }
 -- 
 2.7.4
