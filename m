@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F2A5C6B0033
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:59 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id b10-v6so19455002wrf.3
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:59 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id z22si272986edl.77.2018.04.23.08.47.58
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A41326B0033
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:48:00 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y16-v6so19092795wrh.22
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:48:00 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id f2si1064947edc.118.2018.04.23.08.47.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:47:58 -0700 (PDT)
+        Mon, 23 Apr 2018 08:47:59 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 25/37] x86/mm/pti: Define X86_CR3_PTI_PCID_USER_BIT on x86_32
-Date: Mon, 23 Apr 2018 17:47:28 +0200
-Message-Id: <1524498460-25530-26-git-send-email-joro@8bytes.org>
+Subject: [PATCH 24/37] x86/mm/pti: Add an overflow check to pti_clone_pmds()
+Date: Mon, 23 Apr 2018 17:47:27 +0200
+Message-Id: <1524498460-25530-25-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,38 +22,30 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Move it out of the X86_64 specific processor defines so
-that its visible for 32bit too.
+The addr counter will overflow if we clone the last PMD of
+the address space, resulting in an endless loop.
 
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
+Check for that and bail out of the loop when it happens.
+
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/processor-flags.h | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ arch/x86/mm/pti.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/arch/x86/include/asm/processor-flags.h b/arch/x86/include/asm/processor-flags.h
-index 625a52a..02c2cbd 100644
---- a/arch/x86/include/asm/processor-flags.h
-+++ b/arch/x86/include/asm/processor-flags.h
-@@ -39,10 +39,6 @@
- #define CR3_PCID_MASK	0xFFFull
- #define CR3_NOFLUSH	BIT_ULL(63)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index 9bea9c3..f967b51 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -297,6 +297,10 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+ 		p4d_t *p4d;
+ 		pud_t *pud;
  
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--# define X86_CR3_PTI_PCID_USER_BIT	11
--#endif
--
- #else
- /*
-  * CR3_ADDR_MASK needs at least bits 31:5 set on PAE systems, and we save
-@@ -53,4 +49,8 @@
- #define CR3_NOFLUSH	0
- #endif
- 
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+# define X86_CR3_PTI_PCID_USER_BIT	11
-+#endif
++		/* Overflow check */
++		if (addr < start)
++			break;
 +
- #endif /* _ASM_X86_PROCESSOR_FLAGS_H */
+ 		pgd = pgd_offset_k(addr);
+ 		if (WARN_ON(pgd_none(*pgd)))
+ 			return;
 -- 
 2.7.4
