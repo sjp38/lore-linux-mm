@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A90F6B0031
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F2A5C6B0033
 	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:59 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id a38-v6so19257609wra.10
+Received: by mail-wr0-f197.google.com with SMTP id b10-v6so19455002wrf.3
         for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:59 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id 24si6188966edv.308.2018.04.23.08.47.57
+        by mx.google.com with ESMTPS id z22si272986edl.77.2018.04.23.08.47.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 23 Apr 2018 08:47:58 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 29/37] x86/mm/dump_pagetables: Define INIT_PGD
-Date: Mon, 23 Apr 2018 17:47:32 +0200
-Message-Id: <1524498460-25530-30-git-send-email-joro@8bytes.org>
+Subject: [PATCH 25/37] x86/mm/pti: Define X86_CR3_PTI_PCID_USER_BIT on x86_32
+Date: Mon, 23 Apr 2018 17:47:28 +0200
+Message-Id: <1524498460-25530-26-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,58 +22,38 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Define INIT_PGD to point to the correct initial page-table
-for 32 and 64 bit and use it where needed. This fixes the
-build on 32 bit with CONFIG_PAGE_TABLE_ISOLATION enabled.
+Move it out of the X86_64 specific processor defines so
+that its visible for 32bit too.
 
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/dump_pagetables.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ arch/x86/include/asm/processor-flags.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index cc7ff59..23d24d1 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -111,6 +111,8 @@ static struct addr_marker address_markers[] = {
- 	[END_OF_SPACE_NR]	= { -1,			NULL }
- };
+diff --git a/arch/x86/include/asm/processor-flags.h b/arch/x86/include/asm/processor-flags.h
+index 625a52a..02c2cbd 100644
+--- a/arch/x86/include/asm/processor-flags.h
++++ b/arch/x86/include/asm/processor-flags.h
+@@ -39,10 +39,6 @@
+ #define CR3_PCID_MASK	0xFFFull
+ #define CR3_NOFLUSH	BIT_ULL(63)
  
-+#define INIT_PGD	((pgd_t *) &init_top_pgt)
-+
- #else /* CONFIG_X86_64 */
- 
- enum address_markers_idx {
-@@ -139,6 +141,8 @@ static struct addr_marker address_markers[] = {
- 	[END_OF_SPACE_NR]	= { -1,			NULL }
- };
- 
-+#define INIT_PGD	(swapper_pg_dir)
-+
- #endif /* !CONFIG_X86_64 */
- 
- /* Multipliers for offsets within the PTEs */
-@@ -496,11 +500,7 @@ static inline bool is_hypervisor_range(int idx)
- static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
- 				       bool checkwx, bool dmesg)
- {
--#ifdef CONFIG_X86_64
--	pgd_t *start = (pgd_t *) &init_top_pgt;
--#else
--	pgd_t *start = swapper_pg_dir;
+-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+-# define X86_CR3_PTI_PCID_USER_BIT	11
 -#endif
-+	pgd_t *start = INIT_PGD;
- 	pgprotval_t prot, eff;
- 	int i;
- 	struct pg_state st = {};
-@@ -566,7 +566,7 @@ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
- static void ptdump_walk_user_pgd_level_checkwx(void)
- {
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
--	pgd_t *pgd = (pgd_t *) &init_top_pgt;
-+	pgd_t *pgd = INIT_PGD;
+-
+ #else
+ /*
+  * CR3_ADDR_MASK needs at least bits 31:5 set on PAE systems, and we save
+@@ -53,4 +49,8 @@
+ #define CR3_NOFLUSH	0
+ #endif
  
- 	if (!static_cpu_has(X86_FEATURE_PTI))
- 		return;
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++# define X86_CR3_PTI_PCID_USER_BIT	11
++#endif
++
+ #endif /* _ASM_X86_PROCESSOR_FLAGS_H */
 -- 
 2.7.4
