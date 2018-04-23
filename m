@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EBE8B6B0023
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:52 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id o8-v6so18713635wra.12
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:52 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 65EBB6B0022
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:53 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y16-v6so19092295wrh.22
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:53 -0700 (PDT)
 Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id o46si5205569edc.122.2018.04.23.08.47.51
+        by mx.google.com with ESMTPS id w47si10178151edb.342.2018.04.23.08.47.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:47:51 -0700 (PDT)
+        Mon, 23 Apr 2018 08:47:52 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 11/37] x86/entry/32: Simplify debug entry point
-Date: Mon, 23 Apr 2018 17:47:14 +0200
-Message-Id: <1524498460-25530-12-git-send-email-joro@8bytes.org>
+Subject: [PATCH 15/37] x86/pgtable: Rename pti_set_user_pgd to pti_set_user_pgtbl
+Date: Mon, 23 Apr 2018 17:47:18 +0200
+Message-Id: <1524498460-25530-16-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,66 +22,77 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-The common exception entry code now handles the
-entry-from-sysenter stack situation and makes sure to leave
-with the same stack as it entered the kernel.
-
-So there is no need anymore for the special handling in the
-debug entry code.
+With the way page-table folding is implemented on 32 bit, we
+are not only setting PGDs with this functions, but also PUDs
+and even PMDs. Give the function a more generic name to
+reflect that.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/entry/entry_32.S | 35 +++--------------------------------
- 1 file changed, 3 insertions(+), 32 deletions(-)
+ arch/x86/include/asm/pgtable_64.h | 12 ++++++------
+ arch/x86/mm/pti.c                 |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
-index b3477ff..71e1cb3 100644
---- a/arch/x86/entry/entry_32.S
-+++ b/arch/x86/entry/entry_32.S
-@@ -1231,41 +1231,12 @@ END(common_exception)
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 877bc27..c863816 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -196,21 +196,21 @@ static inline bool pgdp_maps_userspace(void *__ptr)
+ }
  
- ENTRY(debug)
- 	/*
--	 * #DB can happen at the first instruction of
--	 * entry_SYSENTER_32 or in Xen's SYSENTER prologue.  If this
--	 * happens, then we will be running on a very small stack.  We
--	 * need to detect this condition and switch to the thread
--	 * stack before calling any C code at all.
--	 *
--	 * If you edit this code, keep in mind that NMIs can happen in here.
-+	 * Entry from sysenter is now handled in common_exception
- 	 */
- 	ASM_CLAC
- 	pushl	$-1				# mark this as an int
--
--	SAVE_ALL
--	ENCODE_FRAME_POINTER
--	xorl	%edx, %edx			# error code 0
--	movl	%esp, %eax			# pt_regs pointer
--
--	/* Are we currently on the SYSENTER stack? */
--	movl	PER_CPU_VAR(cpu_entry_area), %ecx
--	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
--	subl	%eax, %ecx	/* ecx = (end of entry_stack) - esp */
--	cmpl	$SIZEOF_entry_stack, %ecx
--	jb	.Ldebug_from_sysenter_stack
--
--	TRACE_IRQS_OFF
--	call	do_debug
--	jmp	ret_from_exception
--
--.Ldebug_from_sysenter_stack:
--	/* We're on the SYSENTER stack.  Switch off. */
--	movl	%esp, %ebx
--	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
--	TRACE_IRQS_OFF
--	call	do_debug
--	movl	%ebx, %esp
--	jmp	ret_from_exception
-+	pushl	$do_debug
-+	jmp	common_exception
- END(debug)
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+-pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd);
++pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
  
  /*
+  * Take a PGD location (pgdp) and a pgd value that needs to be set there.
+  * Populates the user and returns the resulting PGD that must be set in
+  * the kernel copy of the page tables.
+  */
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return pgd;
+-	return __pti_set_user_pgd(pgdp, pgd);
++	return __pti_set_user_pgtbl(pgdp, pgd);
+ }
+ #else
+-static inline pgd_t pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	return pgd;
+ }
+@@ -226,7 +226,7 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
+ 	}
+ 
+ 	pgd = native_make_pgd(native_p4d_val(p4d));
+-	pgd = pti_set_user_pgd((pgd_t *)p4dp, pgd);
++	pgd = pti_set_user_pgtbl((pgd_t *)p4dp, pgd);
+ 	*p4dp = native_make_p4d(native_pgd_val(pgd));
+ }
+ 
+@@ -237,7 +237,7 @@ static inline void native_p4d_clear(p4d_t *p4d)
+ 
+ static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
+ {
+-	*pgdp = pti_set_user_pgd(pgdp, pgd);
++	*pgdp = pti_set_user_pgtbl(pgdp, pgd);
+ }
+ 
+ static inline void native_pgd_clear(pgd_t *pgd)
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index f1fd52f..9bea9c3 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -117,7 +117,7 @@ void __init pti_check_boottime_disable(void)
+ 	setup_force_cpu_cap(X86_FEATURE_PTI);
+ }
+ 
+-pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
++pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	/*
+ 	 * Changes to the high (kernel) portion of the kernelmode page
 -- 
 2.7.4
