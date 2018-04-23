@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 82B656B002F
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:58 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id a38-v6so19257554wra.10
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:58 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id t2si10319554edf.433.2018.04.23.08.47.56
+	by kanga.kvack.org (Postfix) with ESMTP id 381F16B0030
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:59 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u56-v6so18742620wrf.18
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:59 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id e17si2642117ede.310.2018.04.23.08.47.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:47:56 -0700 (PDT)
+        Mon, 23 Apr 2018 08:47:57 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 28/37] x86/mm/pti: Map kernel-text to user-space on 32 bit kernels
-Date: Mon, 23 Apr 2018 17:47:31 +0200
-Message-Id: <1524498460-25530-29-git-send-email-joro@8bytes.org>
+Subject: [PATCH 26/37] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
+Date: Mon, 23 Apr 2018 17:47:29 +0200
+Message-Id: <1524498460-25530-27-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,31 +22,53 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Keeping the kernel text mapped with G bit set keeps its
-entries in the TLB across kernel entry/exit and improved the
-performance. The 64 bit x86 kernels already do this when
-there is no PCID, so do this in 32 bit as well since PCID is
-not even supported there.
+Cloning on the P4D level would clone the complete kernel
+address space into the user-space page-tables for PAE
+kernels. Cloning on PMD level is fine for PAE and legacy
+paging.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/init_32.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/x86/mm/pti.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
 
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index c893c6a..8299b98 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -956,4 +956,10 @@ void mark_rodata_ro(void)
- 	mark_nxdata_nx();
- 	if (__supported_pte_mask & _PAGE_NX)
- 		debug_checkwx();
-+
-+	/*
-+	 * Do this after all of the manipulation of the
-+	 * kernel text page tables are complete.
-+	 */
-+	pti_clone_kernel_text();
+diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
+index f967b51..9cceae3 100644
+--- a/arch/x86/mm/pti.c
++++ b/arch/x86/mm/pti.c
+@@ -348,6 +348,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+ 	}
  }
+ 
++#ifdef CONFIG_X86_64
+ /*
+  * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
+  * next-level entry on 5-level systems.
+@@ -371,6 +372,25 @@ static void __init pti_clone_user_shared(void)
+ 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
+ }
+ 
++#else /* CONFIG_X86_64 */
++
++/*
++ * On 32 bit PAE systems with 1GB of Kernel address space there is only
++ * one pgd/p4d for the whole kernel. Cloning that would map the whole
++ * address space into the user page-tables, making PTI useless. So clone
++ * the page-table on the PMD level to prevent that.
++ */
++static void __init pti_clone_user_shared(void)
++{
++	unsigned long start, end;
++
++	start = CPU_ENTRY_AREA_BASE;
++	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
++
++	pti_clone_pmds(start, end, 0);
++}
++#endif /* CONFIG_X86_64 */
++
+ /*
+  * Clone the ESPFIX P4D into the user space visible page table
+  */
 -- 
 2.7.4
