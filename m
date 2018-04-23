@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EA4C96B0022
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:53 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id r23-v6so126709wrc.2
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:53 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id z49si672178edd.326.2018.04.23.08.47.52
+	by kanga.kvack.org (Postfix) with ESMTP id 9DE5E6B0026
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:54 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p7-v6so12504901wrj.4
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:54 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id x25si5102825edq.34.2018.04.23.08.47.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:47:52 -0700 (PDT)
+        Mon, 23 Apr 2018 08:47:53 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 18/37] x86/pgtable: Move pgdp kernel/user conversion functions to pgtable.h
-Date: Mon, 23 Apr 2018 17:47:21 +0200
-Message-Id: <1524498460-25530-19-git-send-email-joro@8bytes.org>
+Subject: [PATCH 14/37] x86/entry/32: Add PTI cr3 switches to NMI handler code
+Date: Mon, 23 Apr 2018 17:47:17 +0200
+Message-Id: <1524498460-25530-15-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,133 +22,107 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Make them available on 32 bit and clone_pgd_range() happy.
+The NMI handler is special, as it needs to leave with the
+same cr3 as it was entered with. We need to do this because
+we could enter the NMI handler from kernel code with
+user-cr3 already loaded.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/include/asm/pgtable.h    | 49 +++++++++++++++++++++++++++++++++++++++
- arch/x86/include/asm/pgtable_64.h | 49 ---------------------------------------
- 2 files changed, 49 insertions(+), 49 deletions(-)
+ arch/x86/entry/entry_32.S | 41 +++++++++++++++++++++++++++++++++++------
+ 1 file changed, 35 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 5f49b4f..3055c77 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1150,6 +1150,55 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
- }
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index b2b0ecb..f47e535 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -77,6 +77,8 @@
  #endif
+ .endm
  
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+/*
-+ * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
-+ * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
-+ * the user one is in the last 4k.  To switch between them, you
-+ * just need to flip the 12th bit in their addresses.
-+ */
-+#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
-+
-+/*
-+ * This generates better code than the inline assembly in
-+ * __set_bit().
-+ */
-+static inline void *ptr_set_bit(void *ptr, int bit)
-+{
-+	unsigned long __ptr = (unsigned long)ptr;
-+
-+	__ptr |= BIT(bit);
-+	return (void *)__ptr;
-+}
-+static inline void *ptr_clear_bit(void *ptr, int bit)
-+{
-+	unsigned long __ptr = (unsigned long)ptr;
-+
-+	__ptr &= ~BIT(bit);
-+	return (void *)__ptr;
-+}
-+
-+static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
-+{
-+	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+
-+static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
-+{
-+	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+
-+static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
-+{
-+	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+
-+static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
-+{
-+	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
-+}
-+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
++#define PTI_SWITCH_MASK         (1 << PAGE_SHIFT)
 +
  /*
-  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
+  * User gs save/restore
   *
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index c863816..9934115 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -132,55 +132,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *xp)
- #endif
- }
+@@ -213,8 +215,19 @@
  
--#ifdef CONFIG_PAGE_TABLE_ISOLATION
--/*
-- * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
-- * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
-- * the user one is in the last 4k.  To switch between them, you
-- * just need to flip the 12th bit in their addresses.
-- */
--#define PTI_PGTABLE_SWITCH_BIT	PAGE_SHIFT
--
--/*
-- * This generates better code than the inline assembly in
-- * __set_bit().
-- */
--static inline void *ptr_set_bit(void *ptr, int bit)
--{
--	unsigned long __ptr = (unsigned long)ptr;
--
--	__ptr |= BIT(bit);
--	return (void *)__ptr;
--}
--static inline void *ptr_clear_bit(void *ptr, int bit)
--{
--	unsigned long __ptr = (unsigned long)ptr;
--
--	__ptr &= ~BIT(bit);
--	return (void *)__ptr;
--}
--
--static inline pgd_t *kernel_to_user_pgdp(pgd_t *pgdp)
--{
--	return ptr_set_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
--}
--
--static inline pgd_t *user_to_kernel_pgdp(pgd_t *pgdp)
--{
--	return ptr_clear_bit(pgdp, PTI_PGTABLE_SWITCH_BIT);
--}
--
--static inline p4d_t *kernel_to_user_p4dp(p4d_t *p4dp)
--{
--	return ptr_set_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
--}
--
--static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
--{
--	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
--}
--#endif /* CONFIG_PAGE_TABLE_ISOLATION */
--
+ .endm
+ 
+-.macro SAVE_ALL_NMI
++.macro SAVE_ALL_NMI cr3_reg:req
+ 	SAVE_ALL
++
++	/*
++	 * Now switch the CR3 when PTI is enabled.
++	 *
++	 * We can enter with either user or kernel cr3, the code will
++	 * store the old cr3 in \cr3_reg and switches to the kernel cr3
++	 * if necessary.
++	 */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=\cr3_reg
++
++.Lend_\@:
+ .endm
  /*
-  * Page table pages are page-aligned.  The lower half of the top
-  * level is used for userspace and the top half for the kernel.
+  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
+@@ -262,7 +275,23 @@
+ 	POP_GS_EX
+ .endm
+ 
+-.macro RESTORE_ALL_NMI pop=0
++.macro RESTORE_ALL_NMI cr3_reg:req pop=0
++	/*
++	 * Now switch the CR3 when PTI is enabled.
++	 *
++	 * We enter with kernel cr3 and switch the cr3 to the value
++	 * stored on \cr3_reg, which is either a user or a kernel cr3.
++	 */
++	ALTERNATIVE "jmp .Lswitched_\@", "", X86_FEATURE_PTI
++
++	testl	$PTI_SWITCH_MASK, \cr3_reg
++	jz	.Lswitched_\@
++
++	/* User cr3 in \cr3_reg - write it to hardware cr3 */
++	movl	\cr3_reg, %cr3
++
++.Lswitched_\@:
++
+ 	RESTORE_REGS pop=\pop
+ .endm
+ 
+@@ -1333,7 +1362,7 @@ ENTRY(nmi)
+ #endif
+ 
+ 	pushl	%eax				# pt_regs->orig_ax
+-	SAVE_ALL_NMI
++	SAVE_ALL_NMI cr3_reg=%edi
+ 	ENCODE_FRAME_POINTER
+ 	xorl	%edx, %edx			# zero error code
+ 	movl	%esp, %eax			# pt_regs pointer
+@@ -1361,7 +1390,7 @@ ENTRY(nmi)
+ 
+ .Lnmi_return:
+ 	CHECK_AND_APPLY_ESPFIX
+-	RESTORE_ALL_NMI pop=4
++	RESTORE_ALL_NMI cr3_reg=%edi pop=4
+ 	jmp	.Lirq_return
+ 
+ #ifdef CONFIG_X86_ESPFIX32
+@@ -1377,12 +1406,12 @@ ENTRY(nmi)
+ 	pushl	16(%esp)
+ 	.endr
+ 	pushl	%eax
+-	SAVE_ALL_NMI
++	SAVE_ALL_NMI cr3_reg=%edi
+ 	ENCODE_FRAME_POINTER
+ 	FIXUP_ESPFIX_STACK			# %eax == %esp
+ 	xorl	%edx, %edx			# zero error code
+ 	call	do_nmi
+-	RESTORE_ALL_NMI
++	RESTORE_ALL_NMI cr3_reg=%edi
+ 	lss	12+4(%esp), %esp		# back to espfix stack
+ 	jmp	.Lirq_return
+ #endif
 -- 
 2.7.4
