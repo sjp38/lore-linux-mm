@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 381F16B0030
+	by kanga.kvack.org (Postfix) with ESMTP id 4A90F6B0031
 	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:59 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u56-v6so18742620wrf.18
+Received: by mail-wr0-f200.google.com with SMTP id a38-v6so19257609wra.10
         for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:59 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id e17si2642117ede.310.2018.04.23.08.47.57
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id 24si6188966edv.308.2018.04.23.08.47.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:47:57 -0700 (PDT)
+        Mon, 23 Apr 2018 08:47:58 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 26/37] x86/mm/pti: Clone CPU_ENTRY_AREA on PMD level on x86_32
-Date: Mon, 23 Apr 2018 17:47:29 +0200
-Message-Id: <1524498460-25530-27-git-send-email-joro@8bytes.org>
+Subject: [PATCH 29/37] x86/mm/dump_pagetables: Define INIT_PGD
+Date: Mon, 23 Apr 2018 17:47:32 +0200
+Message-Id: <1524498460-25530-30-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,53 +22,58 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-Cloning on the P4D level would clone the complete kernel
-address space into the user-space page-tables for PAE
-kernels. Cloning on PMD level is fine for PAE and legacy
-paging.
+Define INIT_PGD to point to the correct initial page-table
+for 32 and 64 bit and use it where needed. This fixes the
+build on 32 bit with CONFIG_PAGE_TABLE_ISOLATION enabled.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/mm/pti.c | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ arch/x86/mm/dump_pagetables.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/mm/pti.c b/arch/x86/mm/pti.c
-index f967b51..9cceae3 100644
---- a/arch/x86/mm/pti.c
-+++ b/arch/x86/mm/pti.c
-@@ -348,6 +348,7 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
- 	}
- }
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index cc7ff59..23d24d1 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -111,6 +111,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
  
-+#ifdef CONFIG_X86_64
- /*
-  * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
-  * next-level entry on 5-level systems.
-@@ -371,6 +372,25 @@ static void __init pti_clone_user_shared(void)
- 	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
- }
++#define INIT_PGD	((pgd_t *) &init_top_pgt)
++
+ #else /* CONFIG_X86_64 */
  
-+#else /* CONFIG_X86_64 */
+ enum address_markers_idx {
+@@ -139,6 +141,8 @@ static struct addr_marker address_markers[] = {
+ 	[END_OF_SPACE_NR]	= { -1,			NULL }
+ };
+ 
++#define INIT_PGD	(swapper_pg_dir)
 +
-+/*
-+ * On 32 bit PAE systems with 1GB of Kernel address space there is only
-+ * one pgd/p4d for the whole kernel. Cloning that would map the whole
-+ * address space into the user page-tables, making PTI useless. So clone
-+ * the page-table on the PMD level to prevent that.
-+ */
-+static void __init pti_clone_user_shared(void)
-+{
-+	unsigned long start, end;
-+
-+	start = CPU_ENTRY_AREA_BASE;
-+	end   = start + (PAGE_SIZE * CPU_ENTRY_AREA_PAGES);
-+
-+	pti_clone_pmds(start, end, 0);
-+}
-+#endif /* CONFIG_X86_64 */
-+
- /*
-  * Clone the ESPFIX P4D into the user space visible page table
-  */
+ #endif /* !CONFIG_X86_64 */
+ 
+ /* Multipliers for offsets within the PTEs */
+@@ -496,11 +500,7 @@ static inline bool is_hypervisor_range(int idx)
+ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+ 				       bool checkwx, bool dmesg)
+ {
+-#ifdef CONFIG_X86_64
+-	pgd_t *start = (pgd_t *) &init_top_pgt;
+-#else
+-	pgd_t *start = swapper_pg_dir;
+-#endif
++	pgd_t *start = INIT_PGD;
+ 	pgprotval_t prot, eff;
+ 	int i;
+ 	struct pg_state st = {};
+@@ -566,7 +566,7 @@ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
+ static void ptdump_walk_user_pgd_level_checkwx(void)
+ {
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+-	pgd_t *pgd = (pgd_t *) &init_top_pgt;
++	pgd_t *pgd = INIT_PGD;
+ 
+ 	if (!static_cpu_has(X86_FEATURE_PTI))
+ 		return;
 -- 
 2.7.4
