@@ -1,173 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 47CEA6B0008
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:45:14 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id o16-v6so15683856wri.8
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 05:45:14 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id c14si1033600eda.386.2018.04.23.05.45.12
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 111BE6B0007
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:55:21 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id o17-v6so14086168iob.12
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 05:55:21 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b186-v6sor4055921ith.105.2018.04.23.05.55.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 05:45:12 -0700 (PDT)
-Date: Mon, 23 Apr 2018 13:44:43 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH 1/2] mm: introduce memory.min
-Message-ID: <20180423124442.GB29016@castle.DHCP.thefacebook.com>
-References: <20180420163632.3978-1-guro@fb.com>
- <20180420204429.GA24563@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180420204429.GA24563@cmpxchg.org>
+        (Google Transport Security);
+        Mon, 23 Apr 2018 05:55:19 -0700 (PDT)
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [RFC PATCH v23 0/6] mm: security: write protection for dynamic data
+Date: Mon, 23 Apr 2018 16:54:49 +0400
+Message-Id: <20180423125458.5338-1-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>
+To: willy@infradead.org, keescook@chromium.org, paul@paul-moore.com, sds@tycho.nsa.gov, mhocko@kernel.org, corbet@lwn.net
+Cc: labbott@redhat.com, linux-cc=david@fromorbit.com, --cc=rppt@linux.vnet.ibm.com, --security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, igor.stoppa@gmail.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-Hi Johannes!
+This patch-set introduces the possibility of protecting memory that has
+been allocated dynamically.
 
-Thanks for the review. I've just sent v2, which closely
-follows your advice, really nothing contradictory.
+The memory is managed in pools: when a memory pool is protected, all the
+memory that is currently part of it, will become R/O.
 
-Plus fixed some comments on top of mem_cgroup_protected
-and fixed !CONFIG_MEMCG build.
+A R/O pool can be expanded (adding more protectable memory).
+It can also be destroyed, to recover its memory, but it cannot be
+turned back into normal R/W mode.
 
-Thank you!
+This is intentional. This feature is meant for data that either doesn't
+need further modifications after initialization, or it will change very
+seldom.
 
-Roman
+The data might need to be released, for example as part of module unloading.
+The pool, therefore, can be destroyed.
 
-On Fri, Apr 20, 2018 at 04:44:29PM -0400, Johannes Weiner wrote:
-> Hi Roman,
-> 
-> this looks cool, and the implementation makes sense to me, so the
-> feedback I have is just smaller stuff.
-> 
-> On Fri, Apr 20, 2018 at 05:36:31PM +0100, Roman Gushchin wrote:
-> > Memory controller implements the memory.low best-effort memory
-> > protection mechanism, which works perfectly in many cases and
-> > allows protecting working sets of important workloads from
-> > sudden reclaim.
-> > 
-> > But it's semantics has a significant limitation: it works
-> 
-> its
-> 
-> > only until there is a supply of reclaimable memory.
-> 
-> s/until/as long as/
-> 
-> Maybe "as long as there is an unprotected supply of reclaimable memory
-> from other groups"?
-> 
-> > This makes it pretty useless against any sort of slow memory
-> > leaks or memory usage increases. This is especially true
-> > for swapless systems. If swap is enabled, memory soft protection
-> > effectively postpones problems, allowing a leaking application
-> > to fill all swap area, which makes no sense.
-> > The only effective way to guarantee the memory protection
-> > in this case is to invoke the OOM killer.
-> 
-> This makes it sound like it has no purpose at all. But like with
-> memory.high, the point is to avoid the kernel OOM killer, which knows
-> jack about how the system is structured, and instead allow userspace
-> management software to monitor MEMCG_LOW and make informed decisions.
-> 
-> memory.min again is the fail-safe for memory.low, not the primary way
-> of implementing guarantees.
-> 
-> > @@ -297,7 +297,14 @@ static inline bool mem_cgroup_disabled(void)
-> >  	return !cgroup_subsys_enabled(memory_cgrp_subsys);
-> >  }
-> >  
-> > -bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg);
-> > +enum mem_cgroup_protection {
-> > +	MEM_CGROUP_UNPROTECTED,
-> > +	MEM_CGROUP_PROTECTED_LOW,
-> > +	MEM_CGROUP_PROTECTED_MIN,
-> > +};
-> 
-> These look a bit unwieldy. How about
-> 
-> MEMCG_PROT_NONE,
-> MEMCG_PROT_LOW,
-> MEMCG_PROT_HIGH,
-> 
-> > +enum mem_cgroup_protection
-> > +mem_cgroup_protected(struct mem_cgroup *root, struct mem_cgroup *memcg);
-> 
-> Please don't wrap at the return type, wrap the parameter list instead.
-> 
-> >  int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
-> >  			  gfp_t gfp_mask, struct mem_cgroup **memcgp,
-> > @@ -756,6 +763,12 @@ static inline void memcg_memory_event(struct mem_cgroup *memcg,
-> >  {
-> >  }
-> >  
-> > +static inline bool mem_cgroup_min(struct mem_cgroup *root,
-> > +				  struct mem_cgroup *memcg)
-> > +{
-> > +	return false;
-> > +}
-> > +
-> >  static inline bool mem_cgroup_low(struct mem_cgroup *root,
-> >  				  struct mem_cgroup *memcg)
-> >  {
-> 
-> The real implementation has these merged into the single
-> mem_cgroup_protected(). Probably a left-over from earlier versions?
-> 
-> It's always a good idea to build test the !CONFIG_MEMCG case too.
-> 
-> > @@ -5685,44 +5723,71 @@ struct cgroup_subsys memory_cgrp_subsys = {
-> >   * for next usage. This part is intentionally racy, but it's ok,
-> >   * as memory.low is a best-effort mechanism.
-> >   */
-> > -bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg)
-> > +enum mem_cgroup_protection
-> > +mem_cgroup_protected(struct mem_cgroup *root, struct mem_cgroup *memcg)
-> 
-> Please fix the wrapping here too.
-> 
-> > @@ -2525,12 +2525,29 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
-> >  			unsigned long reclaimed;
-> >  			unsigned long scanned;
-> >  
-> > -			if (mem_cgroup_low(root, memcg)) {
-> > +			switch (mem_cgroup_protected(root, memcg)) {
-> > +			case MEM_CGROUP_PROTECTED_MIN:
-> > +				/*
-> > +				 * Hard protection.
-> > +				 * If there is no reclaimable memory, OOM.
-> > +				 */
-> > +				continue;
-> > +
-> > +			case MEM_CGROUP_PROTECTED_LOW:
-> 
-> Please drop that newline after continue.
-> 
-> > +				/*
-> > +				 * Soft protection.
-> > +				 * Respect the protection only until there is
-> > +				 * a supply of reclaimable memory.
-> 
-> Same feedback here as in the changelog:
-> 
-> s/until/as long as/
-> 
-> Maybe "as long as there is an unprotected supply of reclaimable memory
-> from other groups"?
-> 
-> > +				 */
-> >  				if (!sc->memcg_low_reclaim) {
-> >  					sc->memcg_low_skipped = 1;
-> >  					continue;
-> >  				}
-> >  				memcg_memory_event(memcg, MEMCG_LOW);
-> > +				break;
-> > +
-> > +			case MEM_CGROUP_UNPROTECTED:
-> 
-> Please drop that newline after break, too.
-> 
-> Thanks!
-> Johannes
+For those cases where the data is never completely stable, however it can
+stay unmodified for very long periods, there is a possibility of
+allocating it from a "rare write" pool, which allows modification to its
+data, through an helper function.
+
+I did not want to overcomplicate the first version of rare write, but it
+might be needed to add disabling/enabling of preemption, however I would
+appreciate comments in general about the implementation through transient
+remapping.
+
+An example is provided, showing how to protect one of hte internal states
+of SELinux.
+
+Changes since v22:
+[http://www.openwall.com/lists/kernel-hardening/2018/04/13/3]
+
+- refactored some helper functions in a separate local header
+- expanded the documentation
+- introduction of rare write support
+- example with SELinux "initialized" field
+
+
+Igor Stoppa (9):
+  struct page: add field for vm_struct
+  vmalloc: rename llist field in vmap_area
+  Protectable Memory
+  Documentation for Pmalloc
+  Pmalloc selftest
+  lkdtm: crash on overwriting protected pmalloc var
+  Pmalloc Rare Write: modify selected pools
+  Preliminary self test for pmalloc rare write
+  Protect SELinux initialized state with pmalloc
+
+ Documentation/core-api/index.rst    |   1 +
+ Documentation/core-api/pmalloc.rst  | 189 ++++++++++++++++++++++++++
+ drivers/misc/lkdtm/core.c           |   3 +
+ drivers/misc/lkdtm/lkdtm.h          |   1 +
+ drivers/misc/lkdtm/perms.c          |  25 ++++
+ include/linux/mm_types.h            |   1 +
+ include/linux/pmalloc.h             | 170 ++++++++++++++++++++++++
+ include/linux/test_pmalloc.h        |  24 ++++
+ include/linux/vmalloc.h             |   6 +-
+ init/main.c                         |   2 +
+ mm/Kconfig                          |  16 +++
+ mm/Makefile                         |   2 +
+ mm/pmalloc.c                        | 258 ++++++++++++++++++++++++++++++++++++
+ mm/pmalloc_helpers.h                | 210 +++++++++++++++++++++++++++++
+ mm/test_pmalloc.c                   | 213 +++++++++++++++++++++++++++++
+ mm/usercopy.c                       |   9 ++
+ mm/vmalloc.c                        |  10 +-
+ security/selinux/hooks.c            |  12 +-
+ security/selinux/include/security.h |   2 +-
+ security/selinux/ss/services.c      |  51 ++++---
+ 20 files changed, 1174 insertions(+), 31 deletions(-)
+ create mode 100644 Documentation/core-api/pmalloc.rst
+ create mode 100644 include/linux/pmalloc.h
+ create mode 100644 include/linux/test_pmalloc.h
+ create mode 100644 mm/pmalloc.c
+ create mode 100644 mm/pmalloc_helpers.h
+ create mode 100644 mm/test_pmalloc.c
+
+-- 
+2.14.1
