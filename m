@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C3A66B0007
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DC1F6B000A
 	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:47:50 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z7-v6so19124839wrg.11
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:49 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id p62si2450704edd.423.2018.04.23.08.47.45
+Received: by mail-wr0-f197.google.com with SMTP id m7-v6so19251822wrb.16
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:47:50 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id i30si1048191edi.381.2018.04.23.08.47.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:47:45 -0700 (PDT)
+        Mon, 23 Apr 2018 08:47:48 -0700 (PDT)
 From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 03/37] x86/entry/32: Load task stack from x86_tss.sp1 in SYSENTER handler
-Date: Mon, 23 Apr 2018 17:47:06 +0200
-Message-Id: <1524498460-25530-4-git-send-email-joro@8bytes.org>
+Subject: [PATCH 06/37] x86/entry/32: Split off return-to-kernel path
+Date: Mon, 23 Apr 2018 17:47:09 +0200
+Message-Id: <1524498460-25530-7-git-send-email-joro@8bytes.org>
 In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,45 +22,52 @@ Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torv
 
 From: Joerg Roedel <jroedel@suse.de>
 
-We want x86_tss.sp0 point to the entry stack later to use
-it as a trampoline stack for other kernel entry points
-besides SYSENTER.
-
-So store the task stack pointer in x86_tss.sp1, which is
-otherwise unused by the hardware, as Linux doesn't make use
-of Ring 1.
+Use a separate return path when we know we are returning to
+the kernel. This allows us to put the PTI cr3-switch and the
+switch to the entry-stack into the return-to-user path
+without further checking.
 
 Signed-off-by: Joerg Roedel <jroedel@suse.de>
 ---
- arch/x86/kernel/asm-offsets_32.c | 2 +-
- arch/x86/kernel/process_32.c     | 2 ++
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ arch/x86/entry/entry_32.S | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/kernel/asm-offsets_32.c b/arch/x86/kernel/asm-offsets_32.c
-index c6ac48f..5f05329 100644
---- a/arch/x86/kernel/asm-offsets_32.c
-+++ b/arch/x86/kernel/asm-offsets_32.c
-@@ -47,7 +47,7 @@ void foo(void)
- 	BLANK();
+diff --git a/arch/x86/entry/entry_32.S b/arch/x86/entry/entry_32.S
+index 3a319fd..2f04d6e 100644
+--- a/arch/x86/entry/entry_32.S
++++ b/arch/x86/entry/entry_32.S
+@@ -65,7 +65,7 @@
+ # define preempt_stop(clobbers)	DISABLE_INTERRUPTS(clobbers); TRACE_IRQS_OFF
+ #else
+ # define preempt_stop(clobbers)
+-# define resume_kernel		restore_all
++# define resume_kernel		restore_all_kernel
+ #endif
  
- 	/* Offset from the sysenter stack to tss.sp0 */
--	DEFINE(TSS_entry_stack, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
-+	DEFINE(TSS_entry_stack, offsetof(struct cpu_entry_area, tss.x86_tss.sp1) -
- 	       offsetofend(struct cpu_entry_area, entry_stack_page.stack));
+ .macro TRACE_IRQS_IRET
+@@ -399,9 +399,9 @@ ENTRY(resume_kernel)
+ 	DISABLE_INTERRUPTS(CLBR_ANY)
+ .Lneed_resched:
+ 	cmpl	$0, PER_CPU_VAR(__preempt_count)
+-	jnz	restore_all
++	jnz	restore_all_kernel
+ 	testl	$X86_EFLAGS_IF, PT_EFLAGS(%esp)	# interrupts off (exception path) ?
+-	jz	restore_all
++	jz	restore_all_kernel
+ 	call	preempt_schedule_irq
+ 	jmp	.Lneed_resched
+ END(resume_kernel)
+@@ -606,6 +606,11 @@ restore_all:
+ 	 */
+ 	INTERRUPT_RETURN
  
- #ifdef CONFIG_CC_STACKPROTECTOR
-diff --git a/arch/x86/kernel/process_32.c b/arch/x86/kernel/process_32.c
-index 5224c60..097d36a 100644
---- a/arch/x86/kernel/process_32.c
-+++ b/arch/x86/kernel/process_32.c
-@@ -292,6 +292,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
- 	this_cpu_write(cpu_current_top_of_stack,
- 		       (unsigned long)task_stack_page(next_p) +
- 		       THREAD_SIZE);
-+	/* SYSENTER reads the task-stack from tss.sp1 */
-+	this_cpu_write(cpu_tss_rw.x86_tss.sp1, next_p->thread.sp0);
- 
- 	/*
- 	 * Restore %gs if needed (which is common)
++restore_all_kernel:
++	TRACE_IRQS_IRET
++	RESTORE_REGS 4
++	jmp	.Lirq_return
++
+ .section .fixup, "ax"
+ ENTRY(iret_exc	)
+ 	pushl	$0				# no error code
 -- 
 2.7.4
