@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F9B66B0008
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 13:06:23 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id j139so7833000vke.8
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 10:06:23 -0700 (PDT)
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A4FBC6B000D
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 13:09:21 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id g76so8876067vki.9
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 10:09:21 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m129sor6303112vkg.287.2018.04.23.10.06.21
+        by mx.google.com with SMTPS id l65sor6207614vkb.207.2018.04.23.10.09.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 23 Apr 2018 10:06:22 -0700 (PDT)
+        Mon, 23 Apr 2018 10:09:20 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1524498460-25530-28-git-send-email-joro@8bytes.org>
-References: <1524498460-25530-1-git-send-email-joro@8bytes.org> <1524498460-25530-28-git-send-email-joro@8bytes.org>
+In-Reply-To: <1524498460-25530-29-git-send-email-joro@8bytes.org>
+References: <1524498460-25530-1-git-send-email-joro@8bytes.org> <1524498460-25530-29-git-send-email-joro@8bytes.org>
 From: Kees Cook <keescook@google.com>
-Date: Mon, 23 Apr 2018 10:06:20 -0700
-Message-ID: <CAGXu5jLN_rzmfgM-Xne836ip+qMc8T1QX=mhozo3NFLNssgUfw@mail.gmail.com>
-Subject: Re: [PATCH 27/37] x86/mm/pti: Keep permissions when cloning kernel
- text in pti_clone_kernel_text()
+Date: Mon, 23 Apr 2018 10:09:19 -0700
+Message-ID: <CAGXu5jKYhqvgooq8q-2NoMC_Cqh-SR8J0y0c1x9LteinDfQELQ@mail.gmail.com>
+Subject: Re: [PATCH 28/37] x86/mm/pti: Map kernel-text to user-space on 32 bit kernels
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -26,22 +25,45 @@ Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . P
 On Mon, Apr 23, 2018 at 8:47 AM, Joerg Roedel <joro@8bytes.org> wrote:
 > From: Joerg Roedel <jroedel@suse.de>
 >
-> Mapping the kernel text area to user-space makes only sense
-> if it has the same permissions as in the kernel page-table.
-> If permissions are different this will cause a TLB reload
-> when using the kernel page-table, which is as good as not
-> mapping it at all.
->
-> On 64-bit kernels this patch makes no difference, as the
-> whole range cloned by pti_clone_kernel_text() is mapped RO
-> anyway. On 32 bit there are writeable mappings in the range,
-> so just keep the permissions as they are.
+> Keeping the kernel text mapped with G bit set keeps its
+> entries in the TLB across kernel entry/exit and improved the
+> performance. The 64 bit x86 kernels already do this when
+> there is no PCID, so do this in 32 bit as well since PCID is
+> not even supported there.
 
-Why are there R/W text mappings in this range? I find that to be
-unexpected. Shouldn't CONFIG_DEBUG_WX already complain if that were
-true?
+I think this should keep at least part of the logic as 64-bit since
+there are other reasons to turn off the Global flag:
+
+https://lkml.kernel.org/r/20180420222026.D0B4AAC9@viggo.jf.intel.com
 
 -Kees
+
+>
+> Signed-off-by: Joerg Roedel <jroedel@suse.de>
+> ---
+>  arch/x86/mm/init_32.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+>
+> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+> index c893c6a..8299b98 100644
+> --- a/arch/x86/mm/init_32.c
+> +++ b/arch/x86/mm/init_32.c
+> @@ -956,4 +956,10 @@ void mark_rodata_ro(void)
+>         mark_nxdata_nx();
+>         if (__supported_pte_mask & _PAGE_NX)
+>                 debug_checkwx();
+> +
+> +       /*
+> +        * Do this after all of the manipulation of the
+> +        * kernel text page tables are complete.
+> +        */
+> +       pti_clone_kernel_text();
+>  }
+> --
+> 2.7.4
+>
+
+
 
 -- 
 Kees Cook
