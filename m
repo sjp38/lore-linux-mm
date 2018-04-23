@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 801EC6B0282
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 11:49:56 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id l6-v6so13092371wrn.17
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 08:49:56 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id h5si4856387edd.341.2018.04.23.08.47.52
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7269B6B0012
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 12:09:26 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id o8-v6so18784457wra.12
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 09:09:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t5si4143345edt.292.2018.04.23.09.09.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 08:47:52 -0700 (PDT)
-From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 16/37] x86/pgtable/pae: Unshare kernel PMDs when PTI is enabled
-Date: Mon, 23 Apr 2018 17:47:19 +0200
-Message-Id: <1524498460-25530-17-git-send-email-joro@8bytes.org>
-In-Reply-To: <1524498460-25530-1-git-send-email-joro@8bytes.org>
-References: <1524498460-25530-1-git-send-email-joro@8bytes.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 23 Apr 2018 09:09:23 -0700 (PDT)
+Date: Mon, 23 Apr 2018 10:09:20 -0600
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+Message-ID: <20180423160920.GX17484@dhcp22.suse.cz>
+References: <201804180057.w3I0vieV034949@www262.sakura.ne.jp>
+ <alpine.DEB.2.21.1804171928040.100886@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1804171951440.105401@chino.kir.corp.google.com>
+ <20180418075051.GO17484@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1804181159020.227784@chino.kir.corp.google.com>
+ <20180419063556.GK17484@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com>
+ <20180420082349.GW17484@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1804212023120.84222@chino.kir.corp.google.com>
+ <20180422131857.GI17484@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180422131857.GI17484@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, Jiri Kosina <jkosina@suse.cz>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Greg KH <gregkh@linuxfoundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, Andrea Arcangeli <aarcange@redhat.com>, Waiman Long <llong@redhat.com>, Pavel Machek <pavel@ucw.cz>, "David H . Gutteridge" <dhgutteridge@sympatico.ca>, jroedel@suse.de, joro@8bytes.org
+To: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Joerg Roedel <jroedel@suse.de>
+On Sun 22-04-18 07:18:57, Michal Hocko wrote:
+> On Sat 21-04-18 20:45:11, David Rientjes wrote:
+[...]
+> Maybe invoking the reaper as suggested by Tetsuo will help here. Maybe
+> we will come up with something more smart. But I would like to have a
+> stop gap solution for stable that is easy enough. And your patch is not
+> doing that because it adds a very subtle dependency on the page lock.
+> So please stop repeating your arguments all over and either come with
+> an argument which proves me wrong and the lock_page dependency is not
+> real or come with an alternative solution which doesn't make
+> MMF_OOM_SKIP depend on the page lock.
 
-With PTI we need to map the per-process LDT into the kernel
-address-space for each process, so we need separate kernel
-PMDs per PGD.
-
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
----
- arch/x86/include/asm/pgtable-3level_types.h | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
-index 6a59a6d..78038e0 100644
---- a/arch/x86/include/asm/pgtable-3level_types.h
-+++ b/arch/x86/include/asm/pgtable-3level_types.h
-@@ -21,9 +21,10 @@ typedef union {
- #endif	/* !__ASSEMBLY__ */
- 
- #ifdef CONFIG_PARAVIRT
--#define SHARED_KERNEL_PMD	(pv_info.shared_kernel_pmd)
-+#define SHARED_KERNEL_PMD	((!static_cpu_has(X86_FEATURE_PTI) &&	\
-+				 (pv_info.shared_kernel_pmd)))
- #else
--#define SHARED_KERNEL_PMD	1
-+#define SHARED_KERNEL_PMD	(!static_cpu_has(X86_FEATURE_PTI))
- #endif
- 
- /*
+I though I would give this a try but I am at a conference and quite
+busy. Tetsuo are you willing to give it a try so that we have something
+to compare and decide, please?
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
