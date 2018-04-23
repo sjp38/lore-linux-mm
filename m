@@ -1,402 +1,319 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C73DC6B0007
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 06:54:59 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id p189so10242572pfp.1
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 03:54:59 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0093.outbound.protection.outlook.com. [104.47.0.93])
-        by mx.google.com with ESMTPS id u15si4872237pgc.383.2018.04.23.03.54.57
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 975AD6B0007
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 06:57:13 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a6so10262363pfn.3
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 03:57:13 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y16sor3007601pfm.63.2018.04.23.03.57.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 23 Apr 2018 03:54:58 -0700 (PDT)
-Subject: Re: [PATCH v2 04/12] mm: Assign memcg-aware shrinkers bitmap to memcg
-References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
- <152399121146.3456.5459546288565589098.stgit@localhost.localdomain>
- <20180422175900.dsjmm7gt2nsqj3er@esperanza>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <14ebcccf-3ea8-59f4-d7ea-793aaba632c0@virtuozzo.com>
-Date: Mon, 23 Apr 2018 13:54:50 +0300
+        (Google Transport Security);
+        Mon, 23 Apr 2018 03:57:12 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180422175900.dsjmm7gt2nsqj3er@esperanza>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <0000000000007cdcf6056a81617f@google.com>
+References: <0000000000007cdcf6056a81617f@google.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 23 Apr 2018 12:56:51 +0200
+Message-ID: <CACT4Y+Z42V62j02GnoaBcVTjdN+OAWToo4L7Z=PW=c4UCv1s5w@mail.gmail.com>
+Subject: Re: WARNING: kernel stack regs at (ptrval) in syz-executor has bad
+ 'bp' value (ptrval)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: syzbot <syzbot+795f3a2b6f5ad776cc22@syzkaller.appspotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, hmclauchlan@fb.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Philippe Ombredanne <pombredanne@nexb.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On 22.04.2018 20:59, Vladimir Davydov wrote:
-> On Tue, Apr 17, 2018 at 09:53:31PM +0300, Kirill Tkhai wrote:
->> Imagine a big node with many cpus, memory cgroups and containers.
->> Let we have 200 containers, every container has 10 mounts,
->> and 10 cgroups. All container tasks don't touch foreign
->> containers mounts. If there is intensive pages write,
->> and global reclaim happens, a writing task has to iterate
->> over all memcgs to shrink slab, before it's able to go
->> to shrink_page_list().
->>
->> Iteration over all the memcg slabs is very expensive:
->> the task has to visit 200 * 10 = 2000 shrinkers
->> for every memcg, and since there are 2000 memcgs,
->> the total calls are 2000 * 2000 = 4000000.
->>
->> So, the shrinker makes 4 million do_shrink_slab() calls
->> just to try to isolate SWAP_CLUSTER_MAX pages in one
->> of the actively writing memcg via shrink_page_list().
->> I've observed a node spending almost 100% in kernel,
->> making useless iteration over already shrinked slab.
->>
->> This patch adds bitmap of memcg-aware shrinkers to memcg.
->> The size of the bitmap depends on bitmap_nr_ids, and during
->> memcg life it's maintained to be enough to fit bitmap_nr_ids
->> shrinkers. Every bit in the map is related to corresponding
->> shrinker id.
->>
->> Next patches will maintain set bit only for really charged
->> memcg. This will allow shrink_slab() to increase its
->> performance in significant way. See the last patch for
->> the numbers.
->>
->> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
->> ---
->>  include/linux/memcontrol.h |   15 +++++
->>  mm/memcontrol.c            |  125 ++++++++++++++++++++++++++++++++++++++++++++
->>  mm/vmscan.c                |   21 +++++++
->>  3 files changed, 160 insertions(+), 1 deletion(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index af9eed2e3e04..2ec96ab46b01 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -115,6 +115,7 @@ struct mem_cgroup_per_node {
->>  	unsigned long		lru_zone_size[MAX_NR_ZONES][NR_LRU_LISTS];
->>  
->>  	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
-> 
->> +	struct memcg_shrinker_map __rcu	*shrinkers_map;
-> 
-> shrinker_map
-> 
->>  
->>  	struct rb_node		tree_node;	/* RB tree node */
->>  	unsigned long		usage_in_excess;/* Set to the value by which */
->> @@ -153,6 +154,11 @@ struct mem_cgroup_thresholds {
->>  	struct mem_cgroup_threshold_ary *spare;
->>  };
->>  
->> +struct memcg_shrinker_map {
->> +	struct rcu_head rcu;
->> +	unsigned long map[0];
->> +};
->> +
-> 
-> This struct should be defined before struct mem_cgroup_per_node.
-> 
-> A comment explaining what this map is for and what it maps would be
-> really helpful.
-> 
->>  enum memcg_kmem_state {
->>  	KMEM_NONE,
->>  	KMEM_ALLOCATED,
->> @@ -1200,6 +1206,8 @@ extern int memcg_nr_cache_ids;
->>  void memcg_get_cache_ids(void);
->>  void memcg_put_cache_ids(void);
->>  
->> +extern int shrinkers_max_nr;
->> +
-> 
-> memcg_shrinker_id_max?
-
-memcg_shrinker_id_max sounds like an includive value, doesn't it?
-While shrinker->id < shrinker_max_nr.
-
-Let's better use memcg_shrinker_nr_max.
-
->>  /*
->>   * Helper macro to loop through all memcg-specific caches. Callers must still
->>   * check if the cache is valid (it is either valid or NULL).
->> @@ -1223,6 +1231,13 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
->>  	return memcg ? memcg->kmemcg_id : -1;
->>  }
->>  
->> +extern struct memcg_shrinker_map __rcu *root_shrinkers_map[];
->> +#define SHRINKERS_MAP(memcg, nid)					\
->> +	(memcg == root_mem_cgroup || !memcg ?				\
->> +	 root_shrinkers_map[nid] : memcg->nodeinfo[nid]->shrinkers_map)
->> +
->> +extern int expand_shrinker_maps(int old_id, int id);
->> +
-> 
-> I'm strongly against using a special map for the root cgroup. I'd prefer
-> to disable this optimization for the root cgroup altogether and simply
-> iterate over all registered shrinkers when it comes to global reclaim.
-> It shouldn't degrade performance as the root cgroup is singular.
+On Mon, Apr 23, 2018 at 12:20 PM, syzbot
+<syzbot+795f3a2b6f5ad776cc22@syzkaller.appspotmail.com> wrote:
+> Hello,
 >
->>  #else
->>  #define for_each_memcg_cache_index(_idx)	\
->>  	for (; NULL; )
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 2959a454a072..562dfb1be9ef 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -305,6 +305,113 @@ EXPORT_SYMBOL(memcg_kmem_enabled_key);
->>  
->>  struct workqueue_struct *memcg_kmem_cache_wq;
->>  
->> +static DECLARE_RWSEM(shrinkers_max_nr_rwsem);
-> 
-> Why rwsem? AFAIU you want to synchronize between two code paths: when a
-> memory cgroup is allocated (or switched online?) to allocate a shrinker
-> map for it and in the function growing shrinker maps for all cgroups.
-> A mutex should be enough for this.
-> 
->> +struct memcg_shrinker_map __rcu *root_shrinkers_map[MAX_NUMNODES] = { 0 };
->> +
->> +static void get_shrinkers_max_nr(void)
->> +{
->> +	down_read(&shrinkers_max_nr_rwsem);
->> +}
->> +
->> +static void put_shrinkers_max_nr(void)
->> +{
->> +	up_read(&shrinkers_max_nr_rwsem);
->> +}
->> +
->> +static void kvfree_map_rcu(struct rcu_head *head)
-> 
-> free_shrinker_map_rcu
-> 
->> +{
->> +	kvfree(container_of(head, struct memcg_shrinker_map, rcu));
->> +}
->> +
->> +static int memcg_expand_maps(struct mem_cgroup *memcg, int nid,
-> 
-> Bad name: the function reallocates just one map, not many maps; the name
-> doesn't indicate that it is about shrinkers; the name is inconsistent
-> with alloc_shrinker_maps and free_shrinker_maps. Please fix.
-> 
->> +			     int size, int old_size)
->> +{
->> +	struct memcg_shrinker_map *new, *old;
->> +
->> +	lockdep_assert_held(&shrinkers_max_nr_rwsem);
->> +
->> +	new = kvmalloc(sizeof(*new) + size, GFP_KERNEL);
->> +	if (!new)
->> +		return -ENOMEM;
->> +
->> +	/* Set all old bits, clear all new bits */
->> +	memset(new->map, (int)0xff, old_size);
->> +	memset((void *)new->map + old_size, 0, size - old_size);
->> +
->> +	old = rcu_dereference_protected(SHRINKERS_MAP(memcg, nid), true);
->> +
->> +	if (memcg)
->> +		rcu_assign_pointer(memcg->nodeinfo[nid]->shrinkers_map, new);
->> +	else
->> +		rcu_assign_pointer(root_shrinkers_map[nid], new);
->> +
->> +	if (old)
->> +		call_rcu(&old->rcu, kvfree_map_rcu);
->> +
->> +	return 0;
->> +}
->> +
->> +static int alloc_shrinker_maps(struct mem_cgroup *memcg, int nid)
->> +{
->> +	/* Skip allocation, when we're initializing root_mem_cgroup */
->> +	if (!root_mem_cgroup)
->> +		return 0;
->> +
->> +	return memcg_expand_maps(memcg, nid, shrinkers_max_nr/BITS_PER_BYTE, 0);
->> +}
->> +
->> +static void free_shrinker_maps(struct mem_cgroup *memcg,
->> +			       struct mem_cgroup_per_node *pn)
->> +{
->> +	struct memcg_shrinker_map *map;
->> +
->> +	if (memcg == root_mem_cgroup)
->> +		return;
->> +
->> +	/* IDR unhashed long ago, and expand_shrinker_maps can't race with us */
->> +	map = rcu_dereference_protected(pn->shrinkers_map, true);
->> +	kvfree_map_rcu(&map->rcu);
->> +}
->> +
->> +static struct idr mem_cgroup_idr;
->> +
->> +int expand_shrinker_maps(int old_nr, int nr)
->> +{
->> +	int id, size, old_size, node, ret;
->> +	struct mem_cgroup *memcg;
->> +
->> +	old_size = old_nr / BITS_PER_BYTE;
->> +	size = nr / BITS_PER_BYTE;
->> +
->> +	down_write(&shrinkers_max_nr_rwsem);
->> +	for_each_node(node) {
-> 
-> Iterating over cgroups first, numa nodes second seems like a better idea
-> to me. I think you should fold for_each_node in memcg_expand_maps.
+> syzbot hit the following crash on upstream commit
+> 5ec83b22a2dd13180762c89698e4e2c2881a423c (Sun Apr 22 19:13:04 2018 +0000)
+> Merge tag '4.17-rc1-SMB3-CIFS' of git://git.samba.org/sfrench/cifs-2.6
+> syzbot dashboard link:
+> https://syzkaller.appspot.com/bug?extid=795f3a2b6f5ad776cc22
 >
->> +		idr_for_each_entry(&mem_cgroup_idr, memcg, id) {
-> 
-> Iterating over mem_cgroup_idr looks strange. Why don't you use
-> for_each_mem_cgroup?
+> So far this crash happened 2 times on upstream.
+> Unfortunately, I don't have any reproducer for this crash yet.
+> Raw console output:
+> https://syzkaller.appspot.com/x/log.txt?id=5291662095941632
+> Kernel config:
+> https://syzkaller.appspot.com/x/.config?id=1808800213120130118
+> compiler: gcc (GCC) 8.0.1 20180413 (experimental)
+>
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+795f3a2b6f5ad776cc22@syzkaller.appspotmail.com
+> It will help syzbot understand when the bug is fixed. See footer for
+> details.
+> If you forward the report, please keep this part and the footer.
 
-We want to allocate shrinkers maps in mem_cgroup_css_alloc(), since
-mem_cgroup_css_online() mustn't fail (it's a requirement of currently
-existing design of memcg_cgroup::id).
+#syz dup:
+WARNING: kernel stack regs at (ptrval) in syzkaller has bad 'bp' value (ptrval)
 
-A new memcg is added to parent's list between two of these calls:
-
-css_create()
-  ss->css_alloc()
-  list_add_tail_rcu(&css->sibling, &parent_css->children)
-  ss->css_online()
-
-
-for_each_mem_cgroup() does not see allocated, but not linked children.
- 
->> +			if (id == 1)
->> +				memcg = NULL;
->> +			ret = memcg_expand_maps(memcg, node, size, old_size);
->> +			if (ret)
->> +				goto unlock;
->> +		}
->> +
->> +		/* root_mem_cgroup is not initialized yet */
->> +		if (id == 0)
->> +			ret = memcg_expand_maps(NULL, node, size, old_size);
->> +	}
->> +unlock:
->> +	up_write(&shrinkers_max_nr_rwsem);
->> +	return ret;
->> +}
->> +#else /* CONFIG_SLOB */
->> +static void get_shrinkers_max_nr(void) { }
->> +static void put_shrinkers_max_nr(void) { }
->> +
->> +static int alloc_shrinker_maps(struct mem_cgroup *memcg, int nid)
->> +{
->> +	return 0;
->> +}
->> +static void free_shrinker_maps(struct mem_cgroup *memcg,
->> +			       struct mem_cgroup_per_node *pn) { }
->> +
->>  #endif /* !CONFIG_SLOB */
->>  
->>  /**
->> @@ -3002,6 +3109,8 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
->>  }
->>  
->>  #ifndef CONFIG_SLOB
->> +int shrinkers_max_nr;
->> +
->>  static int memcg_online_kmem(struct mem_cgroup *memcg)
->>  {
->>  	int memcg_id;
->> @@ -4266,7 +4375,10 @@ static DEFINE_IDR(mem_cgroup_idr);
->>  static void mem_cgroup_id_remove(struct mem_cgroup *memcg)
->>  {
->>  	if (memcg->id.id > 0) {
->> +		/* Removing IDR must be visible for expand_shrinker_maps() */
->> +		get_shrinkers_max_nr();
->>  		idr_remove(&mem_cgroup_idr, memcg->id.id);
->> +		put_shrinkers_max_nr();
->>  		memcg->id.id = 0;
->>  	}
->>  }
->> @@ -4333,12 +4445,17 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
->>  	if (!pn->lruvec_stat_cpu)
->>  		goto err_pcpu;
->>  
->> +	if (alloc_shrinker_maps(memcg, node))
->> +		goto err_maps;
->> +
->>  	lruvec_init(&pn->lruvec);
->>  	pn->usage_in_excess = 0;
->>  	pn->on_tree = false;
->>  	pn->memcg = memcg;
->>  	return 0;
->>  
->> +err_maps:
->> +	free_percpu(pn->lruvec_stat_cpu);
->>  err_pcpu:
->>  	memcg->nodeinfo[node] = NULL;
->>  	kfree(pn);
->> @@ -4352,6 +4469,7 @@ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
->>  	if (!pn)
->>  		return;
->>  
->> +	free_shrinker_maps(memcg, pn);
->>  	free_percpu(pn->lruvec_stat_cpu);
->>  	kfree(pn);
->>  }
->> @@ -4407,13 +4525,18 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
->>  #ifdef CONFIG_CGROUP_WRITEBACK
->>  	INIT_LIST_HEAD(&memcg->cgwb_list);
->>  #endif
->> +
->> +	get_shrinkers_max_nr();
->>  	for_each_node(node)
->> -		if (alloc_mem_cgroup_per_node_info(memcg, node))
->> +		if (alloc_mem_cgroup_per_node_info(memcg, node)) {
->> +			put_shrinkers_max_nr();
->>  			goto fail;
->> +		}
->>  
->>  	memcg->id.id = idr_alloc(&mem_cgroup_idr, memcg,
->>  				 1, MEM_CGROUP_ID_MAX,
->>  				 GFP_KERNEL);
->> +	put_shrinkers_max_nr();
->>  	if (memcg->id.id < 0)
->>  		goto fail;
->>  
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 4f02fe83537e..f63eb5596c35 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -172,6 +172,22 @@ static DECLARE_RWSEM(shrinker_rwsem);
->>  #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
->>  static DEFINE_IDR(shrinkers_id_idr);
->>  
->> +static int expand_shrinker_id(int id)
->> +{
->> +	if (likely(id < shrinkers_max_nr))
->> +		return 0;
->> +
->> +	id = shrinkers_max_nr * 2;
->> +	if (id == 0)
->> +		id = BITS_PER_BYTE;
->> +
->> +	if (expand_shrinker_maps(shrinkers_max_nr, id))
->> +		return -ENOMEM;
->> +
->> +	shrinkers_max_nr = id;
->> +	return 0;
->> +}
->> +
-> 
-> I think this function should live in memcontrol.c and shrinkers_max_nr
-> should be private to memcontrol.c.
-> 
->>  static int add_memcg_shrinker(struct shrinker *shrinker)
->>  {
->>  	int id, ret;
->> @@ -180,6 +196,11 @@ static int add_memcg_shrinker(struct shrinker *shrinker)
->>  	ret = id = idr_alloc(&shrinkers_id_idr, shrinker, 0, 0, GFP_KERNEL);
->>  	if (ret < 0)
->>  		goto unlock;
->> +	ret = expand_shrinker_id(id);
->> +	if (ret < 0) {
->> +		idr_remove(&shrinkers_id_idr, id);
->> +		goto unlock;
->> +	}
->>  	shrinker->id = id;
->>  	ret = 0;
->>  unlock:
->>
+>         (ptrval): 0000000000455389 (0x455389)
+>         (ptrval): 0000000000000033 (0x33)
+>         (ptrval): 0000000000000246 (0x246)
+>         (ptrval): 00007f162d156c68 (0x7f162d156c68)
+>         (ptrval): 000000000000002b (0x2b)
+> WARNING: kernel stack regs at         (ptrval) in syz-executor0:7766 has bad
+> 'bp' value         (ptrval)
+> binder: 7815:7817 got transaction to invalid handle
+> binder: 7815:7817 transaction failed 29201/-22, size 0-0 line 2848
+> binder: undelivered TRANSACTION_ERROR: 29201
+> binder: 7941:7942 ioctl c018620b 20000000 returned -14
+> binder: 7941:7942 ioctl c0306201 20000240 returned -14
+> binder_alloc: binder_alloc_mmap_handler: 7941 20000000-20002000 already
+> mapped failed -16
+> binder: 7941:7951 ioctl c018620b 20000000 returned -14
+> binder: 7941:7951 ioctl c0306201 20000240 returned -14
+> FAULT_INJECTION: forcing a failure.
+> name failslab, interval 1, probability 0, space 0, times 1
+> CPU: 1 PID: 8218 Comm: syz-executor2 Not tainted 4.17.0-rc1+ #13
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+>  fail_dump lib/fault-inject.c:51 [inline]
+>  should_fail.cold.4+0xa/0x1a lib/fault-inject.c:149
+>  __should_failslab+0x124/0x180 mm/failslab.c:32
+>  should_failslab+0x9/0x14 mm/slab_common.c:1522
+>  slab_pre_alloc_hook mm/slab.h:423 [inline]
+>  slab_alloc mm/slab.c:3378 [inline]
+>  kmem_cache_alloc_trace+0x2cb/0x780 mm/slab.c:3618
+>  kmalloc include/linux/slab.h:512 [inline]
+>  kzalloc include/linux/slab.h:701 [inline]
+>  alloc_pipe_info+0x16d/0x580 fs/pipe.c:633
+>  splice_direct_to_actor+0x6e7/0x8d0 fs/splice.c:920
+>  do_splice_direct+0x2cc/0x400 fs/splice.c:1061
+>  do_sendfile+0x60f/0xe00 fs/read_write.c:1440
+>  __do_sys_sendfile64 fs/read_write.c:1495 [inline]
+>  __se_sys_sendfile64 fs/read_write.c:1487 [inline]
+>  __x64_sys_sendfile64+0x155/0x240 fs/read_write.c:1487
+>  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x455389
+> RSP: 002b:00007fd5ef4adc68 EFLAGS: 00000246 ORIG_RAX: 0000000000000028
+> RAX: ffffffffffffffda RBX: 00007fd5ef4ae6d4 RCX: 0000000000455389
+> RDX: 0000000020000140 RSI: 0000000000000013 RDI: 0000000000000014
+> RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000001 R11: 0000000000000246 R12: 0000000000000015
+> R13: 00000000000004cf R14: 00000000006fa408 R15: 0000000000000000
+> FAULT_INJECTION: forcing a failure.
+> name failslab, interval 1, probability 0, space 0, times 0
+> CPU: 0 PID: 8252 Comm: syz-executor2 Not tainted 4.17.0-rc1+ #13
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+>  fail_dump lib/fault-inject.c:51 [inline]
+>  should_fail.cold.4+0xa/0x1a lib/fault-inject.c:149
+>  __should_failslab+0x124/0x180 mm/failslab.c:32
+>  should_failslab+0x9/0x14 mm/slab_common.c:1522
+>  slab_pre_alloc_hook mm/slab.h:423 [inline]
+>  slab_alloc mm/slab.c:3378 [inline]
+>  __do_kmalloc mm/slab.c:3716 [inline]
+>  __kmalloc+0x2c8/0x760 mm/slab.c:3727
+>  kmalloc_array include/linux/slab.h:631 [inline]
+>  kcalloc include/linux/slab.h:642 [inline]
+>  alloc_pipe_info+0x2a0/0x580 fs/pipe.c:650
+>  splice_direct_to_actor+0x6e7/0x8d0 fs/splice.c:920
+>  do_splice_direct+0x2cc/0x400 fs/splice.c:1061
+>  do_sendfile+0x60f/0xe00 fs/read_write.c:1440
+>  __do_sys_sendfile64 fs/read_write.c:1495 [inline]
+>  __se_sys_sendfile64 fs/read_write.c:1487 [inline]
+>  __x64_sys_sendfile64+0x155/0x240 fs/read_write.c:1487
+>  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x455389
+> RSP: 002b:00007fd5ef4adc68 EFLAGS: 00000246 ORIG_RAX: 0000000000000028
+> RAX: ffffffffffffffda RBX: 00007fd5ef4ae6d4 RCX: 0000000000455389
+> RDX: 0000000020000140 RSI: 0000000000000013 RDI: 0000000000000014
+> RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000001 R11: 0000000000000246 R12: 0000000000000015
+> R13: 00000000000004cf R14: 00000000006fa408 R15: 0000000000000001
+> FAULT_INJECTION: forcing a failure.
+> name failslab, interval 1, probability 0, space 0, times 0
+> CPU: 0 PID: 8283 Comm: syz-executor2 Not tainted 4.17.0-rc1+ #13
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+>  fail_dump lib/fault-inject.c:51 [inline]
+>  should_fail.cold.4+0xa/0x1a lib/fault-inject.c:149
+>  __should_failslab+0x124/0x180 mm/failslab.c:32
+>  should_failslab+0x9/0x14 mm/slab_common.c:1522
+>  slab_pre_alloc_hook mm/slab.h:423 [inline]
+>  slab_alloc_node mm/slab.c:3299 [inline]
+>  kmem_cache_alloc_node_trace+0x26f/0x770 mm/slab.c:3661
+>  __do_kmalloc_node mm/slab.c:3681 [inline]
+>  __kmalloc_node+0x33/0x70 mm/slab.c:3689
+>  kmalloc_node include/linux/slab.h:554 [inline]
+>  kvmalloc_node+0x6b/0x100 mm/util.c:421
+>  kvmalloc include/linux/mm.h:550 [inline]
+>  kvmalloc_array include/linux/mm.h:566 [inline]
+>  get_pages_array lib/iov_iter.c:1097 [inline]
+>  pipe_get_pages_alloc lib/iov_iter.c:1123 [inline]
+>  iov_iter_get_pages_alloc+0x7be/0x14e0 lib/iov_iter.c:1144
+>  default_file_splice_read+0x1c7/0xad0 fs/splice.c:390
+>  do_splice_to+0x12e/0x190 fs/splice.c:880
+>  splice_direct_to_actor+0x268/0x8d0 fs/splice.c:952
+>  do_splice_direct+0x2cc/0x400 fs/splice.c:1061
+>  do_sendfile+0x60f/0xe00 fs/read_write.c:1440
+>  __do_sys_sendfile64 fs/read_write.c:1495 [inline]
+>  __se_sys_sendfile64 fs/read_write.c:1487 [inline]
+>  __x64_sys_sendfile64+0x155/0x240 fs/read_write.c:1487
+>  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x455389
+> RSP: 002b:00007fd5ef4adc68 EFLAGS: 00000246 ORIG_RAX: 0000000000000028
+> RAX: ffffffffffffffda RBX: 00007fd5ef4ae6d4 RCX: 0000000000455389
+> RDX: 0000000020000140 RSI: 0000000000000013 RDI: 0000000000000014
+> RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000001 R11: 0000000000000246 R12: 0000000000000015
+> FAULT_INJECTION: forcing a failure.
+> name failslab, interval 1, probability 0, space 0, times 0
+> R13: 00000000000004cf R14: 00000000006fa408 R15: 0000000000000002
+> CPU: 1 PID: 8308 Comm: syz-executor1 Not tainted 4.17.0-rc1+ #13
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+>  fail_dump lib/fault-inject.c:51 [inline]
+>  should_fail.cold.4+0xa/0x1a lib/fault-inject.c:149
+>  __should_failslab+0x124/0x180 mm/failslab.c:32
+>  should_failslab+0x9/0x14 mm/slab_common.c:1522
+>  slab_pre_alloc_hook mm/slab.h:423 [inline]
+>  slab_alloc_node mm/slab.c:3299 [inline]
+>  kmem_cache_alloc_node+0x272/0x780 mm/slab.c:3642
+>  __alloc_skb+0x111/0x780 net/core/skbuff.c:193
+> FAULT_INJECTION: forcing a failure.
+> name failslab, interval 1, probability 0, space 0, times 0
+>  alloc_skb include/linux/skbuff.h:987 [inline]
+>  netlink_alloc_large_skb net/netlink/af_netlink.c:1182 [inline]
+>  netlink_sendmsg+0xb01/0xfa0 net/netlink/af_netlink.c:1876
+>  sock_sendmsg_nosec net/socket.c:629 [inline]
+>  sock_sendmsg+0xd5/0x120 net/socket.c:639
+>  ___sys_sendmsg+0x805/0x940 net/socket.c:2117
+>  __sys_sendmsg+0x115/0x270 net/socket.c:2155
+>  __do_sys_sendmsg net/socket.c:2164 [inline]
+>  __se_sys_sendmsg net/socket.c:2162 [inline]
+>  __x64_sys_sendmsg+0x78/0xb0 net/socket.c:2162
+>  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x455389
+> RSP: 002b:00007fd1bb0a4c68 EFLAGS: 00000246 ORIG_RAX: 000000000000002e
+> RAX: ffffffffffffffda RBX: 00007fd1bb0a56d4 RCX: 0000000000455389
+> RDX: 0000000000000000 RSI: 0000000020023000 RDI: 0000000000000013
+> RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000014
+> R13: 00000000000004f8 R14: 00000000006fa7e0 R15: 0000000000000000
+> CPU: 0 PID: 8314 Comm: syz-executor2 Not tainted 4.17.0-rc1+ #13
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+>  fail_dump lib/fault-inject.c:51 [inline]
+>  should_fail.cold.4+0xa/0x1a lib/fault-inject.c:149
+>  __should_failslab+0x124/0x180 mm/failslab.c:32
+>  should_failslab+0x9/0x14 mm/slab_common.c:1522
+>  slab_pre_alloc_hook mm/slab.h:423 [inline]
+>  slab_alloc_node mm/slab.c:3299 [inline]
+>  kmem_cache_alloc_node_trace+0x26f/0x770 mm/slab.c:3661
+>  __do_kmalloc_node mm/slab.c:3681 [inline]
+>  __kmalloc_node+0x33/0x70 mm/slab.c:3689
+>  kmalloc_node include/linux/slab.h:554 [inline]
+>  kvmalloc_node+0x6b/0x100 mm/util.c:421
+>  kvmalloc include/linux/mm.h:550 [inline]
+>  seq_buf_alloc fs/seq_file.c:32 [inline]
+>  seq_read+0xa33/0x1520 fs/seq_file.c:211
+>  do_loop_readv_writev fs/read_write.c:700 [inline]
+>  do_iter_read+0x4a3/0x660 fs/read_write.c:924
+>  vfs_readv+0x14f/0x1a0 fs/read_write.c:986
+>  kernel_readv fs/splice.c:361 [inline]
+>  default_file_splice_read+0x514/0xad0 fs/splice.c:416
+>  do_splice_to+0x12e/0x190 fs/splice.c:880
+>  splice_direct_to_actor+0x268/0x8d0 fs/splice.c:952
+>  do_splice_direct+0x2cc/0x400 fs/splice.c:1061
+>  do_sendfile+0x60f/0xe00 fs/read_write.c:1440
+>  __do_sys_sendfile64 fs/read_write.c:1495 [inline]
+>  __se_sys_sendfile64 fs/read_write.c:1487 [inline]
+>  __x64_sys_sendfile64+0x155/0x240 fs/read_write.c:1487
+>  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x455389
+> RSP: 002b:00007fd5ef4adc68 EFLAGS: 00000246 ORIG_RAX: 0000000000000028
+> RAX: ffffffffffffffda RBX: 00007fd5ef4ae6d4 RCX: 0000000000455389
+> RDX: 0000000020000140 RSI: 0000000000000013 RDI: 0000000000000014
+> RBP: 000000000072bea0 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000001 R11: 0000000000000246 R12: 0000000000000015
+> R13: 00000000000004cf R14: 00000000006fa408 R15: 0000000000000003
+> FAULT_INJECTION: forcing a failure.
+> name failslab, interval 1, probability 0, space 0, times 0
+> CPU: 0 PID: 8340 Comm: syz-executor2 Not tainted 4.17.0-rc1+ #13
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+>  fail_dump lib/fault-inject.c:51 [inline]
+>  should_fail.cold.4+0xa/0x1a lib/fault-inject.c:149
+> FAULT_INJECTION: forcing a failure.
+> name failslab, interval 1, probability 0, space 0, times 0
+>  __should_failslab+0x124/0x180 mm/failslab.c:32
+>  should_failslab+0x9/0x14 mm/slab_common.c:1522
+>  slab_pre_alloc_hook mm/slab.h:423 [inline]
+>  slab_alloc mm/slab.c:3378 [inline]
+>  kmem_cache_alloc_trace+0x4b/0x780 mm/slab.c:3618
+>  kmalloc include/linux/slab.h:512 [inline]
+>  __memcg_schedule_kmem_cache_create mm/memcontrol.c:2195 [inline]
+>  memcg_schedule_kmem_cache_create mm/memcontrol.c:2223 [inline]
+>  memcg_kmem_get_cache+0x474/0x870 mm/memcontrol.c:2285
+>  slab_pre_alloc_hook mm/slab.h:428 [inline]
+>  slab_alloc_node mm/slab.c:3299 [inline]
+>  kmem_cache_alloc_node_trace+0x1a4/0x770 mm/slab.c:3661
+>  __do_kmalloc_node mm/slab.c:3681 [inline]
+>  __kmalloc_node+0x33/0x70 mm/slab.c:3689
+>  kmalloc_node include/linux/slab.h:554 [inline]
+>  kvmalloc_node+0x6b/0x100 mm/util.c:421
+>  kvmalloc include/linux/mm.h:550 [inline]
+>  seq_buf_alloc fs/seq_file.c:32 [inline]
+>  seq_read+0xa33/0x1520 fs/seq_file.c:211
+>  do_loop_readv_writev fs/read_write.c:700 [inline]
+>  do_iter_read+0x4a3/0x660 fs/read_write.c:924
+>  vfs_readv+0x14f/0x1a0 fs/read_write.c:986
+>  kernel_readv fs/splice.c:361 [inline]
+>  default_file_splice_read+0x514/0xad0 fs/splice.c:416
+>  do_splice_to+0x12e/0x190 fs/splice.c:880
+>
+>
+> ---
+> This bug is generated by a dumb bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for details.
+> Direct all questions to syzkaller@googlegroups.com.
+>
+> syzbot will keep track of this bug report.
+> If you forgot to add the Reported-by tag, once the fix for this bug is
+> merged
+> into any tree, please reply to this email with:
+> #syz fix: exact-commit-title
+> To mark this as a duplicate of another syzbot report, please reply with:
+> #syz dup: exact-subject-of-another-report
+> If it's a one-off invalid bug report, please reply with:
+> #syz invalid
+> Note: if the crash happens again, it will cause creation of a new bug
+> report.
+> Note: all commands must start from beginning of the line in the email body.
+>
+> --
+> You received this message because you are subscribed to the Google Groups
+> "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an
+> email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit
+> https://groups.google.com/d/msgid/syzkaller-bugs/0000000000007cdcf6056a81617f%40google.com.
+> For more options, visit https://groups.google.com/d/optout.
