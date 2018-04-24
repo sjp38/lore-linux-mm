@@ -1,118 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 954F86B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 15:18:52 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id f19so7253920pgv.4
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 12:18:52 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t65sor637458pgc.62.2018.04.24.12.18.51
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DAC716B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 15:25:48 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id m69so958854wma.0
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 12:25:48 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q33si1230042eda.254.2018.04.24.12.25.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 24 Apr 2018 12:18:51 -0700 (PDT)
-Date: Tue, 24 Apr 2018 22:18:50 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC v4 PATCH] mm: shmem: make stat.st_blksize return huge page
- size if THP is on
-Message-ID: <20180424191850.hasxjzxuwuhtvulp@kshutemo-mobl1>
-References: <1524542450-92577-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180424112359.svngcdudzodobvmu@kshutemo-mobl1.Home>
- <213eae6a-e003-5369-d73a-1da8920b3dd4@linux.alibaba.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 24 Apr 2018 12:25:47 -0700 (PDT)
+Date: Tue, 24 Apr 2018 13:25:42 -0600
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: vmalloc with GFP_NOFS
+Message-ID: <20180424192542.GS17484@dhcp22.suse.cz>
+References: <20180424162712.GL17484@dhcp22.suse.cz>
+ <20180424183536.GF30619@thunk.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <213eae6a-e003-5369-d73a-1da8920b3dd4@linux.alibaba.com>
+In-Reply-To: <20180424183536.GF30619@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Theodore Y. Ts'o" <tytso@mit.edu>
+Cc: LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, Richard Weinberger <richard@nod.at>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Apr 24, 2018 at 08:14:37AM -0600, Yang Shi wrote:
-> 
-> 
-> On 4/24/18 5:23 AM, Kirill A. Shutemov wrote:
-> > On Tue, Apr 24, 2018 at 12:00:50PM +0800, Yang Shi wrote:
-> > > Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
-> > > filesystem with huge page support anymore. tmpfs can use huge page via
-> > > THP when mounting by "huge=" mount option.
-> > > 
-> > > When applications use huge page on hugetlbfs, it just need check the
-> > > filesystem magic number, but it is not enough for tmpfs. Make
-> > > stat.st_blksize return huge page size if it is mounted by appropriate
-> > > "huge=" option to give applications a hint to optimize the behavior with
-> > > THP.
-> > > 
-> > > Some applications may not do wisely with THP. For example, QEMU may mmap
-> > > file on non huge page aligned hint address with MAP_FIXED, which results
-> > > in no pages are PMD mapped even though THP is used. Some applications
-> > > may mmap file with non huge page aligned offset. Both behaviors make THP
-> > > pointless.
-> > > 
-> > > statfs.f_bsize still returns 4KB for tmpfs since THP could be split, and it
-> > > also may fallback to 4KB page silently if there is not enough huge page.
-> > > Furthermore, different f_bsize makes max_blocks and free_blocks
-> > > calculation harder but without too much benefit. Returning huge page
-> > > size via stat.st_blksize sounds good enough.
-> > > 
-> > > Since PUD size huge page for THP has not been supported, now it just
-> > > returns HPAGE_PMD_SIZE.
-> > > 
-> > > Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> > > Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > > Cc: Hugh Dickins <hughd@google.com>
-> > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> > > Suggested-by: Christoph Hellwig <hch@infradead.org>
-> > > ---
-> > > v3 --> v4:
-> > > * Rework the commit log per the education from Michal and Kirill
-> > > * Fix build error if CONFIG_TRANSPARENT_HUGEPAGE is disabled
-> > > v2 --> v3:
-> > > * Use shmem_sb_info.huge instead of global variable per Michal's comment
-> > > v2 --> v1:
-> > > * Adopted the suggestion from hch to return huge page size via st_blksize
-> > >    instead of creating a new flag.
-> > > 
-> > >   mm/shmem.c | 6 ++++++
-> > >   1 file changed, 6 insertions(+)
-> > > 
-> > > diff --git a/mm/shmem.c b/mm/shmem.c
-> > > index b859192..19b8055 100644
-> > > --- a/mm/shmem.c
-> > > +++ b/mm/shmem.c
-> > > @@ -988,6 +988,7 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
-> > >   {
-> > >   	struct inode *inode = path->dentry->d_inode;
-> > >   	struct shmem_inode_info *info = SHMEM_I(inode);
-> > > +	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
-> > >   	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
-> > >   		spin_lock_irq(&info->lock);
-> > > @@ -995,6 +996,11 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
-> > >   		spin_unlock_irq(&info->lock);
-> > >   	}
-> > >   	generic_fillattr(inode, stat);
-> > > +#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-> > > +	if (sbinfo->huge > 0)
-> > No ifdeffery, please.
+On Tue 24-04-18 14:35:36, Theodore Ts'o wrote:
+> On Tue, Apr 24, 2018 at 10:27:12AM -0600, Michal Hocko wrote:
+> > fs/ext4/xattr.c
 > > 
-> > And we probably want to check if shmem_huge is 'force'.
-> > 
-> > Something like this?
-> > 
-> > 	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
-> > 		 (shmem_huge == SHMEM_HUGE_FORCE || sbinfo->huge))
+> > What to do about this? Well, there are two things. Firstly, it would be
+> > really great to double check whether the GFP_NOFS is really needed. I
+> > cannot judge that because I am not familiar with the code.
 > 
-> BTW, it sounds we also need check shmem_huge != SHMEM_HUGE_DENY, right?
-> Otherwise it still return huge page size, but in fact no huge page can be
-> allocated with 'deny'.
-> 
-> So, how about:
-> 
-> if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
->          (shmem_huge == SHMEM_HUGE_FORCE || sbinfo->huge) &&
->          shmem_huge != SHMEM_HUGE_DENY)
+> *Most* of the time it's not needed, but there are times when it is.
+> We could be more smart about sending down GFP_NOFS only when it is
+> needed.
 
-I think at this point it worth moving it to a helper function.
+Well, the primary idea is that you do not have to. All you care about is
+to use the scope api where it matters + a comment describing the
+reclaim recursion context (e.g. this lock will be held in the reclaim
+path here and there).
 
+> If we are sending too many GFP_NOFS's allocations such that
+> it's causing heartburn, we could fix this.  (xattr commands are rare
+> enough that I dind't think it was worth it to modulate the GFP flags
+> for this particular case, but we could make it be smarter if it would
+> help.)
+
+Well, the vmalloc is actually a correctness issue rather than a
+heartburn...
+
+> > If the use is really valid then we have a way to do the vmalloc
+> > allocation properly. We have memalloc_nofs_{save,restore} scope api. How
+> > does that work? You simply call memalloc_nofs_save when the reclaim
+> > recursion critical section starts (e.g. when you take a lock which is
+> > then used in the reclaim path - e.g. shrinker) and memalloc_nofs_restore
+> > when the critical section ends. _All_ allocations within that scope
+> > will get GFP_NOFS semantic automagically. If you are not sure about the
+> > scope itself then the easiest workaround is to wrap the vmalloc itself
+> > with a big fat comment that this should be revisited.
+> 
+> This is something we could do in ext4.  It hadn't been high priority,
+> because we've been rather overloaded.
+
+Well, ext/jbd already has scopes defined for the transaction context so
+anything down that road can be converted to GFP_KERNEL (well, unless the
+same code path is shared outside of the transaction context and still
+requires a protection). It would be really great to identify other
+contexts and slowly move away from the explicit GFP_NOFS. Are you aware
+of other contexts?
+
+> As a suggestion, could you take
+> documentation about how to convert to the memalloc_nofs_{save,restore}
+> scope api (which I think you've written about e-mails at length
+> before), and put that into a file in Documentation/core-api?
+
+I can.
+
+> The question I was trying to figure out which triggered the above
+> request is how/whether to gradually convert to that scope API.  Is it
+> safe to add the memalloc_nofs_{save,restore} to code and keep the
+> GFP_NOFS flags until we're sure we got it all right, for all of the
+> code paths, and then drop the GFP_NOFS?
+
+The first stage is to define and document those scopes. I have provided
+a debugging patch [1] in the past that would dump_stack when seeing an
+explicit GFP_NOFS from a scope which could help to eliminate existing
+users.
+
+[1] http://lkml.kernel.org/r/20170106141845.24362-1-mhocko@kernel.org
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
