@@ -1,68 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E1A1F6B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 12:10:18 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b192so464139wmb.1
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 09:10:18 -0700 (PDT)
-Received: from thoth.sbs.de (thoth.sbs.de. [192.35.17.2])
-        by mx.google.com with ESMTPS id e25si7047940wmh.27.2018.04.24.09.10.17
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 751F56B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 12:12:48 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l26so523763wmc.4
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 09:12:48 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s9si3581489edm.148.2018.04.24.09.12.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Apr 2018 09:10:17 -0700 (PDT)
-Subject: Re: [PATCH] kmemleak: Report if we need to tune
- KMEMLEAK_EARLY_LOG_SIZE
-References: <288b0afc-bcc3-a2aa-2791-707e625d1da7@siemens.com>
- <20180424155504.frbxmzq4dw3veudu@armageddon.cambridge.arm.com>
-From: Jan Kiszka <jan.kiszka@siemens.com>
-Message-ID: <c248c83e-e9c1-6b4d-050e-9aa30cd14669@siemens.com>
-Date: Tue, 24 Apr 2018 18:10:14 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 24 Apr 2018 09:12:47 -0700 (PDT)
+Date: Tue, 24 Apr 2018 10:12:42 -0600
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
+Message-ID: <20180424161242.GK17484@dhcp22.suse.cz>
+References: <20180420130852.GC16083@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180420210200.GH10788@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180421144757.GC14610@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180423151545.GU17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804232006540.2299@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424133146.GG17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804241107010.31601@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180424155504.frbxmzq4dw3veudu@armageddon.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1804241107010.31601@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
 
-On 2018-04-24 17:55, Catalin Marinas wrote:
-> On Tue, Apr 24, 2018 at 05:51:15PM +0200, Jan Kiszka wrote:
->> ...rather than just mysteriously disabling it.
->>
->> Signed-off-by: Jan Kiszka <jan.kiszka@siemens.com>
->> ---
->>  mm/kmemleak.c | 1 +
->>  1 file changed, 1 insertion(+)
->>
->> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
->> index 9a085d525bbc..156c0c69cc5c 100644
->> --- a/mm/kmemleak.c
->> +++ b/mm/kmemleak.c
->> @@ -863,6 +863,7 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
->>  
->>  	if (crt_early_log >= ARRAY_SIZE(early_log)) {
->>  		crt_early_log++;
->> +		pr_warn("Too many early logs\n");
+On Tue 24-04-18 11:30:40, Mikulas Patocka wrote:
 > 
-> That's already printed, though later where we have an idea of how big the early
-> log needs to be:
 > 
-> 	if (crt_early_log > ARRAY_SIZE(early_log))
-> 		pr_warn("Early log buffer exceeded (%d), please increase DEBUG_KMEMLEAK_EARLY_LOG_SIZE\n",
-> 			crt_early_log);
+> On Tue, 24 Apr 2018, Michal Hocko wrote:
 > 
+> > On Mon 23-04-18 20:25:15, Mikulas Patocka wrote:
+> > 
+> > > Fixing __vmalloc code 
+> > > is easy and it doesn't require cooperation with maintainers.
+> > 
+> > But it is a hack against the intention of the scope api.
+> 
+> It is not!
 
-Well, that's good, but where you read "detector disabled", there is no
-hint on that. I missed that because subsystems tend to not do any
-further actions after telling they are off.
-
-BTW, my system (virtual ARM64 target) required 26035 entries, which is a
-few orders of magnitude above the default and pretty close the the
-limit. What's causing this? Other debug options?
-
-Jan
-
+This discussion simply doesn't make much sense it seems. The scope API
+is to document the scope of the reclaim recursion critical section. That
+certainly is not a utility function like vmalloc.
 -- 
-Siemens AG, Corporate Technology, CT RDA IOT SES-DE
-Corporate Competence Center Embedded Linux
+Michal Hocko
+SUSE Labs
