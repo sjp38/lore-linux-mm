@@ -1,128 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DDB5B6B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 00:30:38 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id k3so12098966pff.23
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 21:30:38 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h2-v6sor4583443plt.87.2018.04.23.21.30.36
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 65D576B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 01:11:40 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id o103-v6so9129824ota.7
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 22:11:40 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id e8-v6si2693953oig.238.2018.04.23.22.11.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 23 Apr 2018 21:30:37 -0700 (PDT)
-Subject: Re: [PATCH net-next 0/4] mm,tcp: provide mmap_hook to solve lockdep
- issue
-References: <20180420155542.122183-1-edumazet@google.com>
- <9ed6083f-d731-945c-dbcd-f977c5600b03@kernel.org>
- <d5b4dc70-6f17-d2be-a519-5ebc3f812f57@gmail.com>
- <CALCETrWOLU+P_jVpuOUQT2e_5ZShAP3OM0yJZMbC=pv5La9Cvg@mail.gmail.com>
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Message-ID: <e494c904-bdd0-8c6c-0592-c4960dcf2865@gmail.com>
-Date: Mon, 23 Apr 2018 21:30:34 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Apr 2018 22:11:38 -0700 (PDT)
+Message-Id: <201804240511.w3O5BY4o090598@www262.sakura.ne.jp>
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaperunmap
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrWOLU+P_jVpuOUQT2e_5ZShAP3OM0yJZMbC=pv5La9Cvg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Date: Tue, 24 Apr 2018 14:11:34 +0900
+References: <201804221248.CHE35432.FtOMOLSHOFJFVQ@I-love.SAKURA.ne.jp> <alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Eric Dumazet <edumazet@google.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Soheil Hassas Yeganeh <soheil@google.com>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-
-On 04/23/2018 07:04 PM, Andy Lutomirski wrote:
-> On Mon, Apr 23, 2018 at 2:38 PM, Eric Dumazet <eric.dumazet@gmail.com> wrote:
->> Hi Andy
->>
->> On 04/23/2018 02:14 PM, Andy Lutomirski wrote:
+> On Sun, 22 Apr 2018, Tetsuo Handa wrote:
 > 
->>> I would suggest that you rework the interface a bit.  First a user would call mmap() on a TCP socket, which would create an empty VMA.  (It would set vm_ops to point to tcp_vm_ops or similar so that the TCP code could recognize it, but it would have no effect whatsoever on the TCP state machine.  Reading the VMA would get SIGBUS.)  Then a user would call a new ioctl() or setsockopt() function and pass something like:
->>
->>
->>>
->>> struct tcp_zerocopy_receive {
->>>   void *address;
->>>   size_t length;
->>> };
->>>
->>> The kernel would verify that [address, address+length) is entirely inside a single TCP VMA and then would do the vm_insert_range magic.
->>
->> I have no idea what is the proper API for that.
->> Where the TCP VMA(s) would be stored ?
->> In TCP socket, or MM layer ?
+> > > I'm wondering why you do not see oom killing of many processes if the 
+> > > victim is a very large process that takes a long time to free memory in 
+> > > exit_mmap() as I do because the oom reaper gives up trying to acquire 
+> > > mm->mmap_sem and just sets MMF_OOM_SKIP itself.
+> > > 
+> > 
+> > We can call __oom_reap_task_mm() from exit_mmap() (or __mmput()) before
+> > exit_mmap() holds mmap_sem for write. Then, at least memory which could
+> > have been reclaimed if exit_mmap() did not hold mmap_sem for write will
+> > be guaranteed to be reclaimed before MMF_OOM_SKIP is set.
+> > 
 > 
-> MM layer.  I haven't tested this at all, and the error handling is
-> totally wrong, but I think you'd do something like:
+> I think that's an exceptionally good idea and will mitigate the concerns 
+> of others.
 > 
-> len = get_user(...);
+> It can be done without holding mm->mmap_sem in exit_mmap() and uses the 
+> same criteria that the oom reaper uses to set MMF_OOM_SKIP itself, so we 
+> don't get dozens of unnecessary oom kills.
 > 
-> down_read(&current->mm->mmap_sem);
-> 
-> vma = find_vma(mm, start);
-> if (!vma || vma->vm_start > start)
->   return -EFAULT;
-> 
-> /* This is buggy.  You also need to check that the file is a socket.
-> This is probably trivial. */
-> if (vma->vm_file->private_data != sock)
->   return -EINVAL;
-> 
-> if (len > vma->vm_end - start)
->   return -EFAULT;  /* too big a request. */
-> 
-> and now you'd do the vm_insert_page() dance, except that you don't
-> have to abort the whole procedure if you discover that something isn't
-> aligned right.  Instead you'd just stop and tell the caller that you
-> didn't map the full requested size.  You might also need to add some
-> code to charge the caller for the pages that get pinned, but that's an
-> orthogonal issue.
-> 
-> You also need to provide some way for user programs to signal that
-> they're done with the page in question.  MADV_DONTNEED might be
-> sufficient.
-> 
-> In the mmap() helper, you might want to restrict the mapped size to
-> something reasonable.  And it might be nice to hook mremap() to
-> prevent user code from causing too much trouble.
-> 
-> With my x86-writer-of-TLB-code hat on, I expect the major performance
-> costs to be the generic costs of mmap() and munmap() (which only
-> happen once per socket instead of once per read if you like my idea),
-> the cost of a TLB miss when the data gets read (really not so bad on
-> modern hardware), and the cost of the TLB invalidation when user code
-> is done with the buffers.  The latter is awful, especially in
-> multithreaded programs.  In fact, it's so bad that it might be worth
-> mentioning in the documentation for this code that it just shouldn't
-> be used in multithreaded processes.  (Also, on non-PCID hardware,
-> there's an annoying situation in which a recently-migrated thread that
-> removes a mapping sends an IPI to the CPU that the thread used to be
-> on.  I thought I had a clever idea to get rid of that IPI once, but it
-> turned out to be wrong.)
-> 
-> Architectures like ARM that have superior TLB handling primitives will
-> not be hurt as badly if this is used my a multithreaded program.
-> 
->>
->>
->> And I am not sure why the error handling would be better (point 4), unless we can return smaller @length than requested maybe ?
-> 
-> Exactly.  If I request 10MB mapped and only the first 9MB are aligned
-> right, I still want the first 9 MB.
-> 
->>
->> Also how the VMA space would be accounted (point 3) when creating an empty VMA (no pages in there yet)
-> 
-> There's nothing to account.  It's the same as mapping /dev/null or
-> similar -- the mm core should take care of it for you.
+> What do you think about this?  It passes preliminary testing on powerpc 
+> and I'm enqueued it for much more intensive testing.  (I'm wishing there 
+> was a better way to acknowledge your contribution to fixing this issue, 
+> especially since you brought up the exact problem this is addressing in 
+> previous emails.)
 > 
 
-Thanks Andy, I am working on all this, and initial patch looks sane enough.
+I don't think this patch is safe, for exit_mmap() is calling
+mmu_notifier_invalidate_range_{start,end}() which might block with oom_lock
+held when oom_reap_task_mm() is waiting for oom_lock held by exit_mmap().
+exit_mmap() must not block while holding oom_lock in order to guarantee that
+oom_reap_task_mm() can give up.
 
- include/uapi/linux/tcp.h |    7 +
- net/ipv4/tcp.c           |  175 +++++++++++++++++++++++------------------------
- 2 files changed, 93 insertions(+), 89 deletions(-)
+Some suggestion on top of your patch:
 
+ mm/mmap.c     | 13 +++++--------
+ mm/oom_kill.c | 51 ++++++++++++++++++++++++++-------------------------
+ 2 files changed, 31 insertions(+), 33 deletions(-)
 
-I will test all this before sending for review asap.
-
-( I have not done the compat code yet, this can be done later I guess)
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 981eed4..7b31357 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3019,21 +3019,18 @@ void exit_mmap(struct mm_struct *mm)
+ 		/*
+ 		 * Manually reap the mm to free as much memory as possible.
+ 		 * Then, as the oom reaper, set MMF_OOM_SKIP to disregard this
+-		 * mm from further consideration.  Taking mm->mmap_sem for write
+-		 * after setting MMF_OOM_SKIP will guarantee that the oom reaper
+-		 * will not run on this mm again after mmap_sem is dropped.
++		 * mm from further consideration. Setting MMF_OOM_SKIP under
++		 * oom_lock held will guarantee that the OOM reaper will not
++		 * run on this mm again.
+ 		 *
+ 		 * This needs to be done before calling munlock_vma_pages_all(),
+ 		 * which clears VM_LOCKED, otherwise the oom reaper cannot
+ 		 * reliably test it.
+ 		 */
+-		mutex_lock(&oom_lock);
+ 		__oom_reap_task_mm(mm);
+-		mutex_unlock(&oom_lock);
+-
++		mutex_lock(&oom_lock);
+ 		set_bit(MMF_OOM_SKIP, &mm->flags);
+-		down_write(&mm->mmap_sem);
+-		up_write(&mm->mmap_sem);
++		mutex_unlock(&oom_lock);
+ 	}
+ 
+ 	if (mm->locked_vm) {
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 8ba6cb8..9a29df8 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -523,21 +523,15 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ {
+ 	bool ret = true;
+ 
++	mutex_lock(&oom_lock);
++
+ 	/*
+-	 * We have to make sure to not race with the victim exit path
+-	 * and cause premature new oom victim selection:
+-	 * oom_reap_task_mm		exit_mm
+-	 *   mmget_not_zero
+-	 *				  mmput
+-	 *				    atomic_dec_and_test
+-	 *				  exit_oom_victim
+-	 *				[...]
+-	 *				out_of_memory
+-	 *				  select_bad_process
+-	 *				    # no TIF_MEMDIE task selects new victim
+-	 *  unmap_page_range # frees some memory
++	 * MMF_OOM_SKIP is set by exit_mmap() when the OOM reaper can't
++	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
++	 * under oom_lock held.
+ 	 */
+-	mutex_lock(&oom_lock);
++	if (test_bit(MMF_OOM_SKIP, &mm->flags))
++		goto unlock_oom;
+ 
+ 	if (!down_read_trylock(&mm->mmap_sem)) {
+ 		ret = false;
+@@ -557,18 +551,6 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 		goto unlock_oom;
+ 	}
+ 
+-	/*
+-	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
+-	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
+-	 * under mmap_sem for reading because it serializes against the
+-	 * down_write();up_write() cycle in exit_mmap().
+-	 */
+-	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
+-		up_read(&mm->mmap_sem);
+-		trace_skip_task_reaping(tsk->pid);
+-		goto unlock_oom;
+-	}
+-
+ 	trace_start_task_reaping(tsk->pid);
+ 
+ 	__oom_reap_task_mm(mm);
+@@ -610,8 +592,27 @@ static void oom_reap_task(struct task_struct *tsk)
+ 	/*
+ 	 * Hide this mm from OOM killer because it has been either reaped or
+ 	 * somebody can't call up_write(mmap_sem).
++	 *
++	 * We have to make sure to not cause premature new oom victim selection:
++	 *
++	 * __alloc_pages_may_oom()     oom_reap_task_mm()/exit_mmap()
++	 *   mutex_trylock(&oom_lock)
++	 *   get_page_from_freelist(ALLOC_WMARK_HIGH) # fails
++	 *                               unmap_page_range() # frees some memory
++	 *                               set_bit(MMF_OOM_SKIP)
++	 *   out_of_memory()
++	 *     select_bad_process()
++	 *       test_bit(MMF_OOM_SKIP) # selects new oom victim
++	 *   mutex_unlock(&oom_lock)
++	 *
++	 * Setting MMF_OOM_SKIP under oom_lock held will guarantee that the
++	 * last second alocation attempt is done by __alloc_pages_may_oom()
++	 * before out_of_memory() selects next OOM victim by finding
++	 * MMF_OOM_SKIP.
+ 	 */
++	mutex_lock(&oom_lock);
+ 	set_bit(MMF_OOM_SKIP, &mm->flags);
++	mutex_unlock(&oom_lock);
+ 
+ 	/* Drop a reference taken by wake_oom_reaper */
+ 	put_task_struct(tsk);
+-- 
+1.8.3.1
