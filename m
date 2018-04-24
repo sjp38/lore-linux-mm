@@ -1,69 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C8CBA6B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 12:27:21 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u13-v6so22733759wre.1
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 09:27:21 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E02506B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 12:29:15 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c4so7884656pfg.22
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 09:29:15 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v1si2118544edq.455.2018.04.24.09.27.20
+        by mx.google.com with ESMTPS id p1si14108252pfi.355.2018.04.24.09.29.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Apr 2018 09:27:20 -0700 (PDT)
-Date: Tue, 24 Apr 2018 10:27:12 -0600
+        Tue, 24 Apr 2018 09:29:14 -0700 (PDT)
+Date: Tue, 24 Apr 2018 10:29:06 -0600
 From: Michal Hocko <mhocko@kernel.org>
-Subject: vmalloc with GFP_NOFS
-Message-ID: <20180424162712.GL17484@dhcp22.suse.cz>
+Subject: Re: [PATCH v3] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
+Message-ID: <20180424162906.GM17484@dhcp22.suse.cz>
+References: <20180420130852.GC16083@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180420210200.GH10788@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180421144757.GC14610@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180423151545.GU17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424125121.GA17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804241142340.15660@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1804241142340.15660@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Artem Bityutskiy <dedekind1@gmail.com>, Richard Weinberger <richard@nod.at>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
 
-Hi,
-it seems that we still have few vmalloc users who perform GFP_NOFS
-allocation:
-drivers/mtd/ubi/io.c
-fs/ext4/xattr.c
-fs/gfs2/dir.c
-fs/gfs2/quota.c
-fs/nfs/blocklayout/extent_tree.c
-fs/ubifs/debug.c
-fs/ubifs/lprops.c
-fs/ubifs/lpt_commit.c
-fs/ubifs/orphan.c
+On Tue 24-04-18 11:50:30, Mikulas Patocka wrote:
+> 
+> 
+> On Tue, 24 Apr 2018, Michal Hocko wrote:
+> 
+> > On Mon 23-04-18 20:06:16, Mikulas Patocka wrote:
+> > [...]
+> > > @@ -404,6 +405,12 @@ void *kvmalloc_node(size_t size, gfp_t f
+> > >  	 */
+> > >  	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
+> > >  
+> > > +#ifdef CONFIG_DEBUG_SG
+> > > +	/* Catch bugs when the caller uses DMA API on the result of kvmalloc. */
+> > > +	if (!(prandom_u32_max(2) & 1))
+> > > +		goto do_vmalloc;
+> > > +#endif
+> > 
+> > I really do not think there is anything DEBUG_SG specific here. Why you
+> > simply do not follow should_failslab path or even reuse the function?
+> 
+> CONFIG_DEBUG_SG is enabled by default in RHEL and Fedora debug kernel (if 
+> you don't like CONFIG_DEBUG_SG, pick any other option that is enabled 
+> there).
 
-Unfortunatelly vmalloc doesn't suppoer GFP_NOFS semantinc properly
-because we do have hardocded GFP_KERNEL allocations deep inside the
-vmalloc layers. That means that if GFP_NOFS really protects from
-recursion into the fs deadlocks then the vmalloc call is broken.
+Are you telling me that you are shaping a debugging functionality basing
+on what RHEL has enabled? And you call me evil. This is just rediculous.
 
-What to do about this? Well, there are two things. Firstly, it would be
-really great to double check whether the GFP_NOFS is really needed. I
-cannot judge that because I am not familiar with the code. It would be
-great if the respective maintainers (hopefully get_maintainer.sh pointed
-me to all relevant ones). If there is not reclaim recursion issue then
-simply use the standard vmalloc (aka GFP_KERNEL request).
+> Fail-injection framework is if off by default and it must be explicitly 
+> enabled and configured by the user - and most users won't enable it.
 
-If the use is really valid then we have a way to do the vmalloc
-allocation properly. We have memalloc_nofs_{save,restore} scope api. How
-does that work? You simply call memalloc_nofs_save when the reclaim
-recursion critical section starts (e.g. when you take a lock which is
-then used in the reclaim path - e.g. shrinker) and memalloc_nofs_restore
-when the critical section ends. _All_ allocations within that scope
-will get GFP_NOFS semantic automagically. If you are not sure about the
-scope itself then the easiest workaround is to wrap the vmalloc itself
-with a big fat comment that this should be revisited.
-
-Does that sound like something that can be done in a reasonable time?
-I have tried to bring this up in the past but our speed is glacial and
-there are attempts to do hacks like checking for abusers inside the
-vmalloc which is just too ugly to live.
-
-Please do not hesitate to get back to me if something is not clear.
-
-Thanks!
+It can be enabled easily. And if you care enough for your debugging
+kernel then just make it enabled unconditionally.
 -- 
 Michal Hocko
 SUSE Labs
