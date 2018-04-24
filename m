@@ -1,100 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 34B5B6B0009
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 13:38:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e9so13632737pfn.16
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 10:38:43 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f34-v6si14550572plf.362.2018.04.24.10.38.41
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 706156B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 14:35:51 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id s4-v6so7642255ybg.2
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 11:35:51 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id w6-v6si3706601ywf.562.2018.04.24.11.35.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Apr 2018 10:38:42 -0700 (PDT)
-Date: Tue, 24 Apr 2018 11:38:36 -0600
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
-Message-ID: <20180424173836.GR17484@dhcp22.suse.cz>
-References: <20180421144757.GC14610@bombadil.infradead.org>
- <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
- <20180423151545.GU17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424125121.GA17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804241142340.15660@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424162906.GM17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804241250350.28995@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424170349.GQ17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 24 Apr 2018 11:35:50 -0700 (PDT)
+Date: Tue, 24 Apr 2018 14:35:36 -0400
+From: "Theodore Y. Ts'o" <tytso@mit.edu>
+Subject: Re: vmalloc with GFP_NOFS
+Message-ID: <20180424183536.GF30619@thunk.org>
+References: <20180424162712.GL17484@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <20180424162712.GL17484@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, Richard Weinberger <richard@nod.at>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 24-04-18 13:28:49, Mikulas Patocka wrote:
+On Tue, Apr 24, 2018 at 10:27:12AM -0600, Michal Hocko wrote:
+> fs/ext4/xattr.c
 > 
-> 
-> On Tue, 24 Apr 2018, Michal Hocko wrote:
-> 
-> > On Tue 24-04-18 13:00:11, Mikulas Patocka wrote:
-> > > 
-> > > 
-> > > On Tue, 24 Apr 2018, Michal Hocko wrote:
-> > > 
-> > > > On Tue 24-04-18 11:50:30, Mikulas Patocka wrote:
-> > > > > 
-> > > > > 
-> > > > > On Tue, 24 Apr 2018, Michal Hocko wrote:
-> > > > > 
-> > > > > > On Mon 23-04-18 20:06:16, Mikulas Patocka wrote:
-> > > > > > [...]
-> > > > > > > @@ -404,6 +405,12 @@ void *kvmalloc_node(size_t size, gfp_t f
-> > > > > > >  	 */
-> > > > > > >  	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
-> > > > > > >  
-> > > > > > > +#ifdef CONFIG_DEBUG_SG
-> > > > > > > +	/* Catch bugs when the caller uses DMA API on the result of kvmalloc. */
-> > > > > > > +	if (!(prandom_u32_max(2) & 1))
-> > > > > > > +		goto do_vmalloc;
-> > > > > > > +#endif
-> > > > > > 
-> > > > > > I really do not think there is anything DEBUG_SG specific here. Why you
-> > > > > > simply do not follow should_failslab path or even reuse the function?
-> > > > > 
-> > > > > CONFIG_DEBUG_SG is enabled by default in RHEL and Fedora debug kernel (if 
-> > > > > you don't like CONFIG_DEBUG_SG, pick any other option that is enabled 
-> > > > > there).
-> > > > 
-> > > > Are you telling me that you are shaping a debugging functionality basing
-> > > > on what RHEL has enabled? And you call me evil. This is just rediculous.
-> > > > 
-> > > > > Fail-injection framework is if off by default and it must be explicitly 
-> > > > > enabled and configured by the user - and most users won't enable it.
-> > > > 
-> > > > It can be enabled easily. And if you care enough for your debugging
-> > > > kernel then just make it enabled unconditionally.
-> > > 
-> > > So, should we add a new option CONFIG_KVMALLOC_FALLBACK_DEFAULT? I'm not 
-> > > quite sure if 3 lines of debugging code need an extra option, but if you 
-> > > don't want to reuse any existing debug option, it may be possible. Adding 
-> > > it to the RHEL debug kernel would be trivial.
-> > 
-> > Wouldn't it be equally trivial to simply enable the fault injection? You
-> > would get additional failure paths testing as a bonus.
-> 
-> The RHEL and Fedora debugging kernels are compiled with fault injection. 
-> But the fault-injection framework will do nothing unless it is enabled by 
-> a kernel parameter or debugfs write.
-> 
-> Most users don't know about the fault injection kernel parameters or 
-> debugfs files and won't enabled it. We need a CONFIG_ option to enable it 
-> by default in the debugging kernels (and we could add a kernel parameter 
-> to override the default, fine-tune the fallback probability etc.)
+> What to do about this? Well, there are two things. Firstly, it would be
+> really great to double check whether the GFP_NOFS is really needed. I
+> cannot judge that because I am not familiar with the code.
 
-If it is a real issue to install the debugging kernel with the required
-kernel parameter then I a config option for the default on makes sense
-to me.
--- 
-Michal Hocko
-SUSE Labs
+*Most* of the time it's not needed, but there are times when it is.
+We could be more smart about sending down GFP_NOFS only when it is
+needed.  If we are sending too many GFP_NOFS's allocations such that
+it's causing heartburn, we could fix this.  (xattr commands are rare
+enough that I dind't think it was worth it to modulate the GFP flags
+for this particular case, but we could make it be smarter if it would
+help.)
+
+> If the use is really valid then we have a way to do the vmalloc
+> allocation properly. We have memalloc_nofs_{save,restore} scope api. How
+> does that work? You simply call memalloc_nofs_save when the reclaim
+> recursion critical section starts (e.g. when you take a lock which is
+> then used in the reclaim path - e.g. shrinker) and memalloc_nofs_restore
+> when the critical section ends. _All_ allocations within that scope
+> will get GFP_NOFS semantic automagically. If you are not sure about the
+> scope itself then the easiest workaround is to wrap the vmalloc itself
+> with a big fat comment that this should be revisited.
+
+This is something we could do in ext4.  It hadn't been high priority,
+because we've been rather overloaded.  As a suggestion, could you take
+documentation about how to convert to the memalloc_nofs_{save,restore}
+scope api (which I think you've written about e-mails at length
+before), and put that into a file in Documentation/core-api?
+
+The question I was trying to figure out which triggered the above
+request is how/whether to gradually convert to that scope API.  Is it
+safe to add the memalloc_nofs_{save,restore} to code and keep the
+GFP_NOFS flags until we're sure we got it all right, for all of the
+code paths, and then drop the GFP_NOFS?
+
+Thanks,
+
+						- Ted
