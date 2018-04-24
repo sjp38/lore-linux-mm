@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 223636B0007
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 19:43:12 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id z20so14218056pfn.11
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 16:43:12 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id y21si15065091pfi.195.2018.04.24.16.43.10
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9382E6B0008
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 19:43:17 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id y129so9572938pgb.5
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 16:43:17 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id b23si9914981pgw.529.2018.04.24.16.43.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Apr 2018 16:43:10 -0700 (PDT)
-Subject: [PATCH v9 2/9] mm,
- dax: enable filesystems to trigger dev_pagemap ->page_free callbacks
+        Tue, 24 Apr 2018 16:43:16 -0700 (PDT)
+Subject: [PATCH v9 3/9] memremap: split devm_memremap_pages() and memremap()
+ infrastructure
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 24 Apr 2018 16:33:13 -0700
-Message-ID: <152461279341.17530.15922380333372355441.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 24 Apr 2018 16:33:19 -0700
+Message-ID: <152461279892.17530.9006728553718402327.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <152461278149.17530.2867511144531572045.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152461278149.17530.2867511144531572045.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,277 +22,412 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Michal Hocko <mhocko@suse.com>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Christoph Hellwig <hch@lst.de>, Jan Kara <jack@suse.cz>, david@fromorbit.com, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.orgjack@suse.czhch@lst.de
+Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, david@fromorbit.com, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.orgjack@suse.czhch@lst.de
 
-In order to resolve collisions between filesystem operations and DMA to
-DAX mapped pages we need a callback when DMA completes. With a callback
-we can hold off filesystem operations while DMA is in-flight and then
-resume those operations when the last put_page() occurs on a DMA page.
+Currently, kernel/memremap.c contains generic code for supporting
+memremap() (CONFIG_HAS_IOMEM) and devm_memremap_pages()
+(CONFIG_ZONE_DEVICE). This causes ongoing build maintenance problems as
+additions to memremap.c, especially for the ZONE_DEVICE case, need to be
+careful about being placed in ifdef guards. Remove the need for these
+ifdef guards by moving the ZONE_DEVICE support functions to their own
+compilation unit.
 
-Recall that the 'struct page' entries for DAX memory are created with
-devm_memremap_pages(). That routine arranges for the pages to be
-allocated, but never onlined, so a DAX page is DMA-idle when its
-reference count reaches one.
-
-Also recall that the HMM sub-system added infrastructure to trap the
-page-idle (2-to-1 reference count) transition of the pages allocated by
-devm_memremap_pages() and trigger a callback via the 'struct
-dev_pagemap' associated with the page range. Whereas the HMM callbacks
-are going to a device driver to manage bounce pages in device-memory in
-the filesystem-dax case we will call back to filesystem specified
-callback.
-
-Since the callback is not known at devm_memremap_pages() time we arrange
-for the filesystem to install it at mount time. No functional changes
-are expected as this only registers a nop handler for the ->page_free()
-event for device-mapped pages.
-
-Cc: Michal Hocko <mhocko@suse.com>
-Reviewed-by: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Jan Kara <jack@suse.cz>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/dax/super.c   |   21 +++++++++++----------
- drivers/nvdimm/pmem.c |    3 ++-
- fs/ext2/super.c       |    6 +++---
- fs/ext4/super.c       |    6 +++---
- fs/xfs/xfs_super.c    |   20 ++++++++++----------
- include/linux/dax.h   |   14 ++++++++------
- 6 files changed, 37 insertions(+), 33 deletions(-)
+ kernel/Makefile   |    3 +
+ kernel/iomem.c    |  167 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ kernel/memremap.c |  178 +----------------------------------------------------
+ 3 files changed, 171 insertions(+), 177 deletions(-)
+ create mode 100644 kernel/iomem.c
 
-diff --git a/drivers/dax/super.c b/drivers/dax/super.c
-index e62a64b9c9fb..e4864f319e16 100644
---- a/drivers/dax/super.c
-+++ b/drivers/dax/super.c
-@@ -63,16 +63,6 @@ int bdev_dax_pgoff(struct block_device *bdev, sector_t sector, size_t size,
- }
- EXPORT_SYMBOL(bdev_dax_pgoff);
+diff --git a/kernel/Makefile b/kernel/Makefile
+index f85ae5dfa474..9b9241361311 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -112,7 +112,8 @@ obj-$(CONFIG_JUMP_LABEL) += jump_label.o
+ obj-$(CONFIG_CONTEXT_TRACKING) += context_tracking.o
+ obj-$(CONFIG_TORTURE_TEST) += torture.o
  
--#if IS_ENABLED(CONFIG_FS_DAX)
--struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
+-obj-$(CONFIG_HAS_IOMEM) += memremap.o
++obj-$(CONFIG_HAS_IOMEM) += iomem.o
++obj-$(CONFIG_ZONE_DEVICE) += memremap.o
+ 
+ $(obj)/configs.o: $(obj)/config_data.h
+ 
+diff --git a/kernel/iomem.c b/kernel/iomem.c
+new file mode 100644
+index 000000000000..f7525e14ebc6
+--- /dev/null
++++ b/kernel/iomem.c
+@@ -0,0 +1,167 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#include <linux/device.h>
++#include <linux/types.h>
++#include <linux/io.h>
++#include <linux/mm.h>
++
++#ifndef ioremap_cache
++/* temporary while we convert existing ioremap_cache users to memremap */
++__weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
++{
++	return ioremap(offset, size);
++}
++#endif
++
++#ifndef arch_memremap_wb
++static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
++{
++	return (__force void *)ioremap_cache(offset, size);
++}
++#endif
++
++#ifndef arch_memremap_can_ram_remap
++static bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
++					unsigned long flags)
++{
++	return true;
++}
++#endif
++
++static void *try_ram_remap(resource_size_t offset, size_t size,
++			   unsigned long flags)
++{
++	unsigned long pfn = PHYS_PFN(offset);
++
++	/* In the simple case just return the existing linear address */
++	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)) &&
++	    arch_memremap_can_ram_remap(offset, size, flags))
++		return __va(offset);
++
++	return NULL; /* fallback to arch_memremap_wb */
++}
++
++/**
++ * memremap() - remap an iomem_resource as cacheable memory
++ * @offset: iomem resource start address
++ * @size: size of remap
++ * @flags: any of MEMREMAP_WB, MEMREMAP_WT, MEMREMAP_WC,
++ *		  MEMREMAP_ENC, MEMREMAP_DEC
++ *
++ * memremap() is "ioremap" for cases where it is known that the resource
++ * being mapped does not have i/o side effects and the __iomem
++ * annotation is not applicable. In the case of multiple flags, the different
++ * mapping types will be attempted in the order listed below until one of
++ * them succeeds.
++ *
++ * MEMREMAP_WB - matches the default mapping for System RAM on
++ * the architecture.  This is usually a read-allocate write-back cache.
++ * Morever, if MEMREMAP_WB is specified and the requested remap region is RAM
++ * memremap() will bypass establishing a new mapping and instead return
++ * a pointer into the direct map.
++ *
++ * MEMREMAP_WT - establish a mapping whereby writes either bypass the
++ * cache or are written through to memory and never exist in a
++ * cache-dirty state with respect to program visibility.  Attempts to
++ * map System RAM with this mapping type will fail.
++ *
++ * MEMREMAP_WC - establish a writecombine mapping, whereby writes may
++ * be coalesced together (e.g. in the CPU's write buffers), but is otherwise
++ * uncached. Attempts to map System RAM with this mapping type will fail.
++ */
++void *memremap(resource_size_t offset, size_t size, unsigned long flags)
++{
++	int is_ram = region_intersects(offset, size,
++				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
++	void *addr = NULL;
++
++	if (!flags)
++		return NULL;
++
++	if (is_ram == REGION_MIXED) {
++		WARN_ONCE(1, "memremap attempted on mixed range %pa size: %#lx\n",
++				&offset, (unsigned long) size);
++		return NULL;
++	}
++
++	/* Try all mapping types requested until one returns non-NULL */
++	if (flags & MEMREMAP_WB) {
++		/*
++		 * MEMREMAP_WB is special in that it can be satisifed
++		 * from the direct map.  Some archs depend on the
++		 * capability of memremap() to autodetect cases where
++		 * the requested range is potentially in System RAM.
++		 */
++		if (is_ram == REGION_INTERSECTS)
++			addr = try_ram_remap(offset, size, flags);
++		if (!addr)
++			addr = arch_memremap_wb(offset, size);
++	}
++
++	/*
++	 * If we don't have a mapping yet and other request flags are
++	 * present then we will be attempting to establish a new virtual
++	 * address mapping.  Enforce that this mapping is not aliasing
++	 * System RAM.
++	 */
++	if (!addr && is_ram == REGION_INTERSECTS && flags != MEMREMAP_WB) {
++		WARN_ONCE(1, "memremap attempted on ram %pa size: %#lx\n",
++				&offset, (unsigned long) size);
++		return NULL;
++	}
++
++	if (!addr && (flags & MEMREMAP_WT))
++		addr = ioremap_wt(offset, size);
++
++	if (!addr && (flags & MEMREMAP_WC))
++		addr = ioremap_wc(offset, size);
++
++	return addr;
++}
++EXPORT_SYMBOL(memremap);
++
++void memunmap(void *addr)
++{
++	if (is_vmalloc_addr(addr))
++		iounmap((void __iomem *) addr);
++}
++EXPORT_SYMBOL(memunmap);
++
++static void devm_memremap_release(struct device *dev, void *res)
++{
++	memunmap(*(void **)res);
++}
++
++static int devm_memremap_match(struct device *dev, void *res, void *match_data)
++{
++	return *(void **)res == match_data;
++}
++
++void *devm_memremap(struct device *dev, resource_size_t offset,
++		size_t size, unsigned long flags)
++{
++	void **ptr, *addr;
++
++	ptr = devres_alloc_node(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
++			dev_to_node(dev));
++	if (!ptr)
++		return ERR_PTR(-ENOMEM);
++
++	addr = memremap(offset, size, flags);
++	if (addr) {
++		*ptr = addr;
++		devres_add(dev, ptr);
++	} else {
++		devres_free(ptr);
++		return ERR_PTR(-ENXIO);
++	}
++
++	return addr;
++}
++EXPORT_SYMBOL(devm_memremap);
++
++void devm_memunmap(struct device *dev, void *addr)
++{
++	WARN_ON(devres_release(dev, devm_memremap_release,
++				devm_memremap_match, addr));
++}
++EXPORT_SYMBOL(devm_memunmap);
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 895e6b76b25e..37a9604133f6 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -1,15 +1,5 @@
+-/*
+- * Copyright(c) 2015 Intel Corporation. All rights reserved.
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of version 2 of the GNU General Public License as
+- * published by the Free Software Foundation.
+- *
+- * This program is distributed in the hope that it will be useful, but
+- * WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * General Public License for more details.
+- */
++/* SPDX-License-Identifier: GPL-2.0 */
++/* Copyright(c) 2015 Intel Corporation. All rights reserved. */
+ #include <linux/radix-tree.h>
+ #include <linux/device.h>
+ #include <linux/types.h>
+@@ -20,169 +10,6 @@
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
+ 
+-#ifndef ioremap_cache
+-/* temporary while we convert existing ioremap_cache users to memremap */
+-__weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
 -{
--	if (!blk_queue_dax(bdev->bd_queue))
--		return NULL;
--	return fs_dax_get_by_host(bdev->bd_disk->disk_name);
+-	return ioremap(offset, size);
 -}
--EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
 -#endif
 -
- /**
-  * __bdev_dax_supported() - Check if the device supports dax for filesystem
-  * @sb: The superblock of the device
-@@ -575,6 +565,17 @@ struct dax_device *alloc_dax(void *private, const char *__host,
- }
- EXPORT_SYMBOL_GPL(alloc_dax);
- 
-+struct dax_device *alloc_dax_devmap(void *private, const char *host,
-+		const struct dax_operations *ops, struct dev_pagemap *pgmap)
-+{
-+	struct dax_device *dax_dev = alloc_dax(private, host, ops);
-+
-+	if (dax_dev)
-+		dax_dev->pgmap = pgmap;
-+	return dax_dev;
-+}
-+EXPORT_SYMBOL_GPL(alloc_dax_devmap);
-+
- void put_dax(struct dax_device *dax_dev)
- {
- 	if (!dax_dev)
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 9d714926ecf5..fc1a1ab25e9e 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -408,7 +408,8 @@ static int pmem_attach_disk(struct device *dev,
- 	nvdimm_badblocks_populate(nd_region, &pmem->bb, &bb_res);
- 	disk->bb = &pmem->bb;
- 
--	dax_dev = alloc_dax(pmem, disk->disk_name, &pmem_dax_ops);
-+	dax_dev = alloc_dax_devmap(pmem, disk->disk_name, &pmem_dax_ops,
-+			&pmem->pgmap);
- 	if (!dax_dev) {
- 		put_disk(disk);
- 		return -ENOMEM;
-diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-index de1694512f1f..421c7d4bed39 100644
---- a/fs/ext2/super.c
-+++ b/fs/ext2/super.c
-@@ -172,7 +172,7 @@ static void ext2_put_super (struct super_block * sb)
- 	brelse (sbi->s_sbh);
- 	sb->s_fs_info = NULL;
- 	kfree(sbi->s_blockgroup_lock);
--	fs_put_dax(sbi->s_daxdev);
-+	fs_dax_release(sbi->s_daxdev, sb);
- 	kfree(sbi);
- }
- 
-@@ -817,7 +817,7 @@ static unsigned long descriptor_loc(struct super_block *sb,
- 
- static int ext2_fill_super(struct super_block *sb, void *data, int silent)
- {
--	struct dax_device *dax_dev = fs_dax_get_by_bdev(sb->s_bdev);
-+	struct dax_device *dax_dev = fs_dax_claim_bdev(sb->s_bdev, sb);
- 	struct buffer_head * bh;
- 	struct ext2_sb_info * sbi;
- 	struct ext2_super_block * es;
-@@ -1213,7 +1213,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
- 	kfree(sbi->s_blockgroup_lock);
- 	kfree(sbi);
- failed:
--	fs_put_dax(dax_dev);
-+	fs_dax_release(dax_dev, sb);
- 	return ret;
- }
- 
-diff --git a/fs/ext4/super.c b/fs/ext4/super.c
-index 185f7e61f4cf..3e5d0f9e8772 100644
---- a/fs/ext4/super.c
-+++ b/fs/ext4/super.c
-@@ -954,7 +954,7 @@ static void ext4_put_super(struct super_block *sb)
- 	if (sbi->s_chksum_driver)
- 		crypto_free_shash(sbi->s_chksum_driver);
- 	kfree(sbi->s_blockgroup_lock);
--	fs_put_dax(sbi->s_daxdev);
-+	fs_dax_release(sbi->s_daxdev, sb);
- 	kfree(sbi);
- }
- 
-@@ -3407,7 +3407,7 @@ static void ext4_set_resv_clusters(struct super_block *sb)
- 
- static int ext4_fill_super(struct super_block *sb, void *data, int silent)
- {
--	struct dax_device *dax_dev = fs_dax_get_by_bdev(sb->s_bdev);
-+	struct dax_device *dax_dev = fs_dax_claim_bdev(sb->s_bdev, sb);
- 	char *orig_data = kstrdup(data, GFP_KERNEL);
- 	struct buffer_head *bh;
- 	struct ext4_super_block *es = NULL;
-@@ -4429,7 +4429,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
- out_free_base:
- 	kfree(sbi);
- 	kfree(orig_data);
--	fs_put_dax(dax_dev);
-+	fs_dax_release(dax_dev, sb);
- 	return err ? err : ret;
- }
- 
-diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
-index d71424052917..f53f8a47a526 100644
---- a/fs/xfs/xfs_super.c
-+++ b/fs/xfs/xfs_super.c
-@@ -724,7 +724,7 @@ xfs_close_devices(
- 
- 		xfs_free_buftarg(mp->m_logdev_targp);
- 		xfs_blkdev_put(logdev);
--		fs_put_dax(dax_logdev);
-+		fs_dax_release(dax_logdev, mp);
- 	}
- 	if (mp->m_rtdev_targp) {
- 		struct block_device *rtdev = mp->m_rtdev_targp->bt_bdev;
-@@ -732,10 +732,10 @@ xfs_close_devices(
- 
- 		xfs_free_buftarg(mp->m_rtdev_targp);
- 		xfs_blkdev_put(rtdev);
--		fs_put_dax(dax_rtdev);
-+		fs_dax_release(dax_rtdev, mp);
- 	}
- 	xfs_free_buftarg(mp->m_ddev_targp);
--	fs_put_dax(dax_ddev);
-+	fs_dax_release(dax_ddev, mp);
- }
- 
- /*
-@@ -753,9 +753,9 @@ xfs_open_devices(
- 	struct xfs_mount	*mp)
- {
- 	struct block_device	*ddev = mp->m_super->s_bdev;
--	struct dax_device	*dax_ddev = fs_dax_get_by_bdev(ddev);
--	struct dax_device	*dax_logdev = NULL, *dax_rtdev = NULL;
-+	struct dax_device	*dax_ddev = fs_dax_claim_bdev(ddev, mp);
- 	struct block_device	*logdev = NULL, *rtdev = NULL;
-+	struct dax_device	*dax_logdev = NULL, *dax_rtdev = NULL;
- 	int			error;
- 
- 	/*
-@@ -765,7 +765,7 @@ xfs_open_devices(
- 		error = xfs_blkdev_get(mp, mp->m_logname, &logdev);
- 		if (error)
- 			goto out;
--		dax_logdev = fs_dax_get_by_bdev(logdev);
-+		dax_logdev = fs_dax_claim_bdev(logdev, mp);
- 	}
- 
- 	if (mp->m_rtname) {
-@@ -779,7 +779,7 @@ xfs_open_devices(
- 			error = -EINVAL;
- 			goto out_close_rtdev;
- 		}
--		dax_rtdev = fs_dax_get_by_bdev(rtdev);
-+		dax_rtdev = fs_dax_claim_bdev(rtdev, mp);
- 	}
- 
- 	/*
-@@ -813,14 +813,14 @@ xfs_open_devices(
- 	xfs_free_buftarg(mp->m_ddev_targp);
-  out_close_rtdev:
- 	xfs_blkdev_put(rtdev);
--	fs_put_dax(dax_rtdev);
-+	fs_dax_release(dax_rtdev, mp);
-  out_close_logdev:
- 	if (logdev && logdev != ddev) {
- 		xfs_blkdev_put(logdev);
--		fs_put_dax(dax_logdev);
-+		fs_dax_release(dax_logdev, mp);
- 	}
-  out:
--	fs_put_dax(dax_ddev);
-+	fs_dax_release(dax_ddev, mp);
- 	return error;
- }
- 
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index af02f93c943a..fe322d67856e 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -33,6 +33,8 @@ extern struct attribute_group dax_attribute_group;
- struct dax_device *dax_get_by_host(const char *host);
- struct dax_device *alloc_dax(void *private, const char *host,
- 		const struct dax_operations *ops);
-+struct dax_device *alloc_dax_devmap(void *private, const char *host,
-+		const struct dax_operations *ops, struct dev_pagemap *pgmap);
- void put_dax(struct dax_device *dax_dev);
- void kill_dax(struct dax_device *dax_dev);
- void dax_write_cache(struct dax_device *dax_dev, bool wc);
-@@ -51,6 +53,12 @@ static inline struct dax_device *alloc_dax(void *private, const char *host,
- 	 */
- 	return NULL;
- }
-+static inline struct dax_device *alloc_dax_devmap(void *private,
-+		const char *host, const struct dax_operations *ops,
-+		struct dev_pagemap *pgmap)
-+{
-+	return NULL;
-+}
- static inline void put_dax(struct dax_device *dax_dev)
- {
- }
-@@ -85,7 +93,6 @@ static inline void fs_put_dax(struct dax_device *dax_dev)
- 	put_dax(dax_dev);
- }
- 
--struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev);
- int dax_writeback_mapping_range(struct address_space *mapping,
- 		struct block_device *bdev, struct writeback_control *wbc);
- struct dax_device *fs_dax_claim(struct dax_device *dax_dev, void *owner);
-@@ -123,11 +130,6 @@ static inline void fs_put_dax(struct dax_device *dax_dev)
- {
- }
- 
--static inline struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
+-#ifndef arch_memremap_wb
+-static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
 -{
--	return NULL;
+-	return (__force void *)ioremap_cache(offset, size);
+-}
+-#endif
+-
+-#ifndef arch_memremap_can_ram_remap
+-static bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
+-					unsigned long flags)
+-{
+-	return true;
+-}
+-#endif
+-
+-static void *try_ram_remap(resource_size_t offset, size_t size,
+-			   unsigned long flags)
+-{
+-	unsigned long pfn = PHYS_PFN(offset);
+-
+-	/* In the simple case just return the existing linear address */
+-	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)) &&
+-	    arch_memremap_can_ram_remap(offset, size, flags))
+-		return __va(offset);
+-
+-	return NULL; /* fallback to arch_memremap_wb */
 -}
 -
- static inline int dax_writeback_mapping_range(struct address_space *mapping,
- 		struct block_device *bdev, struct writeback_control *wbc)
- {
+-/**
+- * memremap() - remap an iomem_resource as cacheable memory
+- * @offset: iomem resource start address
+- * @size: size of remap
+- * @flags: any of MEMREMAP_WB, MEMREMAP_WT, MEMREMAP_WC,
+- *		  MEMREMAP_ENC, MEMREMAP_DEC
+- *
+- * memremap() is "ioremap" for cases where it is known that the resource
+- * being mapped does not have i/o side effects and the __iomem
+- * annotation is not applicable. In the case of multiple flags, the different
+- * mapping types will be attempted in the order listed below until one of
+- * them succeeds.
+- *
+- * MEMREMAP_WB - matches the default mapping for System RAM on
+- * the architecture.  This is usually a read-allocate write-back cache.
+- * Morever, if MEMREMAP_WB is specified and the requested remap region is RAM
+- * memremap() will bypass establishing a new mapping and instead return
+- * a pointer into the direct map.
+- *
+- * MEMREMAP_WT - establish a mapping whereby writes either bypass the
+- * cache or are written through to memory and never exist in a
+- * cache-dirty state with respect to program visibility.  Attempts to
+- * map System RAM with this mapping type will fail.
+- *
+- * MEMREMAP_WC - establish a writecombine mapping, whereby writes may
+- * be coalesced together (e.g. in the CPU's write buffers), but is otherwise
+- * uncached. Attempts to map System RAM with this mapping type will fail.
+- */
+-void *memremap(resource_size_t offset, size_t size, unsigned long flags)
+-{
+-	int is_ram = region_intersects(offset, size,
+-				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+-	void *addr = NULL;
+-
+-	if (!flags)
+-		return NULL;
+-
+-	if (is_ram == REGION_MIXED) {
+-		WARN_ONCE(1, "memremap attempted on mixed range %pa size: %#lx\n",
+-				&offset, (unsigned long) size);
+-		return NULL;
+-	}
+-
+-	/* Try all mapping types requested until one returns non-NULL */
+-	if (flags & MEMREMAP_WB) {
+-		/*
+-		 * MEMREMAP_WB is special in that it can be satisifed
+-		 * from the direct map.  Some archs depend on the
+-		 * capability of memremap() to autodetect cases where
+-		 * the requested range is potentially in System RAM.
+-		 */
+-		if (is_ram == REGION_INTERSECTS)
+-			addr = try_ram_remap(offset, size, flags);
+-		if (!addr)
+-			addr = arch_memremap_wb(offset, size);
+-	}
+-
+-	/*
+-	 * If we don't have a mapping yet and other request flags are
+-	 * present then we will be attempting to establish a new virtual
+-	 * address mapping.  Enforce that this mapping is not aliasing
+-	 * System RAM.
+-	 */
+-	if (!addr && is_ram == REGION_INTERSECTS && flags != MEMREMAP_WB) {
+-		WARN_ONCE(1, "memremap attempted on ram %pa size: %#lx\n",
+-				&offset, (unsigned long) size);
+-		return NULL;
+-	}
+-
+-	if (!addr && (flags & MEMREMAP_WT))
+-		addr = ioremap_wt(offset, size);
+-
+-	if (!addr && (flags & MEMREMAP_WC))
+-		addr = ioremap_wc(offset, size);
+-
+-	return addr;
+-}
+-EXPORT_SYMBOL(memremap);
+-
+-void memunmap(void *addr)
+-{
+-	if (is_vmalloc_addr(addr))
+-		iounmap((void __iomem *) addr);
+-}
+-EXPORT_SYMBOL(memunmap);
+-
+-static void devm_memremap_release(struct device *dev, void *res)
+-{
+-	memunmap(*(void **)res);
+-}
+-
+-static int devm_memremap_match(struct device *dev, void *res, void *match_data)
+-{
+-	return *(void **)res == match_data;
+-}
+-
+-void *devm_memremap(struct device *dev, resource_size_t offset,
+-		size_t size, unsigned long flags)
+-{
+-	void **ptr, *addr;
+-
+-	ptr = devres_alloc_node(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
+-			dev_to_node(dev));
+-	if (!ptr)
+-		return ERR_PTR(-ENOMEM);
+-
+-	addr = memremap(offset, size, flags);
+-	if (addr) {
+-		*ptr = addr;
+-		devres_add(dev, ptr);
+-	} else {
+-		devres_free(ptr);
+-		return ERR_PTR(-ENXIO);
+-	}
+-
+-	return addr;
+-}
+-EXPORT_SYMBOL(devm_memremap);
+-
+-void devm_memunmap(struct device *dev, void *addr)
+-{
+-	WARN_ON(devres_release(dev, devm_memremap_release,
+-				devm_memremap_match, addr));
+-}
+-EXPORT_SYMBOL(devm_memunmap);
+-
+-#ifdef CONFIG_ZONE_DEVICE
+ static DEFINE_MUTEX(pgmap_lock);
+ static RADIX_TREE(pgmap_radix, GFP_KERNEL);
+ #define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
+@@ -473,7 +300,6 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
+ 
+ 	return pgmap;
+ }
+-#endif /* CONFIG_ZONE_DEVICE */
+ 
+ #if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+ void put_zone_device_private_or_public_page(struct page *page)
