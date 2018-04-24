@@ -1,90 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C7D6B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 00:01:03 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c85so12055734pfb.12
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 21:01:03 -0700 (PDT)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id b39-v6si11611099plb.456.2018.04.23.21.01.01
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DDB5B6B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 00:30:38 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id k3so12098966pff.23
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 21:30:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h2-v6sor4583443plt.87.2018.04.23.21.30.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 21:01:02 -0700 (PDT)
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [RFC v4 PATCH] mm: shmem: make stat.st_blksize return huge page size if THP is on
-Date: Tue, 24 Apr 2018 12:00:50 +0800
-Message-Id: <1524542450-92577-1-git-send-email-yang.shi@linux.alibaba.com>
+        (Google Transport Security);
+        Mon, 23 Apr 2018 21:30:37 -0700 (PDT)
+Subject: Re: [PATCH net-next 0/4] mm,tcp: provide mmap_hook to solve lockdep
+ issue
+References: <20180420155542.122183-1-edumazet@google.com>
+ <9ed6083f-d731-945c-dbcd-f977c5600b03@kernel.org>
+ <d5b4dc70-6f17-d2be-a519-5ebc3f812f57@gmail.com>
+ <CALCETrWOLU+P_jVpuOUQT2e_5ZShAP3OM0yJZMbC=pv5La9Cvg@mail.gmail.com>
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Message-ID: <e494c904-bdd0-8c6c-0592-c4960dcf2865@gmail.com>
+Date: Mon, 23 Apr 2018 21:30:34 -0700
+MIME-Version: 1.0
+In-Reply-To: <CALCETrWOLU+P_jVpuOUQT2e_5ZShAP3OM0yJZMbC=pv5La9Cvg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Eric Dumazet <edumazet@google.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Soheil Hassas Yeganeh <soheil@google.com>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
-Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
-filesystem with huge page support anymore. tmpfs can use huge page via
-THP when mounting by "huge=" mount option.
 
-When applications use huge page on hugetlbfs, it just need check the
-filesystem magic number, but it is not enough for tmpfs. Make
-stat.st_blksize return huge page size if it is mounted by appropriate
-"huge=" option to give applications a hint to optimize the behavior with
-THP.
 
-Some applications may not do wisely with THP. For example, QEMU may mmap
-file on non huge page aligned hint address with MAP_FIXED, which results
-in no pages are PMD mapped even though THP is used. Some applications
-may mmap file with non huge page aligned offset. Both behaviors make THP
-pointless.
+On 04/23/2018 07:04 PM, Andy Lutomirski wrote:
+> On Mon, Apr 23, 2018 at 2:38 PM, Eric Dumazet <eric.dumazet@gmail.com> wrote:
+>> Hi Andy
+>>
+>> On 04/23/2018 02:14 PM, Andy Lutomirski wrote:
+> 
+>>> I would suggest that you rework the interface a bit.  First a user would call mmap() on a TCP socket, which would create an empty VMA.  (It would set vm_ops to point to tcp_vm_ops or similar so that the TCP code could recognize it, but it would have no effect whatsoever on the TCP state machine.  Reading the VMA would get SIGBUS.)  Then a user would call a new ioctl() or setsockopt() function and pass something like:
+>>
+>>
+>>>
+>>> struct tcp_zerocopy_receive {
+>>>   void *address;
+>>>   size_t length;
+>>> };
+>>>
+>>> The kernel would verify that [address, address+length) is entirely inside a single TCP VMA and then would do the vm_insert_range magic.
+>>
+>> I have no idea what is the proper API for that.
+>> Where the TCP VMA(s) would be stored ?
+>> In TCP socket, or MM layer ?
+> 
+> MM layer.  I haven't tested this at all, and the error handling is
+> totally wrong, but I think you'd do something like:
+> 
+> len = get_user(...);
+> 
+> down_read(&current->mm->mmap_sem);
+> 
+> vma = find_vma(mm, start);
+> if (!vma || vma->vm_start > start)
+>   return -EFAULT;
+> 
+> /* This is buggy.  You also need to check that the file is a socket.
+> This is probably trivial. */
+> if (vma->vm_file->private_data != sock)
+>   return -EINVAL;
+> 
+> if (len > vma->vm_end - start)
+>   return -EFAULT;  /* too big a request. */
+> 
+> and now you'd do the vm_insert_page() dance, except that you don't
+> have to abort the whole procedure if you discover that something isn't
+> aligned right.  Instead you'd just stop and tell the caller that you
+> didn't map the full requested size.  You might also need to add some
+> code to charge the caller for the pages that get pinned, but that's an
+> orthogonal issue.
+> 
+> You also need to provide some way for user programs to signal that
+> they're done with the page in question.  MADV_DONTNEED might be
+> sufficient.
+> 
+> In the mmap() helper, you might want to restrict the mapped size to
+> something reasonable.  And it might be nice to hook mremap() to
+> prevent user code from causing too much trouble.
+> 
+> With my x86-writer-of-TLB-code hat on, I expect the major performance
+> costs to be the generic costs of mmap() and munmap() (which only
+> happen once per socket instead of once per read if you like my idea),
+> the cost of a TLB miss when the data gets read (really not so bad on
+> modern hardware), and the cost of the TLB invalidation when user code
+> is done with the buffers.  The latter is awful, especially in
+> multithreaded programs.  In fact, it's so bad that it might be worth
+> mentioning in the documentation for this code that it just shouldn't
+> be used in multithreaded processes.  (Also, on non-PCID hardware,
+> there's an annoying situation in which a recently-migrated thread that
+> removes a mapping sends an IPI to the CPU that the thread used to be
+> on.  I thought I had a clever idea to get rid of that IPI once, but it
+> turned out to be wrong.)
+> 
+> Architectures like ARM that have superior TLB handling primitives will
+> not be hurt as badly if this is used my a multithreaded program.
+> 
+>>
+>>
+>> And I am not sure why the error handling would be better (point 4), unless we can return smaller @length than requested maybe ?
+> 
+> Exactly.  If I request 10MB mapped and only the first 9MB are aligned
+> right, I still want the first 9 MB.
+> 
+>>
+>> Also how the VMA space would be accounted (point 3) when creating an empty VMA (no pages in there yet)
+> 
+> There's nothing to account.  It's the same as mapping /dev/null or
+> similar -- the mm core should take care of it for you.
+> 
 
-statfs.f_bsize still returns 4KB for tmpfs since THP could be split, and it
-also may fallback to 4KB page silently if there is not enough huge page.
-Furthermore, different f_bsize makes max_blocks and free_blocks
-calculation harder but without too much benefit. Returning huge page
-size via stat.st_blksize sounds good enough.
+Thanks Andy, I am working on all this, and initial patch looks sane enough.
 
-Since PUD size huge page for THP has not been supported, now it just
-returns HPAGE_PMD_SIZE.
+ include/uapi/linux/tcp.h |    7 +
+ net/ipv4/tcp.c           |  175 +++++++++++++++++++++++------------------------
+ 2 files changed, 93 insertions(+), 89 deletions(-)
 
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Suggested-by: Christoph Hellwig <hch@infradead.org>
----
-v3 --> v4:
-* Rework the commit log per the education from Michal and Kirill
-* Fix build error if CONFIG_TRANSPARENT_HUGEPAGE is disabled
-v2 --> v3:
-* Use shmem_sb_info.huge instead of global variable per Michal's comment
-v2 --> v1:
-* Adopted the suggestion from hch to return huge page size via st_blksize
-  instead of creating a new flag.
 
- mm/shmem.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+I will test all this before sending for review asap.
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index b859192..19b8055 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -988,6 +988,7 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
- {
- 	struct inode *inode = path->dentry->d_inode;
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
- 
- 	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
- 		spin_lock_irq(&info->lock);
-@@ -995,6 +996,11 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
- 		spin_unlock_irq(&info->lock);
- 	}
- 	generic_fillattr(inode, stat);
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-+	if (sbinfo->huge > 0)
-+		stat->blksize = HPAGE_PMD_SIZE;
-+#endif
-+	
- 	return 0;
- }
- 
--- 
-1.8.3.1
+( I have not done the compat code yet, this can be done later I guess)
