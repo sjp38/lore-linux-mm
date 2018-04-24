@@ -1,60 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F506B000D
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 09:27:27 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id n4so8692463pgn.9
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 06:27:27 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D03A6B0010
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 09:31:55 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id a38-v6so22138444wra.10
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 06:31:55 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m13si11898943pgs.49.2018.04.24.06.27.25
+        by mx.google.com with ESMTPS id 35si2107334edh.126.2018.04.24.06.31.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Apr 2018 06:27:25 -0700 (PDT)
-Date: Tue, 24 Apr 2018 07:27:21 -0600
+        Tue, 24 Apr 2018 06:31:53 -0700 (PDT)
+Date: Tue, 24 Apr 2018 07:31:46 -0600
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: per-NUMA memory limits in mem cgroup?
-Message-ID: <20180424132721.GF17484@dhcp22.suse.cz>
-References: <5ADA26AB.6080209@windriver.com>
- <20180422124648.GD17484@dhcp22.suse.cz>
- <5ADDFBD1.7010009@windriver.com>
+Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
+Message-ID: <20180424133146.GG17484@dhcp22.suse.cz>
+References: <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180420130852.GC16083@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180420210200.GH10788@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180421144757.GC14610@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180423151545.GU17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804232006540.2299@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5ADDFBD1.7010009@windriver.com>
+In-Reply-To: <alpine.LRH.2.02.1804232006540.2299@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Friesen <chris.friesen@windriver.com>
-Cc: "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon 23-04-18 11:29:21, Chris Friesen wrote:
-> On 04/22/2018 08:46 AM, Michal Hocko wrote:
-> > On Fri 20-04-18 11:43:07, Chris Friesen wrote:
+On Mon 23-04-18 20:25:15, Mikulas Patocka wrote:
 > 
-> > > The specific scenario I'm considering is that of a hypervisor host.  I have
-> > > system management stuff running on the host that may need more than one
-> > > core, and currently these host tasks might be affined to cores from multiple
-> > > NUMA nodes.  I'd like to put a cap on how much memory the host tasks can
-> > > allocate from each NUMA node in order to ensure that there is a guaranteed
-> > > amount of memory available for VMs on each NUMA node.
-> > > 
-> > > Is this possible, or are the knobs just not there?
+> 
+> On Mon, 23 Apr 2018, Michal Hocko wrote:
+> 
+> > On Mon 23-04-18 10:06:08, Mikulas Patocka wrote:
 > > 
-> > Not possible right now. What would be the policy when you reach the
-> > limit on one node? Fallback to other nodes? What if those hit the limit
-> > as well? OOM killer or an allocation failure?
+> > > > > He didn't want to fix vmalloc(GFP_NOIO)
+> > > > 
+> > > > I don't remember that conversation, so I don't know whether I agree with
+> > > > his reasoning or not.  But we are supposed to be moving away from GFP_NOIO
+> > > > towards marking regions with memalloc_noio_save() / restore.  If you do
+> > > > that, you won't need vmalloc(GFP_NOIO).
+> > > 
+> > > He said the same thing a year ago. And there was small progress. 6 out of 
+> > > 27 __vmalloc calls were converted to memalloc_noio_save in a year - 5 in 
+> > > infiniband and 1 in btrfs. (the whole discussion is here 
+> > > http://lkml.iu.edu/hypermail/linux/kernel/1706.3/04681.html )
+> > 
+> > Well this is not that easy. It requires a cooperation from maintainers.
+> > I can only do as much. I've posted patches in the past and actively
+> > bringing up this topic at LSFMM last two years...
 > 
-> I'd envision it working exactly the same as the current memory cgroup, but
-> with the ability to specify optional per-NUMA-node limits in addition to
-> system-wide.
+> You're right - but you have chosen the uneasy path.
 
-OK, so you would have a per numa percentage of the hard limit? But more
-importantly, note that the page allocation is done way before the charge
-so we do not have any control over where the memory get allocated from
-so we would have to play nasty tricks in the reclaim to somehow balance
-NUMA charge pools. And I can easily imagine we would go OOM before we
-saturate all NUMA pools. But I didn't get to think this whole thing
-through as I am conferencing these days. I am even not sure the whole
-thing is the best idea as well. It sounds more easily then it would end
-up, I suspect.
+Yes.
+
+> Fixing __vmalloc code 
+> is easy and it doesn't require cooperation with maintainers.
+
+But it is a hack against the intention of the scope api. It also alows
+maintainers to not care about their broken code.
+
+> > > He refuses 15-line patch to fix GFP_NOIO bug because he believes that in 4 
+> > > years, the kernel will be refactored and GFP_NOIO will be eliminated. Why 
+> > > does he have veto over this part of the code? I'd much rather argue with 
+> > > people who have constructive comments about fixing bugs than with him.
+> > 
+> > I didn't NACK the patch AFAIR. I've said it is not a good idea longterm.
+> > I would be much more willing to change my mind if you would back your
+> > patch by a real bug report. Hacks are acceptable when we have a real
+> > issue in hands. But if we want to fix potential issue then better make
+> > it properly.
+> 
+> Developers should fix bugs in advance, not to wait until a crash hapens, 
+> is analyzed and reported.
+
+I agree. But are those existing users broken in the first place? I have
+seen so many GFP_NOFS abuses that I would dare to guess that most of
+those vmalloc NOFS abusers can be simply turned into GFP_KERNEL. Maybe
+that is the reason we haven't heard any complains in years.
+
 -- 
 Michal Hocko
 SUSE Labs
