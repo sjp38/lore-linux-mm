@@ -1,89 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D42FE6B0007
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 02:42:10 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g7-v6so11842067wrb.19
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 23:42:10 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id x40si6088801edx.299.2018.04.23.23.42.09
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D3ED6B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 02:54:23 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g7-v6so11879531wrb.19
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 23:54:22 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id b5-v6si10843345wrf.362.2018.04.23.23.54.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 23:42:09 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3O6d45i038660
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 02:42:08 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2hhy9y8q37-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 02:42:08 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 24 Apr 2018 07:42:06 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] mm/ksm: move [set_]page_stable_node from ksm.h to ksm.c
-Date: Tue, 24 Apr 2018 09:41:46 +0300
-In-Reply-To: <1524552106-7356-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1524552106-7356-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1524552106-7356-3-git-send-email-rppt@linux.vnet.ibm.com>
+        Mon, 23 Apr 2018 23:54:21 -0700 (PDT)
+Date: Tue, 24 Apr 2018 08:55:49 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 11/12] swiotlb: move the SWIOTLB config symbol to
+	lib/Kconfig
+Message-ID: <20180424065549.GA18468@lst.de>
+References: <20180423170419.20330-1-hch@lst.de> <20180423170419.20330-12-hch@lst.de> <20180423235205.GH16141@n2100.armlinux.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180423235205.GH16141@n2100.armlinux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Russell King - ARM Linux <linux@armlinux.org.uk>
+Cc: Christoph Hellwig <hch@lst.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org, linux-mips@linux-mips.org, linux-pci@vger.kernel.org, x86@kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-The page_stable_node() and set_page_stable_node() are only used in mm/ksm.c
-and there is no point to keep them in the include/linux/ksm.h
+On Tue, Apr 24, 2018 at 12:52:05AM +0100, Russell King - ARM Linux wrote:
+> On Mon, Apr 23, 2018 at 07:04:18PM +0200, Christoph Hellwig wrote:
+> > This way we have one central definition of it, and user can select it as
+> > needed.  Note that we also add a second ARCH_HAS_SWIOTLB symbol to
+> > indicate the architecture supports swiotlb at all, so that we can still
+> > make the usage optional for a few architectures that want this feature
+> > to be user selectable.
+> > 
+> > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> 
+> Hmm, this looks like we end up with NEED_SG_DMA_LENGTH=y on ARM by
+> default, which probably isn't a good idea - ARM pre-dates the dma_length
+> parameter in scatterlists, and I don't think all code is guaranteed to
+> do the right thing if this is enabled.
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- include/linux/ksm.h | 11 -----------
- mm/ksm.c            | 12 ++++++++++++
- 2 files changed, 12 insertions(+), 11 deletions(-)
+We shouldn't end up with NEED_SG_DMA_LENGTH=y on ARM by default.
+It is only select by ARM_DMA_USE_IOMMU before the patch, and it will
+now also be selected by SWIOTLB, which for arm is never used or seleted
+directly by anything but xen-swiotlb.
 
-diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-index bbdfca3..161e816 100644
---- a/include/linux/ksm.h
-+++ b/include/linux/ksm.h
-@@ -37,17 +37,6 @@ static inline void ksm_exit(struct mm_struct *mm)
- 		__ksm_exit(mm);
- }
- 
--static inline struct stable_node *page_stable_node(struct page *page)
--{
--	return PageKsm(page) ? page_rmapping(page) : NULL;
--}
--
--static inline void set_page_stable_node(struct page *page,
--					struct stable_node *stable_node)
--{
--	page->mapping = (void *)((unsigned long)stable_node | PAGE_MAPPING_KSM);
--}
--
- /*
-  * When do_swap_page() first faults in from swap what used to be a KSM page,
-  * no problem, it will be assigned to this vma's anon_vma; but thereafter,
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 16451a2..58c2741 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -827,6 +827,18 @@ static int unmerge_ksm_pages(struct vm_area_struct *vma,
- /*
-  * Only called through the sysfs control interface:
-  */
-+
-+static inline struct stable_node *page_stable_node(struct page *page)
-+{
-+	return PageKsm(page) ? page_rmapping(page) : NULL;
-+}
-+
-+static inline void set_page_stable_node(struct page *page,
-+					struct stable_node *stable_node)
-+{
-+	page->mapping = (void *)((unsigned long)stable_node | PAGE_MAPPING_KSM);
-+}
-+
- static int remove_stable_node(struct stable_node *stable_node)
- {
- 	struct page *page;
--- 
-2.7.4
+Then again looking at the series there shouldn't be any need to
+even select NEED_SG_DMA_LENGTH for swiotlb, as we'll never merge segments,
+so I'll fix that up.
