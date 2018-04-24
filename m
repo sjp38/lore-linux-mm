@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 65BEE6B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 17:07:55 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id z22so9581023pfi.7
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 14:07:55 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l3-v6sor5220551pld.69.2018.04.24.14.07.54
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 432BC6B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 17:58:10 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id b5-v6so1195458otf.7
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 14:58:10 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p18-v6si5516127oic.290.2018.04.24.14.58.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 24 Apr 2018 14:07:54 -0700 (PDT)
-Date: Tue, 24 Apr 2018 14:07:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaperunmap
-In-Reply-To: <20180424203148.GW17484@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1804241359280.186801@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com> <20180420082349.GW17484@dhcp22.suse.cz> <20180420124044.GA17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804212019400.84222@chino.kir.corp.google.com> <201804221248.CHE35432.FtOMOLSHOFJFVQ@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com> <20180424130432.GB17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804241256000.231037@chino.kir.corp.google.com> <20180424201352.GV17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804241317200.231037@chino.kir.corp.google.com>
- <20180424203148.GW17484@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Apr 2018 14:58:08 -0700 (PDT)
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201804221248.CHE35432.FtOMOLSHOFJFVQ@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com>
+	<201804240511.w3O5BY4o090598@www262.sakura.ne.jp>
+	<alpine.DEB.2.21.1804232231020.82340@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.21.1804232231020.82340@chino.kir.corp.google.com>
+Message-Id: <201804250657.GFI21363.StOJHOQFOMFVFL@I-love.SAKURA.ne.jp>
+Date: Wed, 25 Apr 2018 06:57:59 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: rientjes@google.com
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 24 Apr 2018, Michal Hocko wrote:
-
-> > > > My patch has passed intensive testing on both x86 and powerpc, so I'll ask 
-> > > > that it's pushed for 4.17-rc3.  Many thanks to Tetsuo for the suggestion 
-> > > > on calling __oom_reap_task_mm() from exit_mmap().
+David Rientjes wrote:
+> On Tue, 24 Apr 2018, Tetsuo Handa wrote:
+> 
+> > > > We can call __oom_reap_task_mm() from exit_mmap() (or __mmput()) before
+> > > > exit_mmap() holds mmap_sem for write. Then, at least memory which could
+> > > > have been reclaimed if exit_mmap() did not hold mmap_sem for write will
+> > > > be guaranteed to be reclaimed before MMF_OOM_SKIP is set.
+> > > > 
 > > > 
-> > > Yeah, but your patch does have a problem with blockable mmu notifiers
-> > > IIUC.
+> > > I think that's an exceptionally good idea and will mitigate the concerns 
+> > > of others.
+> > > 
+> > > It can be done without holding mm->mmap_sem in exit_mmap() and uses the 
+> > > same criteria that the oom reaper uses to set MMF_OOM_SKIP itself, so we 
+> > > don't get dozens of unnecessary oom kills.
+> > > 
+> > > What do you think about this?  It passes preliminary testing on powerpc 
+> > > and I'm enqueued it for much more intensive testing.  (I'm wishing there 
+> > > was a better way to acknowledge your contribution to fixing this issue, 
+> > > especially since you brought up the exact problem this is addressing in 
+> > > previous emails.)
+> > > 
 > > 
-> > What on earth are you talking about?  exit_mmap() does 
-> > mmu_notifier_release().  There are no blockable mmu notifiers.
+> > I don't think this patch is safe, for exit_mmap() is calling
+> > mmu_notifier_invalidate_range_{start,end}() which might block with oom_lock
+> > held when oom_reap_task_mm() is waiting for oom_lock held by exit_mmap().
 > 
-> MMF_OOM_SKIP - remember? The thing that guarantees a forward progress.
-> So we cannot really depend on setting MMF_OOM_SKIP if a
-> mmu_notifier_release blocks for an excessive/unbounded amount of time.
-> 
+> One of the reasons that I extracted __oom_reap_task_mm() out of the new 
+> oom_reap_task_mm() is to avoid the checks that would be unnecessary when 
+> called from exit_mmap().  In this case, we can ignore the 
+> mm_has_blockable_invalidate_notifiers() check because exit_mmap() has 
+> already done mmu_notifier_release().  So I don't think there's a concern 
+> about __oom_reap_task_mm() blocking while holding oom_lock.  Unless you 
+> are referring to something else?
 
-If the thread is blocked in exit_mmap() because of mmu_notifier_release() 
-then the oom reaper will eventually grab mm->mmap_sem (nothing holding it 
-in exit_mmap()), return true, and oom_reap_task() will set MMF_OOM_SKIP.  
-This is unchanged with the patch and is a completely separate issue.
+Oh, mmu_notifier_release() made mm_has_blockable_invalidate_notifiers() == false. OK.
 
-> Look I am not really interested in disussing this to death but it would
-> be really _nice_ if you could calm down a bit, stop fighting for the solution
-> you have proposed and ignore the feedback you are getting.
-> 
-
-I assume we should spend more time considering the two untested patches 
-you have sent, one of which killed 17 processes while a 8GB memory hog was 
-exiting because the oom reaper couldn't grab mm->mmap_sem and set 
-MMF_OOM_SKIP.
-
-> There are two things to care about here. Stop the race that can blow up
-> and do not regress MMF_OOM_SKIP guarantee. Can we please do that.
-
-My patch does both.
-
-Thanks.
+But I want comments why it is safe; I will probably miss that dependency
+when we move that code next time.
