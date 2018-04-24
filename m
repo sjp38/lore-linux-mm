@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 70A436B0003
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 19:15:02 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id i128so14206316pfg.2
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 16:15:02 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e3-v6si14613247pld.229.2018.04.24.16.15.01
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E64D26B0003
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 19:17:17 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id t3-v6so8588963qto.14
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 16:17:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 75si3244584qvc.275.2018.04.24.16.17.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Apr 2018 16:15:01 -0700 (PDT)
-Date: Tue, 24 Apr 2018 17:14:55 -0600
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaperunmap
-Message-ID: <20180424231455.GZ17484@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1804212019400.84222@chino.kir.corp.google.com>
- <201804221248.CHE35432.FtOMOLSHOFJFVQ@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com>
- <20180424130432.GB17484@dhcp22.suse.cz>
- <alpine.DEB.2.21.1804241256000.231037@chino.kir.corp.google.com>
- <20180424201352.GV17484@dhcp22.suse.cz>
- <alpine.DEB.2.21.1804241317200.231037@chino.kir.corp.google.com>
- <20180424203148.GW17484@dhcp22.suse.cz>
- <alpine.DEB.2.21.1804241359280.186801@chino.kir.corp.google.com>
- <20180424230815.GX17484@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Apr 2018 16:17:17 -0700 (PDT)
+Date: Tue, 24 Apr 2018 19:17:12 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: vmalloc with GFP_NOFS
+In-Reply-To: <20180424230943.GY17484@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1804241911040.19786@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20180424162712.GL17484@dhcp22.suse.cz> <3732370.1623zxSvNg@blindfold> <20180424192803.GT17484@dhcp22.suse.cz> <3894056.cxOY6eVYVp@blindfold> <20180424230943.GY17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180424230815.GX17484@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Richard Weinberger <richard@nod.at>, LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 24-04-18 17:08:15, Michal Hocko wrote:
-> On Tue 24-04-18 14:07:52, David Rientjes wrote:
-> > On Tue, 24 Apr 2018, Michal Hocko wrote:
-> > 
-> > > > > > My patch has passed intensive testing on both x86 and powerpc, so I'll ask 
-> > > > > > that it's pushed for 4.17-rc3.  Many thanks to Tetsuo for the suggestion 
-> > > > > > on calling __oom_reap_task_mm() from exit_mmap().
-> > > > > 
-> > > > > Yeah, but your patch does have a problem with blockable mmu notifiers
-> > > > > IIUC.
-> > > > 
-> > > > What on earth are you talking about?  exit_mmap() does 
-> > > > mmu_notifier_release().  There are no blockable mmu notifiers.
+
+
+On Tue, 24 Apr 2018, Michal Hocko wrote:
+
+> On Wed 25-04-18 00:18:40, Richard Weinberger wrote:
+> > Am Dienstag, 24. April 2018, 21:28:03 CEST schrieb Michal Hocko:
+> > > > Also only for debugging.
+> > > > Getting rid of vmalloc with GFP_NOFS in UBIFS is no big problem.
+> > > > I can prepare a patch.
 > > > 
-> > > MMF_OOM_SKIP - remember? The thing that guarantees a forward progress.
-> > > So we cannot really depend on setting MMF_OOM_SKIP if a
-> > > mmu_notifier_release blocks for an excessive/unbounded amount of time.
+> > > Cool!
 > > > 
+> > > Anyway, if UBIFS has some reclaim recursion critical sections in general
+> > > it would be really great to have them documented and that is where the
+> > > scope api is really handy. Just add the scope and document what is the
+> > > recursion issue. This will help people reading the code as well. Ideally
+> > > there shouldn't be any explicit GFP_NOFS in the code.
 > > 
-> > If the thread is blocked in exit_mmap() because of mmu_notifier_release() 
-> > then the oom reaper will eventually grab mm->mmap_sem (nothing holding it 
-> > in exit_mmap()), return true, and oom_reap_task() will set MMF_OOM_SKIP.  
-> > This is unchanged with the patch and is a completely separate issue.
+> > So in a perfect world a filesystem calls memalloc_nofs_save/restore and
+> > always uses GFP_KERNEL for kmalloc/vmalloc?
 > 
-> I must be missing something or we are talking past each other.
+> Exactly! And in a dream world those memalloc_nofs_save act as a
+> documentation of the reclaim recursion documentation ;)
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-Ohh. Ok, so _I_ was missing that mm_has_notifiers is false after
-mmu_notifier_release. So we cannot block at that time. Then we are good.
-Sorry about the confusion!
--- 
-Michal Hocko
-SUSE Labs
+BTW. should memalloc_nofs_save and memalloc_noio_save be merged into just 
+one that prevents both I/O and FS recursion?
+
+memalloc_nofs_save allows submitting bios to I/O stack and the bios 
+created under memalloc_nofs_save could be sent to the loop device and the 
+loop device calls the filesystem...
+
+Mikulas
