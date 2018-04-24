@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BFF36B0009
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 10:35:26 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id v23-v6so17753094iog.14
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 07:35:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x22-v6sor950339itc.44.2018.04.24.07.35.20
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 842EE6B000C
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 10:44:19 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g15so11075489pfi.8
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 07:44:19 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id e33-v6si14274245pld.404.2018.04.24.07.44.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 24 Apr 2018 07:35:21 -0700 (PDT)
-Subject: Re: [PATCH 9/9] Protect SELinux initialized state with pmalloc
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 24 Apr 2018 07:44:18 -0700 (PDT)
+Date: Tue, 24 Apr 2018 07:44:04 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 7/9] Pmalloc Rare Write: modify selected pools
+Message-ID: <20180424144404.GF26636@bombadil.infradead.org>
 References: <20180423125458.5338-1-igor.stoppa@huawei.com>
- <20180423125458.5338-10-igor.stoppa@huawei.com>
- <13ee6991-db48-d484-66a6-90de45fad2df@tycho.nsa.gov>
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Message-ID: <34d804c6-8aea-52ee-41b8-139aaf188d80@gmail.com>
-Date: Tue, 24 Apr 2018 18:35:18 +0400
+ <20180423125458.5338-8-igor.stoppa@huawei.com>
+ <20180424115050.GD26636@bombadil.infradead.org>
+ <eb23fbd9-1b9e-8633-b0eb-241b8ad24d95@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <13ee6991-db48-d484-66a6-90de45fad2df@tycho.nsa.gov>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <eb23fbd9-1b9e-8633-b0eb-241b8ad24d95@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Smalley <sds@tycho.nsa.gov>, willy@infradead.org, keescook@chromium.org, paul@paul-moore.com, mhocko@kernel.org, corbet@lwn.net
-Cc: labbott@redhat.com, david@fromorbit.com, rppt@linux.vnet.ibm.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
+To: lazytyped <lazytyped@gmail.com>
+Cc: Igor Stoppa <igor.stoppa@gmail.com>, keescook@chromium.org, paul@paul-moore.com, sds@tycho.nsa.gov, mhocko@kernel.org, corbet@lwn.net, labbott@redhat.com, linux-cc=david@fromorbit.com, --cc=rppt@linux.vnet.ibm.com, --security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>, Carlos Chinea Perez <carlos.chinea.perez@huawei.com>, Remi Denis Courmont <remi.denis.courmont@huawei.com>
 
-
-
-On 24/04/18 16:49, Stephen Smalley wrote:
-> On 04/23/2018 08:54 AM, Igor Stoppa wrote:
-
-[...]
-
->> The patch is probably in need of rework, to make it fit better with the
->> new SELinux internal data structures, however it shows how to deny an
->> easy target to the attacker.
+On Tue, Apr 24, 2018 at 02:32:36PM +0200, lazytyped wrote:
+> On 4/24/18 1:50 PM, Matthew Wilcox wrote:
+> > struct modifiable_data {
+> > 	struct immutable_data *d;
+> > 	...
+> > };
+> >
+> > Then allocate a new pool, change d and destroy the old pool.
 > 
-> I know this is just an example, but not sure why you wouldn't just protect the
-> entire selinux_state.
+> With the above, you have just shifted the target of the arbitrary write
+> from the immutable data itself to the pointer to the immutable data, so
+> got no security benefit.
 
-Because I have much more to discuss about SELinux, which would involve 
-the whole state, the policyDB and the AVC
+There's always a pointer to the immutable data.  How do you currently
+get to the selinux context?  file->f_security.  You can't make 'file'
+immutable, so file->f_security is the target of the arbitrary write.
+All you can do is make life harder, and reduce the size of the target.
 
-I will start a separate thread about that. This was merely as simple as 
-possible example of the use of the API.
+> The goal of the patch is to reduce the window when stuff is writeable,
+> so that an arbitrary write is likely to hit the time when data is read-only.
 
-I just wanted to have a feeling about how it would be received :-)
-
-> Note btw that the selinux_state encapsulation is preparatory work
-> for selinux namespaces [1], at which point the structure is in fact dynamically allocated
-> and there can be multiple instances of it.  That however is work-in-progress, highly experimental,
-> and might not ever make it upstream (if we can't resolve the various challenges it poses in a satisfactory
-> way).
-
-Yes, I am aware of this and I would like to discuss also in the light of 
-the future directions.
-
-I just didn't want to waste too much time on something that you might 
-want to change radically in a month :-)
-
-I already was caught once by surprise when ss_initalized disappeared 
-just when I had a patch ready for it :-)
-
---
-igor
+Yes, reducing the size of the target in time as well as bytes.  This patch
+gives attackers a great roadmap (maybe even gadget) to unprotecting
+a pool.
