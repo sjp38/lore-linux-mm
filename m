@@ -1,171 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FA266B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 09:04:41 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j18so13098135pfn.17
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 06:04:41 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a16si6667393pgn.39.2018.04.24.06.04.38
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E0FF6B000E
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 09:08:13 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 127so8644766pge.10
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 06:08:13 -0700 (PDT)
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id c1-v6si13171667plz.237.2018.04.24.06.08.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Apr 2018 06:04:39 -0700 (PDT)
-Date: Tue, 24 Apr 2018 07:04:32 -0600
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaperunmap
-Message-ID: <20180424130432.GB17484@dhcp22.suse.cz>
-References: <20180419063556.GK17484@dhcp22.suse.cz>
- <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com>
- <20180420082349.GW17484@dhcp22.suse.cz>
- <20180420124044.GA17484@dhcp22.suse.cz>
- <alpine.DEB.2.21.1804212019400.84222@chino.kir.corp.google.com>
- <201804221248.CHE35432.FtOMOLSHOFJFVQ@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Apr 2018 06:08:11 -0700 (PDT)
+Subject: Re: [RFC v4 PATCH] mm: shmem: make stat.st_blksize return huge page
+ size if THP is on
+References: <1524542450-92577-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180424112359.svngcdudzodobvmu@kshutemo-mobl1.Home>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <9cd455b9-ae84-8ea9-b3a0-488fe709d1bd@linux.alibaba.com>
+Date: Tue, 24 Apr 2018 07:07:59 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com>
+In-Reply-To: <20180424112359.svngcdudzodobvmu@kshutemo-mobl1.Home>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 23-04-18 19:31:05, David Rientjes wrote:
-[...]
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -3015,6 +3015,27 @@ void exit_mmap(struct mm_struct *mm)
->  	/* mm's last user has gone, and its about to be pulled down */
->  	mmu_notifier_release(mm);
->  
-> +	if (unlikely(mm_is_oom_victim(mm))) {
-> +		/*
-> +		 * Manually reap the mm to free as much memory as possible.
-> +		 * Then, as the oom reaper, set MMF_OOM_SKIP to disregard this
-> +		 * mm from further consideration.  Taking mm->mmap_sem for write
-> +		 * after setting MMF_OOM_SKIP will guarantee that the oom reaper
-> +		 * will not run on this mm again after mmap_sem is dropped.
-> +		 *
-> +		 * This needs to be done before calling munlock_vma_pages_all(),
-> +		 * which clears VM_LOCKED, otherwise the oom reaper cannot
-> +		 * reliably test it.
-> +		 */
-> +		mutex_lock(&oom_lock);
-> +		__oom_reap_task_mm(mm);
-> +		mutex_unlock(&oom_lock);
-> +
-> +		set_bit(MMF_OOM_SKIP, &mm->flags);
-> +		down_write(&mm->mmap_sem);
-> +		up_write(&mm->mmap_sem);
-> +	}
-> +
 
-Is there any reason why we cannot simply call __oom_reap_task_mm as we
-have it now? mmap_sem for read shouldn't fail here because this is the
-last reference of the mm and we are past the ksm and khugepaged
-synchronizations. So unless my jed laged brain fools me the patch should
-be as simple as the following (I haven't tested it at all).
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index faf85699f1a1..a8f170f53872 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3008,6 +3008,13 @@ void exit_mmap(struct mm_struct *mm)
- 	/* mm's last user has gone, and its about to be pulled down */
- 	mmu_notifier_release(mm);
- 
-+	/*
-+	 * The mm is not accessible for anybody except for the oom reaper
-+	 * which cannot race with munlocking so reap the task direct.
-+	 */
-+	if (unlikely(mm_is_oom_victim(mm)))
-+		__oom_reap_task_mm(current, mm);
-+
- 	if (mm->locked_vm) {
- 		vma = mm->mmap;
- 		while (vma) {
-@@ -3030,23 +3037,6 @@ void exit_mmap(struct mm_struct *mm)
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
- 	unmap_vmas(&tlb, vma, 0, -1);
- 
--	if (unlikely(mm_is_oom_victim(mm))) {
--		/*
--		 * Wait for oom_reap_task() to stop working on this
--		 * mm. Because MMF_OOM_SKIP is already set before
--		 * calling down_read(), oom_reap_task() will not run
--		 * on this "mm" post up_write().
--		 *
--		 * mm_is_oom_victim() cannot be set from under us
--		 * either because victim->mm is already set to NULL
--		 * under task_lock before calling mmput and oom_mm is
--		 * set not NULL by the OOM killer only if victim->mm
--		 * is found not NULL while holding the task_lock.
--		 */
--		set_bit(MMF_OOM_SKIP, &mm->flags);
--		down_write(&mm->mmap_sem);
--		up_write(&mm->mmap_sem);
--	}
- 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
- 	tlb_finish_mmu(&tlb, 0, -1);
- 
-@@ -3060,6 +3050,7 @@ void exit_mmap(struct mm_struct *mm)
- 		vma = remove_vma(vma);
- 	}
- 	vm_unacct_memory(nr_accounted);
-+
- }
- 
- /* Insert vm structure into process list sorted by address
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index dfd370526909..e39ceb127e8e 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -524,7 +524,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
- 	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
- 	 * under mmap_sem for reading because it serializes against the
--	 * down_write();up_write() cycle in exit_mmap().
-+	 * exit_mmap().
- 	 */
- 	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
- 		up_read(&mm->mmap_sem);
-@@ -567,12 +567,14 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 			tlb_finish_mmu(&tlb, start, end);
- 		}
- 	}
--	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-+	pr_info("%s: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-+			current->comm,
- 			task_pid_nr(tsk), tsk->comm,
- 			K(get_mm_counter(mm, MM_ANONPAGES)),
- 			K(get_mm_counter(mm, MM_FILEPAGES)),
- 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
- 	up_read(&mm->mmap_sem);
-+	set_bit(MMF_OOM_SKIP, &mm->flags);
- 
- 	trace_finish_task_reaping(tsk->pid);
- unlock_oom:
-@@ -590,10 +592,11 @@ static void oom_reap_task(struct task_struct *tsk)
- 	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
- 		schedule_timeout_idle(HZ/10);
- 
--	if (attempts <= MAX_OOM_REAP_RETRIES ||
--	    test_bit(MMF_OOM_SKIP, &mm->flags))
-+	if (attempts <= MAX_OOM_REAP_RETRIES)
- 		goto done;
- 
-+	if (test_bit(MMF_OOM_SKIP, &mm->flags))
-+		goto put_task;
- 
- 	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
- 		task_pid_nr(tsk), tsk->comm);
-@@ -609,6 +612,7 @@ static void oom_reap_task(struct task_struct *tsk)
- 	set_bit(MMF_OOM_SKIP, &mm->flags);
- 
- 	/* Drop a reference taken by wake_oom_reaper */
-+put_task:
- 	put_task_struct(tsk);
- }
--- 
-Michal Hocko
-SUSE Labs
+On 4/24/18 5:23 AM, Kirill A. Shutemov wrote:
+> On Tue, Apr 24, 2018 at 12:00:50PM +0800, Yang Shi wrote:
+>> Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
+>> filesystem with huge page support anymore. tmpfs can use huge page via
+>> THP when mounting by "huge=" mount option.
+>>
+>> When applications use huge page on hugetlbfs, it just need check the
+>> filesystem magic number, but it is not enough for tmpfs. Make
+>> stat.st_blksize return huge page size if it is mounted by appropriate
+>> "huge=" option to give applications a hint to optimize the behavior with
+>> THP.
+>>
+>> Some applications may not do wisely with THP. For example, QEMU may mmap
+>> file on non huge page aligned hint address with MAP_FIXED, which results
+>> in no pages are PMD mapped even though THP is used. Some applications
+>> may mmap file with non huge page aligned offset. Both behaviors make THP
+>> pointless.
+>>
+>> statfs.f_bsize still returns 4KB for tmpfs since THP could be split, and it
+>> also may fallback to 4KB page silently if there is not enough huge page.
+>> Furthermore, different f_bsize makes max_blocks and free_blocks
+>> calculation harder but without too much benefit. Returning huge page
+>> size via stat.st_blksize sounds good enough.
+>>
+>> Since PUD size huge page for THP has not been supported, now it just
+>> returns HPAGE_PMD_SIZE.
+>>
+>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+>> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>> Cc: Hugh Dickins <hughd@google.com>
+>> Cc: Michal Hocko <mhocko@kernel.org>
+>> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+>> Suggested-by: Christoph Hellwig <hch@infradead.org>
+>> ---
+>> v3 --> v4:
+>> * Rework the commit log per the education from Michal and Kirill
+>> * Fix build error if CONFIG_TRANSPARENT_HUGEPAGE is disabled
+>> v2 --> v3:
+>> * Use shmem_sb_info.huge instead of global variable per Michal's comment
+>> v2 --> v1:
+>> * Adopted the suggestion from hch to return huge page size via st_blksize
+>>    instead of creating a new flag.
+>>
+>>   mm/shmem.c | 6 ++++++
+>>   1 file changed, 6 insertions(+)
+>>
+>> diff --git a/mm/shmem.c b/mm/shmem.c
+>> index b859192..19b8055 100644
+>> --- a/mm/shmem.c
+>> +++ b/mm/shmem.c
+>> @@ -988,6 +988,7 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
+>>   {
+>>   	struct inode *inode = path->dentry->d_inode;
+>>   	struct shmem_inode_info *info = SHMEM_I(inode);
+>> +	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+>>   
+>>   	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
+>>   		spin_lock_irq(&info->lock);
+>> @@ -995,6 +996,11 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
+>>   		spin_unlock_irq(&info->lock);
+>>   	}
+>>   	generic_fillattr(inode, stat);
+>> +#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+>> +	if (sbinfo->huge > 0)
+> No ifdeffery, please.
+>
+> And we probably want to check if shmem_huge is 'force'.
+>
+> Something like this?
+>
+> 	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
+> 		 (shmem_huge == SHMEM_HUGE_FORCE || sbinfo->huge))
+
+Yes, looks good, will do that. I missed "force" part, just realized it 
+is applicable to all mounts.
+
+Thanks,
+Yang
+
+>
+>> +		stat->blksize = HPAGE_PMD_SIZE;
+>> +#endif
+>> +	
+>>   	return 0;
+>>   }
+>>   
+>> -- 
+>> 1.8.3.1
+>>
