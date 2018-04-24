@@ -1,67 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 92A9C6B0005
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 23:42:12 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b16so12080059pfi.5
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 20:42:12 -0700 (PDT)
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id y11si10985363pgq.435.2018.04.23.20.42.10
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C89346B0005
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 23:46:48 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f19so12085827pfn.6
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 20:46:48 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j66si9613451pfb.64.2018.04.23.20.46.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 20:42:10 -0700 (PDT)
-Subject: Re: [RFC v2 PATCH] mm: shmem: make stat.st_blksize return huge page
- size if THP is on
-References: <1524242039-64997-1-git-send-email-yang.shi@linux.alibaba.com>
- <20180423004748.GP17484@dhcp22.suse.cz>
- <3c59a1d1-dc66-ae5f-452c-dd0adb047433@linux.alibaba.com>
- <20180423150435.GS17484@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <aa4b8c48-781a-204c-246a-afa5a54dba99@linux.alibaba.com>
-Date: Mon, 23 Apr 2018 21:41:50 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 23 Apr 2018 20:46:47 -0700 (PDT)
+Date: Mon, 23 Apr 2018 20:46:43 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v3] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
+Message-ID: <20180424034643.GA26636@bombadil.infradead.org>
+References: <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180420130852.GC16083@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180420210200.GH10788@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180421144757.GC14610@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180423151545.GU17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180423150435.GS17484@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, kirill.shutemov@linux.intel.com
-Cc: hughd@google.com, hch@infradead.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
 
+On Mon, Apr 23, 2018 at 08:06:16PM -0400, Mikulas Patocka wrote:
+> Some bugs (such as buffer overflows) are better detected
+> with kmalloc code, so we must test the kmalloc path too.
 
-
-On 4/23/18 9:04 AM, Michal Hocko wrote:
-> On Sun 22-04-18 21:28:59, Yang Shi wrote:
->>
->> On 4/22/18 6:47 PM, Michal Hocko wrote:
-> [...]
->>> will be used on the first aligned address even when the initial/last
->>> portion of the mapping is not THP aligned.
->> No, my test shows it is not. And, transhuge_vma_suitable() does check the
->> virtual address alignment. If it is not huge page size aligned, it will not
->> set PMD for huge page.
-> It's been quite some time since I've looked at that code but I think you
-> are wrong. It just doesn't make sense to make the THP decision on the
-> VMA alignment much. Kirill, can you clarify please?
-
-Thanks a lot Michal and Kirill to elaborate how tmpfs THP make pmd map.
-
-I did a quick test, THP will be PMD mapped as long as :
-* hint address is huge page aligned if MAP_FIXED
-Or
-* offset is huge page aligned
-And
-* The size is big enough (>= huge page size)
-
-This test does verify what Kirill said. And, I dig into a little further 
-qemu code and did strace, qemu does try to mmap the file to non huge 
-page aligned address with MAP_FIXED.
-
-I will correct the commit log then submit v4.
-
-Yang
-
->
-> Please note that I have no objections to actually export the huge page
-> size as the max block size but your changelog just doesn't make any
-> sense to me.
+Well now, this brings up another item for the collective TODO list --
+implement redzone checks for vmalloc.  Unless this is something already
+taken care of by kasan or similar.
