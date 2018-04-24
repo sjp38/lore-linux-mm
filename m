@@ -1,66 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 432BC6B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 17:58:10 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id b5-v6so1195458otf.7
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 14:58:10 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id p18-v6si5516127oic.290.2018.04.24.14.58.07
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 903BA6B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 18:18:49 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v11-v6so23569471wri.13
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 15:18:49 -0700 (PDT)
+Received: from lithops.sigma-star.at (lithops.sigma-star.at. [195.201.40.130])
+        by mx.google.com with ESMTPS id 35-v6si1947579wrn.274.2018.04.24.15.18.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Apr 2018 14:58:08 -0700 (PDT)
-Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper unmap
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201804221248.CHE35432.FtOMOLSHOFJFVQ@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com>
-	<201804240511.w3O5BY4o090598@www262.sakura.ne.jp>
-	<alpine.DEB.2.21.1804232231020.82340@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.21.1804232231020.82340@chino.kir.corp.google.com>
-Message-Id: <201804250657.GFI21363.StOJHOQFOMFVFL@I-love.SAKURA.ne.jp>
-Date: Wed, 25 Apr 2018 06:57:59 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Tue, 24 Apr 2018 15:18:47 -0700 (PDT)
+From: Richard Weinberger <richard@nod.at>
+Subject: Re: vmalloc with GFP_NOFS
+Date: Wed, 25 Apr 2018 00:18:40 +0200
+Message-ID: <3894056.cxOY6eVYVp@blindfold>
+In-Reply-To: <20180424192803.GT17484@dhcp22.suse.cz>
+References: <20180424162712.GL17484@dhcp22.suse.cz> <3732370.1623zxSvNg@blindfold> <20180424192803.GT17484@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-David Rientjes wrote:
-> On Tue, 24 Apr 2018, Tetsuo Handa wrote:
+Am Dienstag, 24. April 2018, 21:28:03 CEST schrieb Michal Hocko:
+> > Also only for debugging.
+> > Getting rid of vmalloc with GFP_NOFS in UBIFS is no big problem.
+> > I can prepare a patch.
 > 
-> > > > We can call __oom_reap_task_mm() from exit_mmap() (or __mmput()) before
-> > > > exit_mmap() holds mmap_sem for write. Then, at least memory which could
-> > > > have been reclaimed if exit_mmap() did not hold mmap_sem for write will
-> > > > be guaranteed to be reclaimed before MMF_OOM_SKIP is set.
-> > > > 
-> > > 
-> > > I think that's an exceptionally good idea and will mitigate the concerns 
-> > > of others.
-> > > 
-> > > It can be done without holding mm->mmap_sem in exit_mmap() and uses the 
-> > > same criteria that the oom reaper uses to set MMF_OOM_SKIP itself, so we 
-> > > don't get dozens of unnecessary oom kills.
-> > > 
-> > > What do you think about this?  It passes preliminary testing on powerpc 
-> > > and I'm enqueued it for much more intensive testing.  (I'm wishing there 
-> > > was a better way to acknowledge your contribution to fixing this issue, 
-> > > especially since you brought up the exact problem this is addressing in 
-> > > previous emails.)
-> > > 
-> > 
-> > I don't think this patch is safe, for exit_mmap() is calling
-> > mmu_notifier_invalidate_range_{start,end}() which might block with oom_lock
-> > held when oom_reap_task_mm() is waiting for oom_lock held by exit_mmap().
+> Cool!
 > 
-> One of the reasons that I extracted __oom_reap_task_mm() out of the new 
-> oom_reap_task_mm() is to avoid the checks that would be unnecessary when 
-> called from exit_mmap().  In this case, we can ignore the 
-> mm_has_blockable_invalidate_notifiers() check because exit_mmap() has 
-> already done mmu_notifier_release().  So I don't think there's a concern 
-> about __oom_reap_task_mm() blocking while holding oom_lock.  Unless you 
-> are referring to something else?
+> Anyway, if UBIFS has some reclaim recursion critical sections in general
+> it would be really great to have them documented and that is where the
+> scope api is really handy. Just add the scope and document what is the
+> recursion issue. This will help people reading the code as well. Ideally
+> there shouldn't be any explicit GFP_NOFS in the code.
 
-Oh, mmu_notifier_release() made mm_has_blockable_invalidate_notifiers() == false. OK.
+So in a perfect world a filesystem calls memalloc_nofs_save/restore and
+always uses GFP_KERNEL for kmalloc/vmalloc?
 
-But I want comments why it is safe; I will probably miss that dependency
-when we move that code next time.
+Thanks,
+//richard
