@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F23266B0007
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 08:12:18 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id r129-v6so11228080itc.3
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 05:12:18 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0122.outbound.protection.outlook.com. [104.47.1.122])
-        by mx.google.com with ESMTPS id k124-v6si8836919ith.131.2018.04.24.05.12.17
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D83796B0008
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 08:12:31 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c4so7402611pfg.22
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 05:12:31 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0122.outbound.protection.outlook.com. [104.47.2.122])
+        by mx.google.com with ESMTPS id g12-v6si14328285pll.184.2018.04.24.05.12.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 Apr 2018 05:12:17 -0700 (PDT)
-Subject: [PATCH v3 02/14] memcg: Refactoring in mem_cgroup_alloc()
+        Tue, 24 Apr 2018 05:12:29 -0700 (PDT)
+Subject: [PATCH v3 03/14] memcg: Refactoring in
+ alloc_mem_cgroup_per_node_info()
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 24 Apr 2018 15:12:12 +0300
-Message-ID: <152457193202.22533.3646608371253505321.stgit@localhost.localdomain>
+Date: Tue, 24 Apr 2018 15:12:20 +0300
+Message-ID: <152457194082.22533.13153436126073546795.stgit@localhost.localdomain>
 In-Reply-To: <152457151556.22533.5742587589232401708.stgit@localhost.localdomain>
 References: <152457151556.22533.5742587589232401708.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -22,56 +23,47 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-Call alloc_mem_cgroup_per_node_info() and IDR allocation later.
-This is preparation for next patches, which will require this
-two actions are made nearby (they will be done under read lock,
-and here we place them together to minimize the time, it's held).
+Organize the function in "if () goto err" style,
+since next patch will add more "if" branches.
+
+Also assign and clear memcg->nodeinfo[node]
+earlier for the same reason.
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- mm/memcontrol.c |   21 ++++++++++-----------
- 1 file changed, 10 insertions(+), 11 deletions(-)
+ mm/memcontrol.c |   14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 25b148c2d222..acabea274cc3 100644
+index acabea274cc3..38523c8ea7c9 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -4382,20 +4382,10 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 	if (!memcg)
- 		return NULL;
+@@ -4326,20 +4326,22 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
+ 	pn = kzalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
+ 	if (!pn)
+ 		return 1;
++	memcg->nodeinfo[node] = pn;
  
--	memcg->id.id = idr_alloc(&mem_cgroup_idr, NULL,
--				 1, MEM_CGROUP_ID_MAX,
--				 GFP_KERNEL);
--	if (memcg->id.id < 0)
--		goto fail;
+ 	pn->lruvec_stat_cpu = alloc_percpu(struct lruvec_stat);
+-	if (!pn->lruvec_stat_cpu) {
+-		kfree(pn);
+-		return 1;
+-	}
++	if (!pn->lruvec_stat_cpu)
++		goto err_pcpu;
+ 
+ 	lruvec_init(&pn->lruvec);
+ 	pn->usage_in_excess = 0;
+ 	pn->on_tree = false;
+ 	pn->memcg = memcg;
 -
- 	memcg->stat_cpu = alloc_percpu(struct mem_cgroup_stat_cpu);
- 	if (!memcg->stat_cpu)
- 		goto fail;
- 
--	for_each_node(node)
--		if (alloc_mem_cgroup_per_node_info(memcg, node))
--			goto fail;
--
- 	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
- 		goto fail;
- 
-@@ -4414,7 +4404,16 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- #ifdef CONFIG_CGROUP_WRITEBACK
- 	INIT_LIST_HEAD(&memcg->cgwb_list);
- #endif
--	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
-+	for_each_node(node)
-+		if (alloc_mem_cgroup_per_node_info(memcg, node))
-+			goto fail;
+-	memcg->nodeinfo[node] = pn;
+ 	return 0;
 +
-+	memcg->id.id = idr_alloc(&mem_cgroup_idr, memcg,
-+				 1, MEM_CGROUP_ID_MAX,
-+				 GFP_KERNEL);
-+	if (memcg->id.id < 0)
-+		goto fail;
-+
- 	return memcg;
- fail:
- 	mem_cgroup_id_remove(memcg);
++err_pcpu:
++	memcg->nodeinfo[node] = NULL;
++	kfree(pn);
++	return 1;
+ }
+ 
+ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
