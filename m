@@ -1,43 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 903BA6B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 18:18:49 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v11-v6so23569471wri.13
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 15:18:49 -0700 (PDT)
-Received: from lithops.sigma-star.at (lithops.sigma-star.at. [195.201.40.130])
-        by mx.google.com with ESMTPS id 35-v6si1947579wrn.274.2018.04.24.15.18.47
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 29CA76B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 18:25:54 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id n5so9078419pgq.3
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 15:25:54 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d30-v6sor5689889pld.59.2018.04.24.15.25.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Apr 2018 15:18:47 -0700 (PDT)
-From: Richard Weinberger <richard@nod.at>
-Subject: Re: vmalloc with GFP_NOFS
-Date: Wed, 25 Apr 2018 00:18:40 +0200
-Message-ID: <3894056.cxOY6eVYVp@blindfold>
-In-Reply-To: <20180424192803.GT17484@dhcp22.suse.cz>
-References: <20180424162712.GL17484@dhcp22.suse.cz> <3732370.1623zxSvNg@blindfold> <20180424192803.GT17484@dhcp22.suse.cz>
+        (Google Transport Security);
+        Tue, 24 Apr 2018 15:25:53 -0700 (PDT)
+Date: Tue, 24 Apr 2018 15:25:51 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaper
+ unmap
+In-Reply-To: <201804250657.GFI21363.StOJHOQFOMFVFL@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.21.1804241525280.238665@chino.kir.corp.google.com>
+References: <201804221248.CHE35432.FtOMOLSHOFJFVQ@I-love.SAKURA.ne.jp> <alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com> <201804240511.w3O5BY4o090598@www262.sakura.ne.jp> <alpine.DEB.2.21.1804232231020.82340@chino.kir.corp.google.com>
+ <201804250657.GFI21363.StOJHOQFOMFVFL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, aarcange@redhat.com, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Am Dienstag, 24. April 2018, 21:28:03 CEST schrieb Michal Hocko:
-> > Also only for debugging.
-> > Getting rid of vmalloc with GFP_NOFS in UBIFS is no big problem.
-> > I can prepare a patch.
+On Wed, 25 Apr 2018, Tetsuo Handa wrote:
+
+> > One of the reasons that I extracted __oom_reap_task_mm() out of the new 
+> > oom_reap_task_mm() is to avoid the checks that would be unnecessary when 
+> > called from exit_mmap().  In this case, we can ignore the 
+> > mm_has_blockable_invalidate_notifiers() check because exit_mmap() has 
+> > already done mmu_notifier_release().  So I don't think there's a concern 
+> > about __oom_reap_task_mm() blocking while holding oom_lock.  Unless you 
+> > are referring to something else?
 > 
-> Cool!
+> Oh, mmu_notifier_release() made mm_has_blockable_invalidate_notifiers() == false. OK.
 > 
-> Anyway, if UBIFS has some reclaim recursion critical sections in general
-> it would be really great to have them documented and that is where the
-> scope api is really handy. Just add the scope and document what is the
-> recursion issue. This will help people reading the code as well. Ideally
-> there shouldn't be any explicit GFP_NOFS in the code.
+> But I want comments why it is safe; I will probably miss that dependency
+> when we move that code next time.
+> 
 
-So in a perfect world a filesystem calls memalloc_nofs_save/restore and
-always uses GFP_KERNEL for kmalloc/vmalloc?
-
-Thanks,
-//richard
+Ok, makes sense.  I'll send a v3 to update the comment.
