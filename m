@@ -1,65 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 706156B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 14:35:51 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id s4-v6so7642255ybg.2
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 11:35:51 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id w6-v6si3706601ywf.562.2018.04.24.11.35.49
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 960BD6B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 14:41:50 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id u9-v6so15542806qtg.2
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 11:41:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id d5-v6si1900523qte.380.2018.04.24.11.41.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 24 Apr 2018 11:35:50 -0700 (PDT)
-Date: Tue, 24 Apr 2018 14:35:36 -0400
-From: "Theodore Y. Ts'o" <tytso@mit.edu>
-Subject: Re: vmalloc with GFP_NOFS
-Message-ID: <20180424183536.GF30619@thunk.org>
-References: <20180424162712.GL17484@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Apr 2018 11:41:49 -0700 (PDT)
+Date: Tue, 24 Apr 2018 14:41:47 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH v3] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
+In-Reply-To: <20180424171651.GC30577@bombadil.infradead.org>
+Message-ID: <alpine.LRH.2.02.1804241428120.8296@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20180420130852.GC16083@dhcp22.suse.cz> <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com> <20180420210200.GH10788@bombadil.infradead.org> <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180421144757.GC14610@bombadil.infradead.org> <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com> <20180423151545.GU17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424034643.GA26636@bombadil.infradead.org> <alpine.LRH.2.02.1804240818530.28016@file01.intranet.prod.int.rdu2.redhat.com> <20180424171651.GC30577@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180424162712.GL17484@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, Richard Weinberger <richard@nod.at>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Apr 24, 2018 at 10:27:12AM -0600, Michal Hocko wrote:
-> fs/ext4/xattr.c
+
+
+On Tue, 24 Apr 2018, Matthew Wilcox wrote:
+
+> On Tue, Apr 24, 2018 at 08:29:14AM -0400, Mikulas Patocka wrote:
+> > 
+> > 
+> > On Mon, 23 Apr 2018, Matthew Wilcox wrote:
+> > 
+> > > On Mon, Apr 23, 2018 at 08:06:16PM -0400, Mikulas Patocka wrote:
+> > > > Some bugs (such as buffer overflows) are better detected
+> > > > with kmalloc code, so we must test the kmalloc path too.
+> > > 
+> > > Well now, this brings up another item for the collective TODO list --
+> > > implement redzone checks for vmalloc.  Unless this is something already
+> > > taken care of by kasan or similar.
+> > 
+> > The kmalloc overflow testing is also not ideal - it rounds the size up to 
+> > the next slab size and detects buffer overflows only at this boundary.
+> > 
+> > Some times ago, I made a "kmalloc guard" patch that places a magic number 
+> > immediatelly after the requested size - so that it can detect overflows at 
+> > byte boundary 
+> > ( https://www.redhat.com/archives/dm-devel/2014-September/msg00018.html )
+> > 
+> > That patch found a bug in crypto code:
+> > ( http://lkml.iu.edu/hypermail/linux/kernel/1409.1/02325.html )
 > 
-> What to do about this? Well, there are two things. Firstly, it would be
-> really great to double check whether the GFP_NOFS is really needed. I
-> cannot judge that because I am not familiar with the code.
+> Is it still worth doing this, now we have kasan?
 
-*Most* of the time it's not needed, but there are times when it is.
-We could be more smart about sending down GFP_NOFS only when it is
-needed.  If we are sending too many GFP_NOFS's allocations such that
-it's causing heartburn, we could fix this.  (xattr commands are rare
-enough that I dind't think it was worth it to modulate the GFP flags
-for this particular case, but we could make it be smarter if it would
-help.)
+The kmalloc guard has much lower overhead than kasan.
 
-> If the use is really valid then we have a way to do the vmalloc
-> allocation properly. We have memalloc_nofs_{save,restore} scope api. How
-> does that work? You simply call memalloc_nofs_save when the reclaim
-> recursion critical section starts (e.g. when you take a lock which is
-> then used in the reclaim path - e.g. shrinker) and memalloc_nofs_restore
-> when the critical section ends. _All_ allocations within that scope
-> will get GFP_NOFS semantic automagically. If you are not sure about the
-> scope itself then the easiest workaround is to wrap the vmalloc itself
-> with a big fat comment that this should be revisited.
+(BTW. when I tried kasan, it oopsed with persistent memory)
 
-This is something we could do in ext4.  It hadn't been high priority,
-because we've been rather overloaded.  As a suggestion, could you take
-documentation about how to convert to the memalloc_nofs_{save,restore}
-scope api (which I think you've written about e-mails at length
-before), and put that into a file in Documentation/core-api?
-
-The question I was trying to figure out which triggered the above
-request is how/whether to gradually convert to that scope API.  Is it
-safe to add the memalloc_nofs_{save,restore} to code and keep the
-GFP_NOFS flags until we're sure we got it all right, for all of the
-code paths, and then drop the GFP_NOFS?
-
-Thanks,
-
-						- Ted
+Mikulas
