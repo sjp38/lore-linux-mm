@@ -1,71 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0241C6B0005
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 20:25:22 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id a125so12321228qkd.4
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 17:25:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id n17si678138qvg.289.2018.04.23.17.25.20
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 83D0B6B0006
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 20:56:24 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id x2-v6so10875878ybm.1
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 17:56:24 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o187-v6sor2712545ybg.145.2018.04.23.17.56.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Apr 2018 17:25:20 -0700 (PDT)
-Date: Mon, 23 Apr 2018 20:25:15 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
-In-Reply-To: <20180423151545.GU17484@dhcp22.suse.cz>
-Message-ID: <alpine.LRH.2.02.1804232006540.2299@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com> <20180418.134651.2225112489265654270.davem@davemloft.net> <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com> <20180420130852.GC16083@dhcp22.suse.cz> <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com> <20180420210200.GH10788@bombadil.infradead.org>
- <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com> <20180421144757.GC14610@bombadil.infradead.org> <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com> <20180423151545.GU17484@dhcp22.suse.cz>
+        (Google Transport Security);
+        Mon, 23 Apr 2018 17:56:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <20180320223353.5673-1-guro@fb.com> <20180422202612.127760-1-gthelen@google.com>
+ <20180423103804.GA12648@castle.DHCP.thefacebook.com>
+In-Reply-To: <20180423103804.GA12648@castle.DHCP.thefacebook.com>
+From: Greg Thelen <gthelen@google.com>
+Date: Tue, 24 Apr 2018 00:56:09 +0000
+Message-ID: <CAHH2K0bDXrs+J3jWB1X7wphRMoLgjVUTAAFNLGFarDeAfRhA7Q@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/2] memory.low,min reclaim
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: guro@fb.com
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, Cgroups <cgroups@vger.kernel.org>, kernel-team@fb.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Mon, Apr 23, 2018 at 3:38 AM Roman Gushchin <guro@fb.com> wrote:
 
+> Hi, Greg!
 
-On Mon, 23 Apr 2018, Michal Hocko wrote:
+> On Sun, Apr 22, 2018 at 01:26:10PM -0700, Greg Thelen wrote:
+> > Roman's previously posted memory.low,min patches add per memcg effective
+> > low limit to detect overcommitment of parental limits.  But if we flip
+> > low,min reclaim to bail if usage<{low,min} at any level, then we don't
+need
+> > an effective low limit, which makes the code simpler.  When parent
+limits
+> > are overcommited memory.min will oom kill, which is more drastic but
+makes
+> > the memory.low a simpler concept.  If memcg a/b wants oom kill before
+> > reclaim, then give it to them.  It seems a bit strange for
+a/b/memory.low's
+> > behaviour to depend on a/c/memory.low (i.e. a/b.low is strong unless
+> > a/b.low+a/c.low exceed a.low).
 
-> On Mon 23-04-18 10:06:08, Mikulas Patocka wrote:
-> 
-> > > > He didn't want to fix vmalloc(GFP_NOIO)
-> > > 
-> > > I don't remember that conversation, so I don't know whether I agree with
-> > > his reasoning or not.  But we are supposed to be moving away from GFP_NOIO
-> > > towards marking regions with memalloc_noio_save() / restore.  If you do
-> > > that, you won't need vmalloc(GFP_NOIO).
-> > 
-> > He said the same thing a year ago. And there was small progress. 6 out of 
-> > 27 __vmalloc calls were converted to memalloc_noio_save in a year - 5 in 
-> > infiniband and 1 in btrfs. (the whole discussion is here 
-> > http://lkml.iu.edu/hypermail/linux/kernel/1706.3/04681.html )
-> 
-> Well this is not that easy. It requires a cooperation from maintainers.
-> I can only do as much. I've posted patches in the past and actively
-> bringing up this topic at LSFMM last two years...
+> It's actually not strange: a/b and a/c are sharing a common resource:
+> a/memory.low.
 
-You're right - but you have chosen the uneasy path. Fixing __vmalloc code 
-is easy and it doesn't require cooperation with maintainers.
+> Exactly as a/b/memory.max and a/c/memory.max are sharing a/memory.max.
+> If there are sibling cgroups which are consuming memory, a cgroup can't
+> exceed parent's memory.max, even if its memory.max is grater.
 
-> > He refuses 15-line patch to fix GFP_NOIO bug because he believes that in 4 
-> > years, the kernel will be refactored and GFP_NOIO will be eliminated. Why 
-> > does he have veto over this part of the code? I'd much rather argue with 
-> > people who have constructive comments about fixing bugs than with him.
-> 
-> I didn't NACK the patch AFAIR. I've said it is not a good idea longterm.
-> I would be much more willing to change my mind if you would back your
-> patch by a real bug report. Hacks are acceptable when we have a real
-> issue in hands. But if we want to fix potential issue then better make
-> it properly.
+> >
+> > I think there might be a simpler way (ableit it doesn't yet include
+> > Documentation):
+> > - memcg: fix memory.low
+> > - memcg: add memory.min
+> >  3 files changed, 75 insertions(+), 6 deletions(-)
+> >
+> > The idea of this alternate approach is for memory.low,min to avoid
+reclaim
+> > if any portion of under-consideration memcg ancestry is under respective
+> > limit.
 
-Developers should fix bugs in advance, not to wait until a crash hapens, 
-is analyzed and reported.
+> This approach has a significant downside: it breaks hierarchical
+constraints
+> for memory.low/min. There are two important outcomes:
 
-What's the problem with 15-line hack? Is the problem that kernel 
-developers would feel depressed when looking the source code? Other than 
-harming developers' feelings, I don't see what kind of damange could that 
-piece of code do.
+> 1) Any leaf's memory.low/min value is respected, even if parent's value
+>           is lower or even 0. It's not possible anymore to limit the amount
+of
+>           protected memory for a sub-tree.
+>           This is especially bad in case of delegation.
 
-Mikulas
+As someone who has been using something like memory.min for a while, I have
+cases where it needs to be a strong protection.  Such jobs prefer oom kill
+to reclaim.  These jobs know they need X MB of memory.  But I guess it's on
+me to avoid configuring machines which overcommit memory.min at such cgroup
+levels all the way to the root.
+
+> 2) If a cgroup has an ancestor with the usage under its memory.low/min,
+>           it becomes protection, even if its memory.low/min is 0. So it
+becomes
+>           impossible to have unprotected cgroups in protected sub-tree.
+
+Fair point.
+
+One use case is where a non trivial job which has several memory accounting
+subcontainers.  Is there a way to only set memory.low at the top and have
+the offer protection to the job?
+The case I'm thinking of is:
+% cd /cgroup
+% echo +memory > cgroup.subtree_control
+% mkdir top
+% echo +memory > top/cgroup.subtree_control
+% mkdir top/part1 top/part2
+% echo 1GB > top/memory.min
+% (echo $BASHPID > top/part1/cgroup.procs && part1)
+% (echo $BASHPID > top/part2/cgroup.procs && part2)
+
+Empirically it's been measured that the entire workload (/top) needs 1GB to
+perform well.  But we don't care how the memory is distributed between
+part1,part2.  Is the strategy for that to set /top, /top/part1.min, and
+/top/part2.min to 1GB?
+
+What do you think about exposing emin and elow to user space?  I think that
+would reduce admin/user confusion in situations where memory.min is
+internally discounted.
+
+(tangent) Delegation in v2 isn't something I've been able to fully
+internalize yet.
+The "no interior processes" rule challenges my notion of subdelegation.
+My current model is where a system controller creates a container C with
+C.min and then starts client manager process M in C.  Then M can choose
+to further divide C's resources (e.g. C/S).  This doesn't seem possible
+because v2 doesn't allow for interior processes.  So the system manager
+would need to create C, set C.low, create C/sub_manager, create
+C/sub_resources, set C/sub_manager.low, set C/sub_resources.low, then start
+M in C/sub_manager.  Then sub_manager can create and manage
+C/sub_resources/S.
+
+PS: Thanks for the memory.low and memory.min work.  Regardless of how we
+proceed it's better than the upstream memory.soft_limit_in_bytes!
