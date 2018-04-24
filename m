@@ -1,43 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1569D6B0007
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 07:51:10 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id v14so8515099pgq.11
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 04:51:10 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b123si11488425pgc.14.2018.04.24.04.51.08
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D474D6B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 08:12:00 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c4so7401800pfg.22
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 05:12:00 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0128.outbound.protection.outlook.com. [104.47.1.128])
+        by mx.google.com with ESMTPS id a13si3057291pgt.642.2018.04.24.05.11.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 24 Apr 2018 04:51:08 -0700 (PDT)
-Date: Tue, 24 Apr 2018 04:50:50 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 7/9] Pmalloc Rare Write: modify selected pools
-Message-ID: <20180424115050.GD26636@bombadil.infradead.org>
-References: <20180423125458.5338-1-igor.stoppa@huawei.com>
- <20180423125458.5338-8-igor.stoppa@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 24 Apr 2018 05:11:59 -0700 (PDT)
+Subject: [PATCH v3 00/14] Improve shrink_slab() scalability (old complexity
+ was O(n^2), new is O(n))
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Tue, 24 Apr 2018 15:11:52 +0300
+Message-ID: <152457151556.22533.5742587589232401708.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180423125458.5338-8-igor.stoppa@huawei.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@gmail.com>
-Cc: keescook@chromium.org, paul@paul-moore.com, sds@tycho.nsa.gov, mhocko@kernel.org, corbet@lwn.net, labbott@redhat.com, linux-cc=david@fromorbit.com, --cc=rppt@linux.vnet.ibm.com, --security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>, Carlos Chinea Perez <carlos.chinea.perez@huawei.com>, Remi Denis Courmont <remi.denis.courmont@huawei.com>
+To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On Mon, Apr 23, 2018 at 04:54:56PM +0400, Igor Stoppa wrote:
-> While the vanilla version of pmalloc provides support for permanently
-> transitioning between writable and read-only of a memory pool, this
-> patch seeks to support a separate class of data, which would still
-> benefit from write protection, most of the time, but it still needs to
-> be modifiable. Maybe very seldom, but still cannot be permanently marked
-> as read-only.
+Hi,
 
-This seems like a horrible idea that basically makes this feature useless.
-I would say the right way to do this is to have:
+this patches solves the problem with slow shrink_slab() occuring
+on the machines having many shrinkers and memory cgroups (i.e.,
+with many containers). The problem is complexity of shrink_slab()
+is O(n^2) and it grows too fast with the growth of containers
+numbers.
 
-struct modifiable_data {
-	struct immutable_data *d;
-	...
-};
+Let we have 200 containers, and every container has 10 mounts
+and 10 cgroups. All container tasks are isolated, and they don't
+touch foreign containers mounts.
 
-Then allocate a new pool, change d and destroy the old pool.
+In case of global reclaim, a task has to iterate all over the memcgs
+and to call all the memcg-aware shrinkers for all of them. This means,
+the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
+and since there are 2000 memcgs, the total calls of do_shrink_slab()
+are 2000 * 2000 = 4000000.
+
+4 million calls are not a number operations, which can takes 1 cpu cycle.
+E.g., super_cache_count() accesses at least two lists, and makes arifmetical
+calculations. Even, if there are no charged objects, we do these calculations,
+and replaces cpu caches by read memory. I observed nodes spending almost 100%
+time in kernel, in case of intensive writing and global reclaim. The writer
+consumes pages fast, but it's need to shrink_slab() before the reclaimer
+reached shrink pages function (and frees SWAP_CLUSTER_MAX pages). Even if
+there is no writing, the iterations just waste the time, and slows reclaim down.
+
+Let's see the small test below:
+
+$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+$mkdir /sys/fs/cgroup/memory/ct
+$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+$for i in `seq 0 4000`;
+	do mkdir /sys/fs/cgroup/memory/ct/$i;
+	echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
+	mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file;
+done
+
+Then, let's see drop caches time (5 sequential calls):
+$time echo 3 > /proc/sys/vm/drop_caches
+
+0.00user 13.78system 0:13.78elapsed 99%CPU
+0.00user 5.59system 0:05.60elapsed 99%CPU
+0.00user 5.48system 0:05.48elapsed 99%CPU
+0.00user 8.35system 0:08.35elapsed 99%CPU
+0.00user 8.34system 0:08.35elapsed 99%CPU
+
+
+Last four calls don't actually shrink something. So, the iterations
+over slab shrinkers take 5.48 seconds. Not so good for scalability.
+
+The patchset solves the problem by making shrink_slab() of O(n)
+complexity. There are following functional actions:
+
+1)Assign id to every registered memcg-aware shrinker.
+2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
+  and set a shrinker-related bit after the first element
+  is added to lru list (also, when removed child memcg
+  elements are reparanted).
+3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
+  and call a shrinker if its bit is set in memcg's shrinker
+  bitmap.
+  (Also, there is a functionality to clear the bit, after
+  last element is shrinked).
+
+This gives signify performance increase. The result after patchset is applied:
+
+$time echo 3 > /proc/sys/vm/drop_caches
+
+0.00user 1.10system 0:01.10elapsed 99%CPU
+0.00user 0.00system 0:00.01elapsed 64%CPU
+0.00user 0.01system 0:00.01elapsed 82%CPU
+0.00user 0.00system 0:00.01elapsed 64%CPU
+0.00user 0.01system 0:00.01elapsed 82%CPU
+
+The results show the performance increases at least in 548 times.
+
+So, the patchset makes shrink_slab() of less complexity and improves
+the performance in such types of load I pointed. This will give a profit
+in case of !global reclaim case, since there also will be less
+do_shrink_slab() calls.
+
+This patchset is made against linux-next.git tree.
+
+v3: Many changes requested in commentaries to v2:
+
+1)rebase on prealloc_shrinker() code base
+2)root_mem_cgroup is made out of memcg maps
+3)rwsem replaced with shrinkers_nr_max_mutex
+4)changes around assignment of shrinker id to list lru
+5)everything renamed
+
+v2: Many changes requested in commentaries to v1:
+
+1)the code mostly moved to mm/memcontrol.c;
+2)using IDR instead of array of shrinkers;
+3)added a possibility to assign list_lru shrinker id
+  at the time of shrinker registering;
+4)reorginized locking and renamed functions and variables.
+
+---
+
+Kirill Tkhai (14):
+      mm: Assign id to every memcg-aware shrinker
+      memcg: Refactoring in mem_cgroup_alloc()
+      memcg: Refactoring in alloc_mem_cgroup_per_node_info()
+      mm: Assign memcg-aware shrinkers bitmap to memcg
+      mm: Refactoring in workingset_init()
+      fs: Refactoring in alloc_super()
+      fs: Propagate shrinker::id to list_lru
+      list_lru: Add memcg argument to list_lru_from_kmem()
+      list_lru: Pass dst_memcg argument to memcg_drain_list_lru_node()
+      list_lru: Pass lru argument to memcg_drain_list_lru_node()
+      mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
+      mm: Iterate only over charged shrinkers during memcg shrink_slab()
+      mm: Add SHRINK_EMPTY shrinker methods return value
+      mm: Clear shrinker bit if there are no objects related to memcg
+
+
+ fs/super.c                 |   18 ++++-
+ include/linux/list_lru.h   |    3 +
+ include/linux/memcontrol.h |   32 ++++++++
+ include/linux/shrinker.h   |   11 ++-
+ mm/list_lru.c              |   65 +++++++++++++----
+ mm/memcontrol.c            |  153 +++++++++++++++++++++++++++++++++++-----
+ mm/vmscan.c                |  170 +++++++++++++++++++++++++++++++++++++++++---
+ mm/workingset.c            |   13 +++
+ 8 files changed, 410 insertions(+), 55 deletions(-)
+
+--
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
