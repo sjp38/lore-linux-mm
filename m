@@ -1,41 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C89346B0005
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 23:46:48 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f19so12085827pfn.6
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 20:46:48 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j66si9613451pfb.64.2018.04.23.20.46.47
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C7D6B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 00:01:03 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c85so12055734pfb.12
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 21:01:03 -0700 (PDT)
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id b39-v6si11611099plb.456.2018.04.23.21.01.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 23 Apr 2018 20:46:47 -0700 (PDT)
-Date: Mon, 23 Apr 2018 20:46:43 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v3] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
-Message-ID: <20180424034643.GA26636@bombadil.infradead.org>
-References: <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com>
- <20180420130852.GC16083@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com>
- <20180420210200.GH10788@bombadil.infradead.org>
- <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
- <20180421144757.GC14610@bombadil.infradead.org>
- <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
- <20180423151545.GU17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Apr 2018 21:01:02 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [RFC v4 PATCH] mm: shmem: make stat.st_blksize return huge page size if THP is on
+Date: Tue, 24 Apr 2018 12:00:50 +0800
+Message-Id: <1524542450-92577-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Apr 23, 2018 at 08:06:16PM -0400, Mikulas Patocka wrote:
-> Some bugs (such as buffer overflows) are better detected
-> with kmalloc code, so we must test the kmalloc path too.
+Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
+filesystem with huge page support anymore. tmpfs can use huge page via
+THP when mounting by "huge=" mount option.
 
-Well now, this brings up another item for the collective TODO list --
-implement redzone checks for vmalloc.  Unless this is something already
-taken care of by kasan or similar.
+When applications use huge page on hugetlbfs, it just need check the
+filesystem magic number, but it is not enough for tmpfs. Make
+stat.st_blksize return huge page size if it is mounted by appropriate
+"huge=" option to give applications a hint to optimize the behavior with
+THP.
+
+Some applications may not do wisely with THP. For example, QEMU may mmap
+file on non huge page aligned hint address with MAP_FIXED, which results
+in no pages are PMD mapped even though THP is used. Some applications
+may mmap file with non huge page aligned offset. Both behaviors make THP
+pointless.
+
+statfs.f_bsize still returns 4KB for tmpfs since THP could be split, and it
+also may fallback to 4KB page silently if there is not enough huge page.
+Furthermore, different f_bsize makes max_blocks and free_blocks
+calculation harder but without too much benefit. Returning huge page
+size via stat.st_blksize sounds good enough.
+
+Since PUD size huge page for THP has not been supported, now it just
+returns HPAGE_PMD_SIZE.
+
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Suggested-by: Christoph Hellwig <hch@infradead.org>
+---
+v3 --> v4:
+* Rework the commit log per the education from Michal and Kirill
+* Fix build error if CONFIG_TRANSPARENT_HUGEPAGE is disabled
+v2 --> v3:
+* Use shmem_sb_info.huge instead of global variable per Michal's comment
+v2 --> v1:
+* Adopted the suggestion from hch to return huge page size via st_blksize
+  instead of creating a new flag.
+
+ mm/shmem.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index b859192..19b8055 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -988,6 +988,7 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
+ {
+ 	struct inode *inode = path->dentry->d_inode;
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
++	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+ 
+ 	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
+ 		spin_lock_irq(&info->lock);
+@@ -995,6 +996,11 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
+ 		spin_unlock_irq(&info->lock);
+ 	}
+ 	generic_fillattr(inode, stat);
++#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
++	if (sbinfo->huge > 0)
++		stat->blksize = HPAGE_PMD_SIZE;
++#endif
++	
+ 	return 0;
+ }
+ 
+-- 
+1.8.3.1
