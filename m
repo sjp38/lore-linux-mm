@@ -1,62 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CD4CE6B000C
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 15:28:07 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i3so975276wmf.7
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 12:28:07 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 65si989174edk.419.2018.04.24.12.28.06
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DC5BA6B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 16:01:03 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id m21so14211292qkk.12
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 13:01:03 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id s185si5082632qkf.251.2018.04.24.13.01.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Apr 2018 12:28:06 -0700 (PDT)
-Date: Tue, 24 Apr 2018 13:28:03 -0600
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: vmalloc with GFP_NOFS
-Message-ID: <20180424192803.GT17484@dhcp22.suse.cz>
-References: <20180424162712.GL17484@dhcp22.suse.cz>
- <3732370.1623zxSvNg@blindfold>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Apr 2018 13:01:02 -0700 (PDT)
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w3OJuPHk068931
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 20:01:01 GMT
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2130.oracle.com with ESMTP id 2hfvrbuv75-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 20:01:00 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w3OK0x9T003308
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 20:01:00 GMT
+Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w3OK0xNg013927
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 20:00:59 GMT
+Received: by mail-ot0-f171.google.com with SMTP id j27-v6so22567904ota.5
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 13:00:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3732370.1623zxSvNg@blindfold>
+In-Reply-To: <20180420152922.21f43e52@gandalf.local.home>
+References: <20180420191042.23452-1-pasha.tatashin@oracle.com> <20180420152922.21f43e52@gandalf.local.home>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Tue, 24 Apr 2018 16:00:11 -0400
+Message-ID: <CAGM2reaqf4y4kb1jC+_vgG8mGRwaV_o75eMXTxWjZB3tWOM+KA@mail.gmail.com>
+Subject: Re: [v1] mm: access to uninitialized struct page
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>
-Cc: LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, tglx@linutronix.de, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, Fengguang Wu <fengguang.wu@intel.com>, Dennis Zhou <dennisszhou@gmail.com>
 
-On Tue 24-04-18 21:03:43, Richard Weinberger wrote:
-> Am Dienstag, 24. April 2018, 18:27:12 CEST schrieb Michal Hocko:
-> > fs/ubifs/debug.c
-> 
-> This one is just for debugging.
-> So, preallocating + locking would not hurt much.
-> 
-> > fs/ubifs/lprops.c
-> 
-> Ditto.
-> 
-> > fs/ubifs/lpt_commit.c
-> 
-> Here we use it also only in debugging mode and in one case for
-> fatal error reporting.
-> No hot paths.
-> 
-> > fs/ubifs/orphan.c
-> 
-> Also only for debugging.
-> Getting rid of vmalloc with GFP_NOFS in UBIFS is no big problem.
-> I can prepare a patch.
+Hi Steven,
 
-Cool!
+Thank you for your review:
 
-Anyway, if UBIFS has some reclaim recursion critical sections in general
-it would be really great to have them documented and that is where the
-scope api is really handy. Just add the scope and document what is the
-recursion issue. This will help people reading the code as well. Ideally
-there shouldn't be any explicit GFP_NOFS in the code.
+>> https://lkml.org/lkml/2018/4/18/797
+>
+> #2, Do not use "lkml.org" it is a very unreliable source.
+>
 
-Thanks for a quick turnaround.
+OK
 
--- 
-Michal Hocko
-SUSE Labs
+> I'm fine with this change, but what happens if mm_init() traps?
+>
+> But that is probably not a case we really care about, as it is in the
+> very early boot stage.
+
+
+Yes, the assumption is that we do not trap in mm_init(), which I think
+is the case because of early boot, and also I did not see this happen
+during testing.
+
+>
+>>
+>>       ftrace_init();
+>>
+>
+> One thing I could add is to move ftrace_init() before trap_init(). But
+> that may require some work, because it may still depend on trap_init()
+> as well. But making ftrace_init() not depend on trap_init() is easier
+> than making it not depend on ftrace_init(). Although it may require
+> more arch updates.
+>
+> I'm not saying that you should move it, it's something that can be
+> added later after this change is implemented.
+
+This makes, sense, but should be done outside of this bug fix.
+
+>
+> Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+>
+
+Thank you. I will send out an updated patch.
+
+Pavel
