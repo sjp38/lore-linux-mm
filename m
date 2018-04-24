@@ -1,144 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 825616B0023
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 08:14:29 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c4so7405575pfg.22
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 05:14:29 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0127.outbound.protection.outlook.com. [104.47.2.127])
-        by mx.google.com with ESMTPS id u75si13528603pfd.183.2018.04.24.05.14.27
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 161346B0027
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 08:15:21 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id l14-v6so2646036lfc.16
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 05:15:21 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s4sor3470586ljh.106.2018.04.24.05.15.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 Apr 2018 05:14:28 -0700 (PDT)
-Subject: [PATCH v3 14/14] mm: Clear shrinker bit if there are no objects
- related to memcg
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 24 Apr 2018 15:14:21 +0300
-Message-ID: <152457206121.22533.14178814305402011694.stgit@localhost.localdomain>
-In-Reply-To: <152457151556.22533.5742587589232401708.stgit@localhost.localdomain>
-References: <152457151556.22533.5742587589232401708.stgit@localhost.localdomain>
+        (Google Transport Security);
+        Tue, 24 Apr 2018 05:15:19 -0700 (PDT)
+Date: Tue, 24 Apr 2018 15:15:16 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v2 04/12] mm: Assign memcg-aware shrinkers bitmap to memcg
+Message-ID: <20180424121516.ihn6lewpidc34ayl@esperanza>
+References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
+ <152399121146.3456.5459546288565589098.stgit@localhost.localdomain>
+ <20180422175900.dsjmm7gt2nsqj3er@esperanza>
+ <14ebcccf-3ea8-59f4-d7ea-793aaba632c0@virtuozzo.com>
+ <20180424112844.626madzs4cwoz5gh@esperanza>
+ <7bf5372d-7d9d-abee-27dd-5044da5ec489@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7bf5372d-7d9d-abee-27dd-5044da5ec489@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-To avoid further unneed calls of do_shrink_slab()
-for shrinkers, which already do not have any charged
-objects in a memcg, their bits have to be cleared.
+On Tue, Apr 24, 2018 at 02:38:51PM +0300, Kirill Tkhai wrote:
+> On 24.04.2018 14:28, Vladimir Davydov wrote:
+> > On Mon, Apr 23, 2018 at 01:54:50PM +0300, Kirill Tkhai wrote:
+> >>>> @@ -1200,6 +1206,8 @@ extern int memcg_nr_cache_ids;
+> >>>>  void memcg_get_cache_ids(void);
+> >>>>  void memcg_put_cache_ids(void);
+> >>>>  
+> >>>> +extern int shrinkers_max_nr;
+> >>>> +
+> >>>
+> >>> memcg_shrinker_id_max?
+> >>
+> >> memcg_shrinker_id_max sounds like an includive value, doesn't it?
+> >> While shrinker->id < shrinker_max_nr.
+> >>
+> >> Let's better use memcg_shrinker_nr_max.
+> > 
+> > or memcg_nr_shrinker_ids (to match memcg_nr_cache_ids), not sure...
+> > 
+> > Come to think of it, this variable is kinda awkward: it is defined in
+> > vmscan.c but declared in memcontrol.h; it is used by vmscan.c for max
+> > shrinker id and by memcontrol.c for shrinker map capacity. Just a raw
+> > idea: what about splitting it in two: one is private to vmscan.c, used
+> > as max id, say we call it shrinker_id_max; the other is defined in
+> > memcontrol.c and is used for shrinker map capacity, say we call it
+> > memcg_shrinker_map_capacity. What do you think?
+> 
+> I don't much like a duplication of the single variable...
 
-This patch introduces a lockless mechanism to do that
-without races without parallel list lru add. After
-do_shrink_slab() returns SHRINK_EMPTY the first time,
-we clear the bit and call it once again. Then we restore
-the bit, if the new return value is different.
+Well, it's not really a duplication. For example, shrinker_id_max could
+decrease when a shrinker is unregistered while shrinker_map_capacity can
+only grow exponentially.
 
-Note, that single smp_mb__after_atomic() in shrink_slab_memcg()
-covers two situations:
+> Are there real problems, if it defined in memcontrol.{c,h} and use in
+> both of the places?
 
-1)list_lru_add()     shrink_slab_memcg
-    list_add_tail()    for_each_set_bit() <--- read bit
-                         do_shrink_slab() <--- missed list update (no barrier)
-    <MB>                 <MB>
-    set_bit()            do_shrink_slab() <--- seen list update
+The code is more difficult to follow when variables are shared like that
+IMHO. I suggest you try it and see how it looks. May be, it will only
+get worse and we'll have to revert to what we have now. Difficult to say
+without seeing the code.
 
-This situation, when the first do_shrink_slab() sees set bit,
-but it doesn't see list update (i.e., race with the first element
-queueing), is rare. So we don't add <MB> before the first call
-of do_shrink_slab() instead of this to do not slow down generic
-case. Also, it's need the second call as seen in below in (2).
+>  
+> >>>> +int expand_shrinker_maps(int old_nr, int nr)
+> >>>> +{
+> >>>> +	int id, size, old_size, node, ret;
+> >>>> +	struct mem_cgroup *memcg;
+> >>>> +
+> >>>> +	old_size = old_nr / BITS_PER_BYTE;
+> >>>> +	size = nr / BITS_PER_BYTE;
+> >>>> +
+> >>>> +	down_write(&shrinkers_max_nr_rwsem);
+> >>>> +	for_each_node(node) {
+> >>>
+> >>> Iterating over cgroups first, numa nodes second seems like a better idea
+> >>> to me. I think you should fold for_each_node in memcg_expand_maps.
+> >>>
+> >>>> +		idr_for_each_entry(&mem_cgroup_idr, memcg, id) {
+> >>>
+> >>> Iterating over mem_cgroup_idr looks strange. Why don't you use
+> >>> for_each_mem_cgroup?
+> >>
+> >> We want to allocate shrinkers maps in mem_cgroup_css_alloc(), since
+> >> mem_cgroup_css_online() mustn't fail (it's a requirement of currently
+> >> existing design of memcg_cgroup::id).
+> >>
+> >> A new memcg is added to parent's list between two of these calls:
+> >>
+> >> css_create()
+> >>   ss->css_alloc()
+> >>   list_add_tail_rcu(&css->sibling, &parent_css->children)
+> >>   ss->css_online()
+> >>
+> >> for_each_mem_cgroup() does not see allocated, but not linked children.
+> > 
+> > Why don't we move shrinker map allocation to css_online then?
+> 
+> Because the design of memcg_cgroup::id prohibits mem_cgroup_css_online() to fail.
+> This function can't fail.
 
-2)list_lru_add()      shrink_slab_memcg()
-    list_add_tail()     ...
-    set_bit()           ...
-  ...                   for_each_set_bit()
-  do_shrink_slab()        do_shrink_slab()
-    clear_bit()           ...
-  ...                     ...
-  list_lru_add()          ...
-    list_add_tail()       clear_bit()
-    <MB>                  <MB>
-    set_bit()             do_shrink_slab()
+I fail to understand why it is so. Could you please elaborate?
 
-The barriers guarantees, the second do_shrink_slab()
-in the right side task sees list update if really
-cleared the bit. This case is drawn in the code comment.
+> 
+> I don't think it will be good to dive into reworking of this stuff for this patchset,
+> which is really already big. Also, it will be assymmetric to allocate one part of
+> data in css_alloc(), while another data in css_free(). This breaks cgroup design,
+> which specially introduces this two function to differ allocation and onlining.
+> Also, I've just move the allocation to alloc_mem_cgroup_per_node_info() like it was
+> suggested in comments to v1...
 
-[Results/performance of the patchset]
-
-After the whole patchset applied the below test shows signify
-increase of performance:
-
-$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
-$mkdir /sys/fs/cgroup/memory/ct
-$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
-    $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i; echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs; mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file; done
-
-Then, 5 sequential calls of drop caches:
-$time echo 3 > /proc/sys/vm/drop_caches
-
-1)Before:
-0.00user 13.78system 0:13.78elapsed 99%CPU
-0.00user 5.59system 0:05.60elapsed 99%CPU
-0.00user 5.48system 0:05.48elapsed 99%CPU
-0.00user 8.35system 0:08.35elapsed 99%CPU
-0.00user 8.34system 0:08.35elapsed 99%CPU
-
-2)After
-0.00user 1.10system 0:01.10elapsed 99%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-
-The results show the performance increases at least in 548 times.
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- include/linux/memcontrol.h |    2 ++
- mm/vmscan.c                |   19 +++++++++++++++++--
- 2 files changed, 19 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 7b9529534e00..94d9884caf61 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -1251,6 +1251,8 @@ static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int
- 
- 		rcu_read_lock();
- 		map = MEMCG_SHRINKER_MAP(memcg, nid);
-+		/* Pairs with smp mb in shrink_slab() */
-+		smp_mb__before_atomic();
- 		set_bit(nr, map->map);
- 		rcu_read_unlock();
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f57f2893d58e..aba3977cde3e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -586,8 +586,23 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			continue;
- 
- 		ret = do_shrink_slab(&sc, shrinker, priority);
--		if (ret == SHRINK_EMPTY)
--			ret = 0;
-+		if (ret == SHRINK_EMPTY) {
-+			clear_bit(i, map->map);
-+			/*
-+			 * Pairs with mb in memcg_set_shrinker_bit():
-+			 *
-+			 * list_lru_add()     shrink_slab_memcg()
-+			 *   list_add_tail()    clear_bit()
-+			 *   <MB>               <MB>
-+			 *   set_bit()          do_shrink_slab()
-+			 */
-+			smp_mb__after_atomic();
-+			ret = do_shrink_slab(&sc, shrinker, priority);
-+			if (ret == SHRINK_EMPTY)
-+				ret = 0;
-+			else
-+				memcg_set_shrinker_bit(memcg, nid, i);
-+		}
- 		freed += ret;
- 
- 		if (rwsem_is_contended(&shrinker_rwsem)) {
+Yeah, but (ab)using mem_cgroup_idr for iterating over all allocated
+memory cgroups looks rather dubious to me...
