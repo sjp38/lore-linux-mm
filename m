@@ -1,59 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C0F556B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 07:04:29 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id d9-v6so14320639qtj.20
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 04:04:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u123si11122549qkb.241.2018.04.24.04.04.28
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 83C486B0005
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 07:08:37 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id f16-v6so4387616lfl.3
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 04:08:37 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j4sor1416095lja.12.2018.04.24.04.08.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Apr 2018 04:04:28 -0700 (PDT)
-Date: Tue, 24 Apr 2018 07:04:23 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH v3] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
-In-Reply-To: <alpine.DEB.2.21.1804231945410.58980@chino.kir.corp.google.com>
-Message-ID: <alpine.LRH.2.02.1804240701590.28016@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com> <20180418.134651.2225112489265654270.davem@davemloft.net> <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com> <20180420130852.GC16083@dhcp22.suse.cz> <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com> <20180420210200.GH10788@bombadil.infradead.org>
- <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com> <20180421144757.GC14610@bombadil.infradead.org> <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com> <20180423151545.GU17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.21.1804231945410.58980@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Tue, 24 Apr 2018 04:08:36 -0700 (PDT)
+Date: Tue, 24 Apr 2018 14:08:32 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v2 04/12] mm: Assign memcg-aware shrinkers bitmap to memcg
+Message-ID: <20180424110832.barhpnnm5u2shmcu@esperanza>
+References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
+ <152399121146.3456.5459546288565589098.stgit@localhost.localdomain>
+ <20180422175900.dsjmm7gt2nsqj3er@esperanza>
+ <552aba74-c208-e959-0b4f-4784e68c6109@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <552aba74-c208-e959-0b4f-4784e68c6109@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-
-
-On Mon, 23 Apr 2018, David Rientjes wrote:
-
-> On Mon, 23 Apr 2018, Mikulas Patocka wrote:
+On Mon, Apr 23, 2018 at 02:06:31PM +0300, Kirill Tkhai wrote:
+> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >> index 4f02fe83537e..f63eb5596c35 100644
+> >> --- a/mm/vmscan.c
+> >> +++ b/mm/vmscan.c
+> >> @@ -172,6 +172,22 @@ static DECLARE_RWSEM(shrinker_rwsem);
+> >>  #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> >>  static DEFINE_IDR(shrinkers_id_idr);
+> >>  
+> >> +static int expand_shrinker_id(int id)
+> >> +{
+> >> +	if (likely(id < shrinkers_max_nr))
+> >> +		return 0;
+> >> +
+> >> +	id = shrinkers_max_nr * 2;
+> >> +	if (id == 0)
+> >> +		id = BITS_PER_BYTE;
+> >> +
+> >> +	if (expand_shrinker_maps(shrinkers_max_nr, id))
+> >> +		return -ENOMEM;
+> >> +
+> >> +	shrinkers_max_nr = id;
+> >> +	return 0;
+> >> +}
+> >> +
+> > 
+> > I think this function should live in memcontrol.c and shrinkers_max_nr
+> > should be private to memcontrol.c.
 > 
-> > The kvmalloc function tries to use kmalloc and falls back to vmalloc if
-> > kmalloc fails.
-> > 
-> > Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
-> > uses DMA-API on the returned memory or frees it with kfree. Such bugs were
-> > found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
-> > code.
-> > 
-> > These bugs are hard to reproduce because kvmalloc falls back to vmalloc
-> > only if memory is fragmented.
-> > 
-> > In order to detect these bugs reliably I submit this patch that changes
-> > kvmalloc to fall back to vmalloc with 1/2 probability if CONFIG_DEBUG_SG
-> > is turned on. CONFIG_DEBUG_SG is used, because it makes the DMA API layer
-> > verify the addresses passed to it, and so the user will get a reliable
-> > stacktrace.
+> It can't be private as shrink_slab_memcg() uses this value to get the last bit of bitmap.
+
+Yeah, you're right, sorry I haven't noticed that.
+
+What about moving id allocation to this function as well? IMHO it would
+make the code flow a little bit more straightforward. I mean,
+
+alloc_shrinker_id()
+{
+	int id = idr_alloc(...)
+	if (id >= memcg_nr_shrinker_ids)
+		memcg_grow_shrinker_map(...)
+	return id;
+}
+
 > 
-> Why not just do it unconditionally?  Sounds better than "50% of the time 
-> this will catch bugs".
-
-Because kmalloc (with slub_debug) detects buffer overflows better than 
-vmalloc. vmalloc detects buffer overflows only at a page boundary. This is 
-intended for debugging kernels and debugging kernels should detect as many 
-bugs as possible.
-
-Mikulas
+> >>  static int add_memcg_shrinker(struct shrinker *shrinker)
+> >>  {
+> >>  	int id, ret;
+> >> @@ -180,6 +196,11 @@ static int add_memcg_shrinker(struct shrinker *shrinker)
+> >>  	ret = id = idr_alloc(&shrinkers_id_idr, shrinker, 0, 0, GFP_KERNEL);
+> >>  	if (ret < 0)
+> >>  		goto unlock;
+> >> +	ret = expand_shrinker_id(id);
+> >> +	if (ret < 0) {
+> >> +		idr_remove(&shrinkers_id_idr, id);
+> >> +		goto unlock;
+> >> +	}
+> >>  	shrinker->id = id;
+> >>  	ret = 0;
+> >>  unlock:
+> >>
