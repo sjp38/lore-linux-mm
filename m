@@ -1,101 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 873C46B0005
-	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 22:47:26 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b189so9483852pfa.10
-        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 19:47:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z3sor4061404pfe.102.2018.04.23.19.47.24
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 92A9C6B0005
+	for <linux-mm@kvack.org>; Mon, 23 Apr 2018 23:42:12 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b16so12080059pfi.5
+        for <linux-mm@kvack.org>; Mon, 23 Apr 2018 20:42:12 -0700 (PDT)
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id y11si10985363pgq.435.2018.04.23.20.42.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 23 Apr 2018 19:47:24 -0700 (PDT)
-Date: Mon, 23 Apr 2018 19:47:22 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v3] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
-In-Reply-To: <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <alpine.DEB.2.21.1804231945410.58980@chino.kir.corp.google.com>
-References: <alpine.LRH.2.02.1804181218270.19136@file01.intranet.prod.int.rdu2.redhat.com> <20180418.134651.2225112489265654270.davem@davemloft.net> <alpine.LRH.2.02.1804181350050.17942@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1804191207380.31175@file01.intranet.prod.int.rdu2.redhat.com> <20180420130852.GC16083@dhcp22.suse.cz> <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com> <20180420210200.GH10788@bombadil.infradead.org>
- <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com> <20180421144757.GC14610@bombadil.infradead.org> <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com> <20180423151545.GU17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Apr 2018 20:42:10 -0700 (PDT)
+Subject: Re: [RFC v2 PATCH] mm: shmem: make stat.st_blksize return huge page
+ size if THP is on
+References: <1524242039-64997-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20180423004748.GP17484@dhcp22.suse.cz>
+ <3c59a1d1-dc66-ae5f-452c-dd0adb047433@linux.alibaba.com>
+ <20180423150435.GS17484@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <aa4b8c48-781a-204c-246a-afa5a54dba99@linux.alibaba.com>
+Date: Mon, 23 Apr 2018 21:41:50 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180423150435.GS17484@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>, kirill.shutemov@linux.intel.com
+Cc: hughd@google.com, hch@infradead.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 23 Apr 2018, Mikulas Patocka wrote:
 
-> The kvmalloc function tries to use kmalloc and falls back to vmalloc if
-> kmalloc fails.
-> 
-> Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
-> uses DMA-API on the returned memory or frees it with kfree. Such bugs were
-> found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
-> code.
-> 
-> These bugs are hard to reproduce because kvmalloc falls back to vmalloc
-> only if memory is fragmented.
-> 
-> In order to detect these bugs reliably I submit this patch that changes
-> kvmalloc to fall back to vmalloc with 1/2 probability if CONFIG_DEBUG_SG
-> is turned on. CONFIG_DEBUG_SG is used, because it makes the DMA API layer
-> verify the addresses passed to it, and so the user will get a reliable
-> stacktrace.
-> 
 
-Why not just do it unconditionally?  Sounds better than "50% of the time 
-this will catch bugs".
+On 4/23/18 9:04 AM, Michal Hocko wrote:
+> On Sun 22-04-18 21:28:59, Yang Shi wrote:
+>>
+>> On 4/22/18 6:47 PM, Michal Hocko wrote:
+> [...]
+>>> will be used on the first aligned address even when the initial/last
+>>> portion of the mapping is not THP aligned.
+>> No, my test shows it is not. And, transhuge_vma_suitable() does check the
+>> virtual address alignment. If it is not huge page size aligned, it will not
+>> set PMD for huge page.
+> It's been quite some time since I've looked at that code but I think you
+> are wrong. It just doesn't make sense to make the THP decision on the
+> VMA alignment much. Kirill, can you clarify please?
 
-> Some bugs (such as buffer overflows) are better detected
-> with kmalloc code, so we must test the kmalloc path too.
-> 
-> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
-> 
-> ---
->  mm/util.c |   10 ++++++++++
->  1 file changed, 10 insertions(+)
-> 
-> Index: linux-2.6/mm/util.c
-> ===================================================================
-> --- linux-2.6.orig/mm/util.c	2018-04-23 00:12:05.000000000 +0200
-> +++ linux-2.6/mm/util.c	2018-04-23 17:57:02.000000000 +0200
-> @@ -14,6 +14,7 @@
->  #include <linux/hugetlb.h>
->  #include <linux/vmalloc.h>
->  #include <linux/userfaultfd_k.h>
-> +#include <linux/random.h>
->  
->  #include <asm/sections.h>
->  #include <linux/uaccess.h>
-> @@ -404,6 +405,12 @@ void *kvmalloc_node(size_t size, gfp_t f
->  	 */
->  	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
->  
-> +#ifdef CONFIG_DEBUG_SG
-> +	/* Catch bugs when the caller uses DMA API on the result of kvmalloc. */
-> +	if (!(prandom_u32_max(2) & 1))
-> +		goto do_vmalloc;
-> +#endif
-> +
->  	/*
->  	 * We want to attempt a large physically contiguous block first because
->  	 * it is less likely to fragment multiple larger blocks and therefore
-> @@ -427,6 +434,9 @@ void *kvmalloc_node(size_t size, gfp_t f
->  	if (ret || size <= PAGE_SIZE)
->  		return ret;
->  
-> +#ifdef CONFIG_DEBUG_SG
-> +do_vmalloc:
-> +#endif
+Thanks a lot Michal and Kirill to elaborate how tmpfs THP make pmd map.
 
-You can just do
+I did a quick test, THP will be PMD mapped as long as :
+* hint address is huge page aligned if MAP_FIXED
+Or
+* offset is huge page aligned
+And
+* The size is big enough (>= huge page size)
 
-do_vmalloc: __maybe_unused
+This test does verify what Kirill said. And, I dig into a little further 
+qemu code and did strace, qemu does try to mmap the file to non huge 
+page aligned address with MAP_FIXED.
 
->  	return __vmalloc_node_flags_caller(size, node, flags,
->  			__builtin_return_address(0));
->  }
-> 
-> 
+I will correct the commit log then submit v4.
+
+Yang
+
+>
+> Please note that I have no objections to actually export the huge page
+> size as the max block size but your changelog just doesn't make any
+> sense to me.
