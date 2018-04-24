@@ -1,84 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DC5BA6B0005
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 16:01:03 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id m21so14211292qkk.12
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 13:01:03 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id s185si5082632qkf.251.2018.04.24.13.01.01
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EF136B0006
+	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 16:01:08 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b189so11391746pfa.10
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 13:01:08 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s13-v6sor6061491plq.79.2018.04.24.13.01.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Apr 2018 13:01:02 -0700 (PDT)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w3OJuPHk068931
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 20:01:01 GMT
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2130.oracle.com with ESMTP id 2hfvrbuv75-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 20:01:00 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w3OK0x9T003308
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 20:01:00 GMT
-Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w3OK0xNg013927
-	for <linux-mm@kvack.org>; Tue, 24 Apr 2018 20:00:59 GMT
-Received: by mail-ot0-f171.google.com with SMTP id j27-v6so22567904ota.5
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 13:00:59 -0700 (PDT)
+        (Google Transport Security);
+        Tue, 24 Apr 2018 13:01:06 -0700 (PDT)
+Date: Tue, 24 Apr 2018 13:01:03 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, oom: fix concurrent munlock and oom reaperunmap
+In-Reply-To: <20180424130432.GB17484@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1804241256000.231037@chino.kir.corp.google.com>
+References: <20180419063556.GK17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804191214130.157851@chino.kir.corp.google.com> <20180420082349.GW17484@dhcp22.suse.cz> <20180420124044.GA17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804212019400.84222@chino.kir.corp.google.com>
+ <201804221248.CHE35432.FtOMOLSHOFJFVQ@I-love.SAKURA.ne.jp> <alpine.DEB.2.21.1804231706340.18716@chino.kir.corp.google.com> <20180424130432.GB17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180420152922.21f43e52@gandalf.local.home>
-References: <20180420191042.23452-1-pasha.tatashin@oracle.com> <20180420152922.21f43e52@gandalf.local.home>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Tue, 24 Apr 2018 16:00:11 -0400
-Message-ID: <CAGM2reaqf4y4kb1jC+_vgG8mGRwaV_o75eMXTxWjZB3tWOM+KA@mail.gmail.com>
-Subject: Re: [v1] mm: access to uninitialized struct page
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, tglx@linutronix.de, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, Fengguang Wu <fengguang.wu@intel.com>, Dennis Zhou <dennisszhou@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, guro@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Steven,
+On Tue, 24 Apr 2018, Michal Hocko wrote:
 
-Thank you for your review:
+> Is there any reason why we cannot simply call __oom_reap_task_mm as we
+> have it now? mmap_sem for read shouldn't fail here because this is the
+> last reference of the mm and we are past the ksm and khugepaged
+> synchronizations. So unless my jed laged brain fools me the patch should
+> be as simple as the following (I haven't tested it at all).
+> 
 
->> https://lkml.org/lkml/2018/4/18/797
->
-> #2, Do not use "lkml.org" it is a very unreliable source.
->
+I wanted to remove all per task checks because they are now irrelevant: 
+this would be the first dependency that exit_mmap() has on any 
+task_struct, which isn't intuitive -- we simply want to exit the mmap.  
+There's no requirement that current owns the mm other than this.  I wanted 
+to avoid the implicit dependency on MMF_OOM_SKIP and make it explicit in 
+the exit path to be matched with the oom reaper.  I didn't want anything 
+additional printed to the kernel log about oom reaping unless the 
+oom_reaper actually needed to intervene, which is useful knowledge outside 
+of basic exiting.
 
-OK
-
-> I'm fine with this change, but what happens if mm_init() traps?
->
-> But that is probably not a case we really care about, as it is in the
-> very early boot stage.
-
-
-Yes, the assumption is that we do not trap in mm_init(), which I think
-is the case because of early boot, and also I did not see this happen
-during testing.
-
->
->>
->>       ftrace_init();
->>
->
-> One thing I could add is to move ftrace_init() before trap_init(). But
-> that may require some work, because it may still depend on trap_init()
-> as well. But making ftrace_init() not depend on trap_init() is easier
-> than making it not depend on ftrace_init(). Although it may require
-> more arch updates.
->
-> I'm not saying that you should move it, it's something that can be
-> added later after this change is implemented.
-
-This makes, sense, but should be done outside of this bug fix.
-
->
-> Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
->
-
-Thank you. I will send out an updated patch.
-
-Pavel
+My patch has passed intensive testing on both x86 and powerpc, so I'll ask 
+that it's pushed for 4.17-rc3.  Many thanks to Tetsuo for the suggestion 
+on calling __oom_reap_task_mm() from exit_mmap().
