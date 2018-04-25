@@ -1,61 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1850B6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 06:53:01 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id e192-v6so5366185lfg.11
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 03:53:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b63-v6sor2790807lfb.40.2018.04.25.03.52.58
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F80D6B0003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:24:29 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id q185so12941063qke.7
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 04:24:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id q70si366410qke.80.2018.04.25.04.24.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Apr 2018 03:52:58 -0700 (PDT)
-Date: Wed, 25 Apr 2018 13:52:55 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v2] mm: introduce memory.min
-Message-ID: <20180425105255.ixfuoanb6t4kr6l5@esperanza>
-References: <20180423123610.27988-1-guro@fb.com>
- <20180424123002.utwbm54mu46q6aqs@esperanza>
- <20180424135409.GA28080@castle.DHCP.thefacebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180424135409.GA28080@castle.DHCP.thefacebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Apr 2018 04:24:27 -0700 (PDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+Subject: [RFC v2 0/2] kvm "fake DAX" device flushing
+Date: Wed, 25 Apr 2018 16:54:12 +0530
+Message-Id: <20180425112415.12327-1-pagupta@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Tejun Heo <tj@kernel.org>
+To: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org
+Cc: jack@suse.cz, stefanha@redhat.com, dan.j.williams@intel.com, riel@surriel.com, haozhong.zhang@intel.com, nilal@redhat.com, kwolf@redhat.com, pbonzini@redhat.com, ross.zwisler@intel.com, david@redhat.com, xiaoguangrong.eric@gmail.com, hch@infradead.org, marcel@redhat.com, mst@redhat.com, niteshnarayanlal@hotmail.com, imammedo@redhat.com, pagupta@redhat.com, lcapitulino@redhat.com
 
-On Tue, Apr 24, 2018 at 02:54:15PM +0100, Roman Gushchin wrote:
-> > On Mon, Apr 23, 2018 at 01:36:10PM +0100, Roman Gushchin wrote:
-> > > +  memory.min
-> > > +	A read-write single value file which exists on non-root
-> > > +	cgroups.  The default is "0".
-> > > +
-> > > +	Hard memory protection.  If the memory usage of a cgroup
-> > > +	is within its effective min boundary, the cgroup's memory
-> > > +	won't be reclaimed under any conditions. If there is no
-> > > +	unprotected reclaimable memory available, OOM killer
-> > > +	is invoked.
-> > 
-> > What will happen if all tasks attached to a cgroup are killed by OOM,
-> > but its memory usage is still within memory.min? Will memory.min be
-> > ignored then?
-> 
-> Not really.
-> 
-> I don't think it's a big problem as long as a user isn't doing
-> something weird (e.g. moving processes with significant
-> amount of charged memory to other cgroups).
+This is RFC V2 for 'fake DAX' flushing interface sharing
+for review. This patchset has two main parts:
 
-The user doesn't have to do anything weird for this to happen - just
-read a file. This will allocate and charge page cache pages that are
-not mapped to any process and hence cannot be freed by OOM killer.
+- Guest virtio-pmem driver
+  Guest driver reads persistent memory range from paravirt 
+  device and registers with 'nvdimm_bus'. 'nvdimm/pmem' 
+  driver uses this information to allocate persistent 
+  memory range. Also, we have implemented guest side of 
+  VIRTIO flushing interface.
 
-> 
-> But what we can do here, is to ignore memory.min of empty cgroups
-> (patch below), it will resolve some edge cases like this.
+- Qemu virtio-pmem device
+  It exposes a persistent memory range to KVM guest which 
+  at host side is file backed memory and works as persistent 
+  memory device. In addition to this it provides virtio 
+  device handling of flushing interface. KVM guest performs
+  Qemu side asynchronous sync using this interface.
 
-Makes sense to me.
+Changes from previous RFC[1]:
 
-Thanks,
-Vladimir
+- Reuse existing 'pmem' code for registering persistent 
+  memory and other operations instead of creating an entirely 
+  new block driver.
+- Use VIRTIO driver to register memory information with 
+  nvdimm_bus and create region_type accordingly. 
+- Call VIRTIO flush from existing pmem driver.
+
+Details of project idea for 'fake DAX' flushing interface is 
+shared [2] & [3].
+
+Pankaj Gupta (2):
+   Add virtio-pmem guest driver
+   pmem: device flush over VIRTIO
+
+[1] https://marc.info/?l=linux-mm&m=150782346802290&w=2
+[2] https://www.spinics.net/lists/kvm/msg149761.html
+[3] https://www.spinics.net/lists/kvm/msg153095.html  
+
+ drivers/nvdimm/region_devs.c     |    7 ++
+ drivers/virtio/Kconfig           |   12 +++
+ drivers/virtio/Makefile          |    1 
+ drivers/virtio/virtio_pmem.c     |  118 +++++++++++++++++++++++++++++++++++++++
+ include/linux/libnvdimm.h        |    4 +
+ include/uapi/linux/virtio_ids.h  |    1 
+ include/uapi/linux/virtio_pmem.h |   58 +++++++++++++++++++
+ 7 files changed, 201 insertions(+)
