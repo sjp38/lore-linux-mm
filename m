@@ -1,46 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 122246B0009
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 17:02:44 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e20so11537665pff.14
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 14:02:44 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id s189si12678573pgc.571.2018.04.25.14.02.41
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C95D6B000C
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 17:04:56 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id o68so1610897qke.3
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 14:04:56 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id u123si309036qkb.241.2018.04.25.14.04.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Apr 2018 14:02:42 -0700 (PDT)
-Date: Wed, 25 Apr 2018 22:01:49 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH] mm: don't show nr_indirectly_reclaimable in /proc/vmstat
-Message-ID: <20180425210143.GA10277@castle>
-References: <20180425191422.9159-1-guro@fb.com>
- <alpine.DEB.2.21.1804251235330.151692@chino.kir.corp.google.com>
+        Wed, 25 Apr 2018 14:04:55 -0700 (PDT)
+Date: Wed, 25 Apr 2018 17:04:49 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH RESEND] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.DEB.2.20.1804180952580.1334@nuc-kabylake>
+Message-ID: <alpine.LRH.2.02.1804251702250.9428@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
+ <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz> <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com>
+ <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com> <alpine.LRH.2.02.1804161530360.19492@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804170940340.17557@nuc-kabylake>
+ <alpine.LRH.2.02.1804171454020.26973@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804180952580.1334@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1804251235330.151692@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, kernel-team@fb.com, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: Mike Snitzer <snitzer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Wed, Apr 25, 2018 at 12:37:26PM -0700, David Rientjes wrote:
-> On Wed, 25 Apr 2018, Roman Gushchin wrote:
+
+
+On Wed, 18 Apr 2018, Christopher Lameter wrote:
+
+> On Tue, 17 Apr 2018, Mikulas Patocka wrote:
 > 
-> > Don't show nr_indirectly_reclaimable in /proc/vmstat,
-> > because there is no need in exporting this vm counter
-> > to the userspace, and some changes are expected
-> > in reclaimable object accounting, which can alter
-> > this counter.
-> > 
+> > I can make a slub-only patch with no extra flag (on a freshly booted
+> > system it increases only the order of caches "TCPv6" and "sighand_cache"
+> > by one - so it should not have unexpected effects):
+> >
+> > Doing a generic solution for slab would be more comlpicated because slab
+> > assumes that all slabs have the same order, so it can't fall-back to
+> > lower-order allocations.
 > 
-> I don't think it should be a per-node vmstat, in this case.  It appears 
-> only to be used for the global context.  Shouldn't this be handled like 
-> totalram_pages, total_swap_pages, totalreserve_pages, etc?
+> Well again SLAB uses compound pages and thus would be able to detect the
+> size of the page. It may be some work but it could be done.
+> 
+> >
+> > Index: linux-2.6/mm/slub.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/slub.c	2018-04-17 19:59:49.000000000 +0200
+> > +++ linux-2.6/mm/slub.c	2018-04-17 20:58:23.000000000 +0200
+> > @@ -3252,6 +3252,7 @@ static inline unsigned int slab_order(un
+> >  static inline int calculate_order(unsigned int size, unsigned int reserved)
+> >  {
+> >  	unsigned int order;
+> > +	unsigned int test_order;
+> >  	unsigned int min_objects;
+> >  	unsigned int max_objects;
+> >
+> > @@ -3277,7 +3278,7 @@ static inline int calculate_order(unsign
+> >  			order = slab_order(size, min_objects,
+> >  					slub_max_order, fraction, reserved);
+> >  			if (order <= slub_max_order)
+> > -				return order;
+> > +				goto ret_order;
+> >  			fraction /= 2;
+> >  		}
+> >  		min_objects--;
+> > @@ -3289,15 +3290,25 @@ static inline int calculate_order(unsign
+> >  	 */
+> >  	order = slab_order(size, 1, slub_max_order, 1, reserved);
+> 
+> The slab order is determined in slab_order()
+> 
+> >  	if (order <= slub_max_order)
+> > -		return order;
+> > +		goto ret_order;
+> >
+> >  	/*
+> >  	 * Doh this slab cannot be placed using slub_max_order.
+> >  	 */
+> >  	order = slab_order(size, 1, MAX_ORDER, 1, reserved);
+> > -	if (order < MAX_ORDER)
+> > -		return order;
+> > -	return -ENOSYS;
+> > +	if (order >= MAX_ORDER)
+> > +		return -ENOSYS;
+> > +
+> > +ret_order:
+> > +	for (test_order = order + 1; test_order < MAX_ORDER; test_order++) {
+> > +		unsigned long order_objects = ((PAGE_SIZE << order) - reserved) / size;
+> > +		unsigned long test_order_objects = ((PAGE_SIZE << test_order) - reserved) / size;
+> > +		if (test_order_objects > min(32, MAX_OBJS_PER_PAGE))
+> > +			break;
+> > +		if (test_order_objects > order_objects << (test_order - order))
+> > +			order = test_order;
+> > +	}
+> > +	return order;
+> 
+> Could yo move that logic into slab_order()? It does something awfully
+> similar.
 
-Hi, David!
+But slab_order (and its caller) limits the order to "max_order" and we 
+want more.
 
-I don't see any reasons why re-using existing infrastructure for
-fast vm counters is bad, and why should we re-invent it for this case.
+Perhaps slab_order should be dropped and calculate_order totally 
+rewritten?
 
-Thanks!
+Mikulas
