@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AC6B6B000D
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 01:16:19 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g1so383849pfh.19
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 22:16:19 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D9FC6B000D
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 01:16:35 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j18so14855176pfn.17
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 22:16:35 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id l12si3024403pga.536.2018.04.24.22.16.17
+        by mx.google.com with ESMTPS id n12si11668244pgr.437.2018.04.24.22.16.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 24 Apr 2018 22:16:17 -0700 (PDT)
+        Tue, 24 Apr 2018 22:16:34 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 05/13] scatterlist: move the NEED_SG_DMA_LENGTH config symbol to lib/Kconfig
-Date: Wed, 25 Apr 2018 07:15:31 +0200
-Message-Id: <20180425051539.1989-6-hch@lst.de>
+Subject: [PATCH 07/13] arch: remove the ARCH_PHYS_ADDR_T_64BIT config symbol
+Date: Wed, 25 Apr 2018 07:15:33 +0200
+Message-Id: <20180425051539.1989-8-hch@lst.de>
 In-Reply-To: <20180425051539.1989-1-hch@lst.de>
 References: <20180425051539.1989-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,331 +20,247 @@ List-ID: <linux-mm.kvack.org>
 To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org
 Cc: sstabellini@kernel.org, x86@kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-This way we have one central definition of it, and user can select it as
-needed.
+Instead select the PHYS_ADDR_T_64BIT for 32-bit architectures that need a
+64-bit phys_addr_t type directly.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- arch/alpha/Kconfig              | 4 +---
- arch/arm/Kconfig                | 3 ---
- arch/arm64/Kconfig              | 4 +---
- arch/hexagon/Kconfig            | 4 +---
- arch/ia64/Kconfig               | 4 +---
- arch/mips/cavium-octeon/Kconfig | 3 ---
- arch/mips/loongson64/Kconfig    | 3 ---
- arch/mips/netlogic/Kconfig      | 3 ---
- arch/parisc/Kconfig             | 4 +---
- arch/powerpc/Kconfig            | 4 +---
- arch/s390/Kconfig               | 4 +---
- arch/sh/Kconfig                 | 5 ++---
- arch/sparc/Kconfig              | 4 +---
- arch/unicore32/mm/Kconfig       | 5 +----
- arch/x86/Kconfig                | 4 +---
- lib/Kconfig                     | 3 +++
- 16 files changed, 15 insertions(+), 46 deletions(-)
+ arch/arc/Kconfig                       |  4 +---
+ arch/arm/kernel/setup.c                |  2 +-
+ arch/arm/mm/Kconfig                    |  4 +---
+ arch/arm64/Kconfig                     |  3 ---
+ arch/mips/Kconfig                      | 15 ++++++---------
+ arch/powerpc/Kconfig                   |  5 +----
+ arch/powerpc/platforms/Kconfig.cputype |  1 +
+ arch/riscv/Kconfig                     |  6 ++----
+ arch/x86/Kconfig                       |  5 +----
+ mm/Kconfig                             |  2 +-
+ 10 files changed, 15 insertions(+), 32 deletions(-)
 
-diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
-index 3ff735a722af..8e6a67ecf069 100644
---- a/arch/alpha/Kconfig
-+++ b/arch/alpha/Kconfig
-@@ -10,6 +10,7 @@ config ALPHA
- 	select HAVE_OPROFILE
- 	select HAVE_PCSPKR_PLATFORM
- 	select HAVE_PERF_EVENTS
-+	select NEED_SG_DMA_LENGTH
- 	select VIRT_TO_BUS
- 	select GENERIC_IRQ_PROBE
- 	select AUTO_IRQ_AFFINITY if SMP
-@@ -70,9 +71,6 @@ config ARCH_DMA_ADDR_T_64BIT
- config NEED_DMA_MAP_STATE
-        def_bool y
+diff --git a/arch/arc/Kconfig b/arch/arc/Kconfig
+index d76bf4a83740..f94c61da682a 100644
+--- a/arch/arc/Kconfig
++++ b/arch/arc/Kconfig
+@@ -453,13 +453,11 @@ config ARC_HAS_PAE40
+ 	default n
+ 	depends on ISA_ARCV2
+ 	select HIGHMEM
++	select PHYS_ADDR_T_64BIT
+ 	help
+ 	  Enable access to physical memory beyond 4G, only supported on
+ 	  ARC cores with 40 bit Physical Addressing support
  
--config NEED_SG_DMA_LENGTH
--	def_bool y
+-config ARCH_PHYS_ADDR_T_64BIT
+-	def_bool ARC_HAS_PAE40
 -
- config GENERIC_ISA_DMA
- 	bool
- 	default y
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 2f79222c5c02..602c8320282f 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -119,9 +119,6 @@ config ARM_HAS_SG_CHAIN
- 	select ARCH_HAS_SG_CHAIN
+ config ARCH_DMA_ADDR_T_64BIT
  	bool
  
--config NEED_SG_DMA_LENGTH
--	bool
+diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
+index fc40a2b40595..35ca494c028c 100644
+--- a/arch/arm/kernel/setup.c
++++ b/arch/arm/kernel/setup.c
+@@ -754,7 +754,7 @@ int __init arm_add_memory(u64 start, u64 size)
+ 	else
+ 		size -= aligned_start - start;
+ 
+-#ifndef CONFIG_ARCH_PHYS_ADDR_T_64BIT
++#ifndef CONFIG_PHYS_ADDR_T_64BIT
+ 	if (aligned_start > ULONG_MAX) {
+ 		pr_crit("Ignoring memory at 0x%08llx outside 32-bit physical address space\n",
+ 			(long long)start);
+diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
+index 7f14acf67caf..2f77c6344ef1 100644
+--- a/arch/arm/mm/Kconfig
++++ b/arch/arm/mm/Kconfig
+@@ -661,6 +661,7 @@ config ARM_LPAE
+ 	bool "Support for the Large Physical Address Extension"
+ 	depends on MMU && CPU_32v7 && !CPU_32v6 && !CPU_32v5 && \
+ 		!CPU_32v4 && !CPU_32v3
++	select PHYS_ADDR_T_64BIT
+ 	help
+ 	  Say Y if you have an ARMv7 processor supporting the LPAE page
+ 	  table format and you would like to access memory beyond the
+@@ -673,9 +674,6 @@ config ARM_PV_FIXUP
+ 	def_bool y
+ 	depends on ARM_LPAE && ARM_PATCH_PHYS_VIRT && ARCH_KEYSTONE
+ 
+-config ARCH_PHYS_ADDR_T_64BIT
+-	def_bool ARM_LPAE
 -
- config ARM_DMA_USE_IOMMU
+ config ARCH_DMA_ADDR_T_64BIT
  	bool
- 	select ARM_HAS_SG_CHAIN
+ 
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index fbef5d3de83f..3b441c5587f1 100644
+index 940adfb9a2bc..b6aa33e642cc 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -133,6 +133,7 @@ config ARM64
- 	select IRQ_FORCED_THREADING
- 	select MODULES_USE_ELF_RELA
- 	select MULTI_IRQ_HANDLER
-+	select NEED_SG_DMA_LENGTH
- 	select NO_BOOTMEM
- 	select OF
- 	select OF_EARLY_FLATTREE
-@@ -243,9 +244,6 @@ config ARCH_DMA_ADDR_T_64BIT
- config NEED_DMA_MAP_STATE
+@@ -152,9 +152,6 @@ config ARM64
+ config 64BIT
  	def_bool y
  
--config NEED_SG_DMA_LENGTH
+-config ARCH_PHYS_ADDR_T_64BIT
 -	def_bool y
 -
- config SMP
+ config MMU
  	def_bool y
  
-diff --git a/arch/hexagon/Kconfig b/arch/hexagon/Kconfig
-index 76d2f20d525e..37adb2003033 100644
---- a/arch/hexagon/Kconfig
-+++ b/arch/hexagon/Kconfig
-@@ -19,6 +19,7 @@ config HEXAGON
- 	select GENERIC_IRQ_SHOW
- 	select HAVE_ARCH_KGDB
- 	select HAVE_ARCH_TRACEHOOK
-+	select NEED_SG_DMA_LENGTH
- 	select NO_IOPORT_MAP
- 	select GENERIC_IOMAP
- 	select GENERIC_SMP_IDLE_THREAD
-@@ -63,9 +64,6 @@ config GENERIC_CSUM
- config GENERIC_IRQ_PROBE
- 	def_bool y
+diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
+index 47d72c64d687..985388078872 100644
+--- a/arch/mips/Kconfig
++++ b/arch/mips/Kconfig
+@@ -132,7 +132,7 @@ config MIPS_GENERIC
  
--config NEED_SG_DMA_LENGTH
--	def_bool y
--
- config RWSEM_GENERIC_SPINLOCK
- 	def_bool n
- 
-diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index 862c5160c09d..333917676f7f 100644
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -54,6 +54,7 @@ config IA64
- 	select MODULES_USE_ELF_RELA
- 	select ARCH_USE_CMPXCHG_LOCKREF
- 	select HAVE_ARCH_AUDITSYSCALL
-+	select NEED_SG_DMA_LENGTH
- 	default y
- 	help
- 	  The Itanium Processor Family is Intel's 64-bit successor to
-@@ -84,9 +85,6 @@ config ARCH_DMA_ADDR_T_64BIT
- config NEED_DMA_MAP_STATE
- 	def_bool y
- 
--config NEED_SG_DMA_LENGTH
--	def_bool y
--
- config SWIOTLB
-        bool
- 
-diff --git a/arch/mips/cavium-octeon/Kconfig b/arch/mips/cavium-octeon/Kconfig
-index 647ed158ac98..5d73041547a7 100644
---- a/arch/mips/cavium-octeon/Kconfig
-+++ b/arch/mips/cavium-octeon/Kconfig
-@@ -67,9 +67,6 @@ config CAVIUM_OCTEON_LOCK_L2_MEMCPY
- 	help
- 	  Lock the kernel's implementation of memcpy() into L2.
- 
--config NEED_SG_DMA_LENGTH
--	bool
--
- config SWIOTLB
- 	def_bool y
- 	select DMA_DIRECT_OPS
-diff --git a/arch/mips/loongson64/Kconfig b/arch/mips/loongson64/Kconfig
-index 5efb2e63878e..641a1477031e 100644
---- a/arch/mips/loongson64/Kconfig
-+++ b/arch/mips/loongson64/Kconfig
-@@ -130,9 +130,6 @@ config LOONGSON_UART_BASE
- 	default y
- 	depends on EARLY_PRINTK || SERIAL_8250
- 
--config NEED_SG_DMA_LENGTH
--	bool
--
- config SWIOTLB
- 	bool "Soft IOMMU Support for All-Memory DMA"
- 	default y
-diff --git a/arch/mips/netlogic/Kconfig b/arch/mips/netlogic/Kconfig
-index 5c5ee0e05a17..412351c5acc6 100644
---- a/arch/mips/netlogic/Kconfig
-+++ b/arch/mips/netlogic/Kconfig
-@@ -83,7 +83,4 @@ endif
- config NLM_COMMON
+ config MIPS_ALCHEMY
+ 	bool "Alchemy processor based machines"
+-	select ARCH_PHYS_ADDR_T_64BIT
++	select PHYS_ADDR_T_64BIT
+ 	select CEVT_R4K
+ 	select CSRC_R4K
+ 	select IRQ_MIPS_CPU
+@@ -890,7 +890,7 @@ config CAVIUM_OCTEON_SOC
+ 	bool "Cavium Networks Octeon SoC based boards"
+ 	select CEVT_R4K
+ 	select ARCH_HAS_PHYS_TO_DMA
+-	select ARCH_PHYS_ADDR_T_64BIT
++	select PHYS_ADDR_T_64BIT
+ 	select DMA_COHERENT
+ 	select SYS_SUPPORTS_64BIT_KERNEL
+ 	select SYS_SUPPORTS_BIG_ENDIAN
+@@ -936,7 +936,7 @@ config NLM_XLR_BOARD
+ 	select SWAP_IO_SPACE
+ 	select SYS_SUPPORTS_32BIT_KERNEL
+ 	select SYS_SUPPORTS_64BIT_KERNEL
+-	select ARCH_PHYS_ADDR_T_64BIT
++	select PHYS_ADDR_T_64BIT
+ 	select SYS_SUPPORTS_BIG_ENDIAN
+ 	select SYS_SUPPORTS_HIGHMEM
+ 	select DMA_COHERENT
+@@ -962,7 +962,7 @@ config NLM_XLP_BOARD
+ 	select HW_HAS_PCI
+ 	select SYS_SUPPORTS_32BIT_KERNEL
+ 	select SYS_SUPPORTS_64BIT_KERNEL
+-	select ARCH_PHYS_ADDR_T_64BIT
++	select PHYS_ADDR_T_64BIT
+ 	select GPIOLIB
+ 	select SYS_SUPPORTS_BIG_ENDIAN
+ 	select SYS_SUPPORTS_LITTLE_ENDIAN
+@@ -1102,7 +1102,7 @@ config FW_CFE
  	bool
  
--config NEED_SG_DMA_LENGTH
--	bool
--
- endif
-diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
-index fc5a574c3482..89caea87556e 100644
---- a/arch/parisc/Kconfig
-+++ b/arch/parisc/Kconfig
-@@ -51,6 +51,7 @@ config PARISC
- 	select GENERIC_CLOCKEVENTS
- 	select ARCH_NO_COHERENT_DMA_MMAP
- 	select CPU_NO_EFFICIENT_FFS
-+	select NEED_SG_DMA_LENGTH
+ config ARCH_DMA_ADDR_T_64BIT
+-	def_bool (HIGHMEM && ARCH_PHYS_ADDR_T_64BIT) || 64BIT
++	def_bool (HIGHMEM && PHYS_ADDR_T_64BIT) || 64BIT
  
- 	help
- 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
-@@ -114,9 +115,6 @@ config STACKTRACE_SUPPORT
- config NEED_DMA_MAP_STATE
- 	def_bool y
- 
--config NEED_SG_DMA_LENGTH
--	def_bool y
--
- config ISA_DMA_API
+ config ARCH_SUPPORTS_UPROBES
  	bool
+@@ -1767,7 +1767,7 @@ config CPU_MIPS32_R5_XPA
+ 	depends on SYS_SUPPORTS_HIGHMEM
+ 	select XPA
+ 	select HIGHMEM
+-	select ARCH_PHYS_ADDR_T_64BIT
++	select PHYS_ADDR_T_64BIT
+ 	default n
+ 	help
+ 	  Choose this option if you want to enable the Extended Physical
+@@ -2399,9 +2399,6 @@ config SB1_PASS_2_1_WORKAROUNDS
+ 	default y
+ 
+ 
+-config ARCH_PHYS_ADDR_T_64BIT
+-       bool
+-
+ choice
+ 	prompt "SmartMIPS or microMIPS ASE support"
  
 diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 7698cf89af9c..cc9a616d8934 100644
+index cc9a616d8934..b3d091d65e05 100644
 --- a/arch/powerpc/Kconfig
 +++ b/arch/powerpc/Kconfig
-@@ -227,6 +227,7 @@ config PPC
- 	select IRQ_DOMAIN
- 	select IRQ_FORCED_THREADING
- 	select MODULES_USE_ELF_RELA
-+	select NEED_SG_DMA_LENGTH
- 	select NO_BOOTMEM
+@@ -13,11 +13,8 @@ config 64BIT
+ 	bool
+ 	default y if PPC64
+ 
+-config ARCH_PHYS_ADDR_T_64BIT
+-       def_bool PPC64 || PHYS_64BIT
+-
+ config ARCH_DMA_ADDR_T_64BIT
+-	def_bool ARCH_PHYS_ADDR_T_64BIT
++	def_bool PHYS_ADDR_T_64BIT
+ 
+ config MMU
+ 	bool
+diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
+index 67d3125d0610..84b58abc08ee 100644
+--- a/arch/powerpc/platforms/Kconfig.cputype
++++ b/arch/powerpc/platforms/Kconfig.cputype
+@@ -222,6 +222,7 @@ config PTE_64BIT
+ config PHYS_64BIT
+ 	bool 'Large physical address support' if E500 || PPC_86xx
+ 	depends on (44x || E500 || PPC_86xx) && !PPC_83xx && !PPC_82xx
++	select PHYS_ADDR_T_64BIT
+ 	---help---
+ 	  This option enables kernel support for larger than 32-bit physical
+ 	  addresses.  This feature may not be available on all cores.
+diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
+index 23d8acca5c90..f52f86f43a4b 100644
+--- a/arch/riscv/Kconfig
++++ b/arch/riscv/Kconfig
+@@ -5,6 +5,8 @@
+ 
+ config RISCV
+ 	def_bool y
++	# even on 32-bit, physical (and DMA) addresses are > 32-bits
++	select PHYS_ADDR_T_64BIT
  	select OF
  	select OF_EARLY_FLATTREE
-@@ -910,9 +911,6 @@ config ZONE_DMA
- config NEED_DMA_MAP_STATE
- 	def_bool (PPC64 || NOT_COHERENT_CACHE)
- 
--config NEED_SG_DMA_LENGTH
--	def_bool y
--
- config GENERIC_ISA_DMA
- 	bool
- 	depends on ISA_DMA_API
-diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-index 60c4ab854182..f80c6b983159 100644
---- a/arch/s390/Kconfig
-+++ b/arch/s390/Kconfig
-@@ -711,6 +711,7 @@ menuconfig PCI
- 	select PCI_MSI
- 	select IOMMU_HELPER
- 	select IOMMU_SUPPORT
-+	select NEED_SG_DMA_LENGTH
- 
- 	help
- 	  Enable PCI support.
-@@ -735,9 +736,6 @@ config PCI_DOMAINS
- config HAS_IOMEM
- 	def_bool PCI
- 
--config NEED_SG_DMA_LENGTH
--	def_bool PCI
--
- config NEED_DMA_MAP_STATE
- 	def_bool PCI
- 
-diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
-index 97fe29316476..e127e0cbe30f 100644
---- a/arch/sh/Kconfig
-+++ b/arch/sh/Kconfig
-@@ -50,6 +50,8 @@ config SUPERH
- 	select HAVE_ARCH_AUDITSYSCALL
- 	select HAVE_FUTEX_CMPXCHG if FUTEX
- 	select HAVE_NMI
-+	select NEED_SG_DMA_LENGTH
-+
- 	help
- 	  The SuperH is a RISC processor targeted for use in embedded systems
- 	  and consumer electronics; it was also used in the Sega Dreamcast
-@@ -163,9 +165,6 @@ config DMA_NONCOHERENT
- config NEED_DMA_MAP_STATE
- 	def_bool DMA_NONCOHERENT
- 
--config NEED_SG_DMA_LENGTH
--	def_bool y
--
- config PGTABLE_LEVELS
- 	default 3 if X2TLB
- 	default 2
-diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
-index 44e0f3cd7988..e79badc8a682 100644
---- a/arch/sparc/Kconfig
-+++ b/arch/sparc/Kconfig
-@@ -44,6 +44,7 @@ config SPARC
- 	select ARCH_HAS_SG_CHAIN
- 	select CPU_NO_EFFICIENT_FFS
- 	select LOCKDEP_SMALL if LOCKDEP
-+	select NEED_SG_DMA_LENGTH
- 
- config SPARC32
- 	def_bool !64BIT
-@@ -146,9 +147,6 @@ config ZONE_DMA
- config NEED_DMA_MAP_STATE
+ 	select OF_IRQ
+@@ -38,10 +40,6 @@ config RISCV
+ config MMU
  	def_bool y
  
--config NEED_SG_DMA_LENGTH
+-# even on 32-bit, physical (and DMA) addresses are > 32-bits
+-config ARCH_PHYS_ADDR_T_64BIT
 -	def_bool y
 -
- config GENERIC_ISA_DMA
+ config ZONE_DMA32
  	bool
- 	default y if SPARC32
-diff --git a/arch/unicore32/mm/Kconfig b/arch/unicore32/mm/Kconfig
-index 3f105e00c432..1d9fed0ada71 100644
---- a/arch/unicore32/mm/Kconfig
-+++ b/arch/unicore32/mm/Kconfig
-@@ -43,7 +43,4 @@ config CPU_TLB_SINGLE_ENTRY_DISABLE
- config SWIOTLB
- 	def_bool y
- 	select DMA_DIRECT_OPS
--
--config NEED_SG_DMA_LENGTH
--	def_bool SWIOTLB
--
-+	select NEED_SG_DMA_LENGTH
+ 	default y
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index fe9713539166..ead3babe4e79 100644
+index a98a9b14fda2..8fccdaf02bb0 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -183,6 +183,7 @@ config X86
- 	select HAVE_UNSTABLE_SCHED_CLOCK
- 	select HAVE_USER_RETURN_NOTIFIER
- 	select IRQ_FORCED_THREADING
-+	select NEED_SG_DMA_LENGTH
- 	select PCI_LOCKLESS_CONFIG
- 	select PERF_EVENTS
- 	select RTC_LIB
-@@ -239,9 +240,6 @@ config NEED_DMA_MAP_STATE
- 	def_bool y
- 	depends on X86_64 || INTEL_IOMMU || DMA_API_DEBUG || SWIOTLB
+@@ -1448,6 +1448,7 @@ config HIGHMEM
+ config X86_PAE
+ 	bool "PAE (Physical Address Extension) Support"
+ 	depends on X86_32 && !HIGHMEM4G
++	select PHYS_ADDR_T_64BIT
+ 	select SWIOTLB
+ 	---help---
+ 	  PAE is required for NX support, and furthermore enables
+@@ -1475,10 +1476,6 @@ config X86_5LEVEL
  
--config NEED_SG_DMA_LENGTH
+ 	  Say N if unsure.
+ 
+-config ARCH_PHYS_ADDR_T_64BIT
 -	def_bool y
+-	depends on X86_64 || X86_PAE
 -
- config GENERIC_ISA_DMA
+ config ARCH_DMA_ADDR_T_64BIT
  	def_bool y
- 	depends on ISA_DMA_API
-diff --git a/lib/Kconfig b/lib/Kconfig
-index 2f6908577534..aeb7fae16bc2 100644
---- a/lib/Kconfig
-+++ b/lib/Kconfig
-@@ -429,6 +429,9 @@ config SGL_ALLOC
- 	bool
- 	default n
- 
-+config NEED_SG_DMA_LENGTH
-+	bool
-+
- config IOMMU_HELPER
+ 	depends on X86_64 || HIGHMEM64G
+diff --git a/mm/Kconfig b/mm/Kconfig
+index d5004d82a1d6..a3f0005ac212 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -266,7 +266,7 @@ config ARCH_ENABLE_THP_MIGRATION
  	bool
  
+ config PHYS_ADDR_T_64BIT
+-	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
++	def_bool 64BIT
+ 
+ config BOUNCE
+ 	bool "Enable bounce buffers"
 -- 
 2.17.0
