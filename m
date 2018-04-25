@@ -1,75 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 75BD86B0007
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:45:40 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id x1-v6so14434369itb.8
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:45:40 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j81-v6sor7963746ioj.150.2018.04.25.07.45.38
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F4006B0008
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:46:05 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id i131so2268922wmf.6
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:46:05 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o2si1773845edf.305.2018.04.25.07.46.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Apr 2018 07:45:38 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Apr 2018 07:46:03 -0700 (PDT)
+Date: Wed, 25 Apr 2018 08:45:57 -0600
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: vmalloc with GFP_NOFS
+Message-ID: <20180425144557.GD17484@dhcp22.suse.cz>
+References: <20180424162712.GL17484@dhcp22.suse.cz>
+ <3732370.1623zxSvNg@blindfold>
+ <20180424192803.GT17484@dhcp22.suse.cz>
+ <3894056.cxOY6eVYVp@blindfold>
+ <20180424230943.GY17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804241911040.19786@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424232517.GC17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804250841230.16455@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180419093306.rn5bz264nxsn7d7c@node.shutemov.name>
-References: <cover.1524077494.git.andreyknvl@google.com> <20180419093306.rn5bz264nxsn7d7c@node.shutemov.name>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 25 Apr 2018 16:45:37 +0200
-Message-ID: <CAAeHK+yb-U3h0666i3u3fF3=8XVcZUo1nxZ5CnOd9oUiDFP=Ng@mail.gmail.com>
-Subject: Re: [PATCH 0/6] arm64: untag user pointers passed to the kernel
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1804250841230.16455@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Richard Weinberger <richard@nod.at>, LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 19, 2018 at 11:33 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Wed, Apr 18, 2018 at 08:53:09PM +0200, Andrey Konovalov wrote:
->> Hi!
->>
->> arm64 has a feature called Top Byte Ignore, which allows to embed pointer
->> tags into the top byte of each pointer. Userspace programs (such as
->> HWASan, a memory debugging tool [1]) might use this feature and pass
->> tagged user pointers to the kernel through syscalls or other interfaces.
->>
->> This patch makes a few of the kernel interfaces accept tagged user
->> pointers. The kernel is already able to handle user faults with tagged
->> pointers and has the untagged_addr macro, which this patchset reuses.
->>
->> We're not trying to cover all possible ways the kernel accepts user
->> pointers in one patchset, so this one should be considered as a start.
->
-> How many changes do you anticipate?
->
-> This patchset looks small and reasonable, but I see a potential to become a
-> boilerplate. Would we need to change every driver which implements ioctl()
-> to strip these bits?
+On Wed 25-04-18 08:43:32, Mikulas Patocka wrote:
+> 
+> 
+> On Tue, 24 Apr 2018, Michal Hocko wrote:
+> 
+> > On Tue 24-04-18 19:17:12, Mikulas Patocka wrote:
+> > > 
+> > > 
+> > > On Tue, 24 Apr 2018, Michal Hocko wrote:
+> > > 
+> > > > On Wed 25-04-18 00:18:40, Richard Weinberger wrote:
+> > > > > Am Dienstag, 24. April 2018, 21:28:03 CEST schrieb Michal Hocko:
+> > > > > > > Also only for debugging.
+> > > > > > > Getting rid of vmalloc with GFP_NOFS in UBIFS is no big problem.
+> > > > > > > I can prepare a patch.
+> > > > > > 
+> > > > > > Cool!
+> > > > > > 
+> > > > > > Anyway, if UBIFS has some reclaim recursion critical sections in general
+> > > > > > it would be really great to have them documented and that is where the
+> > > > > > scope api is really handy. Just add the scope and document what is the
+> > > > > > recursion issue. This will help people reading the code as well. Ideally
+> > > > > > there shouldn't be any explicit GFP_NOFS in the code.
+> > > > > 
+> > > > > So in a perfect world a filesystem calls memalloc_nofs_save/restore and
+> > > > > always uses GFP_KERNEL for kmalloc/vmalloc?
+> > > > 
+> > > > Exactly! And in a dream world those memalloc_nofs_save act as a
+> > > > documentation of the reclaim recursion documentation ;)
+> > > > -- 
+> > > > Michal Hocko
+> > > > SUSE Labs
+> > > 
+> > > BTW. should memalloc_nofs_save and memalloc_noio_save be merged into just 
+> > > one that prevents both I/O and FS recursion?
+> > 
+> > Why should FS usage stop IO altogether?
+> 
+> Because the IO may reach loop and loop may redirect it to the same 
+> filesystem that is running under memalloc_nofs_save and deadlock.
 
-I've replied to somewhat similar question in one of the previous
-versions of the patchset.
+So what is the difference with the current GFP_NOFS?
 
-"""
-There are two different approaches to untagging the user pointers that I see:
+> > > memalloc_nofs_save allows submitting bios to I/O stack and the bios 
+> > > created under memalloc_nofs_save could be sent to the loop device and the 
+> > > loop device calls the filesystem...
+> > 
+> > Don't those use NOIO context?
+> 
+> What do you mean?
 
-1. Untag user pointers right after they are passed to the kernel.
-
-While this might be possible for pointers that are passed to syscalls
-as arguments (Catalin's "hack"), this leaves user pointers, that are
-embedded into for example structs that are passed to the kernel. Since
-there's no specification of the interface between user space and the
-kernel, different kernel parts handle user pointers differently and I
-don't see an easy way to cover them all.
-
-2. Untag user pointers where they are used in the kernel.
-
-Although there's no specification on the interface between the user
-space and the kernel, the kernel still has to use one of a few
-specific ways to access user data (copy_from_user, etc.). So the idea
-here is to add untagging into them. This patchset mostly takes this
-approach (with the exception of memory subsystem syscalls).
-
-If there's a better approach, I'm open to suggestions.
-"""
-
-So if we go with the first way, we'll need to go through every syscall
-and ioctl handler, which doesn't seem feasible.
+That the loop driver should make sure it will not recurse. The scope API
+doesn't add anything new here.
+-- 
+Michal Hocko
+SUSE Labs
