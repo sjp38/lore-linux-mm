@@ -1,39 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 017CF6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 08:39:53 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f21so2156955wmh.5
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 05:39:52 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id m17si895872edr.66.2018.04.25.05.39.50
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EED316B0003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 08:43:37 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id k22-v6so17401554qtm.4
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 05:43:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id l28-v6si17292493qta.188.2018.04.25.05.43.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Apr 2018 05:39:51 -0700 (PDT)
-Date: Wed, 25 Apr 2018 13:38:23 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v2] mm: introduce memory.min
-Message-ID: <20180425123816.GA3410@castle>
-References: <20180423123610.27988-1-guro@fb.com>
- <20180424123002.utwbm54mu46q6aqs@esperanza>
- <20180424135409.GA28080@castle.DHCP.thefacebook.com>
- <20180425105255.ixfuoanb6t4kr6l5@esperanza>
+        Wed, 25 Apr 2018 05:43:37 -0700 (PDT)
+Date: Wed, 25 Apr 2018 08:43:32 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: vmalloc with GFP_NOFS
+In-Reply-To: <20180424232517.GC17484@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1804250841230.16455@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20180424162712.GL17484@dhcp22.suse.cz> <3732370.1623zxSvNg@blindfold> <20180424192803.GT17484@dhcp22.suse.cz> <3894056.cxOY6eVYVp@blindfold> <20180424230943.GY17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804241911040.19786@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424232517.GC17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180425105255.ixfuoanb6t4kr6l5@esperanza>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Tejun Heo <tj@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Richard Weinberger <richard@nod.at>, LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Apr 25, 2018 at 01:52:55PM +0300, Vladimir Davydov wrote:
-> On Tue, Apr 24, 2018 at 02:54:15PM +0100, Roman Gushchin wrote:
+
+
+On Tue, 24 Apr 2018, Michal Hocko wrote:
+
+> On Tue 24-04-18 19:17:12, Mikulas Patocka wrote:
 > > 
-> > But what we can do here, is to ignore memory.min of empty cgroups
-> > (patch below), it will resolve some edge cases like this.
+> > 
+> > On Tue, 24 Apr 2018, Michal Hocko wrote:
+> > 
+> > > On Wed 25-04-18 00:18:40, Richard Weinberger wrote:
+> > > > Am Dienstag, 24. April 2018, 21:28:03 CEST schrieb Michal Hocko:
+> > > > > > Also only for debugging.
+> > > > > > Getting rid of vmalloc with GFP_NOFS in UBIFS is no big problem.
+> > > > > > I can prepare a patch.
+> > > > > 
+> > > > > Cool!
+> > > > > 
+> > > > > Anyway, if UBIFS has some reclaim recursion critical sections in general
+> > > > > it would be really great to have them documented and that is where the
+> > > > > scope api is really handy. Just add the scope and document what is the
+> > > > > recursion issue. This will help people reading the code as well. Ideally
+> > > > > there shouldn't be any explicit GFP_NOFS in the code.
+> > > > 
+> > > > So in a perfect world a filesystem calls memalloc_nofs_save/restore and
+> > > > always uses GFP_KERNEL for kmalloc/vmalloc?
+> > > 
+> > > Exactly! And in a dream world those memalloc_nofs_save act as a
+> > > documentation of the reclaim recursion documentation ;)
+> > > -- 
+> > > Michal Hocko
+> > > SUSE Labs
+> > 
+> > BTW. should memalloc_nofs_save and memalloc_noio_save be merged into just 
+> > one that prevents both I/O and FS recursion?
 > 
-> Makes sense to me.
+> Why should FS usage stop IO altogether?
 
-Ok, let's keep it as a fallback mechanism.
+Because the IO may reach loop and loop may redirect it to the same 
+filesystem that is running under memalloc_nofs_save and deadlock.
 
-Thank you!
+> > memalloc_nofs_save allows submitting bios to I/O stack and the bios 
+> > created under memalloc_nofs_save could be sent to the loop device and the 
+> > loop device calls the filesystem...
+> 
+> Don't those use NOIO context?
+
+What do you mean?
+
+Mikulas
