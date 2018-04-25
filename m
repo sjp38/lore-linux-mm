@@ -1,65 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A9DD6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:49:41 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 127so10989539pge.10
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:49:41 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 143sor338751pge.255.2018.04.25.07.49.39
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 89CDF6B0007
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:51:57 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id v31-v6so15260079otb.0
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:51:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u6-v6si6086163oib.314.2018.04.25.07.51.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Apr 2018 07:49:39 -0700 (PDT)
-Date: Wed, 25 Apr 2018 17:49:38 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC v5 PATCH] mm: shmem: make stat.st_blksize return huge page
- size if THP is on
-Message-ID: <20180425144938.6mv7idgd2u2cyucu@kshutemo-mobl1>
-References: <1524665633-83806-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Apr 2018 07:51:56 -0700 (PDT)
+Date: Wed, 25 Apr 2018 10:51:54 -0400 (EDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+Message-ID: <1327760552.22648230.1524667914875.JavaMail.zimbra@redhat.com>
+In-Reply-To: <79f72139-0fcb-3d5e-a16c-24f3b5ee1a07@redhat.com>
+References: <152465613714.2268.4576822049531163532@71c20359a636> <1558768042.22416958.1524657509446.JavaMail.zimbra@redhat.com> <79f72139-0fcb-3d5e-a16c-24f3b5ee1a07@redhat.com>
+Subject: Re: [Qemu-devel] [RFC v2] qemu: Add virtio pmem device
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1524665633-83806-1-git-send-email-yang.shi@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Eric Blake <eblake@redhat.com>
+Cc: qemu-devel@nongnu.org, jack@suse.cz, kvm@vger.kernel.org, david@redhat.com, linux-nvdimm@ml01.01.org, ross zwisler <ross.zwisler@intel.com>, lcapitulino@redhat.com, linux-mm@kvack.org, niteshnarayanlal@hotmail.com, mst@redhat.com, hch@infradead.org, marcel@redhat.com, nilal@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, famz@redhat.com, riel@surriel.com, stefanha@redhat.com, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, kwolf@redhat.com, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, linux-kernel@vger.kernel.org, imammedo@redhat.com
 
-On Wed, Apr 25, 2018 at 10:13:53PM +0800, Yang Shi wrote:
-> Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
-> filesystem with huge page support anymore. tmpfs can use huge page via
-> THP when mounting by "huge=" mount option.
-> 
-> When applications use huge page on hugetlbfs, it just need check the
-> filesystem magic number, but it is not enough for tmpfs. Make
-> stat.st_blksize return huge page size if it is mounted by appropriate
-> "huge=" option to give applications a hint to optimize the behavior with
-> THP.
-> 
-> Some applications may not do wisely with THP. For example, QEMU may mmap
-> file on non huge page aligned hint address with MAP_FIXED, which results
-> in no pages are PMD mapped even though THP is used. Some applications
-> may mmap file with non huge page aligned offset. Both behaviors make THP
-> pointless.
-> 
-> statfs.f_bsize still returns 4KB for tmpfs since THP could be split, and it
-> also may fallback to 4KB page silently if there is not enough huge page.
-> Furthermore, different f_bsize makes max_blocks and free_blocks
-> calculation harder but without too much benefit. Returning huge page
-> size via stat.st_blksize sounds good enough.
-> 
-> Since PUD size huge page for THP has not been supported, now it just
-> returns HPAGE_PMD_SIZE.
-> 
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Suggested-by: Christoph Hellwig <hch@infradead.org>
 
-Looks good to me:
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Hi,
+> > 
+> > Compile failures are because Qemu 'Memory-Device changes' are not yet
+> > in qemu master. As mentioned in Qemu patch message patch is
+> > dependent on 'Memeory-device' patches by 'David Hildenbrand'.
+> 
+> 
+> On 04/25/2018 06:24 AM, Pankaj Gupta wrote:
+> > This PV device code is dependent and tested
+> > with 'David Hildenbrand's ' patchset[1] to
+> > map non-PCDIMM devices to guest address space.
+> > There is still upstream discussion on using
+> > among PCI bar vs memory device, will update
+> > as per concensus.
+> >
+> > [1] https://marc.info/?l=qemu-devel&m=152450249319168&w=2
+> 
+> Then let's spell that in a way that patchew understands (since patchew
+> does not know how to turn marc.info references into Message-IDs):
+> 
+> Based-on: <20180423165126.15441-1-david@redhat.com>
 
--- 
- Kirill A. Shutemov
+o.k
+
+Thank you!
+
+> 
+> --
+> Eric Blake, Principal Software Engineer
+> Red Hat, Inc.           +1-919-301-3266
+> Virtualization:  qemu.org | libvirt.org
+> 
+> 
