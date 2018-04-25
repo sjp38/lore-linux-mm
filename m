@@ -1,61 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FEA26B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:23:55 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id k4-v6so14981764otf.16
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:23:55 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 76-v6sor7194574oii.178.2018.04.25.07.23.54
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EB17A6B0006
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:24:11 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id x13-v6so17526212qtf.6
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:24:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id t41-v6si438322qtt.327.2018.04.25.07.24.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Apr 2018 07:23:54 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Apr 2018 07:24:11 -0700 (PDT)
+Subject: Re: [Qemu-devel] [RFC v2] qemu: Add virtio pmem device
+References: <152465613714.2268.4576822049531163532@71c20359a636>
+ <1558768042.22416958.1524657509446.JavaMail.zimbra@redhat.com>
+From: Eric Blake <eblake@redhat.com>
+Message-ID: <79f72139-0fcb-3d5e-a16c-24f3b5ee1a07@redhat.com>
+Date: Wed, 25 Apr 2018 09:23:45 -0500
 MIME-Version: 1.0
-In-Reply-To: <20180425112415.12327-3-pagupta@redhat.com>
-References: <20180425112415.12327-1-pagupta@redhat.com> <20180425112415.12327-3-pagupta@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 25 Apr 2018 07:23:53 -0700
-Message-ID: <CAPcyv4gpZzKfE7jY1peYOVd6sVhNz7jce1s_xNH_2Lt8AjRK-Q@mail.gmail.com>
-Subject: Re: [RFC v2 2/2] pmem: device flush over VIRTIO
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1558768042.22416958.1524657509446.JavaMail.zimbra@redhat.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="mmDwZV4M0zXDDT20DagSjiWsqCXrchrth"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Rik van Riel <riel@surriel.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, "Zwisler, Ross" <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>, Christoph Hellwig <hch@infradead.org>, Marcel Apfelbaum <marcel@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, niteshnarayanlal@hotmail.com, Igor Mammedov <imammedo@redhat.com>, lcapitulino@redhat.com
+To: Pankaj Gupta <pagupta@redhat.com>, qemu-devel@nongnu.org
+Cc: jack@suse.cz, kvm@vger.kernel.org, david@redhat.com, linux-nvdimm@ml01.01.org, ross zwisler <ross.zwisler@intel.com>, lcapitulino@redhat.com, linux-mm@kvack.org, niteshnarayanlal@hotmail.com, mst@redhat.com, hch@infradead.org, marcel@redhat.com, nilal@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, famz@redhat.com, riel@surriel.com, stefanha@redhat.com, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, kwolf@redhat.com, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, linux-kernel@vger.kernel.org, imammedo@redhat.com
 
-On Wed, Apr 25, 2018 at 4:24 AM, Pankaj Gupta <pagupta@redhat.com> wrote:
-> This patch adds functionality to perform
-> flush from guest to hosy over VIRTIO
-> when 'ND_REGION_VIRTIO'flag is set on
-> nd_negion. Flag is set by 'virtio-pmem'
-> driver.
->
-> Signed-off-by: Pankaj Gupta <pagupta@redhat.com>
-> ---
->  drivers/nvdimm/region_devs.c | 7 +++++++
->  1 file changed, 7 insertions(+)
->
-> diff --git a/drivers/nvdimm/region_devs.c b/drivers/nvdimm/region_devs.c
-> index a612be6..6c6454e 100644
-> --- a/drivers/nvdimm/region_devs.c
-> +++ b/drivers/nvdimm/region_devs.c
-> @@ -20,6 +20,7 @@
->  #include <linux/nd.h>
->  #include "nd-core.h"
->  #include "nd.h"
-> +#include <linux/virtio_pmem.h>
->
->  /*
->   * For readq() and writeq() on 32-bit builds, the hi-lo, lo-hi order is
-> @@ -1074,6 +1075,12 @@ void nvdimm_flush(struct nd_region *nd_region)
->         struct nd_region_data *ndrd = dev_get_drvdata(&nd_region->dev);
->         int i, idx;
->
-> +       /* call PV device flush */
-> +       if (test_bit(ND_REGION_VIRTIO, &nd_region->flags)) {
-> +               virtio_pmem_flush(&nd_region->dev);
-> +               return;
-> +       }
-> +
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--mmDwZV4M0zXDDT20DagSjiWsqCXrchrth
+Content-Type: multipart/mixed; boundary="vBkAcENT23vZalYco71XxAjzoGHE2FcjS";
+ protected-headers="v1"
+From: Eric Blake <eblake@redhat.com>
+To: Pankaj Gupta <pagupta@redhat.com>, qemu-devel@nongnu.org
+Cc: jack@suse.cz, kvm@vger.kernel.org, david@redhat.com,
+ linux-nvdimm@ml01.01.org, ross zwisler <ross.zwisler@intel.com>,
+ lcapitulino@redhat.com, linux-mm@kvack.org, niteshnarayanlal@hotmail.com,
+ mst@redhat.com, hch@infradead.org, marcel@redhat.com, nilal@redhat.com,
+ haozhong zhang <haozhong.zhang@intel.com>, famz@redhat.com,
+ riel@surriel.com, stefanha@redhat.com, pbonzini@redhat.com,
+ dan j williams <dan.j.williams@intel.com>, kwolf@redhat.com,
+ xiaoguangrong eric <xiaoguangrong.eric@gmail.com>,
+ linux-kernel@vger.kernel.org, imammedo@redhat.com
+Message-ID: <79f72139-0fcb-3d5e-a16c-24f3b5ee1a07@redhat.com>
+Subject: Re: [Qemu-devel] [RFC v2] qemu: Add virtio pmem device
+References: <152465613714.2268.4576822049531163532@71c20359a636>
+ <1558768042.22416958.1524657509446.JavaMail.zimbra@redhat.com>
+In-Reply-To: <1558768042.22416958.1524657509446.JavaMail.zimbra@redhat.com>
 
-I'd rather introduce a ->flush() operation hanging off of 'struct
-nd_region' so that this multiplexing can be a static setting.
+--vBkAcENT23vZalYco71XxAjzoGHE2FcjS
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+
+On 04/25/2018 06:58 AM, Pankaj Gupta wrote:
+>=20
+> Hi,
+>=20
+> Compile failures are because Qemu 'Memory-Device changes' are not yet
+> in qemu master. As mentioned in Qemu patch message patch is
+> dependent on 'Memeory-device' patches by 'David Hildenbrand'.
+
+
+On 04/25/2018 06:24 AM, Pankaj Gupta wrote:
+> This PV device code is dependent and tested
+> with 'David Hildenbrand's ' patchset[1] to
+> map non-PCDIMM devices to guest address space.
+> There is still upstream discussion on using
+> among PCI bar vs memory device, will update
+> as per concensus.
+>
+> [1] https://marc.info/?l=3Dqemu-devel&m=3D152450249319168&w=3D2
+
+Then let's spell that in a way that patchew understands (since patchew
+does not know how to turn marc.info references into Message-IDs):
+
+Based-on: <20180423165126.15441-1-david@redhat.com>
+
+--=20
+Eric Blake, Principal Software Engineer
+Red Hat, Inc.           +1-919-301-3266
+Virtualization:  qemu.org | libvirt.org
+
+
+--vBkAcENT23vZalYco71XxAjzoGHE2FcjS--
+
+--mmDwZV4M0zXDDT20DagSjiWsqCXrchrth
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Comment: Public key at http://people.redhat.com/eblake/eblake.gpg
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+
+iQEzBAEBCAAdFiEEccLMIrHEYCkn0vOqp6FrSiUnQ2oFAlrgj3EACgkQp6FrSiUn
+Q2rWJgf9Fi1g3YjOnasyD2+TxIYRagQbx7/Sg/F2VvSqM3NyJ+Wk9/7iNIzkyLPg
+99LY6CY46HaSyftjTGrQqc9D5bwpvXWn4gg2O311rMOlrSO+dPBixFs7fMm3wxgx
+WGZ9W5NdfYWLG+crVHyCBymKvwW/l+bVvAn4URLoiHXCJQu6DKhsdp/N8bpdSUfr
+XPbCVzgqIoA3dpVOR3aEHqIyVPqwnKwbI9Lya11/upKF7Zczvjp+TJZe/1k+v7v1
+pD1CNy0v32pYYgEqt7lwo4eWCM+ZS8zyWHV+MG6pXHg4jfFEmPbsOwGSYm1T5zjH
+4hQowL4JcnXSBPhNr8ew9xwqW0kBbw==
+=e3JN
+-----END PGP SIGNATURE-----
+
+--mmDwZV4M0zXDDT20DagSjiWsqCXrchrth--
