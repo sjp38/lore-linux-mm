@@ -1,74 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EED316B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 08:43:37 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id k22-v6so17401554qtm.4
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 05:43:37 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id l28-v6si17292493qta.188.2018.04.25.05.43.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Apr 2018 05:43:37 -0700 (PDT)
-Date: Wed, 25 Apr 2018 08:43:32 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: vmalloc with GFP_NOFS
-In-Reply-To: <20180424232517.GC17484@dhcp22.suse.cz>
-Message-ID: <alpine.LRH.2.02.1804250841230.16455@file01.intranet.prod.int.rdu2.redhat.com>
-References: <20180424162712.GL17484@dhcp22.suse.cz> <3732370.1623zxSvNg@blindfold> <20180424192803.GT17484@dhcp22.suse.cz> <3894056.cxOY6eVYVp@blindfold> <20180424230943.GY17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804241911040.19786@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424232517.GC17484@dhcp22.suse.cz>
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EFBC96B0003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 08:51:38 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id 11-v6so15041643otj.1
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 05:51:38 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f2-v6si4987425oic.450.2018.04.25.05.51.37
+        for <linux-mm@kvack.org>;
+        Wed, 25 Apr 2018 05:51:37 -0700 (PDT)
+Date: Wed, 25 Apr 2018 13:51:55 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in
+ gfp_kmemleak_mask
+Message-ID: <20180425125154.GA29722@MBP.local>
+References: <1524243513-29118-1-git-send-email-chuhu@redhat.com>
+ <20180420175023.3c4okuayrcul2bom@armageddon.cambridge.arm.com>
+ <20180422125141.GF17484@dhcp22.suse.cz>
+ <CACT4Y+YWUgyzCBadg+Oe8wDkFCaBzmcKDgu3rKjQxim7NXNLpg@mail.gmail.com>
+ <CABATaM6eWtssvuj3UW9LHLK3HWo8P9g0z9VzFnuqKPKO5KMJ3A@mail.gmail.com>
+ <20180424132057.GE17484@dhcp22.suse.cz>
+ <20180424134148.qkvqqa4c37l6irvg@armageddon.cambridge.arm.com>
+ <482146467.19754107.1524649841393.JavaMail.zimbra@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <482146467.19754107.1524649841393.JavaMail.zimbra@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Richard Weinberger <richard@nod.at>, LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: Chunyu Hu <chuhu@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Chunyu Hu <chuhu.ncepu@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-
-
-On Tue, 24 Apr 2018, Michal Hocko wrote:
-
-> On Tue 24-04-18 19:17:12, Mikulas Patocka wrote:
-> > 
-> > 
-> > On Tue, 24 Apr 2018, Michal Hocko wrote:
-> > 
-> > > On Wed 25-04-18 00:18:40, Richard Weinberger wrote:
-> > > > Am Dienstag, 24. April 2018, 21:28:03 CEST schrieb Michal Hocko:
-> > > > > > Also only for debugging.
-> > > > > > Getting rid of vmalloc with GFP_NOFS in UBIFS is no big problem.
-> > > > > > I can prepare a patch.
-> > > > > 
-> > > > > Cool!
-> > > > > 
-> > > > > Anyway, if UBIFS has some reclaim recursion critical sections in general
-> > > > > it would be really great to have them documented and that is where the
-> > > > > scope api is really handy. Just add the scope and document what is the
-> > > > > recursion issue. This will help people reading the code as well. Ideally
-> > > > > there shouldn't be any explicit GFP_NOFS in the code.
-> > > > 
-> > > > So in a perfect world a filesystem calls memalloc_nofs_save/restore and
-> > > > always uses GFP_KERNEL for kmalloc/vmalloc?
+On Wed, Apr 25, 2018 at 05:50:41AM -0400, Chunyu Hu wrote:
+> ----- Original Message -----
+> > From: "Catalin Marinas" <catalin.marinas@arm.com>
+> > On Tue, Apr 24, 2018 at 07:20:57AM -0600, Michal Hocko wrote:
+> > > On Mon 23-04-18 12:17:32, Chunyu Hu wrote:
+> > > [...]
+> > > > So if there is a new flag, it would be the 25th bits.
 > > > 
-> > > Exactly! And in a dream world those memalloc_nofs_save act as a
-> > > documentation of the reclaim recursion documentation ;)
-> > > -- 
-> > > Michal Hocko
-> > > SUSE Labs
+> > > No new flags please. Can you simply store a simple bool into
+> > > fail_page_alloc
+> > > and have save/restore api for that?
 > > 
-> > BTW. should memalloc_nofs_save and memalloc_noio_save be merged into just 
-> > one that prevents both I/O and FS recursion?
+> > For kmemleak, we probably first hit failslab. Something like below may
+> > do the trick:
+> > 
+> > diff --git a/mm/failslab.c b/mm/failslab.c
+> > index 1f2f248e3601..63f13da5cb47 100644
+> > --- a/mm/failslab.c
+> > +++ b/mm/failslab.c
+> > @@ -29,6 +29,9 @@ bool __should_failslab(struct kmem_cache *s, gfp_t
+> > gfpflags)
+> >  	if (failslab.cache_filter && !(s->flags & SLAB_FAILSLAB))
+> >  		return false;
+> >  
+> > +	if (s->flags & SLAB_NOLEAKTRACE)
+> > +		return false;
+> > +
+> >  	return should_fail(&failslab.attr, s->object_size);
+> >  }
 > 
-> Why should FS usage stop IO altogether?
+> This maybe is the easy enough way for skipping fault injection for
+> kmemleak slab object. 
 
-Because the IO may reach loop and loop may redirect it to the same 
-filesystem that is running under memalloc_nofs_save and deadlock.
+This was added to avoid kmemleak tracing itself, so could be used for
+other kmemleak-related cases.
 
-> > memalloc_nofs_save allows submitting bios to I/O stack and the bios 
-> > created under memalloc_nofs_save could be sent to the loop device and the 
-> > loop device calls the filesystem...
+> > Can we get a second should_fail() via should_fail_alloc_page() if a new
+> > slab page is allocated?
 > 
-> Don't those use NOIO context?
+> looking at code path below, what do you mean by getting a second
+> should_fail() via fail_alloc_page?
 
-What do you mean?
+Kmemleak calls kmem_cache_alloc() on a cache with SLAB_LEAKNOTRACE, so the
+first point of failure injection is __should_failslab() which we can
+handle with the slab flag. The slab allocator itself ends up calling
+alloc_pages() to allocate a slab page (and __GFP_NOFAIL is explicitly
+cleared). Here we have the second potential failure injection via
+fail_alloc_page(). That's unless the order < fail_page_alloc.min_order
+which I think is the default case (min_order = 1 while the slab page
+allocation for kmemleak would need an order of 0. It's not ideal but we
+may get away with it.
 
-Mikulas
+> Seems we need to insert the flag between alloc_slab_page and
+> alloc_pages()? Without GFP flag, it's difficult to pass info to
+> should_fail_alloc_page and keep simple at same time. 
+
+Indeed.
+
+> Or as Michal suggested, completely disabling page alloc fail injection
+> when kmemleak enabled. And enable it again when kmemleak off. 
+
+Dmitry's point was that kmemleak is still useful to detect leaks on the
+error path where errors are actually introduced by the fault injection.
+Kmemleak cannot cope with allocation failures as it needs a pretty
+precise tracking of the allocated objects.
+
+An alternative could be to not free the early_log buffer in kmemleak and
+use that memory in an emergency when allocation fails (though I don't
+particularly like this).
+
+Yet another option is to use NOFAIL and remove NORETRY in kmemleak when
+fault injection is enabled.
+
+-- 
+Catalin
