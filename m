@@ -1,120 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EA8EF6B0009
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:53:07 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id e21-v6so15041258otf.23
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:53:07 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E68526B000A
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:55:59 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id j19-v6so12654216oii.11
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:55:59 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o65-v6si5708678oif.426.2018.04.25.07.53.06
+        by mx.google.com with ESMTPS id r36-v6si6641635ote.94.2018.04.25.07.55.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Apr 2018 07:53:06 -0700 (PDT)
-Date: Wed, 25 Apr 2018 17:52:47 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [RFC v2 1/2] virtio: add pmem driver
-Message-ID: <20180425174705-mutt-send-email-mst@kernel.org>
-References: <20180425112415.12327-1-pagupta@redhat.com>
- <20180425112415.12327-2-pagupta@redhat.com>
+        Wed, 25 Apr 2018 07:55:59 -0700 (PDT)
+Date: Wed, 25 Apr 2018 10:55:57 -0400 (EDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+Message-ID: <634642140.22649359.1524668157371.JavaMail.zimbra@redhat.com>
+In-Reply-To: <25f3e433-cfa6-4a62-ba7f-47aef1119dfc@redhat.com>
+References: <20180425112415.12327-1-pagupta@redhat.com> <20180425112415.12327-4-pagupta@redhat.com> <25f3e433-cfa6-4a62-ba7f-47aef1119dfc@redhat.com>
+Subject: Re: [Qemu-devel] [RFC v2] qemu: Add virtio pmem device
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180425112415.12327-2-pagupta@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, jack@suse.cz, stefanha@redhat.com, dan.j.williams@intel.com, riel@surriel.com, haozhong.zhang@intel.com, nilal@redhat.com, kwolf@redhat.com, pbonzini@redhat.com, ross.zwisler@intel.com, david@redhat.com, xiaoguangrong.eric@gmail.com, hch@infradead.org, marcel@redhat.com, niteshnarayanlal@hotmail.com, imammedo@redhat.com, lcapitulino@redhat.com
-
-On Wed, Apr 25, 2018 at 04:54:13PM +0530, Pankaj Gupta wrote:
-> diff --git a/include/uapi/linux/virtio_ids.h b/include/uapi/linux/virtio_ids.h
-> index 6d5c3b2..5ebd049 100644
-> --- a/include/uapi/linux/virtio_ids.h
-> +++ b/include/uapi/linux/virtio_ids.h
-> @@ -43,5 +43,6 @@
->  #define VIRTIO_ID_INPUT        18 /* virtio input */
->  #define VIRTIO_ID_VSOCK        19 /* virtio vsock transport */
->  #define VIRTIO_ID_CRYPTO       20 /* virtio crypto */
-> +#define VIRTIO_ID_PMEM         21 /* virtio pmem */
->  
->  #endif /* _LINUX_VIRTIO_IDS_H */
-
-Please register the device id with virtio TC.
+To: Eric Blake <eblake@redhat.com>
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, kwolf@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, jack@suse.cz, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, riel@surriel.com, niteshnarayanlal@hotmail.com, david@redhat.com, ross zwisler <ross.zwisler@intel.com>, lcapitulino@redhat.com, hch@infradead.org, mst@redhat.com, stefanha@redhat.com, pbonzini@redhat.com, marcel@redhat.com, imammedo@redhat.com, dan j williams <dan.j.williams@intel.com>, nilal@redhat.com
 
 
-> diff --git a/include/uapi/linux/virtio_pmem.h b/include/uapi/linux/virtio_pmem.h
-> new file mode 100644
-> index 0000000..2ec27cb
-> --- /dev/null
-> +++ b/include/uapi/linux/virtio_pmem.h
-> @@ -0,0 +1,58 @@
-> +/* Virtio pmem Driver
-> + *
-> + * Discovers persitent memory range information
-> + * from host and provides a virtio based flushing
-> + * interface.
-> + */
-> +
-> +#ifndef _LINUX_VIRTIO_PMEM_H
-> +#define _LINUX_VIRTIO_PMEM_H
-> +
-> +#include <linux/types.h>
-> +#include <linux/virtio_types.h>
-> +#include <linux/virtio_ids.h>
-> +#include <linux/virtio_config.h>
-> +#include <linux/virtio_ring.h>
-> +
-> +
-> +struct virtio_pmem_config {
-> +
+> 
+> On 04/25/2018 06:24 AM, Pankaj Gupta wrote:
+> > This patch adds virtio-pmem Qemu device.
+> > 
+> > This device presents memory address range
+> > information to guest which is backed by file
+> > backend type. It acts like persistent memory
+> > device for KVM guest. Guest can perform read
+> > and persistent write operations on this memory
+> > range with the help of DAX capable filesystem.
+> > 
+> > Persistent guest writes are assured with the
+> > help of virtio based flushing interface. When
+> > guest userspace space performs fsync on file
+> > fd on pmem device, a flush command is send to
+> > Qemu over VIRTIO and host side flush/sync is
+> > done on backing image file.
+> > 
+> > This PV device code is dependent and tested
+> > with 'David Hildenbrand's ' patchset[1] to
+> > map non-PCDIMM devices to guest address space.
+> 
+> This sentence doesn't belong in git history.  It is better to put
+> information like this...
+> 
+> > There is still upstream discussion on using
+> > among PCI bar vs memory device, will update
+> > as per concensus.
+> 
+> s/concensus/consensus/
+> 
+> > 
+> > [1] https://marc.info/?l=qemu-devel&m=152450249319168&w=2
+> > 
+> > Signed-off-by: Pankaj Gupta <pagupta@redhat.com>
+> > ---
+> 
+> ...here, where it is part of the email, but not picked up by 'git am'.
 
-don't add empty lines pls.
+I see.
 
-> +	uint64_t start;
-> +	uint64_t size;
+Thanks!
+> 
+> 
+> > +++ b/qapi/misc.json
+> > @@ -2871,6 +2871,29 @@
+> >            }
+> >  }
+> >  
+> > +##
+> > +# @VirtioPMemDeviceInfo:
+> > +#
+> > +# VirtioPMem state information
+> > +#
+> > +# @id: device's ID
+> > +#
+> > +# @start: physical address, where device is mapped
+> > +#
+> > +# @size: size of memory that the device provides
+> > +#
+> > +# @memdev: memory backend linked with device
+> > +#
+> > +# Since: 2.13
+> > +##
+> > +{ 'struct': 'VirtioPMemDeviceInfo',
+> > +    'data': { '*id': 'str',
+> > +	      'start': 'size',
+> > +	      'size': 'size',
+> 
+> TAB damage.
 
-Used LE fields for everything.
+o.k
 
-> +};
-> +
-> +struct virtio_pmem {
-> +
-> +	struct virtio_device *vdev;
-> +	struct virtqueue *req_vq;
-> +
-> +	uint64_t start;
-> +	uint64_t size;
-> +} __packed;
-
-This does not belong in uapi, and should not be packed either.
-
-> +
-> +static struct virtio_device_id id_table[] = {
-> +	{ VIRTIO_ID_PMEM, VIRTIO_DEV_ANY_ID },
-> +	{ 0 },
-> +};
-> +
-> +void virtio_pmem_flush(struct device *dev)
-> +{
-> +	struct scatterlist sg;
-> +	struct virtio_device *vdev  = dev_to_virtio(dev->parent->parent);
-> +	struct virtio_pmem   *vpmem = vdev->priv;
-> +	char *buf = "FLUSH";
-> +	int err;
-> +
-> +	sg_init_one(&sg, buf, sizeof(buf));
-> +
-> +	err = virtqueue_add_outbuf(vpmem->req_vq, &sg, 1, buf, GFP_KERNEL);
-> +
-> +	if (err) {
-> +		dev_err(&vdev->dev, "failed to send command to virtio pmem device\n");
-> +		return;
-> +	}
-> +
-> +	virtqueue_kick(vpmem->req_vq);
-> +};
-
-this doesn't belong in uapi.
-
-> +
-> +#endif
-> -- 
-> 2.9.3
+> 
+> > +              'memdev': 'str'
+> > +	    }
+> > +}
+> > +
+> >  ##
+> >  # @MemoryDeviceInfo:
+> >  #
+> > @@ -2880,7 +2903,8 @@
+> >  ##
+> >  { 'union': 'MemoryDeviceInfo',
+> >    'data': { 'dimm': 'PCDIMMDeviceInfo',
+> > -            'nvdimm': 'PCDIMMDeviceInfo'
+> > +            'nvdimm': 'PCDIMMDeviceInfo',
+> > +	    'virtio-pmem': 'VirtioPMemDeviceInfo'
+> >            }
+> >  }
+> >  
+> > 
+> 
+> --
+> Eric Blake, Principal Software Engineer
+> Red Hat, Inc.           +1-919-301-3266
+> Virtualization:  qemu.org | libvirt.org
+> 
+> 
