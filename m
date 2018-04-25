@@ -1,110 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 833076B0007
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 12:44:14 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id m68so9278256pfm.20
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 09:44:14 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a5sor3831426pgc.50.2018.04.25.09.44.13
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D13126B0003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 12:49:29 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id 39so14767704qkx.0
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 09:49:29 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id k3-v6si2853045qtm.373.2018.04.25.09.49.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Apr 2018 09:44:13 -0700 (PDT)
-Subject: Re: [PATCH net-next 1/2] tcp: add TCP_ZEROCOPY_RECEIVE support for
- zerocopy receive
-References: <20180425052722.73022-1-edumazet@google.com>
- <20180425052722.73022-2-edumazet@google.com>
- <20180425062859.GA23914@infradead.org>
- <5cd31eba-63b5-9160-0a2e-f441340df0d3@gmail.com>
- <20180425160413.GC8546@bombadil.infradead.org>
- <CALCETrWaekirEe+rKiPB-Zim6ZHKL-n7nfk9wrsHra_FtrS=DA@mail.gmail.com>
- <155a86d5-a910-c366-f521-216a0582bad8@gmail.com>
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Message-ID: <38aa7986-b367-882d-2669-d8525a520310@gmail.com>
-Date: Wed, 25 Apr 2018 09:44:11 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Apr 2018 09:49:28 -0700 (PDT)
+Date: Wed, 25 Apr 2018 17:48:53 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
+Message-ID: <20180425164845.GA7223@castle>
+References: <20180305133743.12746-1-guro@fb.com>
+ <20180305133743.12746-2-guro@fb.com>
+ <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
+ <20180411135624.GA24260@castle.DHCP.thefacebook.com>
+ <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz>
+ <20180412145702.GB30714@castle.DHCP.thefacebook.com>
+ <CAOaiJ-=JtFWNPqdtf+5uim0-LcPE9zSDZmocAa_6K3yGpW2fCQ@mail.gmail.com>
+ <69b4dcd8-1925-e0e8-d9b4-776f3405b769@codeaurora.org>
+ <20180425125211.GB3410@castle>
+ <db71bf8f-0c76-e304-25c3-d22f1e0d71e5@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <155a86d5-a910-c366-f521-216a0582bad8@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <db71bf8f-0c76-e304-25c3-d22f1e0d71e5@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Matthew Wilcox <willy@infradead.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Eric Dumazet <edumazet@google.com>, "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Soheil Hassas Yeganeh <soheil@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Vijayanand Jitta <vjitta@codeaurora.org>, vinayak menon <vinayakm.list@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
 
+On Wed, Apr 25, 2018 at 05:47:26PM +0200, Vlastimil Babka wrote:
+> On 04/25/2018 02:52 PM, Roman Gushchin wrote:
+> > On Wed, Apr 25, 2018 at 09:19:29AM +0530, Vijayanand Jitta wrote:
+> >>>>>> Idk, I don't like the idea of adding a counter outside of the vm counters
+> >>>>>> infrastructure, and I definitely wouldn't touch the exposed
+> >>>>>> nr_slab_reclaimable and nr_slab_unreclaimable fields.
+> >>>>>
+> >>>>> We would be just making the reported values more precise wrt reality.
+> >>>>
+> >>>> It depends on if we believe that only slab memory can be reclaimable
+> >>>> or not. If yes, this is true, otherwise not.
+> >>>>
+> >>>> My guess is that some drivers (e.g. networking) might have buffers,
+> >>>> which are reclaimable under mempressure, and are allocated using
+> >>>> the page allocator. But I have to look closer...
+> >>>>
+> >>>
+> >>> One such case I have encountered is that of the ION page pool. The page pool
+> >>> registers a shrinker. When not in any memory pressure page pool can go high
+> >>> and thus cause an mmap to fail when OVERCOMMIT_GUESS is set. I can send
+> >>> a patch to account ION page pool pages in NR_INDIRECTLY_RECLAIMABLE_BYTES.
+> 
+> FYI, we have discussed this at LSF/MM and agreed to try the kmalloc
+> reclaimable caches idea. The existing counter could then remain for page
+> allocator users such as ION. It's a bit weird to have it in bytes and
+> not pages then, IMHO. What if we hid it from /proc/vmstat now so it
+> doesn't become ABI, and later convert it to page granularity and expose
+> it under a name such as "nr_other_reclaimable" ?
 
+I've nothing against hiding it from /proc/vmstat, as long as we keep
+the counter in place and the main issue resolved.
 
-On 04/25/2018 09:35 AM, Eric Dumazet wrote:
-> 
-> 
-> On 04/25/2018 09:22 AM, Andy Lutomirski wrote:
-> 
->> In general, I suspect that the zerocopy receive mechanism will only
->> really be a win in single-threaded applications that consume large
->> amounts of receive bandwidth on a single TCP socket using lots of
->> memory and don't do all that much else.
-> 
-> This was dully noted in the original patch submission.
-> 
-> https://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git/commit/?id=309c446cb45f6663932c8e6d0754f4ac81d1b5cd
-> 
-> Our intent at Google is to use it for some specific 1MB+ receives, not as a generic and universal mechanism.
-> 
-> The major benefit is really the 4KB+ MTU, allowing to pack exactly 4096 bytes of payload per page.
-> 
+Maybe it's better to add nr_reclaimable = nr_slab_reclaimable + nr_other_reclaimable,
+which will have a simpler meaning that nr_other_reclaimable (what is other?).
 
-Some perf numbers with 10 concurrent threads in tcp_mmap with zero copy enabled :
-(tcp_mmap uses 512 KB chunks, not 1MB ones)
-
-received 32768 MB (100 % mmap'ed) in 28.3054 s, 9.71116 Gbit
-  cpu usage user:0.039 sys:1.946, 60.5774 usec per MB, 65536 c-switches
-received 32768 MB (100 % mmap'ed) in 28.2504 s, 9.73004 Gbit
-  cpu usage user:0.052 sys:1.941, 60.8215 usec per MB, 65536 c-switches
-received 32768 MB (99.9998 % mmap'ed) in 28.2508 s, 9.72993 Gbit
-  cpu usage user:0.056 sys:1.915, 60.1501 usec per MB, 65539 c-switches
-received 32768 MB (100 % mmap'ed) in 28.2544 s, 9.72866 Gbit
-  cpu usage user:0.053 sys:1.966, 61.615 usec per MB, 65536 c-switches
-received 32768 MB (100 % mmap'ed) in 115.985 s, 2.36995 Gbit
-  cpu usage user:0.057 sys:2.492, 77.7893 usec per MB, 65536 c-switches
-received 32768 MB (100 % mmap'ed) in 62.633 s, 4.38871 Gbit
-  cpu usage user:0.048 sys:2.076, 64.8193 usec per MB, 65536 c-switches
-received 32768 MB (100 % mmap'ed) in 59.4608 s, 4.62285 Gbit
-  cpu usage user:0.047 sys:1.965, 61.4014 usec per MB, 65536 c-switches
-received 32768 MB (100 % mmap'ed) in 119.364 s, 2.30285 Gbit
-  cpu usage user:0.057 sys:2.757, 85.8765 usec per MB, 65536 c-switches
-received 32768 MB (100 % mmap'ed) in 121.37 s, 2.2648 Gbit
-  cpu usage user:0.05 sys:2.224, 69.397 usec per MB, 65536 c-switches
-received 32768 MB (100 % mmap'ed) in 121.382 s, 2.26457 Gbit
-  cpu usage user:0.049 sys:2.163, 67.5049 usec per MB, 65538 c-switches
-received 32768 MB (100 % mmap'ed) in 39.7636 s, 6.91281 Gbit
-  cpu usage user:0.055 sys:2.053, 64.3311 usec per MB, 65536 c-switches
-received 32768 MB (100 % mmap'ed) in 21.2803 s, 12.917 Gbit
-  cpu usage user:0.043 sys:2.057, 64.0869 usec per MB, 65537 c-switches
-
-When zero copy is not enabled :
-
-received 32768 MB (0 % mmap'ed) in 49.4301 s, 5.56094 Gbit
-  cpu usage user:0.036 sys:6.747, 207.001 usec per MB, 65546 c-switches
-received 32768 MB (0 % mmap'ed) in 49.431 s, 5.56084 Gbit
-  cpu usage user:0.042 sys:5.262, 161.865 usec per MB, 65540 c-switches
-received 32768 MB (0 % mmap'ed) in 84.7254 s, 3.24434 Gbit
-  cpu usage user:0.045 sys:5.154, 158.661 usec per MB, 65548 c-switches
-received 32768 MB (0 % mmap'ed) in 84.7274 s, 3.24426 Gbit
-  cpu usage user:0.043 sys:6.528, 200.531 usec per MB, 65542 c-switches
-received 32768 MB (0 % mmap'ed) in 35.3133 s, 7.78398 Gbit
-  cpu usage user:0.032 sys:5.066, 155.579 usec per MB, 65540 c-switches
-received 32768 MB (0 % mmap'ed) in 35.3137 s, 7.78389 Gbit
-  cpu usage user:0.034 sys:6.358, 195.068 usec per MB, 65536 c-switches
-received 32768 MB (0 % mmap'ed) in 98.8568 s, 2.78057 Gbit
-  cpu usage user:0.042 sys:6.519, 200.226 usec per MB, 65550 c-switches
-received 32768 MB (0 % mmap'ed) in 98.8638 s, 2.78037 Gbit
-  cpu usage user:0.042 sys:5.243, 161.285 usec per MB, 65545 c-switches
-received 32768 MB (0 % mmap'ed) in 108.282 s, 2.53853 Gbit
-  cpu usage user:0.059 sys:5.938, 183.014 usec per MB, 65538 c-switches
-received 32768 MB (0 % mmap'ed) in 108.314 s, 2.53778 Gbit
-  cpu usage user:0.04 sys:6.096, 187.256 usec per MB, 65548 c-switches
-received 32768 MB (0 % mmap'ed) in 29.4351 s, 9.33845 Gbit
-  cpu usage user:0.041 sys:6.03, 185.272 usec per MB, 65536 c-switches
-received 32768 MB (0 % mmap'ed) in 44.3993 s, 6.19104 Gbit
-  cpu usage user:0.034 sys:5.115, 157.135 usec per MB, 65535 c-switches
-received 32768 MB (0 % mmap'ed) in 79.7203 s, 3.44803 Gbit
-  cpu usage user:0.046 sys:5.214, 160.522 usec per MB, 65540 c-switches
+Thanks!
