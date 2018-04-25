@@ -1,175 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C06DA6B0029
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 17:43:23 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c4so11129156pfg.22
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 14:43:23 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n64sor5796827pfi.67.2018.04.25.14.43.22
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0460B6B002B
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 18:10:46 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id b192so2547169wmb.1
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 15:10:45 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v79sor65301wmv.89.2018.04.25.15.10.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 25 Apr 2018 14:43:22 -0700 (PDT)
-From: Eric Dumazet <edumazet@google.com>
-Subject: [PATCH v2 net-next 2/2] selftests: net: tcp_mmap must use TCP_ZEROCOPY_RECEIVE
-Date: Wed, 25 Apr 2018 14:43:07 -0700
-Message-Id: <20180425214307.159264-3-edumazet@google.com>
-In-Reply-To: <20180425214307.159264-1-edumazet@google.com>
-References: <20180425214307.159264-1-edumazet@google.com>
+        Wed, 25 Apr 2018 15:10:44 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180326172727.025EBF16@viggo.jf.intel.com>
+References: <20180326172721.D5B2CBB4@viggo.jf.intel.com> <20180326172727.025EBF16@viggo.jf.intel.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 25 Apr 2018 22:10:42 +0000
+Message-ID: <CALvZod5NTauM6MHW7D=h0mTDNYFd-1QyWrOxnhiixCgtHP=Taw@mail.gmail.com>
+Subject: Re: [PATCH 4/9] x86, pkeys: override pkey when moving away from PROT_EXEC
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "David S . Miller" <davem@davemloft.net>
-Cc: netdev <netdev@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Eric Dumazet <edumazet@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, Soheil Hassas Yeganeh <soheil@google.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, stable@kernel.org, linuxram@us.ibm.com, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@intel.com>, mpe@ellerman.id.au, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, shuah@kernel.org
 
-After prior kernel change, mmap() on TCP socket only reserves VMA.
+On Mon, Mar 26, 2018 at 5:27 PM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+>
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>
+> I got a bug report that the following code (roughly) was
+> causing a SIGSEGV:
+>
+>         mprotect(ptr, size, PROT_EXEC);
+>         mprotect(ptr, size, PROT_NONE);
+>         mprotect(ptr, size, PROT_READ);
+>         *ptr = 100;
+>
+> The problem is hit when the mprotect(PROT_EXEC)
+> is implicitly assigned a protection key to the VMA, and made
+> that key ACCESS_DENY|WRITE_DENY.  The PROT_NONE mprotect()
+> failed to remove the protection key, and the PROT_NONE->
+> PROT_READ left the PTE usable, but the pkey still in place
+> and left the memory inaccessible.
+>
+> To fix this, we ensure that we always "override" the pkee
+> at mprotect() if the VMA does not have execute-only
+> permissions, but the VMA has the execute-only pkey.
+>
+> We had a check for PROT_READ/WRITE, but it did not work
+> for PROT_NONE.  This entirely removes the PROT_* checks,
+> which ensures that PROT_NONE now works.
+>
+> Reported-by: Shakeel Butt <shakeelb@google.com>
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Fixes: 62b5f7d013f ("mm/core, x86/mm/pkeys: Add execute-only protection keys support")
 
-We have to use setsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE, ...)
-to perform the transfert of pages from skbs in TCP receive queue into such VMA.
-
-struct tcp_zerocopy_receive {
-	__u64 address;		/* in: address of mapping */
-	__u32 length;		/* in/out: number of bytes to map/mapped */
-	__u32 recv_skip_hint;	/* out: amount of bytes to skip */
-};
-
-After a successful setsockopt(...TCP_ZEROCOPY_RECEIVE...), @length contains
-number of bytes that were mapped, and @recv_skip_hint contains number of bytes
-that should be read using conventional read()/recv()/recvmsg() system calls,
-to skip a sequence of bytes that can not be mapped, because not properly page
-aligned.
-
-Signed-off-by: Eric Dumazet <edumazet@google.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Soheil Hassas Yeganeh <soheil@google.com>
----
- tools/testing/selftests/net/tcp_mmap.c | 63 +++++++++++++++-----------
- 1 file changed, 36 insertions(+), 27 deletions(-)
-
-diff --git a/tools/testing/selftests/net/tcp_mmap.c b/tools/testing/selftests/net/tcp_mmap.c
-index dea342fe6f4e88b5709d2ac37b2fc9a2a320bf44..5b381cdbdd6319556ba4e3dad530fae8f13f5a9b 100644
---- a/tools/testing/selftests/net/tcp_mmap.c
-+++ b/tools/testing/selftests/net/tcp_mmap.c
-@@ -76,9 +76,10 @@
- #include <time.h>
- #include <sys/time.h>
- #include <netinet/in.h>
--#include <netinet/tcp.h>
- #include <arpa/inet.h>
- #include <poll.h>
-+#include <linux/tcp.h>
-+#include <assert.h>
- 
- #ifndef MSG_ZEROCOPY
- #define MSG_ZEROCOPY    0x4000000
-@@ -134,11 +135,12 @@ void hash_zone(void *zone, unsigned int length)
- void *child_thread(void *arg)
- {
- 	unsigned long total_mmap = 0, total = 0;
-+	struct tcp_zerocopy_receive zc;
- 	unsigned long delta_usec;
- 	int flags = MAP_SHARED;
- 	struct timeval t0, t1;
- 	char *buffer = NULL;
--	void *oaddr = NULL;
-+	void *addr = NULL;
- 	double throughput;
- 	struct rusage ru;
- 	int lu, fd;
-@@ -153,41 +155,45 @@ void *child_thread(void *arg)
- 		perror("malloc");
- 		goto error;
- 	}
-+	if (zflg) {
-+		addr = mmap(NULL, chunk_size, PROT_READ, flags, fd, 0);
-+		if (addr == (void *)-1)
-+			zflg = 0;
-+	}
- 	while (1) {
- 		struct pollfd pfd = { .fd = fd, .events = POLLIN, };
- 		int sub;
- 
- 		poll(&pfd, 1, 10000);
- 		if (zflg) {
--			void *naddr;
-+			int res;
- 
--			naddr = mmap(oaddr, chunk_size, PROT_READ, flags, fd, 0);
--			if (naddr == (void *)-1) {
--				if (errno == EAGAIN) {
--					/* That is if SO_RCVLOWAT is buggy */
--					usleep(1000);
--					continue;
--				}
--				if (errno == EINVAL) {
--					flags = MAP_SHARED;
--					oaddr = NULL;
--					goto fallback;
--				}
--				if (errno != EIO)
--					perror("mmap()");
-+			zc.address = (__u64)addr;
-+			zc.length = chunk_size;
-+			zc.recv_skip_hint = 0;
-+			res = setsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE,
-+					 &zc, sizeof(zc));
-+			if (res == -1)
- 				break;
-+
-+			if (zc.length) {
-+				assert(zc.length <= chunk_size);
-+				total_mmap += zc.length;
-+				if (xflg)
-+					hash_zone(addr, zc.length);
-+				total += zc.length;
- 			}
--			total_mmap += chunk_size;
--			if (xflg)
--				hash_zone(naddr, chunk_size);
--			total += chunk_size;
--			if (!keepflag) {
--				flags |= MAP_FIXED;
--				oaddr = naddr;
-+			if (zc.recv_skip_hint) {
-+				assert(zc.recv_skip_hint <= chunk_size);
-+				lu = read(fd, buffer, zc.recv_skip_hint);
-+				if (lu > 0) {
-+					if (xflg)
-+						hash_zone(buffer, lu);
-+					total += lu;
-+				}
- 			}
- 			continue;
- 		}
--fallback:
- 		sub = 0;
- 		while (sub < chunk_size) {
- 			lu = read(fd, buffer + sub, chunk_size - sub);
-@@ -228,6 +234,8 @@ void *child_thread(void *arg)
- error:
- 	free(buffer);
- 	close(fd);
-+	if (zflg)
-+		munmap(addr, chunk_size);
- 	pthread_exit(0);
- }
- 
-@@ -371,7 +379,8 @@ int main(int argc, char *argv[])
- 		setup_sockaddr(cfg_family, host, &listenaddr);
- 
- 		if (mss &&
--		    setsockopt(fdlisten, SOL_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
-+		    setsockopt(fdlisten, IPPROTO_TCP, TCP_MAXSEG,
-+			       &mss, sizeof(mss)) == -1) {
- 			perror("setsockopt TCP_MAXSEG");
- 			exit(1);
- 		}
-@@ -402,7 +411,7 @@ int main(int argc, char *argv[])
- 	setup_sockaddr(cfg_family, host, &addr);
- 
- 	if (mss &&
--	    setsockopt(fd, SOL_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
-+	    setsockopt(fd, IPPROTO_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
- 		perror("setsockopt TCP_MAXSEG");
- 		exit(1);
- 	}
--- 
-2.17.0.441.gb46fe60e1d-goog
+Hi Dave, are you planning to send the next version of this patch or
+going with this one?
