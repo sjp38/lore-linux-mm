@@ -1,137 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F3E2C6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 15:58:02 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id b13so11495696pgw.1
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 12:58:02 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m68sor4879511pfm.130.2018.04.25.12.58.01
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D16A56B0003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 16:02:07 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id l8-v6so15989043qtb.11
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 13:02:07 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id s6si4768103qkc.12.2018.04.25.13.02.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Apr 2018 12:58:01 -0700 (PDT)
-Date: Wed, 25 Apr 2018 12:57:59 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: OOM killer invoked while still one forth of mem is available
-In-Reply-To: <df1a8c14-bda3-6271-d403-24b88a254b2c@c-s.fr>
-Message-ID: <alpine.DEB.2.21.1804251253240.151692@chino.kir.corp.google.com>
-References: <df1a8c14-bda3-6271-d403-24b88a254b2c@c-s.fr>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Apr 2018 13:02:06 -0700 (PDT)
+Date: Wed, 25 Apr 2018 16:02:00 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: [PATCH] fault-injection: reorder config entries
+In-Reply-To: <20180424173836.GR17484@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1804251601160.30569@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20180421144757.GC14610@bombadil.infradead.org> <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com> <20180423151545.GU17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424125121.GA17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804241142340.15660@file01.intranet.prod.int.rdu2.redhat.com> <20180424162906.GM17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804241250350.28995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424170349.GQ17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com> <20180424173836.GR17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: christophe leroy <christophe.leroy@c-s.fr>
-Cc: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, 24 Apr 2018, christophe leroy wrote:
+This patch reorders Kconfig entries, so that menuconfig displays proper 
+indentation.
 
-> Hi
-> 
-> Allthough there is still about one forth of memory available (7976kB
-> among 32MB), oom-killer is invoked and makes a victim.
-> 
-> What could be the reason and how could it be solved ?
-> 
-> [   54.400754] S99watchdogd-ap invoked oom-killer:
-> gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), nodemask=0,
-> order=1, oom_score_adj=0
-> [   54.400815] CPU: 0 PID: 777 Comm: S99watchdogd-ap Not tainted
-> 4.9.85-local-knld-998 #5
-> [   54.400830] Call Trace:
-> [   54.400910] [c1ca5d10] [c0327d28] dump_header.isra.4+0x54/0x17c
-> (unreliable)
-> [   54.400998] [c1ca5d50] [c0079d88] oom_kill_process+0xc4/0x414
-> [   54.401067] [c1ca5d90] [c007a5c8] out_of_memory+0x35c/0x37c
-> [   54.401220] [c1ca5dc0] [c007d68c] __alloc_pages_nodemask+0x8ec/0x9a8
-> [   54.401318] [c1ca5e70] [c00169d4] copy_process.isra.9.part.10+0xdc/0x10d0
-> [   54.401398] [c1ca5f00] [c0017b30] _do_fork+0xcc/0x2a8
-> [   54.401473] [c1ca5f40] [c000a660] ret_from_syscall+0x0/0x38
+Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
 
-Looks like this is because the allocation is order-1, likely the 
-allocation of a struct task_struct for a new process on fork.
+---
+ lib/Kconfig.debug |   36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)
 
-I'm interested in your platform, though, with 512KB and 8MB hugepages.  
-Could you send the .config and also describe the system a bit more?  How 
-many cpus are there and does this always happen?
-
-> [   54.401501] Mem-Info:
-> [   54.401616] active_anon:2727 inactive_anon:91 isolated_anon:0
-> [   54.401616]  active_file:51 inactive_file:26 isolated_file:0
-> [   54.401616]  unevictable:604 dirty:0 writeback:0 unstable:0
-> [   54.401616]  slab_reclaimable:115 slab_unreclaimable:722
-> [   54.401616]  mapped:787 shmem:284 pagetables:167 bounce:0
-> [   54.401616]  free:1994 free_pcp:0 free_cma:0
-> [   54.401715] Node 0 active_anon:10908kB inactive_anon:364kB
-> active_file:204kB inactive_file:104kB unevictable:2416kB
-> isolated(anon):0kB isolated(file):0kB mapped:3148kB dirty:0kB
-> writeback:0kB shmem:1136kB writeback_tmp:0kB unstable:0kB
-> pages_scanned:59 all_unreclaimable? no
-> [   54.401851] DMA free:7976kB min:660kB low:824kB high:988kB
-> active_anon:10908kB inactive_anon:364kB active_file:204kB
-> inactive_file:104kB unevictable:2416kB writepending:0kB present:32768kB
-> managed:27912kB mlocked:2416kB slab_reclaimable:460kB
-> slab_unreclaimable:2888kB kernel_stack:880kB pagetables:668kB bounce:0kB
-> free_pcp:0kB local_pcp:0kB free_cma:0kB
-> lowmem_reserve[]: 0 0 0
-> [   54.437414] DMA: 460*4kB (UH) 201*8kB (UH) 121*16kB (UH) 43*32kB (UH)
-> 10*64kB (U) 4*128kB (UH) 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB
-> 0*8192kB = 7912kB
-> [   54.437730] Node 0 hugepages_total=0 hugepages_free=0
-> hugepages_surp=0 hugepages_size=512kB
-> [   54.437768] Node 0 hugepages_total=0 hugepages_free=0
-> hugepages_surp=0 hugepages_size=8192kB
-> [   54.437784] 892 total pagecache pages
-> [   54.437802] 8192 pages RAM
-> [   54.437818] 0 pages HighMem/MovableOnly
-> [   54.437834] 1214 pages reserved
-> [   54.437854] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds
-> swapents oom_score_adj name
-> [   54.437928] [  216]     0   216     1240      253       6       0
->    0             0 rcS
-> [   54.437986] [  356]     0   356     4687      333       7       0
->    0             0 rsyslogd
-> [   54.438042] [  360]     0   360     1240      245       5       0
->    0             0 klogd
-> [   54.438099] [  370]     0   370      701      607       5       0
->    0         -1000 watchdog
-> [   54.438156] [  384]     0   384     1114      440       5       0
->    0             0 ntpd
-> [   54.438213] [  401]     0   401     1279      419       6       0
->    0             0 inetd
-> [   54.438270] [  413]     0   413     1240      330       6       0
->    0             0 crond
-> [   54.438328] [  587]     0   587     3334      586       7       0
->    0             0 CORSurv
-> [   54.438384] [  614]     0   614      484      232       5       0
->    0             0 ASMcsci
-> [   54.438441] [  662]     0   662    18777      625      13       0
->    0             0 VOIPcsc
-> [   54.438499] [  708]     0   708    18402     1166      22       0
->    0             0 RCUSwitch
-> [   54.447253] [  739]     0   739    12958     1275      17       0
->    0             0 CRI_main
-> [   54.447320] [  756]     0   756     1240      380       6       0
->    0             0 exe
-> [   54.447379] [  757]     0   757     1240      369       6       0
->    0             0 S99watchdogd-ap
-> [   54.447436] [  777]     0   777     1240      210       5       0
->    0             0 S99watchdogd-ap
-> [   54.447493] [  782]     0   782      793      425       5       0
->    0             0 socat
-> [   54.447550] [  784]     0   784      754      420       5       0
->    0             0 socat
-> [   54.447607] [  791]     0   791      793      426       5       0
->    0             0 socat
-> [   54.447663] [  792]     0   792      754      420       5       0
->    0             0 socat
-> [   54.447720] [  799]     0   799      793      426       5       0
->    0             0 socat
-> [   54.447777] [  800]     0   800      754      420       5       0
->    0             0 socat
-> [   54.447833] [  807]     0   807      793      425       5       0
->    0             0 socat
-> [   54.447890] [  808]     0   808      754      421       5       0
->    0             0 socat
-> [   54.447927] Out of memory: Kill process 739 (CRI_main) score 180 or
-> sacrifice child
-> [   54.528280] Killed process 739 (CRI_main) total-vm:51832kB,
-> anon-rss:3140kB, file-rss:1592kB, shmem-rss:236kB
+Index: linux-2.6/lib/Kconfig.debug
+===================================================================
+--- linux-2.6.orig/lib/Kconfig.debug	2018-04-16 21:08:36.000000000 +0200
++++ linux-2.6/lib/Kconfig.debug	2018-04-25 15:56:16.000000000 +0200
+@@ -1503,6 +1503,10 @@ config NETDEV_NOTIFIER_ERROR_INJECT
+ 
+ 	  If unsure, say N.
+ 
++config FUNCTION_ERROR_INJECTION
++	def_bool y
++	depends on HAVE_FUNCTION_ERROR_INJECTION && KPROBES
++
+ config FAULT_INJECTION
+ 	bool "Fault-injection framework"
+ 	depends on DEBUG_KERNEL
+@@ -1510,10 +1514,6 @@ config FAULT_INJECTION
+ 	  Provide fault-injection framework.
+ 	  For more details, see Documentation/fault-injection/.
+ 
+-config FUNCTION_ERROR_INJECTION
+-	def_bool y
+-	depends on HAVE_FUNCTION_ERROR_INJECTION && KPROBES
+-
+ config FAILSLAB
+ 	bool "Fault-injection capability for kmalloc"
+ 	depends on FAULT_INJECTION
+@@ -1544,16 +1544,6 @@ config FAIL_IO_TIMEOUT
+ 	  Only works with drivers that use the generic timeout handling,
+ 	  for others it wont do anything.
+ 
+-config FAIL_MMC_REQUEST
+-	bool "Fault-injection capability for MMC IO"
+-	depends on FAULT_INJECTION_DEBUG_FS && MMC
+-	help
+-	  Provide fault-injection capability for MMC IO.
+-	  This will make the mmc core return data errors. This is
+-	  useful to test the error handling in the mmc block device
+-	  and to test how the mmc host driver handles retries from
+-	  the block device.
+-
+ config FAIL_FUTEX
+ 	bool "Fault-injection capability for futexes"
+ 	select DEBUG_FS
+@@ -1561,6 +1551,12 @@ config FAIL_FUTEX
+ 	help
+ 	  Provide fault-injection capability for futexes.
+ 
++config FAULT_INJECTION_DEBUG_FS
++	bool "Debugfs entries for fault-injection capabilities"
++	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
++	help
++	  Enable configuration of fault-injection capabilities via debugfs.
++
+ config FAIL_FUNCTION
+ 	bool "Fault-injection capability for functions"
+ 	depends on FAULT_INJECTION_DEBUG_FS && FUNCTION_ERROR_INJECTION
+@@ -1571,11 +1567,15 @@ config FAIL_FUNCTION
+ 	  an error value and have to handle it. This is useful to test the
+ 	  error handling in various subsystems.
+ 
+-config FAULT_INJECTION_DEBUG_FS
+-	bool "Debugfs entries for fault-injection capabilities"
+-	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
++config FAIL_MMC_REQUEST
++	bool "Fault-injection capability for MMC IO"
++	depends on FAULT_INJECTION_DEBUG_FS && MMC
+ 	help
+-	  Enable configuration of fault-injection capabilities via debugfs.
++	  Provide fault-injection capability for MMC IO.
++	  This will make the mmc core return data errors. This is
++	  useful to test the error handling in the mmc block device
++	  and to test how the mmc host driver handles retries from
++	  the block device.
+ 
+ config FAULT_INJECTION_STACKTRACE_FILTER
+ 	bool "stacktrace filter for fault-injection capabilities"
