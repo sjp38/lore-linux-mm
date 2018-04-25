@@ -1,107 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C95D6B000C
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 17:04:56 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id o68so1610897qke.3
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 14:04:56 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u123si309036qkb.241.2018.04.25.14.04.54
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 79BC36B000E
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 17:11:15 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id k3so16642650pff.23
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 14:11:15 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id e125si16020385pfe.244.2018.04.25.14.11.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Apr 2018 14:04:55 -0700 (PDT)
-Date: Wed, 25 Apr 2018 17:04:49 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH RESEND] slab: introduce the flag SLAB_MINIMIZE_WASTE
-In-Reply-To: <alpine.DEB.2.20.1804180952580.1334@nuc-kabylake>
-Message-ID: <alpine.LRH.2.02.1804251702250.9428@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
- <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz> <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com>
- <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com> <alpine.LRH.2.02.1804161530360.19492@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804170940340.17557@nuc-kabylake>
- <alpine.LRH.2.02.1804171454020.26973@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804180952580.1334@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 25 Apr 2018 14:11:14 -0700 (PDT)
+Subject: Re: [PATCH v5] fault-injection: introduce kvmalloc fallback options
+References: <20180421144757.GC14610@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180423151545.GU17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424125121.GA17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804241142340.15660@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424162906.GM17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804241250350.28995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424170349.GQ17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424173836.GR17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804251556060.30569@file01.intranet.prod.int.rdu2.redhat.com>
+ <1114eda5-9b1f-4db8-2090-556b4a37c532@infradead.org>
+ <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <a11d5714-1d71-0be0-94f7-aa928b96d05f@infradead.org>
+Date: Wed, 25 Apr 2018 14:11:06 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Mike Snitzer <snitzer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
 
-
-
-On Wed, 18 Apr 2018, Christopher Lameter wrote:
-
-> On Tue, 17 Apr 2018, Mikulas Patocka wrote:
+On 04/25/2018 01:57 PM, Mikulas Patocka wrote:
 > 
-> > I can make a slub-only patch with no extra flag (on a freshly booted
-> > system it increases only the order of caches "TCPv6" and "sighand_cache"
-> > by one - so it should not have unexpected effects):
-> >
-> > Doing a generic solution for slab would be more comlpicated because slab
-> > assumes that all slabs have the same order, so it can't fall-back to
-> > lower-order allocations.
 > 
-> Well again SLAB uses compound pages and thus would be able to detect the
-> size of the page. It may be some work but it could be done.
+> On Wed, 25 Apr 2018, Randy Dunlap wrote:
 > 
-> >
-> > Index: linux-2.6/mm/slub.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/slub.c	2018-04-17 19:59:49.000000000 +0200
-> > +++ linux-2.6/mm/slub.c	2018-04-17 20:58:23.000000000 +0200
-> > @@ -3252,6 +3252,7 @@ static inline unsigned int slab_order(un
-> >  static inline int calculate_order(unsigned int size, unsigned int reserved)
-> >  {
-> >  	unsigned int order;
-> > +	unsigned int test_order;
-> >  	unsigned int min_objects;
-> >  	unsigned int max_objects;
-> >
-> > @@ -3277,7 +3278,7 @@ static inline int calculate_order(unsign
-> >  			order = slab_order(size, min_objects,
-> >  					slub_max_order, fraction, reserved);
-> >  			if (order <= slub_max_order)
-> > -				return order;
-> > +				goto ret_order;
-> >  			fraction /= 2;
-> >  		}
-> >  		min_objects--;
-> > @@ -3289,15 +3290,25 @@ static inline int calculate_order(unsign
-> >  	 */
-> >  	order = slab_order(size, 1, slub_max_order, 1, reserved);
+>> On 04/25/2018 01:02 PM, Mikulas Patocka wrote:
+>>>
+>>>
+>>> From: Mikulas Patocka <mpatocka@redhat.com>
+>>> Subject: [PATCH v4] fault-injection: introduce kvmalloc fallback options
+>>>
+>>> This patch introduces a fault-injection option "kvmalloc_fallback". This
+>>> option makes kvmalloc randomly fall back to vmalloc.
+>>>
+>>> Unfortunatelly, some kernel code has bugs - it uses kvmalloc and then
+>>
+>>   Unfortunately,
 > 
-> The slab order is determined in slab_order()
+> OK - here I fixed the typos:
 > 
-> >  	if (order <= slub_max_order)
-> > -		return order;
-> > +		goto ret_order;
-> >
-> >  	/*
-> >  	 * Doh this slab cannot be placed using slub_max_order.
-> >  	 */
-> >  	order = slab_order(size, 1, MAX_ORDER, 1, reserved);
-> > -	if (order < MAX_ORDER)
-> > -		return order;
-> > -	return -ENOSYS;
-> > +	if (order >= MAX_ORDER)
-> > +		return -ENOSYS;
-> > +
-> > +ret_order:
-> > +	for (test_order = order + 1; test_order < MAX_ORDER; test_order++) {
-> > +		unsigned long order_objects = ((PAGE_SIZE << order) - reserved) / size;
-> > +		unsigned long test_order_objects = ((PAGE_SIZE << test_order) - reserved) / size;
-> > +		if (test_order_objects > min(32, MAX_OBJS_PER_PAGE))
-> > +			break;
-> > +		if (test_order_objects > order_objects << (test_order - order))
-> > +			order = test_order;
-> > +	}
-> > +	return order;
 > 
-> Could yo move that logic into slab_order()? It does something awfully
-> similar.
+> From: Mikulas Patocka <mpatocka@redhat.com>
+> Subject: [PATCH] fault-injection: introduce kvmalloc fallback options
+> 
+> This patch introduces a fault-injection option "kvmalloc_fallback". This
+> option makes kvmalloc randomly fall back to vmalloc.
+> 
+> Unfortunately, some kernel code has bugs - it uses kvmalloc and then
+> uses DMA-API on the returned memory or frees it with kfree. Such bugs were
+> found in the virtio-net driver, dm-integrity or RHEL7 powerpc-specific
+> code. This options helps to test for these bugs.
+> 
+> The patch introduces a config option FAIL_KVMALLOC_FALLBACK_PROBABILITY.
+> It can be enabled in distribution debug kernels, so that kvmalloc abuse
+> can be tested by the users. The default can be overridden with
+> "kvmalloc_fallback" parameter or in /sys/kernel/debug/kvmalloc_fallback/.
+> 
+> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+> 
+> ---
+>  Documentation/fault-injection/fault-injection.txt |    7 +++++
+>  include/linux/fault-inject.h                      |    9 +++---
+>  kernel/futex.c                                    |    2 -
+>  lib/Kconfig.debug                                 |   15 +++++++++++
+>  mm/failslab.c                                     |    2 -
+>  mm/page_alloc.c                                   |    2 -
+>  mm/util.c                                         |   30 ++++++++++++++++++++++
+>  7 files changed, 60 insertions(+), 7 deletions(-)
 
-But slab_order (and its caller) limits the order to "max_order" and we 
-want more.
+Acked-by: Randy Dunlap <rdunlap@infradead.org> # Documentation and Kconfig only
 
-Perhaps slab_order should be dropped and calculate_order totally 
-rewritten?
-
-Mikulas
+thanks.
+-- 
+~Randy
