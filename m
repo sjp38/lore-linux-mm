@@ -1,51 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 66B616B0007
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:43:54 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id m24-v6so12198356otd.21
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:43:54 -0700 (PDT)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 75BD86B0007
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:45:40 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id x1-v6so14434369itb.8
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:45:40 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i1-v6sor1794762oiy.225.2018.04.25.07.43.53
+        by mx.google.com with SMTPS id j81-v6sor7963746ioj.150.2018.04.25.07.45.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 25 Apr 2018 07:43:53 -0700 (PDT)
+        Wed, 25 Apr 2018 07:45:38 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4hvrB08XPTbVK0xT2_1Xmaid=-v3OMxJVDTNwQucsOHLA@mail.gmail.com>
-References: <20180425112415.12327-1-pagupta@redhat.com> <20180425112415.12327-2-pagupta@redhat.com>
- <CAPcyv4hvrB08XPTbVK0xT2_1Xmaid=-v3OMxJVDTNwQucsOHLA@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 25 Apr 2018 07:43:52 -0700
-Message-ID: <CAPcyv4hiowWozV527sQA_e4fdgCYbD6xfG==vepAqu0hxQEQcw@mail.gmail.com>
-Subject: Re: [RFC v2 1/2] virtio: add pmem driver
+In-Reply-To: <20180419093306.rn5bz264nxsn7d7c@node.shutemov.name>
+References: <cover.1524077494.git.andreyknvl@google.com> <20180419093306.rn5bz264nxsn7d7c@node.shutemov.name>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 25 Apr 2018 16:45:37 +0200
+Message-ID: <CAAeHK+yb-U3h0666i3u3fF3=8XVcZUo1nxZ5CnOd9oUiDFP=Ng@mail.gmail.com>
+Subject: Re: [PATCH 0/6] arm64: untag user pointers passed to the kernel
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Rik van Riel <riel@surriel.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, "Zwisler, Ross" <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>, Christoph Hellwig <hch@infradead.org>, Marcel Apfelbaum <marcel@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, niteshnarayanlal@hotmail.com, Igor Mammedov <imammedo@redhat.com>, lcapitulino@redhat.com, jmoyer <jmoyer@redhat.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>
 
-[ adding Jeff directly since he has also been looking at
-infrastructure to track when MAP_SYNC should be disabled ]
-
-On Wed, Apr 25, 2018 at 7:21 AM, Dan Williams <dan.j.williams@intel.com> wrote:
-> On Wed, Apr 25, 2018 at 4:24 AM, Pankaj Gupta <pagupta@redhat.com> wrote:
->> This patch adds virtio-pmem driver for KVM
->> guest.
->
-> Minor nit, please expand your changelog line wrapping to 72 columns.
->
+On Thu, Apr 19, 2018 at 11:33 AM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> On Wed, Apr 18, 2018 at 08:53:09PM +0200, Andrey Konovalov wrote:
+>> Hi!
 >>
->> Guest reads the persistent memory range
->> information from Qemu over VIRTIO and registers
->> it on nvdimm_bus. It also creates a nd_region
->> object with the persistent memory range
->> information so that existing 'nvdimm/pmem'
->> driver can reserve this into system memory map.
->> This way 'virtio-pmem' driver uses existing
->> functionality of pmem driver to register persistent
->> memory compatible for DAX capable filesystems.
+>> arm64 has a feature called Top Byte Ignore, which allows to embed pointer
+>> tags into the top byte of each pointer. Userspace programs (such as
+>> HWASan, a memory debugging tool [1]) might use this feature and pass
+>> tagged user pointers to the kernel through syscalls or other interfaces.
+>>
+>> This patch makes a few of the kernel interfaces accept tagged user
+>> pointers. The kernel is already able to handle user faults with tagged
+>> pointers and has the untagged_addr macro, which this patchset reuses.
+>>
+>> We're not trying to cover all possible ways the kernel accepts user
+>> pointers in one patchset, so this one should be considered as a start.
 >
-> We need some additional enabling to disable MAP_SYNC for this
-> configuration. In other words, if fsync() is required then we must
-> disable the MAP_SYNC optimization. I think this should be a struct
-> dax_device property looked up at mmap time in each MAP_SYNC capable
-> ->mmap() file operation implementation.
+> How many changes do you anticipate?
+>
+> This patchset looks small and reasonable, but I see a potential to become a
+> boilerplate. Would we need to change every driver which implements ioctl()
+> to strip these bits?
+
+I've replied to somewhat similar question in one of the previous
+versions of the patchset.
+
+"""
+There are two different approaches to untagging the user pointers that I see:
+
+1. Untag user pointers right after they are passed to the kernel.
+
+While this might be possible for pointers that are passed to syscalls
+as arguments (Catalin's "hack"), this leaves user pointers, that are
+embedded into for example structs that are passed to the kernel. Since
+there's no specification of the interface between user space and the
+kernel, different kernel parts handle user pointers differently and I
+don't see an easy way to cover them all.
+
+2. Untag user pointers where they are used in the kernel.
+
+Although there's no specification on the interface between the user
+space and the kernel, the kernel still has to use one of a few
+specific ways to access user data (copy_from_user, etc.). So the idea
+here is to add untagging into them. This patchset mostly takes this
+approach (with the exception of memory subsystem syscalls).
+
+If there's a better approach, I'm open to suggestions.
+"""
+
+So if we go with the first way, we'll need to go through every syscall
+and ioctl handler, which doesn't seem feasible.
