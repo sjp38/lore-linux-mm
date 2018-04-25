@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D9FC6B000D
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 01:16:35 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j18so14855176pfn.17
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 22:16:35 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F37F36B000E
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 01:16:37 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id o9so10051128pgv.8
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 22:16:37 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n12si11668244pgr.437.2018.04.24.22.16.33
+        by mx.google.com with ESMTPS id a100-v6si2056887pli.588.2018.04.24.22.16.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 24 Apr 2018 22:16:34 -0700 (PDT)
+        Tue, 24 Apr 2018 22:16:36 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 07/13] arch: remove the ARCH_PHYS_ADDR_T_64BIT config symbol
-Date: Wed, 25 Apr 2018 07:15:33 +0200
-Message-Id: <20180425051539.1989-8-hch@lst.de>
+Subject: [PATCH 08/13] arch: define the ARCH_DMA_ADDR_T_64BIT config symbol in lib/Kconfig
+Date: Wed, 25 Apr 2018 07:15:34 +0200
+Message-Id: <20180425051539.1989-9-hch@lst.de>
 In-Reply-To: <20180425051539.1989-1-hch@lst.de>
 References: <20180425051539.1989-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,247 +20,287 @@ List-ID: <linux-mm.kvack.org>
 To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org
 Cc: sstabellini@kernel.org, x86@kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-Instead select the PHYS_ADDR_T_64BIT for 32-bit architectures that need a
-64-bit phys_addr_t type directly.
+Define this symbol if the architecture either uses 64-bit pointers or the
+PHYS_ADDR_T_64BIT is set.  This covers 95% of the old arch magic.  We only
+need an additional select for Xen on ARM (why anyway?), and we now always
+set ARCH_DMA_ADDR_T_64BIT on mips boards with 64-bit physical addressing
+instead of only doing it when highmem is set.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/arc/Kconfig                       |  4 +---
- arch/arm/kernel/setup.c                |  2 +-
- arch/arm/mm/Kconfig                    |  4 +---
- arch/arm64/Kconfig                     |  3 ---
- arch/mips/Kconfig                      | 15 ++++++---------
- arch/powerpc/Kconfig                   |  5 +----
- arch/powerpc/platforms/Kconfig.cputype |  1 +
- arch/riscv/Kconfig                     |  6 ++----
- arch/x86/Kconfig                       |  5 +----
- mm/Kconfig                             |  2 +-
- 10 files changed, 15 insertions(+), 32 deletions(-)
+ arch/alpha/Kconfig             | 3 ---
+ arch/arc/Kconfig               | 3 ---
+ arch/arm/mach-axxia/Kconfig    | 1 -
+ arch/arm/mach-bcm/Kconfig      | 1 -
+ arch/arm/mach-exynos/Kconfig   | 1 -
+ arch/arm/mach-highbank/Kconfig | 1 -
+ arch/arm/mach-rockchip/Kconfig | 1 -
+ arch/arm/mach-shmobile/Kconfig | 1 -
+ arch/arm/mach-tegra/Kconfig    | 1 -
+ arch/arm/mm/Kconfig            | 3 ---
+ arch/arm64/Kconfig             | 3 ---
+ arch/ia64/Kconfig              | 3 ---
+ arch/mips/Kconfig              | 3 ---
+ arch/powerpc/Kconfig           | 3 ---
+ arch/riscv/Kconfig             | 3 ---
+ arch/s390/Kconfig              | 3 ---
+ arch/sparc/Kconfig             | 4 ----
+ arch/x86/Kconfig               | 4 ----
+ lib/Kconfig                    | 3 +++
+ 19 files changed, 3 insertions(+), 42 deletions(-)
 
+diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
+index 1fd9645b0c67..aa7df1a36fd0 100644
+--- a/arch/alpha/Kconfig
++++ b/arch/alpha/Kconfig
+@@ -66,9 +66,6 @@ config ZONE_DMA
+ 	bool
+ 	default y
+ 
+-config ARCH_DMA_ADDR_T_64BIT
+-	def_bool y
+-
+ config GENERIC_ISA_DMA
+ 	bool
+ 	default y
 diff --git a/arch/arc/Kconfig b/arch/arc/Kconfig
-index d76bf4a83740..f94c61da682a 100644
+index f94c61da682a..7498aca4b887 100644
 --- a/arch/arc/Kconfig
 +++ b/arch/arc/Kconfig
-@@ -453,13 +453,11 @@ config ARC_HAS_PAE40
- 	default n
- 	depends on ISA_ARCV2
- 	select HIGHMEM
-+	select PHYS_ADDR_T_64BIT
- 	help
+@@ -458,9 +458,6 @@ config ARC_HAS_PAE40
  	  Enable access to physical memory beyond 4G, only supported on
  	  ARC cores with 40 bit Physical Addressing support
  
--config ARCH_PHYS_ADDR_T_64BIT
--	def_bool ARC_HAS_PAE40
+-config ARCH_DMA_ADDR_T_64BIT
+-	bool
 -
- config ARCH_DMA_ADDR_T_64BIT
- 	bool
- 
-diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
-index fc40a2b40595..35ca494c028c 100644
---- a/arch/arm/kernel/setup.c
-+++ b/arch/arm/kernel/setup.c
-@@ -754,7 +754,7 @@ int __init arm_add_memory(u64 start, u64 size)
- 	else
- 		size -= aligned_start - start;
- 
--#ifndef CONFIG_ARCH_PHYS_ADDR_T_64BIT
-+#ifndef CONFIG_PHYS_ADDR_T_64BIT
- 	if (aligned_start > ULONG_MAX) {
- 		pr_crit("Ignoring memory at 0x%08llx outside 32-bit physical address space\n",
- 			(long long)start);
+ config ARC_KVADDR_SIZE
+ 	int "Kernel Virtual Address Space size (MB)"
+ 	range 0 512
+diff --git a/arch/arm/mach-axxia/Kconfig b/arch/arm/mach-axxia/Kconfig
+index bb2ce1c63fd9..d3eae6037913 100644
+--- a/arch/arm/mach-axxia/Kconfig
++++ b/arch/arm/mach-axxia/Kconfig
+@@ -2,7 +2,6 @@
+ config ARCH_AXXIA
+ 	bool "LSI Axxia platforms"
+ 	depends on ARCH_MULTI_V7 && ARM_LPAE
+-	select ARCH_DMA_ADDR_T_64BIT
+ 	select ARM_AMBA
+ 	select ARM_GIC
+ 	select ARM_TIMER_SP804
+diff --git a/arch/arm/mach-bcm/Kconfig b/arch/arm/mach-bcm/Kconfig
+index c2f3b0d216a4..c46a728df44e 100644
+--- a/arch/arm/mach-bcm/Kconfig
++++ b/arch/arm/mach-bcm/Kconfig
+@@ -211,7 +211,6 @@ config ARCH_BRCMSTB
+ 	select BRCMSTB_L2_IRQ
+ 	select BCM7120_L2_IRQ
+ 	select ARCH_HAS_HOLES_MEMORYMODEL
+-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
+ 	select ZONE_DMA if ARM_LPAE
+ 	select SOC_BRCMSTB
+ 	select SOC_BUS
+diff --git a/arch/arm/mach-exynos/Kconfig b/arch/arm/mach-exynos/Kconfig
+index 647c319f9f5f..2ca405816846 100644
+--- a/arch/arm/mach-exynos/Kconfig
++++ b/arch/arm/mach-exynos/Kconfig
+@@ -112,7 +112,6 @@ config SOC_EXYNOS5440
+ 	bool "SAMSUNG EXYNOS5440"
+ 	default y
+ 	depends on ARCH_EXYNOS5
+-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
+ 	select HAVE_ARM_ARCH_TIMER
+ 	select AUTO_ZRELADDR
+ 	select PINCTRL_EXYNOS5440
+diff --git a/arch/arm/mach-highbank/Kconfig b/arch/arm/mach-highbank/Kconfig
+index 81110ec34226..5552968f07f8 100644
+--- a/arch/arm/mach-highbank/Kconfig
++++ b/arch/arm/mach-highbank/Kconfig
+@@ -1,7 +1,6 @@
+ config ARCH_HIGHBANK
+ 	bool "Calxeda ECX-1000/2000 (Highbank/Midway)"
+ 	depends on ARCH_MULTI_V7
+-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
+ 	select ARCH_HAS_HOLES_MEMORYMODEL
+ 	select ARCH_SUPPORTS_BIG_ENDIAN
+ 	select ARM_AMBA
+diff --git a/arch/arm/mach-rockchip/Kconfig b/arch/arm/mach-rockchip/Kconfig
+index a4065966881a..fafd3d7f9f8c 100644
+--- a/arch/arm/mach-rockchip/Kconfig
++++ b/arch/arm/mach-rockchip/Kconfig
+@@ -3,7 +3,6 @@ config ARCH_ROCKCHIP
+ 	depends on ARCH_MULTI_V7
+ 	select PINCTRL
+ 	select PINCTRL_ROCKCHIP
+-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
+ 	select ARCH_HAS_RESET_CONTROLLER
+ 	select ARM_AMBA
+ 	select ARM_GIC
+diff --git a/arch/arm/mach-shmobile/Kconfig b/arch/arm/mach-shmobile/Kconfig
+index 280e7312a9e1..fe60cd09a5ca 100644
+--- a/arch/arm/mach-shmobile/Kconfig
++++ b/arch/arm/mach-shmobile/Kconfig
+@@ -29,7 +29,6 @@ config ARCH_RMOBILE
+ menuconfig ARCH_RENESAS
+ 	bool "Renesas ARM SoCs"
+ 	depends on ARCH_MULTI_V7 && MMU
+-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
+ 	select ARCH_SHMOBILE
+ 	select ARM_GIC
+ 	select GPIOLIB
+diff --git a/arch/arm/mach-tegra/Kconfig b/arch/arm/mach-tegra/Kconfig
+index 1e0aeb47bac6..7f3b83e0d324 100644
+--- a/arch/arm/mach-tegra/Kconfig
++++ b/arch/arm/mach-tegra/Kconfig
+@@ -15,6 +15,5 @@ menuconfig ARCH_TEGRA
+ 	select RESET_CONTROLLER
+ 	select SOC_BUS
+ 	select ZONE_DMA if ARM_LPAE
+-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
+ 	help
+ 	  This enables support for NVIDIA Tegra based systems.
 diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
-index 7f14acf67caf..2f77c6344ef1 100644
+index 2f77c6344ef1..5a016bc80e26 100644
 --- a/arch/arm/mm/Kconfig
 +++ b/arch/arm/mm/Kconfig
-@@ -661,6 +661,7 @@ config ARM_LPAE
- 	bool "Support for the Large Physical Address Extension"
- 	depends on MMU && CPU_32v7 && !CPU_32v6 && !CPU_32v5 && \
- 		!CPU_32v4 && !CPU_32v3
-+	select PHYS_ADDR_T_64BIT
- 	help
- 	  Say Y if you have an ARMv7 processor supporting the LPAE page
- 	  table format and you would like to access memory beyond the
-@@ -673,9 +674,6 @@ config ARM_PV_FIXUP
+@@ -674,9 +674,6 @@ config ARM_PV_FIXUP
  	def_bool y
  	depends on ARM_LPAE && ARM_PATCH_PHYS_VIRT && ARCH_KEYSTONE
  
--config ARCH_PHYS_ADDR_T_64BIT
--	def_bool ARM_LPAE
+-config ARCH_DMA_ADDR_T_64BIT
+-	bool
 -
- config ARCH_DMA_ADDR_T_64BIT
- 	bool
- 
+ config ARM_THUMB
+ 	bool "Support Thumb user binaries" if !CPU_THUMBONLY && EXPERT
+ 	depends on CPU_THUMB_CAPABLE
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 940adfb9a2bc..b6aa33e642cc 100644
+index b6aa33e642cc..4d924eb32e7f 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -152,9 +152,6 @@ config ARM64
- config 64BIT
+@@ -236,9 +236,6 @@ config ZONE_DMA32
+ config HAVE_GENERIC_GUP
  	def_bool y
  
--config ARCH_PHYS_ADDR_T_64BIT
+-config ARCH_DMA_ADDR_T_64BIT
 -	def_bool y
 -
- config MMU
+ config SMP
  	def_bool y
  
-diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
-index 47d72c64d687..985388078872 100644
---- a/arch/mips/Kconfig
-+++ b/arch/mips/Kconfig
-@@ -132,7 +132,7 @@ config MIPS_GENERIC
- 
- config MIPS_ALCHEMY
- 	bool "Alchemy processor based machines"
--	select ARCH_PHYS_ADDR_T_64BIT
-+	select PHYS_ADDR_T_64BIT
- 	select CEVT_R4K
- 	select CSRC_R4K
- 	select IRQ_MIPS_CPU
-@@ -890,7 +890,7 @@ config CAVIUM_OCTEON_SOC
- 	bool "Cavium Networks Octeon SoC based boards"
- 	select CEVT_R4K
- 	select ARCH_HAS_PHYS_TO_DMA
--	select ARCH_PHYS_ADDR_T_64BIT
-+	select PHYS_ADDR_T_64BIT
- 	select DMA_COHERENT
- 	select SYS_SUPPORTS_64BIT_KERNEL
- 	select SYS_SUPPORTS_BIG_ENDIAN
-@@ -936,7 +936,7 @@ config NLM_XLR_BOARD
- 	select SWAP_IO_SPACE
- 	select SYS_SUPPORTS_32BIT_KERNEL
- 	select SYS_SUPPORTS_64BIT_KERNEL
--	select ARCH_PHYS_ADDR_T_64BIT
-+	select PHYS_ADDR_T_64BIT
- 	select SYS_SUPPORTS_BIG_ENDIAN
- 	select SYS_SUPPORTS_HIGHMEM
- 	select DMA_COHERENT
-@@ -962,7 +962,7 @@ config NLM_XLP_BOARD
- 	select HW_HAS_PCI
- 	select SYS_SUPPORTS_32BIT_KERNEL
- 	select SYS_SUPPORTS_64BIT_KERNEL
--	select ARCH_PHYS_ADDR_T_64BIT
-+	select PHYS_ADDR_T_64BIT
- 	select GPIOLIB
- 	select SYS_SUPPORTS_BIG_ENDIAN
- 	select SYS_SUPPORTS_LITTLE_ENDIAN
-@@ -1102,7 +1102,7 @@ config FW_CFE
+diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
+index 0e42731adaf1..685d557eea48 100644
+--- a/arch/ia64/Kconfig
++++ b/arch/ia64/Kconfig
+@@ -80,9 +80,6 @@ config MMU
  	bool
- 
- config ARCH_DMA_ADDR_T_64BIT
--	def_bool (HIGHMEM && ARCH_PHYS_ADDR_T_64BIT) || 64BIT
-+	def_bool (HIGHMEM && PHYS_ADDR_T_64BIT) || 64BIT
- 
- config ARCH_SUPPORTS_UPROBES
- 	bool
-@@ -1767,7 +1767,7 @@ config CPU_MIPS32_R5_XPA
- 	depends on SYS_SUPPORTS_HIGHMEM
- 	select XPA
- 	select HIGHMEM
--	select ARCH_PHYS_ADDR_T_64BIT
-+	select PHYS_ADDR_T_64BIT
- 	default n
- 	help
- 	  Choose this option if you want to enable the Extended Physical
-@@ -2399,9 +2399,6 @@ config SB1_PASS_2_1_WORKAROUNDS
  	default y
  
- 
--config ARCH_PHYS_ADDR_T_64BIT
--       bool
+-config ARCH_DMA_ADDR_T_64BIT
+-	def_bool y
 -
- choice
- 	prompt "SmartMIPS or microMIPS ASE support"
+ config SWIOTLB
+        bool
+ 
+diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
+index 985388078872..e10cc5c7be69 100644
+--- a/arch/mips/Kconfig
++++ b/arch/mips/Kconfig
+@@ -1101,9 +1101,6 @@ config GPIO_TXX9
+ config FW_CFE
+ 	bool
+ 
+-config ARCH_DMA_ADDR_T_64BIT
+-	def_bool (HIGHMEM && PHYS_ADDR_T_64BIT) || 64BIT
+-
+ config ARCH_SUPPORTS_UPROBES
+ 	bool
  
 diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index cc9a616d8934..b3d091d65e05 100644
+index b3d091d65e05..a4b2ac7c3d2e 100644
 --- a/arch/powerpc/Kconfig
 +++ b/arch/powerpc/Kconfig
-@@ -13,11 +13,8 @@ config 64BIT
+@@ -13,9 +13,6 @@ config 64BIT
  	bool
  	default y if PPC64
  
--config ARCH_PHYS_ADDR_T_64BIT
--       def_bool PPC64 || PHYS_64BIT
+-config ARCH_DMA_ADDR_T_64BIT
+-	def_bool PHYS_ADDR_T_64BIT
 -
- config ARCH_DMA_ADDR_T_64BIT
--	def_bool ARCH_PHYS_ADDR_T_64BIT
-+	def_bool PHYS_ADDR_T_64BIT
- 
  config MMU
- 	bool
-diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
-index 67d3125d0610..84b58abc08ee 100644
---- a/arch/powerpc/platforms/Kconfig.cputype
-+++ b/arch/powerpc/platforms/Kconfig.cputype
-@@ -222,6 +222,7 @@ config PTE_64BIT
- config PHYS_64BIT
- 	bool 'Large physical address support' if E500 || PPC_86xx
- 	depends on (44x || E500 || PPC_86xx) && !PPC_83xx && !PPC_82xx
-+	select PHYS_ADDR_T_64BIT
- 	---help---
- 	  This option enables kernel support for larger than 32-bit physical
- 	  addresses.  This feature may not be available on all cores.
-diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
-index 23d8acca5c90..f52f86f43a4b 100644
---- a/arch/riscv/Kconfig
-+++ b/arch/riscv/Kconfig
-@@ -5,6 +5,8 @@
- 
- config RISCV
- 	def_bool y
-+	# even on 32-bit, physical (and DMA) addresses are > 32-bits
-+	select PHYS_ADDR_T_64BIT
- 	select OF
- 	select OF_EARLY_FLATTREE
- 	select OF_IRQ
-@@ -38,10 +40,6 @@ config RISCV
- config MMU
- 	def_bool y
- 
--# even on 32-bit, physical (and DMA) addresses are > 32-bits
--config ARCH_PHYS_ADDR_T_64BIT
--	def_bool y
--
- config ZONE_DMA32
  	bool
  	default y
+diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
+index f52f86f43a4b..17212ba54ee3 100644
+--- a/arch/riscv/Kconfig
++++ b/arch/riscv/Kconfig
+@@ -44,9 +44,6 @@ config ZONE_DMA32
+ 	bool
+ 	default y
+ 
+-config ARCH_DMA_ADDR_T_64BIT
+-	def_bool y
+-
+ config PAGE_OFFSET
+ 	hex
+ 	default 0xC0000000 if 32BIT && MAXPHYSMEM_2GB
+diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
+index 89a007672f70..b794a2ab6d15 100644
+--- a/arch/s390/Kconfig
++++ b/arch/s390/Kconfig
+@@ -35,9 +35,6 @@ config GENERIC_BUG
+ config GENERIC_BUG_RELATIVE_POINTERS
+ 	def_bool y
+ 
+-config ARCH_DMA_ADDR_T_64BIT
+-	def_bool y
+-
+ config GENERIC_LOCKBREAK
+ 	def_bool y if SMP && PREEMPT
+ 
+diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
+index be770b511ddd..c1cfc17eb504 100644
+--- a/arch/sparc/Kconfig
++++ b/arch/sparc/Kconfig
+@@ -105,10 +105,6 @@ config ARCH_ATU
+ 	bool
+ 	default y if SPARC64
+ 
+-config ARCH_DMA_ADDR_T_64BIT
+-	bool
+-	default y if ARCH_ATU
+-
+ config STACKTRACE_SUPPORT
+ 	bool
+ 	default y if SPARC64
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index a98a9b14fda2..8fccdaf02bb0 100644
+index 8fccdaf02bb0..07b031f99eb1 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -1448,6 +1448,7 @@ config HIGHMEM
- config X86_PAE
- 	bool "PAE (Physical Address Extension) Support"
- 	depends on X86_32 && !HIGHMEM4G
-+	select PHYS_ADDR_T_64BIT
- 	select SWIOTLB
- 	---help---
- 	  PAE is required for NX support, and furthermore enables
-@@ -1475,10 +1476,6 @@ config X86_5LEVEL
+@@ -1476,10 +1476,6 @@ config X86_5LEVEL
  
  	  Say N if unsure.
  
--config ARCH_PHYS_ADDR_T_64BIT
+-config ARCH_DMA_ADDR_T_64BIT
 -	def_bool y
--	depends on X86_64 || X86_PAE
+-	depends on X86_64 || HIGHMEM64G
 -
- config ARCH_DMA_ADDR_T_64BIT
+ config X86_DIRECT_GBPAGES
  	def_bool y
- 	depends on X86_64 || HIGHMEM64G
-diff --git a/mm/Kconfig b/mm/Kconfig
-index d5004d82a1d6..a3f0005ac212 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -266,7 +266,7 @@ config ARCH_ENABLE_THP_MIGRATION
+ 	depends on X86_64 && !DEBUG_PAGEALLOC
+diff --git a/lib/Kconfig b/lib/Kconfig
+index ce9fa962d59b..1f12faf03819 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -435,6 +435,9 @@ config NEED_SG_DMA_LENGTH
+ config NEED_DMA_MAP_STATE
  	bool
  
- config PHYS_ADDR_T_64BIT
--	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
-+	def_bool 64BIT
++config ARCH_DMA_ADDR_T_64BIT
++	def_bool 64BIT || PHYS_ADDR_T_64BIT
++
+ config IOMMU_HELPER
+ 	bool
  
- config BOUNCE
- 	bool "Enable bounce buffers"
 -- 
 2.17.0
