@@ -1,87 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 830ED6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 00:41:32 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id x205so3774227pgx.19
-        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 21:41:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x22-v6sor5816023pln.60.2018.04.24.21.41.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6666B0003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 00:47:54 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q15so14831363pff.15
+        for <linux-mm@kvack.org>; Tue, 24 Apr 2018 21:47:54 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f7si12421512pgs.556.2018.04.24.21.47.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 24 Apr 2018 21:41:30 -0700 (PDT)
-Date: Wed, 25 Apr 2018 10:13:26 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH v2] mm: huge_memory: Change return type to vm_fault_t
-Message-ID: <20180425044326.GA21504@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 24 Apr 2018 21:47:53 -0700 (PDT)
+Date: Tue, 24 Apr 2018 21:47:52 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [RFC] Scale slub page allocations with memory size
+Message-ID: <20180425044752.GB15974@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, zi.yan@cs.rutgers.edu, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, ross.zwisler@linux.intel.com, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, shli@fb.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Christopher Lameter <cl@linux.com>
 
-Use new return type vm_fault_t for fault handler. For
-now, this is just documenting that the function returns
-a VM_FAULT value rather than an errno. Once all instances
-are converted, vm_fault_t will become a distinct type.
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Commit 1c8f422059ae ("mm: change return type to vm_fault_t")
+With larger memory sizes, it's more important to avoid external
+fragmentation than reduce memory usage.
+    
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
----
-v2: Updated the change log
-
- include/linux/huge_mm.h | 5 +++--
- mm/huge_memory.c        | 4 ++--
- 2 files changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index a8a1262..d3bbf6b 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -3,6 +3,7 @@
- #define _LINUX_HUGE_MM_H
+diff --git a/mm/internal.h b/mm/internal.h
+index 62d8c34e63d5..fe0e60b8db11 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -167,6 +167,7 @@ extern void prep_compound_page(struct page *page, unsigned int order);
+ extern void post_alloc_hook(struct page *page, unsigned int order,
+ 					gfp_t gfp_flags);
+ extern int user_min_free_kbytes;
++extern unsigned long __meminitdata nr_kernel_pages;
  
- #include <linux/sched/coredump.h>
-+#include <linux/mm_types.h>
+ extern void set_zone_contiguous(struct zone *zone);
+ extern void clear_zone_contiguous(struct zone *zone);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 905db9d7962f..7db8945bc915 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -265,7 +265,7 @@ int min_free_kbytes = 1024;
+ int user_min_free_kbytes = -1;
+ int watermark_scale_factor = 10;
  
- #include <linux/fs.h> /* only for vma_is_dax() */
+-static unsigned long nr_kernel_pages __meminitdata;
++unsigned long nr_kernel_pages __meminitdata;
+ static unsigned long nr_all_pages __meminitdata;
+ static unsigned long dma_reserve __meminitdata;
  
-@@ -46,9 +47,9 @@ extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
- extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			unsigned long addr, pgprot_t newprot,
- 			int prot_numa);
--int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-+vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 			pmd_t *pmd, pfn_t pfn, bool write);
--int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-+vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
- 			pud_t *pud, pfn_t pfn, bool write);
- enum transparent_hugepage_flag {
- 	TRANSPARENT_HUGEPAGE_FLAG,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 87ab9b8..1fe4705 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -755,7 +755,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 	spin_unlock(ptl);
- }
+diff --git a/mm/slub.c b/mm/slub.c
+index 44aa7847324a..61a423e38dcf 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3195,7 +3195,7 @@ EXPORT_SYMBOL(kmem_cache_alloc_bulk);
+  * and increases the number of allocations possible without having to
+  * take the list_lock.
+  */
+-static unsigned int slub_min_order;
++static unsigned int slub_min_order = ~0U;
+ static unsigned int slub_max_order = PAGE_ALLOC_COSTLY_ORDER;
+ static unsigned int slub_min_objects;
  
--int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-+vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 			pmd_t *pmd, pfn_t pfn, bool write)
- {
- 	pgprot_t pgprot = vma->vm_page_prot;
-@@ -815,7 +815,7 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
- 	spin_unlock(ptl);
- }
+@@ -4221,6 +4221,23 @@ void __init kmem_cache_init(void)
  
--int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-+vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
- 			pud_t *pud, pfn_t pfn, bool write)
- {
- 	pgprot_t pgprot = vma->vm_page_prot;
--- 
-1.9.1
+ 	if (debug_guardpage_minorder())
+ 		slub_max_order = 0;
++	if (slub_min_order == ~0) {
++		unsigned long numpages = nr_kernel_pages;
++
++		/*
++		 * Above a million pages, we start to care more about
++		 * fragmentation than about using the minimum amount of
++		 * memory.  Scale the slub page size at half the rate of
++		 * the memory size; at 4GB we double the page size to 8k,
++		 * 16GB to 16k, 64GB to 32k, 256GB to 64k.
++		 */
++		do {
++			slub_min_order++;
++			if (slub_min_order == slub_max_order)
++				break;
++			numpages /= 4;
++		} while (numpages > (1UL << 20));
++	}
+ 
+ 	kmem_cache_node = &boot_kmem_cache_node;
+ 	kmem_cache = &boot_kmem_cache;
