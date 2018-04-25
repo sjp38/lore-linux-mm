@@ -1,235 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B3C516B025E
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 19:24:26 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id p190so12251673qkc.17
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 16:24:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id z40-v6si1051041qtj.365.2018.04.25.16.24.24
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 981496B025F
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 19:46:51 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id j186so17427532qkd.14
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 16:46:51 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id p10si1849505qvc.285.2018.04.25.16.46.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Apr 2018 16:24:24 -0700 (PDT)
-Date: Wed, 25 Apr 2018 19:24:22 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH RESEND] slab: introduce the flag SLAB_MINIMIZE_WASTE
-In-Reply-To: <alpine.LRH.2.02.1804251702250.9428@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <alpine.LRH.2.02.1804251917460.2429@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211024220.2175@nuc-kabylake> <alpine.LRH.2.02.1803211153320.16017@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake>
- <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz> <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com>
- <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com> <alpine.LRH.2.02.1804161530360.19492@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804170940340.17557@nuc-kabylake>
- <alpine.LRH.2.02.1804171454020.26973@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804180952580.1334@nuc-kabylake> <alpine.LRH.2.02.1804251702250.9428@file01.intranet.prod.int.rdu2.redhat.com>
+        Wed, 25 Apr 2018 16:46:49 -0700 (PDT)
+Date: Wed, 25 Apr 2018 16:46:22 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH] iomap: add a swapfile activation function
+Message-ID: <20180425234622.GC1661@magnolia>
+References: <20180418025023.GM24738@magnolia>
+ <20180424173539.GB25233@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180424173539.GB25233@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Mike Snitzer <snitzer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: xfs <linux-xfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
 
+On Tue, Apr 24, 2018 at 10:35:39AM -0700, Christoph Hellwig wrote:
+> This looks much better than using bmap, but I still think that
+> having the swap code build its own ineffecient extents maps is
+> a horible idea..
 
+The iomaps that are fed to the actor function are limited in length by
+the underlying filesystem's extent records, so if we allocate a single
+16GB physical extent, xfs creates two 2^20 block extent records and calls
+the actor on both extents.  add_swap_extent merges those into a single
+internal extent record behind the scenes to satisfy its own requirements
+and reduce memory usage.  The current separation of duties means that
+the mm code doesn't care about what the fs does internally and the fs
+doesn't know or care about what the mm does with the information
+afterwards.
 
-On Wed, 25 Apr 2018, Mikulas Patocka wrote:
+Hey memory management developers, what do you all think of this?
+Nobody I cornered at LSF pointed out any problems.
+
+(I mean, we /could/ just treat the swapfile as an unbreakable rdma/dax
+style lease, but ugh...)
+
+--D
 
 > 
-> 
-> On Wed, 18 Apr 2018, Christopher Lameter wrote:
-> 
-> > On Tue, 17 Apr 2018, Mikulas Patocka wrote:
+> On Tue, Apr 17, 2018 at 07:50:23PM -0700, Darrick J. Wong wrote:
+> > From: Darrick J. Wong <darrick.wong@oracle.com>
 > > 
-> > > I can make a slub-only patch with no extra flag (on a freshly booted
-> > > system it increases only the order of caches "TCPv6" and "sighand_cache"
-> > > by one - so it should not have unexpected effects):
-> > >
-> > > Doing a generic solution for slab would be more comlpicated because slab
-> > > assumes that all slabs have the same order, so it can't fall-back to
-> > > lower-order allocations.
+> > Add a new iomap_swapfile_activate function so that filesystems can
+> > activate swap files without having to use the obsolete and slow bmap
+> > function.
 > > 
-> > Well again SLAB uses compound pages and thus would be able to detect the
-> > size of the page. It may be some work but it could be done.
+> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > ---
+> >  fs/iomap.c            |   99 +++++++++++++++++++++++++++++++++++++++++++++++++
+> >  fs/xfs/xfs_aops.c     |   12 ++++++
+> >  include/linux/iomap.h |    7 +++
+> >  3 files changed, 118 insertions(+)
 > > 
-> > >
-> > > Index: linux-2.6/mm/slub.c
-> > > ===================================================================
-> > > --- linux-2.6.orig/mm/slub.c	2018-04-17 19:59:49.000000000 +0200
-> > > +++ linux-2.6/mm/slub.c	2018-04-17 20:58:23.000000000 +0200
-> > > @@ -3252,6 +3252,7 @@ static inline unsigned int slab_order(un
-> > >  static inline int calculate_order(unsigned int size, unsigned int reserved)
-> > >  {
-> > >  	unsigned int order;
-> > > +	unsigned int test_order;
-> > >  	unsigned int min_objects;
-> > >  	unsigned int max_objects;
-> > >
-> > > @@ -3277,7 +3278,7 @@ static inline int calculate_order(unsign
-> > >  			order = slab_order(size, min_objects,
-> > >  					slub_max_order, fraction, reserved);
-> > >  			if (order <= slub_max_order)
-> > > -				return order;
-> > > +				goto ret_order;
-> > >  			fraction /= 2;
-> > >  		}
-> > >  		min_objects--;
-> > > @@ -3289,15 +3290,25 @@ static inline int calculate_order(unsign
-> > >  	 */
-> > >  	order = slab_order(size, 1, slub_max_order, 1, reserved);
-> > 
-> > The slab order is determined in slab_order()
-> > 
-> > >  	if (order <= slub_max_order)
-> > > -		return order;
-> > > +		goto ret_order;
-> > >
-> > >  	/*
-> > >  	 * Doh this slab cannot be placed using slub_max_order.
-> > >  	 */
-> > >  	order = slab_order(size, 1, MAX_ORDER, 1, reserved);
-> > > -	if (order < MAX_ORDER)
-> > > -		return order;
-> > > -	return -ENOSYS;
-> > > +	if (order >= MAX_ORDER)
-> > > +		return -ENOSYS;
-> > > +
-> > > +ret_order:
-> > > +	for (test_order = order + 1; test_order < MAX_ORDER; test_order++) {
-> > > +		unsigned long order_objects = ((PAGE_SIZE << order) - reserved) / size;
-> > > +		unsigned long test_order_objects = ((PAGE_SIZE << test_order) - reserved) / size;
-> > > +		if (test_order_objects > min(32, MAX_OBJS_PER_PAGE))
-> > > +			break;
-> > > +		if (test_order_objects > order_objects << (test_order - order))
-> > > +			order = test_order;
-> > > +	}
-> > > +	return order;
-> > 
-> > Could yo move that logic into slab_order()? It does something awfully
-> > similar.
-> 
-> But slab_order (and its caller) limits the order to "max_order" and we 
-> want more.
-> 
-> Perhaps slab_order should be dropped and calculate_order totally 
-> rewritten?
-> 
-> Mikulas
-
-Do you want this? It deletes slab_order and replaces it with the 
-"minimize_waste" logic directly.
-
-The patch starts with a minimal order for a given size and increases the 
-order if one of these conditions is met:
-* we is below slub_min_order
-* we are below min_objects and slub_max_order
-* we go above slub_max_order only if it minimizes waste and if we don't 
-  increase the object count above 32
-
-It simplifies the code and it is very similar to the old algorithms, most 
-slab caches have the same order, so it shouldn't cause any regressions.
-
-This patch changes order of these slabs:
-TCPv6: 3 -> 4
-sighand_cache: 3 -> 4
-task_struct: 3 -> 4
-
----
- mm/slub.c |   76 +++++++++++++++++++++-----------------------------------------
- 1 file changed, 26 insertions(+), 50 deletions(-)
-
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2018-04-26 00:07:30.000000000 +0200
-+++ linux-2.6/mm/slub.c	2018-04-26 00:21:37.000000000 +0200
-@@ -3224,34 +3224,10 @@ static unsigned int slub_min_objects;
-  * requested a higher mininum order then we start with that one instead of
-  * the smallest order which will fit the object.
-  */
--static inline unsigned int slab_order(unsigned int size,
--		unsigned int min_objects, unsigned int max_order,
--		unsigned int fract_leftover, unsigned int reserved)
--{
--	unsigned int min_order = slub_min_order;
--	unsigned int order;
--
--	if (order_objects(min_order, size, reserved) > MAX_OBJS_PER_PAGE)
--		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
--
--	for (order = max(min_order, (unsigned int)get_order(min_objects * size + reserved));
--			order <= max_order; order++) {
--
--		unsigned int slab_size = (unsigned int)PAGE_SIZE << order;
--		unsigned int rem;
--
--		rem = (slab_size - reserved) % size;
--
--		if (rem <= slab_size / fract_leftover)
--			break;
--	}
--
--	return order;
--}
--
- static inline int calculate_order(unsigned int size, unsigned int reserved)
- {
- 	unsigned int order;
-+	unsigned int test_order;
- 	unsigned int min_objects;
- 	unsigned int max_objects;
- 
-@@ -3269,35 +3245,35 @@ static inline int calculate_order(unsign
- 	max_objects = order_objects(slub_max_order, size, reserved);
- 	min_objects = min(min_objects, max_objects);
- 
--	while (min_objects > 1) {
--		unsigned int fraction;
-+	/* Get the minimum acceptable order for one object */
-+	order = get_order(size + reserved);
-+
-+	for (test_order = order + 1; test_order < MAX_ORDER; test_order++) {
-+		unsigned order_obj = order_objects(order, size, reserved);
-+		unsigned test_order_obj = order_objects(test_order, size, reserved);
-+
-+		/* If there are too many objects, stop searching */
-+		if (test_order_obj > MAX_OBJS_PER_PAGE)
-+			break;
- 
--		fraction = 16;
--		while (fraction >= 4) {
--			order = slab_order(size, min_objects,
--					slub_max_order, fraction, reserved);
--			if (order <= slub_max_order)
--				return order;
--			fraction /= 2;
--		}
--		min_objects--;
-+		/* Always increase up to slub_min_order */
-+		if (test_order <= slub_min_order)
-+			order = test_order;
-+
-+		/* If we are below min_objects and slub_max_order, increase order */
-+		if (order_obj < min_objects && test_order <= slub_max_order)
-+			order = test_order;
-+
-+		/* Increase order even more, but only if it reduces waste */
-+		if (test_order_obj <= 32 &&
-+		    test_order_obj > order_obj << (test_order - order))
-+			order = test_order;
- 	}
- 
--	/*
--	 * We were unable to place multiple objects in a slab. Now
--	 * lets see if we can place a single object there.
--	 */
--	order = slab_order(size, 1, slub_max_order, 1, reserved);
--	if (order <= slub_max_order)
--		return order;
-+	if (order >= MAX_ORDER)
-+		return -ENOSYS;
- 
--	/*
--	 * Doh this slab cannot be placed using slub_max_order.
--	 */
--	order = slab_order(size, 1, MAX_ORDER, 1, reserved);
--	if (order < MAX_ORDER)
--		return order;
--	return -ENOSYS;
-+	return order;
- }
- 
- static void
+> > diff --git a/fs/iomap.c b/fs/iomap.c
+> > index afd1635..ace921b 100644
+> > --- a/fs/iomap.c
+> > +++ b/fs/iomap.c
+> > @@ -1089,3 +1089,102 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
+> >  	return ret;
+> >  }
+> >  EXPORT_SYMBOL_GPL(iomap_dio_rw);
+> > +
+> > +/* Swapfile activation */
+> > +
+> > +struct iomap_swapfile_info {
+> > +	struct swap_info_struct *sis;
+> > +	uint64_t lowest_ppage;		/* lowest physical addr seen (pages) */
+> > +	uint64_t highest_ppage;		/* highest physical addr seen (pages) */
+> > +	unsigned long expected_page_no;	/* next logical offset wanted (pages) */
+> > +	int nr_extents;			/* extent count */
+> > +};
+> > +
+> > +static loff_t iomap_swapfile_activate_actor(struct inode *inode, loff_t pos,
+> > +		loff_t count, void *data, struct iomap *iomap)
+> > +{
+> > +	struct iomap_swapfile_info *isi = data;
+> > +	unsigned long page_no = iomap->offset >> PAGE_SHIFT;
+> > +	unsigned long nr_pages = iomap->length >> PAGE_SHIFT;
+> > +	uint64_t first_ppage = iomap->addr >> PAGE_SHIFT;
+> > +	uint64_t last_ppage = ((iomap->addr + iomap->length) >> PAGE_SHIFT) - 1;
+> > +
+> > +	/* Only one bdev per swap file. */
+> > +	if (iomap->bdev != isi->sis->bdev)
+> > +		goto err;
+> > +
+> > +	/* Must be aligned to a page boundary. */
+> > +	if ((iomap->offset & ~PAGE_MASK) || (iomap->addr & ~PAGE_MASK) ||
+> > +	    (iomap->length & ~PAGE_MASK))
+> > +		goto err;
+> > +
+> > +	/* Only real or unwritten extents. */
+> > +	if (iomap->type != IOMAP_MAPPED && iomap->type != IOMAP_UNWRITTEN)
+> > +		goto err;
+> > +
+> > +	/* No sparse files. */
+> > +	if (isi->expected_page_no != page_no)
+> > +		goto err;
+> > +
+> > +	/* No uncommitted metadata or shared blocks or inline data. */
+> > +	if (iomap->flags & (IOMAP_F_DIRTY | IOMAP_F_SHARED |
+> > +			    IOMAP_F_DATA_INLINE))
+> > +		goto err;
+> > +
+> > +	/*
+> > +	 * Calculate how much swap space we're adding; the first page contains
+> > +	 * the swap header and doesn't count.
+> > +	 */
+> > +	if (page_no == 0)
+> > +		first_ppage++;
+> > +	if (isi->lowest_ppage > first_ppage)
+> > +		isi->lowest_ppage = first_ppage;
+> > +	if (isi->highest_ppage < last_ppage)
+> > +		isi->highest_ppage = last_ppage;
+> > +
+> > +	/* Add extent, set up for the next call. */
+> > +	isi->nr_extents += add_swap_extent(isi->sis, page_no, nr_pages,
+> > +			first_ppage);
+> > +	isi->expected_page_no = page_no + nr_pages;
+> > +
+> > +	return count;
+> > +err:
+> > +	pr_err("swapon: swapfile has holes\n");
+> > +	return -EINVAL;
+> > +}
+> > +
+> > +int iomap_swapfile_activate(struct swap_info_struct *sis,
+> > +		struct file *swap_file, sector_t *pagespan,
+> > +		const struct iomap_ops *ops)
+> > +{
+> > +	struct iomap_swapfile_info isi = {
+> > +		.sis = sis,
+> > +		.lowest_ppage = (sector_t)-1ULL,
+> > +	};
+> > +	struct address_space *mapping = swap_file->f_mapping;
+> > +	struct inode *inode = mapping->host;
+> > +	loff_t pos = 0;
+> > +	loff_t len = i_size_read(inode);
+> > +	loff_t ret;
+> > +
+> > +	ret = filemap_write_and_wait(inode->i_mapping);
+> > +	if (ret)
+> > +		return ret;
+> > +
+> > +	while (len > 0) {
+> > +		ret = iomap_apply(inode, pos, len, IOMAP_REPORT,
+> > +				ops, &isi, iomap_swapfile_activate_actor);
+> > +		if (ret <= 0)
+> > +			return ret;
+> > +
+> > +		pos += ret;
+> > +		len -= ret;
+> > +	}
+> > +
+> > +	*pagespan = 1 + isi.highest_ppage - isi.lowest_ppage;
+> > +	sis->max = isi.expected_page_no;
+> > +	sis->pages = isi.expected_page_no - 1;
+> > +	sis->highest_bit = isi.expected_page_no - 1;
+> > +	return isi.nr_extents;
+> > +}
+> > +EXPORT_SYMBOL_GPL(iomap_swapfile_activate);
+> > diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> > index 0ab824f..80de476 100644
+> > --- a/fs/xfs/xfs_aops.c
+> > +++ b/fs/xfs/xfs_aops.c
+> > @@ -1475,6 +1475,16 @@ xfs_vm_set_page_dirty(
+> >  	return newly_dirty;
+> >  }
+> >  
+> > +static int
+> > +xfs_iomap_swapfile_activate(
+> > +	struct swap_info_struct		*sis,
+> > +	struct file			*swap_file,
+> > +	sector_t			*span)
+> > +{
+> > +	sis->bdev = xfs_find_bdev_for_inode(file_inode(swap_file));
+> > +	return iomap_swapfile_activate(sis, swap_file, span, &xfs_iomap_ops);
+> > +}
+> > +
+> >  const struct address_space_operations xfs_address_space_operations = {
+> >  	.readpage		= xfs_vm_readpage,
+> >  	.readpages		= xfs_vm_readpages,
+> > @@ -1488,6 +1498,7 @@ const struct address_space_operations xfs_address_space_operations = {
+> >  	.migratepage		= buffer_migrate_page,
+> >  	.is_partially_uptodate  = block_is_partially_uptodate,
+> >  	.error_remove_page	= generic_error_remove_page,
+> > +	.swap_activate		= xfs_iomap_swapfile_activate,
+> >  };
+> >  
+> >  const struct address_space_operations xfs_dax_aops = {
+> > @@ -1495,4 +1506,5 @@ const struct address_space_operations xfs_dax_aops = {
+> >  	.direct_IO		= noop_direct_IO,
+> >  	.set_page_dirty		= noop_set_page_dirty,
+> >  	.invalidatepage		= noop_invalidatepage,
+> > +	.swap_activate		= xfs_iomap_swapfile_activate,
+> >  };
+> > diff --git a/include/linux/iomap.h b/include/linux/iomap.h
+> > index 19a07de..66d1c35 100644
+> > --- a/include/linux/iomap.h
+> > +++ b/include/linux/iomap.h
+> > @@ -106,4 +106,11 @@ typedef int (iomap_dio_end_io_t)(struct kiocb *iocb, ssize_t ret,
+> >  ssize_t iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
+> >  		const struct iomap_ops *ops, iomap_dio_end_io_t end_io);
+> >  
+> > +struct file;
+> > +struct swap_info_struct;
+> > +
+> > +int iomap_swapfile_activate(struct swap_info_struct *sis,
+> > +		struct file *swap_file, sector_t *pagespan,
+> > +		const struct iomap_ops *ops);
+> > +
+> >  #endif /* LINUX_IOMAP_H */
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> ---end quoted text---
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
