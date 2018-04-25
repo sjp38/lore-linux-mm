@@ -1,165 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A8BD06B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:25:41 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id c20so5437041qkm.13
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:25:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id e11-v6si12313900qtf.225.2018.04.25.07.25.40
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E06686B0007
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:33:51 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id s84-v6so8987870oig.17
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:33:51 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a50-v6si303038ote.97.2018.04.25.07.33.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Apr 2018 07:25:41 -0700 (PDT)
-Subject: Re: [Qemu-devel] [RFC v2] qemu: Add virtio pmem device
-References: <20180425112415.12327-1-pagupta@redhat.com>
- <20180425112415.12327-4-pagupta@redhat.com>
-From: Eric Blake <eblake@redhat.com>
-Message-ID: <25f3e433-cfa6-4a62-ba7f-47aef1119dfc@redhat.com>
-Date: Wed, 25 Apr 2018 09:25:37 -0500
+        Wed, 25 Apr 2018 07:33:50 -0700 (PDT)
+Date: Wed, 25 Apr 2018 10:33:49 -0400 (EDT)
+From: Chunyu Hu <chuhu@redhat.com>
+Reply-To: Chunyu Hu <chuhu@redhat.com>
+Message-ID: <978702110.19841228.1524666829157.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20180425125154.GA29722@MBP.local>
+References: <1524243513-29118-1-git-send-email-chuhu@redhat.com> <20180422125141.GF17484@dhcp22.suse.cz> <CACT4Y+YWUgyzCBadg+Oe8wDkFCaBzmcKDgu3rKjQxim7NXNLpg@mail.gmail.com> <CABATaM6eWtssvuj3UW9LHLK3HWo8P9g0z9VzFnuqKPKO5KMJ3A@mail.gmail.com> <20180424132057.GE17484@dhcp22.suse.cz> <20180424134148.qkvqqa4c37l6irvg@armageddon.cambridge.arm.com> <482146467.19754107.1524649841393.JavaMail.zimbra@redhat.com> <20180425125154.GA29722@MBP.local>
+Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in
+ gfp_kmemleak_mask
 MIME-Version: 1.0
-In-Reply-To: <20180425112415.12327-4-pagupta@redhat.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="CFJqPHc1lVbGj70GneZIm5syNGVZjNCpA"
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org
-Cc: kwolf@redhat.com, haozhong.zhang@intel.com, jack@suse.cz, xiaoguangrong.eric@gmail.com, riel@surriel.com, niteshnarayanlal@hotmail.com, david@redhat.com, ross.zwisler@intel.com, lcapitulino@redhat.com, hch@infradead.org, mst@redhat.com, stefanha@redhat.com, imammedo@redhat.com, marcel@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com, nilal@redhat.com
-
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---CFJqPHc1lVbGj70GneZIm5syNGVZjNCpA
-Content-Type: multipart/mixed; boundary="1IGSjTW0uM1A8ilmt1jp7ZPWiEf26VDfr";
- protected-headers="v1"
-From: Eric Blake <eblake@redhat.com>
-To: Pankaj Gupta <pagupta@redhat.com>, linux-kernel@vger.kernel.org,
- kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org,
- linux-mm@kvack.org
-Cc: kwolf@redhat.com, haozhong.zhang@intel.com, jack@suse.cz,
- xiaoguangrong.eric@gmail.com, riel@surriel.com,
- niteshnarayanlal@hotmail.com, david@redhat.com, ross.zwisler@intel.com,
- lcapitulino@redhat.com, hch@infradead.org, mst@redhat.com,
- stefanha@redhat.com, imammedo@redhat.com, marcel@redhat.com,
- pbonzini@redhat.com, dan.j.williams@intel.com, nilal@redhat.com
-Message-ID: <25f3e433-cfa6-4a62-ba7f-47aef1119dfc@redhat.com>
-Subject: Re: [Qemu-devel] [RFC v2] qemu: Add virtio pmem device
-References: <20180425112415.12327-1-pagupta@redhat.com>
- <20180425112415.12327-4-pagupta@redhat.com>
-In-Reply-To: <20180425112415.12327-4-pagupta@redhat.com>
-
---1IGSjTW0uM1A8ilmt1jp7ZPWiEf26VDfr
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-
-On 04/25/2018 06:24 AM, Pankaj Gupta wrote:
-> This patch adds virtio-pmem Qemu device.
->=20
-> This device presents memory address range=20
-> information to guest which is backed by file=20
-> backend type. It acts like persistent memory=20
-> device for KVM guest. Guest can perform read=20
-> and persistent write operations on this memory=20
-> range with the help of DAX capable filesystem.
->=20
-> Persistent guest writes are assured with the=20
-> help of virtio based flushing interface. When=20
-> guest userspace space performs fsync on file=20
-> fd on pmem device, a flush command is send to=20
-> Qemu over VIRTIO and host side flush/sync is=20
-> done on backing image file.
->=20
-> This PV device code is dependent and tested=20
-> with 'David Hildenbrand's ' patchset[1] to=20
-> map non-PCDIMM devices to guest address space.
-
-This sentence doesn't belong in git history.  It is better to put
-information like this...
-
-> There is still upstream discussion on using=20
-> among PCI bar vs memory device, will update=20
-> as per concensus.
-
-s/concensus/consensus/
-
->=20
-> [1] https://marc.info/?l=3Dqemu-devel&m=3D152450249319168&w=3D2
->=20
-> Signed-off-by: Pankaj Gupta <pagupta@redhat.com>
-> ---
-
-=2E..here, where it is part of the email, but not picked up by 'git am'.
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Chunyu Hu <chuhu.ncepu@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
 
-> +++ b/qapi/misc.json
-> @@ -2871,6 +2871,29 @@
->            }
->  }
-> =20
-> +##
-> +# @VirtioPMemDeviceInfo:
-> +#
-> +# VirtioPMem state information
-> +#
-> +# @id: device's ID
-> +#
-> +# @start: physical address, where device is mapped
-> +#
-> +# @size: size of memory that the device provides
-> +#
-> +# @memdev: memory backend linked with device
-> +#
-> +# Since: 2.13
-> +##
-> +{ 'struct': 'VirtioPMemDeviceInfo',
-> +    'data': { '*id': 'str',
-> +	      'start': 'size',
-> +	      'size': 'size',
 
-TAB damage.
+----- Original Message -----
+> From: "Catalin Marinas" <catalin.marinas@arm.com>
+> To: "Chunyu Hu" <chuhu@redhat.com>
+> Cc: "Michal Hocko" <mhocko@kernel.org>, "Chunyu Hu" <chuhu.ncepu@gmail.com>, "Dmitry Vyukov" <dvyukov@google.com>,
+> "LKML" <linux-kernel@vger.kernel.org>, "Linux-MM" <linux-mm@kvack.org>
+> Sent: Wednesday, April 25, 2018 8:51:55 PM
+> Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in gfp_kmemleak_mask
+> 
+> On Wed, Apr 25, 2018 at 05:50:41AM -0400, Chunyu Hu wrote:
+> > ----- Original Message -----
+> > > From: "Catalin Marinas" <catalin.marinas@arm.com>
+> > > On Tue, Apr 24, 2018 at 07:20:57AM -0600, Michal Hocko wrote:
+> > > > On Mon 23-04-18 12:17:32, Chunyu Hu wrote:
+> > > > [...]
+> > > > > So if there is a new flag, it would be the 25th bits.
+> > > > 
+> > > > No new flags please. Can you simply store a simple bool into
+> > > > fail_page_alloc
+> > > > and have save/restore api for that?
+> > > 
+> > > For kmemleak, we probably first hit failslab. Something like below may
+> > > do the trick:
+> > > 
+> > > diff --git a/mm/failslab.c b/mm/failslab.c
+> > > index 1f2f248e3601..63f13da5cb47 100644
+> > > --- a/mm/failslab.c
+> > > +++ b/mm/failslab.c
+> > > @@ -29,6 +29,9 @@ bool __should_failslab(struct kmem_cache *s, gfp_t
+> > > gfpflags)
+> > >  	if (failslab.cache_filter && !(s->flags & SLAB_FAILSLAB))
+> > >  		return false;
+> > >  
+> > > +	if (s->flags & SLAB_NOLEAKTRACE)
+> > > +		return false;
+> > > +
+> > >  	return should_fail(&failslab.attr, s->object_size);
+> > >  }
+> > 
+> > This maybe is the easy enough way for skipping fault injection for
+> > kmemleak slab object.
+> 
+> This was added to avoid kmemleak tracing itself, so could be used for
+> other kmemleak-related cases.
+> 
+> > > Can we get a second should_fail() via should_fail_alloc_page() if a new
+> > > slab page is allocated?
+> > 
+> > looking at code path below, what do you mean by getting a second
+> > should_fail() via fail_alloc_page?
+> 
+> Kmemleak calls kmem_cache_alloc() on a cache with SLAB_LEAKNOTRACE, so the
+> first point of failure injection is __should_failslab() which we can
+> handle with the slab flag. The slab allocator itself ends up calling
+> alloc_pages() to allocate a slab page (and __GFP_NOFAIL is explicitly
+> cleared). Here we have the second potential failure injection via
 
-> +              'memdev': 'str'
-> +	    }
-> +}
-> +
->  ##
->  # @MemoryDeviceInfo:
->  #
-> @@ -2880,7 +2903,8 @@
->  ##
->  { 'union': 'MemoryDeviceInfo',
->    'data': { 'dimm': 'PCDIMMDeviceInfo',
-> -            'nvdimm': 'PCDIMMDeviceInfo'
-> +            'nvdimm': 'PCDIMMDeviceInfo',
-> +	    'virtio-pmem': 'VirtioPMemDeviceInfo'
->            }
->  }
-> =20
->=20
+Indeed.
 
---=20
-Eric Blake, Principal Software Engineer
-Red Hat, Inc.           +1-919-301-3266
-Virtualization:  qemu.org | libvirt.org
+> fail_alloc_page(). That's unless the order < fail_page_alloc.min_order
+> which I think is the default case (min_order = 1 while the slab page
+> allocation for kmemleak would need an order of 0. It's not ideal but we
+> may get away with it.
+
+In my workstation, I checked the value shown is order=2
+
+[mm]# cat /sys/kernel/slab/kmemleak_object/order 
+2
+[mm]# uname -r
+4.17.0-rc1.syzcaller+
 
 
---1IGSjTW0uM1A8ilmt1jp7ZPWiEf26VDfr--
+If order is 2, then not into the branch, no false is returned, so not skipped..
+static bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+{
+    if (order < fail_page_alloc.min_order)
+        return false;
 
---CFJqPHc1lVbGj70GneZIm5syNGVZjNCpA
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
 
------BEGIN PGP SIGNATURE-----
-Comment: Public key at http://people.redhat.com/eblake/eblake.gpg
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+> 
+> > Seems we need to insert the flag between alloc_slab_page and
+> > alloc_pages()? Without GFP flag, it's difficult to pass info to
+> > should_fail_alloc_page and keep simple at same time.
+> 
+> Indeed.
+> 
+> > Or as Michal suggested, completely disabling page alloc fail injection
+> > when kmemleak enabled. And enable it again when kmemleak off.
+> 
+> Dmitry's point was that kmemleak is still useful to detect leaks on the
+> error path where errors are actually introduced by the fault injection.
+> Kmemleak cannot cope with allocation failures as it needs a pretty
+> precise tracking of the allocated objects.
 
-iQEzBAEBCAAdFiEEccLMIrHEYCkn0vOqp6FrSiUnQ2oFAlrgj+EACgkQp6FrSiUn
-Q2oftQgAkgISPCCNGA8QYSXkQfHKQ2qPa3CR6cJ1vSVXjJWEsPypyfrQ4P/caxJC
-OaTfjufz0Tgn/kn1MOzeDYgQGnOjYZJC+1YYcMhR8arrUb6Whv4ejHpnXGNC1lxJ
-hLcRxPhD7fg7CW55xgi/pXF1OLUxMMQdtyd57SCW5rCt5NPi8TZRsDOiM34KEbDW
-EewLjBrjnueBaLVywp5I0KFODWua4/qSmkzB3E/EnHw66uHKrWH0PAHnH2s3OnwL
-0o4eBB2YnSrf2eKCuLY5XvJwD9HyRQm9h6sKnuP7+PqzaLlycHphA1jfOL+hNK2w
-txr4zrD38INfFRWQy0QHUt84HMGbPg==
-=ylBq
------END PGP SIGNATURE-----
+understand.
 
---CFJqPHc1lVbGj70GneZIm5syNGVZjNCpA--
+> 
+> An alternative could be to not free the early_log buffer in kmemleak and
+> use that memory in an emergency when allocation fails (though I don't
+> particularly like this).
+> 
+> Yet another option is to use NOFAIL and remove NORETRY in kmemleak when
+> fault injection is enabled.
+
+I'm going to have a try this way to see if any warning can be seen when running.
+This should be the best if it works fine. 
+
+> 
+> --
+> Catalin
+> 
+
+-- 
+Regards,
+Chunyu Hu
