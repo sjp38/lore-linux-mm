@@ -1,94 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A3796B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 03:09:15 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id v14so10269118pgq.11
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 00:09:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o30-v6sor1314343pli.98.2018.04.25.00.09.14
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 190BC6B0003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 05:50:44 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id x134-v6so12435024oif.19
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 02:50:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f15-v6si4899883otj.28.2018.04.25.02.50.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Apr 2018 00:09:14 -0700 (PDT)
-Date: Wed, 25 Apr 2018 00:09:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm: huge_memory: Change return type to vm_fault_t
-In-Reply-To: <20180425044326.GA21504@jordon-HP-15-Notebook-PC>
-Message-ID: <alpine.DEB.2.21.1804250006120.51102@chino.kir.corp.google.com>
-References: <20180425044326.GA21504@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Apr 2018 02:50:42 -0700 (PDT)
+Date: Wed, 25 Apr 2018 05:50:41 -0400 (EDT)
+From: Chunyu Hu <chuhu@redhat.com>
+Reply-To: Chunyu Hu <chuhu@redhat.com>
+Message-ID: <482146467.19754107.1524649841393.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20180424134148.qkvqqa4c37l6irvg@armageddon.cambridge.arm.com>
+References: <1524243513-29118-1-git-send-email-chuhu@redhat.com> <20180420175023.3c4okuayrcul2bom@armageddon.cambridge.arm.com> <20180422125141.GF17484@dhcp22.suse.cz> <CACT4Y+YWUgyzCBadg+Oe8wDkFCaBzmcKDgu3rKjQxim7NXNLpg@mail.gmail.com> <CABATaM6eWtssvuj3UW9LHLK3HWo8P9g0z9VzFnuqKPKO5KMJ3A@mail.gmail.com> <20180424132057.GE17484@dhcp22.suse.cz> <20180424134148.qkvqqa4c37l6irvg@armageddon.cambridge.arm.com>
+Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in
+ gfp_kmemleak_mask
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: akpm@linux-foundation.org, zi.yan@cs.rutgers.edu, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, ross.zwisler@linux.intel.com, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, shli@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Chunyu Hu <chuhu.ncepu@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Wed, 25 Apr 2018, Souptick Joarder wrote:
 
-> Use new return type vm_fault_t for fault handler. For
-> now, this is just documenting that the function returns
-> a VM_FAULT value rather than an errno. Once all instances
-> are converted, vm_fault_t will become a distinct type.
+
+----- Original Message -----
+> From: "Catalin Marinas" <catalin.marinas@arm.com>
+> To: "Michal Hocko" <mhocko@kernel.org>
+> Cc: "Chunyu Hu" <chuhu.ncepu@gmail.com>, "Dmitry Vyukov" <dvyukov@google.com>, "Chunyu Hu" <chuhu@redhat.com>, "LKML"
+> <linux-kernel@vger.kernel.org>, "Linux-MM" <linux-mm@kvack.org>
+> Sent: Tuesday, April 24, 2018 9:41:48 PM
+> Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in gfp_kmemleak_mask
 > 
-> Commit 1c8f422059ae ("mm: change return type to vm_fault_t")
+> On Tue, Apr 24, 2018 at 07:20:57AM -0600, Michal Hocko wrote:
+> > On Mon 23-04-18 12:17:32, Chunyu Hu wrote:
+> > [...]
+> > > So if there is a new flag, it would be the 25th bits.
+> > 
+> > No new flags please. Can you simply store a simple bool into
+> > fail_page_alloc
+> > and have save/restore api for that?
 > 
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
-> ---
-> v2: Updated the change log
+> For kmemleak, we probably first hit failslab. Something like below may
+> do the trick:
 > 
->  include/linux/huge_mm.h | 5 +++--
->  mm/huge_memory.c        | 4 ++--
->  2 files changed, 5 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index a8a1262..d3bbf6b 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -3,6 +3,7 @@
->  #define _LINUX_HUGE_MM_H
+> diff --git a/mm/failslab.c b/mm/failslab.c
+> index 1f2f248e3601..63f13da5cb47 100644
+> --- a/mm/failslab.c
+> +++ b/mm/failslab.c
+> @@ -29,6 +29,9 @@ bool __should_failslab(struct kmem_cache *s, gfp_t
+> gfpflags)
+>  	if (failslab.cache_filter && !(s->flags & SLAB_FAILSLAB))
+>  		return false;
 >  
->  #include <linux/sched/coredump.h>
-> +#include <linux/mm_types.h>
->  
->  #include <linux/fs.h> /* only for vma_is_dax() */
->  
-> @@ -46,9 +47,9 @@ extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->  extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  			unsigned long addr, pgprot_t newprot,
->  			int prot_numa);
-> -int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-> +vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->  			pmd_t *pmd, pfn_t pfn, bool write);
-> -int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-> +vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  			pud_t *pud, pfn_t pfn, bool write);
->  enum transparent_hugepage_flag {
->  	TRANSPARENT_HUGEPAGE_FLAG,
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 87ab9b8..1fe4705 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -755,7 +755,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->  	spin_unlock(ptl);
+> +	if (s->flags & SLAB_NOLEAKTRACE)
+> +		return false;
+> +
+>  	return should_fail(&failslab.attr, s->object_size);
 >  }
->  
-> -int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-> +vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->  			pmd_t *pmd, pfn_t pfn, bool write)
->  {
->  	pgprot_t pgprot = vma->vm_page_prot;
-> @@ -815,7 +815,7 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  	spin_unlock(ptl);
->  }
->  
-> -int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-> +vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  			pud_t *pud, pfn_t pfn, bool write)
->  {
->  	pgprot_t pgprot = vma->vm_page_prot;
 
-This isn't very useful unless functions that return the return value of 
-these functions, __dev_dax_{pmd,pud}_fault(), recast it as an int.  
-__dev_dax_pte_fault() would do the same thing, so it should logically also 
-be vm_fault_t, so then you would convert dev_dax_huge_fault() and
-dev_dax_fault() as well in the same patch.
+This maybe is the easy enough way for skipping fault injection for kmemleak slab object. 
+ 
+>  
+> 
+> Can we get a second should_fail() via should_fail_alloc_page() if a new
+> slab page is allocated?
+
+looking at code path blow, what do you mean by getting a second should_fail() via
+fail_alloc_page?  Seems we need to insert the flag between alloc_slab_page and 
+alloc_pages()? Without GFP flag, it's difficult to pass info to should_fail_alloc_page
+and keep simple at same time. 
+
+Or as Michal suggested, completely disabling page alloc fail injection when kmemleak
+enabled. And enable it again when kmemleak off. 
+
+ alloc_slab_page   
+          <========= flag to change the behavior of should_fail_alloc_page
+     alloc_pages
+         alloc_pages_current
+             __alloc_pages_nodemask
+                 prepare_alloc_pages
+                     should_fail_alloc_page
+
+> 
+> --
+> Catalin
+> 
+
+-- 
+Regards,
+Chunyu Hu
