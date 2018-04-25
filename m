@@ -1,40 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5758D6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 15:37:29 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g15so14308306pfi.8
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 12:37:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g2sor4304847pgf.284.2018.04.25.12.37.28
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 35E196B0003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 15:38:40 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id x2so432474wmc.3
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 12:38:40 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i41si2494120ede.346.2018.04.25.12.38.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Apr 2018 12:37:28 -0700 (PDT)
-Date: Wed, 25 Apr 2018 12:37:26 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: don't show nr_indirectly_reclaimable in
- /proc/vmstat
-In-Reply-To: <20180425191422.9159-1-guro@fb.com>
-Message-ID: <alpine.DEB.2.21.1804251235330.151692@chino.kir.corp.google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Apr 2018 12:38:38 -0700 (PDT)
+Subject: Re: [PATCH] mm: don't show nr_indirectly_reclaimable in /proc/vmstat
 References: <20180425191422.9159-1-guro@fb.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a2206b6a-1492-39dc-101f-118060083206@suse.cz>
+Date: Wed, 25 Apr 2018 21:36:35 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180425191422.9159-1-guro@fb.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, kernel-team@fb.com, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, kernel-team@fb.com, Matthew Wilcox <willy@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, 25 Apr 2018, Roman Gushchin wrote:
-
+On 04/25/2018 09:14 PM, Roman Gushchin wrote:
 > Don't show nr_indirectly_reclaimable in /proc/vmstat,
 > because there is no need in exporting this vm counter
 > to the userspace, and some changes are expected
 > in reclaimable object accounting, which can alter
 > this counter.
-> 
 
-I don't think it should be a per-node vmstat, in this case.  It appears 
-only to be used for the global context.  Shouldn't this be handled like 
-totalram_pages, total_swap_pages, totalreserve_pages, etc?
+Oh, you beat me to it, thanks.
 
 > Signed-off-by: Roman Gushchin <guro@fb.com>
 > Cc: Vlastimil Babka <vbabka@suse.cz>
@@ -43,6 +40,15 @@ totalram_pages, total_swap_pages, totalreserve_pages, etc?
 > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 > Cc: Michal Hocko <mhocko@suse.com>
 > Cc: Johannes Weiner <hannes@cmpxchg.org>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Andrew, can you send this to Linus before the current rc period ends,
+please?
+
+Thanks,
+Vlastimil
+
 > ---
 >  mm/vmstat.c | 6 +++++-
 >  1 file changed, 5 insertions(+), 1 deletion(-)
@@ -71,3 +77,4 @@ totalram_pages, total_swap_pages, totalreserve_pages, etc?
 >  	seq_puts(m, vmstat_text[off]);
 >  	seq_put_decimal_ull(m, " ", *l);
 >  	seq_putc(m, '\n');
+> 
