@@ -1,70 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D13126B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 12:49:29 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id 39so14767704qkx.0
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 09:49:29 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id k3-v6si2853045qtm.373.2018.04.25.09.49.27
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 114FF6B0007
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 12:57:04 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p189so16259200pfp.1
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 09:57:04 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e11si41208pgr.423.2018.04.25.09.57.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Apr 2018 09:49:28 -0700 (PDT)
-Date: Wed, 25 Apr 2018 17:48:53 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
-Message-ID: <20180425164845.GA7223@castle>
-References: <20180305133743.12746-1-guro@fb.com>
- <20180305133743.12746-2-guro@fb.com>
- <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
- <20180411135624.GA24260@castle.DHCP.thefacebook.com>
- <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz>
- <20180412145702.GB30714@castle.DHCP.thefacebook.com>
- <CAOaiJ-=JtFWNPqdtf+5uim0-LcPE9zSDZmocAa_6K3yGpW2fCQ@mail.gmail.com>
- <69b4dcd8-1925-e0e8-d9b4-776f3405b769@codeaurora.org>
- <20180425125211.GB3410@castle>
- <db71bf8f-0c76-e304-25c3-d22f1e0d71e5@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Apr 2018 09:57:02 -0700 (PDT)
+Date: Wed, 25 Apr 2018 10:56:55 -0600
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: vmalloc with GFP_NOFS
+Message-ID: <20180425165655.GK17484@dhcp22.suse.cz>
+References: <20180424162712.GL17484@dhcp22.suse.cz>
+ <3732370.1623zxSvNg@blindfold>
+ <20180424192803.GT17484@dhcp22.suse.cz>
+ <3894056.cxOY6eVYVp@blindfold>
+ <20180424230943.GY17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804241911040.19786@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424232517.GC17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804250841230.16455@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180425144557.GD17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804251114120.11848@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <db71bf8f-0c76-e304-25c3-d22f1e0d71e5@suse.cz>
+In-Reply-To: <alpine.LRH.2.02.1804251114120.11848@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Vijayanand Jitta <vjitta@codeaurora.org>, vinayak menon <vinayakm.list@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Richard Weinberger <richard@nod.at>, LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Apr 25, 2018 at 05:47:26PM +0200, Vlastimil Babka wrote:
-> On 04/25/2018 02:52 PM, Roman Gushchin wrote:
-> > On Wed, Apr 25, 2018 at 09:19:29AM +0530, Vijayanand Jitta wrote:
-> >>>>>> Idk, I don't like the idea of adding a counter outside of the vm counters
-> >>>>>> infrastructure, and I definitely wouldn't touch the exposed
-> >>>>>> nr_slab_reclaimable and nr_slab_unreclaimable fields.
-> >>>>>
-> >>>>> We would be just making the reported values more precise wrt reality.
-> >>>>
-> >>>> It depends on if we believe that only slab memory can be reclaimable
-> >>>> or not. If yes, this is true, otherwise not.
-> >>>>
-> >>>> My guess is that some drivers (e.g. networking) might have buffers,
-> >>>> which are reclaimable under mempressure, and are allocated using
-> >>>> the page allocator. But I have to look closer...
-> >>>>
-> >>>
-> >>> One such case I have encountered is that of the ION page pool. The page pool
-> >>> registers a shrinker. When not in any memory pressure page pool can go high
-> >>> and thus cause an mmap to fail when OVERCOMMIT_GUESS is set. I can send
-> >>> a patch to account ION page pool pages in NR_INDIRECTLY_RECLAIMABLE_BYTES.
+On Wed 25-04-18 11:25:09, Mikulas Patocka wrote:
 > 
-> FYI, we have discussed this at LSF/MM and agreed to try the kmalloc
-> reclaimable caches idea. The existing counter could then remain for page
-> allocator users such as ION. It's a bit weird to have it in bytes and
-> not pages then, IMHO. What if we hid it from /proc/vmstat now so it
-> doesn't become ABI, and later convert it to page granularity and expose
-> it under a name such as "nr_other_reclaimable" ?
+> 
+> On Wed, 25 Apr 2018, Michal Hocko wrote:
+> 
+> > On Wed 25-04-18 08:43:32, Mikulas Patocka wrote:
+> > > 
+> > > 
+> > > On Tue, 24 Apr 2018, Michal Hocko wrote:
+> > > 
+> > > > On Tue 24-04-18 19:17:12, Mikulas Patocka wrote:
+> > > > > 
+> > > > > 
+> > > > > On Tue, 24 Apr 2018, Michal Hocko wrote:
+> > > > > 
+> > > > > > > So in a perfect world a filesystem calls memalloc_nofs_save/restore and
+> > > > > > > always uses GFP_KERNEL for kmalloc/vmalloc?
+> > > > > > 
+> > > > > > Exactly! And in a dream world those memalloc_nofs_save act as a
+> > > > > > documentation of the reclaim recursion documentation ;)
+> > > > > > -- 
+> > > > > > Michal Hocko
+> > > > > > SUSE Labs
+> > > > > 
+> > > > > BTW. should memalloc_nofs_save and memalloc_noio_save be merged into just 
+> > > > > one that prevents both I/O and FS recursion?
+> > > > 
+> > > > Why should FS usage stop IO altogether?
+> > > 
+> > > Because the IO may reach loop and loop may redirect it to the same 
+> > > filesystem that is running under memalloc_nofs_save and deadlock.
+> > 
+> > So what is the difference with the current GFP_NOFS?
+> 
+> My point is that filesystems should use GFP_NOIO too. If 
+> alloc_pages(GFP_NOFS) issues some random I/O to some block device, the I/O 
+> may be end up being redirected (via block loop device) to the filesystem 
+> that is calling alloc_pages(GFP_NOFS).
 
-I've nothing against hiding it from /proc/vmstat, as long as we keep
-the counter in place and the main issue resolved.
+Talk to FS people, but I believe there is a good reason to distinguish
+the two.
 
-Maybe it's better to add nr_reclaimable = nr_slab_reclaimable + nr_other_reclaimable,
-which will have a simpler meaning that nr_other_reclaimable (what is other?).
-
-Thanks!
+-- 
+Michal Hocko
+SUSE Labs
