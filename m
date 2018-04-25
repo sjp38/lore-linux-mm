@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B272E6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:21:23 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id u4-v6so12600853oiv.18
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:21:23 -0700 (PDT)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FEA26B0003
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 10:23:55 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id k4-v6so14981764otf.16
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 07:23:55 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q44-v6sor1192024ote.102.2018.04.25.07.21.22
+        by mx.google.com with SMTPS id 76-v6sor7194574oii.178.2018.04.25.07.23.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 25 Apr 2018 07:21:22 -0700 (PDT)
+        Wed, 25 Apr 2018 07:23:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180425112415.12327-2-pagupta@redhat.com>
-References: <20180425112415.12327-1-pagupta@redhat.com> <20180425112415.12327-2-pagupta@redhat.com>
+In-Reply-To: <20180425112415.12327-3-pagupta@redhat.com>
+References: <20180425112415.12327-1-pagupta@redhat.com> <20180425112415.12327-3-pagupta@redhat.com>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 25 Apr 2018 07:21:21 -0700
-Message-ID: <CAPcyv4hvrB08XPTbVK0xT2_1Xmaid=-v3OMxJVDTNwQucsOHLA@mail.gmail.com>
-Subject: Re: [RFC v2 1/2] virtio: add pmem driver
+Date: Wed, 25 Apr 2018 07:23:53 -0700
+Message-ID: <CAPcyv4gpZzKfE7jY1peYOVd6sVhNz7jce1s_xNH_2Lt8AjRK-Q@mail.gmail.com>
+Subject: Re: [RFC v2 2/2] pmem: device flush over VIRTIO
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -23,24 +23,39 @@ To: Pankaj Gupta <pagupta@redhat.com>
 Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Rik van Riel <riel@surriel.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, "Zwisler, Ross" <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>, Christoph Hellwig <hch@infradead.org>, Marcel Apfelbaum <marcel@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, niteshnarayanlal@hotmail.com, Igor Mammedov <imammedo@redhat.com>, lcapitulino@redhat.com
 
 On Wed, Apr 25, 2018 at 4:24 AM, Pankaj Gupta <pagupta@redhat.com> wrote:
-> This patch adds virtio-pmem driver for KVM
-> guest.
-
-Minor nit, please expand your changelog line wrapping to 72 columns.
-
+> This patch adds functionality to perform
+> flush from guest to hosy over VIRTIO
+> when 'ND_REGION_VIRTIO'flag is set on
+> nd_negion. Flag is set by 'virtio-pmem'
+> driver.
 >
-> Guest reads the persistent memory range
-> information from Qemu over VIRTIO and registers
-> it on nvdimm_bus. It also creates a nd_region
-> object with the persistent memory range
-> information so that existing 'nvdimm/pmem'
-> driver can reserve this into system memory map.
-> This way 'virtio-pmem' driver uses existing
-> functionality of pmem driver to register persistent
-> memory compatible for DAX capable filesystems.
+> Signed-off-by: Pankaj Gupta <pagupta@redhat.com>
+> ---
+>  drivers/nvdimm/region_devs.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
+>
+> diff --git a/drivers/nvdimm/region_devs.c b/drivers/nvdimm/region_devs.c
+> index a612be6..6c6454e 100644
+> --- a/drivers/nvdimm/region_devs.c
+> +++ b/drivers/nvdimm/region_devs.c
+> @@ -20,6 +20,7 @@
+>  #include <linux/nd.h>
+>  #include "nd-core.h"
+>  #include "nd.h"
+> +#include <linux/virtio_pmem.h>
+>
+>  /*
+>   * For readq() and writeq() on 32-bit builds, the hi-lo, lo-hi order is
+> @@ -1074,6 +1075,12 @@ void nvdimm_flush(struct nd_region *nd_region)
+>         struct nd_region_data *ndrd = dev_get_drvdata(&nd_region->dev);
+>         int i, idx;
+>
+> +       /* call PV device flush */
+> +       if (test_bit(ND_REGION_VIRTIO, &nd_region->flags)) {
+> +               virtio_pmem_flush(&nd_region->dev);
+> +               return;
+> +       }
+> +
 
-We need some additional enabling to disable MAP_SYNC for this
-configuration. In other words, if fsync() is required then we must
-disable the MAP_SYNC optimization. I think this should be a struct
-dax_device property looked up at mmap time in each MAP_SYNC capable
-->mmap() file operation implementation.
+I'd rather introduce a ->flush() operation hanging off of 'struct
+nd_region' so that this multiplexing can be a static setting.
