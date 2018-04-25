@@ -1,70 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C31A56B0007
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 08:52:45 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id s6so10812916pgn.16
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 05:52:45 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id q66si16011083pfk.190.2018.04.25.05.52.43
+	by kanga.kvack.org (Postfix) with ESMTP id 071EA6B0007
+	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 09:01:42 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id f19so8875165pgv.4
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 06:01:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f15sor4003231pgr.203.2018.04.25.06.01.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Apr 2018 05:52:44 -0700 (PDT)
-Date: Wed, 25 Apr 2018 13:52:12 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH 1/3] mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES
-Message-ID: <20180425125211.GB3410@castle>
-References: <20180305133743.12746-1-guro@fb.com>
- <20180305133743.12746-2-guro@fb.com>
- <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
- <20180411135624.GA24260@castle.DHCP.thefacebook.com>
- <46dbe2a5-e65f-8b72-f835-0210bc445e52@suse.cz>
- <20180412145702.GB30714@castle.DHCP.thefacebook.com>
- <CAOaiJ-=JtFWNPqdtf+5uim0-LcPE9zSDZmocAa_6K3yGpW2fCQ@mail.gmail.com>
- <69b4dcd8-1925-e0e8-d9b4-776f3405b769@codeaurora.org>
+        (Google Transport Security);
+        Wed, 25 Apr 2018 06:01:40 -0700 (PDT)
+Subject: Re: [PATCH net-next 1/2] tcp: add TCP_ZEROCOPY_RECEIVE support for
+ zerocopy receive
+References: <20180425052722.73022-1-edumazet@google.com>
+ <20180425052722.73022-2-edumazet@google.com>
+ <20180425062859.GA23914@infradead.org>
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Message-ID: <5cd31eba-63b5-9160-0a2e-f441340df0d3@gmail.com>
+Date: Wed, 25 Apr 2018 06:01:02 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <69b4dcd8-1925-e0e8-d9b4-776f3405b769@codeaurora.org>
+In-Reply-To: <20180425062859.GA23914@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vijayanand Jitta <vjitta@codeaurora.org>
-Cc: vinayak menon <vinayakm.list@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>, Eric Dumazet <edumazet@google.com>
+Cc: "David S . Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Soheil Hassas Yeganeh <soheil@google.com>
 
-On Wed, Apr 25, 2018 at 09:19:29AM +0530, Vijayanand Jitta wrote:
-> >>>> Idk, I don't like the idea of adding a counter outside of the vm counters
-> >>>> infrastructure, and I definitely wouldn't touch the exposed
-> >>>> nr_slab_reclaimable and nr_slab_unreclaimable fields.
-> >>>
-> >>> We would be just making the reported values more precise wrt reality.
-> >>
-> >> It depends on if we believe that only slab memory can be reclaimable
-> >> or not. If yes, this is true, otherwise not.
-> >>
-> >> My guess is that some drivers (e.g. networking) might have buffers,
-> >> which are reclaimable under mempressure, and are allocated using
-> >> the page allocator. But I have to look closer...
-> >>
-> > 
-> > One such case I have encountered is that of the ION page pool. The page pool
-> > registers a shrinker. When not in any memory pressure page pool can go high
-> > and thus cause an mmap to fail when OVERCOMMIT_GUESS is set. I can send
-> > a patch to account ION page pool pages in NR_INDIRECTLY_RECLAIMABLE_BYTES.
 
-Perfect!
-This is exactly what I've expected.
 
-> > 
-> > Thanks,
-> > Vinayak
-> > 
+On 04/24/2018 11:28 PM, Christoph Hellwig wrote:
+> On Tue, Apr 24, 2018 at 10:27:21PM -0700, Eric Dumazet wrote:
+>> When adding tcp mmap() implementation, I forgot that socket lock
+>> had to be taken before current->mm->mmap_sem. syzbot eventually caught
+>> the bug.
+>>
+>> Since we can not lock the socket in tcp mmap() handler we have to
+>> split the operation in two phases.
+>>
+>> 1) mmap() on a tcp socket simply reserves VMA space, and nothing else.
+>>   This operation does not involve any TCP locking.
+>>
+>> 2) setsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE, ...) implements
+>>  the transfert of pages from skbs to one VMA.
+>>   This operation only uses down_read(&current->mm->mmap_sem) after
+>>   holding TCP lock, thus solving the lockdep issue.
+>>
+>> This new implementation was suggested by Andy Lutomirski with great details.
 > 
-> As Vinayak mentioned NR_INDIRECTLY_RECLAIMABLE_BYTES can be used to solve the issue
-> with ION page pool when OVERCOMMIT_GUESS is set, the patch for the same can be 
-> found here https://lkml.org/lkml/2018/4/24/1288
+> Thanks, this looks much more sensible to me.
+> 
 
-This makes perfect sense to me.
+Thanks Christoph
 
-Please, fell free to add:
-Acked-by: Roman Gushchin <guro@fb.com>
+Note the high cost of zap_page_range(), needed to avoid -EBUSY being returned
+from vm_insert_page() the second time TCP_ZEROCOPY_RECEIVE is used on one VMA.
 
-Thank you!
+Ideally a vm_replace_page() would avoid this cost ?
+
+     6.51%  tcp_mmap  [kernel.kallsyms]  [k] unmap_page_range                                         
+     5.90%  tcp_mmap  [kernel.kallsyms]  [k] vm_insert_page                                           
+     4.85%  tcp_mmap  [kernel.kallsyms]  [k] _raw_spin_lock                                           
+     4.50%  tcp_mmap  [kernel.kallsyms]  [k] mark_page_accessed                                       
+     3.51%  tcp_mmap  [kernel.kallsyms]  [k] page_remove_rmap                                         
+     2.99%  tcp_mmap  [kernel.kallsyms]  [k] page_add_file_rmap                                       
+     2.53%  tcp_mmap  [kernel.kallsyms]  [k] release_pages                                            
+     2.38%  tcp_mmap  [kernel.kallsyms]  [k] put_page                                                 
+     2.37%  tcp_mmap  [kernel.kallsyms]  [k] smp_call_function_single                                 
+     2.28%  tcp_mmap  [kernel.kallsyms]  [k] __get_locked_pte                                         
+     2.25%  tcp_mmap  [kernel.kallsyms]  [k] do_tcp_setsockopt.isra.35                                
+     2.21%  tcp_mmap  [kernel.kallsyms]  [k] page_clear_age                         
