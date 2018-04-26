@@ -1,105 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FFBE6B0007
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 14:59:01 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id e12-v6so20919424qtp.17
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 11:59:01 -0700 (PDT)
-Received: from mail.stoffel.org (mail.stoffel.org. [104.236.43.127])
-        by mx.google.com with ESMTPS id m15-v6si8485114qtm.248.2018.04.26.11.59.00
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E03736B0005
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 15:01:08 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id x2-v6so9463189qto.10
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 12:01:08 -0700 (PDT)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id x13si4107024qvb.73.2018.04.26.12.01.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 26 Apr 2018 11:59:00 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Apr 2018 12:01:07 -0700 (PDT)
+Date: Thu, 26 Apr 2018 14:01:06 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH RESEND] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <alpine.LRH.2.02.1804251917460.2429@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.20.1804261354230.6674@nuc-kabylake>
+References: <alpine.LRH.2.02.1803201740280.21066@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1803211226350.3174@nuc-kabylake> <alpine.LRH.2.02.1803211425330.26409@file01.intranet.prod.int.rdu2.redhat.com> <20c58a03-90a8-7e75-5fc7-856facfb6c8a@suse.cz>
+ <20180413151019.GA5660@redhat.com> <ee8807ff-d650-0064-70bf-e1d77fa61f5c@suse.cz> <20180416142703.GA22422@redhat.com> <alpine.LRH.2.02.1804161031300.24222@file01.intranet.prod.int.rdu2.redhat.com> <20180416144638.GA22484@redhat.com>
+ <alpine.LRH.2.02.1804161530360.19492@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804170940340.17557@nuc-kabylake> <alpine.LRH.2.02.1804171454020.26973@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804180952580.1334@nuc-kabylake>
+ <alpine.LRH.2.02.1804251702250.9428@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1804251917460.2429@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
-Message-ID: <23266.8532.619051.784274@quad.stoffel.home>
-Date: Thu, 26 Apr 2018 14:58:28 -0400
-From: "John Stoffel" <john@stoffel.org>
-Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc
- fallback options
-In-Reply-To: <1524697697.4100.23.camel@HansenPartnership.com>
-References: <20180421144757.GC14610@bombadil.infradead.org>
-	<alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
-	<20180423151545.GU17484@dhcp22.suse.cz>
-	<alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
-	<20180424125121.GA17484@dhcp22.suse.cz>
-	<alpine.LRH.2.02.1804241142340.15660@file01.intranet.prod.int.rdu2.redhat.com>
-	<20180424162906.GM17484@dhcp22.suse.cz>
-	<alpine.LRH.2.02.1804241250350.28995@file01.intranet.prod.int.rdu2.redhat.com>
-	<20180424170349.GQ17484@dhcp22.suse.cz>
-	<alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com>
-	<20180424173836.GR17484@dhcp22.suse.cz>
-	<alpine.LRH.2.02.1804251556060.30569@file01.intranet.prod.int.rdu2.redhat.com>
-	<1114eda5-9b1f-4db8-2090-556b4a37c532@infradead.org>
-	<alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com>
-	<alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com>
-	<alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com>
-	<1524694663.4100.21.camel@HansenPartnership.com>
-	<alpine.LRH.2.02.1804251857070.31135@file01.intranet.prod.int.rdu2.redhat.com>
-	<1524697697.4100.23.camel@HansenPartnership.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, Michal@stoffel.org, eric.dumazet@gmail.com, mst@redhat.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Hocko <mhocko@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>, Andrew@stoffel.org, David Rientjes <rientjes@google.com>, Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, David Miller <davem@davemloft.net>, edumazet@google.com
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Mike Snitzer <snitzer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
->>>>> "James" =3D=3D James Bottomley <James.Bottomley@HansenPartnership=
-.com> writes:
+On Wed, 25 Apr 2018, Mikulas Patocka wrote:
 
-James> On Wed, 2018-04-25 at 19:00 -0400, Mikulas Patocka wrote:
->>=20
->> On Wed, 25 Apr 2018, James Bottomley wrote:
->>=20
->> > > > Do we really need the new config option?=A0=A0This could just =
-be
->> > > > manually=A0 tunable via fault injection IIUC.
->> > >=A0
->> > > We do, because we want to enable it in RHEL and Fedora debugging=
+> Do you want this? It deletes slab_order and replaces it with the
+> "minimize_waste" logic directly.
 
->> > > kernels,=A0so that it will be tested by the users.
->> > >=A0
->> > > The users won't use some extra magic kernel options or debugfs
->> files.
->> >=A0
->> > If it can be enabled via a tunable, then the distro can turn it on=
+Well yes that looks better. Now we need to make it easy to read and less
+complicated. Maybe try to keep as much as possible of the old code
+and also the names of variables to make it easier to review?
 
->> > without the user having to do anything.=A0 If you want to present =
-the
->> > user with a different boot option, you can (just have the tunable
->> set
->> > on the command line), but being tunable driven means that you don'=
-t
->> > have to choose that option, you could automatically enable it unde=
-r
->> a
->> > range of circumstances.=A0 I think most sane distributions would w=
-ant
->> > that flexibility.
->> >=A0
->> > Kconfig proliferation, conversely, is a bit of a nightmare from
->> both
->> > the user and the tester's point of view, so we're trying to avoid
->> it
->> > unless absolutely necessary.
->> >=A0
->> > James
->>=20
->> BTW. even developers who compile their own kernel should have this
->> enabled=A0by a CONFIG option - because if the developer sees the opt=
-ion
->> when=A0browsing through menuconfig, he may enable it. If he doesn't =
-see
->> the=A0option, he won't even know that such an option exists.
+> It simplifies the code and it is very similar to the old algorithms, most
+> slab caches have the same order, so it shouldn't cause any regressions.
+>
+> This patch changes order of these slabs:
+> TCPv6: 3 -> 4
+> sighand_cache: 3 -> 4
+> task_struct: 3 -> 4
 
-James> I may be an atypical developer but I'd rather have a root canal
-James> than browse through menuconfig options.  The way to get people
-James> to learn about new debugging options is to blog about it (or
-James> write an lwn.net article) which google will find the next time
-James> I ask it how I debug XXX.  Google (probably as a service to
-James> humanity) rarely turns up Kconfig options in response to a
-James> query.
+Hmmm... order 4 for these caches may cause some concern. These should stay
+under costly order I think. Otherwise allocations are no longer
+guaranteed.
 
-I agree with James here.  Looking at the SLAB vs SLUB Kconfig entries
-tells me *nothing* about why I should pick one or the other, as an
-example.
+> @@ -3269,35 +3245,35 @@ static inline int calculate_order(unsign
+>  	max_objects = order_objects(slub_max_order, size, reserved);
+>  	min_objects = min(min_objects, max_objects);
+>
+> -	while (min_objects > 1) {
+> -		unsigned int fraction;
+> +	/* Get the minimum acceptable order for one object */
+> +	order = get_order(size + reserved);
+> +
+> +	for (test_order = order + 1; test_order < MAX_ORDER; test_order++) {
+> +		unsigned order_obj = order_objects(order, size, reserved);
+> +		unsigned test_order_obj = order_objects(test_order, size, reserved);
+> +
+> +		/* If there are too many objects, stop searching */
+> +		if (test_order_obj > MAX_OBJS_PER_PAGE)
+> +			break;
+>
+> -		fraction = 16;
+> -		while (fraction >= 4) {
+> -			order = slab_order(size, min_objects,
+> -					slub_max_order, fraction, reserved);
+> -			if (order <= slub_max_order)
+> -				return order;
+> -			fraction /= 2;
+> -		}
+> -		min_objects--;
+> +		/* Always increase up to slub_min_order */
+> +		if (test_order <= slub_min_order)
+> +			order = test_order;
 
-John
+Well that is a significant change. In our current scheme the order
+boundart wins.
+
+
+> +
+> +		/* If we are below min_objects and slub_max_order, increase order */
+> +		if (order_obj < min_objects && test_order <= slub_max_order)
+> +			order = test_order;
+> +
+> +		/* Increase order even more, but only if it reduces waste */
+> +		if (test_order_obj <= 32 &&
+
+Where does the 32 come from?
+
+> +		    test_order_obj > order_obj << (test_order - order))
+
+Add more () to make the condition better readable.
+
+> +			order = test_order;
+
+Can we just call test_order order and avoid using the long variable names
+here? Variable names in functions are typically short.
