@@ -1,166 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 701366B0003
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 05:42:15 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x16so3908652wmc.8
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 02:42:15 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v13si239714edk.456.2018.04.26.02.42.13
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B42336B0006
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 06:01:02 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id h9so20708566uac.3
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 03:01:02 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p192sor3236046vkp.195.2018.04.26.03.01.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Apr 2018 02:42:13 -0700 (PDT)
-Date: Thu, 26 Apr 2018 11:42:11 +0200
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
-Message-ID: <20180426094211.okftwdzgfn72rik3@pathway.suse.cz>
-References: <20180420091224.cotxcfycmtt2hm4m@pathway.suse.cz>
- <20180420080428.622a8e7f@gandalf.local.home>
- <20180420140157.2nx5nkojj7l2y7if@pathway.suse.cz>
- <20180420101751.6c1c70e8@gandalf.local.home>
- <20180420145720.hb7bbyd5xbm5je32@pathway.suse.cz>
- <20180420111307.44008fc7@gandalf.local.home>
- <20180423103232.k23yulv2e7fah42r@pathway.suse.cz>
- <20180423073603.6b3294ba@gandalf.local.home>
- <20180423124502.423fb57thvbf3zet@pathway.suse.cz>
- <20180425053146.GA25288@jagdpanzerIV>
+        (Google Transport Security);
+        Thu, 26 Apr 2018 03:01:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180425053146.GA25288@jagdpanzerIV>
+In-Reply-To: <CAEemH2enj4MUFRc03CLzuHzqJGJFESeQvj5oitZ2Am+Ww=jVYA@mail.gmail.com>
+References: <CAEemH2enj4MUFRc03CLzuHzqJGJFESeQvj5oitZ2Am+Ww=jVYA@mail.gmail.com>
+From: Li Wang <liwang@redhat.com>
+Date: Thu, 26 Apr 2018 18:00:59 +0800
+Message-ID: <CAEemH2dCNqG__gxwN_jdhjiC_SW_3ip1aDwr8LHLrBf65=jn6g@mail.gmail.com>
+Subject: Re: LTP cve-2017-5754 test fails on kernel-v4.17-rc2
+Content-Type: multipart/alternative; boundary="001a114c09eef438d6056abd765a"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: linux-kernel@vger.kernel.org, ltp@lists.linux.it
+Cc: pboldin@cloudlinux.com, dave.hansen@linux.intel.com, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Jan Stancek <jstancek@redhat.com>
 
-On Wed 2018-04-25 14:31:46, Sergey Senozhatsky wrote:
-> On (04/23/18 14:45), Petr Mladek wrote:
-> [..]
-> > I am not sure how slow are the slowest consoles. If I take that
-> > everything should be faster than 1200 bauds. Then 10 minutes
-> > should be enough for 1000 lines and 80 characters per-line:
-> 
-> Well, the problem with the numbers is that they are too... simple...
-> let me put it this way.
+--001a114c09eef438d6056abd765a
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Sometimes a simple solution is the acceptable one.
+On Thu, Apr 26, 2018 at 3:02 PM, Li Wang <liwang@redhat.com> wrote:
 
-For example, I created a complicated solution for lock-less printk
-in NMI that reduced loosing messages to minimum. It ended in lkml
-archives, covered by not very nice comments. Instead we ended with
-quite limited per-CPU buffers.
+> Hi LKML & LTP,
+>
+> LTP/meltdown.c fails on upstream kernel-v4.17-rc2 with both kvm and
+> bare-metal system. Please attention!!!
+>
 
-Believe me, I could perfectly understand the desire to create perfect
-defensive solutions that would never break anything. It is not easy
-to decide when the best-effort solutions are worth the risk.
+=E2=80=8BThe failure was only occurred on kvm system not include bare-matal=
+. Sorry
+for that.
 
+After a simple discussion with Jan, we guess the reason is that commit
+8c06c774 (x86/pti: Leave kernel text global for !PCID)=E2=80=8B
+involves new function pti_kernel_image_global_ok(void) which makes kernel
+use global pages when pti_mode =3D=3D PTI_AUTO,
+then LTP meltdown.c obviously easy to read the linux_banner content there.
 
-> What if I don't have a slow serial console? Or what if I have NMI
-> watchdog set to 40 seconds? Or what if I don't have NMIs at all?
-> Why am I all of a sudden limited by "1200 bauds"?
+After rebooting kernel with parameter "pti=3Don", the FAIL is gone. So, fro=
+m
+the result, seems LTP/meltdown.c should be improved.
 
-Because it keeps the solution simple and I believe that it might
-be enough.
-
-
-> We limit the number of times vprintk_func() was called, which is != the
-> number of added lines. Because vprintk_func() is also called for
-> pr_cont().
-
-Good point. Well, it is rather trivial to count characters instead
-of a number of calls.
+=E2=80=8BBtw, I'm not very good at this, If anything I was wrong, pls feel =
+free to
+correct me.=E2=80=8B
 
 
-> Another problem is that nothing tells us that we *actually* have an
-> infinite loop. This can be a one time thing.
-
-  + one time event => should fit into limit => nothing lost
-
-  + repeated thing => repeated message does not bring new information
-     => limiting is acceptable and even useful.
-
-Honestly, I do not believe that console drivers are like Scheherazade.
-They are not able to make up long interesting stories. Let's say that
-lockdep splat has more than 100 lines but it can happen only once.
-Let's say that WARNs have about 40 lines. I somehow doubt that we
-could ever see 10 different WARN calls from one con->write() call.
-
-1200 baud slow console is able to handle 90kB of text within 10
-minutes:
-
-   (1200 / 8) * 60 * 10 = 90000
-
-It is more than 1000 lines full of 80 characters:
-
-   (1200 / 8) * 60 * 10 / 80 = 1125
-
-IMHO, it is more than enough to get useful report.
-
-
-> But we first need a real reason. Right now it looks to me like
-> we have "a solution" to a problem which we have never witnessed.
-
-I am trying to find a "simple" and generic solution for the problem
-reported by Tejun:
-
-<paste from 20180110170223.GF3668920@devbig577.frc2.facebook.com>
-The particular case that we've been seeing regularly in the fleet was
-the following scenario
-
-1. Console is IPMI emulated serial console.  Super slow.  Also
-   netconsole is in use.
-2. System runs out of memory, OOM triggers.
-3. OOM handler is printing out OOM debug info.
-4. While trying to emit the messages for netconsole, the network stack
-   / driver tries to allocate memory and then fail, which in turn
-   triggers allocation failure or other warning messages.  printk was
-   already flushing, so the messages are queued on the ring.
-5. OOM handler keeps flushing but 4 repeats and the queue is never
-   shrinking.  Because OOM handler is trapped in printk flushing, it
-   never manages to free memory and no one else can enter OOM path
-   either, so the system is trapped in this state.
-</paste>
-
-It was a bit specific because offloading helped to unblock OOM path
-and calm down the errors.
-
-But let me use your words:
-
-<paste from 20180425053146.GA25288@jagdpanzerIV>
-call_console_drivers() is super complex, unbelievable complex. In fact,
-it's so complex that we never know where we will end up, because it can
-pass the control to almost every core kernel mechanism or subsystem:
-kobjects, spin locks, tty, sdp, uart, vt, fbdev, dri, kms, timers,
-timekeeping, networking, mm, scheduler, you name it. Thousands and
-thousands lines of code, which are not executed exclusively by the
-console drivers.
-</paste>
-
-For me it is hard to believe that all these possible errors will be
-cured just by offloading. Not to say that offloading is not trivial
-and there is some resistance against it.
-
-Finally, the limiting does not only help to unblock the victim that
-called console_unlock(). I also helps printk() subsystem to survive
-a potential infinite DOS attack.
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+  391     * Global pages and PCIDs are both ways to make kernel TLB entries
+   392     * live longer, reduce TLB misses and improve kernel performance.
+   393     * But, leaving all kernel text Global makes it potentially
+accessible
+   394     * to Meltdown-style attacks which make it trivial to find
+gadgets or
+   395     * defeat KASLR.
+   396     *
+   397     * Only use global pages when it is really worth it.
+   398     */
+   399    static inline bool pti_kernel_image_global_ok(void)
+   400    {
+   401        /*
+   402         * Systems with PCIDs get litlle benefit from global
+   403         * kernel text and are not worth the downsides.
+   404         */
+   405        if (cpu_feature_enabled(X86_FEATURE_PCID))
+   406            return false;
+   407
+   408        /*
+   409         * Only do global kernel image for pti=3Dauto.  Do the most
+   410         * secure thing (not global) if pti=3Don specified.
+   411         */
+   412        if (pti_mode !=3D PTI_AUTO)
+   413            return false;
+   414
+   415        /*
+   416         * K8 may not tolerate the cleared _PAGE_RW on the userspace
+   417         * global kernel image pages.  Do the safe thing (disable
+   418         * global kernel image).  This is unlikely to ever be
+   419         * noticed because PTI is disabled by default on AMD CPUs.
+   420         */
+   421        if (boot_cpu_has(X86_FEATURE_K8))
+   422            return false;
+   423
+   424        return true;
+   425    }
 
 
 
-Well, I think about alternative solution inspired by:
+--=20
+Li Wang
+liwang@redhat.com
 
-<paste from 20180416042553.GA555@jagdpanzerIV>
-I'd really prefer to rate limit the function which flushes per-CPU
-printk_safe buffers; not the function that appends new messages to
-the per-CPU printk_safe buffers.
-</paste>
+--001a114c09eef438d6056abd765a
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-The is one unused flag in struct printk_log flags:5. We could use
-it to mark messages from console drivers context. Then we could store
-all messages and ratelimit only flushing these messages to the
-console.
+<div dir=3D"ltr"><div class=3D"gmail_default" style=3D"font-family:arial,he=
+lvetica,sans-serif"><br></div><div class=3D"gmail_extra"><br><div class=3D"=
+gmail_quote">On Thu, Apr 26, 2018 at 3:02 PM, Li Wang <span dir=3D"ltr">&lt=
+;<a href=3D"mailto:liwang@redhat.com" target=3D"_blank">liwang@redhat.com</=
+a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0=
+px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><=
+div dir=3D"ltr"><div style=3D"font-family:arial,helvetica,sans-serif">Hi LK=
+ML &amp; LTP,</div><div style=3D"font-family:arial,helvetica,sans-serif"><b=
+r></div><div style=3D"font-family:arial,helvetica,sans-serif">LTP/meltdown.=
+c fails on upstream kernel-v4.17-rc2 with both kvm and bare-metal system. P=
+lease attention!!!<br></div></div></blockquote><div><br></div><div><div sty=
+le=3D"font-family:arial,helvetica,sans-serif" class=3D"gmail_default">=E2=
+=80=8BThe failure was only occurred on kvm system not include bare-matal. S=
+orry for that.</div><div style=3D"font-family:arial,helvetica,sans-serif" c=
+lass=3D"gmail_default"><br></div><div style=3D"font-family:arial,helvetica,=
+sans-serif" class=3D"gmail_default">After a simple discussion with Jan, we =
+guess the reason is that commit 8c06c774 (x86/pti: Leave kernel text global=
+ for !PCID)=E2=80=8B</div><div style=3D"font-family:arial,helvetica,sans-se=
+rif" class=3D"gmail_default">involves new function pti_kernel_image_global_=
+ok(void) which makes kernel use global pages when pti_mode =3D=3D PTI_AUTO,=
+</div><div style=3D"font-family:arial,helvetica,sans-serif" class=3D"gmail_=
+default">then LTP meltdown.c obviously easy to read the linux_banner conten=
+t there. <br></div><div style=3D"font-family:arial,helvetica,sans-serif" cl=
+ass=3D"gmail_default"><br></div><div style=3D"font-family:arial,helvetica,s=
+ans-serif" class=3D"gmail_default">After rebooting kernel with parameter &q=
+uot;pti=3Don&quot;, the FAIL is gone. So, from the result, seems LTP/meltdo=
+wn.c should be improved.<br></div></div><div><br></div><div style=3D"font-f=
+amily:arial,helvetica,sans-serif" class=3D"gmail_default">=E2=80=8BBtw, I&#=
+39;m not very good at this, If anything I was wrong, pls feel free to corre=
+ct me.=E2=80=8B</div><div style=3D"font-family:arial,helvetica,sans-serif" =
+class=3D"gmail_default"><br></div><div style=3D"font-family:arial,helvetica=
+,sans-serif" class=3D"gmail_default"><br></div><div style=3D"font-family:ar=
+ial,helvetica,sans-serif" class=3D"gmail_default">=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D</div><div style=3D"font-family:arial,helvetica,sans-serif" cla=
+ss=3D"gmail_default">=C2=A0 391=C2=A0=C2=A0=C2=A0 =C2=A0* Global pages and =
+PCIDs are both ways to make kernel TLB entries<br>=C2=A0=C2=A0 392=C2=A0=C2=
+=A0=C2=A0 =C2=A0* live longer, reduce TLB misses and improve kernel perform=
+ance.<br>=C2=A0=C2=A0 393=C2=A0=C2=A0=C2=A0 =C2=A0* But, leaving all kernel=
+ text Global makes it potentially accessible<br>=C2=A0=C2=A0 394=C2=A0=C2=
+=A0=C2=A0 =C2=A0* to Meltdown-style attacks which make it trivial to find g=
+adgets or<br>=C2=A0=C2=A0 395=C2=A0=C2=A0=C2=A0 =C2=A0* defeat KASLR.<br>=
+=C2=A0=C2=A0 396=C2=A0=C2=A0=C2=A0 =C2=A0*<br>=C2=A0=C2=A0 397=C2=A0=C2=A0=
+=C2=A0 =C2=A0* Only use global pages when it is really worth it.<br>=C2=A0=
+=C2=A0 398=C2=A0=C2=A0=C2=A0 =C2=A0*/<br>=C2=A0=C2=A0 399=C2=A0=C2=A0=C2=A0=
+ static inline bool pti_kernel_image_global_ok(void)<br>=C2=A0=C2=A0 400=C2=
+=A0=C2=A0=C2=A0 {<br>=C2=A0=C2=A0 401=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =
+/*<br>=C2=A0=C2=A0 402=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0* Systems=
+ with PCIDs get litlle benefit from global<br>=C2=A0=C2=A0 403=C2=A0=C2=A0=
+=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0* kernel text and are not worth the downsid=
+es.<br>=C2=A0=C2=A0 404=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0*/<br>=
+=C2=A0=C2=A0 405=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 if (cpu_feature_enabl=
+ed(X86_FEATURE_PCID))<br>=C2=A0=C2=A0 406=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=
+=A0 =C2=A0=C2=A0=C2=A0 return false;<br>=C2=A0=C2=A0 407=C2=A0=C2=A0=C2=A0 =
+<br>=C2=A0=C2=A0 408=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 /*<br>=C2=A0=C2=
+=A0 409=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0* Only do global kernel =
+image for pti=3Dauto.=C2=A0 Do the most<br>=C2=A0=C2=A0 410=C2=A0=C2=A0=C2=
+=A0 =C2=A0=C2=A0=C2=A0 =C2=A0* secure thing (not global) if pti=3Don specif=
+ied.<br>=C2=A0=C2=A0 411=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0*/<br>=
+=C2=A0=C2=A0 412=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 if (pti_mode !=3D PTI=
+_AUTO)<br>=C2=A0=C2=A0 413=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=
+=A0=C2=A0 return false;<br>=C2=A0=C2=A0 414=C2=A0=C2=A0=C2=A0 <br>=C2=A0=C2=
+=A0 415=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 /*<br>=C2=A0=C2=A0 416=C2=A0=
+=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0* K8 may not tolerate the cleared _PA=
+GE_RW on the userspace<br>=C2=A0=C2=A0 417=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=
+=C2=A0 =C2=A0* global kernel image pages.=C2=A0 Do the safe thing (disable<=
+br>=C2=A0=C2=A0 418=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0* global ker=
+nel image).=C2=A0 This is unlikely to ever be<br>=C2=A0=C2=A0 419=C2=A0=C2=
+=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0* noticed because PTI is disabled by def=
+ault on AMD CPUs.<br>=C2=A0=C2=A0 420=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =
+=C2=A0*/<br>=C2=A0=C2=A0 421=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 if (boot_=
+cpu_has(X86_FEATURE_K8))<br>=C2=A0=C2=A0 422=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=
+=C2=A0 =C2=A0=C2=A0=C2=A0 return false;<br>=C2=A0=C2=A0 423=C2=A0=C2=A0=C2=
+=A0 <br>=C2=A0=C2=A0 424=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 return true;<=
+br>=C2=A0=C2=A0 425=C2=A0=C2=A0=C2=A0 }<br><br></div></div><br clear=3D"all=
+"><br>-- <br><div class=3D"gmail_signature">Li Wang<br><a href=3D"mailto:li=
+wang@redhat.com" target=3D"_blank">liwang@redhat.com</a></div>
+</div></div>
 
-I still think that limiting the write into the log buffer is better
-approach because it would prevent loosing other useful messages.
-But this alternative approach is definitely more conservative.
-
-Best Regards,
-Petr
+--001a114c09eef438d6056abd765a--
