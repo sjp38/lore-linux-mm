@@ -1,55 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E8A266B0009
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 17:41:03 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id m68so12799813pfm.20
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 14:41:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u11sor3459599pgc.1.2018.04.26.14.41.02
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 765616B000C
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 17:50:23 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id c73so9175556qke.2
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 14:50:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id r7-v6si8594875qtd.381.2018.04.26.14.50.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Apr 2018 14:41:02 -0700 (PDT)
-Subject: Re: [PATCH v2 net-next 0/2] tcp: mmap: rework zerocopy receive
-References: <20180425214307.159264-1-edumazet@google.com>
- <CACSApvZF8CJqcRx7FGkMGitBiC6m0=_FT9XRZ=VV07U62wGM3Q@mail.gmail.com>
- <a2c405e1-0ebc-dd33-fb0d-575bf06a1ff6@gmail.com>
- <CALCETrVBQD1tPUzc_t7HmoPfApTdFW+x-0DqL8+XHjrmEpYMXQ@mail.gmail.com>
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Message-ID: <2a8ea6bd-02dd-14dd-c797-2d8cba626f79@gmail.com>
-Date: Thu, 26 Apr 2018 14:40:59 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Apr 2018 14:50:22 -0700 (PDT)
+Date: Thu, 26 Apr 2018 17:50:20 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc fallback
+ options
+In-Reply-To: <23266.8532.619051.784274@quad.stoffel.home>
+Message-ID: <alpine.LRH.2.02.1804261726540.13401@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20180421144757.GC14610@bombadil.infradead.org> <20180424162906.GM17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804241250350.28995@file01.intranet.prod.int.rdu2.redhat.com> <20180424170349.GQ17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com> <20180424173836.GR17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804251556060.30569@file01.intranet.prod.int.rdu2.redhat.com> <1114eda5-9b1f-4db8-2090-556b4a37c532@infradead.org>
+ <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com> <alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com> <1524694663.4100.21.camel@HansenPartnership.com>
+ <alpine.LRH.2.02.1804251857070.31135@file01.intranet.prod.int.rdu2.redhat.com> <1524697697.4100.23.camel@HansenPartnership.com> <23266.8532.619051.784274@quad.stoffel.home>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrVBQD1tPUzc_t7HmoPfApTdFW+x-0DqL8+XHjrmEpYMXQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Soheil Hassas Yeganeh <soheil@google.com>, Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>, Network Development <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: John Stoffel <john@stoffel.org>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Michal@stoffel.org, eric.dumazet@gmail.com, mst@redhat.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Hocko <mhocko@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>, Andrew@stoffel.org, David Rientjes <rientjes@google.com>, Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, David Miller <davem@davemloft.net>, edumazet@google.com
 
 
 
-On 04/26/2018 02:16 PM, Andy Lutomirski wrote:
-> At the risk of further muddying the waters, there's another minor tweak
-> that could improve performance on certain workloads.  Currently you mmap()
-> a range for a given socket and then getsockopt() to receive.  If you made
-> it so you could mmap() something once for any number of sockets (by
-> mmapping /dev/misc/tcp_zero_receive or whatever), then the performance of
-> the getsockopt() bit would be identical, but you could release the mapping
-> for many sockets at once with only a single flush.  For some use cases,
-> this could be a big win.
+On Thu, 26 Apr 2018, John Stoffel wrote:
+
+> >>>>> "James" == James Bottomley <James.Bottomley@HansenPartnership.com> writes:
 > 
-> You could also add this later easily enough, too.
+> James> I may be an atypical developer but I'd rather have a root canal
+> James> than browse through menuconfig options.  The way to get people
+> James> to learn about new debugging options is to blog about it (or
+> James> write an lwn.net article) which google will find the next time
+> James> I ask it how I debug XXX.  Google (probably as a service to
+> James> humanity) rarely turns up Kconfig options in response to a
+> James> query.
 > 
+> I agree with James here.  Looking at the SLAB vs SLUB Kconfig entries
+> tells me *nothing* about why I should pick one or the other, as an
+> example.
+> 
+> John
 
-I believe I implemented what you just described.
+I see your point - and I think the misunderstanding is this.
 
-The getsockopt() call checks that the VMA was created by a mmap() to one TCP socket.
+This patch is not really helping people to debug existing crashes. It is 
+not like "you get a crash" - "you google for some keywords" - "you get a 
+page that suggests to turn this option on" - "you turn it on and solve the 
+crash".
 
-It does not check that the vma was created by mmap() on the same socket,
-because we do not need this extra check really.
+What this patch really does is that - it makes the kernel deliberately 
+crash in a situation when the code violates the specification, but it 
+would not crash otherwise or it would crash very rarely. It helps to 
+detect specification violations.
 
-So you presumably could use mmap() to grab 1GB of virtual space, then split it
-as you wish for different sockets.
+If the kernel developer (or tester) doesn't use this option, his buggy 
+code won't crash - and if it won't crash, he won't fix the bug or report 
+it. How is the user or developer supposed to learn about this option, if 
+he gets no crash at all?
 
-Thanks.
+Mikulas
