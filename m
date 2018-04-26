@@ -1,63 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EC4D36B0024
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 18:30:22 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id j18so14127642pgv.18
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 15:30:22 -0700 (PDT)
-Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
-        by mx.google.com with ESMTPS id l3si5472657pfi.179.2018.04.26.15.30.21
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D1B06B0026
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 18:52:09 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id q185so17146199qke.7
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 15:52:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id f15si475198qki.233.2018.04.26.15.52.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Apr 2018 15:30:21 -0700 (PDT)
-From: "Kani, Toshi" <toshi.kani@hpe.com>
-Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
-Date: Thu, 26 Apr 2018 22:30:14 +0000
-Message-ID: <1524781764.2693.503.camel@hpe.com>
-References: <20180314180155.19492-1-toshi.kani@hpe.com>
-	 <20180314180155.19492-3-toshi.kani@hpe.com>
-	 <20180426141926.GN15462@8bytes.org> <1524759629.2693.465.camel@hpe.com>
-	 <20180426172327.GQ15462@8bytes.org> <1524764948.2693.478.camel@hpe.com>
-	 <20180426200737.GS15462@8bytes.org>
-In-Reply-To: <20180426200737.GS15462@8bytes.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <5EDE787B35BE6D488AF4ABE41F90DD56@NAMPRD84.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+        Thu, 26 Apr 2018 15:52:07 -0700 (PDT)
+Date: Thu, 26 Apr 2018 18:52:05 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc fallback
+ options
+In-Reply-To: <20180427005213-mutt-send-email-mst@kernel.org>
+Message-ID: <alpine.LRH.2.02.1804261829190.30599@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1804251556060.30569@file01.intranet.prod.int.rdu2.redhat.com> <1114eda5-9b1f-4db8-2090-556b4a37c532@infradead.org> <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com>
+ <alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com> <1524694663.4100.21.camel@HansenPartnership.com> <alpine.LRH.2.02.1804251857070.31135@file01.intranet.prod.int.rdu2.redhat.com> <1524697697.4100.23.camel@HansenPartnership.com>
+ <23266.8532.619051.784274@quad.stoffel.home> <alpine.LRH.2.02.1804261726540.13401@file01.intranet.prod.int.rdu2.redhat.com> <20180427005213-mutt-send-email-mst@kernel.org>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "joro@8bytes.org" <joro@8bytes.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "willy@infradead.org" <willy@infradead.org>, "hpa@zytor.com" <hpa@zytor.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Hocko,
- Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: John Stoffel <john@stoffel.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Michal@stoffel.org, eric.dumazet@gmail.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Hocko <mhocko@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>, Andrew@stoffel.org, David Rientjes <rientjes@google.com>, Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, David Miller <davem@davemloft.net>, edumazet@google.com
 
-T24gVGh1LCAyMDE4LTA0LTI2IGF0IDIyOjA3ICswMjAwLCBqb3JvQDhieXRlcy5vcmcgd3JvdGU6
-DQo+IE9uIFRodSwgQXByIDI2LCAyMDE4IGF0IDA1OjQ5OjU4UE0gKzAwMDAsIEthbmksIFRvc2hp
-IHdyb3RlOg0KPiA+IE9uIFRodSwgMjAxOC0wNC0yNiBhdCAxOToyMyArMDIwMCwgam9yb0A4Ynl0
-ZXMub3JnIHdyb3RlOg0KPiA+ID4gU28gdGhlIFBNRCBlbnRyeSB5b3UgY2xlYXIgY2FuIHN0aWxs
-IGJlIGluIGEgcGFnZS13YWxrIGNhY2hlIGFuZCB0aGlzDQo+ID4gPiBuZWVkcyB0byBiZSBmbHVz
-aGVkIHRvbyBiZWZvcmUgeW91IGNhbiBmcmVlIHRoZSBQVEUgcGFnZS4gT3RoZXJ3aXNlDQo+ID4g
-PiBwYWdlLXdhbGtzIG1pZ2h0IHN0aWxsIGdvIHRvIHRoZSBwYWdlIHlvdSBqdXN0IGZyZWVkLiBU
-aGF0IGlzIGVzcGVjaWFsbHkNCj4gPiA+IGJhZCB3aGVuIHRoZSBwYWdlIGlzIGFscmVhZHkgcmVh
-bGxvY2F0ZWQgYW5kIGZpbGxlZCB3aXRoIG90aGVyIGRhdGEuDQo+ID4gDQo+ID4gSSBkbyBub3Qg
-dW5kZXJzdGFuZCB3aHkgd2UgbmVlZCB0byBmbHVzaCBwcm9jZXNzb3IgY2FjaGVzIGhlcmUuIHg4
-Ng0KPiA+IHByb2Nlc3NvciBjYWNoZXMgYXJlIGNvaGVyZW50IHdpdGggTUVTSS4gIFNvLCBjbGVh
-cmluZyBhbiBQTUQgZW50cnkNCj4gPiBtb2RpZmllcyBhIGNhY2hlIGVudHJ5IG9uIHRoZSBwcm9j
-ZXNzb3IgYXNzb2NpYXRlZCB3aXRoIHRoZSBhZGRyZXNzLA0KPiA+IHdoaWNoIGluIHR1cm4gaW52
-YWxpZGF0ZXMgYWxsIHN0YWxlIGNhY2hlIGVudHJpZXMgb24gb3RoZXIgcHJvY2Vzc29ycy4NCj4g
-DQo+IEEgcGFnZSB3YWxrIGNhY2hlIGlzIG5vdCBhYm91dCB0aGUgcHJvY2Vzc29ycyBkYXRhIGNh
-Y2hlLCBpdHMgYSBjYWNoZQ0KPiBzaW1pbGFyIHRvIHRoZSBUTEIgdG8gc3BlZWQgdXAgcGFnZS13
-YWxrcyBieSBjYWNoaW5nIGludGVybWVkaWF0ZQ0KPiByZXN1bHRzIG9mIHByZXZpb3VzIHBhZ2Ug
-d2Fsa3MuDQoNClRoYW5rcyBmb3IgdGhlIGNsYXJpZmljYXRpb24uIEFmdGVyIHJlYWRpbmcgdGhy
-b3VnaCBTRE0gb25lIG1vcmUgdGltZSwgSQ0KYWdyZWUgdGhhdCB3ZSBuZWVkIGEgVExCIHB1cmdl
-IGhlcmUuIEhlcmUgaXMgbXkgY3VycmVudCB1bmRlcnN0YW5kaW5nLiANCg0KIC0gSU5WTFBHIHB1
-cmdlcyBib3RoIFRMQiBhbmQgcGFnaW5nLXN0cnVjdHVyZSBjYWNoZXMuIFNvLCBQTUQgY2FjaGUg
-d2FzDQpwdXJnZWQgb25jZS4NCiAtIEhvd2V2ZXIsIHByb2Nlc3NvciBtYXkgY2FjaGUgdGhpcyBQ
-TUQgZW50cnkgbGF0ZXIgaW4gc3BlY3VsYXRpb24NCnNpbmNlIGl0IGhhcyBwLWJpdCBzZXQuIChU
-aGlzIGlzIHdoZXJlIG15IG1pc3VuZGVyc3RhbmRpbmcgd2FzLg0KU3BlY3VsYXRpb24gaXMgbm90
-IGFsbG93ZWQgdG8gYWNjZXNzIGEgdGFyZ2V0IGFkZHJlc3MsIGJ1dCBpdCBtYXkgc3RpbGwNCmNh
-Y2hlIHRoaXMgUE1EIGVudHJ5LikNCiAtIEEgc2luZ2xlIElOVkxQRyBvbiBlYWNoIHByb2Nlc3Nv
-ciBwdXJnZXMgdGhpcyBQTUQgY2FjaGUuIEl0IGRvZXMgbm90DQpuZWVkIGEgcmFuZ2UgcHVyZ2Ug
-KHdoaWNoIHdhcyBhbHJlYWR5IGRvbmUpLg0KDQpEb2VzIGl0IHNvdW5kIHJpZ2h0IHRvIHlvdT8N
-Cg0KQXMgZm9yIHRoZSBCVUdfT04gaXNzdWUsIGFyZSB5b3UgYWJsZSB0byByZXByb2R1Y2UgdGhp
-cyBpc3N1ZT8gIElmIHNvLA0Kd291bGQgeW91IGJlIGFibGUgdG8gdGVzdCB0aGUgZml4Pw0KDQpS
-ZWdhcmRzLA0KLVRvc2hpDQo=
+
+
+On Fri, 27 Apr 2018, Michael S. Tsirkin wrote:
+
+> On Thu, Apr 26, 2018 at 05:50:20PM -0400, Mikulas Patocka wrote:
+> > How is the user or developer supposed to learn about this option, if 
+> > he gets no crash at all?
+> 
+> Look in /sys/kernel/debug/fail* ? That actually lets you
+> filter by module, process etc.
+> 
+> I think this patch conflates two things:
+> 
+> 1. Make kvmalloc use the vmalloc path.
+>     This seems a bit narrow.
+>     What is special about kvmalloc? IMHO nothing - it's yet another user
+>     of __GFP_NORETRY or __GFP_RETRY_MAYFAIL. As any such
+
+__GFP_RETRY_MAYFAIL makes the allocator retry the costly_order allocations
+
+>     user, it either recovers correctly or not.
+>     So IMHO it's just a case of
+>     making __GFP_NORETRY, __GFP_RETRY_MAYFAIL, or both
+>     fail once in a while.
+>     Seems like a better extension to me than focusing on vmalloc.
+>     I think you will find more bugs this way.
+
+If the array is <= PAGE_SIZE, vmalloc will not use __GFP_NORETRY. So it 
+still hides some bugs - such as, if a structure grows above 4k, it would 
+start randomly crashing due to memory fragmentation.
+
+> 2. Ability to control this from a separate config
+>    option.
+> 
+>    It's still not that clear to me why is this such a
+>    hard requirement.  If a distro wants to force specific
+>    boot time options, why isn't CONFIG_CMDLINE sufficient?
+
+There are 489 kernel options declared with the __setup keyword. Hardly any 
+kernel developer notices that a new one was added and selects it when 
+testing his code.
+
+>    But assuming it's important to control this kind of
+>    fault injection to be controlled from
+>    a dedicated menuconfig option, why not the rest of
+>    faults?
+
+The injected faults cause damage to the user, so there's no point to 
+enable them by default. vmalloc fallback should not cause any damage 
+(assuming that the code is correctly written).
+
+> IMHO if you split 1/2 up, and generalize, the path upstream
+> will be much smoother.
+
+This seems like a lost case. So, let's not care about code correctness and 
+let's solve crashes only after they are reported. If the upstream wants to 
+work this way, there's nothing that can be done about it.
+
+I'm wondering if I can still push it to RHEL or not.
+
+> Hope this helps.
+> 
+> -- 
+> MST
+
+Mikulas
