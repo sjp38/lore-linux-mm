@@ -1,88 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 168656B0005
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 09:15:21 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k27-v6so26050440wre.23
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 06:15:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r65sor3621190wmf.11.2018.04.26.06.15.18
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 403086B0005
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 09:28:49 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id q3-v6so1678910wrn.3
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 06:28:49 -0700 (PDT)
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id d13-v6si15815380wri.245.2018.04.26.06.28.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Apr 2018 06:15:19 -0700 (PDT)
-Date: Thu, 26 Apr 2018 14:15:17 +0100
-From: Stefan Hajnoczi <stefanha@gmail.com>
-Subject: Re: [RFC v2 2/2] pmem: device flush over VIRTIO
-Message-ID: <20180426131517.GB30991@stefanha-x1.localdomain>
-References: <20180425112415.12327-1-pagupta@redhat.com>
- <20180425112415.12327-3-pagupta@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Apr 2018 06:28:47 -0700 (PDT)
+Subject: Re: OOM killer invoked while still one forth of mem is available
+References: <df1a8c14-bda3-6271-d403-24b88a254b2c@c-s.fr>
+ <alpine.DEB.2.21.1804251253240.151692@chino.kir.corp.google.com>
+ <296ea83c-2c00-f1d2-3f62-d8ab8b8fb73c@c-s.fr>
+ <20180426131154.GQ17484@dhcp22.suse.cz>
+From: Christophe LEROY <christophe.leroy@c-s.fr>
+Message-ID: <2706829f-6207-89f7-46e6-d32244305ccb@c-s.fr>
+Date: Thu, 26 Apr 2018 15:28:46 +0200
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="NDin8bjvE/0mNLFQ"
-Content-Disposition: inline
-In-Reply-To: <20180425112415.12327-3-pagupta@redhat.com>
+In-Reply-To: <20180426131154.GQ17484@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, jack@suse.cz, stefanha@redhat.com, dan.j.williams@intel.com, riel@surriel.com, haozhong.zhang@intel.com, nilal@redhat.com, kwolf@redhat.com, pbonzini@redhat.com, ross.zwisler@intel.com, david@redhat.com, xiaoguangrong.eric@gmail.com, hch@infradead.org, marcel@redhat.com, mst@redhat.com, niteshnarayanlal@hotmail.com, imammedo@redhat.com, lcapitulino@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
 
 
---NDin8bjvE/0mNLFQ
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
 
-On Wed, Apr 25, 2018 at 04:54:14PM +0530, Pankaj Gupta wrote:
-> This patch adds functionality to perform=20
-> flush from guest to hosy over VIRTIO=20
-> when 'ND_REGION_VIRTIO'flag is set on=20
-> nd_negion. Flag is set by 'virtio-pmem'
-> driver.
->=20
-> Signed-off-by: Pankaj Gupta <pagupta@redhat.com>
-> ---
->  drivers/nvdimm/region_devs.c | 7 +++++++
->  1 file changed, 7 insertions(+)
->=20
-> diff --git a/drivers/nvdimm/region_devs.c b/drivers/nvdimm/region_devs.c
-> index a612be6..6c6454e 100644
-> --- a/drivers/nvdimm/region_devs.c
-> +++ b/drivers/nvdimm/region_devs.c
-> @@ -20,6 +20,7 @@
->  #include <linux/nd.h>
->  #include "nd-core.h"
->  #include "nd.h"
-> +#include <linux/virtio_pmem.h>
-> =20
->  /*
->   * For readq() and writeq() on 32-bit builds, the hi-lo, lo-hi order is
-> @@ -1074,6 +1075,12 @@ void nvdimm_flush(struct nd_region *nd_region)
->  	struct nd_region_data *ndrd =3D dev_get_drvdata(&nd_region->dev);
->  	int i, idx;
-> =20
-> +       /* call PV device flush */
-> +	if (test_bit(ND_REGION_VIRTIO, &nd_region->flags)) {
-> +		virtio_pmem_flush(&nd_region->dev);
-> +		return;
-> +	}
+Le 26/04/2018 A  15:11, Michal Hocko a A(C)critA :
+> On Thu 26-04-18 08:10:30, Christophe LEROY wrote:
+>>
+>>
+>> Le 25/04/2018 A  21:57, David Rientjes a A(C)critA :
+>>> On Tue, 24 Apr 2018, christophe leroy wrote:
+>>>
+>>>> Hi
+>>>>
+>>>> Allthough there is still about one forth of memory available (7976kB
+>>>> among 32MB), oom-killer is invoked and makes a victim.
+>>>>
+>>>> What could be the reason and how could it be solved ?
+>>>>
+>>>> [   54.400754] S99watchdogd-ap invoked oom-killer:
+>>>> gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), nodemask=0,
+>>>> order=1, oom_score_adj=0
+>>>> [   54.400815] CPU: 0 PID: 777 Comm: S99watchdogd-ap Not tainted
+>>>> 4.9.85-local-knld-998 #5
+>>>> [   54.400830] Call Trace:
+>>>> [   54.400910] [c1ca5d10] [c0327d28] dump_header.isra.4+0x54/0x17c
+>>>> (unreliable)
+>>>> [   54.400998] [c1ca5d50] [c0079d88] oom_kill_process+0xc4/0x414
+>>>> [   54.401067] [c1ca5d90] [c007a5c8] out_of_memory+0x35c/0x37c
+>>>> [   54.401220] [c1ca5dc0] [c007d68c] __alloc_pages_nodemask+0x8ec/0x9a8
+>>>> [   54.401318] [c1ca5e70] [c00169d4] copy_process.isra.9.part.10+0xdc/0x10d0
+>>>> [   54.401398] [c1ca5f00] [c0017b30] _do_fork+0xcc/0x2a8
+>>>> [   54.401473] [c1ca5f40] [c000a660] ret_from_syscall+0x0/0x38
+>>>
+>>> Looks like this is because the allocation is order-1, likely the
+>>> allocation of a struct task_struct for a new process on fork.
+>>
+>> I'm not sure I understand what you mean. The allocation is order 1, yes,
+>> does it explains why OOM killer is invoked ?
+> 
+> Well, not really
+> [   54.437414] DMA: 460*4kB (UH) 201*8kB (UH) 121*16kB (UH) 43*32kB (UH) 10*64kB (U) 4*128kB (UH) 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB 0*8192kB = 7912kB`
+> 
+> You should have enough order-1+ pages to proceed.
+> 
 
-How does libnvdimm know when flush has completed?
+So, order is 1 so order - 1 is 0, what's wrong then ? Do the (UH) and 
+(U) means anything special ? Otherwise, just above it says 'free:1994', 
+so with 1994 pages free I should have enough to proceed, shouldn't I ?
 
-Callers expect the flush to be finished when nvdimm_flush() returns but
-the virtio driver has only queued the request, it hasn't waited for
-completion!
+Am I missing something ?
 
---NDin8bjvE/0mNLFQ
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQEcBAEBAgAGBQJa4dDlAAoJEJykq7OBq3PI980IAJY41FLfXhqcQzxR13OvtKqj
-cM7mQMJIee6fETlh9HYqEh7dOvOHhpqojY9PEKA+Bu1f/KC3Y03liilCCKdLiHc+
-WpCVSyT3nOTjPlY4tS+e4WEEzaCwqNYu8rbz7sfJxd1c+4Hl9VuLfBQLieSnTsmE
-GUawKQak2e+c7EdOdKxmxtaeZfX1qJcm6ZMhbqSrvIrzR+E+fz4WKmntxrdgeDwY
-4IzZHK5h2u4z0jSeLf0tfdWf/77y1IWPqKGvuK6MTZHFxvMn6AiI4VZ116LfXgNC
-l7SS25ehqJ5WGgBrUYsL40QAimQDSCQL2ouNwyx/Q1+Ub/xi6TWKN17u3UV5Bpc=
-=i3H2
------END PGP SIGNATURE-----
-
---NDin8bjvE/0mNLFQ--
+Christophe
