@@ -1,69 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 56A436B0005
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 08:56:42 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id 36-v6so4442433oth.17
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 05:56:42 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l74-v6si7196284otl.102.2018.04.26.05.56.39
-        for <linux-mm@kvack.org>;
-        Thu, 26 Apr 2018 05:56:39 -0700 (PDT)
-Date: Thu, 26 Apr 2018 13:56:35 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in
- gfp_kmemleak_mask
-Message-ID: <20180426125634.uybpbbk5puee7fsg@armageddon.cambridge.arm.com>
-References: <1524243513-29118-1-git-send-email-chuhu@redhat.com>
- <20180420175023.3c4okuayrcul2bom@armageddon.cambridge.arm.com>
- <20180422125141.GF17484@dhcp22.suse.cz>
- <CACT4Y+YWUgyzCBadg+Oe8wDkFCaBzmcKDgu3rKjQxim7NXNLpg@mail.gmail.com>
- <CABATaM6eWtssvuj3UW9LHLK3HWo8P9g0z9VzFnuqKPKO5KMJ3A@mail.gmail.com>
- <20180424132057.GE17484@dhcp22.suse.cz>
- <850575801.19606468.1524588530119.JavaMail.zimbra@redhat.com>
- <20180424170239.GP17484@dhcp22.suse.cz>
- <732114897.20075296.1524745398991.JavaMail.zimbra@redhat.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 159746B0005
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 08:58:24 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t13so13138195pgu.23
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 05:58:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g2-v6si20633134plm.181.2018.04.26.05.58.22
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 26 Apr 2018 05:58:22 -0700 (PDT)
+Date: Thu, 26 Apr 2018 14:58:17 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc
+ fallback options
+Message-ID: <20180426125817.GO17484@dhcp22.suse.cz>
+References: <20180424170349.GQ17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424173836.GR17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804251556060.30569@file01.intranet.prod.int.rdu2.redhat.com>
+ <1114eda5-9b1f-4db8-2090-556b4a37c532@infradead.org>
+ <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com>
+ <alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com>
+ <1524694663.4100.21.camel@HansenPartnership.com>
+ <alpine.LRH.2.02.1804251830540.25124@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <732114897.20075296.1524745398991.JavaMail.zimbra@redhat.com>
+In-Reply-To: <alpine.LRH.2.02.1804251830540.25124@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chunyu Hu <chuhu@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Chunyu Hu <chuhu.ncepu@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, David Rientjes <rientjes@google.com>, dm-devel@redhat.com, eric.dumazet@gmail.com, mst@redhat.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, edumazet@google.com, Andrew Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, David Miller <davem@davemloft.net>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, Apr 26, 2018 at 08:23:19AM -0400, Chunyu Hu wrote:
-> kmemleak is using kmem_cache to record every pointers returned from kernel mem 
-> allocation activities such as kmem_cache_alloc(). every time an object from
-> slab allocator is returned, a following new kmemleak object is allocated.  
+On Wed 25-04-18 18:42:57, Mikulas Patocka wrote:
 > 
-> And when a slab object is freed, then the kmemleak object which contains
-> the ptr will also be freed. 
 > 
-> and kmemleak scan thread will run in period to scan the kernel data, stack, 
-> and per cpu areas to check that every pointers recorded by kmemleak has at least
-> one reference in those areas beside the one recorded by kmemleak. If there
-> is no place in the memory acreas recording the ptr, then it's possible a leak.
+> On Wed, 25 Apr 2018, James Bottomley wrote:
+[...]
+> > Kconfig proliferation, conversely, is a bit of a nightmare from both
+> > the user and the tester's point of view, so we're trying to avoid it
+> > unless absolutely necessary.
+> > 
+> > James
 > 
-> so once a kmemleak object allocation failed, it has to disable itself, otherwise
-> it would lose track of some object pointers, and become less meaningful to 
-> continue record and scan the kernel memory for the pointers. So disable
-> it forever. so this is why kmemleak can't tolerate a slab alloc fail (from fault injection)
-> 
-> @Catalin,
-> 
-> Is this right? If something not so correct or precise, please correct me.
+> I already offered that we don't need to introduce a new kernel option and 
+> we can bind this feature to any other kernel option, that is enabled in 
+> the debug kernel, for example CONFIG_DEBUG_SG. Michal said no and he said 
+> that he wants a new kernel option instead.
 
-That's a good description, thanks.
-
-> I'm thinking about, is it possible that make kmemleak don't disable itself
-> when fail_page_alloc is enabled?  I can't think clearly what would happen
-> if several memory allocation missed by kmelkeak trace, what's the bad result? 
-
-Take for example a long linked list. If kmemleak doesn't track an object
-in such list (because the metadata allocation failed), such list_head is
-never scanned and the subsequent objects in the list (pointed at by
-'next') will be reported as leaks. Kmemleak pretty much becomes unusable
-with a high number of false positives.
-
+Just for the record. I didn't say I _want_ a config option. Do not
+misinterpret my words. I've said that a config option would be
+acceptable if there is no way to deliver the functionality via kernel
+package automatically. You haven't provided any argument that would
+explain why the kernel package cannot add a boot option. Maybe there are
+some but I do not see them right now.
 -- 
-Catalin
+Michal Hocko
+SUSE Labs
