@@ -1,76 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CE0556B0007
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 13:15:40 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id x134-v6so15065421oif.19
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 10:15:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r56-v6si7279542ote.163.2018.04.26.10.15.39
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1256F6B0009
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 13:23:31 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id a127so2015602wmh.6
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 10:23:31 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id g35si1317276eda.74.2018.04.26.10.23.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Apr 2018 10:15:39 -0700 (PDT)
-Date: Thu, 26 Apr 2018 13:15:38 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <1499190564.23017177.1524762938762.JavaMail.zimbra@redhat.com>
-In-Reply-To: <x49o9i6885e.fsf@segfault.boston.devel.redhat.com>
-References: <20180425112415.12327-1-pagupta@redhat.com> <20180425112415.12327-2-pagupta@redhat.com> <CAPcyv4hvrB08XPTbVK0xT2_1Xmaid=-v3OMxJVDTNwQucsOHLA@mail.gmail.com> <CAPcyv4hiowWozV527sQA_e4fdgCYbD6xfG==vepAqu0hxQEQcw@mail.gmail.com> <x49o9i6885e.fsf@segfault.boston.devel.redhat.com>
-Subject: Re: [Qemu-devel] [RFC v2 1/2] virtio: add pmem driver
+        Thu, 26 Apr 2018 10:23:28 -0700 (PDT)
+Date: Thu, 26 Apr 2018 19:23:28 +0200
+From: "joro@8bytes.org" <joro@8bytes.org>
+Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
+Message-ID: <20180426172327.GQ15462@8bytes.org>
+References: <20180314180155.19492-1-toshi.kani@hpe.com>
+ <20180314180155.19492-3-toshi.kani@hpe.com>
+ <20180426141926.GN15462@8bytes.org>
+ <1524759629.2693.465.camel@hpe.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1524759629.2693.465.camel@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>, Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, KVM list <kvm@vger.kernel.org>, David Hildenbrand <david@redhat.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Ross Zwisler <ross.zwisler@intel.com>, Qemu Developers <qemu-devel@nongnu.org>, lcapitulino@redhat.com, Linux MM <linux-mm@kvack.org>, niteshnarayanlal@hotmail.com, "Michael S. Tsirkin" <mst@redhat.com>, Christoph Hellwig <hch@infradead.org>, Marcel Apfelbaum <marcel@redhat.com>, Nitesh Narayan Lal <nilal@redhat.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Rik van Riel <riel@surriel.com>, Stefan Hajnoczi <stefanha@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Igor Mammedov <imammedo@redhat.com>
+To: "Kani, Toshi" <toshi.kani@hpe.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "tglx@linutronix.de" <tglx@linutronix.de>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "willy@infradead.org" <willy@infradead.org>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+
+On Thu, Apr 26, 2018 at 04:21:19PM +0000, Kani, Toshi wrote:
+> All pages under the pmd had been unmapped and then lazy TLB purged with
+> INVLPG before coming to this code path.  Speculation is not allowed to
+> pages without mapping.
+
+CPUs have not only TLBs, but also page-walk caches which cache
+intermediary results of page-table walks and which is flushed together
+with the TLB.
+
+So the PMD entry you clear can still be in a page-walk cache and this
+needs to be flushed too before you can free the PTE page. Otherwise
+page-walks might still go to the page you just freed. That is especially
+bad when the page is already reallocated and filled with other data.
+
+> > Further this needs synchronization with other page-tables in the system
+> > when the kernel PMDs are not shared between processes. In x86-32 with
+> > PAE this causes a BUG_ON() being triggered at arch/x86/mm/fault.c:268
+> > because the page-tables are not correctly synchronized.
+> 
+> I think this is an issue with pmd mapping support on x86-32-PAE, not
+> with this patch.  I think the code needed to be updated to sync at the
+> pud level.
+
+It is an issue with this patch, because this patch is for x86 and on x86
+every change to the kernel page-tables potentially needs to by
+synchronized to the other page-tables. And this patch doesn't implement
+it, which triggers a BUG_ON() under certain conditions.
 
 
-> 
-> Dan Williams <dan.j.williams@intel.com> writes:
-> 
-> > [ adding Jeff directly since he has also been looking at
-> > infrastructure to track when MAP_SYNC should be disabled ]
-> >
-> > On Wed, Apr 25, 2018 at 7:21 AM, Dan Williams <dan.j.williams@intel.com>
-> > wrote:
-> >> On Wed, Apr 25, 2018 at 4:24 AM, Pankaj Gupta <pagupta@redhat.com> wrote:
-> >>> This patch adds virtio-pmem driver for KVM
-> >>> guest.
-> >>
-> >> Minor nit, please expand your changelog line wrapping to 72 columns.
-> >>
-> >>>
-> >>> Guest reads the persistent memory range
-> >>> information from Qemu over VIRTIO and registers
-> >>> it on nvdimm_bus. It also creates a nd_region
-> >>> object with the persistent memory range
-> >>> information so that existing 'nvdimm/pmem'
-> >>> driver can reserve this into system memory map.
-> >>> This way 'virtio-pmem' driver uses existing
-> >>> functionality of pmem driver to register persistent
-> >>> memory compatible for DAX capable filesystems.
-> >>
-> >> We need some additional enabling to disable MAP_SYNC for this
-> 
-> enable to disable... I like it!  ;-)
-> 
-> >> configuration. In other words, if fsync() is required then we must
-> >> disable the MAP_SYNC optimization. I think this should be a struct
-> >> dax_device property looked up at mmap time in each MAP_SYNC capable
-> >> ->mmap() file operation implementation.
+Regards,
 
-I understand you mean we want to disable 'MAP_SYNC' optimization as
-we are relying on additional fsync. You mean if we add a property/flag
-in dax_device struct and its set, disable 'MAP_SYNC' accordingly during
-mmap time for corresponding filesystems?  
-
-> 
-> Ideally, qemu (seabios?) would advertise a platform capabilities
-> sub-table that doesn't fill in the flush bits.
-
-Could you please elaborate on this, how its related to disabling
-MAP_SYNC? We are not doing entire nvdimm device emulation. 
-
-> 
-> -Jeff
-> 
-> 
+	Joerg
