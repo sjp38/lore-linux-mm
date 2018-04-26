@@ -1,98 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 058236B0005
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 12:07:32 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id 39so17362273qkx.0
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 09:07:32 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id y14si4114211qvb.99.2018.04.26.09.07.30
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C48486B0005
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 12:21:27 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c85so19108663pfb.12
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 09:21:27 -0700 (PDT)
+Received: from g2t2354.austin.hpe.com (g2t2354.austin.hpe.com. [15.233.44.27])
+        by mx.google.com with ESMTPS id n28si8066278pfh.210.2018.04.26.09.21.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Apr 2018 09:07:31 -0700 (PDT)
-Date: Thu, 26 Apr 2018 12:07:25 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc fallback
- options
-In-Reply-To: <20180426184845-mutt-send-email-mst@kernel.org>
-Message-ID: <alpine.LRH.2.02.1804261202350.24656@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com> <alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com> <1524694663.4100.21.camel@HansenPartnership.com> <alpine.LRH.2.02.1804251830540.25124@file01.intranet.prod.int.rdu2.redhat.com>
- <20180426125817.GO17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804261006120.32722@file01.intranet.prod.int.rdu2.redhat.com> <1524753932.3226.5.camel@HansenPartnership.com> <alpine.LRH.2.02.1804261100170.12157@file01.intranet.prod.int.rdu2.redhat.com>
- <1524756256.3226.7.camel@HansenPartnership.com> <alpine.LRH.2.02.1804261142480.21152@file01.intranet.prod.int.rdu2.redhat.com> <20180426184845-mutt-send-email-mst@kernel.org>
+        Thu, 26 Apr 2018 09:21:26 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
+Date: Thu, 26 Apr 2018 16:21:19 +0000
+Message-ID: <1524759629.2693.465.camel@hpe.com>
+References: <20180314180155.19492-1-toshi.kani@hpe.com>
+	 <20180314180155.19492-3-toshi.kani@hpe.com>
+	 <20180426141926.GN15462@8bytes.org>
+In-Reply-To: <20180426141926.GN15462@8bytes.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <A8BF7B687565FC47954EFC81C3D22EE6@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="185206533-1736142901-1524758846=:24656"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, dm-devel@redhat.com, eric.dumazet@gmail.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, edumazet@google.com, Andrew Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, David Miller <davem@davemloft.net>, Vlastimil Babka <vbabka@suse.cz>
+To: "joro@8bytes.org" <joro@8bytes.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "tglx@linutronix.de" <tglx@linutronix.de>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "willy@infradead.org" <willy@infradead.org>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---185206533-1736142901-1524758846=:24656
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
-
-
-
-On Thu, 26 Apr 2018, Michael S. Tsirkin wrote:
-
-> On Thu, Apr 26, 2018 at 11:44:21AM -0400, Mikulas Patocka wrote:
-> > 
-> > 
-> > On Thu, 26 Apr 2018, James Bottomley wrote:
-> > 
-> > > On Thu, 2018-04-26 at 11:05 -0400, Mikulas Patocka wrote:
-> > > > 
-> > > > On Thu, 26 Apr 2018, James Bottomley wrote:
-> > > [...]
-> > > > > Perhaps find out beforehand instead of insisting on an approach
-> > > > without
-> > > > > knowing.  On openSUSE the grub config is built from the files in
-> > > > > /etc/grub.d/ so any package can add a kernel option (and various
-> > > > > conditions around activating it) simply by adding a new file.
-> > > > 
-> > > > And then, different versions of the debug kernel will clash when 
-> > > > attempting to create the same file.
-> > > 
-> > > Don't be silly ... there are many ways of coping with that in rpm/dpkg.
-> > 
-> > I know you can deal with it - but how many lines of code will that 
-> > consume? Multiplied by the total number of rpm-based distros.
-> > 
-> > Mikulas
-> 
-> I don't think debug kernels should inject faults by default.
-
-But it is not injecting any faults. It is using the fault-injection 
-framework because Michal said that it should use it. The original version 
-of the patch didn't use the fault-injection framework at all.
-
-The kvmalloc function can take two branches, the kmalloc branch and 
-vmalloc branch. The vmalloc branch is taken rarely, so the kernel contains 
-bugs regarding this path - and the patch increases the probability that 
-the vmalloc patch is taken, to discover the bugs early and make them 
-reproducible.
-
-> IIUC debug kernels mainly exist so people who experience e.g. memory
-> corruption can try and debug the failure. In this case, CONFIG_DEBUG_SG
-> will *already* catch a failure early. Nothing special needs to be done.
-
-The patch helps people debug such memory coprruptions (such as using DMA 
-API on the result of kvmalloc).
-
-> There is a much smaller class of people like QA who go actively looking
-> for trouble. That's the kind of thing fault injection is good for, and
-> IMO you do not want your QA team to test a separate kernel - otherwise
-> you are never quite sure whatever was tested will work in the field.
-> So a config option won't help them either.
-> 
-> How do you make sure QA tests a specific corner case? Add it to
-> the test plan :)
-> 
-> I don't speak for Red Hat, etc.
-> 
-> -- 
-> MST
-
-Mikulas
---185206533-1736142901-1524758846=:24656--
+T24gVGh1LCAyMDE4LTA0LTI2IGF0IDE2OjE5ICswMjAwLCBKb2VyZyBSb2VkZWwgd3JvdGU6DQo+
+IEhpIFRvc2hpLCBBbmRyZXcsDQo+IA0KPiB0aGlzIHBhdGNoKC1zZXQpIGlzIGJyb2tlbiBpbiBz
+ZXZlcmFsIHdheXMsIHBsZWFzZSBzZWUgYmVsb3cuDQo+IA0KPiBPbiBXZWQsIE1hciAxNCwgMjAx
+OCBhdCAxMjowMTo1NVBNIC0wNjAwLCBUb3NoaSBLYW5pIHdyb3RlOg0KPiA+IEltcGxlbWVudCBw
+dWRfZnJlZV9wbWRfcGFnZSgpIGFuZCBwbWRfZnJlZV9wdGVfcGFnZSgpIG9uIHg4Niwgd2hpY2gN
+Cj4gPiBjbGVhciBhIGdpdmVuIHB1ZC9wbWQgZW50cnkgYW5kIGZyZWUgdXAgbG93ZXIgbGV2ZWwg
+cGFnZSB0YWJsZShzKS4NCj4gPiBBZGRyZXNzIHJhbmdlIGFzc29jaWF0ZWQgd2l0aCB0aGUgcHVk
+L3BtZCBlbnRyeSBtdXN0IGhhdmUgYmVlbiBwdXJnZWQNCj4gPiBieSBJTlZMUEcuDQo+IA0KPiBB
+biBJTlZMUEcgYmVmb3JlIGFjdHVhbGx5IHVubWFwcGluZyB0aGUgcGFnZSBpcyB1c2VsZXNzLCBh
+cyBvdGhlciBjb3Jlcw0KPiBvciBldmVuIHNwZWN1bGF0aXZlIGluc3RydWN0aW9uIGV4ZWN1dGlv
+biBjYW4gYnJpbmcgdGhlIFRMQiBlbnRyeSBiYWNrDQo+IGJlZm9yZSB0aGUgY29kZSBhY3R1YWxs
+eSB1bm1hcHMgdGhlIHBhZ2UuDQoNCkhpIEpvZXJnLA0KDQpBbGwgcGFnZXMgdW5kZXIgdGhlIHBt
+ZCBoYWQgYmVlbiB1bm1hcHBlZCBhbmQgdGhlbiBsYXp5IFRMQiBwdXJnZWQgd2l0aA0KSU5WTFBH
+IGJlZm9yZSBjb21pbmcgdG8gdGhpcyBjb2RlIHBhdGguICBTcGVjdWxhdGlvbiBpcyBub3QgYWxs
+b3dlZCB0bw0KcGFnZXMgd2l0aG91dCBtYXBwaW5nLiAgDQoNCj4gPiAgaW50IHB1ZF9mcmVlX3Bt
+ZF9wYWdlKHB1ZF90ICpwdWQpDQo+ID4gIHsNCj4gPiAtCXJldHVybiBwdWRfbm9uZSgqcHVkKTsN
+Cj4gPiArCXBtZF90ICpwbWQ7DQo+ID4gKwlpbnQgaTsNCj4gPiArDQo+ID4gKwlpZiAocHVkX25v
+bmUoKnB1ZCkpDQo+ID4gKwkJcmV0dXJuIDE7DQo+ID4gKw0KPiA+ICsJcG1kID0gKHBtZF90ICop
+cHVkX3BhZ2VfdmFkZHIoKnB1ZCk7DQo+ID4gKw0KPiA+ICsJZm9yIChpID0gMDsgaSA8IFBUUlNf
+UEVSX1BNRDsgaSsrKQ0KPiA+ICsJCWlmICghcG1kX2ZyZWVfcHRlX3BhZ2UoJnBtZFtpXSkpDQo+
+ID4gKwkJCXJldHVybiAwOw0KPiA+ICsNCj4gPiArCXB1ZF9jbGVhcihwdWQpOw0KPiANCj4gVExC
+IGZsdXNoIG5lZWRlZCBoZXJlLCBiZWZvcmUgdGhlIHBhZ2UgaXMgZnJlZWQuDQo+IA0KPiA+ICsJ
+ZnJlZV9wYWdlKCh1bnNpZ25lZCBsb25nKXBtZCk7DQo+ID4gKw0KPiA+ICsJcmV0dXJuIDE7DQo+
+ID4gIH0NCj4gPiAgDQo+ID4gIC8qKg0KPiA+IEBAIC03MjQsNiArNzM5LDE1IEBAIGludCBwdWRf
+ZnJlZV9wbWRfcGFnZShwdWRfdCAqcHVkKQ0KPiA+ICAgKi8NCj4gPiAgaW50IHBtZF9mcmVlX3B0
+ZV9wYWdlKHBtZF90ICpwbWQpDQo+ID4gIHsNCj4gPiAtCXJldHVybiBwbWRfbm9uZSgqcG1kKTsN
+Cj4gPiArCXB0ZV90ICpwdGU7DQo+ID4gKw0KPiA+ICsJaWYgKHBtZF9ub25lKCpwbWQpKQ0KPiA+
+ICsJCXJldHVybiAxOw0KPiA+ICsNCj4gPiArCXB0ZSA9IChwdGVfdCAqKXBtZF9wYWdlX3ZhZGRy
+KCpwbWQpOw0KPiA+ICsJcG1kX2NsZWFyKHBtZCk7DQo+IA0KPiBTYW1lIGhlcmUsIFRMQiBmbHVz
+aCBuZWVkZWQuDQo+IA0KPiBGdXJ0aGVyIHRoaXMgbmVlZHMgc3luY2hyb25pemF0aW9uIHdpdGgg
+b3RoZXIgcGFnZS10YWJsZXMgaW4gdGhlIHN5c3RlbQ0KPiB3aGVuIHRoZSBrZXJuZWwgUE1EcyBh
+cmUgbm90IHNoYXJlZCBiZXR3ZWVuIHByb2Nlc3Nlcy4gSW4geDg2LTMyIHdpdGgNCj4gUEFFIHRo
+aXMgY2F1c2VzIGEgQlVHX09OKCkgYmVpbmcgdHJpZ2dlcmVkIGF0IGFyY2gveDg2L21tL2ZhdWx0
+LmM6MjY4DQo+IGJlY2F1c2UgdGhlIHBhZ2UtdGFibGVzIGFyZSBub3QgY29ycmVjdGx5IHN5bmNo
+cm9uaXplZC4NCg0KSSB0aGluayB0aGlzIGlzIGFuIGlzc3VlIHdpdGggcG1kIG1hcHBpbmcgc3Vw
+cG9ydCBvbiB4ODYtMzItUEFFLCBub3QNCndpdGggdGhpcyBwYXRjaC4gIEkgdGhpbmsgdGhlIGNv
+ZGUgbmVlZGVkIHRvIGJlIHVwZGF0ZWQgdG8gc3luYyBhdCB0aGUNCnB1ZCBsZXZlbC4NCg0KVGhh
+bmtzLA0KLVRvc2hpDQo=
