@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA3CD6B0007
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 08:27:44 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id b10-v6so974453qto.5
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 05:27:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id f130si10840916qkb.193.2018.04.26.05.27.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Apr 2018 05:27:43 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [RFC v2 1/2] virtio: add pmem driver
-References: <20180425112415.12327-1-pagupta@redhat.com>
-	<20180425112415.12327-2-pagupta@redhat.com>
-	<CAPcyv4hvrB08XPTbVK0xT2_1Xmaid=-v3OMxJVDTNwQucsOHLA@mail.gmail.com>
-	<CAPcyv4hiowWozV527sQA_e4fdgCYbD6xfG==vepAqu0hxQEQcw@mail.gmail.com>
-Date: Thu, 26 Apr 2018 08:27:41 -0400
-In-Reply-To: <CAPcyv4hiowWozV527sQA_e4fdgCYbD6xfG==vepAqu0hxQEQcw@mail.gmail.com>
-	(Dan Williams's message of "Wed, 25 Apr 2018 07:43:52 -0700")
-Message-ID: <x49o9i6885e.fsf@segfault.boston.devel.redhat.com>
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 56A436B0005
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 08:56:42 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id 36-v6so4442433oth.17
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 05:56:42 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l74-v6si7196284otl.102.2018.04.26.05.56.39
+        for <linux-mm@kvack.org>;
+        Thu, 26 Apr 2018 05:56:39 -0700 (PDT)
+Date: Thu, 26 Apr 2018 13:56:35 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in
+ gfp_kmemleak_mask
+Message-ID: <20180426125634.uybpbbk5puee7fsg@armageddon.cambridge.arm.com>
+References: <1524243513-29118-1-git-send-email-chuhu@redhat.com>
+ <20180420175023.3c4okuayrcul2bom@armageddon.cambridge.arm.com>
+ <20180422125141.GF17484@dhcp22.suse.cz>
+ <CACT4Y+YWUgyzCBadg+Oe8wDkFCaBzmcKDgu3rKjQxim7NXNLpg@mail.gmail.com>
+ <CABATaM6eWtssvuj3UW9LHLK3HWo8P9g0z9VzFnuqKPKO5KMJ3A@mail.gmail.com>
+ <20180424132057.GE17484@dhcp22.suse.cz>
+ <850575801.19606468.1524588530119.JavaMail.zimbra@redhat.com>
+ <20180424170239.GP17484@dhcp22.suse.cz>
+ <732114897.20075296.1524745398991.JavaMail.zimbra@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <732114897.20075296.1524745398991.JavaMail.zimbra@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Pankaj Gupta <pagupta@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Rik van Riel <riel@surriel.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, "Zwisler, Ross" <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>, Christoph Hellwig <hch@infradead.org>, Marcel Apfelbaum <marcel@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, niteshnarayanlal@hotmail.com, Igor Mammedov <imammedo@redhat.com>, lcapitulino@redhat.com
+To: Chunyu Hu <chuhu@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Chunyu Hu <chuhu.ncepu@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Dan Williams <dan.j.williams@intel.com> writes:
+On Thu, Apr 26, 2018 at 08:23:19AM -0400, Chunyu Hu wrote:
+> kmemleak is using kmem_cache to record every pointers returned from kernel mem 
+> allocation activities such as kmem_cache_alloc(). every time an object from
+> slab allocator is returned, a following new kmemleak object is allocated.  
+> 
+> And when a slab object is freed, then the kmemleak object which contains
+> the ptr will also be freed. 
+> 
+> and kmemleak scan thread will run in period to scan the kernel data, stack, 
+> and per cpu areas to check that every pointers recorded by kmemleak has at least
+> one reference in those areas beside the one recorded by kmemleak. If there
+> is no place in the memory acreas recording the ptr, then it's possible a leak.
+> 
+> so once a kmemleak object allocation failed, it has to disable itself, otherwise
+> it would lose track of some object pointers, and become less meaningful to 
+> continue record and scan the kernel memory for the pointers. So disable
+> it forever. so this is why kmemleak can't tolerate a slab alloc fail (from fault injection)
+> 
+> @Catalin,
+> 
+> Is this right? If something not so correct or precise, please correct me.
 
-> [ adding Jeff directly since he has also been looking at
-> infrastructure to track when MAP_SYNC should be disabled ]
->
-> On Wed, Apr 25, 2018 at 7:21 AM, Dan Williams <dan.j.williams@intel.com> wrote:
->> On Wed, Apr 25, 2018 at 4:24 AM, Pankaj Gupta <pagupta@redhat.com> wrote:
->>> This patch adds virtio-pmem driver for KVM
->>> guest.
->>
->> Minor nit, please expand your changelog line wrapping to 72 columns.
->>
->>>
->>> Guest reads the persistent memory range
->>> information from Qemu over VIRTIO and registers
->>> it on nvdimm_bus. It also creates a nd_region
->>> object with the persistent memory range
->>> information so that existing 'nvdimm/pmem'
->>> driver can reserve this into system memory map.
->>> This way 'virtio-pmem' driver uses existing
->>> functionality of pmem driver to register persistent
->>> memory compatible for DAX capable filesystems.
->>
->> We need some additional enabling to disable MAP_SYNC for this
+That's a good description, thanks.
 
-enable to disable... I like it!  ;-)
+> I'm thinking about, is it possible that make kmemleak don't disable itself
+> when fail_page_alloc is enabled?  I can't think clearly what would happen
+> if several memory allocation missed by kmelkeak trace, what's the bad result? 
 
->> configuration. In other words, if fsync() is required then we must
->> disable the MAP_SYNC optimization. I think this should be a struct
->> dax_device property looked up at mmap time in each MAP_SYNC capable
->> ->mmap() file operation implementation.
+Take for example a long linked list. If kmemleak doesn't track an object
+in such list (because the metadata allocation failed), such list_head is
+never scanned and the subsequent objects in the list (pointed at by
+'next') will be reported as leaks. Kmemleak pretty much becomes unusable
+with a high number of false positives.
 
-Ideally, qemu (seabios?) would advertise a platform capabilities
-sub-table that doesn't fill in the flush bits.
-
--Jeff
+-- 
+Catalin
