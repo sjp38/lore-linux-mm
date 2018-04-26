@@ -1,176 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CE276B0007
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 10:51:07 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id s8so13403878pgf.0
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 07:51:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w12sor3826964pgm.311.2018.04.26.07.51.06
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C7BB96B0005
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 10:55:46 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id b202so8320136qkc.6
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 07:55:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id p52-v6si5907972qtc.122.2018.04.26.07.55.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Apr 2018 07:51:06 -0700 (PDT)
-From: Eric Dumazet <edumazet@google.com>
-Subject: [PATCH v3 net-next 2/2] selftests: net: tcp_mmap must use TCP_ZEROCOPY_RECEIVE
-Date: Thu, 26 Apr 2018 07:50:56 -0700
-Message-Id: <20180426145056.220325-3-edumazet@google.com>
-In-Reply-To: <20180426145056.220325-1-edumazet@google.com>
-References: <20180426145056.220325-1-edumazet@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Apr 2018 07:55:45 -0700 (PDT)
+Date: Thu, 26 Apr 2018 10:55:44 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc fallback
+ options
+In-Reply-To: <1524697697.4100.23.camel@HansenPartnership.com>
+Message-ID: <alpine.LRH.2.02.1804261045001.9108@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20180421144757.GC14610@bombadil.infradead.org>   <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>   <20180423151545.GU17484@dhcp22.suse.cz>   <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
+  <20180424125121.GA17484@dhcp22.suse.cz>   <alpine.LRH.2.02.1804241142340.15660@file01.intranet.prod.int.rdu2.redhat.com>   <20180424162906.GM17484@dhcp22.suse.cz>   <alpine.LRH.2.02.1804241250350.28995@file01.intranet.prod.int.rdu2.redhat.com>  
+ <20180424170349.GQ17484@dhcp22.suse.cz>   <alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com>   <20180424173836.GR17484@dhcp22.suse.cz>   <alpine.LRH.2.02.1804251556060.30569@file01.intranet.prod.int.rdu2.redhat.com>  
+ <1114eda5-9b1f-4db8-2090-556b4a37c532@infradead.org>   <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com>   <alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com>   <alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com>
+  <1524694663.4100.21.camel@HansenPartnership.com>  <alpine.LRH.2.02.1804251857070.31135@file01.intranet.prod.int.rdu2.redhat.com> <1524697697.4100.23.camel@HansenPartnership.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="185206533-886270301-1524754049=:9108"
+Content-ID: <alpine.LRH.2.02.1804261047430.9108@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "David S . Miller" <davem@davemloft.net>
-Cc: netdev <netdev@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ka-Cheong Poon <ka-cheong.poon@oracle.com>, Eric Dumazet <edumazet@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, Soheil Hassas Yeganeh <soheil@google.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: David Rientjes <rientjes@google.com>, dm-devel@redhat.com, eric.dumazet@gmail.com, mst@redhat.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, edumazet@google.com, Andrew Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, David Miller <davem@davemloft.net>, Vlastimil Babka <vbabka@suse.cz>
 
-After prior kernel change, mmap() on TCP socket only reserves VMA.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-We have to use getsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE, ...)
-to perform the transfert of pages from skbs in TCP receive queue into such VMA.
+--185206533-886270301-1524754049=:9108
+Content-Type: TEXT/PLAIN; CHARSET=ISO-8859-15
+Content-Transfer-Encoding: 8BIT
+Content-ID: <alpine.LRH.2.02.1804261047431.9108@file01.intranet.prod.int.rdu2.redhat.com>
 
-struct tcp_zerocopy_receive {
-	__u64 address;		/* in: address of mapping */
-	__u32 length;		/* in/out: number of bytes to map/mapped */
-	__u32 recv_skip_hint;	/* out: amount of bytes to skip */
-};
 
-After a successful getsockopt(...TCP_ZEROCOPY_RECEIVE...), @length contains
-number of bytes that were mapped, and @recv_skip_hint contains number of bytes
-that should be read using conventional read()/recv()/recvmsg() system calls,
-to skip a sequence of bytes that can not be mapped, because not properly page
-aligned.
 
-Signed-off-by: Eric Dumazet <edumazet@google.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Soheil Hassas Yeganeh <soheil@google.com>
----
- tools/testing/selftests/net/tcp_mmap.c | 64 +++++++++++++++-----------
- 1 file changed, 37 insertions(+), 27 deletions(-)
+On Wed, 25 Apr 2018, James Bottomley wrote:
 
-diff --git a/tools/testing/selftests/net/tcp_mmap.c b/tools/testing/selftests/net/tcp_mmap.c
-index dea342fe6f4e88b5709d2ac37b2fc9a2a320bf44..77f762780199ff1f69f9f6b3f18e72deddb69f5e 100644
---- a/tools/testing/selftests/net/tcp_mmap.c
-+++ b/tools/testing/selftests/net/tcp_mmap.c
-@@ -76,9 +76,10 @@
- #include <time.h>
- #include <sys/time.h>
- #include <netinet/in.h>
--#include <netinet/tcp.h>
- #include <arpa/inet.h>
- #include <poll.h>
-+#include <linux/tcp.h>
-+#include <assert.h>
- 
- #ifndef MSG_ZEROCOPY
- #define MSG_ZEROCOPY    0x4000000
-@@ -134,11 +135,12 @@ void hash_zone(void *zone, unsigned int length)
- void *child_thread(void *arg)
- {
- 	unsigned long total_mmap = 0, total = 0;
-+	struct tcp_zerocopy_receive zc;
- 	unsigned long delta_usec;
- 	int flags = MAP_SHARED;
- 	struct timeval t0, t1;
- 	char *buffer = NULL;
--	void *oaddr = NULL;
-+	void *addr = NULL;
- 	double throughput;
- 	struct rusage ru;
- 	int lu, fd;
-@@ -153,41 +155,46 @@ void *child_thread(void *arg)
- 		perror("malloc");
- 		goto error;
- 	}
-+	if (zflg) {
-+		addr = mmap(NULL, chunk_size, PROT_READ, flags, fd, 0);
-+		if (addr == (void *)-1)
-+			zflg = 0;
-+	}
- 	while (1) {
- 		struct pollfd pfd = { .fd = fd, .events = POLLIN, };
- 		int sub;
- 
- 		poll(&pfd, 1, 10000);
- 		if (zflg) {
--			void *naddr;
-+			socklen_t zc_len = sizeof(zc);
-+			int res;
- 
--			naddr = mmap(oaddr, chunk_size, PROT_READ, flags, fd, 0);
--			if (naddr == (void *)-1) {
--				if (errno == EAGAIN) {
--					/* That is if SO_RCVLOWAT is buggy */
--					usleep(1000);
--					continue;
--				}
--				if (errno == EINVAL) {
--					flags = MAP_SHARED;
--					oaddr = NULL;
--					goto fallback;
--				}
--				if (errno != EIO)
--					perror("mmap()");
-+			zc.address = (__u64)addr;
-+			zc.length = chunk_size;
-+			zc.recv_skip_hint = 0;
-+			res = getsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE,
-+					 &zc, &zc_len);
-+			if (res == -1)
- 				break;
-+
-+			if (zc.length) {
-+				assert(zc.length <= chunk_size);
-+				total_mmap += zc.length;
-+				if (xflg)
-+					hash_zone(addr, zc.length);
-+				total += zc.length;
- 			}
--			total_mmap += chunk_size;
--			if (xflg)
--				hash_zone(naddr, chunk_size);
--			total += chunk_size;
--			if (!keepflag) {
--				flags |= MAP_FIXED;
--				oaddr = naddr;
-+			if (zc.recv_skip_hint) {
-+				assert(zc.recv_skip_hint <= chunk_size);
-+				lu = read(fd, buffer, zc.recv_skip_hint);
-+				if (lu > 0) {
-+					if (xflg)
-+						hash_zone(buffer, lu);
-+					total += lu;
-+				}
- 			}
- 			continue;
- 		}
--fallback:
- 		sub = 0;
- 		while (sub < chunk_size) {
- 			lu = read(fd, buffer + sub, chunk_size - sub);
-@@ -228,6 +235,8 @@ void *child_thread(void *arg)
- error:
- 	free(buffer);
- 	close(fd);
-+	if (zflg)
-+		munmap(addr, chunk_size);
- 	pthread_exit(0);
- }
- 
-@@ -371,7 +380,8 @@ int main(int argc, char *argv[])
- 		setup_sockaddr(cfg_family, host, &listenaddr);
- 
- 		if (mss &&
--		    setsockopt(fdlisten, SOL_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
-+		    setsockopt(fdlisten, IPPROTO_TCP, TCP_MAXSEG,
-+			       &mss, sizeof(mss)) == -1) {
- 			perror("setsockopt TCP_MAXSEG");
- 			exit(1);
- 		}
-@@ -402,7 +412,7 @@ int main(int argc, char *argv[])
- 	setup_sockaddr(cfg_family, host, &addr);
- 
- 	if (mss &&
--	    setsockopt(fd, SOL_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
-+	    setsockopt(fd, IPPROTO_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
- 		perror("setsockopt TCP_MAXSEG");
- 		exit(1);
- 	}
--- 
-2.17.0.484.g0c8726318c-goog
+> > BTW. even developers who compile their own kernel should have this
+> > enabled by a CONFIG option - because if the developer sees the option
+> > when browsing through menuconfig, he may enable it. If he doesn't see
+> > the option, he won't even know that such an option exists.
+> 
+> I may be an atypical developer but I'd rather have a root canal than
+> browse through menuconfig options.  The way to get people to learn
+> about new debugging options is to blog about it (or write an lwn.net
+> article) which google will find the next time I ask it how I debug XXX.
+>  Google (probably as a service to humanity) rarely turns up Kconfig
+> options in response to a query.
+
+>From my point of view, this feature should be as little disruptive to the 
+developer as possible. It should work automatically behind the scenes 
+without the developer or the tester even knowing that it is working. From 
+this point of view, binding it to CONFIG_DEBUG_SG (or any other commonly 
+used debugging option) would be ideal, because driver developers already 
+enable CONFIG_DEBUG_SG, so they'll get this kvmalloc test for free.
+
+>From your point of view, you should introduce a sysfs file and a kernel 
+parameter that no one knows about - and then start blogging about it - to 
+let people know. Why would you bother people with this knowledge? They'll 
+forget about it anyway and won't turn it on.
+
+Mikulas
+--185206533-886270301-1524754049=:9108--
