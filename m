@@ -1,133 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BB7AF6B0003
-	for <linux-mm@kvack.org>; Wed, 25 Apr 2018 23:21:37 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g15so15187767pfi.8
-        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 20:21:37 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 846B96B0003
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 01:57:31 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id q15so17733975pff.15
+        for <linux-mm@kvack.org>; Wed, 25 Apr 2018 22:57:31 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 77si3235911pfz.334.2018.04.25.20.21.35
+        by mx.google.com with ESMTPS id c24-v6si18944553plo.113.2018.04.25.22.57.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 25 Apr 2018 20:21:35 -0700 (PDT)
-Subject: Re: [PATCH] fault-injection: reorder config entries
-References: <20180421144757.GC14610@bombadil.infradead.org>
- <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
- <20180423151545.GU17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424125121.GA17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804241142340.15660@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424162906.GM17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804241250350.28995@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424170349.GQ17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424173836.GR17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804251601160.30569@file01.intranet.prod.int.rdu2.redhat.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <43c0881e-b411-9999-5411-ae840116a94b@infradead.org>
-Date: Wed, 25 Apr 2018 20:21:24 -0700
+        Wed, 25 Apr 2018 22:57:30 -0700 (PDT)
+Date: Wed, 25 Apr 2018 22:57:27 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] iomap: add a swapfile activation function
+Message-ID: <20180426055727.GA24887@infradead.org>
+References: <20180418025023.GM24738@magnolia>
+ <20180424173539.GB25233@infradead.org>
+ <20180425234622.GC1661@magnolia>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.02.1804251601160.30569@file01.intranet.prod.int.rdu2.redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180425234622.GC1661@magnolia>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, xfs <linux-xfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Aleksei Besogonov <cyberax@amazon.com>
 
-On 04/25/2018 01:02 PM, Mikulas Patocka wrote:
-> This patch reorders Kconfig entries, so that menuconfig displays proper 
-> indentation.
-> 
-> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+On Wed, Apr 25, 2018 at 04:46:22PM -0700, Darrick J. Wong wrote:
+> (I mean, we /could/ just treat the swapfile as an unbreakable rdma/dax
+> style lease, but ugh...)
 
-Acked-by: Randy Dunlap <rdunlap@infradead.org>
-Tested-by: Randy Dunlap <rdunlap@infradead.org>
+That is what I think it should be long term, instead of a strange
+parallel I/O path.
 
-Thanks.
-
-> ---
->  lib/Kconfig.debug |   36 ++++++++++++++++++------------------
->  1 file changed, 18 insertions(+), 18 deletions(-)
-> 
-> Index: linux-2.6/lib/Kconfig.debug
-> ===================================================================
-> --- linux-2.6.orig/lib/Kconfig.debug	2018-04-16 21:08:36.000000000 +0200
-> +++ linux-2.6/lib/Kconfig.debug	2018-04-25 15:56:16.000000000 +0200
-> @@ -1503,6 +1503,10 @@ config NETDEV_NOTIFIER_ERROR_INJECT
->  
->  	  If unsure, say N.
->  
-> +config FUNCTION_ERROR_INJECTION
-> +	def_bool y
-> +	depends on HAVE_FUNCTION_ERROR_INJECTION && KPROBES
-> +
->  config FAULT_INJECTION
->  	bool "Fault-injection framework"
->  	depends on DEBUG_KERNEL
-> @@ -1510,10 +1514,6 @@ config FAULT_INJECTION
->  	  Provide fault-injection framework.
->  	  For more details, see Documentation/fault-injection/.
->  
-> -config FUNCTION_ERROR_INJECTION
-> -	def_bool y
-> -	depends on HAVE_FUNCTION_ERROR_INJECTION && KPROBES
-> -
->  config FAILSLAB
->  	bool "Fault-injection capability for kmalloc"
->  	depends on FAULT_INJECTION
-> @@ -1544,16 +1544,6 @@ config FAIL_IO_TIMEOUT
->  	  Only works with drivers that use the generic timeout handling,
->  	  for others it wont do anything.
->  
-> -config FAIL_MMC_REQUEST
-> -	bool "Fault-injection capability for MMC IO"
-> -	depends on FAULT_INJECTION_DEBUG_FS && MMC
-> -	help
-> -	  Provide fault-injection capability for MMC IO.
-> -	  This will make the mmc core return data errors. This is
-> -	  useful to test the error handling in the mmc block device
-> -	  and to test how the mmc host driver handles retries from
-> -	  the block device.
-> -
->  config FAIL_FUTEX
->  	bool "Fault-injection capability for futexes"
->  	select DEBUG_FS
-> @@ -1561,6 +1551,12 @@ config FAIL_FUTEX
->  	help
->  	  Provide fault-injection capability for futexes.
->  
-> +config FAULT_INJECTION_DEBUG_FS
-> +	bool "Debugfs entries for fault-injection capabilities"
-> +	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
-> +	help
-> +	  Enable configuration of fault-injection capabilities via debugfs.
-> +
->  config FAIL_FUNCTION
->  	bool "Fault-injection capability for functions"
->  	depends on FAULT_INJECTION_DEBUG_FS && FUNCTION_ERROR_INJECTION
-> @@ -1571,11 +1567,15 @@ config FAIL_FUNCTION
->  	  an error value and have to handle it. This is useful to test the
->  	  error handling in various subsystems.
->  
-> -config FAULT_INJECTION_DEBUG_FS
-> -	bool "Debugfs entries for fault-injection capabilities"
-> -	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
-> +config FAIL_MMC_REQUEST
-> +	bool "Fault-injection capability for MMC IO"
-> +	depends on FAULT_INJECTION_DEBUG_FS && MMC
->  	help
-> -	  Enable configuration of fault-injection capabilities via debugfs.
-> +	  Provide fault-injection capability for MMC IO.
-> +	  This will make the mmc core return data errors. This is
-> +	  useful to test the error handling in the mmc block device
-> +	  and to test how the mmc host driver handles retries from
-> +	  the block device.
->  
->  config FAULT_INJECTION_STACKTRACE_FILTER
->  	bool "stacktrace filter for fault-injection capabilities"
-> 
-
-
--- 
-~Randy
+But in the mean time we have a real problem with supporting swap files,
+so we should merge the approaches from you and Aleksei and get something
+in ASAP.
