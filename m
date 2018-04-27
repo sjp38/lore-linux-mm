@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 110E66B000E
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 11:38:51 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id u13-v6so1251481oif.0
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 08:38:51 -0700 (PDT)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E8C756B0010
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 11:38:54 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id s6-v6so1454276oth.20
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 08:38:54 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p63-v6si539750oib.291.2018.04.27.08.38.49
+        by mx.google.com with ESMTP id v37-v6si569658otf.336.2018.04.27.08.38.53
         for <linux-mm@kvack.org>;
-        Fri, 27 Apr 2018 08:38:49 -0700 (PDT)
+        Fri, 27 Apr 2018 08:38:53 -0700 (PDT)
 From: James Morse <james.morse@arm.com>
-Subject: [PATCH v3 08/12] ACPI / APEI: Split fixmap pages for arm64 NMI-like notifications
-Date: Fri, 27 Apr 2018 16:35:06 +0100
-Message-Id: <20180427153510.5799-9-james.morse@arm.com>
+Subject: [PATCH v3 09/12] firmware: arm_sdei: Add ACPI GHES registration helper
+Date: Fri, 27 Apr 2018 16:35:07 +0100
+Message-Id: <20180427153510.5799-10-james.morse@arm.com>
 In-Reply-To: <20180427153510.5799-1-james.morse@arm.com>
 References: <20180427153510.5799-1-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,84 +19,171 @@ List-ID: <linux-mm.kvack.org>
 To: linux-acpi@vger.kernel.org
 Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com, James Morse <james.morse@arm.com>
 
-Now that ghes uses the fixmap addresses and locks via some indirection
-we can support multiple NMI-like notifications on arm64.
+APEI's Generic Hardware Error Source structures do not describe
+whether the SDEI event is shared or private, as this information is
+discoverable via the API.
 
-These should be named after their notification method. x86's
-NOTIFY_NMI already is, change the SEA fixmap entry to be called
-FIX_APEI_GHES_SEA.
+GHES needs to know whether an event is normal or critical to avoid
+sharing locks or fixmap entries.
 
-Future patches can add support for FIX_APEI_GHES_SEI and
-FIX_APEI_GHES_SDEI_{NORMAL,CRITICAL}.
+Add a helper to ask firmware for this information so it can initialise
+the struct ghes and register then enable the event.
 
 Signed-off-by: James Morse <james.morse@arm.com>
 Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
+
 ---
- arch/arm64/include/asm/fixmap.h |  4 +++-
- drivers/acpi/apei/ghes.c        | 11 ++++++-----
- 2 files changed, 9 insertions(+), 6 deletions(-)
+Changes since v2:
+ * Added header file, thanks kbuild-robot!
+ * changed ifdef to the GHES version to match the fixmap definition
+
+Changes since v1:
+ * ghes->fixmap_idx variable rename
+
+ arch/arm64/include/asm/fixmap.h |  4 +++
+ drivers/firmware/arm_sdei.c     | 77 +++++++++++++++++++++++++++++++++++++++++
+ include/linux/arm_sdei.h        |  5 +++
+ 3 files changed, 86 insertions(+)
 
 diff --git a/arch/arm64/include/asm/fixmap.h b/arch/arm64/include/asm/fixmap.h
-index ec1e6d6fa14c..c3974517c2cb 100644
+index c3974517c2cb..e2b423a5feaf 100644
 --- a/arch/arm64/include/asm/fixmap.h
 +++ b/arch/arm64/include/asm/fixmap.h
-@@ -55,7 +55,9 @@ enum fixed_addresses {
- #ifdef CONFIG_ACPI_APEI_GHES
- 	/* Used for GHES mapping from assorted contexts */
- 	FIX_APEI_GHES_IRQ,
--	FIX_APEI_GHES_NMI,
-+#ifdef CONFIG_ACPI_APEI_SEA
-+	FIX_APEI_GHES_SEA,
+@@ -58,6 +58,10 @@ enum fixed_addresses {
+ #ifdef CONFIG_ACPI_APEI_SEA
+ 	FIX_APEI_GHES_SEA,
+ #endif
++#ifdef CONFIG_ARM_SDE_INTERFACE
++	FIX_APEI_GHES_SDEI_NORMAL,
++	FIX_APEI_GHES_SDEI_CRITICAL,
 +#endif
  #endif /* CONFIG_ACPI_APEI_GHES */
  
  #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-index 48d9eb55ebb8..3ddccd170240 100644
---- a/drivers/acpi/apei/ghes.c
-+++ b/drivers/acpi/apei/ghes.c
-@@ -118,7 +118,6 @@ static DEFINE_MUTEX(ghes_list_mutex);
-  * handler, but general ioremap can not be used in atomic context, so
-  * the fixmap is used instead.
-  */
--static DEFINE_RAW_SPINLOCK(ghes_fixmap_lock_nmi);
- static DEFINE_SPINLOCK(ghes_fixmap_lock_irq);
+diff --git a/drivers/firmware/arm_sdei.c b/drivers/firmware/arm_sdei.c
+index 1ea71640fdc2..2c29f435b1f9 100644
+--- a/drivers/firmware/arm_sdei.c
++++ b/drivers/firmware/arm_sdei.c
+@@ -2,6 +2,7 @@
+ // Copyright (C) 2017 Arm Ltd.
+ #define pr_fmt(fmt) "sdei: " fmt
  
- static struct gen_pool *ghes_estatus_pool;
-@@ -948,6 +947,7 @@ static struct notifier_block ghes_notifier_hed = {
++#include <acpi/ghes.h>
+ #include <linux/acpi.h>
+ #include <linux/arm_sdei.h>
+ #include <linux/arm-smccc.h>
+@@ -32,6 +33,8 @@
+ #include <linux/spinlock.h>
+ #include <linux/uaccess.h>
  
- #ifdef CONFIG_ACPI_APEI_SEA
- static LIST_HEAD(ghes_sea);
-+static DEFINE_RAW_SPINLOCK(ghes_fixmap_lock_sea);
- 
++#include <asm/fixmap.h>
++
  /*
-  * Return 0 only if one of the SEA error sources successfully reported an error
-@@ -960,8 +960,8 @@ int ghes_notify_sea(void)
- 
- static void ghes_sea_add(struct ghes *ghes)
- {
--	ghes->nmi_fixmap_lock = &ghes_fixmap_lock_nmi;
--	ghes->nmi_fixmap_idx = FIX_APEI_GHES_NMI;
-+	ghes->nmi_fixmap_lock = &ghes_fixmap_lock_sea;
-+	ghes->nmi_fixmap_idx = FIX_APEI_GHES_SEA;
- 	ghes_estatus_queue_grow_pool(ghes);
- 
- 	mutex_lock(&ghes_list_mutex);
-@@ -985,12 +985,13 @@ static inline void ghes_sea_remove(struct ghes *ghes) { }
- 
- #ifdef CONFIG_HAVE_ACPI_APEI_NMI
- /*
-- * NMI may be triggered on any CPU, so ghes_in_nmi is used for
-- * having only one concurrent reader.
-+ * NOTIFY_NMI may be triggered on any CPU, so ghes_in_nmi is
-+ * used for having only one concurrent reader.
+  * The call to use to reach the firmware.
   */
- static atomic_t ghes_in_nmi = ATOMIC_INIT(0);
+@@ -887,6 +890,80 @@ static void sdei_smccc_hvc(unsigned long function_id,
+ 	arm_smccc_hvc(function_id, arg0, arg1, arg2, arg3, arg4, 0, 0, res);
+ }
  
- static LIST_HEAD(ghes_nmi);
-+static DEFINE_RAW_SPINLOCK(ghes_fixmap_lock_nmi);
- 
- static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
++#ifdef CONFIG_ACPI_APEI_GHES
++/* These stop private notifications using the fixmap entries simultaneously */
++static DEFINE_RAW_SPINLOCK(sdei_ghes_fixmap_lock_normal);
++static DEFINE_RAW_SPINLOCK(sdei_ghes_fixmap_lock_critical);
++
++int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *cb)
++{
++	int err;
++	u32 event_num;
++	u64 result;
++
++	if (acpi_disabled)
++		return -EOPNOTSUPP;
++
++	event_num = ghes->generic->notify.vector;
++	if (event_num == 0) {
++		/*
++		 * Event 0 is reserved by the specification for
++		 * SDEI_EVENT_SIGNAL.
++		 */
++		return -EINVAL;
++	}
++
++	err = sdei_api_event_get_info(event_num, SDEI_EVENT_INFO_EV_PRIORITY,
++				      &result);
++	if (err)
++		return err;
++
++	if (result == SDEI_EVENT_PRIORITY_CRITICAL) {
++		ghes->nmi_fixmap_lock = &sdei_ghes_fixmap_lock_critical;
++		ghes->nmi_fixmap_idx = FIX_APEI_GHES_SDEI_CRITICAL;
++	} else {
++		ghes->nmi_fixmap_lock = &sdei_ghes_fixmap_lock_normal;
++		ghes->nmi_fixmap_idx = FIX_APEI_GHES_SDEI_NORMAL;
++	}
++
++	err = sdei_event_register(event_num, cb, ghes);
++	if (!err)
++		err = sdei_event_enable(event_num);
++
++	return err;
++}
++
++int sdei_unregister_ghes(struct ghes *ghes)
++{
++	int i;
++	int err;
++	u32 event_num = ghes->generic->notify.vector;
++
++	might_sleep();
++
++	if (acpi_disabled)
++		return -EOPNOTSUPP;
++
++	/*
++	 * The event may be running on another CPU. Disable it
++	 * to stop new events, then try to unregister a few times.
++	 */
++	err = sdei_event_disable(event_num);
++	if (err)
++		return err;
++
++	for (i = 0; i < 3; i++) {
++		err = sdei_event_unregister(event_num);
++		if (err != -EINPROGRESS)
++			break;
++
++		schedule();
++	}
++
++	return err;
++}
++#endif /* CONFIG_ACPI_APEI_GHES */
++
+ static int sdei_get_conduit(struct platform_device *pdev)
  {
+ 	const char *method;
+diff --git a/include/linux/arm_sdei.h b/include/linux/arm_sdei.h
+index 942afbd544b7..5fdf799be026 100644
+--- a/include/linux/arm_sdei.h
++++ b/include/linux/arm_sdei.h
+@@ -11,6 +11,7 @@ enum sdei_conduit_types {
+ 	CONDUIT_HVC,
+ };
+ 
++#include <acpi/ghes.h>
+ #include <asm/sdei.h>
+ 
+ /* Arch code should override this to set the entry point from firmware... */
+@@ -39,6 +40,10 @@ int sdei_event_unregister(u32 event_num);
+ int sdei_event_enable(u32 event_num);
+ int sdei_event_disable(u32 event_num);
+ 
++/* GHES register/unregister helpers */
++int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *cb);
++int sdei_unregister_ghes(struct ghes *ghes);
++
+ #ifdef CONFIG_ARM_SDE_INTERFACE
+ /* For use by arch code when CPU hotplug notifiers are not appropriate. */
+ int sdei_mask_local_cpu(void);
 -- 
 2.16.2
