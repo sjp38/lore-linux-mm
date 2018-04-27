@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F3CCD6B0005
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 04:26:01 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id k3so1035029pff.23
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 01:26:01 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 665C46B0005
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 04:27:18 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id m68so1043886pfm.20
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 01:27:18 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x3-v6si806565plb.478.2018.04.27.01.26.00
+        by mx.google.com with ESMTPS id e125si846866pfe.244.2018.04.27.01.27.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 27 Apr 2018 01:26:00 -0700 (PDT)
-Date: Fri, 27 Apr 2018 10:25:55 +0200
+        Fri, 27 Apr 2018 01:27:17 -0700 (PDT)
+Date: Fri, 27 Apr 2018 10:27:15 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc
- fallback options
-Message-ID: <20180427082555.GC17484@dhcp22.suse.cz>
-References: <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com>
- <alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com>
- <1524694663.4100.21.camel@HansenPartnership.com>
- <alpine.LRH.2.02.1804251857070.31135@file01.intranet.prod.int.rdu2.redhat.com>
- <1524697697.4100.23.camel@HansenPartnership.com>
- <23266.8532.619051.784274@quad.stoffel.home>
- <alpine.LRH.2.02.1804261726540.13401@file01.intranet.prod.int.rdu2.redhat.com>
- <20180427005213-mutt-send-email-mst@kernel.org>
- <alpine.LRH.2.02.1804261829190.30599@file01.intranet.prod.int.rdu2.redhat.com>
+Subject: Re: OOM killer invoked while still one forth of mem is available
+Message-ID: <20180427082715.GD17484@dhcp22.suse.cz>
+References: <df1a8c14-bda3-6271-d403-24b88a254b2c@c-s.fr>
+ <alpine.DEB.2.21.1804251253240.151692@chino.kir.corp.google.com>
+ <296ea83c-2c00-f1d2-3f62-d8ab8b8fb73c@c-s.fr>
+ <20180426131154.GQ17484@dhcp22.suse.cz>
+ <2706829f-6207-89f7-46e6-d32244305ccb@c-s.fr>
+ <20180426190514.GU17484@dhcp22.suse.cz>
+ <20180426222917.Horde.cu42u5sTkcbGdcY0VUmclQ1@messagerie.si.c-s.fr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1804261829190.30599@file01.intranet.prod.int.rdu2.redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180426222917.Horde.cu42u5sTkcbGdcY0VUmclQ1@messagerie.si.c-s.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, John Stoffel <john@stoffel.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Michal@stoffel.org, eric.dumazet@gmail.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>, Andrew@stoffel.org, David Rientjes <rientjes@google.com>, Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, David Miller <davem@davemloft.net>, edumazet@google.com
+To: LEROY Christophe <christophe.leroy@c-s.fr>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Thu 26-04-18 18:52:05, Mikulas Patocka wrote:
-> 
-> 
-> On Fri, 27 Apr 2018, Michael S. Tsirkin wrote:
+On Thu 26-04-18 22:29:17, LEROY Christophe wrote:
+> Michal Hocko <mhocko@kernel.org> a ecrit :
 [...]
-> >    But assuming it's important to control this kind of
-> >    fault injection to be controlled from
-> >    a dedicated menuconfig option, why not the rest of
-> >    faults?
+> > Yes, show_migration_types. But I do not see why unmovable pageblocks
+> > should block the allocation. This is a GFP_KERNEL allocation request
+> > essentially - thus unmovable itself. This smells like a bug. We are way
+> > above reserves which could block the allocation.
 > 
-> The injected faults cause damage to the user, so there's no point to 
-> enable them by default. vmalloc fallback should not cause any damage 
-> (assuming that the code is correctly written).
+> Any suggestion on how to investigate that bug ? Anything to trace ?
 
-But you want to find those bugs which would BUG_ON easier, so there is a
-risk of harm IIUC and this is not much different than other fault
-injecting paths.
+try to enable allocator and vmscan tracepoints. Maybe it will tell
+something.
 -- 
 Michal Hocko
 SUSE Labs
