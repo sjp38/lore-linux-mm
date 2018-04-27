@@ -1,99 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 71D026B0003
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:32:21 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id r104-v6so1315625ota.19
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 07:32:21 -0700 (PDT)
-Received: from g4t3426.houston.hpe.com (g4t3426.houston.hpe.com. [15.241.140.75])
-        by mx.google.com with ESMTPS id x142-v6si487743oia.376.2018.04.27.07.32.19
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DC396B0003
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:53:06 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id j3-v6so2213046ioe.13
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 07:53:06 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id l11-v6si1095632ith.138.2018.04.27.07.53.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Apr 2018 07:32:20 -0700 (PDT)
-From: "Kani, Toshi" <toshi.kani@hpe.com>
-Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
-Date: Fri, 27 Apr 2018 14:31:51 +0000
-Message-ID: <1524839460.2693.531.camel@hpe.com>
-References: <20180314180155.19492-1-toshi.kani@hpe.com>
-	 <20180314180155.19492-3-toshi.kani@hpe.com>
-	 <20180426141926.GN15462@8bytes.org> <1524759629.2693.465.camel@hpe.com>
-	 <20180426172327.GQ15462@8bytes.org> <1524764948.2693.478.camel@hpe.com>
-	 <20180426200737.GS15462@8bytes.org> <1524781764.2693.503.camel@hpe.com>
-	 <20180427073719.GT15462@8bytes.org>
-In-Reply-To: <20180427073719.GT15462@8bytes.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <76CF738D819A5A4C9117DC257825724D@NAMPRD84.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        Fri, 27 Apr 2018 07:53:04 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v2] mm: sections are not offlined during memory hotremove
+Date: Fri, 27 Apr 2018 10:52:57 -0400
+Message-Id: <20180427145257.15222-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "joro@8bytes.org" <joro@8bytes.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "willy@infradead.org" <willy@infradead.org>, "hpa@zytor.com" <hpa@zytor.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Hocko,
- Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, mhocko@suse.com, linux-mm@kvack.org
 
-T24gRnJpLCAyMDE4LTA0LTI3IGF0IDA5OjM3ICswMjAwLCBqb3JvQDhieXRlcy5vcmcgd3JvdGU6
-DQo+IE9uIFRodSwgQXByIDI2LCAyMDE4IGF0IDEwOjMwOjE0UE0gKzAwMDAsIEthbmksIFRvc2hp
-IHdyb3RlOg0KPiA+IFRoYW5rcyBmb3IgdGhlIGNsYXJpZmljYXRpb24uIEFmdGVyIHJlYWRpbmcg
-dGhyb3VnaCBTRE0gb25lIG1vcmUgdGltZSwgSQ0KPiA+IGFncmVlIHRoYXQgd2UgbmVlZCBhIFRM
-QiBwdXJnZSBoZXJlLiBIZXJlIGlzIG15IGN1cnJlbnQgdW5kZXJzdGFuZGluZy4gDQo+ID4gDQo+
-ID4gIC0gSU5WTFBHIHB1cmdlcyBib3RoIFRMQiBhbmQgcGFnaW5nLXN0cnVjdHVyZSBjYWNoZXMu
-IFNvLCBQTUQgY2FjaGUgd2FzDQo+ID4gcHVyZ2VkIG9uY2UuDQo+ID4gIC0gSG93ZXZlciwgcHJv
-Y2Vzc29yIG1heSBjYWNoZSB0aGlzIFBNRCBlbnRyeSBsYXRlciBpbiBzcGVjdWxhdGlvbg0KPiA+
-IHNpbmNlIGl0IGhhcyBwLWJpdCBzZXQuIChUaGlzIGlzIHdoZXJlIG15IG1pc3VuZGVyc3RhbmRp
-bmcgd2FzLg0KPiA+IFNwZWN1bGF0aW9uIGlzIG5vdCBhbGxvd2VkIHRvIGFjY2VzcyBhIHRhcmdl
-dCBhZGRyZXNzLCBidXQgaXQgbWF5IHN0aWxsDQo+ID4gY2FjaGUgdGhpcyBQTUQgZW50cnkuKQ0K
-PiA+ICAtIEEgc2luZ2xlIElOVkxQRyBvbiBlYWNoIHByb2Nlc3NvciBwdXJnZXMgdGhpcyBQTUQg
-Y2FjaGUuIEl0IGRvZXMgbm90DQo+ID4gbmVlZCBhIHJhbmdlIHB1cmdlICh3aGljaCB3YXMgYWxy
-ZWFkeSBkb25lKS4NCj4gPiANCj4gPiBEb2VzIGl0IHNvdW5kIHJpZ2h0IHRvIHlvdT8NCj4gDQo+
-IFRoZSByaWdodCBmaXggaXMgdG8gZmlyc3Qgc3luY2hyb25pemUgdGhlIGNoYW5nZXMgd2hlbiB0
-aGUgUE1EL1BVRCBpcw0KPiBjbGVhcmVkIGFuZCB0aGVuIGZsdXNoIHRoZSBUTEIgc3lzdGVtLXdp
-ZGUuIEFmdGVyIHRoYXQgaXMgZG9uZSB5b3UgY2FuDQo+IGZyZWUgdGhlIHBhZ2UuDQoNCkFncmVl
-ZC4gVGhpcyBjYW4gYmUgZG9uZSBvbiB0b3Agb2YgdGhpcyBwYXRjaC4NCg0KPiBCdXQgZG9pbmcg
-YWxsIHRoYXQgaW4gdGhlIHB1ZC9wbWRfZnJlZV9wbWQvcHRlX3BhZ2UoKSBmdW5jdGlvbnMgaXMg
-dG9vDQo+IGV4cGVuc2l2ZSwgYXMgdGhlIFRMQiBmbHVzaCByZXF1aXJlcyB0byBzZW5kIElQSXMg
-dG8gYWxsIGNvcmVzIGluIHRoZQ0KPiBzeXN0ZW0sIGFuZCB0aGF0IGV2ZXJ5IHRpbWUgdGhlIGZ1
-bmN0aW9uIGlzIGNhbGxlZC4NCj4NCj4gU28gd2hhdCBuZWVkcyB0byBiZSBkb25lIGlzIHRvIGZp
-eCB0aGlzIGZyb20gaGlnaC1sZXZlbCBpb3JlbWFwIGNvZGUgdG8NCj4gZmlyc3QgdW5tYXAgYWxs
-IHJlcXVpcmVkIFBURS9QTUQgcGFnZXMgYW5kIGNvbGxlY3QgdGhlbSBpbiBhIGxpc3QuIFdoZW4N
-Cj4gdGhhdCBpcyBkb25lIHlvdSBjYW4gc3luY2hyb25pemUgdGhlIGNoYW5nZXMgd2l0aCB0aGUg
-b3RoZXIgcGFnZS10YWJsZXMNCj4gaW4gdGhlIHN5c3RlbSBhbmQgZG8gb25lIHN5c3RlbS13aWRl
-IFRMQiBmbHVzaC4gV2hlbiB0aGF0IGlzIGNvbXBsZXRlDQo+IHlvdSBjYW4gZnJlZSB0aGUgcGFn
-ZXMgb24gdGhlIGxpc3QgdGhhdCB3ZXJlIGNvbGxlY3RlZCB3aGlsZSB1bm1hcHBpbmcuDQo+DQo+
-IFRoZW4gdGhlIG5ldyBtYXBwaW5ncyBjYW4gYmUgZXN0YWJsaXNoZWQgYW5kIGFnYWluIHN5bmNo
-cm9uaXplZCB3aXRoIHRoZQ0KPiBvdGhlciBwYWdlLXRhYmxlcyBpbiB0aGUgc3lzdGVtLg0KDQpZ
-ZXMsIGFuZCB0aGlzIHBhdGNoIHdhcyBkZXNpZ25lZCB0byB3b3JrIGluIHN1Y2ggd2F5LiAgUGxl
-YXNlIG5vdGUgdGhhdA0KdGhpcyBwYXRjaCBhZGRlZCBwdWRfZnJlZV9wbWRfcGFnZSgpIGFuZCBw
-bWRfZnJlZV9wdGVfcGFnZSgpIHRvIHRoZQ0KaW9yZW1hcCgpIHBhdGggd2hlbiBhbmQgb25seSB3
-aGVuIGl0IGNyZWF0ZXMgYSBwdWQgb3IgcG1kIG1hcC4gIFRoaXMNCmFzc3VyZXMgdGhlIGZvbGxv
-d2luZyBwcmVjb25kaXRpb25zIGFyZSBtZXQgd2l0aG91dCBvdmVyaGVhZC4NCiAtIEFsbCBwdGUg
-ZW50cmllcyBmb3IgYSB0YXJnZXQgcHVkL3BtZCBhZGRyZXNzIHJhbmdlIGhhdmUgYmVlbiBjbGVh
-cmVkLg0KIC0gU3lzdGVtLXdpZGUgVExCIHB1cmdlcyBoYXZlIGJlZW4gZG9uZSBmb3IgYSB0YXJn
-ZXQgcHVkL3BtZCBhZGRyZXNzDQpyYW5nZS4NCg0KU28sIHdlIGNhbiBhZGQgdGhlIHN0ZXAgMiBv
-biB0b3Agb2YgdGhpcyBwYXRjaC4NCiAxLiBDbGVhciBwdWQvcG1kIGVudHJ5Lg0KIDIuIFN5c3Rl
-bSB3aWRlIFRMQiBmbHVzaCA8LS0gVE8gQkUgQURERUQgQlkgTkVXIFBBVENIDQogMy4gRnJlZSBp
-dHMgdW5kZXJsaW5pbmcgcG1kL3B0ZSBwYWdlLg0KDQo+ID4gQXMgZm9yIHRoZSBCVUdfT04gaXNz
-dWUsIGFyZSB5b3UgYWJsZSB0byByZXByb2R1Y2UgdGhpcyBpc3N1ZT8gIElmIHNvLA0KPiA+IHdv
-dWxkIHlvdSBiZSBhYmxlIHRvIHRlc3QgdGhlIGZpeD8NCj4gDQo+IFllcywgSSBjYW4gcmVwcm9k
-dWNlIHRoZSBCVUdfT04gd2l0aCBteSBQVEkgcGF0Y2hlcyBhbmQgYSBmZWRvcmEtaTM4Ng0KPiBW
-TS4NCg0KR3JlYXQhDQoNCj4gSSBhbHJlYWR5IHJhbiBpbnRvIHRoZSBpc3N1ZSBiZWZvcmUgeW91
-ciBwYXRjaGVzIHdlcmUgbWVyZ2VkIHVwc3RyZWFtLA0KPiBidXQgbXkgImZpeCIgaXMgZGlmZmVy
-ZW50IGJlY2F1c2UgaXQganVzdCBwcmV2ZW50cyBodWdlLW1hcHBpbmdzIHdoZW4NCj4gdGhlcmUg
-d2VyZSBzbWFsbGVyIG1hcHBpbmdzIGJlZm9yZS4gU2VlDQo+IA0KPiAJZTNlMjg4MTIxNDA4IHg4
-Ni9wZ3RhYmxlOiBEb24ndCBzZXQgaHVnZSBQVUQvUE1EIG9uIG5vbi1sZWFmIGVudHJpZXMNCj4g
-DQo+IGZvciBkZXRhaWxzLiBUaGlzIHBhdGNoIGRvZXMgbm90IGZpeCB0aGUgYmFzZS1wcm9ibGVt
-LCBidXQgaGlkZXMgaXQNCj4gYWdhaW4sIGFzIHRoZSByZWFsIGZpeCBuZWVkcyBzb21lIG1vcmUg
-d29yayBhY3Jvc3MgYXJjaGl0ZWN0dXJlcy4NCg0KUmlnaHQuICBQYXRjaCAxLzIgb2YgdGhpcyBz
-ZXJpZXMgbWFkZSB0aGUgc2FtZSBmaXggYXMgd2VsbC4gIFNlZToNCg0KYjZiZGI3NTE3YzNkICBt
-bS92bWFsbG9jOiBhZGQgaW50ZXJmYWNlcyB0byBmcmVlIHVubWFwcGVkIHBhZ2UgdGFibGUNCg0K
-PiBZb3VyIHBhdGNoIGFjdHVhbGx5IG1ha2VzIHRoZSBwcm9ibGVtIHdvcnNlLCB3aXRob3V0IGl0
-IHRoZSBQVEUvUE1EIHBhZ2VzDQo+IHdlcmUganVzdCBsZWFrZWQsIHNvIHRoYXQgdGhleSBjb3Vs
-ZCBub3QgYmUgcmV1c2VkLiBCdXQgd2l0aCB5b3VyIHBhdGNoDQo+IHRoZSBwYWdlcyBjYW4gYmUg
-dXNlZCBhZ2FpbiBhbmQgdGhlIHBhZ2Utd2Fsa2VyIG1pZ2h0IGVzdGFibGlzaCBUTEINCj4gZW50
-cmllcyBiYXNlZCBvbiByYW5kb20gY29udGVudCB0aGUgbmV3IG93bmVyIHdyaXRlcyB0byBpdC4g
-VGhpcyBjYW4NCj4gbGVhZCB0byBhbGwga2luZHMgb2YgcmFuZG9tIGFuZCB2ZXJ5IGhhcmQgdG8g
-ZGVidWcgZGF0YSBjb3JydXB0aW9uDQo+IGlzc3Vlcy4NCj4gDQo+IFNvIHVudGlsIHdlIG1ha2Ug
-dGhlIGdlbmVyaWMgaW9yZW1hcCBjb2RlIGluIGxpYi9pb3JlbWFwLmMgc21hcnRlciBhYm91dA0K
-PiB1bm1hcHBpbmcvcmVtYXBwaW5nIHJhbmdlcyB0aGUgYmVzdCBzb2x1dGlvbiBpcyBtYWtpbmcg
-bXkgZml4IHdvcmsgYWdhaW4NCj4gYnkgcmV2ZXJ0aW5nIHlvdXIgcGF0Y2guDQoNCldlIGRvIG5v
-dCBuZWVkIHRvIHJldmVydCB0aGlzIHBhdGNoLiAgV2UgY2FuIG1ha2UgdGhlIGFib3ZlIGNoYW5n
-ZSBJDQptZW50aW9uZWQuDQoNClRoYW5rcywNCi1Ub3NoaQ0K
+Memory hotplug, and hotremove operate with per-block granularity. If
+machine has large amount of memory (more than 64G), the size of memory
+block can span multiple sections. By mistake, during hotremove we set
+only the first section to offline state.
+
+The bug was discovered because kernel selftest started to fail:
+https://lkml.kernel.org/r/20180423011247.GK5563@yexl-desktop
+
+After commit, "mm/memory_hotplug: optimize probe routine". But, the bug is
+older than this commit. In this optimization we also added a check for
+sections to be in a proper state during hotplug operation.
+
+Fixes: 2d070eab2e82 ("mm: consider zone which is not fully populated to have holes")
+
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: stable@vger.kernel.org
+
+---
+ mm/sparse.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 62eef264a7bd..73dc2fcc0eab 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -629,7 +629,7 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ 	unsigned long pfn;
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+-		unsigned long section_nr = pfn_to_section_nr(start_pfn);
++		unsigned long section_nr = pfn_to_section_nr(pfn);
+ 		struct mem_section *ms;
+ 
+ 		/*
+-- 
+2.17.0
