@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E4B4B6B0007
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 13:49:49 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id n4-v6so2144753pgn.9
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:49:49 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id u6-v6si1658281pld.74.2018.04.27.10.49.48
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 022816B0008
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 13:49:51 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id z6-v6so2124559pgu.20
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:49:50 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id b23-v6si1648329pge.682.2018.04.27.10.49.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Apr 2018 10:49:48 -0700 (PDT)
-Subject: [PATCH 2/9] x86, pkeys, selftests: save off 'prot' for allocations
+        Fri, 27 Apr 2018 10:49:50 -0700 (PDT)
+Subject: [PATCH 3/9] x86, pkeys, selftests: add a test for pkey 0
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 27 Apr 2018 10:45:30 -0700
+Date: Fri, 27 Apr 2018 10:45:31 -0700
 References: <20180427174527.0031016C@viggo.jf.intel.com>
 In-Reply-To: <20180427174527.0031016C@viggo.jf.intel.com>
-Message-Id: <20180427174530.E50654BA@viggo.jf.intel.com>
+Message-Id: <20180427174531.9D331D97@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,12 +23,11 @@ Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.i
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This makes it possible to to tell what 'prot' a given allocation
-is supposed to have.  That way, if we want to change just the
-pkey, we know what 'prot' to pass to mprotect_pkey().
+Protection key 0 is the default key for all memory and will
+not normally come back from pkey_alloc().  But, you might
+still want pass it to mprotect_pkey().
 
-Also, keep a record of the most recent allocation so the tests
-can easily find it.
+This check ensures that you can use pkey 0.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Ram Pai <linuxram@us.ibm.com>
@@ -40,69 +39,54 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Shuah Khan <shuah@kernel.org>
 ---
 
- b/tools/testing/selftests/x86/protection_keys.c |   14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ b/tools/testing/selftests/x86/protection_keys.c |   30 ++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
 
-diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-update-selftests-store-malloc-record tools/testing/selftests/x86/protection_keys.c
---- a/tools/testing/selftests/x86/protection_keys.c~pkeys-update-selftests-store-malloc-record	2018-03-26 10:22:34.301170195 -0700
-+++ b/tools/testing/selftests/x86/protection_keys.c	2018-03-26 10:22:34.305170195 -0700
-@@ -674,10 +674,12 @@ int mprotect_pkey(void *ptr, size_t size
- struct pkey_malloc_record {
- 	void *ptr;
- 	long size;
-+	int prot;
- };
- struct pkey_malloc_record *pkey_malloc_records;
-+struct pkey_malloc_record *pkey_last_malloc_record;
- long nr_pkey_malloc_records;
--void record_pkey_malloc(void *ptr, long size)
-+void record_pkey_malloc(void *ptr, long size, int prot)
- {
- 	long i;
- 	struct pkey_malloc_record *rec = NULL;
-@@ -709,6 +711,8 @@ void record_pkey_malloc(void *ptr, long
- 		(int)(rec - pkey_malloc_records), rec, ptr, size);
- 	rec->ptr = ptr;
- 	rec->size = size;
-+	rec->prot = prot;
-+	pkey_last_malloc_record = rec;
- 	nr_pkey_malloc_records++;
+diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-update-selftests-with-pkey-0-test tools/testing/selftests/x86/protection_keys.c
+--- a/tools/testing/selftests/x86/protection_keys.c~pkeys-update-selftests-with-pkey-0-test	2018-03-26 10:22:34.841170194 -0700
++++ b/tools/testing/selftests/x86/protection_keys.c	2018-03-26 10:22:34.844170194 -0700
+@@ -1169,6 +1169,35 @@ void test_pkey_alloc_exhaust(int *ptr, u
+ 	}
  }
  
-@@ -753,7 +757,7 @@ void *malloc_pkey_with_mprotect(long siz
- 	pkey_assert(ptr != (void *)-1);
- 	ret = mprotect_pkey((void *)ptr, PAGE_SIZE, prot, pkey);
- 	pkey_assert(!ret);
--	record_pkey_malloc(ptr, size);
-+	record_pkey_malloc(ptr, size, prot);
- 	rdpkru();
- 
- 	dprintf1("%s() for pkey %d @ %p\n", __func__, pkey, ptr);
-@@ -774,7 +778,7 @@ void *malloc_pkey_anon_huge(long size, i
- 	size = ALIGN_UP(size, HPAGE_SIZE * 2);
- 	ptr = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
- 	pkey_assert(ptr != (void *)-1);
--	record_pkey_malloc(ptr, size);
-+	record_pkey_malloc(ptr, size, prot);
- 	mprotect_pkey(ptr, size, prot, pkey);
- 
- 	dprintf1("unaligned ptr: %p\n", ptr);
-@@ -847,7 +851,7 @@ void *malloc_pkey_hugetlb(long size, int
- 	pkey_assert(ptr != (void *)-1);
- 	mprotect_pkey(ptr, size, prot, pkey);
- 
--	record_pkey_malloc(ptr, size);
-+	record_pkey_malloc(ptr, size, prot);
- 
- 	dprintf1("mmap()'d hugetlbfs for pkey %d @ %p\n", pkey, ptr);
- 	return ptr;
-@@ -869,7 +873,7 @@ void *malloc_pkey_mmap_dax(long size, in
- 
- 	mprotect_pkey(ptr, size, prot, pkey);
- 
--	record_pkey_malloc(ptr, size);
-+	record_pkey_malloc(ptr, size, prot);
- 
- 	dprintf1("mmap()'d for pkey %d @ %p\n", pkey, ptr);
- 	close(fd);
++/*
++ * pkey 0 is special.  It is allocated by default, so you do not
++ * have to call pkey_alloc() to use it first.  Make sure that it
++ * is usable.
++ */
++void test_mprotect_with_pkey_0(int *ptr, u16 pkey)
++{
++	long size;
++	int prot;
++
++	assert(pkey_last_malloc_record);
++	size = pkey_last_malloc_record->size;
++	/*
++	 * This is a bit of a hack.  But mprotect() requires
++	 * huge-page-aligned sizes when operating on hugetlbfs.
++	 * So, make sure that we use something that's a multiple
++	 * of a huge page when we can.
++	 */
++	if (size >= HPAGE_SIZE)
++		size = HPAGE_SIZE;
++	prot = pkey_last_malloc_record->prot;
++
++	/* Use pkey 0 */
++	mprotect_pkey(ptr, size, prot, 0);
++
++	/* Make sure that we can set it back to the original pkey. */
++	mprotect_pkey(ptr, size, prot, pkey);
++}
++
+ void test_ptrace_of_child(int *ptr, u16 pkey)
+ {
+ 	__attribute__((__unused__)) int peek_result;
+@@ -1306,6 +1335,7 @@ void (*pkey_tests[])(int *ptr, u16 pkey)
+ 	test_kernel_gup_of_access_disabled_region,
+ 	test_kernel_gup_write_to_write_disabled_region,
+ 	test_executing_on_unreadable_memory,
++	test_mprotect_with_pkey_0,
+ 	test_ptrace_of_child,
+ 	test_pkey_syscalls_on_non_allocated_pkey,
+ 	test_pkey_syscalls_bad_args,
 _
