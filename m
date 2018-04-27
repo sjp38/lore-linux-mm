@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1532F6B0005
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 13:36:37 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id m7-v6so1989451qtg.1
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:36:37 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e7-v6si1561020qvo.64.2018.04.27.10.36.35
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DB436B0005
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 13:49:48 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id o9-v6so2124761pgv.8
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:49:48 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id m32-v6si1653202pld.459.2018.04.27.10.49.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Apr 2018 10:36:35 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3RHYbHM012236
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 13:36:34 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2hm4y9hct7-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 13:36:34 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Fri, 27 Apr 2018 18:36:31 +0100
-Date: Fri, 27 Apr 2018 19:36:19 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [RFC PATCH 0/9] Enable THP migration for all possible
- architectures
-In-Reply-To: <20180426142804.180152-1-zi.yan@sent.com>
-References: <20180426142804.180152-1-zi.yan@sent.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <20180427193619.435eb53a@thinkpad>
+        Fri, 27 Apr 2018 10:49:46 -0700 (PDT)
+Subject: [PATCH 0/9] [v3] x86, pkeys: two protection keys bug fixes
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Fri, 27 Apr 2018 10:45:27 -0700
+Message-Id: <20180427174527.0031016C@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zi Yan <zi.yan@cs.rutgers.edu>, Vineet Gupta <vgupta@synopsys.com>, linux-snps-arc@lists.infradead.org, Russell King <linux@armlinux.org.uk>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, linux-arm-kernel@lists.infradead.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Dan Williams <dan.j.williams@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>, Michal Hocko <mhocko@suse.com>, linux-mips@linux-mips.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ram Pai <linuxram@us.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linuxppc-dev@lists.ozlabs.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Janosch Frank <frankja@linux.vnet.ibm.com>, linux-s390@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org, "Huang, Ying" <ying.huang@intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org, shakeelb@google.com
 
-On Thu, 26 Apr 2018 10:27:55 -0400
-Zi Yan <zi.yan@sent.com> wrote:
+Hi x86 maintainers,
 
-> From: Zi Yan <zi.yan@cs.rutgers.edu>
-> 
-> Hi all,
-> 
-> THP migration is only enabled on x86_64 with a special
-> ARCH_ENABLE_THP_MIGRATION macro. This patchset enables THP migration for
-> all architectures that uses transparent hugepage, so that special macro can
-> be dropped. Instead, THP migration is enabled/disabled via
-> /sys/kernel/mm/transparent_hugepage/enable_thp_migration.
-> 
-> I grepped for TRANSPARENT_HUGEPAGE in arch folder and got 9 architectures that
-> are supporting transparent hugepage. I mechanically add __pmd_to_swp_entry() and
-> __swp_entry_to_pmd() based on existing __pte_to_swp_entry() and
-> __swp_entry_to_pte() for all these architectures, except tile which is going to
-> be dropped.
+This set is basically unchanged from the last post.  There was
+some previous discussion about other ways to fix this with the ppc
+folks (Ram Pai), but we've concluded that this x86-specific fix is
+fine.  I think Ram had a different fix for ppc.
 
-This will not work on s390, the pmd layout is very different from the pte
-layout. Using __swp_entry/type/offset() on a pmd will go horribly wrong.
-I currently don't see a chance to make this work for us, so please make/keep
-this configurable, and do not configure it for s390.
+Changes from v2:
+ * Clarified commit message in patch 1/9 taking some feedback from
+   Shuah.
 
-Regards,
-Gerald
+Changes from v1:
+ * Added Fixes: and cc'd stable.  No code changes.
+
+--
+
+This fixes two bugs, and adds selftests to make sure they stay fixed:
+
+1. pkey 0 was not usable via mprotect_pkey() because it had never
+   been explicitly allocated.
+2. mprotect(PROT_EXEC) memory could sometimes be left with the
+   implicit exec-only protection key assigned.
+
+I already posted #1 previously.  I'm including them both here because
+I don't think it's been picked up in case folks want to pull these
+all in a single bundle.
+
+Cc: Ram Pai <linuxram@us.ibm.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Michael Ellermen <mpe@ellerman.id.au>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>p
+Cc: Shuah Khan <shuah@kernel.org>
+Cc: Shakeel Butt <shakeelb@google.com>
