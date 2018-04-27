@@ -1,49 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C74DB6B0007
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 01:36:02 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id n4-v6so737497pgn.9
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 22:36:02 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q3-v6si566457pll.126.2018.04.26.22.35.58
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E79476B0007
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 01:49:11 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id f133-v6so252817lfg.18
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 22:49:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z28-v6sor105923lje.2.2018.04.26.22.49.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 26 Apr 2018 22:35:58 -0700 (PDT)
-Date: Thu, 26 Apr 2018 22:35:56 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [LSF/MM TOPIC NOTES] x86 ZONE_DMA love
-Message-ID: <20180427053556.GB11339@infradead.org>
-References: <20180426215406.GB27853@wotan.suse.de>
+        (Google Transport Security);
+        Thu, 26 Apr 2018 22:49:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180426215406.GB27853@wotan.suse.de>
+In-Reply-To: <alpine.DEB.2.21.1804250006120.51102@chino.kir.corp.google.com>
+References: <20180425044326.GA21504@jordon-HP-15-Notebook-PC> <alpine.DEB.2.21.1804250006120.51102@chino.kir.corp.google.com>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Fri, 27 Apr 2018 11:19:09 +0530
+Message-ID: <CAFqt6zb0cHJLeqaOUvfD38xbA5QOE7yq5Fyd27kCwbXKBGs54A@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: huge_memory: Change return type to vm_fault_t
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Cc: linux-mm@kvack.org, mhocko@kernel.org, cl@linux.com, Jan Kara <jack@suse.cz>, matthew@wil.cx, x86@kernel.org, luto@amacapital.net, martin.petersen@oracle.com, jthumshirn@suse.de, broonie@kernel.org, linux-spi@vger.kernel.org, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+To: David Rientjes <rientjes@google.com>, Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, zi.yan@cs.rutgers.edu, Dan Williams <dan.j.williams@intel.com>, kirill.shutemov@linux.intel.com, Ross Zwisler <ross.zwisler@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Michal Hocko <mhocko@suse.com>, shli@fb.com, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
 
-On Thu, Apr 26, 2018 at 09:54:06PM +0000, Luis R. Rodriguez wrote:
-> In practice if you don't have a floppy device on x86, you don't need ZONE_DMA,
+On Wed, Apr 25, 2018 at 12:39 PM, David Rientjes <rientjes@google.com> wrote:
+> On Wed, 25 Apr 2018, Souptick Joarder wrote:
+>
+>> Use new return type vm_fault_t for fault handler. For
+>> now, this is just documenting that the function returns
+>> a VM_FAULT value rather than an errno. Once all instances
+>> are converted, vm_fault_t will become a distinct type.
+>>
+>> Commit 1c8f422059ae ("mm: change return type to vm_fault_t")
+>>
+>> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+>> Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+>> ---
+>> v2: Updated the change log
+>>
+>>  include/linux/huge_mm.h | 5 +++--
+>>  mm/huge_memory.c        | 4 ++--
+>>  2 files changed, 5 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+>> index a8a1262..d3bbf6b 100644
+>> --- a/include/linux/huge_mm.h
+>> +++ b/include/linux/huge_mm.h
+>> @@ -3,6 +3,7 @@
+>>  #define _LINUX_HUGE_MM_H
+>>
+>>  #include <linux/sched/coredump.h>
+>> +#include <linux/mm_types.h>
+>>
+>>  #include <linux/fs.h> /* only for vma_is_dax() */
+>>
+>> @@ -46,9 +47,9 @@ extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
+>>  extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+>>                       unsigned long addr, pgprot_t newprot,
+>>                       int prot_numa);
+>> -int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+>> +vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+>>                       pmd_t *pmd, pfn_t pfn, bool write);
+>> -int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+>> +vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+>>                       pud_t *pud, pfn_t pfn, bool write);
+>>  enum transparent_hugepage_flag {
+>>       TRANSPARENT_HUGEPAGE_FLAG,
+>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>> index 87ab9b8..1fe4705 100644
+>> --- a/mm/huge_memory.c
+>> +++ b/mm/huge_memory.c
+>> @@ -755,7 +755,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+>>       spin_unlock(ptl);
+>>  }
+>>
+>> -int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+>> +vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+>>                       pmd_t *pmd, pfn_t pfn, bool write)
+>>  {
+>>       pgprot_t pgprot = vma->vm_page_prot;
+>> @@ -815,7 +815,7 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+>>       spin_unlock(ptl);
+>>  }
+>>
+>> -int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+>> +vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+>>                       pud_t *pud, pfn_t pfn, bool write)
+>>  {
+>>       pgprot_t pgprot = vma->vm_page_prot;
+>
+> This isn't very useful unless functions that return the return value of
+> these functions, __dev_dax_{pmd,pud}_fault(), recast it as an int.
+> __dev_dax_pte_fault() would do the same thing, so it should logically also
+> be vm_fault_t, so then you would convert dev_dax_huge_fault() and
+> dev_dax_fault() as well in the same patch.
 
-I call BS on that, and you actually explain later why it it BS due
-to some drivers using it more explicitly.  But even more importantly
-we have plenty driver using it through dma_alloc_* and a small DMA
-mask, and they are in use - we actually had a 4.16 regression due to
-them.
-
-> SCSI is *severely* affected:
-
-Not really.  We have unchecked_isa_dma to support about 4 drivers,
-and less than a hand ful of drivers doing stupid things, which can
-be fixed easily, and just need a volunteer.
-
-> That's the end of the review of all current explicit callers on x86.
-> 
-> # dma_alloc_coherent_gfp_flags() and dma_generic_alloc_coherent()
-> 
-> dma_alloc_coherent_gfp_flags() and dma_generic_alloc_coherent() set
-> GFP_DMA if if (dma_mask <= DMA_BIT_MASK(24))
-
-All that code is long gone and replaced with dma-direct.  Which still
-uses GFP_DMA based on the dma mask, though - see above.
+yes, the return value of _dev_dax_{pmd,pud,pte}_fault(), dev_dax_huge_fault(),
+dev_dax_fault() is already changed in a separate patch which was reviewed
+by Matthew and Ross. Other patch was posted in linux-nvdimm mailing list.
