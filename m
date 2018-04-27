@@ -1,68 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DD806B0003
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 09:43:09 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id j18so1616712pfn.17
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 06:43:09 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id b73-v6si1310146pli.305.2018.04.27.06.43.07
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 71D026B0003
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:32:21 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id r104-v6so1315625ota.19
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 07:32:21 -0700 (PDT)
+Received: from g4t3426.houston.hpe.com (g4t3426.houston.hpe.com. [15.241.140.75])
+        by mx.google.com with ESMTPS id x142-v6si487743oia.376.2018.04.27.07.32.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Apr 2018 06:43:07 -0700 (PDT)
+        Fri, 27 Apr 2018 07:32:20 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
 Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
+Date: Fri, 27 Apr 2018 14:31:51 +0000
+Message-ID: <1524839460.2693.531.camel@hpe.com>
 References: <20180314180155.19492-1-toshi.kani@hpe.com>
- <20180314180155.19492-3-toshi.kani@hpe.com>
- <20180426141926.GN15462@8bytes.org> <1524759629.2693.465.camel@hpe.com>
- <20180426172327.GQ15462@8bytes.org> <1524764948.2693.478.camel@hpe.com>
- <20180426200737.GS15462@8bytes.org> <1524781764.2693.503.camel@hpe.com>
- <20180427073719.GT15462@8bytes.org>
- <5b237058-6617-6af3-8499-8836d95f538d@codeaurora.org>
- <20180427124828.GW15462@8bytes.org>
-From: Chintan Pandya <cpandya@codeaurora.org>
-Message-ID: <fb4771ca-694b-8a52-d239-1c730617600b@codeaurora.org>
-Date: Fri, 27 Apr 2018 19:12:57 +0530
-MIME-Version: 1.0
-In-Reply-To: <20180427124828.GW15462@8bytes.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
+	 <20180314180155.19492-3-toshi.kani@hpe.com>
+	 <20180426141926.GN15462@8bytes.org> <1524759629.2693.465.camel@hpe.com>
+	 <20180426172327.GQ15462@8bytes.org> <1524764948.2693.478.camel@hpe.com>
+	 <20180426200737.GS15462@8bytes.org> <1524781764.2693.503.camel@hpe.com>
+	 <20180427073719.GT15462@8bytes.org>
+In-Reply-To: <20180427073719.GT15462@8bytes.org>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <76CF738D819A5A4C9117DC257825724D@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "joro@8bytes.org" <joro@8bytes.org>
-Cc: "guohanjun@huawei.com" <guohanjun@huawei.com>, "Hocko, Michal" <MHocko@suse.com>, "Kani, Toshi" <toshi.kani@hpe.com>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "x86@kernel.org" <x86@kernel.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mingo@redhat.com" <mingo@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "hpa@zytor.com" <hpa@zytor.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "bp@suse.de" <bp@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "willy@infradead.org" <willy@infradead.org>, "hpa@zytor.com" <hpa@zytor.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Hocko,
+ Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-
-
-On 4/27/2018 6:18 PM, joro@8bytes.org wrote:
-> On Fri, Apr 27, 2018 at 05:22:28PM +0530, Chintan Pandya wrote:
->> I'm bit confused here. Are you pointing to race within ioremap/vmalloc
->> framework while updating the page table or race during tlb ops. Since
->> later is arch dependent, I would not comment. But if the race being
->> discussed here while altering page tables, I'm not on the same page.
-> 
-> The race condition is between hardware and software. It is not
-> sufficient to just remove the software references to the page that is
-> about to be freed (by clearing the PMD/PUD), also the hardware
-> references in the page-walk cache need to be removed with a TLB flush.
-> Otherwise the hardware can use the freed (and possibly reused) page to
-> establish new TLB entries.
-
-Sure ! This is my understanding too (from arm64 context).
-
-> 
-> 
-> 
-> 	Joerg
-> 
-> 
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
-> 
-
-Chintan
--- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, a Linux Foundation
-Collaborative Project
+T24gRnJpLCAyMDE4LTA0LTI3IGF0IDA5OjM3ICswMjAwLCBqb3JvQDhieXRlcy5vcmcgd3JvdGU6
+DQo+IE9uIFRodSwgQXByIDI2LCAyMDE4IGF0IDEwOjMwOjE0UE0gKzAwMDAsIEthbmksIFRvc2hp
+IHdyb3RlOg0KPiA+IFRoYW5rcyBmb3IgdGhlIGNsYXJpZmljYXRpb24uIEFmdGVyIHJlYWRpbmcg
+dGhyb3VnaCBTRE0gb25lIG1vcmUgdGltZSwgSQ0KPiA+IGFncmVlIHRoYXQgd2UgbmVlZCBhIFRM
+QiBwdXJnZSBoZXJlLiBIZXJlIGlzIG15IGN1cnJlbnQgdW5kZXJzdGFuZGluZy4gDQo+ID4gDQo+
+ID4gIC0gSU5WTFBHIHB1cmdlcyBib3RoIFRMQiBhbmQgcGFnaW5nLXN0cnVjdHVyZSBjYWNoZXMu
+IFNvLCBQTUQgY2FjaGUgd2FzDQo+ID4gcHVyZ2VkIG9uY2UuDQo+ID4gIC0gSG93ZXZlciwgcHJv
+Y2Vzc29yIG1heSBjYWNoZSB0aGlzIFBNRCBlbnRyeSBsYXRlciBpbiBzcGVjdWxhdGlvbg0KPiA+
+IHNpbmNlIGl0IGhhcyBwLWJpdCBzZXQuIChUaGlzIGlzIHdoZXJlIG15IG1pc3VuZGVyc3RhbmRp
+bmcgd2FzLg0KPiA+IFNwZWN1bGF0aW9uIGlzIG5vdCBhbGxvd2VkIHRvIGFjY2VzcyBhIHRhcmdl
+dCBhZGRyZXNzLCBidXQgaXQgbWF5IHN0aWxsDQo+ID4gY2FjaGUgdGhpcyBQTUQgZW50cnkuKQ0K
+PiA+ICAtIEEgc2luZ2xlIElOVkxQRyBvbiBlYWNoIHByb2Nlc3NvciBwdXJnZXMgdGhpcyBQTUQg
+Y2FjaGUuIEl0IGRvZXMgbm90DQo+ID4gbmVlZCBhIHJhbmdlIHB1cmdlICh3aGljaCB3YXMgYWxy
+ZWFkeSBkb25lKS4NCj4gPiANCj4gPiBEb2VzIGl0IHNvdW5kIHJpZ2h0IHRvIHlvdT8NCj4gDQo+
+IFRoZSByaWdodCBmaXggaXMgdG8gZmlyc3Qgc3luY2hyb25pemUgdGhlIGNoYW5nZXMgd2hlbiB0
+aGUgUE1EL1BVRCBpcw0KPiBjbGVhcmVkIGFuZCB0aGVuIGZsdXNoIHRoZSBUTEIgc3lzdGVtLXdp
+ZGUuIEFmdGVyIHRoYXQgaXMgZG9uZSB5b3UgY2FuDQo+IGZyZWUgdGhlIHBhZ2UuDQoNCkFncmVl
+ZC4gVGhpcyBjYW4gYmUgZG9uZSBvbiB0b3Agb2YgdGhpcyBwYXRjaC4NCg0KPiBCdXQgZG9pbmcg
+YWxsIHRoYXQgaW4gdGhlIHB1ZC9wbWRfZnJlZV9wbWQvcHRlX3BhZ2UoKSBmdW5jdGlvbnMgaXMg
+dG9vDQo+IGV4cGVuc2l2ZSwgYXMgdGhlIFRMQiBmbHVzaCByZXF1aXJlcyB0byBzZW5kIElQSXMg
+dG8gYWxsIGNvcmVzIGluIHRoZQ0KPiBzeXN0ZW0sIGFuZCB0aGF0IGV2ZXJ5IHRpbWUgdGhlIGZ1
+bmN0aW9uIGlzIGNhbGxlZC4NCj4NCj4gU28gd2hhdCBuZWVkcyB0byBiZSBkb25lIGlzIHRvIGZp
+eCB0aGlzIGZyb20gaGlnaC1sZXZlbCBpb3JlbWFwIGNvZGUgdG8NCj4gZmlyc3QgdW5tYXAgYWxs
+IHJlcXVpcmVkIFBURS9QTUQgcGFnZXMgYW5kIGNvbGxlY3QgdGhlbSBpbiBhIGxpc3QuIFdoZW4N
+Cj4gdGhhdCBpcyBkb25lIHlvdSBjYW4gc3luY2hyb25pemUgdGhlIGNoYW5nZXMgd2l0aCB0aGUg
+b3RoZXIgcGFnZS10YWJsZXMNCj4gaW4gdGhlIHN5c3RlbSBhbmQgZG8gb25lIHN5c3RlbS13aWRl
+IFRMQiBmbHVzaC4gV2hlbiB0aGF0IGlzIGNvbXBsZXRlDQo+IHlvdSBjYW4gZnJlZSB0aGUgcGFn
+ZXMgb24gdGhlIGxpc3QgdGhhdCB3ZXJlIGNvbGxlY3RlZCB3aGlsZSB1bm1hcHBpbmcuDQo+DQo+
+IFRoZW4gdGhlIG5ldyBtYXBwaW5ncyBjYW4gYmUgZXN0YWJsaXNoZWQgYW5kIGFnYWluIHN5bmNo
+cm9uaXplZCB3aXRoIHRoZQ0KPiBvdGhlciBwYWdlLXRhYmxlcyBpbiB0aGUgc3lzdGVtLg0KDQpZ
+ZXMsIGFuZCB0aGlzIHBhdGNoIHdhcyBkZXNpZ25lZCB0byB3b3JrIGluIHN1Y2ggd2F5LiAgUGxl
+YXNlIG5vdGUgdGhhdA0KdGhpcyBwYXRjaCBhZGRlZCBwdWRfZnJlZV9wbWRfcGFnZSgpIGFuZCBw
+bWRfZnJlZV9wdGVfcGFnZSgpIHRvIHRoZQ0KaW9yZW1hcCgpIHBhdGggd2hlbiBhbmQgb25seSB3
+aGVuIGl0IGNyZWF0ZXMgYSBwdWQgb3IgcG1kIG1hcC4gIFRoaXMNCmFzc3VyZXMgdGhlIGZvbGxv
+d2luZyBwcmVjb25kaXRpb25zIGFyZSBtZXQgd2l0aG91dCBvdmVyaGVhZC4NCiAtIEFsbCBwdGUg
+ZW50cmllcyBmb3IgYSB0YXJnZXQgcHVkL3BtZCBhZGRyZXNzIHJhbmdlIGhhdmUgYmVlbiBjbGVh
+cmVkLg0KIC0gU3lzdGVtLXdpZGUgVExCIHB1cmdlcyBoYXZlIGJlZW4gZG9uZSBmb3IgYSB0YXJn
+ZXQgcHVkL3BtZCBhZGRyZXNzDQpyYW5nZS4NCg0KU28sIHdlIGNhbiBhZGQgdGhlIHN0ZXAgMiBv
+biB0b3Agb2YgdGhpcyBwYXRjaC4NCiAxLiBDbGVhciBwdWQvcG1kIGVudHJ5Lg0KIDIuIFN5c3Rl
+bSB3aWRlIFRMQiBmbHVzaCA8LS0gVE8gQkUgQURERUQgQlkgTkVXIFBBVENIDQogMy4gRnJlZSBp
+dHMgdW5kZXJsaW5pbmcgcG1kL3B0ZSBwYWdlLg0KDQo+ID4gQXMgZm9yIHRoZSBCVUdfT04gaXNz
+dWUsIGFyZSB5b3UgYWJsZSB0byByZXByb2R1Y2UgdGhpcyBpc3N1ZT8gIElmIHNvLA0KPiA+IHdv
+dWxkIHlvdSBiZSBhYmxlIHRvIHRlc3QgdGhlIGZpeD8NCj4gDQo+IFllcywgSSBjYW4gcmVwcm9k
+dWNlIHRoZSBCVUdfT04gd2l0aCBteSBQVEkgcGF0Y2hlcyBhbmQgYSBmZWRvcmEtaTM4Ng0KPiBW
+TS4NCg0KR3JlYXQhDQoNCj4gSSBhbHJlYWR5IHJhbiBpbnRvIHRoZSBpc3N1ZSBiZWZvcmUgeW91
+ciBwYXRjaGVzIHdlcmUgbWVyZ2VkIHVwc3RyZWFtLA0KPiBidXQgbXkgImZpeCIgaXMgZGlmZmVy
+ZW50IGJlY2F1c2UgaXQganVzdCBwcmV2ZW50cyBodWdlLW1hcHBpbmdzIHdoZW4NCj4gdGhlcmUg
+d2VyZSBzbWFsbGVyIG1hcHBpbmdzIGJlZm9yZS4gU2VlDQo+IA0KPiAJZTNlMjg4MTIxNDA4IHg4
+Ni9wZ3RhYmxlOiBEb24ndCBzZXQgaHVnZSBQVUQvUE1EIG9uIG5vbi1sZWFmIGVudHJpZXMNCj4g
+DQo+IGZvciBkZXRhaWxzLiBUaGlzIHBhdGNoIGRvZXMgbm90IGZpeCB0aGUgYmFzZS1wcm9ibGVt
+LCBidXQgaGlkZXMgaXQNCj4gYWdhaW4sIGFzIHRoZSByZWFsIGZpeCBuZWVkcyBzb21lIG1vcmUg
+d29yayBhY3Jvc3MgYXJjaGl0ZWN0dXJlcy4NCg0KUmlnaHQuICBQYXRjaCAxLzIgb2YgdGhpcyBz
+ZXJpZXMgbWFkZSB0aGUgc2FtZSBmaXggYXMgd2VsbC4gIFNlZToNCg0KYjZiZGI3NTE3YzNkICBt
+bS92bWFsbG9jOiBhZGQgaW50ZXJmYWNlcyB0byBmcmVlIHVubWFwcGVkIHBhZ2UgdGFibGUNCg0K
+PiBZb3VyIHBhdGNoIGFjdHVhbGx5IG1ha2VzIHRoZSBwcm9ibGVtIHdvcnNlLCB3aXRob3V0IGl0
+IHRoZSBQVEUvUE1EIHBhZ2VzDQo+IHdlcmUganVzdCBsZWFrZWQsIHNvIHRoYXQgdGhleSBjb3Vs
+ZCBub3QgYmUgcmV1c2VkLiBCdXQgd2l0aCB5b3VyIHBhdGNoDQo+IHRoZSBwYWdlcyBjYW4gYmUg
+dXNlZCBhZ2FpbiBhbmQgdGhlIHBhZ2Utd2Fsa2VyIG1pZ2h0IGVzdGFibGlzaCBUTEINCj4gZW50
+cmllcyBiYXNlZCBvbiByYW5kb20gY29udGVudCB0aGUgbmV3IG93bmVyIHdyaXRlcyB0byBpdC4g
+VGhpcyBjYW4NCj4gbGVhZCB0byBhbGwga2luZHMgb2YgcmFuZG9tIGFuZCB2ZXJ5IGhhcmQgdG8g
+ZGVidWcgZGF0YSBjb3JydXB0aW9uDQo+IGlzc3Vlcy4NCj4gDQo+IFNvIHVudGlsIHdlIG1ha2Ug
+dGhlIGdlbmVyaWMgaW9yZW1hcCBjb2RlIGluIGxpYi9pb3JlbWFwLmMgc21hcnRlciBhYm91dA0K
+PiB1bm1hcHBpbmcvcmVtYXBwaW5nIHJhbmdlcyB0aGUgYmVzdCBzb2x1dGlvbiBpcyBtYWtpbmcg
+bXkgZml4IHdvcmsgYWdhaW4NCj4gYnkgcmV2ZXJ0aW5nIHlvdXIgcGF0Y2guDQoNCldlIGRvIG5v
+dCBuZWVkIHRvIHJldmVydCB0aGlzIHBhdGNoLiAgV2UgY2FuIG1ha2UgdGhlIGFib3ZlIGNoYW5n
+ZSBJDQptZW50aW9uZWQuDQoNClRoYW5rcywNCi1Ub3NoaQ0K
