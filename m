@@ -1,93 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 185896B0003
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 09:32:08 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id m7-v6so1419600qtg.1
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 06:32:08 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id c40-v6si1407658qte.106.2018.04.27.06.32.06
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DD806B0003
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 09:43:09 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id j18so1616712pfn.17
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 06:43:09 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id b73-v6si1310146pli.305.2018.04.27.06.43.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Apr 2018 06:32:06 -0700 (PDT)
-Date: Fri, 27 Apr 2018 14:31:46 +0100
-From: Stefan Hajnoczi <stefanha@redhat.com>
-Subject: Re: [Qemu-devel] [RFC v2 1/2] virtio: add pmem driver
-Message-ID: <20180427133146.GB11150@stefanha-x1.localdomain>
-References: <20180425112415.12327-1-pagupta@redhat.com>
- <20180425112415.12327-2-pagupta@redhat.com>
- <20180426131236.GA30991@stefanha-x1.localdomain>
- <197910974.22984070.1524757499459.JavaMail.zimbra@redhat.com>
+        Fri, 27 Apr 2018 06:43:07 -0700 (PDT)
+Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
+References: <20180314180155.19492-1-toshi.kani@hpe.com>
+ <20180314180155.19492-3-toshi.kani@hpe.com>
+ <20180426141926.GN15462@8bytes.org> <1524759629.2693.465.camel@hpe.com>
+ <20180426172327.GQ15462@8bytes.org> <1524764948.2693.478.camel@hpe.com>
+ <20180426200737.GS15462@8bytes.org> <1524781764.2693.503.camel@hpe.com>
+ <20180427073719.GT15462@8bytes.org>
+ <5b237058-6617-6af3-8499-8836d95f538d@codeaurora.org>
+ <20180427124828.GW15462@8bytes.org>
+From: Chintan Pandya <cpandya@codeaurora.org>
+Message-ID: <fb4771ca-694b-8a52-d239-1c730617600b@codeaurora.org>
+Date: Fri, 27 Apr 2018 19:12:57 +0530
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="ZoaI/ZTpAVc4A5k6"
-Content-Disposition: inline
-In-Reply-To: <197910974.22984070.1524757499459.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20180427124828.GW15462@8bytes.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: Stefan Hajnoczi <stefanha@gmail.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, kwolf@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, jack@suse.cz, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, riel@surriel.com, niteshnarayanlal@hotmail.com, david@redhat.com, ross zwisler <ross.zwisler@intel.com>, lcapitulino@redhat.com, hch@infradead.org, mst@redhat.com, imammedo@redhat.com, marcel@redhat.com, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, nilal@redhat.com
+To: "joro@8bytes.org" <joro@8bytes.org>
+Cc: "guohanjun@huawei.com" <guohanjun@huawei.com>, "Hocko, Michal" <MHocko@suse.com>, "Kani, Toshi" <toshi.kani@hpe.com>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "x86@kernel.org" <x86@kernel.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mingo@redhat.com" <mingo@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "hpa@zytor.com" <hpa@zytor.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "bp@suse.de" <bp@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
 
---ZoaI/ZTpAVc4A5k6
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
 
-On Thu, Apr 26, 2018 at 11:44:59AM -0400, Pankaj Gupta wrote:
-> > > +	int err;
-> > > +
-> > > +	sg_init_one(&sg, buf, sizeof(buf));
-> > > +
-> > > +	err =3D virtqueue_add_outbuf(vpmem->req_vq, &sg, 1, buf, GFP_KERNEL=
-);
-> > > +
-> > > +	if (err) {
-> > > +		dev_err(&vdev->dev, "failed to send command to virtio pmem device\=
-n");
-> > > +		return;
-> > > +	}
-> > > +
-> > > +	virtqueue_kick(vpmem->req_vq);
-> >=20
-> > Is any locking necessary?  Two CPUs must not invoke virtio_pmem_flush()
-> > at the same time.  Not sure if anything guarantees this, maybe you're
-> > relying on libnvdimm but I haven't checked.
->=20
-> I thought about it to some extent, and wanted to go ahead with simple ver=
-sion first:
->=20
-> - I think file 'inode -> locking' sill is there for request on single fil=
-e.
-> - For multiple files, our aim is to just flush the backend block image.
-> - Even there is collision for virt queue read/write entry it should just =
-trigger a Qemu fsync.=20
->   We just want most recent flush to assure guest writes are synced proper=
-ly.
->=20
-> Important point here: We are doing entire block fsync for guest virtual d=
-isk.
+On 4/27/2018 6:18 PM, joro@8bytes.org wrote:
+> On Fri, Apr 27, 2018 at 05:22:28PM +0530, Chintan Pandya wrote:
+>> I'm bit confused here. Are you pointing to race within ioremap/vmalloc
+>> framework while updating the page table or race during tlb ops. Since
+>> later is arch dependent, I would not comment. But if the race being
+>> discussed here while altering page tables, I'm not on the same page.
+> 
+> The race condition is between hardware and software. It is not
+> sufficient to just remove the software references to the page that is
+> about to be freed (by clearing the PMD/PUD), also the hardware
+> references in the page-walk cache need to be removed with a TLB flush.
+> Otherwise the hardware can use the freed (and possibly reused) page to
+> establish new TLB entries.
 
-I don't understand your answer.  Is locking necessary or not?
+Sure ! This is my understanding too (from arm64 context).
 
-=46rom the virtqueue_add_outbuf() documentation:
+> 
+> 
+> 
+> 	Joerg
+> 
+> 
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> 
 
- * Caller must ensure we don't call this with other virtqueue operations
- * at the same time (except where noted).
-
-Stefan
-
---ZoaI/ZTpAVc4A5k6
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQEcBAEBAgAGBQJa4yZCAAoJEJykq7OBq3PIfAEH/3CKVcVGxsuzmV7lgfXlV3nb
-96loKX3VPv78+trdSImeDZ+PYUzATi5humWaCgcbM/QHrpDhsmKxh/Cu+a2ynVeI
-5QQ2E2tvlqBC7MO2NTy1Qty2UEPy3p5x7Qqz/SsCs4k1j6c2i0eBTC4LxJNmtgQI
-Ipy0wz76skwaGeo3yrcRGha8CxbHZDQQIELuvroOo9RMifqUWyY66s7VGHA9CDLd
-/URZJGr4qS4RlK1Xk2fyFQWLZTijCEcWvZGSP9rWcuZtWzTHeOEm7SjY3jZghlbg
-CLKTy6+fxRirY8yEsQKI9rpfGUNTJ0ny/vvg8nsSPXtz0EmmRd85aDOtY+5Cb4E=
-=fxXv
------END PGP SIGNATURE-----
-
---ZoaI/ZTpAVc4A5k6--
+Chintan
+-- 
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
+Inc. is a member of the Code Aurora Forum, a Linux Foundation
+Collaborative Project
