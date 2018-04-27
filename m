@@ -1,99 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E79476B0007
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 01:49:11 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id f133-v6so252817lfg.18
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 22:49:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z28-v6sor105923lje.2.2018.04.26.22.49.10
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D6136B0005
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 03:08:39 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id k3so880261pff.23
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 00:08:39 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q4-v6si695036pgr.515.2018.04.27.00.08.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 26 Apr 2018 22:49:10 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Apr 2018 00:08:37 -0700 (PDT)
+Date: Fri, 27 Apr 2018 09:08:28 +0200
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] mm: sections are not offlined during memory hotremove
+Message-ID: <20180427070828.GC4931@kroah.com>
+References: <20180426203002.3151-1-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1804250006120.51102@chino.kir.corp.google.com>
-References: <20180425044326.GA21504@jordon-HP-15-Notebook-PC> <alpine.DEB.2.21.1804250006120.51102@chino.kir.corp.google.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Fri, 27 Apr 2018 11:19:09 +0530
-Message-ID: <CAFqt6zb0cHJLeqaOUvfD38xbA5QOE7yq5Fyd27kCwbXKBGs54A@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: huge_memory: Change return type to vm_fault_t
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180426203002.3151-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, zi.yan@cs.rutgers.edu, Dan Williams <dan.j.williams@intel.com>, kirill.shutemov@linux.intel.com, Ross Zwisler <ross.zwisler@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Michal Hocko <mhocko@suse.com>, shli@fb.com, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, mhocko@suse.com, linux-mm@kvack.org, stable@vger.kernel.org
 
-On Wed, Apr 25, 2018 at 12:39 PM, David Rientjes <rientjes@google.com> wrote:
-> On Wed, 25 Apr 2018, Souptick Joarder wrote:
->
->> Use new return type vm_fault_t for fault handler. For
->> now, this is just documenting that the function returns
->> a VM_FAULT value rather than an errno. Once all instances
->> are converted, vm_fault_t will become a distinct type.
->>
->> Commit 1c8f422059ae ("mm: change return type to vm_fault_t")
->>
->> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
->> Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
->> ---
->> v2: Updated the change log
->>
->>  include/linux/huge_mm.h | 5 +++--
->>  mm/huge_memory.c        | 4 ++--
->>  2 files changed, 5 insertions(+), 4 deletions(-)
->>
->> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
->> index a8a1262..d3bbf6b 100644
->> --- a/include/linux/huge_mm.h
->> +++ b/include/linux/huge_mm.h
->> @@ -3,6 +3,7 @@
->>  #define _LINUX_HUGE_MM_H
->>
->>  #include <linux/sched/coredump.h>
->> +#include <linux/mm_types.h>
->>
->>  #include <linux/fs.h> /* only for vma_is_dax() */
->>
->> @@ -46,9 +47,9 @@ extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->>  extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->>                       unsigned long addr, pgprot_t newprot,
->>                       int prot_numa);
->> -int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->> +vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->>                       pmd_t *pmd, pfn_t pfn, bool write);
->> -int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->> +vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->>                       pud_t *pud, pfn_t pfn, bool write);
->>  enum transparent_hugepage_flag {
->>       TRANSPARENT_HUGEPAGE_FLAG,
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 87ab9b8..1fe4705 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -755,7 +755,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->>       spin_unlock(ptl);
->>  }
->>
->> -int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->> +vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->>                       pmd_t *pmd, pfn_t pfn, bool write)
->>  {
->>       pgprot_t pgprot = vma->vm_page_prot;
->> @@ -815,7 +815,7 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->>       spin_unlock(ptl);
->>  }
->>
->> -int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->> +vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->>                       pud_t *pud, pfn_t pfn, bool write)
->>  {
->>       pgprot_t pgprot = vma->vm_page_prot;
->
-> This isn't very useful unless functions that return the return value of
-> these functions, __dev_dax_{pmd,pud}_fault(), recast it as an int.
-> __dev_dax_pte_fault() would do the same thing, so it should logically also
-> be vm_fault_t, so then you would convert dev_dax_huge_fault() and
-> dev_dax_fault() as well in the same patch.
+On Thu, Apr 26, 2018 at 04:30:02PM -0400, Pavel Tatashin wrote:
+> Memory hotplug, and hotremove operate with per-block granularity. If
+> machine has large amount of memory (more than 64G), the size of memory
+> block can span multiple sections. By mistake, during hotremove we set
+> only the first section to offline state.
+> 
+> The bug was discovered because kernel selftest started to fail:
+> https://lkml.kernel.org/r/20180423011247.GK5563@yexl-desktop
+> 
+> After commit, "mm/memory_hotplug: optimize probe routine". But, the bug is
+> older than this commit. In this optimization we also added a check for
+> sections to be in a proper state during hotplug operation.
+> 
+> Fixes: 2d070eab2e82 ("mm: consider zone which is not fully populated to have holes")
+> 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/sparse.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 62eef264a7bd..73dc2fcc0eab 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -629,7 +629,7 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+>  	unsigned long pfn;
+>  
+>  	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+> -		unsigned long section_nr = pfn_to_section_nr(start_pfn);
+> +		unsigned long section_nr = pfn_to_section_nr(pfn);
+>  		struct mem_section *ms;
+>  
+>  		/*
+> -- 
+> 2.17.0
 
-yes, the return value of _dev_dax_{pmd,pud,pte}_fault(), dev_dax_huge_fault(),
-dev_dax_fault() is already changed in a separate patch which was reviewed
-by Matthew and Ross. Other patch was posted in linux-nvdimm mailing list.
+<formletter>
+
+This is not the correct way to submit patches for inclusion in the
+stable kernel tree.  Please read:
+    https://www.kernel.org/doc/html/latest/process/stable-kernel-rules.html
+for how to do this properly.
+
+</formletter>
