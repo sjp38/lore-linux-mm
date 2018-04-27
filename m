@@ -1,47 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 665C46B0005
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 04:27:18 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id m68so1043886pfm.20
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 01:27:18 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e125si846866pfe.244.2018.04.27.01.27.17
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7151A6B0005
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 04:44:40 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id j6-v6so1109928pgn.7
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 01:44:40 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id h8-v6si882160pln.54.2018.04.27.01.44.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 27 Apr 2018 01:27:17 -0700 (PDT)
-Date: Fri, 27 Apr 2018 10:27:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: OOM killer invoked while still one forth of mem is available
-Message-ID: <20180427082715.GD17484@dhcp22.suse.cz>
-References: <df1a8c14-bda3-6271-d403-24b88a254b2c@c-s.fr>
- <alpine.DEB.2.21.1804251253240.151692@chino.kir.corp.google.com>
- <296ea83c-2c00-f1d2-3f62-d8ab8b8fb73c@c-s.fr>
- <20180426131154.GQ17484@dhcp22.suse.cz>
- <2706829f-6207-89f7-46e6-d32244305ccb@c-s.fr>
- <20180426190514.GU17484@dhcp22.suse.cz>
- <20180426222917.Horde.cu42u5sTkcbGdcY0VUmclQ1@messagerie.si.c-s.fr>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Apr 2018 01:44:38 -0700 (PDT)
+Date: Fri, 27 Apr 2018 16:45:58 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: Page allocator bottleneck
+Message-ID: <20180427084558.GB4009@intel.com>
+References: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
+ <20170915102320.zqceocmvvkyybekj@techsingularity.net>
+ <d8cfaf8b-7601-2712-f9f2-8327c720db5a@mellanox.com>
+ <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
+ <20180421081505.GA24916@intel.com>
+ <127df719-b978-60b7-5d77-3c8efbf2ecff@mellanox.com>
+ <0dea4da6-8756-22d4-c586-267217a5fa63@mellanox.com>
+ <20180423131033.GA13792@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180426222917.Horde.cu42u5sTkcbGdcY0VUmclQ1@messagerie.si.c-s.fr>
+In-Reply-To: <20180423131033.GA13792@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LEROY Christophe <christophe.leroy@c-s.fr>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Tariq Toukan <tariqt@mellanox.com>
+Cc: Linux Kernel Network Developers <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 26-04-18 22:29:17, LEROY Christophe wrote:
-> Michal Hocko <mhocko@kernel.org> a ecrit :
-[...]
-> > Yes, show_migration_types. But I do not see why unmovable pageblocks
-> > should block the allocation. This is a GFP_KERNEL allocation request
-> > essentially - thus unmovable itself. This smells like a bug. We are way
-> > above reserves which could block the allocation.
+On Mon, Apr 23, 2018 at 09:10:33PM +0800, Aaron Lu wrote:
+> On Mon, Apr 23, 2018 at 11:54:57AM +0300, Tariq Toukan wrote:
+> > Hi,
+> > 
+> > I ran my tests with your patches.
+> > Initial BW numbers are significantly higher than I documented back then in
+> > this mail-thread.
+> > For example, in driver #2 (see original mail thread), with 6 rings, I now
+> > get 92Gbps (slightly less than linerate) in comparison to 64Gbps back then.
+> > 
+> > However, there were many kernel changes since then, I need to isolate your
+> > changes. I am not sure I can finish this today, but I will surely get to it
+> > next week after I'm back from vacation.
+> > 
+> > Still, when I increase the scale (more rings, i.e. more cpus), I see that
+> > queued_spin_lock_slowpath gets to 60%+ cpu. Still high, but lower than it
+> > used to be.
 > 
-> Any suggestion on how to investigate that bug ? Anything to trace ?
+> I wonder if it is on allocation path or free path?
 
-try to enable allocator and vmscan tracepoints. Maybe it will tell
-something.
--- 
-Michal Hocko
-SUSE Labs
+Just FYI, I have pushed two more commits on top of the branch.
+They should improve free path zone lock contention for MIGRATE_UNMOVABLE
+pages(most kernel code alloc such pages), you may consider apply them if
+free path contention is a problem.
