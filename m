@@ -1,176 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E54636B0007
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 11:58:27 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id h1-v6so1754839wre.0
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 08:58:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u1-v6sor770737wri.86.2018.04.27.08.58.26
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 65AA36B0003
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 12:07:10 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id y9so1676472qki.23
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 09:07:10 -0700 (PDT)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id h26-v6si1668049qtb.232.2018.04.27.09.07.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 27 Apr 2018 08:58:26 -0700 (PDT)
-From: Eric Dumazet <edumazet@google.com>
-Subject: [PATCH v4 net-next 2/2] selftests: net: tcp_mmap must use TCP_ZEROCOPY_RECEIVE
-Date: Fri, 27 Apr 2018 08:58:09 -0700
-Message-Id: <20180427155809.79094-3-edumazet@google.com>
-In-Reply-To: <20180427155809.79094-1-edumazet@google.com>
-References: <20180427155809.79094-1-edumazet@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Apr 2018 09:07:09 -0700 (PDT)
+Date: Fri, 27 Apr 2018 11:07:07 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [LSF/MM TOPIC NOTES] x86 ZONE_DMA love
+In-Reply-To: <20180427071843.GB17484@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1804271103160.11686@nuc-kabylake>
+References: <20180426215406.GB27853@wotan.suse.de> <20180427053556.GB11339@infradead.org> <20180427071843.GB17484@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "David S . Miller" <davem@davemloft.net>
-Cc: netdev <netdev@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ka-Cheong Poon <ka-cheong.poon@oracle.com>, Eric Dumazet <edumazet@google.com>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Hellwig <hch@infradead.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, matthew@wil.cx, x86@kernel.org, luto@amacapital.net, martin.petersen@oracle.com, jthumshirn@suse.de, broonie@kernel.org, linux-spi@vger.kernel.org, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
 
-After prior kernel change, mmap() on TCP socket only reserves VMA.
+On Fri, 27 Apr 2018, Michal Hocko wrote:
 
-We have to use getsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE, ...)
-to perform the transfert of pages from skbs in TCP receive queue into such VMA.
+> On Thu 26-04-18 22:35:56, Christoph Hellwig wrote:
+> > On Thu, Apr 26, 2018 at 09:54:06PM +0000, Luis R. Rodriguez wrote:
+> > > In practice if you don't have a floppy device on x86, you don't need ZONE_DMA,
+> >
+> > I call BS on that, and you actually explain later why it it BS due
+> > to some drivers using it more explicitly.  But even more importantly
+> > we have plenty driver using it through dma_alloc_* and a small DMA
+> > mask, and they are in use - we actually had a 4.16 regression due to
+> > them.
+>
+> Well, but do we need a zone for that purpose? The idea was to actually
+> replace the zone by a CMA pool (at least on x86). With the current
+> implementation of the CMA we would move the range [0-16M] pfn range into
+> zone_movable so it can be used and we would get rid of all of the
+> overhead each zone brings (a bit in page flags, kmalloc caches and who
+> knows what else)
 
-struct tcp_zerocopy_receive {
-	__u64 address;		/* in: address of mapping */
-	__u32 length;		/* in/out: number of bytes to map/mapped */
-	__u32 recv_skip_hint;	/* out: amount of bytes to skip */
-};
+Well it looks like what we are using it for is to force allocation from
+low physical memory if we fail to obtain proper memory through a normal
+channel.  The use of ZONE_DMA is only there for emergency purposes.
+I think we could subsitute ZONE_DMA32 on x87 without a problem.
 
-After a successful getsockopt(...TCP_ZEROCOPY_RECEIVE...), @length contains
-number of bytes that were mapped, and @recv_skip_hint contains number of bytes
-that should be read using conventional read()/recv()/recvmsg() system calls,
-to skip a sequence of bytes that can not be mapped, because not properly page
-aligned.
+Which means that ZONE_DMA has no purpose anymore.
 
-Signed-off-by: Eric Dumazet <edumazet@google.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Acked-by: Soheil Hassas Yeganeh <soheil@google.com>
----
- tools/testing/selftests/net/tcp_mmap.c | 64 +++++++++++++++-----------
- 1 file changed, 37 insertions(+), 27 deletions(-)
+Can we make ZONE_DMA on x86 refer to the low 32 bit physical addresses
+instead and remove ZONE_DMA32?
 
-diff --git a/tools/testing/selftests/net/tcp_mmap.c b/tools/testing/selftests/net/tcp_mmap.c
-index dea342fe6f4e88b5709d2ac37b2fc9a2a320bf44..77f762780199ff1f69f9f6b3f18e72deddb69f5e 100644
---- a/tools/testing/selftests/net/tcp_mmap.c
-+++ b/tools/testing/selftests/net/tcp_mmap.c
-@@ -76,9 +76,10 @@
- #include <time.h>
- #include <sys/time.h>
- #include <netinet/in.h>
--#include <netinet/tcp.h>
- #include <arpa/inet.h>
- #include <poll.h>
-+#include <linux/tcp.h>
-+#include <assert.h>
- 
- #ifndef MSG_ZEROCOPY
- #define MSG_ZEROCOPY    0x4000000
-@@ -134,11 +135,12 @@ void hash_zone(void *zone, unsigned int length)
- void *child_thread(void *arg)
- {
- 	unsigned long total_mmap = 0, total = 0;
-+	struct tcp_zerocopy_receive zc;
- 	unsigned long delta_usec;
- 	int flags = MAP_SHARED;
- 	struct timeval t0, t1;
- 	char *buffer = NULL;
--	void *oaddr = NULL;
-+	void *addr = NULL;
- 	double throughput;
- 	struct rusage ru;
- 	int lu, fd;
-@@ -153,41 +155,46 @@ void *child_thread(void *arg)
- 		perror("malloc");
- 		goto error;
- 	}
-+	if (zflg) {
-+		addr = mmap(NULL, chunk_size, PROT_READ, flags, fd, 0);
-+		if (addr == (void *)-1)
-+			zflg = 0;
-+	}
- 	while (1) {
- 		struct pollfd pfd = { .fd = fd, .events = POLLIN, };
- 		int sub;
- 
- 		poll(&pfd, 1, 10000);
- 		if (zflg) {
--			void *naddr;
-+			socklen_t zc_len = sizeof(zc);
-+			int res;
- 
--			naddr = mmap(oaddr, chunk_size, PROT_READ, flags, fd, 0);
--			if (naddr == (void *)-1) {
--				if (errno == EAGAIN) {
--					/* That is if SO_RCVLOWAT is buggy */
--					usleep(1000);
--					continue;
--				}
--				if (errno == EINVAL) {
--					flags = MAP_SHARED;
--					oaddr = NULL;
--					goto fallback;
--				}
--				if (errno != EIO)
--					perror("mmap()");
-+			zc.address = (__u64)addr;
-+			zc.length = chunk_size;
-+			zc.recv_skip_hint = 0;
-+			res = getsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE,
-+					 &zc, &zc_len);
-+			if (res == -1)
- 				break;
-+
-+			if (zc.length) {
-+				assert(zc.length <= chunk_size);
-+				total_mmap += zc.length;
-+				if (xflg)
-+					hash_zone(addr, zc.length);
-+				total += zc.length;
- 			}
--			total_mmap += chunk_size;
--			if (xflg)
--				hash_zone(naddr, chunk_size);
--			total += chunk_size;
--			if (!keepflag) {
--				flags |= MAP_FIXED;
--				oaddr = naddr;
-+			if (zc.recv_skip_hint) {
-+				assert(zc.recv_skip_hint <= chunk_size);
-+				lu = read(fd, buffer, zc.recv_skip_hint);
-+				if (lu > 0) {
-+					if (xflg)
-+						hash_zone(buffer, lu);
-+					total += lu;
-+				}
- 			}
- 			continue;
- 		}
--fallback:
- 		sub = 0;
- 		while (sub < chunk_size) {
- 			lu = read(fd, buffer + sub, chunk_size - sub);
-@@ -228,6 +235,8 @@ void *child_thread(void *arg)
- error:
- 	free(buffer);
- 	close(fd);
-+	if (zflg)
-+		munmap(addr, chunk_size);
- 	pthread_exit(0);
- }
- 
-@@ -371,7 +380,8 @@ int main(int argc, char *argv[])
- 		setup_sockaddr(cfg_family, host, &listenaddr);
- 
- 		if (mss &&
--		    setsockopt(fdlisten, SOL_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
-+		    setsockopt(fdlisten, IPPROTO_TCP, TCP_MAXSEG,
-+			       &mss, sizeof(mss)) == -1) {
- 			perror("setsockopt TCP_MAXSEG");
- 			exit(1);
- 		}
-@@ -402,7 +412,7 @@ int main(int argc, char *argv[])
- 	setup_sockaddr(cfg_family, host, &addr);
- 
- 	if (mss &&
--	    setsockopt(fd, SOL_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
-+	    setsockopt(fd, IPPROTO_TCP, TCP_MAXSEG, &mss, sizeof(mss)) == -1) {
- 		perror("setsockopt TCP_MAXSEG");
- 		exit(1);
- 	}
--- 
-2.17.0.441.gb46fe60e1d-goog
+That would actually improve the fallback because you have more memory for
+the old devices.
