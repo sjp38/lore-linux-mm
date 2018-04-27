@@ -1,50 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DB436B0005
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 13:49:48 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id o9-v6so2124761pgv.8
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:49:48 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id m32-v6si1653202pld.459.2018.04.27.10.49.46
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 16E326B0006
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 13:49:49 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g15so2131070pfi.8
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:49:49 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id u71-v6si1598409pgb.332.2018.04.27.10.49.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Apr 2018 10:49:46 -0700 (PDT)
-Subject: [PATCH 0/9] [v3] x86, pkeys: two protection keys bug fixes
+        Fri, 27 Apr 2018 10:49:47 -0700 (PDT)
+Subject: [PATCH 1/9] x86, pkeys: do not special case protection key 0
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 27 Apr 2018 10:45:27 -0700
-Message-Id: <20180427174527.0031016C@viggo.jf.intel.com>
+Date: Fri, 27 Apr 2018 10:45:28 -0700
+References: <20180427174527.0031016C@viggo.jf.intel.com>
+In-Reply-To: <20180427174527.0031016C@viggo.jf.intel.com>
+Message-Id: <20180427174528.23748D52@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org, shakeelb@google.com
+Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, stable@vger.kernel.org, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
 
-Hi x86 maintainers,
 
-This set is basically unchanged from the last post.  There was
-some previous discussion about other ways to fix this with the ppc
-folks (Ram Pai), but we've concluded that this x86-specific fix is
-fine.  I think Ram had a different fix for ppc.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Changes from v2:
- * Clarified commit message in patch 1/9 taking some feedback from
-   Shuah.
+mm_pkey_is_allocated() treats pkey 0 as unallocated.  That is
+inconsistent with the manpages, and also inconsistent with
+mm->context.pkey_allocation_map.  Stop special casing it and only
+disallow values that are actually bad (< 0).
 
-Changes from v1:
- * Added Fixes: and cc'd stable.  No code changes.
+The end-user visible effect of this is that you can now use
+mprotect_pkey() to set pkey=0.
 
---
+This is a bit nicer than what Ram proposed because it is simpler
+and removes special-casing for pkey 0.  On the other hand, it does
+allow applciations to pkey_free() pkey-0, but that's just a silly
+thing to do, so we are not going to protect against it.
 
-This fixes two bugs, and adds selftests to make sure they stay fixed:
-
-1. pkey 0 was not usable via mprotect_pkey() because it had never
-   been explicitly allocated.
-2. mprotect(PROT_EXEC) memory could sometimes be left with the
-   implicit exec-only protection key assigned.
-
-I already posted #1 previously.  I'm including them both here because
-I don't think it's been picked up in case folks want to pull these
-all in a single bundle.
-
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Fixes: 58ab9a088dda ("x86/pkeys: Check against max pkey to avoid overflows")
+Cc: stable@kernel.org
 Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: Dave Hansen <dave.hansen@intel.com>
@@ -52,4 +46,39 @@ Cc: Michael Ellermen <mpe@ellerman.id.au>
 Cc: Ingo Molnar <mingo@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>p
 Cc: Shuah Khan <shuah@kernel.org>
-Cc: Shakeel Butt <shakeelb@google.com>
+---
+
+ b/arch/x86/include/asm/mmu_context.h |    2 +-
+ b/arch/x86/include/asm/pkeys.h       |    6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff -puN arch/x86/include/asm/mmu_context.h~x86-pkey-0-default-allocated arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~x86-pkey-0-default-allocated	2018-03-26 10:22:33.742170197 -0700
++++ b/arch/x86/include/asm/mmu_context.h	2018-03-26 10:22:33.747170197 -0700
+@@ -192,7 +192,7 @@ static inline int init_new_context(struc
+ 
+ #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+ 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
+-		/* pkey 0 is the default and always allocated */
++		/* pkey 0 is the default and allocated implicitly */
+ 		mm->context.pkey_allocation_map = 0x1;
+ 		/* -1 means unallocated or invalid */
+ 		mm->context.execute_only_pkey = -1;
+diff -puN arch/x86/include/asm/pkeys.h~x86-pkey-0-default-allocated arch/x86/include/asm/pkeys.h
+--- a/arch/x86/include/asm/pkeys.h~x86-pkey-0-default-allocated	2018-03-26 10:22:33.744170197 -0700
++++ b/arch/x86/include/asm/pkeys.h	2018-03-26 10:22:33.747170197 -0700
+@@ -49,10 +49,10 @@ bool mm_pkey_is_allocated(struct mm_stru
+ {
+ 	/*
+ 	 * "Allocated" pkeys are those that have been returned
+-	 * from pkey_alloc().  pkey 0 is special, and never
+-	 * returned from pkey_alloc().
++	 * from pkey_alloc() or pkey 0 which is allocated
++	 * implicitly when the mm is created.
+ 	 */
+-	if (pkey <= 0)
++	if (pkey < 0)
+ 		return false;
+ 	if (pkey >= arch_max_pkey())
+ 		return false;
+_
