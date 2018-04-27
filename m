@@ -1,88 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C1E336B0007
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 06:17:14 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id y49-v6so898329oti.11
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 03:17:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z47-v6si397611otz.421.2018.04.27.03.17.13
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D5476B0007
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 06:20:24 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id a124so989805qkb.19
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 03:20:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id p12-v6si332685qvl.241.2018.04.27.03.20.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Apr 2018 03:17:13 -0700 (PDT)
-Date: Fri, 27 Apr 2018 06:17:12 -0400 (EDT)
-From: Chunyu Hu <chuhu@redhat.com>
-Reply-To: Chunyu Hu <chuhu@redhat.com>
-Message-ID: <1591480647.20311538.1524824232546.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20180426125634.uybpbbk5puee7fsg@armageddon.cambridge.arm.com>
-References: <1524243513-29118-1-git-send-email-chuhu@redhat.com> <CACT4Y+YWUgyzCBadg+Oe8wDkFCaBzmcKDgu3rKjQxim7NXNLpg@mail.gmail.com> <CABATaM6eWtssvuj3UW9LHLK3HWo8P9g0z9VzFnuqKPKO5KMJ3A@mail.gmail.com> <20180424132057.GE17484@dhcp22.suse.cz> <850575801.19606468.1524588530119.JavaMail.zimbra@redhat.com> <20180424170239.GP17484@dhcp22.suse.cz> <732114897.20075296.1524745398991.JavaMail.zimbra@redhat.com> <20180426125634.uybpbbk5puee7fsg@armageddon.cambridge.arm.com>
-Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in
- gfp_kmemleak_mask
+        Fri, 27 Apr 2018 03:20:23 -0700 (PDT)
+Date: Fri, 27 Apr 2018 06:20:16 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc fallback
+ options
+In-Reply-To: <20180427082555.GC17484@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1804270609020.22622@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com> <alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com>
+ <1524694663.4100.21.camel@HansenPartnership.com> <alpine.LRH.2.02.1804251857070.31135@file01.intranet.prod.int.rdu2.redhat.com> <1524697697.4100.23.camel@HansenPartnership.com> <23266.8532.619051.784274@quad.stoffel.home>
+ <alpine.LRH.2.02.1804261726540.13401@file01.intranet.prod.int.rdu2.redhat.com> <20180427005213-mutt-send-email-mst@kernel.org> <alpine.LRH.2.02.1804261829190.30599@file01.intranet.prod.int.rdu2.redhat.com> <20180427082555.GC17484@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Chunyu Hu <chuhu.ncepu@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, John Stoffel <john@stoffel.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Michal@stoffel.org, eric.dumazet@gmail.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>, Andrew@stoffel.org, David Rientjes <rientjes@google.com>, Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, David Miller <davem@davemloft.net>, edumazet@google.com
 
 
 
------ Original Message -----
-> From: "Catalin Marinas" <catalin.marinas@arm.com>
-> To: "Chunyu Hu" <chuhu@redhat.com>
-> Cc: "Michal Hocko" <mhocko@kernel.org>, "Chunyu Hu" <chuhu.ncepu@gmail.com>, "Dmitry Vyukov" <dvyukov@google.com>,
-> "LKML" <linux-kernel@vger.kernel.org>, "Linux-MM" <linux-mm@kvack.org>
-> Sent: Thursday, April 26, 2018 8:56:35 PM
-> Subject: Re: [RFC] mm: kmemleak: replace __GFP_NOFAIL to GFP_NOWAIT in gfp_kmemleak_mask
-> 
-> On Thu, Apr 26, 2018 at 08:23:19AM -0400, Chunyu Hu wrote:
-> > kmemleak is using kmem_cache to record every pointers returned from kernel
-> > mem
-> > allocation activities such as kmem_cache_alloc(). every time an object from
-> > slab allocator is returned, a following new kmemleak object is allocated.
+On Fri, 27 Apr 2018, Michal Hocko wrote:
+
+> On Thu 26-04-18 18:52:05, Mikulas Patocka wrote:
 > > 
-> > And when a slab object is freed, then the kmemleak object which contains
-> > the ptr will also be freed.
 > > 
-> > and kmemleak scan thread will run in period to scan the kernel data, stack,
-> > and per cpu areas to check that every pointers recorded by kmemleak has at
-> > least
-> > one reference in those areas beside the one recorded by kmemleak. If there
-> > is no place in the memory acreas recording the ptr, then it's possible a
-> > leak.
+> > On Fri, 27 Apr 2018, Michael S. Tsirkin wrote:
+> [...]
+> > >    But assuming it's important to control this kind of
+> > >    fault injection to be controlled from
+> > >    a dedicated menuconfig option, why not the rest of
+> > >    faults?
 > > 
-> > so once a kmemleak object allocation failed, it has to disable itself,
-> > otherwise
-> > it would lose track of some object pointers, and become less meaningful to
-> > continue record and scan the kernel memory for the pointers. So disable
-> > it forever. so this is why kmemleak can't tolerate a slab alloc fail (from
-> > fault injection)
-> > 
-> > @Catalin,
-> > 
-> > Is this right? If something not so correct or precise, please correct me.
+> > The injected faults cause damage to the user, so there's no point to 
+> > enable them by default. vmalloc fallback should not cause any damage 
+> > (assuming that the code is correctly written).
 > 
-> That's a good description, thanks.
-> 
-> > I'm thinking about, is it possible that make kmemleak don't disable itself
-> > when fail_page_alloc is enabled?  I can't think clearly what would happen
-> > if several memory allocation missed by kmelkeak trace, what's the bad
-> > result?
-> 
-> Take for example a long linked list. If kmemleak doesn't track an object
-> in such list (because the metadata allocation failed), such list_head is
-> never scanned and the subsequent objects in the list (pointed at by
-> 'next') will be reported as leaks. Kmemleak pretty much becomes unusable
-> with a high number of false positives.
+> But you want to find those bugs which would BUG_ON easier, so there is a
+> risk of harm IIUC
 
-Thanks for the example, one object may contain many pointers, so loose one,
-means many false reports. I'm clear now. 
+Yes, I want to harm them, but I only want to harm the users using the 
+debugging kernel. Testers should be "harmed" by crashes - so that the 
+users of production kernels are harmed less.
 
-> 
-> --
-> Catalin
-> 
+If someone hits this, he should report it, use the kernel parameter to 
+turn it off and continue with the testing.
 
--- 
-Regards,
-Chunyu Hu
+> and this is not much different than other fault injecting paths.
+
+Fault injections causes misbehavior even on completely bug-free code (for 
+example, syscalls randomly returning -ENOMEM). This won't cause 
+misbehavior on bug-free code.
+
+Mikulas
