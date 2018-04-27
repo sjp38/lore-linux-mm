@@ -1,112 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 106336B0010
-	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 13:50:03 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id l85so411745pfb.18
-        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 10:50:03 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id v13-v6si1524657pgr.676.2018.04.27.10.50.01
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A77886B0005
+	for <linux-mm@kvack.org>; Fri, 27 Apr 2018 14:41:34 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id z22so2217597pfi.7
+        for <linux-mm@kvack.org>; Fri, 27 Apr 2018 11:41:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g19sor479963pfb.70.2018.04.27.11.41.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Apr 2018 10:50:01 -0700 (PDT)
-Subject: [PATCH 9/9] x86, pkeys, selftests: add PROT_EXEC test
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 27 Apr 2018 10:45:42 -0700
-References: <20180427174527.0031016C@viggo.jf.intel.com>
-In-Reply-To: <20180427174527.0031016C@viggo.jf.intel.com>
-Message-Id: <20180427174542.29114E42@viggo.jf.intel.com>
+        (Google Transport Security);
+        Fri, 27 Apr 2018 11:41:33 -0700 (PDT)
+Date: Fri, 27 Apr 2018 11:41:31 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: don't show nr_indirectly_reclaimable in
+ /proc/vmstat
+In-Reply-To: <99208563-1171-b7e7-a0d7-b47b6c5e2307@suse.cz>
+Message-ID: <alpine.DEB.2.21.1804271139500.152082@chino.kir.corp.google.com>
+References: <20180425191422.9159-1-guro@fb.com> <20180426200331.GZ17484@dhcp22.suse.cz> <alpine.DEB.2.21.1804261453460.238822@chino.kir.corp.google.com> <99208563-1171-b7e7-a0d7-b47b6c5e2307@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, kernel-team@fb.com, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>
 
+On Fri, 27 Apr 2018, Vlastimil Babka wrote:
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+> It was in the original thread, see e.g.
+> <08524819-14ef-81d0-fa90-d7af13c6b9d5@suse.cz>
+> 
+> However it will take some time to get that in mainline, and meanwhile
+> the current implementation does prevent a DOS. So I doubt it can be
+> fully reverted - as a compromise I just didn't want the counter to
+> become ABI. TBH though, other people at LSF/MM didn't seem concerned
+> that /proc/vmstat is an ABI that we can't change (i.e. counters have
+> been presumably removed in the past already).
+> 
 
-Under the covers, implement executable-only memory with
-protection keys when userspace calls mprotect(PROT_EXEC).
-
-But, we did not have a selftest for that.  Now we do.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Ram Pai <linuxram@us.ibm.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Michael Ellermen <mpe@ellerman.id.au>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shuah Khan <shuah@kernel.org>
----
-
- b/tools/testing/selftests/x86/protection_keys.c |   51 ++++++++++++++++++++++--
- 1 file changed, 47 insertions(+), 4 deletions(-)
-
-diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-prot_exec tools/testing/selftests/x86/protection_keys.c
---- a/tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-prot_exec	2018-04-26 11:24:12.572481103 -0700
-+++ b/tools/testing/selftests/x86/protection_keys.c	2018-04-26 11:24:12.575481103 -0700
-@@ -930,10 +930,10 @@ void expected_pk_fault(int pkey)
- 	dprintf2("%s(%d): last_si_pkey: %d\n", __func__, pkey, last_si_pkey);
- 	pkey_assert(last_pkru_faults + 1 == pkru_faults);
- 
--       /*
--	* For exec-only memory, we do not know the pkey in
--	* advance, so skip this check.
--	*/
-+	/*
-+	 * For exec-only memory, we do not know the pkey in
-+	 * advance, so skip this check.
-+	 */
- 	if (pkey != UNKNOWN_PKEY)
- 		pkey_assert(last_si_pkey == pkey);
- 
-@@ -1335,6 +1335,49 @@ void test_executing_on_unreadable_memory
- 	expected_pk_fault(pkey);
- }
- 
-+void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
-+{
-+	void *p1;
-+	int scratch;
-+	int ptr_contents;
-+	int ret;
-+
-+	dprintf1("%s() start\n", __func__);
-+
-+	p1 = get_pointer_to_instructions();
-+	lots_o_noops_around_write(&scratch);
-+	ptr_contents = read_ptr(p1);
-+	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
-+
-+	/* Use a *normal* mprotect(), not mprotect_pkey(): */
-+	ret = mprotect(p1, PAGE_SIZE, PROT_EXEC);
-+	pkey_assert(!ret);
-+
-+	dprintf2("pkru: %x\n", rdpkru());
-+
-+	/* Make sure this is an *instruction* fault */
-+	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
-+	lots_o_noops_around_write(&scratch);
-+	do_not_expect_pk_fault();
-+	ptr_contents = read_ptr(p1);
-+	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
-+	expected_pk_fault(UNKNOWN_PKEY);
-+
-+	/*
-+	 * Put the memory back to non-PROT_EXEC.  Should clear the
-+	 * exec-only pkey off the VMA and allow it to be readable
-+	 * again.  Go to PROT_NONE first to check for a kernel bug
-+	 * that did not clear the pkey when doing PROT_NONE.
-+	 */
-+	ret = mprotect(p1, PAGE_SIZE, PROT_NONE);
-+	pkey_assert(!ret);
-+
-+	ret = mprotect(p1, PAGE_SIZE, PROT_READ|PROT_EXEC);
-+	pkey_assert(!ret);
-+	ptr_contents = read_ptr(p1);
-+	do_not_expect_pk_fault();
-+}
-+
- void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
- {
- 	int size = PAGE_SIZE;
-_
+What prevents this from being a simple atomic_t that gets added to in 
+__d_alloc(), subtracted from in __d_free_external_name(), and read in 
+si_mem_available() and __vm_enough_memory()?
