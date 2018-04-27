@@ -1,63 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 183F76B0006
-	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 21:09:34 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id j70so58qka.21
-        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 18:09:34 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id c16-v6si168399qvn.121.2018.04.26.18.09.31
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F00CE6B0005
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2018 22:58:17 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e20so430928pff.14
+        for <linux-mm@kvack.org>; Thu, 26 Apr 2018 19:58:17 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a33-v6si335281pli.275.2018.04.26.19.58.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Apr 2018 18:09:31 -0700 (PDT)
-Message-ID: <1524791357.13490.1.camel@surriel.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC NOTES] x86 ZONE_DMA love
-From: Rik van Riel <riel@surriel.com>
-Date: Thu, 26 Apr 2018 21:09:17 -0400
-In-Reply-To: <20180426215406.GB27853@wotan.suse.de>
-References: <20180426215406.GB27853@wotan.suse.de>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-bYFiuVr7tqybapqy96A6"
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 26 Apr 2018 19:58:15 -0700 (PDT)
+Date: Thu, 26 Apr 2018 19:58:11 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v11 19/63] page cache: Convert page deletion to XArray
+Message-ID: <20180427025811.GA14502@bombadil.infradead.org>
+References: <20180414141316.7167-1-willy@infradead.org>
+ <20180414141316.7167-20-willy@infradead.org>
+ <979c1602-42e3-349d-a5e4-d28de14112dd@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <979c1602-42e3-349d-a5e4-d28de14112dd@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org
-Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-scsi@vger.kernel.org, martin.petersen@oracle.com, matthew@wil.cx, x86@kernel.org, linux-spi@vger.kernel.org, linux-kernel@vger.kernel.org, luto@amacapital.net, broonie@kernel.org, jthumshirn@suse.de, cl@linux.com, mhocko@kernel.org
+To: Goldwyn Rodrigues <rgoldwyn@suse.de>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
+On Fri, Apr 20, 2018 at 07:00:57AM -0500, Goldwyn Rodrigues wrote:
+> On 04/14/2018 09:12 AM, Matthew Wilcox wrote:
+> >  
+> > -	for (i = 0; i < nr; i++) {
+> > -		struct radix_tree_node *node;
+> > -		void **slot;
+> > -
+> > -		__radix_tree_lookup(&mapping->i_pages, page->index + i,
+> > -				    &node, &slot);
+> > -
+> > -		VM_BUG_ON_PAGE(!node && nr != 1, page);
+> > -
+> > -		radix_tree_clear_tags(&mapping->i_pages, node, slot);
+> > -		__radix_tree_replace(&mapping->i_pages, node, slot, shadow,
+> > -				workingset_lookup_update(mapping));
+> > +	i = nr;
+> > +repeat:
+> > +	xas_store(&xas, shadow);
+> > +	xas_init_tags(&xas);
+> > +	if (--i) {
+> > +		xas_next(&xas);
+> > +		goto repeat;
+> >  	}
+> 
+> Can this be converted into a do {} while (or even for) loop instead?
+> Loops are easier to read and understand in such a situation.
 
---=-bYFiuVr7tqybapqy96A6
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+I wish I'd fixed this up earlier because our peers made fun of me at
+LSFMM for this loop ;-)
 
-On Thu, 2018-04-26 at 21:54 +0000, Luis R. Rodriguez wrote:
-> Below are my notes on the ZONE_DMA discussion at LSF/MM 2018. There
-> were some
-> earlier discussion prior to my arrival to the session about moving
-> around
-> ZOME_DMA around, if someone has notes on that please share too :)
+The obvious way to write this loop is:
 
-We took notes during LSF/MM 2018. Not a whole lot
-on your topic, but most of the MM and plenary
-topics have some notes.
+        for (i = 0; i < nr; i++) {
+-               struct radix_tree_node *node;
+-               void **slot;
+-
+-               __radix_tree_lookup(&mapping->i_pages, page->index + i,
+-                                   &node, &slot);
+-
+-               VM_BUG_ON_PAGE(!node && nr != 1, page);
+-
+-               radix_tree_clear_tags(&mapping->i_pages, node, slot);
+-               __radix_tree_replace(&mapping->i_pages, node, slot, shadow,
+-                               workingset_lookup_update(mapping));
++               xas_store(&xas, shadow);
++               xas_init_tags(&xas);
++               xas_next(&xas);
+        }
 
-https://etherpad.wikimedia.org/p/LSFMM2018
+But since we're storing the same value to every entry and the range is
+a power of two, there's a better way to rewrite this:
 
---=20
-All Rights Reversed.
---=-bYFiuVr7tqybapqy96A6
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
+ {
+-       int i, nr;
++       XA_STATE(xas, &mapping->i_pages, page->index);
++       unsigned int nr = 1;
 
------BEGIN PGP SIGNATURE-----
+-       /* hugetlb pages are represented by one entry in the radix tree */
+-       nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
++       mapping_set_update(&xas, mapping);
++
++       /* hugetlb pages are represented by a single entry in the xarray */
++       if (!PageHuge(page)) {
++               xas_set_order(&xas, page->index, compound_order(page));
++               nr = 1U << compound_order(page);
++       }
 
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlrieD0ACgkQznnekoTE
-3oPs2wf/e3cU+yw6P/o7RotemUv9dEUwBO9xZB7WTlPx9oXdvNGIbfZ/9dnVphKw
-R4nnCpwrqDFCz3RWyGcd9pLExcz8wqYzMVFcVJfAzrsVc55SGPXPaN9/Q6qJIyim
-4RpsEKrlrpVTJ4eJ/mXs5ExyTPJxQb7LzQHVNLNc0lCzMTf7ScS8s5UTA6rdFFJ6
-u+Syxa9HXvf3oaFCogRFfe2gupp7to8+uOS+VqWCfgfiB+1QrgHEyHXFefrA/ZCv
-N+Et3YTI+AMLY1Z+HpKgVvze9QvjjyPIEOUp0UaM+y6kHRwhrBX0nimEpMvYWWm8
-2kNZ0cQMddPc+h8rH8cQK0maaERb5w==
-=CNgl
------END PGP SIGNATURE-----
+        VM_BUG_ON_PAGE(!PageLocked(page), page);
+        VM_BUG_ON_PAGE(PageTail(page), page);
+        VM_BUG_ON_PAGE(nr != 1 && shadow, page);
 
---=-bYFiuVr7tqybapqy96A6--
+-       for (i = 0; i < nr; i++) {
+-               struct radix_tree_node *node;
+-               void **slot;
+-
+-               __radix_tree_lookup(&mapping->i_pages, page->index + i,
+-                                   &node, &slot);
+-
+-               VM_BUG_ON_PAGE(!node && nr != 1, page);
+-
+-               radix_tree_clear_tags(&mapping->i_pages, node, slot);
+-               __radix_tree_replace(&mapping->i_pages, node, slot, shadow,
+-                               workingset_lookup_update(mapping));
+-       }
++       xas_store(&xas, shadow);
++       xas_init_tags(&xas);
