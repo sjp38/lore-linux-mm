@@ -1,123 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 948066B0003
-	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 11:08:34 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id l14-v6so1529991lfc.16
-        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 08:08:34 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n7-v6sor833983ljh.47.2018.04.28.08.08.31
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 190816B0005
+	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 14:55:21 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id z22so4366994pfi.7
+        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 11:55:21 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 69-v6si4142726plc.436.2018.04.28.11.55.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 28 Apr 2018 08:08:32 -0700 (PDT)
-Date: Sat, 28 Apr 2018 18:08:27 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v2 04/12] mm: Assign memcg-aware shrinkers bitmap to memcg
-Message-ID: <20180428150827.b2bh7hhma7pp4av5@esperanza>
-References: <152397794111.3456.1281420602140818725.stgit@localhost.localdomain>
- <152399121146.3456.5459546288565589098.stgit@localhost.localdomain>
- <20180422175900.dsjmm7gt2nsqj3er@esperanza>
- <14ebcccf-3ea8-59f4-d7ea-793aaba632c0@virtuozzo.com>
- <20180424112844.626madzs4cwoz5gh@esperanza>
- <7bf5372d-7d9d-abee-27dd-5044da5ec489@virtuozzo.com>
- <20180424121516.ihn6lewpidc34ayl@esperanza>
- <402281e6-6fea-3541-1435-a2f81e705e2b@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 28 Apr 2018 11:55:19 -0700 (PDT)
+Date: Sat, 28 Apr 2018 18:55:14 +0000
+From: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Subject: Re: [LSF/MM TOPIC NOTES] x86 ZONE_DMA love
+Message-ID: <20180428185514.GW27853@wotan.suse.de>
+References: <20180426215406.GB27853@wotan.suse.de>
+ <20180427053556.GB11339@infradead.org>
+ <20180427161456.GD27853@wotan.suse.de>
+ <20180428084221.GD31684@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <402281e6-6fea-3541-1435-a2f81e705e2b@virtuozzo.com>
+In-Reply-To: <20180428084221.GD31684@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Christoph Hellwig <hch@infradead.org>, Dan Carpenter <dan.carpenter@oracle.com>, Julia Lawall <julia.lawall@lip6.fr>
+Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, mhocko@kernel.org, cl@linux.com, Jan Kara <jack@suse.cz>, matthew@wil.cx, x86@kernel.org, luto@amacapital.net, martin.petersen@oracle.com, jthumshirn@suse.de, broonie@kernel.org, Juergen Gross <jgross@suse.com>, linux-spi@vger.kernel.org, Joerg Roedel <joro@8bytes.org>, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
 
-On Tue, Apr 24, 2018 at 03:24:53PM +0300, Kirill Tkhai wrote:
-> >>>>>> +int expand_shrinker_maps(int old_nr, int nr)
-> >>>>>> +{
-> >>>>>> +	int id, size, old_size, node, ret;
-> >>>>>> +	struct mem_cgroup *memcg;
-> >>>>>> +
-> >>>>>> +	old_size = old_nr / BITS_PER_BYTE;
-> >>>>>> +	size = nr / BITS_PER_BYTE;
-> >>>>>> +
-> >>>>>> +	down_write(&shrinkers_max_nr_rwsem);
-> >>>>>> +	for_each_node(node) {
-> >>>>>
-> >>>>> Iterating over cgroups first, numa nodes second seems like a better idea
-> >>>>> to me. I think you should fold for_each_node in memcg_expand_maps.
-> >>>>>
-> >>>>>> +		idr_for_each_entry(&mem_cgroup_idr, memcg, id) {
-> >>>>>
-> >>>>> Iterating over mem_cgroup_idr looks strange. Why don't you use
-> >>>>> for_each_mem_cgroup?
-> >>>>
-> >>>> We want to allocate shrinkers maps in mem_cgroup_css_alloc(), since
-> >>>> mem_cgroup_css_online() mustn't fail (it's a requirement of currently
-> >>>> existing design of memcg_cgroup::id).
-> >>>>
-> >>>> A new memcg is added to parent's list between two of these calls:
-> >>>>
-> >>>> css_create()
-> >>>>   ss->css_alloc()
-> >>>>   list_add_tail_rcu(&css->sibling, &parent_css->children)
-> >>>>   ss->css_online()
-> >>>>
-> >>>> for_each_mem_cgroup() does not see allocated, but not linked children.
-> >>>
-> >>> Why don't we move shrinker map allocation to css_online then?
-> >>
-> >> Because the design of memcg_cgroup::id prohibits mem_cgroup_css_online() to fail.
-> >> This function can't fail.
-> > 
-> > I fail to understand why it is so. Could you please elaborate?
+On Sat, Apr 28, 2018 at 01:42:21AM -0700, Christoph Hellwig wrote:
+> On Fri, Apr 27, 2018 at 04:14:56PM +0000, Luis R. Rodriguez wrote:
+> > Do we have a list of users for x86 with a small DMA mask?
+> > Or, given that I'm not aware of a tool to be able to look
+> > for this in an easy way, would it be good to find out which
+> > x86 drivers do have a small mask?
 > 
-> mem_cgroup::id is freed not in mem_cgroup_css_free(), but earlier. It's freed
-> between mem_cgroup_css_offline() and mem_cgroup_free(), after the last reference
-> is put.
-> 
-> In case of sometimes we want to free it in mem_cgroup_css_free(), this will
-> introduce assymmetric in the logic, which makes it more difficult. There is
-> already a bug, which I fixed in
-> 
-> "memcg: remove memcg_cgroup::id from IDR on mem_cgroup_css_alloc() failure"
-> 
-> new change will make this code completely not-modular and unreadable.
+> Basically you'll have to grep for calls to dma_set_mask/
+> dma_set_coherent_mask/dma_set_mask_and_coherent and their pci_*
+> wrappers with masks smaller 32-bit.  Some use numeric values,
+> some use DMA_BIT_MASK and various places uses local variables
+> or struct members to parse them, so finding them will be a bit
+> more work.  Nothing a coccinelle expert couldn't solve, though :)
 
-How is that? AFAIU all we need to do to handle css_online failure
-properly is call mem_cgroup_id_remove() from mem_cgroup_css_free().
-That's it, as mem_cgroup_id_remove() is already safe to call more
-than once for the same cgroup - the first call will free the id
-while all subsequent calls will do nothing.
+Thing is unless we have a specific flag used consistently I don't believe we
+can do this search with Coccinelle. ie, if we have local variables and based on
+some series of variables things are set, this makes the grammatical expression
+difficult to express.  So Cocinelle is not designed for this purpose.
 
->  
-> >>
-> >> I don't think it will be good to dive into reworking of this stuff for this patchset,
-> >> which is really already big. Also, it will be assymmetric to allocate one part of
-> >> data in css_alloc(), while another data in css_free(). This breaks cgroup design,
-> >> which specially introduces this two function to differ allocation and onlining.
-> >> Also, I've just move the allocation to alloc_mem_cgroup_per_node_info() like it was
-> >> suggested in comments to v1...
-> > 
-> > Yeah, but (ab)using mem_cgroup_idr for iterating over all allocated
-> > memory cgroups looks rather dubious to me...
-> 
-> But we have to iterate over all allocated memory cgroups in any way,
-> as all of them must have expanded maps. What is the problem?
-> It's rather simple method, and it faster then for_each_mem_cgroup()
-> cycle, since it does not have to play with get and put of refcounters.
+But I believe smatch [0] is intended exactly for this sort of purpose, is that
+right Dan? I gave a cursory look and I think it'd take me significant time to
+get such hunt down.
 
-I don't like this, because mem_cgroup_idr was initially introduced to
-avoid depletion of css ids by offline cgroups. We could fix that problem
-by extending swap_cgroup to UINT_MAX, in which case mem_cgroup_idr
-wouldn't be needed at all. Reusing mem_cgroup_idr for iterating over
-allocated cgroups deprives us of the ability to reconsider that design
-decision in future, neither does it look natural IMO. Besides, in order
-to use mem_cgroup_idr for your purpose, you have to reshuffle the code
-of mem_cgroup_css_alloc in a rather contrived way IMO.
+[0] https://lwn.net/Articles/691882/
 
-I agree that allocating parts of struct mem_cgroup in css_online may
-look dubious, but IMHO it's better than inventing a new way to iterate
-over cgroups instead of using the iterator provided by cgroup core.
-May be, you should ask Tejun which way he thinks is better.
-
-Thanks,
-Vladimir
+  Luis
