@@ -1,45 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B6896B0003
-	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 04:29:09 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k27-v6so2732625wre.23
-        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 01:29:09 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id o204sor794612wme.41.2018.04.28.01.29.07
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 138076B0007
+	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 04:30:56 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id z6-v6so3197116pgu.20
+        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 01:30:56 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j10-v6si2974389plg.396.2018.04.28.01.30.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 28 Apr 2018 01:29:08 -0700 (PDT)
-Date: Sat, 28 Apr 2018 10:29:04 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/9] [v3] x86, pkeys: two protection keys bug fixes
-Message-ID: <20180428082904.ekzsbqx3ohqxygbg@gmail.com>
-References: <20180427174527.0031016C@viggo.jf.intel.com>
- <20180428070553.yjlt22sb6ntcaqnc@gmail.com>
- <20180428071538.3whanph7r6v56h2a@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 28 Apr 2018 01:30:51 -0700 (PDT)
+Date: Sat, 28 Apr 2018 01:30:49 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [LSF/MM TOPIC NOTES] x86 ZONE_DMA love
+Message-ID: <20180428083049.GA31684@infradead.org>
+References: <20180426215406.GB27853@wotan.suse.de>
+ <20180427053556.GB11339@infradead.org>
+ <20180427071843.GB17484@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180428071538.3whanph7r6v56h2a@gmail.com>
+In-Reply-To: <20180427071843.GB17484@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, akpm@linux-foundation.org, shuah@kernel.org, shakeelb@google.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Hellwig <hch@infradead.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, cl@linux.com, Jan Kara <jack@suse.cz>, matthew@wil.cx, x86@kernel.org, luto@amacapital.net, martin.petersen@oracle.com, jthumshirn@suse.de, broonie@kernel.org, linux-spi@vger.kernel.org, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
 
-
-* Ingo Molnar <mingo@kernel.org> wrote:
-
-> The hang problem is still there, if I run a script like this:
+On Fri, Apr 27, 2018 at 09:18:43AM +0200, Michal Hocko wrote:
+> > On Thu, Apr 26, 2018 at 09:54:06PM +0000, Luis R. Rodriguez wrote:
+> > > In practice if you don't have a floppy device on x86, you don't need ZONE_DMA,
+> > 
+> > I call BS on that, and you actually explain later why it it BS due
+> > to some drivers using it more explicitly.  But even more importantly
+> > we have plenty driver using it through dma_alloc_* and a small DMA
+> > mask, and they are in use - we actually had a 4.16 regression due to
+> > them.
 > 
->  while :; do date; echo -n "32-bit: "; ./protection_keys_32 >/dev/null; date; echo -n "64-bit: "; ./protection_keys_64 >/dev/null; done
-> 
-> then within a minute one of the testcases hangs reliably.
-> 
-> Out of 4 attempts so far one hang was in the 32-bit testcase, 3 hangs were in the 
-> 64-bit testcase - so 64-bit appears to trigger it more frequently.
+> Well, but do we need a zone for that purpose? The idea was to actually
+> replace the zone by a CMA pool (at least on x86). With the current
+> implementation of the CMA we would move the range [0-16M] pfn range into 
+> zone_movable so it can be used and we would get rid of all of the
+> overhead each zone brings (a bit in page flags, kmalloc caches and who
+> knows what else)
 
-Note that even with all fixes in this series applied the self-test hang still 
-triggers.
+That wasn't clear in the mail.  But if we have anothr way to allocate
+<16MB memory we don't need ZONE_DMA for the floppy driver either, so the
+above conclusion is still wrong.
 
-Thanks,
-
-	Ingo
+> -- 
+> Michal Hocko
+> SUSE Labs
+---end quoted text---
