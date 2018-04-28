@@ -1,81 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FA656B0005
-	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 16:41:28 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e20so4496211pff.14
-        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 13:41:28 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id p73si1436605pfk.275.2018.04.28.13.41.26
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 005E06B0007
+	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 16:54:50 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id z6-v6so3952166pgu.20
+        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 13:54:49 -0700 (PDT)
+Received: from g4t3426.houston.hpe.com (g4t3426.houston.hpe.com. [15.241.140.75])
+        by mx.google.com with ESMTPS id u2-v6si1061220plm.379.2018.04.28.13.54.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 28 Apr 2018 13:41:26 -0700 (PDT)
-Date: Sat, 28 Apr 2018 13:41:18 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [LSF/MM TOPIC NOTES] x86 ZONE_DMA love
-Message-ID: <20180428204118.GA3305@bombadil.infradead.org>
-References: <20180426215406.GB27853@wotan.suse.de>
- <20180427053556.GB11339@infradead.org>
- <20180427161456.GD27853@wotan.suse.de>
- <20180428084221.GD31684@infradead.org>
- <20180428185514.GW27853@wotan.suse.de>
- <alpine.DEB.2.20.1804282145450.2532@hadrien>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 28 Apr 2018 13:54:48 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
+Date: Sat, 28 Apr 2018 20:54:42 +0000
+Message-ID: <1524948829.2693.547.camel@hpe.com>
+References: <20180314180155.19492-1-toshi.kani@hpe.com>
+	 <20180314180155.19492-3-toshi.kani@hpe.com>
+	 <20180426141926.GN15462@8bytes.org> <1524759629.2693.465.camel@hpe.com>
+	 <20180426172327.GQ15462@8bytes.org> <1524764948.2693.478.camel@hpe.com>
+	 <20180426200737.GS15462@8bytes.org> <1524781764.2693.503.camel@hpe.com>
+	 <20180427073719.GT15462@8bytes.org> <1524839460.2693.531.camel@hpe.com>
+	 <20180428090217.n2l3w4vobmtkvz6k@8bytes.org>
+In-Reply-To: <20180428090217.n2l3w4vobmtkvz6k@8bytes.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <AE6C04653E607F4DA2883AEC95039EB8@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1804282145450.2532@hadrien>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julia Lawall <julia.lawall@lip6.fr>
-Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>, Christoph Hellwig <hch@infradead.org>, Dan Carpenter <dan.carpenter@oracle.com>, linux-mm@kvack.org, mhocko@kernel.org, cl@linux.com, Jan Kara <jack@suse.cz>, matthew@wil.cx, x86@kernel.org, luto@amacapital.net, martin.petersen@oracle.com, jthumshirn@suse.de, broonie@kernel.org, Juergen Gross <jgross@suse.com>, linux-spi@vger.kernel.org, Joerg Roedel <joro@8bytes.org>, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+To: "joro@8bytes.org" <joro@8bytes.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "willy@infradead.org" <willy@infradead.org>, "hpa@zytor.com" <hpa@zytor.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Hocko,
+ Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Sat, Apr 28, 2018 at 09:46:52PM +0200, Julia Lawall wrote:
-> FWIW, here is my semantic patch and the output - it reports on things that
-> appear to be too small and things that it doesn't know about.
-> 
-> What are the relevant pci wrappers?  I didn't find them.
-
-Basically all of the functions in include/linux/pci-dma-compat.h
-
-> too small: drivers/gpu/drm/i915/i915_drv.c:1138: 30
-> too small: drivers/net/wireless/broadcom/b43/dma.c:1068: 30
-> unknown: sound/pci/ctxfi/cthw20k2.c:2033: DMA_BIT_MASK(dma_bits)
-> unknown: sound/pci/ctxfi/cthw20k2.c:2034: DMA_BIT_MASK(dma_bits)
-
-This one's good:
-
-        const unsigned int dma_bits = BITS_PER_LONG;
-
-> unknown: drivers/scsi/megaraid/megaraid_sas_base.c:6036: consistent_mask
-
-and this one:
-        consistent_mask = (instance->adapter_type == VENTURA_SERIES) ?
-                                DMA_BIT_MASK(64) : DMA_BIT_MASK(32);
-
-> unknown: drivers/net/wireless/ath/wil6210/txrx.c:200: DMA_BIT_MASK(wil->dma_addr_size)
-
-        if (wil->dma_addr_size > 32)
-                dma_set_mask_and_coherent(dev,
-                                          DMA_BIT_MASK(wil->dma_addr_size));
-
-> unknown: drivers/net/ethernet/netronome/nfp/nfp_main.c:452: DMA_BIT_MASK(NFP_NET_MAX_DMA_BITS)
-
-drivers/net/ethernet/netronome/nfp/nfp_net.h:#define NFP_NET_MAX_DMA_BITS       40
-
-> unknown: drivers/gpu/host1x/dev.c:199: host->info->dma_mask
-
-Looks safe ...
-
-drivers/gpu/host1x/bus.c:       device->dev.coherent_dma_mask = host1x->dev->coherent_dma_mask;
-drivers/gpu/host1x/bus.c:       device->dev.dma_mask = &device->dev.coherent_dma_mask;
-drivers/gpu/host1x/dev.c:       .dma_mask = DMA_BIT_MASK(32),
-drivers/gpu/host1x/dev.c:       .dma_mask = DMA_BIT_MASK(32),
-drivers/gpu/host1x/dev.c:       .dma_mask = DMA_BIT_MASK(34),
-drivers/gpu/host1x/dev.c:       .dma_mask = DMA_BIT_MASK(34),
-drivers/gpu/host1x/dev.c:       .dma_mask = DMA_BIT_MASK(34),
-drivers/gpu/host1x/dev.c:       dma_set_mask_and_coherent(host->dev, host->info->dma_mask);
-drivers/gpu/host1x/dev.h:       u64 dma_mask; /* mask of addressable memory */
-
-... but that reminds us that maybe some drivers aren't using dma_set_mask()
-but rather touching dma_mask directly.
-
-... 57 more to look at ...
+T24gU2F0LCAyMDE4LTA0LTI4IGF0IDExOjAyICswMjAwLCBqb3JvQDhieXRlcy5vcmcgd3JvdGU6
+DQo+IE9uIEZyaSwgQXByIDI3LCAyMDE4IGF0IDAyOjMxOjUxUE0gKzAwMDAsIEthbmksIFRvc2hp
+IHdyb3RlOg0KPiA+IFNvLCB3ZSBjYW4gYWRkIHRoZSBzdGVwIDIgb24gdG9wIG9mIHRoaXMgcGF0
+Y2guDQo+ID4gIDEuIENsZWFyIHB1ZC9wbWQgZW50cnkuDQo+ID4gIDIuIFN5c3RlbSB3aWRlIFRM
+QiBmbHVzaCA8LS0gVE8gQkUgQURERUQgQlkgTkVXIFBBVENIDQo+ID4gIDMuIEZyZWUgaXRzIHVu
+ZGVybGluaW5nIHBtZC9wdGUgcGFnZS4NCj4gDQo+IFRoaXMgc3RpbGwgbGFja3MgdGhlIHBhZ2Ut
+dGFibGUgc3luY2hyb25pemF0aW9uIGFuZCB3aWxsIHRodXMgbm90IGZpeA0KPiB0aGUgQlVHX09O
+IGJlaW5nIHRyaWdnZXJlZC4NCg0KVGhlIEJVR19PTiBpc3N1ZSBpcyBzcGVjaWZpYyB0byBQQUUg
+dGhhdCBpdCBzeW5jcyBhdCB0aGUgcG1kIGxldmVsLg0KeDg2LzY0IGRvZXMgbm90IGhhdmUgdGhp
+cyBpc3N1ZSBzaW5jZSBpdCBzeW5jcyBhdCB0aGUgcGdkIG9yIHA0ZCBsZXZlbC4NCg0KPiA+IFdl
+IGRvIG5vdCBuZWVkIHRvIHJldmVydCB0aGlzIHBhdGNoLiAgV2UgY2FuIG1ha2UgdGhlIGFib3Zl
+IGNoYW5nZSBJDQo+ID4gbWVudGlvbmVkLg0KPiANCj4gUGxlYXNlIG5vdGUgdGhhdCB3ZSBhcmUg
+bm90IGluIHRoZSBtZXJnZSB3aW5kb3cgYW55bW9yZSBhbmQgdGhhdCBhbnkgZml4DQo+IG5lZWRz
+IHRvIGJlIHNpbXBsZSBhbmQgb2J2aW91c2x5IGNvcnJlY3QuDQoNClVuZGVyc3Rvb2QuICBDaGFu
+Z2luZyB0aGUgeDg2LzMyIHN5bmMgcG9pbnQgaXMgcmlza3kuICBTbywgSSBhbSBnb2luZyB0bw0K
+cmV2ZXJ0IHRoZSBmcmVlIHBhZ2UgaGFuZGxpbmcgZm9yIFBBRS4gICANCg0KVGhhbmtzLA0KLVRv
+c2hpDQoNCg==
