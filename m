@@ -1,53 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7875E6B0003
-	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 05:02:26 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id i131so1694991wmf.6
-        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 02:02:26 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id 34-v6si3257777edm.8.2018.04.28.02.02.20
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D1C26B0003
+	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 06:48:44 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id s84-v6so2578703oig.17
+        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 03:48:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x142-v6si1119387oia.376.2018.04.28.03.48.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 28 Apr 2018 02:02:20 -0700 (PDT)
-Date: Sat, 28 Apr 2018 11:02:17 +0200
-From: "joro@8bytes.org" <joro@8bytes.org>
-Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
-Message-ID: <20180428090217.n2l3w4vobmtkvz6k@8bytes.org>
-References: <20180314180155.19492-1-toshi.kani@hpe.com>
- <20180314180155.19492-3-toshi.kani@hpe.com>
- <20180426141926.GN15462@8bytes.org>
- <1524759629.2693.465.camel@hpe.com>
- <20180426172327.GQ15462@8bytes.org>
- <1524764948.2693.478.camel@hpe.com>
- <20180426200737.GS15462@8bytes.org>
- <1524781764.2693.503.camel@hpe.com>
- <20180427073719.GT15462@8bytes.org>
- <1524839460.2693.531.camel@hpe.com>
+        Sat, 28 Apr 2018 03:48:43 -0700 (PDT)
+Date: Sat, 28 Apr 2018 06:48:41 -0400 (EDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+Message-ID: <1266554822.23475618.1524912521209.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20180427133146.GB11150@stefanha-x1.localdomain>
+References: <20180425112415.12327-1-pagupta@redhat.com> <20180425112415.12327-2-pagupta@redhat.com> <20180426131236.GA30991@stefanha-x1.localdomain> <197910974.22984070.1524757499459.JavaMail.zimbra@redhat.com> <20180427133146.GB11150@stefanha-x1.localdomain>
+Subject: Re: [Qemu-devel] [RFC v2 1/2] virtio: add pmem driver
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1524839460.2693.531.camel@hpe.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kani, Toshi" <toshi.kani@hpe.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "willy@infradead.org" <willy@infradead.org>, "hpa@zytor.com" <hpa@zytor.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Stefan Hajnoczi <stefanha@redhat.com>
+Cc: jack@suse.cz, kvm@vger.kernel.org, david@redhat.com, linux-nvdimm@ml01.01.org, ross zwisler <ross.zwisler@intel.com>, qemu-devel@nongnu.org, lcapitulino@redhat.com, linux-mm@kvack.org, niteshnarayanlal@hotmail.com, mst@redhat.com, hch@infradead.org, Stefan Hajnoczi <stefanha@gmail.com>, marcel@redhat.com, nilal@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, riel@surriel.com, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, kwolf@redhat.com, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, linux-kernel@vger.kernel.org, imammedo@redhat.com
 
-On Fri, Apr 27, 2018 at 02:31:51PM +0000, Kani, Toshi wrote:
-> So, we can add the step 2 on top of this patch.
->  1. Clear pud/pmd entry.
->  2. System wide TLB flush <-- TO BE ADDED BY NEW PATCH
->  3. Free its underlining pmd/pte page.
 
-This still lacks the page-table synchronization and will thus not fix
-the BUG_ON being triggered.
+> > > > +        int err;
+> > > > +
+> > > > +        sg_init_one(&sg, buf, sizeof(buf));
+> > > > +
+> > > > +        err = virtqueue_add_outbuf(vpmem->req_vq, &sg, 1, buf, GFP_KERNEL);
+> > > > +
+> > > > +        if (err) {
+> > > > +                dev_err(&vdev->dev, "failed to send command to virtio pmem
+> > > > device\n");
+> > > > +                return;
+> > > > +        }
+> > > > +
+> > > > +        virtqueue_kick(vpmem->req_vq);
+> > > 
+> > > Is any locking necessary?  Two CPUs must not invoke virtio_pmem_flush()
+> > > at the same time.  Not sure if anything guarantees this, maybe you're
+> > > relying on libnvdimm but I haven't checked.
+> > 
+> > I thought about it to some extent, and wanted to go ahead with simple
+> > version first:
+> > 
+> > - I think file 'inode -> locking' sill is there for request on single file.
+> > - For multiple files, our aim is to just flush the backend block image.
+> > - Even there is collision for virt queue read/write entry it should just
+> > trigger a Qemu fsync.
+> >   We just want most recent flush to assure guest writes are synced
+> >   properly.
+> > 
+> > Important point here: We are doing entire block fsync for guest virtual
+> > disk.
+> 
+> I don't understand your answer.  Is locking necessary or not?
 
-> We do not need to revert this patch.  We can make the above change I
-> mentioned.
+It will be required with other changes.
 
-Please note that we are not in the merge window anymore and that any fix
-needs to be simple and obviously correct.
+> 
+> From the virtqueue_add_outbuf() documentation:
+> 
+>  * Caller must ensure we don't call this with other virtqueue operations
+>  * at the same time (except where noted).
+
+Yes, I also saw it. But thought if can avoid it with current functionality. :)
 
 
 Thanks,
-
-	Joerg
+Pankaj
