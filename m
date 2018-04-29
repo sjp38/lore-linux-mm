@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 005E06B0007
-	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 16:54:50 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id z6-v6so3952166pgu.20
-        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 13:54:49 -0700 (PDT)
-Received: from g4t3426.houston.hpe.com (g4t3426.houston.hpe.com. [15.241.140.75])
-        by mx.google.com with ESMTPS id u2-v6si1061220plm.379.2018.04.28.13.54.48
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E73CA6B0005
+	for <linux-mm@kvack.org>; Sat, 28 Apr 2018 22:46:09 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m18-v6so1831352lfj.1
+        for <linux-mm@kvack.org>; Sat, 28 Apr 2018 19:46:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h13-v6sor890282lfl.75.2018.04.28.19.46.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 28 Apr 2018 13:54:48 -0700 (PDT)
-From: "Kani, Toshi" <toshi.kani@hpe.com>
-Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
-Date: Sat, 28 Apr 2018 20:54:42 +0000
-Message-ID: <1524948829.2693.547.camel@hpe.com>
-References: <20180314180155.19492-1-toshi.kani@hpe.com>
-	 <20180314180155.19492-3-toshi.kani@hpe.com>
-	 <20180426141926.GN15462@8bytes.org> <1524759629.2693.465.camel@hpe.com>
-	 <20180426172327.GQ15462@8bytes.org> <1524764948.2693.478.camel@hpe.com>
-	 <20180426200737.GS15462@8bytes.org> <1524781764.2693.503.camel@hpe.com>
-	 <20180427073719.GT15462@8bytes.org> <1524839460.2693.531.camel@hpe.com>
-	 <20180428090217.n2l3w4vobmtkvz6k@8bytes.org>
-In-Reply-To: <20180428090217.n2l3w4vobmtkvz6k@8bytes.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <AE6C04653E607F4DA2883AEC95039EB8@NAMPRD84.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (Google Transport Security);
+        Sat, 28 Apr 2018 19:46:08 -0700 (PDT)
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Subject: [PATCH 0/3] linux-next: mm: hardening: Track genalloc allocations
+Date: Sun, 29 Apr 2018 06:45:39 +0400
+Message-Id: <20180429024542.19475-1-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "joro@8bytes.org" <joro@8bytes.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "bp@suse.de" <bp@suse.de>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "willy@infradead.org" <willy@infradead.org>, "hpa@zytor.com" <hpa@zytor.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "Hocko,
- Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: mhocko@kernel.org, akpm@linux-foundation.org, keescook@chromium.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-security-module@vger.kernel.org
+Cc: willy@infradead.org, labbott@redhat.com, linux-kernel@vger.kernel.org, igor.stoppa@huawei.com
 
-T24gU2F0LCAyMDE4LTA0LTI4IGF0IDExOjAyICswMjAwLCBqb3JvQDhieXRlcy5vcmcgd3JvdGU6
-DQo+IE9uIEZyaSwgQXByIDI3LCAyMDE4IGF0IDAyOjMxOjUxUE0gKzAwMDAsIEthbmksIFRvc2hp
-IHdyb3RlOg0KPiA+IFNvLCB3ZSBjYW4gYWRkIHRoZSBzdGVwIDIgb24gdG9wIG9mIHRoaXMgcGF0
-Y2guDQo+ID4gIDEuIENsZWFyIHB1ZC9wbWQgZW50cnkuDQo+ID4gIDIuIFN5c3RlbSB3aWRlIFRM
-QiBmbHVzaCA8LS0gVE8gQkUgQURERUQgQlkgTkVXIFBBVENIDQo+ID4gIDMuIEZyZWUgaXRzIHVu
-ZGVybGluaW5nIHBtZC9wdGUgcGFnZS4NCj4gDQo+IFRoaXMgc3RpbGwgbGFja3MgdGhlIHBhZ2Ut
-dGFibGUgc3luY2hyb25pemF0aW9uIGFuZCB3aWxsIHRodXMgbm90IGZpeA0KPiB0aGUgQlVHX09O
-IGJlaW5nIHRyaWdnZXJlZC4NCg0KVGhlIEJVR19PTiBpc3N1ZSBpcyBzcGVjaWZpYyB0byBQQUUg
-dGhhdCBpdCBzeW5jcyBhdCB0aGUgcG1kIGxldmVsLg0KeDg2LzY0IGRvZXMgbm90IGhhdmUgdGhp
-cyBpc3N1ZSBzaW5jZSBpdCBzeW5jcyBhdCB0aGUgcGdkIG9yIHA0ZCBsZXZlbC4NCg0KPiA+IFdl
-IGRvIG5vdCBuZWVkIHRvIHJldmVydCB0aGlzIHBhdGNoLiAgV2UgY2FuIG1ha2UgdGhlIGFib3Zl
-IGNoYW5nZSBJDQo+ID4gbWVudGlvbmVkLg0KPiANCj4gUGxlYXNlIG5vdGUgdGhhdCB3ZSBhcmUg
-bm90IGluIHRoZSBtZXJnZSB3aW5kb3cgYW55bW9yZSBhbmQgdGhhdCBhbnkgZml4DQo+IG5lZWRz
-IHRvIGJlIHNpbXBsZSBhbmQgb2J2aW91c2x5IGNvcnJlY3QuDQoNClVuZGVyc3Rvb2QuICBDaGFu
-Z2luZyB0aGUgeDg2LzMyIHN5bmMgcG9pbnQgaXMgcmlza3kuICBTbywgSSBhbSBnb2luZyB0bw0K
-cmV2ZXJ0IHRoZSBmcmVlIHBhZ2UgaGFuZGxpbmcgZm9yIFBBRS4gICANCg0KVGhhbmtzLA0KLVRv
-c2hpDQoNCg==
+This patchset was created as part of an older version of pmalloc, however
+it has value per-se, as it hardens the memory management for the generic
+allocator genalloc.
+
+Genalloc does not currently track the size of the allocations it hands out.
+
+Either by mistake, or due to an attack, it is possible that more memory
+than what was initially allocated is freed, leaving behind dangling
+pointers, ready for an use-after-free attack.
+
+With this patch, genalloc becomes capable of tracking the size of each
+allocation it has handed out, when it's time to free it.
+
+It can either verify that the size received, when free is invoked, is
+correct, or it can decide autonomously how much memory to free, if the
+value received for the size parameter is 0.
+
+These patches are proposed for beign merged into linux-next, to verify
+that they do not introduce regressions, by comparing the value received
+from the callers of the free function with the internal tracking.
+
+Later on, the "size" parameter can be dropped, and each caller can be
+adjusted accordingly.
+
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+
+Igor Stoppa (3):
+  genalloc: track beginning of allocations
+  Add label and license to genalloc.rst
+  genalloc: selftest
+
+ Documentation/core-api/genalloc.rst |   4 +
+ include/linux/genalloc.h            | 112 +++---
+ init/main.c                         |   2 +
+ lib/Kconfig                         |  15 +
+ lib/Makefile                        |   1 +
+ lib/genalloc.c                      | 742 ++++++++++++++++++++++++++----------
+ lib/test_genalloc.c                 | 410 ++++++++++++++++++++
+ 7 files changed, 1031 insertions(+), 255 deletions(-)
+ create mode 100644 lib/test_genalloc.c
+
+-- 
+2.14.1
