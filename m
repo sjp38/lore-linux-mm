@@ -1,124 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ACD486B0005
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 06:58:05 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id b132-v6so2601995lfe.21
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 03:58:05 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n3-v6sor1305272lji.56.2018.04.30.03.58.03
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1166E6B0005
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 08:42:19 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id w3-v6so5945354pgv.17
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 05:42:19 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id u12-v6si5940424plm.597.2018.04.30.05.42.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 30 Apr 2018 03:58:03 -0700 (PDT)
-Date: Mon, 30 Apr 2018 12:58:00 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH] z3fold: fix reclaim lock-ups
-Message-Id: <20180430125800.444cae9706489f412ad12621@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 30 Apr 2018 05:42:17 -0700 (PDT)
+Date: Mon, 30 Apr 2018 05:42:16 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v3 11/14] mm: Combine first two unions in struct page
+Message-ID: <20180430124216.GA27331@bombadil.infradead.org>
+References: <20180418184912.2851-1-willy@infradead.org>
+ <20180418184912.2851-12-willy@infradead.org>
+ <20180430094704.5jvnnugxtqtzvn5h@kshutemo-mobl1>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180430094704.5jvnnugxtqtzvn5h@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Guenter Roeck <linux@roeck-us.net>, Linux-MM <linux-mm@kvack.org>
-Cc: Oleksiy.Avramchenko@sony.com, Matthew Wilcox <mawilcox@microsoft.com>, stable@kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-Do not try to optimize in-page object layout while the page is
-under reclaim. This fixes lock-ups on reclaim and improves reclaim
-performance at the same time.
+On Mon, Apr 30, 2018 at 12:47:04PM +0300, Kirill A. Shutemov wrote:
+> On Wed, Apr 18, 2018 at 11:49:09AM -0700, Matthew Wilcox wrote:
+> > From: Matthew Wilcox <mawilcox@microsoft.com>
+> > 
+> > This gives us five words of space in a single union in struct page.
+> > The compound_mapcount moves position (from offset 24 to offset 20)
+> > on 64-bit systems, but that does not seem likely to cause any trouble.
+> 
+> Yeah, it should be fine.
+> 
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Reported-by: Guenter Roeck <linux@roeck-us.net>
-Signed-off-by: Vitaly Wool <vitaly.vul@sony.com>
----
- mm/z3fold.c | 42 ++++++++++++++++++++++++++++++------------
- 1 file changed, 30 insertions(+), 12 deletions(-)
-
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index c0bca6153b95..901c0b07cbda 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -144,7 +144,8 @@ enum z3fold_page_flags {
- 	PAGE_HEADLESS = 0,
- 	MIDDLE_CHUNK_MAPPED,
- 	NEEDS_COMPACTING,
--	PAGE_STALE
-+	PAGE_STALE,
-+	UNDER_RECLAIM
- };
- 
- /*****************
-@@ -173,6 +174,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
- 	clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
- 	clear_bit(NEEDS_COMPACTING, &page->private);
- 	clear_bit(PAGE_STALE, &page->private);
-+	clear_bit(UNDER_RECLAIM, &page->private);
- 
- 	spin_lock_init(&zhdr->page_lock);
- 	kref_init(&zhdr->refcount);
-@@ -756,6 +758,10 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		atomic64_dec(&pool->pages_nr);
- 		return;
- 	}
-+	if (test_bit(UNDER_RECLAIM, &page->private)) {
-+		z3fold_page_unlock(zhdr);
-+		return;
-+	}
- 	if (test_and_set_bit(NEEDS_COMPACTING, &page->private)) {
- 		z3fold_page_unlock(zhdr);
- 		return;
-@@ -840,6 +846,8 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 			kref_get(&zhdr->refcount);
- 			list_del_init(&zhdr->buddy);
- 			zhdr->cpu = -1;
-+			set_bit(UNDER_RECLAIM, &page->private);
-+			break;
- 		}
- 
- 		list_del_init(&page->lru);
-@@ -887,25 +895,35 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 				goto next;
- 		}
- next:
--		spin_lock(&pool->lock);
- 		if (test_bit(PAGE_HEADLESS, &page->private)) {
- 			if (ret == 0) {
--				spin_unlock(&pool->lock);
- 				free_z3fold_page(page);
- 				return 0;
- 			}
--		} else if (kref_put(&zhdr->refcount, release_z3fold_page)) {
--			atomic64_dec(&pool->pages_nr);
-+			spin_lock(&pool->lock);
-+			list_add(&page->lru, &pool->lru);
-+			spin_unlock(&pool->lock);
-+		} else {
-+			z3fold_page_lock(zhdr);
-+			clear_bit(UNDER_RECLAIM, &page->private);
-+			 if (kref_put(&zhdr->refcount,
-+					release_z3fold_page_locked)) {
-+				atomic64_dec(&pool->pages_nr);
-+				return 0;
-+			}
-+			/*
-+			 * if we are here, the page is still not completely
-+			 * free. Take the global pool lock then to be able
-+			 * to add it back to the lru list
-+			 */
-+			spin_lock(&pool->lock);
-+			list_add(&page->lru, &pool->lru);
- 			spin_unlock(&pool->lock);
--			return 0;
-+			z3fold_page_unlock(zhdr);
- 		}
- 
--		/*
--		 * Add to the beginning of LRU.
--		 * Pool lock has to be kept here to ensure the page has
--		 * not already been released
--		 */
--		list_add(&page->lru, &pool->lru);
-+		/* We started off locked to we need to lock the pool back */
-+		spin_lock(&pool->lock);
- 	}
- 	spin_unlock(&pool->lock);
- 	return -EAGAIN;
--- 
-2.15.1
+I was wondering if it might make sense to make compound_mapcount an
+atomic_long_t.  It'd guarantee no overflow, and prevent the location
+from moving.
