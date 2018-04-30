@@ -1,207 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4719B6B0027
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 16:23:19 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id w3-v6so6584174pgv.17
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 13:23:19 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b3-v6si8078572pld.2.2018.04.30.13.23.17
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EF1A6B000D
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 17:07:50 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id t3-v6so7757712qto.14
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 14:07:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id c4-v6si7462524qth.344.2018.04.30.14.07.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 30 Apr 2018 13:23:18 -0700 (PDT)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 16/16] slub: Remove kmem_cache->reserved
-Date: Mon, 30 Apr 2018 13:22:47 -0700
-Message-Id: <20180430202247.25220-17-willy@infradead.org>
-In-Reply-To: <20180430202247.25220-1-willy@infradead.org>
-References: <20180430202247.25220-1-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Apr 2018 14:07:49 -0700 (PDT)
+Date: Mon, 30 Apr 2018 17:07:47 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc fallback
+ options
+In-Reply-To: <23271.24580.695738.853532@quad.stoffel.home>
+Message-ID: <alpine.LRH.2.02.1804301622480.4454@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20180421144757.GC14610@bombadil.infradead.org> <20180424170349.GQ17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com> <20180424173836.GR17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804251556060.30569@file01.intranet.prod.int.rdu2.redhat.com> <1114eda5-9b1f-4db8-2090-556b4a37c532@infradead.org> <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com>
+ <alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com> <1524694663.4100.21.camel@HansenPartnership.com> <alpine.LRH.2.02.1804251857070.31135@file01.intranet.prod.int.rdu2.redhat.com> <1524697697.4100.23.camel@HansenPartnership.com>
+ <23266.8532.619051.784274@quad.stoffel.home> <alpine.LRH.2.02.1804261726540.13401@file01.intranet.prod.int.rdu2.redhat.com> <23271.24580.695738.853532@quad.stoffel.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+To: John Stoffel <john@stoffel.org>
+Cc: Andrew@stoffel.org, eric.dumazet@gmail.com, mst@redhat.com, edumazet@google.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Hocko <mhocko@kernel.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Michal@stoffel.org, dm-devel@redhat.com, David Miller <davem@davemloft.net>, David Rientjes <rientjes@google.com>, Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The reserved field was only used for embedding an rcu_head in the data
-structure.  With the previous commit, we no longer need it.  That lets
-us remove the 'reserved' argument to a lot of functions.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- include/linux/slub_def.h |  1 -
- mm/slub.c                | 41 ++++++++++++++++++++--------------------
- 2 files changed, 20 insertions(+), 22 deletions(-)
+On Mon, 30 Apr 2018, John Stoffel wrote:
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 3773e26c08c1..09fa2c6f0e68 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -101,7 +101,6 @@ struct kmem_cache {
- 	void (*ctor)(void *);
- 	unsigned int inuse;		/* Offset to metadata */
- 	unsigned int align;		/* Alignment */
--	unsigned int reserved;		/* Reserved bytes at the end of slabs */
- 	unsigned int red_left_pad;	/* Left redzone padding size */
- 	const char *name;	/* Name (only for display!) */
- 	struct list_head list;	/* List of slab caches */
-diff --git a/mm/slub.c b/mm/slub.c
-index 27cc2956acba..01c2183aa3d7 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -317,16 +317,16 @@ static inline unsigned int slab_index(void *p, struct kmem_cache *s, void *addr)
- 	return (p - addr) / s->size;
- }
- 
--static inline unsigned int order_objects(unsigned int order, unsigned int size, unsigned int reserved)
-+static inline unsigned int order_objects(unsigned int order, unsigned int size)
- {
--	return (((unsigned int)PAGE_SIZE << order) - reserved) / size;
-+	return ((unsigned int)PAGE_SIZE << order) / size;
- }
- 
- static inline struct kmem_cache_order_objects oo_make(unsigned int order,
--		unsigned int size, unsigned int reserved)
-+		unsigned int size)
- {
- 	struct kmem_cache_order_objects x = {
--		(order << OO_SHIFT) + order_objects(order, size, reserved)
-+		(order << OO_SHIFT) + order_objects(order, size)
- 	};
- 
- 	return x;
-@@ -841,7 +841,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
- 		return 1;
- 
- 	start = page_address(page);
--	length = (PAGE_SIZE << compound_order(page)) - s->reserved;
-+	length = PAGE_SIZE << compound_order(page);
- 	end = start + length;
- 	remainder = length % s->size;
- 	if (!remainder)
-@@ -930,7 +930,7 @@ static int check_slab(struct kmem_cache *s, struct page *page)
- 		return 0;
- 	}
- 
--	maxobj = order_objects(compound_order(page), s->size, s->reserved);
-+	maxobj = order_objects(compound_order(page), s->size);
- 	if (page->objects > maxobj) {
- 		slab_err(s, page, "objects %u > max %u",
- 			page->objects, maxobj);
-@@ -980,7 +980,7 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
- 		nr++;
- 	}
- 
--	max_objects = order_objects(compound_order(page), s->size, s->reserved);
-+	max_objects = order_objects(compound_order(page), s->size);
- 	if (max_objects > MAX_OBJS_PER_PAGE)
- 		max_objects = MAX_OBJS_PER_PAGE;
- 
-@@ -3197,21 +3197,21 @@ static unsigned int slub_min_objects;
-  */
- static inline unsigned int slab_order(unsigned int size,
- 		unsigned int min_objects, unsigned int max_order,
--		unsigned int fract_leftover, unsigned int reserved)
-+		unsigned int fract_leftover)
- {
- 	unsigned int min_order = slub_min_order;
- 	unsigned int order;
- 
--	if (order_objects(min_order, size, reserved) > MAX_OBJS_PER_PAGE)
-+	if (order_objects(min_order, size) > MAX_OBJS_PER_PAGE)
- 		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
- 
--	for (order = max(min_order, (unsigned int)get_order(min_objects * size + reserved));
-+	for (order = max(min_order, (unsigned int)get_order(min_objects * size));
- 			order <= max_order; order++) {
- 
- 		unsigned int slab_size = (unsigned int)PAGE_SIZE << order;
- 		unsigned int rem;
- 
--		rem = (slab_size - reserved) % size;
-+		rem = slab_size % size;
- 
- 		if (rem <= slab_size / fract_leftover)
- 			break;
-@@ -3220,7 +3220,7 @@ static inline unsigned int slab_order(unsigned int size,
- 	return order;
- }
- 
--static inline int calculate_order(unsigned int size, unsigned int reserved)
-+static inline int calculate_order(unsigned int size)
- {
- 	unsigned int order;
- 	unsigned int min_objects;
-@@ -3237,7 +3237,7 @@ static inline int calculate_order(unsigned int size, unsigned int reserved)
- 	min_objects = slub_min_objects;
- 	if (!min_objects)
- 		min_objects = 4 * (fls(nr_cpu_ids) + 1);
--	max_objects = order_objects(slub_max_order, size, reserved);
-+	max_objects = order_objects(slub_max_order, size);
- 	min_objects = min(min_objects, max_objects);
- 
- 	while (min_objects > 1) {
-@@ -3246,7 +3246,7 @@ static inline int calculate_order(unsigned int size, unsigned int reserved)
- 		fraction = 16;
- 		while (fraction >= 4) {
- 			order = slab_order(size, min_objects,
--					slub_max_order, fraction, reserved);
-+					slub_max_order, fraction);
- 			if (order <= slub_max_order)
- 				return order;
- 			fraction /= 2;
-@@ -3258,14 +3258,14 @@ static inline int calculate_order(unsigned int size, unsigned int reserved)
- 	 * We were unable to place multiple objects in a slab. Now
- 	 * lets see if we can place a single object there.
- 	 */
--	order = slab_order(size, 1, slub_max_order, 1, reserved);
-+	order = slab_order(size, 1, slub_max_order, 1);
- 	if (order <= slub_max_order)
- 		return order;
- 
- 	/*
- 	 * Doh this slab cannot be placed using slub_max_order.
- 	 */
--	order = slab_order(size, 1, MAX_ORDER, 1, reserved);
-+	order = slab_order(size, 1, MAX_ORDER, 1);
- 	if (order < MAX_ORDER)
- 		return order;
- 	return -ENOSYS;
-@@ -3533,7 +3533,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
- 	if (forced_order >= 0)
- 		order = forced_order;
- 	else
--		order = calculate_order(size, s->reserved);
-+		order = calculate_order(size);
- 
- 	if ((int)order < 0)
- 		return 0;
-@@ -3551,8 +3551,8 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
- 	/*
- 	 * Determine the number of objects per slab
- 	 */
--	s->oo = oo_make(order, size, s->reserved);
--	s->min = oo_make(get_order(size), size, s->reserved);
-+	s->oo = oo_make(order, size);
-+	s->min = oo_make(get_order(size), size);
- 	if (oo_objects(s->oo) > oo_objects(s->max))
- 		s->max = s->oo;
- 
-@@ -3562,7 +3562,6 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
- static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
- {
- 	s->flags = kmem_cache_flags(s->size, flags, s->name, s->ctor);
--	s->reserved = 0;
- #ifdef CONFIG_SLAB_FREELIST_HARDENED
- 	s->random = get_random_long();
- #endif
-@@ -5106,7 +5105,7 @@ SLAB_ATTR_RO(destroy_by_rcu);
- 
- static ssize_t reserved_show(struct kmem_cache *s, char *buf)
- {
--	return sprintf(buf, "%u\n", s->reserved);
-+	return sprintf(buf, "0\n");
- }
- SLAB_ATTR_RO(reserved);
- 
--- 
-2.17.0
+> >>>>> "Mikulas" == Mikulas Patocka <mpatocka@redhat.com> writes:
+> 
+> Mikulas> On Thu, 26 Apr 2018, John Stoffel wrote:
+> 
+> Mikulas> I see your point - and I think the misunderstanding is this.
+> 
+> Thanks.
+> 
+> Mikulas> This patch is not really helping people to debug existing crashes. It is 
+> Mikulas> not like "you get a crash" - "you google for some keywords" - "you get a 
+> Mikulas> page that suggests to turn this option on" - "you turn it on and solve the 
+> Mikulas> crash".
+> 
+> Mikulas> What this patch really does is that - it makes the kernel deliberately 
+> Mikulas> crash in a situation when the code violates the specification, but it 
+> Mikulas> would not crash otherwise or it would crash very rarely. It helps to 
+> Mikulas> detect specification violations.
+> 
+> Mikulas> If the kernel developer (or tester) doesn't use this option, his buggy 
+> Mikulas> code won't crash - and if it won't crash, he won't fix the bug or report 
+> Mikulas> it. How is the user or developer supposed to learn about this option, if 
+> Mikulas> he gets no crash at all?
+> 
+> So why do we make this a KConfig option at all?
+
+Because other people see the KConfig option (so, they may enable it) and 
+they don't see the kernel parameter (so, they won't enable it).
+
+Close your eyes and say how many kernel parameters do you remember :-)
+
+> Just turn it on and let it rip.
+
+I can't test if all the networking drivers use kvmalloc properly, because 
+I don't have the hardware. You can't test it neither. No one has all the 
+hardware that is supported by Linux.
+
+Driver issues can only be tested by a mass of users. And if the users 
+don't know about the debugging option, they won't enable it.
+
+> >> I agree with James here.  Looking at the SLAB vs SLUB Kconfig entries
+> >> tells me *nothing* about why I should pick one or the other, as an
+> >> example.
+
+BTW. You can enable slub debugging either with CONFIG_SLUB_DEBUG_ON or 
+with the kernel parameter "slub_debug" - and most users who compile their 
+own kernel use CONFIG_SLUB_DEBUG_ON - just because it is visible.
+
+> Now I also think that Linus has the right idea to not just sprinkle 
+> BUG_ONs into the code, just dump and oops and keep going if you can.  
+> If it's a filesystem or a device, turn it read only so that people 
+> notice right away.
+
+This vmalloc fallback is similar to CONFIG_DEBUG_KOBJECT_RELEASE. 
+CONFIG_DEBUG_KOBJECT_RELEASE changes the behavior of kobject_put in order 
+to cause deliberate crashes (that wouldn't happen otherwise) in drivers 
+that misuse kobject_put. In the same sense, we want to cause deliberate 
+crashes (that wouldn't happen otherwise) in drivers that misuse kvmalloc.
+
+The crashes will only happen in debugging kernels, not in production 
+kernels.
+
+Mikulas
