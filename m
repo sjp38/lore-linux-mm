@@ -1,122 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 71C976B0005
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 14:48:15 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id c73so7376339qke.2
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 11:48:15 -0700 (PDT)
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1655F6B0005
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 15:02:17 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id h9so8815634uac.3
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 12:02:17 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z13-v6sor4467593qve.58.2018.04.30.11.48.14
+        by mx.google.com with SMTPS id b128-v6sor3389094vkf.99.2018.04.30.12.02.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 30 Apr 2018 11:48:14 -0700 (PDT)
+        Mon, 30 Apr 2018 12:02:15 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1523975611-15978-18-git-send-email-ldufour@linux.vnet.ibm.com>
-References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com> <1523975611-15978-18-git-send-email-ldufour@linux.vnet.ibm.com>
-From: Punit Agrawal <punitagrawal@gmail.com>
-Date: Mon, 30 Apr 2018 19:47:53 +0100
-Message-ID: <CAD4BONeTCmSZgzThatyY66xVx1a9nCgNO+LCory0h9ZpBkn_+w@mail.gmail.com>
-Subject: Re: [PATCH v10 17/25] mm: protect mm_rb tree with a rwlock
+In-Reply-To: <20180429203023.GA11891@bombadil.infradead.org>
+References: <20180214182618.14627-1-willy@infradead.org> <20180214182618.14627-3-willy@infradead.org>
+ <CAGXu5jL9hqQGe672CmvFwqNbtTr=qu7WRwHuS4Vy7o5sX_UTgg@mail.gmail.com>
+ <alpine.DEB.2.20.1803072212160.2814@hadrien> <20180308025812.GA9082@bombadil.infradead.org>
+ <alpine.DEB.2.20.1803080722300.3754@hadrien> <20180308230512.GD29073@bombadil.infradead.org>
+ <alpine.DEB.2.20.1803131818550.3117@hadrien> <20180313183220.GA21538@bombadil.infradead.org>
+ <CAGXu5jKLaY2vzeFNaEhZOXbMgDXp4nF4=BnGCFfHFRwL6LXNHA@mail.gmail.com> <20180429203023.GA11891@bombadil.infradead.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 30 Apr 2018 12:02:14 -0700
+Message-ID: <CAGXu5j+N9tt4rxaUMxoZnE-ziqU_yu-jkt-cBZ=R8wmYq6XBTg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: Add kvmalloc_ab_c and kvzalloc_struct
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Julia Lawall <julia.lawall@lip6.fr>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, cocci@systeme.lip6.fr, Himanshu Jha <himanshujha199640@gmail.com>
 
-Hi Laurent,
+On Sun, Apr 29, 2018 at 1:30 PM, Matthew Wilcox <willy@infradead.org> wrote:
+> On Sun, Apr 29, 2018 at 09:59:27AM -0700, Kees Cook wrote:
+>> Did this ever happen?
+>
+> Not yet.  I brought it up at LSFMM, and I'll repost the patches soon.
+>
+>> I'd also like to see kmalloc_array_3d() or
+>> something that takes three size arguments. We have a lot of this
+>> pattern too:
+>>
+>> kmalloc(sizeof(foo) * A * B, gfp...)
+>>
+>> And we could turn that into:
+>>
+>> kmalloc_array_3d(sizeof(foo), A, B, gfp...)
+>
+> Are either of A or B constant?  Because if so, we could just use
+> kmalloc_array.  If not, then kmalloc_array_3d becomes a little more
+> expensive than kmalloc_array because we have to do a divide at runtime
+> instead of compile-time.  that's still better than allocating too few
+> bytes, of course.
 
-One nitpick below.
+Yeah, getting the order of the division is nice. Some thoughts below...
 
-On Tue, Apr 17, 2018 at 3:33 PM, Laurent Dufour
-<ldufour@linux.vnet.ibm.com> wrote:
-> This change is inspired by the Peter's proposal patch [1] which was
-> protecting the VMA using SRCU. Unfortunately, SRCU is not scaling well in
-> that particular case, and it is introducing major performance degradation
-> due to excessive scheduling operations.
 >
-> To allow access to the mm_rb tree without grabbing the mmap_sem, this patch
-> is protecting it access using a rwlock.  As the mm_rb tree is a O(log n)
-> search it is safe to protect it using such a lock.  The VMA cache is not
-> protected by the new rwlock and it should not be used without holding the
-> mmap_sem.
->
-> To allow the picked VMA structure to be used once the rwlock is released, a
-> use count is added to the VMA structure. When the VMA is allocated it is
-> set to 1.  Each time the VMA is picked with the rwlock held its use count
-> is incremented. Each time the VMA is released it is decremented. When the
-> use count hits zero, this means that the VMA is no more used and should be
-> freed.
->
-> This patch is preparing for 2 kind of VMA access :
->  - as usual, under the control of the mmap_sem,
->  - without holding the mmap_sem for the speculative page fault handler.
->
-> Access done under the control the mmap_sem doesn't require to grab the
-> rwlock to protect read access to the mm_rb tree, but access in write must
-> be done under the protection of the rwlock too. This affects inserting and
-> removing of elements in the RB tree.
->
-> The patch is introducing 2 new functions:
->  - vma_get() to find a VMA based on an address by holding the new rwlock.
->  - vma_put() to release the VMA when its no more used.
-> These services are designed to be used when access are made to the RB tree
-> without holding the mmap_sem.
->
-> When a VMA is removed from the RB tree, its vma->vm_rb field is cleared and
-> we rely on the WMB done when releasing the rwlock to serialize the write
-> with the RMB done in a later patch to check for the VMA's validity.
->
-> When free_vma is called, the file associated with the VMA is closed
-> immediately, but the policy and the file structure remained in used until
-> the VMA's use count reach 0, which may happens later when exiting an
-> in progress speculative page fault.
->
-> [1] https://patchwork.kernel.org/patch/5108281/
->
-> Cc: Peter Zijlstra (Intel) <peterz@infradead.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> ---
->  include/linux/mm.h       |   1 +
->  include/linux/mm_types.h |   4 ++
->  kernel/fork.c            |   3 ++
->  mm/init-mm.c             |   3 ++
->  mm/internal.h            |   6 +++
->  mm/mmap.c                | 115 +++++++++++++++++++++++++++++++++++------------
->  6 files changed, 104 insertions(+), 28 deletions(-)
->
+> I'm wondering how far down the abc + ab + ac + bc + d rabbit-hole we're
+> going to end up going.  As far as we have to, I guess.
 
-[...]
+Well, the common patterns I've seen so far are:
 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 5601f1ef8bb9..a82950960f2e 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -160,6 +160,27 @@ void unlink_file_vma(struct vm_area_struct *vma)
->         }
->  }
->
-> +static void __free_vma(struct vm_area_struct *vma)
-> +{
-> +       if (vma->vm_file)
-> +               fput(vma->vm_file);
-> +       mpol_put(vma_policy(vma));
-> +       kmem_cache_free(vm_area_cachep, vma);
-> +}
-> +
-> +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-> +void put_vma(struct vm_area_struct *vma)
-> +{
-> +       if (atomic_dec_and_test(&vma->vm_ref_count))
-> +               __free_vma(vma);
-> +}
-> +#else
-> +static inline void put_vma(struct vm_area_struct *vma)
-> +{
-> +       return __free_vma(vma);
+a
+ab
+abc
+a + bc
+ab + cd
 
-Please drop the "return".
+For any longer multiplications, I've only found[1]:
 
-Thanks,
-Punit
+drivers/staging/rtl8188eu/os_dep/osdep_service.c:       void **a =
+kzalloc(h * sizeof(void *) + h * w * size, GFP_KERNEL);
 
-[...]
+
+At the end of the day, though, I don't really like having all these
+different names...
+
+kmalloc(), kmalloc_array(), kmalloc_ab_c(), kmalloc_array_3d()
+
+with their "matching" zeroing function:
+
+kzalloc(), kcalloc(), kzalloc_ab_c(), kmalloc_array_3d(..., gfp | __GFP_ZERO)
+
+For the multiplication cases, I wonder if we could just have:
+
+kmalloc_multN(gfp, a, b, c, ...)
+kzalloc_multN(gfp, a, b, c, ...)
+
+and we can replace all kcalloc() users with kzalloc_mult2(), all
+kmalloc_array() users with kmalloc_mult2(), the abc uses with
+kmalloc_mult3().
+
+That said, I *do* like kmalloc_struct() as it's a very common pattern...
+
+Or maybe, just leave the pattern in the name? kmalloc_ab(),
+kmalloc_abc(), kmalloc_ab_c(), kmalloc_ab_cd() ?
+
+Getting the constant ordering right could be part of the macro
+definition, maybe? i.e.:
+
+static inline void *kmalloc_ab(size_t a, size_t b, gfp_t flags)
+{
+    if (__builtin_constant_p(a) && a != 0 && \
+        b > SIZE_MAX / a)
+            return NULL;
+    else if (__builtin_constant_p(b) && b != 0 && \
+               a > SIZE_MAX / b)
+            return NULL;
+
+    return kmalloc(a * b, flags);
+}
+
+(I just wish C had a sensible way to catch overflow...)
+
+-Kees
+
+[1] git grep -E 'alloc\([^,]+[^(]\*[^)][^,]+[^(]\*[^)][^,]+[^(]\*[^)][^,]+,'
+
+-- 
+Kees Cook
+Pixel Security
