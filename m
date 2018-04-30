@@ -1,53 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9409E6B0005
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 19:27:01 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id f19-v6so6855422pgv.4
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 16:27:01 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B3CA6B0005
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 19:40:03 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s8-v6so6873225pgf.0
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 16:40:03 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z3si8565496pfm.151.2018.04.30.16.27.00
+        by mx.google.com with ESMTPS id q62-v6si6772120pgq.297.2018.04.30.16.40.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Apr 2018 16:27:00 -0700 (PDT)
-Date: Mon, 30 Apr 2018 16:26:58 -0700
+        Mon, 30 Apr 2018 16:40:02 -0700 (PDT)
+Date: Mon, 30 Apr 2018 16:40:00 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: access to uninitialized struct page
-Message-Id: <20180430162658.598dd5dcdd0c67e36953281c@linux-foundation.org>
-In-Reply-To: <20180426202619.2768-1-pasha.tatashin@oracle.com>
-References: <20180426202619.2768-1-pasha.tatashin@oracle.com>
+Subject: Re: [RFC v5 PATCH] mm: shmem: make stat.st_blksize return huge page
+ size if THP is on
+Message-Id: <20180430164000.00f92084ecb1876e481c6a11@linux-foundation.org>
+In-Reply-To: <1524665633-83806-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1524665633-83806-1-git-send-email-yang.shi@linux.alibaba.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, tglx@linutronix.de, mhocko@suse.com, linux-mm@kvack.org, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, rostedt@goodmis.org, fengguang.wu@intel.com, dennisszhou@gmail.com
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joe Perches <joe@perches.com>
 
-On Thu, 26 Apr 2018 16:26:19 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+On Wed, 25 Apr 2018 22:13:53 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
 
-> The following two bugs were reported by Fengguang Wu:
+> Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
+> filesystem with huge page support anymore. tmpfs can use huge page via
+> THP when mounting by "huge=" mount option.
 > 
-> kernel reboot-without-warning in early-boot stage, last printk:
-> early console in setup code
+> When applications use huge page on hugetlbfs, it just need check the
+> filesystem magic number, but it is not enough for tmpfs. Make
+> stat.st_blksize return huge page size if it is mounted by appropriate
+> "huge=" option to give applications a hint to optimize the behavior with
+> THP.
 > 
-> http://lkml.kernel.org/r/20180418135300.inazvpxjxowogyge@wfg-t540p.sh.intel.com
+> Some applications may not do wisely with THP. For example, QEMU may mmap
+> file on non huge page aligned hint address with MAP_FIXED, which results
+> in no pages are PMD mapped even though THP is used. Some applications
+> may mmap file with non huge page aligned offset. Both behaviors make THP
+> pointless.
+> 
+> statfs.f_bsize still returns 4KB for tmpfs since THP could be split, and it
+> also may fallback to 4KB page silently if there is not enough huge page.
+> Furthermore, different f_bsize makes max_blocks and free_blocks
+> calculation harder but without too much benefit. Returning huge page
+> size via stat.st_blksize sounds good enough.
+> 
+> Since PUD size huge page for THP has not been supported, now it just
+> returns HPAGE_PMD_SIZE.
 > 
 > ...
 >
-> --- a/init/main.c
-> +++ b/init/main.c
-> @@ -585,8 +585,8 @@ asmlinkage __visible void __init start_kernel(void)
->  	setup_log_buf(0);
->  	vfs_caches_init_early();
->  	sort_main_extable();
-> -	trap_init();
->  	mm_init();
-> +	trap_init();
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -571,6 +571,16 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
+>  }
+>  #endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
 >  
->  	ftrace_init();
+> +static inline bool is_huge_enabled(struct shmem_sb_info *sbinfo)
+> +{
+> +	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
+> +	    (shmem_huge == SHMEM_HUGE_FORCE || sbinfo->huge) &&
+> +	    shmem_huge != SHMEM_HUGE_DENY)
+> +		return true;
+> +	else
+> +		return false;
+> +}
 
-Gulp.  Let's hope that nothing in mm_init() requires that trap_init()
-has been run.  What happens if something goes wrong during mm_init()
-and the architecture attempts to raise a software exception, hits a bus
-error, div-by-zero, etc, etc?  Might there be hard-to-discover
-dependencies in such a case?
+Nit: we don't need that `else'.  Checkpatch normally warns about this,
+but not in this case.
+
+--- a/mm/shmem.c~mm-shmem-make-statst_blksize-return-huge-page-size-if-thp-is-on-fix
++++ a/mm/shmem.c
+@@ -577,8 +577,7 @@ static inline bool is_huge_enabled(struc
+ 	    (shmem_huge == SHMEM_HUGE_FORCE || sbinfo->huge) &&
+ 	    shmem_huge != SHMEM_HUGE_DENY)
+ 		return true;
+-	else
+-		return false;
++	return false;
+ }
+ 
+ /*
+_
