@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AAD646B000D
+	by kanga.kvack.org (Postfix) with ESMTP id B5B456B0011
 	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 16:23:13 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x23so1052226pfm.7
+Received: by mail-pf0-f197.google.com with SMTP id j18so8505449pfn.17
         for <linux-mm@kvack.org>; Mon, 30 Apr 2018 13:23:13 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m4-v6si8006053plt.561.2018.04.30.13.23.11
+        by mx.google.com with ESMTPS id 126-v6si2188895pgc.535.2018.04.30.13.23.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 30 Apr 2018 13:23:11 -0700 (PDT)
+        Mon, 30 Apr 2018 13:23:12 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 00/16] Rearrange struct page
-Date: Mon, 30 Apr 2018 13:22:31 -0700
-Message-Id: <20180430202247.25220-1-willy@infradead.org>
+Subject: [PATCH v4 05/16] mm: Move 'private' union within struct page
+Date: Mon, 30 Apr 2018 13:22:36 -0700
+Message-Id: <20180430202247.25220-6-willy@infradead.org>
+In-Reply-To: <20180430202247.25220-1-willy@infradead.org>
+References: <20180430202247.25220-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -20,63 +22,121 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundatio
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-As presented at LSFMM last week, this patch-set rearranges struct page
-to give more usable space to users who have allocated a struct page for
-their own purposes.  For a graphical view of before-and-after, see the first
-two tabs of https://docs.google.com/spreadsheets/d/1tvCszs_7FXrjei9_mtFiKV6nW1FLnYyvPvW-qNZhdog/edit?usp=sharing
+By moving page->private to the fourth word of struct page, we can put
+the SLUB counters in the same word as SLAB's s_mem and still do the
+cmpxchg_double trick.  Now the SLUB counters no longer overlap with the
+mapcount or refcount so we can drop the call to page_mapcount_reset().
 
-Highlights:
- - slub's counters no longer share space with _refcount.
- - slub's freelist+counters are now naturally dword aligned.
- - It's now more obvious what fields in struct page are used by which
-   owners (some owners still take advantage of the union aliasing).
- - deferred_list now really exists in struct page instead of just a
-   comment.
- - slub loses a parameter to a lot of functions.
- - Several hidden uses of struct page are now documented in code.
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/mm_types.h | 56 ++++++++++++++++++----------------------
+ mm/slub.c                |  1 -
+ 2 files changed, 25 insertions(+), 32 deletions(-)
 
-Changes v3 -> v4:
-
- - Added acks/reviews from Kirill & Randy
- - Removed call to page_mapcount_reset from slub since it no longer uses
-   mapcount union.
- - Add pt_mm and hmm_data to struct page
-
-Matthew Wilcox (16):
-  s390: Use _refcount for pgtables
-  mm: Split page_type out from _mapcount
-  mm: Mark pages in use for page tables
-  mm: Switch s_mem and slab_cache in struct page
-  mm: Move 'private' union within struct page
-  mm: Move _refcount out of struct page union
-  slub: Remove page->counters
-  mm: Combine first three unions in struct page
-  mm: Use page->deferred_list
-  mm: Move lru union within struct page
-  mm: Combine first two unions in struct page
-  mm: Improve struct page documentation
-  mm: Add pt_mm to struct page
-  mm: Add hmm_data to struct page
-  slab,slub: Remove rcu_head size checks
-  slub: Remove kmem_cache->reserved
-
- arch/s390/mm/pgalloc.c                 |  21 ++-
- arch/x86/mm/pgtable.c                  |   5 +-
- fs/proc/page.c                         |   2 +
- include/linux/hmm.h                    |   8 +-
- include/linux/mm.h                     |   2 +
- include/linux/mm_types.h               | 218 ++++++++++++-------------
- include/linux/page-flags.h             |  51 +++---
- include/linux/slub_def.h               |   1 -
- include/uapi/linux/kernel-page-flags.h |   2 +-
- kernel/crash_core.c                    |   1 +
- mm/huge_memory.c                       |   7 +-
- mm/page_alloc.c                        |  17 +-
- mm/slab.c                              |   2 -
- mm/slub.c                              | 138 ++++++----------
- scripts/tags.sh                        |   6 +-
- tools/vm/page-types.c                  |   1 +
- 16 files changed, 222 insertions(+), 260 deletions(-)
-
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index e97a310a6abe..23378a789af4 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -65,15 +65,9 @@ struct hmm;
+  */
+ #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
+ #define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
+-#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE)
+-#define _slub_counter_t		unsigned long
+ #else
+-#define _slub_counter_t		unsigned int
+-#endif
+-#else /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
+ #define _struct_page_alignment
+-#define _slub_counter_t		unsigned int
+-#endif /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
++#endif
+ 
+ struct page {
+ 	/* First double word block */
+@@ -95,6 +89,30 @@ struct page {
+ 		/* page_deferred_list().prev	-- second tail page */
+ 	};
+ 
++	union {
++		/*
++		 * Mapping-private opaque data:
++		 * Usually used for buffer_heads if PagePrivate
++		 * Used for swp_entry_t if PageSwapCache
++		 * Indicates order in the buddy system if PageBuddy
++		 */
++		unsigned long private;
++#if USE_SPLIT_PTE_PTLOCKS
++#if ALLOC_SPLIT_PTLOCKS
++		spinlock_t *ptl;
++#else
++		spinlock_t ptl;
++#endif
++#endif
++		void *s_mem;			/* slab first object */
++		unsigned long counters;		/* SLUB */
++		struct {			/* SLUB */
++			unsigned inuse:16;
++			unsigned objects:15;
++			unsigned frozen:1;
++		};
++	};
++
+ 	union {
+ 		/*
+ 		 * If the page is neither PageSlab nor mappable to userspace,
+@@ -104,13 +122,7 @@ struct page {
+ 		 */
+ 		unsigned int page_type;
+ 
+-		_slub_counter_t counters;
+ 		unsigned int active;		/* SLAB */
+-		struct {			/* SLUB */
+-			unsigned inuse:16;
+-			unsigned objects:15;
+-			unsigned frozen:1;
+-		};
+ 		int units;			/* SLOB */
+ 
+ 		struct {			/* Page cache */
+@@ -179,24 +191,6 @@ struct page {
+ #endif
+ 	};
+ 
+-	union {
+-		/*
+-		 * Mapping-private opaque data:
+-		 * Usually used for buffer_heads if PagePrivate
+-		 * Used for swp_entry_t if PageSwapCache
+-		 * Indicates order in the buddy system if PageBuddy
+-		 */
+-		unsigned long private;
+-#if USE_SPLIT_PTE_PTLOCKS
+-#if ALLOC_SPLIT_PTLOCKS
+-		spinlock_t *ptl;
+-#else
+-		spinlock_t ptl;
+-#endif
+-#endif
+-		void *s_mem;			/* slab first object */
+-	};
+-
+ #ifdef CONFIG_MEMCG
+ 	struct mem_cgroup *mem_cgroup;
+ #endif
+diff --git a/mm/slub.c b/mm/slub.c
+index 7fc13c46e975..0b4b58740ed8 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1689,7 +1689,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 	__ClearPageSlabPfmemalloc(page);
+ 	__ClearPageSlab(page);
+ 
+-	page_mapcount_reset(page);
+ 	page->mapping = NULL;
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += pages;
 -- 
 2.17.0
