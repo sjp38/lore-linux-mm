@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E1726B0010
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 16:23:15 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id s6-v6so6603815pgn.16
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 13:23:15 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 08C7C6B0011
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 16:23:16 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id y12so410234pfe.8
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 13:23:16 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y3si8308567pfa.181.2018.04.30.13.23.14
+        by mx.google.com with ESMTPS id t4-v6si1595481pgr.690.2018.04.30.13.23.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Mon, 30 Apr 2018 13:23:14 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 08/16] mm: Combine first three unions in struct page
-Date: Mon, 30 Apr 2018 13:22:39 -0700
-Message-Id: <20180430202247.25220-9-willy@infradead.org>
+Subject: [PATCH v4 09/16] mm: Use page->deferred_list
+Date: Mon, 30 Apr 2018 13:22:40 -0700
+Message-Id: <20180430202247.25220-10-willy@infradead.org>
 In-Reply-To: <20180430202247.25220-1-willy@infradead.org>
 References: <20180430202247.25220-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,100 +22,47 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundatio
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-By combining these three one-word unions into one three-word union,
-we make it easier for users to add their own multi-word fields to struct
-page, as well as making it obvious that SLUB needs to keep its double-word
-alignment for its freelist & counters.
-
-No field moves position; verified with pahole.
+Now that we can represent the location of 'deferred_list' in C instead
+of comments, make use of that ability.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm_types.h | 65 ++++++++++++++++++++--------------------
- 1 file changed, 32 insertions(+), 33 deletions(-)
+ mm/huge_memory.c | 7 ++-----
+ mm/page_alloc.c  | 2 +-
+ 2 files changed, 3 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 04d9dc442029..f0ccb699641d 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -70,45 +70,44 @@ struct hmm;
- #endif
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a3a1815f8e11..cb0954a6de88 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -483,11 +483,8 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
  
- struct page {
--	/* First double word block */
- 	unsigned long flags;		/* Atomic flags, some possibly
- 					 * updated asynchronously */
--	union {
--		/* See page-flags.h for the definition of PAGE_MAPPING_FLAGS */
--		struct address_space *mapping;
--
--		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
-+	union {		/* This union is three words (12/24 bytes) in size */
-+		struct {	/* Page cache and anonymous pages */
-+			/* See page-flags.h for PAGE_MAPPING_FLAGS */
-+			struct address_space *mapping;
-+			pgoff_t index;		/* Our offset within mapping. */
-+			/**
-+			 * @private: Mapping-private opaque data.
-+			 * Usually used for buffer_heads if PagePrivate.
-+			 * Used for swp_entry_t if PageSwapCache.
-+			 * Indicates order in the buddy system if PageBuddy.
-+			 */
-+			unsigned long private;
-+		};
-+		struct {	/* slab, slob and slub */
-+			struct kmem_cache *slab_cache;	/* (slub) */
-+			void *freelist;		/* first free object (slub) */
-+			void *s_mem;		/* first object */
-+		};
-+		struct {	/* slub */
-+			struct kmem_cache *slub_cache;	/* shared with slab */
-+			/* Double-word boundary */
-+			void *slub_freelist;		/* shared with slab */
-+			unsigned inuse:16;
-+			unsigned objects:15;
-+			unsigned frozen:1;
-+		};
- 		atomic_t compound_mapcount;	/* first tail page */
--		/* page_deferred_list().next	 -- second tail page */
--	};
--
--	/* Second double word */
--	union {
--		pgoff_t index;		/* Our offset within mapping. */
--		void *freelist;		/* sl[aou]b first free object */
--		/* page_deferred_list().prev	-- second tail page */
--	};
--
--	union {
--		/*
--		 * Mapping-private opaque data:
--		 * Usually used for buffer_heads if PagePrivate
--		 * Used for swp_entry_t if PageSwapCache
--		 * Indicates order in the buddy system if PageBuddy
--		 */
--		unsigned long private;
--#if USE_SPLIT_PTE_PTLOCKS
-+		struct list_head deferred_list; /* second tail page */
-+		struct {	/* Page table pages */
-+			unsigned long _pt_pad_2;	/* mapping */
-+			unsigned long _pt_pad_3;
- #if ALLOC_SPLIT_PTLOCKS
--		spinlock_t *ptl;
-+			spinlock_t *ptl;
- #else
--		spinlock_t ptl;
--#endif
-+			spinlock_t ptl;
- #endif
--		void *s_mem;			/* slab first object */
--		struct {			/* SLUB */
--			unsigned inuse:16;
--			unsigned objects:15;
--			unsigned frozen:1;
- 		};
- 	};
+ static inline struct list_head *page_deferred_list(struct page *page)
+ {
+-	/*
+-	 * ->lru in the tail pages is occupied by compound_head.
+-	 * Let's use ->mapping + ->index in the second tail page as list_head.
+-	 */
+-	return (struct list_head *)&page[2].mapping;
++	/* ->lru in the tail pages is occupied by compound_head. */
++	return &page[2].deferred_list;
+ }
  
+ void prep_transhuge_page(struct page *page)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 88e817d7ccef..18720eccbce1 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -953,7 +953,7 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
+ 	case 2:
+ 		/*
+ 		 * the second tail page: ->mapping is
+-		 * page_deferred_list().next -- ignore value.
++		 * deferred_list.next -- ignore value.
+ 		 */
+ 		break;
+ 	default:
 -- 
 2.17.0
