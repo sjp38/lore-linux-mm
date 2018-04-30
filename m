@@ -1,81 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 28B476B000A
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 14:00:28 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id e2-v6so3496299oii.20
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 11:00:28 -0700 (PDT)
-Received: from g9t5009.houston.hpe.com (g9t5009.houston.hpe.com. [15.241.48.73])
-        by mx.google.com with ESMTPS id e124-v6si2747078oib.44.2018.04.30.11.00.26
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 38D806B0005
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 14:28:19 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id h10-v6so6769685ybm.12
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 11:28:19 -0700 (PDT)
+Received: from mail.stoffel.org (mail.stoffel.org. [104.236.43.127])
+        by mx.google.com with ESMTPS id x12si3347097uac.249.2018.04.30.11.28.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Apr 2018 11:00:27 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH 3/3] x86/mm: disable ioremap free page handling on x86-PAE
-Date: Mon, 30 Apr 2018 11:59:25 -0600
-Message-Id: <20180430175925.2657-4-toshi.kani@hpe.com>
-In-Reply-To: <20180430175925.2657-1-toshi.kani@hpe.com>
-References: <20180430175925.2657-1-toshi.kani@hpe.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 30 Apr 2018 11:28:17 -0700 (PDT)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <23271.24580.695738.853532@quad.stoffel.home>
+Date: Mon, 30 Apr 2018 14:27:16 -0400
+From: "John Stoffel" <john@stoffel.org>
+Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc
+ fallback options
+In-Reply-To: <alpine.LRH.2.02.1804261726540.13401@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20180421144757.GC14610@bombadil.infradead.org>
+	<20180424162906.GM17484@dhcp22.suse.cz>
+	<alpine.LRH.2.02.1804241250350.28995@file01.intranet.prod.int.rdu2.redhat.com>
+	<20180424170349.GQ17484@dhcp22.suse.cz>
+	<alpine.LRH.2.02.1804241319390.28995@file01.intranet.prod.int.rdu2.redhat.com>
+	<20180424173836.GR17484@dhcp22.suse.cz>
+	<alpine.LRH.2.02.1804251556060.30569@file01.intranet.prod.int.rdu2.redhat.com>
+	<1114eda5-9b1f-4db8-2090-556b4a37c532@infradead.org>
+	<alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com>
+	<alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com>
+	<alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com>
+	<1524694663.4100.21.camel@HansenPartnership.com>
+	<alpine.LRH.2.02.1804251857070.31135@file01.intranet.prod.int.rdu2.redhat.com>
+	<1524697697.4100.23.camel@HansenPartnership.com>
+	<23266.8532.619051.784274@quad.stoffel.home>
+	<alpine.LRH.2.02.1804261726540.13401@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
-Cc: cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, Joerg Roedel <joro@8bytes.org>, stable@vger.kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: John Stoffel <john@stoffel.org>, Andrew@stoffel.org, eric.dumazet@gmail.com, mst@redhat.com, edumazet@google.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Hocko <mhocko@kernel.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Michal@stoffel.org, dm-devel@redhat.com, David Miller <davem@davemloft.net>, David Rientjes <rientjes@google.com>, Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-ioremap() supports pmd mappings on x86-PAE.  However, kernel's pmd
-tables are not shared among processes on x86-PAE.  Therefore, any
-update to sync'd pmd entries need re-syncing.  Freeing a pte page
-also leads to a vmalloc fault and hits the BUG_ON in vmalloc_sync_one().
+>>>>> "Mikulas" == Mikulas Patocka <mpatocka@redhat.com> writes:
 
-Disable free page handling on x86-PAE.  pud_free_pmd_page() and
-pmd_free_pte_page() simply return 0 if a given pud/pmd entry is present.
-This assures that ioremap() does not update sync'd pmd entries at the
-cost of falling back to pte mappings.
+Mikulas> On Thu, 26 Apr 2018, John Stoffel wrote:
 
-Fixes: 28ee90fe6048 ("x86/mm: implement free pmd/pte page interfaces")
-Reported-by: Joerg Roedel <joro@8bytes.org>
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Joerg Roedel <joro@8bytes.org>
-Cc: <stable@vger.kernel.org>
----
- arch/x86/mm/pgtable.c |   19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+>> >>>>> "James" == James Bottomley <James.Bottomley@HansenPartnership.com> writes:
+>> 
+James> I may be an atypical developer but I'd rather have a root canal
+James> than browse through menuconfig options.  The way to get people
+James> to learn about new debugging options is to blog about it (or
+James> write an lwn.net article) which google will find the next time
+James> I ask it how I debug XXX.  Google (probably as a service to
+James> humanity) rarely turns up Kconfig options in response to a
+James> query.
+>> 
+>> I agree with James here.  Looking at the SLAB vs SLUB Kconfig entries
+>> tells me *nothing* about why I should pick one or the other, as an
+>> example.
+>> 
+>> John
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 816fd41ee854..809115150d8b 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -715,6 +715,7 @@ int pmd_clear_huge(pmd_t *pmd)
- 	return 0;
- }
- 
-+#ifdef CONFIG_X86_64
- /**
-  * pud_free_pmd_page - Clear pud entry and free pmd page.
-  * @pud: Pointer to a PUD.
-@@ -784,4 +785,22 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
- 
- 	return 1;
- }
-+
-+#else /* !CONFIG_X86_64 */
-+
-+int pud_free_pmd_page(pud_t *pud, unsigned long addr)
-+{
-+	return pud_none(*pud);
-+}
-+
-+/*
-+ * Disable free page handling on x86-PAE. This assures that ioremap()
-+ * does not update sync'd pmd entries. See vmalloc_sync_one().
-+ */
-+int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
-+{
-+	return pmd_none(*pmd);
-+}
-+
-+#endif /* CONFIG_X86_64 */
- #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+Mikulas> I see your point - and I think the misunderstanding is this.
+
+Thanks.
+
+Mikulas> This patch is not really helping people to debug existing crashes. It is 
+Mikulas> not like "you get a crash" - "you google for some keywords" - "you get a 
+Mikulas> page that suggests to turn this option on" - "you turn it on and solve the 
+Mikulas> crash".
+
+Mikulas> What this patch really does is that - it makes the kernel deliberately 
+Mikulas> crash in a situation when the code violates the specification, but it 
+Mikulas> would not crash otherwise or it would crash very rarely. It helps to 
+Mikulas> detect specification violations.
+
+Mikulas> If the kernel developer (or tester) doesn't use this option, his buggy 
+Mikulas> code won't crash - and if it won't crash, he won't fix the bug or report 
+Mikulas> it. How is the user or developer supposed to learn about this option, if 
+Mikulas> he gets no crash at all?
+
+So why do we make this a KConfig option at all?  Just turn it on and
+let it rip.  Now I also think that Linus has the right idea to not
+just sprinkle BUG_ONs into the code, just dump and oops and keep going
+if you can.  If it's a filesystem or a device, turn it read only so
+that people notice right away.
