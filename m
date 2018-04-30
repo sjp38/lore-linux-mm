@@ -1,100 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F6EE6B0007
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 18:41:36 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 127-v6so6783111pge.10
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 15:41:36 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id x9-v6si8455087plv.159.2018.04.30.15.41.34
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C17A36B0005
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 18:52:10 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a1so3226747pfn.11
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 15:52:10 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a16-v6si6941530pgn.39.2018.04.30.15.52.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 30 Apr 2018 15:41:35 -0700 (PDT)
-Date: Mon, 30 Apr 2018 15:41:33 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 2/2] mm: Add kvmalloc_ab_c and kvzalloc_struct
-Message-ID: <20180430224133.GA7076@bombadil.infradead.org>
-References: <20180308025812.GA9082@bombadil.infradead.org>
- <alpine.DEB.2.20.1803080722300.3754@hadrien>
- <20180308230512.GD29073@bombadil.infradead.org>
- <alpine.DEB.2.20.1803131818550.3117@hadrien>
- <20180313183220.GA21538@bombadil.infradead.org>
- <CAGXu5jKLaY2vzeFNaEhZOXbMgDXp4nF4=BnGCFfHFRwL6LXNHA@mail.gmail.com>
- <20180429203023.GA11891@bombadil.infradead.org>
- <CAGXu5j+N9tt4rxaUMxoZnE-ziqU_yu-jkt-cBZ=R8wmYq6XBTg@mail.gmail.com>
- <20180430201607.GA7041@bombadil.infradead.org>
- <4ad99a55-9c93-5ea1-5954-3cb6e5ba7df9@rasmusvillemoes.dk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4ad99a55-9c93-5ea1-5954-3cb6e5ba7df9@rasmusvillemoes.dk>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Apr 2018 15:52:09 -0700 (PDT)
+Date: Mon, 30 Apr 2018 15:52:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: vmalloc: Clean up vunmap to avoid pgtable ops
+ twice
+Message-Id: <20180430155207.35a3dd94c31503c7a6268a8f@linux-foundation.org>
+In-Reply-To: <1523876342-10545-1-git-send-email-cpandya@codeaurora.org>
+References: <1523876342-10545-1-git-send-email-cpandya@codeaurora.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Kees Cook <keescook@chromium.org>, Julia Lawall <julia.lawall@lip6.fr>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, cocci@systeme.lip6.fr, Himanshu Jha <himanshujha199640@gmail.com>
+To: Chintan Pandya <cpandya@codeaurora.org>
+Cc: vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Apr 30, 2018 at 11:29:04PM +0200, Rasmus Villemoes wrote:
-> On 2018-04-30 22:16, Matthew Wilcox wrote:
-> > On Mon, Apr 30, 2018 at 12:02:14PM -0700, Kees Cook wrote:
-> >> (I just wish C had a sensible way to catch overflow...)
-> > 
-> > Every CPU I ever worked with had an "overflow" bit ... do we have a
-> > friend on the C standards ctte who might figure out a way to let us
-> > write code that checks it?
+On Mon, 16 Apr 2018 16:29:02 +0530 Chintan Pandya <cpandya@codeaurora.org> wrote:
+
+> vunmap does page table clear operations twice in the
+> case when DEBUG_PAGEALLOC_ENABLE_DEFAULT is enabled.
 > 
-> gcc 5.1+ (I think) have the __builtin_OP_overflow checks that should
-> generate reasonable code. Too bad there's no completely generic
-> check_all_ops_in_this_expression(a+b*c+d/e, or_jump_here). Though it's
-> hard to define what they should be checked against - probably would
-> require all subexpressions (including the variables themselves) to have
-> the same type.
+> So, clean up the code as that is unintended.
+> 
+> As a perf gain, we save few us. Below ftrace data was
+> obtained while doing 1 MB of vmalloc/vfree on ARM64
+> based SoC *without* this patch applied. After this
+> patch, we can save ~3 us (on 1 extra vunmap_page_range).
+> 
+>   CPU  DURATION                  FUNCTION CALLS
+>   |     |   |                     |   |   |   |
+>  6)               |  __vunmap() {
+>  6)               |    vmap_debug_free_range() {
+>  6)   3.281 us    |      vunmap_page_range();
+>  6) + 45.468 us   |    }
+>  6)   2.760 us    |    vunmap_page_range();
+>  6) ! 505.105 us  |  }
 
-Nevertheless these generate much better code than our current safeguards!
+It's been a long time since I looked at the vmap code :(
 
-extern void *malloc(unsigned long);
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -603,26 +603,6 @@ static void unmap_vmap_area(struct vmap_area *va)
+>  	vunmap_page_range(va->va_start, va->va_end);
+>  }
+>  
+> -static void vmap_debug_free_range(unsigned long start, unsigned long end)
+> -{
+> -	/*
+> -	 * Unmap page tables and force a TLB flush immediately if pagealloc
+> -	 * debugging is enabled.  This catches use after free bugs similarly to
+> -	 * those in linear kernel virtual address space after a page has been
+> -	 * freed.
+> -	 *
+> -	 * All the lazy freeing logic is still retained, in order to minimise
+> -	 * intrusiveness of this debugging feature.
+> -	 *
+> -	 * This is going to be *slow* (linear kernel virtual address debugging
+> -	 * doesn't do a broadcast TLB flush so it is a lot faster).
+> -	 */
+> -	if (debug_pagealloc_enabled()) {
+> -		vunmap_page_range(start, end);
+> -		flush_tlb_kernel_range(start, end);
+> -	}
+> -}
+> -
+>  /*
+>   * lazy_max_pages is the maximum amount of virtual address space we gather up
+>   * before attempting to purge with a TLB flush.
+> @@ -756,6 +736,9 @@ static void free_unmap_vmap_area(struct vmap_area *va)
+>  {
+>  	flush_cache_vunmap(va->va_start, va->va_end);
+>  	unmap_vmap_area(va);
+> +	if (debug_pagealloc_enabled())
+> +		flush_tlb_kernel_range(va->va_start, va->va_end);
+> +
+>  	free_vmap_area_noflush(va);
+>  }
+>  
+> @@ -1142,7 +1125,6 @@ void vm_unmap_ram(const void *mem, unsigned int count)
+>  	BUG_ON(!PAGE_ALIGNED(addr));
+>  
+>  	debug_check_no_locks_freed(mem, size);
+> -	vmap_debug_free_range(addr, addr+size);
 
-#define ULONG_MAX (~0UL)
-#define SZ	8UL
+This appears to be a functional change: if (count <= VMAP_MAX_ALLOC)
+and we're in debug mode then the
+vunmap_page_range/flush_tlb_kernel_range will no longer be performed. 
+Why is this ok?
 
-void *a(unsigned long a)
-{
-	if ((ULONG_MAX / SZ) > a)
-		return 0;
-	return malloc(a * SZ);
-}
-
-void *b(unsigned long a)
-{
-	unsigned long c;
-	if (__builtin_mul_overflow(a, SZ, &c))
-		return 0;
-	return malloc(c);
-}
-
-(a lot of code uses a constant '8' as sizeof(void *)).  Here's the
-difference with gcc 7.3:
-
-   0:   48 b8 fe ff ff ff ff    movabs $0x1ffffffffffffffe,%rax
-   7:   ff ff 1f 
-   a:   48 39 c7                cmp    %rax,%rdi
-   d:   76 09                   jbe    18 <a+0x18>
-   f:   48 c1 e7 03             shl    $0x3,%rdi
-  13:   e9 00 00 00 00          jmpq   18 <a+0x18>
-                        14: R_X86_64_PLT32      malloc-0x4
-  18:   31 c0                   xor    %eax,%eax
-  1a:   c3                      retq   
-
-vs
-
-  20:   48 89 f8                mov    %rdi,%rax
-  23:   ba 08 00 00 00          mov    $0x8,%edx
-  28:   48 f7 e2                mul    %rdx
-  2b:   48 89 c7                mov    %rax,%rdi
-  2e:   70 05                   jo     35 <b+0x15>
-  30:   e9 00 00 00 00          jmpq   35 <b+0x15>
-                        31: R_X86_64_PLT32      malloc-0x4
-  35:   31 c0                   xor    %eax,%eax
-  37:   c3                      retq   
-
-We've traded a shl for a mul (because shl doesn't set Overflow, only
-Carry, and that's only bit 65, not an OR of bits 35-n), but we lose the
-movabs and cmp.  I'd rather run the second code fragment than the first.
+>  	if (likely(count <= VMAP_MAX_ALLOC)) {
+>  		vb_free(mem, size);
+> @@ -1499,7 +1481,6 @@ struct vm_struct *remove_vm_area(const void *addr)
+>  		va->flags |= VM_LAZY_FREE;
+>  		spin_unlock(&vmap_area_lock);
+>  
+> -		vmap_debug_free_range(va->va_start, va->va_end);
+>  		kasan_free_shadow(vm);
+>  		free_unmap_vmap_area(va);
+>  
