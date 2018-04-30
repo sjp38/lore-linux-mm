@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A93C86B0024
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 16:23:17 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id e18-v6so3469713pgt.3
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 13:23:17 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F10A6B0027
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 16:23:18 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id b18-v6so6603105pgv.14
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 13:23:18 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c5-v6si7966966pll.449.2018.04.30.13.23.16
+        by mx.google.com with ESMTPS id m2-v6si6567394pgq.221.2018.04.30.13.23.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 30 Apr 2018 13:23:16 -0700 (PDT)
+        Mon, 30 Apr 2018 13:23:17 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 13/16] mm: Add pt_mm to struct page
-Date: Mon, 30 Apr 2018 13:22:44 -0700
-Message-Id: <20180430202247.25220-14-willy@infradead.org>
+Subject: [PATCH v4 14/16] mm: Add hmm_data to struct page
+Date: Mon, 30 Apr 2018 13:22:45 -0700
+Message-Id: <20180430202247.25220-15-willy@infradead.org>
 In-Reply-To: <20180430202247.25220-1-willy@infradead.org>
 References: <20180430202247.25220-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,47 +22,64 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundatio
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-x86 overloads the page->index field to store a pointer to the mm_struct.
-Rename this to pt_mm so it's visible to other users.
+Make hmm_data an explicit member of the struct page union.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- arch/x86/mm/pgtable.c    | 5 ++---
- include/linux/mm_types.h | 2 +-
- 2 files changed, 3 insertions(+), 4 deletions(-)
+ include/linux/hmm.h      |  8 ++------
+ include/linux/mm_types.h | 14 +++++++++-----
+ 2 files changed, 11 insertions(+), 11 deletions(-)
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index ffc8c13c50e4..938dbcd46b97 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -114,13 +114,12 @@ static inline void pgd_list_del(pgd_t *pgd)
- 
- static void pgd_set_mm(pgd_t *pgd, struct mm_struct *mm)
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 39988924de3a..91c1b2dccbbb 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -522,9 +522,7 @@ void hmm_devmem_remove(struct hmm_devmem *devmem);
+ static inline void hmm_devmem_page_set_drvdata(struct page *page,
+ 					       unsigned long data)
  {
--	BUILD_BUG_ON(sizeof(virt_to_page(pgd)->index) < sizeof(mm));
--	virt_to_page(pgd)->index = (pgoff_t)mm;
-+	virt_to_page(pgd)->pt_mm = mm;
+-	unsigned long *drvdata = (unsigned long *)&page->pgmap;
+-
+-	drvdata[1] = data;
++	page->hmm_data = data;
  }
  
- struct mm_struct *pgd_page_get_mm(struct page *page)
+ /*
+@@ -535,9 +533,7 @@ static inline void hmm_devmem_page_set_drvdata(struct page *page,
+  */
+ static inline unsigned long hmm_devmem_page_get_drvdata(const struct page *page)
  {
--	return (struct mm_struct *)page->index;
-+	return page->pt_mm;
+-	const unsigned long *drvdata = (const unsigned long *)&page->pgmap;
+-
+-	return drvdata[1];
++	return page->hmm_data;
  }
  
- static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
+ 
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index e0e74e91f3e8..0e6117123737 100644
+index 0e6117123737..42619e16047f 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -134,7 +134,7 @@ struct page {
- 			unsigned long _pt_pad_1;	/* compound_head */
- 			pgtable_t pmd_huge_pte; /* protected by page->ptl */
- 			unsigned long _pt_pad_2;	/* mapping */
--			unsigned long _pt_pad_3;
-+			struct mm_struct *pt_mm;
- #if ALLOC_SPLIT_PTLOCKS
- 			spinlock_t *ptl;
- #else
+@@ -145,11 +145,15 @@ struct page {
+ 		/** @rcu_head: You can use this to free a page by RCU. */
+ 		struct rcu_head rcu_head;
+ 
+-		/**
+-		 * @pgmap: For ZONE_DEVICE pages, this points to the hosting
+-		 * device page map.
+-		 */
+-		struct dev_pagemap *pgmap;
++		struct {
++			/**
++			 * @pgmap: For ZONE_DEVICE pages, this points to the
++			 * hosting device page map.
++			 */
++			struct dev_pagemap *pgmap;
++			unsigned long hmm_data;
++			unsigned long _zd_pad_1;	/* uses mapping */
++		};
+ 	};
+ 
+ 	union {		/* This union is 4 bytes in size. */
 -- 
 2.17.0
