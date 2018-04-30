@@ -1,80 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B997A6B0005
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 03:31:12 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z22so7202204pfi.7
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 00:31:12 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id w33-v6si6780403plb.431.2018.04.30.00.31.11
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 319326B0005
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 03:51:21 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b192so3067814wmb.1
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 00:51:21 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d18-v6si1197854edj.187.2018.04.30.00.51.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Apr 2018 00:31:11 -0700 (PDT)
-Subject: Re: [PATCH v2 2/2] x86/mm: implement free pmd/pte page interfaces
-References: <20180314180155.19492-1-toshi.kani@hpe.com>
- <20180314180155.19492-3-toshi.kani@hpe.com>
- <20180426141926.GN15462@8bytes.org> <1524759629.2693.465.camel@hpe.com>
- <20180426172327.GQ15462@8bytes.org> <1524764948.2693.478.camel@hpe.com>
- <20180426200737.GS15462@8bytes.org> <1524781764.2693.503.camel@hpe.com>
- <20180427073719.GT15462@8bytes.org> <1524839460.2693.531.camel@hpe.com>
- <20180428090217.n2l3w4vobmtkvz6k@8bytes.org>
- <1524948829.2693.547.camel@hpe.com>
-From: Chintan Pandya <cpandya@codeaurora.org>
-Message-ID: <c8c5e78a-2cb2-ca46-6521-928b6c0114c6@codeaurora.org>
-Date: Mon, 30 Apr 2018 13:00:59 +0530
+        Mon, 30 Apr 2018 00:51:19 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w3U7iEtA072699
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 03:51:18 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2hnxw10kh7-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 03:51:18 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Mon, 30 Apr 2018 08:51:16 +0100
+Date: Mon, 30 Apr 2018 00:51:06 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH 4/9] x86, pkeys: override pkey when moving away from
+ PROT_EXEC
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <20180326172721.D5B2CBB4@viggo.jf.intel.com>
+ <20180326172727.025EBF16@viggo.jf.intel.com>
+ <20180407000943.GA15890@ram.oc3035372033.ibm.com>
+ <6e3f8e1c-afed-64de-9815-8478e18532aa@intel.com>
+ <20180407010919.GB15890@ram.oc3035372033.ibm.com>
+ <aedcb0b6-73f5-f72f-742e-b417131895d3@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1524948829.2693.547.camel@hpe.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <aedcb0b6-73f5-f72f-742e-b417131895d3@intel.com>
+Message-Id: <20180430075106.GA5666@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kani, Toshi" <toshi.kani@hpe.com>, "joro@8bytes.org" <joro@8bytes.org>
-Cc: "Hocko, Michal" <MHocko@suse.com>, "hpa@zytor.com" <hpa@zytor.com>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "x86@kernel.org" <x86@kernel.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mingo@redhat.com" <mingo@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "bp@suse.de" <bp@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, shakeelb@google.com, stable@kernel.org, tglx@linutronix.de, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
 
-
-
-On 4/29/2018 2:24 AM, Kani, Toshi wrote:
-> On Sat, 2018-04-28 at 11:02 +0200, joro@8bytes.org wrote:
->> On Fri, Apr 27, 2018 at 02:31:51PM +0000, Kani, Toshi wrote:
->>> So, we can add the step 2 on top of this patch.
->>>   1. Clear pud/pmd entry.
->>>   2. System wide TLB flush <-- TO BE ADDED BY NEW PATCH
->>>   3. Free its underlining pmd/pte page.
->>
->> This still lacks the page-table synchronization and will thus not fix
->> the BUG_ON being triggered.
+On Thu, Apr 26, 2018 at 10:57:31AM -0700, Dave Hansen wrote:
+> On 04/06/2018 06:09 PM, Ram Pai wrote:
+> > Well :). my point is add this code and delete the other
+> > code that you add later in that function.
 > 
-> The BUG_ON issue is specific to PAE that it syncs at the pmd level.
-> x86/64 does not have this issue since it syncs at the pgd or p4d level.
+> I don't think I'm understanding what your suggestion was.  I looked at
+> the code and I honestly do not think I can remove any of it.
 > 
->>> We do not need to revert this patch.  We can make the above change I
->>> mentioned.
->>
->> Please note that we are not in the merge window anymore and that any fix
->> needs to be simple and obviously correct.
+> For the plain (non-explicit pkey_mprotect()) case, there are exactly
+> four paths through __arch_override_mprotect_pkey(), resulting in three
+> different results.
 > 
-> Understood.  Changing the x86/32 sync point is risky.  So, I am going to
-> revert the free page handling for PAE.
+> 1. New prot==PROT_EXEC, no pkey-exec support -> do not override
+> 2. New prot!=PROT_EXEC, old VMA not PROT_EXEC-> do not override
+> 3. New prot==PROT_EXEC, w/ pkey-exec support -> override to exec pkey
+> 4. New prot!=PROT_EXEC, old VMA is PROT_EXEC -> override to default
+> 
+> I don't see any redundancy there, or any code that we can eliminate or
+> simplify.  It was simpler before, but that's what where bug was.
 
-Will this affect pmd_free_pte_page() & pud_free_pmd_page() 's existence
-or its parameters ? I'm asking because, I've similar change for arm64
-and ready to send v9 patches.
+Your code is fine.  But than the following code accomplishes the same
+outcome; arguably with a one line change. Its not a big deal. Just
+trying to clarify my comment.
 
-I'm thinking to share my v9 patches in any case. If you are going to do
-TLB invalidation within these APIs, my first patch will help.
+int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey)
+{
+	/*
+	 * Is this an mprotect_pkey() call?  If so, never
+	 * override the value that came from the user.
+	 */
+	if (pkey != -1)
+		return pkey;
+	/*
+	 * Look for a protection-key-drive execute-only mapping
+	 * which is now being given permissions that are not
+	 * execute-only.  Move it back to the default pkey.
+	 */
+	if (vma_is_pkey_exec_only(vma) && (prot != PROT_EXEC)) <--------
+		return ARCH_DEFAULT_PKEY;
 
-> 
-> Thanks,
-> -Toshi
-> 
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
-> 
+	/*
+	 * The mapping is execute-only.  Go try to get the
+	 * execute-only protection key.  If we fail to do that,
+	 * fall through as if we do not have execute-only
+	 * support.
+	 */
+	if (prot == PROT_EXEC) {
+		pkey = execute_only_pkey(vma->vm_mm);
+		if (pkey > 0)
+			return pkey;
+	}
+	/*
+	 * This is a vanilla, non-pkey mprotect (or we failed to
+	 * setup execute-only), inherit the pkey from the VMA we
+	 * are working on.
+	 */
+	return vma_pkey(vma);
+}
 
-Chintan
 -- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, a Linux Foundation
-Collaborative Project
+Ram Pai
