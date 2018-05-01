@@ -1,174 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E1BD66B0003
-	for <linux-mm@kvack.org>; Tue,  1 May 2018 16:15:44 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x23so3673142pfm.7
-        for <linux-mm@kvack.org>; Tue, 01 May 2018 13:15:44 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id h3-v6si8163597pgf.257.2018.05.01.13.15.43
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DD6B6B0003
+	for <linux-mm@kvack.org>; Tue,  1 May 2018 17:31:05 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 127-v6so8802495pge.10
+        for <linux-mm@kvack.org>; Tue, 01 May 2018 14:31:05 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f19-v6sor3742504plj.13.2018.05.01.14.31.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 May 2018 13:15:43 -0700 (PDT)
-Subject: Re: [PATCH v3 00/12] APEI in_nmi() rework and arm64 SDEI wire-up
-References: <20180427153510.5799-1-james.morse@arm.com>
-From: Tyler Baicar <tbaicar@codeaurora.org>
-Message-ID: <6d047f8a-e8e9-7751-f8b1-e132511d590c@codeaurora.org>
-Date: Tue, 1 May 2018 16:15:39 -0400
+        (Google Transport Security);
+        Tue, 01 May 2018 14:31:03 -0700 (PDT)
+Subject: Re: INFO: task hung in wb_shutdown (2)
+References: <94eb2c05b2d83650030568cc8bd9@google.com>
+ <e56c1600-8923-dd6b-d065-c2fd2a720404@I-love.SAKURA.ne.jp>
+ <43302799-1c50-4cab-b974-9fe1ca584813@I-love.SAKURA.ne.jp>
+ <CA+55aFxaa_+uZ=bOVdevcUwG7ncue7O+i06q4Kb=bWACGwCBjQ@mail.gmail.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <bd3e8460-9794-6b57-e7d6-7e18ea34ac0c@kernel.dk>
+Date: Tue, 1 May 2018 15:30:59 -0600
 MIME-Version: 1.0
-In-Reply-To: <20180427153510.5799-1-james.morse@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CA+55aFxaa_+uZ=bOVdevcUwG7ncue7O+i06q4Kb=bWACGwCBjQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org
-Cc: jonathan.zhang@cavium.com, Rafael Wysocki <rjw@rjwysocki.net>, Tony Luck <tony.luck@intel.com>, Christoffer Dall <cdall@kernel.org>, Punit Agrawal <punit.agrawal@arm.com>, Xie XiuQi <xiexiuqi@huawei.com>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Dongjiu Geng <gengdongjiu@huawei.com>, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, Len Brown <lenb@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>, syzbot+c0cf869505e03bdf1a24@syzkaller.appspotmail.com, christophe.jaillet@wanadoo.fr, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com, zhangweiping@didichuxing.com, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-block <linux-block@vger.kernel.org>
 
-Hi James,
+On 5/1/18 10:06 AM, Linus Torvalds wrote:
+> On Tue, May 1, 2018 at 3:27 AM Tetsuo Handa <
+> penguin-kernel@i-love.sakura.ne.jp> wrote:
+> 
+>> Can you review this patch? syzbot has hit this bug for nearly 4000 times
+> but
+>> is still unable to find a reproducer. Therefore, the only way to test
+> would be
+>> to apply this patch upstream and test whether the problem is solved.
+> 
+> Looks ok to me, except:
+> 
+>>>       smp_wmb();
+>>>       clear_bit(WB_shutting_down, &wb->state);
+>>> +     smp_mb(); /* advised by wake_up_bit() */
+>>> +     wake_up_bit(&wb->state, WB_shutting_down);
+> 
+> This whole sequence really should just be a pattern with a helper function.
+> 
+> And honestly, the pattern probably *should* be
+> 
+>      clear_bit_unlock(bit, &mem);
+>      smp_mb__after_atomic()
+>      wake_up_bit(&mem, bit);
+> 
+> which looks like it is a bit cleaner wrt memory ordering rules.
 
-I tested this and verified that the NULL pointer issue that I reported on the 
-initial version is fixed.
-
-I don't currently have a way to test the SDEI parts of this, but for all other 
-patches:
-
-Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
-
-Thanks!
-Tyler
-
-
-On 4/27/2018 11:34 AM, James Morse wrote:
-> The aim of this series is to wire arm64's SDEI into APEI.
->
-> Nothing much has changed since v2, patch 3 is new and the KVM IS_ENABLED()
-> stuff has been cleaned up. Otherwise things are noted in each patch.
->
-> This touches a few trees, so I'm not sure how best it should be merged.
-> Patches 11 and 12 are reducing a race that is made worse by patch 4, I'd
-> like them to arrive together, even though patch 11 doesn't depend on anything
-> else in the series. (patches 11&12 could be moved to after 8 if that makes
-> things easier)
->
->
-> The earlier boiler-plate:
->
-> What's SDEI? Its ARM's "Software Delegated Exception Interface" [0]. It's
-> used by firmware to tell the OS about firmware-first RAS events.
->
-> These Software exceptions can interrupt anything, so I describe them as
-> NMI-like. They aren't the only NMI-like way to notify the OS about
-> firmware-first RAS events, the ACPI spec also defines 'NOTFIY_SEA' and
-> 'NOTIFY_SEI'.
->
-> (Acronyms: SEA, Synchronous External Abort. The CPU requested some memory,
-> but the owner of that memory said no. These are always synchronous with the
-> instruction that caused them. SEI, System-Error Interrupt, commonly called
-> SError. This is an asynchronous external abort, the memory-owner didn't say no
-> at the right point. Collectively these things are called external-aborts
-> How is firmware involved? It traps these and re-injects them into the kernel
-> once its written the CPER records).
->
->
-> APEI's GHES code only expects one source of NMI. If a platform implements
-> more than one of these mechanisms, APEI needs to handle the interaction.
-> 'SEA' and 'SEI' can interact as 'SEI' is asynchronous. SDEI can interact
-> with itself: its exceptions can be 'normal' or 'critical', and firmware
-> could use both types for RAS. (errors using normal, 'panic-now' using
-> critical).
->
-> What does this series do?
-> Patches 1-4 refactor APEIs 'estatus queue' so it can be used for all
-> NMI-like notifications. This defers the NMI work to irq_work, which will
-> happen when we next unmask interrupts.
->
-> Patches 5&6 move the arch and KVM code around so that NMI-like notifications
-> are always called in_nmi().
->
-> Patch 7 changes the 'irq or nmi?' path through ghes_copy_tofrom_phys()
-> to be per-ghes. When called in_nmi(), the struct ghes is expected to
-> provide a fixmap slot and lock that is safe to use. NMI-like notifications
-> that mask each other can share these resources. Those that interact should
-> have their own fixmap slot and lock.
->
-> Patch 8 renames NOTIFY_SEA's use of NOTIFY_NMI's infrastructure, as we're
-> about to have multiple NMI-like users that can't share resources.
->
-> Pathes 9&10 add the SDEI helper, and notify methods for APEI.
->
-> After this, adding further firmware-first pieces for arm64 is simple
-> (and safe), and all our NMI-like notifications behave the same as x86's
-> NOTIFY_NMI.
->
-> All of this makes the race between memory_failure_queue() and
-> ret_to_user worse, as there is now always irq_work involved.
->
-> Patch 11 makes the reschedule to memory_failure() run as soon as possible.
-> Patch 12 makes sure the arch code knows whether the irq_work has run by
-> the time do_sea() returns. We can skip the signalling step if it has as
-> APEI has done its work.
->
->
-> ghes.c became clearer to me when I worked out that it has three sets of
-> functions with 'estatus' in the name. One is a pool of memory that can be
-> allocated-from atomically. This is grown/shrunk when new NMI users are
-> allocated.
-> The second is the estatus-cache, which holds recent notifications so it
-> can suppress notifications we've already handled.
-> The last it the estatus-queue, which holds data from NMI-like notifications
-> (in pool memory) to be processed from irq_work.
->
->
-> Testing?
-> Tested with the SDEI FVP based software model and a mocked up NOTFIY_SEA using
-> KVM. I've added a case where 'corrected errors' are discovered at probe time
-> to exercise ghes_probe() during boot. I've only build tested this on x86.
->
->
-> Thanks,
->
-> James
->
-> [0] http://infocenter.arm.com/help/topic/com.arm.doc.den0054a/ARM_DEN0054A_Software_Delegated_Exception_Interface.pdf
->
->
-> James Morse (12):
->    ACPI / APEI: Move the estatus queue code up, and under its own ifdef
->    ACPI / APEI: Generalise the estatus queue's add/remove and notify code
->    ACPI / APEI: don't wait to serialise with oops messages when
->      panic()ing
->    ACPI / APEI: Switch NOTIFY_SEA to use the estatus queue
->    KVM: arm/arm64: Add kvm_ras.h to collect kvm specific RAS plumbing
->    arm64: KVM/mm: Move SEA handling behind a single 'claim' interface
->    ACPI / APEI: Make the nmi_fixmap_idx per-ghes to allow multiple
->      in_nmi() users
->    ACPI / APEI: Split fixmap pages for arm64 NMI-like notifications
->    firmware: arm_sdei: Add ACPI GHES registration helper
->    ACPI / APEI: Add support for the SDEI GHES Notification type
->    mm/memory-failure: increase queued recovery work's priority
->    arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
->
->   arch/arm/include/asm/kvm_ras.h       |  14 +
->   arch/arm/include/asm/system_misc.h   |   5 -
->   arch/arm64/include/asm/acpi.h        |   5 +-
->   arch/arm64/include/asm/daifflags.h   |   1 +
->   arch/arm64/include/asm/fixmap.h      |   8 +-
->   arch/arm64/include/asm/kvm_ras.h     |  24 ++
->   arch/arm64/include/asm/system_misc.h |   2 -
->   arch/arm64/kernel/acpi.c             |  49 ++++
->   arch/arm64/mm/fault.c                |  30 +-
->   drivers/acpi/apei/ghes.c             | 517 ++++++++++++++++++++---------------
->   drivers/firmware/arm_sdei.c          |  77 ++++++
->   include/acpi/ghes.h                  |   4 +
->   include/linux/arm_sdei.h             |   8 +
->   mm/memory-failure.c                  |  11 +-
->   virt/kvm/arm/mmu.c                   |   4 +-
->   15 files changed, 499 insertions(+), 260 deletions(-)
->   create mode 100644 arch/arm/include/asm/kvm_ras.h
->   create mode 100644 arch/arm64/include/asm/kvm_ras.h
->
+Agree, that construct looks saner than introducing a "random"
+smp_mb(). As a pattern helper, should probably be introduced
+after the fact.
 
 -- 
-Qualcomm Datacenter Technologies, Inc. as an affiliate of Qualcomm Technologies, Inc.
-Qualcomm Technologies, Inc. is a member of the Code Aurora Forum,
-a Linux Foundation Collaborative Project.
+Jens Axboe
