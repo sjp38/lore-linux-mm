@@ -1,39 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5299F6B0007
-	for <linux-mm@kvack.org>; Tue,  1 May 2018 12:12:40 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p189so10733969pfp.1
-        for <linux-mm@kvack.org>; Tue, 01 May 2018 09:12:40 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l11-v6sor1124644pgs.224.2018.05.01.09.12.38
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 900416B0003
+	for <linux-mm@kvack.org>; Tue,  1 May 2018 12:44:01 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id w84-v6so10190287vkw.2
+        for <linux-mm@kvack.org>; Tue, 01 May 2018 09:44:01 -0700 (PDT)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id 203-v6si5171845vkv.140.2018.05.01.09.43.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 01 May 2018 09:12:38 -0700 (PDT)
-Subject: Re: INFO: task hung in wb_shutdown (2)
-References: <94eb2c05b2d83650030568cc8bd9@google.com>
- <e56c1600-8923-dd6b-d065-c2fd2a720404@I-love.SAKURA.ne.jp>
- <43302799-1c50-4cab-b974-9fe1ca584813@I-love.SAKURA.ne.jp>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <16c2860a-05db-9534-5960-e26c9ba9214c@kernel.dk>
-Date: Tue, 1 May 2018 10:12:34 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 May 2018 09:44:00 -0700 (PDT)
+Date: Tue, 1 May 2018 11:43:58 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v4 16/16] slub: Remove kmem_cache->reserved
+In-Reply-To: <20180430202247.25220-17-willy@infradead.org>
+Message-ID: <alpine.DEB.2.21.1805011142420.16325@nuc-kabylake>
+References: <20180430202247.25220-1-willy@infradead.org> <20180430202247.25220-17-willy@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <43302799-1c50-4cab-b974-9fe1ca584813@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Jan Kara <jack@suse.cz>, Tejun Heo <tj@kernel.org>
-Cc: syzbot <syzbot+c0cf869505e03bdf1a24@syzkaller.appspotmail.com>, christophe.jaillet@wanadoo.fr, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com, weiping zhang <zhangweiping@didichuxing.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-block@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>
 
-On 5/1/18 4:27 AM, Tetsuo Handa wrote:
-> Tejun, Jan, Jens,
-> 
-> Can you review this patch? syzbot has hit this bug for nearly 4000 times but
-> is still unable to find a reproducer. Therefore, the only way to test would be
-> to apply this patch upstream and test whether the problem is solved.
+On Mon, 30 Apr 2018, Matthew Wilcox wrote:
 
-I'll review it today.
+> The reserved field was only used for embedding an rcu_head in the data
+> structure.  With the previous commit, we no longer need it.  That lets
+> us remove the 'reserved' argument to a lot of functions.
 
--- 
-Jens Axboe
+Great work!
+
+Acked-by: Christoph Lameter <cl@linux.com>
+
+> @@ -5106,7 +5105,7 @@ SLAB_ATTR_RO(destroy_by_rcu);
+>
+>  static ssize_t reserved_show(struct kmem_cache *s, char *buf)
+>  {
+> -	return sprintf(buf, "%u\n", s->reserved);
+> +	return sprintf(buf, "0\n");
+>  }
+>  SLAB_ATTR_RO(reserved);
+
+
+Hmmm... Maybe its better if you remove the reserved file from sysfs
+instead? I doubt anyone was using it.
