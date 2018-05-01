@@ -1,92 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B54586B0005
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 20:36:40 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 6-v6so9056579itl.6
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 17:36:40 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f1-v6sor3440496ita.67.2018.04.30.17.36.39
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 611156B0005
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 21:45:41 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q15so9109652pff.15
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 18:45:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j185-v6sor1704420pgc.405.2018.04.30.18.45.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 30 Apr 2018 17:36:39 -0700 (PDT)
-Date: Mon, 30 Apr 2018 19:36:34 -0500
-From: Dennis Zhou <dennisszhou@gmail.com>
-Subject: Re: [PATCH v2] KASAN: prohibit KASAN+STRUCTLEAK combination
-Message-ID: <20180501003634.GA1135@big-sky.local>
-References: <20180419172451.104700-1-dvyukov@google.com>
- <CAGXu5jK_C-xgNOFxtCi3Wt63_ProP0jw2YSiE0fbVhu=J0pNFA@mail.gmail.com>
+        Mon, 30 Apr 2018 18:45:39 -0700 (PDT)
+Subject: Re: [PATCH] z3fold: fix reclaim lock-ups
+References: <20180430125800.444cae9706489f412ad12621@gmail.com>
+From: Guenter Roeck <linux@roeck-us.net>
+Message-ID: <e1364949-5c3e-d175-0764-e6d497734284@roeck-us.net>
+Date: Mon, 30 Apr 2018 18:45:36 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5jK_C-xgNOFxtCi3Wt63_ProP0jw2YSiE0fbVhu=J0pNFA@mail.gmail.com>
+In-Reply-To: <20180430125800.444cae9706489f412ad12621@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>, Fengguang Wu <fengguang.wu@intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Vitaly Wool <vitalywool@gmail.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Oleksiy.Avramchenko@sony.com, Matthew Wilcox <mawilcox@microsoft.com>, stable@kernel.org, asavery@chromium.org
 
-Hi Kees,
+Hi Vitaly,
 
-On Mon, Apr 30, 2018 at 04:41:24PM -0700, Kees Cook wrote:
-> I prefer this change over moving the plugin earlier since that ends up
-> creating redundant initializers...
+On 04/30/2018 03:58 AM, Vitaly Wool wrote:
+> Do not try to optimize in-page object layout while the page is
+> under reclaim. This fixes lock-ups on reclaim and improves reclaim
+> performance at the same time.
+> 
 
-To be clear, what I was proposing was to move the plugin to execute
-later rather than earlier. It currently runs before the
-early_optimizations pass, while *all_optimizations is after inlining.
-Apologizes for this being a half baked idea due to my limited
-understanding.
+A heads-up: z3fold is still crashing (due to a NULL pointer access) under
+heavy memory pressure with this patch applied. That doesn't mean the patch
+should not be applied - the new crash is different - but there is more work
+to do.
 
-I am hoping someone could chime in and help me understand how gcc
-handles inlining. My assumption is that at the beginning, inlined
-defined functions will be processed by the pass as any other function.
-If the function can be inlined, it is inlined and no longer needs to be
-kept around. If it cannot be inlined, it is kept around. An assumption
-that I'm not sure is correct is that a function is either always inlined
-or not inlined in a translation unit.
+See https://bugs.chromium.org/p/chromium/issues/detail?id=822360#c21 for a
+crash log. This was seen with chromeos-4.14 with (I hope) all relevant z3fold
+patches applied. I am trying to reproduce the problem on top of mainline.
 
-The current plugin puts an initializer in both the inlined function and
-the locations that it will be inlined as both functions are around,
-hence duplicate initializers. Below is a snippet of pass output from
-earlier reproducing code of the issue.
+Guenter
 
-My understanding is initializer 1 is created due to inlining moving
-variable declarations to the encompassing functions scope. Then the
-structleak_plugin performs the pass not finding an initializer and
-creates one. Initializer 2 is created for the inlined function and is
-propagated. So I guess this problem is also order dependent in which the
-functions are processed.
-
-An important difference in running in a later pass, which may be a deal
-breaker, is that objects will only be initialized once. So if a function
-gets inlined inside a for loop, the initializer will only be a part of
-the encompassing function rather than also in each iteration. In the
-example below, initializer 2 would not be there as the inlined function
-wouldn't be around and processed by the structleak_plugin.
-
-Thanks for taking the time to humor me, this is the extent of my
-understanding of the problem and gcc.
-
-Thanks,
-Dennis
-
-------
-
-union
-{
-struct list_head * __val;
-char __c[1];
-} __u;
-
-<bb 2> [0.00%]:
-__u = {};    <---- initializer 1
-p_8 = malloc (160);
-i_9 = 0;
-goto <bb 10>; [0.00%]
-
-<bb 3> [0.00%]:
-_1 = (long unsigned int) i_4;
-_2 = _1 * 16;
-_3 = p_8 + _2;
-list_14 = _3;
-__u = {};    <---- initializer 2
-ASAN_MARK (UNPOISON, &__u, 8);
+> Reported-by: Guenter Roeck <linux@roeck-us.net>
+> Signed-off-by: Vitaly Wool <vitaly.vul@sony.com>
+> ---
+>   mm/z3fold.c | 42 ++++++++++++++++++++++++++++++------------
+>   1 file changed, 30 insertions(+), 12 deletions(-)
+> 
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index c0bca6153b95..901c0b07cbda 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -144,7 +144,8 @@ enum z3fold_page_flags {
+>   	PAGE_HEADLESS = 0,
+>   	MIDDLE_CHUNK_MAPPED,
+>   	NEEDS_COMPACTING,
+> -	PAGE_STALE
+> +	PAGE_STALE,
+> +	UNDER_RECLAIM
+>   };
+>   
+>   /*****************
+> @@ -173,6 +174,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
+>   	clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
+>   	clear_bit(NEEDS_COMPACTING, &page->private);
+>   	clear_bit(PAGE_STALE, &page->private);
+> +	clear_bit(UNDER_RECLAIM, &page->private);
+>   
+>   	spin_lock_init(&zhdr->page_lock);
+>   	kref_init(&zhdr->refcount);
+> @@ -756,6 +758,10 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>   		atomic64_dec(&pool->pages_nr);
+>   		return;
+>   	}
+> +	if (test_bit(UNDER_RECLAIM, &page->private)) {
+> +		z3fold_page_unlock(zhdr);
+> +		return;
+> +	}
+>   	if (test_and_set_bit(NEEDS_COMPACTING, &page->private)) {
+>   		z3fold_page_unlock(zhdr);
+>   		return;
+> @@ -840,6 +846,8 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>   			kref_get(&zhdr->refcount);
+>   			list_del_init(&zhdr->buddy);
+>   			zhdr->cpu = -1;
+> +			set_bit(UNDER_RECLAIM, &page->private);
+> +			break;
+>   		}
+>   
+>   		list_del_init(&page->lru);
+> @@ -887,25 +895,35 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>   				goto next;
+>   		}
+>   next:
+> -		spin_lock(&pool->lock);
+>   		if (test_bit(PAGE_HEADLESS, &page->private)) {
+>   			if (ret == 0) {
+> -				spin_unlock(&pool->lock);
+>   				free_z3fold_page(page);
+>   				return 0;
+>   			}
+> -		} else if (kref_put(&zhdr->refcount, release_z3fold_page)) {
+> -			atomic64_dec(&pool->pages_nr);
+> +			spin_lock(&pool->lock);
+> +			list_add(&page->lru, &pool->lru);
+> +			spin_unlock(&pool->lock);
+> +		} else {
+> +			z3fold_page_lock(zhdr);
+> +			clear_bit(UNDER_RECLAIM, &page->private);
+> +			 if (kref_put(&zhdr->refcount,
+> +					release_z3fold_page_locked)) {
+> +				atomic64_dec(&pool->pages_nr);
+> +				return 0;
+> +			}
+> +			/*
+> +			 * if we are here, the page is still not completely
+> +			 * free. Take the global pool lock then to be able
+> +			 * to add it back to the lru list
+> +			 */
+> +			spin_lock(&pool->lock);
+> +			list_add(&page->lru, &pool->lru);
+>   			spin_unlock(&pool->lock);
+> -			return 0;
+> +			z3fold_page_unlock(zhdr);
+>   		}
+>   
+> -		/*
+> -		 * Add to the beginning of LRU.
+> -		 * Pool lock has to be kept here to ensure the page has
+> -		 * not already been released
+> -		 */
+> -		list_add(&page->lru, &pool->lru);
+> +		/* We started off locked to we need to lock the pool back */
+> +		spin_lock(&pool->lock);
+>   	}
+>   	spin_unlock(&pool->lock);
+>   	return -EAGAIN;
+> 
