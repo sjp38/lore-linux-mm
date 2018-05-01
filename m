@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A2356B0005
-	for <linux-mm@kvack.org>; Tue,  1 May 2018 08:53:46 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id b5-v6so4995971otf.8
-        for <linux-mm@kvack.org>; Tue, 01 May 2018 05:53:46 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v26-v6si1158874oth.355.2018.05.01.05.53.45
-        for <linux-mm@kvack.org>;
-        Tue, 01 May 2018 05:53:45 -0700 (PDT)
-Subject: Re: [PATCH v3 01/12] ACPI / APEI: Move the estatus queue code up, and
- under its own ifdef
-References: <20180427153510.5799-1-james.morse@arm.com>
- <20180427153510.5799-2-james.morse@arm.com>
- <877eonr708.fsf@e105922-lin.cambridge.arm.com>
-From: James Morse <james.morse@arm.com>
-Message-ID: <4d3b63b0-66ad-8903-ea9a-6fa590a017d5@arm.com>
-Date: Tue, 1 May 2018 13:50:43 +0100
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7342C6B0007
+	for <linux-mm@kvack.org>; Tue,  1 May 2018 09:05:05 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id m68so10321965pfm.20
+        for <linux-mm@kvack.org>; Tue, 01 May 2018 06:05:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a138sor2969772pfd.27.2018.05.01.06.05.03
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 01 May 2018 06:05:03 -0700 (PDT)
+Date: Tue, 1 May 2018 22:04:52 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v10 06/25] mm: make pte_unmap_same compatible with SPF
+Message-ID: <20180501130452.GA118722@rodete-laptop-imager.corp.google.com>
+References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1523975611-15978-7-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20180423063157.GB114098@rodete-desktop-imager.corp.google.com>
+ <dd5c4338-3cbb-c65a-f0c1-c71e2a0037ee@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <877eonr708.fsf@e105922-lin.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <dd5c4338-3cbb-c65a-f0c1-c71e2a0037ee@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, jonathan.zhang@cavium.com
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-Hi Punit,
-
-On 01/05/18 11:43, Punit Agrawal wrote:
-> James Morse <james.morse@arm.com> writes:
->> Notes for cover letter:
->> ghes.c has three things all called 'estatus'. One is a pool of memory
->> that has a static size, and is grown/shrunk when new NMI users are
->> allocated.
->> The second is the cache, this holds recent notifications so we can
->> suppress notifications we've already handled.
->> The last is the queue, which hold data from NMI notifications (in pool
->> memory) that can't be handled immediatly.
+On Mon, Apr 30, 2018 at 04:07:30PM +0200, Laurent Dufour wrote:
+> On 23/04/2018 08:31, Minchan Kim wrote:
+> > On Tue, Apr 17, 2018 at 04:33:12PM +0200, Laurent Dufour wrote:
+> >> pte_unmap_same() is making the assumption that the page table are still
+> >> around because the mmap_sem is held.
+> >> This is no more the case when running a speculative page fault and
+> >> additional check must be made to ensure that the final page table are still
+> >> there.
+> >>
+> >> This is now done by calling pte_spinlock() to check for the VMA's
+> >> consistency while locking for the page tables.
+> >>
+> >> This is requiring passing a vm_fault structure to pte_unmap_same() which is
+> >> containing all the needed parameters.
+> >>
+> >> As pte_spinlock() may fail in the case of a speculative page fault, if the
+> >> VMA has been touched in our back, pte_unmap_same() should now return 3
+> >> cases :
+> >> 	1. pte are the same (0)
+> >> 	2. pte are different (VM_FAULT_PTNOTSAME)
+> >> 	3. a VMA's changes has been detected (VM_FAULT_RETRY)
+> >>
+> >> The case 2 is handled by the introduction of a new VM_FAULT flag named
+> >> VM_FAULT_PTNOTSAME which is then trapped in cow_user_page().
+> > 
+> > I don't see such logic in this patch.
+> > Maybe you introduces it later? If so, please comment on it.
+> > Or just return 0 in case of 2 without introducing VM_FAULT_PTNOTSAME.
 > 
+> Late in the series, pte_spinlock() will check for the VMA's changes and may
+> return 1. This will be then required to handle the 3 cases presented above.
 > 
-> I am guessing you intended to drop the notes before sending the patch
-> out.
+> I can move this handling later in the series, but I wondering if this will make
+> it more easier to read.
 
-Ha, oops!
+Just nit:
+During reviewing this patch, I was just curious you introduced new thing
+here but I couldn't find any site where use it. It makes review hard. :(
+That's why I said to you that please commet on it if you will use new thing
+late in this series.
+If you think as-is is better for review, it would be better to mention it
+explicitly.
 
-> Calling this out as it'd make sense to clean-this up if the series is
-> ready for merging.
-
-Yes, thanks for calling that out.
-
-I've deleted them now (copy-paste cover-letter serves the same purpose), so any
-v4 will drop this.
-
-
-Thanks,
-
-James
+Thanks.
