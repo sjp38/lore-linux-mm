@@ -1,67 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B4D496B0005
-	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 20:01:48 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t4-v6so6875840pgv.21
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 17:01:48 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u1-v6si8293413plb.253.2018.04.30.17.01.47
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B54586B0005
+	for <linux-mm@kvack.org>; Mon, 30 Apr 2018 20:36:40 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 6-v6so9056579itl.6
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 17:36:40 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f1-v6sor3440496ita.67.2018.04.30.17.36.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Apr 2018 17:01:47 -0700 (PDT)
-Date: Mon, 30 Apr 2018 17:01:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: access to uninitialized struct page
-Message-Id: <20180430170145.544342905604331c0e1b95d9@linux-foundation.org>
-In-Reply-To: <20180430195858.5242373c@gandalf.local.home>
-References: <20180426202619.2768-1-pasha.tatashin@oracle.com>
-	<20180430162658.598dd5dcdd0c67e36953281c@linux-foundation.org>
-	<20180430195858.5242373c@gandalf.local.home>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Mon, 30 Apr 2018 17:36:39 -0700 (PDT)
+Date: Mon, 30 Apr 2018 19:36:34 -0500
+From: Dennis Zhou <dennisszhou@gmail.com>
+Subject: Re: [PATCH v2] KASAN: prohibit KASAN+STRUCTLEAK combination
+Message-ID: <20180501003634.GA1135@big-sky.local>
+References: <20180419172451.104700-1-dvyukov@google.com>
+ <CAGXu5jK_C-xgNOFxtCi3Wt63_ProP0jw2YSiE0fbVhu=J0pNFA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5jK_C-xgNOFxtCi3Wt63_ProP0jw2YSiE0fbVhu=J0pNFA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, tglx@linutronix.de, mhocko@suse.com, linux-mm@kvack.org, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, fengguang.wu@intel.com, dennisszhou@gmail.com
+To: Kees Cook <keescook@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>, Fengguang Wu <fengguang.wu@intel.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On Mon, 30 Apr 2018 19:58:58 -0400 Steven Rostedt <rostedt@goodmis.org> wrote:
+Hi Kees,
 
-> On Mon, 30 Apr 2018 16:26:58 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Thu, 26 Apr 2018 16:26:19 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
-> > 
-> > > The following two bugs were reported by Fengguang Wu:
-> > > 
-> > > kernel reboot-without-warning in early-boot stage, last printk:
-> > > early console in setup code
-> > > 
-> > > http://lkml.kernel.org/r/20180418135300.inazvpxjxowogyge@wfg-t540p.sh.intel.com
-> > > 
-> > > ...
-> > >
-> > > --- a/init/main.c
-> > > +++ b/init/main.c
-> > > @@ -585,8 +585,8 @@ asmlinkage __visible void __init start_kernel(void)
-> > >  	setup_log_buf(0);
-> > >  	vfs_caches_init_early();
-> > >  	sort_main_extable();
-> > > -	trap_init();
-> > >  	mm_init();
-> > > +	trap_init();
-> > >  
-> > >  	ftrace_init();  
-> > 
-> > Gulp.  Let's hope that nothing in mm_init() requires that trap_init()
-> > has been run.  What happens if something goes wrong during mm_init()
-> > and the architecture attempts to raise a software exception, hits a bus
-> > error, div-by-zero, etc, etc?  Might there be hard-to-discover
-> > dependencies in such a case?
-> 
-> I mentioned the same thing.
-> 
+On Mon, Apr 30, 2018 at 04:41:24PM -0700, Kees Cook wrote:
+> I prefer this change over moving the plugin earlier since that ends up
+> creating redundant initializers...
 
-I guess the same concern applies to all the code which we've always run
-before trap_init(), and that's quite a lot of stuff.  So we should be
-OK.  But don't quote me ;)
+To be clear, what I was proposing was to move the plugin to execute
+later rather than earlier. It currently runs before the
+early_optimizations pass, while *all_optimizations is after inlining.
+Apologizes for this being a half baked idea due to my limited
+understanding.
+
+I am hoping someone could chime in and help me understand how gcc
+handles inlining. My assumption is that at the beginning, inlined
+defined functions will be processed by the pass as any other function.
+If the function can be inlined, it is inlined and no longer needs to be
+kept around. If it cannot be inlined, it is kept around. An assumption
+that I'm not sure is correct is that a function is either always inlined
+or not inlined in a translation unit.
+
+The current plugin puts an initializer in both the inlined function and
+the locations that it will be inlined as both functions are around,
+hence duplicate initializers. Below is a snippet of pass output from
+earlier reproducing code of the issue.
+
+My understanding is initializer 1 is created due to inlining moving
+variable declarations to the encompassing functions scope. Then the
+structleak_plugin performs the pass not finding an initializer and
+creates one. Initializer 2 is created for the inlined function and is
+propagated. So I guess this problem is also order dependent in which the
+functions are processed.
+
+An important difference in running in a later pass, which may be a deal
+breaker, is that objects will only be initialized once. So if a function
+gets inlined inside a for loop, the initializer will only be a part of
+the encompassing function rather than also in each iteration. In the
+example below, initializer 2 would not be there as the inlined function
+wouldn't be around and processed by the structleak_plugin.
+
+Thanks for taking the time to humor me, this is the extent of my
+understanding of the problem and gcc.
+
+Thanks,
+Dennis
+
+------
+
+union
+{
+struct list_head * __val;
+char __c[1];
+} __u;
+
+<bb 2> [0.00%]:
+__u = {};    <---- initializer 1
+p_8 = malloc (160);
+i_9 = 0;
+goto <bb 10>; [0.00%]
+
+<bb 3> [0.00%]:
+_1 = (long unsigned int) i_4;
+_2 = _1 * 16;
+_3 = p_8 + _2;
+list_14 = _3;
+__u = {};    <---- initializer 2
+ASAN_MARK (UNPOISON, &__u, 8);
