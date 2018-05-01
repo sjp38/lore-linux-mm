@@ -1,159 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 670556B0005
-	for <linux-mm@kvack.org>; Tue,  1 May 2018 02:32:53 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id g67-v6so8431617otb.10
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 23:32:53 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p42-v6sor4285189ote.82.2018.04.30.23.32.51
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 65B436B0005
+	for <linux-mm@kvack.org>; Tue,  1 May 2018 02:47:02 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id k3so9552552pff.23
+        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 23:47:02 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id l3si8845416pfi.179.2018.04.30.23.47.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 30 Apr 2018 23:32:51 -0700 (PDT)
-Date: Mon, 30 Apr 2018 23:32:42 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC v5 PATCH] mm: shmem: make stat.st_blksize return huge page
- size if THP is on
-In-Reply-To: <1524665633-83806-1-git-send-email-yang.shi@linux.alibaba.com>
-Message-ID: <alpine.LSU.2.11.1804302217530.5864@eggly.anvils>
-References: <1524665633-83806-1-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Apr 2018 23:47:00 -0700 (PDT)
+Subject: Re: [PATCH v2] mm: vmalloc: Clean up vunmap to avoid pgtable ops
+ twice
+References: <1523876342-10545-1-git-send-email-cpandya@codeaurora.org>
+ <20180430155207.35a3dd94c31503c7a6268a8f@linux-foundation.org>
+From: Chintan Pandya <cpandya@codeaurora.org>
+Message-ID: <9808b76e-a4e7-95d6-35bf-f64ae4628f0a@codeaurora.org>
+Date: Tue, 1 May 2018 12:16:53 +0530
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20180430155207.35a3dd94c31503c7a6268a8f@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 25 Apr 2018, Yang Shi wrote:
 
-> Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
-> filesystem with huge page support anymore. tmpfs can use huge page via
-> THP when mounting by "huge=" mount option.
+
+On 5/1/2018 4:22 AM, Andrew Morton wrote:
+> On Mon, 16 Apr 2018 16:29:02 +0530 Chintan Pandya <cpandya@codeaurora.org> wrote:
 > 
-> When applications use huge page on hugetlbfs, it just need check the
-> filesystem magic number, but it is not enough for tmpfs. Make
-> stat.st_blksize return huge page size if it is mounted by appropriate
-> "huge=" option to give applications a hint to optimize the behavior with
-> THP.
+>> vunmap does page table clear operations twice in the
+>> case when DEBUG_PAGEALLOC_ENABLE_DEFAULT is enabled.
+>>
+>> So, clean up the code as that is unintended.
+>>
+>> As a perf gain, we save few us. Below ftrace data was
+>> obtained while doing 1 MB of vmalloc/vfree on ARM64
+>> based SoC *without* this patch applied. After this
+>> patch, we can save ~3 us (on 1 extra vunmap_page_range).
+>>
+>>    CPU  DURATION                  FUNCTION CALLS
+>>    |     |   |                     |   |   |   |
+>>   6)               |  __vunmap() {
+>>   6)               |    vmap_debug_free_range() {
+>>   6)   3.281 us    |      vunmap_page_range();
+>>   6) + 45.468 us   |    }
+>>   6)   2.760 us    |    vunmap_page_range();
+>>   6) ! 505.105 us  |  }
 > 
-> Some applications may not do wisely with THP. For example, QEMU may mmap
-> file on non huge page aligned hint address with MAP_FIXED, which results
-> in no pages are PMD mapped even though THP is used. Some applications
-> may mmap file with non huge page aligned offset. Both behaviors make THP
-> pointless.
+> It's been a long time since I looked at the vmap code :(
 > 
-> statfs.f_bsize still returns 4KB for tmpfs since THP could be split, and it
-> also may fallback to 4KB page silently if there is not enough huge page.
-> Furthermore, different f_bsize makes max_blocks and free_blocks
-> calculation harder but without too much benefit. Returning huge page
-> size via stat.st_blksize sounds good enough.
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -603,26 +603,6 @@ static void unmap_vmap_area(struct vmap_area *va)
+>>   	vunmap_page_range(va->va_start, va->va_end);
+>>   }
+>>   
+>> -static void vmap_debug_free_range(unsigned long start, unsigned long end)
+>> -{
+>> -	/*
+>> -	 * Unmap page tables and force a TLB flush immediately if pagealloc
+>> -	 * debugging is enabled.  This catches use after free bugs similarly to
+>> -	 * those in linear kernel virtual address space after a page has been
+>> -	 * freed.
+>> -	 *
+>> -	 * All the lazy freeing logic is still retained, in order to minimise
+>> -	 * intrusiveness of this debugging feature.
+>> -	 *
+>> -	 * This is going to be *slow* (linear kernel virtual address debugging
+>> -	 * doesn't do a broadcast TLB flush so it is a lot faster).
+>> -	 */
+>> -	if (debug_pagealloc_enabled()) {
+>> -		vunmap_page_range(start, end);
+>> -		flush_tlb_kernel_range(start, end);
+>> -	}
+>> -}
+>> -
+>>   /*
+>>    * lazy_max_pages is the maximum amount of virtual address space we gather up
+>>    * before attempting to purge with a TLB flush.
+>> @@ -756,6 +736,9 @@ static void free_unmap_vmap_area(struct vmap_area *va)
+>>   {
+>>   	flush_cache_vunmap(va->va_start, va->va_end);
+>>   	unmap_vmap_area(va);
+>> +	if (debug_pagealloc_enabled())
+>> +		flush_tlb_kernel_range(va->va_start, va->va_end);
+>> +
+>>   	free_vmap_area_noflush(va);
+>>   }
+>>   
+>> @@ -1142,7 +1125,6 @@ void vm_unmap_ram(const void *mem, unsigned int count)
+>>   	BUG_ON(!PAGE_ALIGNED(addr));
+>>   
+>>   	debug_check_no_locks_freed(mem, size);
+>> -	vmap_debug_free_range(addr, addr+size);
 > 
-> Since PUD size huge page for THP has not been supported, now it just
-> returns HPAGE_PMD_SIZE.
+> This appears to be a functional change: if (count <= VMAP_MAX_ALLOC)
+> and we're in debug mode then the
+> vunmap_page_range/flush_tlb_kernel_range will no longer be performed.
+> Why is this ok?
 > 
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
 
-Sorry, I have no enthusiasm for this patch; but do I feel strongly
-enough to override you and everyone else to NAK it? No, I don't
-feel that strongly, maybe st_blksize isn't worth arguing over.
+Yes, you are right. In vb_free(), we do vunmap_page_range() but not
+flush_tlb_kernel_range(). I will add this stub for debug benefits and
+share v3.
 
-We did look at struct stat when designing huge tmpfs, to see if there
-were any fields that should be adjusted for it; but concluded none.
-Yes, it would sometimes be nice to have a quickly accessible indicator
-for when tmpfs has been mounted huge (scanning /proc/mounts for options
-can be tiresome, agreed); but since tmpfs tries to supply huge (or not)
-pages transparently, no difference seemed right.
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 6729400..781ce02 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1036,6 +1036,10 @@ static void vb_free(const void *addr, unsigned 
+long size)
 
-So, because st_blksize is a not very useful field of struct stat,
-with "size" in the name, we're going to put HPAGE_PMD_SIZE in there
-instead of PAGE_SIZE, if the tmpfs was mounted with one of the huge
-"huge" options (force or always, okay; within_size or advise, not so
-much). Though HPAGE_PMD_SIZE is no more its "preferred I/O size" or
-"blocksize for file system I/O" than PAGE_SIZE was.
+         vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
 
-Which we can expect to speed up some applications and disadvantage
-others, depending on how they interpret st_blksize: just like if
-we changed it in the same way on non-huge tmpfs.  (Did I actually
-try changing st_blksize early on, and find it broke something? If
-so, I've now forgotten what, and a search through commit messages
-didn't find it; but I guess we'll find out soon enough.)
++       if (debug_pagealloc_enabled())
++               flush_tlb_kernel_range((unsigned long)addr,
++                                       (unsigned long)addr + size);
++
+         spin_lock(&vb->lock);
 
-If there were an mstat() syscall, returning a field "preferred
-alignment", then we could certainly agree to put HPAGE_PMD_SIZE in
-there; but in stat()'s st_blksize? And what happens when (in future)
-mm maps this or that hard-disk filesystem's blocks with a pmd mapping
-- should that filesystem then advertise a bigger st_blksize, despite
-the same disk layout as before? What happens with DAX?
+         /* Expand dirty range */
 
-And this change is not going to help the QEMU suboptimality that
-brought you here (or does QEMU align mmaps according to st_blksize?).
-QEMU ought to work well with kernels without this change, and kernels
-with this change; and I hope it can easily deal with both by avoiding
-that use of MAP_FIXED which prevented the kernel's intended alignment.
 
-Hugh
 
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Suggested-by: Christoph Hellwig <hch@infradead.org>
-> ---
-> v4 --> v5:
-> * Adopted suggestion from Kirill to use IS_ENABLED and check 'force' and
->   'deny'. Extracted the condition into an inline helper.
-> v3 --> v4:
-> * Rework the commit log per the education from Michal and Kirill
-> * Fix build error if CONFIG_TRANSPARENT_HUGEPAGE is disabled
-> v2 --> v3:
-> * Use shmem_sb_info.huge instead of global variable per Michal's comment
-> v2 --> v1:
-> * Adopted the suggestion from hch to return huge page size via st_blksize
->   instead of creating a new flag.
+>>   	if (likely(count <= VMAP_MAX_ALLOC)) {
+>>   		vb_free(mem, size);
+>> @@ -1499,7 +1481,6 @@ struct vm_struct *remove_vm_area(const void *addr)
+>>   		va->flags |= VM_LAZY_FREE;
+>>   		spin_unlock(&vmap_area_lock);
+>>   
+>> -		vmap_debug_free_range(va->va_start, va->va_end);
+>>   		kasan_free_shadow(vm);
+>>   		free_unmap_vmap_area(va);
+>>   
 > 
->  mm/shmem.c | 15 +++++++++++++++
->  1 file changed, 15 insertions(+)
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index b859192..e9e888b 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -571,6 +571,16 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
->  }
->  #endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
->  
-> +static inline bool is_huge_enabled(struct shmem_sb_info *sbinfo)
-> +{
-> +	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
-> +	    (shmem_huge == SHMEM_HUGE_FORCE || sbinfo->huge) &&
-> +	    shmem_huge != SHMEM_HUGE_DENY)
-> +		return true;
-> +	else
-> +		return false;
-> +}
-> +
->  /*
->   * Like add_to_page_cache_locked, but error if expected item has gone.
->   */
-> @@ -988,6 +998,7 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
->  {
->  	struct inode *inode = path->dentry->d_inode;
->  	struct shmem_inode_info *info = SHMEM_I(inode);
-> +	struct shmem_sb_info *sb_info = SHMEM_SB(inode->i_sb);
->  
->  	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
->  		spin_lock_irq(&info->lock);
-> @@ -995,6 +1006,10 @@ static int shmem_getattr(const struct path *path, struct kstat *stat,
->  		spin_unlock_irq(&info->lock);
->  	}
->  	generic_fillattr(inode, stat);
-> +
-> +	if (is_huge_enabled(sb_info))
-> +		stat->blksize = HPAGE_PMD_SIZE;
-> +
->  	return 0;
->  }
->  
-> -- 
-> 1.8.3.1
-> 
-> 
+
+Chintan
+-- 
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
+Inc. is a member of the Code Aurora Forum, a Linux Foundation
+Collaborative Project
