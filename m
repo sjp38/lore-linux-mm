@@ -1,145 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 65B436B0005
-	for <linux-mm@kvack.org>; Tue,  1 May 2018 02:47:02 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id k3so9552552pff.23
-        for <linux-mm@kvack.org>; Mon, 30 Apr 2018 23:47:02 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id l3si8845416pfi.179.2018.04.30.23.47.00
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 686516B0005
+	for <linux-mm@kvack.org>; Tue,  1 May 2018 03:05:56 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id d131-v6so9632494itc.8
+        for <linux-mm@kvack.org>; Tue, 01 May 2018 00:05:56 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0030.hostedemail.com. [216.40.44.30])
+        by mx.google.com with ESMTPS id 203-v6si6555253itz.110.2018.05.01.00.05.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Apr 2018 23:47:00 -0700 (PDT)
-Subject: Re: [PATCH v2] mm: vmalloc: Clean up vunmap to avoid pgtable ops
- twice
-References: <1523876342-10545-1-git-send-email-cpandya@codeaurora.org>
- <20180430155207.35a3dd94c31503c7a6268a8f@linux-foundation.org>
-From: Chintan Pandya <cpandya@codeaurora.org>
-Message-ID: <9808b76e-a4e7-95d6-35bf-f64ae4628f0a@codeaurora.org>
-Date: Tue, 1 May 2018 12:16:53 +0530
-MIME-Version: 1.0
-In-Reply-To: <20180430155207.35a3dd94c31503c7a6268a8f@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+        Tue, 01 May 2018 00:05:55 -0700 (PDT)
+Message-ID: <e854ad5b8798efc2e33af153c4bdae2c16031e54.camel@perches.com>
+Subject: Re: [RFC v5 PATCH] mm: shmem: make stat.st_blksize return huge page
+ size if THP is on
+From: Joe Perches <joe@perches.com>
+Date: Tue, 01 May 2018 00:05:48 -0700
+In-Reply-To: <20180430164000.00f92084ecb1876e481c6a11@linux-foundation.org>
+References: <1524665633-83806-1-git-send-email-yang.shi@linux.alibaba.com>
+	 <20180430164000.00f92084ecb1876e481c6a11@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Yang Shi <yang.shi@linux.alibaba.com>
+Cc: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, hch@infradead.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-
-On 5/1/2018 4:22 AM, Andrew Morton wrote:
-> On Mon, 16 Apr 2018 16:29:02 +0530 Chintan Pandya <cpandya@codeaurora.org> wrote:
+On Mon, 2018-04-30 at 16:40 -0700, Andrew Morton wrote:
+> On Wed, 25 Apr 2018 22:13:53 +0800 Yang Shi <yang.shi@linux.alibaba.com> wrote:
 > 
->> vunmap does page table clear operations twice in the
->> case when DEBUG_PAGEALLOC_ENABLE_DEFAULT is enabled.
->>
->> So, clean up the code as that is unintended.
->>
->> As a perf gain, we save few us. Below ftrace data was
->> obtained while doing 1 MB of vmalloc/vfree on ARM64
->> based SoC *without* this patch applied. After this
->> patch, we can save ~3 us (on 1 extra vunmap_page_range).
->>
->>    CPU  DURATION                  FUNCTION CALLS
->>    |     |   |                     |   |   |   |
->>   6)               |  __vunmap() {
->>   6)               |    vmap_debug_free_range() {
->>   6)   3.281 us    |      vunmap_page_range();
->>   6) + 45.468 us   |    }
->>   6)   2.760 us    |    vunmap_page_range();
->>   6) ! 505.105 us  |  }
+> > Since tmpfs THP was supported in 4.8, hugetlbfs is not the only
+> > filesystem with huge page support anymore. tmpfs can use huge page via
+> > THP when mounting by "huge=" mount option.
+[]
+> > @@ -571,6 +571,16 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
+> >  }
+> >  #endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
+> >  
+> > +static inline bool is_huge_enabled(struct shmem_sb_info *sbinfo)
+> > +{
+> > +	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
+> > +	    (shmem_huge == SHMEM_HUGE_FORCE || sbinfo->huge) &&
+> > +	    shmem_huge != SHMEM_HUGE_DENY)
+> > +		return true;
+> > +	else
+> > +		return false;
+> > +}
 > 
-> It's been a long time since I looked at the vmap code :(
-> 
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -603,26 +603,6 @@ static void unmap_vmap_area(struct vmap_area *va)
->>   	vunmap_page_range(va->va_start, va->va_end);
->>   }
->>   
->> -static void vmap_debug_free_range(unsigned long start, unsigned long end)
->> -{
->> -	/*
->> -	 * Unmap page tables and force a TLB flush immediately if pagealloc
->> -	 * debugging is enabled.  This catches use after free bugs similarly to
->> -	 * those in linear kernel virtual address space after a page has been
->> -	 * freed.
->> -	 *
->> -	 * All the lazy freeing logic is still retained, in order to minimise
->> -	 * intrusiveness of this debugging feature.
->> -	 *
->> -	 * This is going to be *slow* (linear kernel virtual address debugging
->> -	 * doesn't do a broadcast TLB flush so it is a lot faster).
->> -	 */
->> -	if (debug_pagealloc_enabled()) {
->> -		vunmap_page_range(start, end);
->> -		flush_tlb_kernel_range(start, end);
->> -	}
->> -}
->> -
->>   /*
->>    * lazy_max_pages is the maximum amount of virtual address space we gather up
->>    * before attempting to purge with a TLB flush.
->> @@ -756,6 +736,9 @@ static void free_unmap_vmap_area(struct vmap_area *va)
->>   {
->>   	flush_cache_vunmap(va->va_start, va->va_end);
->>   	unmap_vmap_area(va);
->> +	if (debug_pagealloc_enabled())
->> +		flush_tlb_kernel_range(va->va_start, va->va_end);
->> +
->>   	free_vmap_area_noflush(va);
->>   }
->>   
->> @@ -1142,7 +1125,6 @@ void vm_unmap_ram(const void *mem, unsigned int count)
->>   	BUG_ON(!PAGE_ALIGNED(addr));
->>   
->>   	debug_check_no_locks_freed(mem, size);
->> -	vmap_debug_free_range(addr, addr+size);
-> 
-> This appears to be a functional change: if (count <= VMAP_MAX_ALLOC)
-> and we're in debug mode then the
-> vunmap_page_range/flush_tlb_kernel_range will no longer be performed.
-> Why is this ok?
-> 
+> Nit: we don't need that `else'.  Checkpatch normally warns about this,
+> but not in this case.
 
-Yes, you are right. In vb_free(), we do vunmap_page_range() but not
-flush_tlb_kernel_range(). I will add this stub for debug benefits and
-share v3.
+because there are those that like symmetry.
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 6729400..781ce02 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1036,6 +1036,10 @@ static void vb_free(const void *addr, unsigned 
-long size)
+> --- a/mm/shmem.c~mm-shmem-make-statst_blksize-return-huge-page-size-if-thp-is-on-fix
+> +++ a/mm/shmem.c
+> @@ -577,8 +577,7 @@ static inline bool is_huge_enabled(struc
+>  	    (shmem_huge == SHMEM_HUGE_FORCE || sbinfo->huge) &&
+>  	    shmem_huge != SHMEM_HUGE_DENY)
+>  		return true;
+> -	else
+> -		return false;
+> +	return false;
+>  }
 
-         vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
+Perhaps this case is better without the if/else as just
 
-+       if (debug_pagealloc_enabled())
-+               flush_tlb_kernel_range((unsigned long)addr,
-+                                       (unsigned long)addr + size);
-+
-         spin_lock(&vb->lock);
-
-         /* Expand dirty range */
-
-
-
->>   	if (likely(count <= VMAP_MAX_ALLOC)) {
->>   		vb_free(mem, size);
->> @@ -1499,7 +1481,6 @@ struct vm_struct *remove_vm_area(const void *addr)
->>   		va->flags |= VM_LAZY_FREE;
->>   		spin_unlock(&vmap_area_lock);
->>   
->> -		vmap_debug_free_range(va->va_start, va->va_end);
->>   		kasan_free_shadow(vm);
->>   		free_unmap_vmap_area(va);
->>   
-> 
-
-Chintan
--- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, a Linux Foundation
-Collaborative Project
+	return <logic>;
