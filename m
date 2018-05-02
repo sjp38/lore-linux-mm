@@ -1,64 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 17EFA6B0003
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 18:08:30 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c4so13877385pfg.22
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 15:08:30 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id bc11-v6si11761010plb.43.2018.05.02.15.08.28
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DF1106B0006
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 18:09:40 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s8-v6so11015812pgf.0
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 15:09:40 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id ay2-v6si10726078plb.210.2018.05.02.15.09.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 15:08:29 -0700 (PDT)
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
- signal semantics
-References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
- <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
- <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
- <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net>
- <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
- <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
- <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
- <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <a37b7deb-7f5a-3dfa-f360-956cab8a813a@intel.com>
-Date: Wed, 2 May 2018 15:08:27 -0700
+        Wed, 02 May 2018 15:09:39 -0700 (PDT)
+Date: Wed, 2 May 2018 23:09:34 +0100
+From: James Hogan <jhogan@kernel.org>
+Subject: Re: [PATCH 08/13] arch: define the ARCH_DMA_ADDR_T_64BIT config
+ symbol in lib/Kconfig
+Message-ID: <20180502220933.GB20766@jamesdev>
+References: <20180425051539.1989-1-hch@lst.de>
+ <20180425051539.1989-9-hch@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="wzJLGUyc3ArbnUjN"
+Content-Disposition: inline
+In-Reply-To: <20180425051539.1989-9-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Florian Weimer <fweimer@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxram@us.ibm.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org, sstabellini@kernel.org, x86@kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On 05/02/2018 02:23 PM, Andy Lutomirski wrote:
->> The kernel could do *something*, probably along the membarrier system
->> call.  I mean, I could implement a reasonable close approximation in
->> userspace, via the setxid mechanism in glibc (but I really don't want to).
-> 
-> I beg to differ.
-> 
-> Thread A:
-> old = RDPKRU();
-> WRPKRU(old & ~3);
-> ...
-> WRPKRU(old);
-> 
-> Thread B:
-> pkey_alloc().
-> 
-> If pkey_alloc() happens while thread A is in the ... part, you lose.  It
-> makes no difference what the kernel does.  The problem is that the WRPKRU
-> instruction itself is designed incorrectly.
 
-Yes, *if* we define pkey_alloc() to be implicitly changing other
-threads' PKRU value.
+--wzJLGUyc3ArbnUjN
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Let's say we go to the hardware guys and ask for a new instruction to
-fix this.  We're going to have to make a pretty good case that this is
-either impossible or really hard to do in software.
+On Wed, Apr 25, 2018 at 07:15:34AM +0200, Christoph Hellwig wrote:
+> Define this symbol if the architecture either uses 64-bit pointers or the
+> PHYS_ADDR_T_64BIT is set.  This covers 95% of the old arch magic.  We only
+> need an additional select for Xen on ARM (why anyway?), and we now always
+> set ARCH_DMA_ADDR_T_64BIT on mips boards with 64-bit physical addressing
+> instead of only doing it when highmem is set.
 
-Surely we have the locking to tell another thread that we want its PKRU
-value to change without actively going out and having the kernel poke a
-new value in.
+I think this should be fine. It only affects alchemy and Netlogic, and
+Netlogic supports highmem already.
+
+So for MIPS:
+Acked-by: James Hogan <jhogan@kernel.org>
+
+Cheers
+James
+
+> diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
+> index 985388078872..e10cc5c7be69 100644
+> --- a/arch/mips/Kconfig
+> +++ b/arch/mips/Kconfig
+> @@ -1101,9 +1101,6 @@ config GPIO_TXX9
+>  config FW_CFE
+>  	bool
+> =20
+> -config ARCH_DMA_ADDR_T_64BIT
+> -	def_bool (HIGHMEM && PHYS_ADDR_T_64BIT) || 64BIT
+> -
+>  config ARCH_SUPPORTS_UPROBES
+>  	bool
+
+> diff --git a/lib/Kconfig b/lib/Kconfig
+> index ce9fa962d59b..1f12faf03819 100644
+> --- a/lib/Kconfig
+> +++ b/lib/Kconfig
+> @@ -435,6 +435,9 @@ config NEED_SG_DMA_LENGTH
+>  config NEED_DMA_MAP_STATE
+>  	bool
+> =20
+> +config ARCH_DMA_ADDR_T_64BIT
+> +	def_bool 64BIT || PHYS_ADDR_T_64BIT
+> +
+>  config IOMMU_HELPER
+>  	bool
+
+--wzJLGUyc3ArbnUjN
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYIAB0WIQS7lRNBWUYtqfDOVL41zuSGKxAj8gUCWuo3DwAKCRA1zuSGKxAj
+8tikAQDi/ZUNjW7+epg5yVcHFsdN4zPqszjMfOoZb9Tw0/w5/QD+O0gHySriLqfv
+vZwnsvl5Mx2kzMLvdMNqFC++weR4XwQ=
+=H1g4
+-----END PGP SIGNATURE-----
+
+--wzJLGUyc3ArbnUjN--
