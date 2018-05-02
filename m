@@ -1,519 +1,505 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 136886B0008
-	for <linux-mm@kvack.org>; Tue,  1 May 2018 21:06:07 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id h129-v6so4219222lfg.14
-        for <linux-mm@kvack.org>; Tue, 01 May 2018 18:06:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j126-v6sor1036975lfg.29.2018.05.01.18.06.05
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B3F886B0005
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 00:41:50 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id r140-v6so12945841iod.16
+        for <linux-mm@kvack.org>; Tue, 01 May 2018 21:41:50 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id m31-v6si5375462iti.94.2018.05.01.21.41.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 01 May 2018 18:06:05 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Subject: [PATCH 3/3] genalloc: selftest
-Date: Wed,  2 May 2018 05:05:22 +0400
-Message-Id: <20180502010522.28767-4-igor.stoppa@huawei.com>
-In-Reply-To: <20180502010522.28767-1-igor.stoppa@huawei.com>
-References: <20180502010522.28767-1-igor.stoppa@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 May 2018 21:41:49 -0700 (PDT)
+Subject: Re: [PATCH] memcg, hugetlb: pages allocated for hugetlb's overcommit
+ will be charged to memcg
+References: <ecb737e9-ccec-2d7e-45d9-91884a669b58@ascade.co.jp>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <dc21a4ac-b57f-59a8-f97a-90a59d5a59cd@oracle.com>
+Date: Tue, 1 May 2018 21:41:24 -0700
+MIME-Version: 1.0
+In-Reply-To: <ecb737e9-ccec-2d7e-45d9-91884a669b58@ascade.co.jp>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org, keescook@chromium.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-security-module@vger.kernel.org
-Cc: willy@infradead.org, labbott@redhat.com, linux-kernel@vger.kernel.org, igor.stoppa@huawei.com
+To: TSUKADA Koutaro <tsukada@ascade.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-Introduce a set of macros for writing concise test cases for genalloc.
+On 05/01/2018 06:19 PM, TSUKADA Koutaro wrote:
+> If nr_overcommit_hugepages is assumed to be infinite, allocating pages for
+> hugetlb's overcommit from buddy pool is all unlimited even if being limited
+> by memcg. The purpose of this patch is that if we allocate the hugetlb page
+> from the boddy pool, that means we should charge it to memcg.
+> 
+> A straightforward way for user applications to use hugetlb pages is to
+> create the pool(nr_hugepages), but root privileges is required. For example,
+> assuming the field of HPC, it can be said that giving root privs to general
+> users is difficult. Also, the way to the creating pool is that we need to
+> estimate exactly how much use hugetlb, and it feels a bit troublesome.
+> 
+> In such a case, using hugetlb's overcommit feature, considered to let the
+> user use hugetlb page only with overcommit without creating the any pool.
+> However, as mentioned earlier, the page can be allocated limitelessly in
+> overcommit in the current implementation. Therefore, by introducing memcg
+> charging, I wanted to be able to manage the memory resources used by the
+> user application only with memcg's limitation.
+> 
+> This patch targets RHELSA(kernel-alt-4.11.0-45.6.1.el7a.src.rpm).
 
-The test cases are meant to provide regression testing, when working on
-new functionality for genalloc.
+It would be very helpful to rebase this patch on a recent mainline kernel.
+The code to allocate surplus huge pages has been significantly changed in
+recent kernels.
 
-Primarily they are meant to confirm that the various allocation strategy
-will continue to work as expected.
+I have no doubt that this is a real issue and we are not correctly charging
+surplus to a memcg.  But your patch will be hard to evaluate when based on
+an older distro kernel.
 
-The execution of the self testing is controlled through a Kconfig option.
+>                                                                   The patch
+> does the following things.
+> 
+> When allocating the page from buddy at __hugetlb_alloc_buddy_huge_page,
+> set the flag of HUGETLB_OVERCOMMIT on that page[1].private. When actually
+> use the page which HUGETLB_OVERCOMMIT is set(at hugepage_add_new_anon_rmap
+> or huge_add_to_page_cache), it tries to charge to memcg. If the charge is
+> successful, add the flag of HUGETLB_OVERCOMMIT_CHARGED on that page[1].
 
-While it is possible to compile and executethe test as kenrel module, it
-is mostly useful to confirm that there are no problems.
-In case there were problems, the system is likely to crash well before
-modules can be loaded. When troubleshooting a crash, it is recommended
-to compile the tests into the monolithic kernel.
+What is the reason for not charging pages at allocation/reserve time?  I am
+not an expert in memcg accounting, but I would think the pages should be
+charged at allocation time.  Otherwise, a task could allocate a large number
+of (reserved) pages that are not charged to a memcg.  memcg charges in other
+code paths seem to happen at huge page allocation time.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
----
- lib/Kconfig.debug   |  23 +++
- lib/Makefile        |   1 +
- lib/test_genalloc.c | 419 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 443 insertions(+)
- create mode 100644 lib/test_genalloc.c
-
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index c40c7b734cd1..4f511ac20869 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1943,6 +1943,29 @@ config TEST_DEBUG_VIRTUAL
- 
- 	  If unsure, say N.
- 
-+config TEST_GENERIC_ALLOCATOR
-+	tristate "genalloc tester"
-+	default n
-+	depends on GENERIC_ALLOCATOR
-+	help
-+	  Enable automated testing of the generic allocator.
-+	  The testing is primarily for the tracking of allocated space,
-+	  in particular, it tests that the size of each allcoation can be
-+	  determined correctly.
-+
-+	  If unsure, say N.
-+
-+config TEST_GENERIC_ALLOCATOR_VERBOSE
-+	bool "make the genalloc tester more verbose"
-+	default n
-+	depends on TEST_GENERIC_ALLOCATOR
-+	help
-+	  During the self-testing, it will be possibe to visualize the bit
-+	  patterns that are expected to be produced by the sequence of
-+	  memory-oriented operations.
-+
-+	  If unsure, say N
-+
- endif # RUNTIME_TESTING_MENU
- 
- config MEMTEST
-diff --git a/lib/Makefile b/lib/Makefile
-index 384713ff70d3..2c66346ab246 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -114,6 +114,7 @@ obj-$(CONFIG_LIBCRC32C)	+= libcrc32c.o
- obj-$(CONFIG_CRC8)	+= crc8.o
- obj-$(CONFIG_XXHASH)	+= xxhash.o
- obj-$(CONFIG_GENERIC_ALLOCATOR) += genalloc.o
-+obj-$(CONFIG_TEST_GENERIC_ALLOCATOR) += test_genalloc.o
- 
- obj-$(CONFIG_842_COMPRESS) += 842/
- obj-$(CONFIG_842_DECOMPRESS) += 842/
-diff --git a/lib/test_genalloc.c b/lib/test_genalloc.c
-new file mode 100644
-index 000000000000..46ab7796c9ec
---- /dev/null
-+++ b/lib/test_genalloc.c
-@@ -0,0 +1,419 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * test_genalloc.c
-+ *
-+ * (C) Copyright 2017-18 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ */
-+
-+#include <linux/init.h>
-+#include <linux/module.h>
-+#include <linux/printk.h>
-+#include <linux/vmalloc.h>
-+#include <linux/string.h>
-+#include <linux/debugfs.h>
-+#include <linux/atomic.h>
-+#include <linux/genalloc.h>
-+
-+/*
-+ * Keep the bitmap small, while including case of cross-ulong mapping.
-+ * For simplicity, the test cases use only 1 chunk of memory.
-+ */
-+#define BITMAP_SIZE_C 16
-+#define ALLOC_ORDER 0
-+
-+#define ULONG_SIZE (sizeof(unsigned long))
-+#define BITMAP_SIZE_UL (BITMAP_SIZE_C / ULONG_SIZE)
-+#define MIN_ALLOC_SIZE (1 << ALLOC_ORDER)
-+#define ENTRIES (BITMAP_SIZE_C * 8)
-+#define CHUNK_SIZE  (MIN_ALLOC_SIZE * ENTRIES)
-+
-+#ifndef CONFIG_TEST_GENERIC_ALLOCATOR_VERBOSE
-+
-+static inline void print_first_chunk_bitmap(struct gen_pool *pool) {}
-+
-+#else
-+
-+static void print_first_chunk_bitmap(struct gen_pool *pool)
-+{
-+	struct gen_pool_chunk *chunk;
-+	char bitmap[BITMAP_SIZE_C * 2 + 1];
-+	unsigned long i;
-+	char *bm = bitmap;
-+	char *entry;
-+
-+	if (unlikely(pool == NULL || pool->chunks.next == NULL))
-+		return;
-+
-+	chunk = container_of(pool->chunks.next, struct gen_pool_chunk,
-+			     next_chunk);
-+	entry = (void *)chunk->entries;
-+	for (i = 1; i <= BITMAP_SIZE_C; i++)
-+		bm += snprintf(bm, 3, "%02hhx", entry[BITMAP_SIZE_C - i]);
-+	*bm = '\0';
-+	pr_notice("chunk: %p    bitmap: 0x%s\n", chunk, bitmap);
-+
-+}
-+
-+#endif
-+
-+enum test_commands {
-+	CMD_ALLOCATOR,
-+	CMD_ALLOCATE,
-+	CMD_FLUSH,
-+	CMD_FREE,
-+	CMD_NUMBER,
-+	CMD_END = CMD_NUMBER,
-+};
-+
-+struct null_struct {
-+	void *null;
-+};
-+
-+struct test_allocator {
-+	genpool_algo_t algo;
-+	union {
-+		struct genpool_data_align align;
-+		struct genpool_data_fixed offset;
-+		struct null_struct null;
-+	} data;
-+};
-+
-+struct test_action {
-+	unsigned int location;
-+	char pattern[BITMAP_SIZE_C];
-+	unsigned int size;
-+};
-+
-+
-+struct test_command {
-+	enum test_commands command;
-+	union {
-+		struct test_allocator allocator;
-+		struct test_action action;
-+	};
-+};
-+
-+
-+/*
-+ * To pass an array literal as parameter to a macro, it must go through
-+ * this one, first.
-+ */
-+#define ARR(...) __VA_ARGS__
-+
-+#define SET_DATA(parameter, value)	\
-+	.parameter = {			\
-+		.parameter = value,	\
-+	}				\
-+
-+#define SET_ALLOCATOR(alloc, parameter, value)		\
-+{							\
-+	.command = CMD_ALLOCATOR,			\
-+	.allocator = {					\
-+		.algo = (alloc),			\
-+		.data = {				\
-+			SET_DATA(parameter, value),	\
-+		},					\
-+	}						\
-+}
-+
-+#define ACTION_MEM(act, mem_size, mem_loc, match)	\
-+{							\
-+	.command = act,					\
-+	.action = {					\
-+		.size = (mem_size),			\
-+		.location = (mem_loc),			\
-+		.pattern = match,			\
-+	},						\
-+}
-+
-+#define ALLOCATE_MEM(mem_size, mem_loc, match)	\
-+	ACTION_MEM(CMD_ALLOCATE, mem_size, mem_loc, ARR(match))
-+
-+#define FREE_MEM(mem_size, mem_loc, match)	\
-+	ACTION_MEM(CMD_FREE, mem_size, mem_loc, ARR(match))
-+
-+#define FLUSH_MEM()		\
-+{				\
-+	.command = CMD_FLUSH,	\
-+}
-+
-+#define END()			\
-+{				\
-+	.command = CMD_END,	\
-+}
-+
-+static inline int compare_bitmaps(const struct gen_pool *pool,
-+				   const char *reference)
-+{
-+	struct gen_pool_chunk *chunk;
-+	char *bitmap;
-+	unsigned int i;
-+
-+	chunk = container_of(pool->chunks.next, struct gen_pool_chunk,
-+			     next_chunk);
-+	bitmap = (char *)chunk->entries;
-+
-+	for (i = 0; i < BITMAP_SIZE_C; i++)
-+		if (bitmap[i] != reference[i])
-+			return -1;
-+	return 0;
-+}
-+
-+static int callback_set_allocator(struct gen_pool *pool,
-+				   const struct test_command *cmd,
-+				   unsigned long *locations)
-+{
-+	gen_pool_set_algo(pool, cmd->allocator.algo,
-+			  (void *)&cmd->allocator.data);
-+	return 0;
-+}
-+
-+static int callback_allocate(struct gen_pool *pool,
-+			      const struct test_command *cmd,
-+			      unsigned long *locations)
-+{
-+	const struct test_action *action = &cmd->action;
-+
-+	locations[action->location] = gen_pool_alloc(pool, action->size);
-+	if (WARN_ON(!locations[action->location]))
-+		return 1;
-+	print_first_chunk_bitmap(pool);
-+	return WARN_ON(compare_bitmaps(pool, action->pattern));
-+}
-+
-+static int callback_flush(struct gen_pool *pool,
-+			  const struct test_command *cmd,
-+			  unsigned long *locations)
-+{
-+	unsigned int i;
-+
-+	for (i = 0; i < ENTRIES; i++)
-+		if (locations[i]) {
-+			gen_pool_free(pool, locations[i], 0);
-+			locations[i] = 0;
-+		}
-+	return 0;
-+}
-+
-+static int callback_free(struct gen_pool *pool,
-+			  const struct test_command *cmd,
-+			  unsigned long *locations)
-+{
-+	const struct test_action *action = &cmd->action;
-+
-+	gen_pool_free(pool, locations[action->location], 0);
-+	locations[action->location] = 0;
-+	print_first_chunk_bitmap(pool);
-+	return WARN_ON(compare_bitmaps(pool, action->pattern));
-+}
-+
-+static int (* const callbacks[CMD_NUMBER])(struct gen_pool *,
-+					    const struct test_command *,
-+					    unsigned long *) = {
-+	[CMD_ALLOCATOR] = callback_set_allocator,
-+	[CMD_ALLOCATE] = callback_allocate,
-+	[CMD_FREE] = callback_free,
-+	[CMD_FLUSH] = callback_flush,
-+};
-+
-+static const struct test_command test_first_fit[] = {
-+	SET_ALLOCATOR(gen_pool_first_fit, null, NULL),
-+	ALLOCATE_MEM(3, 0, ARR({0x2b})),
-+	ALLOCATE_MEM(2, 1, ARR({0xeb, 0x02})),
-+	ALLOCATE_MEM(5, 2, ARR({0xeb, 0xae, 0x0a})),
-+	FREE_MEM(2, 1,  ARR({0x2b, 0xac, 0x0a})),
-+	ALLOCATE_MEM(1, 1, ARR({0xeb, 0xac, 0x0a})),
-+	FREE_MEM(0, 2,  ARR({0xeb})),
-+	FREE_MEM(0, 0,  ARR({0xc0})),
-+	FREE_MEM(0, 1,	ARR({0x00})),
-+	END(),
-+};
-+
-+/*
-+ * To make the test work for both 32bit and 64bit ulong sizes,
-+ * allocate (8 / 2 * 4 - 1) = 15 bytes bytes, then 16, then 2.
-+ * The first allocation prepares for the crossing of the 32bit ulong
-+ * threshold. The following crosses the 32bit threshold and prepares for
-+ * crossing the 64bit thresholds. The last is large enough (2 bytes) to
-+ * cross the 64bit threshold.
-+ * Then free the allocations in the order: 2nd, 1st, 3rd.
-+ */
-+static const struct test_command test_ulong_span[] = {
-+	SET_ALLOCATOR(gen_pool_first_fit, null, NULL),
-+	ALLOCATE_MEM(15, 0, ARR({0xab, 0xaa, 0xaa, 0x2a})),
-+	ALLOCATE_MEM(16, 1, ARR({0xab, 0xaa, 0xaa, 0xea,
-+				0xaa, 0xaa, 0xaa, 0x2a})),
-+	ALLOCATE_MEM(2, 2, ARR({0xab, 0xaa, 0xaa, 0xea,
-+			       0xaa, 0xaa, 0xaa, 0xea,
-+			       0x02})),
-+	FREE_MEM(0, 1, ARR({0xab, 0xaa, 0xaa, 0x2a,
-+			   0x00, 0x00, 0x00, 0xc0,
-+			   0x02})),
-+	FREE_MEM(0, 0, ARR({0x00, 0x00, 0x00, 0x00,
-+			   0x00, 0x00, 0x00, 0xc0,
-+			   0x02})),
-+	FREE_MEM(0, 2, ARR({0x00})),
-+	END(),
-+};
-+
-+/*
-+ * Create progressively smaller allocations A B C D E.
-+ * then free B and D.
-+ * Then create new allocation that would fit in both of the gaps left by
-+ * B and D. Verify that it uses the gap from B.
-+ */
-+static const struct test_command test_first_fit_gaps[] = {
-+	SET_ALLOCATOR(gen_pool_first_fit, null, NULL),
-+	ALLOCATE_MEM(10, 0, ARR({0xab, 0xaa, 0x0a})),
-+	ALLOCATE_MEM(8, 1, ARR({0xab, 0xaa, 0xba, 0xaa,
-+			       0x0a})),
-+	ALLOCATE_MEM(6, 2, ARR({0xab, 0xaa, 0xba, 0xaa,
-+			       0xba, 0xaa})),
-+	ALLOCATE_MEM(4, 3, ARR({0xab, 0xaa, 0xba, 0xaa,
-+			       0xba, 0xaa, 0xab})),
-+	ALLOCATE_MEM(2, 4, ARR({0xab, 0xaa, 0xba, 0xaa,
-+			       0xba, 0xaa, 0xab, 0x0b})),
-+	FREE_MEM(0, 1, ARR({0xab, 0xaa, 0x0a, 0x00,
-+			   0xb0, 0xaa, 0xab, 0x0b})),
-+	FREE_MEM(0, 3, ARR({0xab, 0xaa, 0x0a, 0x00,
-+			   0xb0, 0xaa, 0x00, 0x0b})),
-+	ALLOCATE_MEM(3, 3, ARR({0xab, 0xaa, 0xba, 0x02,
-+			       0xb0, 0xaa, 0x00, 0x0b})),
-+	FLUSH_MEM(),
-+	END(),
-+};
-+
-+/* Test first fit align */
-+static const struct test_command test_first_fit_align[] = {
-+	SET_ALLOCATOR(gen_pool_first_fit_align, align, 4),
-+	ALLOCATE_MEM(5, 0, ARR({0xab, 0x02})),
-+	ALLOCATE_MEM(3, 1, ARR({0xab, 0x02, 0x2b})),
-+	ALLOCATE_MEM(2, 2, ARR({0xab, 0x02, 0x2b, 0x0b})),
-+	ALLOCATE_MEM(1, 3, ARR({0xab, 0x02, 0x2b, 0x0b, 0x03})),
-+	FREE_MEM(0, 0, ARR({0x00, 0x00, 0x2b, 0x0b, 0x03})),
-+	FREE_MEM(0, 2, ARR({0x00, 0x00, 0x2b, 0x00, 0x03})),
-+	ALLOCATE_MEM(2, 0, ARR({0x0b, 0x00, 0x2b, 0x00, 0x03})),
-+	FLUSH_MEM(),
-+	END(),
-+};
-+
-+
-+/* Test fixed alloc */
-+static const struct test_command test_fixed_data[] = {
-+	SET_ALLOCATOR(gen_pool_fixed_alloc, offset, 1),
-+	ALLOCATE_MEM(5, 0, ARR({0xac, 0x0a})),
-+	SET_ALLOCATOR(gen_pool_fixed_alloc, offset, 8),
-+	ALLOCATE_MEM(3, 1, ARR({0xac, 0x0a, 0x2b})),
-+	SET_ALLOCATOR(gen_pool_fixed_alloc, offset, 6),
-+	ALLOCATE_MEM(2, 2, ARR({0xac, 0xba, 0x2b})),
-+	SET_ALLOCATOR(gen_pool_fixed_alloc, offset, 30),
-+	ALLOCATE_MEM(40, 3, ARR({0xac, 0xba, 0x2b, 0x00,
-+				0x00, 0x00, 0x00, 0xb0,
-+				0xaa, 0xaa, 0xaa, 0xaa,
-+				0xaa, 0xaa, 0xaa, 0xaa})),
-+	FLUSH_MEM(),
-+	END(),
-+};
-+
-+
-+/* Test first fit order align */
-+static const struct test_command test_first_fit_order_align[] = {
-+	SET_ALLOCATOR(gen_pool_first_fit_order_align, null, NULL),
-+	ALLOCATE_MEM(5, 0, ARR({0xab, 0x02})),
-+	ALLOCATE_MEM(3, 1, ARR({0xab, 0x02, 0x2b})),
-+	ALLOCATE_MEM(2, 2, ARR({0xab, 0xb2, 0x2b})),
-+	ALLOCATE_MEM(1, 3, ARR({0xab, 0xbe, 0x2b})),
-+	ALLOCATE_MEM(1, 4, ARR({0xab, 0xbe, 0xeb})),
-+	ALLOCATE_MEM(2, 5, ARR({0xab, 0xbe, 0xeb, 0x0b})),
-+	FLUSH_MEM(),
-+	END(),
-+};
-+
-+
-+/* 007 Test best fit */
-+static const struct test_command test_best_fit[] = {
-+	SET_ALLOCATOR(gen_pool_best_fit, null, NULL),
-+	ALLOCATE_MEM(5, 0, ARR({0xab, 0x02})),
-+	ALLOCATE_MEM(3, 1, ARR({0xab, 0xae})),
-+	ALLOCATE_MEM(3, 2, ARR({0xab, 0xae, 0x2b})),
-+	ALLOCATE_MEM(1, 3, ARR({0xab, 0xae, 0xeb})),
-+	FREE_MEM(0, 0, ARR({0x00, 0xac, 0xeb})),
-+	FREE_MEM(0, 2, ARR({0x00, 0xac, 0xc0})),
-+	ALLOCATE_MEM(2, 0, ARR({0x00, 0xac, 0xcb})),
-+	FLUSH_MEM(),
-+	END(),
-+};
-+
-+
-+enum test_cases_indexes {
-+	TEST_CASE_FIRST_FIT,
-+	TEST_CASE_ULONG_SPAN,
-+	TEST_CASE_FIRST_FIT_GAPS,
-+	TEST_CASE_FIRST_FIT_ALIGN,
-+	TEST_CASE_FIXED_DATA,
-+	TEST_CASE_FIRST_FIT_ORDER_ALIGN,
-+	TEST_CASE_BEST_FIT,
-+	TEST_CASES_NUM,
-+};
-+
-+static const struct test_command *test_cases[TEST_CASES_NUM] = {
-+	[TEST_CASE_FIRST_FIT] = test_first_fit,
-+	[TEST_CASE_ULONG_SPAN] = test_ulong_span,
-+	[TEST_CASE_FIRST_FIT_GAPS] = test_first_fit_gaps,
-+	[TEST_CASE_FIRST_FIT_ALIGN] = test_first_fit_align,
-+	[TEST_CASE_FIXED_DATA] = test_fixed_data,
-+	[TEST_CASE_FIRST_FIT_ORDER_ALIGN] = test_first_fit_order_align,
-+	[TEST_CASE_BEST_FIT] = test_best_fit,
-+};
-+
-+
-+static int __init test_genalloc_init_module(void)
-+{
-+	static struct gen_pool *pool;
-+	unsigned long locations[ENTRIES];
-+	char chunk[CHUNK_SIZE];
-+	unsigned int i;
-+	const struct test_command *cmd;
-+	int retval;
-+
-+	retval = -ENOMEM;
-+	pool = gen_pool_create(ALLOC_ORDER, -1);
-+	if (unlikely(!pool)) {
-+		pr_err("genalloc: no memory for self-test.");
-+		return -ENOMEM;
-+	}
-+
-+	retval = gen_pool_add_virt(pool, (unsigned long)chunk, 0,
-+				   CHUNK_SIZE, -1);
-+	if (unlikely(retval)) {
-+		pr_err("genalloc: could not register chunk for self-test.");
-+		goto destroy_pool;
-+	}
-+
-+	memset(locations, 0, ENTRIES * sizeof(unsigned long));
-+	for (i = 0; i < TEST_CASES_NUM; i++)
-+		for (cmd = test_cases[i]; cmd->command < CMD_END; cmd++)
-+			if (callbacks[cmd->command](pool, cmd, locations)) {
-+				pr_err("genalloc: failed test %d", i);
-+				goto destroy_pool;
-+			}
-+	pr_notice("genalloc-selftest: executed successfully %d tests",
-+		  TEST_CASES_NUM);
-+
-+destroy_pool:
-+	gen_pool_destroy(pool);
-+	return retval;
-+}
-+
-+module_init(test_genalloc_init_module);
-+
-+static void __exit test_genalloc_cleanup_module(void)
-+{
-+}
-+
-+module_exit(test_genalloc_cleanup_module);
-+
-+MODULE_LICENSE("GPL");
-+MODULE_AUTHOR("Igor Stoppa <igor.stoppa@huawei.com>");
-+MODULE_DESCRIPTION("Test module for genalloc.");
 -- 
-2.14.1
+Mike Kravetz
+
+> 
+> The page charged to memcg will finally be uncharged at free_huge_page.
+> 
+> Modification of memcontrol.c is for updating of statistical information
+> when the task moves cgroup. The hpage_nr_pages works correctly for thp,
+> but it is not suitable for such as hugetlb which uses the contiguous bit
+> of aarch64, so need to modify it.
+> 
+> Signed-off-by: TSUKADA Koutaro <tsukada@ascade.co.jp>
+> ---
+>  include/linux/hugetlb.h |   45 ++++++++++++++++++++++
+>  mm/hugetlb.c            |   80 +++++++++++++++++++++++++++++++++++++++
+>  mm/memcontrol.c         |   98 ++++++++++++++++++++++++++++++++++++++++++++++--
+>  3 files changed, 219 insertions(+), 4 deletions(-)
+> 
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index d67675e..67991cb 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -511,6 +511,51 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
+>  	set_huge_pte_at(mm, addr, ptep, pte);
+>  }
+>  #endif
+> +
+> +#define HUGETLB_OVERCOMMIT		1UL
+> +#define HUGETLB_OVERCOMMIT_CHARGED	2UL
+> +
+> +static inline void add_hugetlb_compound_private(struct page *page,
+> +						unsigned long val)
+> +{
+> +	page[1].private |= val;
+> +}
+> +
+> +static inline unsigned long get_hugetlb_compound_private(struct page *page)
+> +{
+> +	return page_private(&page[1]);
+> +}
+> +
+> +static inline void add_hugetlb_overcommit(struct page *page)
+> +{
+> +	add_hugetlb_compound_private(page, HUGETLB_OVERCOMMIT);
+> +}
+> +
+> +static inline void del_hugetlb_overcommit(struct page *page)
+> +{
+> +	add_hugetlb_compound_private(page, ~(HUGETLB_OVERCOMMIT));
+> +}
+> +
+> +static inline int is_hugetlb_overcommit(struct page *page)
+> +{
+> +	return (get_hugetlb_compound_private(page) & HUGETLB_OVERCOMMIT);
+> +}
+> +
+> +static inline void add_hugetlb_overcommit_charged(struct page *page)
+> +{
+> +	add_hugetlb_compound_private(page, HUGETLB_OVERCOMMIT_CHARGED);
+> +}
+> +
+> +static inline void del_hugetlb_overcommit_charged(struct page *page)
+> +{
+> +	add_hugetlb_compound_private(page, ~(HUGETLB_OVERCOMMIT_CHARGED));
+> +}
+> +
+> +static inline int is_hugetlb_overcommit_charged(struct page *page)
+> +{
+> +	return (get_hugetlb_compound_private(page) &
+> +		HUGETLB_OVERCOMMIT_CHARGED);
+> +}
+>  #else	/* CONFIG_HUGETLB_PAGE */
+>  struct hstate {};
+>  #define alloc_huge_page(v, a, r) NULL
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 6191fb9..2cd91d9 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -24,6 +24,7 @@
+>  #include <linux/swapops.h>
+>  #include <linux/page-isolation.h>
+>  #include <linux/jhash.h>
+> +#include <linux/memcontrol.h>
+> 
+>  #include <asm/page.h>
+>  #include <asm/pgtable.h>
+> @@ -1227,6 +1228,17 @@ static void clear_page_huge_active(struct page *page)
+>  	ClearPagePrivate(&page[1]);
+>  }
+> 
+> +static void hugetlb_overcommit_finalize(struct page *page)
+> +{
+> +	if (is_hugetlb_overcommit_charged(page)) {
+> +		del_hugetlb_overcommit_charged(page);
+> +		mem_cgroup_uncharge(page);
+> +	}
+> +	if (is_hugetlb_overcommit(page)) {
+> +		del_hugetlb_overcommit(page);
+> +	}
+> +}
+> +
+>  void free_huge_page(struct page *page)
+>  {
+>  	/*
+> @@ -1239,6 +1251,8 @@ void free_huge_page(struct page *page)
+>  		(struct hugepage_subpool *)page_private(page);
+>  	bool restore_reserve;
+> 
+> +	hugetlb_overcommit_finalize(page);
+> +
+>  	set_page_private(page, 0);
+>  	page->mapping = NULL;
+>  	VM_BUG_ON_PAGE(page_count(page), page);
+> @@ -1620,6 +1634,13 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h,
+>  	spin_unlock(&hugetlb_lock);
+> 
+>  	page = __hugetlb_alloc_buddy_huge_page(h, vma, addr, nid);
+> +	if (page) {
+> +		/*
+> +		 * At this point it is impossible to judge whether it is
+> +		 * mapped or just reserved, so only mark it.
+> +		 */
+> +		add_hugetlb_overcommit(page);
+> +	}
+> 
+>  	spin_lock(&hugetlb_lock);
+>  	if (page) {
+> @@ -3486,6 +3507,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	int ret = 0, outside_reserve = 0;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+> +	struct mem_cgroup *memcg;
+> +	int memcg_charged = 0;
+> 
+>  	pte = huge_ptep_get(ptep);
+>  	old_page = pte_page(pte);
+> @@ -3552,6 +3575,15 @@ retry_avoidcopy:
+>  		goto out_release_old;
+>  	}
+> 
+> +	if (unlikely(is_hugetlb_overcommit(new_page))) {
+> +		if (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL,
+> +						&memcg, true)) {
+> +			ret = VM_FAULT_OOM;
+> +			goto out_release_all;
+> +		}
+> +		memcg_charged = 1;
+> +	}
+> +
+>  	/*
+>  	 * When the original hugepage is shared one, it does not have
+>  	 * anon_vma prepared.
+> @@ -3587,12 +3619,18 @@ retry_avoidcopy:
+>  				make_huge_pte(vma, new_page, 1));
+>  		page_remove_rmap(old_page, true);
+>  		hugepage_add_new_anon_rmap(new_page, vma, address);
+> +		if (memcg_charged) {
+> +			mem_cgroup_commit_charge(new_page, memcg, false, true);
+> +			add_hugetlb_overcommit_charged(new_page);
+> +		}
+>  		/* Make the old page be freed below */
+>  		new_page = old_page;
+>  	}
+>  	spin_unlock(ptl);
+>  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+>  out_release_all:
+> +	if (memcg_charged)
+> +		mem_cgroup_cancel_charge(new_page, memcg, true);
+>  	restore_reserve_on_error(h, vma, address, new_page);
+>  	put_page(new_page);
+>  out_release_old:
+> @@ -3641,9 +3679,18 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
+>  	struct inode *inode = mapping->host;
+>  	struct hstate *h = hstate_inode(inode);
+>  	int err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
+> +	struct mem_cgroup *memcg;
+> 
+>  	if (err)
+>  		return err;
+> +	if (page && is_hugetlb_overcommit(page)) {
+> +		err = mem_cgroup_try_charge(page, current->mm, GFP_KERNEL,
+> +					    &memcg, true);
+> +		if (err)
+> +			return err;
+> +		mem_cgroup_commit_charge(page, memcg, false, true);
+> +		add_hugetlb_overcommit_charged(page);
+> +	}
+>  	ClearPagePrivate(page);
+> 
+>  	spin_lock(&inode->i_lock);
+> @@ -3663,6 +3710,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	struct page *page;
+>  	pte_t new_pte;
+>  	spinlock_t *ptl;
+> +	struct mem_cgroup *memcg;
+> +	int memcg_charged = 0;
+> 
+>  	/*
+>  	 * Currently, we are forced to kill the process in the event the
+> @@ -3740,6 +3789,14 @@ retry:
+>  			}
+>  		} else {
+>  			lock_page(page);
+> +			if (unlikely(is_hugetlb_overcommit(page))) {
+> +				if (mem_cgroup_try_charge(page, mm, GFP_KERNEL,
+> +							  &memcg, true)) {
+> +					ret = VM_FAULT_OOM;
+> +					goto backout_unlocked;
+> +				}
+> +				memcg_charged = 1;
+> +			}
+>  			if (unlikely(anon_vma_prepare(vma))) {
+>  				ret = VM_FAULT_OOM;
+>  				goto backout_unlocked;
+> @@ -3786,6 +3843,10 @@ retry:
+>  	if (anon_rmap) {
+>  		ClearPagePrivate(page);
+>  		hugepage_add_new_anon_rmap(page, vma, address);
+> +		if (memcg_charged) {
+> +			mem_cgroup_commit_charge(page, memcg, false, true);
+> +			add_hugetlb_overcommit_charged(page);
+> +		}
+>  	} else
+>  		page_dup_rmap(page, true);
+>  	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
+> @@ -3806,6 +3867,8 @@ out:
+>  backout:
+>  	spin_unlock(ptl);
+>  backout_unlocked:
+> +	if (memcg_charged)
+> +		mem_cgroup_cancel_charge(page, memcg, true);
+>  	unlock_page(page);
+>  	restore_reserve_on_error(h, vma, address, page);
+>  	put_page(page);
+> @@ -4002,6 +4065,9 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  	spinlock_t *ptl;
+>  	int ret;
+>  	struct page *page;
+> +	struct mem_cgroup *memcg;
+> +	int memcg_charged = 0;
+> +
+> 
+>  	if (!*pagep) {
+>  		ret = -ENOMEM;
+> @@ -4045,6 +4111,14 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  			goto out_release_nounlock;
+>  	}
+> 
+> +	if (!vm_shared && is_hugetlb_overcommit(page)) {
+> +		ret = -ENOMEM;
+> +		if (mem_cgroup_try_charge(page, dst_mm, GFP_KERNEL,
+> +						&memcg, true))
+> +			goto out_release_nounlock;
+> +		memcg_charged = 1;
+> +	}
+> +
+>  	ptl = huge_pte_lockptr(h, dst_mm, dst_pte);
+>  	spin_lock(ptl);
+> 
+> @@ -4057,6 +4131,10 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  	} else {
+>  		ClearPagePrivate(page);
+>  		hugepage_add_new_anon_rmap(page, dst_vma, dst_addr);
+> +		if (memcg_charged) {
+> +			mem_cgroup_commit_charge(page, memcg, false, true);
+> +			add_hugetlb_overcommit_charged(page);
+> +		}
+>  	}
+> 
+>  	_dst_pte = make_huge_pte(dst_vma, page, dst_vma->vm_flags & VM_WRITE);
+> @@ -4082,6 +4160,8 @@ out:
+>  out_release_unlock:
+>  	spin_unlock(ptl);
+>  out_release_nounlock:
+> +	if (memcg_charged)
+> +		mem_cgroup_cancel_charge(page, memcg, true);
+>  	if (vm_shared)
+>  		unlock_page(page);
+>  	put_page(page);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 02cfcd9..1842693 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4531,7 +4531,7 @@ static int mem_cgroup_move_account(struct page *page,
+>  				   struct mem_cgroup *to)
+>  {
+>  	unsigned long flags;
+> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
+> +	unsigned int nr_pages = compound ? 1 << compound_order(page) : 1;
+>  	int ret;
+>  	bool anon;
+> 
+> @@ -4744,12 +4744,64 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+>  	return 0;
+>  }
+> 
+> +#ifdef CONFIG_HUGETLB_PAGE
+> +static enum mc_target_type get_mctgt_type_hugetlb(struct vm_area_struct *vma,
+> +			unsigned long addr, pte_t *pte, union mc_target *target)
+> +{
+> +	struct page *page = NULL;
+> +	pte_t entry;
+> +	enum mc_target_type ret = MC_TARGET_NONE;
+> +
+> +	if (!(mc.flags & MOVE_ANON))
+> +		return ret;
+> +
+> +	entry = huge_ptep_get(pte);
+> +	if (!pte_present(entry))
+> +		return ret;
+> +	page = pte_page(entry);
+> +	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
+> +	if (!is_hugetlb_overcommit_charged(page))
+> +		return ret;
+> +	if (page->mem_cgroup == mc.from) {
+> +		ret = MC_TARGET_PAGE;
+> +		if (target) {
+> +			get_page(page);
+> +			target->page = page;
+> +		}
+> +	}
+> +
+> +	return ret;
+> +}
+> +
+> +static int hugetlb_count_precharge_pte_range(pte_t *pte, unsigned long hmask,
+> +					unsigned long addr, unsigned long end,
+> +					struct mm_walk *walk)
+> +{
+> +	struct vm_area_struct *vma = walk->vma;
+> +	struct mm_struct *mm = walk->mm;
+> +	spinlock_t *ptl;
+> +	union mc_target target;
+> +
+> +	ptl = huge_pte_lock(hstate_vma(vma), mm, pte);
+> +	if (get_mctgt_type_hugetlb(vma, addr, pte, &target) == MC_TARGET_PAGE) {
+> +		mc.precharge += (1 << compound_order(target.page));
+> +		put_page(target.page);
+> +	}
+> +	spin_unlock(ptl);
+> +
+> +	return 0;
+> +}
+> +#endif
+> +
+>  static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
+>  {
+>  	unsigned long precharge;
+> 
+>  	struct mm_walk mem_cgroup_count_precharge_walk = {
+>  		.pmd_entry = mem_cgroup_count_precharge_pte_range,
+> +#ifdef CONFIG_HUGETLB_PAGE
+> +		.hugetlb_entry = hugetlb_count_precharge_pte_range,
+> +#endif
+>  		.mm = mm,
+>  	};
+>  	down_read(&mm->mmap_sem);
+> @@ -5023,10 +5075,48 @@ put:			/* get_mctgt_type() gets the page */
+>  	return ret;
+>  }
+> 
+> +#ifdef CONFIG_HUGETLB_PAGE
+> +static int hugetlb_move_charge_pte_range(pte_t *pte, unsigned long hmask,
+> +					unsigned long addr, unsigned long end,
+> +					struct mm_walk *walk)
+> +{
+> +	struct vm_area_struct *vma = walk->vma;
+> +	struct mm_struct *mm = walk->mm;
+> +	spinlock_t *ptl;
+> +	enum mc_target_type target_type;
+> +	union mc_target target;
+> +	struct page *page;
+> +	unsigned long nr_pages;
+> +
+> +	ptl = huge_pte_lock(hstate_vma(vma), mm, pte);
+> +	target_type = get_mctgt_type_hugetlb(vma, addr, pte, &target);
+> +	if (target_type == MC_TARGET_PAGE) {
+> +		page = target.page;
+> +		nr_pages = (1 << compound_order(page));
+> +		if (mc.precharge < nr_pages) {
+> +			put_page(page);
+> +			goto unlock;
+> +		}
+> +		if (!mem_cgroup_move_account(page, true, mc.from, mc.to)) {
+> +			mc.precharge -= nr_pages;
+> +			mc.moved_charge += nr_pages;
+> +		}
+> +		put_page(page);
+> +	}
+> +unlock:
+> +	spin_unlock(ptl);
+> +
+> +	return 0;
+> +}
+> +#endif
+> +
+>  static void mem_cgroup_move_charge(void)
+>  {
+>  	struct mm_walk mem_cgroup_move_charge_walk = {
+>  		.pmd_entry = mem_cgroup_move_charge_pte_range,
+> +#ifdef CONFIG_HUGETLB_PAGE
+> +		.hugetlb_entry = hugetlb_move_charge_pte_range,
+> +#endif
+>  		.mm = mc.mm,
+>  	};
+> 
+> @@ -5427,7 +5517,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+>  			  bool compound)
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
+> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
+>  	int ret = 0;
+> 
+>  	if (mem_cgroup_disabled())
+> @@ -5488,7 +5578,7 @@ out:
+>  void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
+>  			      bool lrucare, bool compound)
+>  {
+> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
+> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
+> 
+>  	VM_BUG_ON_PAGE(!page->mapping, page);
+>  	VM_BUG_ON_PAGE(PageLRU(page) && !lrucare, page);
+> @@ -5532,7 +5622,7 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
+>  void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
+>  		bool compound)
+>  {
+> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
+> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
+> 
+>  	if (mem_cgroup_disabled())
+>  		return;
+> 
