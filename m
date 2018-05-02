@@ -1,80 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D40E6B000C
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 13:26:41 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z24so6623648pfn.5
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 10:26:41 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m39-v6si12003810plg.570.2018.05.02.10.26.39
+	by kanga.kvack.org (Postfix) with ESMTP id 740F76B0007
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 14:27:39 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id r63so11708425pfl.12
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 11:27:39 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id b2-v6si1383106pgc.569.2018.05.02.11.27.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 02 May 2018 10:26:40 -0700 (PDT)
-Date: Wed, 2 May 2018 10:26:39 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v4 07/16] slub: Remove page->counters
-Message-ID: <20180502172639.GC2737@bombadil.infradead.org>
-References: <20180430202247.25220-1-willy@infradead.org>
- <20180430202247.25220-8-willy@infradead.org>
- <alpine.DEB.2.21.1805011148060.16325@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 May 2018 11:27:36 -0700 (PDT)
+Subject: Patch "x86/pgtable: Don't set huge PUD/PMD on non-leaf entries" has been added to the 4.9-stable tree
+From: <gregkh@linuxfoundation.org>
+Date: Wed, 02 May 2018 11:16:55 -0700
+Message-ID: <152528501596142@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1805011148060.16325@nuc-kabylake>
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: 20180411152437.GC15462@8bytes.org, David.Laight@aculab.com, aarcange@redhat.com, alexander.levin@microsoft.com, aliguori@amazon.com, boris.ostrovsky@oracle.com, bp@alien8.de, brgerst@gmail.com, daniel.gruss@iaik.tugraz.at, dave.hansen@intel.com, dhgutteridge@sympatico.ca, dvlasenk@redhat.com, eduval@amazon.com, gregkh@linuxfoundation.org, hughd@google.com, jgross@suse.com, jkosina@suse.cz, joro@8bytes.org, jpoimboe@redhat.com, jroedel@suse.de, keescook@google.com, linux-mm@kvack.org, llong@redhat.com, luto@kernel.org, mingo@kernel.org, pavel@ucw.cz, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, will.deacon@arm.com
+Cc: stable-commits@vger.kernel.org
 
-On Tue, May 01, 2018 at 11:48:53AM -0500, Christopher Lameter wrote:
-> On Mon, 30 Apr 2018, Matthew Wilcox wrote:
-> 
-> > Use page->private instead, now that these two fields are in the same
-> > location.  Include a compile-time assert that the fields don't get out
-> > of sync.
-> 
-> Hrm. This makes the source code a bit less readable. Guess its ok.
-> 
-> Acked-by: Christoph Lameter <cl@linux.com>
 
-Thanks for the ACK.  I'm not thrilled with this particular patch, but
-I'm not thrilled with any of the other options we've come up with either.
+This is a note to let you know that I've just added the patch titled
 
-Option 1:
+    x86/pgtable: Don't set huge PUD/PMD on non-leaf entries
 
-Patch as written.
-Pro: Keeps struct page simple
-Con: Hidden dependency on page->private and page->inuse being in the same bits
+to the 4.9-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
-Option 2:
+The filename of the patch is:
+     x86-pgtable-don-t-set-huge-pud-pmd-on-non-leaf-entries.patch
+and it can be found in the queue-4.9 subdirectory.
 
-@@ -113,9 +113,14 @@ struct page {
-                        struct kmem_cache *slub_cache;  /* shared with slab */
-                        /* Double-word boundary */
-                        void *slub_freelist;            /* shared with slab */
--                       unsigned inuse:16;
--                       unsigned objects:15;
--                       unsigned frozen:1;
-+                       union {
-+                               unsigned long counters;
-+                               struct {
-+                                       unsigned inuse:16;
-+                                       unsigned objects:15;
-+                                       unsigned frozen:1;
-+                               };
-+                       };
-                };
-                struct {        /* Tail pages of compound page */
-                        unsigned long compound_head;    /* Bit zero is set */
+If you, or anyone else, feels it should not be added to the stable tree,
+please let <stable@vger.kernel.org> know about it.
 
-Pro: Expresses exactly what we do.
-Con: Back to five levels of indentation in struct page
 
-Option 3: Use -fms-extensions to create a slub_page structure.
+>From foo@baz Wed May  2 10:53:11 PDT 2018
+From: Joerg Roedel <joro@8bytes.org>
+Date: Wed, 11 Apr 2018 17:24:38 +0200
+Subject: x86/pgtable: Don't set huge PUD/PMD on non-leaf entries
 
-Pro: Indentation reduced to minimum and no cross-union dependencies
-Con: Nobody seemed interested in the idea
+From: Joerg Roedel <joro@8bytes.org>
 
-Option 4: Use explicit shifting-and-masking to combine the three counters
-into one word.
+[ Upstream commit e3e288121408c3abeed5af60b87b95c847143845 ]
 
-Con: Lots of churn.
+The pmd_set_huge() and pud_set_huge() functions are used from
+the generic ioremap() code to establish large mappings where this
+is possible.
+
+But the generic ioremap() code does not check whether the
+PMD/PUD entries are already populated with a non-leaf entry,
+so that any page-table pages these entries point to will be
+lost.
+
+Further, on x86-32 with SHARED_KERNEL_PMD=0, this causes a
+BUG_ON() in vmalloc_sync_one() when PMD entries are synced
+from swapper_pg_dir to the current page-table. This happens
+because the PMD entry from swapper_pg_dir was promoted to a
+huge-page entry while the current PGD still contains the
+non-leaf entry. Because both entries are present and point
+to a different page, the BUG_ON() triggers.
+
+This was actually triggered with pti-x32 enabled in a KVM
+virtual machine by the graphics driver.
+
+A real and better fix for that would be to improve the
+page-table handling in the generic ioremap() code. But that is
+out-of-scope for this patch-set and left for later work.
+
+Reported-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
+Signed-off-by: Joerg Roedel <jroedel@suse.de>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: David Laight <David.Laight@aculab.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Eduardo Valentin <eduval@amazon.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>
+Cc: Jiri Kosina <jkosina@suse.cz>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Pavel Machek <pavel@ucw.cz>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Waiman Long <llong@redhat.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: aliguori@amazon.com
+Cc: daniel.gruss@iaik.tugraz.at
+Cc: hughd@google.com
+Cc: keescook@google.com
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/20180411152437.GC15462@8bytes.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ arch/x86/mm/pgtable.c |    9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -1,5 +1,6 @@
+ #include <linux/mm.h>
+ #include <linux/gfp.h>
++#include <linux/hugetlb.h>
+ #include <asm/pgalloc.h>
+ #include <asm/pgtable.h>
+ #include <asm/tlb.h>
+@@ -577,6 +578,10 @@ int pud_set_huge(pud_t *pud, phys_addr_t
+ 	    (mtrr != MTRR_TYPE_WRBACK))
+ 		return 0;
+ 
++	/* Bail out if we are we on a populated non-leaf entry: */
++	if (pud_present(*pud) && !pud_huge(*pud))
++		return 0;
++
+ 	prot = pgprot_4k_2_large(prot);
+ 
+ 	set_pte((pte_t *)pud, pfn_pte(
+@@ -605,6 +610,10 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t
+ 		return 0;
+ 	}
+ 
++	/* Bail out if we are we on a populated non-leaf entry: */
++	if (pmd_present(*pmd) && !pmd_huge(*pmd))
++		return 0;
++
+ 	prot = pgprot_4k_2_large(prot);
+ 
+ 	set_pte((pte_t *)pmd, pfn_pte(
+
+
+Patches currently in stable-queue which might be from joro@8bytes.org are
+
+queue-4.9/x86-apic-set-up-through-local-apic-mode-on-the-boot-cpu-if-noapic-specified.patch
+queue-4.9/x86-pgtable-don-t-set-huge-pud-pmd-on-non-leaf-entries.patch
