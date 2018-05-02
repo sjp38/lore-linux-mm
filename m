@@ -1,108 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E5C3A6B0009
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 15:07:24 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m13-v6so10753677pgp.5
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 12:07:24 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C9486B000C
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 16:11:32 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c4so13678855pfg.22
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 13:11:32 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id ay8-v6si12224996plb.244.2018.05.02.12.07.22
+        by mx.google.com with ESMTPS id m11-v6si10280680pgs.73.2018.05.02.13.11.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 12:07:23 -0700 (PDT)
-Subject: Patch "x86/mm: Do not forbid _PAGE_RW before init for __ro_after_init" has been added to the 4.4-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Wed, 02 May 2018 12:04:18 -0700
-Message-ID: <1525287858124153@kroah.com>
+        Wed, 02 May 2018 13:11:31 -0700 (PDT)
+Date: Wed, 2 May 2018 21:11:25 +0100
+From: James Hogan <jhogan@kernel.org>
+Subject: Re: [PATCH 07/13] arch: remove the ARCH_PHYS_ADDR_T_64BIT config
+ symbol
+Message-ID: <20180502201123.GA20766@jamesdev>
+References: <20180425051539.1989-1-hch@lst.de>
+ <20180425051539.1989-8-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="6TrnltStXW4iwmi0"
+Content-Disposition: inline
+In-Reply-To: <20180425051539.1989-8-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20180406205514.8D898241@viggo.jf.intel.com, aarcange@redhat.com, alexander.levin@microsoft.com, arjan@linux.intel.com, bp@alien8.de, dan.j.williams@intel.com, dave.hansen@linux.intel.com, dwmw2@infradead.org, gregkh@linuxfoundation.org, hughd@google.com, jgross@suse.com, jpoimboe@redhat.com, keescook@chromium.org, linux-mm@kvack.org, luto@kernel.org, mingo@kernel.org, namit@vmware.com, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org
-Cc: stable-commits@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org, sstabellini@kernel.org, x86@kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
 
-This is a note to let you know that I've just added the patch titled
+--6TrnltStXW4iwmi0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-    x86/mm: Do not forbid _PAGE_RW before init for __ro_after_init
+On Wed, Apr 25, 2018 at 07:15:33AM +0200, Christoph Hellwig wrote:
+> Instead select the PHYS_ADDR_T_64BIT for 32-bit architectures that need a
+> 64-bit phys_addr_t type directly.
+>=20
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-to the 4.4-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+>  arch/mips/Kconfig                      | 15 ++++++---------
 
-The filename of the patch is:
-     x86-mm-do-not-forbid-_page_rw-before-init-for-__ro_after_init.patch
-and it can be found in the queue-4.4 subdirectory.
+For MIPS:
+Acked-by: James Hogan <jhogan@kernel.org>
 
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
+Cheers
+James
 
+--6TrnltStXW4iwmi0
+Content-Type: application/pgp-signature; name="signature.asc"
 
->From foo@baz Wed May  2 11:39:22 PDT 2018
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 6 Apr 2018 13:55:14 -0700
-Subject: x86/mm: Do not forbid _PAGE_RW before init for __ro_after_init
+-----BEGIN PGP SIGNATURE-----
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+iHUEARYIAB0WIQS7lRNBWUYtqfDOVL41zuSGKxAj8gUCWuobYAAKCRA1zuSGKxAj
+8rcSAP9uo9v+ADH7S0A5ptU5zQJbehcDNcjsP+tV3mIWaMxo5AD9Fxc2fxERhWzk
+sHBf3K14mN5e+PiMMLB9/hGD7t8eJAo=
+=7djd
+-----END PGP SIGNATURE-----
 
-[ Upstream commit 639d6aafe437a7464399d2a77d006049053df06f ]
-
-__ro_after_init data gets stuck in the .rodata section.  That's normally
-fine because the kernel itself manages the R/W properties.
-
-But, if we run __change_page_attr() on an area which is __ro_after_init,
-the .rodata checks will trigger and force the area to be immediately
-read-only, even if it is early-ish in boot.  This caused problems when
-trying to clear the _PAGE_GLOBAL bit for these area in the PTI code:
-it cleared _PAGE_GLOBAL like I asked, but also took it up on itself
-to clear _PAGE_RW.  The kernel then oopses the next time it wrote to
-a __ro_after_init data structure.
-
-To fix this, add the kernel_set_to_readonly check, just like we have
-for kernel text, just a few lines below in this function.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Acked-by: Kees Cook <keescook@chromium.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Arjan van de Ven <arjan@linux.intel.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: David Woodhouse <dwmw2@infradead.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nadav Amit <namit@vmware.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180406205514.8D898241@viggo.jf.intel.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/mm/pageattr.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -273,9 +273,11 @@ static inline pgprot_t static_protection
- 
- 	/*
- 	 * The .rodata section needs to be read-only. Using the pfn
--	 * catches all aliases.
-+	 * catches all aliases.  This also includes __ro_after_init,
-+	 * so do not enforce until kernel_set_to_readonly is true.
- 	 */
--	if (within(pfn, __pa_symbol(__start_rodata) >> PAGE_SHIFT,
-+	if (kernel_set_to_readonly &&
-+	    within(pfn, __pa_symbol(__start_rodata) >> PAGE_SHIFT,
- 		   __pa_symbol(__end_rodata) >> PAGE_SHIFT))
- 		pgprot_val(forbidden) |= _PAGE_RW;
- 
-
-
-Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
-
-queue-4.4/x86-mm-do-not-forbid-_page_rw-before-init-for-__ro_after_init.patch
+--6TrnltStXW4iwmi0--
