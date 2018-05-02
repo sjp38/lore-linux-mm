@@ -1,65 +1,64 @@
 Return-Path: <linux-kernel-owner@vger.kernel.org>
-Subject: Re: [PATCH] memcg, hugetlb: pages allocated for hugetlb's overcommit
- will be charged to memcg
-References: <ecb737e9-ccec-2d7e-45d9-91884a669b58@ascade.co.jp>
- <dc21a4ac-b57f-59a8-f97a-90a59d5a59cd@oracle.com>
 From: TSUKADA Koutaro <tsukada@ascade.co.jp>
-Message-ID: <c9019050-7c89-86c3-93fc-9beb64e43ed3@ascade.co.jp>
-Date: Wed, 2 May 2018 15:54:48 +0900
+Subject: [PATCH] memcg, hugetlb: pages allocated for hugetlb's overcommit will
+ be charged to memcg
+Message-ID: <ecb737e9-ccec-2d7e-45d9-91884a669b58@ascade.co.jp>
+Date: Wed, 2 May 2018 10:19:44 +0900
 MIME-Version: 1.0
-In-Reply-To: <dc21a4ac-b57f-59a8-f97a-90a59d5a59cd@oracle.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: linux-kernel-owner@vger.kernel.org
-To: Mike Kravetz <mike.kravetz@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, tsukada@ascade.co.jp
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, tsukada@ascade.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On 2018/05/02 13:41, Mike Kravetz wrote:
-> What is the reason for not charging pages at allocation/reserve time?  I am
-> not an expert in memcg accounting, but I would think the pages should be
-> charged at allocation time.  Otherwise, a task could allocate a large number
-> of (reserved) pages that are not charged to a memcg.  memcg charges in other
-> code paths seem to happen at huge page allocation time.
+If nr_overcommit_hugepages is assumed to be infinite, allocating pages for
+hugetlb's overcommit from buddy pool is all unlimited even if being limited
+by memcg. The purpose of this patch is that if we allocate the hugetlb page
+from the boddy pool, that means we should charge it to memcg.
 
-If we charge to memcg at page allocation time, the new page is not yet
-registered in rmap, so it will be accounted as 'cache' inside the memcg. Then,
-after being registered in rmap, memcg will account as 'RSS' if the task moves
-cgroup, so I am worried about the possibility of inconsistency in statistics
-(memory.stat).
+A straightforward way for user applications to use hugetlb pages is to
+create the pool(nr_hugepages), but root privileges is required. For example,
+assuming the field of HPC, it can be said that giving root privs to general
+users is difficult. Also, the way to the creating pool is that we need to
+estimate exactly how much use hugetlb, and it feels a bit troublesome.
 
-As you said, in this patch, there may be a problem that a memory leak occurs
-due to unused pages after being reserved.
+In such a case, using hugetlb's overcommit feature, considered to let the
+user use hugetlb page only with overcommit without creating the any pool.
+However, as mentioned earlier, the page can be allocated limitelessly in
+overcommit in the current implementation. Therefore, by introducing memcg
+charging, I wanted to be able to manage the memory resources used by the
+user application only with memcg's limitation.
 
->> This patch targets RHELSA(kernel-alt-4.11.0-45.6.1.el7a.src.rpm).
-> 
-> It would be very helpful to rebase this patch on a recent mainline kernel.
-> The code to allocate surplus huge pages has been significantly changed in
-> recent kernels.
-> 
-> I have no doubt that this is a real issue and we are not correctly charging
-> surplus to a memcg.  But your patch will be hard to evaluate when based on
-> an older distro kernel.
-I apologize for the patch of the old kernel. The patch was rewritten
-for 4.17-rc2(6d08b06).
+This patch targets RHELSA(kernel-alt-4.11.0-45.6.1.el7a.src.rpm). The patch
+does the following things.
 
-Mark the page with overcommit at alloc_surplus_huge_page. Since the path of
-alloc_pool_huge_page is creating a pool, I do not think it is necessary to
-mark it.
+When allocating the page from buddy at __hugetlb_alloc_buddy_huge_page,
+set the flag of HUGETLB_OVERCOMMIT on that page[1].private. When actually
+use the page which HUGETLB_OVERCOMMIT is set(at hugepage_add_new_anon_rmap
+or huge_add_to_page_cache), it tries to charge to memcg. If the charge is
+successful, add the flag of HUGETLB_OVERCOMMIT_CHARGED on that page[1].
 
-Signed-off-by: TSUKADA koutaro <tsukada@ascade.co.jp>
+The page charged to memcg will finally be uncharged at free_huge_page.
+
+Modification of memcontrol.c is for updating of statistical information
+when the task moves cgroup. The hpage_nr_pages works correctly for thp,
+but it is not suitable for such as hugetlb which uses the contiguous bit
+of aarch64, so need to modify it.
+
+Signed-off-by: TSUKADA Koutaro <tsukada@ascade.co.jp>
 ---
- include/linux/hugetlb.h |   45 +++++++++++++++++++++
- mm/hugetlb.c            |   74 +++++++++++++++++++++++++++++++++++
- mm/memcontrol.c         |   99 ++++++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 214 insertions(+), 4 deletions(-)
+ include/linux/hugetlb.h |   45 ++++++++++++++++++++++
+ mm/hugetlb.c            |   80 +++++++++++++++++++++++++++++++++++++++
+ mm/memcontrol.c         |   98 ++++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 219 insertions(+), 4 deletions(-)
 
 diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 36fa6a2..a92c4e2 100644
+index d67675e..67991cb 100644
 --- a/include/linux/hugetlb.h
 +++ b/include/linux/hugetlb.h
-@@ -532,6 +532,51 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
+@@ -511,6 +511,51 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
  	set_huge_pte_at(mm, addr, ptep, pte);
  }
  #endif
@@ -112,19 +111,19 @@ index 36fa6a2..a92c4e2 100644
  struct hstate {};
  #define alloc_huge_page(v, a, r) NULL
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 2186791..fd34f15 100644
+index 6191fb9..2cd91d9 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -36,6 +36,7 @@
- #include <linux/node.h>
- #include <linux/userfaultfd_k.h>
- #include <linux/page_owner.h>
+@@ -24,6 +24,7 @@
+ #include <linux/swapops.h>
+ #include <linux/page-isolation.h>
+ #include <linux/jhash.h>
 +#include <linux/memcontrol.h>
- #include "internal.h"
 
- int hugetlb_max_hstate __read_mostly;
-@@ -1236,6 +1237,17 @@ static inline void ClearPageHugeTemporary(struct page *page)
- 	page[2].mapping = NULL;
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -1227,6 +1228,17 @@ static void clear_page_huge_active(struct page *page)
+ 	ClearPagePrivate(&page[1]);
  }
 
 +static void hugetlb_overcommit_finalize(struct page *page)
@@ -133,15 +132,15 @@ index 2186791..fd34f15 100644
 +		del_hugetlb_overcommit_charged(page);
 +		mem_cgroup_uncharge(page);
 +	}
-+
-+	if (is_hugetlb_overcommit(page))
++	if (is_hugetlb_overcommit(page)) {
 +		del_hugetlb_overcommit(page);
++	}
 +}
 +
  void free_huge_page(struct page *page)
  {
  	/*
-@@ -1248,6 +1260,8 @@ void free_huge_page(struct page *page)
+@@ -1239,6 +1251,8 @@ void free_huge_page(struct page *page)
  		(struct hugepage_subpool *)page_private(page);
  	bool restore_reserve;
 
@@ -150,16 +149,21 @@ index 2186791..fd34f15 100644
  	set_page_private(page, 0);
  	page->mapping = NULL;
  	VM_BUG_ON_PAGE(page_count(page), page);
-@@ -1562,6 +1576,8 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
- 	page = alloc_fresh_huge_page(h, gfp_mask, nid, nmask);
- 	if (!page)
- 		return NULL;
-+	else
+@@ -1620,6 +1634,13 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h,
+ 	spin_unlock(&hugetlb_lock);
+
+ 	page = __hugetlb_alloc_buddy_huge_page(h, vma, addr, nid);
++	if (page) {
++		/*
++		 * At this point it is impossible to judge whether it is
++		 * mapped or just reserved, so only mark it.
++		 */
 +		add_hugetlb_overcommit(page);
++	}
 
  	spin_lock(&hugetlb_lock);
- 	/*
-@@ -3509,6 +3525,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (page) {
+@@ -3486,6 +3507,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
  	int ret = 0, outside_reserve = 0;
  	unsigned long mmun_start;	/* For mmu_notifiers */
  	unsigned long mmun_end;		/* For mmu_notifiers */
@@ -168,7 +172,7 @@ index 2186791..fd34f15 100644
 
  	pte = huge_ptep_get(ptep);
  	old_page = pte_page(pte);
-@@ -3575,6 +3593,15 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -3552,6 +3575,15 @@ retry_avoidcopy:
  		goto out_release_old;
  	}
 
@@ -184,7 +188,7 @@ index 2186791..fd34f15 100644
  	/*
  	 * When the original hugepage is shared one, it does not have
  	 * anon_vma prepared.
-@@ -3610,12 +3637,18 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -3587,12 +3619,18 @@ retry_avoidcopy:
  				make_huge_pte(vma, new_page, 1));
  		page_remove_rmap(old_page, true);
  		hugepage_add_new_anon_rmap(new_page, vma, address);
@@ -203,7 +207,7 @@ index 2186791..fd34f15 100644
  	restore_reserve_on_error(h, vma, address, new_page);
  	put_page(new_page);
  out_release_old:
-@@ -3664,9 +3697,18 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
+@@ -3641,9 +3679,18 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
  	struct inode *inode = mapping->host;
  	struct hstate *h = hstate_inode(inode);
  	int err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
@@ -213,7 +217,7 @@ index 2186791..fd34f15 100644
  		return err;
 +	if (page && is_hugetlb_overcommit(page)) {
 +		err = mem_cgroup_try_charge(page, current->mm, GFP_KERNEL,
-+						&memcg, true);
++					    &memcg, true);
 +		if (err)
 +			return err;
 +		mem_cgroup_commit_charge(page, memcg, false, true);
@@ -222,7 +226,7 @@ index 2186791..fd34f15 100644
  	ClearPagePrivate(page);
 
  	spin_lock(&inode->i_lock);
-@@ -3686,6 +3728,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -3663,6 +3710,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
  	struct page *page;
  	pte_t new_pte;
  	spinlock_t *ptl;
@@ -231,7 +235,7 @@ index 2186791..fd34f15 100644
 
  	/*
  	 * Currently, we are forced to kill the process in the event the
-@@ -3763,6 +3807,14 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -3740,6 +3789,14 @@ retry:
  			}
  		} else {
  			lock_page(page);
@@ -246,7 +250,7 @@ index 2186791..fd34f15 100644
  			if (unlikely(anon_vma_prepare(vma))) {
  				ret = VM_FAULT_OOM;
  				goto backout_unlocked;
-@@ -3809,6 +3861,10 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -3786,6 +3843,10 @@ retry:
  	if (anon_rmap) {
  		ClearPagePrivate(page);
  		hugepage_add_new_anon_rmap(page, vma, address);
@@ -257,7 +261,7 @@ index 2186791..fd34f15 100644
  	} else
  		page_dup_rmap(page, true);
  	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
-@@ -3829,6 +3885,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -3806,6 +3867,8 @@ out:
  backout:
  	spin_unlock(ptl);
  backout_unlocked:
@@ -266,23 +270,24 @@ index 2186791..fd34f15 100644
  	unlock_page(page);
  	restore_reserve_on_error(h, vma, address, page);
  	put_page(page);
-@@ -4028,6 +4086,8 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+@@ -4002,6 +4065,9 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
  	spinlock_t *ptl;
  	int ret;
  	struct page *page;
 +	struct mem_cgroup *memcg;
 +	int memcg_charged = 0;
++
 
  	if (!*pagep) {
  		ret = -ENOMEM;
-@@ -4082,6 +4142,14 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+@@ -4045,6 +4111,14 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
  			goto out_release_nounlock;
  	}
 
 +	if (!vm_shared && is_hugetlb_overcommit(page)) {
 +		ret = -ENOMEM;
 +		if (mem_cgroup_try_charge(page, dst_mm, GFP_KERNEL,
-+					  &memcg, true))
++						&memcg, true))
 +			goto out_release_nounlock;
 +		memcg_charged = 1;
 +	}
@@ -290,7 +295,7 @@ index 2186791..fd34f15 100644
  	ptl = huge_pte_lockptr(h, dst_mm, dst_pte);
  	spin_lock(ptl);
 
-@@ -4108,6 +4176,10 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+@@ -4057,6 +4131,10 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
  	} else {
  		ClearPagePrivate(page);
  		hugepage_add_new_anon_rmap(page, dst_vma, dst_addr);
@@ -301,29 +306,29 @@ index 2186791..fd34f15 100644
  	}
 
  	_dst_pte = make_huge_pte(dst_vma, page, dst_vma->vm_flags & VM_WRITE);
-@@ -4135,6 +4207,8 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
- 	if (vm_shared)
- 		unlock_page(page);
+@@ -4082,6 +4160,8 @@ out:
+ out_release_unlock:
+ 	spin_unlock(ptl);
  out_release_nounlock:
 +	if (memcg_charged)
 +		mem_cgroup_cancel_charge(page, memcg, true);
+ 	if (vm_shared)
+ 		unlock_page(page);
  	put_page(page);
- 	goto out;
- }
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2bd3df3..3db5c32 100644
+index 02cfcd9..1842693 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -4483,7 +4483,7 @@ static int mem_cgroup_move_account(struct page *page,
+@@ -4531,7 +4531,7 @@ static int mem_cgroup_move_account(struct page *page,
  				   struct mem_cgroup *to)
  {
  	unsigned long flags;
 -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
-+	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
++	unsigned int nr_pages = compound ? 1 << compound_order(page) : 1;
  	int ret;
  	bool anon;
 
-@@ -4698,12 +4698,65 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+@@ -4744,12 +4744,64 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
  	return 0;
  }
 
@@ -341,7 +346,6 @@ index 2bd3df3..3db5c32 100644
 +	entry = huge_ptep_get(pte);
 +	if (!pte_present(entry))
 +		return ret;
-+
 +	page = pte_page(entry);
 +	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
 +	if (!is_hugetlb_overcommit_charged(page))
@@ -389,7 +393,7 @@ index 2bd3df3..3db5c32 100644
  		.mm = mm,
  	};
  	down_read(&mm->mmap_sem);
-@@ -4977,10 +5030,48 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+@@ -5023,10 +5075,48 @@ put:			/* get_mctgt_type() gets the page */
  	return ret;
  }
 
@@ -438,7 +442,7 @@ index 2bd3df3..3db5c32 100644
  		.mm = mc.mm,
  	};
 
-@@ -5417,7 +5508,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+@@ -5427,7 +5517,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
  			  bool compound)
  {
  	struct mem_cgroup *memcg = NULL;
@@ -447,7 +451,7 @@ index 2bd3df3..3db5c32 100644
  	int ret = 0;
 
  	if (mem_cgroup_disabled())
-@@ -5478,7 +5569,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+@@ -5488,7 +5578,7 @@ out:
  void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
  			      bool lrucare, bool compound)
  {
@@ -456,7 +460,7 @@ index 2bd3df3..3db5c32 100644
 
  	VM_BUG_ON_PAGE(!page->mapping, page);
  	VM_BUG_ON_PAGE(PageLRU(page) && !lrucare, page);
-@@ -5522,7 +5613,7 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
+@@ -5532,7 +5622,7 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
  void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
  		bool compound)
  {
