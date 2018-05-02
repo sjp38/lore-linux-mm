@@ -1,166 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 56E0D6B0005
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 11:27:36 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id k3so13122655pff.23
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 08:27:36 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z6si11710753pfk.194.2018.05.02.08.27.34
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AEED6B0006
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 11:28:24 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id x22so7877011pfn.3
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 08:28:24 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id h8-v6si12056279pli.474.2018.05.02.08.28.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 02 May 2018 08:27:34 -0700 (PDT)
-Date: Wed, 2 May 2018 08:27:33 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [RFC] Distinguish vmalloc pages
-Message-ID: <20180502152733.GB2737@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 May 2018 08:28:23 -0700 (PDT)
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
+ signal semantics
+References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
+ <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
+ <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <63086671-3603-1a79-d1a0-63913855456a@intel.com>
+Date: Wed, 2 May 2018 08:28:21 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Igor Stoppa <igor.stoppa@gmail.com>
+To: Florian Weimer <fweimer@redhat.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org
+Cc: linuxram@us.ibm.com, Andy Lutomirski <luto@kernel.org>
 
+On 05/02/2018 08:12 AM, Florian Weimer wrote:
+> On 05/02/2018 04:30 PM, Dave Hansen wrote:
+>> On 05/02/2018 06:26 AM, Florian Weimer wrote:
+>>> pkeys support for IBM POWER intends to inherited the access rights of
+>>> the current thread in signal handlers.A  The advantage is that this
+>>> preserves access to memory regions associated with non-default keys,
+>>> enabling additional usage scenarios for memory protection keys which
+>>> currently do not work on x86 due to the unconditional reset to the
+>>> (configurable) default key in signal handlers.
+>>
+>> What's the usage scenario that does not work?
+> 
+> Here's what I want to do:
+> 
+> Nick Clifton wrote a binutils patch which puts the .got.plt section on
+> separate pages.A  We allocate a protection key for it, assign it to all
+> such sections in the process image, and change the access rights of the
+> main thread to disallow writes via that key during process startup.A  In
+> _dl_fixup, we enable write access to the GOT, update the GOT entry, and
+> then disable it again.
+> 
+> This way, we have a pretty safe form of lazy binding, without having to
+> resort to BIND_NOW.
+> 
+> With the current kernel behavior on x86, we cannot do that because
+> signal handlers revert to the default (deny) access rights, so the GOT
+> turns inaccessible.
 
-For diagnosing various performance and memory-leak problems, it is helpful
-to be able to distinguish pages which are in use as VMalloc pages.
-Unfortunately, we cannot use the page_type field in struct page, as
-this is in use for mapcount by some drivers which map vmalloced pages
-to userspace.
+cc'ing Andy Lutomirksi...  He was the one that specifically asked for
+the deny-by-default behavior that I think is biting you.
 
-Use a special page->mapping value to distinguish VMalloc pages from
-other kinds of pages.  Also record a pointer to the vm_struct and the
-offset within the area in struct page to help reconstruct exactly what
-this page is being used for.
+The behavior we had before implementing Andy's suggestion was, I think,
+the one you would want: we had allow-all as the default PKRU value.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
+The other option here that I think we discussed in the past was to have
+an *explicit* signal PKRU value.  That way, we can be restrictive by
+default but allow overrides for special cases like you have.
 
-This patch would be a superset of Igor's patch to add an ->area field to
-struct page.  It's on top of my recent series to rearrange struct page.
-I think it's a nice demonstration of how you don't have to go hunting
-around for fields that may or may not be in use; you just add your own
-little struct to the union, and you're done.  As well as being *really*
-useful for debugging, of course!
+>>> Consequently, this commit updates the x86 implementation to preserve
+>>> the PKRU register value of the interrupted context in signal handlers.
+>>> If a key is allocated successfully with the PKEY_ALLOC_SIGNALINHERIT
+>>> flag, the application can assume this signal inheritance behavior.
+>>
+>> I think this is a pretty gross misuse of the API.A  Adding an argument to
+>> pkey_alloc() is something that folks would assume would impact the key
+>> being *allocated*, not pkeys behavior across the process as a whole.
+> 
+> From the application point of view, only the allocated key is
+> affecteda??it has specific semantics that were undefined before and varied
+> between x86 and POWER.
 
- fs/proc/page.c                         |  2 ++
- include/linux/mm_types.h               |  5 +++++
- include/linux/page-flags.h             | 25 +++++++++++++++++++++++++
- include/uapi/linux/kernel-page-flags.h |  1 +
- mm/vmalloc.c                           |  5 ++++-
- tools/vm/page-types.c                  |  1 +
- 6 files changed, 38 insertions(+), 1 deletion(-)
+I'd really like to see it in a separate API.
 
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 792c78a49174..fc83dae1af7b 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -156,6 +156,8 @@ u64 stable_page_flags(struct page *page)
- 		u |= 1 << KPF_BALLOON;
- 	if (PageTable(page))
- 		u |= 1 << KPF_PGTABLE;
-+	if (PageVMalloc(page))
-+		u |= 1 << KPF_VMALLOC;
- 
- 	if (page_is_idle(page))
- 		u |= 1 << KPF_IDLE;
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 42619e16047f..c51ddd27bfb4 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -141,6 +141,11 @@ struct page {
- 			spinlock_t ptl;
- #endif
- 		};
-+		struct {	/* VMalloc pages */
-+			struct vm_struct *vm_area;
-+			unsigned long vm_offset;
-+			unsigned long _vm_id;	/* MAPPING_VMalloc */
-+		};
- 
- 		/** @rcu_head: You can use this to free a page by RCU. */
- 		struct rcu_head rcu_head;
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 901943e4754b..5232433175c1 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -699,6 +699,31 @@ PAGE_TYPE_OPS(Kmemcg, kmemcg)
-  */
- PAGE_TYPE_OPS(Table, table)
- 
-+/*
-+ * vmalloc pages may be mapped to userspace, so we need some other way
-+ * to distinguish them from other kinds of pages.  Use page->mapping
-+ * for this purpose.  Values below 0x1000 cannot be real pointers.
-+ */
-+#define MAPPING_VMalloc		(void *)0x440
-+
-+#define PAGE_MAPPING_OPS(name)						\
-+static __always_inline int Page##name(struct page *page)		\
-+{									\
-+	return page->mapping == MAPPING_##name;				\
-+}									\
-+static __always_inline void __SetPage##name(struct page *page)		\
-+{									\
-+	VM_BUG_ON_PAGE(page->mapping != NULL, page);			\
-+	page->mapping = MAPPING_##name;					\
-+}									\
-+static __always_inline void __ClearPage##name(struct page *page)	\
-+{									\
-+	VM_BUG_ON_PAGE(page->mapping != MAPPING_##name, page);		\
-+	page->mapping = NULL;						\
-+}
-+
-+PAGE_MAPPING_OPS(VMalloc)
-+
- extern bool is_free_buddy_page(struct page *page);
- 
- __PAGEFLAG(Isolated, isolated, PF_ANY);
-diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-index 21b9113c69da..6800968b8f47 100644
---- a/include/uapi/linux/kernel-page-flags.h
-+++ b/include/uapi/linux/kernel-page-flags.h
-@@ -36,5 +36,6 @@
- #define KPF_ZERO_PAGE		24
- #define KPF_IDLE		25
- #define KPF_PGTABLE		26
-+#define KPF_VMALLOC		27
- 
- #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 5fbf27e7f956..98bc690d472d 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1535,7 +1535,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 		for (i = 0; i < area->nr_pages; i++) {
- 			struct page *page = area->pages[i];
- 
--			BUG_ON(!page);
-+			__ClearPageVMalloc(page);
- 			__free_pages(page, 0);
- 		}
- 
-@@ -1704,6 +1704,9 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 			area->nr_pages = i;
- 			goto fail;
- 		}
-+		__SetPageVMalloc(page);
-+		page->vm_area = area;
-+		page->vm_offset = i;
- 		area->pages[i] = page;
- 		if (gfpflags_allow_blocking(gfp_mask))
- 			cond_resched();
-diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-index cce853dca691..25cc21855be4 100644
---- a/tools/vm/page-types.c
-+++ b/tools/vm/page-types.c
-@@ -132,6 +132,7 @@ static const char * const page_flag_names[] = {
- 	[KPF_THP]		= "t:thp",
- 	[KPF_BALLOON]		= "o:balloon",
- 	[KPF_PGTABLE]		= "g:pgtable",
-+	[KPF_VMALLOC]		= "V:vmalloc",
- 	[KPF_ZERO_PAGE]		= "z:zero_page",
- 	[KPF_IDLE]              = "i:idle_page",
- 
--- 
-2.17.0
+>>> This change does not affect the init_pkru optimization because if the
+>>> thread's PKRU register is zero due to the init_pkru setting, it will
+>>> remain zero in the signal handler through inheritance from the
+>>> interrupted context.
+>>
+>> I think you are right, but it's rather convoluted.A  It does:
+>>
+>> 1. Running with PKRU in the init state
+>> 2. Kernel saves off init-state-PKRU XSAVE signal buffer
+>> 3. Enter signal, kernel XRSTOR (may) set the init state again
+>> 4. fpu__clear() does __write_pkru(), takes it out of the init state
+>> 5. Signal handler runs, exits
+>> 6. fpu__restore_sig() XRSTOR's the state from #2, taking PKRU back to
+>> A A A  the init state
+> 
+> Isn't that just the cost of not hard-coding the XSAVE area layout?
+
+No.  You unnecessarily take PKRU out of the init state.  If you don't
+want to change its value, just don't do that when you run XRSTOR.
+
+>> But, about the patch in general:
+>>
+>> I'm not a big fan of doing this in such a PKRU-specific way.A  It would
+>> be nice to have this available for all XSAVE states.A  It would also keep
+>> you from so unnecessarily frobbing with WRPKRU in fpu__clear().A  You
+>> could just clear the PKRU bit in the Requested Feature BitMap (RFBM)
+>> passed to XRSTOR.A  That would be much straightforward and able to be
+>> more easily extended to more states.
+> 
+> I don't see where I could plug this into the current kernel sources.
+> Would you please provide some pointers?
+
+In handle_signal()->fpu__clear()->...__copy_kernel_to_fpregs(), we pass
+-1 as the RFBM.  Don't do that.  Pass (~0 & ~XFEATURE_MASK_PKRU).
