@@ -1,125 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B98DE6B0005
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 10:45:35 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 88-v6so10201343wrc.21
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 07:45:35 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id z45-v6si5727593edc.451.2018.05.02.07.45.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 07:45:34 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w42Ec1m9124579
-	for <linux-mm@kvack.org>; Wed, 2 May 2018 10:45:33 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2hqcgh0jpn-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 02 May 2018 10:45:32 -0400
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 2 May 2018 15:45:30 +0100
-Subject: Re: [PATCH v10 00/25] Speculative page faults
-References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <87bmdynnv4.fsf@e105922-lin.cambridge.arm.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 2 May 2018 16:45:19 +0200
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 45CCB6B0006
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 10:46:06 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id v40-v6so7172988ote.0
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 07:46:06 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id r32-v6si4260934ota.40.2018.05.02.07.46.04
+        for <linux-mm@kvack.org>;
+        Wed, 02 May 2018 07:46:04 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH 2/2] arm64/mm: add speculative page fault
+References: <1525247672-2165-1-git-send-email-opensource.ganesh@gmail.com>
+	<1525247672-2165-2-git-send-email-opensource.ganesh@gmail.com>
+Date: Wed, 02 May 2018 15:46:02 +0100
+In-Reply-To: <1525247672-2165-2-git-send-email-opensource.ganesh@gmail.com>
+	(Ganesh Mahendran's message of "Wed, 2 May 2018 15:54:32 +0800")
+Message-ID: <871seunmj9.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <87bmdynnv4.fsf@e105922-lin.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <eef94f4f-800e-9994-d926-a71b80552ebc@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: ldufour@linux.vnet.ibm.com, catalin.marinas@arm.com, will.deacon@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+Hi Ganesh,
 
+I was looking at evaluating speculative page fault handling on arm64 and
+noticed your patch.
 
-On 02/05/2018 16:17, Punit Agrawal wrote:
-> Hi Laurent,
-> 
-> One query below -
-> 
-> Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
-> 
-> [...]
-> 
->>
->> Ebizzy:
->> -------
->> The test is counting the number of records per second it can manage, the
->> higher is the best. I run it like this 'ebizzy -mTRp'. To get consistent
->> result I repeated the test 100 times and measure the average result. The
->> number is the record processes per second, the higher is the best.
->>
->>   		BASE		SPF		delta	
->> 16 CPUs x86 VM	12405.52	91104.52	634.39%
->> 80 CPUs P8 node 37880.01	76201.05	101.16%
-> 
-> How do you measure the number of records processed? Is there a specific
-> version of ebizzy that reports this? I couldn't find a way to get this
-> information with the ebizzy that's included in ltp.
+Some comments below -
 
-I'm using the original one : http://ebizzy.sourceforge.net/
+Ganesh Mahendran <opensource.ganesh@gmail.com> writes:
 
-> 
->>
->> Here are the performance counter read during a run on a 16 CPUs x86 VM:
->>  Performance counter stats for './ebizzy -mRTp':
->>             860074      faults
->>             856866      spf
->>                285      pagefault:spf_pte_lock
->>               1506      pagefault:spf_vma_changed
->>                  0      pagefault:spf_vma_noanon
->>                 73      pagefault:spf_vma_notsup
->>                  0      pagefault:spf_vma_access
->>                  0      pagefault:spf_pmd_changed
->>
->> And the ones captured during a run on a 80 CPUs Power node:
->>  Performance counter stats for './ebizzy -mRTp':
->>             722695      faults
->>             699402      spf
->>              16048      pagefault:spf_pte_lock
->>               6838      pagefault:spf_vma_changed
->>                  0      pagefault:spf_vma_noanon
->>                277      pagefault:spf_vma_notsup
->>                  0      pagefault:spf_vma_access
->>                  0      pagefault:spf_pmd_changed
->>
->> In ebizzy's case most of the page fault were handled in a speculative way,
->> leading the ebizzy performance boost.
-> 
-> A trial run showed increased fault handling when SPF is enabled on an
-> 8-core ARM64 system running 4.17-rc3. I am using a port of your x86
-> patch to enable spf on arm64.
-> 
-> SPF
+> This patch enables the speculative page fault on the arm64
+> architecture.
+>
+> I completed spf porting in 4.9. From the test result,
+> we can see app launching time improved by about 10% in average.
+> For the apps which have more than 50 threads, 15% or even more
+> improvement can be got.
+>
+> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
 > ---
-> 
-> Performance counter stats for './ebizzy -vvvmTRp':
-> 
->          1,322,736      faults                                                      
->          1,299,241      software/config=11/                                         
-> 
->       10.005348034 seconds time elapsed
-> 
-> No SPF
-> -----
-> 
->  Performance counter stats for './ebizzy -vvvmTRp':
-> 
->            708,916      faults
->                  0      software/config=11/
-> 
->       10.005807432 seconds time elapsed
+> This patch is on top of Laurent's v10 spf
+> ---
+>  arch/arm64/mm/fault.c | 38 +++++++++++++++++++++++++++++++++++---
+>  1 file changed, 35 insertions(+), 3 deletions(-)
+>
+> diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+> index 4165485..e7992a3 100644
+> --- a/arch/arm64/mm/fault.c
+> +++ b/arch/arm64/mm/fault.c
+> @@ -322,11 +322,13 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
+>  
+>  static int __do_page_fault(struct mm_struct *mm, unsigned long addr,
+>  			   unsigned int mm_flags, unsigned long vm_flags,
+> -			   struct task_struct *tsk)
+> +			   struct task_struct *tsk, struct vm_area_struct *vma)
+>  {
+> -	struct vm_area_struct *vma;
+>  	int fault;
+>  
+> +	if (!vma || !can_reuse_spf_vma(vma, addr))
+> +		vma = find_vma(mm, addr);
+> +
 
-Thanks for sharing these good numbers !
+It would be better to move this hunk to do_page_fault().
 
-> Thanks,
-> Punit
-> 
-> [...]
-> 
+It'll help localise the fact that handle_speculative_fault() is a
+stateful call which needs a corresponding can_reuse_spf_vma() to
+properly update the vma reference counting.
+
+
+>  	vma = find_vma(mm, addr);
+
+Remember to drop this call in the next version. As it stands the call
+the find_vma() needlessly gets duplicated.
+
+>  	fault = VM_FAULT_BADMAP;
+>  	if (unlikely(!vma))
+> @@ -371,6 +373,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+>  	int fault, major = 0;
+>  	unsigned long vm_flags = VM_READ | VM_WRITE;
+>  	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+> +	struct vm_area_struct *vma;
+>  
+>  	if (notify_page_fault(regs, esr))
+>  		return 0;
+> @@ -409,6 +412,25 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+>  
+>  	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
+>  
+> +	if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT)) {
+
+You don't need the IS_ENABLED() check. The alternate implementation of
+handle_speculative_fault() when CONFIG_SPECULATIVE_PAGE_FAULT is not
+enabled takes care of this.
+
+> +		fault = handle_speculative_fault(mm, addr, mm_flags, &vma);
+> +		/*
+> +		 * Page fault is done if VM_FAULT_RETRY is not returned.
+> +		 * But if the memory protection keys are active, we don't know
+> +		 * if the fault is due to key mistmatch or due to a
+> +		 * classic protection check.
+> +		 * To differentiate that, we will need the VMA we no
+> +		 * more have, so let's retry with the mmap_sem held.
+> +		 */
+
+As there is no support for memory protection keys on arm64 most of this
+comment can be dropped.
+
+> +		if (fault != VM_FAULT_RETRY &&
+> +			 fault != VM_FAULT_SIGSEGV) {
+
+Not sure if you need the VM_FAULT_SIGSEGV here.
+
+> +			perf_sw_event(PERF_COUNT_SW_SPF, 1, regs, addr);
+> +			goto done;
+> +		}
+> +	} else {
+> +		vma = NULL;
+> +	}
+> +
+
+If vma is initiliased to NULL during declaration, the else part can be
+dropped.
+
+>  	/*
+>  	 * As per x86, we may deadlock here. However, since the kernel only
+>  	 * validly references user space from well defined areas of the code,
+> @@ -431,7 +453,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+>  #endif
+>  	}
+>  
+> -	fault = __do_page_fault(mm, addr, mm_flags, vm_flags, tsk);
+> +	fault = __do_page_fault(mm, addr, mm_flags, vm_flags, tsk, vma);
+>  	major |= fault & VM_FAULT_MAJOR;
+>  
+>  	if (fault & VM_FAULT_RETRY) {
+> @@ -454,11 +476,21 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+>  		if (mm_flags & FAULT_FLAG_ALLOW_RETRY) {
+>  			mm_flags &= ~FAULT_FLAG_ALLOW_RETRY;
+>  			mm_flags |= FAULT_FLAG_TRIED;
+> +
+> +			/*
+> +			 * Do not try to reuse this vma and fetch it
+> +			 * again since we will release the mmap_sem.
+> +			 */
+> +			if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT))
+> +				vma = NULL;
+
+Please drop the IS_ENABLED() check.
+
+Thanks,
+Punit
+
+> +
+>  			goto retry;
+>  		}
+>  	}
+>  	up_read(&mm->mmap_sem);
+>  
+> +done:
+> +
+>  	/*
+>  	 * Handle the "normal" (no error) case first.
+>  	 */
