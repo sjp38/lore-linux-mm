@@ -1,64 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CB5E6B000A
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 13:17:25 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id z195-v6so12944335vke.19
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 10:17:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id x68-v6si1795475vkx.320.2018.05.02.10.17.24
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A1CD86B000A
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 13:25:19 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id u16-v6so2030184iol.18
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 10:25:19 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id n5-v6sor906439ite.88.2018.05.02.10.25.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 10:17:24 -0700 (PDT)
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
- signal semantics
-References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
- <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
- <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
- <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
-Date: Wed, 2 May 2018 19:17:21 +0200
+        (Google Transport Security);
+        Wed, 02 May 2018 10:25:18 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180502153645.fui4ju3scsze3zkq@black.fi.intel.com>
+References: <cover.1524077494.git.andreyknvl@google.com> <0db34d04fa16be162336106e3b4a94f3dacc0af4.1524077494.git.andreyknvl@google.com>
+ <20180426174714.4jtb72q56w3xonsa@armageddon.cambridge.arm.com>
+ <CAAeHK+zY8p9E4FZa7mbdgR=wR0u-RDS552dn=h9fKRC-ArYLdw@mail.gmail.com> <20180502153645.fui4ju3scsze3zkq@black.fi.intel.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 2 May 2018 19:25:17 +0200
+Message-ID: <CAAeHK+yTbmZfkeNbqbo+J90zsjsM99rwnYBGfQBxphHMMfgD7A@mail.gmail.com>
+Subject: Re: [PATCH 4/6] mm, arm64: untag user addresses in mm/gup.c
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linuxram@us.ibm.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
-On 05/02/2018 07:09 PM, Andy Lutomirski wrote:
->> Nick Clifton wrote a binutils patch which puts the .got.plt section on separate pages.  We allocate a protection key for it, assign it to all such sections in the process image, and change the access rights of the main thread to disallow writes via that key during process startup.  In _dl_fixup, we enable write access to the GOT, update the GOT entry, and then disable it again.
+On Wed, May 2, 2018 at 5:36 PM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> On Wed, May 02, 2018 at 02:38:42PM +0000, Andrey Konovalov wrote:
+>> > Does having a tagged address here makes any difference? I couldn't hit a
+>> > failure with my simple tests (LD_PRELOAD a library that randomly adds
+>> > tags to pointers returned by malloc).
 >>
->> This way, we have a pretty safe form of lazy binding, without having to resort to BIND_NOW.
->>
->> With the current kernel behavior on x86, we cannot do that because signal handlers revert to the default (deny) access rights, so the GOT turns inaccessible.
+>> I think you're right, follow_page_mask is only called from
+>> __get_user_pages, which already untagged the address. I'll remove
+>> untagging here.
+>
+> It also called from follow_page(). Have you covered all its callers?
 
-> Dave is right: the current behavior was my request, and I still think ita??s correct.  The whole point is that, even if something nasty happens like a SIGALRM handler hitting in the middle of _dl_fixup, the SIGALRM handler is preventing from accidentally writing to the protected memory.  When SIGALRM returns, PKRU should get restored
-> 
-> Another way of looking at this is that the kernel would like to approximate what the ISA behavior*should*  have been: the whole sequence a??modify PKRU; access memory; restore PKRUa?? should be as atomic as possible.
-> 
-> Florian, what is the actual problematic sequence of events?
+Oh, missed that, will take a look.
 
-See above.  The signal handler will crash if it calls any non-local 
-function through the GOT because with the default access rights, it's 
-not readable in the signal handler.
-
-Any use of memory protection keys for basic infrastructure will run into 
-this problem, so I think the current kernel behavior is not very useful. 
-  It's also x86-specific.
-
- From a security perspective, the atomic behavior is not very useful 
-because you generally want to modify PKRU *before* computing the details 
-of the memory access, so that you don't have a general a??poke anywhere 
-with this access righta?? primitive in the text segment.  (I called this 
-the a??suffix problema?? in another context.)
-
-For this reason, I plan to add the PKRU modification to the beginning of 
-_dl_fixup.
-
-CET will offer a different trade-off here, but we haven't that yet.
-
-Thanks,
-Florian
+Thinking about that, would it make sense to add untagging to find_vma
+(and others) instead of trying to cover all find_vma callers?
