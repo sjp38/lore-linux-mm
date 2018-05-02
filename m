@@ -1,121 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B412E6B0005
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 10:38:44 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id r188-v6so13189232ith.2
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 07:38:44 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m3-v6sor6101194iof.177.2018.05.02.07.38.43
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B98DE6B0005
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 10:45:35 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 88-v6so10201343wrc.21
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 07:45:35 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z45-v6si5727593edc.451.2018.05.02.07.45.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 May 2018 07:38:43 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 May 2018 07:45:34 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w42Ec1m9124579
+	for <linux-mm@kvack.org>; Wed, 2 May 2018 10:45:33 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2hqcgh0jpn-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 02 May 2018 10:45:32 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 2 May 2018 15:45:30 +0100
+Subject: Re: [PATCH v10 00/25] Speculative page faults
+References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <87bmdynnv4.fsf@e105922-lin.cambridge.arm.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 2 May 2018 16:45:19 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180426174714.4jtb72q56w3xonsa@armageddon.cambridge.arm.com>
-References: <cover.1524077494.git.andreyknvl@google.com> <0db34d04fa16be162336106e3b4a94f3dacc0af4.1524077494.git.andreyknvl@google.com>
- <20180426174714.4jtb72q56w3xonsa@armageddon.cambridge.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 2 May 2018 16:38:42 +0200
-Message-ID: <CAAeHK+zY8p9E4FZa7mbdgR=wR0u-RDS552dn=h9fKRC-ArYLdw@mail.gmail.com>
-Subject: Re: [PATCH 4/6] mm, arm64: untag user addresses in mm/gup.c
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <87bmdynnv4.fsf@e105922-lin.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <eef94f4f-800e-9994-d926-a71b80552ebc@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Thu, Apr 26, 2018 at 7:47 PM, Catalin Marinas
-<catalin.marinas@arm.com> wrote:
 
-My approach with this was to add untagging to every gup.c function
-that is exposed for external use, but perhaps adding untagging only
-where it is actually required is a better approach.
 
-> On Wed, Apr 18, 2018 at 08:53:13PM +0200, Andrey Konovalov wrote:
->> diff --git a/mm/gup.c b/mm/gup.c
->> index 76af4cfeaf68..fb375de7d40d 100644
->> --- a/mm/gup.c
->> +++ b/mm/gup.c
->> @@ -386,6 +386,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
->>       struct page *page;
->>       struct mm_struct *mm = vma->vm_mm;
+On 02/05/2018 16:17, Punit Agrawal wrote:
+> Hi Laurent,
+> 
+> One query below -
+> 
+> Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
+> 
+> [...]
+> 
 >>
->> +     address = untagged_addr(address);
->> +
->>       *page_mask = 0;
+>> Ebizzy:
+>> -------
+>> The test is counting the number of records per second it can manage, the
+>> higher is the best. I run it like this 'ebizzy -mTRp'. To get consistent
+>> result I repeated the test 100 times and measure the average result. The
+>> number is the record processes per second, the higher is the best.
 >>
->>       /* make this handle hugepd */
->
-> Does having a tagged address here makes any difference? I couldn't hit a
-> failure with my simple tests (LD_PRELOAD a library that randomly adds
-> tags to pointers returned by malloc).
+>>   		BASE		SPF		delta	
+>> 16 CPUs x86 VM	12405.52	91104.52	634.39%
+>> 80 CPUs P8 node 37880.01	76201.05	101.16%
+> 
+> How do you measure the number of records processed? Is there a specific
+> version of ebizzy that reports this? I couldn't find a way to get this
+> information with the ebizzy that's included in ltp.
 
-I think you're right, follow_page_mask is only called from
-__get_user_pages, which already untagged the address. I'll remove
-untagging here.
+I'm using the original one : http://ebizzy.sourceforge.net/
 
->
->> @@ -647,6 +649,8 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->>       if (!nr_pages)
->>               return 0;
+> 
 >>
->> +     start = untagged_addr(start);
->> +
->>       VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
+>> Here are the performance counter read during a run on a 16 CPUs x86 VM:
+>>  Performance counter stats for './ebizzy -mRTp':
+>>             860074      faults
+>>             856866      spf
+>>                285      pagefault:spf_pte_lock
+>>               1506      pagefault:spf_vma_changed
+>>                  0      pagefault:spf_vma_noanon
+>>                 73      pagefault:spf_vma_notsup
+>>                  0      pagefault:spf_vma_access
+>>                  0      pagefault:spf_pmd_changed
 >>
->>       /*
->> @@ -801,6 +805,8 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
->>       struct vm_area_struct *vma;
->>       int ret, major = 0;
+>> And the ones captured during a run on a 80 CPUs Power node:
+>>  Performance counter stats for './ebizzy -mRTp':
+>>             722695      faults
+>>             699402      spf
+>>              16048      pagefault:spf_pte_lock
+>>               6838      pagefault:spf_vma_changed
+>>                  0      pagefault:spf_vma_noanon
+>>                277      pagefault:spf_vma_notsup
+>>                  0      pagefault:spf_vma_access
+>>                  0      pagefault:spf_pmd_changed
 >>
->> +     address = untagged_addr(address);
->> +
->>       if (unlocked)
->>               fault_flags |= FAULT_FLAG_ALLOW_RETRY;
->>
->> @@ -854,6 +860,8 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
->>       long ret, pages_done;
->>       bool lock_dropped;
->>
->> +     start = untagged_addr(start);
->> +
->>       if (locked) {
->>               /* if VM_FAULT_RETRY can be returned, vmas become invalid */
->>               BUG_ON(vmas);
->
-> Isn't __get_user_pages() untagging enough to cover this case as well?
-> Can this function not cope with tagged pointers?
+>> In ebizzy's case most of the page fault were handled in a speculative way,
+>> leading the ebizzy performance boost.
+> 
+> A trial run showed increased fault handling when SPF is enabled on an
+> 8-core ARM64 system running 4.17-rc3. I am using a port of your x86
+> patch to enable spf on arm64.
+> 
+> SPF
+> ---
+> 
+> Performance counter stats for './ebizzy -vvvmTRp':
+> 
+>          1,322,736      faults                                                      
+>          1,299,241      software/config=11/                                         
+> 
+>       10.005348034 seconds time elapsed
+> 
+> No SPF
+> -----
+> 
+>  Performance counter stats for './ebizzy -vvvmTRp':
+> 
+>            708,916      faults
+>                  0      software/config=11/
+> 
+>       10.005807432 seconds time elapsed
 
-Yes, I think you're right here as well. I'll remove untagging here.
+Thanks for sharing these good numbers !
 
->
->> @@ -1751,6 +1759,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->>       unsigned long flags;
->>       int nr = 0;
->>
->> +     start = untagged_addr(start);
->> +
->>       start &= PAGE_MASK;
->>       addr = start;
->>       len = (unsigned long) nr_pages << PAGE_SHIFT;
->> @@ -1803,6 +1813,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
->>       unsigned long addr, len, end;
->>       int nr = 0, ret = 0;
->>
->> +     start = untagged_addr(start);
->> +
->>       start &= PAGE_MASK;
->>       addr = start;
->>       len = (unsigned long) nr_pages << PAGE_SHIFT;
->
-> Have you hit a problem with the fast gup functions and tagged pointers?
-> The page table walking macros (e.g. p*d_index()) should mask the tag out
-> already.
-
-I didn't hit a problem, but the plan was to add untagging to all gup.c
-interface functions as I mentioned above. Here get_user_pages_fast can
-cope with tagged addresses as long as gup_pgd_range can. And looks
-like the latter can indeed do that since it only uses addr through the
-page table walking macros you mentioned. I'll remove untagging here as
-well.
-
-Thanks!
+> Thanks,
+> Punit
+> 
+> [...]
+> 
