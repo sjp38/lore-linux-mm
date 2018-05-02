@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C53946B0003
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 18:17:07 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y5so3096036pfm.17
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 15:17:07 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id y63-v6si10168814pgb.311.2018.05.02.15.17.06
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 901C66B0006
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 18:20:27 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id z10so13953037pfm.2
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 15:20:27 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id c23-v6si11716233plo.80.2018.05.02.15.20.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 15:17:06 -0700 (PDT)
-Date: Thu, 3 May 2018 01:17:02 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v4 07/16] slub: Remove page->counters
-Message-ID: <20180502221702.a2ezdae6akchroze@black.fi.intel.com>
-References: <20180430202247.25220-1-willy@infradead.org>
- <20180430202247.25220-8-willy@infradead.org>
- <alpine.DEB.2.21.1805011148060.16325@nuc-kabylake>
- <20180502172639.GC2737@bombadil.infradead.org>
+        Wed, 02 May 2018 15:20:26 -0700 (PDT)
+Date: Wed, 2 May 2018 23:20:18 +0100
+From: James Hogan <jhogan@kernel.org>
+Subject: Re: [PATCH 11/13] mips,unicore32: swiotlb doesn't need sg->dma_length
+Message-ID: <20180502222017.GC20766@jamesdev>
+References: <20180425051539.1989-1-hch@lst.de>
+ <20180425051539.1989-12-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="Izn7cH1Com+I3R9J"
 Content-Disposition: inline
-In-Reply-To: <20180502172639.GC2737@bombadil.infradead.org>
+In-Reply-To: <20180425051539.1989-12-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christopher Lameter <cl@linux.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, iommu@lists.linux-foundation.org, sstabellini@kernel.org, x86@kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, sparclinux@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On Wed, May 02, 2018 at 05:26:39PM +0000, Matthew Wilcox wrote:
-> Option 2:
-> 
-> @@ -113,9 +113,14 @@ struct page {
->                         struct kmem_cache *slub_cache;  /* shared with slab */
->                         /* Double-word boundary */
->                         void *slub_freelist;            /* shared with slab */
-> -                       unsigned inuse:16;
-> -                       unsigned objects:15;
-> -                       unsigned frozen:1;
-> +                       union {
-> +                               unsigned long counters;
-> +                               struct {
-> +                                       unsigned inuse:16;
-> +                                       unsigned objects:15;
-> +                                       unsigned frozen:1;
-> +                               };
-> +                       };
->                 };
->                 struct {        /* Tail pages of compound page */
->                         unsigned long compound_head;    /* Bit zero is set */
-> 
-> Pro: Expresses exactly what we do.
-> Con: Back to five levels of indentation in struct page
 
-The indentation issue can be fixed (to some extend) by declaring the union
-outside struct page and just use it inside.
+--Izn7cH1Com+I3R9J
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 
-I don't advocate for the approach, just listing the option.
+On Wed, Apr 25, 2018 at 07:15:37AM +0200, Christoph Hellwig wrote:
+> Only mips and unicore32 select CONFIG_NEED_SG_DMA_LENGTH when building
+> swiotlb.  swiotlb itself never merges segements and doesn't accesses the
+> dma_length field directly, so drop the dependency.
 
--- 
- Kirill A. Shutemov
+Is that at odds with Documentation/DMA-API-HOWTO.txt, which seems to
+suggest arch ports should enable it for IOMMUs?
+
+Cheers
+James
+
+--Izn7cH1Com+I3R9J
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYIAB0WIQS7lRNBWUYtqfDOVL41zuSGKxAj8gUCWuo5nwAKCRA1zuSGKxAj
+8toFAQDILXOi2KhP1yoO3zabIiof3I/tmRomgzUgGA3ESVm5lgEA4elhmn7zDXhX
+YG33reqJ7xyPenaOF8AX63cB5eqjOQ8=
+=UDV2
+-----END PGP SIGNATURE-----
+
+--Izn7cH1Com+I3R9J--
