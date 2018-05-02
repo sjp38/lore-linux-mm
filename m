@@ -1,102 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AA4B6B0005
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 10:17:23 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id x134-v6so8815526oif.19
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 07:17:23 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 93-v6si4274755otd.5.2018.05.02.07.17.22
-        for <linux-mm@kvack.org>;
-        Wed, 02 May 2018 07:17:22 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH v10 00/25] Speculative page faults
-References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Date: Wed, 02 May 2018 15:17:19 +0100
-In-Reply-To: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
-	(Laurent Dufour's message of "Tue, 17 Apr 2018 16:33:06 +0200")
-Message-ID: <87bmdynnv4.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AA9EC6B0005
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 10:30:59 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id m68so13084794pfm.20
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 07:30:59 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id d1-v6si12135879plr.410.2018.05.02.07.30.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 May 2018 07:30:58 -0700 (PDT)
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
+ signal semantics
+References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
+Date: Wed, 2 May 2018 07:30:56 -0700
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists., ozlabs.org, x86@kernel.org
+To: Florian Weimer <fweimer@redhat.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org
+Cc: linuxram@us.ibm.com
 
-Hi Laurent,
+On 05/02/2018 06:26 AM, Florian Weimer wrote:
+> pkeys support for IBM POWER intends to inherited the access rights of
+> the current thread in signal handlers.  The advantage is that this
+> preserves access to memory regions associated with non-default keys,
+> enabling additional usage scenarios for memory protection keys which
+> currently do not work on x86 due to the unconditional reset to the
+> (configurable) default key in signal handlers.
 
-One query below -
+What's the usage scenario that does not work?
 
-Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
+> Consequently, this commit updates the x86 implementation to preserve
+> the PKRU register value of the interrupted context in signal handlers.
+> If a key is allocated successfully with the PKEY_ALLOC_SIGNALINHERIT
+> flag, the application can assume this signal inheritance behavior.
 
-[...]
+I think this is a pretty gross misuse of the API.  Adding an argument to
+pkey_alloc() is something that folks would assume would impact the key
+being *allocated*, not pkeys behavior across the process as a whole.
 
->
-> Ebizzy:
-> -------
-> The test is counting the number of records per second it can manage, the
-> higher is the best. I run it like this 'ebizzy -mTRp'. To get consistent
-> result I repeated the test 100 times and measure the average result. The
-> number is the record processes per second, the higher is the best.
->
->   		BASE		SPF		delta	
-> 16 CPUs x86 VM	12405.52	91104.52	634.39%
-> 80 CPUs P8 node 37880.01	76201.05	101.16%
+> This change does not affect the init_pkru optimization because if the
+> thread's PKRU register is zero due to the init_pkru setting, it will
+> remain zero in the signal handler through inheritance from the
+> interrupted context.
 
-How do you measure the number of records processed? Is there a specific
-version of ebizzy that reports this? I couldn't find a way to get this
-information with the ebizzy that's included in ltp.
+I think you are right, but it's rather convoluted.  It does:
 
->
-> Here are the performance counter read during a run on a 16 CPUs x86 VM:
->  Performance counter stats for './ebizzy -mRTp':
->             860074      faults
->             856866      spf
->                285      pagefault:spf_pte_lock
->               1506      pagefault:spf_vma_changed
->                  0      pagefault:spf_vma_noanon
->                 73      pagefault:spf_vma_notsup
->                  0      pagefault:spf_vma_access
->                  0      pagefault:spf_pmd_changed
->
-> And the ones captured during a run on a 80 CPUs Power node:
->  Performance counter stats for './ebizzy -mRTp':
->             722695      faults
->             699402      spf
->              16048      pagefault:spf_pte_lock
->               6838      pagefault:spf_vma_changed
->                  0      pagefault:spf_vma_noanon
->                277      pagefault:spf_vma_notsup
->                  0      pagefault:spf_vma_access
->                  0      pagefault:spf_pmd_changed
->
-> In ebizzy's case most of the page fault were handled in a speculative way,
-> leading the ebizzy performance boost.
+1. Running with PKRU in the init state
+2. Kernel saves off init-state-PKRU XSAVE signal buffer
+3. Enter signal, kernel XRSTOR (may) set the init state again
+4. fpu__clear() does __write_pkru(), takes it out of the init state
+5. Signal handler runs, exits
+6. fpu__restore_sig() XRSTOR's the state from #2, taking PKRU back to
+   the init state
 
-A trial run showed increased fault handling when SPF is enabled on an
-8-core ARM64 system running 4.17-rc3. I am using a port of your x86
-patch to enable spf on arm64.
+But, about the patch in general:
 
-SPF
----
+I'm not a big fan of doing this in such a PKRU-specific way.  It would
+be nice to have this available for all XSAVE states.  It would also keep
+you from so unnecessarily frobbing with WRPKRU in fpu__clear().  You
+could just clear the PKRU bit in the Requested Feature BitMap (RFBM)
+passed to XRSTOR.  That would be much straightforward and able to be
+more easily extended to more states.
 
-Performance counter stats for './ebizzy -vvvmTRp':
-
-         1,322,736      faults                                                      
-         1,299,241      software/config=11/                                         
-
-      10.005348034 seconds time elapsed
-
-No SPF
------
-
- Performance counter stats for './ebizzy -vvvmTRp':
-
-           708,916      faults
-                 0      software/config=11/
-
-      10.005807432 seconds time elapsed
-
-Thanks,
-Punit
-
-[...]
+PKRU is now preserved on signal entry, but not signal exit.  Was that
+intentional?  That seems like odd behavior, and also differs from the
+POWER implementation as I understand it.
