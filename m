@@ -1,168 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 45CCB6B0006
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 10:46:06 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id v40-v6so7172988ote.0
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 07:46:06 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r32-v6si4260934ota.40.2018.05.02.07.46.04
-        for <linux-mm@kvack.org>;
-        Wed, 02 May 2018 07:46:04 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH 2/2] arm64/mm: add speculative page fault
-References: <1525247672-2165-1-git-send-email-opensource.ganesh@gmail.com>
-	<1525247672-2165-2-git-send-email-opensource.ganesh@gmail.com>
-Date: Wed, 02 May 2018 15:46:02 +0100
-In-Reply-To: <1525247672-2165-2-git-send-email-opensource.ganesh@gmail.com>
-	(Ganesh Mahendran's message of "Wed, 2 May 2018 15:54:32 +0800")
-Message-ID: <871seunmj9.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 10EFB6B0005
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 11:12:54 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id s4-v6so10195709ybg.2
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 08:12:54 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id m2si2889949ual.3.2018.05.02.08.12.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 May 2018 08:12:53 -0700 (PDT)
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
+ signal semantics
+References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
+ <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
+Date: Wed, 2 May 2018 17:12:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: ldufour@linux.vnet.ibm.com, catalin.marinas@arm.com, will.deacon@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org
+Cc: linuxram@us.ibm.com
 
-Hi Ganesh,
+On 05/02/2018 04:30 PM, Dave Hansen wrote:
+> On 05/02/2018 06:26 AM, Florian Weimer wrote:
+>> pkeys support for IBM POWER intends to inherited the access rights of
+>> the current thread in signal handlers.  The advantage is that this
+>> preserves access to memory regions associated with non-default keys,
+>> enabling additional usage scenarios for memory protection keys which
+>> currently do not work on x86 due to the unconditional reset to the
+>> (configurable) default key in signal handlers.
+> 
+> What's the usage scenario that does not work?
 
-I was looking at evaluating speculative page fault handling on arm64 and
-noticed your patch.
+Here's what I want to do:
 
-Some comments below -
+Nick Clifton wrote a binutils patch which puts the .got.plt section on 
+separate pages.  We allocate a protection key for it, assign it to all 
+such sections in the process image, and change the access rights of the 
+main thread to disallow writes via that key during process startup.  In 
+_dl_fixup, we enable write access to the GOT, update the GOT entry, and 
+then disable it again.
 
-Ganesh Mahendran <opensource.ganesh@gmail.com> writes:
+This way, we have a pretty safe form of lazy binding, without having to 
+resort to BIND_NOW.
 
-> This patch enables the speculative page fault on the arm64
-> architecture.
->
-> I completed spf porting in 4.9. From the test result,
-> we can see app launching time improved by about 10% in average.
-> For the apps which have more than 50 threads, 15% or even more
-> improvement can be got.
->
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> ---
-> This patch is on top of Laurent's v10 spf
-> ---
->  arch/arm64/mm/fault.c | 38 +++++++++++++++++++++++++++++++++++---
->  1 file changed, 35 insertions(+), 3 deletions(-)
->
-> diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-> index 4165485..e7992a3 100644
-> --- a/arch/arm64/mm/fault.c
-> +++ b/arch/arm64/mm/fault.c
-> @@ -322,11 +322,13 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
->  
->  static int __do_page_fault(struct mm_struct *mm, unsigned long addr,
->  			   unsigned int mm_flags, unsigned long vm_flags,
-> -			   struct task_struct *tsk)
-> +			   struct task_struct *tsk, struct vm_area_struct *vma)
->  {
-> -	struct vm_area_struct *vma;
->  	int fault;
->  
-> +	if (!vma || !can_reuse_spf_vma(vma, addr))
-> +		vma = find_vma(mm, addr);
-> +
+With the current kernel behavior on x86, we cannot do that because 
+signal handlers revert to the default (deny) access rights, so the GOT 
+turns inaccessible.
 
-It would be better to move this hunk to do_page_fault().
+>> Consequently, this commit updates the x86 implementation to preserve
+>> the PKRU register value of the interrupted context in signal handlers.
+>> If a key is allocated successfully with the PKEY_ALLOC_SIGNALINHERIT
+>> flag, the application can assume this signal inheritance behavior.
+> 
+> I think this is a pretty gross misuse of the API.  Adding an argument to
+> pkey_alloc() is something that folks would assume would impact the key
+> being *allocated*, not pkeys behavior across the process as a whole.
 
-It'll help localise the fact that handle_speculative_fault() is a
-stateful call which needs a corresponding can_reuse_spf_vma() to
-properly update the vma reference counting.
+ From the application point of view, only the allocated key is 
+affecteda??it has specific semantics that were undefined before and varied 
+between x86 and POWER.
 
+>> This change does not affect the init_pkru optimization because if the
+>> thread's PKRU register is zero due to the init_pkru setting, it will
+>> remain zero in the signal handler through inheritance from the
+>> interrupted context.
+> 
+> I think you are right, but it's rather convoluted.  It does:
+> 
+> 1. Running with PKRU in the init state
+> 2. Kernel saves off init-state-PKRU XSAVE signal buffer
+> 3. Enter signal, kernel XRSTOR (may) set the init state again
+> 4. fpu__clear() does __write_pkru(), takes it out of the init state
+> 5. Signal handler runs, exits
+> 6. fpu__restore_sig() XRSTOR's the state from #2, taking PKRU back to
+>     the init state
 
->  	vma = find_vma(mm, addr);
+Isn't that just the cost of not hard-coding the XSAVE area layout?
 
-Remember to drop this call in the next version. As it stands the call
-the find_vma() needlessly gets duplicated.
+> But, about the patch in general:
+> 
+> I'm not a big fan of doing this in such a PKRU-specific way.  It would
+> be nice to have this available for all XSAVE states.  It would also keep
+> you from so unnecessarily frobbing with WRPKRU in fpu__clear().  You
+> could just clear the PKRU bit in the Requested Feature BitMap (RFBM)
+> passed to XRSTOR.  That would be much straightforward and able to be
+> more easily extended to more states.
 
->  	fault = VM_FAULT_BADMAP;
->  	if (unlikely(!vma))
-> @@ -371,6 +373,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
->  	int fault, major = 0;
->  	unsigned long vm_flags = VM_READ | VM_WRITE;
->  	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
-> +	struct vm_area_struct *vma;
->  
->  	if (notify_page_fault(regs, esr))
->  		return 0;
-> @@ -409,6 +412,25 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
->  
->  	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
->  
-> +	if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT)) {
+I don't see where I could plug this into the current kernel sources. 
+Would you please provide some pointers?
 
-You don't need the IS_ENABLED() check. The alternate implementation of
-handle_speculative_fault() when CONFIG_SPECULATIVE_PAGE_FAULT is not
-enabled takes care of this.
+> PKRU is now preserved on signal entry, but not signal exit.  Was that
+> intentional?  That seems like odd behavior, and also differs from the
+> POWER implementation as I understand it.
 
-> +		fault = handle_speculative_fault(mm, addr, mm_flags, &vma);
-> +		/*
-> +		 * Page fault is done if VM_FAULT_RETRY is not returned.
-> +		 * But if the memory protection keys are active, we don't know
-> +		 * if the fault is due to key mistmatch or due to a
-> +		 * classic protection check.
-> +		 * To differentiate that, we will need the VMA we no
-> +		 * more have, so let's retry with the mmap_sem held.
-> +		 */
+Ram, would you please comment?
 
-As there is no support for memory protection keys on arm64 most of this
-comment can be dropped.
-
-> +		if (fault != VM_FAULT_RETRY &&
-> +			 fault != VM_FAULT_SIGSEGV) {
-
-Not sure if you need the VM_FAULT_SIGSEGV here.
-
-> +			perf_sw_event(PERF_COUNT_SW_SPF, 1, regs, addr);
-> +			goto done;
-> +		}
-> +	} else {
-> +		vma = NULL;
-> +	}
-> +
-
-If vma is initiliased to NULL during declaration, the else part can be
-dropped.
-
->  	/*
->  	 * As per x86, we may deadlock here. However, since the kernel only
->  	 * validly references user space from well defined areas of the code,
-> @@ -431,7 +453,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
->  #endif
->  	}
->  
-> -	fault = __do_page_fault(mm, addr, mm_flags, vm_flags, tsk);
-> +	fault = __do_page_fault(mm, addr, mm_flags, vm_flags, tsk, vma);
->  	major |= fault & VM_FAULT_MAJOR;
->  
->  	if (fault & VM_FAULT_RETRY) {
-> @@ -454,11 +476,21 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
->  		if (mm_flags & FAULT_FLAG_ALLOW_RETRY) {
->  			mm_flags &= ~FAULT_FLAG_ALLOW_RETRY;
->  			mm_flags |= FAULT_FLAG_TRIED;
-> +
-> +			/*
-> +			 * Do not try to reuse this vma and fetch it
-> +			 * again since we will release the mmap_sem.
-> +			 */
-> +			if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT))
-> +				vma = NULL;
-
-Please drop the IS_ENABLED() check.
+I think it is a bug not restore the access rights to the former value in 
+the interrupted context.  In userspace, we have exactly this problem 
+with errno, and it can lead to subtle bugs.
 
 Thanks,
-Punit
-
-> +
->  			goto retry;
->  		}
->  	}
->  	up_read(&mm->mmap_sem);
->  
-> +done:
-> +
->  	/*
->  	 * Handle the "normal" (no error) case first.
->  	 */
+Florian
