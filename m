@@ -1,43 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A1CD86B000A
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 13:25:19 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id u16-v6so2030184iol.18
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 10:25:19 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n5-v6sor906439ite.88.2018.05.02.10.25.18
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D40E6B000C
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 13:26:41 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id z24so6623648pfn.5
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 10:26:41 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id m39-v6si12003810plg.570.2018.05.02.10.26.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 May 2018 10:25:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 02 May 2018 10:26:40 -0700 (PDT)
+Date: Wed, 2 May 2018 10:26:39 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v4 07/16] slub: Remove page->counters
+Message-ID: <20180502172639.GC2737@bombadil.infradead.org>
+References: <20180430202247.25220-1-willy@infradead.org>
+ <20180430202247.25220-8-willy@infradead.org>
+ <alpine.DEB.2.21.1805011148060.16325@nuc-kabylake>
 MIME-Version: 1.0
-In-Reply-To: <20180502153645.fui4ju3scsze3zkq@black.fi.intel.com>
-References: <cover.1524077494.git.andreyknvl@google.com> <0db34d04fa16be162336106e3b4a94f3dacc0af4.1524077494.git.andreyknvl@google.com>
- <20180426174714.4jtb72q56w3xonsa@armageddon.cambridge.arm.com>
- <CAAeHK+zY8p9E4FZa7mbdgR=wR0u-RDS552dn=h9fKRC-ArYLdw@mail.gmail.com> <20180502153645.fui4ju3scsze3zkq@black.fi.intel.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 2 May 2018 19:25:17 +0200
-Message-ID: <CAAeHK+yTbmZfkeNbqbo+J90zsjsM99rwnYBGfQBxphHMMfgD7A@mail.gmail.com>
-Subject: Re: [PATCH 4/6] mm, arm64: untag user addresses in mm/gup.c
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1805011148060.16325@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
 
-On Wed, May 2, 2018 at 5:36 PM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> On Wed, May 02, 2018 at 02:38:42PM +0000, Andrey Konovalov wrote:
->> > Does having a tagged address here makes any difference? I couldn't hit a
->> > failure with my simple tests (LD_PRELOAD a library that randomly adds
->> > tags to pointers returned by malloc).
->>
->> I think you're right, follow_page_mask is only called from
->> __get_user_pages, which already untagged the address. I'll remove
->> untagging here.
->
-> It also called from follow_page(). Have you covered all its callers?
+On Tue, May 01, 2018 at 11:48:53AM -0500, Christopher Lameter wrote:
+> On Mon, 30 Apr 2018, Matthew Wilcox wrote:
+> 
+> > Use page->private instead, now that these two fields are in the same
+> > location.  Include a compile-time assert that the fields don't get out
+> > of sync.
+> 
+> Hrm. This makes the source code a bit less readable. Guess its ok.
+> 
+> Acked-by: Christoph Lameter <cl@linux.com>
 
-Oh, missed that, will take a look.
+Thanks for the ACK.  I'm not thrilled with this particular patch, but
+I'm not thrilled with any of the other options we've come up with either.
 
-Thinking about that, would it make sense to add untagging to find_vma
-(and others) instead of trying to cover all find_vma callers?
+Option 1:
+
+Patch as written.
+Pro: Keeps struct page simple
+Con: Hidden dependency on page->private and page->inuse being in the same bits
+
+Option 2:
+
+@@ -113,9 +113,14 @@ struct page {
+                        struct kmem_cache *slub_cache;  /* shared with slab */
+                        /* Double-word boundary */
+                        void *slub_freelist;            /* shared with slab */
+-                       unsigned inuse:16;
+-                       unsigned objects:15;
+-                       unsigned frozen:1;
++                       union {
++                               unsigned long counters;
++                               struct {
++                                       unsigned inuse:16;
++                                       unsigned objects:15;
++                                       unsigned frozen:1;
++                               };
++                       };
+                };
+                struct {        /* Tail pages of compound page */
+                        unsigned long compound_head;    /* Bit zero is set */
+
+Pro: Expresses exactly what we do.
+Con: Back to five levels of indentation in struct page
+
+Option 3: Use -fms-extensions to create a slub_page structure.
+
+Pro: Indentation reduced to minimum and no cross-union dependencies
+Con: Nobody seemed interested in the idea
+
+Option 4: Use explicit shifting-and-masking to combine the three counters
+into one word.
+
+Con: Lots of churn.
