@@ -1,111 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E8776B0006
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 19:15:44 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 3-v6so7726912wry.0
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 16:15:44 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id f27-v6si852012edj.330.2018.05.02.16.15.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 635AD6B0007
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 19:32:34 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r63so12212341pfl.12
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 16:32:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c9-v6sor974970pgp.370.2018.05.02.16.32.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 16:15:43 -0700 (PDT)
-Reply-To: prakash.sangappa@oracle.com
-Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node information
-References: <1525240686-13335-1-git-send-email-prakash.sangappa@oracle.com>
- <20180502143323.1c723ccb509c3497050a2e0a@linux-foundation.org>
- <2ce01d91-5fba-b1b7-2956-c8cc1853536d@intel.com>
-From: "prakash.sangappa" <prakash.sangappa@oracle.com>
-Message-ID: <5d2d820b-4a6e-242d-3927-0d693198602a@oracle.com>
-Date: Wed, 2 May 2018 16:17:41 -0700
-MIME-Version: 1.0
-In-Reply-To: <2ce01d91-5fba-b1b7-2956-c8cc1853536d@intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 02 May 2018 16:32:33 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change signal semantics
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <f9f7edc5-6426-91aa-f279-2f9f4671957a@intel.com>
+Date: Wed, 2 May 2018 16:32:30 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <2BE03B9A-B1E0-4707-8705-203F88B62A1C@amacapital.net>
+References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com> <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com> <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com> <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net> <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com> <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com> <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com> <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com> <a37b7deb-7f5a-3dfa-f360-956cab8a813a@intel.com> <CALCETrUM7wWZh55gaLiAoPqtxLLUJ4QC8r8zj62E9avJ6ZVu0w@mail.gmail.com> <f9f7edc5-6426-91aa-f279-2f9f4671957a@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, drepper@gmail.com, rientjes@google.com, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Florian Weimer <fweimer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxram@us.ibm.com
 
 
 
-On 05/02/2018 03:28 PM, Dave Hansen wrote:
-> On 05/02/2018 02:33 PM, Andrew Morton wrote:
->> On Tue,  1 May 2018 22:58:06 -0700 Prakash Sangappa <prakash.sangappa@oracle.com> wrote:
->>> For analysis purpose it is useful to have numa node information
->>> corresponding mapped address ranges of the process. Currently
->>> /proc/<pid>/numa_maps provides list of numa nodes from where pages are
->>> allocated per VMA of the process. This is not useful if an user needs to
->>> determine which numa node the mapped pages are allocated from for a
->>> particular address range. It would have helped if the numa node information
->>> presented in /proc/<pid>/numa_maps was broken down by VA ranges showing the
->>> exact numa node from where the pages have been allocated.
-> I'm finding myself a little lost in figuring out what this does.  Today,
-> numa_maps might us that a 3-page VMA has 1 page from Node 0 and 2 pages
-> from Node 1.  We group *entirely* by VMA:
->
-> 1000-4000 N0=1 N1=2
+> On May 2, 2018, at 3:32 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+>=20
+>> On 05/02/2018 03:22 PM, Andy Lutomirski wrote:
+>> That library wants other threads, signal handlers, and, in general, the
+>> whole rest of the process to be restricted, and that library doesn't want=
 
-Yes
+>> race conditions.  The problem here is that, to get this right, we either
+>> need the PKRU modifications to be syscalls or to take locks, and the lock=
 
->
-> We don't want that.  We want to tell exactly where each node's memory is
-> despite if they are in the same VMA, like this:
->
-> 1000-2000 N1=1
-> 2000-3000 N0=1
-> 3000-4000 N1=1
->
-> So that no line of output ever has more than one node's memory.  It
+>> approach is going to be fairly gross.
+>=20
+> I totally get the idea that a RDPKRU/WRPKRU is non-atomic and that it
+> can't be mixed with asynchronous WRPKRU's in that thread.
+>=20
+> But, where do those come from in this scenario?  I'm not getting the
+> secondary mechanism is that *makes* them unsafe.
 
-Yes, that is exactly what this patch will provide. It may not have
-been clear from the sample output I had included.
+pkey_alloc() itself.  If someone tries to allocate a key with a given defaul=
+t mode, unless there=E2=80=99s already a key that already had that value in a=
+ll threads or pkey_alloc() needs to asynchronously create such a key.
 
-Here is another snippet from a process.
-
-..
-006dc000-006dd000 N1=1 kernelpagesize_kB=4 anon=1 dirty=1 file=/usr/bin/bash
-006dd000-006de000 N0=1 kernelpagesize_kB=4 anon=1 dirty=1 file=/usr/bin/bash
-006de000-006e0000 N1=2 kernelpagesize_kB=4 anon=2 dirty=2 file=/usr/bin/bash
-006e0000-006e6000 N0=6 kernelpagesize_kB=4 anon=6 dirty=6 file=/usr/bin/bash
-006e6000-006eb000 N0=5 kernelpagesize_kB=4 anon=5 dirty=5
-006eb000-006ec000 N1=1 kernelpagesize_kB=4 anon=1 dirty=1
-007f9000-007fa000 N1=1 kernelpagesize_kB=4 anon=1 dirty=1 heap
-007fa000-00965000 N0=363 kernelpagesize_kB=4 anon=363 dirty=363 heap
-00965000-0096c000 -  heap
-0096c000-0096d000 N0=1 kernelpagesize_kB=4 anon=1 dirty=1 heap
-0096d000-00984000 -  heap
-..
-
-> *appears* in this new file as if each contiguous range of memory from a
-> given node has its own VMA.  Right?
-
-No. It just breaks down each VMA of the process into address ranges
-which have pages on a numa node on each line. i.e Each line will
-indicate memory from one numa node only.
-
->
-> This sounds interesting, but I've never found myself wanting this
-> information a single time that I can recall.  I'd love to hear more.
->
-> Is this for debugging?  Are apps actually going to *parse* this file?
-
-Yes, mainly for debugging/performance analysis . User analyzing can look
-at this file. Oracle Database team will be using this information.
-
->
-> How hard did you try to share code with numa_maps?  Are you sure we
-> can't just replace numa_maps?  VMAs are a kernel-internal thing and we
-> never promised to represent them 1:1 in our ABI.
-
-I was inclined to just modify numa_maps. However the man page
-documents numa_maps format to correlate with 'maps' file.
-Wondering if apps/scripts will break if we change the output
-of 'numa_maps'.  So decided to add a new file instead.
-
-I could try to share the code with numa_maps.
-
->
-> Are we going to continue creating new files in /proc every time a tiny
-> new niche pops up? :)
-
-Wish we could just enhance the existing files.
+There is a partial hack that glibc could do. DSOs could have a way to static=
+ally request a key (e.g. a PT_PKEY segment) and glibc could do all the pkey_=
+alloc() calls before any threads get created. Of course, a DSO like this can=
+=E2=80=99t be dlopened().  We still need a way for pkey_alloc() to update th=
+e value for signal delivery, but that=E2=80=99s straightforward.=
