@@ -1,135 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 792026B0010
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 17:13:07 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id b202so11735807qkc.6
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 14:13:07 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id h11-v6si11441273qth.29.2018.05.02.14.13.06
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 12BBB6B0005
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 17:13:48 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id u16-v6so2580426iol.18
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 14:13:48 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id z2-v6si10485262ite.117.2018.05.02.14.13.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 14:13:06 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w42LCGdE013112
-	for <linux-mm@kvack.org>; Wed, 2 May 2018 17:13:05 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2hqk1g4pau-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 02 May 2018 17:13:04 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Wed, 2 May 2018 22:13:02 +0100
-Date: Wed, 2 May 2018 14:12:54 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
- signal semantics
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
- <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
- <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
+        Wed, 02 May 2018 14:13:47 -0700 (PDT)
+Subject: Re: [PATCH 2/3] mm: add find_alloc_contig_pages() interface
+References: <20180417020915.11786-1-mike.kravetz@oracle.com>
+ <20180417020915.11786-3-mike.kravetz@oracle.com>
+ <deb9dd1d-84bf-75c7-2880-a7bcec880d47@suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <af56d281-fea1-2bd7-aff1-108fa1d9f3be@oracle.com>
+Date: Wed, 2 May 2018 14:13:32 -0700
 MIME-Version: 1.0
+In-Reply-To: <deb9dd1d-84bf-75c7-2880-a7bcec880d47@suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
-Message-Id: <20180502211254.GA5863@ram.oc3035372033.ibm.com>
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, May 02, 2018 at 05:12:50PM +0200, Florian Weimer wrote:
-> On 05/02/2018 04:30 PM, Dave Hansen wrote:
-> >On 05/02/2018 06:26 AM, Florian Weimer wrote:
-> >>pkeys support for IBM POWER intends to inherited the access rights of
-> >>the current thread in signal handlers.  The advantage is that this
-> >>preserves access to memory regions associated with non-default keys,
-> >>enabling additional usage scenarios for memory protection keys which
-> >>currently do not work on x86 due to the unconditional reset to the
-> >>(configurable) default key in signal handlers.
-> >
-> >What's the usage scenario that does not work?
+On 04/21/2018 09:16 AM, Vlastimil Babka wrote:
+> On 04/17/2018 04:09 AM, Mike Kravetz wrote:
+>> find_alloc_contig_pages() is a new interface that attempts to locate
+>> and allocate a contiguous range of pages.  It is provided as a more
+>> convenient interface than alloc_contig_range() which is currently
+>> used by CMA and gigantic huge pages.
+>>
+>> When attempting to allocate a range of pages, migration is employed
+>> if possible.  There is no guarantee that the routine will succeed.
+>> So, the user must be prepared for failure and have a fall back plan.
+>>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 > 
-> Here's what I want to do:
-> 
-> Nick Clifton wrote a binutils patch which puts the .got.plt section
-> on separate pages.  We allocate a protection key for it, assign it
-> to all such sections in the process image, and change the access
-> rights of the main thread to disallow writes via that key during
-> process startup.  In _dl_fixup, we enable write access to the GOT,
-> update the GOT entry, and then disable it again.
-> 
-> This way, we have a pretty safe form of lazy binding, without having
-> to resort to BIND_NOW.
-> 
-> With the current kernel behavior on x86, we cannot do that because
-> signal handlers revert to the default (deny) access rights, so the
-> GOT turns inaccessible.
-> 
-> >>Consequently, this commit updates the x86 implementation to preserve
-> >>the PKRU register value of the interrupted context in signal handlers.
-> >>If a key is allocated successfully with the PKEY_ALLOC_SIGNALINHERIT
-> >>flag, the application can assume this signal inheritance behavior.
-> >
-> >I think this is a pretty gross misuse of the API.  Adding an argument to
-> >pkey_alloc() is something that folks would assume would impact the key
-> >being *allocated*, not pkeys behavior across the process as a whole.
-> 
-> From the application point of view, only the allocated key is
-> affecteda??it has specific semantics that were undefined before and
-> varied between x86 and POWER.
-> 
-> >>This change does not affect the init_pkru optimization because if the
-> >>thread's PKRU register is zero due to the init_pkru setting, it will
-> >>remain zero in the signal handler through inheritance from the
-> >>interrupted context.
-> >
-> >I think you are right, but it's rather convoluted.  It does:
-> >
-> >1. Running with PKRU in the init state
-> >2. Kernel saves off init-state-PKRU XSAVE signal buffer
-> >3. Enter signal, kernel XRSTOR (may) set the init state again
-> >4. fpu__clear() does __write_pkru(), takes it out of the init state
-> >5. Signal handler runs, exits
-> >6. fpu__restore_sig() XRSTOR's the state from #2, taking PKRU back to
-> >    the init state
-> 
-> Isn't that just the cost of not hard-coding the XSAVE area layout?
-> 
-> >But, about the patch in general:
-> >
-> >I'm not a big fan of doing this in such a PKRU-specific way.  It would
-> >be nice to have this available for all XSAVE states.  It would also keep
-> >you from so unnecessarily frobbing with WRPKRU in fpu__clear().  You
-> >could just clear the PKRU bit in the Requested Feature BitMap (RFBM)
-> >passed to XRSTOR.  That would be much straightforward and able to be
-> >more easily extended to more states.
-> 
-> I don't see where I could plug this into the current kernel sources.
-> Would you please provide some pointers?
-> 
-> >PKRU is now preserved on signal entry, but not signal exit.  Was that
-> >intentional?  That seems like odd behavior, and also differs from the
-> >POWER implementation as I understand it.
-> 
-> Ram, would you please comment?
+> Hi, just two quick observations, maybe discussion pointers for the
+> LSF/MM session:
+> - it's weird that find_alloc_contig_pages() takes an order, and
+> free_contig_pages() takes a nr_pages. I suspect the interface would be
+> more future-proof with both using nr_pages? Perhaps also minimum
+> alignment for the allocation side? Order is fine for hugetlb, but what
+> about other potential users?
 
-on POWER the pkey behavior will remain the same at entry or at exit from
-the signal handler.  For eg:  if a key is read-disabled on entry into
-the signal handler, and gets read-enabled in the signal handler, than it
-will continue to be read-enabled on return from the signal handler.
+Agreed, and I am changing this to nr_pages and adding alignment.
 
-In other words, changes to key permissions persist across signal
-boundaries.
+> - contig_alloc_migratetype_ok() says that MIGRATE_CMA blocks are OK to
+> allocate from. This silently assumes that everything allocated by this
+> will be migratable itself, or it might eat CMA reserves. Is it the case?
+> Also you then call alloc_contig_range() with MIGRATE_MOVABLE, so it will
+> skip/fail on MIGRATE_CMA anyway IIRC.
 
-> 
-> I think it is a bug not restore the access rights to the former
-> value in the interrupted context.  In userspace, we have exactly
-> this problem with errno, and it can lead to subtle bugs.
-> 
-> Thanks,
-> Florian
+When looking closer at the code, alloc_contig_range currently has comments
+saying migratetype must be MIGRATE_MOVABLE or MIGRATE_CMA.  However, this
+is not checked/enforced anywhere in the code (that I can see).  The
+migratetype passed to alloc_contig_range() will be used to set the migrate
+type of all pageblocks in the range.  If there is an error, one side effect
+is that some pageblocks may have their migrate type changed to migratetype.
+Depending on how far we got before hitting the error, the number of pageblocks
+changed is unknown.  This actually can happen at the lower level routine
+start_isolate_page_range().
+
+My first thought was to make start_isolate_page_range/set_migratetype_isolate
+check that the migrate type of a pageblock was migratetype before isolating.
+This would work for CMA, and I could make it work for the new allocator.
+However, offline_pages also calls start_isolate_page_range and I believe we
+do not want to enforce such a rule (all pageblocks must be of the same migrate
+type) for memory hotplug/offline?
+
+Should we be concerned at all about this potential changing of migrate type
+on error?  The only way I can think to avoid this is to save the original
+migrate type before isolation.
 
 -- 
-Ram Pai
+Mike Kravetz
