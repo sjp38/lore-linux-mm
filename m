@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 910C76B0005
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 08:22:55 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id g67-v6so10887820otb.10
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 05:22:55 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g43-v6si2147269otc.351.2018.05.02.05.22.54
-        for <linux-mm@kvack.org>;
-        Wed, 02 May 2018 05:22:54 -0700 (PDT)
-Date: Wed, 2 May 2018 13:23:14 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 1/2] arm64/mm: define ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
-Message-ID: <20180502122314.GB30246@arm.com>
-References: <1525247602-1565-1-git-send-email-opensource.ganesh@gmail.com>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 618656B0007
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 08:28:56 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id d82so4484310wmd.4
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 05:28:56 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p91-v6si253776edp.99.2018.05.02.05.28.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 02 May 2018 05:28:55 -0700 (PDT)
+Date: Wed, 2 May 2018 08:30:40 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2] mm: introduce memory.min
+Message-ID: <20180502123040.GA16060@cmpxchg.org>
+References: <20180423123610.27988-1-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1525247602-1565-1-git-send-email-opensource.ganesh@gmail.com>
+In-Reply-To: <20180423123610.27988-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: ldufour@linux.vnet.ibm.com, catalin.marinas@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>
 
-On Wed, May 02, 2018 at 03:53:21PM +0800, Ganesh Mahendran wrote:
-> Set ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT for arm64. This
-> enables Speculative Page Fault handler.
-
-Are there are tests for this? I'm really nervous about enabling it...
-
-Will
-
-> 
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> ---
-> This patch is on top of Laurent's v10 spf
-> ---
->  arch/arm64/Kconfig | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index eb2cf49..cd583a9 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -144,6 +144,7 @@ config ARM64
->  	select SPARSE_IRQ
->  	select SYSCTL_EXCEPTION_TRACE
->  	select THREAD_INFO_IN_TASK
-> +	select ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT if SMP
->  	help
->  	  ARM 64-bit (AArch64) Linux support.
+On Mon, Apr 23, 2018 at 01:36:10PM +0100, Roman Gushchin wrote:
+> @@ -59,6 +59,12 @@ enum memcg_memory_event {
+>  	MEMCG_NR_MEMORY_EVENTS,
+>  };
 >  
-> -- 
-> 1.9.1
-> 
+> +enum mem_cgroup_protection {
+> +	MEMCG_PROT_NONE,
+> +	MEMCG_PROT_LOW,
+> +	MEMCG_PROT_HIGH,
+
+Ha, HIGH doesn't make much sense, but I went back and it's indeed what
+I suggested. Must have been a brainfart. This should be
+
+MEMCG_PROT_NONE,
+MEMCG_PROT_LOW,
+MEMCG_PROT_MIN
+
+right? To indicate which type of protection is applying.
+
+The rest of the patch looks good:
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
