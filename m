@@ -1,127 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D810D6B0003
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 17:24:02 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j14so1185458pfn.11
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 14:24:02 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f9-v6si250712pgr.123.2018.05.02.14.24.01
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 69A026B0006
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 17:33:27 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c4so13820362pfg.22
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 14:33:27 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id w12-v6si10012391pgs.183.2018.05.02.14.33.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 14:24:01 -0700 (PDT)
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 2035D217D9
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 21:24:01 +0000 (UTC)
-Received: by mail-wm0-f46.google.com with SMTP id j5so26878368wme.5
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 14:24:01 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
- <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com> <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
- <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net> <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
- <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com> <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
-In-Reply-To: <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 02 May 2018 21:23:49 +0000
-Message-ID: <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
- signal semantics
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 02 May 2018 14:33:26 -0700 (PDT)
+Date: Wed, 2 May 2018 14:33:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node
+ information
+Message-Id: <20180502143323.1c723ccb509c3497050a2e0a@linux-foundation.org>
+In-Reply-To: <1525240686-13335-1-git-send-email-prakash.sangappa@oracle.com>
+References: <1525240686-13335-1-git-send-email-prakash.sangappa@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxram@us.ibm.com
+To: Prakash Sangappa <prakash.sangappa@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, drepper@gmail.com, rientjes@google.com, Naoya Horiguchi <nao.horiguchi@gmail.com>, Dave Hansen <dave.hansen@intel.com>
 
-On Wed, May 2, 2018 at 2:06 PM Florian Weimer <fweimer@redhat.com> wrote:
+On Tue,  1 May 2018 22:58:06 -0700 Prakash Sangappa <prakash.sangappa@oracle.com> wrote:
 
-> On 05/02/2018 10:41 PM, Andy Lutomirski wrote:
+> For analysis purpose it is useful to have numa node information
+> corresponding mapped address ranges of the process. Currently
+> /proc/<pid>/numa_maps provides list of numa nodes from where pages are
+> allocated per VMA of the process. This is not useful if an user needs to
+> determine which numa node the mapped pages are allocated from for a
+> particular address range. It would have helped if the numa node information
+> presented in /proc/<pid>/numa_maps was broken down by VA ranges showing the
+> exact numa node from where the pages have been allocated.
+> 
+> The format of /proc/<pid>/numa_maps file content is dependent on
+> /proc/<pid>/maps file content as mentioned in the manpage. i.e one line
+> entry for every VMA corresponding to entries in /proc/<pids>/maps file.
+> Therefore changing the output of /proc/<pid>/numa_maps may not be possible.
+> 
+> Hence, this patch proposes adding file /proc/<pid>/numa_vamaps which will
+> provide proper break down of VA ranges by numa node id from where the mapped
+> pages are allocated. For Address ranges not having any pages mapped, a '-'
+> is printed instead of numa node id. In addition, this file will include most
+> of the other information currently presented in /proc/<pid>/numa_maps. The
+> additional information included is for convenience. If this is not
+> preferred, the patch could be modified to just provide VA range to numa node
+> information as the rest of the information is already available thru
+> /proc/<pid>/numa_maps file.
+> 
+> Since the VA range to numa node information does not include page's PFN,
+> reading this file will not be restricted(i.e requiring CAP_SYS_ADMIN).
+> 
+> Here is the snippet from the new file content showing the format.
+> 
+> 00400000-00401000 N0=1 kernelpagesize_kB=4 mapped=1 file=/tmp/hmap2
+> 00600000-00601000 N0=1 kernelpagesize_kB=4 anon=1 dirty=1 file=/tmp/hmap2
+> 00601000-00602000 N0=1 kernelpagesize_kB=4 anon=1 dirty=1 file=/tmp/hmap2
+> 7f0215600000-7f0215800000 N0=1 kernelpagesize_kB=2048 dirty=1 file=/mnt/f1
+> 7f0215800000-7f0215c00000 -  file=/mnt/f1
+> 7f0215c00000-7f0215e00000 N0=1 kernelpagesize_kB=2048 dirty=1 file=/mnt/f1
+> 7f0215e00000-7f0216200000 -  file=/mnt/f1
+> ..
+> 7f0217ecb000-7f0217f20000 N0=85 kernelpagesize_kB=4 mapped=85 mapmax=51
+>    file=/usr/lib64/libc-2.17.so
+> 7f0217f20000-7f0217f30000 -  file=/usr/lib64/libc-2.17.so
+> 7f0217f30000-7f0217f90000 N0=96 kernelpagesize_kB=4 mapped=96 mapmax=51
+>    file=/usr/lib64/libc-2.17.so
+> 7f0217f90000-7f0217fb0000 -  file=/usr/lib64/libc-2.17.so
+> ..
+> 
+> The 'pmap' command can be enhanced to include an option to show numa node
+> information which it can read from this new proc file. This will be a
+> follow on proposal.
 
-> >> See above.  The signal handler will crash if it calls any non-local
-> >> function through the GOT because with the default access rights, it's
-> >> not readable in the signal handler.
-> >
-> >> Any use of memory protection keys for basic infrastructure will run
-into
-> >> this problem, so I think the current kernel behavior is not very
-useful.
-> >>     It's also x86-specific.
-> >
-> >>    From a security perspective, the atomic behavior is not very useful
-> >> because you generally want to modify PKRU *before* computing the
-details
-> >> of the memory access, so that you don't have a general =E2=80=9Cpoke a=
-nywhere
-> >> with this access right=E2=80=9D primitive in the text segment.  (I cal=
-led this
-> >> the =E2=80=9Csuffix problem=E2=80=9D in another context.)
-> >
-> >
-> > Ugh, right.  It's been long enough that I forgot about the underlying
-> > issue.  A big part of the problem here is that pkey_alloc() should set
-the
-> > initial value of the key across all threads, but it *can't*.  There is
-> > literally no way to do it in a multithreaded program that uses RDPKRU
-and
-> > WRPKRU.
+I'd like to hear rather more about the use-cases for this new
+interface.  Why do people need it, what is the end-user benefit, etc?
 
-> The kernel could do *something*, probably along the membarrier system
-> call.  I mean, I could implement a reasonable close approximation in
-> userspace, via the setxid mechanism in glibc (but I really don't want to)=
-.
+> There have been couple of previous patch proposals to provide numa node
+> information based on pfn or physical address. They seem to have not made
+> progress. Also it would appear reading numa node information based on PFN
+> or physical address will require privileges(CAP_SYS_ADMIN) similar to
+> reading PFN info from /proc/<pid>/pagemap.
+> 
+> See
+> https://marc.info/?t=139630938200001&r=1&w=2
+> 
+> https://marc.info/?t=139718724400001&r=1&w=2
 
-I beg to differ.
+OK, let's hope that these people will be able to provide their review,
+feedback, testing, etc.  You missed a couple (Dave, Naoya).
 
-Thread A:
-old =3D RDPKRU();
-WRPKRU(old & ~3);
-...
-WRPKRU(old);
+>  fs/proc/base.c     |   2 +
+>  fs/proc/internal.h |   3 +
+>  fs/proc/task_mmu.c | 299 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
 
-Thread B:
-pkey_alloc().
+Some Documentation/ updates seem appropriate.  I suggest you grep the
+directory for "numa_maps" to find suitable locations.
 
-If pkey_alloc() happens while thread A is in the ... part, you lose.  It
-makes no difference what the kernel does.  The problem is that the WRPKRU
-instruction itself is designed incorrectly.
-
-
-
-> > But I think the right fix, at least for your use case, is to have a
-per-mm
-> > init_pkru variable that starts as "deny all".  We'd add a new
-pkey_alloc()
-> > flag like PKEY_ALLOC_UPDATE_INITIAL_STATE that causes the specified
-mode to
-> > update init_pkru.  New threads and delivered signals would get the
-> > init_pkru state instead of the hardcoded default.
-
-> I implemented this for signal handlers:
-
->     https://marc.info/?l=3Dlinux-api&m=3D151285420302698&w=3D2
-
-> This does not alter the thread inheritance behavior yet.  I would have
-> to investigate how to implement that.
-
-> Feedback led to the current patch, though.  I'm not sure what has
-> changed since then.
-
-What feedback?  I think the old patch was much better than the new patch.
-I could point out some issues in the kernel code, and I think it should
-deal with thread creation, but otherwise I think it's the right approach.
-
-Keep in mind, though, that it's just not possible to make pkey_alloc() work
-on x86 in any sensible way in a multithreaded program.
-
-
-> If I recall correctly, the POWER maintainer did express a strong desire
-> back then for (what is, I believe) their current semantics, which my
-> PKEY_ALLOC_SIGNALINHERIT patch implements for x86, too.
-
-Ram, I really really don't like the POWER semantics.  Can you give some
-justification for them?  Does POWER at least have an atomic way for
-userspace to modify just the key it wants to modify or, even better,
-special load and store instructions to use alternate keys?
-
---Andy
+And a quick build check shows that `size fs/proc/task_mmu.o' gets quite
+a bit larger when CONFIG_SMP=n and CONFIG_NUMA=n.  That seems wrong -
+please see if you can eliminate the bloat from systems which don't need
+this feature.
