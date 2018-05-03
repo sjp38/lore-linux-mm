@@ -1,60 +1,57 @@
 Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Huaisheng Ye <yehs2007@163.com>
-Subject: [RFC PATCH v3 7/9] mm/zsmalloc: update usage of zone modifiers
-Date: Wed, 23 May 2018 22:57:52 +0800
-Message-Id: <1527087474-93986-8-git-send-email-yehs2007@163.com>
-In-Reply-To: <1527087474-93986-1-git-send-email-yehs2007@163.com>
-References: <1527087474-93986-1-git-send-email-yehs2007@163.com>
+Date: Thu, 3 May 2018 09:51:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/page_alloc: Remove useless parameter of finalise_ac
+Message-ID: <20180503075111.GB4535@dhcp22.suse.cz>
+References: <1525318929-91048-1-git-send-email-yehs1@lenovo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1525318929-91048-1-git-send-email-yehs1@lenovo.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, willy@infradead.org, hch@lst.de, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Christoph Hellwig <hch@infradead.org>
+To: Huaisheng Ye <yehs1@lenovo.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, pasha.tatashin@oracle.com, hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp, colyli@suse.de, chengnt@lenovo.com
 List-ID: <linux-mm.kvack.org>
 
-From: Huaisheng Ye <yehs1@lenovo.com>
+On Thu 03-05-18 11:42:09, Huaisheng Ye wrote:
+> finalise_ac has parameter order which is not used at all.
+> Remove it.
+> 
+> Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
 
-Use __GFP_ZONE_MOVABLE to replace (__GFP_HIGHMEM | __GFP_MOVABLE).
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 have been deleted from GFP
-bitmasks, the bottom three bits of GFP mask is reserved for storing
-encoded zone number.
+> ---
+>  mm/page_alloc.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 905db9d..291e194 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4326,8 +4326,7 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
+>  }
+>  
+>  /* Determine whether to spread dirty pages and what the first usable zone */
+> -static inline void finalise_ac(gfp_t gfp_mask,
+> -		unsigned int order, struct alloc_context *ac)
+> +static inline void finalise_ac(gfp_t gfp_mask, struct alloc_context *ac)
+>  {
+>  	/* Dirty zone balancing only done in the fast path */
+>  	ac->spread_dirty_pages = (gfp_mask & __GFP_WRITE);
+> @@ -4358,7 +4357,7 @@ struct page *
+>  	if (!prepare_alloc_pages(gfp_mask, order, preferred_nid, nodemask, &ac, &alloc_mask, &alloc_flags))
+>  		return NULL;
+>  
+> -	finalise_ac(gfp_mask, order, &ac);
+> +	finalise_ac(gfp_mask, &ac);
+>  
+>  	/* First allocation attempt */
+>  	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac);
+> -- 
+> 1.8.3.1
+> 
 
-__GFP_ZONE_MOVABLE contains encoded ZONE_MOVABLE and __GFP_MOVABLE flag.
-
-With GFP_ZONE_TABLE, __GFP_HIGHMEM ORing __GFP_MOVABLE means gfp_zone
-should return ZONE_MOVABLE. In order to keep that compatible with
-GFP_ZONE_TABLE, Use GFP_NORMAL_UNMOVABLE() to clear bottom 4 bits of
-GFP bitmaks.
-
-Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>
----
- mm/zsmalloc.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 61cb05d..e250c69 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -345,7 +345,7 @@ static void destroy_cache(struct zs_pool *pool)
- static unsigned long cache_alloc_handle(struct zs_pool *pool, gfp_t gfp)
- {
- 	return (unsigned long)kmem_cache_alloc(pool->handle_cachep,
--			gfp & ~(__GFP_HIGHMEM|__GFP_MOVABLE));
-+			GFP_NORMAL_UNMOVABLE(gfp));
- }
- 
- static void cache_free_handle(struct zs_pool *pool, unsigned long handle)
-@@ -356,7 +356,7 @@ static void cache_free_handle(struct zs_pool *pool, unsigned long handle)
- static struct zspage *cache_alloc_zspage(struct zs_pool *pool, gfp_t flags)
- {
- 	return kmem_cache_alloc(pool->zspage_cachep,
--			flags & ~(__GFP_HIGHMEM|__GFP_MOVABLE));
-+			GFP_NORMAL_UNMOVABLE(flags));
- }
- 
- static void cache_free_zspage(struct zs_pool *pool, struct zspage *zspage)
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
