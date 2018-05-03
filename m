@@ -1,61 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 09FE86B0011
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 04:48:43 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id f19-v6so11706872pgv.4
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 01:48:43 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id l18si13403650pfe.299.2018.05.03.01.48.41
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 93D7F6B000A
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 05:32:17 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 88-v6so11861331wrc.21
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 02:32:17 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id o10-v6si4586294wrg.75.2018.05.03.02.32.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 May 2018 01:48:42 -0700 (PDT)
-Subject: Re: [PATCH 1/2] arm64/mm: define ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
-References: <1525247672-2165-1-git-send-email-opensource.ganesh@gmail.com>
-From: Chintan Pandya <cpandya@codeaurora.org>
-Message-ID: <1bc3ec9e-606b-e019-f870-ce4a2520cdbf@codeaurora.org>
-Date: Thu, 3 May 2018 14:18:32 +0530
+        Thu, 03 May 2018 02:32:16 -0700 (PDT)
+Date: Thu, 3 May 2018 11:32:15 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH AUTOSEL for 4.14 015/161] printk: Add console owner and
+ waiter logic to load balance console writes
+Message-ID: <20180503093214.GB32180@amd>
+References: <20180416093058.6edca0bb@gandalf.local.home>
+ <CA+55aFysLTQN8qRu=nuKttGBZzfQq=BpJBH+TMdgLJR7bgRGYg@mail.gmail.com>
+ <20180416113629.2474ae74@gandalf.local.home>
+ <20180416160200.GY2341@sasha-vm>
+ <20180416121224.2138b806@gandalf.local.home>
+ <20180416161911.GA2341@sasha-vm>
+ <20180416123019.4d235374@gandalf.local.home>
+ <20180416163754.GD2341@sasha-vm>
+ <20180416170604.GC11034@amd>
+ <20180416172327.GK2341@sasha-vm>
 MIME-Version: 1.0
-In-Reply-To: <1525247672-2165-1-git-send-email-opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="NMuMz9nt05w80d4+"
+Content-Disposition: inline
+In-Reply-To: <20180416172327.GK2341@sasha-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>, ldufour@linux.vnet.ibm.com, catalin.marinas@arm.com, will.deacon@arm.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Sasha Levin <Alexander.Levin@microsoft.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>, Petr Mladek <pmladek@suse.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Byungchul Park <byungchul.park@lge.com>, Tejun Heo <tj@kernel.org>
 
 
+--NMuMz9nt05w80d4+
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-On 5/2/2018 1:24 PM, Ganesh Mahendran wrote:
-> Set ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT for arm64. This
-> enables Speculative Page Fault handler.
-> 
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> ---
-> This patch is on top of Laurent's v10 spf
-> ---
->   arch/arm64/Kconfig | 1 +
->   1 file changed, 1 insertion(+)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index eb2cf49..cd583a9 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -144,6 +144,7 @@ config ARM64
->   	select SPARSE_IRQ
->   	select SYSCTL_EXCEPTION_TRACE
->   	select THREAD_INFO_IN_TASK
-> +	select ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT if SMP
->   	help
->   	  ARM 64-bit (AArch64) Linux support.
->   
-> 
+Hi!
 
-You may also consider re-ordering of patches in next version. Generally,
-config enablement assumes effectiveness of that config.
+> >- It must be obviously correct and tested.
+> >
+> >If it introduces new bug, it is not correct, and certainly not
+> >obviously correct.
+>=20
+> As you might have noticed, we don't strictly follow the rules.
 
-Chintan
--- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, a Linux Foundation
-Collaborative Project
+Yes, I noticed. And what I'm saying is that perhaps you should follow
+the rules more strictly.
+
+> Take a look at the whole PTI story as an example. It's way more than 100
+> lines, it's not obviously corrent, it fixed more than 1 thing, and so
+> on, and yet it went in -stable!
+>=20
+> Would you argue we shouldn't have backported PTI to -stable?
+
+Actually, I was surprised with PTI going to stable. That was clearly
+against the rules. Maybe the security bug was ugly enough to warrant
+that.
+
+But please don't use it as an argument for applying any random
+patches...
+
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--NMuMz9nt05w80d4+
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAlrq1x4ACgkQMOfwapXb+vIIvwCghIH6ADk+P65RCxtQarChlpTS
+4vkAnjYpE+F4FX/4kE6re5OJ/lo449zH
+=5n+g
+-----END PGP SIGNATURE-----
+
+--NMuMz9nt05w80d4+--
