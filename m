@@ -1,45 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5580F6B0012
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 10:59:52 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id f6-v6so7859579pgs.13
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 07:59:52 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b39-v6si14016673plb.456.2018.05.03.07.59.51
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E5B26B0007
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 11:03:12 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id d5-v6so13057914qtg.17
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 08:03:12 -0700 (PDT)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id t43-v6si2058948qte.388.2018.05.03.08.03.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 May 2018 07:59:51 -0700 (PDT)
-Date: Thu, 3 May 2018 10:59:46 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v3 2/9] mm: Prefix vma_ to vaddr_to_offset() and
- offset_to_vaddr()
-Message-ID: <20180503105946.08decc47@gandalf.local.home>
-In-Reply-To: <20180417043244.7501-3-ravi.bangoria@linux.vnet.ibm.com>
-References: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
-	<20180417043244.7501-3-ravi.bangoria@linux.vnet.ibm.com>
+        Thu, 03 May 2018 08:03:11 -0700 (PDT)
+Date: Thu, 3 May 2018 10:03:10 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v4 07/16] slub: Remove page->counters
+In-Reply-To: <20180503005223.GB21199@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.21.1805031001510.6701@nuc-kabylake>
+References: <20180430202247.25220-1-willy@infradead.org> <20180430202247.25220-8-willy@infradead.org> <alpine.DEB.2.21.1805011148060.16325@nuc-kabylake> <20180502172639.GC2737@bombadil.infradead.org> <20180502221702.a2ezdae6akchroze@black.fi.intel.com>
+ <20180503005223.GB21199@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Cc: mhiramat@kernel.org, oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com, Ravi Bangoria <ravi.bangoria@linux.ibm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>
 
-On Tue, 17 Apr 2018 10:02:37 +0530
-Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com> wrote:
+On Wed, 2 May 2018, Matthew Wilcox wrote:
 
-> From: Ravi Bangoria <ravi.bangoria@linux.ibm.com>
->=20
-> Make function names more meaningful by adding vma_ prefix
-> to them.
+> > > Option 2:
+> > > +                       union {
+> > > +                               unsigned long counters;
+> > > +                               struct {
+> > > +                                       unsigned inuse:16;
+> > > +                                       unsigned objects:15;
+> > > +                                       unsigned frozen:1;
+> > > +                               };
+> > > +                       };
+> > >
+> > > Pro: Expresses exactly what we do.
+> > > Con: Back to five levels of indentation in struct page
 
-Actually, I would have done this patch before the first one, since the
-first one makes the functions global.
+I like that better. Improves readability of the code using struct page. I
+think that is more important than the actual definition of struct page.
 
--- Steve
-
->=20
-> Signed-off-by: Ravi Bangoria <ravi.bangoria@linux.ibm.com>
-> Reviewed-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> ---
->
+Given the overloaded overload situation this will require some deep
+throught for newbies anyways. ;-)
