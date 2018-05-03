@@ -1,150 +1,59 @@
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/ksm: ignore STABLE_FLAG of rmap_item->address in
- rmap_walk_ksm
-Date: Thu, 3 May 2018 15:41:18 +0200
-Message-ID: <20180503134118.GH4535@dhcp22.suse.cz>
-References: <1525336488-25447-1-git-send-email-hejianet@gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v2 0/6] arm64: untag user pointers passed to the kernel
+Date: Thu,  3 May 2018 16:15:38 +0200
+Message-ID: <cover.1525356769.git.andreyknvl__2811.33718458495$1525356849$gmane$org@google.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <1525336488-25447-1-git-send-email-hejianet@gmail.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Jia He <hejianet@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jia.he@hxt-semitech.com, Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+Return-path: <linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org>
+List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-arm-kernel>,
+ <mailto:linux-arm-kernel-request@lists.infradead.org?subject=unsubscribe>
+List-Archive: <http://lists.infradead.org/pipermail/linux-arm-kernel/>
+List-Post: <mailto:linux-arm-kernel@lists.infradead.org>
+List-Help: <mailto:linux-arm-kernel-request@lists.infradead.org?subject=help>
+List-Subscribe: <http://lists.infradead.org/mailman/listinfo/linux-arm-kernel>,
+ <mailto:linux-arm-kernel-request@lists.infradead.org?subject=subscribe>
+Sender: "linux-arm-kernel" <linux-arm-kernel-bounces@lists.infradead.org>
+Errors-To: linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrey Konovalov <andreyknvl@google.com>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.orglin
+Cc: Chintan Pandya <cpandya@codeaurora.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 List-Id: linux-mm.kvack.org
 
-[It wold be appropriate to CC Hugh as well]
-
-On Thu 03-05-18 16:34:48, Jia He wrote:
-> In our armv8a server(QDF2400), I noticed a WARN_ON caused by PAGE_SIZE
-> unaligned for rmap_item->address.
-> 
-> --------------------------begin--------------------------------------
-> [  410.853828] WARNING: CPU: 4 PID: 4641 at
-> arch/arm64/kvm/../../../virt/kvm/arm/mmu.c:1826
-> kvm_age_hva_handler+0xc0/0xc8
-> [  410.864518] Modules linked in: vhost_net vhost tap xt_CHECKSUM
-> ipt_MASQUERADE nf_nat_masquerade_ipv4 ip6t_rpfilter ipt_REJECT
-> nf_reject_ipv4 ip6t_REJECT nf_reject_ipv6 xt_conntrack ip_set nfnetlink
-> ebtable_nat ebtable_broute bridge stp llc ip6table_nat nf_conntrack_ipv6
-> nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_security
-> ip6table_raw iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4
-> nf_nat nf_conntrack iptable_mangle iptable_security iptable_raw
-> ebtable_filter ebtables ip6table_filter ip6_tables iptable_filter
-> rpcrdma ib_isert iscsi_target_mod ib_iser libiscsi scsi_transport_iscsi
-> ib_srpt target_core_mod ib_srp scsi_transport_srp ib_ipoib rdma_ucm
-> ib_ucm ib_umad rdma_cm ib_cm iw_cm mlx5_ib vfat fat ib_uverbs dm_mirror
-> dm_region_hash ib_core dm_log dm_mod crc32_ce ipmi_ssif sg nfsd
-> [  410.935101]  auth_rpcgss nfs_acl lockd grace sunrpc ip_tables xfs
-> libcrc32c mlx5_core ixgbe mlxfw devlink mdio ahci_platform
-> libahci_platform qcom_emac libahci hdma hdma_mgmt i2c_qup
-> [  410.951369] CPU: 4 PID: 4641 Comm: memhog Tainted: G        W
-> 4.17.0-rc3+ #8
-> [  410.959104] Hardware name: <snip for confidential issues>
-> [  410.969791] pstate: 80400005 (Nzcv daif +PAN -UAO)
-> [  410.974575] pc : kvm_age_hva_handler+0xc0/0xc8
-> [  410.979012] lr : handle_hva_to_gpa+0xa8/0xe0
-> [  410.983274] sp : ffff801761553290
-> [  410.986581] x29: ffff801761553290 x28: 0000000000000000
-> [  410.991888] x27: 0000000000000002 x26: 0000000000000000
-> [  410.997195] x25: ffff801765430058 x24: ffff0000080b5608
-> [  411.002501] x23: 0000000000000000 x22: ffff8017ccb84000
-> [  411.007807] x21: 0000000003ff0000 x20: ffff8017ccb84000
-> [  411.013113] x19: 000000000000fe00 x18: ffff000008fb3c08
-> [  411.018419] x17: 0000000000000000 x16: 0060001645820bd3
-> [  411.023725] x15: ffff80176aacbc08 x14: 0000000000000000
-> [  411.029031] x13: 0000000000000040 x12: 0000000000000228
-> [  411.034337] x11: 0000000000000000 x10: 0000000000000000
-> [  411.039643] x9 : 0000000000000010 x8 : 0000000000000004
-> [  411.044949] x7 : 0000000000000000 x6 : 00008017f0770000
-> [  411.050255] x5 : 0000fffda59f0200 x4 : 0000000000000000
-> [  411.055561] x3 : 0000000000000000 x2 : 000000000000fe00
-> [  411.060867] x1 : 0000000003ff0000 x0 : 0000000020000000
-> [  411.066173] Call trace:
-> [  411.068614]  kvm_age_hva_handler+0xc0/0xc8
-> [  411.072703]  handle_hva_to_gpa+0xa8/0xe0
-> [  411.076619]  kvm_age_hva+0x4c/0xe8
-> [  411.080014]  kvm_mmu_notifier_clear_flush_young+0x54/0x98
-> [  411.085408]  __mmu_notifier_clear_flush_young+0x6c/0xa0
-> [  411.090627]  page_referenced_one+0x154/0x1d8
-> [  411.094890]  rmap_walk_ksm+0x12c/0x1d0
-> [  411.098632]  rmap_walk+0x94/0xa0
-> [  411.101854]  page_referenced+0x194/0x1b0
-> [  411.105770]  shrink_page_list+0x674/0xc28
-> [  411.109772]  shrink_inactive_list+0x26c/0x5b8
-> [  411.114122]  shrink_node_memcg+0x35c/0x620
-> [  411.118211]  shrink_node+0x100/0x430
-> [  411.121778]  do_try_to_free_pages+0xe0/0x3a8
-> [  411.126041]  try_to_free_pages+0xe4/0x230
-> [  411.130045]  __alloc_pages_nodemask+0x564/0xdc0
-> [  411.134569]  alloc_pages_vma+0x90/0x228
-> [  411.138398]  do_anonymous_page+0xc8/0x4d0
-> [  411.142400]  __handle_mm_fault+0x4a0/0x508
-> [  411.146489]  handle_mm_fault+0xf8/0x1b0
-> [  411.150321]  do_page_fault+0x218/0x4b8
-> [  411.154064]  do_translation_fault+0x90/0xa0
-> [  411.158239]  do_mem_abort+0x68/0xf0
-> [  411.161721]  el0_da+0x24/0x28
-> ---------------------------end---------------------------------------
-> 
-> In rmap_walk_ksm, the rmap_item->address might still have the STABLE_FLAG,
-> then the start and end in handle_hva_to_gpa might not be PAGE_SIZE aligned.
-> Thus it causes exceptions in handle_hva_to_gpa on arm64.
-> 
-> This patch fixes it by ignoring the low bits of rmap_item->address when
-> doing rmap_walk_ksm.
-> 
-> Signed-off-by: jia.he@hxt-semitech.com
-> ---
->  mm/ksm.c | 15 +++++++++++----
->  1 file changed, 11 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index e3cbf9a..3f0d980 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -199,6 +199,8 @@ struct rmap_item {
->  #define SEQNR_MASK	0x0ff	/* low bits of unstable tree seqnr */
->  #define UNSTABLE_FLAG	0x100	/* is a node of the unstable tree */
->  #define STABLE_FLAG	0x200	/* is listed from the stable tree */
-> +#define KSM_FLAG_MASK	(SEQNR_MASK|UNSTABLE_FLAG|STABLE_FLAG)
-> +				/* to mask all the flags */
->  
->  /* The stable and unstable tree heads */
->  static struct rb_root one_stable_tree[1] = { RB_ROOT };
-> @@ -2570,10 +2572,13 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
->  		anon_vma_lock_read(anon_vma);
->  		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
->  					       0, ULONG_MAX) {
-> +			unsigned long addr;
-> +
->  			cond_resched();
->  			vma = vmac->vma;
-> -			if (rmap_item->address < vma->vm_start ||
-> -			    rmap_item->address >= vma->vm_end)
-> +
-> +			addr = rmap_item->address;
-> +			if (addr < vma->vm_start || addr >= vma->vm_end)
->  				continue;
->  			/*
->  			 * Initially we examine only the vma which covers this
-> @@ -2587,8 +2592,10 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
->  			if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
->  				continue;
->  
-> -			if (!rwc->rmap_one(page, vma,
-> -					rmap_item->address, rwc->arg)) {
-> +			if (addr & STABLE_FLAG)
-> +				addr &= ~KSM_FLAG_MASK;
-> +
-> +			if (!rwc->rmap_one(page, vma, addr, rwc->arg)) {
->  				anon_vma_unlock_read(anon_vma);
->  				return;
->  			}
-> -- 
-> 1.8.3.1
-
--- 
-Michal Hocko
-SUSE Labs
+SGkhCgphcm02NCBoYXMgYSBmZWF0dXJlIGNhbGxlZCBUb3AgQnl0ZSBJZ25vcmUsIHdoaWNoIGFs
+bG93cyB0byBlbWJlZCBwb2ludGVyCnRhZ3MgaW50byB0aGUgdG9wIGJ5dGUgb2YgZWFjaCBwb2lu
+dGVyLiBVc2Vyc3BhY2UgcHJvZ3JhbXMgKHN1Y2ggYXMKSFdBU2FuLCBhIG1lbW9yeSBkZWJ1Z2dp
+bmcgdG9vbCBbMV0pIG1pZ2h0IHVzZSB0aGlzIGZlYXR1cmUgYW5kIHBhc3MKdGFnZ2VkIHVzZXIg
+cG9pbnRlcnMgdG8gdGhlIGtlcm5lbCB0aHJvdWdoIHN5c2NhbGxzIG9yIG90aGVyIGludGVyZmFj
+ZXMuCgpUaGlzIHBhdGNoIG1ha2VzIGEgZmV3IG9mIHRoZSBrZXJuZWwgaW50ZXJmYWNlcyBhY2Nl
+cHQgdGFnZ2VkIHVzZXIKcG9pbnRlcnMuIFRoZSBrZXJuZWwgaXMgYWxyZWFkeSBhYmxlIHRvIGhh
+bmRsZSB1c2VyIGZhdWx0cyB3aXRoIHRhZ2dlZApwb2ludGVycyBhbmQgaGFzIHRoZSB1bnRhZ2dl
+ZF9hZGRyIG1hY3JvLCB3aGljaCB0aGlzIHBhdGNoc2V0IHJldXNlcy4KCldlJ3JlIG5vdCB0cnlp
+bmcgdG8gY292ZXIgYWxsIHBvc3NpYmxlIHdheXMgdGhlIGtlcm5lbCBhY2NlcHRzIHVzZXIKcG9p
+bnRlcnMgaW4gb25lIHBhdGNoc2V0LCBzbyB0aGlzIG9uZSBzaG91bGQgYmUgY29uc2lkZXJlZCBh
+cyBhIHN0YXJ0LgoKVGhhbmtzIQoKWzFdIGh0dHA6Ly9jbGFuZy5sbHZtLm9yZy9kb2NzL0hhcmR3
+YXJlQXNzaXN0ZWRBZGRyZXNzU2FuaXRpemVyRGVzaWduLmh0bWwKCkNoYW5nZXMgaW4gdjI6Ci0g
+UmViYXNlZCBvbnRvIDJkNjE4YmRmICg0LjE3LXJjMyspLgotIFJlbW92ZWQgZXhjZXNzaXZlIHVu
+dGFnZ2luZyBpbiBndXAuYy4KLSBSZW1vdmVkIHVudGFnZ2luZyBwb2ludGVycyByZXR1cm5lZCBm
+cm9tIF9fdWFjY2Vzc19tYXNrX3B0ci4KCkNoYW5nZXMgaW4gdjE6Ci0gUmViYXNlZCBvbnRvIDQu
+MTctcmMxLgoKQ2hhbmdlcyBpbiBSRkMgdjI6Ci0gQWRkZWQgIiNpZm5kZWYgdW50YWdnZWRfYWRk
+ci4uLiIgZmFsbGJhY2sgaW4gbGludXgvdWFjY2Vzcy5oIGluc3RlYWQgb2YKICBkZWZpbmluZyBp
+dCBmb3IgZWFjaCBhcmNoIGluZGl2aWR1YWxseS4KLSBVcGRhdGVkIERvY3VtZW50YXRpb24vYXJt
+NjQvdGFnZ2VkLXBvaW50ZXJzLnR4dC4KLSBEcm9wcGVkIOKAnG1tLCBhcm02NDogdW50YWcgdXNl
+ciBhZGRyZXNzZXMgaW4gbWVtb3J5IHN5c2NhbGxz4oCdLgotIFJlYmFzZWQgb250byAzZWIyY2U4
+MiAoNC4xNi1yYzcpLgoKQW5kcmV5IEtvbm92YWxvdiAoNik6CiAgYXJtNjQ6IGFkZCB0eXBlIGNh
+c3RzIHRvIHVudGFnZ2VkX2FkZHIgbWFjcm8KICB1YWNjZXNzOiBhZGQgdW50YWdnZWRfYWRkciBk
+ZWZpbml0aW9uIGZvciBvdGhlciBhcmNoZXMKICBhcm02NDogdW50YWcgdXNlciBhZGRyZXNzZXMg
+aW4gYWNjZXNzX29rIGFuZCBfX3VhY2Nlc3NfbWFza19wdHIKICBtbSwgYXJtNjQ6IHVudGFnIHVz
+ZXIgYWRkcmVzc2VzIGluIG1tL2d1cC5jCiAgbGliLCBhcm02NDogdW50YWcgYWRkcnMgcGFzc2Vk
+IHRvIHN0cm5jcHlfZnJvbV91c2VyIGFuZCBzdHJubGVuX3VzZXIKICBhcm02NDogdXBkYXRlIERv
+Y3VtZW50YXRpb24vYXJtNjQvdGFnZ2VkLXBvaW50ZXJzLnR4dAoKIERvY3VtZW50YXRpb24vYXJt
+NjQvdGFnZ2VkLXBvaW50ZXJzLnR4dCB8ICA1ICsrKy0tCiBhcmNoL2FybTY0L2luY2x1ZGUvYXNt
+L3VhY2Nlc3MuaCAgICAgICAgfCAxNCArKysrKysrKystLS0tLQogaW5jbHVkZS9saW51eC91YWNj
+ZXNzLmggICAgICAgICAgICAgICAgIHwgIDQgKysrKwogbGliL3N0cm5jcHlfZnJvbV91c2VyLmMg
+ICAgICAgICAgICAgICAgIHwgIDIgKysKIGxpYi9zdHJubGVuX3VzZXIuYyAgICAgICAgICAgICAg
+ICAgICAgICB8ICAyICsrCiBtbS9ndXAuYyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+fCAgNCArKysrCiA2IGZpbGVzIGNoYW5nZWQsIDI0IGluc2VydGlvbnMoKyksIDcgZGVsZXRpb25z
+KC0pCgotLSAKMi4xNy4wLjQ0MS5nYjQ2ZmU2MGUxZC1nb29nCgoKX19fX19fX19fX19fX19fX19f
+X19fX19fX19fX19fX19fX19fX19fX19fX19fX18KbGludXgtYXJtLWtlcm5lbCBtYWlsaW5nIGxp
+c3QKbGludXgtYXJtLWtlcm5lbEBsaXN0cy5pbmZyYWRlYWQub3JnCmh0dHA6Ly9saXN0cy5pbmZy
+YWRlYWQub3JnL21haWxtYW4vbGlzdGluZm8vbGludXgtYXJtLWtlcm5lbAo=
