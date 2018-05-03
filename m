@@ -1,491 +1,354 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EAE16B0007
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 22:33:32 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id v12so787953wmc.1
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 19:33:32 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id n6-v6si2579757edn.259.2018.05.02.19.33.30
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D857B6B0005
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 23:21:14 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id w14-v6so11245797wrk.22
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 20:21:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j28-v6sor5666231wrd.78.2018.05.02.20.21.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 19:33:30 -0700 (PDT)
-Subject: Re: [PATCH] memcg, hugetlb: pages allocated for hugetlb's overcommit
- will be charged to memcg
-References: <ecb737e9-ccec-2d7e-45d9-91884a669b58@ascade.co.jp>
- <dc21a4ac-b57f-59a8-f97a-90a59d5a59cd@oracle.com>
- <c9019050-7c89-86c3-93fc-9beb64e43ed3@ascade.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <249d53f4-225d-8a11-d557-b915fa4fa9cb@oracle.com>
-Date: Wed, 2 May 2018 19:33:01 -0700
+        (Google Transport Security);
+        Wed, 02 May 2018 20:21:12 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <c9019050-7c89-86c3-93fc-9beb64e43ed3@ascade.co.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <17463682-dc08-358d-8b44-02821352604c@intel.com>
+References: <20180419054047.xxiljmzaf2u7odc6@wfg-t540p.sh.intel.com> <17463682-dc08-358d-8b44-02821352604c@intel.com>
+From: Huaitong Han <oenhan@gmail.com>
+Date: Thu, 3 May 2018 11:20:51 +0800
+Message-ID: <CAAuJbeKT1eBxT4Y8FgQBrQcFDU_3R8ad=s_8zsyj+GPiZT7VhQ@mail.gmail.com>
+Subject: Re: BUG: Bad page map in process python2 pte:10000000000 pmd:17e8be067
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: TSUKADA Koutaro <tsukada@ascade.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Huang Ying <ying.huang@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org
 
-On 05/01/2018 11:54 PM, TSUKADA Koutaro wrote:
-> On 2018/05/02 13:41, Mike Kravetz wrote:
->> What is the reason for not charging pages at allocation/reserve time?  I am
->> not an expert in memcg accounting, but I would think the pages should be
->> charged at allocation time.  Otherwise, a task could allocate a large number
->> of (reserved) pages that are not charged to a memcg.  memcg charges in other
->> code paths seem to happen at huge page allocation time.
-> 
-> If we charge to memcg at page allocation time, the new page is not yet
-> registered in rmap, so it will be accounted as 'cache' inside the memcg. Then,
-> after being registered in rmap, memcg will account as 'RSS' if the task moves
-> cgroup, so I am worried about the possibility of inconsistency in statistics
-> (memory.stat).
-> 
-> As you said, in this patch, there may be a problem that a memory leak occurs
-> due to unused pages after being reserved.
-> 
->>> This patch targets RHELSA(kernel-alt-4.11.0-45.6.1.el7a.src.rpm).
->>
->> It would be very helpful to rebase this patch on a recent mainline kernel.
->> The code to allocate surplus huge pages has been significantly changed in
->> recent kernels.
->>
->> I have no doubt that this is a real issue and we are not correctly charging
->> surplus to a memcg.  But your patch will be hard to evaluate when based on
->> an older distro kernel.
-> I apologize for the patch of the old kernel. The patch was rewritten
-> for 4.17-rc2(6d08b06).
+Hi, Dave
 
-Thank you very much for rebasing the patch.
+I have met the same issue now but in 3.10.0-514.16.1.el7.x86_64, the
+issue also accurred in last November.
 
-I did not look closely at your patch until now.  My first thought was that
-you  were changing/expanding the existing accounting.  However, it appears
-that you want to account for hugetlb surplus pages in the memory cgroup.
-Is there any reason why the hugetlb cgroup resource controller does not meet
-your needs?  It a quick look at the code, it does appear to handle surplus
-pages correctly.
--- 
-Mike Kravetz
+I read 3.10.0-514.16.1.el7.x86_64,  the bit9~13 is the swap type,
+because  the swap has been swapoff on my machine,
+for the "Bad swap file entry" error, the bit9~13 should be zero, but
+"Unused swap file entry" error is exist although the
+bit9~13 is zero.
 
-> Mark the page with overcommit at alloc_surplus_huge_page. Since the path of
-> alloc_pool_huge_page is creating a pool, I do not think it is necessary to
-> mark it.
-> 
-> Signed-off-by: TSUKADA koutaro <tsukada@ascade.co.jp>
-> ---
->  include/linux/hugetlb.h |   45 +++++++++++++++++++++
->  mm/hugetlb.c            |   74 +++++++++++++++++++++++++++++++++++
->  mm/memcontrol.c         |   99 ++++++++++++++++++++++++++++++++++++++++++++++--
->  3 files changed, 214 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 36fa6a2..a92c4e2 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -532,6 +532,51 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
->  	set_huge_pte_at(mm, addr, ptep, pte);
->  }
->  #endif
-> +
-> +#define HUGETLB_OVERCOMMIT		1UL
-> +#define HUGETLB_OVERCOMMIT_CHARGED	2UL
-> +
-> +static inline void add_hugetlb_compound_private(struct page *page,
-> +						unsigned long val)
-> +{
-> +	page[1].private |= val;
-> +}
-> +
-> +static inline unsigned long get_hugetlb_compound_private(struct page *page)
-> +{
-> +	return page_private(&page[1]);
-> +}
-> +
-> +static inline void add_hugetlb_overcommit(struct page *page)
-> +{
-> +	add_hugetlb_compound_private(page, HUGETLB_OVERCOMMIT);
-> +}
-> +
-> +static inline void del_hugetlb_overcommit(struct page *page)
-> +{
-> +	add_hugetlb_compound_private(page, ~(HUGETLB_OVERCOMMIT));
-> +}
-> +
-> +static inline int is_hugetlb_overcommit(struct page *page)
-> +{
-> +	return (get_hugetlb_compound_private(page) & HUGETLB_OVERCOMMIT);
-> +}
-> +
-> +static inline void add_hugetlb_overcommit_charged(struct page *page)
-> +{
-> +	add_hugetlb_compound_private(page, HUGETLB_OVERCOMMIT_CHARGED);
-> +}
-> +
-> +static inline void del_hugetlb_overcommit_charged(struct page *page)
-> +{
-> +	add_hugetlb_compound_private(page, ~(HUGETLB_OVERCOMMIT_CHARGED));
-> +}
-> +
-> +static inline int is_hugetlb_overcommit_charged(struct page *page)
-> +{
-> +	return (get_hugetlb_compound_private(page) &
-> +		HUGETLB_OVERCOMMIT_CHARGED);
-> +}
->  #else	/* CONFIG_HUGETLB_PAGE */
->  struct hstate {};
->  #define alloc_huge_page(v, a, r) NULL
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 2186791..fd34f15 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -36,6 +36,7 @@
->  #include <linux/node.h>
->  #include <linux/userfaultfd_k.h>
->  #include <linux/page_owner.h>
-> +#include <linux/memcontrol.h>
->  #include "internal.h"
-> 
->  int hugetlb_max_hstate __read_mostly;
-> @@ -1236,6 +1237,17 @@ static inline void ClearPageHugeTemporary(struct page *page)
->  	page[2].mapping = NULL;
->  }
-> 
-> +static void hugetlb_overcommit_finalize(struct page *page)
-> +{
-> +	if (is_hugetlb_overcommit_charged(page)) {
-> +		del_hugetlb_overcommit_charged(page);
-> +		mem_cgroup_uncharge(page);
-> +	}
-> +
-> +	if (is_hugetlb_overcommit(page))
-> +		del_hugetlb_overcommit(page);
-> +}
-> +
->  void free_huge_page(struct page *page)
->  {
->  	/*
-> @@ -1248,6 +1260,8 @@ void free_huge_page(struct page *page)
->  		(struct hugepage_subpool *)page_private(page);
->  	bool restore_reserve;
-> 
-> +	hugetlb_overcommit_finalize(page);
-> +
->  	set_page_private(page, 0);
->  	page->mapping = NULL;
->  	VM_BUG_ON_PAGE(page_count(page), page);
-> @@ -1562,6 +1576,8 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
->  	page = alloc_fresh_huge_page(h, gfp_mask, nid, nmask);
->  	if (!page)
->  		return NULL;
-> +	else
-> +		add_hugetlb_overcommit(page);
-> 
->  	spin_lock(&hugetlb_lock);
->  	/*
-> @@ -3509,6 +3525,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  	int ret = 0, outside_reserve = 0;
->  	unsigned long mmun_start;	/* For mmu_notifiers */
->  	unsigned long mmun_end;		/* For mmu_notifiers */
-> +	struct mem_cgroup *memcg;
-> +	int memcg_charged = 0;
-> 
->  	pte = huge_ptep_get(ptep);
->  	old_page = pte_page(pte);
-> @@ -3575,6 +3593,15 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  		goto out_release_old;
->  	}
-> 
-> +	if (unlikely(is_hugetlb_overcommit(new_page))) {
-> +		if (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL,
-> +						&memcg, true)) {
-> +			ret = VM_FAULT_OOM;
-> +			goto out_release_all;
-> +		}
-> +		memcg_charged = 1;
-> +	}
-> +
->  	/*
->  	 * When the original hugepage is shared one, it does not have
->  	 * anon_vma prepared.
-> @@ -3610,12 +3637,18 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  				make_huge_pte(vma, new_page, 1));
->  		page_remove_rmap(old_page, true);
->  		hugepage_add_new_anon_rmap(new_page, vma, address);
-> +		if (memcg_charged) {
-> +			mem_cgroup_commit_charge(new_page, memcg, false, true);
-> +			add_hugetlb_overcommit_charged(new_page);
-> +		}
->  		/* Make the old page be freed below */
->  		new_page = old_page;
->  	}
->  	spin_unlock(ptl);
->  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
->  out_release_all:
-> +	if (memcg_charged)
-> +		mem_cgroup_cancel_charge(new_page, memcg, true);
->  	restore_reserve_on_error(h, vma, address, new_page);
->  	put_page(new_page);
->  out_release_old:
-> @@ -3664,9 +3697,18 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
->  	struct inode *inode = mapping->host;
->  	struct hstate *h = hstate_inode(inode);
->  	int err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-> +	struct mem_cgroup *memcg;
-> 
->  	if (err)
->  		return err;
-> +	if (page && is_hugetlb_overcommit(page)) {
-> +		err = mem_cgroup_try_charge(page, current->mm, GFP_KERNEL,
-> +						&memcg, true);
-> +		if (err)
-> +			return err;
-> +		mem_cgroup_commit_charge(page, memcg, false, true);
-> +		add_hugetlb_overcommit_charged(page);
-> +	}
->  	ClearPagePrivate(page);
-> 
->  	spin_lock(&inode->i_lock);
-> @@ -3686,6 +3728,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	struct page *page;
->  	pte_t new_pte;
->  	spinlock_t *ptl;
-> +	struct mem_cgroup *memcg;
-> +	int memcg_charged = 0;
-> 
->  	/*
->  	 * Currently, we are forced to kill the process in the event the
-> @@ -3763,6 +3807,14 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			}
->  		} else {
->  			lock_page(page);
-> +			if (unlikely(is_hugetlb_overcommit(page))) {
-> +				if (mem_cgroup_try_charge(page, mm, GFP_KERNEL,
-> +							  &memcg, true)) {
-> +					ret = VM_FAULT_OOM;
-> +					goto backout_unlocked;
-> +				}
-> +				memcg_charged = 1;
-> +			}
->  			if (unlikely(anon_vma_prepare(vma))) {
->  				ret = VM_FAULT_OOM;
->  				goto backout_unlocked;
-> @@ -3809,6 +3861,10 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	if (anon_rmap) {
->  		ClearPagePrivate(page);
->  		hugepage_add_new_anon_rmap(page, vma, address);
-> +		if (memcg_charged) {
-> +			mem_cgroup_commit_charge(page, memcg, false, true);
-> +			add_hugetlb_overcommit_charged(page);
-> +		}
->  	} else
->  		page_dup_rmap(page, true);
->  	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
-> @@ -3829,6 +3885,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  backout:
->  	spin_unlock(ptl);
->  backout_unlocked:
-> +	if (memcg_charged)
-> +		mem_cgroup_cancel_charge(page, memcg, true);
->  	unlock_page(page);
->  	restore_reserve_on_error(h, vma, address, page);
->  	put_page(page);
-> @@ -4028,6 +4086,8 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
->  	spinlock_t *ptl;
->  	int ret;
->  	struct page *page;
-> +	struct mem_cgroup *memcg;
-> +	int memcg_charged = 0;
-> 
->  	if (!*pagep) {
->  		ret = -ENOMEM;
-> @@ -4082,6 +4142,14 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
->  			goto out_release_nounlock;
->  	}
-> 
-> +	if (!vm_shared && is_hugetlb_overcommit(page)) {
-> +		ret = -ENOMEM;
-> +		if (mem_cgroup_try_charge(page, dst_mm, GFP_KERNEL,
-> +					  &memcg, true))
-> +			goto out_release_nounlock;
-> +		memcg_charged = 1;
-> +	}
-> +
->  	ptl = huge_pte_lockptr(h, dst_mm, dst_pte);
->  	spin_lock(ptl);
-> 
-> @@ -4108,6 +4176,10 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
->  	} else {
->  		ClearPagePrivate(page);
->  		hugepage_add_new_anon_rmap(page, dst_vma, dst_addr);
-> +		if (memcg_charged) {
-> +			mem_cgroup_commit_charge(page, memcg, false, true);
-> +			add_hugetlb_overcommit_charged(page);
-> +		}
->  	}
-> 
->  	_dst_pte = make_huge_pte(dst_vma, page, dst_vma->vm_flags & VM_WRITE);
-> @@ -4135,6 +4207,8 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
->  	if (vm_shared)
->  		unlock_page(page);
->  out_release_nounlock:
-> +	if (memcg_charged)
-> +		mem_cgroup_cancel_charge(page, memcg, true);
->  	put_page(page);
->  	goto out;
->  }
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2bd3df3..3db5c32 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4483,7 +4483,7 @@ static int mem_cgroup_move_account(struct page *page,
->  				   struct mem_cgroup *to)
->  {
->  	unsigned long flags;
-> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
-> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
->  	int ret;
->  	bool anon;
-> 
-> @@ -4698,12 +4698,65 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
->  	return 0;
->  }
-> 
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +static enum mc_target_type get_mctgt_type_hugetlb(struct vm_area_struct *vma,
-> +			unsigned long addr, pte_t *pte, union mc_target *target)
-> +{
-> +	struct page *page = NULL;
-> +	pte_t entry;
-> +	enum mc_target_type ret = MC_TARGET_NONE;
-> +
-> +	if (!(mc.flags & MOVE_ANON))
-> +		return ret;
-> +
-> +	entry = huge_ptep_get(pte);
-> +	if (!pte_present(entry))
-> +		return ret;
-> +
-> +	page = pte_page(entry);
-> +	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
-> +	if (!is_hugetlb_overcommit_charged(page))
-> +		return ret;
-> +	if (page->mem_cgroup == mc.from) {
-> +		ret = MC_TARGET_PAGE;
-> +		if (target) {
-> +			get_page(page);
-> +			target->page = page;
-> +		}
-> +	}
-> +
-> +	return ret;
-> +}
-> +
-> +static int hugetlb_count_precharge_pte_range(pte_t *pte, unsigned long hmask,
-> +					unsigned long addr, unsigned long end,
-> +					struct mm_walk *walk)
-> +{
-> +	struct vm_area_struct *vma = walk->vma;
-> +	struct mm_struct *mm = walk->mm;
-> +	spinlock_t *ptl;
-> +	union mc_target target;
-> +
-> +	ptl = huge_pte_lock(hstate_vma(vma), mm, pte);
-> +	if (get_mctgt_type_hugetlb(vma, addr, pte, &target) == MC_TARGET_PAGE) {
-> +		mc.precharge += (1 << compound_order(target.page));
-> +		put_page(target.page);
-> +	}
-> +	spin_unlock(ptl);
-> +
-> +	return 0;
-> +}
-> +#endif
-> +
->  static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
->  {
->  	unsigned long precharge;
-> 
->  	struct mm_walk mem_cgroup_count_precharge_walk = {
->  		.pmd_entry = mem_cgroup_count_precharge_pte_range,
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +		.hugetlb_entry = hugetlb_count_precharge_pte_range,
-> +#endif
->  		.mm = mm,
->  	};
->  	down_read(&mm->mmap_sem);
-> @@ -4977,10 +5030,48 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
->  	return ret;
->  }
-> 
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +static int hugetlb_move_charge_pte_range(pte_t *pte, unsigned long hmask,
-> +					unsigned long addr, unsigned long end,
-> +					struct mm_walk *walk)
-> +{
-> +	struct vm_area_struct *vma = walk->vma;
-> +	struct mm_struct *mm = walk->mm;
-> +	spinlock_t *ptl;
-> +	enum mc_target_type target_type;
-> +	union mc_target target;
-> +	struct page *page;
-> +	unsigned long nr_pages;
-> +
-> +	ptl = huge_pte_lock(hstate_vma(vma), mm, pte);
-> +	target_type = get_mctgt_type_hugetlb(vma, addr, pte, &target);
-> +	if (target_type == MC_TARGET_PAGE) {
-> +		page = target.page;
-> +		nr_pages = (1 << compound_order(page));
-> +		if (mc.precharge < nr_pages) {
-> +			put_page(page);
-> +			goto unlock;
-> +		}
-> +		if (!mem_cgroup_move_account(page, true, mc.from, mc.to)) {
-> +			mc.precharge -= nr_pages;
-> +			mc.moved_charge += nr_pages;
-> +		}
-> +		put_page(page);
-> +	}
-> +unlock:
-> +	spin_unlock(ptl);
-> +
-> +	return 0;
-> +}
-> +#endif
-> +
->  static void mem_cgroup_move_charge(void)
->  {
->  	struct mm_walk mem_cgroup_move_charge_walk = {
->  		.pmd_entry = mem_cgroup_move_charge_pte_range,
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +		.hugetlb_entry = hugetlb_move_charge_pte_range,
-> +#endif
->  		.mm = mc.mm,
->  	};
-> 
-> @@ -5417,7 +5508,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
->  			  bool compound)
->  {
->  	struct mem_cgroup *memcg = NULL;
-> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
-> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
->  	int ret = 0;
-> 
->  	if (mem_cgroup_disabled())
-> @@ -5478,7 +5569,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
->  void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
->  			      bool lrucare, bool compound)
->  {
-> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
-> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
-> 
->  	VM_BUG_ON_PAGE(!page->mapping, page);
->  	VM_BUG_ON_PAGE(PageLRU(page) && !lrucare, page);
-> @@ -5522,7 +5613,7 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
->  void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
->  		bool compound)
->  {
-> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
-> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
-> 
->  	if (mem_cgroup_disabled())
->  		return;
-> 
+The lower 12 bits of pte is zero, and all abnormal ptes are serial in
+a mmu page, so I guess the mmu page has been overwritten by someone.
+
+
+The message details:
+
+kernel: swap_free: Bad swap file entry 1000000000103256
+kernel: BUG: Bad page map in process in:imjournal  pte:8192b1000 pmd:3ff9324067
+kernel: addr:00007f920adc5000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3f8
+kernel: vma->vm_ops->fault: shmem_fault+0x0/0x1d0
+kernel: vma->vm_file->f_op->mmap: shmem_mmap+0x0/0x30
+kernel: CPU: 5 PID: 9166 Comm: in:imjournal Tainted: G        W  OE
+K------------   3.10.0-514.16.1.el7.x86_64 #1
+kernel: Hardware name: HP ProLiant DL380 Gen9/ProLiant DL380 Gen9,
+BIOS P89 04/25/2017
+kernel: 00007f920adc5000 0000000023409e11 ffff881fc769fc78 ffffffff81686ac3
+kernel: ffff881fc769fcc0 ffffffff811acacf 00000008192b1000 00000000000003f8
+kernel: ffff883ff9324e28 00000008192b1000 00007f920ae00000 00007f920adc5000
+kernel: Call Trace:
+kernel: [<ffffffff81686ac3>] dump_stack+0x19/0x1b
+kernel: [<ffffffff811acacf>] print_bad_pte+0x1af/0x250
+kernel: [<ffffffff811aea7b>] unmap_page_range+0x62b/0x8a0
+kernel: [<ffffffff811aed71>] unmap_single_vma+0x81/0xf0
+kernel: [<ffffffff811afc49>] unmap_vmas+0x49/0x90
+kernel: [<ffffffff811b488e>] unmap_region+0xbe/0x140
+kernel: [<ffffffff811b6c75>] do_munmap+0x245/0x420
+kernel: [<ffffffff811b6e91>] vm_munmap+0x41/0x60
+kernel: [<ffffffff811b7e22>] SyS_munmap+0x22/0x30
+kernel: [<ffffffff81697189>] system_call_fastpath+0x16/0x1b
+kernel: Disabling lock debugging due to kernel taint
+kernel: swap_free: Bad swap file entry 3000000000006986
+kernel: BUG: Bad page map in process in:imjournal  pte:34c33000 pmd:3ff9324067
+kernel: addr:00007f920adc6000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3f9
+kernel: vma->vm_ops->fault: shmem_fault+0x0/0x1d0
+kernel: vma->vm_file->f_op->mmap: shmem_mmap+0x0/0x30
+
+ $ cat messages | grep  swap_free
+ kernel: swap_free: Bad swap file entry 1000000000103256
+ kernel: swap_free: Bad swap file entry 3000000000006986
+ kernel: swap_free: Bad swap file entry 2000000000006986
+ kernel: swap_free: Unused swap file entry 00102e07
+ kernel: swap_free: Bad swap file entry 1000000000102e00
+ kernel: swap_free: Bad swap file entry 2000000000107fd0
+ kernel: swap_free: Bad swap file entry 2000000000006a88
+ kernel: swap_free: Bad swap file entry 3000000000103e67
+ kernel: swap_free: Bad swap file entry 300000000010324c
+ kernel: swap_free: Bad swap file entry 3000000000102e00
+ kernel: swap_free: Unused swap file entry 00102a56
+ kernel: swap_free: Unused swap file entry 00102ef5
+ kernel: swap_free: Bad swap file entry 3000000000102ef5
+ kernel: swap_free: Bad swap file entry 1000000000102a4f
+ kernel: swap_free: Bad swap file entry 3000000000103262
+ kernel: swap_free: Bad swap file entry 10000000001031c4
+ kernel: swap_free: Unused swap file entry 00006981
+ kernel: swap_free: Unused swap file entry 00006a88
+ kernel: swap_free: Bad swap file entry 3000000000102e00
+ kernel: swap_free: Bad swap file entry 3000000000102e08
+ kernel: swap_free: Unused swap file entry 000069d3
+ kernel: swap_free: Bad swap file entry 300000000010313a
+ kernel: swap_free: Unused swap file entry 0000699d
+ kernel: swap_free: Unused swap file entry 00006998
+ kernel: swap_free: Bad swap file entry 3000000000102e07
+ kernel: swap_free: Bad swap file entry 3000000000102e09
+ kernel: swap_free: Bad swap file entry 1000000000103174
+ kernel: swap_free: Bad swap file entry 2000000000102e76
+ kernel: swap_free: Bad swap file entry 1000000000102651
+ kernel: swap_free: Bad swap file entry 3000000000102efa
+ kernel: swap_free: Bad swap file entry 3000000000102d40
+ kernel: swap_free: Bad swap file entry 3000000000101cf5
+ kernel: swap_free: Bad swap file entry 10000000000069b5
+ kernel: swap_free: Bad swap file entry 100000000010264e
+ kernel: swap_free: Unused swap file entry 000069e8
+ kernel: swap_free: Bad swap file entry 20000000000069e8
+ kernel: swap_free: Bad swap file entry 20000000001021d2
+ kernel: swap_free: Unused swap file entry 0002e892
+ kernel: swap_free: Bad swap file entry 2000000000102a48
+ kernel: swap_free: Bad swap file entry 3000000000102dde
+ kernel: swap_free: Unused swap file entry 001027f2
+ kernel: swap_free: Bad swap file entry 200000000000ddf5
+ kernel: swap_free: Bad swap file entry 10000000000fd7e1
+ kernel: swap_free: Bad swap file entry 1000000000003215
+ kernel: swap_free: Bad swap file entry 10000000000f3555
+ kernel: swap_free: Bad swap file entry 20000000000f3555
+ kernel: swap_free: Bad swap file entry 20000000000fd494
+ kernel: swap_free: Bad swap file entry 30000000000fd494
+ kernel: swap_free: Bad swap file entry 10000000001027ec
+ kernel: swap_free: Bad swap file entry 1000000000103172
+ kernel: swap_free: Unused swap file entry 001039b2
+ kernel: swap_free: Unused swap file entry 001014da
+ kernel: swap_free: Bad swap file entry 20000000000fd8ea
+ kernel: swap_free: Bad swap file entry 100000000010036e
+ kernel: swap_free: Bad swap file entry 200000000010036e
+ kernel: swap_free: Bad swap file entry 30000000000f6ced
+ kernel: swap_free: Bad swap file entry 3000000000006a8f
+ kernel: swap_free: Bad swap file entry 2000000000102e2a
+ kernel: swap_free: Bad swap file entry 1000000000107bc5
+
+$ cat messages | grep  pmd
+ kernel: BUG: Bad page map in process in:imjournal  pte:8192b1000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:34c33000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:34c32000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:81703c000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:817001000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:83fe82000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:35442000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:81f33b000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:819263000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:817007000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:8152b0000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:8177a8000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:8177ab000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:815279000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:819317000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:818e25000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:34c0c000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:35440000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:817003000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:817047000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:34e98000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:8189d3000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:34cec000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:34cc0000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:81703f000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:81704b000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:818ba5000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:8173b6000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:81328d000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:8177d3000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:816a03000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:80e7af000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:34da9000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:813271000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:34f40000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:34f42000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:810e92000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:174494000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:815242000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:816ef7000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:813f90000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:6efae000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:7ebf0d000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:190ad000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:79aaa9000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:79aaaa000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:7ea4a6000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:7ea4a7000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:813f61000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:818b91000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:81cd94000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:80a6d4000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:7ec752000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:801b75000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:801b76000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:7b676f000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:3547b000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:817152000 pmd:3ff9324067
+ kernel: BUG: Bad page map in process in:imjournal  pte:83de29000 pmd:3ff9324067
+
+ $ cat messages | grep  addr
+ kernel: addr:00007f920adc5000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3f8
+ kernel: addr:00007f920adc6000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3f9
+ kernel: addr:00007f920adc7000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3fa
+ kernel: addr:00007f920adc8000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3fb
+ kernel: addr:00007f920adc9000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3fc
+ kernel: addr:00007f920adca000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3fd
+ kernel: addr:00007f920adcb000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3fe
+ kernel: addr:00007f920adcc000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:3ff
+ kernel: addr:00007f920adcd000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:400
+ kernel: addr:00007f920adce000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:401
+ kernel: addr:00007f920adcf000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:402
+ kernel: addr:00007f920add0000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:403
+ kernel: addr:00007f920add1000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:404
+ kernel: addr:00007f920add2000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:405
+ kernel: addr:00007f920add3000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:406
+ kernel: addr:00007f920add4000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:407
+ kernel: addr:00007f920add5000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:408
+ kernel: addr:00007f920add6000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:409
+ kernel: addr:00007f920add7000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:40a
+ kernel: addr:00007f920add8000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:40b
+ kernel: addr:00007f920add9000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:40c
+ kernel: addr:00007f920adda000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:40d
+ kernel: addr:00007f920addb000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:40e
+ kernel: addr:00007f920addc000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:40f
+ kernel: addr:00007f920addd000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:410
+ kernel: addr:00007f920adde000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:411
+ kernel: addr:00007f920addf000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:412
+ kernel: addr:00007f920ade0000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:413
+ kernel: addr:00007f920ade1000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:414
+ kernel: addr:00007f920ade2000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:415
+ kernel: addr:00007f920ade3000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:416
+ kernel: addr:00007f920ade4000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:417
+ kernel: addr:00007f920ade5000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:418
+ kernel: addr:00007f920ade6000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:419
+ kernel: addr:00007f920ade7000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:41a
+ kernel: addr:00007f920ade8000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:41b
+ kernel: addr:00007f920ade9000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:41c
+ kernel: addr:00007f920adea000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:41d
+ kernel: addr:00007f920adeb000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:41e
+ kernel: addr:00007f920adec000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:41f
+ kernel: addr:00007f920aded000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:420
+ kernel: addr:00007f920adee000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:421
+ kernel: addr:00007f920adef000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:422
+ kernel: addr:00007f920adf0000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:423
+ kernel: addr:00007f920adf1000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:424
+ kernel: addr:00007f920adf2000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:425
+ kernel: addr:00007f920adf3000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:426
+ kernel: addr:00007f920adf4000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:427
+ kernel: addr:00007f920adf5000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:428
+ kernel: addr:00007f920adf6000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:429
+ kernel: addr:00007f920adf7000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:42a
+ kernel: addr:00007f920adf8000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:42b
+ kernel: addr:00007f920adf9000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:42c
+ kernel: addr:00007f920adfa000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:42d
+ kernel: addr:00007f920adfb000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:42e
+ kernel: addr:00007f920adfc000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:42f
+ kernel: addr:00007f920adfd000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:430
+ kernel: addr:00007f920adfe000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:431
+ kernel: addr:00007f920adff000 vm_flags:080000d1 anon_vma:
+(null) mapping:ffff883fe5284960 index:432
+
+
+Thanks.
+
+Huaitong Han
+
+
+2018-04-20 2:53 GMT+08:00 Dave Hansen <dave.hansen@intel.com>:
+> On 04/18/2018 10:40 PM, Fengguang Wu wrote:
+>> [  716.494065] PASS concurrent_autogo_5ghz_ht40 4.803608 2018-03-23 09:57:21.586794
+>> [  716.494069]
+>> [  716.496923] passed all 1 test case(s)
+>> [  716.496926]
+>> [  716.511702] swap_info_get: Bad swap file entry 04000000
+>> [  716.512731] BUG: Bad page map in process python2  pte:100_0000_0000 pmd:17e8be067
+>> [  716.513844] addr:00000000860ba23b vm_flags:00000070 anon_vma:          (null) mapping:000000004c76fece index:1e2
+>> [  716.515160] file:libpcre.so.3.13.3 fault:filemap_fault mmap:generic_file_mmap readpage:simple_readpage
+>> [  716.516418] CPU: 2 PID: 8907 Comm: python2 Not tainted 4.16.0-rc5 #1
+>> [  716.517533] Hardware name:  /DH67GD, BIOS BLH6710H.86A.0132.2011.1007.1505 10/07/2011
+>
+> Did you say that you have a few more examples of this?
+>
+> I would be really interested if it's always python or always the same
+> shared library, or always file-backed memory, always the same bit,
+> etc...  From the vm_flags, I'd guess that this is the "rw-p" part of the
+> file mapping.
+>
+> The bit that gets set is really weird.  It's bit 40.  I could definitely
+> see scenarios where we might set the dirty bit, or even NX for that
+> matter, or some *bit* that we mess with in software.  It's not even
+> close to the boundary where it could represent a swapoffset=1 or swapfile=1.
+>
+> It's also unlikely to be _PAGE_PSE having gone missing from the PMD
+> since it's in the middle of a file-backed mapping and the PMD is
+> obviously pointing to a 4k page.
+>
+> If I had to put money on it, I'd guess it's a hardware bit flip, or less
+> likely, a rogue software bit flip.  But, more examples will hopefully
+> shed some more light.
+>
