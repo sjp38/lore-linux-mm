@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ED046B000A
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 10:42:11 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id z16-v6so2739962pgv.16
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 07:42:11 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id h33-v6si13709599plh.483.2018.05.03.07.42.10
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 541C26B000C
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 10:42:36 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id t24-v6so13363628qtn.7
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 07:42:36 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id o15-v6si10600095qta.339.2018.05.03.07.42.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 May 2018 07:42:10 -0700 (PDT)
+        Thu, 03 May 2018 07:42:35 -0700 (PDT)
 Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
  signal semantics
 References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
@@ -25,36 +25,27 @@ References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
  <2BE03B9A-B1E0-4707-8705-203F88B62A1C@amacapital.net>
  <cf71c470-9712-ce7c-a84a-f78468ebb4a8@intel.com>
  <AE502DA2-5B8E-4144-937F-E39DCCC57540@amacapital.net>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <99bb879a-6655-33bf-9521-39466f73b8b8@intel.com>
-Date: Thu, 3 May 2018 07:42:08 -0700
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <63f948aa-17fe-9879-fbbc-7f2351e31028@redhat.com>
+Date: Thu, 3 May 2018 16:42:32 +0200
 MIME-Version: 1.0
 In-Reply-To: <AE502DA2-5B8E-4144-937F-E39DCCC57540@amacapital.net>
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>, Florian Weimer <fweimer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxram@us.ibm.com
+To: Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxram@us.ibm.com
 
-On 05/02/2018 06:14 PM, Andy Lutomirski wrote:
->> I think you are saying: If a thread calls pkey_alloc(), all
->> threads should, by default, implicitly get access.
-> No, Ia??m saying that all threads should get the *requested* access.
-> If Ia??m protecting the GOT, I want all threads to get RO access. If
-> Ia??m writing a crypto library, I probably want all threads to have no
-> access.  If Ia??m writing a database, I probably want all threads to
-> get RO by default.  If Ia??m writing some doodad to sandbox some
-> carefully constructed code, I might want all threads to have full
-> access by default.
+On 05/03/2018 03:14 AM, Andy Lutomirski wrote:
+> No, Ia??m saying that all threads should get the*requested*  access.  If Ia??m protecting the GOT, I want all threads to get RO access. If Ia??m writing a crypto library, I probably want all threads to have no access.  If Ia??m writing a database, I probably want all threads to get RO by default.  If Ia??m writing some doodad to sandbox some carefully constructed code, I might want all threads to have full access by default.
 
-OK, fair enough.  I totally agree that the current interface (or
-architecture for that matter) is not amenable to use models where we are
-implicitly imposing policies on *other* threads.
+Just a clarification: This key allocation issue is *not* a blocker for 
+anything related to a safer GOT, or any other use of memory protection 
+keys by the C implementation itself.  I agree that there could be 
+application issues if threads are created early, but solving this issue 
+in a general way appears to be quite costly.
 
-I don't think that means the current stuff is broken for
-multi-threading, though, just the (admittedly useful) cases you are
-talking about where you want to poke at a remote thread's PKRU.
-
-So, where do we go from here?
+Thanks,
+Florian
