@@ -1,50 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 415AF6B0022
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 10:16:01 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k27-v6so11949440wre.23
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 07:16:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 2sor1612358wml.0.2018.05.03.07.15.59
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 36BCC6B0005
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 10:37:41 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id m20-v6so1216206qtm.6
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 07:37:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id w13si2670731qka.269.2018.05.03.07.37.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 May 2018 07:16:00 -0700 (PDT)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 6/6] arm64: update Documentation/arm64/tagged-pointers.txt
-Date: Thu,  3 May 2018 16:15:44 +0200
-Message-Id: <1a708210a8056aa356407e72973e00970523e7e2.1525356769.git.andreyknvl@google.com>
-In-Reply-To: <cover.1525356769.git.andreyknvl@google.com>
-References: <cover.1525356769.git.andreyknvl@google.com>
-In-Reply-To: <cover.1525356769.git.andreyknvl@google.com>
-References: <cover.1525356769.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 May 2018 07:37:40 -0700 (PDT)
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
+ signal semantics
+References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
+ <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
+ <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
+ <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net>
+ <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
+ <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
+ <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
+ <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <74eec76a-3587-7ff6-fa0b-d8aa78ab28a1@redhat.com>
+Date: Thu, 3 May 2018 16:37:37 +0200
+MIME-Version: 1.0
+In-Reply-To: <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrey Konovalov <andreyknvl@google.com>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxram@us.ibm.com
 
-Add a note that work on passing tagged user pointers to the kernel via
-syscalls has started, but might not be complete yet.
+On 05/02/2018 11:23 PM, Andy Lutomirski wrote:
+>> The kernel could do*something*, probably along the membarrier system
+>> call.  I mean, I could implement a reasonable close approximation in
+>> userspace, via the setxid mechanism in glibc (but I really don't want to).
+> I beg to differ.
+> 
+> Thread A:
+> old = RDPKRU();
+> WRPKRU(old & ~3);
+> ...
+> WRPKRU(old);
+> 
+> Thread B:
+> pkey_alloc().
+> 
+> If pkey_alloc() happens while thread A is in the ... part, you lose.  It
+> makes no difference what the kernel does.  The problem is that the WRPKRU
+> instruction itself is designed incorrectly.
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- Documentation/arm64/tagged-pointers.txt | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+Even that is solvable, as long as the architecture as exact traps: You 
+can look at the program counter and patch up the registers accordingly 
+if the code is in the critical section.  Of course, this would need 
+centralizing PKRU updates in a vDSO or a single (glibc) library 
+function.  Certainly not nice and even horrible enough not to do it, but 
+I don't think it's actually impossible.
 
-diff --git a/Documentation/arm64/tagged-pointers.txt b/Documentation/arm64/tagged-pointers.txt
-index a25a99e82bb1..361481283f00 100644
---- a/Documentation/arm64/tagged-pointers.txt
-+++ b/Documentation/arm64/tagged-pointers.txt
-@@ -35,8 +35,9 @@ Using non-zero address tags in any of these locations may result in an
- error code being returned, a (fatal) signal being raised, or other modes
- of failure.
- 
--For these reasons, passing non-zero address tags to the kernel via
--system calls is forbidden, and using a non-zero address tag for sp is
-+Some initial work for supporting non-zero address tags passed to the
-+kernel via system calls has been done, but the kernel doesn't provide
-+any guarantees at this point. Using a non-zero address tag for sp is
- strongly discouraged.
- 
- Programs maintaining a frame pointer and frame records that use non-zero
--- 
-2.17.0.441.gb46fe60e1d-goog
+Didn't we discuss this before?
+
+Thanks,
+Florian
