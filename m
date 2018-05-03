@@ -1,110 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 097536B0007
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 11:13:49 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id l6-v6so12241312wrn.17
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 08:13:48 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e6-v6si2279406edl.176.2018.05.03.08.13.47
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C1E0F6B000A
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 11:24:33 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m18-v6so5833251lfb.9
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 08:24:33 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 127-v6sor3073592ljf.16.2018.05.03.08.24.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 May 2018 08:13:47 -0700 (PDT)
-Date: Thu, 3 May 2018 17:13:43 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: INFO: task hung in wb_shutdown (2)
-Message-ID: <20180503151343.2ijvp3mzdqfwbiay@quack2.suse.cz>
-References: <94eb2c05b2d83650030568cc8bd9@google.com>
- <e56c1600-8923-dd6b-d065-c2fd2a720404@I-love.SAKURA.ne.jp>
- <43302799-1c50-4cab-b974-9fe1ca584813@I-love.SAKURA.ne.jp>
- <CA+55aFxaa_+uZ=bOVdevcUwG7ncue7O+i06q4Kb=bWACGwCBjQ@mail.gmail.com>
- <bd3e8460-9794-6b57-e7d6-7e18ea34ac0c@kernel.dk>
- <201805020714.FDD52145.OOJtOFVFSMLQFH@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Thu, 03 May 2018 08:24:31 -0700 (PDT)
+Date: Thu, 3 May 2018 18:24:32 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 4/6] mm, arm64: untag user addresses in mm/gup.c
+Message-ID: <20180503152432.q742zvdbv6xtvo34@kshutemo-mobl1>
+References: <cover.1524077494.git.andreyknvl@google.com>
+ <0db34d04fa16be162336106e3b4a94f3dacc0af4.1524077494.git.andreyknvl@google.com>
+ <20180426174714.4jtb72q56w3xonsa@armageddon.cambridge.arm.com>
+ <CAAeHK+zY8p9E4FZa7mbdgR=wR0u-RDS552dn=h9fKRC-ArYLdw@mail.gmail.com>
+ <20180502153645.fui4ju3scsze3zkq@black.fi.intel.com>
+ <CAAeHK+yTbmZfkeNbqbo+J90zsjsM99rwnYBGfQBxphHMMfgD7A@mail.gmail.com>
+ <CAAeHK+zh0LSpq2VFJeHrV7AETnL1b9R+yex3iPMg5SetbEyxwg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201805020714.FDD52145.OOJtOFVFSMLQFH@I-love.SAKURA.ne.jp>
+In-Reply-To: <CAAeHK+zh0LSpq2VFJeHrV7AETnL1b9R+yex3iPMg5SetbEyxwg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: axboe@kernel.dk, torvalds@linux-foundation.org, jack@suse.cz, tj@kernel.org, syzbot+c0cf869505e03bdf1a24@syzkaller.appspotmail.com, christophe.jaillet@wanadoo.fr, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, zhangweiping@didichuxing.com, akpm@linux-foundation.org, dvyukov@google.com, linux-block@vger.kernel.org
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
 
-On Wed 02-05-18 07:14:51, Tetsuo Handa wrote:
-> >From 1b90d7f71d60e743c69cdff3ba41edd1f9f86f93 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Wed, 2 May 2018 07:07:55 +0900
-> Subject: [PATCH v2] bdi: wake up concurrent wb_shutdown() callers.
+On Thu, May 03, 2018 at 04:09:56PM +0200, Andrey Konovalov wrote:
+> On Wed, May 2, 2018 at 7:25 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
+> > On Wed, May 2, 2018 at 5:36 PM, Kirill A. Shutemov
+> > <kirill.shutemov@linux.intel.com> wrote:
+> >> On Wed, May 02, 2018 at 02:38:42PM +0000, Andrey Konovalov wrote:
+> >>> > Does having a tagged address here makes any difference? I couldn't hit a
+> >>> > failure with my simple tests (LD_PRELOAD a library that randomly adds
+> >>> > tags to pointers returned by malloc).
+> >>>
+> >>> I think you're right, follow_page_mask is only called from
+> >>> __get_user_pages, which already untagged the address. I'll remove
+> >>> untagging here.
+> >>
+> >> It also called from follow_page(). Have you covered all its callers?
+> >
+> > Oh, missed that, will take a look.
 > 
-> syzbot is reporting hung tasks at wait_on_bit(WB_shutting_down) in
-> wb_shutdown() [1]. This seems to be because commit 5318ce7d46866e1d ("bdi:
-> Shutdown writeback on all cgwbs in cgwb_bdi_destroy()") forgot to call
-> wake_up_bit(WB_shutting_down) after clear_bit(WB_shutting_down).
-> 
-> Introduce a helper function clear_and_wake_up_bit() and use it, in order
-> to avoid similar errors in future.
-> 
-> [1] https://syzkaller.appspot.com/bug?id=b297474817af98d5796bc544e1bb806fc3da0e5e
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Reported-by: syzbot <syzbot+c0cf869505e03bdf1a24@syzkaller.appspotmail.com>
-> Fixes: 5318ce7d46866e1d ("bdi: Shutdown writeback on all cgwbs in cgwb_bdi_destroy()")
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Jens Axboe <axboe@fb.com>
-> Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+> I wasn't able to find anything that calls follow_page with pointers
+> passed from userspace except for the memory subsystem syscalls, and we
+> deliberately don't add untagging in those.
 
-Thanks for debugging this and for the fix Tetsuo! The patch looks good to
-me. You can add:
+I guess I missed this part, but could you elaborate on this? Why?
+Not yet or not ever?
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+Also I wounder if we can find (with sparse?) all places where we cast out
+__user. This would give a nice list of places where to pay attention.
 
-								Honza
-
-> ---
->  include/linux/wait_bit.h | 17 +++++++++++++++++
->  mm/backing-dev.c         |  2 +-
->  2 files changed, 18 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/wait_bit.h b/include/linux/wait_bit.h
-> index 9318b21..2b0072f 100644
-> --- a/include/linux/wait_bit.h
-> +++ b/include/linux/wait_bit.h
-> @@ -305,4 +305,21 @@ struct wait_bit_queue_entry {
->  	__ret;								\
->  })
->  
-> +/**
-> + * clear_and_wake_up_bit - clear a bit and wake up anyone waiting on that bit
-> + *
-> + * @bit: the bit of the word being waited on
-> + * @word: the word being waited on, a kernel virtual address
-> + *
-> + * You can use this helper if bitflags are manipulated atomically rather than
-> + * non-atomically under a lock.
-> + */
-> +static inline void clear_and_wake_up_bit(int bit, void *word)
-> +{
-> +	clear_bit_unlock(bit, word);
-> +	/* See wake_up_bit() for which memory barrier you need to use. */
-> +	smp_mb__after_atomic();
-> +	wake_up_bit(word, bit);
-> +}
-> +
->  #endif /* _LINUX_WAIT_BIT_H */
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index 023190c..fa5e6d7 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -383,7 +383,7 @@ static void wb_shutdown(struct bdi_writeback *wb)
->  	 * the barrier provided by test_and_clear_bit() above.
->  	 */
->  	smp_wmb();
-> -	clear_bit(WB_shutting_down, &wb->state);
-> +	clear_and_wake_up_bit(WB_shutting_down, &wb->state);
->  }
->  
->  static void wb_exit(struct bdi_writeback *wb)
-> -- 
-> 1.8.3.1
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+ Kirill A. Shutemov
