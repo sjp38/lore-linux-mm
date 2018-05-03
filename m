@@ -1,81 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 342786B000C
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 19:00:52 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id d4-v6so13107717wrn.15
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 16:00:52 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v22-v6sor10339975edq.21.2018.05.03.16.00.50
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 323A36B000C
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 19:29:53 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id z4so17105775uaa.15
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 16:29:53 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id g28si6928792uaj.220.2018.05.03.16.29.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 May 2018 16:00:50 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm: Add kvmalloc_ab_c and kvzalloc_struct
-References: <CAGXu5jL9hqQGe672CmvFwqNbtTr=qu7WRwHuS4Vy7o5sX_UTgg@mail.gmail.com>
- <alpine.DEB.2.20.1803072212160.2814@hadrien>
- <20180308025812.GA9082@bombadil.infradead.org>
- <alpine.DEB.2.20.1803080722300.3754@hadrien>
- <20180308230512.GD29073@bombadil.infradead.org>
- <alpine.DEB.2.20.1803131818550.3117@hadrien>
- <20180313183220.GA21538@bombadil.infradead.org>
- <CAGXu5jKLaY2vzeFNaEhZOXbMgDXp4nF4=BnGCFfHFRwL6LXNHA@mail.gmail.com>
- <20180429203023.GA11891@bombadil.infradead.org>
- <CAGXu5j+N9tt4rxaUMxoZnE-ziqU_yu-jkt-cBZ=R8wmYq6XBTg@mail.gmail.com>
- <20180430201607.GA7041@bombadil.infradead.org>
- <4ad99a55-9c93-5ea1-5954-3cb6e5ba7df9@rasmusvillemoes.dk>
- <CAGXu5j+tYhQOfVMkZdPzW5CX103LHpm8SYSN51VFLufn0Z0y6Q@mail.gmail.com>
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Message-ID: <4e25ff5b-f8fc-7012-83c2-b56e6928e8bc@rasmusvillemoes.dk>
-Date: Fri, 4 May 2018 01:00:43 +0200
-MIME-Version: 1.0
-In-Reply-To: <CAGXu5j+tYhQOfVMkZdPzW5CX103LHpm8SYSN51VFLufn0Z0y6Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 May 2018 16:29:51 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH v2 1/4] mm: change type of free_contig_range(nr_pages) to unsigned long
+Date: Thu,  3 May 2018 16:29:32 -0700
+Message-Id: <20180503232935.22539-2-mike.kravetz@oracle.com>
+In-Reply-To: <20180503232935.22539-1-mike.kravetz@oracle.com>
+References: <20180503232935.22539-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Daniel Vetter <daniel.vetter@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Julia Lawall <julia.lawall@lip6.fr>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, cocci@systeme.lip6.fr, Himanshu Jha <himanshujha199640@gmail.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 2018-05-01 19:00, Kees Cook wrote:
-> On Mon, Apr 30, 2018 at 2:29 PM, Rasmus Villemoes
-> <linux@rasmusvillemoes.dk> wrote:
->>
->> gcc 5.1+ (I think) have the __builtin_OP_overflow checks that should
->> generate reasonable code. Too bad there's no completely generic
->> check_all_ops_in_this_expression(a+b*c+d/e, or_jump_here). Though it's
->> hard to define what they should be checked against - probably would
->> require all subexpressions (including the variables themselves) to have
->> the same type.
->>
->> plug: https://lkml.org/lkml/2015/7/19/358
-> 
-> That's a very nice series. Why did it never get taken?
+free_contig_range() is currently defined as:
+void free_contig_range(unsigned long pfn, unsigned nr_pages);
+change to,
+void free_contig_range(unsigned long pfn, unsigned long nr_pages);
 
-Well, nobody seemed particularly interested, and then
-https://lkml.org/lkml/2015/10/28/215 happened... but he did later seem
-to admit that it could be useful for the multiplication checking, and
-that "the gcc interface for multiplication overflow is fine".
+Some callers are passing a truncated unsigned long today.  It is
+highly unlikely that these values will overflow an unsigned int.
+However, this should be changed to an unsigned long to be consistent
+with other page counts.
 
-I still think even for unsigned types overflow checking can be subtle. E.g.
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ include/linux/gfp.h | 2 +-
+ mm/cma.c            | 2 +-
+ mm/hugetlb.c        | 2 +-
+ mm/page_alloc.c     | 6 +++---
+ 4 files changed, 6 insertions(+), 6 deletions(-)
 
-u32 somevar;
-
-if (somevar + sizeof(foo) < somevar)
-  return -EOVERFLOW;
-somevar += sizeof(this);
-
-is broken, because the LHS is promoted to unsigned long/size_t, then so
-is the RHS for the comparison, and the comparison is thus always false
-(on 64bit). It gets worse if the two types are more "opaque", and in any
-case it's not always easy to verify at a glance that the types are the
-same, or at least that the expression of the widest type is on the RHS.
-
-> It seems to do the right things quite correctly.
-
-Yes, I wouldn't suggest it without the test module verifying corner
-cases, and checking it has the same semantics whether used with old or
-new gcc.
-
-Would you shepherd it through if I updated the patches and resent?
-
-Rasmus
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 1a4582b44d32..86a0d06463ab 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -572,7 +572,7 @@ static inline bool pm_suspended_storage(void)
+ /* The below functions must be run on a range from a single zone. */
+ extern int alloc_contig_range(unsigned long start, unsigned long end,
+ 			      unsigned migratetype, gfp_t gfp_mask);
+-extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
++extern void free_contig_range(unsigned long pfn, unsigned long nr_pages);
+ #endif
+ 
+ #ifdef CONFIG_CMA
+diff --git a/mm/cma.c b/mm/cma.c
+index aa40e6c7b042..f473fc2b7cbd 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -563,7 +563,7 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
+ 
+ 	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
+ 
+-	free_contig_range(pfn, count);
++	free_contig_range(pfn, (unsigned long)count);
+ 	cma_clear_bitmap(cma, pfn, count);
+ 	trace_cma_release(pfn, pages, count);
+ 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 218679138255..c81072ce7510 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1055,7 +1055,7 @@ static void destroy_compound_gigantic_page(struct page *page,
+ 
+ static void free_gigantic_page(struct page *page, unsigned int order)
+ {
+-	free_contig_range(page_to_pfn(page), 1 << order);
++	free_contig_range(page_to_pfn(page), 1UL << order);
+ }
+ 
+ static int __alloc_gigantic_page(unsigned long start_pfn,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 905db9d7962f..0fd5e8e2456e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7937,9 +7937,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 	return ret;
+ }
+ 
+-void free_contig_range(unsigned long pfn, unsigned nr_pages)
++void free_contig_range(unsigned long pfn, unsigned long nr_pages)
+ {
+-	unsigned int count = 0;
++	unsigned long count = 0;
+ 
+ 	for (; nr_pages--; pfn++) {
+ 		struct page *page = pfn_to_page(pfn);
+@@ -7947,7 +7947,7 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+ 		count += page_count(page) != 1;
+ 		__free_page(page);
+ 	}
+-	WARN(count != 0, "%d pages are still in use!\n", count);
++	WARN(count != 0, "%ld pages are still in use!\n", count);
+ }
+ #endif
+ 
+-- 
+2.13.6
