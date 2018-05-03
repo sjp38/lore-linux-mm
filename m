@@ -1,49 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E5D4C6B0007
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 21:14:14 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id s3so14209463pfh.0
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 18:14:14 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z186-v6sor2968198pgd.230.2018.05.02.18.14.13
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B7D06B0007
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 22:11:14 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id o16-v6so11030341wri.8
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 19:11:14 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x58-v6si6488941edx.338.2018.05.02.19.11.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 02 May 2018 18:14:13 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change signal semantics
-From: Andy Lutomirski <luto@amacapital.net>
-In-Reply-To: <cf71c470-9712-ce7c-a84a-f78468ebb4a8@intel.com>
-Date: Wed, 2 May 2018 18:14:11 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <AE502DA2-5B8E-4144-937F-E39DCCC57540@amacapital.net>
-References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com> <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com> <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com> <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net> <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com> <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com> <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com> <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com> <a37b7deb-7f5a-3dfa-f360-956cab8a813a@intel.com> <CALCETrUM7wWZh55gaLiAoPqtxLLUJ4QC8r8zj62E9avJ6ZVu0w@mail.gmail.com> <f9f7edc5-6426-91aa-f279-2f9f4671957a@intel.com> <2BE03B9A-B1E0-4707-8705-203F88B62A1C@amacapital.net> <cf71c470-9712-ce7c-a84a-f78468ebb4a8@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 May 2018 19:11:12 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4329FW8119385
+	for <linux-mm@kvack.org>; Wed, 2 May 2018 22:11:11 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2hqs3mgnfg-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 02 May 2018 22:11:10 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Thu, 3 May 2018 03:11:06 +0100
+Date: Wed, 2 May 2018 19:10:58 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
+ signal semantics
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
+ <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
+ <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
+ <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net>
+ <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
+ <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
+ <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
+ <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
+Message-Id: <20180503021058.GA5670@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Florian Weimer <fweimer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxram@us.ibm.com
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Florian Weimer <fweimer@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, ".linuxppc-dev"@lists.ozlabs.org
+
+On Wed, May 02, 2018 at 09:23:49PM +0000, Andy Lutomirski wrote:
+> 
+> > If I recall correctly, the POWER maintainer did express a strong desire
+> > back then for (what is, I believe) their current semantics, which my
+> > PKEY_ALLOC_SIGNALINHERIT patch implements for x86, too.
+> 
+> Ram, I really really don't like the POWER semantics.  Can you give some
+> justification for them?  Does POWER at least have an atomic way for
+> userspace to modify just the key it wants to modify or, even better,
+> special load and store instructions to use alternate keys?
+
+I wouldn't call it POWER semantics. The way I implemented it on power
+lead to the semantics, given that nothing was explicitly stated 
+about how the semantics should work within a signal handler.
+
+As far as power ISA is concerned, there are no special load
+and store instructions that can somehow circumvent the permissions
+of the key associated with the PTE.
+
+Also unlike x86;  on POWER, pkey-permissions are not administered based
+on its run context (user context, signal context).
+Hence the default behavior tends to make the key permissions remain the
+same regardless of the context.
 
 
+> Does POWER at least have an atomic way for userspace to modify just the 
+> key it wants to modify .. ?
 
-> On May 2, 2018, at 4:58 PM, Dave Hansen <dave.hansen@intel.com> wrote:
->=20
-> On 05/02/2018 04:32 PM, Andy Lutomirski wrote:
->>> But, where do those come from in this scenario?  I'm not getting
->>> the secondary mechanism is that *makes* them unsafe.
->> pkey_alloc() itself.  If someone tries to allocate a key with a given
->> default mode, unless there=E2=80=99s already a key that already had that
->> value in all threads or pkey_alloc() needs to asynchronously create
->> such a key.
->=20
-> I think you are saying: If a thread calls pkey_alloc(), all threads
-> should, by default, implicitly get access.
+No. just like PKRU, on power its a register which has bits corresponding
+to each key. Entire register has to be read and written, which means
+multiple keys could get modified in the same write.
 
-No, I=E2=80=99m saying that all threads should get the *requested* access.  I=
-f I=E2=80=99m protecting the GOT, I want all threads to get RO access. If I=E2=
-=80=99m writing a crypto library, I probably want all threads to have no acc=
-ess.  If I=E2=80=99m writing a database, I probably want all threads to get R=
-O by default.  If I=E2=80=99m writing some doodad to sandbox some carefully c=
-onstructed code, I might want all threads to have full access by default.
 
-=E2=80=94Andy=
+adding ppc mailing list to the CC.
+
+> 
+> --Andy
+
+-- 
+Ram Pai
