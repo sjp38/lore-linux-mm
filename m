@@ -1,75 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 973C56B000A
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 17:42:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c4so16046169pfg.22
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 14:42:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f131si8906957pfc.316.2018.05.03.14.42.24
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D33B36B000A
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 17:52:34 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id m18-v6so6134269lfb.9
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 14:52:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s29-v6sor3126616lfk.33.2018.05.03.14.52.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 May 2018 14:42:24 -0700 (PDT)
-Date: Thu, 3 May 2018 14:42:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/2] mm: vmalloc: Pass proper vm_start into
- debugobjects
-Message-Id: <20180503144222.bcb5c63bb96309bc3b37fb6f@linux-foundation.org>
-In-Reply-To: <1523961828-9485-3-git-send-email-cpandya@codeaurora.org>
-References: <1523961828-9485-1-git-send-email-cpandya@codeaurora.org>
-	<1523961828-9485-3-git-send-email-cpandya@codeaurora.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (Google Transport Security);
+        Thu, 03 May 2018 14:52:32 -0700 (PDT)
+Subject: Correct way to access the physmap? - Was: Re: [PATCH 7/9] Pmalloc
+ Rare Write: modify selected pools
+References: <20180423125458.5338-1-igor.stoppa@huawei.com>
+ <20180423125458.5338-8-igor.stoppa@huawei.com>
+ <20180424115050.GD26636@bombadil.infradead.org>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Message-ID: <035f2bba-ebb1-06a0-fb88-3d40f7e484a7@gmail.com>
+Date: Fri, 4 May 2018 01:52:29 +0400
+MIME-Version: 1.0
+In-Reply-To: <20180424115050.GD26636@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chintan Pandya <cpandya@codeaurora.org>
-Cc: vbabka@suse.cz, labbott@redhat.com, catalin.marinas@arm.com, hannes@cmpxchg.org, f.fainelli@gmail.com, xieyisheng1@huawei.com, ard.biesheuvel@linaro.org, richard.weiyang@gmail.com, byungchul.park@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, khandual@linux.vnet.ibm.com, mhocko@kernel.org
+To: Matthew Wilcox <willy@infradead.org>, dave.hansen@linux.intel.com
+Cc: linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-On Tue, 17 Apr 2018 16:13:48 +0530 Chintan Pandya <cpandya@codeaurora.org> wrote:
 
-> Client can call vunmap with some intermediate 'addr'
-> which may not be the start of the VM area. Entire
-> unmap code works with vm->vm_start which is proper
-> but debug object API is called with 'addr'. This
-> could be a problem within debug objects.
+
+On 24/04/18 15:50, Matthew Wilcox wrote:
+> On Mon, Apr 23, 2018 at 04:54:56PM +0400, Igor Stoppa wrote:
+>> While the vanilla version of pmalloc provides support for permanently
+>> transitioning between writable and read-only of a memory pool, this
+>> patch seeks to support a separate class of data, which would still
+>> benefit from write protection, most of the time, but it still needs to
+>> be modifiable. Maybe very seldom, but still cannot be permanently marked
+>> as read-only.
 > 
-> Pass proper start address into debug object API.
+> This seems like a horrible idea that basically makes this feature useless.
+> I would say the right way to do this is to have:
 > 
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1124,15 +1124,15 @@ void vm_unmap_ram(const void *mem, unsigned int count)
->  	BUG_ON(addr > VMALLOC_END);
->  	BUG_ON(!PAGE_ALIGNED(addr));
->  
-> -	debug_check_no_locks_freed(mem, size);
-> -
->  	if (likely(count <= VMAP_MAX_ALLOC)) {
-> +		debug_check_no_locks_freed(mem, size);
->  		vb_free(mem, size);
->  		return;
->  	}
->  
->  	va = find_vmap_area(addr);
->  	BUG_ON(!va);
-> +	debug_check_no_locks_freed(va->va_start, (va->va_end - va->va_start));
->  	free_unmap_vmap_area(va);
->  }
->  EXPORT_SYMBOL(vm_unmap_ram);
+> struct modifiable_data {
+> 	struct immutable_data *d;
+> 	...
+> };
+> 
+> Then allocate a new pool, change d and destroy the old pool.
 
-hm, how did this sneak through?
+At the end of the summit, we agreed that I would go through the physmap.
 
-mm/vmalloc.c:1139:29: warning: passing argument 1 of debug_check_no_locks_freed makes pointer from integer without a cast [-Wint-conversion]
-  debug_check_no_locks_freed(va->va_start, (va->va_end - va->va_start));
+But I'm not sure of what is the correct way to access it :-/
 
---- a/mm/vmalloc.c~mm-vmalloc-pass-proper-vm_start-into-debugobjects-fix
-+++ a/mm/vmalloc.c
-@@ -1136,7 +1136,8 @@ void vm_unmap_ram(const void *mem, unsig
- 
- 	va = find_vmap_area(addr);
- 	BUG_ON(!va);
--	debug_check_no_locks_freed(va->va_start, (va->va_end - va->va_start));
-+	debug_check_no_locks_freed((void *)va->va_start,
-+				    (va->va_end - va->va_start));
- 	free_unmap_vmap_area(va);
- }
- EXPORT_SYMBOL(vm_unmap_ram);
+Starting from a vmalloc address, say:
+
+int *i = vmalloc(sizeof(int));
+
+I can get its linear counterpart:
+
+int *j = page_to_virt(vmalloc_to_page(i));
+
+and the physical address:
+
+int *k = virt_to_phys(j);
+
+But how do I get to the physmap?
+
+I did not find much about it, apart from papers that talk about specific 
+hardcoded addresses, but I would expect that if there is any hardcoded 
+constant, by now, it's hidden behind some macro.
+
+What I have verified, so far, at least on qemu x86_64, is that 
+protecting "i" will also make "j" unwritable.
+
+--
+igor
