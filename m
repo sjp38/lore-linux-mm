@@ -1,60 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C1E0F6B000A
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 11:24:33 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id m18-v6so5833251lfb.9
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 08:24:33 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 127-v6sor3073592ljf.16.2018.05.03.08.24.31
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B3C56B000E
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 11:25:17 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id j3-v6so17850601ioe.13
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 08:25:17 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 64-v6sor5765076itd.53.2018.05.03.08.25.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 03 May 2018 08:24:31 -0700 (PDT)
-Date: Thu, 3 May 2018 18:24:32 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 4/6] mm, arm64: untag user addresses in mm/gup.c
-Message-ID: <20180503152432.q742zvdbv6xtvo34@kshutemo-mobl1>
-References: <cover.1524077494.git.andreyknvl@google.com>
- <0db34d04fa16be162336106e3b4a94f3dacc0af4.1524077494.git.andreyknvl@google.com>
- <20180426174714.4jtb72q56w3xonsa@armageddon.cambridge.arm.com>
- <CAAeHK+zY8p9E4FZa7mbdgR=wR0u-RDS552dn=h9fKRC-ArYLdw@mail.gmail.com>
- <20180502153645.fui4ju3scsze3zkq@black.fi.intel.com>
- <CAAeHK+yTbmZfkeNbqbo+J90zsjsM99rwnYBGfQBxphHMMfgD7A@mail.gmail.com>
- <CAAeHK+zh0LSpq2VFJeHrV7AETnL1b9R+yex3iPMg5SetbEyxwg@mail.gmail.com>
+        Thu, 03 May 2018 08:25:16 -0700 (PDT)
+Subject: Re: INFO: task hung in wb_shutdown (2)
+References: <94eb2c05b2d83650030568cc8bd9@google.com>
+ <e56c1600-8923-dd6b-d065-c2fd2a720404@I-love.SAKURA.ne.jp>
+ <43302799-1c50-4cab-b974-9fe1ca584813@I-love.SAKURA.ne.jp>
+ <CA+55aFxaa_+uZ=bOVdevcUwG7ncue7O+i06q4Kb=bWACGwCBjQ@mail.gmail.com>
+ <bd3e8460-9794-6b57-e7d6-7e18ea34ac0c@kernel.dk>
+ <201805020714.FDD52145.OOJtOFVFSMLQFH@I-love.SAKURA.ne.jp>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <9cafa39a-aa2e-f4f0-02ae-a11e7ddace8d@kernel.dk>
+Date: Thu, 3 May 2018 09:25:13 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAeHK+zh0LSpq2VFJeHrV7AETnL1b9R+yex3iPMg5SetbEyxwg@mail.gmail.com>
+In-Reply-To: <201805020714.FDD52145.OOJtOFVFSMLQFH@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, torvalds@linux-foundation.org
+Cc: jack@suse.cz, tj@kernel.org, syzbot+c0cf869505e03bdf1a24@syzkaller.appspotmail.com, christophe.jaillet@wanadoo.fr, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com, zhangweiping@didichuxing.com, akpm@linux-foundation.org, dvyukov@google.com, linux-block@vger.kernel.org
 
-On Thu, May 03, 2018 at 04:09:56PM +0200, Andrey Konovalov wrote:
-> On Wed, May 2, 2018 at 7:25 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
-> > On Wed, May 2, 2018 at 5:36 PM, Kirill A. Shutemov
-> > <kirill.shutemov@linux.intel.com> wrote:
-> >> On Wed, May 02, 2018 at 02:38:42PM +0000, Andrey Konovalov wrote:
-> >>> > Does having a tagged address here makes any difference? I couldn't hit a
-> >>> > failure with my simple tests (LD_PRELOAD a library that randomly adds
-> >>> > tags to pointers returned by malloc).
-> >>>
-> >>> I think you're right, follow_page_mask is only called from
-> >>> __get_user_pages, which already untagged the address. I'll remove
-> >>> untagging here.
-> >>
-> >> It also called from follow_page(). Have you covered all its callers?
-> >
-> > Oh, missed that, will take a look.
+On 5/1/18 4:14 PM, Tetsuo Handa wrote:
+>>From 1b90d7f71d60e743c69cdff3ba41edd1f9f86f93 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Wed, 2 May 2018 07:07:55 +0900
+> Subject: [PATCH v2] bdi: wake up concurrent wb_shutdown() callers.
 > 
-> I wasn't able to find anything that calls follow_page with pointers
-> passed from userspace except for the memory subsystem syscalls, and we
-> deliberately don't add untagging in those.
+> syzbot is reporting hung tasks at wait_on_bit(WB_shutting_down) in
+> wb_shutdown() [1]. This seems to be because commit 5318ce7d46866e1d ("bdi:
+> Shutdown writeback on all cgwbs in cgwb_bdi_destroy()") forgot to call
+> wake_up_bit(WB_shutting_down) after clear_bit(WB_shutting_down).
+> 
+> Introduce a helper function clear_and_wake_up_bit() and use it, in order
+> to avoid similar errors in future.
 
-I guess I missed this part, but could you elaborate on this? Why?
-Not yet or not ever?
-
-Also I wounder if we can find (with sparse?) all places where we cast out
-__user. This would give a nice list of places where to pay attention.
+Queued up, thanks Tetsuo!
 
 -- 
- Kirill A. Shutemov
+Jens Axboe
