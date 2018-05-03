@@ -1,53 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BA0FB6B0005
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 12:51:16 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id u137-v6so16592itc.4
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 09:51:16 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e84-v6sor5242937itb.143.2018.05.03.09.51.15
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 00D016B0006
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 13:32:15 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id j33-v6so13756085qtc.18
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 10:32:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id x20-v6si6775123qtb.238.2018.05.03.10.32.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 May 2018 09:51:15 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 May 2018 10:32:13 -0700 (PDT)
+Date: Thu, 3 May 2018 13:32:08 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] kvmalloc: always use vmalloc if CONFIG_DEBUG_VM
+In-Reply-To: <20180501173626.4593a87d0d64f6cc9d219d20@linux-foundation.org>
+Message-ID: <alpine.LRH.2.02.1805031325020.28479@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20180420130852.GC16083@dhcp22.suse.cz> <alpine.LRH.2.02.1804201635180.25408@file01.intranet.prod.int.rdu2.redhat.com> <20180420210200.GH10788@bombadil.infradead.org> <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180421144757.GC14610@bombadil.infradead.org> <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com> <20180423151545.GU17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804232006540.2299@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424133146.GG17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804241107010.31601@file01.intranet.prod.int.rdu2.redhat.com> <20180424161242.GK17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804241229410.23702@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180501173626.4593a87d0d64f6cc9d219d20@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20180503152432.q742zvdbv6xtvo34@kshutemo-mobl1>
-References: <cover.1524077494.git.andreyknvl@google.com> <0db34d04fa16be162336106e3b4a94f3dacc0af4.1524077494.git.andreyknvl@google.com>
- <20180426174714.4jtb72q56w3xonsa@armageddon.cambridge.arm.com>
- <CAAeHK+zY8p9E4FZa7mbdgR=wR0u-RDS552dn=h9fKRC-ArYLdw@mail.gmail.com>
- <20180502153645.fui4ju3scsze3zkq@black.fi.intel.com> <CAAeHK+yTbmZfkeNbqbo+J90zsjsM99rwnYBGfQBxphHMMfgD7A@mail.gmail.com>
- <CAAeHK+zh0LSpq2VFJeHrV7AETnL1b9R+yex3iPMg5SetbEyxwg@mail.gmail.com> <20180503152432.q742zvdbv6xtvo34@kshutemo-mobl1>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 3 May 2018 18:51:14 +0200
-Message-ID: <CAAeHK+xzcjVm+E+nHLNcZ1jDOMM3ha2fH+Y0G26RU7aO81BSdw@mail.gmail.com>
-Subject: Re: [PATCH 4/6] mm, arm64: untag user addresses in mm/gup.c
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Jonathan Corbet <corbet@lwn.net>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, James Morse <james.morse@arm.com>, Kees Cook <keescook@chromium.org>, Bart Van Assche <bart.vanassche@wdc.com>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Matthew Wilcox <willy@infradead.org>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, May 3, 2018 at 5:24 PM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> On Thu, May 03, 2018 at 04:09:56PM +0200, Andrey Konovalov wrote:
->> On Wed, May 2, 2018 at 7:25 PM, Andrey Konovalov <andreyknvl@google.com> wrote:
 
->> I wasn't able to find anything that calls follow_page with pointers
->> passed from userspace except for the memory subsystem syscalls, and we
->> deliberately don't add untagging in those.
->
-> I guess I missed this part, but could you elaborate on this? Why?
-> Not yet or not ever?
 
-Check out the discussion here:
-https://www.spinics.net/lists/arm-kernel/msg640936.html
+On Tue, 1 May 2018, Andrew Morton wrote:
 
->
-> Also I wounder if we can find (with sparse?) all places where we cast out
-> __user. This would give a nice list of places where to pay attention.
+> On Tue, 24 Apr 2018 12:33:01 -0400 (EDT) Mikulas Patocka <mpatocka@redhat.com> wrote:
+> 
+> > 
+> > 
+> > On Tue, 24 Apr 2018, Michal Hocko wrote:
+> > 
+> > > On Tue 24-04-18 11:30:40, Mikulas Patocka wrote:
+> > > > 
+> > > > 
+> > > > On Tue, 24 Apr 2018, Michal Hocko wrote:
+> > > > 
+> > > > > On Mon 23-04-18 20:25:15, Mikulas Patocka wrote:
+> > > > > 
+> > > > > > Fixing __vmalloc code 
+> > > > > > is easy and it doesn't require cooperation with maintainers.
+> > > > > 
+> > > > > But it is a hack against the intention of the scope api.
+> > > > 
+> > > > It is not!
+> > > 
+> > > This discussion simply doesn't make much sense it seems. The scope API
+> > > is to document the scope of the reclaim recursion critical section. That
+> > > certainly is not a utility function like vmalloc.
+> > 
+> > That 15-line __vmalloc bugfix doesn't prevent you (or any other kernel 
+> > developer) from converting the code to the scope API. You make nonsensical 
+> > excuses.
+> > 
+> 
+> Fun thread!
+> 
+> Winding back to the original problem, I'd state it as
+> 
+> - Caller uses kvmalloc() but passes the address into vmalloc-naive
+>   DMA API and
+> 
+> - Caller uses kvmalloc() but passes the address into kfree()
+> 
+> Yes?
+> 
+> If so, then...
+> 
+> Is there a way in which, in the kvmalloc-called-kmalloc path, we can
+> tag the slab-allocated memory with a "this memory was allocated with
+> kvmalloc()" flag?  I *think* there's extra per-object storage available
+> with suitable slab/slub debugging options?  Perhaps we could steal one
+> bit from the redzone, dunno.
+> 
+> If so then we can
+> 
+> a) set that flag in kvmalloc() if the kmalloc() call succeeded
+> 
+> b) check for that flag in the DMA code, WARN if it is set.
+> 
+> c) in kvfree(), clear that flag before calling kfree()
+> 
+> d) in kfree(), check for that flag and go WARN() if set.
+> 
+> So both potential bugs are detected all the time, dependent upon
+> CONFIG_SLUB_DEBUG (and perhaps other slub config options).
 
-The way I tested this is I added BUG_ON(top byte tag is set) to
-find_vma and find_extend_vma and ran a modified version of syzkaller
-that embeds tags into pointers overnight. The only crashes that I saw
-were coming from memory subsystem syscalls. I then temporarily added
-untagging to suppress those crashes
-(https://gist.github.com/xairy/3aa1f57798fa62522c8ac53fad9b74ca), and
-didn't see any crashes after that.
+Yes, it would be good. You also need to check it in virt_to_phys(), 
+virt_to_pfn(), __pa() and maybe some others.
+
+Mikulas
