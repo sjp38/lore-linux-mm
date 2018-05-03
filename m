@@ -1,53 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 65D9D6B000A
-	for <linux-mm@kvack.org>; Wed,  2 May 2018 19:58:27 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b25so14064333pfn.10
-        for <linux-mm@kvack.org>; Wed, 02 May 2018 16:58:27 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id x25si13168757pfj.347.2018.05.02.16.58.26
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 662AF6B0007
+	for <linux-mm@kvack.org>; Wed,  2 May 2018 20:11:16 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id b13-v6so11159439pgw.1
+        for <linux-mm@kvack.org>; Wed, 02 May 2018 17:11:16 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f28-v6si13520569plj.255.2018.05.02.17.11.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 May 2018 16:58:26 -0700 (PDT)
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
- signal semantics
-References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
- <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
- <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
- <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net>
- <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
- <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
- <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
- <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
- <a37b7deb-7f5a-3dfa-f360-956cab8a813a@intel.com>
- <CALCETrUM7wWZh55gaLiAoPqtxLLUJ4QC8r8zj62E9avJ6ZVu0w@mail.gmail.com>
- <f9f7edc5-6426-91aa-f279-2f9f4671957a@intel.com>
- <2BE03B9A-B1E0-4707-8705-203F88B62A1C@amacapital.net>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <cf71c470-9712-ce7c-a84a-f78468ebb4a8@intel.com>
-Date: Wed, 2 May 2018 16:58:25 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 02 May 2018 17:11:15 -0700 (PDT)
+Date: Wed, 2 May 2018 17:11:11 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v4 13/16] mm: Add pt_mm to struct page
+Message-ID: <20180503001111.GA21199@bombadil.infradead.org>
+References: <20180430202247.25220-1-willy@infradead.org>
+ <20180430202247.25220-14-willy@infradead.org>
+ <20180502081217.guqf6phmwnnw5t2q@kshutemo-mobl1>
 MIME-Version: 1.0
-In-Reply-To: <2BE03B9A-B1E0-4707-8705-203F88B62A1C@amacapital.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180502081217.guqf6phmwnnw5t2q@kshutemo-mobl1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>, Florian Weimer <fweimer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxram@us.ibm.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
 
-On 05/02/2018 04:32 PM, Andy Lutomirski wrote:
->> But, where do those come from in this scenario?  I'm not getting
->> the secondary mechanism is that *makes* them unsafe.
-> pkey_alloc() itself.  If someone tries to allocate a key with a given
-> default mode, unless therea??s already a key that already had that
-> value in all threads or pkey_alloc() needs to asynchronously create
-> such a key.
+On Wed, May 02, 2018 at 11:12:17AM +0300, Kirill A. Shutemov wrote:
+> On Mon, Apr 30, 2018 at 01:22:44PM -0700, Matthew Wilcox wrote:
+> > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> > index e0e74e91f3e8..0e6117123737 100644
+> > --- a/include/linux/mm_types.h
+> > +++ b/include/linux/mm_types.h
+> > @@ -134,7 +134,7 @@ struct page {
+> >  			unsigned long _pt_pad_1;	/* compound_head */
+> >  			pgtable_t pmd_huge_pte; /* protected by page->ptl */
+> >  			unsigned long _pt_pad_2;	/* mapping */
+> > -			unsigned long _pt_pad_3;
+> > +			struct mm_struct *pt_mm;
+> 
+> I guess it worth to have a comment that this field is only used of pgd
+> page tables and therefore doesn't conflict with pmd_huge_pte.
 
-I think you are saying: If a thread calls pkey_alloc(), all threads
-should, by default, implicitly get access.  That
-broadcast-to-other-threads is the thing that the current architecture
-doesn't do.  In this situation, CPU threads have to go opt-out of
-getting access to data protected with a given, allocated key.
-
-Right?
+Actually, it doesn't conflict with pmd_huge_pte -- it's in different
+bits (both before and after this patch).  What does 'conflict' with
+pmd_huge_pte is the use of page->lru in the pgd.  I have a plan to
+eliminate that use of pgd->lru, but I need to do a couple of other
+things first.
