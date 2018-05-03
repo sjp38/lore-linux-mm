@@ -1,66 +1,274 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 44F136B0007
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 13:40:51 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id c20so13854690qkm.13
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 10:40:51 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id s43-v6si6136809qta.53.2018.05.03.10.40.50
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E12476B0007
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 13:47:25 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id d128so13744658qkf.18
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 10:47:25 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id i13-v6si2347250qvk.231.2018.05.03.10.47.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 May 2018 10:40:50 -0700 (PDT)
-Date: Thu, 3 May 2018 13:40:48 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [dm-devel] [PATCH v5] fault-injection: introduce kvmalloc fallback
- options
-In-Reply-To: <23273.48986.516559.317965@quad.stoffel.home>
-Message-ID: <alpine.LRH.2.02.1805031333050.28479@file01.intranet.prod.int.rdu2.redhat.com>
-References: <20180421144757.GC14610@bombadil.infradead.org> <20180424173836.GR17484@dhcp22.suse.cz> <alpine.LRH.2.02.1804251556060.30569@file01.intranet.prod.int.rdu2.redhat.com> <1114eda5-9b1f-4db8-2090-556b4a37c532@infradead.org>
- <alpine.LRH.2.02.1804251656300.9428@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.21.1804251417470.166306@chino.kir.corp.google.com> <alpine.LRH.2.02.1804251720090.9428@file01.intranet.prod.int.rdu2.redhat.com> <1524694663.4100.21.camel@HansenPartnership.com>
- <alpine.LRH.2.02.1804251857070.31135@file01.intranet.prod.int.rdu2.redhat.com> <1524697697.4100.23.camel@HansenPartnership.com> <23266.8532.619051.784274@quad.stoffel.home> <alpine.LRH.2.02.1804261726540.13401@file01.intranet.prod.int.rdu2.redhat.com>
- <23271.24580.695738.853532@quad.stoffel.home> <alpine.LRH.2.02.1804301622480.4454@file01.intranet.prod.int.rdu2.redhat.com> <23273.48986.516559.317965@quad.stoffel.home>
+        Thu, 03 May 2018 10:47:24 -0700 (PDT)
+Date: Thu, 3 May 2018 10:46:59 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: [PATCH v3 1/2] iomap: add a swapfile activation function
+Message-ID: <20180503174659.GD4127@magnolia>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stoffel <john@stoffel.org>
-Cc: Andrew@stoffel.org, dm-devel@redhat.com, eric.dumazet@gmail.com, mst@redhat.com, netdev@vger.kernel.org, jasowang@redhat.com, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Hocko <mhocko@kernel.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Michal@stoffel.org, edumazet@google.com, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Morton <akpm@linux-foundation.org>, virtualization@lists.linux-foundation.org, David Miller <davem@davemloft.net>, Vlastimil Babka <vbabka@suse.cz>
+To: xfs <linux-xfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
+Cc: hch@infradead.org, cyberax@amazon.com, jack@suse.cz, osandov@osandov.com, Eryu Guan <guaneryu@gmail.com>
 
+From: Darrick J. Wong <darrick.wong@oracle.com>
 
+Add a new iomap_swapfile_activate function so that filesystems can
+activate swap files without having to use the obsolete and slow bmap
+function.  This enables XFS to support fallocate'd swap files and
+swap files on realtime devices.
 
-On Wed, 2 May 2018, John Stoffel wrote:
+Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+---
+v3: catch null iomap addr, fix too-short extent detection
+v2: document the swap file layout requirements, combine adjacent
+    real/unwritten extents, align reported swap extents to physical page
+    size boundaries, fix compiler errors when swap disabled
+---
+ fs/iomap.c            |  162 +++++++++++++++++++++++++++++++++++++++++++++++++
+ fs/xfs/xfs_aops.c     |   12 ++++
+ include/linux/iomap.h |   11 +++
+ 3 files changed, 185 insertions(+)
 
-> You miss my point, which is that there's no explanation of what the
-> difference is between SLAB and SLUB and which I should choose.  The
-> same goes here.  If the KConfig option doesn't give useful info, it's
-> useless.
-
-So what, we could write explamantion of that option.
-
-> >> Now I also think that Linus has the right idea to not just sprinkle 
-> >> BUG_ONs into the code, just dump and oops and keep going if you can.  
-> >> If it's a filesystem or a device, turn it read only so that people 
-> >> notice right away.
-> 
-> Mikulas> This vmalloc fallback is similar to
-> Mikulas> CONFIG_DEBUG_KOBJECT_RELEASE.  CONFIG_DEBUG_KOBJECT_RELEASE
-> Mikulas> changes the behavior of kobject_put in order to cause
-> Mikulas> deliberate crashes (that wouldn't happen otherwise) in
-> Mikulas> drivers that misuse kobject_put. In the same sense, we want
-> Mikulas> to cause deliberate crashes (that wouldn't happen otherwise)
-> Mikulas> in drivers that misuse kvmalloc.
-> 
-> Mikulas> The crashes will only happen in debugging kernels, not in
-> Mikulas> production kernels.
-> 
-> Says you.  What about people or distros that enable it
-> unconditionally?  They're going to get all kinds of reports and then
-> turn it off again.  Crashing the system isn't the answer here.  
-
-I've made that kvmalloc bug too (in the function 
-dm_integrity_free_journal_scatterlist). I'd much rather like if the kernel 
-crashed (because then - I would fix the bug). The kernel didn't crash and 
-the bug sneaked into the official linux tree, where may be causing random 
-crashes for other users.
-
-Mikulas
+diff --git a/fs/iomap.c b/fs/iomap.c
+index afd163586aa0..ac7115492366 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -27,6 +27,7 @@
+ #include <linux/task_io_accounting_ops.h>
+ #include <linux/dax.h>
+ #include <linux/sched/signal.h>
++#include <linux/swap.h>
+ 
+ #include "internal.h"
+ 
+@@ -1089,3 +1090,164 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(iomap_dio_rw);
++
++/* Swapfile activation */
++
++#ifdef CONFIG_SWAP
++struct iomap_swapfile_info {
++	struct iomap iomap;		/* accumulated iomap */
++	struct swap_info_struct *sis;
++	uint64_t lowest_ppage;		/* lowest physical addr seen (pages) */
++	uint64_t highest_ppage;		/* highest physical addr seen (pages) */
++	unsigned long nr_pages;		/* number of pages collected */
++	int nr_extents;			/* extent count */
++};
++
++/*
++ * Collect physical extents for this swap file.  Physical extents reported to
++ * the swap code must be trimmed to align to a page boundary.  The logical
++ * offset within the file is irrelevant since the swapfile code maps logical
++ * page numbers of the swap device to the physical page-aligned extents.
++ */
++static int iomap_swapfile_add_extent(struct iomap_swapfile_info *isi)
++{
++	struct iomap *iomap = &isi->iomap;
++	unsigned long nr_pages;
++	uint64_t first_ppage;
++	uint64_t first_ppage_reported;
++	uint64_t last_ppage;
++	int error;
++
++	/*
++	 * Round the start up and the end down so that the physical
++	 * extent aligns to a page boundary.
++	 */
++	first_ppage = ALIGN(iomap->addr, PAGE_SIZE) >> PAGE_SHIFT;
++	last_ppage = (ALIGN_DOWN(iomap->addr + iomap->length, PAGE_SIZE) >>
++			PAGE_SHIFT) - 1;
++
++	/* Skip too-short physical extents. */
++	if (first_ppage > last_ppage)
++		return 0;
++	nr_pages = last_ppage - first_ppage + 1;
++
++	/*
++	 * Calculate how much swap space we're adding; the first page contains
++	 * the swap header and doesn't count.  The mm still wants that first
++	 * page fed to add_swap_extent, however.
++	 */
++	first_ppage_reported = first_ppage;
++	if (iomap->offset == 0)
++		first_ppage_reported++;
++	if (isi->lowest_ppage > first_ppage_reported)
++		isi->lowest_ppage = first_ppage_reported;
++	if (isi->highest_ppage < last_ppage)
++		isi->highest_ppage = last_ppage;
++
++	/* Add extent, set up for the next call. */
++	error = add_swap_extent(isi->sis, isi->nr_pages, nr_pages, first_ppage);
++	if (error < 0)
++		return error;
++	isi->nr_extents += error;
++	isi->nr_pages += nr_pages;
++	return 0;
++}
++
++/*
++ * Accumulate iomaps for this swap file.  We have to accumulate iomaps because
++ * swap only cares about contiguous page-aligned physical extents and makes no
++ * distinction between written and unwritten extents.
++ */
++static loff_t iomap_swapfile_activate_actor(struct inode *inode, loff_t pos,
++		loff_t count, void *data, struct iomap *iomap)
++{
++	struct iomap_swapfile_info *isi = data;
++	int error;
++
++	/* Skip holes. */
++	if (iomap->type == IOMAP_HOLE)
++		goto out;
++
++	/* Only one bdev per swap file. */
++	if (iomap->bdev != isi->sis->bdev)
++		goto err;
++
++	/* Only real or unwritten extents. */
++	if (iomap->type != IOMAP_MAPPED && iomap->type != IOMAP_UNWRITTEN)
++		goto err;
++
++	/* No uncommitted metadata or shared blocks or inline data. */
++	if (iomap->flags & (IOMAP_F_DIRTY | IOMAP_F_SHARED |
++			    IOMAP_F_DATA_INLINE))
++		goto err;
++
++	/* No null physical addresses. */
++	if (iomap->addr == IOMAP_NULL_ADDR)
++		goto err;
++
++	if (isi->iomap.length == 0) {
++		/* No accumulated extent, so just store it. */
++		memcpy(&isi->iomap, iomap, sizeof(isi->iomap));
++	} else if (isi->iomap.addr + isi->iomap.length == iomap->addr) {
++		/* Append this to the accumulated extent. */
++		isi->iomap.length += iomap->length;
++	} else {
++		/* Otherwise, add the retained iomap and store this one. */
++		error = iomap_swapfile_add_extent(isi);
++		if (error)
++			return error;
++		memcpy(&isi->iomap, iomap, sizeof(isi->iomap));
++	}
++out:
++	return count;
++err:
++	pr_err("swapon: file cannot be used for swap\n");
++	return -EINVAL;
++}
++
++/*
++ * Iterate a swap file's iomaps to construct physical extents that can be
++ * passed to the swapfile subsystem.
++ */
++int iomap_swapfile_activate(struct swap_info_struct *sis,
++		struct file *swap_file, sector_t *pagespan,
++		const struct iomap_ops *ops)
++{
++	struct iomap_swapfile_info isi = {
++		.sis = sis,
++		.lowest_ppage = (sector_t)-1ULL,
++	};
++	struct address_space *mapping = swap_file->f_mapping;
++	struct inode *inode = mapping->host;
++	loff_t pos = 0;
++	loff_t len = ALIGN_DOWN(i_size_read(inode), PAGE_SIZE);
++	loff_t ret;
++
++	ret = filemap_write_and_wait(inode->i_mapping);
++	if (ret)
++		return ret;
++
++	while (len > 0) {
++		ret = iomap_apply(inode, pos, len, IOMAP_REPORT,
++				ops, &isi, iomap_swapfile_activate_actor);
++		if (ret <= 0)
++			return ret;
++
++		pos += ret;
++		len -= ret;
++	}
++
++	if (isi.iomap.length) {
++		ret = iomap_swapfile_add_extent(&isi);
++		if (ret)
++			return ret;
++	}
++
++	*pagespan = 1 + isi.highest_ppage - isi.lowest_ppage;
++	sis->max = isi.nr_pages;
++	sis->pages = isi.nr_pages - 1;
++	sis->highest_bit = isi.nr_pages - 1;
++	return isi.nr_extents;
++}
++EXPORT_SYMBOL_GPL(iomap_swapfile_activate);
++#endif /* CONFIG_SWAP */
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index 0ab824f574ed..80de476cecf8 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -1475,6 +1475,16 @@ xfs_vm_set_page_dirty(
+ 	return newly_dirty;
+ }
+ 
++static int
++xfs_iomap_swapfile_activate(
++	struct swap_info_struct		*sis,
++	struct file			*swap_file,
++	sector_t			*span)
++{
++	sis->bdev = xfs_find_bdev_for_inode(file_inode(swap_file));
++	return iomap_swapfile_activate(sis, swap_file, span, &xfs_iomap_ops);
++}
++
+ const struct address_space_operations xfs_address_space_operations = {
+ 	.readpage		= xfs_vm_readpage,
+ 	.readpages		= xfs_vm_readpages,
+@@ -1488,6 +1498,7 @@ const struct address_space_operations xfs_address_space_operations = {
+ 	.migratepage		= buffer_migrate_page,
+ 	.is_partially_uptodate  = block_is_partially_uptodate,
+ 	.error_remove_page	= generic_error_remove_page,
++	.swap_activate		= xfs_iomap_swapfile_activate,
+ };
+ 
+ const struct address_space_operations xfs_dax_aops = {
+@@ -1495,4 +1506,5 @@ const struct address_space_operations xfs_dax_aops = {
+ 	.direct_IO		= noop_direct_IO,
+ 	.set_page_dirty		= noop_set_page_dirty,
+ 	.invalidatepage		= noop_invalidatepage,
++	.swap_activate		= xfs_iomap_swapfile_activate,
+ };
+diff --git a/include/linux/iomap.h b/include/linux/iomap.h
+index 19a07de28212..4bd87294219a 100644
+--- a/include/linux/iomap.h
++++ b/include/linux/iomap.h
+@@ -106,4 +106,15 @@ typedef int (iomap_dio_end_io_t)(struct kiocb *iocb, ssize_t ret,
+ ssize_t iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
+ 		const struct iomap_ops *ops, iomap_dio_end_io_t end_io);
+ 
++#ifdef CONFIG_SWAP
++struct file;
++struct swap_info_struct;
++
++int iomap_swapfile_activate(struct swap_info_struct *sis,
++		struct file *swap_file, sector_t *pagespan,
++		const struct iomap_ops *ops);
++#else
++# define iomap_swapfile_activate(sis, swapfile, pagespan, ops)	(-EIO)
++#endif /* CONFIG_SWAP */
++
+ #endif /* LINUX_IOMAP_H */
