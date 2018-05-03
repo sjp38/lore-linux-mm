@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5127E6B0012
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 19:29:57 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id t46so7276048uad.3
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 16:29:57 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id k80-v6si7593083vki.103.2018.05.03.16.29.55
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B4DF6B0022
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 19:30:00 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id c4-v6so14681242qtp.9
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 16:30:00 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id e12si6574530qkm.167.2018.05.03.16.29.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 May 2018 16:29:56 -0700 (PDT)
+        Thu, 03 May 2018 16:29:58 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v2 4/4] mm/hugetlb: use find_alloc_contig_pages() to allocate gigantic pages
-Date: Thu,  3 May 2018 16:29:35 -0700
-Message-Id: <20180503232935.22539-5-mike.kravetz@oracle.com>
+Subject: [PATCH v2 3/4] mm: add find_alloc_contig_pages() interface
+Date: Thu,  3 May 2018 16:29:34 -0700
+Message-Id: <20180503232935.22539-4-mike.kravetz@oracle.com>
 In-Reply-To: <20180503232935.22539-1-mike.kravetz@oracle.com>
 References: <20180503232935.22539-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,131 +20,204 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-Use the new find_alloc_contig_pages() interface for the allocation of
-gigantic pages and remove associated code in hugetlb.c.
+find_alloc_contig_pages() is a new interface that attempts to locate
+and allocate a contiguous range of pages.  It is provided as a more
+convenient interface than alloc_contig_range() which is currently
+used by CMA and gigantic huge pages.
+
+When attempting to allocate a range of pages, migration is employed
+if possible.  There is no guarantee that the routine will succeed.
+So, the user must be prepared for failure and have a fall back plan.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/hugetlb.c | 87 +++++-------------------------------------------------------
- 1 file changed, 6 insertions(+), 81 deletions(-)
+ include/linux/gfp.h |  12 +++++
+ mm/page_alloc.c     | 136 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 146 insertions(+), 2 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c81072ce7510..91edf1df3592 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1053,91 +1053,16 @@ static void destroy_compound_gigantic_page(struct page *page,
- 	__ClearPageHead(page);
- }
- 
--static void free_gigantic_page(struct page *page, unsigned int order)
-+static void free_gigantic_page(struct page *page, struct hstate *h)
- {
--	free_contig_range(page_to_pfn(page), 1UL << order);
--}
--
--static int __alloc_gigantic_page(unsigned long start_pfn,
--				unsigned long nr_pages, gfp_t gfp_mask)
--{
--	unsigned long end_pfn = start_pfn + nr_pages;
--	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE,
--				  gfp_mask);
--}
--
--static bool pfn_range_valid_gigantic(struct zone *z,
--			unsigned long start_pfn, unsigned long nr_pages)
--{
--	unsigned long i, end_pfn = start_pfn + nr_pages;
--	struct page *page;
--
--	for (i = start_pfn; i < end_pfn; i++) {
--		if (!pfn_valid(i))
--			return false;
--
--		page = pfn_to_page(i);
--
--		if (page_zone(page) != z)
--			return false;
--
--		if (PageReserved(page))
--			return false;
--
--		if (page_count(page) > 0)
--			return false;
--
--		if (PageHuge(page))
--			return false;
--	}
--
--	return true;
--}
--
--static bool zone_spans_last_pfn(const struct zone *zone,
--			unsigned long start_pfn, unsigned long nr_pages)
--{
--	unsigned long last_pfn = start_pfn + nr_pages - 1;
--	return zone_spans_pfn(zone, last_pfn);
-+	free_contig_pages(page, (unsigned long)pages_per_huge_page(h));
- }
- 
- static struct page *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,
- 		int nid, nodemask_t *nodemask)
- {
--	unsigned int order = huge_page_order(h);
--	unsigned long nr_pages = 1 << order;
--	unsigned long ret, pfn, flags;
--	struct zonelist *zonelist;
--	struct zone *zone;
--	struct zoneref *z;
--
--	zonelist = node_zonelist(nid, gfp_mask);
--	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), nodemask) {
--		spin_lock_irqsave(&zone->lock, flags);
--
--		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
--		while (zone_spans_last_pfn(zone, pfn, nr_pages)) {
--			if (pfn_range_valid_gigantic(zone, pfn, nr_pages)) {
--				/*
--				 * We release the zone lock here because
--				 * alloc_contig_range() will also lock the zone
--				 * at some point. If there's an allocation
--				 * spinning on this lock, it may win the race
--				 * and cause alloc_contig_range() to fail...
--				 */
--				spin_unlock_irqrestore(&zone->lock, flags);
--				ret = __alloc_gigantic_page(pfn, nr_pages, gfp_mask);
--				if (!ret)
--					return pfn_to_page(pfn);
--				spin_lock_irqsave(&zone->lock, flags);
--			}
--			pfn += nr_pages;
--		}
--
--		spin_unlock_irqrestore(&zone->lock, flags);
--	}
--
--	return NULL;
-+	return find_alloc_contig_pages((unsigned long)pages_per_huge_page(h),
-+					gfp_mask, nid, nodemask);
- }
- 
- static void prep_new_huge_page(struct hstate *h, struct page *page, int nid);
-@@ -1147,7 +1072,7 @@ static void prep_compound_gigantic_page(struct page *page, unsigned int order);
- static inline bool gigantic_page_supported(void) { return false; }
- static struct page *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,
- 		int nid, nodemask_t *nodemask) { return NULL; }
--static inline void free_gigantic_page(struct page *page, unsigned int order) { }
-+static inline void free_gigantic_page(struct page *page, struct hstate *h) { }
- static inline void destroy_compound_gigantic_page(struct page *page,
- 						unsigned int order) { }
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 86a0d06463ab..b0d11777d487 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -573,6 +573,18 @@ static inline bool pm_suspended_storage(void)
+ extern int alloc_contig_range(unsigned long start, unsigned long end,
+ 			      unsigned migratetype, gfp_t gfp_mask);
+ extern void free_contig_range(unsigned long pfn, unsigned long nr_pages);
++extern struct page *find_alloc_contig_pages(unsigned long nr_pages, gfp_t gfp,
++						int nid, nodemask_t *nodemask);
++extern void free_contig_pages(struct page *page, unsigned long nr_pages);
++#else
++static inline struct page *find_alloc_contig_pages(unsigned long nr_pages,
++				gfp_t gfp, int nid, nodemask_t *nodemask)
++{
++	return NULL;
++}
++static inline void free_contig_pages(struct page *page, unsigned long nr_pages)
++{
++}
  #endif
-@@ -1172,7 +1097,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
- 	set_page_refcounted(page);
- 	if (hstate_is_gigantic(h)) {
- 		destroy_compound_gigantic_page(page, huge_page_order(h));
--		free_gigantic_page(page, huge_page_order(h));
-+		free_gigantic_page(page, h);
- 	} else {
- 		__free_pages(page, huge_page_order(h));
+ 
+ #ifdef CONFIG_CMA
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index cb1a5e0be6ee..d0a2d0da9eae 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -67,6 +67,7 @@
+ #include <linux/ftrace.h>
+ #include <linux/lockdep.h>
+ #include <linux/nmi.h>
++#include <linux/mmzone.h>
+ 
+ #include <asm/sections.h>
+ #include <asm/tlbflush.h>
+@@ -7913,8 +7914,12 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 
+ 	/* Make sure the range is really isolated. */
+ 	if (test_pages_isolated(outer_start, end, false)) {
+-		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
+-			__func__, outer_start, end);
++#ifdef MIGRATE_CMA
++		/* Only print messages for CMA allocations */
++		if (migratetype == MIGRATE_CMA)
++			pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
++				__func__, outer_start, end);
++#endif
+ 		ret = -EBUSY;
+ 		goto done;
  	}
+@@ -7950,6 +7955,133 @@ void free_contig_range(unsigned long pfn, unsigned long nr_pages)
+ 	}
+ 	WARN(count != 0, "%ld pages are still in use!\n", count);
+ }
++
++/*
++ * Only check for obvious pfn/pages which can not be used/migrated.  The
++ * migration code will do the final check.  Under stress, this minimal set
++ * has been observed to provide the best results.  The checks can be expanded
++ * if needed.
++ */
++static bool contig_pfn_range_valid(struct zone *z, unsigned long start_pfn,
++					unsigned long nr_pages)
++{
++	unsigned long i, end_pfn = start_pfn + nr_pages;
++	struct page *page;
++
++	for (i = start_pfn; i < end_pfn; i++) {
++		if (!pfn_valid(i))
++			return false;
++
++		page = pfn_to_online_page(i);
++
++		if (page_zone(page) != z)
++			return false;
++
++	}
++
++	return true;
++}
++
++/*
++ * Search for and attempt to allocate contiguous allocations greater than
++ * MAX_ORDER.
++ */
++static struct page *__alloc_contig_pages_nodemask(gfp_t gfp,
++						unsigned long order,
++						int nid, nodemask_t *nodemask)
++{
++	unsigned long nr_pages, pfn, flags;
++	struct page *ret_page = NULL;
++	struct zonelist *zonelist;
++	struct zoneref *z;
++	struct zone *zone;
++	int rc;
++
++	nr_pages = 1 << order;
++	zonelist = node_zonelist(nid, gfp);
++	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp),
++					nodemask) {
++		pgdat_resize_lock(zone->zone_pgdat, &flags);
++		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
++		while (zone_spans_pfn(zone, pfn + nr_pages - 1)) {
++			if (contig_pfn_range_valid(zone, pfn, nr_pages)) {
++				struct page *page = pfn_to_online_page(pfn);
++				unsigned int migratetype;
++
++				/*
++				 * All pageblocks in range must be of same
++				 * migrate type.
++				 */
++				migratetype = get_pageblock_migratetype(page);
++				pgdat_resize_unlock(zone->zone_pgdat, &flags);
++
++				rc = alloc_contig_range(pfn, pfn + nr_pages,
++						migratetype, gfp);
++				if (!rc) {
++					ret_page = pfn_to_page(pfn);
++					return ret_page;
++				}
++				pgdat_resize_lock(zone->zone_pgdat, &flags);
++			}
++			pfn += nr_pages;
++		}
++		pgdat_resize_unlock(zone->zone_pgdat, &flags);
++	}
++
++	return ret_page;
++}
++
++/**
++ * find_alloc_contig_pages() -- attempt to find and allocate a contiguous
++ *				range of pages
++ * @nr_pages:	number of pages to find/allocate
++ * @gfp:	gfp mask used to limit search as well as during compaction
++ * @nid:	target node
++ * @nodemask:	mask of other possible nodes
++ *
++ * Pages can be freed with a call to free_contig_pages(), or by manually
++ * calling __free_page() for each page allocated.
++ *
++ * Return: pointer to 'order' pages on success, or NULL if not successful.
++ */
++struct page *find_alloc_contig_pages(unsigned long nr_pages, gfp_t gfp,
++					int nid, nodemask_t *nodemask)
++{
++	unsigned long i, alloc_order, order_pages;
++	struct page *pages;
++
++	/*
++	 * Underlying allocators perform page order sized allocations.
++	 */
++	alloc_order = get_count_order(nr_pages);
++	if (alloc_order < MAX_ORDER) {
++		pages = __alloc_pages_nodemask(gfp, (unsigned int)alloc_order,
++						nid, nodemask);
++		split_page(pages, alloc_order);
++	} else {
++		pages = __alloc_contig_pages_nodemask(gfp, alloc_order, nid,
++							nodemask);
++	}
++
++	if (pages) {
++		/*
++		 * More pages than desired could have been allocated due to
++		 * rounding up to next page order.  Free any excess pages.
++		 */
++		order_pages = 1UL << alloc_order;
++		for (i = nr_pages; i < order_pages; i++)
++			__free_page(pages + i);
++	}
++
++	return pages;
++}
++EXPORT_SYMBOL_GPL(find_alloc_contig_pages);
++
++void free_contig_pages(struct page *page, unsigned long nr_pages)
++{
++	free_contig_range(page_to_pfn(page), nr_pages);
++}
++EXPORT_SYMBOL_GPL(free_contig_pages);
+ #endif
+ 
+ #if defined CONFIG_MEMORY_HOTPLUG || defined CONFIG_CMA
 -- 
 2.13.6
