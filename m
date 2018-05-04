@@ -1,53 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 66C576B026A
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 12:38:33 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id p138-v6so2766439itc.3
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 09:38:33 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id q25-v6si4623580iob.104.2018.05.04.09.38.32
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DD576B000C
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 12:51:24 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b192-v6so2268587wmb.1
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 09:51:24 -0700 (PDT)
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id l76si1611021wmi.188.2018.05.04.09.51.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 04 May 2018 09:38:32 -0700 (PDT)
-Date: Fri, 4 May 2018 18:38:26 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: Introduce atomic_dec_and_lock_irqsave()
-Message-ID: <20180504163826.GR12217@hirez.programming.kicks-ass.net>
-References: <20180504154533.8833-1-bigeasy@linutronix.de>
- <20180504155446.GP12217@hirez.programming.kicks-ass.net>
- <20180504160726.ikotgmd5fbix7b6b@linutronix.de>
- <20180504162102.GQ12217@hirez.programming.kicks-ass.net>
- <20180504162640.GH30522@ZenIV.linux.org.uk>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 May 2018 09:51:22 -0700 (PDT)
+Date: Fri, 4 May 2018 17:50:51 +0100
+From: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Subject: Re: [PATCH] mm/memory_hotplug: Fix leftover use of struct page
+ during hotplug
+Message-ID: <20180504175051.000009e8@huawei.com>
+In-Reply-To: <20180504160844.GB23560@dhcp22.suse.cz>
+References: <20180504085311.1240-1-Jonathan.Cameron@huawei.com>
+	<20180504160844.GB23560@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180504162640.GH30522@ZenIV.linux.org.uk>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-kernel@vger.kernel.org, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, linuxarm@huawei.com, Pavel Tatashin <pasha.tatashin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, May 04, 2018 at 05:26:40PM +0100, Al Viro wrote:
-> On Fri, May 04, 2018 at 06:21:02PM +0200, Peter Zijlstra wrote:
-> > On Fri, May 04, 2018 at 06:07:26PM +0200, Sebastian Andrzej Siewior wrote:
-> > 
-> > > do you intend to kill refcount_dec_and_lock() in the longterm?
-> > 
-> > You meant to say atomic_dec_and_lock() ? Dunno if we ever get there, but
-> > typically dec_and_lock is fairly refcounty, but I suppose it is possible
-> > to have !refcount users, in which case we're eternally stuck with it.
-> 
-> Yes, there are - consider e.g.
-> 
-> void iput(struct inode *inode)
-> { 
->         if (!inode)
->                 return;
->         BUG_ON(inode->i_state & I_CLEAR);
-> retry:
->         if (atomic_dec_and_lock(&inode->i_count, &inode->i_lock)) {
-> 
-> inode->i_count sure as hell isn't refcount_t fodder...
+On Fri, 4 May 2018 18:08:45 +0200
+Michal Hocko <mhocko@kernel.org> wrote:
 
-Yeah, I should've remembered, I tried to convert that once ;-) i_count is
-a usage count, not a refcount.
+> On Fri 04-05-18 09:53:11, Jonathan Cameron wrote:
+> > The case of a new numa node got missed in avoiding using
+> > the node info from page_struct during hotplug.  In this
+> > path we have a call to register_mem_sect_under_node (which allows
+> > us to specify it is hotplug so don't change the node),
+> > via link_mem_sections which unfortunately does not.  
+> 
+> I have hard time to parse the problem description. Could you be more
+> specific and describe the user visible effect along with steps to
+> trigger the issue?
+
+Hi Michal,
+
+Sure, the result is that (with a new memory only node) we never
+successfully call register_mem_sect_under_node so don't get the
+memory associated with the node in sysfs and meminfo for the
+node doesn't report it.
+
+It came up whilst testing some arm64 hotplug patches, but appears
+to be universal.  Whilst I'm triggering it by removing then reinserting
+memory to a node with no other elements (thus making the node disappear
+then appear again), it appears it would happen on hotplugging memory
+where there was none before and it doesn't seem to be related the
+arm64 patches.  These patches call __add_pages (where most of the issue was
+fixed by Pavel's patch). If there is a node at the time of the __add_pages
+call then all is well as it calls register_mem_sect_under_node from
+there with check_nid set to false.  Without a node that function returns
+having not done the sysfs related stuff as there is no node to use.
+This is expected but it is the resulting path that fails...
+
+Exact path to the problem is as follows:
+
+mm/memory_hotplug.c : add_memory_resource
+The node is not online so we enter the
+if (new_node) twice, on the second such block there is a call to
+link_mem_sections which calls into
+drivers/node.c: link_mem_sections which calls
+drivers/node.c: register_mem_sect_under_node which calls
+get_nid_for_pfn and keeps trying until the output of that matches
+the expected node (passed all the way down from add_memory_resource)
+
+It is effectively the same fix as the one referred to in the fixes
+tag just in the code path for a new node where the comments point
+out we have to rerun the link creation because it will have failed
+in register_new_memory (as there was no node at the time).
+(actually that comment is wrong now as we don't have register_new_memory
+any more it got renamed to hotplug_memory_register in Pavel's patch).
+
+Jonathan
