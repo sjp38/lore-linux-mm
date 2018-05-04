@@ -1,148 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F06A46B000C
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 22:46:13 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id n78so16530669pfj.4
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 19:46:13 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C57C6B0011
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 23:12:22 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b25so16529194pfn.10
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 20:12:22 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q11-v6sor3264638pgr.262.2018.05.03.19.46.12
+        by mx.google.com with SMTPS id s21-v6sor6246718plp.3.2018.05.03.20.12.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 03 May 2018 19:46:12 -0700 (PDT)
-Subject: Re: [PATCH v8 0/6] optimize memblock_next_valid_pfn and
- early_pfn_valid on arm and arm64
-References: <1523431317-30612-1-git-send-email-hejianet@gmail.com>
+        Thu, 03 May 2018 20:12:20 -0700 (PDT)
 From: Jia He <hejianet@gmail.com>
-Message-ID: <05b0fcf2-7670-101e-d4ab-1f656ff6b02f@gmail.com>
-Date: Fri, 4 May 2018 10:45:52 +0800
-MIME-Version: 1.0
-In-Reply-To: <1523431317-30612-1-git-send-email-hejianet@gmail.com>
-Content-Type: text/plain; charset=gbk; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH v2] mm/ksm: ignore STABLE_FLAG of rmap_item->address in rmap_walk_ksm
+Date: Fri,  4 May 2018 11:11:46 +0800
+Message-Id: <1525403506-6750-1-git-send-email-hejianet@gmail.com>
+In-Reply-To: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
+References: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Jia He <hejianet@gmail.com>, jia.he@hxt-semitech.com
 
-Ping
+In our armv8a server(QDF2400), I noticed lots of WARN_ON caused by PAGE_SIZE
+unaligned for rmap_item->address under memory pressure tests(start 20 guests
+and run memhog in the host).
 
-Sorry if I am a little bit verbose, but it can speedup the arm64 booting time 
-indeed.
+--------------------------begin--------------------------------------
+[  410.853828] WARNING: CPU: 4 PID: 4641 at
+arch/arm64/kvm/../../../virt/kvm/arm/mmu.c:1826
+kvm_age_hva_handler+0xc0/0xc8
+[  410.864518] Modules linked in: vhost_net vhost tap xt_CHECKSUM
+ipt_MASQUERADE nf_nat_masquerade_ipv4 ip6t_rpfilter ipt_REJECT
+nf_reject_ipv4 ip6t_REJECT nf_reject_ipv6 xt_conntrack ip_set nfnetlink
+ebtable_nat ebtable_broute bridge stp llc ip6table_nat nf_conntrack_ipv6
+nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_security
+ip6table_raw iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4
+nf_nat nf_conntrack iptable_mangle iptable_security iptable_raw
+ebtable_filter ebtables ip6table_filter ip6_tables iptable_filter
+rpcrdma ib_isert iscsi_target_mod ib_iser libiscsi scsi_transport_iscsi
+ib_srpt target_core_mod ib_srp scsi_transport_srp ib_ipoib rdma_ucm
+ib_ucm ib_umad rdma_cm ib_cm iw_cm mlx5_ib vfat fat ib_uverbs dm_mirror
+dm_region_hash ib_core dm_log dm_mod crc32_ce ipmi_ssif sg nfsd
+[  410.935101]  auth_rpcgss nfs_acl lockd grace sunrpc ip_tables xfs
+libcrc32c mlx5_core ixgbe mlxfw devlink mdio ahci_platform
+libahci_platform qcom_emac libahci hdma hdma_mgmt i2c_qup
+[  410.951369] CPU: 4 PID: 4641 Comm: memhog Tainted: G        W
+4.17.0-rc3+ #8
+[  410.959104] Hardware name: <snip for confidential issues>
+[  410.969791] pstate: 80400005 (Nzcv daif +PAN -UAO)
+[  410.974575] pc : kvm_age_hva_handler+0xc0/0xc8
+[  410.979012] lr : handle_hva_to_gpa+0xa8/0xe0
+[  410.983274] sp : ffff801761553290
+[  410.986581] x29: ffff801761553290 x28: 0000000000000000
+[  410.991888] x27: 0000000000000002 x26: 0000000000000000
+[  410.997195] x25: ffff801765430058 x24: ffff0000080b5608
+[  411.002501] x23: 0000000000000000 x22: ffff8017ccb84000
+[  411.007807] x21: 0000000003ff0000 x20: ffff8017ccb84000
+[  411.013113] x19: 000000000000fe00 x18: ffff000008fb3c08
+[  411.018419] x17: 0000000000000000 x16: 0060001645820bd3
+[  411.023725] x15: ffff80176aacbc08 x14: 0000000000000000
+[  411.029031] x13: 0000000000000040 x12: 0000000000000228
+[  411.034337] x11: 0000000000000000 x10: 0000000000000000
+[  411.039643] x9 : 0000000000000010 x8 : 0000000000000004
+[  411.044949] x7 : 0000000000000000 x6 : 00008017f0770000
+[  411.050255] x5 : 0000fffda59f0200 x4 : 0000000000000000
+[  411.055561] x3 : 0000000000000000 x2 : 000000000000fe00
+[  411.060867] x1 : 0000000003ff0000 x0 : 0000000020000000
+[  411.066173] Call trace:
+[  411.068614]  kvm_age_hva_handler+0xc0/0xc8
+[  411.072703]  handle_hva_to_gpa+0xa8/0xe0
+[  411.076619]  kvm_age_hva+0x4c/0xe8
+[  411.080014]  kvm_mmu_notifier_clear_flush_young+0x54/0x98
+[  411.085408]  __mmu_notifier_clear_flush_young+0x6c/0xa0
+[  411.090627]  page_referenced_one+0x154/0x1d8
+[  411.094890]  rmap_walk_ksm+0x12c/0x1d0
+[  411.098632]  rmap_walk+0x94/0xa0
+[  411.101854]  page_referenced+0x194/0x1b0
+[  411.105770]  shrink_page_list+0x674/0xc28
+[  411.109772]  shrink_inactive_list+0x26c/0x5b8
+[  411.114122]  shrink_node_memcg+0x35c/0x620
+[  411.118211]  shrink_node+0x100/0x430
+[  411.121778]  do_try_to_free_pages+0xe0/0x3a8
+[  411.126041]  try_to_free_pages+0xe4/0x230
+[  411.130045]  __alloc_pages_nodemask+0x564/0xdc0
+[  411.134569]  alloc_pages_vma+0x90/0x228
+[  411.138398]  do_anonymous_page+0xc8/0x4d0
+[  411.142400]  __handle_mm_fault+0x4a0/0x508
+[  411.146489]  handle_mm_fault+0xf8/0x1b0
+[  411.150321]  do_page_fault+0x218/0x4b8
+[  411.154064]  do_translation_fault+0x90/0xa0
+[  411.158239]  do_mem_abort+0x68/0xf0
+[  411.161721]  el0_da+0x24/0x28
+---------------------------end---------------------------------------
 
+In rmap_walk_ksm, the rmap_item->address might still have the STABLE_FLAG,
+then the start and end in handle_hva_to_gpa might not be PAGE_SIZE aligned.
+Thus it will cause exceptions in handle_hva_to_gpa on arm64.
+
+This patch fixes it by ignoring(not removing) the low bits of address when
+doing rmap_walk_ksm.
+
+Signed-off-by: jia.he@hxt-semitech.com
+---
+v2: refine the codes as suggested by Claudio Imbrenda
+
+ mm/ksm.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index e3cbf9a..e6a9640 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -199,6 +199,8 @@ struct rmap_item {
+ #define SEQNR_MASK	0x0ff	/* low bits of unstable tree seqnr */
+ #define UNSTABLE_FLAG	0x100	/* is a node of the unstable tree */
+ #define STABLE_FLAG	0x200	/* is listed from the stable tree */
++#define KSM_FLAG_MASK	(SEQNR_MASK|UNSTABLE_FLAG|STABLE_FLAG)
++				/* to mask all the flags */
+ 
+ /* The stable and unstable tree heads */
+ static struct rb_root one_stable_tree[1] = { RB_ROOT };
+@@ -2570,10 +2572,15 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
+ 		anon_vma_lock_read(anon_vma);
+ 		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
+ 					       0, ULONG_MAX) {
++			unsigned long addr;
++
+ 			cond_resched();
+ 			vma = vmac->vma;
+-			if (rmap_item->address < vma->vm_start ||
+-			    rmap_item->address >= vma->vm_end)
++
++			/* Ignore the stable/unstable/sqnr flags */
++			addr = rmap_item->address & ~KSM_FLAG_MASK;
++
++			if (addr < vma->vm_start || addr >= vma->vm_end)
+ 				continue;
+ 			/*
+ 			 * Initially we examine only the vma which covers this
+@@ -2587,8 +2594,7 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
+ 			if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
+ 				continue;
+ 
+-			if (!rwc->rmap_one(page, vma,
+-					rmap_item->address, rwc->arg)) {
++			if (!rwc->rmap_one(page, vma, addr, rwc->arg)) {
+ 				anon_vma_unlock_read(anon_vma);
+ 				return;
+ 			}
 -- 
-Cheers,
-Jia
-
-On 4/11/2018 3:21 PM, Jia He Wrote:
-> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-> where possible") tried to optimize the loop in memmap_init_zone(). But
-> there is still some room for improvement.
->
-> Patch 1 introduce new config to make codes more generic
-> Patch 2 remain the memblock_next_valid_pfn on arm and arm64
-> Patch 3 optimizes the memblock_next_valid_pfn()
-> Patch 4~6 optimizes the early_pfn_valid()
->
-> As for the performance improvement, after this set, I can see the time
-> overhead of memmap_init() is reduced from 41313 us to 24389 us in my
-> armv8a server(QDF2400 with 96G memory).
->
-> Without this patchset:
-> [  117.113677] before memmap_init
-> [  117.118195] after  memmap_init
->>>> memmap_init takes 4518 us
-> [  117.121446] before memmap_init
-> [  117.154992] after  memmap_init
->>>> memmap_init takes 33546 us
-> [  117.158241] before memmap_init
-> [  117.161490] after  memmap_init
->>>> memmap_init takes 3249 us
->>>> totally takes 41313 us
-> With this patchset:
-> [  123.222962] before memmap_init
-> [  123.226819] after  memmap_init
->>>> memmap_init takes 3857
-> [  123.230070] before memmap_init
-> [  123.247354] after  memmap_init
->>>> memmap_init takes 17284
-> [  123.250604] before memmap_init
-> [  123.253852] after  memmap_init
->>>> memmap_init takes 3248
->>>> totally takes 24389 us
-> Attached the memblock region information in my server.
-> [   86.956758] Zone ranges:
-> [   86.959452]   DMA      [mem 0x0000000000200000-0x00000000ffffffff]
-> [   86.966041]   Normal   [mem 0x0000000100000000-0x00000017ffffffff]
-> [   86.972631] Movable zone start for each node
-> [   86.977179] Early memory node ranges
-> [   86.980985]   node   0: [mem 0x0000000000200000-0x000000000021ffff]
-> [   86.987666]   node   0: [mem 0x0000000000820000-0x000000000307ffff]
-> [   86.994348]   node   0: [mem 0x0000000003080000-0x000000000308ffff]
-> [   87.001029]   node   0: [mem 0x0000000003090000-0x00000000031fffff]
-> [   87.007710]   node   0: [mem 0x0000000003200000-0x00000000033fffff]
-> [   87.014392]   node   0: [mem 0x0000000003410000-0x000000000563ffff]
-> [   87.021073]   node   0: [mem 0x0000000005640000-0x000000000567ffff]
-> [   87.027754]   node   0: [mem 0x0000000005680000-0x00000000056dffff]
-> [   87.034435]   node   0: [mem 0x00000000056e0000-0x00000000086fffff]
-> [   87.041117]   node   0: [mem 0x0000000008700000-0x000000000871ffff]
-> [   87.047798]   node   0: [mem 0x0000000008720000-0x000000000894ffff]
-> [   87.054479]   node   0: [mem 0x0000000008950000-0x0000000008baffff]
-> [   87.061161]   node   0: [mem 0x0000000008bb0000-0x0000000008bcffff]
-> [   87.067842]   node   0: [mem 0x0000000008bd0000-0x0000000008c4ffff]
-> [   87.074524]   node   0: [mem 0x0000000008c50000-0x0000000008e2ffff]
-> [   87.081205]   node   0: [mem 0x0000000008e30000-0x0000000008e4ffff]
-> [   87.087886]   node   0: [mem 0x0000000008e50000-0x0000000008fcffff]
-> [   87.094568]   node   0: [mem 0x0000000008fd0000-0x000000000910ffff]
-> [   87.101249]   node   0: [mem 0x0000000009110000-0x00000000092effff]
-> [   87.107930]   node   0: [mem 0x00000000092f0000-0x000000000930ffff]
-> [   87.114612]   node   0: [mem 0x0000000009310000-0x000000000963ffff]
-> [   87.121293]   node   0: [mem 0x0000000009640000-0x000000000e61ffff]
-> [   87.127975]   node   0: [mem 0x000000000e620000-0x000000000e64ffff]
-> [   87.134657]   node   0: [mem 0x000000000e650000-0x000000000fffffff]
-> [   87.141338]   node   0: [mem 0x0000000010800000-0x0000000017feffff]
-> [   87.148019]   node   0: [mem 0x000000001c000000-0x000000001c00ffff]
-> [   87.154701]   node   0: [mem 0x000000001c010000-0x000000001c7fffff]
-> [   87.161383]   node   0: [mem 0x000000001c810000-0x000000007efbffff]
-> [   87.168064]   node   0: [mem 0x000000007efc0000-0x000000007efdffff]
-> [   87.174746]   node   0: [mem 0x000000007efe0000-0x000000007efeffff]
-> [   87.181427]   node   0: [mem 0x000000007eff0000-0x000000007effffff]
-> [   87.188108]   node   0: [mem 0x000000007f000000-0x00000017ffffffff]
-> [   87.194791] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
->
-> Changelog:
-> V8: - introduce new config and move generic code to early_pfn.h
->      - optimize memblock_next_valid_pfn as suggested by Matthew Wilcox
-> V7: - fix i386 compilation error. refine the commit description
-> V6: - simplify the codes, move arm/arm64 common codes to one file.
->      - refine patches as suggested by Danial Vacek and Ard Biesheuvel
-> V5: - further refining as suggested by Danial Vacek. Make codes
->        arm/arm64 more arch specific
-> V4: - refine patches as suggested by Danial Vacek and Wei Yang
->      - optimized on arm besides arm64
-> V3: - fix 2 issues reported by kbuild test robot
-> V2: - rebase to mmotm latest
->      - remain memblock_next_valid_pfn on arm64
->      - refine memblock_search_pfn_regions and pfn_valid_region
->
-> Jia He (6):
->    arm: arm64: introduce CONFIG_HAVE_MEMBLOCK_PFN_VALID
->    mm: page_alloc: remain memblock_next_valid_pfn() on arm/arm64
->    arm: arm64: page_alloc: reduce unnecessary binary search in
->      memblock_next_valid_pfn()
->    mm/memblock: introduce memblock_search_pfn_regions()
->    arm: arm64: introduce pfn_valid_region()
->    mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
->
->   arch/arm/Kconfig          |  4 +++
->   arch/arm/mm/init.c        |  1 +
->   arch/arm64/Kconfig        |  4 +++
->   arch/arm64/mm/init.c      |  1 +
->   include/linux/early_pfn.h | 79 +++++++++++++++++++++++++++++++++++++++++++++++
->   include/linux/memblock.h  |  2 ++
->   include/linux/mmzone.h    | 18 ++++++++++-
->   mm/Kconfig                |  3 ++
->   mm/memblock.c             |  9 ++++++
->   mm/page_alloc.c           |  5 ++-
->   10 files changed, 124 insertions(+), 2 deletions(-)
->   create mode 100644 include/linux/early_pfn.h
->
+1.8.3.1
