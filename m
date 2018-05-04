@@ -1,109 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E0AF6B000C
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 00:27:20 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 3-v6so10025810wry.0
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 21:27:20 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id t24-v6si1212741edm.246.2018.05.03.21.27.17
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7045D6B0011
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 00:30:57 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y12so8476386pfe.8
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 21:30:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g1-v6sor2446711plt.70.2018.05.03.21.30.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 May 2018 21:27:18 -0700 (PDT)
-Subject: Re: [PATCH] memcg, hugetlb: pages allocated for hugetlb's overcommit
- will be charged to memcg
-References: <ecb737e9-ccec-2d7e-45d9-91884a669b58@ascade.co.jp>
- <dc21a4ac-b57f-59a8-f97a-90a59d5a59cd@oracle.com>
- <c9019050-7c89-86c3-93fc-9beb64e43ed3@ascade.co.jp>
- <249d53f4-225d-8a11-d557-b915fa4fa9cb@oracle.com>
- <a696eccd-24f3-9368-5baa-afbd3628468a@ascade.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <fae2dde5-00b0-f12c-66ff-8b69351805a9@oracle.com>
-Date: Thu, 3 May 2018 21:26:39 -0700
-MIME-Version: 1.0
-In-Reply-To: <a696eccd-24f3-9368-5baa-afbd3628468a@ascade.co.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 03 May 2018 21:30:56 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH] mm/page_alloc: use ac->high_zoneidx for classzone_idx
+Date: Fri,  4 May 2018 13:30:46 +0900
+Message-Id: <1525408246-14768-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: TSUKADA Koutaro <tsukada@ascade.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Ye Xiaolong <xiaolong.ye@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 05/03/2018 05:09 PM, TSUKADA Koutaro wrote:
-> On 2018/05/03 11:33, Mike Kravetz wrote:
->> On 05/01/2018 11:54 PM, TSUKADA Koutaro wrote:
->>> On 2018/05/02 13:41, Mike Kravetz wrote:
->>>> What is the reason for not charging pages at allocation/reserve time?  I am
->>>> not an expert in memcg accounting, but I would think the pages should be
->>>> charged at allocation time.  Otherwise, a task could allocate a large number
->>>> of (reserved) pages that are not charged to a memcg.  memcg charges in other
->>>> code paths seem to happen at huge page allocation time.
->>>
->>> If we charge to memcg at page allocation time, the new page is not yet
->>> registered in rmap, so it will be accounted as 'cache' inside the memcg. Then,
->>> after being registered in rmap, memcg will account as 'RSS' if the task moves
->>> cgroup, so I am worried about the possibility of inconsistency in statistics
->>> (memory.stat).
->>>
->>> As you said, in this patch, there may be a problem that a memory leak occurs
->>> due to unused pages after being reserved.
->>>
->>>>> This patch targets RHELSA(kernel-alt-4.11.0-45.6.1.el7a.src.rpm).
->>>>
->>>> It would be very helpful to rebase this patch on a recent mainline kernel.
->>>> The code to allocate surplus huge pages has been significantly changed in
->>>> recent kernels.
->>>>
->>>> I have no doubt that this is a real issue and we are not correctly charging
->>>> surplus to a memcg.  But your patch will be hard to evaluate when based on
->>>> an older distro kernel.
->>> I apologize for the patch of the old kernel. The patch was rewritten
->>> for 4.17-rc2(6d08b06).
->>
->> Thank you very much for rebasing the patch.
->>
->> I did not look closely at your patch until now.  My first thought was that
->> you  were changing/expanding the existing accounting.  However, it appears
->> that you want to account for hugetlb surplus pages in the memory cgroup.
->> Is there any reason why the hugetlb cgroup resource controller does not meet
->> your needs?  It a quick look at the code, it does appear to handle surplus
->> pages correctly.
-> 
-> Yes, basically it is exactly what you are talking about, but my usage is
-> somewhat special. I would like users who submit jobs on the HPC cluster to use
-> the hugetlb page. When submitting a job, the user specifies a memory resource
-> (for example, sbatch --mem in slurm).
-> 
-> If the user specifies 10GB, we assume that the system administrator has set the
-> limit of 10GB for memory cgroup and hugetlb cgroup respectively, and does not
-> create a hugetlb pool and sets it so that can overcommit. Then, users can use
-> 10GB normal pages and more 10GB hugetlb page by overcommitting, which means
-> user can use 20GB totaly. However, the administrator should restrict the normal
-> page and hugetlb page to 10GB in total.
-> 
-> Since it is difficult to estimate the ratio used by user of normal pages and
-> hugetlb pages, setting limits of 2 GB to memory cgroup and 8 GB to hugetlb
-> cgroup is not very good idea.
-> 
-> In such a case, with my patch, I thought that the administrator can manage the
-> resources just by setting 10GB for the limit of memory cgoup(No limit is set
-> for hugetlb cgroup).
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Thank you for the explanation of your use case.  I now understand what
-you were trying to accomplish with your patch.
+Currently, we use the zone index of preferred_zone which represents
+the best matching zone for allocation, as classzone_idx. It has a problem
+on NUMA system with ZONE_MOVABLE.
 
-Your use case reminds me of the session at LSFMM titled "swap accounting".
-https://lwn.net/Articles/753162/
+In NUMA system, it can be possible that each node has different populated
+zones. For example, node 0 could have DMA/DMA32/NORMAL/MOVABLE zone and
+node 1 could have only NORMAL zone. In this setup, allocation request
+initiated on node 0 and the one on node 1 would have different
+classzone_idx, 3 and 2, respectively, since their preferred_zones are
+different. If they are handled by only their own node, there is no problem.
+However, if they are somtimes handled by the remote node, the problem
+would happen.
 
-I hope someone with more cgroup expertise (Johannes? Aneesh?) can provide
-comments.  My experience in that area is limited.
+In the following setup, allocation initiated on node 1 will have some
+precedence than allocation initiated on node 0 when former allocation is
+processed on node 0 due to not enough memory on node 1. They will have
+different lowmem reserve due to their different classzone_idx thus
+an watermark bars are also different.
 
-One question that comes to mind is "Why would the user/application writer
-use hugetlbfs overcommit instead of THP?".  For hugetlbfs overcommit, they
-need to be prepared for huge page allocations to fail.  So, in some cases
-they may not be able to use any hugetlbfs pages.  This is not much different
-than THP.  However, in the THP case huge page allocation failures and fall
-back to base pages is transparent to the user.  With THP, the normal memory
-cgroup controller should work well.
+root@ubuntu:/sys/devices/system/memory# cat /proc/zoneinfo
+Node 0, zone      DMA
+  per-node stats
+...
+  pages free     3965
+        min      5
+        low      8
+        high     11
+        spanned  4095
+        present  3998
+        managed  3977
+        protection: (0, 2961, 4928, 5440)
+...
+Node 0, zone    DMA32
+  pages free     757955
+        min      1129
+        low      1887
+        high     2645
+        spanned  1044480
+        present  782303
+        managed  758116
+        protection: (0, 0, 1967, 2479)
+...
+Node 0, zone   Normal
+  pages free     459806
+        min      750
+        low      1253
+        high     1756
+        spanned  524288
+        present  524288
+        managed  503620
+        protection: (0, 0, 0, 4096)
+...
+Node 0, zone  Movable
+  pages free     130759
+        min      195
+        low      326
+        high     457
+        spanned  1966079
+        present  131072
+        managed  131072
+        protection: (0, 0, 0, 0)
+...
+Node 1, zone      DMA
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  0
+        present  0
+        managed  0
+        protection: (0, 0, 1006, 1006)
+Node 1, zone    DMA32
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  0
+        present  0
+        managed  0
+        protection: (0, 0, 1006, 1006)
+Node 1, zone   Normal
+  per-node stats
+...
+  pages free     233277
+        min      383
+        low      640
+        high     897
+        spanned  262144
+        present  262144
+        managed  257744
+        protection: (0, 0, 0, 0)
+...
+Node 1, zone  Movable
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  262144
+        present  0
+        managed  0
+        protection: (0, 0, 0, 0)
+
+min watermark for NORMAL zone on node 0
+allocation initiated on node 0: 750 + 4096 = 4846
+allocation initiated on node 1: 750 + 0 = 750
+
+This watermark difference could cause too many numa_miss allocation
+in some situation and then performance could be downgraded.
+
+Recently, there was a regression report about this problem on CMA patches
+since CMA memory are placed in ZONE_MOVABLE by those patches. I checked
+that problem is disappeared with this fix that uses high_zoneidx
+for classzone_idx.
+
+http://lkml.kernel.org/r/20180102063528.GG30397@yexl-desktop
+
+Using high_zoneidx for classzone_idx is more consistent way than previous
+approach because system's memory layout doesn't affect anything to it.
+With this patch, both classzone_idx on above example will be 3 so will
+have the same min watermark.
+
+allocation initiated on node 0: 750 + 4096 = 4846
+allocation initiated on node 1: 750 + 4096 = 4846
+
+Reported-by: Ye Xiaolong <xiaolong.ye@intel.com>
+Tested-by: Ye Xiaolong <xiaolong.ye@intel.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/internal.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/internal.h b/mm/internal.h
+index 228dd66..e1d7376 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -123,7 +123,7 @@ struct alloc_context {
+ 	bool spread_dirty_pages;
+ };
+ 
+-#define ac_classzone_idx(ac) zonelist_zone_idx(ac->preferred_zoneref)
++#define ac_classzone_idx(ac) (ac->high_zoneidx)
+ 
+ /*
+  * Locate the struct page for both the matching buddy in our
 -- 
-Mike Kravetz
+2.7.4
