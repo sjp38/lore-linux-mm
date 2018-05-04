@@ -1,79 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DD576B000C
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 12:51:24 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b192-v6so2268587wmb.1
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 09:51:24 -0700 (PDT)
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id l76si1611021wmi.188.2018.05.04.09.51.22
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 418426B000C
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 12:54:27 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id y7-v6so16435111qtn.3
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 09:54:27 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id n12-v6si1755333qtb.361.2018.05.04.09.54.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 May 2018 09:51:22 -0700 (PDT)
-Date: Fri, 4 May 2018 17:50:51 +0100
-From: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Subject: Re: [PATCH] mm/memory_hotplug: Fix leftover use of struct page
- during hotplug
-Message-ID: <20180504175051.000009e8@huawei.com>
-In-Reply-To: <20180504160844.GB23560@dhcp22.suse.cz>
-References: <20180504085311.1240-1-Jonathan.Cameron@huawei.com>
-	<20180504160844.GB23560@dhcp22.suse.cz>
+        Fri, 04 May 2018 09:54:26 -0700 (PDT)
+Subject: Re: [PATCH v8 0/6] optimize memblock_next_valid_pfn and
+ early_pfn_valid on arm and arm64
+References: <1523431317-30612-1-git-send-email-hejianet@gmail.com>
+ <05b0fcf2-7670-101e-d4ab-1f656ff6b02f@gmail.com>
+ <CACjP9X8bHmrxmd7ZPcfQq6Eq0Mzwmt0saOR3Ph53gp2n-dcKBQ@mail.gmail.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <23b14717-0f4a-10f2-5118-7cb8445fbdab@oracle.com>
+Date: Fri, 4 May 2018 12:53:40 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+In-Reply-To: <CACjP9X8bHmrxmd7ZPcfQq6Eq0Mzwmt0saOR3Ph53gp2n-dcKBQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, linuxarm@huawei.com, Pavel Tatashin <pasha.tatashin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Daniel Vacek <neelx@redhat.com>, Jia He <hejianet@gmail.com>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, open list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Fri, 4 May 2018 18:08:45 +0200
-Michal Hocko <mhocko@kernel.org> wrote:
+> I'm wondering, ain't simple enabling of config
+> DEFERRED_STRUCT_PAGE_INIT provide even better speed-up? If that is the
+> case then it seems like this series is not needed at all, right?
+> I am not sure why is this config optional. It looks like it could be
+> enabled by default or even unconditionally considering that with
+> commit c9e97a1997fb ("mm: initialize pages on demand during boot") the
+> deferred code is statically disabled after all the pages are
+> initialized.
 
-> On Fri 04-05-18 09:53:11, Jonathan Cameron wrote:
-> > The case of a new numa node got missed in avoiding using
-> > the node info from page_struct during hotplug.  In this
-> > path we have a call to register_mem_sect_under_node (which allows
-> > us to specify it is hotplug so don't change the node),
-> > via link_mem_sections which unfortunately does not.  
-> 
-> I have hard time to parse the problem description. Could you be more
-> specific and describe the user visible effect along with steps to
-> trigger the issue?
+Hi Daniel,
 
-Hi Michal,
+Currently, deferred struct pages are initialized in parallel only on NUMA machines. I would like to make a change to use all the available CPUs even on a single socket systems, but that is not there yet. So, I believe Jia's performance improvements are still relevant.
 
-Sure, the result is that (with a new memory only node) we never
-successfully call register_mem_sect_under_node so don't get the
-memory associated with the node in sysfs and meminfo for the
-node doesn't report it.
-
-It came up whilst testing some arm64 hotplug patches, but appears
-to be universal.  Whilst I'm triggering it by removing then reinserting
-memory to a node with no other elements (thus making the node disappear
-then appear again), it appears it would happen on hotplugging memory
-where there was none before and it doesn't seem to be related the
-arm64 patches.  These patches call __add_pages (where most of the issue was
-fixed by Pavel's patch). If there is a node at the time of the __add_pages
-call then all is well as it calls register_mem_sect_under_node from
-there with check_nid set to false.  Without a node that function returns
-having not done the sysfs related stuff as there is no node to use.
-This is expected but it is the resulting path that fails...
-
-Exact path to the problem is as follows:
-
-mm/memory_hotplug.c : add_memory_resource
-The node is not online so we enter the
-if (new_node) twice, on the second such block there is a call to
-link_mem_sections which calls into
-drivers/node.c: link_mem_sections which calls
-drivers/node.c: register_mem_sect_under_node which calls
-get_nid_for_pfn and keeps trying until the output of that matches
-the expected node (passed all the way down from add_memory_resource)
-
-It is effectively the same fix as the one referred to in the fixes
-tag just in the code path for a new node where the comments point
-out we have to rerun the link creation because it will have failed
-in register_new_memory (as there was no node at the time).
-(actually that comment is wrong now as we don't have register_new_memory
-any more it got renamed to hotplug_memory_register in Pavel's patch).
-
-Jonathan
+Thank you,
+Pavel
