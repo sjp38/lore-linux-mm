@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E8F46B0266
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 11:45:53 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e74so790147wmg.5
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 08:45:53 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DF37B6B0269
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 11:45:54 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f188-v6so1105397wme.2
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 08:45:54 -0700 (PDT)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id m79si1578218wmh.5.2018.05.04.08.45.52
+        by mx.google.com with ESMTPS id u55-v6si13169196wrf.181.2018.05.04.08.45.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 04 May 2018 08:45:52 -0700 (PDT)
+        Fri, 04 May 2018 08:45:53 -0700 (PDT)
 From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 1/5] spinlock: atomic_dec_and_lock: Add an irqsave variant
-Date: Fri,  4 May 2018 17:45:29 +0200
-Message-Id: <20180504154533.8833-2-bigeasy@linutronix.de>
+Subject: [PATCH 2/5] mm/backing-dev: Use irqsave variant of atomic_dec_and_lock()
+Date: Fri,  4 May 2018 17:45:30 +0200
+Message-Id: <20180504154533.8833-3-bigeasy@linutronix.de>
 In-Reply-To: <20180504154533.8833-1-bigeasy@linutronix.de>
 References: <20180504154533.8833-1-bigeasy@linutronix.de>
 MIME-Version: 1.0
@@ -24,64 +24,33 @@ Cc: tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <ming
 
 From: Anna-Maria Gleixner <anna-maria@linutronix.de>
 
-There are in-tree users of atomic_dec_and_lock() which must acquire the
-spin lock with interrupts disabled. To workaround the lack of an irqsave
-variant of atomic_dec_and_lock() they use local_irq_save() at the call
-site. This causes extra code and creates in some places unneeded long
-interrupt disabled times. These places need also extra treatment for
-PREEMPT_RT due to the disconnect of the irq disabling and the lock
-function.
-
-Implement the missing irqsave variant of the function.
+The irqsave variant of atomic_dec_and_lock handles irqsave/restore when
+taking/releasing the spin lock. With this variant the call of
+local_irq_save/restore is no longer required.
 
 Signed-off-by: Anna-Maria Gleixner <anna-maria@linutronix.de>
 Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 ---
- include/linux/spinlock.h |  5 +++++
- lib/dec_and_lock.c       | 16 ++++++++++++++++
- 2 files changed, 21 insertions(+)
+ mm/backing-dev.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-diff --git a/include/linux/spinlock.h b/include/linux/spinlock.h
-index 4894d322d258..803536c992f5 100644
---- a/include/linux/spinlock.h
-+++ b/include/linux/spinlock.h
-@@ -409,6 +409,11 @@ extern int _atomic_dec_and_lock(atomic_t *atomic, spin=
-lock_t *lock);
- #define atomic_dec_and_lock(atomic, lock) \
- 		__cond_lock(lock, _atomic_dec_and_lock(atomic, lock))
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 023190c69dce..c28418914591 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -484,11 +484,8 @@ void wb_congested_put(struct bdi_writeback_congested *=
+congested)
+ {
+ 	unsigned long flags;
 =20
-+extern int _atomic_dec_and_lock_irqsave(atomic_t *atomic, spinlock_t *lock,
-+					unsigned long *flags);
-+#define atomic_dec_and_lock_irqsave(atomic, lock, flags) \
-+		__cond_lock(lock, _atomic_dec_and_lock_irqsave(atomic, lock, &(flags)))
-+
- int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *lock_mask,
- 			   size_t max_size, unsigned int cpu_mult,
- 			   gfp_t gfp);
-diff --git a/lib/dec_and_lock.c b/lib/dec_and_lock.c
-index 347fa7ac2e8a..9555b68bb774 100644
---- a/lib/dec_and_lock.c
-+++ b/lib/dec_and_lock.c
-@@ -33,3 +33,19 @@ int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *l=
-ock)
- }
+-	local_irq_save(flags);
+-	if (!atomic_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
+-		local_irq_restore(flags);
++	if (!atomic_dec_and_lock_irqsave(&congested->refcnt, &cgwb_lock, flags))
+ 		return;
+-	}
 =20
- EXPORT_SYMBOL(_atomic_dec_and_lock);
-+
-+int _atomic_dec_and_lock_irqsave(atomic_t *atomic, spinlock_t *lock,
-+				 unsigned long *flags)
-+{
-+	/* Subtract 1 from counter unless that drops it to 0 (ie. it was 1) */
-+	if (atomic_add_unless(atomic, -1, 1))
-+		return 0;
-+
-+	/* Otherwise do it the slow way */
-+	spin_lock_irqsave(lock, *flags);
-+	if (atomic_dec_and_test(atomic))
-+		return 1;
-+	spin_unlock_irqrestore(lock, *flags);
-+	return 0;
-+}
-+EXPORT_SYMBOL(_atomic_dec_and_lock_irqsave);
+ 	/* bdi might already have been destroyed leaving @congested unlinked */
+ 	if (congested->__bdi) {
 --=20
 2.17.0
