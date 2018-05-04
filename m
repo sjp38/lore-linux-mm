@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A957D6B0269
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 16:55:58 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id m68so18147022pfm.20
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 13:55:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f9-v6sor3306127pge.41.2018.05.04.13.55.57
+	by kanga.kvack.org (Postfix) with ESMTP id 83D8A6B0003
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 17:12:48 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id z24so11397907pfn.5
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 14:12:48 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id b36-v6si17072127pli.30.2018.05.04.14.12.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 04 May 2018 13:55:57 -0700 (PDT)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH] mm: memcontrol: drain stocks on resize limit
-Date: Fri,  4 May 2018 13:55:48 -0700
-Message-Id: <20180504205548.110696-1-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 04 May 2018 14:12:47 -0700 (PDT)
+Date: Fri, 4 May 2018 14:12:44 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: Proof-of-concept: better(?) page-table manipulation API
+Message-ID: <20180504211244.GD29829@bombadil.infradead.org>
+References: <20180424154355.mfjgkf47kdp2by4e@black.fi.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180424154355.mfjgkf47kdp2by4e@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Resizing the memcg limit for cgroup-v2 drains the stocks before
-triggering the memcg reclaim. Do the same for cgroup-v1 to make the
-behavior consistent.
+On Tue, Apr 24, 2018 at 06:43:56PM +0300, Kirill A. Shutemov wrote:
+> +struct pt_ptr {
+> +	unsigned long *ptr;
+> +	int lvl;
+> +};
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- mm/memcontrol.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+On x86, you've got three kinds of paging scheme, referred to in the manual
+as 32-bit, PAE and 4-level.  On 32-bit, you've got 3 levels (Directory,
+Table and Entry), and you can encode those three levels in the bottom
+two bits of the pointer.  With PAE and 4L, pointers are 64-bit aligned,
+so you can encode up to eight levels in the bottom three bits of the
+pointer.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 25b148c2d222..e2d33a37f971 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2463,6 +2463,7 @@ static int mem_cgroup_resize_max(struct mem_cgroup *memcg,
- 				 unsigned long max, bool memsw)
- {
- 	bool enlarge = false;
-+	bool drained = false;
- 	int ret;
- 	bool limits_invariant;
- 	struct page_counter *counter = memsw ? &memcg->memsw : &memcg->memory;
-@@ -2493,6 +2494,12 @@ static int mem_cgroup_resize_max(struct mem_cgroup *memcg,
- 		if (!ret)
- 			break;
- 
-+		if (!drained) {
-+			drain_all_stock(memcg);
-+			drained = true;
-+			continue;
-+		}
-+
- 		if (!try_to_free_mem_cgroup_pages(memcg, 1,
- 					GFP_KERNEL, !memsw)) {
- 			ret = -EBUSY;
--- 
-2.17.0.441.gb46fe60e1d-goog
+> +struct pt_val {
+> +	unsigned long val;
+> +	int lvl;
+> +};
+
+I don't think it's possible to shrink this down to a single ulong.
+_Maybe_ it is if you can squirm a single bit free from the !pte_present
+case.
+
+... this is only for x86 4L and maybe 32 paging, right?  It'd need to
+use unsigned long val[2] for PAE.
+
+I'm going to think about this some more.  There's a lot of potential here.
