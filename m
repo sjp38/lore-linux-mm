@@ -1,57 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BC2F6B0266
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 10:30:28 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id t24-v6so15939635qtn.7
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 07:30:28 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u10-v6si369789qvm.118.2018.05.04.07.30.27
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 76C156B000C
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 10:50:57 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id f19-v6so13904775pgv.4
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 07:50:57 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id g59-v6si16692976plb.381.2018.05.04.07.50.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 May 2018 07:30:27 -0700 (PDT)
-Date: Fri, 4 May 2018 16:30:21 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v3 0/9] trace_uprobe: Support SDT markers having
- reference count (semaphore)
-Message-ID: <20180504143021.GB26151@redhat.com>
-References: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
- <f77789c0-9277-23bf-9abb-92f3f36c4baa@linux.ibm.com>
+        Fri, 04 May 2018 07:50:56 -0700 (PDT)
+Date: Fri, 4 May 2018 10:50:52 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [v2] mm: access to uninitialized struct page
+Message-ID: <20180504105052.429106ca@gandalf.local.home>
+In-Reply-To: <CAGM2rebLfmWLybzNDPt-HTjZY2brkJ_8Bq37xVG_QDs=G+VuxQ@mail.gmail.com>
+References: <20180426202619.2768-1-pasha.tatashin@oracle.com>
+	<20180504082731.GA2782@outlook.office365.com>
+	<CAGM2rebLfmWLybzNDPt-HTjZY2brkJ_8Bq37xVG_QDs=G+VuxQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f77789c0-9277-23bf-9abb-92f3f36c4baa@linux.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ravi Bangoria <ravi.bangoria@linux.ibm.com>
-Cc: mhiramat@kernel.org, Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: avagin@virtuozzo.com, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, tglx@linutronix.de, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, Fengguang Wu <fengguang.wu@intel.com>, Dennis Zhou <dennisszhou@gmail.com>
 
-Sorry Ravi, I saved the new version for review and forgot about it... I'll
-try to do this on weekend.
+On Fri, 04 May 2018 12:47:53 +0000
+Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
 
-On 05/03, Ravi Bangoria wrote:
+> Hi Andrei,
 > 
-> On 04/17/2018 10:02 AM, Ravi Bangoria wrote:
-> > Userspace Statically Defined Tracepoints[1] are dtrace style markers
-> > inside userspace applications. Applications like PostgreSQL, MySQL,
-> > Pthread, Perl, Python, Java, Ruby, Node.js, libvirt, QEMU, glib etc
-> > have these markers embedded in them. These markers are added by developer
-> > at important places in the code. Each marker source expands to a single
-> > nop instruction in the compiled code but there may be additional
-> > overhead for computing the marker arguments which expands to couple of
-> > instructions. In case the overhead is more, execution of it can be
-> > omitted by runtime if() condition when no one is tracing on the marker:
-> >
-> >     if (reference_counter > 0) {
-> >         Execute marker instructions;
-> >     }   
-> >
-> > Default value of reference counter is 0. Tracer has to increment the 
-> > reference counter before tracing on a marker and decrement it when
-> > done with the tracing.
+> Could you please provide me with scripts to reproduce this issue?
 > 
-> Hi Oleg, Masami,
-> 
-> Can you please review this :) ?
-> 
-> Thanks.
-> 
+>
+
+And the config that was used. Just saying that the commit doesn't boot
+isn't very useful.
+
+-- Steve
