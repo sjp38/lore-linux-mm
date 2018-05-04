@@ -1,40 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 76C156B000C
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 10:50:57 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id f19-v6so13904775pgv.4
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 07:50:57 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g59-v6si16692976plb.381.2018.05.04.07.50.56
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DE2726B000C
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 10:55:33 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 6-v6so2492932itl.6
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 07:55:33 -0700 (PDT)
+Received: from resqmta-po-05v.sys.comcast.net (resqmta-po-05v.sys.comcast.net. [2001:558:fe16:19:96:114:154:164])
+        by mx.google.com with ESMTPS id s64-v6si14457065ioi.148.2018.05.04.07.55.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 May 2018 07:50:56 -0700 (PDT)
-Date: Fri, 4 May 2018 10:50:52 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [v2] mm: access to uninitialized struct page
-Message-ID: <20180504105052.429106ca@gandalf.local.home>
-In-Reply-To: <CAGM2rebLfmWLybzNDPt-HTjZY2brkJ_8Bq37xVG_QDs=G+VuxQ@mail.gmail.com>
-References: <20180426202619.2768-1-pasha.tatashin@oracle.com>
-	<20180504082731.GA2782@outlook.office365.com>
-	<CAGM2rebLfmWLybzNDPt-HTjZY2brkJ_8Bq37xVG_QDs=G+VuxQ@mail.gmail.com>
+        Fri, 04 May 2018 07:55:32 -0700 (PDT)
+Date: Fri, 4 May 2018 09:55:30 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v4 07/16] slub: Remove page->counters
+In-Reply-To: <20180503182823.GB1562@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.21.1805040953540.10847@nuc-kabylake>
+References: <20180430202247.25220-1-willy@infradead.org> <20180430202247.25220-8-willy@infradead.org> <alpine.DEB.2.21.1805011148060.16325@nuc-kabylake> <20180502172639.GC2737@bombadil.infradead.org> <20180502221702.a2ezdae6akchroze@black.fi.intel.com>
+ <20180503005223.GB21199@bombadil.infradead.org> <alpine.DEB.2.21.1805031001510.6701@nuc-kabylake> <20180503182823.GB1562@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: avagin@virtuozzo.com, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, tglx@linutronix.de, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, Fengguang Wu <fengguang.wu@intel.com>, Dennis Zhou <dennisszhou@gmail.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>
 
-On Fri, 04 May 2018 12:47:53 +0000
-Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+On Thu, 3 May 2018, Matthew Wilcox wrote:
 
-> Hi Andrei,
-> 
-> Could you please provide me with scripts to reproduce this issue?
-> 
+> OK.  Do you want the conversion of slub to using slub_freelist and slub_list
+> as part of this patch series as well, then?
+
+Not sure if that is needed. Dont like allocator specific names.
+
+> Oh, and what do you want to do about cache_from_obj() in mm/slab.h?
+> That relies on having slab_cache be in the same location in struct
+> page as slub_cache.  Maybe something like this?
 >
+>         page = virt_to_head_page(x);
+> #ifdef CONFIG_SLUB
+>         cachep = page->slub_cache;
+> #else
+>         cachep = page->slab_cache;
+> #endif
+>         if (slab_equal_or_root(cachep, s))
+>                 return cachep;
 
-And the config that was used. Just saying that the commit doesn't boot
-isn't very useful.
-
--- Steve
+Name the field "cache" instead of sl?b_cache?
