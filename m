@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 77FC66B0270
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 14:33:28 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id s3so17970180pfh.0
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 11:33:28 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 601B76B0271
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 14:33:29 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b64so17978026pfl.13
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 11:33:29 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e92-v6si16325724pld.16.2018.05.04.11.33.27
+        by mx.google.com with ESMTPS id b5-v6si16824272plm.202.2018.05.04.11.33.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Fri, 04 May 2018 11:33:27 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 13/17] mm: Add hmm_data to struct page
-Date: Fri,  4 May 2018 11:33:14 -0700
-Message-Id: <20180504183318.14415-14-willy@infradead.org>
+Subject: [PATCH v5 14/17] slab,slub: Remove rcu_head size checks
+Date: Fri,  4 May 2018 11:33:15 -0700
+Message-Id: <20180504183318.14415-15-willy@infradead.org>
 In-Reply-To: <20180504183318.14415-1-willy@infradead.org>
 References: <20180504183318.14415-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,64 +22,82 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundatio
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Make hmm_data an explicit member of the struct page union.
+rcu_head may now grow larger than list_head without affecting slab or
+slub.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Acked-by: Christoph Lameter <cl@linux.com>
 ---
- include/linux/hmm.h      |  8 ++------
- include/linux/mm_types.h | 14 +++++++++-----
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ mm/slab.c |  2 --
+ mm/slub.c | 27 ++-------------------------
+ 2 files changed, 2 insertions(+), 27 deletions(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 39988924de3a..91c1b2dccbbb 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -522,9 +522,7 @@ void hmm_devmem_remove(struct hmm_devmem *devmem);
- static inline void hmm_devmem_page_set_drvdata(struct page *page,
- 					       unsigned long data)
+diff --git a/mm/slab.c b/mm/slab.c
+index e387a17d6d56..e6ab1327db25 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1235,8 +1235,6 @@ void __init kmem_cache_init(void)
  {
--	unsigned long *drvdata = (unsigned long *)&page->pgmap;
--
--	drvdata[1] = data;
-+	page->hmm_data = data;
+ 	int i;
+ 
+-	BUILD_BUG_ON(sizeof(((struct page *)NULL)->lru) <
+-					sizeof(struct rcu_head));
+ 	kmem_cache = &kmem_cache_boot;
+ 
+ 	if (!IS_ENABLED(CONFIG_NUMA) || num_possible_nodes() == 1)
+diff --git a/mm/slub.c b/mm/slub.c
+index 57a20f995220..8e2407f69855 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1681,17 +1681,9 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 	__free_pages(page, order);
  }
  
- /*
-@@ -535,9 +533,7 @@ static inline void hmm_devmem_page_set_drvdata(struct page *page,
-  */
- static inline unsigned long hmm_devmem_page_get_drvdata(const struct page *page)
- {
--	const unsigned long *drvdata = (const unsigned long *)&page->pgmap;
+-#define need_reserve_slab_rcu						\
+-	(sizeof(((struct page *)NULL)->lru) < sizeof(struct rcu_head))
 -
--	return drvdata[1];
-+	return page->hmm_data;
+ static void rcu_free_slab(struct rcu_head *h)
+ {
+-	struct page *page;
+-
+-	if (need_reserve_slab_rcu)
+-		page = virt_to_head_page(h);
+-	else
+-		page = container_of((struct list_head *)h, struct page, lru);
++	struct page *page = container_of(h, struct page, rcu_head);
+ 
+ 	__free_slab(page->slab_cache, page);
  }
+@@ -1699,19 +1691,7 @@ static void rcu_free_slab(struct rcu_head *h)
+ static void free_slab(struct kmem_cache *s, struct page *page)
+ {
+ 	if (unlikely(s->flags & SLAB_TYPESAFE_BY_RCU)) {
+-		struct rcu_head *head;
+-
+-		if (need_reserve_slab_rcu) {
+-			int order = compound_order(page);
+-			int offset = (PAGE_SIZE << order) - s->reserved;
+-
+-			VM_BUG_ON(s->reserved != sizeof(*head));
+-			head = page_address(page) + offset;
+-		} else {
+-			head = &page->rcu_head;
+-		}
+-
+-		call_rcu(head, rcu_free_slab);
++		call_rcu(&page->rcu_head, rcu_free_slab);
+ 	} else
+ 		__free_slab(s, page);
+ }
+@@ -3578,9 +3558,6 @@ static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
+ 	s->random = get_random_long();
+ #endif
  
- 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 5a519279dcd5..fa05e6ca31ed 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -150,11 +150,15 @@ struct page {
- 		/** @rcu_head: You can use this to free a page by RCU. */
- 		struct rcu_head rcu_head;
- 
--		/**
--		 * @pgmap: For ZONE_DEVICE pages, this points to the hosting
--		 * device page map.
--		 */
--		struct dev_pagemap *pgmap;
-+		struct {
-+			/**
-+			 * @pgmap: For ZONE_DEVICE pages, this points to the
-+			 * hosting device page map.
-+			 */
-+			struct dev_pagemap *pgmap;
-+			unsigned long hmm_data;
-+			unsigned long _zd_pad_1;	/* uses mapping */
-+		};
- 	};
- 
- 	union {		/* This union is 4 bytes in size. */
+-	if (need_reserve_slab_rcu && (s->flags & SLAB_TYPESAFE_BY_RCU))
+-		s->reserved = sizeof(struct rcu_head);
+-
+ 	if (!calculate_sizes(s, -1))
+ 		goto error;
+ 	if (disable_higher_order_debug) {
 -- 
 2.17.0
