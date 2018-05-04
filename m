@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 418426B000C
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 12:54:27 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id y7-v6so16435111qtn.3
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 09:54:27 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id n12-v6si1755333qtb.361.2018.05.04.09.54.25
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EE3066B0005
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 13:49:56 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id u127so16304182qka.9
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 10:49:56 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e56-v6sor10858262qtc.151.2018.05.04.10.49.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 May 2018 09:54:26 -0700 (PDT)
-Subject: Re: [PATCH v8 0/6] optimize memblock_next_valid_pfn and
- early_pfn_valid on arm and arm64
-References: <1523431317-30612-1-git-send-email-hejianet@gmail.com>
- <05b0fcf2-7670-101e-d4ab-1f656ff6b02f@gmail.com>
- <CACjP9X8bHmrxmd7ZPcfQq6Eq0Mzwmt0saOR3Ph53gp2n-dcKBQ@mail.gmail.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <23b14717-0f4a-10f2-5118-7cb8445fbdab@oracle.com>
-Date: Fri, 4 May 2018 12:53:40 -0400
+        (Google Transport Security);
+        Fri, 04 May 2018 10:49:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CACjP9X8bHmrxmd7ZPcfQq6Eq0Mzwmt0saOR3Ph53gp2n-dcKBQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <22c34b1b-15d9-6a28-d7f2-697bac42bde2@oracle.com>
+References: <20180426202619.2768-1-pasha.tatashin@oracle.com>
+ <20180504082731.GA2782@outlook.office365.com> <CAGM2rebLfmWLybzNDPt-HTjZY2brkJ_8Bq37xVG_QDs=G+VuxQ@mail.gmail.com>
+ <20180504160139.GA4693@outlook.office365.com> <22c34b1b-15d9-6a28-d7f2-697bac42bde2@oracle.com>
+From: Andy Shevchenko <andy.shevchenko@gmail.com>
+Date: Fri, 4 May 2018 20:49:54 +0300
+Message-ID: <CAHp75Vf868eQuZUsmx=D62chUzBeYqdL0BxuOJ1qS17QdT-obw@mail.gmail.com>
+Subject: Re: [v2] mm: access to uninitialized struct page
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vacek <neelx@redhat.com>, Jia He <hejianet@gmail.com>
-Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, open list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrei Vagin <avagin@virtuozzo.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, Ingo Molnar <mingo@kernel.org>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Fengguang Wu <fengguang.wu@intel.com>, Dennis Zhou <dennisszhou@gmail.com>
 
-> I'm wondering, ain't simple enabling of config
-> DEFERRED_STRUCT_PAGE_INIT provide even better speed-up? If that is the
-> case then it seems like this series is not needed at all, right?
-> I am not sure why is this config optional. It looks like it could be
-> enabled by default or even unconditionally considering that with
-> commit c9e97a1997fb ("mm: initialize pages on demand during boot") the
-> deferred code is statically disabled after all the pages are
-> initialized.
+On Fri, May 4, 2018 at 7:03 PM, Pavel Tatashin
+<pasha.tatashin@oracle.com> wrote:
+> Thank you, I will try to figure out what is happening.
 
-Hi Daniel,
++1 is here.
 
-Currently, deferred struct pages are initialized in parallel only on NUMA machines. I would like to make a change to use all the available CPUs even on a single socket systems, but that is not there yet. So, I believe Jia's performance improvements are still relevant.
+The last message I have seen on the console are:
 
-Thank you,
-Pavel
+[    4.690972] Non-volatile memory driver v1.3
+[    4.703360] Linux agpgart interface v0.103
+[    4.710282] loop: module loaded
+
+
+Bisection points to this very patch.
+
+I would suggest to revert ASAP and you may still continue
+investigating on your side.
+
+-- 
+With Best Regards,
+Andy Shevchenko
