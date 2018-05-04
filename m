@@ -1,107 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C4E146B0009
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 20:40:36 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id z195-v6so16081093vke.19
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 17:40:36 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F06A46B000C
+	for <linux-mm@kvack.org>; Thu,  3 May 2018 22:46:13 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id n78so16530669pfj.4
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 19:46:13 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t31sor2364909uat.48.2018.05.03.17.40.35
+        by mx.google.com with SMTPS id q11-v6sor3264638pgr.262.2018.05.03.19.46.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 03 May 2018 17:40:35 -0700 (PDT)
+        Thu, 03 May 2018 19:46:12 -0700 (PDT)
+Subject: Re: [PATCH v8 0/6] optimize memblock_next_valid_pfn and
+ early_pfn_valid on arm and arm64
+References: <1523431317-30612-1-git-send-email-hejianet@gmail.com>
+From: Jia He <hejianet@gmail.com>
+Message-ID: <05b0fcf2-7670-101e-d4ab-1f656ff6b02f@gmail.com>
+Date: Fri, 4 May 2018 10:45:52 +0800
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jJ9Uw9pDOYfBH8iXTVqiQXgNrEqzpk7a5mOCrH0G3CoyA@mail.gmail.com>
-References: <CAGXu5jL9hqQGe672CmvFwqNbtTr=qu7WRwHuS4Vy7o5sX_UTgg@mail.gmail.com>
- <alpine.DEB.2.20.1803072212160.2814@hadrien> <20180308025812.GA9082@bombadil.infradead.org>
- <alpine.DEB.2.20.1803080722300.3754@hadrien> <20180308230512.GD29073@bombadil.infradead.org>
- <alpine.DEB.2.20.1803131818550.3117@hadrien> <20180313183220.GA21538@bombadil.infradead.org>
- <CAGXu5jKLaY2vzeFNaEhZOXbMgDXp4nF4=BnGCFfHFRwL6LXNHA@mail.gmail.com>
- <20180429203023.GA11891@bombadil.infradead.org> <CAGXu5j+N9tt4rxaUMxoZnE-ziqU_yu-jkt-cBZ=R8wmYq6XBTg@mail.gmail.com>
- <20180430201607.GA7041@bombadil.infradead.org> <4ad99a55-9c93-5ea1-5954-3cb6e5ba7df9@rasmusvillemoes.dk>
- <CAGXu5j+tYhQOfVMkZdPzW5CX103LHpm8SYSN51VFLufn0Z0y6Q@mail.gmail.com>
- <4e25ff5b-f8fc-7012-83c2-b56e6928e8bc@rasmusvillemoes.dk> <CAGXu5jJ9Uw9pDOYfBH8iXTVqiQXgNrEqzpk7a5mOCrH0G3CoyA@mail.gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 3 May 2018 17:40:34 -0700
-Message-ID: <CAGXu5jJ1dA4MA-MuzGXdF+sGMZN17BMf-WOod=hFgqt=e7zaKA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: Add kvmalloc_ab_c and kvzalloc_struct
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1523431317-30612-1-git-send-email-hejianet@gmail.com>
+Content-Type: text/plain; charset=gbk; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Daniel Vetter <daniel.vetter@intel.com>, Matthew Wilcox <willy@infradead.org>, Julia Lawall <julia.lawall@lip6.fr>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>, cocci@systeme.lip6.fr, Himanshu Jha <himanshujha199640@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Daniel Vacek <neelx@redhat.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, May 3, 2018 at 5:36 PM, Kees Cook <keescook@chromium.org> wrote:
-> On Thu, May 3, 2018 at 4:00 PM, Rasmus Villemoes
-> <linux@rasmusvillemoes.dk> wrote:
->> On 2018-05-01 19:00, Kees Cook wrote:
->>> On Mon, Apr 30, 2018 at 2:29 PM, Rasmus Villemoes
->>> <linux@rasmusvillemoes.dk> wrote:
->>>>
->>>> gcc 5.1+ (I think) have the __builtin_OP_overflow checks that should
->>>> generate reasonable code. Too bad there's no completely generic
->>>> check_all_ops_in_this_expression(a+b*c+d/e, or_jump_here). Though it's
->>>> hard to define what they should be checked against - probably would
->>>> require all subexpressions (including the variables themselves) to have
->>>> the same type.
->>>>
->>>> plug: https://lkml.org/lkml/2015/7/19/358
->>>
->>> That's a very nice series. Why did it never get taken?
->>
->> Well, nobody seemed particularly interested, and then
->> https://lkml.org/lkml/2015/10/28/215 happened... but he did later seem
->> to admit that it could be useful for the multiplication checking, and
->> that "the gcc interface for multiplication overflow is fine".
->
-> Oh, excellent. Thank you for that pointer! That conversation covered a
-> lot of ground. I need to think a little more about how to apply the
-> thoughts there with the kmalloc() needs and the GPU driver needs...
->
->> I still think even for unsigned types overflow checking can be subtle. E.g.
->>
->> u32 somevar;
->>
->> if (somevar + sizeof(foo) < somevar)
->>   return -EOVERFLOW;
->> somevar += sizeof(this);
->>
->> is broken, because the LHS is promoted to unsigned long/size_t, then so
->> is the RHS for the comparison, and the comparison is thus always false
->> (on 64bit). It gets worse if the two types are more "opaque", and in any
->> case it's not always easy to verify at a glance that the types are the
->> same, or at least that the expression of the widest type is on the RHS.
->
-> That's an excellent example, yes. (And likely worth including in the
-> commit log somewhere.)
->
->>
->>> It seems to do the right things quite correctly.
->>
->> Yes, I wouldn't suggest it without the test module verifying corner
->> cases, and checking it has the same semantics whether used with old or
->> new gcc.
->>
->> Would you shepherd it through if I updated the patches and resent?
->
-> Yes, though we may need reworking if we actually want to do the
-> try/catch style (since that was talked about with GPU stuff too...)
->
-> Either way, yes, a refresh would be lovely! :)
+Ping
 
-Whatever the case, I think we need to clean up all the kmalloc() math
-anyway. As mentioned earlier, there are a handful of more complex
-cases, but the vast majority are just A * B. I've put up a series here
-now, and I'll send it out soon. I want to think more about 3-factor
-products, addition, etc:
-
-https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/log/?h=kspp/kmalloc/2-factor-products
-
-The commit logs need more details (i.e. about making constants the
-second argument for optimal compiler results, etc), but there's a
-Coccinelle-generated first pass.
-
--Kees
+Sorry if I am a little bit verbose, but it can speedup the arm64 booting time 
+indeed.
 
 -- 
-Kees Cook
-Pixel Security
+Cheers,
+Jia
+
+On 4/11/2018 3:21 PM, Jia He Wrote:
+> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+> where possible") tried to optimize the loop in memmap_init_zone(). But
+> there is still some room for improvement.
+>
+> Patch 1 introduce new config to make codes more generic
+> Patch 2 remain the memblock_next_valid_pfn on arm and arm64
+> Patch 3 optimizes the memblock_next_valid_pfn()
+> Patch 4~6 optimizes the early_pfn_valid()
+>
+> As for the performance improvement, after this set, I can see the time
+> overhead of memmap_init() is reduced from 41313 us to 24389 us in my
+> armv8a server(QDF2400 with 96G memory).
+>
+> Without this patchset:
+> [  117.113677] before memmap_init
+> [  117.118195] after  memmap_init
+>>>> memmap_init takes 4518 us
+> [  117.121446] before memmap_init
+> [  117.154992] after  memmap_init
+>>>> memmap_init takes 33546 us
+> [  117.158241] before memmap_init
+> [  117.161490] after  memmap_init
+>>>> memmap_init takes 3249 us
+>>>> totally takes 41313 us
+> With this patchset:
+> [  123.222962] before memmap_init
+> [  123.226819] after  memmap_init
+>>>> memmap_init takes 3857
+> [  123.230070] before memmap_init
+> [  123.247354] after  memmap_init
+>>>> memmap_init takes 17284
+> [  123.250604] before memmap_init
+> [  123.253852] after  memmap_init
+>>>> memmap_init takes 3248
+>>>> totally takes 24389 us
+> Attached the memblock region information in my server.
+> [   86.956758] Zone ranges:
+> [   86.959452]   DMA      [mem 0x0000000000200000-0x00000000ffffffff]
+> [   86.966041]   Normal   [mem 0x0000000100000000-0x00000017ffffffff]
+> [   86.972631] Movable zone start for each node
+> [   86.977179] Early memory node ranges
+> [   86.980985]   node   0: [mem 0x0000000000200000-0x000000000021ffff]
+> [   86.987666]   node   0: [mem 0x0000000000820000-0x000000000307ffff]
+> [   86.994348]   node   0: [mem 0x0000000003080000-0x000000000308ffff]
+> [   87.001029]   node   0: [mem 0x0000000003090000-0x00000000031fffff]
+> [   87.007710]   node   0: [mem 0x0000000003200000-0x00000000033fffff]
+> [   87.014392]   node   0: [mem 0x0000000003410000-0x000000000563ffff]
+> [   87.021073]   node   0: [mem 0x0000000005640000-0x000000000567ffff]
+> [   87.027754]   node   0: [mem 0x0000000005680000-0x00000000056dffff]
+> [   87.034435]   node   0: [mem 0x00000000056e0000-0x00000000086fffff]
+> [   87.041117]   node   0: [mem 0x0000000008700000-0x000000000871ffff]
+> [   87.047798]   node   0: [mem 0x0000000008720000-0x000000000894ffff]
+> [   87.054479]   node   0: [mem 0x0000000008950000-0x0000000008baffff]
+> [   87.061161]   node   0: [mem 0x0000000008bb0000-0x0000000008bcffff]
+> [   87.067842]   node   0: [mem 0x0000000008bd0000-0x0000000008c4ffff]
+> [   87.074524]   node   0: [mem 0x0000000008c50000-0x0000000008e2ffff]
+> [   87.081205]   node   0: [mem 0x0000000008e30000-0x0000000008e4ffff]
+> [   87.087886]   node   0: [mem 0x0000000008e50000-0x0000000008fcffff]
+> [   87.094568]   node   0: [mem 0x0000000008fd0000-0x000000000910ffff]
+> [   87.101249]   node   0: [mem 0x0000000009110000-0x00000000092effff]
+> [   87.107930]   node   0: [mem 0x00000000092f0000-0x000000000930ffff]
+> [   87.114612]   node   0: [mem 0x0000000009310000-0x000000000963ffff]
+> [   87.121293]   node   0: [mem 0x0000000009640000-0x000000000e61ffff]
+> [   87.127975]   node   0: [mem 0x000000000e620000-0x000000000e64ffff]
+> [   87.134657]   node   0: [mem 0x000000000e650000-0x000000000fffffff]
+> [   87.141338]   node   0: [mem 0x0000000010800000-0x0000000017feffff]
+> [   87.148019]   node   0: [mem 0x000000001c000000-0x000000001c00ffff]
+> [   87.154701]   node   0: [mem 0x000000001c010000-0x000000001c7fffff]
+> [   87.161383]   node   0: [mem 0x000000001c810000-0x000000007efbffff]
+> [   87.168064]   node   0: [mem 0x000000007efc0000-0x000000007efdffff]
+> [   87.174746]   node   0: [mem 0x000000007efe0000-0x000000007efeffff]
+> [   87.181427]   node   0: [mem 0x000000007eff0000-0x000000007effffff]
+> [   87.188108]   node   0: [mem 0x000000007f000000-0x00000017ffffffff]
+> [   87.194791] Initmem setup node 0 [mem 0x0000000000200000-0x00000017ffffffff]
+>
+> Changelog:
+> V8: - introduce new config and move generic code to early_pfn.h
+>      - optimize memblock_next_valid_pfn as suggested by Matthew Wilcox
+> V7: - fix i386 compilation error. refine the commit description
+> V6: - simplify the codes, move arm/arm64 common codes to one file.
+>      - refine patches as suggested by Danial Vacek and Ard Biesheuvel
+> V5: - further refining as suggested by Danial Vacek. Make codes
+>        arm/arm64 more arch specific
+> V4: - refine patches as suggested by Danial Vacek and Wei Yang
+>      - optimized on arm besides arm64
+> V3: - fix 2 issues reported by kbuild test robot
+> V2: - rebase to mmotm latest
+>      - remain memblock_next_valid_pfn on arm64
+>      - refine memblock_search_pfn_regions and pfn_valid_region
+>
+> Jia He (6):
+>    arm: arm64: introduce CONFIG_HAVE_MEMBLOCK_PFN_VALID
+>    mm: page_alloc: remain memblock_next_valid_pfn() on arm/arm64
+>    arm: arm64: page_alloc: reduce unnecessary binary search in
+>      memblock_next_valid_pfn()
+>    mm/memblock: introduce memblock_search_pfn_regions()
+>    arm: arm64: introduce pfn_valid_region()
+>    mm: page_alloc: reduce unnecessary binary search in early_pfn_valid()
+>
+>   arch/arm/Kconfig          |  4 +++
+>   arch/arm/mm/init.c        |  1 +
+>   arch/arm64/Kconfig        |  4 +++
+>   arch/arm64/mm/init.c      |  1 +
+>   include/linux/early_pfn.h | 79 +++++++++++++++++++++++++++++++++++++++++++++++
+>   include/linux/memblock.h  |  2 ++
+>   include/linux/mmzone.h    | 18 ++++++++++-
+>   mm/Kconfig                |  3 ++
+>   mm/memblock.c             |  9 ++++++
+>   mm/page_alloc.c           |  5 ++-
+>   10 files changed, 124 insertions(+), 2 deletions(-)
+>   create mode 100644 include/linux/early_pfn.h
+>
