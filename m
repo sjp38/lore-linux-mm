@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AA796B0269
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B54746B0003
 	for <linux-mm@kvack.org>; Fri,  4 May 2018 14:33:24 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id w7so14881924pfd.9
+Received: by mail-pf0-f199.google.com with SMTP id b64so17977950pfl.13
         for <linux-mm@kvack.org>; Fri, 04 May 2018 11:33:24 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z7-v6si6903345pgv.614.2018.05.04.11.33.22
+        by mx.google.com with ESMTPS id o7-v6si13646864pga.92.2018.05.04.11.33.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Fri, 04 May 2018 11:33:22 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 01/17] s390: Use _refcount for pgtables
-Date: Fri,  4 May 2018 11:33:02 -0700
-Message-Id: <20180504183318.14415-2-willy@infradead.org>
+Subject: [PATCH v5 02/17] mm: Split page_type out from _mapcount
+Date: Fri,  4 May 2018 11:33:03 -0700
+Message-Id: <20180504183318.14415-3-willy@infradead.org>
 In-Reply-To: <20180504183318.14415-1-willy@infradead.org>
 References: <20180504183318.14415-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,103 +22,202 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundatio
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-s390 borrows the storage used for _mapcount in struct page in order to
-account whether the bottom or top half is being used for 2kB page
-tables.  I want to use that for something else, so use the top byte of
-_refcount instead of the bottom byte of _mapcount.  _refcount may
-temporarily be incremented by other CPUs that see a stale pointer to
-this page in the page cache, but each CPU can only increment it by one,
-and there are no systems with 2^24 CPUs today, so they will not change
-the upper byte of _refcount.  We do have to be a little careful not to
-lose any of their writes (as they will subsequently decrement the
-counter).
+We're already using a union of many fields here, so stop abusing the
+_mapcount and make page_type its own field.  That implies renaming some
+of the machinery that creates PageBuddy, PageBalloon and PageKmemcg;
+bring back the PG_buddy, PG_balloon and PG_kmemcg names.
+
+As suggested by Kirill, make page_type a bitmask.  Because it starts out
+life as -1 (thanks to sharing the storage with _mapcount), setting a
+page flag means clearing the appropriate bit.  This gives us space for
+probably twenty or so extra bits (depending how paranoid we want to be
+about _mapcount underflow).
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/s390/mm/pgalloc.c | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
+ include/linux/mm_types.h   | 13 ++++++-----
+ include/linux/page-flags.h | 45 ++++++++++++++++++++++----------------
+ kernel/crash_core.c        |  1 +
+ mm/page_alloc.c            | 13 +++++------
+ scripts/tags.sh            |  6 ++---
+ 5 files changed, 43 insertions(+), 35 deletions(-)
 
-diff --git a/arch/s390/mm/pgalloc.c b/arch/s390/mm/pgalloc.c
-index 562f72955956..84bd6329a88d 100644
---- a/arch/s390/mm/pgalloc.c
-+++ b/arch/s390/mm/pgalloc.c
-@@ -190,14 +190,15 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
- 		if (!list_empty(&mm->context.pgtable_list)) {
- 			page = list_first_entry(&mm->context.pgtable_list,
- 						struct page, lru);
--			mask = atomic_read(&page->_mapcount);
-+			mask = atomic_read(&page->_refcount) >> 24;
- 			mask = (mask | (mask >> 4)) & 3;
- 			if (mask != 3) {
- 				table = (unsigned long *) page_to_phys(page);
- 				bit = mask & 1;		/* =1 -> second 2K */
- 				if (bit)
- 					table += PTRS_PER_PTE;
--				atomic_xor_bits(&page->_mapcount, 1U << bit);
-+				atomic_xor_bits(&page->_refcount,
-+							1U << (bit + 24));
- 				list_del(&page->lru);
- 			}
- 		}
-@@ -218,12 +219,12 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
- 	table = (unsigned long *) page_to_phys(page);
- 	if (mm_alloc_pgste(mm)) {
- 		/* Return 4K page table with PGSTEs */
--		atomic_set(&page->_mapcount, 3);
-+		atomic_xor_bits(&page->_refcount, 3 << 24);
- 		memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
- 		memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
- 	} else {
- 		/* Return the first 2K fragment of the page */
--		atomic_set(&page->_mapcount, 1);
-+		atomic_xor_bits(&page->_refcount, 1 << 24);
- 		memset64((u64 *)table, _PAGE_INVALID, 2 * PTRS_PER_PTE);
- 		spin_lock_bh(&mm->context.lock);
- 		list_add(&page->lru, &mm->context.pgtable_list);
-@@ -242,7 +243,8 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
- 		/* Free 2K page table fragment of a 4K page */
- 		bit = (__pa(table) & ~PAGE_MASK)/(PTRS_PER_PTE*sizeof(pte_t));
- 		spin_lock_bh(&mm->context.lock);
--		mask = atomic_xor_bits(&page->_mapcount, 1U << bit);
-+		mask = atomic_xor_bits(&page->_refcount, 1U << (bit + 24));
-+		mask >>= 24;
- 		if (mask & 3)
- 			list_add(&page->lru, &mm->context.pgtable_list);
- 		else
-@@ -253,7 +255,6 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
- 	}
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 21612347d311..41828fb34860 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -96,6 +96,14 @@ struct page {
+ 	};
  
- 	pgtable_page_dtor(page);
--	atomic_set(&page->_mapcount, -1);
- 	__free_page(page);
+ 	union {
++		/*
++		 * If the page is neither PageSlab nor mappable to userspace,
++		 * the value stored here may help determine what this page
++		 * is used for.  See page-flags.h for a list of page types
++		 * which are currently stored here.
++		 */
++		unsigned int page_type;
++
+ 		_slub_counter_t counters;
+ 		unsigned int active;		/* SLAB */
+ 		struct {			/* SLUB */
+@@ -109,11 +117,6 @@ struct page {
+ 			/*
+ 			 * Count of ptes mapped in mms, to show when
+ 			 * page is mapped & limit reverse map searches.
+-			 *
+-			 * Extra information about page type may be
+-			 * stored here for pages that are never mapped,
+-			 * in which case the value MUST BE <= -2.
+-			 * See page-flags.h for more details.
+ 			 */
+ 			atomic_t _mapcount;
+ 
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index e34a27727b9a..8c25b28a35aa 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -642,49 +642,56 @@ PAGEFLAG_FALSE(DoubleMap)
+ #endif
+ 
+ /*
+- * For pages that are never mapped to userspace, page->mapcount may be
+- * used for storing extra information about page type. Any value used
+- * for this purpose must be <= -2, but it's better start not too close
+- * to -2 so that an underflow of the page_mapcount() won't be mistaken
+- * for a special page.
++ * For pages that are never mapped to userspace (and aren't PageSlab),
++ * page_type may be used.  Because it is initialised to -1, we invert the
++ * sense of the bit, so __SetPageFoo *clears* the bit used for PageFoo, and
++ * __ClearPageFoo *sets* the bit used for PageFoo.  We reserve a few high and
++ * low bits so that an underflow or overflow of page_mapcount() won't be
++ * mistaken for a page type value.
+  */
+-#define PAGE_MAPCOUNT_OPS(uname, lname)					\
++
++#define PAGE_TYPE_BASE	0xf0000000
++/* Reserve		0x0000007f to catch underflows of page_mapcount */
++#define PG_buddy	0x00000080
++#define PG_balloon	0x00000100
++#define PG_kmemcg	0x00000200
++
++#define PageType(page, flag)						\
++	((page->page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
++
++#define PAGE_TYPE_OPS(uname, lname)					\
+ static __always_inline int Page##uname(struct page *page)		\
+ {									\
+-	return atomic_read(&page->_mapcount) ==				\
+-				PAGE_##lname##_MAPCOUNT_VALUE;		\
++	return PageType(page, PG_##lname);				\
+ }									\
+ static __always_inline void __SetPage##uname(struct page *page)		\
+ {									\
+-	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);	\
+-	atomic_set(&page->_mapcount, PAGE_##lname##_MAPCOUNT_VALUE);	\
++	VM_BUG_ON_PAGE(!PageType(page, 0), page);			\
++	page->page_type &= ~PG_##lname;					\
+ }									\
+ static __always_inline void __ClearPage##uname(struct page *page)	\
+ {									\
+ 	VM_BUG_ON_PAGE(!Page##uname(page), page);			\
+-	atomic_set(&page->_mapcount, -1);				\
++	page->page_type |= PG_##lname;					\
  }
  
-@@ -274,7 +275,8 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
- 	}
- 	bit = (__pa(table) & ~PAGE_MASK) / (PTRS_PER_PTE*sizeof(pte_t));
- 	spin_lock_bh(&mm->context.lock);
--	mask = atomic_xor_bits(&page->_mapcount, 0x11U << bit);
-+	mask = atomic_xor_bits(&page->_refcount, 0x11U << (bit + 24));
-+	mask >>= 24;
- 	if (mask & 3)
- 		list_add_tail(&page->lru, &mm->context.pgtable_list);
- 	else
-@@ -296,12 +298,13 @@ static void __tlb_remove_table(void *_table)
- 		break;
- 	case 1:		/* lower 2K of a 4K page table */
- 	case 2:		/* higher 2K of a 4K page table */
--		if (atomic_xor_bits(&page->_mapcount, mask << 4) != 0)
-+		mask = atomic_xor_bits(&page->_refcount, mask << (4 + 24));
-+		mask >>= 24;
-+		if (mask != 0)
- 			break;
- 		/* fallthrough */
- 	case 3:		/* 4K page table with pgstes */
- 		pgtable_page_dtor(page);
--		atomic_set(&page->_mapcount, -1);
- 		__free_page(page);
- 		break;
- 	}
+ /*
+- * PageBuddy() indicate that the page is free and in the buddy system
++ * PageBuddy() indicates that the page is free and in the buddy system
+  * (see mm/page_alloc.c).
+  */
+-#define PAGE_BUDDY_MAPCOUNT_VALUE		(-128)
+-PAGE_MAPCOUNT_OPS(Buddy, BUDDY)
++PAGE_TYPE_OPS(Buddy, buddy)
+ 
+ /*
+- * PageBalloon() is set on pages that are on the balloon page list
++ * PageBalloon() is true for pages that are on the balloon page list
+  * (see mm/balloon_compaction.c).
+  */
+-#define PAGE_BALLOON_MAPCOUNT_VALUE		(-256)
+-PAGE_MAPCOUNT_OPS(Balloon, BALLOON)
++PAGE_TYPE_OPS(Balloon, balloon)
+ 
+ /*
+  * If kmemcg is enabled, the buddy allocator will set PageKmemcg() on
+  * pages allocated with __GFP_ACCOUNT. It gets cleared on page free.
+  */
+-#define PAGE_KMEMCG_MAPCOUNT_VALUE		(-512)
+-PAGE_MAPCOUNT_OPS(Kmemcg, KMEMCG)
++PAGE_TYPE_OPS(Kmemcg, kmemcg)
+ 
+ extern bool is_free_buddy_page(struct page *page);
+ 
+diff --git a/kernel/crash_core.c b/kernel/crash_core.c
+index f7674d676889..b66aced5e8c2 100644
+--- a/kernel/crash_core.c
++++ b/kernel/crash_core.c
+@@ -460,6 +460,7 @@ static int __init crash_save_vmcoreinfo_init(void)
+ 	VMCOREINFO_NUMBER(PG_hwpoison);
+ #endif
+ 	VMCOREINFO_NUMBER(PG_head_mask);
++#define PAGE_BUDDY_MAPCOUNT_VALUE	(~PG_buddy)
+ 	VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	VMCOREINFO_NUMBER(HUGETLB_PAGE_DTOR);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5ee6256e31d0..da3eb2236ba1 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -686,16 +686,14 @@ static inline void rmv_page_order(struct page *page)
+ 
+ /*
+  * This function checks whether a page is free && is the buddy
+- * we can do coalesce a page and its buddy if
++ * we can coalesce a page and its buddy if
+  * (a) the buddy is not in a hole (check before calling!) &&
+  * (b) the buddy is in the buddy system &&
+  * (c) a page and its buddy have the same order &&
+  * (d) a page and its buddy are in the same zone.
+  *
+- * For recording whether a page is in the buddy system, we set ->_mapcount
+- * PAGE_BUDDY_MAPCOUNT_VALUE.
+- * Setting, clearing, and testing _mapcount PAGE_BUDDY_MAPCOUNT_VALUE is
+- * serialized by zone->lock.
++ * For recording whether a page is in the buddy system, we set PageBuddy.
++ * Setting, clearing, and testing PageBuddy is serialized by zone->lock.
+  *
+  * For recording page's order, we use page_private(page).
+  */
+@@ -740,9 +738,8 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+  * as necessary, plus some accounting needed to play nicely with other
+  * parts of the VM system.
+  * At each level, we keep a list of pages, which are heads of continuous
+- * free pages of length of (1 << order) and marked with _mapcount
+- * PAGE_BUDDY_MAPCOUNT_VALUE. Page's order is recorded in page_private(page)
+- * field.
++ * free pages of length of (1 << order) and marked with PageBuddy.
++ * Page's order is recorded in page_private(page) field.
+  * So when we are allocating or freeing one, we can derive the state of the
+  * other.  That is, if we allocate a small block, and both were
+  * free, the remainder of the region must be split into blocks.
+diff --git a/scripts/tags.sh b/scripts/tags.sh
+index 78e546ff689c..8c3ae36d4ea8 100755
+--- a/scripts/tags.sh
++++ b/scripts/tags.sh
+@@ -188,9 +188,9 @@ regex_c=(
+ 	'/\<CLEARPAGEFLAG_NOOP(\([[:alnum:]_]*\).*/ClearPage\1/'
+ 	'/\<__CLEARPAGEFLAG_NOOP(\([[:alnum:]_]*\).*/__ClearPage\1/'
+ 	'/\<TESTCLEARFLAG_FALSE(\([[:alnum:]_]*\).*/TestClearPage\1/'
+-	'/^PAGE_MAPCOUNT_OPS(\([[:alnum:]_]*\).*/Page\1/'
+-	'/^PAGE_MAPCOUNT_OPS(\([[:alnum:]_]*\).*/__SetPage\1/'
+-	'/^PAGE_MAPCOUNT_OPS(\([[:alnum:]_]*\).*/__ClearPage\1/'
++	'/^PAGE_TYPE_OPS(\([[:alnum:]_]*\).*/Page\1/'
++	'/^PAGE_TYPE_OPS(\([[:alnum:]_]*\).*/__SetPage\1/'
++	'/^PAGE_TYPE_OPS(\([[:alnum:]_]*\).*/__ClearPage\1/'
+ 	'/^TASK_PFA_TEST([^,]*, *\([[:alnum:]_]*\))/task_\1/'
+ 	'/^TASK_PFA_SET([^,]*, *\([[:alnum:]_]*\))/task_set_\1/'
+ 	'/^TASK_PFA_CLEAR([^,]*, *\([[:alnum:]_]*\))/task_clear_\1/'
 -- 
 2.17.0
