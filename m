@@ -1,98 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B562B6B000C
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 03:32:02 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id x7-v6so11545464wrn.13
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 00:32:02 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y7sor315300wmb.79.2018.05.04.00.32.00
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 87D1C6B000C
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 03:43:05 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id n83-v6so1670385itg.2
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 00:43:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e198-v6sor562944itc.35.2018.05.04.00.43.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 04 May 2018 00:32:00 -0700 (PDT)
+        Fri, 04 May 2018 00:43:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <8b06973c-ef82-17d2-a83d-454368de75e6@suse.cz>
-References: <1525408246-14768-1-git-send-email-iamjoonsoo.kim@lge.com> <8b06973c-ef82-17d2-a83d-454368de75e6@suse.cz>
-From: Joonsoo Kim <js1304@gmail.com>
-Date: Fri, 4 May 2018 16:31:59 +0900
-Message-ID: <CAAmzW4OXLgc3ghqnvBHP7QRnjt93a3ZwREn7qH=rQFPeoC5r=w@mail.gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: use ac->high_zoneidx for classzone_idx
+References: <20180214182618.14627-1-willy@infradead.org> <20180214182618.14627-3-willy@infradead.org>
+In-Reply-To: <20180214182618.14627-3-willy@infradead.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 04 May 2018 07:42:52 +0000
+Message-ID: <CA+55aFzLgES5qTAt2szDKcRtoUP5X--UPCoYX-38ea67cRFHxQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: Add kvmalloc_ab_c and kvzalloc_struct
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Ye Xiaolong <xiaolong.ye@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm <linux-mm@kvack.org>, Kees Cook <keescook@chromium.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-2018-05-04 16:03 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 05/04/2018 06:30 AM, js1304@gmail.com wrote:
->> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>
->> Currently, we use the zone index of preferred_zone which represents
->> the best matching zone for allocation, as classzone_idx. It has a problem
->> on NUMA system with ZONE_MOVABLE.
->>
->> In NUMA system, it can be possible that each node has different populated
->> zones. For example, node 0 could have DMA/DMA32/NORMAL/MOVABLE zone and
->> node 1 could have only NORMAL zone. In this setup, allocation request
->> initiated on node 0 and the one on node 1 would have different
->> classzone_idx, 3 and 2, respectively, since their preferred_zones are
->> different. If they are handled by only their own node, there is no problem.
->> However, if they are somtimes handled by the remote node, the problem
->> would happen.
->>
->> In the following setup, allocation initiated on node 1 will have some
->> precedence than allocation initiated on node 0 when former allocation is
->> processed on node 0 due to not enough memory on node 1. They will have
->> different lowmem reserve due to their different classzone_idx thus
->> an watermark bars are also different.
->>
-> ...
->
->>
->> min watermark for NORMAL zone on node 0
->> allocation initiated on node 0: 750 + 4096 = 4846
->> allocation initiated on node 1: 750 + 0 = 750
->>
->> This watermark difference could cause too many numa_miss allocation
->> in some situation and then performance could be downgraded.
->>
->> Recently, there was a regression report about this problem on CMA patches
->> since CMA memory are placed in ZONE_MOVABLE by those patches. I checked
->> that problem is disappeared with this fix that uses high_zoneidx
->> for classzone_idx.
->>
->> http://lkml.kernel.org/r/20180102063528.GG30397@yexl-desktop
->>
->> Using high_zoneidx for classzone_idx is more consistent way than previous
->> approach because system's memory layout doesn't affect anything to it.
->
-> So to summarize;
-> - ac->high_zoneidx is computed via the arcane gfp_zone(gfp_mask) and
-> represents the highest zone the allocation can use
-> - classzone_idx was supposed to be the highest zone that the allocation
-> can use, that is actually available in the system. Somehow that became
-> the highest zone that is available on the preferred node (in the default
-> node-order zonelist), which causes the watermark inconsistencies you
-> mention.
+On Wed, Feb 14, 2018 at 8:27 AM Matthew Wilcox <willy@infradead.org> wrote:
+> +static inline __must_check
+> +void *kvmalloc_ab_c(size_t n, size_t size, size_t c, gfp_t gfp)
+> +{
+> +       if (size != 0 && n > (SIZE_MAX - c) / size)
+> +               return NULL;
+> +
+> +       return kvmalloc(n * size + c, gfp);
 
-Yes! Thanks for summarize!
+Ok, so some more bikeshedding:
 
-> I don't see a problem with your change. I would be worried about
-> inflated reserves when e.g. ZONE_MOVABLE doesn't exist, but that doesn't
-> seem to be the case. My laptop has empty ZONE_MOVABLE and the
-> ZONE_NORMAL protection for movable is 0.
+  - I really don't want to encourage people to use kvmalloc().
 
-Yes! Protection number is calculated by using the number of managed page
-in upper zone. If there is no memory on the upper zone, protection will be 0.
+In fact, the conversion I saw was buggy. You can *not* convert a GFP_ATOMIC
+user of kmalloc() to use kvmalloc.
 
-> But there had to be some reason for classzone_idx to be like this and
-> not simple high_zoneidx. Maybe Mel remembers? Maybe it was important
-> then, but is not anymore? Sigh, it seems to be pre-git.
+  - that divide is really really expensive on many architectures.
 
-Based on my code inspection, this patch changing classzone_idx implementation
-would not cause the problem. I also have tried to find the reason
-for classzone_idx implementation by searching git history but I can't.
-As you said,
-it seems to be pre-git. It would be really helpful that someone who remembers
-the reason for current classzone_idx implementation teaches me the reason.
+Note that these issues kind of go hand in hand.
 
-Thanks.
+Normal kernel allocations are *limited*. It's simply not ok to allocate
+megabytes (or gigabytes) of mmory in general. We have serious limits, and
+we *should* have serious limits. If people worry about the multiply
+overflowing because a user is controlling the size valus, then dammit, such
+a user should not be able to do a huge gigabyte vmalloc() that exhausts
+memory and then spends time clearing it all!
+
+So the whole notion that "overflows are dangerous, let's get rid of them"
+somehow fixes a bug is BULLSHIT. You literally introduced a *new* bug by
+removing the normal kmalloc() size limit because you thought that pverflows
+are the only problem.
+
+So stop doing things like this. We should not do a stupid divide, because
+we damn well know that it is NOT VALID to allocate arrays that have
+hundreds of fthousands of elements,  or where the size of one element is
+very big.
+
+So get rid of the stupid divide, and make the limits be much stricter. Like
+saying "the array element size had better be smaller than one page"
+(because honestly, bigger elements are not valid in the kernel), and "the
+size of the array cannot be more than "pick-some-number-out-of-your-ass".
+
+So just make the divide go the hell away, a and check the size for validity.
+
+Something like
+
+      if (size > PAGE_SIZE)
+           return NULL;
+      if (elem > 65535)
+           return NULL;
+      if (offset > PAGE_SIZE)
+           return NULL;
+      return kzalloc(size*elem+offset);
+
+and now you (a) guarantee it can't overflow and (b) don't make people use
+crazy vmalloc() allocations when they damn well shouldn't.
+
+And yeah, if  somebody has a page size bigger than 64k, then the above can
+still overflow. I'm sorry, that architecture s broken shit.
+
+Are there  cases where vmalloc() is ok? Yes. But they should be rare, and
+they should have a good reason for them. And honestly, even then the above
+limits really really sound quite reasonable. There is no excuse for
+million-entry arrays in the kernel. You are doing something seriously wrong
+if you do those.
+
+             Linus
