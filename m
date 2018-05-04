@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 359066B026A
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 12:26:51 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 142so310952wmt.1
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 09:26:51 -0700 (PDT)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id d9-v6si15165822wrg.6.2018.05.04.09.26.49
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 37D516B0010
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 12:29:09 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id t24-v6so16215673qtn.7
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 09:29:09 -0700 (PDT)
+Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
+        by mx.google.com with ESMTPS id c14-v6si2455255qtn.116.2018.05.04.09.29.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 May 2018 09:26:50 -0700 (PDT)
-Date: Fri, 4 May 2018 17:26:40 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: Introduce atomic_dec_and_lock_irqsave()
-Message-ID: <20180504162640.GH30522@ZenIV.linux.org.uk>
-References: <20180504154533.8833-1-bigeasy@linutronix.de>
- <20180504155446.GP12217@hirez.programming.kicks-ass.net>
- <20180504160726.ikotgmd5fbix7b6b@linutronix.de>
- <20180504162102.GQ12217@hirez.programming.kicks-ass.net>
+        Fri, 04 May 2018 09:29:08 -0700 (PDT)
+Date: Fri, 4 May 2018 11:29:06 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v4 07/16] slub: Remove page->counters
+In-Reply-To: <20180504151550.GA29829@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.21.1805041128350.12676@nuc-kabylake>
+References: <20180430202247.25220-1-willy@infradead.org> <20180430202247.25220-8-willy@infradead.org> <alpine.DEB.2.21.1805011148060.16325@nuc-kabylake> <20180502172639.GC2737@bombadil.infradead.org> <20180502221702.a2ezdae6akchroze@black.fi.intel.com>
+ <20180503005223.GB21199@bombadil.infradead.org> <alpine.DEB.2.21.1805031001510.6701@nuc-kabylake> <20180503182823.GB1562@bombadil.infradead.org> <alpine.DEB.2.21.1805040953540.10847@nuc-kabylake> <20180504151550.GA29829@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180504162102.GQ12217@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-kernel@vger.kernel.org, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>
 
-On Fri, May 04, 2018 at 06:21:02PM +0200, Peter Zijlstra wrote:
-> On Fri, May 04, 2018 at 06:07:26PM +0200, Sebastian Andrzej Siewior wrote:
-> 
-> > do you intend to kill refcount_dec_and_lock() in the longterm?
-> 
-> You meant to say atomic_dec_and_lock() ? Dunno if we ever get there, but
-> typically dec_and_lock is fairly refcounty, but I suppose it is possible
-> to have !refcount users, in which case we're eternally stuck with it.
+On Fri, 4 May 2018, Matthew Wilcox wrote:
 
-Yes, there are - consider e.g.
+> So you'd rather have one union that's used for slab/slob/slub?  Like this?
 
-void iput(struct inode *inode)
-{ 
-        if (!inode)
-                return;
-        BUG_ON(inode->i_state & I_CLEAR);
-retry:
-        if (atomic_dec_and_lock(&inode->i_count, &inode->i_lock)) {
-
-inode->i_count sure as hell isn't refcount_t fodder...
+Yup that looks better.
+>
+>                 struct {        /* slab, slob and slub */
+>                         union {
+>                                 struct list_head slab_list;
+>                                 struct {        /* Partial pages */
+>                                         struct page *next;
+> #ifdef CONFIG_64BIT
+>                                         int pages;      /* Nr of pages left */
+>                                         int pobjects;   /* Approximate count */
+> #else
+>                                         short int pages;
+>                                         short int pobjects;
+> #endif
+>                                 };
+>                         };
+>                         struct kmem_cache *slab_cache;
+>                         /* Double-word boundary */
+>                         void *freelist;         /* first free object */
+>                         union {
+>                                 void *s_mem;    /* first object (slab only) */
+>                                 unsigned long counters; /* slub */
+>                                 struct {
+>                                         unsigned inuse:16;
+>                                         unsigned objects:15;
+>                                         unsigned frozen:1;
+>                                 };
+>                         };
+>                 };
+>
