@@ -1,92 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 605AF6B000C
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 05:11:11 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b192-v6so1620429wmb.1
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 02:11:11 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id q11-v6si1716594edj.431.2018.05.04.02.11.09
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E7726B000C
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 06:33:30 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id s8-v6so13598687pgf.0
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 03:33:30 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m2-v6si12739566pgq.221.2018.05.04.03.33.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 May 2018 02:11:10 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w44998t2118100
-	for <linux-mm@kvack.org>; Fri, 4 May 2018 05:11:08 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2hrjymcv95-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 04 May 2018 05:11:08 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Fri, 4 May 2018 10:11:05 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: Re: [PATCH v10 12/25] mm: cache some VMA fields in the vm_fault
- structure
-References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1523975611-15978-13-git-send-email-ldufour@linux.vnet.ibm.com>
- <20180423074221.GE114098@rodete-desktop-imager.corp.google.com>
- <cd27f249-6c78-ccbb-c8f4-a8d8f7a3cd60@linux.vnet.ibm.com>
- <20180503154211.GA180804@rodete-laptop-imager.corp.google.com>
-Date: Fri, 4 May 2018 11:10:54 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 04 May 2018 03:33:27 -0700 (PDT)
+Date: Fri, 4 May 2018 11:33:22 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm/page_alloc: use ac->high_zoneidx for classzone_idx
+Message-ID: <20180504103322.2nbadmnehwdxxaso@suse.de>
+References: <1525408246-14768-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <8b06973c-ef82-17d2-a83d-454368de75e6@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180503154211.GA180804@rodete-laptop-imager.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <580c2760-2157-61fe-01ff-f928516fa23f@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <8b06973c-ef82-17d2-a83d-454368de75e6@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Ye Xiaolong <xiaolong.ye@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 03/05/2018 17:42, Minchan Kim wrote:
-> On Thu, May 03, 2018 at 02:25:18PM +0200, Laurent Dufour wrote:
->> On 23/04/2018 09:42, Minchan Kim wrote:
->>> On Tue, Apr 17, 2018 at 04:33:18PM +0200, Laurent Dufour wrote:
->>>> When handling speculative page fault, the vma->vm_flags and
->>>> vma->vm_page_prot fields are read once the page table lock is released. So
->>>> there is no more guarantee that these fields would not change in our back
->>>> They will be saved in the vm_fault structure before the VMA is checked for
->>>> changes.
->>>
->>> Sorry. I cannot understand.
->>> If it is changed under us, what happens? If it's critical, why cannot we
->>> check with seqcounter?
->>> Clearly, I'm not understanding the logic here. However, it's a global
->>> change without CONFIG_SPF so I want to be more careful.
->>> It would be better to describe why we need to sanpshot those values
->>> into vm_fault rather than preventing the race.
->>
->> The idea is to go forward processing the page fault using the VMA's fields
->> values saved in the vm_fault structure. Then once the pte are locked, the
->> vma->sequence_counter is checked again and if something has changed in our back
->> the speculative page fault processing is aborted.
+On Fri, May 04, 2018 at 09:03:02AM +0200, Vlastimil Babka wrote:
+> > min watermark for NORMAL zone on node 0
+> > allocation initiated on node 0: 750 + 4096 = 4846
+> > allocation initiated on node 1: 750 + 0 = 750
+> > 
+> > This watermark difference could cause too many numa_miss allocation
+> > in some situation and then performance could be downgraded.
+> > 
+> > Recently, there was a regression report about this problem on CMA patches
+> > since CMA memory are placed in ZONE_MOVABLE by those patches. I checked
+> > that problem is disappeared with this fix that uses high_zoneidx
+> > for classzone_idx.
+> > 
+> > http://lkml.kernel.org/r/20180102063528.GG30397@yexl-desktop
+> > 
+> > Using high_zoneidx for classzone_idx is more consistent way than previous
+> > approach because system's memory layout doesn't affect anything to it.
 > 
-> Sorry, still I don't understand why we should capture some fields to vm_fault.
-> If we found vma->seq_cnt is changed under pte lock, can't we just bail out and
-> fallback to classic fault handling?
+> So to summarize;
+> - ac->high_zoneidx is computed via the arcane gfp_zone(gfp_mask) and
+> represents the highest zone the allocation can use
+
+It's arcane but it was simply a fast-path calculation. A much older
+definition would be easier to understand but it was slower.
+
+> - classzone_idx was supposed to be the highest zone that the allocation
+> can use, that is actually available in the system. Somehow that became
+> the highest zone that is available on the preferred node (in the default
+> node-order zonelist), which causes the watermark inconsistencies you
+> mention.
 > 
-> Maybe, I'm missing something clear now. It would be really helpful to understand
-> if you give some exmaple.
 
-I'd rather say that I was not clear enough ;)
+I think it *always* was the index of the first preferred zone of a
+zonelist. The treatment of classzone has changed a lot over the years and
+I didn't do a historical check but the general intent was always "protect
+some pages in lower zones". This was particularly important for 32-bit
+and highmem albeit that is less of a concern today. When it transferred to
+NUMA, I don't think it ever was seriously considered if it should change
+as the critical node was likely to be node 0 with all the zones and the
+remote nodes all used the highest zone. CMA/MOVABLE changed that slightly
+by allowing the possibility of node0 having a "higher" zone than every
+other node. When MOVABLE was introduced, it wasn't much of a problem as
+the purpose of MOVABLE was for systems that dynamically needed to allocate
+hugetlbfs later in the runtime but for CMA, it was a lot more critical
+for ordinary usage so this is primarily a CMA thing.
 
-Here is the point, when we deal with a speculative page fault, the mmap_sem is
-not taken, so parallel VMA's changes can occurred. When a VMA change is done
-which will impact the page fault processing, we assumed that the VMA sequence
-counter will be changed.
+> I don't see a problem with your change. I would be worried about
+> inflated reserves when e.g. ZONE_MOVABLE doesn't exist, but that doesn't
+> seem to be the case. My laptop has empty ZONE_MOVABLE and the
+> ZONE_NORMAL protection for movable is 0.
+> 
+> But there had to be some reason for classzone_idx to be like this and
+> not simple high_zoneidx. Maybe Mel remembers? Maybe it was important
+> then, but is not anymore? Sigh, it seems to be pre-git.
+> 
 
-In the page fault processing, at the time the PTE is locked, we checked the VMA
-sequence counter to detect changes done in our back. If no change is detected
-we can continue further. But this doesn't prevent the VMA to not be changed in
-our back while the PTE is locked. So VMA's fields which are used while the PTE
-is locked must be saved to ensure that we are using *static* values.
-This is important since the PTE changes will be made on regards to these VMA
-fields and they need to be consistent. This concerns the vma->vm_flags and
-vma->vm_page_prot VMA fields.
+classzone predates my involvement with Linux but I would be less concerneed
+about what the original intent was and instead ensure that classzone index
+is consistent, sane and potentially renamed while preserving the intent of
+"reserve pages in lower zones when an allocation request can use higher
+zones". While historically the critical intent was to preserve Normal and
+to a lesser extent DMA on 32-bit systems, there still should be some care
+of DMA32 so we should not lose that.
 
-I hope I make this clear enough this time.
+With the patch, the allocator looks like it would be fine as just
+reservations change. I think it's unlikely that CMA usage will result
+in lowmem starvation.  Compaction becomes a bit weird as classzone index
+has no special meaning versis highmem and I think it'll be very easy to
+forget. Similarly, vmscan can reclaim pages from remote nodes and zones
+that are higher than the original request. That is not likely to be a
+problem but it's a change in behaviour and easy to miss.
 
-Thanks,
-Laurent.
+Fundamentally, I find it extremely weird we now have two variables that are
+essentially the same thing. They should be collapsed into one variable,
+renamed and documented on what the index means for page allocator,
+compaction, vmscan and the special casing around CMA.
+
+-- 
+Mel Gorman
+SUSE Labs
