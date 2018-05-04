@@ -1,151 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C57C6B0011
-	for <linux-mm@kvack.org>; Thu,  3 May 2018 23:12:22 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b25so16529194pfn.10
-        for <linux-mm@kvack.org>; Thu, 03 May 2018 20:12:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s21-v6sor6246718plp.3.2018.05.03.20.12.20
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E0AF6B000C
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 00:27:20 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 3-v6so10025810wry.0
+        for <linux-mm@kvack.org>; Thu, 03 May 2018 21:27:20 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id t24-v6si1212741edm.246.2018.05.03.21.27.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 03 May 2018 20:12:20 -0700 (PDT)
-From: Jia He <hejianet@gmail.com>
-Subject: [PATCH v2] mm/ksm: ignore STABLE_FLAG of rmap_item->address in rmap_walk_ksm
-Date: Fri,  4 May 2018 11:11:46 +0800
-Message-Id: <1525403506-6750-1-git-send-email-hejianet@gmail.com>
-In-Reply-To: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
-References: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 May 2018 21:27:18 -0700 (PDT)
+Subject: Re: [PATCH] memcg, hugetlb: pages allocated for hugetlb's overcommit
+ will be charged to memcg
+References: <ecb737e9-ccec-2d7e-45d9-91884a669b58@ascade.co.jp>
+ <dc21a4ac-b57f-59a8-f97a-90a59d5a59cd@oracle.com>
+ <c9019050-7c89-86c3-93fc-9beb64e43ed3@ascade.co.jp>
+ <249d53f4-225d-8a11-d557-b915fa4fa9cb@oracle.com>
+ <a696eccd-24f3-9368-5baa-afbd3628468a@ascade.co.jp>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <fae2dde5-00b0-f12c-66ff-8b69351805a9@oracle.com>
+Date: Thu, 3 May 2018 21:26:39 -0700
+MIME-Version: 1.0
+In-Reply-To: <a696eccd-24f3-9368-5baa-afbd3628468a@ascade.co.jp>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Jia He <hejianet@gmail.com>, jia.he@hxt-semitech.com
+To: TSUKADA Koutaro <tsukada@ascade.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-In our armv8a server(QDF2400), I noticed lots of WARN_ON caused by PAGE_SIZE
-unaligned for rmap_item->address under memory pressure tests(start 20 guests
-and run memhog in the host).
+On 05/03/2018 05:09 PM, TSUKADA Koutaro wrote:
+> On 2018/05/03 11:33, Mike Kravetz wrote:
+>> On 05/01/2018 11:54 PM, TSUKADA Koutaro wrote:
+>>> On 2018/05/02 13:41, Mike Kravetz wrote:
+>>>> What is the reason for not charging pages at allocation/reserve time?  I am
+>>>> not an expert in memcg accounting, but I would think the pages should be
+>>>> charged at allocation time.  Otherwise, a task could allocate a large number
+>>>> of (reserved) pages that are not charged to a memcg.  memcg charges in other
+>>>> code paths seem to happen at huge page allocation time.
+>>>
+>>> If we charge to memcg at page allocation time, the new page is not yet
+>>> registered in rmap, so it will be accounted as 'cache' inside the memcg. Then,
+>>> after being registered in rmap, memcg will account as 'RSS' if the task moves
+>>> cgroup, so I am worried about the possibility of inconsistency in statistics
+>>> (memory.stat).
+>>>
+>>> As you said, in this patch, there may be a problem that a memory leak occurs
+>>> due to unused pages after being reserved.
+>>>
+>>>>> This patch targets RHELSA(kernel-alt-4.11.0-45.6.1.el7a.src.rpm).
+>>>>
+>>>> It would be very helpful to rebase this patch on a recent mainline kernel.
+>>>> The code to allocate surplus huge pages has been significantly changed in
+>>>> recent kernels.
+>>>>
+>>>> I have no doubt that this is a real issue and we are not correctly charging
+>>>> surplus to a memcg.  But your patch will be hard to evaluate when based on
+>>>> an older distro kernel.
+>>> I apologize for the patch of the old kernel. The patch was rewritten
+>>> for 4.17-rc2(6d08b06).
+>>
+>> Thank you very much for rebasing the patch.
+>>
+>> I did not look closely at your patch until now.  My first thought was that
+>> you  were changing/expanding the existing accounting.  However, it appears
+>> that you want to account for hugetlb surplus pages in the memory cgroup.
+>> Is there any reason why the hugetlb cgroup resource controller does not meet
+>> your needs?  It a quick look at the code, it does appear to handle surplus
+>> pages correctly.
+> 
+> Yes, basically it is exactly what you are talking about, but my usage is
+> somewhat special. I would like users who submit jobs on the HPC cluster to use
+> the hugetlb page. When submitting a job, the user specifies a memory resource
+> (for example, sbatch --mem in slurm).
+> 
+> If the user specifies 10GB, we assume that the system administrator has set the
+> limit of 10GB for memory cgroup and hugetlb cgroup respectively, and does not
+> create a hugetlb pool and sets it so that can overcommit. Then, users can use
+> 10GB normal pages and more 10GB hugetlb page by overcommitting, which means
+> user can use 20GB totaly. However, the administrator should restrict the normal
+> page and hugetlb page to 10GB in total.
+> 
+> Since it is difficult to estimate the ratio used by user of normal pages and
+> hugetlb pages, setting limits of 2 GB to memory cgroup and 8 GB to hugetlb
+> cgroup is not very good idea.
+> 
+> In such a case, with my patch, I thought that the administrator can manage the
+> resources just by setting 10GB for the limit of memory cgoup(No limit is set
+> for hugetlb cgroup).
 
---------------------------begin--------------------------------------
-[  410.853828] WARNING: CPU: 4 PID: 4641 at
-arch/arm64/kvm/../../../virt/kvm/arm/mmu.c:1826
-kvm_age_hva_handler+0xc0/0xc8
-[  410.864518] Modules linked in: vhost_net vhost tap xt_CHECKSUM
-ipt_MASQUERADE nf_nat_masquerade_ipv4 ip6t_rpfilter ipt_REJECT
-nf_reject_ipv4 ip6t_REJECT nf_reject_ipv6 xt_conntrack ip_set nfnetlink
-ebtable_nat ebtable_broute bridge stp llc ip6table_nat nf_conntrack_ipv6
-nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_security
-ip6table_raw iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4
-nf_nat nf_conntrack iptable_mangle iptable_security iptable_raw
-ebtable_filter ebtables ip6table_filter ip6_tables iptable_filter
-rpcrdma ib_isert iscsi_target_mod ib_iser libiscsi scsi_transport_iscsi
-ib_srpt target_core_mod ib_srp scsi_transport_srp ib_ipoib rdma_ucm
-ib_ucm ib_umad rdma_cm ib_cm iw_cm mlx5_ib vfat fat ib_uverbs dm_mirror
-dm_region_hash ib_core dm_log dm_mod crc32_ce ipmi_ssif sg nfsd
-[  410.935101]  auth_rpcgss nfs_acl lockd grace sunrpc ip_tables xfs
-libcrc32c mlx5_core ixgbe mlxfw devlink mdio ahci_platform
-libahci_platform qcom_emac libahci hdma hdma_mgmt i2c_qup
-[  410.951369] CPU: 4 PID: 4641 Comm: memhog Tainted: G        W
-4.17.0-rc3+ #8
-[  410.959104] Hardware name: <snip for confidential issues>
-[  410.969791] pstate: 80400005 (Nzcv daif +PAN -UAO)
-[  410.974575] pc : kvm_age_hva_handler+0xc0/0xc8
-[  410.979012] lr : handle_hva_to_gpa+0xa8/0xe0
-[  410.983274] sp : ffff801761553290
-[  410.986581] x29: ffff801761553290 x28: 0000000000000000
-[  410.991888] x27: 0000000000000002 x26: 0000000000000000
-[  410.997195] x25: ffff801765430058 x24: ffff0000080b5608
-[  411.002501] x23: 0000000000000000 x22: ffff8017ccb84000
-[  411.007807] x21: 0000000003ff0000 x20: ffff8017ccb84000
-[  411.013113] x19: 000000000000fe00 x18: ffff000008fb3c08
-[  411.018419] x17: 0000000000000000 x16: 0060001645820bd3
-[  411.023725] x15: ffff80176aacbc08 x14: 0000000000000000
-[  411.029031] x13: 0000000000000040 x12: 0000000000000228
-[  411.034337] x11: 0000000000000000 x10: 0000000000000000
-[  411.039643] x9 : 0000000000000010 x8 : 0000000000000004
-[  411.044949] x7 : 0000000000000000 x6 : 00008017f0770000
-[  411.050255] x5 : 0000fffda59f0200 x4 : 0000000000000000
-[  411.055561] x3 : 0000000000000000 x2 : 000000000000fe00
-[  411.060867] x1 : 0000000003ff0000 x0 : 0000000020000000
-[  411.066173] Call trace:
-[  411.068614]  kvm_age_hva_handler+0xc0/0xc8
-[  411.072703]  handle_hva_to_gpa+0xa8/0xe0
-[  411.076619]  kvm_age_hva+0x4c/0xe8
-[  411.080014]  kvm_mmu_notifier_clear_flush_young+0x54/0x98
-[  411.085408]  __mmu_notifier_clear_flush_young+0x6c/0xa0
-[  411.090627]  page_referenced_one+0x154/0x1d8
-[  411.094890]  rmap_walk_ksm+0x12c/0x1d0
-[  411.098632]  rmap_walk+0x94/0xa0
-[  411.101854]  page_referenced+0x194/0x1b0
-[  411.105770]  shrink_page_list+0x674/0xc28
-[  411.109772]  shrink_inactive_list+0x26c/0x5b8
-[  411.114122]  shrink_node_memcg+0x35c/0x620
-[  411.118211]  shrink_node+0x100/0x430
-[  411.121778]  do_try_to_free_pages+0xe0/0x3a8
-[  411.126041]  try_to_free_pages+0xe4/0x230
-[  411.130045]  __alloc_pages_nodemask+0x564/0xdc0
-[  411.134569]  alloc_pages_vma+0x90/0x228
-[  411.138398]  do_anonymous_page+0xc8/0x4d0
-[  411.142400]  __handle_mm_fault+0x4a0/0x508
-[  411.146489]  handle_mm_fault+0xf8/0x1b0
-[  411.150321]  do_page_fault+0x218/0x4b8
-[  411.154064]  do_translation_fault+0x90/0xa0
-[  411.158239]  do_mem_abort+0x68/0xf0
-[  411.161721]  el0_da+0x24/0x28
----------------------------end---------------------------------------
+Thank you for the explanation of your use case.  I now understand what
+you were trying to accomplish with your patch.
 
-In rmap_walk_ksm, the rmap_item->address might still have the STABLE_FLAG,
-then the start and end in handle_hva_to_gpa might not be PAGE_SIZE aligned.
-Thus it will cause exceptions in handle_hva_to_gpa on arm64.
+Your use case reminds me of the session at LSFMM titled "swap accounting".
+https://lwn.net/Articles/753162/
 
-This patch fixes it by ignoring(not removing) the low bits of address when
-doing rmap_walk_ksm.
+I hope someone with more cgroup expertise (Johannes? Aneesh?) can provide
+comments.  My experience in that area is limited.
 
-Signed-off-by: jia.he@hxt-semitech.com
----
-v2: refine the codes as suggested by Claudio Imbrenda
-
- mm/ksm.c | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index e3cbf9a..e6a9640 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -199,6 +199,8 @@ struct rmap_item {
- #define SEQNR_MASK	0x0ff	/* low bits of unstable tree seqnr */
- #define UNSTABLE_FLAG	0x100	/* is a node of the unstable tree */
- #define STABLE_FLAG	0x200	/* is listed from the stable tree */
-+#define KSM_FLAG_MASK	(SEQNR_MASK|UNSTABLE_FLAG|STABLE_FLAG)
-+				/* to mask all the flags */
- 
- /* The stable and unstable tree heads */
- static struct rb_root one_stable_tree[1] = { RB_ROOT };
-@@ -2570,10 +2572,15 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
- 		anon_vma_lock_read(anon_vma);
- 		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
- 					       0, ULONG_MAX) {
-+			unsigned long addr;
-+
- 			cond_resched();
- 			vma = vmac->vma;
--			if (rmap_item->address < vma->vm_start ||
--			    rmap_item->address >= vma->vm_end)
-+
-+			/* Ignore the stable/unstable/sqnr flags */
-+			addr = rmap_item->address & ~KSM_FLAG_MASK;
-+
-+			if (addr < vma->vm_start || addr >= vma->vm_end)
- 				continue;
- 			/*
- 			 * Initially we examine only the vma which covers this
-@@ -2587,8 +2594,7 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
- 			if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
- 				continue;
- 
--			if (!rwc->rmap_one(page, vma,
--					rmap_item->address, rwc->arg)) {
-+			if (!rwc->rmap_one(page, vma, addr, rwc->arg)) {
- 				anon_vma_unlock_read(anon_vma);
- 				return;
- 			}
+One question that comes to mind is "Why would the user/application writer
+use hugetlbfs overcommit instead of THP?".  For hugetlbfs overcommit, they
+need to be prepared for huge page allocations to fail.  So, in some cases
+they may not be able to use any hugetlbfs pages.  This is not much different
+than THP.  However, in the THP case huge page allocation failures and fall
+back to base pages is transparent to the user.  With THP, the normal memory
+cgroup controller should work well.
 -- 
-1.8.3.1
+Mike Kravetz
