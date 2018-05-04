@@ -1,60 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B95E6B0272
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 15:01:12 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id o143-v6so3066825itg.9
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 12:01:12 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id e19-v6si14374119ioe.69.2018.05.04.12.01.09
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 63D926B0010
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 16:52:52 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u10-v6so4739185pgp.8
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 13:52:52 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 64-v6si16042625ply.528.2018.05.04.13.52.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 May 2018 12:01:10 -0700 (PDT)
-Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node information
-References: <1525240686-13335-1-git-send-email-prakash.sangappa@oracle.com>
- <alpine.DEB.2.21.1805031259210.7831@nuc-kabylake>
- <c80ee329-084b-367f-1937-3175c178e978@oracle.com>
- <alpine.DEB.2.21.1805040955550.10847@nuc-kabylake>
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Message-ID: <98e34010-d55a-5f2d-7d98-cba424de2e74@oracle.com>
-Date: Fri, 4 May 2018 09:27:04 -0700
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1805040955550.10847@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+        Fri, 04 May 2018 13:52:51 -0700 (PDT)
+Date: Fri, 4 May 2018 13:52:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 00/17] Rearrange struct page
+Message-Id: <20180504135249.676650d27bb3959838119567@linux-foundation.org>
+In-Reply-To: <20180504183318.14415-1-willy@infradead.org>
+References: <20180504183318.14415-1-willy@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, drepper@gmail.com, rientjes@google.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>
 
+On Fri,  4 May 2018 11:33:01 -0700 Matthew Wilcox <willy@infradead.org> wrote:
 
+> As presented at LSFMM, this patch-set rearranges struct page to give
+> more contiguous usable space to users who have allocated a struct page
+> for their own purposes.
 
-On 5/4/18 7:57 AM, Christopher Lameter wrote:
-> On Thu, 3 May 2018, prakash.sangappa wrote:
->
->>>> exact numa node from where the pages have been allocated.
->>> Cant you write a small script that scans the information in numa_maps and
->>> then displays the total pages per NUMA node and then a list of which
->>> ranges have how many pages on a particular node?
->> Don't think we can determine which numa node a given user process
->> address range has pages from, based on the existing 'numa_maps' file.
-> Well the information is contained in numa_maps I thought. What is missing?
-
-Currently 'numa_maps' gives a list of numa nodes, memory is allocated per
-VMA.
-Ex. we get something like from numa_maps.
-
-04000A  N0=1,N2=2 kernelpagesize_KB=4
-
-First is the start address of a VMA. This VMA could be much larger then 
-3 4k pages.
-It does not say which address in the VMA has the pages mapped.
-
->
->>>> reading this file will not be restricted(i.e requiring CAP_SYS_ADMIN).
->>> So a prime motivator here is security restricted access to numa_maps?
->> No it is the opposite. A regular user should be able to determine
->> numa node information.
-> That used to be the case until changes were made to the permissions for
-> reading numa_maps.
->
+Are there such users?  Why is this considered useful? etc.
