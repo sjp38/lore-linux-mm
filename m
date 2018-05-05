@@ -1,51 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D60C6B000A
-	for <linux-mm@kvack.org>; Sat,  5 May 2018 00:42:42 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id j6-v6so14856692pgn.7
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 21:42:42 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id q1-v6si14585884pga.417.2018.05.04.21.42.41
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F15DD6B000C
+	for <linux-mm@kvack.org>; Sat,  5 May 2018 05:58:31 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id x2so1373577wmc.3
+        for <linux-mm@kvack.org>; Sat, 05 May 2018 02:58:31 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id s15-v6si15613458wrc.243.2018.05.05.02.58.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 May 2018 21:42:41 -0700 (PDT)
-Subject: Re: [PATCH v13 3/3] mm, powerpc, x86: introduce an additional vma bit
- for powerpc pkey
-References: <1525471183-21277-1-git-send-email-linuxram@us.ibm.com>
- <1525471183-21277-3-git-send-email-linuxram@us.ibm.com>
- <1e37895e-5a18-11c1-58f1-834f96dfd4d5@intel.com>
- <20180505011243.GB5617@ram.oc3035372033.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <7d1de723-f001-ebbe-6026-91bef88c566d@intel.com>
-Date: Fri, 4 May 2018 21:42:39 -0700
+        Sat, 05 May 2018 02:58:30 -0700 (PDT)
+Date: Sat, 5 May 2018 11:58:05 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v3 01/12] ACPI / APEI: Move the estatus queue code up,
+ and under its own ifdef
+Message-ID: <20180505095805.GB3708@pd.tnic>
+References: <20180427153510.5799-1-james.morse@arm.com>
+ <20180427153510.5799-2-james.morse@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180505011243.GB5617@ram.oc3035372033.ibm.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20180427153510.5799-2-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
 
-On 05/04/2018 06:12 PM, Ram Pai wrote:
->> That new line boils down to:
->>
->> 		[ilog2(0)]	= "",
->>
->> on x86.  It wasn't *obvious* to me that it is OK to do that.  The other
->> possibly undefined bits (VM_SOFTDIRTY for instance) #ifdef themselves
->> out of this array.
->>
->> I would just be a wee bit worried that this would overwrite the 0 entry
->> ("??") with "".
-> Yes it would :-( and could potentially break anything that depends on
-> 0th entry being "??"
+On Fri, Apr 27, 2018 at 04:34:59PM +0100, James Morse wrote:
+> To support asynchronous NMI-like notifications on arm64 we need to use
+> the estatus-queue. These patches refactor it to allow multiple APEI
+> notification types to use it.
 > 
-> Is the following fix acceptable?
+> First we move the estatus-queue code higher in the file so that any
+> notify_foo() handler can make use of it.
 > 
-> #if VM_PKEY_BIT4
->                 [ilog2(VM_PKEY_BIT4)]   = "",
-> #endif
+> This patch moves code around ... and makes the following trivial change:
+> Freshen the dated comment above ghes_estatus_llist. printk() is no
+> longer the issue, its the helpers like memory_failure_queue() that
+> still aren't nmi safe.
+> 
+> Signed-off-by: James Morse <james.morse@arm.com>
+> Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
+> 
+> Notes for cover letter:
+> ghes.c has three things all called 'estatus'. One is a pool of memory
+> that has a static size, and is grown/shrunk when new NMI users are
+> allocated.
+> The second is the cache, this holds recent notifications so we can
+> suppress notifications we've already handled.
+> The last is the queue, which hold data from NMI notifications (in pool
+> memory) that can't be handled immediatly.
+> ---
+>  drivers/acpi/apei/ghes.c | 265 ++++++++++++++++++++++++-----------------------
+>  1 file changed, 137 insertions(+), 128 deletions(-)
 
-Yep, I think that works for me.
+Reviewed-by: Borislav Petkov <bp@suse.de>
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
