@@ -1,126 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4200A6B0269
-	for <linux-mm@kvack.org>; Fri,  4 May 2018 21:08:26 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id x85-v6so4584550vke.11
-        for <linux-mm@kvack.org>; Fri, 04 May 2018 18:08:26 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c4sor7115910uaf.159.2018.05.04.18.08.25
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 850B46B0269
+	for <linux-mm@kvack.org>; Fri,  4 May 2018 21:13:00 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id d5-v6so16847502qtg.17
+        for <linux-mm@kvack.org>; Fri, 04 May 2018 18:13:00 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 34-v6si2706604qvl.182.2018.05.04.18.12.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 04 May 2018 18:08:25 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 May 2018 18:12:59 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w451Bgx4145748
+	for <linux-mm@kvack.org>; Fri, 4 May 2018 21:12:58 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2hs0jy3kbh-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 04 May 2018 21:12:58 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Sat, 5 May 2018 02:12:56 +0100
+Date: Fri, 4 May 2018 18:12:43 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v13 3/3] mm, powerpc, x86: introduce an additional vma
+ bit for powerpc pkey
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1525471183-21277-1-git-send-email-linuxram@us.ibm.com>
+ <1525471183-21277-3-git-send-email-linuxram@us.ibm.com>
+ <1e37895e-5a18-11c1-58f1-834f96dfd4d5@intel.com>
 MIME-Version: 1.0
-From: Kees Cook <keescook@google.com>
-Date: Fri, 4 May 2018 18:08:23 -0700
-Message-ID: <CAGXu5j++1TLqGGiTLrU7OvECfBAR6irWNke9u7Rr2i8g6_30QQ@mail.gmail.com>
-Subject: *alloc API changes
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1e37895e-5a18-11c1-58f1-834f96dfd4d5@intel.com>
+Message-Id: <20180505011243.GB5617@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, corbet@lwn.net, arnd@arndb.de
 
-Hi,
+On Fri, May 04, 2018 at 03:57:33PM -0700, Dave Hansen wrote:
+> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> > index 0c9e392..3ddddc7 100644
+> > --- a/fs/proc/task_mmu.c
+> > +++ b/fs/proc/task_mmu.c
+> > @@ -679,6 +679,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+> >  		[ilog2(VM_PKEY_BIT1)]	= "",
+> >  		[ilog2(VM_PKEY_BIT2)]	= "",
+> >  		[ilog2(VM_PKEY_BIT3)]	= "",
+> > +		[ilog2(VM_PKEY_BIT4)]	= "",
+> >  #endif /* CONFIG_ARCH_HAS_PKEYS */
+> ...
+> > +#if defined(CONFIG_PPC)
+> > +# define VM_PKEY_BIT4	VM_HIGH_ARCH_4
+> > +#else 
+> > +# define VM_PKEY_BIT4	0
+> > +#endif
+> >  #endif /* CONFIG_ARCH_HAS_PKEYS */
+> 
+> That new line boils down to:
+> 
+> 		[ilog2(0)]	= "",
+> 
+> on x86.  It wasn't *obvious* to me that it is OK to do that.  The other
+> possibly undefined bits (VM_SOFTDIRTY for instance) #ifdef themselves
+> out of this array.
+> 
+> I would just be a wee bit worried that this would overwrite the 0 entry
+> ("??") with "".
 
-After writing up this email, I think I don't like this idea, but I'm
-still curious to see what people think of the general observations...
+Yes it would :-( and could potentially break anything that depends on
+0th entry being "??"
 
+Is the following fix acceptable?
 
-The number of permutations for our various allocation function is
-rather huge. Currently, it is:
-
-system or wrapper:
-kmem_cache_alloc, kmalloc, vmalloc, kvmalloc, devm_kmalloc,
-dma_alloc_coherent, pci_alloc_consistent, kmem_alloc, f2fs_kvalloc,
-and probably others I haven't found yet.
-
-allocation method (not all available in all APIs):
-regular (kmalloc), zeroed (kzalloc), array (kmalloc_array), zeroed
-array (kcalloc)
-
-with or without node argument:
-+_node
-
-so, for example, we have things like: kmalloc_array_node() or
-pci_zalloc_consistent()
-
-Using some attempts at static analysis with git grep and coccinelle,
-nearly all of these take GFP flags, but something near 80% of
-functions are using GFP_KERNEL. Roughly half of the callers are
-including a sizeof(). Only 20% are using zeroing, 15% are using
-products as a size, and 3% are using ..._node, etc.
-
-I wonder if we might be able to rearrange our APIs for the general
-case and include a common "kitchen sink" API for the less common
-options. I.e. why do we have an entire set of _node() APIs, 2 sets for
-zeroing (kzalloc, kcalloc), etc.
-
-kmalloc()-family was meant to be a simplification of
-kmem_cache_alloc(). vmalloc() duplicated the kmalloc()-family, and
-kvmalloc() does too. Then we have "specialty" allocators (devm, dma,
-pci, f2fs, xfs's kmem) that have subsets and want to perform other
-actions around the base allocators or have their own entirely (e.g.
-dma).
-
-Instead of all the variations, it seems like we just want a per-family
-alloc() and alloc_attrs(), where alloc_attrs() could handle the less
-common stuff (e.g. gfp, zero, node).
-
-kmalloc(size, GFP_KERNEL)
-becomes a nice:
-kmalloc(size)
-
-However, then
-kzalloc(size, GFP_KERNEL)
-becomes the ugly:
-kmalloc_attrs(size, GFP_KERNEL, ALLOC_ZERO, NUMA_NO_NODE);
-
-(But I guess we could make macro wrappers for zeroing, or node?)
-
-But this doesn't solve the multiplication overflow case at all, which
-is my real goal. Trying to incorporate some of the ideas from other
-threads, maybe we could have a multiplication helper that would
-saturate and the allocator would see that as a signal to return NULL?
-e.g.:
-
-inline size_t mult(size_t a, size_t b)
-{
-    if (b != 0 && a >= SIZE_MAX / b)
-        return SIZE_MAX;
-    return a * b;
-}
-(really, this kind of helper should be based on Rasmus's helpers which
-do correct type handling)
-
-void *kmalloc(size_t size)
-{
-    if (size == SIZE_MAX)
-        return NULL;
-    kmalloc_attrs(size, GFP_KERNEL, ALLOC_NOZERO, NUMA_NO_NODE);
-}
-
-then we get:
-var = kmalloc(mult(num, sizeof(*var)));
-
-we could drop the *calloc(), *zalloc(), and *_array(), leaving only
-*alloc() and *alloc_attrs() for all the allocator families.
-
-I honestly can't tell if this is worse than doing all the family
-conversions to *calloc() and *_array() for the 1000ish instances of
-2-factor products used for size arguments in the *alloc() functions.
-We could still nest them for the 3-factor ones?
-var = kmalloc(multi(row, mult(column, sizeof(*var))));
-
-But now we're just pretending to be LISP.
-
-And really, I'd like to keep the nicer *alloc_struct() with all its
-type checking. But then do we do *zalloc_struct(),
-*alloc_struct_node(), etc, etc?
-
-Bleh. C sucks for this.
-
--Kees
+#if VM_PKEY_BIT4
+                [ilog2(VM_PKEY_BIT4)]   = "",
+#endif
 
 -- 
-Kees Cook
-Pixel Security
+Ram Pai
