@@ -1,67 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C7F9E6B000C
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 11:19:28 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id c24-v6so14860442ioh.12
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 08:19:28 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 2-v6si8517523itr.36.2018.05.07.08.19.27
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A5E606B0003
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 11:56:58 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w189-v6so16653341oiw.1
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 08:56:58 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id p62-v6si7783311oic.346.2018.05.07.08.56.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 07 May 2018 08:19:27 -0700 (PDT)
-Date: Mon, 7 May 2018 12:19:16 -0300
-From: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
-Subject: Re: Are media drivers abusing of GFP_DMA? - was: Re: [LSF/MM TOPIC
- NOTES] x86 ZONE_DMA love
-Message-ID: <20180507121916.4eb7f5b2@vento.lan>
-In-Reply-To: <3561479.qPIcrWnXEC@avalon>
-References: <20180426215406.GB27853@wotan.suse.de>
-	<20180505130815.53a26955@vento.lan>
-	<3561479.qPIcrWnXEC@avalon>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 May 2018 08:56:57 -0700 (PDT)
+Date: Tue, 8 May 2018 00:56:51 +0900
+From: Masami Hiramatsu <mhiramat@kernel.org>
+Subject: Re: [PATCH v3 6/9] trace_uprobe: Support SDT markers having
+ reference count (semaphore)
+Message-Id: <20180508005651.45553d3cf72521481d16b801@kernel.org>
+In-Reply-To: <f3d066d2-a85a-bd21-d4f9-fc27e59135df@linux.ibm.com>
+References: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
+	<20180417043244.7501-7-ravi.bangoria@linux.vnet.ibm.com>
+	<20180504134816.8633a157dd036489d9b0f1db@kernel.org>
+	<206e4a16-ae21-7da3-f752-853dc2f51947@linux.ibm.com>
+	<f3d066d2-a85a-bd21-d4f9-fc27e59135df@linux.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Cc: Fabien Dessenne <fabien.dessenne@st.com>, Jean-Christophe Trotin <jean-christophe.trotin@st.com>, Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>, Sakari Ailus <sakari.ailus@linux.intel.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org
+To: Ravi Bangoria <ravi.bangoria@linux.ibm.com>
+Cc: oleg@redhat.com, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com
 
-Em Mon, 07 May 2018 16:26:08 +0300
-Laurent Pinchart <laurent.pinchart@ideasonboard.com> escreveu:
+On Mon, 7 May 2018 13:51:21 +0530
+Ravi Bangoria <ravi.bangoria@linux.ibm.com> wrote:
 
-> Hi Mauro,
+> Hi Masami,
 > 
-> On Saturday, 5 May 2018 19:08:15 EEST Mauro Carvalho Chehab wrote:
-> > There was a recent discussion about the use/abuse of GFP_DMA flag when
-> > allocating memories at LSF/MM 2018 (see Luis notes enclosed).
-> > 
-> > The idea seems to be to remove it, using CMA instead. Before doing that,
-> > better to check if what we have on media is are valid use cases for it, or
-> > if it is there just due to some misunderstanding (or because it was
-> > copied from some other code).
-> > 
-> > Hans de Goede sent us today a patch stopping abuse at gspca, and I'm
-> > also posting today two other patches meant to stop abuse of it on USB
-> > drivers. Still, there are 4 platform drivers using it:
-> > 
-> > 	$ git grep -l -E "GFP_DMA\\b" drivers/media/
-> > 	drivers/media/platform/omap3isp/ispstat.c
-> > 	drivers/media/platform/sti/bdisp/bdisp-hw.c
-> > 	drivers/media/platform/sti/hva/hva-mem.c
-> > 	drivers/media/spi/cxd2880-spi.c
-> > 
-> > Could you please check if GFP_DMA is really needed there, or if it is
-> > just because of some cut-and-paste from some other place?  
+> On 05/04/2018 07:51 PM, Ravi Bangoria wrote:
+> >
+> >>> +}
+> >>> +
+> >>> +static void sdt_increment_ref_ctr(struct trace_uprobe *tu)
+> >>> +{
+> >>> +	struct uprobe_map_info *info;
+> >>> +
+> >>> +	uprobe_down_write_dup_mmap();
+> >>> +	info = uprobe_build_map_info(tu->inode->i_mapping,
+> >>> +				tu->ref_ctr_offset, false);
+> >>> +	if (IS_ERR(info))
+> >>> +		goto out;
+> >>> +
+> >>> +	while (info) {
+> >>> +		down_write(&info->mm->mmap_sem);
+> >>> +
+> >>> +		if (sdt_find_vma(tu, info->mm, info->vaddr))
+> >>> +			sdt_update_ref_ctr(info->mm, info->vaddr, 1);
+> >> Don't you have to handle the error to map pages here?
+> > Correct.. I think, I've to feedback error code to probe_event_{enable|disable}
+> > and handler failure there.
 > 
-> I started looking at that for the omap3isp driver but Sakari beat me at 
-> submitting a patch. GFP_DMA isn't needed for omap3isp.
+> I looked at this. Actually, It looks difficult to feedback errors to
+> probe_event_{enable|disable}, esp. in the mmap() case.
+
+Hmm, can't you roll that back if sdt_increment_ref_ctr() fails?
+If so, how does sdt_decrement_ref_ctr() work in that case?
+
+> Is it fine if we just warn sdt_update_ref_ctr() failures in dmesg? I'm
+> doing this in [PATCH 7]. (Though, it makes more sense to do that in
+> [PATCH 6], will change it in next version).
+
+Of course we need to warn it at least, but the best is rejecting to
+enable it.
+
 > 
-Thank you both for looking into it.
+> Any better ideas?
+> 
+> BTW, same issue exists for normal uprobe. If uprobe_mmap() fails,
+> there is no feedback to trace_uprobe and no warnigns in dmesg as
+> well !! There was a patch by Naveen to warn such failures in dmesg
+> but that didn't go in: https://lkml.org/lkml/2017/9/22/155
 
-Regards,
-Mauro
+Oops, that's a real bug. It seems the ball is in Naveen's hand.
+Naveen, could you update it according to Oleg's comment, and resend it?
+
+> 
+> Also, I'll add a check in sdt_update_ref_ctr() to make sure reference
+> counter never goes to negative incase increment fails but decrement
+> succeeds. OTOH, if increment succeeds but decrement fails, the
+> counter remains >0 but there is no harm as such, except we will
+> execute some unnecessary code.
+
+I see. Please carefully clarify whether such case is kernel's bug or not.
+I would like to know what the condition causes that uneven behavior.
+
+Thank you,
+
+> 
+> Thanks,
+> Ravi
+> 
 
 
-
-Thanks,
-Mauro
+-- 
+Masami Hiramatsu <mhiramat@kernel.org>
