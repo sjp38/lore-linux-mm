@@ -1,49 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D1D66B0003
-	for <linux-mm@kvack.org>; Sun,  6 May 2018 21:10:59 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id j6-v6so16753599pgn.7
-        for <linux-mm@kvack.org>; Sun, 06 May 2018 18:10:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i3-v6sor4384133pgq.150.2018.05.06.18.10.57
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 46D076B0010
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 00:52:10 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k27-v6so18238542wre.23
+        for <linux-mm@kvack.org>; Sun, 06 May 2018 21:52:10 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d9-v6sor10065944wrn.65.2018.05.06.21.52.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 06 May 2018 18:10:57 -0700 (PDT)
-Subject: Re: [PATCH v8 0/6] optimize memblock_next_valid_pfn and
- early_pfn_valid on arm and arm64
-References: <1523431317-30612-1-git-send-email-hejianet@gmail.com>
- <05b0fcf2-7670-101e-d4ab-1f656ff6b02f@gmail.com>
- <CACjP9X8bHmrxmd7ZPcfQq6Eq0Mzwmt0saOR3Ph53gp2n-dcKBQ@mail.gmail.com>
- <23b14717-0f4a-10f2-5118-7cb8445fbdab@oracle.com>
-From: Jia He <hejianet@gmail.com>
-Message-ID: <448ad581-6635-e732-c49d-9240cdb385b5@gmail.com>
-Date: Mon, 7 May 2018 09:10:40 +0800
+        Sun, 06 May 2018 21:52:08 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <23b14717-0f4a-10f2-5118-7cb8445fbdab@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+References: <20180424154355.mfjgkf47kdp2by4e@black.fi.intel.com>
+In-Reply-To: <20180424154355.mfjgkf47kdp2by4e@black.fi.intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 07 May 2018 04:51:57 +0000
+Message-ID: <CALCETrVzD8oPv=h2q91AMdCHn3S782GmvsY-+mwoaPUw=5N7HQ@mail.gmail.com>
+Subject: Re: Proof-of-concept: better(?) page-table manipulation API
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>, Daniel Vacek <neelx@redhat.com>
-Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Wei Yang <richard.weiyang@gmail.com>, Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Vladimir Murzin <vladimir.murzin@arm.com>, Philip Derrin <philip@cog.systems>, AKASHI Takahiro <takahiro.akashi@linaro.org>, James Morse <james.morse@arm.com>, Steve Capper <steve.capper@arm.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Petr Tesarik <ptesarik@suse.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, open list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+
+On Tue, Apr 24, 2018 at 8:44 AM Kirill A. Shutemov <
+kirill.shutemov@linux.intel.com> wrote:
+
+> Hi everybody,
+
+> I've proposed to talk about page able manipulation API on the LSF/MM'2018,
+> so I need something material to talk about.
 
 
+I gave it a quick read.  I like the concept a lot, and I have a few
+comments.
 
-On 5/5/2018 12:53 AM, Pavel Tatashin Wrote:
->> I'm wondering, ain't simple enabling of config
->> DEFERRED_STRUCT_PAGE_INIT provide even better speed-up? If that is the
->> case then it seems like this series is not needed at all, right?
->> I am not sure why is this config optional. It looks like it could be
->> enabled by default or even unconditionally considering that with
->> commit c9e97a1997fb ("mm: initialize pages on demand during boot") the
->> deferred code is statically disabled after all the pages are
->> initialized.
-> Hi Daniel,
->
-> Currently, deferred struct pages are initialized in parallel only on NUMA machines. I would like to make a change to use all the available CPUs even on a single socket systems, but that is not there yet. So, I believe Jia's performance improvements are still relevant.
-Thanks for the information. I checked the config in my armv8a server,
-DEFERRED_STRUCT_PAGE_INIT has not been enabled yet.And my server is
-single socket.
+> +/*
+> + * How manu bottom level we account to mm->pgtables_bytes
+> + */
+> +#define PT_ACCOUNT_LVLS 3
+> +
+> +struct pt_ptr {
+> +       unsigned long *ptr;
+> +       int lvl;
+> +};
+> +
 
-Cheers.
-Jia
+I think you've inherited something that I consider to be a defect in the
+old code: you're conflating page *tables* with page table *entries*.  Your
+'struct pt_ptr' sounds like a pointer to an entire page table, but AFAICT
+you're using it to point to a specific entry within a table.  I think that
+both the new core code and the code that uses it would be clearer and less
+error prone if you made the distinction explicit.  I can think of two clean
+ways to do it:
+
+1. Add a struct pt_entry_ptr, and make it so that get_ptv(), etc take a
+pt_entry_ptr instead of a pt_ptr.  Add a helper to find a pt_entry_ptr
+given a pt_ptr and either an index or an address.
+
+2. Don't allow pointers to page table entries at all.  Instead, get_ptv()
+would take an address or an index parameter.
+
+Also, what does lvl == 0 mean?  Is it the top or the bottom?  I think a
+comment would be helpful.
+
+> +/*
+> + * When walking page tables, get the address of the next boundary,
+> + * or the end address of the range if that comes earlier.  Although no
+> + * vma end wraps to 0, rounded up __boundary may wrap to 0 throughout.
+> + */
+
+I read this comment twice, and I still don't get it.  Can you clarify what
+this function does and why you would use it?
+
+> +/* Operations on page table pointers */
+> +
+> +/* Initialize ptp_t with pointer to top page table level. */
+> +static inline ptp_t ptp_init(struct mm_struct *mm)
+> +{
+> +       struct pt_ptr ptp ={
+> +               .ptr = (unsigned long *)mm->pgd,
+> +               .lvl = PT_TOP_LEVEL,
+> +       };
+> +
+> +       return ptp;
+> +}
+> +
+
+On some architectures, there are multiple page table roots.  For example,
+ARM64 has a root for the kernel half of the address space and a root for
+the user half (at least -- I don't fully understand it).  x86 PAE sort-of
+has four roots.  Would it make sense to expose this in the API for real?
+For example, ptp_init(mm) could be replaced with ptp_init(mm, addr).  This
+would make it a bit cleaner to handle an separate user and kernel tables.
+  (As it stands, what is supposed to happen on ARM if you do
+ptp_init(something that isn't init_mm) and then walk it to look for a
+kernel address?)
+
+Also, ptp_init() seems oddly named for me.  ptp_get_root_for_mm(),
+perhaps?  There could also be ptp_get_kernel_root() to get the root for the
+init_mm's tables.
+
+> +static inline void ptp_walk(ptp_t *ptp, unsigned long addr)
+> +{
+> +       ptp->ptr = (unsigned long *)ptp_page_vaddr(ptp);
+> +       ptp->ptr += __pt_index(addr, --ptp->lvl);
+> +}
+
+Can you add a comment that says what this function does?  Why does it not
+change the level?
+
+> +
+> +static void ptp_free(struct mm_struct *mm, ptv_t ptv)
+> +{
+> +       if (ptv.lvl < PT_SPLIT_LOCK_LVLS)
+> +               ptlock_free(pfn_to_page(ptv_pfn(ptv)));
+> +}
+> +
+
+As it stands, this is a function that seems easy easy to misuse given the
+confusion between page tables and page table entries.
+
+
+Finally, a general comment.  Actually fully implementing this the way
+you've done it seems like a giant mess given that you need to support all
+architectures.  But couldn't you implement the new API as a wrapper around
+the old API so you automatically get all architectures?
