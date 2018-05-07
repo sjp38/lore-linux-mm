@@ -1,127 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 46D076B0010
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 00:52:10 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k27-v6so18238542wre.23
-        for <linux-mm@kvack.org>; Sun, 06 May 2018 21:52:10 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d9-v6sor10065944wrn.65.2018.05.06.21.52.08
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 726E46B0010
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 02:02:07 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t74-v6so9750389pgc.14
+        for <linux-mm@kvack.org>; Sun, 06 May 2018 23:02:07 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f12-v6sor4888118pln.22.2018.05.06.23.02.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 06 May 2018 21:52:08 -0700 (PDT)
+        Sun, 06 May 2018 23:02:06 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180424154355.mfjgkf47kdp2by4e@black.fi.intel.com>
-In-Reply-To: <20180424154355.mfjgkf47kdp2by4e@black.fi.intel.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 07 May 2018 04:51:57 +0000
-Message-ID: <CALCETrVzD8oPv=h2q91AMdCHn3S782GmvsY-+mwoaPUw=5N7HQ@mail.gmail.com>
-Subject: Re: Proof-of-concept: better(?) page-table manipulation API
+In-Reply-To: <CACT4Y+Y-=9wmOOm3Q5BpNOL+2H123YAaRvBCbv-zCBv3Y4Ysew@mail.gmail.com>
+References: <CAD1Xb+-kbRLxe1XNSkhY-VXZWV8fSy-gZeeGhtKH2hO42VJKzA@mail.gmail.com>
+ <CACT4Y+Y-=9wmOOm3Q5BpNOL+2H123YAaRvBCbv-zCBv3Y4Ysew@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 7 May 2018 08:01:45 +0200
+Message-ID: <CACT4Y+Ze3tKeLL=c5UbSMmzBEDdz7EURh6769-L4fRFGM7X5tA@mail.gmail.com>
+Subject: Re: Use-after-scope Write in mem_cgroup_uncharge' bug.(Plain text)
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dongsong Yu <yudongsong1992@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>, Mark Rutland <mark.rutland@arm.com>
 
-On Tue, Apr 24, 2018 at 8:44 AM Kirill A. Shutemov <
-kirill.shutemov@linux.intel.com> wrote:
-
-> Hi everybody,
-
-> I've proposed to talk about page able manipulation API on the LSF/MM'2018,
-> so I need something material to talk about.
-
-
-I gave it a quick read.  I like the concept a lot, and I have a few
-comments.
-
-> +/*
-> + * How manu bottom level we account to mm->pgtables_bytes
-> + */
-> +#define PT_ACCOUNT_LVLS 3
-> +
-> +struct pt_ptr {
-> +       unsigned long *ptr;
-> +       int lvl;
-> +};
-> +
-
-I think you've inherited something that I consider to be a defect in the
-old code: you're conflating page *tables* with page table *entries*.  Your
-'struct pt_ptr' sounds like a pointer to an entire page table, but AFAICT
-you're using it to point to a specific entry within a table.  I think that
-both the new core code and the code that uses it would be clearer and less
-error prone if you made the distinction explicit.  I can think of two clean
-ways to do it:
-
-1. Add a struct pt_entry_ptr, and make it so that get_ptv(), etc take a
-pt_entry_ptr instead of a pt_ptr.  Add a helper to find a pt_entry_ptr
-given a pt_ptr and either an index or an address.
-
-2. Don't allow pointers to page table entries at all.  Instead, get_ptv()
-would take an address or an index parameter.
-
-Also, what does lvl == 0 mean?  Is it the top or the bottom?  I think a
-comment would be helpful.
-
-> +/*
-> + * When walking page tables, get the address of the next boundary,
-> + * or the end address of the range if that comes earlier.  Although no
-> + * vma end wraps to 0, rounded up __boundary may wrap to 0 throughout.
-> + */
-
-I read this comment twice, and I still don't get it.  Can you clarify what
-this function does and why you would use it?
-
-> +/* Operations on page table pointers */
-> +
-> +/* Initialize ptp_t with pointer to top page table level. */
-> +static inline ptp_t ptp_init(struct mm_struct *mm)
-> +{
-> +       struct pt_ptr ptp ={
-> +               .ptr = (unsigned long *)mm->pgd,
-> +               .lvl = PT_TOP_LEVEL,
-> +       };
-> +
-> +       return ptp;
-> +}
-> +
-
-On some architectures, there are multiple page table roots.  For example,
-ARM64 has a root for the kernel half of the address space and a root for
-the user half (at least -- I don't fully understand it).  x86 PAE sort-of
-has four roots.  Would it make sense to expose this in the API for real?
-For example, ptp_init(mm) could be replaced with ptp_init(mm, addr).  This
-would make it a bit cleaner to handle an separate user and kernel tables.
-  (As it stands, what is supposed to happen on ARM if you do
-ptp_init(something that isn't init_mm) and then walk it to look for a
-kernel address?)
-
-Also, ptp_init() seems oddly named for me.  ptp_get_root_for_mm(),
-perhaps?  There could also be ptp_get_kernel_root() to get the root for the
-init_mm's tables.
-
-> +static inline void ptp_walk(ptp_t *ptp, unsigned long addr)
-> +{
-> +       ptp->ptr = (unsigned long *)ptp_page_vaddr(ptp);
-> +       ptp->ptr += __pt_index(addr, --ptp->lvl);
-> +}
-
-Can you add a comment that says what this function does?  Why does it not
-change the level?
-
-> +
-> +static void ptp_free(struct mm_struct *mm, ptv_t ptv)
-> +{
-> +       if (ptv.lvl < PT_SPLIT_LOCK_LVLS)
-> +               ptlock_free(pfn_to_page(ptv_pfn(ptv)));
-> +}
-> +
-
-As it stands, this is a function that seems easy easy to misuse given the
-confusion between page tables and page table entries.
+On Wed, May 2, 2018 at 1:18 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Wed, May 2, 2018 at 1:11 PM, Dongsong Yu <yudongsong1992@gmail.com> wrote:
+>> Hi,
+>> I've got the following bug report while fuzzing linux kenrel (4.16.0) on
+>> arm64 with syzkaller.
+>> The kernel config file and poc generated by C reproducer are attached.
+>>
+>> Syzkaller hit 'KASAN: use-after-scope Write in mem_cgroup_uncharge' bug.
+>
+> Hi Dongsong,
+>
+> If I am looking at the right source:
+> https://elixir.bootlin.com/linux/v4.16/source/mm/memcontrol.c#L5667
+> this report does not make sense.
+> What version of compiler do you use?
+> Please post disasm of mem_cgroup_uncharge with source/line annotations.
 
 
-Finally, a general comment.  Actually fully implementing this the way
-you've done it seems like a giant mess given that you need to support all
-architectures.  But couldn't you implement the new API as a wrapper around
-the old API so you automatically get all architectures?
+I don't see how the bug can happen. Nor I see who stores 0xf8f8f8f8
+into KASAN shadow, though I am not very proficient in arm64 asm. I
+don't remember any similar false positives on x86.
++Mark, have you seen any KASAN false positives related to
+use-after-scope on arm64?
+
+
+
+>> ==================================================================
+>> BUG: KASAN: use-after-scope in uncharge_gather_clear mm/memcontrol.c:5546
+>> [inline]
+>> BUG: KASAN: use-after-scope in mem_cgroup_uncharge+0xcc/0xf0
+>> mm/memcontrol.c:5667
+>> Write of size 64 at addr ffff8000738c6cf0 by task syzkaller348646/1477
+>>
+>> CPU: 0 PID: 1477 Comm: syzkaller348646 Not tainted 4.16.0 #2
+>> Hardware name: linux,dummy-virt (DT)
+>> Call trace:
+>>   dump_backtrace+0x0/0x350 arch/arm64/kernel/time.c:64
+>>   show_stack+0x20/0x30 arch/arm64/kernel/traps.c:151
+>>   __dump_stack lib/dump_stack.c:17 [inline]
+>>   dump_stack+0x11c/0x198 lib/dump_stack.c:53
+>>   print_address_description+0x60/0x270 mm/kasan/report.c:256
+>>   kasan_report_error mm/kasan/report.c:354 [inline]
+>>   kasan_report+0x248/0x348 mm/kasan/report.c:412
+>>   check_memory_region_inline mm/kasan/kasan.c:253 [inline]
+>>   check_memory_region+0x148/0x198 mm/kasan/kasan.c:267
+>>   memset+0x2c/0x50 mm/kasan/kasan.c:285
+>>   uncharge_gather_clear mm/memcontrol.c:5546 [inline]
+>>   mem_cgroup_uncharge+0xcc/0xf0 mm/memcontrol.c:5667
+>>   __page_cache_release+0x11c/0x640 mm/swap.c:73
+>>   __put_compound_page+0x30/0x70 mm/swap.c:93
+>>   release_pages+0x6b4/0x990 mm/swap.c:760
+>>   free_pages_and_swap_cache+0x1e8/0x250 mm/swap_state.c:322
+>>   tlb_flush_mmu_free+0x6c/0xb8 mm/memory.c:259
+>>   tlb_flush_mmu+0x3c/0x48 mm/memory.c:268
+>>   arch_tlb_finish_mmu+0x70/0xc0 mm/memory.c:283
+>>   tlb_finish_mmu+0xd0/0x128 mm/memory.c:433
+>>   unmap_region+0x248/0x2b8 mm/mmap.c:2514
+>>   do_munmap+0x3b8/0x670 mm/mmap.c:2726
+>>   mmap_region+0x3b8/0xa78 mm/mmap.c:1646
+>>   do_mmap+0x448/0x6a0 mm/mmap.c:1483
+>>   do_mmap_pgoff include/linux/mm.h:2223 [inline]
+>>   vm_mmap_pgoff+0x17c/0x1b8 mm/util.c:355
+>>   SYSC_mmap_pgoff mm/mmap.c:1533 [inline]
+>>   SyS_mmap_pgoff+0x184/0x3e8 mm/mmap.c:1491
+>>   sys_mmap+0x58/0x80 arch/arm64/kernel/sys.c:37
+>>   el0_svc_naked+0x30/0x34
+>>
+>> The buggy address belongs to the page:
+>> page:ffff7e0001ce3180 count:0 mapcount:0 mapping:0000000000000000 index:0x0
+>> flags: 0x4fffc00000000000()
+>> raw: 4fffc00000000000 0000000000000000 0000000000000000 00000000ffffffff
+>> raw: 0000000000000000 ffff7e0001ce31a0 0000000000000000 0000000000000000
+>> page dumped because: kasan: bad access detected
+>>
+>> Memory state around the buggy address:
+>>   ffff8000738c6b80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>>   ffff8000738c6c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>>> ffff8000738c6c80: f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f1 f1 f1 f1 f8 f8
+>>                                                               ^
+>>   ffff8000738c6d00: f8 f8 f8 f8 f8 f8 f3 f3 f3 f3 f8 f8 f8 f8 f8 f8
+>>   ffff8000738c6d80: f8 f8 f8 f8 f8 f8 00 00 00 00 00 00 00 00 00 00
+>> ==================================================================
+>>
+>> --
+>> You received this message because you are subscribed to the Google Groups "syzkaller" group.
+>> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller+unsubscribe@googlegroups.com.
+>> For more options, visit https://groups.google.com/d/optout.
