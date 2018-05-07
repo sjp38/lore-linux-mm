@@ -1,108 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E2546B0008
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 18:56:27 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id 65so9578386uaq.20
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 15:56:27 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 14sor9891053uaq.36.2018.05.07.15.56.26
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B0B86B000D
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 19:15:09 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u10-v6so8161856pgp.8
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 16:15:09 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id x4-v6si10427592pgr.301.2018.05.07.16.15.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 07 May 2018 15:56:26 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <ee9322c7-801b-c88c-d78c-32d38dac32c1@rasmusvillemoes.dk>
-References: <CAGXu5j++1TLqGGiTLrU7OvECfBAR6irWNke9u7Rr2i8g6_30QQ@mail.gmail.com>
- <20180505034646.GA20495@bombadil.infradead.org> <CAGXu5jLbbts6Do5JtX8+fij0m=wEZ30W+k9PQAZ_ddOnpuPHZA@mail.gmail.com>
- <ee9322c7-801b-c88c-d78c-32d38dac32c1@rasmusvillemoes.dk>
-From: Kees Cook <keescook@google.com>
-Date: Mon, 7 May 2018 15:56:25 -0700
-Message-ID: <CAGXu5jKvKqKNgATDrNEGsh3yWpeOTSv_TZUB=WHeJ75vKpE=fg@mail.gmail.com>
-Subject: Re: *alloc API changes
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 May 2018 16:15:08 -0700 (PDT)
+From: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Subject: [PATCH] mm: expland documentation over __read_mostly
+Date: Mon,  7 May 2018 16:15:06 -0700
+Message-Id: <20180507231506.4891-1-mcgrof@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Matthew Wilcox <willy@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: tglx@linutronix.de, arnd@arndb.de, cl@linux.com
+Cc: keescook@chromium.org, luto@amacapital.net, longman@redhat.com, viro@zeniv.linux.org.uk, willy@infradead.org, ebiederm@xmission.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Luis R. Rodriguez" <mcgrof@kernel.org>
 
-On Mon, May 7, 2018 at 2:41 PM, Rasmus Villemoes
-<linux@rasmusvillemoes.dk> wrote:
-> If instead we do
->
-> static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
-> {
->         size_t p;
->         if (check_mul_overflow(n, size, &p))
->             return NULL;
->         return __kmalloc(p, flags);
-> }
->
-> we'd not get any extra code in the caller (that is, just a "mul" and
-> "jo", instead of a load-immediate, mul, cmov), because gcc should be
-> smart enough to combine the "return NULL" with the test for NULL which
-> the caller code has, and thus make the jump go directly to the error
-> handling (that error handling is likely itself a jump, but the "jo" will
-> just get redirected to the target of that one).
->
-> Also, I'd hate to have sat_mul not really saturating to type_max(t), but
-> some large-enough-that-all-underlying-allocators-reject-it.
+__read_mostly can easily be misused by folks, its not meant for
+just read-only data. There are performance reasons for using it, but
+we also don't provide any guidance about its use. Provide a bit more
+guidance over it use.
 
-Yeah, this continues to worry me too.
+Signed-off-by: Luis R. Rodriguez <mcgrof@kernel.org>
+---
+ include/linux/cache.h | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-> All allocators still need to reject insane sizes, since those can happen
-> without coming from a multiplication. So sure, some early size >
-> MAX_SANE_SIZE check in the out-of-line functions should be rather cheap,
-> and they most likely already exist in some form. But we don't _have_ to
-> go out of our way to make the multiplication overflow handling depend on
-> those.
->
->>
->> Right, no. I think if we can ditch *calloc() and _array() by using
->> saturating helpers, we'll have the API in a much better form:
->>
->> kmalloc(foo * bar, GFP_KERNEL);
->> into
->> kmalloc_array(foo, bar, GFP_KERNEL);
->> into
->> kmalloc(mul(foo, bar), GFP_KERNEL);
->
-> Urgh. Do you want to get completely rid of kmalloc_array() and move the
-> mul() into the call-sites? That obviously necessitates mul returning a
-> big-enough sentinel. I'd hate that. Not just because of the code-gen,
-> but also because of the problem with giving mul() sane semantics that
-> still make it immune to the extra arithmetic that will inevitably be
-> done. There's also the problem with foo and bar having different,
-> possibly signed, types - how should mul() handle those? A nice benefit
-> from having the static inline wrappers taking size_t is that a negative
-> value gets converted to a huge positive value, and then the whole thing
-> overflows. Sure, you can build that into mul() (maybe make that itself a
-> static inline), but then it doesn't really deserve that generic name
-> anymore.
+Every now and then we get a patch suggesting to use __read_mostly for
+something new or old but with no justifications. Add a bit more
+verbiage to help guide its users.
 
-If the struct_size(), array_size(), and array3_size() all take size_t,
-then I think we gain the same protection, yes? i.e. they are built out
-of your overflow checking routines. Even though I'm nervous about
-SIZE_MAX wrapping on other uses, I do agree that doing early rejection
-in the allocators makes a lot more sense. I think we can have bot the
-SIZE_MAX early-abort of "something went very wrong", and the internal
-"I refuse to store that much" that is per-allocator-tuned.
+Is this sufficient documentation to at least ask for a reason in the commit
+log as to why its being used for new entries? Or should we be explicit and
+ask for such justifications in commit logs? Taken from prior discussions
+with Christoph Lameter [0] over its use.
 
->> kmalloc(foo * bar, GFP_KERNEL | __GFP_ZERO);
->> into
->> kzalloc(foo * bar, GFP_KERNEL);
->> into
->> kcalloc(foo, bar, GFP_KERNEL);
->> into
->> kzalloc(mul(foo, bar), GFP_KERNEL);
->
-> Yeah, part of the API mess is just copied from C (malloc vs calloc). We
-> could make it a bit less messy by calling it kzalloc_array, but we have
-> 1700 callers of kcalloc(), so...
+[0] https://lkml.kernel.org/r/alpine.DEB.2.11.1504301343190.28879@gentwo.org
 
-Coccinelle can fix those callers. ;) But we need to make sure we're
-still generating sane machine code before we do that...
-
--Kees
-
+diff --git a/include/linux/cache.h b/include/linux/cache.h
+index 750621e41d1c..62bc5adc0ed5 100644
+--- a/include/linux/cache.h
++++ b/include/linux/cache.h
+@@ -15,8 +15,14 @@
+ 
+ /*
+  * __read_mostly is used to keep rarely changing variables out of frequently
+- * updated cachelines. If an architecture doesn't support it, ignore the
+- * hint.
++ * updated cachelines. Its use should be reserved for data that is used
++ * frequently in hot paths. Performance traces can help decide when to use
++ * this. You want __read_mostly data to be tightly packed, so that in the
++ * best case multiple frequently read variables for a hot path will be next
++ * to each other in order to reduce the number of cachelines needed to
++ * execute a critial path. We should be mindful and selective if its use.
++ *
++ * If an architecture doesn't support it, ignore the hint.
+  */
+ #ifndef __read_mostly
+ #define __read_mostly
 -- 
-Kees Cook
-Pixel Security
+2.17.0
