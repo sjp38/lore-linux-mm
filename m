@@ -1,184 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 642226B000C
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 07:31:26 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id z18-v6so2103041lfg.17
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 04:31:26 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l18-v6sor5012500ljb.52.2018.05.07.04.31.23
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AC376B000C
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 07:39:05 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id s16so2819989pfm.1
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 04:39:05 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id h190-v6si11491808pgc.663.2018.05.07.04.39.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 07 May 2018 04:31:23 -0700 (PDT)
-Date: Mon, 7 May 2018 14:31:25 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: Proof-of-concept: better(?) page-table manipulation API
-Message-ID: <20180507113124.ewpbrfd3anyg7pli@kshutemo-mobl1>
-References: <20180424154355.mfjgkf47kdp2by4e@black.fi.intel.com>
- <CALCETrVzD8oPv=h2q91AMdCHn3S782GmvsY-+mwoaPUw=5N7HQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 07 May 2018 04:39:04 -0700 (PDT)
+Date: Mon, 7 May 2018 04:39:02 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: *alloc API changes
+Message-ID: <20180507113902.GC18116@bombadil.infradead.org>
+References: <CAGXu5j++1TLqGGiTLrU7OvECfBAR6irWNke9u7Rr2i8g6_30QQ@mail.gmail.com>
+ <20180505034646.GA20495@bombadil.infradead.org>
+ <CAGXu5jLbbts6Do5JtX8+fij0m=wEZ30W+k9PQAZ_ddOnpuPHZA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrVzD8oPv=h2q91AMdCHn3S782GmvsY-+mwoaPUw=5N7HQ@mail.gmail.com>
+In-Reply-To: <CAGXu5jLbbts6Do5JtX8+fij0m=wEZ30W+k9PQAZ_ddOnpuPHZA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Kees Cook <keescook@google.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-On Mon, May 07, 2018 at 04:51:57AM +0000, Andy Lutomirski wrote:
-> On Tue, Apr 24, 2018 at 8:44 AM Kirill A. Shutemov <
-> kirill.shutemov@linux.intel.com> wrote:
+On Fri, May 04, 2018 at 09:24:56PM -0700, Kees Cook wrote:
+> On Fri, May 4, 2018 at 8:46 PM, Matthew Wilcox <willy@infradead.org> wrote:
+> The only fear I have with the saturating helpers is that we'll end up
+> using them in places that don't recognize SIZE_MAX. Like, say:
 > 
-> > Hi everybody,
+> size = mul(a, b) + 1;
 > 
-> > I've proposed to talk about page able manipulation API on the LSF/MM'2018,
-> > so I need something material to talk about.
+> then *poof* size == 0. Now, I'd hope that code would use add(mul(a,
+> b), 1), but still... it makes me nervous.
+
+That's reasonable.  So let's add:
+
+#define ALLOC_TOO_BIG	(PAGE_SIZE << MAX_ORDER)
+
+(there's a presumably somewhat obsolete CONFIG_FORCE_MAX_ZONEORDER on some
+architectures which allows people to configure MAX_ORDER all the way up
+to 64.  That config option needs to go away, or at least be limited to
+a much lower value).
+
+On x86, that's 4k << 11 = 8MB.  On PPC, that might be 64k << 9 == 32MB.
+Those values should be relatively immune to further arithmetic causing
+an additional overflow.
+
+> Good point. Though it does kind of creep me out to let a known-bad
+> size float around in the allocator until it decides to reject it. I
+> would think an early:
 > 
+> if (unlikely(size == SIZE_MAX))
+>     return NULL;
 > 
-> I gave it a quick read.  I like the concept a lot, and I have a few
-> comments.
+> would have virtually no cycle count difference...
 
-Thank you for the input.
+I don't think it should go in the callers though ... where it goes in
+the allocator is up to the allocator maintainers ;-)
 
-> > +/*
-> > + * How manu bottom level we account to mm->pgtables_bytes
-> > + */
-> > +#define PT_ACCOUNT_LVLS 3
-> > +
-> > +struct pt_ptr {
-> > +       unsigned long *ptr;
-> > +       int lvl;
-> > +};
-> > +
+> > I'd rather have a mul_ab(), mul_abc(), mul_ab_add_c(), etc. than nest
+> > calls to mult().
 > 
-> I think you've inherited something that I consider to be a defect in the
-> old code: you're conflating page *tables* with page table *entries*.  Your
-> 'struct pt_ptr' sounds like a pointer to an entire page table, but AFAICT
-> you're using it to point to a specific entry within a table.  I think that
-> both the new core code and the code that uses it would be clearer and less
-> error prone if you made the distinction explicit.  I can think of two clean
-> ways to do it:
+> Agreed. I think having exactly those would cover almost everything,
+> and the two places where a 4-factor product is needed could just nest
+> them. (bikeshed: the very common mul_ab() should just be mul(), IMO.)
 > 
-> 1. Add a struct pt_entry_ptr, and make it so that get_ptv(), etc take a
-> pt_entry_ptr instead of a pt_ptr.  Add a helper to find a pt_entry_ptr
-> given a pt_ptr and either an index or an address.
+> > Nono, Linus had the better proposal, struct_size(p, member, n).
 > 
-> 2. Don't allow pointers to page table entries at all.  Instead, get_ptv()
-> would take an address or an index parameter.
+> Oh, yes! I totally missed that in the threads.
 
-Well, I'm not sure how useful pointer to whole page tables are.
-Where do you them useful?
+so we're agreed on struct_size().  I think rather than the explicit 'mul',
+perhaps we should have array_size() and array3_size().
 
-How I see the picture so far:
-
-- ptp_t represent a pointer to an entry in a page table.
-
-  In x86-64 case I pretend that CR3 is single-entry page table. It
-  requires a special threatement in ptp_page_vaddr(), but works fine
-  otherwise.
-
-- ptv_t represents a value that dereferenced from ptp_t or can be set to
-  ptp_t.
-
-It's trivial to find the start of page table if we would need it by
-masking out botom bits from ptp->ptr. It works on x86 and should be
-possible on any architecture.
-
-> Also, what does lvl == 0 mean?  Is it the top or the bottom?  I think a
-> comment would be helpful.
-
-It is bottom. But it should be up to architecture to decide.
-
+> Right, no. I think if we can ditch *calloc() and _array() by using
+> saturating helpers, we'll have the API in a much better form:
 > 
-> > +/*
-> > + * When walking page tables, get the address of the next boundary,
-> > + * or the end address of the range if that comes earlier.  Although no
-> > + * vma end wraps to 0, rounded up __boundary may wrap to 0 throughout.
-> > + */
+> kmalloc(foo * bar, GFP_KERNEL);
+> into
+> kmalloc_array(foo, bar, GFP_KERNEL);
+> into
+> kmalloc(mul(foo, bar), GFP_KERNEL);
+
+kmalloc(array_size(foo, bar), GFP_KERNEL);
+
+> and the fun
 > 
-> I read this comment twice, and I still don't get it.  Can you clarify what
-> this function does and why you would use it?
-
-That's basically ported variant of p?d_addr_end. It helps step address by
-right value for the page table entry and handles wrapping properly.
-
-See example in copy_pt_range().
-
-> > +/* Operations on page table pointers */
-> > +
-> > +/* Initialize ptp_t with pointer to top page table level. */
-> > +static inline ptp_t ptp_init(struct mm_struct *mm)
-> > +{
-> > +       struct pt_ptr ptp ={
-> > +               .ptr = (unsigned long *)mm->pgd,
-> > +               .lvl = PT_TOP_LEVEL,
-> > +       };
-> > +
-> > +       return ptp;
-> > +}
-> > +
+> kzalloc(sizeof(*header) + count * sizeof(*header->element), GFP_KERNEL);
+> into
+> kzalloc(struct_size(header, element, count), GFP_KERNEL);
 > 
-> On some architectures, there are multiple page table roots.  For example,
-> ARM64 has a root for the kernel half of the address space and a root for
-> the user half (at least -- I don't fully understand it).  x86 PAE sort-of
-> has four roots.  Would it make sense to expose this in the API for
-> real?
-
-I will give it a thought.
-
-Is there a reason not to threat it as an additional page table layer and
-deal with it in a unified way?
-
-> For example, ptp_init(mm) could be replaced with ptp_init(mm, addr).  This
-> would make it a bit cleaner to handle an separate user and kernel tables.
->   (As it stands, what is supposed to happen on ARM if you do
-> ptp_init(something that isn't init_mm) and then walk it to look for a
-> kernel address?)
-
-IIUC, we can handle it in ptp_walk() since we have all may handle root in
-a special way as I do for x86-64.
-
-> Also, ptp_init() seems oddly named for me.  ptp_get_root_for_mm(),
-> perhaps?  There could also be ptp_get_kernel_root() to get the root for the
-> init_mm's tables.
-
-Yeah, sounds better.
-
-> > +static inline void ptp_walk(ptp_t *ptp, unsigned long addr)
-> > +{
-> > +       ptp->ptr = (unsigned long *)ptp_page_vaddr(ptp);
-> > +       ptp->ptr += __pt_index(addr, --ptp->lvl);
-> > +}
+> modulo all *alloc* families...
 > 
-> Can you add a comment that says what this function does?
+> ?
 
-Okay, I will.
-
-> Why does it not change the level?
-
-It does. --ptp->lvl.
-
-> > +
-> > +static void ptp_free(struct mm_struct *mm, ptv_t ptv)
-> > +{
-> > +       if (ptv.lvl < PT_SPLIT_LOCK_LVLS)
-> > +               ptlock_free(pfn_to_page(ptv_pfn(ptv)));
-> > +}
-> > +
-> 
-> As it stands, this is a function that seems easy easy to misuse given the
-> confusion between page tables and page table entries.
-
-Hm. I probably have a blind spot, but I don't see it.
-
-The function has to be named better for sure.
-
-> Finally, a general comment.  Actually fully implementing this the way
-> you've done it seems like a giant mess given that you need to support all
-> architectures.  But couldn't you implement the new API as a wrapper around
-> the old API so you automatically get all architectures?
-
-I will look into this. But I'm not sure if it possbile without measurable
-overhead.
-
--- 
- Kirill A. Shutemov
+I think we're broadly in agreement here!
