@@ -1,63 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E3C956B026B
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 05:48:23 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id f1-v6so20944957qtm.12
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 02:48:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id u36-v6si1753707qtc.6.2018.05.07.02.48.23
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 642226B000C
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 07:31:26 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id z18-v6so2103041lfg.17
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 04:31:26 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l18-v6sor5012500ljb.52.2018.05.07.04.31.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 May 2018 02:48:23 -0700 (PDT)
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
- signal semantics
-References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
- <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com>
- <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
- <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net>
- <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
- <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
- <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
- <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
- <20180503021058.GA5670@ram.oc3035372033.ibm.com>
- <CALCETrXRQF08exQVZqtTLOKbC8Ywq5x4EYH_1D7r5v9bdOSwbg@mail.gmail.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <927c8325-4c98-d7af-b921-6aafcf8fe992@redhat.com>
-Date: Mon, 7 May 2018 11:48:20 +0200
+        (Google Transport Security);
+        Mon, 07 May 2018 04:31:23 -0700 (PDT)
+Date: Mon, 7 May 2018 14:31:25 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Proof-of-concept: better(?) page-table manipulation API
+Message-ID: <20180507113124.ewpbrfd3anyg7pli@kshutemo-mobl1>
+References: <20180424154355.mfjgkf47kdp2by4e@black.fi.intel.com>
+ <CALCETrVzD8oPv=h2q91AMdCHn3S782GmvsY-+mwoaPUw=5N7HQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrXRQF08exQVZqtTLOKbC8Ywq5x4EYH_1D7r5v9bdOSwbg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrVzD8oPv=h2q91AMdCHn3S782GmvsY-+mwoaPUw=5N7HQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, linuxram@us.ibm.com
-Cc: Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, ".linuxppc-dev"@lists.ozlabs.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 05/03/2018 06:05 AM, Andy Lutomirski wrote:
-> On Wed, May 2, 2018 at 7:11 PM Ram Pai <linuxram@us.ibm.com> wrote:
+On Mon, May 07, 2018 at 04:51:57AM +0000, Andy Lutomirski wrote:
+> On Tue, Apr 24, 2018 at 8:44 AM Kirill A. Shutemov <
+> kirill.shutemov@linux.intel.com> wrote:
 > 
->> On Wed, May 02, 2018 at 09:23:49PM +0000, Andy Lutomirski wrote:
->>>
->>>> If I recall correctly, the POWER maintainer did express a strong
-> desire
->>>> back then for (what is, I believe) their current semantics, which my
->>>> PKEY_ALLOC_SIGNALINHERIT patch implements for x86, too.
->>>
->>> Ram, I really really don't like the POWER semantics.  Can you give some
->>> justification for them?  Does POWER at least have an atomic way for
->>> userspace to modify just the key it wants to modify or, even better,
->>> special load and store instructions to use alternate keys?
+> > Hi everybody,
 > 
->> I wouldn't call it POWER semantics. The way I implemented it on power
->> lead to the semantics, given that nothing was explicitly stated
->> about how the semantics should work within a signal handler.
+> > I've proposed to talk about page able manipulation API on the LSF/MM'2018,
+> > so I need something material to talk about.
 > 
-> I think that this is further evidence that we should introduce a new
-> pkey_alloc() mode and deprecate the old.  To the extent possible, this
-> thing should work the same way on x86 and POWER.
+> 
+> I gave it a quick read.  I like the concept a lot, and I have a few
+> comments.
 
-Do you propose to change POWER or to change x86?
+Thank you for the input.
 
-Thanks,
-Florian
+> > +/*
+> > + * How manu bottom level we account to mm->pgtables_bytes
+> > + */
+> > +#define PT_ACCOUNT_LVLS 3
+> > +
+> > +struct pt_ptr {
+> > +       unsigned long *ptr;
+> > +       int lvl;
+> > +};
+> > +
+> 
+> I think you've inherited something that I consider to be a defect in the
+> old code: you're conflating page *tables* with page table *entries*.  Your
+> 'struct pt_ptr' sounds like a pointer to an entire page table, but AFAICT
+> you're using it to point to a specific entry within a table.  I think that
+> both the new core code and the code that uses it would be clearer and less
+> error prone if you made the distinction explicit.  I can think of two clean
+> ways to do it:
+> 
+> 1. Add a struct pt_entry_ptr, and make it so that get_ptv(), etc take a
+> pt_entry_ptr instead of a pt_ptr.  Add a helper to find a pt_entry_ptr
+> given a pt_ptr and either an index or an address.
+> 
+> 2. Don't allow pointers to page table entries at all.  Instead, get_ptv()
+> would take an address or an index parameter.
+
+Well, I'm not sure how useful pointer to whole page tables are.
+Where do you them useful?
+
+How I see the picture so far:
+
+- ptp_t represent a pointer to an entry in a page table.
+
+  In x86-64 case I pretend that CR3 is single-entry page table. It
+  requires a special threatement in ptp_page_vaddr(), but works fine
+  otherwise.
+
+- ptv_t represents a value that dereferenced from ptp_t or can be set to
+  ptp_t.
+
+It's trivial to find the start of page table if we would need it by
+masking out botom bits from ptp->ptr. It works on x86 and should be
+possible on any architecture.
+
+> Also, what does lvl == 0 mean?  Is it the top or the bottom?  I think a
+> comment would be helpful.
+
+It is bottom. But it should be up to architecture to decide.
+
+> 
+> > +/*
+> > + * When walking page tables, get the address of the next boundary,
+> > + * or the end address of the range if that comes earlier.  Although no
+> > + * vma end wraps to 0, rounded up __boundary may wrap to 0 throughout.
+> > + */
+> 
+> I read this comment twice, and I still don't get it.  Can you clarify what
+> this function does and why you would use it?
+
+That's basically ported variant of p?d_addr_end. It helps step address by
+right value for the page table entry and handles wrapping properly.
+
+See example in copy_pt_range().
+
+> > +/* Operations on page table pointers */
+> > +
+> > +/* Initialize ptp_t with pointer to top page table level. */
+> > +static inline ptp_t ptp_init(struct mm_struct *mm)
+> > +{
+> > +       struct pt_ptr ptp ={
+> > +               .ptr = (unsigned long *)mm->pgd,
+> > +               .lvl = PT_TOP_LEVEL,
+> > +       };
+> > +
+> > +       return ptp;
+> > +}
+> > +
+> 
+> On some architectures, there are multiple page table roots.  For example,
+> ARM64 has a root for the kernel half of the address space and a root for
+> the user half (at least -- I don't fully understand it).  x86 PAE sort-of
+> has four roots.  Would it make sense to expose this in the API for
+> real?
+
+I will give it a thought.
+
+Is there a reason not to threat it as an additional page table layer and
+deal with it in a unified way?
+
+> For example, ptp_init(mm) could be replaced with ptp_init(mm, addr).  This
+> would make it a bit cleaner to handle an separate user and kernel tables.
+>   (As it stands, what is supposed to happen on ARM if you do
+> ptp_init(something that isn't init_mm) and then walk it to look for a
+> kernel address?)
+
+IIUC, we can handle it in ptp_walk() since we have all may handle root in
+a special way as I do for x86-64.
+
+> Also, ptp_init() seems oddly named for me.  ptp_get_root_for_mm(),
+> perhaps?  There could also be ptp_get_kernel_root() to get the root for the
+> init_mm's tables.
+
+Yeah, sounds better.
+
+> > +static inline void ptp_walk(ptp_t *ptp, unsigned long addr)
+> > +{
+> > +       ptp->ptr = (unsigned long *)ptp_page_vaddr(ptp);
+> > +       ptp->ptr += __pt_index(addr, --ptp->lvl);
+> > +}
+> 
+> Can you add a comment that says what this function does?
+
+Okay, I will.
+
+> Why does it not change the level?
+
+It does. --ptp->lvl.
+
+> > +
+> > +static void ptp_free(struct mm_struct *mm, ptv_t ptv)
+> > +{
+> > +       if (ptv.lvl < PT_SPLIT_LOCK_LVLS)
+> > +               ptlock_free(pfn_to_page(ptv_pfn(ptv)));
+> > +}
+> > +
+> 
+> As it stands, this is a function that seems easy easy to misuse given the
+> confusion between page tables and page table entries.
+
+Hm. I probably have a blind spot, but I don't see it.
+
+The function has to be named better for sure.
+
+> Finally, a general comment.  Actually fully implementing this the way
+> you've done it seems like a giant mess given that you need to support all
+> architectures.  But couldn't you implement the new API as a wrapper around
+> the old API so you automatically get all architectures?
+
+I will look into this. But I'm not sure if it possbile without measurable
+overhead.
+
+-- 
+ Kirill A. Shutemov
