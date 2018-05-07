@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 77AD16B0008
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 20:16:53 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 142so2140982wmt.1
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 17:16:53 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id f11-v6si1261912edn.256.2018.05.07.17.16.51
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FC176B0008
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 20:19:47 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id c4-v6so23002703qtp.9
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 17:19:47 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id d49-v6si2413565qvh.276.2018.05.07.17.19.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 May 2018 17:16:52 -0700 (PDT)
-Date: Mon, 7 May 2018 17:16:36 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH v9 0/9] dax: fix dma vs truncate/hole-punch
-Message-ID: <20180508001636.GM4141@magnolia>
-References: <152461278149.17530.2867511144531572045.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAPcyv4ihoGPJWA4X7V0h4BsX9_+4AXdHF=bmb==8iQMfc94YMQ@mail.gmail.com>
+        Mon, 07 May 2018 17:19:46 -0700 (PDT)
+Reply-To: prakash.sangappa@oracle.com
+Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node information
+References: <1525240686-13335-1-git-send-email-prakash.sangappa@oracle.com>
+ <alpine.DEB.2.21.1805031259210.7831@nuc-kabylake>
+ <c80ee329-084b-367f-1937-3175c178e978@oracle.com>
+ <alpine.DEB.2.21.1805040955550.10847@nuc-kabylake>
+ <98e34010-d55a-5f2d-7d98-cba424de2e74@oracle.com>
+ <alpine.DEB.2.21.1805070945200.21162@nuc-kabylake>
+From: "prakash.sangappa" <prakash.sangappa@oracle.com>
+Message-ID: <a61bc7b6-ed98-045d-95c0-b6c91fc8d1da@oracle.com>
+Date: Mon, 7 May 2018 15:50:30 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4ihoGPJWA4X7V0h4BsX9_+4AXdHF=bmb==8iQMfc94YMQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.21.1805070945200.21162@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Mike Snitzer <snitzer@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Linux MM <linux-mm@kvack.org>, Christoph Hellwig <hch@lst.de>, Thomas Meyer <thomas@m3y3r.de>, kbuild test robot <lkp@intel.com>, Alasdair Kergon <agk@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <mawilcox@microsoft.com>, stable <stable@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, drepper@gmail.com, rientjes@google.com
 
-On Thu, May 03, 2018 at 04:53:18PM -0700, Dan Williams wrote:
-> On Tue, Apr 24, 2018 at 4:33 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> > Changes since v8 [1]:
-> > * Rebase on v4.17-rc2
-> >
-> > * Fix get_user_pages_fast() for ZONE_DEVICE pages to revalidate the pte,
-> >   pmd, pud after taking references (Jan)
-> >
-> > * Kill dax_layout_lock(). With get_user_pages_fast() for ZONE_DEVICE
-> >   fixed we can then rely on the {pte,pmd}_lock to synchronize
-> >   dax_layout_busy_page() vs new page references (Jan)
-> >
-> > * Hold the iolock over repeated invocations of dax_layout_busy_page() to
-> >   enable truncate/hole-punch to make forward progress in the presence of
-> >   a constant stream of new direct-I/O requests (Jan).
-> >
-> > [1]: https://lists.01.org/pipermail/linux-nvdimm/2018-March/015058.html
-> 
-> I'll push this for soak time in -next if there are no further comments...
 
-I don't have any. :D
 
---D
+On 05/07/2018 07:47 AM, Christopher Lameter wrote:
+> On Fri, 4 May 2018, Prakash Sangappa wrote:
+>> Currently 'numa_maps' gives a list of numa nodes, memory is allocated per
+>> VMA.
+>> Ex. we get something like from numa_maps.
+>>
+>> 04000  N0=1,N2=2 kernelpagesize_KB=4
+>>
+>> First is the start address of a VMA. This VMA could be much larger then 3 4k
+>> pages.
+>> It does not say which address in the VMA has the pages mapped.
+> Not precise. First the address is there as you already said. That is the
+> virtual address of the beginning of the VMA. What is missing? You need
+
+Yes,
+
+> each address for each page? Length of the VMA segment?
+> Physical address?
+
+Need numa node information for each virtual address with pages mapped.
+No need of physical address.
