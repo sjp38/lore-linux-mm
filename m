@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 875966B026C
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 17:00:06 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id e74so2580187wmg.5
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 14:00:06 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6C56B026D
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 17:00:10 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x2so2769551wmc.3
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 14:00:10 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id l57-v6si5294079edb.393.2018.05.07.14.00.05
+        by mx.google.com with ESMTPS id 33-v6si691151edr.332.2018.05.07.14.00.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 07 May 2018 14:00:05 -0700 (PDT)
+        Mon, 07 May 2018 14:00:09 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 3/7] delayacct: track delays from thrashing cache pages
-Date: Mon,  7 May 2018 17:01:31 -0400
-Message-Id: <20180507210135.1823-4-hannes@cmpxchg.org>
+Subject: [PATCH 4/7] sched: loadavg: consolidate LOAD_INT, LOAD_FRAC, CALC_LOAD
+Date: Mon,  7 May 2018 17:01:32 -0400
+Message-Id: <20180507210135.1823-5-hannes@cmpxchg.org>
 In-Reply-To: <20180507210135.1823-1-hannes@cmpxchg.org>
 References: <20180507210135.1823-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,217 +20,184 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org
 Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-Delay accounting already measures the time a task spends in direct
-reclaim and waiting for swapin, but in low memory situations tasks
-spend can spend a significant amount of their time waiting on
-thrashing page cache. This isn't tracked right now.
-
-To know the full impact of memory contention on an individual task,
-measure the delay when waiting for a recently evicted active cache
-page to read back into memory.
-
-Also update tools/accounting/getdelays.c:
-
-     [hannes@computer accounting]$ sudo ./getdelays -d -p 1
-     print delayacct stats ON
-     PID     1
-
-     CPU             count     real total  virtual total    delay total  delay average
-                     50318      745000000      847346785      400533713          0.008ms
-     IO              count    delay total  delay average
-                       435      122601218              0ms
-     SWAP            count    delay total  delay average
-                         0              0              0ms
-     RECLAIM         count    delay total  delay average
-                         0              0              0ms
-     THRASHING       count    delay total  delay average
-                        19       12621439              0ms
+There are several definitions of those functions/macso in places that
+mess with fixed-point load averages. Provide an official version.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/delayacct.h      | 23 +++++++++++++++++++++++
- include/uapi/linux/taskstats.h |  6 +++++-
- kernel/delayacct.c             | 15 +++++++++++++++
- mm/filemap.c                   | 11 +++++++++++
- tools/accounting/getdelays.c   |  8 +++++++-
- 5 files changed, 61 insertions(+), 2 deletions(-)
+ .../platforms/cell/cpufreq_spudemand.c        |  2 +-
+ arch/powerpc/platforms/cell/spufs/sched.c     |  9 +++-----
+ arch/s390/appldata/appldata_os.c              |  4 ----
+ drivers/cpuidle/governors/menu.c              |  4 ----
+ fs/proc/loadavg.c                             |  3 ---
+ include/linux/sched/loadavg.h                 | 21 +++++++++++++++----
+ kernel/debug/kdb/kdb_main.c                   |  7 +------
+ kernel/sched/loadavg.c                        | 15 -------------
+ 8 files changed, 22 insertions(+), 43 deletions(-)
 
-diff --git a/include/linux/delayacct.h b/include/linux/delayacct.h
-index 5e335b6203f4..d3e75b3ba487 100644
---- a/include/linux/delayacct.h
-+++ b/include/linux/delayacct.h
-@@ -57,7 +57,12 @@ struct task_delay_info {
+diff --git a/arch/powerpc/platforms/cell/cpufreq_spudemand.c b/arch/powerpc/platforms/cell/cpufreq_spudemand.c
+index 882944c36ef5..5d8e8b6bb1cc 100644
+--- a/arch/powerpc/platforms/cell/cpufreq_spudemand.c
++++ b/arch/powerpc/platforms/cell/cpufreq_spudemand.c
+@@ -49,7 +49,7 @@ static int calc_freq(struct spu_gov_info_struct *info)
+ 	cpu = info->policy->cpu;
+ 	busy_spus = atomic_read(&cbe_spu_info[cpu_to_node(cpu)].busy_spus);
  
- 	u64 freepages_start;
- 	u64 freepages_delay;	/* wait for memory reclaim */
-+
-+	u64 thrashing_start;
-+	u64 thrashing_delay;	/* wait for thrashing page */
-+
- 	u32 freepages_count;	/* total count of memory reclaim */
-+	u32 thrashing_count;	/* total count of thrash waits */
- };
- #endif
+-	CALC_LOAD(info->busy_spus, EXP, busy_spus * FIXED_1);
++	info->busy_spus = calc_load(info->busy_spus, EXP, busy_spus * FIXED_1);
+ 	pr_debug("cpu %d: busy_spus=%d, info->busy_spus=%ld\n",
+ 			cpu, busy_spus, info->busy_spus);
  
-@@ -76,6 +81,8 @@ extern int __delayacct_add_tsk(struct taskstats *, struct task_struct *);
- extern __u64 __delayacct_blkio_ticks(struct task_struct *);
- extern void __delayacct_freepages_start(void);
- extern void __delayacct_freepages_end(void);
-+extern void __delayacct_thrashing_start(void);
-+extern void __delayacct_thrashing_end(void);
+diff --git a/arch/powerpc/platforms/cell/spufs/sched.c b/arch/powerpc/platforms/cell/spufs/sched.c
+index ccc421503363..70101510b19d 100644
+--- a/arch/powerpc/platforms/cell/spufs/sched.c
++++ b/arch/powerpc/platforms/cell/spufs/sched.c
+@@ -987,9 +987,9 @@ static void spu_calc_load(void)
+ 	unsigned long active_tasks; /* fixed-point */
  
- static inline int delayacct_is_task_waiting_on_io(struct task_struct *p)
- {
-@@ -156,6 +163,18 @@ static inline void delayacct_freepages_end(void)
- 		__delayacct_freepages_end();
+ 	active_tasks = count_active_contexts() * FIXED_1;
+-	CALC_LOAD(spu_avenrun[0], EXP_1, active_tasks);
+-	CALC_LOAD(spu_avenrun[1], EXP_5, active_tasks);
+-	CALC_LOAD(spu_avenrun[2], EXP_15, active_tasks);
++	spu_avenrun[0] = calc_load(spu_avenrun[0], EXP_1, active_tasks);
++	spu_avenrun[1] = calc_load(spu_avenrun[1], EXP_5, active_tasks);
++	spu_avenrun[2] = calc_load(spu_avenrun[2], EXP_15, active_tasks);
  }
  
-+static inline void delayacct_thrashing_start(void)
-+{
-+	if (current->delays)
-+		__delayacct_thrashing_start();
-+}
-+
-+static inline void delayacct_thrashing_end(void)
-+{
-+	if (current->delays)
-+		__delayacct_thrashing_end();
-+}
-+
- #else
- static inline void delayacct_set_flag(int flag)
- {}
-@@ -182,6 +201,10 @@ static inline void delayacct_freepages_start(void)
- {}
- static inline void delayacct_freepages_end(void)
- {}
-+static inline void delayacct_thrashing_start(void)
-+{}
-+static inline void delayacct_thrashing_end(void)
-+{}
+ static void spusched_wake(struct timer_list *unused)
+@@ -1071,9 +1071,6 @@ void spuctx_switch_state(struct spu_context *ctx,
+ 	}
+ }
  
- #endif /* CONFIG_TASK_DELAY_ACCT */
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ static int show_spu_loadavg(struct seq_file *s, void *private)
+ {
+ 	int a, b, c;
+diff --git a/arch/s390/appldata/appldata_os.c b/arch/s390/appldata/appldata_os.c
+index 433a994b1a89..54f375627532 100644
+--- a/arch/s390/appldata/appldata_os.c
++++ b/arch/s390/appldata/appldata_os.c
+@@ -25,10 +25,6 @@
  
-diff --git a/include/uapi/linux/taskstats.h b/include/uapi/linux/taskstats.h
-index b7aa7bb2349f..5e8ca16a9079 100644
---- a/include/uapi/linux/taskstats.h
-+++ b/include/uapi/linux/taskstats.h
-@@ -34,7 +34,7 @@
-  */
+ #include "appldata.h"
  
- 
--#define TASKSTATS_VERSION	8
-+#define TASKSTATS_VERSION	9
- #define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
- 					 * in linux/sched.h */
- 
-@@ -164,6 +164,10 @@ struct taskstats {
- 	/* Delay waiting for memory reclaim */
- 	__u64	freepages_count;
- 	__u64	freepages_delay_total;
-+
-+	/* Delay waiting for thrashing page */
-+	__u64	thrashing_count;
-+	__u64	thrashing_delay_total;
+-
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ /*
+  * OS data
+  *
+diff --git a/drivers/cpuidle/governors/menu.c b/drivers/cpuidle/governors/menu.c
+index 1bfe03ceb236..3738b670df7a 100644
+--- a/drivers/cpuidle/governors/menu.c
++++ b/drivers/cpuidle/governors/menu.c
+@@ -133,10 +133,6 @@ struct menu_device {
+ 	int		interval_ptr;
  };
  
- 
-diff --git a/kernel/delayacct.c b/kernel/delayacct.c
-index e2764d767f18..02ba745c448d 100644
---- a/kernel/delayacct.c
-+++ b/kernel/delayacct.c
-@@ -134,9 +134,12 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
- 	d->swapin_delay_total = (tmp < d->swapin_delay_total) ? 0 : tmp;
- 	tmp = d->freepages_delay_total + tsk->delays->freepages_delay;
- 	d->freepages_delay_total = (tmp < d->freepages_delay_total) ? 0 : tmp;
-+	tmp = d->thrashing_delay_total + tsk->delays->thrashing_delay;
-+	d->thrashing_delay_total = (tmp < d->thrashing_delay_total) ? 0 : tmp;
- 	d->blkio_count += tsk->delays->blkio_count;
- 	d->swapin_count += tsk->delays->swapin_count;
- 	d->freepages_count += tsk->delays->freepages_count;
-+	d->thrashing_count += tsk->delays->thrashing_count;
- 	spin_unlock_irqrestore(&tsk->delays->lock, flags);
- 
- 	return 0;
-@@ -168,3 +171,15 @@ void __delayacct_freepages_end(void)
- 		&current->delays->freepages_count);
- }
- 
-+void __delayacct_thrashing_start(void)
-+{
-+	current->delays->thrashing_start = ktime_get_ns();
-+}
-+
-+void __delayacct_thrashing_end(void)
-+{
-+	delayacct_end(&current->delays->lock,
-+		      &current->delays->thrashing_start,
-+		      &current->delays->thrashing_delay,
-+		      &current->delays->thrashing_count);
-+}
-diff --git a/mm/filemap.c b/mm/filemap.c
-index bd36b7226cf4..e49961e13dd9 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -36,6 +36,7 @@
- #include <linux/cleancache.h>
- #include <linux/shmem_fs.h>
- #include <linux/rmap.h>
-+#include <linux/delayacct.h>
- #include "internal.h"
- 
- #define CREATE_TRACE_POINTS
-@@ -1073,8 +1074,15 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
+-
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ static inline int get_loadavg(unsigned long load)
  {
- 	struct wait_page_queue wait_page;
- 	wait_queue_entry_t *wait = &wait_page.wait;
-+	bool thrashing = false;
- 	int ret = 0;
+ 	return LOAD_INT(load) * 10 + LOAD_FRAC(load) / 10;
+diff --git a/fs/proc/loadavg.c b/fs/proc/loadavg.c
+index b572cc865b92..8bee50a97c0f 100644
+--- a/fs/proc/loadavg.c
++++ b/fs/proc/loadavg.c
+@@ -10,9 +10,6 @@
+ #include <linux/seqlock.h>
+ #include <linux/time.h>
  
-+	if (bit_nr == PG_locked && !PageSwapBacked(page) &&
-+	    !PageUptodate(page) && PageWorkingset(page)) {
-+		delayacct_thrashing_start();
-+		thrashing = true;
-+	}
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ static int loadavg_proc_show(struct seq_file *m, void *v)
+ {
+ 	unsigned long avnrun[3];
+diff --git a/include/linux/sched/loadavg.h b/include/linux/sched/loadavg.h
+index 80bc84ba5d2a..cc9cc62bb1f8 100644
+--- a/include/linux/sched/loadavg.h
++++ b/include/linux/sched/loadavg.h
+@@ -22,10 +22,23 @@ extern void get_avenrun(unsigned long *loads, unsigned long offset, int shift);
+ #define EXP_5		2014		/* 1/exp(5sec/5min) */
+ #define EXP_15		2037		/* 1/exp(5sec/15min) */
+ 
+-#define CALC_LOAD(load,exp,n) \
+-	load *= exp; \
+-	load += n*(FIXED_1-exp); \
+-	load >>= FSHIFT;
++/*
++ * a1 = a0 * e + a * (1 - e)
++ */
++static inline unsigned long
++calc_load(unsigned long load, unsigned long exp, unsigned long active)
++{
++	unsigned long newload;
 +
- 	init_wait(wait);
- 	wait->flags = lock ? WQ_FLAG_EXCLUSIVE : 0;
- 	wait->func = wake_page_function;
-@@ -1113,6 +1121,9 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
- 
- 	finish_wait(q, wait);
- 
-+	if (thrashing)
-+		delayacct_thrashing_end();
++	newload = load * exp + active * (FIXED_1 - exp);
++	if (active >= load)
++		newload += FIXED_1-1;
 +
- 	/*
- 	 * A signal could leave PageWaiters set. Clearing it here if
- 	 * !waitqueue_active would be possible (by open-coding finish_wait),
-diff --git a/tools/accounting/getdelays.c b/tools/accounting/getdelays.c
-index 9f420d98b5fb..8cb504d30384 100644
---- a/tools/accounting/getdelays.c
-+++ b/tools/accounting/getdelays.c
-@@ -203,6 +203,8 @@ static void print_delayacct(struct taskstats *t)
- 	       "SWAP  %15s%15s%15s\n"
- 	       "      %15llu%15llu%15llums\n"
- 	       "RECLAIM  %12s%15s%15s\n"
-+	       "      %15llu%15llu%15llums\n"
-+	       "THRASHING%12s%15s%15s\n"
- 	       "      %15llu%15llu%15llums\n",
- 	       "count", "real total", "virtual total",
- 	       "delay total", "delay average",
-@@ -222,7 +224,11 @@ static void print_delayacct(struct taskstats *t)
- 	       "count", "delay total", "delay average",
- 	       (unsigned long long)t->freepages_count,
- 	       (unsigned long long)t->freepages_delay_total,
--	       average_ms(t->freepages_delay_total, t->freepages_count));
-+	       average_ms(t->freepages_delay_total, t->freepages_count),
-+	       "count", "delay total", "delay average",
-+	       (unsigned long long)t->thrashing_count,
-+	       (unsigned long long)t->thrashing_delay_total,
-+	       average_ms(t->thrashing_delay_total, t->thrashing_count));
++	return newload / FIXED_1;
++}
++
++#define LOAD_INT(x) ((x) >> FSHIFT)
++#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+ 
+ extern void calc_global_load(unsigned long ticks);
+ 
+diff --git a/kernel/debug/kdb/kdb_main.c b/kernel/debug/kdb/kdb_main.c
+index e405677ee08d..a8f5aca5eb5e 100644
+--- a/kernel/debug/kdb/kdb_main.c
++++ b/kernel/debug/kdb/kdb_main.c
+@@ -2556,16 +2556,11 @@ static int kdb_summary(int argc, const char **argv)
+ 	}
+ 	kdb_printf("%02ld:%02ld\n", val.uptime/(60*60), (val.uptime/60)%60);
+ 
+-	/* lifted from fs/proc/proc_misc.c::loadavg_read_proc() */
+-
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+ 	kdb_printf("load avg   %ld.%02ld %ld.%02ld %ld.%02ld\n",
+ 		LOAD_INT(val.loads[0]), LOAD_FRAC(val.loads[0]),
+ 		LOAD_INT(val.loads[1]), LOAD_FRAC(val.loads[1]),
+ 		LOAD_INT(val.loads[2]), LOAD_FRAC(val.loads[2]));
+-#undef LOAD_INT
+-#undef LOAD_FRAC
++
+ 	/* Display in kilobytes */
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	kdb_printf("\nMemTotal:       %8lu kB\nMemFree:        %8lu kB\n"
+diff --git a/kernel/sched/loadavg.c b/kernel/sched/loadavg.c
+index a171c1258109..54fbdfb2d86c 100644
+--- a/kernel/sched/loadavg.c
++++ b/kernel/sched/loadavg.c
+@@ -91,21 +91,6 @@ long calc_load_fold_active(struct rq *this_rq, long adjust)
+ 	return delta;
  }
  
- static void task_context_switch_counts(struct taskstats *t)
+-/*
+- * a1 = a0 * e + a * (1 - e)
+- */
+-static unsigned long
+-calc_load(unsigned long load, unsigned long exp, unsigned long active)
+-{
+-	unsigned long newload;
+-
+-	newload = load * exp + active * (FIXED_1 - exp);
+-	if (active >= load)
+-		newload += FIXED_1-1;
+-
+-	return newload / FIXED_1;
+-}
+-
+ #ifdef CONFIG_NO_HZ_COMMON
+ /*
+  * Handle NO_HZ for the global load-average.
 -- 
 2.17.0
