@@ -1,153 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 503A56B026A
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 03:56:43 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id h129-v6so8674984lfg.14
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 00:56:43 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l18-v6sor1247339lfi.69.2018.05.07.00.56.42
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BB706B0010
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 04:21:38 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id z76-v6so2289700wmh.9
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 01:21:38 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h63-v6si1070482edd.152.2018.05.07.01.21.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 07 May 2018 00:56:42 -0700 (PDT)
-Message-Id: <20180507075606.870903028@gmail.com>
-Date: Mon, 07 May 2018 10:52:16 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: [rfc linux-next 3/3] [RFC] prctl: prctl_set_mm -- Bring back handling of PR_SET_MM_x
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 May 2018 01:21:36 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w478JJHp088835
+	for <linux-mm@kvack.org>; Mon, 7 May 2018 04:21:35 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2htj5hau88-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 07 May 2018 04:21:35 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ravi.bangoria@linux.ibm.com>;
+	Mon, 7 May 2018 09:21:33 +0100
+Subject: Re: [PATCH v3 6/9] trace_uprobe: Support SDT markers having reference
+ count (semaphore)
+From: Ravi Bangoria <ravi.bangoria@linux.ibm.com>
+References: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
+ <20180417043244.7501-7-ravi.bangoria@linux.vnet.ibm.com>
+ <20180504134816.8633a157dd036489d9b0f1db@kernel.org>
+ <206e4a16-ae21-7da3-f752-853dc2f51947@linux.ibm.com>
+Date: Mon, 7 May 2018 13:51:21 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=prctl-back-set-mm-x
+In-Reply-To: <206e4a16-ae21-7da3-f752-853dc2f51947@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+Message-Id: <f3d066d2-a85a-bd21-d4f9-fc27e59135df@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>, Andrey Vagin <avagin@openvz.org>, Andrew Morton <akpm@linuxfoundation.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Masami Hiramatsu <mhiramat@kernel.org>, oleg@redhat.com
+Cc: Ravi Bangoria <ravi.bangoria@linux.ibm.com>, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com
 
-Recently the handling of PR_SET_MM_x been removed because we wanted to
-improve locking scheme over mm::arg_start,arg_end and etc. Thus to
-reduce code modification the old PR_SET_MM_x operations have been
-removed (since initially they've been introduced for c/r sole sake).
-Before making remove I googled if there are some users of this interface
-exist and happened to miss that at least systemd is already using
-PR_SET_MM_ARG_START and PR_SET_MM_ARG_END (see src/basic/process-util.c)
+Hi Masami,
 
-Also Jonathan pointed me that there is a need for sole PR_SET_MM_x
-operations.
+On 05/04/2018 07:51 PM, Ravi Bangoria wrote:
+>
+>>> +}
+>>> +
+>>> +static void sdt_increment_ref_ctr(struct trace_uprobe *tu)
+>>> +{
+>>> +	struct uprobe_map_info *info;
+>>> +
+>>> +	uprobe_down_write_dup_mmap();
+>>> +	info = uprobe_build_map_info(tu->inode->i_mapping,
+>>> +				tu->ref_ctr_offset, false);
+>>> +	if (IS_ERR(info))
+>>> +		goto out;
+>>> +
+>>> +	while (info) {
+>>> +		down_write(&info->mm->mmap_sem);
+>>> +
+>>> +		if (sdt_find_vma(tu, info->mm, info->vaddr))
+>>> +			sdt_update_ref_ctr(info->mm, info->vaddr, 1);
+>> Don't you have to handle the error to map pages here?
+> Correct.. I think, I've to feedback error code to probe_event_{enable|disable}
+> and handler failure there.
 
-https://lkml.org/lkml/2018/5/6/127
+I looked at this. Actually, It looks difficult to feedback errors to
+probe_event_{enable|disable}, esp. in the mmap() case.
 
-Here is a trick: since prctl_set_mm_map now accepts struct prctl_mm_map
-as an argument we can fetch current mm settings, modify the member requested
-and send the map into prctl_set_mm_map directly, which simply gonna be
-like an emulation of PR_SET_MM_MAP. Thus users of PR_SET_MM_x should
-be able to continue utilizing the interface.
+Is it fine if we just warn sdt_update_ref_ctr() failures in dmesg? I'm
+doing this in [PATCH 7]. (Though, it makes more sense to do that in
+[PATCH 6], will change it in next version).
 
-CC: Jonathan de Boyne Pollard <J.deBoynePollard-newsgroups@NTLWorld.COM>
-CC: Andrey Vagin <avagin@openvz.org>
-CC: Andrew Morton <akpm@linuxfoundation.org>
-CC: Michael Kerrisk <mtk.manpages@gmail.com>
-CC: Yang Shi <yang.shi@linux.alibaba.com>
-CC: Michal Hocko <mhocko@kernel.org>
-Signed-off-by: Cyrill Gorcunov <gorcunov@gmail.com>
----
- kernel/sys.c |   65 +++++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 57 insertions(+), 8 deletions(-)
+Any better ideas?
 
-Index: linux-ml.git/kernel/sys.c
-===================================================================
---- linux-ml.git.orig/kernel/sys.c
-+++ linux-ml.git/kernel/sys.c
-@@ -1815,7 +1815,6 @@ SYSCALL_DEFINE1(umask, int, mask)
- 	return mask;
- }
- 
--#ifdef CONFIG_CHECKPOINT_RESTORE
- /*
-  * WARNING: we don't require any capability here so be very careful
-  * in what is allowed for modification from userspace.
-@@ -2046,19 +2045,36 @@ static int prctl_set_mm_map(struct prctl
- 	up_read(&mm->mmap_sem);
- 	return 0;
- }
--#endif /* CONFIG_CHECKPOINT_RESTORE */
- 
- static int prctl_set_mm(int opt, unsigned long addr,
- 			unsigned long arg4, unsigned long arg5)
- {
--#ifdef CONFIG_CHECKPOINT_RESTORE
-+	static const unsigned char offsets[] = {
-+		[PR_SET_MM_START_CODE]	= offsetof(struct prctl_mm_map, start_code),
-+		[PR_SET_MM_END_CODE]	= offsetof(struct prctl_mm_map, end_code),
-+		[PR_SET_MM_START_DATA]	= offsetof(struct prctl_mm_map, start_data),
-+		[PR_SET_MM_END_DATA]	= offsetof(struct prctl_mm_map, end_data),
-+		[PR_SET_MM_START_STACK]	= offsetof(struct prctl_mm_map, start_brk),
-+		[PR_SET_MM_START_BRK]	= offsetof(struct prctl_mm_map, brk),
-+		[PR_SET_MM_BRK]		= offsetof(struct prctl_mm_map, start_stack),
-+		[PR_SET_MM_ARG_START]	= offsetof(struct prctl_mm_map, arg_start),
-+		[PR_SET_MM_ARG_END]	= offsetof(struct prctl_mm_map, arg_end),
-+		[PR_SET_MM_ENV_START]	= offsetof(struct prctl_mm_map, env_start),
-+		[PR_SET_MM_ENV_END]	= offsetof(struct prctl_mm_map, env_end),
-+	};
-+	struct prctl_mm_map prctl_map = { .exe_fd = (u32)-1, };
-+	struct mm_struct *mm = current->mm;
-+
-+	if (arg5 || (arg4 && (opt != PR_SET_MM_AUXV &&
-+			      opt != PR_SET_MM_MAP &&
-+			      opt != PR_SET_MM_MAP_SIZE)))
-+		return -EINVAL;
-+
- 	if (opt == PR_SET_MM_MAP_SIZE)
- 		return put_user((unsigned int)sizeof(struct prctl_mm_map),
- 				(unsigned int __user *)addr);
- 
- 	if (opt == PR_SET_MM_MAP) {
--		struct prctl_mm_map prctl_map = { .exe_fd = (u32)-1, };
--
- 		if (arg4 != sizeof(prctl_map))
- 			return -EINVAL;
- 
-@@ -2068,10 +2084,43 @@ static int prctl_set_mm(int opt, unsigne
- 
- 		return prctl_set_mm_map(&prctl_map);
- 	}
--#endif
- 
--	pr_warn_once("PR_SET_MM_* has been removed. Use PR_SET_MM_MAP instead\n");
--	return -EINVAL;
-+	if (!capable(CAP_SYS_RESOURCE))
-+		return -EPERM;
-+
-+	if (opt == PR_SET_MM_EXE_FILE)
-+		return prctl_set_mm_exe_file(mm, (unsigned int)addr);
-+
-+	if (opt == PR_SET_MM_AUXV)
-+		return prctl_set_auxv(mm, addr, arg4);
-+
-+	if (opt < 1 || opt >= ARRAY_SIZE(offsets))
-+		return -EINVAL;
-+
-+	/*
-+	 * Emulate PR_SET_MM_MAP call by filling with
-+	 * current values and setting one field from
-+	 * the request.
-+	 */
-+	down_read(&mm->mmap_sem);
-+	spin_lock(&mm->arg_lock);
-+	prctl_map.start_code	= mm->start_code;
-+	prctl_map.end_code	= mm->end_code;
-+	prctl_map.start_data	= mm->start_data;
-+	prctl_map.end_data	= mm->end_data;
-+	prctl_map.start_brk	= mm->start_brk;
-+	prctl_map.brk		= mm->brk;
-+	prctl_map.start_stack	= mm->start_stack;
-+	prctl_map.arg_start	= mm->arg_start;
-+	prctl_map.arg_end	= mm->arg_end;
-+	prctl_map.env_start	= mm->env_start;
-+	prctl_map.env_end	= mm->env_end;
-+	spin_unlock(&mm->arg_lock);
-+	up_read(&mm->mmap_sem);
-+
-+	*(unsigned long *)((char *)&prctl_map + offsets[opt]) = addr;
-+
-+	return prctl_set_mm_map(&prctl_map, opt);
- }
- 
- #ifdef CONFIG_CHECKPOINT_RESTORE
+BTW, same issue exists for normal uprobe. If uprobe_mmap() fails,
+there is no feedback to trace_uprobe and no warnigns in dmesg as
+well !! There was a patch by Naveen to warn such failures in dmesg
+but that didn't go in: https://lkml.org/lkml/2017/9/22/155
+
+Also, I'll add a check in sdt_update_ref_ctr() to make sure reference
+counter never goes to negative incase increment fails but decrement
+succeeds. OTOH, if increment succeeds but decrement fails, the
+counter remains >0 but there is no harm as such, except we will
+execute some unnecessary code.
+
+Thanks,
+Ravi
