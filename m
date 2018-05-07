@@ -1,63 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D7A9F6B000C
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 09:11:04 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s7-v6so17773928pgp.15
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 06:11:04 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id k6-v6si17527151pgq.85.2018.05.07.06.11.03
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BABE76B000C
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 09:25:54 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id q67-v6so6718578wrb.12
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 06:25:54 -0700 (PDT)
+Received: from perceval.ideasonboard.com (perceval.ideasonboard.com. [2001:4b98:dc2:55:216:3eff:fef7:d647])
+        by mx.google.com with ESMTPS id e15-v6si9439959wrj.238.2018.05.07.06.25.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 May 2018 06:11:03 -0700 (PDT)
-Date: Mon, 7 May 2018 16:10:59 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: Proof-of-concept: better(?) page-table manipulation API
-Message-ID: <20180507131059.3cdpfd4dcnwznhyw@black.fi.intel.com>
-References: <20180424154355.mfjgkf47kdp2by4e@black.fi.intel.com>
- <CALCETrVzD8oPv=h2q91AMdCHn3S782GmvsY-+mwoaPUw=5N7HQ@mail.gmail.com>
- <20180507113124.ewpbrfd3anyg7pli@kshutemo-mobl1>
- <20180507122346.GE18116@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 07 May 2018 06:25:53 -0700 (PDT)
+From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+Subject: Re: Are media drivers abusing of GFP_DMA? - was: Re: [LSF/MM TOPIC NOTES] x86 ZONE_DMA love
+Date: Mon, 07 May 2018 16:26:08 +0300
+Message-ID: <3561479.qPIcrWnXEC@avalon>
+In-Reply-To: <20180505130815.53a26955@vento.lan>
+References: <20180426215406.GB27853@wotan.suse.de> <20180505130815.53a26955@vento.lan>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180507122346.GE18116@bombadil.infradead.org>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Cc: Fabien Dessenne <fabien.dessenne@st.com>, Jean-Christophe Trotin <jean-christophe.trotin@st.com>, Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>, Sakari Ailus <sakari.ailus@linux.intel.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org
 
-On Mon, May 07, 2018 at 12:23:46PM +0000, Matthew Wilcox wrote:
-> On Mon, May 07, 2018 at 02:31:25PM +0300, Kirill A. Shutemov wrote:
-> > > Also, what does lvl == 0 mean?  Is it the top or the bottom?  I think a
-> > > comment would be helpful.
-> > 
-> > It is bottom. But it should be up to architecture to decide.
-> 
-> That's not true because ...
-> 
-> > > > +static inline void ptp_walk(ptp_t *ptp, unsigned long addr)
-> > > > +{
-> > > > +       ptp->ptr = (unsigned long *)ptp_page_vaddr(ptp);
-> > > > +       ptp->ptr += __pt_index(addr, --ptp->lvl);
-> > > > +}
-> > > 
-> > > Can you add a comment that says what this function does?
-> > 
-> > Okay, I will.
-> > 
-> > > Why does it not change the level?
-> > 
-> > It does. --ptp->lvl.
-> 
-> ... you've hardcoded that walking down decrements the level by 1.
-> 
-> I don't see that as a defect; it's just part of the API that needs
-> documenting.
+Hi Mauro,
 
-You assume that the function is a generic one. This may or may not be
-true.
+On Saturday, 5 May 2018 19:08:15 EEST Mauro Carvalho Chehab wrote:
+> There was a recent discussion about the use/abuse of GFP_DMA flag when
+> allocating memories at LSF/MM 2018 (see Luis notes enclosed).
+> 
+> The idea seems to be to remove it, using CMA instead. Before doing that,
+> better to check if what we have on media is are valid use cases for it, or
+> if it is there just due to some misunderstanding (or because it was
+> copied from some other code).
+> 
+> Hans de Goede sent us today a patch stopping abuse at gspca, and I'm
+> also posting today two other patches meant to stop abuse of it on USB
+> drivers. Still, there are 4 platform drivers using it:
+> 
+> 	$ git grep -l -E "GFP_DMA\\b" drivers/media/
+> 	drivers/media/platform/omap3isp/ispstat.c
+> 	drivers/media/platform/sti/bdisp/bdisp-hw.c
+> 	drivers/media/platform/sti/hva/hva-mem.c
+> 	drivers/media/spi/cxd2880-spi.c
+> 
+> Could you please check if GFP_DMA is really needed there, or if it is
+> just because of some cut-and-paste from some other place?
 
-This is subject for refinement anyway.
+I started looking at that for the omap3isp driver but Sakari beat me at 
+submitting a patch. GFP_DMA isn't needed for omap3isp.
 
 -- 
- Kirill A. Shutemov
+Regards,
+
+Laurent Pinchart
