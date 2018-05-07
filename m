@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C20F76B000A
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 13:17:12 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id k13-v6so15073322oiw.3
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 10:17:12 -0700 (PDT)
-Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.2])
-        by mx.google.com with ESMTPS id x7-v6si4574854otd.261.2018.05.07.10.17.10
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 874606B000D
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 14:44:15 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id w1-v6so28484782iod.1
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 11:44:15 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d83-v6si20879763iof.99.2018.05.07.11.44.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 May 2018 10:17:11 -0700 (PDT)
-From: Huaisheng HS1 Ye <yehs1@lenovo.com>
-Subject: RE: [External]  Re: [PATCH 2/3] include/linux/gfp.h: use unsigned int
- in gfp_zone
-Date: Mon, 7 May 2018 17:16:50 +0000
-Message-ID: <HK2PR03MB1684BF10B3B515BFABD35F8B929B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 07 May 2018 11:44:14 -0700 (PDT)
+Date: Mon, 7 May 2018 11:44:10 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [External]  Re: [PATCH 2/3] include/linux/gfp.h: use unsigned
+ int in gfp_zone
+Message-ID: <20180507184410.GA12361@bombadil.infradead.org>
 References: <1525416729-108201-1-git-send-email-yehs1@lenovo.com>
  <1525416729-108201-3-git-send-email-yehs1@lenovo.com>
  <20180504133533.GR4535@dhcp22.suse.cz>
@@ -22,114 +22,95 @@ References: <1525416729-108201-1-git-send-email-yehs1@lenovo.com>
  <20180506134814.GB7362@bombadil.infradead.org>
  <HK2PR03MB168447008C658172FFDA402992840@HK2PR03MB1684.apcprd03.prod.outlook.com>
  <20180506185532.GA13604@bombadil.infradead.org>
-In-Reply-To: <20180506185532.GA13604@bombadil.infradead.org>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+ <HK2PR03MB1684BF10B3B515BFABD35F8B929B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <HK2PR03MB1684BF10B3B515BFABD35F8B929B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
+To: Huaisheng HS1 Ye <yehs1@lenovo.com>
 Cc: Michal Hocko <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-RGVhciBNYXR0aGV3LA0KDQpJIHdpbGwgdHJ5IHRvIGV4cGxhaW4gdGhlbSBpbiBkZXB0aC4gQ29y
-cmVjdCBtZSBpZiBhbnl0aGluZyB3cm9uZy4NCj4gDQo+IE9uIFN1biwgTWF5IDA2LCAyMDE4IGF0
-IDA0OjE3OjA2UE0gKzAwMDAsIEh1YWlzaGVuZyBIUzEgWWUgd3JvdGU6DQo+ID4gVXBsb2FkIG15
-IGN1cnJlbnQgcGF0Y2ggYW5kIHRlc3RpbmcgcGxhdGZvcm0gaW5mbyBmb3IgcmVmZXJlbmNlLiBU
-aGlzIHBhdGNoDQo+IGhhcyBiZWVuIHRlc3RlZA0KPiA+IG9uIGEgdHdvIHNvY2tldHMgcGxhdGZv
-cm0uDQo+IA0KPiBUaGFuayB5b3UhDQpNeSBwbGVhc3VyZS4NCg0KPiA+IEl0IHdvcmtzLCBidXQg
-c29tZSBkcml2ZXJzIG9yIHN1YnN5c3RlbSBzaGFsbCBiZSBtb2RpZmllZCB0byBmaXQNCj4gPiB0
-aGVzZSBuZXcgdHlwZSBfX0dGUCBmbGFncy4NCj4gPiBUaGV5IHVzZSB0aGVzZSBmbGFncyBkaXJl
-Y3RseSB0byByZWFsaXplIGJpdCBtYW5pcHVsYXRpb25zIGxpa2UgdGhpcw0KPiA+IGJlbG93Lg0K
-PiA+DQo+ID4gZWcuDQo+ID4gc3dpb3RsYi14ZW4uYyAoZHJpdmVyc1x4ZW4pOiAgICBmbGFncyAm
-PSB+KF9fR0ZQX0RNQSB8IF9fR0ZQX0hJR0hNRU0pOw0KPiA+IGV4dGVudF9pby5jIChmc1xidHJm
-cyk6ICAgICAgICAgbWFzayAmPSB+KF9fR0ZQX0RNQTMyfF9fR0ZQX0hJR0hNRU0pOw0KPiA+DQo+
-ID4gQmVjYXVzZSBvZiB0aGVzZSBmbGFncyBoYXZlIGJlZW4gZW5jb2RlZCB3aXRoaW4gdGhpcyBw
-YXRjaCwgdGhlDQo+ID4gYWJvdmUgb3BlcmF0aW9ucyBjYW4gY2F1c2UgcHJvYmxlbS4NCj4gDQo+
-IEkgZG9uJ3QgdGhpbmsgdGhpcyBhY3R1YWxseSBjYXVzZXMgcHJvYmxlbXMuICBBdCBsZWFzdCwg
-bm8gYWRkaXRpb25hbA0KPiBwcm9ibGVtcy4gIFRoZXNlIHVzZXJzIHdpbGwgc3VjY2Vzc2Z1bGx5
-IGNsZWFyIF9fR0ZQX0RNQSBhbmQNCj4gX19HRlBfSElHSE1FTQ0KPiBubyBtYXR0ZXIgd2hhdCB2
-YWx1ZXMgR0ZQX0RNQSBhbmQgR0ZQX0hJR0hNRU0gaGF2ZTsgdGhlIG9ubHkgcHJvYmxlbQ0KPiB3
-aWxsIGJlIGlmIHNvbWVvbmUgY2FsbHMgdGhlbSB3aXRoIGEgem9uZSB0eXBlIHRoZXkncmUgbm90
-IGV4cGVjdGluZyAoZWcgRE1BMzINCj4gZm9yIHRoZSBmaXJzdCBvbmUgb3IgRE1BIGZvciB0aGUg
-c2Vjb25kOyBvciBNT1ZBQkxFIGZvciBlaXRoZXIgb2YgdGhlbSkuDQo+IFRoZSB0aGluZyBpcywg
-dGhleSdyZSBhbHJlYWR5IGJ1Z2d5IGluIHRob3NlIGNpcmN1bXN0YW5jZXMuDQoNCkkgaG9wZSBp
-dCBjb3VsZG4ndCBjYXVzZSBwcm9ibGVtLCBidXQgYmFzZWQgb24gbXkgYW5hbHl6YXRpb24gaXQg
-aGFzIHRoZSBwb3RlbnRpYWwgdG8gZ28gd3JvbmcgaWYgdXNlcnMgc3RpbGwgdXNlIHRoZSBmbGFn
-cyBhcyB1c3VhbCwgd2hpY2ggYXJlIF9fR0ZQX0RNQSwgX19HRlBfRE1BMzIgYW5kIF9fR0ZQX0hJ
-R0hNRU0uDQpMZXQgbWUgdGFrZSBhbiBleGFtcGxlIHdpdGggbXkgdGVzdGluZyBwbGF0Zm9ybSwg
-dGhlc2UgbG9naWNzIGFyZSBtdWNoIGFic3RyYWN0LCBhbiBleGFtcGxlIHdpbGwgYmUgaGVscGZ1
-bC4NCg0KVGhlcmUgaXMgYSB0d28gc29ja2V0cyBYODZfNjQgc2VydmVyLCBObyBISUdITUVNIGFu
-ZCBpdCBoYXMgMTYgKyAxNkdCIG1lbW9yaWVzLg0KSXRzIHpvbmUgdHlwZXMgc2hhbGwgYmUgbGlr
-ZSB0aGlzIGJlbG93LA0KDQpaT05FX0RNQQkJCQkwCQkwYjAwMDANClpPTkVfRE1BMzIJCQkJMQkJ
-MGIwMDAxDQpaT05FX05PUk1BTAkJCTIJCTBiMDAxMA0KKE9QVF9aT05FX0hJR0hNRU0pCTIJCTBi
-MDAxMA0KWk9ORV9NT1ZBQkxFCQkJMwkJMGIwMDExDQpaT05FX0RFVklDRQkJCQk0CQkwYjAxMDAg
-KHZpcnR1YWwgem9uZSkNCl9fTUFYX05SX1pPTkVTCQk1DQoNCl9fR0ZQX0RNQQkJPSBaT05FX0RN
-QSAgICAJCQleIFpPTkVfTk9STUFMPSAwYjAwMTANCl9fR0ZQX0RNQTMyCQk9IFpPTkVfRE1BMzIg
-IAkJXiBaT05FX05PUk1BTD0gMGIwMDExDQpfX0dGUF9ISUdITUVNID0gT1BUX1pPTkVfSElHSE1F
-TSBeIFpPTkVfTk9STUFMID0gMGIwMDAwDQpfX0dGUF9NT1ZBQkxFCT0gWk9ORV9NT1ZBQkxFIF4g
-Wk9ORV9OT1JNQUwgfCBfX19HRlBfTU9WQUJMRSA9IDBiMTAwMQ0KDQpFZy4NCklmIGEgZHJpdmVy
-IHVzZXMgZmxhZ3MgbGlrZSB0aGlzIGJlbG93LA0KU3RlcCAxOg0KZ2ZwX21hc2sgIHwgIF9fR0ZQ
-X0RNQTMyOwkNCigwYiAwMDAwCQl8CTBiIDAwMTEJPSAwYiAwMDExKQ0KZ2ZwX21hc2sncyBsb3cg
-Zm91ciBiaXRzIHNoYWxsIGVxdWFsIHRvIDAwMTEsIGFzc3VtaW5nIG5vIF9fR0ZQX01PVkFCTEUN
-Cg0KU3RlcCAyOg0KZ2ZwX21hc2sgICYgfl9fR0ZQX0RNQTsJDQooMGIgMDAxMQkgJiB+MGIwMDEw
-ICAgPSAwYjAwMDEpDQpnZnBfbWFzaydzIGxvdyBmb3VyIGJpdHMgc2hhbGwgZXF1YWwgdG8gMDAw
-MSBub3csIHRoZW4gd2hlbiBpdCBlbnRlciBnZnBfem9uZSgpLA0KDQpyZXR1cm4gKChfX2ZvcmNl
-IGludClmbGFncyAmIF9fX0dGUF9aT05FX01BU0spIF4gWk9ORV9OT1JNQUw7DQooMGIwMDAxIF4g
-MGIwMDEwID0gMGIwMDExKQ0KWW91IGtub3cgMDAxMSBtZWFucyB0aGF0IFpPTkVfTU9WQUJMRSB3
-aWxsIGJlIHJldHVybmVkLg0KSW4gdGhpcyBjYXNlLCBlcnJvciBjYW4gYmUgZm91bmQsIGJlY2F1
-c2UgZ2ZwX21hc2sgbmVlZHMgdG8gZ2V0IFpPTkVfRE1BMzIgb3JpZ2luYWxseS4NCkJ1dCB3aXRo
-IGV4aXN0aW5nIEdGUF9aT05FX1RBQkxFL0JBRCwgaXQgaXMgY29ycmVjdC4gQmVjYXVzZSB0aGUg
-Yml0cyBhcmUgd2F5IG9mIDB4MSwgMHgyLCAweDQsIDB4OA0KDQpJIGp1c3Qgd2FudCB0byBzaG93
-IGEgY2FzZSBvZiBmYWlsdXJlLCBwbGVhc2UgZG9uJ3QgYmxhbWUgbWUgdGhhdCB1c2UgY2FzZSB3
-YXMgaW52ZW50ZWQuDQpBZ2FpbiwgeW91ciBpZGVhIGlzIGdyZWF0IGluIG15IGV5ZXMsIHdoaWNo
-IGhhcyBtdWNoIGFkdmFudGFnZXMgdGhhbiBaT05FX1RBQkxFL0JBRC4NCkJ1dCBpZiB3ZSB1c2Ug
-dGhpcyBpZGVhLCB0aGF0IG1lYW5zIG90aGVyIHN1YnN5c3RlbSBvciBkcml2ZXIgc2hhbGwgbm90
-IHVzZSB0aGUgZmxhZ3MgYXMgZXhpc3Rpbmcgd2F5Lg0KT2YgY291cnNlLCB0aGlzIGxpbWl0YXRp
-b24gb25seSBleGlzdHMgaW4gbG93IDMgYml0cyBvZiBnZnBfdC4gVGhlIHJlbWFpbmluZyBoaWdo
-IGJpdHMgY2FuIGJlIHVzZWQgYXMgdXN1YWwuDQoNClRoaXMgaXMgbXkgb3BpbmlvbiwgbWF5YmUg
-aXQgaXMgbm90IGFjY3VyYXRlLCBidXQgSSByZWFsbHkgd29ycnkgYWJvdXQgaXQuDQoNCj4gPiAg
-ICovDQo+ID4gLSNkZWZpbmUgX19HRlBfRE1BICAgICAgKChfX2ZvcmNlIGdmcF90KV9fX0dGUF9E
-TUEpDQo+ID4gLSNkZWZpbmUgX19HRlBfSElHSE1FTSAgKChfX2ZvcmNlIGdmcF90KV9fX0dGUF9I
-SUdITUVNKQ0KPiA+IC0jZGVmaW5lIF9fR0ZQX0RNQTMyICAgICgoX19mb3JjZSBnZnBfdClfX19H
-RlBfRE1BMzIpDQo+ID4gKyNkZWZpbmUgX19HRlBfRE1BICAgICAgKChfX2ZvcmNlIGdmcF90KU9Q
-VF9aT05FX0RNQSBeDQo+IFpPTkVfTk9STUFMKQ0KPiA+ICsjZGVmaW5lIF9fR0ZQX0hJR0hNRU0g
-ICgoX19mb3JjZSBnZnBfdClaT05FX01PVkFCTEUgXg0KPiBaT05FX05PUk1BTCkNCj4gPiArI2Rl
-ZmluZSBfX0dGUF9ETUEzMiAgICAoKF9fZm9yY2UgZ2ZwX3QpT1BUX1pPTkVfRE1BMzIgXg0KPiBa
-T05FX05PUk1BTCkNCj4gPiAgI2RlZmluZSBfX0dGUF9NT1ZBQkxFICAoKF9fZm9yY2UgZ2ZwX3Qp
-X19fR0ZQX01PVkFCTEUpICAvKg0KPiBaT05FX01PVkFCTEUgYWxsb3dlZCAqLw0KPiBbLi4uXQ0K
-PiA+ICBzdGF0aWMgaW5saW5lIGVudW0gem9uZV90eXBlIGdmcF96b25lKGdmcF90IGZsYWdzKQ0K
-PiA+IHsNCj4gPiAgICAgICAgIGVudW0gem9uZV90eXBlIHo7DQo+ID4gLSAgICAgICBpbnQgYml0
-ID0gKF9fZm9yY2UgaW50KSAoZmxhZ3MgJiBHRlBfWk9ORU1BU0spOw0KPiA+ICsgICAgICAgeiA9
-ICgoX19mb3JjZSB1bnNpZ25lZCBpbnQpZmxhZ3MgJiBfX19HRlBfWk9ORV9NQVNLKSBeDQo+IFpP
-TkVfTk9STUFMOw0KPiA+DQo+ID4gLSAgICAgICB6ID0gKEdGUF9aT05FX1RBQkxFID4+IChiaXQg
-KiBHRlBfWk9ORVNfU0hJRlQpKSAmDQo+ID4gLSAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAoKDEgPDwgR0ZQX1pPTkVTX1NISUZUKSAtIDEpOw0KPiA+IC0gICAgICAgVk1f
-QlVHX09OKChHRlBfWk9ORV9CQUQgPj4gYml0KSAmIDEpOw0KPiA+ICsgICAgICAgaWYgKHogPiBP
-UFRfWk9ORV9ISUdITUVNKSB7DQo+ID4gKyAgICAgICAgICAgICAgIHogPSBPUFRfWk9ORV9ISUdI
-TUVNICsNCj4gPiArICAgICAgICAgICAgICAgICAgICAgICAhISgoX19mb3JjZSB1bnNpZ25lZCBp
-bnQpZmxhZ3MgJiBfX19HRlBfTU9WQUJMRSk7DQo+ID4gKyAgICAgICB9DQo+ID4gICAgICAgICBy
-ZXR1cm4gejsNCj4gPiAgfQ0KPiANCj4gSG93IGFib3V0Og0KPiANCj4gKyNkZWZpbmUgX19HRlBf
-SElHSE1FTSAgKChfX2ZvcmNlIGdmcF90KU9QVF9aT05FX0hJR0hNRU0gXg0KPiBaT05FX05PUk1B
-TCkNCj4gLSNkZWZpbmUgX19HRlBfTU9WQUJMRSAgKChfX2ZvcmNlIGdmcF90KV9fX0dGUF9NT1ZB
-QkxFKSAgLyoNCj4gWk9ORV9NT1ZBQkxFIGFsbG93ZWQgKi8NCj4gKyNkZWZpbmUgX19HRlBfTU9W
-QUJMRSAgKChfX2ZvcmNlIGdmcF90KVpPTkVfTU9WQUJMRSBeDQo+IFpPTkVfTk9STUFMIHwgXA0K
-PiArCQkJCQlfX19HRlBfTU9WQUJMRSkNCj4gDQo+IFRoZW4gSSB0aGluayB5b3UgY2FuIGp1c3Qg
-bWFrZSBpdDoNCj4gDQo+IHN0YXRpYyBpbmxpbmUgZW51bSB6b25lX3R5cGUgZ2ZwX3pvbmUoZ2Zw
-X3QgZmxhZ3MpDQo+IHsNCj4gCXJldHVybiAoKF9fZm9yY2UgaW50KWZsYWdzICYgX19fR0ZQX1pP
-TkVfTUFTSykgXiBaT05FX05PUk1BTDsNCj4gfQ0KU29ycnksIEkgdGhpbmsgaXQgaGFzIHJpc2sg
-aW4gdGhpcyB3YXksIGxldCBtZSBpbnRyb2R1Y2UgYSBmYWlsdXJlIGNhc2UgZm9yIGV4YW1wbGUu
-DQoNCk5vdyBzdXBwb3NlIHRoYXQsIHRoZXJlIGlzIGEgZmxhZyBzaG91bGQgcmVwcmVzZW50IERN
-QSBmbGFnIHdpdGggbW92YWJsZS4NCkl0IHNob3VsZCBiZSBsaWtlIHRoaXMgYmVsb3csDQpfX0dG
-UF9ETUEgfCBfX0dGUF9NT1ZBQkxFDQooMGIgMDAxMCAgICAgICB8ICAgMGIgMTAwMSAgID0gMGIg
-MTAxMSkNCk5vcm1hbGx5LCBnZnBfem9uZSBzaGFsbCByZXR1cm4gWk9ORV9ETUEgYnV0IHdpdGgg
-TU9WQUJMRSBwb2xpY3ksIHJpZ2h0Pw0KQnV0IHdpdGggeW91ciBjb2RlLCBnZnBfem9uZSB3aWxs
-IHJldHVybiBaT05FX0RNQTMyIHdpdGggTU9WQUJMRSBwb2xpY3kuDQooMGIgMTAxMSAgXiAgMGIg
-MDAxMCA9IDEwMDEpDQoNCllvdSBjYW4gZmluZCB0aGF0IHNvbWV0aGluZyB3cm9uZyBoYXBwZW5z
-LCBzbyB0aGF0IGlzIHdoeSBJIG1ha2UgZ2ZwX3pvbmUgbW9yZSBjb21wbGljYXRlZCB0aGFuIHlv
-dXJzLg0KDQo+ID4gQEAgLTM3MCw0MiArMzY4LDE1IEBAIHN0YXRpYyBpbmxpbmUgYm9vbCBnZnBm
-bGFnc19hbGxvd19ibG9ja2luZyhjb25zdA0KPiBnZnBfdCBnZnBfZmxhZ3MpDQo+ID4gICNlcnJv
-ciBHRlBfWk9ORVNfU0hJRlQgdG9vIGxhcmdlIHRvIGNyZWF0ZSBHRlBfWk9ORV9UQUJMRSBpbnRl
-Z2VyDQo+ID4gICNlbmRpZg0KPiANCj4gWW91IHNob3VsZCBiZSBhYmxlIHRvIGRlbGV0ZSBHRlBf
-Wk9ORVNfU0hJRlQgdG9vLg0KWWVzLCB5b3UgYXJlIHJpZ2h0Lg0KDQpTaW5jZXJlbHksDQpIdWFp
-c2hlbmcgWWUgfCDStruzyqQNCkxpbnV4IGtlcm5lbCB8IExlbm92bw0KDQoNCg==
+On Mon, May 07, 2018 at 05:16:50PM +0000, Huaisheng HS1 Ye wrote:
+> I hope it couldn't cause problem, but based on my analyzation it has the potential to go wrong if users still use the flags as usual, which are __GFP_DMA, __GFP_DMA32 and __GFP_HIGHMEM.
+> Let me take an example with my testing platform, these logics are much abstract, an example will be helpful.
+> 
+> There is a two sockets X86_64 server, No HIGHMEM and it has 16 + 16GB memories.
+> Its zone types shall be like this below,
+> 
+> ZONE_DMA		0		0b0000
+> ZONE_DMA32		1		0b0001
+> ZONE_NORMAL		2		0b0010
+> (OPT_ZONE_HIGHMEM)	2		0b0010
+> ZONE_MOVABLE		3		0b0011
+> ZONE_DEVICE		4		0b0100 (virtual zone)
+> __MAX_NR_ZONES	5
+> 
+> __GFP_DMA	= ZONE_DMA ^ ZONE_NORMAL= 0b0010
+> __GFP_DMA32	= ZONE_DMA32 ^ ZONE_NORMAL= 0b0011
+> __GFP_HIGHMEM = OPT_ZONE_HIGHMEM ^ ZONE_NORMAL = 0b0000
+> __GFP_MOVABLE	= ZONE_MOVABLE ^ ZONE_NORMAL | ___GFP_MOVABLE = 0b1001
+> 
+> Eg.
+> If a driver uses flags like this below,
+> Step 1:
+> gfp_mask  |  __GFP_DMA32;	
+> (0b 0000		|	0b 0011	= 0b 0011)
+> gfp_mask's low four bits shall equal to 0011, assuming no __GFP_MOVABLE
+> 
+> Step 2:
+> gfp_mask  & ~__GFP_DMA;	
+> (0b 0011	 & ~0b0010   = 0b0001)
+> gfp_mask's low four bits shall equal to 0001 now, then when it enter gfp_zone(),
+> 
+> return ((__force int)flags & ___GFP_ZONE_MASK) ^ ZONE_NORMAL;
+> (0b0001 ^ 0b0010 = 0b0011)
+> You know 0011 means that ZONE_MOVABLE will be returned.
+> In this case, error can be found, because gfp_mask needs to get ZONE_DMA32 originally.
+> But with existing GFP_ZONE_TABLE/BAD, it is correct. Because the bits are way of 0x1, 0x2, 0x4, 0x8
+
+Yes, I understand your point here.  My point was that this was already a bug;
+the caller shouldn't simply be clearing __GFP_DMA; they really mean to clear
+all of the GFP_ZONE bits so that they allocate from ZONE_NORMAL.  And for
+that, they should be using ~GFP_ZONEMASK
+
+Unless they already know, of course.  For example, this one in
+arch/x86/mm/pgtable.c is fine:
+
+        if (strcmp(arg, "nohigh") == 0)
+                __userpte_alloc_gfp &= ~__GFP_HIGHMEM;
+
+because it knows that __userpte_alloc_gfp can only have __GFP_HIGHMEM set.
+
+But something like btrfs should almost certainly be using ~GFP_ZONEMASK.
+
+> > +#define __GFP_HIGHMEM  ((__force gfp_t)OPT_ZONE_HIGHMEM ^
+> > ZONE_NORMAL)
+> > -#define __GFP_MOVABLE  ((__force gfp_t)___GFP_MOVABLE)  /*
+> > ZONE_MOVABLE allowed */
+> > +#define __GFP_MOVABLE  ((__force gfp_t)ZONE_MOVABLE ^
+> > ZONE_NORMAL | \
+> > +					___GFP_MOVABLE)
+> > 
+> > Then I think you can just make it:
+> > 
+> > static inline enum zone_type gfp_zone(gfp_t flags)
+> > {
+> > 	return ((__force int)flags & ___GFP_ZONE_MASK) ^ ZONE_NORMAL;
+> > }
+> Sorry, I think it has risk in this way, let me introduce a failure case for example.
+> 
+> Now suppose that, there is a flag should represent DMA flag with movable.
+> It should be like this below,
+> __GFP_DMA | __GFP_MOVABLE
+> (0b 0010       |   0b 1001   = 0b 1011)
+> Normally, gfp_zone shall return ZONE_DMA but with MOVABLE policy, right?
+
+No, if you somehow end up with __GFP_MOVABLE | __GFP_DMA, it should give you
+ZONE_DMA.
+
+> But with your code, gfp_zone will return ZONE_DMA32 with MOVABLE policy.
+> (0b 1011  ^  0b 0010 = 1001)
+
+___GFP_ZONE_MASK is 0x7, so it excludes __GFP_MOVABLE.
