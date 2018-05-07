@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 394C96B026B
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 10:58:53 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id x30-v6so16765263qtm.20
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 07:58:53 -0700 (PDT)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id r47-v6si1248284qtb.46.2018.05.07.07.58.52
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A88F6B026C
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 11:01:56 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id c73so21520481qke.2
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 08:01:56 -0700 (PDT)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id t68si6798638qki.258.2018.05.07.08.01.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 May 2018 07:58:52 -0700 (PDT)
-Date: Mon, 7 May 2018 09:58:51 -0500 (CDT)
+        Mon, 07 May 2018 08:01:55 -0700 (PDT)
+Date: Mon, 7 May 2018 10:01:53 -0500 (CDT)
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH v5 04/17] mm: Switch s_mem and slab_cache in struct
- page
-In-Reply-To: <20180504183318.14415-5-willy@infradead.org>
-Message-ID: <alpine.DEB.2.21.1805070958130.23585@nuc-kabylake>
-References: <20180504183318.14415-1-willy@infradead.org> <20180504183318.14415-5-willy@infradead.org>
+Subject: Re: [PATCH v5 16/17] slub: Remove 'reserved' file from sysfs
+In-Reply-To: <20180504183318.14415-17-willy@infradead.org>
+Message-ID: <alpine.DEB.2.21.1805071001310.23585@nuc-kabylake>
+References: <20180504183318.14415-1-willy@infradead.org> <20180504183318.14415-17-willy@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,8 +24,9 @@ Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <
 
 On Fri, 4 May 2018, Matthew Wilcox wrote:
 
-> This will allow us to store slub's counters in the same bits as slab's
-> s_mem.  slub now needs to set page->mapping to NULL as it frees the page,
-> just like slab does.
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+>
+> Christoph doubts anyone was using the 'reserved' file in sysfs, so
+> remove it.
 
 Acked-by: Christoph Lameter <cl@linux.com>
