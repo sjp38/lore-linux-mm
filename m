@@ -1,84 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 324156B000C
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 20:25:54 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id q15so3337606pff.17
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 17:25:54 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c129si23596696pfa.99.2018.05.07.17.25.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 07 May 2018 17:25:51 -0700 (PDT)
-Date: Mon, 7 May 2018 17:25:47 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [External]  Re: [PATCH 2/3] include/linux/gfp.h: use unsigned
- int in gfp_zone
-Message-ID: <20180508002547.GA16338@bombadil.infradead.org>
-References: <1525416729-108201-3-git-send-email-yehs1@lenovo.com>
- <20180504133533.GR4535@dhcp22.suse.cz>
- <20180504154004.GB29829@bombadil.infradead.org>
- <HK2PR03MB168459A1C4FB2B7D3E1F6A4A92840@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180506134814.GB7362@bombadil.infradead.org>
- <HK2PR03MB168447008C658172FFDA402992840@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180506185532.GA13604@bombadil.infradead.org>
- <HK2PR03MB1684BF10B3B515BFABD35F8B929B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180507184410.GA12361@bombadil.infradead.org>
- <20180507212500.bdphwfhk55w6vlbb@twin.jikos.cz>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 52DC56B000A
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 20:35:54 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y12so15362305pfe.8
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 17:35:54 -0700 (PDT)
+Received: from ns.ascade.co.jp (ext-host0001.ascade.co.jp. [218.224.228.194])
+        by mx.google.com with ESMTP id p17-v6si798420pgn.662.2018.05.07.17.35.52
+        for <linux-mm@kvack.org>;
+        Mon, 07 May 2018 17:35:52 -0700 (PDT)
+Subject: Re: [PATCH] memcg, hugetlb: pages allocated for hugetlb's overcommit
+ will be charged to memcg
+References: <ecb737e9-ccec-2d7e-45d9-91884a669b58@ascade.co.jp>
+ <dc21a4ac-b57f-59a8-f97a-90a59d5a59cd@oracle.com>
+ <c9019050-7c89-86c3-93fc-9beb64e43ed3@ascade.co.jp>
+ <249d53f4-225d-8a11-d557-b915fa4fa9cb@oracle.com>
+ <a696eccd-24f3-9368-5baa-afbd3628468a@ascade.co.jp>
+ <fae2dde5-00b0-f12c-66ff-8b69351805a9@oracle.com>
+From: TSUKADA Koutaro <tsukada@ascade.co.jp>
+Message-ID: <7c4dced0-fb54-4336-8bcb-e863187a0d49@ascade.co.jp>
+Date: Tue, 8 May 2018 09:35:41 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180507212500.bdphwfhk55w6vlbb@twin.jikos.cz>
+In-Reply-To: <fae2dde5-00b0-f12c-66ff-8b69351805a9@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dsterba@suse.cz, Huaisheng HS1 Ye <yehs1@lenovo.com>, Michal Hocko <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, tsukada@ascade.co.jp
 
-On Mon, May 07, 2018 at 11:25:01PM +0200, David Sterba wrote:
-> On Mon, May 07, 2018 at 11:44:10AM -0700, Matthew Wilcox wrote:
-> > But something like btrfs should almost certainly be using ~GFP_ZONEMASK.
+On 2018/05/04 13:26, Mike Kravetz wrote:
+> Thank you for the explanation of your use case.  I now understand what
+> you were trying to accomplish with your patch.
 > 
-> Agreed, the direct use of __GFP_DMA32 was added in 3ba7ab220e8918176c6f
-> to substitute GFP_NOFS, so the allocation flags are less restrictive but
-> still acceptable for allocation from slab.
+> Your use case reminds me of the session at LSFMM titled "swap accounting".
+> https://lwn.net/Articles/753162/
 > 
-> The requirement from btrfs is to avoid highmem, the 'must be acceptable
-> for slab' requirement is more MM internal and should have been hidden
-> under some opaque flag mask. There was no strong need for that at the
-> time.
+> I hope someone with more cgroup expertise (Johannes? Aneesh?) can provide
+> comments.  My experience in that area is limited.
 
-The GFP flags encode a multiple of different requirements.  There's
-"What can the allocator do to free memory" and "what area of memory
-can the allocation come from".  btrfs doesn't actually want to
-allocate memory from ZONE_MOVABLE or ZONE_DMA either.  It's probably never
-been called with those particular flags set, but in the spirit of
-future-proofing btrfs, perhaps a patch like this is in order?
+I am waiting for comments from expertise. The point is whether the surplus
+hugetlb page that allocated from buddy pool directly should be charged to
+memory cgroup or not.
 
----- >8 ----
+> One question that comes to mind is "Why would the user/application writer
+> use hugetlbfs overcommit instead of THP?".  For hugetlbfs overcommit, they
+> need to be prepared for huge page allocations to fail.  So, in some cases
+> they may not be able to use any hugetlbfs pages.  This is not much different
+> than THP.  However, in the THP case huge page allocation failures and fall
+> back to base pages is transparent to the user.  With THP, the normal memory
+> cgroup controller should work well.
 
-Subject: btrfs: Allocate extents from ZONE_NORMAL
-From: Matthew Wilcox <mawilcox@microsoft.com>
+Certainly THP is much easier to use than hugetlb in 4KB page size kernel.
+On the other hand, some distributions(SUSE, RHEL) have a page size of 64KB,
+and the THP size in that case is 512MB(not 2MB). I am afraid that 512MB of
+huge page is somewhat difficult to use.
 
-If anyone ever passes a GFP_DMA or GFP_MOVABLE allocation flag to
-allocate_extent_state, it will try to allocate memory from the wrong zone.
-We just want to allocate memory from ZONE_NORMAL, so use GFP_RECLAIM_MASK
-to get what we want.
-
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index e99b329002cf..4e4a67b7b29d 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -216,12 +216,7 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
- {
- 	struct extent_state *state;
- 
--	/*
--	 * The given mask might be not appropriate for the slab allocator,
--	 * drop the unsupported bits
--	 */
--	mask &= ~(__GFP_DMA32|__GFP_HIGHMEM);
--	state = kmem_cache_alloc(extent_state_cache, mask);
-+	state = kmem_cache_alloc(extent_state_cache, mask & GFP_RECLAIM_MASK);
- 	if (!state)
- 		return state;
- 	state->state = 0;
+In hugetlbfs, page size variation increases by using contiguous bits
+supported by aarch64 architecture, and 2MB, 512MB, 16GB, 4TB can be used
+in 64KB environment(Actually, only 2MB is usable...). I also believe THP
+is the best in the 4KB environment, but I am considering how to use the
+huge page in the 64KB environment.
+-- 
+Tsukada Koutaro
