@@ -1,58 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DCC06B02AD
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 12:27:29 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id y6-v6so21975038wrm.10
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 09:27:29 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t24-v6si7970963edm.246.2018.05.08.09.27.27
+	by kanga.kvack.org (Postfix) with ESMTP id B51786B02AF
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 12:28:35 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p1-v6so21733436wrm.7
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 09:28:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x6-v6sor11641910wrl.36.2018.05.08.09.28.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 May 2018 09:27:27 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w48GOwPP000620
-	for <linux-mm@kvack.org>; Tue, 8 May 2018 12:27:25 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2huc1h40xn-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 08 May 2018 12:27:25 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Tue, 8 May 2018 17:27:23 +0100
-Date: Tue, 8 May 2018 09:27:15 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH 4/8] mm/pkeys, powerpc, x86: Provide an empty vma_pkey()
- in linux/pkeys.h
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <20180508145948.9492-1-mpe@ellerman.id.au>
- <20180508145948.9492-5-mpe@ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180508145948.9492-5-mpe@ellerman.id.au>
-Message-Id: <20180508162715.GB5474@ram.oc3035372033.ibm.com>
+        (Google Transport Security);
+        Tue, 08 May 2018 09:28:34 -0700 (PDT)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v2] x86/boot/64/clang: Use fixup_pointer() to access '__supported_pte_mask'
+Date: Tue,  8 May 2018 18:28:29 +0200
+Message-Id: <20180508162829.7729-1-glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: mingo@redhat.com, linuxppc-dev@ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com
+To: dave.hansen@linux.intel.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mka@chromium.org, dvyukov@google.com, md@google.com
 
-On Wed, May 09, 2018 at 12:59:44AM +1000, Michael Ellerman wrote:
-> Consolidate the pkey handling by providing a common empty definition
-> of vma_pkey() in pkeys.h when CONFIG_ARCH_HAS_PKEYS=n.
-> 
-> This also removes another entanglement of pkeys.h and
-> asm/mmu_context.h.
->
+Clang builds with defconfig started crashing after commit fb43d6cb91ef
+("x86/mm: Do not auto-massage page protections")
+This was caused by introducing a new global access in __startup_64().
 
-Reviewed-by: Ram Pai <linuxram@us.ibm.com>
+Code in __startup_64() can be relocated during execution, but the compiler
+doesn't have to generate PC-relative relocations when accessing globals
+from that function. Clang actually does not generate them, which leads
+to boot-time crashes. To work around this problem, every global pointer
+must be adjusted using fixup_pointer().
 
+Signed-off-by: Alexander Potapenko <glider@google.com>
+Fixes: fb43d6cb91ef ("x86/mm: Do not auto-massage page protections")
+---
+ v2: better patch description, added a comment to __startup_64()
+---
+ arch/x86/kernel/head64.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-> Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
-> ---
->  arch/powerpc/include/asm/mmu_context.h | 5 -----
->  arch/x86/include/asm/mmu_context.h     | 5 -----
->  include/linux/pkeys.h                  | 5 +++++
->  3 files changed, 5 insertions(+), 10 deletions(-)
-
-RP
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 0c408f8c4ed4..9223792f6d0e 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -104,6 +104,13 @@ static bool __head check_la57_support(unsigned long physaddr)
+ }
+ #endif
+ 
++
++/* Code in __startup_64() can be relocated during execution, but the compiler
++ * doesn't have to generate PC-relative relocations when accessing globals from
++ * that function. Clang actually does not generate them, which leads to
++ * boot-time crashes. To work around this problem, every global pointer must
++ * be adjusted using fixup_pointer().
++ */
+ unsigned long __head __startup_64(unsigned long physaddr,
+ 				  struct boot_params *bp)
+ {
+@@ -113,6 +120,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
+ 	p4dval_t *p4d;
+ 	pudval_t *pud;
+ 	pmdval_t *pmd, pmd_entry;
++	pteval_t *mask_ptr;
+ 	bool la57;
+ 	int i;
+ 	unsigned int *next_pgt_ptr;
+@@ -196,7 +204,8 @@ unsigned long __head __startup_64(unsigned long physaddr,
+ 
+ 	pmd_entry = __PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL;
+ 	/* Filter out unsupported __PAGE_KERNEL_* bits: */
+-	pmd_entry &= __supported_pte_mask;
++	mask_ptr = (pteval_t *)fixup_pointer(&__supported_pte_mask, physaddr);
++	pmd_entry &= *mask_ptr;
+ 	pmd_entry += sme_get_me_mask();
+ 	pmd_entry +=  physaddr;
+ 
+-- 
+2.17.0.441.gb46fe60e1d-goog
