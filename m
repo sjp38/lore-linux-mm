@@ -1,38 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BF4B06B0271
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 07:23:45 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id a12-v6so3124672pgu.20
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 04:23:45 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 9-v6si17726231ple.63.2018.05.08.04.23.44
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CE8BF6B0274
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 08:05:54 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id o23-v6so1684561pll.12
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 05:05:54 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id f4-v6si24745390plm.448.2018.05.08.05.05.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 08 May 2018 04:23:44 -0700 (PDT)
-Date: Tue, 8 May 2018 04:23:21 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: expland documentation over __read_mostly
-Message-ID: <20180508112321.GA30120@bombadil.infradead.org>
-References: <e2aa9491-c1e3-4ae1-1ab2-589a6642a24a@infradead.org>
- <20180507231506.4891-1-mcgrof@kernel.org>
- <32208.1525768094@warthog.procyon.org.uk>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 May 2018 05:05:53 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH] mm: fix oom_kill event handling
+Date: Tue, 8 May 2018 13:04:02 +0100
+Message-ID: <20180508120402.3159-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <32208.1525768094@warthog.procyon.org.uk>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>, tglx@linutronix.de, arnd@arndb.de, cl@linux.com, keescook@chromium.org, luto@amacapital.net, longman@redhat.com, viro@zeniv.linux.org.uk, ebiederm@xmission.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: kernel-team@fb.com, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-On Tue, May 08, 2018 at 09:28:14AM +0100, David Howells wrote:
-> Randy Dunlap <rdunlap@infradead.org> wrote:
-> 
-> > > + * execute a critial path. We should be mindful and selective if its use.
-> > 
-> >                                                                  of its use.
-> 
->                                                                    in its use.
-								     with its use.
+Commit e27be240df53 ("mm: memcg: make sure memory.events is
+uptodate when waking pollers") converted most of memcg event
+counters to per-memcg atomics, which made them less confusing
+for a user. The "oom_kill" counter remained untouched, so now
+it behaves differently than other counters (including "oom").
+This adds nothing but confusion.
 
-Nah, just kidding.  Let's go with "in".
+Let's fix this by adding the MEMCG_OOM_KILL event, and follow
+the MEMCG_OOM approach. This also removes a hack from
+count_memcg_event_mm(), introduced earlier specially for the
+OOM_KILL counter.
+
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org
+---
+ include/linux/memcontrol.h | 26 ++++++++++++++++++++++----
+ mm/memcontrol.c            |  6 ++++--
+ mm/oom_kill.c              |  2 +-
+ 3 files changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 6cbea2f25a87..caa8b70a85f6 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -54,6 +54,7 @@ enum memcg_memory_event {
+ 	MEMCG_HIGH,
+ 	MEMCG_MAX,
+ 	MEMCG_OOM,
++	MEMCG_OOM_KILL,
+ 	MEMCG_SWAP_MAX,
+ 	MEMCG_SWAP_FAIL,
+ 	MEMCG_NR_MEMORY_EVENTS,
+@@ -721,11 +722,8 @@ static inline void count_memcg_event_mm(struct mm_struct *mm,
+ 
+ 	rcu_read_lock();
+ 	memcg = rcu_dereference(mm->memcg);
+-	if (likely(memcg)) {
++	if (likely(memcg))
+ 		count_memcg_events(memcg, idx, 1);
+-		if (idx == OOM_KILL)
+-			cgroup_file_notify(&memcg->events_file);
+-	}
+ 	rcu_read_unlock();
+ }
+ 
+@@ -736,6 +734,21 @@ static inline void memcg_memory_event(struct mem_cgroup *memcg,
+ 	cgroup_file_notify(&memcg->events_file);
+ }
+ 
++static inline void memcg_memory_event_mm(struct mm_struct *mm,
++					 enum memcg_memory_event event)
++{
++	struct mem_cgroup *memcg;
++
++	if (mem_cgroup_disabled())
++		return;
++
++	rcu_read_lock();
++	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
++	if (likely(memcg))
++		memcg_memory_event(memcg, event);
++	rcu_read_unlock();
++}
++
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ void mem_cgroup_split_huge_fixup(struct page *head);
+ #endif
+@@ -757,6 +770,11 @@ static inline void memcg_memory_event(struct mem_cgroup *memcg,
+ {
+ }
+ 
++static inline void memcg_memory_event_mm(struct mm_struct *mm,
++					 enum memcg_memory_event event)
++{
++}
++
+ static inline bool mem_cgroup_low(struct mem_cgroup *root,
+ 				  struct mem_cgroup *memcg)
+ {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 10973671e562..38717630305d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3772,7 +3772,8 @@ static int mem_cgroup_oom_control_read(struct seq_file *sf, void *v)
+ 
+ 	seq_printf(sf, "oom_kill_disable %d\n", memcg->oom_kill_disable);
+ 	seq_printf(sf, "under_oom %d\n", (bool)memcg->under_oom);
+-	seq_printf(sf, "oom_kill %lu\n", memcg_sum_events(memcg, OOM_KILL));
++	seq_printf(sf, "oom_kill %lu\n",
++		   atomic_long_read(&memcg->memory_events[MEMCG_OOM_KILL]));
+ 	return 0;
+ }
+ 
+@@ -5529,7 +5530,8 @@ static int memory_events_show(struct seq_file *m, void *v)
+ 		   atomic_long_read(&memcg->memory_events[MEMCG_MAX]));
+ 	seq_printf(m, "oom %lu\n",
+ 		   atomic_long_read(&memcg->memory_events[MEMCG_OOM]));
+-	seq_printf(m, "oom_kill %lu\n", memcg_sum_events(memcg, OOM_KILL));
++	seq_printf(m, "oom_kill %lu\n",
++		   atomic_long_read(&memcg->memory_events[MEMCG_OOM_KILL]));
+ 
+ 	return 0;
+ }
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 8f7d8dd99e5d..6b74142a1259 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -868,7 +868,7 @@ static void __oom_kill_process(struct task_struct *victim)
+ 
+ 	/* Raise event before sending signal: task reaper must see this */
+ 	count_vm_event(OOM_KILL);
+-	count_memcg_event_mm(mm, OOM_KILL);
++	memcg_memory_event_mm(mm, MEMCG_OOM_KILL);
+ 
+ 	/*
+ 	 * We should send SIGKILL before granting access to memory reserves
+-- 
+2.14.3
