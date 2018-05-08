@@ -1,122 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EA8A76B000A
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 05:09:11 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id s84-v6so17815072oig.17
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 02:09:11 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id s132-v6si8560555ois.86.2018.05.08.02.09.10
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 269706B000A
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 05:46:59 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id e8-v6so23848236qtj.0
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 02:46:59 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id k5-v6si441672qti.144.2018.05.08.02.46.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 May 2018 02:09:10 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH -mm] mm, pagemap: Hide swap entry for unprivileged users
-Date: Tue, 8 May 2018 09:07:34 +0000
-Message-ID: <20180508090734.GA27996@hori1.linux.bs1.fc.nec.co.jp>
-References: <20180508012745.7238-1-ying.huang@intel.com>
-In-Reply-To: <20180508012745.7238-1-ying.huang@intel.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <AAC608D4D314694BA2DE2476E4788BEB@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Tue, 08 May 2018 02:46:58 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w489hvt2045482
+	for <linux-mm@kvack.org>; Tue, 8 May 2018 05:46:57 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2hu6wff0a7-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 08 May 2018 05:46:56 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <naveen.n.rao@linux.vnet.ibm.com>;
+	Tue, 8 May 2018 10:46:54 +0100
+Date: Tue, 08 May 2018 15:16:43 +0530
+From: "Naveen N. Rao" <naveen.n.rao@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 6/9] trace_uprobe: Support SDT markers having reference
+ count (semaphore)
+References: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
+	<20180417043244.7501-7-ravi.bangoria@linux.vnet.ibm.com>
+	<20180504134816.8633a157dd036489d9b0f1db@kernel.org>
+	<206e4a16-ae21-7da3-f752-853dc2f51947@linux.ibm.com>
+	<f3d066d2-a85a-bd21-d4f9-fc27e59135df@linux.ibm.com>
+	<20180508005651.45553d3cf72521481d16b801@kernel.org>
+In-Reply-To: <20180508005651.45553d3cf72521481d16b801@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <1525772725.o3tzigt8c3.naveen@linux.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrei Vagin <avagin@openvz.org>, Michal Hocko <mhocko@suse.com>, Jerome Glisse <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Masami Hiramatsu <mhiramat@kernel.org>, Ravi Bangoria <ravi.bangoria@linux.ibm.com>
+Cc: acme@kernel.org, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, ananth@linux.vnet.ibm.com, corbet@lwn.net, dan.j.williams@intel.com, fengguang.wu@intel.com, jglisse@redhat.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, oleg@redhat.com, pc@us.ibm.com, peterz@infradead.org, rostedt@goodmis.org, srikar@linux.vnet.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com
 
-On Tue, May 08, 2018 at 09:27:45AM +0800, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+Masami Hiramatsu wrote:
+> On Mon, 7 May 2018 13:51:21 +0530
+> Ravi Bangoria <ravi.bangoria@linux.ibm.com> wrote:
 >=20
-> In ab676b7d6fbf ("pagemap: do not leak physical addresses to
-> non-privileged userspace"), the /proc/PID/pagemap is restricted to be
-> readable only by CAP_SYS_ADMIN to address some security issue.  In
-> 1c90308e7a77 ("pagemap: hide physical addresses from non-privileged
-> users"), the restriction is relieved to make /proc/PID/pagemap
-> readable, but hide the physical addresses for non-privileged users.
-> But the swap entries are readable for non-privileged users too.  This
-> has some security issues.  For example, for page under migrating, the
-> swap entry has physical address information.  So, in this patch, the
-> swap entries are hided for non-privileged users too.
+>> BTW, same issue exists for normal uprobe. If uprobe_mmap() fails,
+>> there is no feedback to trace_uprobe and no warnigns in dmesg as
+>> well !! There was a patch by Naveen to warn such failures in dmesg
+>> but that didn't go in: https://lkml.org/lkml/2017/9/22/155
 >=20
-> Fixes: 1c90308e7a77 ("pagemap: hide physical addresses from non-privilege=
-d users")
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Suggested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> Cc: Andrei Vagin <avagin@openvz.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Jerome Glisse <jglisse@redhat.com>
-> Cc: Daniel Colascione <dancol@google.com>
-> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Oops, that's a real bug. It seems the ball is in Naveen's hand.
+> Naveen, could you update it according to Oleg's comment, and resend it?
 
-Hi ying huang,
+Yes, I've had to put that series on the backburner. I will try and get=20
+to it soon. Thanks for the reminder.
 
-This patch looks good to me.
+- Naveen
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-> ---
->  fs/proc/task_mmu.c | 26 ++++++++++++++++----------
->  1 file changed, 16 insertions(+), 10 deletions(-)
->=20
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index a20c6e495bb2..ff947fdd7c71 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -1258,8 +1258,9 @@ static pagemap_entry_t pte_to_pagemap_entry(struct =
-pagemapread *pm,
->  		if (pte_swp_soft_dirty(pte))
->  			flags |=3D PM_SOFT_DIRTY;
->  		entry =3D pte_to_swp_entry(pte);
-> -		frame =3D swp_type(entry) |
-> -			(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
-> +		if (pm->show_pfn)
-> +			frame =3D swp_type(entry) |
-> +				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
->  		flags |=3D PM_SWAP;
->  		if (is_migration_entry(entry))
->  			page =3D migration_entry_to_page(entry);
-> @@ -1310,11 +1311,14 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigne=
-d long addr, unsigned long end,
->  #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
->  		else if (is_swap_pmd(pmd)) {
->  			swp_entry_t entry =3D pmd_to_swp_entry(pmd);
-> -			unsigned long offset =3D swp_offset(entry);
-> +			unsigned long offset;
-> =20
-> -			offset +=3D (addr & ~PMD_MASK) >> PAGE_SHIFT;
-> -			frame =3D swp_type(entry) |
-> -				(offset << MAX_SWAPFILES_SHIFT);
-> +			if (pm->show_pfn) {
-> +				offset =3D swp_offset(entry) +
-> +					((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> +				frame =3D swp_type(entry) |
-> +					(offset << MAX_SWAPFILES_SHIFT);
-> +			}
->  			flags |=3D PM_SWAP;
->  			if (pmd_swp_soft_dirty(pmd))
->  				flags |=3D PM_SOFT_DIRTY;
-> @@ -1332,10 +1336,12 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigne=
-d long addr, unsigned long end,
->  			err =3D add_to_pagemap(addr, &pme, pm);
->  			if (err)
->  				break;
-> -			if (pm->show_pfn && (flags & PM_PRESENT))
-> -				frame++;
-> -			else if (flags & PM_SWAP)
-> -				frame +=3D (1 << MAX_SWAPFILES_SHIFT);
-> +			if (pm->show_pfn) {
-> +				if (flags & PM_PRESENT)
-> +					frame++;
-> +				else if (flags & PM_SWAP)
-> +					frame +=3D (1 << MAX_SWAPFILES_SHIFT);
-> +			}
->  		}
->  		spin_unlock(ptl);
->  		return err;
-> --=20
-> 2.17.0
->=20
-> =
+=
