@@ -1,135 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C7046B000A
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 04:48:07 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t66-v6so18097640oih.9
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 01:48:07 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id j19-v6si9279774otd.84.2018.05.08.01.48.05
-        for <linux-mm@kvack.org>;
-        Tue, 08 May 2018 01:48:06 -0700 (PDT)
-Subject: Re: [PATCH v3 07/12] ACPI / APEI: Make the nmi_fixmap_idx per-ghes to
- allow multiple in_nmi() users
-References: <20180427153510.5799-1-james.morse@arm.com>
- <20180427153510.5799-8-james.morse@arm.com> <20180505122719.GE3708@pd.tnic>
-From: James Morse <james.morse@arm.com>
-Message-ID: <1511cfcc-dcd1-b3c5-01c7-6b6b8fb65b05@arm.com>
-Date: Tue, 8 May 2018 09:45:01 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id EA8A76B000A
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 05:09:11 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id s84-v6so17815072oig.17
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 02:09:11 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id s132-v6si8560555ois.86.2018.05.08.02.09.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 May 2018 02:09:10 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH -mm] mm, pagemap: Hide swap entry for unprivileged users
+Date: Tue, 8 May 2018 09:07:34 +0000
+Message-ID: <20180508090734.GA27996@hori1.linux.bs1.fc.nec.co.jp>
+References: <20180508012745.7238-1-ying.huang@intel.com>
+In-Reply-To: <20180508012745.7238-1-ying.huang@intel.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <AAC608D4D314694BA2DE2476E4788BEB@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20180505122719.GE3708@pd.tnic>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrei Vagin <avagin@openvz.org>, Michal Hocko <mhocko@suse.com>, Jerome Glisse <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Borislav,
+On Tue, May 08, 2018 at 09:27:45AM +0800, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+>=20
+> In ab676b7d6fbf ("pagemap: do not leak physical addresses to
+> non-privileged userspace"), the /proc/PID/pagemap is restricted to be
+> readable only by CAP_SYS_ADMIN to address some security issue.  In
+> 1c90308e7a77 ("pagemap: hide physical addresses from non-privileged
+> users"), the restriction is relieved to make /proc/PID/pagemap
+> readable, but hide the physical addresses for non-privileged users.
+> But the swap entries are readable for non-privileged users too.  This
+> has some security issues.  For example, for page under migrating, the
+> swap entry has physical address information.  So, in this patch, the
+> swap entries are hided for non-privileged users too.
+>=20
+> Fixes: 1c90308e7a77 ("pagemap: hide physical addresses from non-privilege=
+d users")
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Suggested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Cc: Andrei Vagin <avagin@openvz.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Jerome Glisse <jglisse@redhat.com>
+> Cc: Daniel Colascione <dancol@google.com>
+> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On 05/05/18 13:27, Borislav Petkov wrote:
-> On Fri, Apr 27, 2018 at 04:35:05PM +0100, James Morse wrote:
->> Arm64 has multiple NMI-like notifications, but ghes.c only has one
->> in_nmi() path, risking deadlock if one NMI-like notification can
->> interrupt another.
->>
->> To support this we need a fixmap entry and lock for each notification
->> type. But ghes_probe() attempts to process each struct ghes at probe
->> time, to ensure any error that was notified before ghes_probe() was
->> called has been done, and the buffer released (and maybe acknowledge
->> to firmware) so that future errors can be delivered.
->>
->> This means NMI-like notifications need two fixmap entries and locks,
->> one for the ghes_probe() time call, and another for the actual NMI
->> that could interrupt ghes_probe().
->>
->> Split this single path up by adding an NMI fixmap idx and lock into
->> the struct ghes. Any notification that can be called as an NMI can
->> use these to separate its resources from any other notification it
->> may interrupt.
->>
->> The majority of notifications occur in IRQ context, so unless its
->> called in_nmi(), ghes_copy_tofrom_phys() will use the FIX_APEI_GHES_IRQ
->> fixmap entry and the ghes_fixmap_lock_irq lock. This allows
->> NMI-notifications to be processed by ghes_probe(), and then taken
->> as an NMI.
->>
->> The double-underscore version of fix_to_virt() is used because the index
->> to be mapped can't be tested against the end of the enum at compile
->> time.
+Hi ying huang,
 
->> @@ -986,6 +960,8 @@ int ghes_notify_sea(void)
->>  
->>  static void ghes_sea_add(struct ghes *ghes)
->>  {
->> +	ghes->nmi_fixmap_lock = &ghes_fixmap_lock_nmi;
->> +	ghes->nmi_fixmap_idx = FIX_APEI_GHES_NMI;
->>  	ghes_estatus_queue_grow_pool(ghes);
->>  
->>  	mutex_lock(&ghes_list_mutex);
->> @@ -1032,6 +1008,8 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
->>  
->>  static void ghes_nmi_add(struct ghes *ghes)
->>  {
->> +	ghes->nmi_fixmap_lock = &ghes_fixmap_lock_nmi;
-> 
-> Ewww, we're assigning the spinlock to a pointer which we'll take later?
-> Yuck.
+This patch looks good to me.
 
-> Why?
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-So that APEI doesn't need to know which lock goes with which fixmap page, and
-how these notifications interact.
-
-
-> Do I see it correctly that one can have ACPI_HEST_NOTIFY_SEA and
-> ACPI_HEST_NOTIFY_NMI coexist in parallel on a single system?
-
-NOTIFY_NMI is x86's NMI, arm doesn't have anything that behaves in the same way,
-so doesn't use it. The equivalent notifications with NMI-like behaviour are:
-* SEA (synchronous external abort)
-* SEI (SError Interrupt)
-* SDEI (software delegated exception interface)
-
-
-> If not, you can use a single spinlock.
-
-Today we could, but once we have SDEI and SEI this won't work:
-SDEI behaves as two notifications, 'normal' and 'critical', a different fixmap
-page is needed for these as they can interrupt each other, and a different lock.
-
-SEA can interrupt SEI, so they need a different fixmap-pages and locks.
-We can always disable SEI when we're handling another NMI-like notification.
-
-I doubt anyone would implement all three, but if they did SEA can interrupt the lot.
-
-
-I'd like to avoid describing any of these interactions in ghes.c, I think it
-should be possible that any notification can interrupt any other notification
-without the risk of deadlock.
-
-
-> If yes, then I'd prefer to make it less ugly and do the notification
-> type check ghes_probe() does:
-> 
-> 	switch (generic->notify.type)
-> 
-> and take the respective spinlock in ghes_copy_tofrom_phys(). This way it
-> is a bit better than using a spinlock ptr.
-
-I wanted to avoid duplicating that list, some of the locks are #ifdef'd so it
-gets ugly quickly. (We would only need the NMI-like notifications though).
-
-I'd really like to avoid the GHES code having to know about normal/critical SDEI
-events.
-
-
-Alternatively, I can put the fixmap-page and spinlock in some 'struct
-ghes_notification' that only the NMI-like struct-ghes need. This is just moving
-the indirection up a level, but it does pair the lock with the thing it locks,
-and gets rid of assigning spinlock pointers.
-
-
-Thanks,
-
-James
+> ---
+>  fs/proc/task_mmu.c | 26 ++++++++++++++++----------
+>  1 file changed, 16 insertions(+), 10 deletions(-)
+>=20
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index a20c6e495bb2..ff947fdd7c71 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1258,8 +1258,9 @@ static pagemap_entry_t pte_to_pagemap_entry(struct =
+pagemapread *pm,
+>  		if (pte_swp_soft_dirty(pte))
+>  			flags |=3D PM_SOFT_DIRTY;
+>  		entry =3D pte_to_swp_entry(pte);
+> -		frame =3D swp_type(entry) |
+> -			(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
+> +		if (pm->show_pfn)
+> +			frame =3D swp_type(entry) |
+> +				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
+>  		flags |=3D PM_SWAP;
+>  		if (is_migration_entry(entry))
+>  			page =3D migration_entry_to_page(entry);
+> @@ -1310,11 +1311,14 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigne=
+d long addr, unsigned long end,
+>  #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+>  		else if (is_swap_pmd(pmd)) {
+>  			swp_entry_t entry =3D pmd_to_swp_entry(pmd);
+> -			unsigned long offset =3D swp_offset(entry);
+> +			unsigned long offset;
+> =20
+> -			offset +=3D (addr & ~PMD_MASK) >> PAGE_SHIFT;
+> -			frame =3D swp_type(entry) |
+> -				(offset << MAX_SWAPFILES_SHIFT);
+> +			if (pm->show_pfn) {
+> +				offset =3D swp_offset(entry) +
+> +					((addr & ~PMD_MASK) >> PAGE_SHIFT);
+> +				frame =3D swp_type(entry) |
+> +					(offset << MAX_SWAPFILES_SHIFT);
+> +			}
+>  			flags |=3D PM_SWAP;
+>  			if (pmd_swp_soft_dirty(pmd))
+>  				flags |=3D PM_SOFT_DIRTY;
+> @@ -1332,10 +1336,12 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigne=
+d long addr, unsigned long end,
+>  			err =3D add_to_pagemap(addr, &pme, pm);
+>  			if (err)
+>  				break;
+> -			if (pm->show_pfn && (flags & PM_PRESENT))
+> -				frame++;
+> -			else if (flags & PM_SWAP)
+> -				frame +=3D (1 << MAX_SWAPFILES_SHIFT);
+> +			if (pm->show_pfn) {
+> +				if (flags & PM_PRESENT)
+> +					frame++;
+> +				else if (flags & PM_SWAP)
+> +					frame +=3D (1 << MAX_SWAPFILES_SHIFT);
+> +			}
+>  		}
+>  		spin_unlock(ptl);
+>  		return err;
+> --=20
+> 2.17.0
+>=20
+> =
