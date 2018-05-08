@@ -1,78 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 52F686B000A
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 22:49:15 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id d9-v6so944558plj.4
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 19:49:15 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id p13-v6si23409957pll.416.2018.05.07.19.49.13
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ADAFB6B000A
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 22:59:56 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id b10-v6so23213981qto.5
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 19:59:56 -0700 (PDT)
+Received: from mail1.bemta8.messagelabs.com (mail1.bemta8.messagelabs.com. [216.82.243.208])
+        by mx.google.com with ESMTPS id j22si3364938qkk.299.2018.05.07.19.59.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 May 2018 19:49:14 -0700 (PDT)
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 5119221742
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 02:49:13 +0000 (UTC)
-Received: by mail-wm0-f43.google.com with SMTP id n10-v6so18640578wmc.1
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 19:49:13 -0700 (PDT)
+        Mon, 07 May 2018 19:59:55 -0700 (PDT)
+From: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Subject: RE: [External]  Re: [RFC PATCH v1 0/6] use mm to manage NVDIMM (pmem)
+ zone
+Date: Tue, 8 May 2018 02:59:40 +0000
+Message-ID: <HK2PR03MB1684659175EB0A11E75E9B61929A0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+References: <1525704627-30114-1-git-send-email-yehs1@lenovo.com>
+	<20180507184622.GB12361@bombadil.infradead.org>
+	<CAPcyv4hBJN3npXwg3Ur32JSWtKvBUZh7F8W+Exx3BB-uKWwPag@mail.gmail.com>
+ <x49a7tbi8r3.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <x49a7tbi8r3.fsf@segfault.boston.devel.redhat.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
- <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com> <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
- <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net> <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
- <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
- <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com> <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
- <20180503021058.GA5670@ram.oc3035372033.ibm.com> <CALCETrXRQF08exQVZqtTLOKbC8Ywq5x4EYH_1D7r5v9bdOSwbg@mail.gmail.com>
- <927c8325-4c98-d7af-b921-6aafcf8fe992@redhat.com>
-In-Reply-To: <927c8325-4c98-d7af-b921-6aafcf8fe992@redhat.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Tue, 08 May 2018 02:49:01 +0000
-Message-ID: <CALCETrX46wR_MDW=m9SVm=ejQmPAmD3+2oC3iapf75bPhnEAWQ@mail.gmail.com>
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
- signal semantics
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Andrew Lutomirski <luto@kernel.org>, linuxram@us.ibm.com, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: Jeff Moyer <jmoyer@redhat.com>, Dan Williams <dan.j.williams@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, NingTing Cheng <chengnt@lenovo.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, Linux MM <linux-mm@kvack.org>, "colyli@suse.de" <colyli@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <alexander.levin@verizon.com>, Mel
+ Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, May 7, 2018 at 2:48 AM Florian Weimer <fweimer@redhat.com> wrote:
-
-> On 05/03/2018 06:05 AM, Andy Lutomirski wrote:
-> > On Wed, May 2, 2018 at 7:11 PM Ram Pai <linuxram@us.ibm.com> wrote:
-> >
-> >> On Wed, May 02, 2018 at 09:23:49PM +0000, Andy Lutomirski wrote:
-> >>>
-> >>>> If I recall correctly, the POWER maintainer did express a strong
-> > desire
-> >>>> back then for (what is, I believe) their current semantics, which my
-> >>>> PKEY_ALLOC_SIGNALINHERIT patch implements for x86, too.
-> >>>
-> >>> Ram, I really really don't like the POWER semantics.  Can you give
-some
-> >>> justification for them?  Does POWER at least have an atomic way for
-> >>> userspace to modify just the key it wants to modify or, even better,
-> >>> special load and store instructions to use alternate keys?
-> >
-> >> I wouldn't call it POWER semantics. The way I implemented it on power
-> >> lead to the semantics, given that nothing was explicitly stated
-> >> about how the semantics should work within a signal handler.
-> >
-> > I think that this is further evidence that we should introduce a new
-> > pkey_alloc() mode and deprecate the old.  To the extent possible, this
-> > thing should work the same way on x86 and POWER.
-
-> Do you propose to change POWER or to change x86?
-
-Sorry for being slow to reply.  I propose to introduce a new
-PKEY_ALLOC_something variant on x86 and POWER and to make the behavior
-match on both.  It should at least update the values loaded when a signal
-is delivered and it should probably also update it for new threads.
-
-For glibc, for example, I assume that you want signals to be delivered with
-write access disabled to the GOT.  Otherwise you would fail to protect
-against exploits that occur in signal context.  Glibc controls thread
-creation, so the initial state on thread startup doesn't really matter, but
-there will be more users than just glibc.
-
---Andy
+Pg0KPkRhbiBXaWxsaWFtcyA8ZGFuLmoud2lsbGlhbXNAaW50ZWwuY29tPiB3cml0ZXM6DQo+DQo+
+PiBPbiBNb24sIE1heSA3LCAyMDE4IGF0IDExOjQ2IEFNLCBNYXR0aGV3IFdpbGNveCA8d2lsbHlA
+aW5mcmFkZWFkLm9yZz4NCj53cm90ZToNCj4+PiBPbiBNb24sIE1heSAwNywgMjAxOCBhdCAxMDo1
+MDoyMVBNICswODAwLCBIdWFpc2hlbmcgWWUgd3JvdGU6DQo+Pj4+IFRyYWRpdGlvbmFsbHksIE5W
+RElNTXMgYXJlIHRyZWF0ZWQgYnkgbW0obWVtb3J5IG1hbmFnZW1lbnQpDQo+c3Vic3lzdGVtIGFz
+DQo+Pj4+IERFVklDRSB6b25lLCB3aGljaCBpcyBhIHZpcnR1YWwgem9uZSBhbmQgYm90aCBpdHMg
+c3RhcnQgYW5kIGVuZCBvZiBwZm4NCj4+Pj4gYXJlIGVxdWFsIHRvIDAsIG1tIHdvdWxkbuKAmXQg
+bWFuYWdlIE5WRElNTSBkaXJlY3RseSBhcyBEUkFNLCBrZXJuZWwNCj51c2VzDQo+Pj4+IGNvcnJl
+c3BvbmRpbmcgZHJpdmVycywgd2hpY2ggbG9jYXRlIGF0IFxkcml2ZXJzXG52ZGltbVwgYW5kDQo+
+Pj4+IFxkcml2ZXJzXGFjcGlcbmZpdCBhbmQgZnMsIHRvIHJlYWxpemUgTlZESU1NIG1lbW9yeSBh
+bGxvYyBhbmQgZnJlZSB3aXRoDQo+Pj4+IG1lbW9yeSBob3QgcGx1ZyBpbXBsZW1lbnRhdGlvbi4N
+Cj4+Pg0KPj4+IFlvdSBwcm9iYWJseSB3YW50IHRvIGxldCBsaW51eC1udmRpbW0ga25vdyBhYm91
+dCB0aGlzIHBhdGNoIHNldC4NCj4+PiBBZGRpbmcgdG8gdGhlIGNjLg0KPj4NCj4+IFllcywgdGhh
+bmtzIGZvciB0aGF0IQ0KPj4NCj4+PiBBbHNvLCBJIG9ubHkgcmVjZWl2ZWQgcGF0Y2ggMCBhbmQg
+NC4gIFdoYXQgaGFwcGVuZWQNCj4+PiB0byAxLTMsNSBhbmQgNj8NCj4+Pg0KPj4+PiBXaXRoIGN1
+cnJlbnQga2VybmVsLCBtYW55IG1t4oCZcyBjbGFzc2ljYWwgZmVhdHVyZXMgbGlrZSB0aGUgYnVk
+ZHkNCj4+Pj4gc3lzdGVtLCBzd2FwIG1lY2hhbmlzbSBhbmQgcGFnZSBjYWNoZSBjb3VsZG7igJl0
+IGJlIHN1cHBvcnRlZCB0bw0KPk5WRElNTS4NCj4+Pj4gV2hhdCB3ZSBhcmUgZG9pbmcgaXMgdG8g
+ZXhwYW5kIGtlcm5lbCBtbeKAmXMgY2FwYWNpdHkgdG8gbWFrZSBpdCB0bw0KPmhhbmRsZQ0KPj4+
+PiBOVkRJTU0gbGlrZSBEUkFNLiBGdXJ0aGVybW9yZSB3ZSBtYWtlIG1tIGNvdWxkIHRyZWF0IERS
+QU0gYW5kDQo+TlZESU1NDQo+Pj4+IHNlcGFyYXRlbHksIHRoYXQgbWVhbnMgbW0gY2FuIG9ubHkg
+cHV0IHRoZSBjcml0aWNhbCBwYWdlcyB0byBOVkRJTU0NCj4NCj5QbGVhc2UgZGVmaW5lICJjcml0
+aWNhbCBwYWdlcy4iDQo+DQo+Pj4+IHpvbmUsIGhlcmUgd2UgY3JlYXRlZCBhIG5ldyB6b25lIHR5
+cGUgYXMgTlZNIHpvbmUuIFRoYXQgaXMgdG8gc2F5IGZvcg0KPj4+PiB0cmFkaXRpb25hbChvciBu
+b3JtYWwpIHBhZ2VzIHdoaWNoIHdvdWxkIGJlIHN0b3JlZCBhdCBEUkFNIHNjb3BlIGxpa2UNCj4+
+Pj4gTm9ybWFsLCBETUEzMiBhbmQgRE1BIHpvbmVzLiBCdXQgZm9yIHRoZSBjcml0aWNhbCBwYWdl
+cywgd2hpY2ggd2UgaG9wZQ0KPj4+PiB0aGVtIGNvdWxkIGJlIHJlY292ZXJlZCBmcm9tIHBvd2Vy
+IGZhaWwgb3Igc3lzdGVtIGNyYXNoLCB3ZSBtYWtlIHRoZW0NCj4+Pj4gdG8gYmUgcGVyc2lzdGVu
+dCBieSBzdG9yaW5nIHRoZW0gdG8gTlZNIHpvbmUuDQo+DQo+Wy4uLl0NCj4NCj4+IEkgdGhpbmsg
+YWRkaW5nIHlldCBvbmUgbW9yZSBtbS16b25lIGlzIHRoZSB3cm9uZyBkaXJlY3Rpb24uIEluc3Rl
+YWQsDQo+PiB3aGF0IHdlIGhhdmUgYmVlbiBjb25zaWRlcmluZyBpcyBhIG1lY2hhbmlzbSB0byBh
+bGxvdyBhIGRldmljZS1kYXgNCj4+IGluc3RhbmNlIHRvIGJlIGdpdmVuIGJhY2sgdG8gdGhlIGtl
+cm5lbCBhcyBhIGRpc3RpbmN0IG51bWEgbm9kZQ0KPj4gbWFuYWdlZCBieSB0aGUgVk0uIEl0IHNl
+ZW1zIGl0IHRpbWVzIHRvIGR1c3Qgb2ZmIHRob3NlIHBhdGNoZXMuDQo+DQo+V2hhdCdzIHRoZSB1
+c2UgY2FzZT8gIFRoZSBhYm92ZSBwYXRjaCBkZXNjcmlwdGlvbiBzZWVtcyB0byBpbmRpY2F0ZSBh
+bg0KPmludGVudCB0byByZWNvdmVyIGNvbnRlbnRzIGFmdGVyIGEgcG93ZXIgbG9zcy4gIFdpdGhv
+dXQgc2VlaW5nIHRoZSB3aG9sZQ0KPnNlcmllcywgSSdtIG5vdCBzdXJlIGhvdyB0aGF0J3MgYWNj
+b21wbGlzaGVkIGluIGEgc2FmZSBvciBtZWFuaW5nZnVsDQo+d2F5Lg0KPg0KPkh1YWlzaGVuZywg
+Y291bGQgeW91IHByb3ZpZGUgYSBiaXQgbW9yZSBiYWNrZ3JvdW5kPw0KPg0KDQpDdXJyZW50bHkg
+aW4gb3VyIG1pbmQsIGFuIGlkZWFsIHVzZSBzY2VuYXJpbyBpcyB0aGF0LCB3ZSBwdXQgYWxsIHBh
+Z2UgY2FjaGVzIHRvDQp6b25lX252bSwgd2l0aG91dCBhbnkgZG91YnQsIHBhZ2UgY2FjaGUgaXMg
+YW4gZWZmaWNpZW50IGFuZCBjb21tb24gY2FjaGUNCmltcGxlbWVudCwgYnV0IGl0IGhhcyBhIGRp
+c2FkdmFudGFnZSB0aGF0IGFsbCBkaXJ0eSBkYXRhIHdpdGhpbiBpdCB3b3VsZCBoYXMgcmlzaw0K
+dG8gYmUgbWlzc2VkIGJ5IHBvd2VyIGZhaWx1cmUgb3Igc3lzdGVtIGNyYXNoLiBJZiB3ZSBwdXQg
+YWxsIHBhZ2UgY2FjaGVzIHRvIE5WRElNTXMsDQphbGwgZGlydHkgZGF0YSB3aWxsIGJlIHNhZmUu
+IA0KDQpBbmQgdGhlIG1vc3QgaW1wb3J0YW50IGlzIHRoYXQsIFBhZ2UgY2FjaGUgaXMgZGlmZmVy
+ZW50IGZyb20gZG0tY2FjaGUgb3IgQi1jYWNoZS4NClBhZ2UgY2FjaGUgZXhpc3RzIGF0IG1tLiBT
+bywgaXQgaGFzIG11Y2ggbW9yZSBwZXJmb3JtYW5jZSB0aGFuIG90aGVyIFdyaXRlDQpjYWNoZXMs
+IHdoaWNoIGxvY2F0ZSBhdCBzdG9yYWdlIGxldmVsLg0KDQpBdCBwcmVzZW50IHdlIGhhdmUgcmVh
+bGl6ZWQgTlZNIHpvbmUgdG8gYmUgc3VwcG9ydGVkIGJ5IHR3byBzb2NrZXRzKE5VTUEpDQpwcm9k
+dWN0IGJhc2VkIG9uIExlbm92byBQdXJsZXkgcGxhdGZvcm0sIGFuZCB3ZSBjYW4gZXhwYW5kIE5W
+TSBmbGFnIGludG8NClBhZ2UgQ2FjaGUgYWxsb2NhdGlvbiBpbnRlcmZhY2UsIHNvIGFsbCBQYWdl
+IENhY2hlcyBvZiBzeXN0ZW0gaGFkIGJlZW4gc3RvcmVkDQp0byBOVkRJTU0gc2FmZWx5Lg0KDQpO
+b3cgd2UgYXJlIGZvY3VzaW5nIGhvdyB0byByZWNvdmVyIGRhdGEgZnJvbSBQYWdlIGNhY2hlIGFm
+dGVyIHBvd2VyIG9uLiBUaGF0IGlzLA0KVGhlIGRpcnR5IHBhZ2VzIGNvdWxkIGJlIHNhZmUgYW5k
+IHRoZSB0aW1lIGNvc3Qgb2YgY2FjaGUgdHJhaW5pbmcgd291bGQgYmUgc2F2ZWQgYSBsb3QuDQpC
+ZWNhdXNlIG1hbnkgcGFnZXMgaGF2ZSBhbHJlYWR5IHN0b3JlZCB0byBaT05FX05WTSBiZWZvcmUg
+cG93ZXIgZmFpbHR1cmUuDQoNClRoYW5rcywNCkh1YWlzaGVuZyBZZQ0KDQo=
