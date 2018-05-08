@@ -1,53 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3818F6B000A
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 21:14:08 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id d4-v6so20706486wrn.15
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 18:14:08 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id d20-v6si2539574edp.183.2018.05.07.18.14.06
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B07EE6B000A
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 21:28:13 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id i1-v6so831437pld.11
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 18:28:13 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id f5-v6si16878252plr.247.2018.05.07.18.28.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 May 2018 18:14:07 -0700 (PDT)
-Reply-To: prakash.sangappa@oracle.com
-Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node information
-References: <1525240686-13335-1-git-send-email-prakash.sangappa@oracle.com>
- <20180502143323.1c723ccb509c3497050a2e0a@linux-foundation.org>
- <2ce01d91-5fba-b1b7-2956-c8cc1853536d@intel.com>
- <33f96879-351f-674a-ca23-43f233f4eb1d@linux.vnet.ibm.com>
- <82d2b35c-272a-ad02-692f-2c109aacdfb6@oracle.com>
- <8569dabb-4930-aa20-6249-72457e2df51e@intel.com>
- <51145ccb-fc0d-0281-9757-fb8a5112ec24@oracle.com>
- <c72fea44-59f3-b106-8311-b5eae2d254e7@intel.com>
-From: "prakash.sangappa" <prakash.sangappa@oracle.com>
-Message-ID: <addeaadc-5ab2-f0c9-2194-dd100ae90f3a@oracle.com>
-Date: Mon, 7 May 2018 18:16:13 -0700
-MIME-Version: 1.0
-In-Reply-To: <c72fea44-59f3-b106-8311-b5eae2d254e7@intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        Mon, 07 May 2018 18:28:12 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm] mm, pagemap: Hide swap entry for unprivileged users
+Date: Tue,  8 May 2018 09:27:45 +0800
+Message-Id: <20180508012745.7238-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, drepper@gmail.com, rientjes@google.com, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrei Vagin <avagin@openvz.org>, Michal Hocko <mhocko@suse.com>, Jerome Glisse <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+From: Huang Ying <ying.huang@intel.com>
 
+In ab676b7d6fbf ("pagemap: do not leak physical addresses to
+non-privileged userspace"), the /proc/PID/pagemap is restricted to be
+readable only by CAP_SYS_ADMIN to address some security issue.  In
+1c90308e7a77 ("pagemap: hide physical addresses from non-privileged
+users"), the restriction is relieved to make /proc/PID/pagemap
+readable, but hide the physical addresses for non-privileged users.
+But the swap entries are readable for non-privileged users too.  This
+has some security issues.  For example, for page under migrating, the
+swap entry has physical address information.  So, in this patch, the
+swap entries are hided for non-privileged users too.
 
-On 05/07/2018 05:05 PM, Dave Hansen wrote:
-> On 05/07/2018 04:22 PM, prakash.sangappa wrote:
->> However, with the proposed new file, we could allow seeking to
->> specified virtual address. The lseek offset in this case would
->> represent the virtual address of the process. Subsequent read from
->> the file would provide VA range to numa node information starting
->> from that VA. In case the VA seek'ed to is invalid, it will start
->> from the next valid mapped VA of the process. The implementation
->> would not be based on seq_file.
-> So you're proposing a new /proc/<pid> file that appears next to and is
-> named very similarly to the exiting /proc/<pid>, but which has entirely
-> different behavior?
+Fixes: 1c90308e7a77 ("pagemap: hide physical addresses from non-privileged users")
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Suggested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Andrei Vagin <avagin@openvz.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Jerome Glisse <jglisse@redhat.com>
+Cc: Daniel Colascione <dancol@google.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ fs/proc/task_mmu.c | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)
 
-It will be /proc/<pid>/numa_vamaps. Yes, the behavior will be
-different with respect to seeking. Output will still be text and
-the format will be same.
-
-I want to get feedback on this approach.
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index a20c6e495bb2..ff947fdd7c71 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1258,8 +1258,9 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
+ 		if (pte_swp_soft_dirty(pte))
+ 			flags |= PM_SOFT_DIRTY;
+ 		entry = pte_to_swp_entry(pte);
+-		frame = swp_type(entry) |
+-			(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
++		if (pm->show_pfn)
++			frame = swp_type(entry) |
++				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
+ 		flags |= PM_SWAP;
+ 		if (is_migration_entry(entry))
+ 			page = migration_entry_to_page(entry);
+@@ -1310,11 +1311,14 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+ 		else if (is_swap_pmd(pmd)) {
+ 			swp_entry_t entry = pmd_to_swp_entry(pmd);
+-			unsigned long offset = swp_offset(entry);
++			unsigned long offset;
+ 
+-			offset += (addr & ~PMD_MASK) >> PAGE_SHIFT;
+-			frame = swp_type(entry) |
+-				(offset << MAX_SWAPFILES_SHIFT);
++			if (pm->show_pfn) {
++				offset = swp_offset(entry) +
++					((addr & ~PMD_MASK) >> PAGE_SHIFT);
++				frame = swp_type(entry) |
++					(offset << MAX_SWAPFILES_SHIFT);
++			}
+ 			flags |= PM_SWAP;
+ 			if (pmd_swp_soft_dirty(pmd))
+ 				flags |= PM_SOFT_DIRTY;
+@@ -1332,10 +1336,12 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 			err = add_to_pagemap(addr, &pme, pm);
+ 			if (err)
+ 				break;
+-			if (pm->show_pfn && (flags & PM_PRESENT))
+-				frame++;
+-			else if (flags & PM_SWAP)
+-				frame += (1 << MAX_SWAPFILES_SHIFT);
++			if (pm->show_pfn) {
++				if (flags & PM_PRESENT)
++					frame++;
++				else if (flags & PM_SWAP)
++					frame += (1 << MAX_SWAPFILES_SHIFT);
++			}
+ 		}
+ 		spin_unlock(ptl);
+ 		return err;
+-- 
+2.17.0
