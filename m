@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1940C6B0010
-	for <linux-mm@kvack.org>; Mon,  7 May 2018 21:48:29 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id y62so18052419qkb.15
-        for <linux-mm@kvack.org>; Mon, 07 May 2018 18:48:29 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 952FD6B000A
+	for <linux-mm@kvack.org>; Mon,  7 May 2018 22:18:39 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id b31-v6so901340plb.5
+        for <linux-mm@kvack.org>; Mon, 07 May 2018 19:18:39 -0700 (PDT)
 Received: from dev31.localdomain ([103.244.59.4])
-        by mx.google.com with ESMTP id u5-v6si885274qta.259.2018.05.07.18.48.27
+        by mx.google.com with ESMTP id j9-v6si1989920plk.587.2018.05.07.19.18.37
         for <linux-mm@kvack.org>;
-        Mon, 07 May 2018 18:48:28 -0700 (PDT)
+        Mon, 07 May 2018 19:18:37 -0700 (PDT)
 From: Huaisheng Ye <yehs1@lenovo.com>
 Subject: [RFC PATCH v1 0/6] use mm to manage NVDIMM (pmem) zone
-Date: Tue,  8 May 2018 10:00:12 +0800
-Message-Id: <1525744818-110207-1-git-send-email-yehs1@lenovo.com>
+Date: Tue,  8 May 2018 10:30:22 +0800
+Message-Id: <1525746628-114136-1-git-send-email-yehs1@lenovo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -21,9 +21,9 @@ To: akpm@linux-foundation.org, linux-mm@kvack.org
 Cc: mhocko@suse.com, willy@infradead.org, vbabka@suse.cz, mgorman@techsingularity.net, pasha.tatashin@oracle.com, alexander.levin@verizon.com, hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, Huaisheng Ye <yehs1@lenovo.com>
 
 Traditionally, NVDIMMs are treated by mm(memory management) subsystem as
-DEVICE zone, which is a virtual zone and both its start and end of pfn 
+DEVICE zone, which is a virtual zone and both its start and end of pfn
 are equal to 0, mm wouldna??t manage NVDIMM directly as DRAM, kernel uses
-corresponding drivers, which locate at \drivers\nvdimm\ and 
+corresponding drivers, which locate at \drivers\nvdimm\ and
 \drivers\acpi\nfit and fs, to realize NVDIMM memory alloc and free with
 memory hot plug implementation.
 
@@ -32,14 +32,14 @@ system, swap mechanism and page cache couldna??t be supported to NVDIMM.
 What we are doing is to expand kernel mma??s capacity to make it to handle
 NVDIMM like DRAM. Furthermore we make mm could treat DRAM and NVDIMM
 separately, that means mm can only put the critical pages to NVDIMM
-zone, here we created a new zone type as NVM zone. That is to say for 
+zone, here we created a new zone type as NVM zone. That is to say for
 traditional(or normal) pages which would be stored at DRAM scope like
 Normal, DMA32 and DMA zones. But for the critical pages, which we hope
 them could be recovered from power fail or system crash, we make them
 to be persistent by storing them to NVM zone.
 
 We installed two NVDIMMs to Lenovo Thinksystem product as development
-platform, which has 125GB storage capacity respectively. With these 
+platform, which has 125GB storage capacity respectively. With these
 patches below, mm can create NVM zones for NVDIMMs.
 
 Here is dmesg info,
@@ -48,7 +48,7 @@ Here is dmesg info,
    DMA zone: 64 pages used for memmap
    DMA zone: 23 pages reserved
    DMA zone: 3999 pages, LIFO batch:0
- mminit::memmap_init Initialising map node 0 zone 0 pfns 1 -> 4096 
+ mminit::memmap_init Initialising map node 0 zone 0 pfns 1 -> 4096
    DMA32 zone: 10935 pages used for memmap
    DMA32 zone: 699795 pages, LIFO batch:31
  mminit::memmap_init Initialising map node 0 zone 1 pfns 4096 -> 1048576
@@ -86,6 +86,7 @@ Node 1, zone      NVM
         spanned  32768000
         present  32768000
         managed  32768000
+
 
 Huaisheng Ye (6):
   mm/memblock: Expand definition of flags to support NVDIMM
