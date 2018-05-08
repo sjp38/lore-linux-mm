@@ -1,72 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 160346B028B
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 10:45:32 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id b10-v6so24373314qto.5
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 07:45:32 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id n12-v6si3171774qtb.361.2018.05.08.07.45.30
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 71D856B028C
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 10:50:15 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id c8so8848454uae.5
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 07:50:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s66-v6sor11067316vkg.224.2018.05.08.07.50.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 May 2018 07:45:31 -0700 (PDT)
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w48EgkZI136222
-	for <linux-mm@kvack.org>; Tue, 8 May 2018 14:45:30 GMT
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2120.oracle.com with ESMTP id 2hs5938x4n-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 08 May 2018 14:45:30 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w48EjTle001149
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Tue, 8 May 2018 14:45:29 GMT
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w48EjT5h023601
-	for <linux-mm@kvack.org>; Tue, 8 May 2018 14:45:29 GMT
-Received: by mail-ot0-f180.google.com with SMTP id l22-v6so36373858otj.0
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 07:45:29 -0700 (PDT)
+        (Google Transport Security);
+        Tue, 08 May 2018 07:50:14 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180426202619.2768-1-pasha.tatashin@oracle.com> <20180430162658.598dd5dcdd0c67e36953281c@linux-foundation.org>
-In-Reply-To: <20180430162658.598dd5dcdd0c67e36953281c@linux-foundation.org>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Tue, 08 May 2018 14:44:51 +0000
-Message-ID: <CAGM2reauOET_PUPA94WXhjKgL1cUHcKyY+R+auxvTfd4srhaFw@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: access to uninitialized struct page
+References: <20180508121638.174022-1-glider@google.com> <1f69bdb6-df5e-d709-064a-4f6fdd6e11a7@linux.intel.com>
+In-Reply-To: <1f69bdb6-df5e-d709-064a-4f6fdd6e11a7@linux.intel.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Tue, 08 May 2018 14:50:02 +0000
+Message-ID: <CAG_fn=Xv74c80swzFjKyybQpRj7Qj9K1NVH-D6gcxcYEoUJ1xA@mail.gmail.com>
+Subject: Re: [PATCH] x86/boot/64/clang: Use fixup_pointer() to access '__supported_pte_mask'
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, LKML <linux-kernel@vger.kernel.org>, tglx@linutronix.de, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, Steven Rostedt <rostedt@goodmis.org>, Fengguang Wu <fengguang.wu@intel.com>, Dennis Zhou <dennisszhou@gmail.com>
+To: dave.hansen@linux.intel.com
+Cc: Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Matthias Kaehlcke <mka@chromium.org>, Dmitriy Vyukov <dvyukov@google.com>, Michael Davidson <md@google.com>
 
-> Gulp.  Let's hope that nothing in mm_init() requires that trap_init()
-> has been run.  What happens if something goes wrong during mm_init()
-> and the architecture attempts to raise a software exception, hits a bus
-> error, div-by-zero, etc, etc?  Might there be hard-to-discover
-> dependencies in such a case?
+On Tue, May 8, 2018 at 4:30 PM Dave Hansen <dave.hansen@linux.intel.com>
+wrote:
 
-Hi Andrew,
+> On 05/08/2018 05:16 AM, Alexander Potapenko wrote:
+> > Similarly to commit 187e91fe5e91
+> > ("x86/boot/64/clang: Use fixup_pointer() to access 'next_early_pgt'"),
+> > '__supported_pte_mask' must be also accessed using fixup_pointer() to
+> > avoid position-dependent relocations.
+> >
+> > Signed-off-by: Alexander Potapenko <glider@google.com>
+> > Fixes: fb43d6cb91ef ("x86/mm: Do not auto-massage page protections")
 
-Unfortunately, mm_init() requires trap_init(). And, because trap_init() is
-arch specific, I do not see a way to simply fix  trap_init(). So, we need
-to find a different fix for the above problem. And, the current fix needs
-to be removed from mm.
+> In the interests of standalone changelogs, I'd really appreciate an
+> actual explanation of what's going on here.  Your patch makes the code
+> uglier and doesn't fix anything functional from what I can see.
+You're right, sure. I'll send a patch with an updated description.
 
-BTW, the bug was not introduced by:
-c9e97a1997fb ("mm: initialize pages on demand during boot")
+> The other commit has some explanation, so it seems like the rules for
+> accessing globals in head64.c are different than other files because...
+> something.
+The problem as far as I understand it is that the code in __startup_64()
+can be relocated during execution, but the compiler doesn't have to
+generate PC-relative relocations when accessing globals from that function.
 
-Fengguang Wu, reproduced this bug with builds prior to when this patch was
-added. So, I think that while my patch may make this problem happen more
-frequently, the problem itself is older. Basically, it depends on value of
-KASLR.
+> The functional problem here is that it causes insta-reboots?
+True.
 
-One way to quickly fix this issue is to disable deferred struct pages when
-the following combination is true:
-CONFIG_RANDOMIZE_BASE && CONFIG_SPARSEMEM && !CONFIG_SPARSEMEM_VMEMMAP
+> Do we have anything we can do to keep us from recreating these kinds of
+> regressions all the time?
+I'm not really aware of the possible options in the kernel land. Looks like
+a task for some objtool-like utility?
+As long as these regressions are caught with Clang, setting up a 0day Clang
+builder might help.
+At least I should've added a comment regarding this to __startup_64() last
+time.
 
-RANDOMIZE_BASE means we do not know from what PFN struct pages are going to
-be required before mm_init().
-CONFIG_SPARSEMEM && !CONFIG_SPARSEMEM_VMEMMAP means that page_to_pfn() will
-use information from page->flags to get section number, and thus require
-accessing "struct pages"
 
-Pavel
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
