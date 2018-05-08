@@ -1,41 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A84B6B02B7
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 12:49:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id y12so16569239pfe.8
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 09:49:43 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id t3-v6si14964361ply.192.2018.05.08.09.49.42
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 73C2B6B02BB
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 13:14:25 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g7-v6so22219193wrb.19
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 10:14:25 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 46-v6si3749142edu.103.2018.05.08.10.14.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 May 2018 09:49:42 -0700 (PDT)
-Subject: Re: [PATCH v2] x86/boot/64/clang: Use fixup_pointer() to access
- '__supported_pte_mask'
-References: <20180508162829.7729-1-glider@google.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <a67943d1-f7e8-c465-ce8d-a9c9a0a6f653@linux.intel.com>
-Date: Tue, 8 May 2018 09:49:39 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 08 May 2018 10:14:23 -0700 (PDT)
+Date: Tue, 8 May 2018 13:16:10 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2] mm: fix oom_kill event handling
+Message-ID: <20180508171610.GA24175@cmpxchg.org>
+References: <20180508124637.29984-1-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <20180508162829.7729-1-glider@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180508124637.29984-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, mingo@kernel.org, kirill.shutemov@linux.intel.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mka@chromium.org, dvyukov@google.com, md@google.com
+To: Roman Gushchin <guro@fb.com>
+Cc: kernel-team@fb.com, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On 05/08/2018 09:28 AM, Alexander Potapenko wrote:
-> Clang builds with defconfig started crashing after commit fb43d6cb91ef
-> ("x86/mm: Do not auto-massage page protections")
-> This was caused by introducing a new global access in __startup_64().
+On Tue, May 08, 2018 at 01:46:37PM +0100, Roman Gushchin wrote:
+> Commit e27be240df53 ("mm: memcg: make sure memory.events is
+> uptodate when waking pollers") converted most of memcg event
+> counters to per-memcg atomics, which made them less confusing
+> for a user. The "oom_kill" counter remained untouched, so now
+> it behaves differently than other counters (including "oom").
+> This adds nothing but confusion.
 > 
-> Code in __startup_64() can be relocated during execution, but the compiler
-> doesn't have to generate PC-relative relocations when accessing globals
-> from that function. Clang actually does not generate them, which leads
-> to boot-time crashes. To work around this problem, every global pointer
-> must be adjusted using fixup_pointer().
+> Let's fix this by adding the MEMCG_OOM_KILL event, and follow
+> the MEMCG_OOM approach. This also removes a hack from
+> count_memcg_event_mm(), introduced earlier specially for the
+> OOM_KILL counter.
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-mm@kvack.org
 
-Looks good to me.  Thanks for adding the comment, especially!
-
-Reviewed-by: Dave Hansen <dave.hansen@intel.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
