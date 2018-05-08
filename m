@@ -1,47 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4A16B02A5
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 11:39:40 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id r7-v6so12158304ith.5
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 08:39:40 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id s69-v6si9826256ita.40.2018.05.08.08.39.38
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B68386B02A6
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 11:44:19 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id b36-v6so1985039pli.2
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 08:44:19 -0700 (PDT)
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id e3-v6si23902167pld.229.2018.05.08.08.44.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 08 May 2018 08:39:38 -0700 (PDT)
-Subject: Re: [PATCH] mm: expland documentation over __read_mostly
-References: <e2aa9491-c1e3-4ae1-1ab2-589a6642a24a@infradead.org>
- <20180507231506.4891-1-mcgrof@kernel.org>
- <32208.1525768094@warthog.procyon.org.uk>
- <20180508112321.GA30120@bombadil.infradead.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <7d6664dc-01f5-55d9-d309-0378ff609b8a@infradead.org>
-Date: Tue, 8 May 2018 08:39:30 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 May 2018 08:44:18 -0700 (PDT)
+Date: Tue, 8 May 2018 09:44:15 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH 0/3] docs/vm: move numa_memory_policy.rst to
+ admin-guide/mm
+Message-ID: <20180508094415.6cf78e6c@lwn.net>
+In-Reply-To: <1525762930-28163-1-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1525762930-28163-1-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180508112321.GA30120@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, David Howells <dhowells@redhat.com>
-Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>, tglx@linutronix.de, arnd@arndb.de, cl@linux.com, keescook@chromium.org, luto@amacapital.net, longman@redhat.com, viro@zeniv.linux.org.uk, ebiederm@xmission.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-doc <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On 05/08/2018 04:23 AM, Matthew Wilcox wrote:
-> On Tue, May 08, 2018 at 09:28:14AM +0100, David Howells wrote:
->> Randy Dunlap <rdunlap@infradead.org> wrote:
->>
->>>> + * execute a critial path. We should be mindful and selective if its use.
->>>
->>>                                                                  of its use.
->>
->>                                                                    in its use.
-> 								     with its use.
-> 
-> Nah, just kidding.  Let's go with "in".
-> 
+On Tue,  8 May 2018 10:02:07 +0300
+Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
 
-Yeah, no, I don't care.  Just flip a 3-sided coin.
+> These patches include minor formatting and spelling updates to
+> Documentation/vm/numa_memory_policy.rst and move this file to
+> Documentation/admin-guide/mm.
 
--- 
-~Randy
+Set applied - thanks!
+
+jon
