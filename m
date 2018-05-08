@@ -1,41 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B9E16B027D
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 08:53:23 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id a125so23709469qkd.4
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 05:53:23 -0700 (PDT)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id e39-v6si991163qtb.302.2018.05.08.05.53.22
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2346B027E
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 08:54:18 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id b202so23484849qkc.6
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 05:54:18 -0700 (PDT)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id t186si1527206qkb.283.2018.05.08.05.54.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 May 2018 05:53:22 -0700 (PDT)
-Date: Tue, 8 May 2018 07:53:21 -0500 (CDT)
+        Tue, 08 May 2018 05:54:18 -0700 (PDT)
+Date: Tue, 8 May 2018 07:54:15 -0500 (CDT)
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node
- information
-In-Reply-To: <a61bc7b6-ed98-045d-95c0-b6c91fc8d1da@oracle.com>
-Message-ID: <alpine.DEB.2.21.1805080747480.1849@nuc-kabylake>
-References: <1525240686-13335-1-git-send-email-prakash.sangappa@oracle.com> <alpine.DEB.2.21.1805031259210.7831@nuc-kabylake> <c80ee329-084b-367f-1937-3175c178e978@oracle.com> <alpine.DEB.2.21.1805040955550.10847@nuc-kabylake> <98e34010-d55a-5f2d-7d98-cba424de2e74@oracle.com>
- <alpine.DEB.2.21.1805070945200.21162@nuc-kabylake> <a61bc7b6-ed98-045d-95c0-b6c91fc8d1da@oracle.com>
+Subject: Re: [PATCH] mm: expland documentation over __read_mostly
+In-Reply-To: <20180507231506.4891-1-mcgrof@kernel.org>
+Message-ID: <alpine.DEB.2.21.1805080753590.1849@nuc-kabylake>
+References: <20180507231506.4891-1-mcgrof@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "prakash.sangappa" <prakash.sangappa@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, drepper@gmail.com, rientjes@google.com
+To: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Cc: tglx@linutronix.de, arnd@arndb.de, keescook@chromium.org, luto@amacapital.net, longman@redhat.com, viro@zeniv.linux.org.uk, willy@infradead.org, ebiederm@xmission.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 7 May 2018, prakash.sangappa wrote:
+On Mon, 7 May 2018, Luis R. Rodriguez wrote:
 
-> > each address for each page? Length of the VMA segment?
-> > Physical address?
->
-> Need numa node information for each virtual address with pages mapped.
-> No need of physical address.
+> __read_mostly can easily be misused by folks, its not meant for
+> just read-only data. There are performance reasons for using it, but
+> we also don't provide any guidance about its use. Provide a bit more
+> guidance over it use.
 
-You need per page information? Note that there can only be one page
-per virtual address. Or are we talking about address ranges?
-
-https://www.kernel.org/doc/Documentation/vm/pagemap.txt ?
-
-Also the move_pages syscall has the ability to determine the location of
-individual pages.
+Acked-by: Christoph Lameter <cl@linux.com>
