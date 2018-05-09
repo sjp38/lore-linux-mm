@@ -1,194 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8415C6B0393
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 03:54:51 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id a6-v6so3312144pll.22
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 00:54:51 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id j19-v6si1533028pll.518.2018.05.09.00.54.50
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EA4C36B0395
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:12:16 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id d4-v6so23518644wrn.15
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:12:16 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d5-v6si969165edq.426.2018.05.09.01.12.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 09 May 2018 00:54:50 -0700 (PDT)
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 6/6] block: consistently use GFP_NOIO instead of __GFP_NORECLAIM
-Date: Wed,  9 May 2018 09:54:08 +0200
-Message-Id: <20180509075408.16388-7-hch@lst.de>
-In-Reply-To: <20180509075408.16388-1-hch@lst.de>
-References: <20180509075408.16388-1-hch@lst.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 09 May 2018 01:12:15 -0700 (PDT)
+Date: Wed, 9 May 2018 10:12:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/memblock: print memblock_remove
+Message-ID: <20180509081214.GE32366@dhcp22.suse.cz>
+References: <20180508104223.8028-1-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180508104223.8028-1-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk
-Cc: Bart.VanAssche@wdc.com, willy@infradead.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-Same numerical value (for now at least), but a much better documentation
-of intent.
+On Tue 08-05-18 19:42:23, Minchan Kim wrote:
+> memblock_remove report is useful to see why MemTotal of /proc/meminfo
+> between two kernels makes difference.
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/memblock.c | 5 +++++
+>  1 file changed, 5 insertions(+)
+> 
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 5228f594b13c..03d48d8835ba 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -697,6 +697,11 @@ static int __init_memblock memblock_remove_range(struct memblock_type *type,
+>  
+>  int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
+>  {
+> +	phys_addr_t end = base + size - 1;
+> +
+> +	memblock_dbg("memblock_remove: [%pa-%pa] %pS\n",
+> +		     &base, &end, (void *)_RET_IP_);
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Hannes Reinecke <hare@suse.com>
----
- block/scsi_ioctl.c               |  2 +-
- drivers/block/drbd/drbd_bitmap.c |  3 ++-
- drivers/block/pktcdvd.c          |  2 +-
- drivers/ide/ide-tape.c           |  2 +-
- drivers/ide/ide-taskfile.c       |  2 +-
- drivers/scsi/scsi_lib.c          |  2 +-
- fs/direct-io.c                   |  4 ++--
- kernel/power/swap.c              | 14 +++++++-------
- 8 files changed, 16 insertions(+), 15 deletions(-)
+Other callers of memblock_dbg use %pF. Is there any reason to be
+different here?
 
-diff --git a/block/scsi_ioctl.c b/block/scsi_ioctl.c
-index 04b54f9a4152..533f4aee8567 100644
---- a/block/scsi_ioctl.c
-+++ b/block/scsi_ioctl.c
-@@ -499,7 +499,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
- 		break;
- 	}
- 
--	if (bytes && blk_rq_map_kern(q, rq, buffer, bytes, __GFP_RECLAIM)) {
-+	if (bytes && blk_rq_map_kern(q, rq, buffer, bytes, GFP_NOIO)) {
- 		err = DRIVER_ERROR << 24;
- 		goto error;
- 	}
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index 9f4e6f502b84..d82237d534cf 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -1014,7 +1014,8 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
- 	bm_set_page_unchanged(b->bm_pages[page_nr]);
- 
- 	if (ctx->flags & BM_AIO_COPY_PAGES) {
--		page = mempool_alloc(drbd_md_io_page_pool, __GFP_HIGHMEM|__GFP_RECLAIM);
-+		page = mempool_alloc(drbd_md_io_page_pool,
-+				GFP_NOIO | __GFP_HIGHMEM);
- 		copy_highpage(page, b->bm_pages[page_nr]);
- 		bm_store_page_idx(page, page_nr);
- 	} else
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index 4880a4a9f52d..ccfcf544830f 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -710,7 +710,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
- 
- 	if (cgc->buflen) {
- 		ret = blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen,
--				      __GFP_RECLAIM);
-+				      GFP_NOIO);
- 		if (ret)
- 			goto out;
- 	}
-diff --git a/drivers/ide/ide-tape.c b/drivers/ide/ide-tape.c
-index 66661031f3f1..62c1a19a9aed 100644
---- a/drivers/ide/ide-tape.c
-+++ b/drivers/ide/ide-tape.c
-@@ -862,7 +862,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
- 
- 	if (size) {
- 		ret = blk_rq_map_kern(drive->queue, rq, tape->buf, size,
--				      __GFP_RECLAIM);
-+				      GFP_NOIO);
- 		if (ret)
- 			goto out_put;
- 	}
-diff --git a/drivers/ide/ide-taskfile.c b/drivers/ide/ide-taskfile.c
-index 6308bb0dab50..c034cd965831 100644
---- a/drivers/ide/ide-taskfile.c
-+++ b/drivers/ide/ide-taskfile.c
-@@ -442,7 +442,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
- 	 */
- 	if (nsect) {
- 		error = blk_rq_map_kern(drive->queue, rq, buf,
--					nsect * SECTOR_SIZE, __GFP_RECLAIM);
-+					nsect * SECTOR_SIZE, GFP_NOIO);
- 		if (error)
- 			goto put_req;
- 	}
-diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
-index 6b0f3ec487bd..f125fd71c0f2 100644
---- a/drivers/scsi/scsi_lib.c
-+++ b/drivers/scsi/scsi_lib.c
-@@ -273,7 +273,7 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
- 	rq = scsi_req(req);
- 
- 	if (bufflen &&	blk_rq_map_kern(sdev->request_queue, req,
--					buffer, bufflen, __GFP_RECLAIM))
-+					buffer, bufflen, GFP_NOIO))
- 		goto out;
- 
- 	rq->cmd_len = COMMAND_SIZE(cmd[0]);
-diff --git a/fs/direct-io.c b/fs/direct-io.c
-index 874607bb6e02..093fb54cd316 100644
---- a/fs/direct-io.c
-+++ b/fs/direct-io.c
-@@ -432,8 +432,8 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
- 	struct bio *bio;
- 
- 	/*
--	 * bio_alloc() is guaranteed to return a bio when called with
--	 * __GFP_RECLAIM and we request a valid number of vectors.
-+	 * bio_alloc() is guaranteed to return a bio when allowed to sleep and
-+	 * we request a valid number of vectors.
- 	 */
- 	bio = bio_alloc(GFP_KERNEL, nr_vecs);
- 
-diff --git a/kernel/power/swap.c b/kernel/power/swap.c
-index 11b4282c2d20..1efcb5b0c3ed 100644
---- a/kernel/power/swap.c
-+++ b/kernel/power/swap.c
-@@ -269,7 +269,7 @@ static int hib_submit_io(int op, int op_flags, pgoff_t page_off, void *addr,
- 	struct bio *bio;
- 	int error = 0;
- 
--	bio = bio_alloc(__GFP_RECLAIM | __GFP_HIGH, 1);
-+	bio = bio_alloc(GFP_NOIO | __GFP_HIGH, 1);
- 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
- 	bio_set_dev(bio, hib_resume_bdev);
- 	bio_set_op_attrs(bio, op, op_flags);
-@@ -376,7 +376,7 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
- 		return -ENOSPC;
- 
- 	if (hb) {
--		src = (void *)__get_free_page(__GFP_RECLAIM | __GFP_NOWARN |
-+		src = (void *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
- 		                              __GFP_NORETRY);
- 		if (src) {
- 			copy_page(src, buf);
-@@ -384,7 +384,7 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
- 			ret = hib_wait_io(hb); /* Free pages */
- 			if (ret)
- 				return ret;
--			src = (void *)__get_free_page(__GFP_RECLAIM |
-+			src = (void *)__get_free_page(GFP_NOIO |
- 			                              __GFP_NOWARN |
- 			                              __GFP_NORETRY);
- 			if (src) {
-@@ -691,7 +691,7 @@ static int save_image_lzo(struct swap_map_handle *handle,
- 	nr_threads = num_online_cpus() - 1;
- 	nr_threads = clamp_val(nr_threads, 1, LZO_THREADS);
- 
--	page = (void *)__get_free_page(__GFP_RECLAIM | __GFP_HIGH);
-+	page = (void *)__get_free_page(GFP_NOIO | __GFP_HIGH);
- 	if (!page) {
- 		pr_err("Failed to allocate LZO page\n");
- 		ret = -ENOMEM;
-@@ -989,7 +989,7 @@ static int get_swap_reader(struct swap_map_handle *handle,
- 		last = tmp;
- 
- 		tmp->map = (struct swap_map_page *)
--			   __get_free_page(__GFP_RECLAIM | __GFP_HIGH);
-+			   __get_free_page(GFP_NOIO | __GFP_HIGH);
- 		if (!tmp->map) {
- 			release_swap_reader(handle);
- 			return -ENOMEM;
-@@ -1261,8 +1261,8 @@ static int load_image_lzo(struct swap_map_handle *handle,
- 
- 	for (i = 0; i < read_pages; i++) {
- 		page[i] = (void *)__get_free_page(i < LZO_CMP_PAGES ?
--						  __GFP_RECLAIM | __GFP_HIGH :
--						  __GFP_RECLAIM | __GFP_NOWARN |
-+						  GFP_NOIO | __GFP_HIGH :
-+						  GFP_NOIO | __GFP_NOWARN |
- 						  __GFP_NORETRY);
- 
- 		if (!page[i]) {
+Other that that looks ok to me.
 -- 
-2.17.0
+Michal Hocko
+SUSE Labs
