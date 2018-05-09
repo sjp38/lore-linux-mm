@@ -1,135 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 853A66B0522
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 10:57:23 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id m20-v6so14704632qtm.6
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 07:57:23 -0700 (PDT)
-Received: from mail1.bemta8.messagelabs.com (mail1.bemta8.messagelabs.com. [216.82.243.199])
-        by mx.google.com with ESMTPS id m9si5745230qki.378.2018.05.09.07.57.21
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A1B86B0526
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 11:12:47 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id s3so26392273pfh.0
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 08:12:47 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 9-v6si26953550plf.283.2018.05.09.08.12.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 07:57:21 -0700 (PDT)
-From: Huaisheng HS1 Ye <yehs1@lenovo.com>
-Subject: RE: [External]  Re: [PATCH 2/3] include/linux/gfp.h: use unsigned int
- in gfp_zone
-Date: Wed, 9 May 2018 14:57:07 +0000
-Message-ID: <HK2PR03MB1684C9AC9D21C628CCA977FD92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
-References: <1525416729-108201-1-git-send-email-yehs1@lenovo.com>
- <1525416729-108201-3-git-send-email-yehs1@lenovo.com>
- <20180504133533.GR4535@dhcp22.suse.cz>
- <20180504154004.GB29829@bombadil.infradead.org>
- <HK2PR03MB168459A1C4FB2B7D3E1F6A4A92840@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180506134814.GB7362@bombadil.infradead.org>
- <HK2PR03MB168447008C658172FFDA402992840@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180506185532.GA13604@bombadil.infradead.org>
- <HK2PR03MB1684BF10B3B515BFABD35F8B929B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180507184410.GA12361@bombadil.infradead.org>
- <20180507212500.bdphwfhk55w6vlbb@twin.jikos.cz>
-In-Reply-To: <20180507212500.bdphwfhk55w6vlbb@twin.jikos.cz>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 09 May 2018 08:12:46 -0700 (PDT)
+Date: Wed, 9 May 2018 08:12:43 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 01/33] block: add a lower-level bio_add_page interface
+Message-ID: <20180509151243.GA1313@bombadil.infradead.org>
+References: <20180509074830.16196-1-hch@lst.de>
+ <20180509074830.16196-2-hch@lst.de>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180509074830.16196-2-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, "dsterba@suse.cz" <dsterba@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
+On Wed, May 09, 2018 at 09:47:58AM +0200, Christoph Hellwig wrote:
+> +/**
+> + * __bio_try_merge_page - try adding data to an existing bvec
+> + * @bio: destination bio
+> + * @page: page to add
+> + * @len: length of the range to add
+> + * @off: offset into @page
+> + *
+> + * Try adding the data described at @page + @offset to the last bvec of @bio.
+> + * Return %true on success or %false on failure.  This can happen frequently
+> + * for file systems with a block size smaller than the page size.
+> + */
 
-> On Mon, May 07, 2018 at 11:44:10AM -0700, Matthew Wilcox wrote:
-> > On Mon, May 07, 2018 at 05:16:50PM +0000, Huaisheng HS1 Ye wrote:
-> > > I hope it couldn't cause problem, but based on my analyzation it has =
-the potential
-> to go wrong if users still use the flags as usual, which are __GFP_DMA, _=
-_GFP_DMA32
-> and __GFP_HIGHMEM.
-> > > Let me take an example with my testing platform, these logics are muc=
-h abstract,
-> an example will be helpful.
-> > >
-> > > There is a two sockets X86_64 server, No HIGHMEM and it has 16 + 16GB=
- memories.
-> > > Its zone types shall be like this below,
-> > >
-> > > ZONE_DMA		0		0b0000
-> > > ZONE_DMA32		1		0b0001
-> > > ZONE_NORMAL		2		0b0010
-> > > (OPT_ZONE_HIGHMEM)	2		0b0010
-> > > ZONE_MOVABLE		3		0b0011
-> > > ZONE_DEVICE		4		0b0100 (virtual zone)
-> > > __MAX_NR_ZONES	5
-> > >
-> > > __GFP_DMA	=3D ZONE_DMA ^ ZONE_NORMAL=3D 0b0010
-> > > __GFP_DMA32	=3D ZONE_DMA32 ^ ZONE_NORMAL=3D 0b0011
-> > > __GFP_HIGHMEM =3D OPT_ZONE_HIGHMEM ^ ZONE_NORMAL =3D 0b0000
-> > > __GFP_MOVABLE	=3D ZONE_MOVABLE ^ ZONE_NORMAL | ___GFP_MOVABLE =3D 0b1=
-001
-> > >
-> > > Eg.
-> > > If a driver uses flags like this below,
-> > > Step 1:
-> > > gfp_mask  |  __GFP_DMA32;
-> > > (0b 0000		|	0b 0011	=3D 0b 0011)
-> > > gfp_mask's low four bits shall equal to 0011, assuming no __GFP_MOVAB=
-LE
-> > >
-> > > Step 2:
-> > > gfp_mask  & ~__GFP_DMA;
-> > > (0b 0011	 & ~0b0010   =3D 0b0001)
-> > > gfp_mask's low four bits shall equal to 0001 now, then when it enter =
-gfp_zone(),
-> > >
-> > > return ((__force int)flags & ___GFP_ZONE_MASK) ^ ZONE_NORMAL;
-> > > (0b0001 ^ 0b0010 =3D 0b0011)
-> > > You know 0011 means that ZONE_MOVABLE will be returned.
-> > > In this case, error can be found, because gfp_mask needs to get ZONE_=
-DMA32 originally.
-> > > But with existing GFP_ZONE_TABLE/BAD, it is correct. Because the bits=
- are way of
-> 0x1, 0x2, 0x4, 0x8
-> >
-> > Yes, I understand your point here.  My point was that this was already =
-a bug;
-> > the caller shouldn't simply be clearing __GFP_DMA; they really mean to =
-clear
-> > all of the GFP_ZONE bits so that they allocate from ZONE_NORMAL.  And f=
-or
-> > that, they should be using ~GFP_ZONEMASK
-> >
-> > Unless they already know, of course.  For example, this one in
-> > arch/x86/mm/pgtable.c is fine:
-> >
-> >         if (strcmp(arg, "nohigh") =3D=3D 0)
-> >                 __userpte_alloc_gfp &=3D ~__GFP_HIGHMEM;
-> >
-> > because it knows that __userpte_alloc_gfp can only have __GFP_HIGHMEM s=
-et.
-> >
-> > But something like btrfs should almost certainly be using ~GFP_ZONEMASK=
-.
->=20
-> Agreed, the direct use of __GFP_DMA32 was added in 3ba7ab220e8918176c6f
-> to substitute GFP_NOFS, so the allocation flags are less restrictive but
-> still acceptable for allocation from slab.
->=20
-> The requirement from btrfs is to avoid highmem, the 'must be acceptable
-> for slab' requirement is more MM internal and should have been hidden
-> under some opaque flag mask. There was no strong need for that at the
-> time.
+Could we make this:
 
-Hi Matthew,
+/**
+ * __bio_try_merge_page() - Try appending data to an existing bvec.
+ * @bio: Destination bio.
+ * @page: Page to add.
+ * @len: Length of the data to add.
+ * @off: Offset of the data in @page.
+ *
+ * Try to add the data at @page + @off to the last bvec of @bio.  This is
+ * a useful optimisation for file systems with a block size smaller than
+ * the page size.
+ *
+ * Context: Any context.
+ * Return: %true on success or %false on failure.
+ */
 
-Should we add an error detection in gfp_zone? How about this?
+(page, len, off) is a bit weird to me.  Usually we do (page, off, len).
 
-@@ -377,6 +377,8 @@ static inline enum zone_type gfp_zone(gfp_t flags)
-                z =3D OPT_ZONE_HIGHMEM +
-                        !!((__force unsigned int)flags & ___GFP_MOVABLE);
-        }
-+
-+       VM_BUG_ON(z > ZONE_MOVABLE);
-        return z;
- }
+> +/**
+> + * __bio_add_page - add page to a bio in a new segment
+> + * @bio: destination bio
+> + * @page: page to add
+> + * @len: length of the range to add
+> + * @off: offset into @page
+> + *
+> + * Add the data at @page + @offset to @bio as a new bvec.  The caller must
+> + * ensure that @bio has space for another bvec.
+> + */
 
+/**
+ * __bio_add_page - Add page to a bio in a new segment.
+ * @bio: Destination bio.
+ * @page: Page to add.
+ * @len: Length of the data to add.
+ * @off: Offset of the data in @page.
+ *
+ * Add the data at @page + @off to @bio as a new bvec.  The caller must
+ * ensure that @bio has space for another bvec.
+ *
+ * Context: Any context.
+ */
 
-Sincerely,
-Huaisheng Ye
+> +static inline bool bio_full(struct bio *bio)
+> +{
+> +	return bio->bi_vcnt >= bio->bi_max_vecs;
+> +}
+
+I really like this helper.
