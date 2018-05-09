@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7720C6B02FE
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EE9CC6B02FF
 	for <linux-mm@kvack.org>; Tue,  8 May 2018 20:42:59 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id z5so13729027pfz.6
+Received: by mail-pl0-f69.google.com with SMTP id o23-v6so2731754pll.12
         for <linux-mm@kvack.org>; Tue, 08 May 2018 17:42:59 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a1sor5114620pfo.145.2018.05.08.17.42.55
+        by mx.google.com with SMTPS id 72-v6sor4638398ple.72.2018.05.08.17.42.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 08 May 2018 17:42:55 -0700 (PDT)
+        Tue, 08 May 2018 17:42:54 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 12/13] treewide: Use array_size() for devm_*alloc()-like
-Date: Tue,  8 May 2018 17:42:28 -0700
-Message-Id: <20180509004229.36341-13-keescook@chromium.org>
+Subject: [PATCH 13/13] treewide: Use array_size() for devm_*alloc()-like, leftovers
+Date: Tue,  8 May 2018 17:42:29 -0700
+Message-Id: <20180509004229.36341-14-keescook@chromium.org>
 In-Reply-To: <20180509004229.36341-1-keescook@chromium.org>
 References: <20180509004229.36341-1-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,2443 +20,3116 @@ List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <mawilcox@microsoft.com>
 Cc: Kees Cook <keescook@chromium.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-As done for kmalloc()-family, this handles 2 and 3 factor products in
-devm_*alloc(), sock_*alloc(), and f2fs_*alloc(), with the following
-Coccinelle script:
+This swaps the remaining multi-factor products in handle-based allocators
+like devm_*alloc(), sock_*alloc(), and f2fs_*alloc(). Generated with the
+following Coccinelle script:
 
-// 2-factor product with sizeof(variable)
+// Any remaining multi-factor products, first at least 3-factor products...
 @@
 identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
 expression HANDLE;
-expression GFP, THING;
-identifier COUNT;
+expression GFP, E1, E2, E3;
 @@
 
-- alloc(HANDLE, sizeof(THING) * COUNT, GFP)
-+ alloc(HANDLE, array_size(COUNT, sizeof(THING)), GFP)
+- alloc(HANDLE, E1 * E2 * E3, GFP)
++ alloc(HANDLE, array3_size(E1, E2, E3), GFP)
 
-// 2-factor product with sizeof(type)
-@@
-identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
-expression HANDLE;
-expression GFP;
-identifier COUNT;
-type TYPE;
-@@
-
-- alloc(HANDLE, sizeof(TYPE) * COUNT, GFP)
-+ alloc(HANDLE, array_size(COUNT, sizeof(TYPE)), GFP)
-
-// 2-factor product with sizeof(variable) and constant
+// ... and then all remaining 2 factors products.
 @@
 identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
 expression HANDLE;
-expression GFP, THING;
-constant COUNT;
+expression GFP, E1, E2;
 @@
 
-- alloc(HANDLE, sizeof(THING) * COUNT, GFP)
-+ alloc(HANDLE, array_size(COUNT, sizeof(THING)), GFP)
-
-// 2-factor product with sizeof(type) and constant
-@@
-identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
-expression HANDLE;
-expression GFP;
-constant COUNT;
-type TYPE;
-@@
-
-- alloc(HANDLE, sizeof(TYPE) * COUNT, GFP)
-+ alloc(HANDLE, array_size(COUNT, sizeof(TYPE)), GFP)
-
-// 3-factor product with 1 sizeof(variable)
-@@
-identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
-expression HANDLE;
-expression GFP, THING;
-identifier STRIDE, COUNT;
-@@
-
-- alloc(HANDLE, sizeof(THING) * COUNT * STRIDE, GFP)
-+ alloc(HANDLE, array3_size(COUNT, STRIDE, sizeof(THING)), GFP)
-
-// 3-factor product with 2 sizeof(variable)
-@@
-identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
-expression HANDLE;
-expression GFP, THING1, THING2;
-identifier COUNT;
-@@
-
-- alloc(HANDLE, sizeof(THING1) * sizeof(THING2) * COUNT, GFP)
-+ alloc(HANDLE, array3_size(COUNT, sizeof(THING1), sizeof(THING2)), GFP)
-
-// 3-factor product with 1 sizeof(type)
-@@
-identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
-expression HANDLE;
-expression GFP;
-identifier STRIDE, COUNT;
-type TYPE;
-@@
-
-- alloc(HANDLE, sizeof(TYPE) * COUNT * STRIDE, GFP)
-+ alloc(HANDLE, array3_size(COUNT, STRIDE, sizeof(TYPE)), GFP)
-
-// 3-factor product with 2 sizeof(type)
-@@
-identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
-expression HANDLE;
-expression GFP;
-identifier COUNT;
-type TYPE1, TYPE2;
-@@
-
-- alloc(HANDLE, sizeof(TYPE1) * sizeof(TYPE2) * COUNT, GFP)
-+ alloc(HANDLE, array3_size(COUNT, sizeof(TYPE1), sizeof(TYPE2)), GFP)
-
-// 3-factor product with mixed sizeof() type/variable
-@@
-identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
-expression HANDLE;
-expression GFP, THING;
-identifier COUNT;
-type TYPE;
-@@
-
-- alloc(HANDLE, sizeof(TYPE) * sizeof(THING) * COUNT, GFP)
-+ alloc(HANDLE, array3_size(COUNT, sizeof(TYPE), sizeof(THING)), GFP)
-
-// 2-factor product, only identifiers
-@@
-identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
-expression HANDLE;
-expression GFP;
-identifier SIZE, COUNT;
-@@
-
-- alloc(HANDLE, SIZE * COUNT, GFP)
-+ alloc(HANDLE, array_size(COUNT, SIZE), GFP)
-
-// 3-factor product, only identifiers
-@@
-identifier alloc =~ "devm_kmalloc|devm_kzalloc|sock_kmalloc|f2fs_kmalloc|f2fs_kzalloc";
-expression HANDLE;
-expression GFP;
-identifier STRIDE, SIZE, COUNT;
-@@
-
-- alloc(HANDLE, COUNT * STRIDE * SIZE, GFP)
-+ alloc(HANDLE, array3_size(COUNT, STRIDE, SIZE), GFP)
+- alloc(HANDLE, E1 * E2, GFP)
++ alloc(HANDLE, array_size(E1, E2), GFP)
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- drivers/ata/sata_mv.c                         |  4 +--
- drivers/bus/fsl-mc/fsl-mc-allocator.c         |  5 ++--
- drivers/clk/bcm/clk-bcm2835.c                 |  6 ++--
- drivers/clk/ti/adpll.c                        |  8 +++---
- drivers/cpufreq/imx6q-cpufreq.c               |  4 ++-
- drivers/devfreq/event/exynos-ppmu.c           |  2 +-
- drivers/dma/mv_xor_v2.c                       |  5 ++--
- drivers/firmware/arm_scpi.c                   |  3 +-
- drivers/gpio/gpio-davinci.c                   |  2 +-
- drivers/gpio/gpio-thunderx.c                  |  6 ++--
- drivers/gpu/drm/exynos/exynos_hdmi.c          |  2 +-
- drivers/hid/hid-sensor-hub.c                  |  4 +--
- drivers/hid/wacom_sys.c                       |  6 ++--
- drivers/hwmon/aspeed-pwm-tacho.c              |  3 +-
- drivers/hwmon/nct6683.c                       |  2 +-
- drivers/hwmon/nct6775.c                       |  4 +--
- drivers/hwmon/pmbus/ucd9000.c                 |  2 +-
- drivers/hwmon/pwm-fan.c                       |  3 +-
- drivers/i2c/busses/i2c-qup.c                  |  4 +--
- drivers/iio/multiplexer/iio-mux.c             |  4 +--
- drivers/input/keyboard/samsung-keypad.c       |  3 +-
- drivers/input/matrix-keymap.c                 |  2 +-
- drivers/input/rmi4/rmi_f54.c                  |  2 +-
- drivers/iommu/arm-smmu.c                      |  3 +-
- drivers/iommu/rockchip-iommu.c                |  3 +-
- drivers/leds/leds-lp55xx-common.c             |  3 +-
- drivers/leds/leds-netxbig.c                   | 14 ++++++----
- drivers/leds/leds-ns2.c                       |  4 +--
- drivers/leds/leds-tca6507.c                   |  3 +-
- drivers/mailbox/mailbox-sti.c                 |  3 +-
- drivers/mailbox/omap-mailbox.c                |  9 ++++--
- drivers/mailbox/ti-msgmgr.c                   |  6 ++--
- drivers/media/i2c/s5k5baf.c                   |  2 +-
- drivers/media/platform/davinci/vpif_capture.c |  8 +++---
- drivers/media/platform/vsp1/vsp1_entity.c     |  3 +-
- drivers/media/platform/xilinx/xilinx-vipp.c   |  3 +-
- drivers/memory/of_memory.c                    |  5 ++--
- drivers/mfd/ab8500-debugfs.c                  |  9 ++++--
- drivers/mfd/twl-core.c                        |  4 +--
- drivers/misc/sram.c                           |  4 +--
- drivers/mtd/devices/docg3.c                   |  3 +-
- drivers/mtd/nand/raw/qcom_nandc.c             |  4 +--
- drivers/net/ethernet/amazon/ena/ena_ethtool.c |  4 +--
- drivers/net/ethernet/ethoc.c                  |  4 ++-
- .../net/ethernet/freescale/dpaa/dpaa_eth.c    |  2 +-
- drivers/net/ethernet/ni/nixge.c               |  3 +-
- drivers/net/wireless/mediatek/mt76/mac80211.c |  3 +-
- drivers/nfc/fdp/i2c.c                         |  2 +-
- drivers/pci/dwc/pci-dra7xx.c                  |  6 ++--
+ crypto/algif_aead.c                           |  4 +--
+ crypto/algif_skcipher.c                       |  3 +-
+ drivers/acpi/fan.c                            |  2 +-
+ drivers/acpi/nfit/core.c                      |  4 +--
+ drivers/char/tpm/tpm2-cmd.c                   |  3 +-
+ drivers/cpufreq/brcmstb-avs-cpufreq.c         |  3 +-
+ drivers/crypto/axis/artpec6_crypto.c          |  8 +++--
+ drivers/crypto/marvell/cesa.c                 |  3 +-
+ drivers/crypto/talitos.c                      |  9 +++---
+ drivers/devfreq/devfreq.c                     | 11 +++----
+ drivers/dma/k3dma.c                           |  6 ++--
+ drivers/dma/s3c24xx-dma.c                     |  5 ++-
+ drivers/dma/zx_dma.c                          |  6 ++--
+ drivers/firmware/ti_sci.c                     |  3 +-
+ drivers/gpio/gpio-adnp.c                      |  2 +-
+ drivers/gpio/gpio-bcm-kona.c                  |  4 +--
+ drivers/gpio/gpio-htc-egpio.c                 |  2 +-
+ drivers/gpu/drm/exynos/exynos_drm_dsi.c       |  4 +--
+ drivers/gpu/drm/msm/hdmi/hdmi.c               | 20 +++++++-----
+ drivers/gpu/drm/msm/hdmi/hdmi_phy.c           |  6 ++--
+ drivers/hid/intel-ish-hid/ishtp-hid-client.c  |  8 ++---
+ drivers/hwmon/gpio-fan.c                      |  6 ++--
+ drivers/hwmon/ibmpowernv.c                    |  8 ++---
+ drivers/hwmon/iio_hwmon.c                     |  2 +-
+ drivers/hwmon/nct6683.c                       |  3 +-
+ drivers/hwmon/nct6775.c                       |  3 +-
+ drivers/hwmon/pmbus/pmbus_core.c              |  2 +-
+ drivers/hwtracing/coresight/coresight-etb10.c |  4 +--
+ drivers/hwtracing/coresight/of_coresight.c    | 12 +++----
+ drivers/i2c/muxes/i2c-mux-gpio.c              |  5 +--
+ drivers/i2c/muxes/i2c-mux-reg.c               |  2 +-
+ drivers/iio/adc/at91_adc.c                    |  6 ++--
+ drivers/iio/adc/max1027.c                     |  2 +-
+ drivers/iio/adc/max1363.c                     |  4 +--
+ drivers/iio/adc/twl6030-gpadc.c               |  4 +--
+ drivers/iio/dac/ad5592r-base.c                |  3 +-
+ drivers/input/keyboard/clps711x-keypad.c      |  4 +--
+ drivers/input/keyboard/matrix_keypad.c        |  3 +-
+ drivers/input/misc/rotary_encoder.c           |  2 +-
+ drivers/input/rmi4/rmi_driver.c               |  8 ++---
+ drivers/input/rmi4/rmi_f11.c                  | 11 ++++---
+ drivers/input/rmi4/rmi_f12.c                  | 11 ++++---
+ drivers/input/rmi4/rmi_spi.c                  |  8 ++---
+ drivers/iommu/mtk_iommu.c                     |  3 +-
+ drivers/iommu/mtk_iommu_v1.c                  |  4 +--
+ drivers/irqchip/irq-imgpdc.c                  |  3 +-
+ drivers/irqchip/irq-mvebu-gicp.c              |  7 ++--
+ drivers/leds/leds-adp5520.c                   |  5 +--
+ drivers/leds/leds-apu.c                       |  4 +--
+ drivers/leds/leds-da9052.c                    |  2 +-
+ drivers/leds/leds-lp5521.c                    |  3 +-
+ drivers/leds/leds-lp5523.c                    |  3 +-
+ drivers/leds/leds-lp5562.c                    |  3 +-
+ drivers/leds/leds-lp8501.c                    |  3 +-
+ drivers/leds/leds-lt3593.c                    |  4 +--
+ drivers/leds/leds-mc13783.c                   |  6 ++--
+ drivers/leds/leds-mlxcpld.c                   |  5 +--
+ drivers/leds/leds-netxbig.c                   |  2 +-
+ drivers/leds/leds-pca955x.c                   |  5 +--
+ drivers/leds/leds-pca963x.c                   |  8 +++--
+ drivers/mailbox/hi6220-mailbox.c              |  6 ++--
+ drivers/mailbox/omap-mailbox.c                |  6 ++--
+ drivers/media/platform/am437x/am437x-vpfe.c   |  5 +--
+ .../platform/qcom/camss-8x16/camss-csid.c     | 10 +++---
+ .../platform/qcom/camss-8x16/camss-csiphy.c   | 10 +++---
+ .../platform/qcom/camss-8x16/camss-ispif.c    |  8 +++--
+ .../platform/qcom/camss-8x16/camss-vfe.c      |  8 +++--
+ .../media/platform/qcom/camss-8x16/camss.c    |  3 +-
+ .../media/v4l2-core/v4l2-flash-led-class.c    |  4 +--
+ drivers/mfd/htc-i2cpld.c                      |  3 +-
+ drivers/mfd/motorola-cpcap.c                  |  4 +--
+ drivers/mfd/omap-usb-tll.c                    |  5 +--
+ drivers/mfd/sprd-sc27xx-spi.c                 |  5 +--
+ drivers/mfd/wm8994-core.c                     |  4 +--
+ drivers/mmc/host/sdhci-omap.c                 |  5 +--
+ drivers/mtd/nand/raw/s3c2410.c                |  3 +-
+ drivers/net/dsa/b53/b53_common.c              |  4 +--
+ .../net/ethernet/hisilicon/hns3/hns3_enet.c   |  4 +--
+ drivers/net/ethernet/ti/cpsw.c                |  6 ++--
+ drivers/net/ethernet/ti/netcp_ethss.c         | 12 +++----
+ drivers/net/phy/phy_led_triggers.c            |  5 ++-
+ drivers/pci/cadence/pcie-cadence-ep.c         |  3 +-
+ drivers/pci/dwc/pcie-designware-ep.c          | 11 ++++---
  drivers/pinctrl/berlin/berlin.c               |  2 +-
- drivers/pinctrl/freescale/pinctrl-imx1-core.c |  6 ++--
- drivers/pinctrl/mvebu/pinctrl-armada-xp.c     |  3 +-
- drivers/pinctrl/mvebu/pinctrl-mvebu.c         |  5 ++--
- drivers/pinctrl/pinctrl-at91.c                |  8 ++++--
- drivers/pinctrl/pinctrl-axp209.c              |  5 ++--
- drivers/pinctrl/pinctrl-digicolor.c           |  5 ++--
- drivers/pinctrl/pinctrl-lpc18xx.c             |  5 ++--
- drivers/pinctrl/pinctrl-ocelot.c              |  6 ++--
- drivers/pinctrl/pinctrl-rockchip.c            |  5 ++--
- drivers/pinctrl/pinctrl-single.c              | 28 +++++++++++--------
- drivers/pinctrl/pinctrl-st.c                  |  9 ++++--
- drivers/pinctrl/samsung/pinctrl-exynos5440.c  | 16 +++++++----
- drivers/pinctrl/samsung/pinctrl-samsung.c     |  8 ++++--
- drivers/pinctrl/sh-pfc/core.c                 |  9 ++++--
- drivers/pinctrl/sh-pfc/gpio.c                 |  3 +-
- drivers/pinctrl/ti/pinctrl-ti-iodelay.c       |  9 ++++--
- drivers/pinctrl/zte/pinctrl-zx.c              |  3 +-
- drivers/platform/mellanox/mlxreg-hotplug.c    |  4 +--
- drivers/pwm/pwm-lp3943.c                      |  3 +-
- drivers/regulator/act8865-regulator.c         |  4 +--
- drivers/regulator/as3711-regulator.c          |  5 ++--
- drivers/regulator/bcm590xx-regulator.c        |  5 ++--
- drivers/regulator/da9063-regulator.c          |  4 +--
- drivers/regulator/max1586.c                   |  5 ++--
- drivers/regulator/max8660.c                   |  5 ++--
- drivers/regulator/pbias-regulator.c           |  5 ++--
- drivers/regulator/rc5t583-regulator.c         |  5 ++--
- drivers/regulator/s2mps11.c                   |  4 +--
- drivers/regulator/ti-abb-regulator.c          |  6 ++--
- drivers/regulator/tps65090-regulator.c        | 10 ++++---
- drivers/regulator/tps65217-regulator.c        |  5 ++--
- drivers/regulator/tps65218-regulator.c        |  5 ++--
- drivers/regulator/tps80031-regulator.c        |  3 +-
- drivers/reset/reset-ti-syscon.c               |  4 ++-
- drivers/scsi/isci/init.c                      |  4 +--
- drivers/scsi/ufs/ufshcd-pltfrm.c              |  4 +--
- drivers/soc/bcm/raspberrypi-power.c           |  5 ++--
- drivers/soc/mediatek/mtk-scpsys.c             |  6 ++--
- drivers/soc/ti/knav_qmss_acc.c                |  6 ++--
- drivers/spi/spi-pl022.c                       |  3 +-
- drivers/staging/greybus/audio_topology.c      |  3 +-
- drivers/staging/media/imx/imx-media-dev.c     |  3 +-
- drivers/thermal/thermal-generic-adc.c         |  5 ++--
- drivers/video/backlight/lp855x_bl.c           |  3 +-
- drivers/video/fbdev/au1100fb.c                |  3 +-
- drivers/video/fbdev/mxsfb.c                   |  3 +-
- drivers/video/fbdev/omap2/omapfb/vrfb.c       |  4 +--
- fs/f2fs/checkpoint.c                          |  3 +-
- fs/f2fs/segment.c                             |  3 +-
- fs/f2fs/super.c                               | 14 ++++++----
- sound/soc/au1x/dbdma2.c                       |  2 +-
- sound/soc/codecs/hdmi-codec.c                 |  3 +-
- sound/soc/codecs/rt5645.c                     |  3 +-
- sound/soc/generic/audio-graph-card.c          |  6 ++--
- sound/soc/generic/audio-graph-scu-card.c      |  6 ++--
- sound/soc/generic/simple-card.c               |  9 ++++--
- sound/soc/generic/simple-scu-card.c           |  6 ++--
- sound/soc/intel/skylake/skl-topology.c        | 10 ++++---
- sound/soc/pxa/mmp-sspa.c                      |  4 +--
- sound/soc/rockchip/rk3399_gru_sound.c         |  2 +-
- sound/soc/sh/rcar/cmd.c                       |  2 +-
- sound/soc/sh/rcar/core.c                      |  4 +--
- sound/soc/sh/rcar/ctu.c                       |  2 +-
- sound/soc/sh/rcar/dvc.c                       |  3 +-
- sound/soc/sh/rcar/mix.c                       |  3 +-
- sound/soc/sh/rcar/src.c                       |  3 +-
- sound/soc/sh/rcar/ssi.c                       |  3 +-
- sound/soc/sh/rcar/ssiu.c                      |  3 +-
- sound/soc/soc-core.c                          |  5 ++--
- 119 files changed, 347 insertions(+), 224 deletions(-)
+ drivers/pinctrl/freescale/pinctrl-imx.c       | 15 +++++----
+ drivers/pinctrl/freescale/pinctrl-imx1-core.c |  9 ++++--
+ drivers/pinctrl/freescale/pinctrl-mxs.c       | 20 +++++++-----
+ drivers/pinctrl/mvebu/pinctrl-armada-37xx.c   | 18 ++++++-----
+ drivers/pinctrl/mvebu/pinctrl-mvebu.c         |  9 +++---
+ drivers/pinctrl/pinctrl-at91-pio4.c           | 32 +++++++++++--------
+ drivers/pinctrl/pinctrl-at91.c                | 30 ++++++++++-------
+ drivers/pinctrl/pinctrl-ingenic.c             |  3 +-
+ drivers/pinctrl/pinctrl-rockchip.c            | 31 ++++++++++--------
+ drivers/pinctrl/pinctrl-st.c                  | 15 ++++++---
+ drivers/pinctrl/pinctrl-xway.c                |  4 +--
+ drivers/pinctrl/samsung/pinctrl-exynos.c      |  5 +--
+ drivers/pinctrl/samsung/pinctrl-exynos5440.c  |  8 +++--
+ drivers/pinctrl/samsung/pinctrl-samsung.c     | 15 +++++----
+ drivers/pinctrl/sh-pfc/gpio.c                 |  5 +--
+ drivers/pinctrl/sh-pfc/pinctrl.c              |  4 +--
+ drivers/pinctrl/spear/pinctrl-plgpio.c        |  5 ++-
+ drivers/pinctrl/sprd/pinctrl-sprd.c           | 17 +++++-----
+ drivers/pinctrl/sunxi/pinctrl-sunxi.c         |  8 ++---
+ drivers/pinctrl/tegra/pinctrl-tegra.c         |  7 ++--
+ drivers/pinctrl/zte/pinctrl-zx.c              |  5 ++-
+ drivers/power/supply/charger-manager.c        | 23 ++++++-------
+ drivers/power/supply/power_supply_core.c      |  2 +-
+ drivers/regulator/gpio-regulator.c            |  9 +++---
+ drivers/regulator/max8997-regulator.c         |  5 +--
+ drivers/regulator/max8998.c                   |  5 +--
+ drivers/regulator/mc13xxx-regulator-core.c    |  3 +-
+ drivers/regulator/s5m8767.c                   | 10 +++---
+ drivers/regulator/tps65910-regulator.c        | 15 +++++----
+ drivers/scsi/ufs/ufshcd.c                     |  2 +-
+ drivers/spi/spi-davinci.c                     |  4 +--
+ drivers/spi/spi-ep93xx.c                      |  2 +-
+ drivers/spi/spi-gpio.c                        |  4 +--
+ drivers/spi/spi-imx.c                         |  3 +-
+ drivers/spi/spi-oc-tiny.c                     |  4 +--
+ drivers/spi/spi.c                             |  3 +-
+ .../atomisp/pci/atomisp2/atomisp_subdev.c     |  5 +--
+ drivers/staging/media/imx/imx-media-dev.c     |  7 ++--
+ .../staging/mt7621-pinctrl/pinctrl-rt2880.c   | 25 ++++++++++-----
+ drivers/thermal/tegra/soctherm.c              |  4 +--
+ drivers/tty/serial/rp2.c                      |  3 +-
+ drivers/usb/gadget/udc/atmel_usba_udc.c       |  3 +-
+ drivers/usb/gadget/udc/pch_udc.c              |  3 +-
+ drivers/usb/gadget/udc/renesas_usb3.c         |  3 +-
+ drivers/video/backlight/adp8860_bl.c          |  5 +--
+ drivers/video/backlight/adp8870_bl.c          |  5 +--
+ fs/f2fs/node.c                                |  5 +--
+ sound/soc/codecs/wm8994.c                     |  3 +-
+ sound/soc/davinci/davinci-mcasp.c             | 12 +++----
+ sound/soc/img/img-i2s-in.c                    |  3 +-
+ sound/soc/img/img-i2s-out.c                   |  3 +-
+ sound/soc/uniphier/aio-cpu.c                  |  7 ++--
+ 136 files changed, 503 insertions(+), 387 deletions(-)
 
-diff --git a/drivers/ata/sata_mv.c b/drivers/ata/sata_mv.c
-index 42d4589b43d4..37b87985659c 100644
---- a/drivers/ata/sata_mv.c
-+++ b/drivers/ata/sata_mv.c
-@@ -4115,12 +4115,12 @@ static int mv_platform_probe(struct platform_device *pdev)
- 	if (!host || !hpriv)
- 		return -ENOMEM;
- 	hpriv->port_clks = devm_kzalloc(&pdev->dev,
--					sizeof(struct clk *) * n_ports,
-+					array_size(n_ports, sizeof(struct clk *)),
- 					GFP_KERNEL);
- 	if (!hpriv->port_clks)
- 		return -ENOMEM;
- 	hpriv->port_phys = devm_kzalloc(&pdev->dev,
--					sizeof(struct phy *) * n_ports,
-+					array_size(n_ports, sizeof(struct phy *)),
- 					GFP_KERNEL);
- 	if (!hpriv->port_phys)
- 		return -ENOMEM;
-diff --git a/drivers/bus/fsl-mc/fsl-mc-allocator.c b/drivers/bus/fsl-mc/fsl-mc-allocator.c
-index fb1442b08962..1f569d3ff200 100644
---- a/drivers/bus/fsl-mc/fsl-mc-allocator.c
-+++ b/drivers/bus/fsl-mc/fsl-mc-allocator.c
-@@ -355,7 +355,7 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
- 		return error;
- 
- 	irq_resources = devm_kzalloc(&mc_bus_dev->dev,
--				     sizeof(*irq_resources) * irq_count,
-+				     array_size(irq_count, sizeof(*irq_resources)),
- 				     GFP_KERNEL);
- 	if (!irq_resources) {
- 		error = -ENOMEM;
-@@ -455,7 +455,8 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
- 		return -ENOSPC;
- 	}
- 
--	irqs = devm_kzalloc(&mc_dev->dev, irq_count * sizeof(irqs[0]),
-+	irqs = devm_kzalloc(&mc_dev->dev,
-+			    array_size(irq_count, sizeof(irqs[0])),
- 			    GFP_KERNEL);
- 	if (!irqs)
- 		return -ENOMEM;
-diff --git a/drivers/clk/bcm/clk-bcm2835.c b/drivers/clk/bcm/clk-bcm2835.c
-index c228bd6f6314..a5cefbdd4734 100644
---- a/drivers/clk/bcm/clk-bcm2835.c
-+++ b/drivers/clk/bcm/clk-bcm2835.c
-@@ -738,7 +738,8 @@ static int bcm2835_pll_debug_init(struct clk_hw *hw,
- 	const struct bcm2835_pll_data *data = pll->data;
- 	struct debugfs_reg32 *regs;
- 
--	regs = devm_kzalloc(cprman->dev, 7 * sizeof(*regs), GFP_KERNEL);
-+	regs = devm_kzalloc(cprman->dev, array_size(7, sizeof(*regs)),
-+			    GFP_KERNEL);
- 	if (!regs)
- 		return -ENOMEM;
- 
-@@ -869,7 +870,8 @@ static int bcm2835_pll_divider_debug_init(struct clk_hw *hw,
- 	const struct bcm2835_pll_divider_data *data = divider->data;
- 	struct debugfs_reg32 *regs;
- 
--	regs = devm_kzalloc(cprman->dev, 7 * sizeof(*regs), GFP_KERNEL);
-+	regs = devm_kzalloc(cprman->dev, array_size(7, sizeof(*regs)),
-+			    GFP_KERNEL);
- 	if (!regs)
- 		return -ENOMEM;
- 
-diff --git a/drivers/clk/ti/adpll.c b/drivers/clk/ti/adpll.c
-index d6036c788fab..86dc421b6356 100644
---- a/drivers/clk/ti/adpll.c
-+++ b/drivers/clk/ti/adpll.c
-@@ -501,8 +501,8 @@ static int ti_adpll_init_dco(struct ti_adpll_data *d)
- 	const char *postfix;
- 	int width, err;
- 
--	d->outputs.clks = devm_kzalloc(d->dev, sizeof(struct clk *) *
--				       MAX_ADPLL_OUTPUTS,
-+	d->outputs.clks = devm_kzalloc(d->dev,
-+				       array_size(MAX_ADPLL_OUTPUTS, sizeof(struct clk *)),
- 				       GFP_KERNEL);
- 	if (!d->outputs.clks)
- 		return -ENOMEM;
-@@ -915,8 +915,8 @@ static int ti_adpll_probe(struct platform_device *pdev)
- 	if (err)
- 		return err;
- 
--	d->clocks = devm_kzalloc(d->dev, sizeof(struct ti_adpll_clock) *
--				 TI_ADPLL_NR_CLOCKS,
-+	d->clocks = devm_kzalloc(d->dev,
-+				 array_size(TI_ADPLL_NR_CLOCKS, sizeof(struct ti_adpll_clock)),
- 				 GFP_KERNEL);
- 	if (!d->clocks)
- 		return -ENOMEM;
-diff --git a/drivers/cpufreq/imx6q-cpufreq.c b/drivers/cpufreq/imx6q-cpufreq.c
-index 83cf631fc9bc..4f5dcfd86932 100644
---- a/drivers/cpufreq/imx6q-cpufreq.c
-+++ b/drivers/cpufreq/imx6q-cpufreq.c
-@@ -377,7 +377,9 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
- 	}
- 
- 	/* Make imx6_soc_volt array's size same as arm opp number */
--	imx6_soc_volt = devm_kzalloc(cpu_dev, sizeof(*imx6_soc_volt) * num, GFP_KERNEL);
-+	imx6_soc_volt = devm_kzalloc(cpu_dev,
-+				     array_size(num, sizeof(*imx6_soc_volt)),
-+				     GFP_KERNEL);
- 	if (imx6_soc_volt == NULL) {
- 		ret = -ENOMEM;
- 		goto free_freq_table;
-diff --git a/drivers/devfreq/event/exynos-ppmu.c b/drivers/devfreq/event/exynos-ppmu.c
-index d96e3dc71cf8..a90217e2448e 100644
---- a/drivers/devfreq/event/exynos-ppmu.c
-+++ b/drivers/devfreq/event/exynos-ppmu.c
-@@ -518,7 +518,7 @@ static int of_get_devfreq_events(struct device_node *np,
- 	event_ops = exynos_bus_get_ops(np);
- 
- 	count = of_get_child_count(events_np);
--	desc = devm_kzalloc(dev, sizeof(*desc) * count, GFP_KERNEL);
-+	desc = devm_kzalloc(dev, array_size(count, sizeof(*desc)), GFP_KERNEL);
- 	if (!desc)
- 		return -ENOMEM;
- 	info->num_events = count;
-diff --git a/drivers/dma/mv_xor_v2.c b/drivers/dma/mv_xor_v2.c
-index 3548caa9e933..651f07546d50 100644
---- a/drivers/dma/mv_xor_v2.c
-+++ b/drivers/dma/mv_xor_v2.c
-@@ -809,8 +809,9 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
- 	}
- 
- 	/* alloc memory for the SW descriptors */
--	xor_dev->sw_desq = devm_kzalloc(&pdev->dev, sizeof(*sw_desc) *
--					MV_XOR_V2_DESC_NUM, GFP_KERNEL);
-+	xor_dev->sw_desq = devm_kzalloc(&pdev->dev,
-+					array_size(MV_XOR_V2_DESC_NUM, sizeof(*sw_desc)),
-+					GFP_KERNEL);
- 	if (!xor_dev->sw_desq) {
- 		ret = -ENOMEM;
- 		goto free_hw_desq;
-diff --git a/drivers/firmware/arm_scpi.c b/drivers/firmware/arm_scpi.c
-index 6d7a6c0a5e07..ac264d848ac5 100644
---- a/drivers/firmware/arm_scpi.c
-+++ b/drivers/firmware/arm_scpi.c
-@@ -890,7 +890,8 @@ static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
- 	int i;
- 	struct scpi_xfer *xfers;
- 
--	xfers = devm_kzalloc(dev, MAX_SCPI_XFERS * sizeof(*xfers), GFP_KERNEL);
-+	xfers = devm_kzalloc(dev, array_size(MAX_SCPI_XFERS, sizeof(*xfers)),
-+			     GFP_KERNEL);
- 	if (!xfers)
- 		return -ENOMEM;
- 
-diff --git a/drivers/gpio/gpio-davinci.c b/drivers/gpio/gpio-davinci.c
-index 987126c4c6f6..7527eb87105a 100644
---- a/drivers/gpio/gpio-davinci.c
-+++ b/drivers/gpio/gpio-davinci.c
-@@ -199,7 +199,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
- 
- 	nbank = DIV_ROUND_UP(ngpio, 32);
- 	chips = devm_kzalloc(dev,
--			     nbank * sizeof(struct davinci_gpio_controller),
-+			     array_size(nbank, sizeof(struct davinci_gpio_controller)),
- 			     GFP_KERNEL);
- 	if (!chips)
- 		return -ENOMEM;
-diff --git a/drivers/gpio/gpio-thunderx.c b/drivers/gpio/gpio-thunderx.c
-index d16e9d4a129b..f0a53fc27653 100644
---- a/drivers/gpio/gpio-thunderx.c
-+++ b/drivers/gpio/gpio-thunderx.c
-@@ -505,15 +505,15 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
- 	}
- 
- 	txgpio->msix_entries = devm_kzalloc(dev,
--					  sizeof(struct msix_entry) * ngpio,
--					  GFP_KERNEL);
-+					    array_size(ngpio, sizeof(struct msix_entry)),
-+					    GFP_KERNEL);
- 	if (!txgpio->msix_entries) {
+diff --git a/crypto/algif_aead.c b/crypto/algif_aead.c
+index 4b07edd5a9ff..b8f238b70b3b 100644
+--- a/crypto/algif_aead.c
++++ b/crypto/algif_aead.c
+@@ -255,8 +255,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
+ 						       processed - as);
+ 		if (!areq->tsgl_entries)
+ 			areq->tsgl_entries = 1;
+-		areq->tsgl = sock_kmalloc(sk, sizeof(*areq->tsgl) *
+-					      areq->tsgl_entries,
++		areq->tsgl = sock_kmalloc(sk,
++					  array_size(sizeof(*areq->tsgl), areq->tsgl_entries),
+ 					  GFP_KERNEL);
+ 		if (!areq->tsgl) {
+ 			err = -ENOMEM;
+diff --git a/crypto/algif_skcipher.c b/crypto/algif_skcipher.c
+index c4e885df4564..8d923fe36158 100644
+--- a/crypto/algif_skcipher.c
++++ b/crypto/algif_skcipher.c
+@@ -100,7 +100,8 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
+ 	areq->tsgl_entries = af_alg_count_tsgl(sk, len, 0);
+ 	if (!areq->tsgl_entries)
+ 		areq->tsgl_entries = 1;
+-	areq->tsgl = sock_kmalloc(sk, sizeof(*areq->tsgl) * areq->tsgl_entries,
++	areq->tsgl = sock_kmalloc(sk,
++				  array_size(sizeof(*areq->tsgl), areq->tsgl_entries),
+ 				  GFP_KERNEL);
+ 	if (!areq->tsgl) {
  		err = -ENOMEM;
+diff --git a/drivers/acpi/fan.c b/drivers/acpi/fan.c
+index 3563103590c6..8efb5111c334 100644
+--- a/drivers/acpi/fan.c
++++ b/drivers/acpi/fan.c
+@@ -299,7 +299,7 @@ static int acpi_fan_get_fps(struct acpi_device *device)
+ 
+ 	fan->fps_count = obj->package.count - 1; /* minus revision field */
+ 	fan->fps = devm_kzalloc(&device->dev,
+-				fan->fps_count * sizeof(struct acpi_fan_fps),
++				array_size(fan->fps_count, sizeof(struct acpi_fan_fps)),
+ 				GFP_KERNEL);
+ 	if (!fan->fps) {
+ 		dev_err(&device->dev, "Not enough memory\n");
+diff --git a/drivers/acpi/nfit/core.c b/drivers/acpi/nfit/core.c
+index e2235ed3e4be..edd29f8a0839 100644
+--- a/drivers/acpi/nfit/core.c
++++ b/drivers/acpi/nfit/core.c
+@@ -1083,8 +1083,8 @@ static int __nfit_mem_init(struct acpi_nfit_desc *acpi_desc,
+ 			nfit_mem->nfit_flush = nfit_flush;
+ 			flush = nfit_flush->flush;
+ 			nfit_mem->flush_wpq = devm_kzalloc(acpi_desc->dev,
+-					flush->hint_count
+-					* sizeof(struct resource), GFP_KERNEL);
++							   array_size(flush->hint_count, sizeof(struct resource)),
++							   GFP_KERNEL);
+ 			if (!nfit_mem->flush_wpq)
+ 				return -ENOMEM;
+ 			for (i = 0; i < flush->hint_count; i++) {
+diff --git a/drivers/char/tpm/tpm2-cmd.c b/drivers/char/tpm/tpm2-cmd.c
+index 96c77c8e7f40..0c76bd90bb55 100644
+--- a/drivers/char/tpm/tpm2-cmd.c
++++ b/drivers/char/tpm/tpm2-cmd.c
+@@ -980,7 +980,8 @@ static int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
  		goto out;
  	}
  
- 	txgpio->line_entries = devm_kzalloc(dev,
--					    sizeof(struct thunderx_line) * ngpio,
-+					    array_size(ngpio, sizeof(struct thunderx_line)),
- 					    GFP_KERNEL);
- 	if (!txgpio->line_entries) {
- 		err = -ENOMEM;
-diff --git a/drivers/gpu/drm/exynos/exynos_hdmi.c b/drivers/gpu/drm/exynos/exynos_hdmi.c
-index abd84cbcf1c2..68ec5ae80380 100644
---- a/drivers/gpu/drm/exynos/exynos_hdmi.c
-+++ b/drivers/gpu/drm/exynos/exynos_hdmi.c
-@@ -1694,7 +1694,7 @@ static int hdmi_clk_init(struct hdmi_context *hdata)
- 	if (!count)
- 		return 0;
+-	chip->cc_attrs_tbl = devm_kzalloc(&chip->dev, 4 * nr_commands,
++	chip->cc_attrs_tbl = devm_kzalloc(&chip->dev,
++					  array_size(4, nr_commands),
+ 					  GFP_KERNEL);
  
--	clks = devm_kzalloc(dev, sizeof(*clks) * count, GFP_KERNEL);
-+	clks = devm_kzalloc(dev, array_size(count, sizeof(*clks)), GFP_KERNEL);
- 	if (!clks)
+ 	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_CAPABILITY);
+diff --git a/drivers/cpufreq/brcmstb-avs-cpufreq.c b/drivers/cpufreq/brcmstb-avs-cpufreq.c
+index 6cdac1aaf23c..2d95b50c77fe 100644
+--- a/drivers/cpufreq/brcmstb-avs-cpufreq.c
++++ b/drivers/cpufreq/brcmstb-avs-cpufreq.c
+@@ -494,7 +494,8 @@ brcm_avs_get_freq_table(struct device *dev, struct private_data *priv)
+ 	if (ret)
+ 		return ERR_PTR(ret);
+ 
+-	table = devm_kzalloc(dev, (AVS_PSTATE_MAX + 1) * sizeof(*table),
++	table = devm_kzalloc(dev,
++			     array_size((AVS_PSTATE_MAX + 1), sizeof(*table)),
+ 			     GFP_KERNEL);
+ 	if (!table)
+ 		return ERR_PTR(-ENOMEM);
+diff --git a/drivers/crypto/axis/artpec6_crypto.c b/drivers/crypto/axis/artpec6_crypto.c
+index 0fb8bbf41a8d..3337ab66db81 100644
+--- a/drivers/crypto/axis/artpec6_crypto.c
++++ b/drivers/crypto/axis/artpec6_crypto.c
+@@ -3080,14 +3080,16 @@ static int artpec6_crypto_probe(struct platform_device *pdev)
+ 	tasklet_init(&ac->task, artpec6_crypto_task,
+ 		     (unsigned long)ac);
+ 
+-	ac->pad_buffer = devm_kzalloc(&pdev->dev, 2 * ARTPEC_CACHE_LINE_MAX,
++	ac->pad_buffer = devm_kzalloc(&pdev->dev,
++				      array_size(2, ARTPEC_CACHE_LINE_MAX),
+ 				      GFP_KERNEL);
+ 	if (!ac->pad_buffer)
  		return -ENOMEM;
+ 	ac->pad_buffer = PTR_ALIGN(ac->pad_buffer, ARTPEC_CACHE_LINE_MAX);
  
-diff --git a/drivers/hid/hid-sensor-hub.c b/drivers/hid/hid-sensor-hub.c
-index 25363fc571bc..0377c6536f25 100644
---- a/drivers/hid/hid-sensor-hub.c
-+++ b/drivers/hid/hid-sensor-hub.c
-@@ -624,8 +624,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
- 		ret = -EINVAL;
- 		goto err_stop_hw;
+-	ac->zero_buffer = devm_kzalloc(&pdev->dev, 2 * ARTPEC_CACHE_LINE_MAX,
+-				      GFP_KERNEL);
++	ac->zero_buffer = devm_kzalloc(&pdev->dev,
++				       array_size(2, ARTPEC_CACHE_LINE_MAX),
++				       GFP_KERNEL);
+ 	if (!ac->zero_buffer)
+ 		return -ENOMEM;
+ 	ac->zero_buffer = PTR_ALIGN(ac->zero_buffer, ARTPEC_CACHE_LINE_MAX);
+diff --git a/drivers/crypto/marvell/cesa.c b/drivers/crypto/marvell/cesa.c
+index f81fa4a3e66b..47d324ead0eb 100644
+--- a/drivers/crypto/marvell/cesa.c
++++ b/drivers/crypto/marvell/cesa.c
+@@ -471,7 +471,8 @@ static int mv_cesa_probe(struct platform_device *pdev)
+ 		sram_size = CESA_SA_MIN_SRAM_SIZE;
+ 
+ 	cesa->sram_size = sram_size;
+-	cesa->engines = devm_kzalloc(dev, caps->nengines * sizeof(*engines),
++	cesa->engines = devm_kzalloc(dev,
++				     array_size(caps->nengines, sizeof(*engines)),
+ 				     GFP_KERNEL);
+ 	if (!cesa->engines)
+ 		return -ENOMEM;
+diff --git a/drivers/crypto/talitos.c b/drivers/crypto/talitos.c
+index 7cebf0a6ffbc..82c46eb1aa3e 100644
+--- a/drivers/crypto/talitos.c
++++ b/drivers/crypto/talitos.c
+@@ -3393,8 +3393,9 @@ static int talitos_probe(struct platform_device *ofdev)
+ 		}
  	}
--	sd->hid_sensor_hub_client_devs = devm_kzalloc(&hdev->dev, dev_cnt *
--						      sizeof(struct mfd_cell),
-+	sd->hid_sensor_hub_client_devs = devm_kzalloc(&hdev->dev,
-+						      array_size(dev_cnt, sizeof(struct mfd_cell)),
- 						      GFP_KERNEL);
- 	if (sd->hid_sensor_hub_client_devs == NULL) {
- 		hid_err(hdev, "Failed to allocate memory for mfd cells\n");
-diff --git a/drivers/hid/wacom_sys.c b/drivers/hid/wacom_sys.c
-index b54ef1ffcbec..e8ce80a8d64f 100644
---- a/drivers/hid/wacom_sys.c
-+++ b/drivers/hid/wacom_sys.c
-@@ -1361,7 +1361,8 @@ static int wacom_led_groups_alloc_and_register_one(struct device *dev,
- 	if (!devres_open_group(dev, &wacom->led.groups[group_id], GFP_KERNEL))
+ 
+-	priv->chan = devm_kzalloc(dev, sizeof(struct talitos_channel) *
+-				       priv->num_channels, GFP_KERNEL);
++	priv->chan = devm_kzalloc(dev,
++				  array_size(sizeof(struct talitos_channel), priv->num_channels),
++				  GFP_KERNEL);
+ 	if (!priv->chan) {
+ 		dev_err(dev, "failed to allocate channel management space\n");
+ 		err = -ENOMEM;
+@@ -3412,8 +3413,8 @@ static int talitos_probe(struct platform_device *ofdev)
+ 		spin_lock_init(&priv->chan[i].tail_lock);
+ 
+ 		priv->chan[i].fifo = devm_kzalloc(dev,
+-						sizeof(struct talitos_request) *
+-						priv->fifo_len, GFP_KERNEL);
++						  array_size(sizeof(struct talitos_request), priv->fifo_len),
++						  GFP_KERNEL);
+ 		if (!priv->chan[i].fifo) {
+ 			dev_err(dev, "failed to allocate request fifo %d\n", i);
+ 			err = -ENOMEM;
+diff --git a/drivers/devfreq/devfreq.c b/drivers/devfreq/devfreq.c
+index fe2af6aa88fc..674a077a42c0 100644
+--- a/drivers/devfreq/devfreq.c
++++ b/drivers/devfreq/devfreq.c
+@@ -629,14 +629,11 @@ struct devfreq *devfreq_add_device(struct device *dev,
+ 	}
+ 
+ 	devfreq->trans_table =	devm_kzalloc(&devfreq->dev,
+-						sizeof(unsigned int) *
+-						devfreq->profile->max_state *
+-						devfreq->profile->max_state,
+-						GFP_KERNEL);
++						   array3_size(sizeof(unsigned int), devfreq->profile->max_state, devfreq->profile->max_state),
++						   GFP_KERNEL);
+ 	devfreq->time_in_state = devm_kzalloc(&devfreq->dev,
+-						sizeof(unsigned long) *
+-						devfreq->profile->max_state,
+-						GFP_KERNEL);
++					      array_size(sizeof(unsigned long), devfreq->profile->max_state),
++					      GFP_KERNEL);
+ 	devfreq->last_stat_updated = jiffies;
+ 
+ 	srcu_init_notifier_head(&devfreq->transition_notifier_list);
+diff --git a/drivers/dma/k3dma.c b/drivers/dma/k3dma.c
+index 26b67455208f..e281cb9faeff 100644
+--- a/drivers/dma/k3dma.c
++++ b/drivers/dma/k3dma.c
+@@ -849,7 +849,8 @@ static int k3_dma_probe(struct platform_device *op)
+ 
+ 	/* init phy channel */
+ 	d->phy = devm_kzalloc(&op->dev,
+-		d->dma_channels * sizeof(struct k3_dma_phy), GFP_KERNEL);
++			      array_size(d->dma_channels, sizeof(struct k3_dma_phy)),
++			      GFP_KERNEL);
+ 	if (d->phy == NULL)
  		return -ENOMEM;
  
--	leds = devm_kzalloc(dev, sizeof(struct wacom_led) * count, GFP_KERNEL);
-+	leds = devm_kzalloc(dev, array_size(count, sizeof(struct wacom_led)),
-+			    GFP_KERNEL);
- 	if (!leds) {
- 		error = -ENOMEM;
- 		goto err;
-@@ -1461,7 +1462,8 @@ static int wacom_led_groups_allocate(struct wacom *wacom, int count)
- 	struct wacom_group_leds *groups;
- 	int error;
+@@ -880,7 +881,8 @@ static int k3_dma_probe(struct platform_device *op)
  
--	groups = devm_kzalloc(dev, sizeof(struct wacom_group_leds) * count,
-+	groups = devm_kzalloc(dev,
-+			      array_size(count, sizeof(struct wacom_group_leds)),
- 			      GFP_KERNEL);
- 	if (!groups)
+ 	/* init virtual channel */
+ 	d->chans = devm_kzalloc(&op->dev,
+-		d->dma_requests * sizeof(struct k3_dma_chan), GFP_KERNEL);
++				array_size(d->dma_requests, sizeof(struct k3_dma_chan)),
++				GFP_KERNEL);
+ 	if (d->chans == NULL)
  		return -ENOMEM;
-diff --git a/drivers/hwmon/aspeed-pwm-tacho.c b/drivers/hwmon/aspeed-pwm-tacho.c
-index 693a3d53cab5..c931b906d078 100644
---- a/drivers/hwmon/aspeed-pwm-tacho.c
-+++ b/drivers/hwmon/aspeed-pwm-tacho.c
-@@ -894,7 +894,8 @@ static int aspeed_create_fan(struct device *dev,
- 	count = of_property_count_u8_elems(child, "aspeed,fan-tach-ch");
- 	if (count < 1)
- 		return -EINVAL;
--	fan_tach_ch = devm_kzalloc(dev, sizeof(*fan_tach_ch) * count,
-+	fan_tach_ch = devm_kzalloc(dev,
-+				   array_size(count, sizeof(*fan_tach_ch)),
- 				   GFP_KERNEL);
- 	if (!fan_tach_ch)
+ 
+diff --git a/drivers/dma/s3c24xx-dma.c b/drivers/dma/s3c24xx-dma.c
+index cd92d696bcf9..e42749737842 100644
+--- a/drivers/dma/s3c24xx-dma.c
++++ b/drivers/dma/s3c24xx-dma.c
+@@ -1224,9 +1224,8 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
+ 		return PTR_ERR(s3cdma->base);
+ 
+ 	s3cdma->phy_chans = devm_kzalloc(&pdev->dev,
+-					      sizeof(struct s3c24xx_dma_phy) *
+-							pdata->num_phy_channels,
+-					      GFP_KERNEL);
++					 array_size(sizeof(struct s3c24xx_dma_phy), pdata->num_phy_channels),
++					 GFP_KERNEL);
+ 	if (!s3cdma->phy_chans)
  		return -ENOMEM;
+ 
+diff --git a/drivers/dma/zx_dma.c b/drivers/dma/zx_dma.c
+index 2bb695315300..b2fad0c5fbec 100644
+--- a/drivers/dma/zx_dma.c
++++ b/drivers/dma/zx_dma.c
+@@ -799,7 +799,8 @@ static int zx_dma_probe(struct platform_device *op)
+ 
+ 	/* init phy channel */
+ 	d->phy = devm_kzalloc(&op->dev,
+-		d->dma_channels * sizeof(struct zx_dma_phy), GFP_KERNEL);
++			      array_size(d->dma_channels, sizeof(struct zx_dma_phy)),
++			      GFP_KERNEL);
+ 	if (!d->phy)
+ 		return -ENOMEM;
+ 
+@@ -835,7 +836,8 @@ static int zx_dma_probe(struct platform_device *op)
+ 
+ 	/* init virtual channel */
+ 	d->chans = devm_kzalloc(&op->dev,
+-		d->dma_requests * sizeof(struct zx_dma_chan), GFP_KERNEL);
++				array_size(d->dma_requests, sizeof(struct zx_dma_chan)),
++				GFP_KERNEL);
+ 	if (!d->chans)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/firmware/ti_sci.c b/drivers/firmware/ti_sci.c
+index 5229036dcfbf..56a021c713c9 100644
+--- a/drivers/firmware/ti_sci.c
++++ b/drivers/firmware/ti_sci.c
+@@ -1863,8 +1863,7 @@ static int ti_sci_probe(struct platform_device *pdev)
+ 		return -ENOMEM;
+ 
+ 	minfo->xfer_alloc_table = devm_kzalloc(dev,
+-					       BITS_TO_LONGS(desc->max_msgs)
+-					       * sizeof(unsigned long),
++					       array_size(BITS_TO_LONGS(desc->max_msgs), sizeof(unsigned long)),
+ 					       GFP_KERNEL);
+ 	if (!minfo->xfer_alloc_table)
+ 		return -ENOMEM;
+diff --git a/drivers/gpio/gpio-adnp.c b/drivers/gpio/gpio-adnp.c
+index 44c09904daa6..8bb74da1105c 100644
+--- a/drivers/gpio/gpio-adnp.c
++++ b/drivers/gpio/gpio-adnp.c
+@@ -427,7 +427,7 @@ static int adnp_irq_setup(struct adnp *adnp)
+ 	 * is chosen to match the register layout of the hardware in that
+ 	 * each segment contains the corresponding bits for all interrupts.
+ 	 */
+-	adnp->irq_enable = devm_kzalloc(chip->parent, num_regs * 6,
++	adnp->irq_enable = devm_kzalloc(chip->parent, array_size(num_regs, 6),
+ 					GFP_KERNEL);
+ 	if (!adnp->irq_enable)
+ 		return -ENOMEM;
+diff --git a/drivers/gpio/gpio-bcm-kona.c b/drivers/gpio/gpio-bcm-kona.c
+index eb8369b21e90..240e5123bbf8 100644
+--- a/drivers/gpio/gpio-bcm-kona.c
++++ b/drivers/gpio/gpio-bcm-kona.c
+@@ -602,8 +602,8 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
+ 		return -ENXIO;
+ 	}
+ 	kona_gpio->banks = devm_kzalloc(dev,
+-					kona_gpio->num_bank *
+-					sizeof(*kona_gpio->banks), GFP_KERNEL);
++					array_size(kona_gpio->num_bank, sizeof(*kona_gpio->banks)),
++					GFP_KERNEL);
+ 	if (!kona_gpio->banks)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/gpio/gpio-htc-egpio.c b/drivers/gpio/gpio-htc-egpio.c
+index 516383934945..13a53a9797b8 100644
+--- a/drivers/gpio/gpio-htc-egpio.c
++++ b/drivers/gpio/gpio-htc-egpio.c
+@@ -322,7 +322,7 @@ static int __init egpio_probe(struct platform_device *pdev)
+ 
+ 	ei->nchips = pdata->num_chips;
+ 	ei->chip = devm_kzalloc(&pdev->dev,
+-				sizeof(struct egpio_chip) * ei->nchips,
++				array_size(sizeof(struct egpio_chip), ei->nchips),
+ 				GFP_KERNEL);
+ 	if (!ei->chip) {
+ 		ret = -ENOMEM;
+diff --git a/drivers/gpu/drm/exynos/exynos_drm_dsi.c b/drivers/gpu/drm/exynos/exynos_drm_dsi.c
+index 7904ffa9abfb..09b1dc8877a2 100644
+--- a/drivers/gpu/drm/exynos/exynos_drm_dsi.c
++++ b/drivers/gpu/drm/exynos/exynos_drm_dsi.c
+@@ -1744,8 +1744,8 @@ static int exynos_dsi_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	dsi->clks = devm_kzalloc(dev,
+-			sizeof(*dsi->clks) * dsi->driver_data->num_clks,
+-			GFP_KERNEL);
++				 array_size(sizeof(*dsi->clks), dsi->driver_data->num_clks),
++				 GFP_KERNEL);
+ 	if (!dsi->clks)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/gpu/drm/msm/hdmi/hdmi.c b/drivers/gpu/drm/msm/hdmi/hdmi.c
+index e63dc0fb55f8..fe04e2ad8ed7 100644
+--- a/drivers/gpu/drm/msm/hdmi/hdmi.c
++++ b/drivers/gpu/drm/msm/hdmi/hdmi.c
+@@ -157,8 +157,9 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
+ 		hdmi->qfprom_mmio = NULL;
+ 	}
+ 
+-	hdmi->hpd_regs = devm_kzalloc(&pdev->dev, sizeof(hdmi->hpd_regs[0]) *
+-			config->hpd_reg_cnt, GFP_KERNEL);
++	hdmi->hpd_regs = devm_kzalloc(&pdev->dev,
++				      array_size(sizeof(hdmi->hpd_regs[0]), config->hpd_reg_cnt),
++				      GFP_KERNEL);
+ 	if (!hdmi->hpd_regs) {
+ 		ret = -ENOMEM;
+ 		goto fail;
+@@ -178,8 +179,9 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
+ 		hdmi->hpd_regs[i] = reg;
+ 	}
+ 
+-	hdmi->pwr_regs = devm_kzalloc(&pdev->dev, sizeof(hdmi->pwr_regs[0]) *
+-			config->pwr_reg_cnt, GFP_KERNEL);
++	hdmi->pwr_regs = devm_kzalloc(&pdev->dev,
++				      array_size(sizeof(hdmi->pwr_regs[0]), config->pwr_reg_cnt),
++				      GFP_KERNEL);
+ 	if (!hdmi->pwr_regs) {
+ 		ret = -ENOMEM;
+ 		goto fail;
+@@ -199,8 +201,9 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
+ 		hdmi->pwr_regs[i] = reg;
+ 	}
+ 
+-	hdmi->hpd_clks = devm_kzalloc(&pdev->dev, sizeof(hdmi->hpd_clks[0]) *
+-			config->hpd_clk_cnt, GFP_KERNEL);
++	hdmi->hpd_clks = devm_kzalloc(&pdev->dev,
++				      array_size(sizeof(hdmi->hpd_clks[0]), config->hpd_clk_cnt),
++				      GFP_KERNEL);
+ 	if (!hdmi->hpd_clks) {
+ 		ret = -ENOMEM;
+ 		goto fail;
+@@ -219,8 +222,9 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
+ 		hdmi->hpd_clks[i] = clk;
+ 	}
+ 
+-	hdmi->pwr_clks = devm_kzalloc(&pdev->dev, sizeof(hdmi->pwr_clks[0]) *
+-			config->pwr_clk_cnt, GFP_KERNEL);
++	hdmi->pwr_clks = devm_kzalloc(&pdev->dev,
++				      array_size(sizeof(hdmi->pwr_clks[0]), config->pwr_clk_cnt),
++				      GFP_KERNEL);
+ 	if (!hdmi->pwr_clks) {
+ 		ret = -ENOMEM;
+ 		goto fail;
+diff --git a/drivers/gpu/drm/msm/hdmi/hdmi_phy.c b/drivers/gpu/drm/msm/hdmi/hdmi_phy.c
+index 5e631392dc85..1cb3f9578783 100644
+--- a/drivers/gpu/drm/msm/hdmi/hdmi_phy.c
++++ b/drivers/gpu/drm/msm/hdmi/hdmi_phy.c
+@@ -21,12 +21,14 @@ static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
+ 	struct device *dev = &phy->pdev->dev;
+ 	int i, ret;
+ 
+-	phy->regs = devm_kzalloc(dev, sizeof(phy->regs[0]) * cfg->num_regs,
++	phy->regs = devm_kzalloc(dev,
++				 array_size(sizeof(phy->regs[0]), cfg->num_regs),
+ 				 GFP_KERNEL);
+ 	if (!phy->regs)
+ 		return -ENOMEM;
+ 
+-	phy->clks = devm_kzalloc(dev, sizeof(phy->clks[0]) * cfg->num_clks,
++	phy->clks = devm_kzalloc(dev,
++				 array_size(sizeof(phy->clks[0]), cfg->num_clks),
+ 				 GFP_KERNEL);
+ 	if (!phy->clks)
+ 		return -ENOMEM;
+diff --git a/drivers/hid/intel-ish-hid/ishtp-hid-client.c b/drivers/hid/intel-ish-hid/ishtp-hid-client.c
+index 157b44aacdff..21d1cdc5e286 100644
+--- a/drivers/hid/intel-ish-hid/ishtp-hid-client.c
++++ b/drivers/hid/intel-ish-hid/ishtp-hid-client.c
+@@ -121,11 +121,9 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
+ 			}
+ 			client_data->hid_dev_count = (unsigned int)*payload;
+ 			if (!client_data->hid_devices)
+-				client_data->hid_devices = devm_kzalloc(
+-						&client_data->cl_device->dev,
+-						client_data->hid_dev_count *
+-						sizeof(struct device_info),
+-						GFP_KERNEL);
++				client_data->hid_devices = devm_kzalloc(&client_data->cl_device->dev,
++									array_size(client_data->hid_dev_count, sizeof(struct device_info)),
++									GFP_KERNEL);
+ 			if (!client_data->hid_devices) {
+ 				dev_err(&client_data->cl_device->dev,
+ 				"Mem alloc failed for hid device info\n");
+diff --git a/drivers/hwmon/gpio-fan.c b/drivers/hwmon/gpio-fan.c
+index 5c9a52599cf6..cf83fe547494 100644
+--- a/drivers/hwmon/gpio-fan.c
++++ b/drivers/hwmon/gpio-fan.c
+@@ -442,7 +442,7 @@ static int gpio_fan_get_of_data(struct gpio_fan_data *fan_data)
+ 		return -ENODEV;
+ 	}
+ 	gpios = devm_kzalloc(dev,
+-			     fan_data->num_gpios * sizeof(struct gpio_desc *),
++			     array_size(fan_data->num_gpios, sizeof(struct gpio_desc *)),
+ 			     GFP_KERNEL);
+ 	if (!gpios)
+ 		return -ENOMEM;
+@@ -472,8 +472,8 @@ static int gpio_fan_get_of_data(struct gpio_fan_data *fan_data)
+ 	 * this needs splitting into pairs to create gpio_fan_speed structs
+ 	 */
+ 	speed = devm_kzalloc(dev,
+-			fan_data->num_speed * sizeof(struct gpio_fan_speed),
+-			GFP_KERNEL);
++			     array_size(fan_data->num_speed, sizeof(struct gpio_fan_speed)),
++			     GFP_KERNEL);
+ 	if (!speed)
+ 		return -ENOMEM;
+ 	p = NULL;
+diff --git a/drivers/hwmon/ibmpowernv.c b/drivers/hwmon/ibmpowernv.c
+index 5ccdd0b52650..83e14d21fe1e 100644
+--- a/drivers/hwmon/ibmpowernv.c
++++ b/drivers/hwmon/ibmpowernv.c
+@@ -324,9 +324,8 @@ static int populate_attr_groups(struct platform_device *pdev)
+ 
+ 	for (type = 0; type < MAX_SENSOR_TYPE; type++) {
+ 		sensor_groups[type].group.attrs = devm_kzalloc(&pdev->dev,
+-					sizeof(struct attribute *) *
+-					(sensor_groups[type].attr_count + 1),
+-					GFP_KERNEL);
++							       array_size(sizeof(struct attribute *), (sensor_groups[type].attr_count + 1)),
++							       GFP_KERNEL);
+ 		if (!sensor_groups[type].group.attrs)
+ 			return -ENOMEM;
+ 
+@@ -406,7 +405,8 @@ static int create_device_attrs(struct platform_device *pdev)
+ 	int err = 0;
+ 
+ 	opal = of_find_node_by_path("/ibm,opal/sensors");
+-	sdata = devm_kzalloc(&pdev->dev, pdata->sensors_count * sizeof(*sdata),
++	sdata = devm_kzalloc(&pdev->dev,
++			     array_size(pdata->sensors_count, sizeof(*sdata)),
+ 			     GFP_KERNEL);
+ 	if (!sdata) {
+ 		err = -ENOMEM;
+diff --git a/drivers/hwmon/iio_hwmon.c b/drivers/hwmon/iio_hwmon.c
+index 5e5b32a1ec4b..3b579d7ea6fb 100644
+--- a/drivers/hwmon/iio_hwmon.c
++++ b/drivers/hwmon/iio_hwmon.c
+@@ -93,7 +93,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
+ 		st->num_channels++;
+ 
+ 	st->attrs = devm_kzalloc(dev,
+-				 sizeof(*st->attrs) * (st->num_channels + 1),
++				 array_size(sizeof(*st->attrs), (st->num_channels + 1)),
+ 				 GFP_KERNEL);
+ 	if (st->attrs == NULL) {
+ 		ret = -ENOMEM;
 diff --git a/drivers/hwmon/nct6683.c b/drivers/hwmon/nct6683.c
-index 8b0bc4fc06e8..9ad14471f618 100644
+index 9ad14471f618..40ae9b3ab6b3 100644
 --- a/drivers/hwmon/nct6683.c
 +++ b/drivers/hwmon/nct6683.c
-@@ -431,7 +431,7 @@ nct6683_create_attr_group(struct device *dev,
- 	if (attrs == NULL)
+@@ -426,7 +426,8 @@ nct6683_create_attr_group(struct device *dev,
+ 	if (group == NULL)
  		return ERR_PTR(-ENOMEM);
  
--	su = devm_kzalloc(dev, sizeof(*su) * repeat * count,
-+	su = devm_kzalloc(dev, array3_size(repeat, count, sizeof(*su)),
- 			  GFP_KERNEL);
- 	if (su == NULL)
+-	attrs = devm_kzalloc(dev, sizeof(*attrs) * (repeat * count + 1),
++	attrs = devm_kzalloc(dev,
++			     array_size(sizeof(*attrs), (repeat * count + 1)),
+ 			     GFP_KERNEL);
+ 	if (attrs == NULL)
  		return ERR_PTR(-ENOMEM);
 diff --git a/drivers/hwmon/nct6775.c b/drivers/hwmon/nct6775.c
-index aebce560bfaf..d421b121a0eb 100644
+index d421b121a0eb..d5f9c76e4990 100644
 --- a/drivers/hwmon/nct6775.c
 +++ b/drivers/hwmon/nct6775.c
-@@ -1195,8 +1195,8 @@ nct6775_create_attr_group(struct device *dev,
+@@ -1190,7 +1190,8 @@ nct6775_create_attr_group(struct device *dev,
+ 	if (group == NULL)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	attrs = devm_kzalloc(dev, sizeof(*attrs) * (repeat * count + 1),
++	attrs = devm_kzalloc(dev,
++			     array_size(sizeof(*attrs), (repeat * count + 1)),
+ 			     GFP_KERNEL);
  	if (attrs == NULL)
  		return ERR_PTR(-ENOMEM);
+diff --git a/drivers/hwmon/pmbus/pmbus_core.c b/drivers/hwmon/pmbus/pmbus_core.c
+index f7c47d7994e7..6fac8138162b 100644
+--- a/drivers/hwmon/pmbus/pmbus_core.c
++++ b/drivers/hwmon/pmbus/pmbus_core.c
+@@ -2177,7 +2177,7 @@ static int pmbus_init_debugfs(struct i2c_client *client,
  
--	su = devm_kzalloc(dev, sizeof(*su) * repeat * count,
--			       GFP_KERNEL);
-+	su = devm_kzalloc(dev, array3_size(repeat, count, sizeof(*su)),
-+			  GFP_KERNEL);
- 	if (su == NULL)
- 		return ERR_PTR(-ENOMEM);
+ 	/* Allocate the max possible entries we need. */
+ 	entries = devm_kzalloc(data->dev,
+-			       sizeof(*entries) * (data->info->pages * 10),
++			       array_size(sizeof(*entries), (data->info->pages * 10)),
+ 			       GFP_KERNEL);
+ 	if (!entries)
+ 		return -ENOMEM;
+diff --git a/drivers/hwtracing/coresight/coresight-etb10.c b/drivers/hwtracing/coresight/coresight-etb10.c
+index 580cd381adf3..064771c5fe83 100644
+--- a/drivers/hwtracing/coresight/coresight-etb10.c
++++ b/drivers/hwtracing/coresight/coresight-etb10.c
+@@ -690,8 +690,8 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
+ 	if (drvdata->buffer_depth & 0x80000000)
+ 		return -EINVAL;
  
-diff --git a/drivers/hwmon/pmbus/ucd9000.c b/drivers/hwmon/pmbus/ucd9000.c
-index 70cecb06f93c..2a661fed38d0 100644
---- a/drivers/hwmon/pmbus/ucd9000.c
-+++ b/drivers/hwmon/pmbus/ucd9000.c
-@@ -455,7 +455,7 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
- 	if (mid->driver_data == ucd9090 || mid->driver_data == ucd90160 ||
- 	    mid->driver_data == ucd90910) {
- 		entries = devm_kzalloc(&client->dev,
--				       sizeof(*entries) * UCD9000_GPI_COUNT,
-+				       array_size(UCD9000_GPI_COUNT, sizeof(*entries)),
+-	drvdata->buf = devm_kzalloc(dev,
+-				    drvdata->buffer_depth * 4, GFP_KERNEL);
++	drvdata->buf = devm_kzalloc(dev, array_size(drvdata->buffer_depth, 4),
++				    GFP_KERNEL);
+ 	if (!drvdata->buf)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/hwtracing/coresight/of_coresight.c b/drivers/hwtracing/coresight/of_coresight.c
+index 7c375443ede6..2cae0eab0341 100644
+--- a/drivers/hwtracing/coresight/of_coresight.c
++++ b/drivers/hwtracing/coresight/of_coresight.c
+@@ -78,22 +78,22 @@ static int of_coresight_alloc_memory(struct device *dev,
+ 			struct coresight_platform_data *pdata)
+ {
+ 	/* List of output port on this component */
+-	pdata->outports = devm_kzalloc(dev, pdata->nr_outport *
+-				       sizeof(*pdata->outports),
++	pdata->outports = devm_kzalloc(dev,
++				       array_size(pdata->nr_outport, sizeof(*pdata->outports)),
  				       GFP_KERNEL);
- 		if (!entries)
- 			return -ENOMEM;
-diff --git a/drivers/hwmon/pwm-fan.c b/drivers/hwmon/pwm-fan.c
-index 70cc0d134f3c..5bd0ec7fcee9 100644
---- a/drivers/hwmon/pwm-fan.c
-+++ b/drivers/hwmon/pwm-fan.c
-@@ -180,7 +180,8 @@ static int pwm_fan_of_get_cooling_data(struct device *dev,
- 	}
- 
- 	num = ret;
--	ctx->pwm_fan_cooling_levels = devm_kzalloc(dev, num * sizeof(u32),
-+	ctx->pwm_fan_cooling_levels = devm_kzalloc(dev,
-+						   array_size(num, sizeof(u32)),
- 						   GFP_KERNEL);
- 	if (!ctx->pwm_fan_cooling_levels)
- 		return -ENOMEM;
-diff --git a/drivers/i2c/busses/i2c-qup.c b/drivers/i2c/busses/i2c-qup.c
-index 904dfec7ab96..e6434197bbff 100644
---- a/drivers/i2c/busses/i2c-qup.c
-+++ b/drivers/i2c/busses/i2c-qup.c
-@@ -1692,7 +1692,7 @@ static int qup_i2c_probe(struct platform_device *pdev)
- 		qup->max_xfer_sg_len = (MX_BLOCKS << 1);
- 		blocks = (MX_DMA_BLOCKS << 1) + 1;
- 		qup->btx.sg = devm_kzalloc(&pdev->dev,
--					   sizeof(*qup->btx.sg) * blocks,
-+					   array_size(blocks, sizeof(*qup->btx.sg)),
- 					   GFP_KERNEL);
- 		if (!qup->btx.sg) {
- 			ret = -ENOMEM;
-@@ -1701,7 +1701,7 @@ static int qup_i2c_probe(struct platform_device *pdev)
- 		sg_init_table(qup->btx.sg, blocks);
- 
- 		qup->brx.sg = devm_kzalloc(&pdev->dev,
--					   sizeof(*qup->brx.sg) * blocks,
-+					   array_size(blocks, sizeof(*qup->brx.sg)),
- 					   GFP_KERNEL);
- 		if (!qup->brx.sg) {
- 			ret = -ENOMEM;
-diff --git a/drivers/iio/multiplexer/iio-mux.c b/drivers/iio/multiplexer/iio-mux.c
-index 60621ccd67e4..b476ee17b1b1 100644
---- a/drivers/iio/multiplexer/iio-mux.c
-+++ b/drivers/iio/multiplexer/iio-mux.c
-@@ -282,8 +282,8 @@ static int mux_configure_channel(struct device *dev, struct mux *mux,
- 			return -ENOMEM;
- 	}
- 	child->ext_info_cache = devm_kzalloc(dev,
--					     sizeof(*child->ext_info_cache) *
--					     num_ext_info, GFP_KERNEL);
-+					     array_size(num_ext_info, sizeof(*child->ext_info_cache)),
-+					     GFP_KERNEL);
- 	if (!child->ext_info_cache)
+ 	if (!pdata->outports)
  		return -ENOMEM;
  
-diff --git a/drivers/input/keyboard/samsung-keypad.c b/drivers/input/keyboard/samsung-keypad.c
-index 316414465c77..d8a7af370e6d 100644
---- a/drivers/input/keyboard/samsung-keypad.c
-+++ b/drivers/input/keyboard/samsung-keypad.c
-@@ -281,7 +281,8 @@ samsung_keypad_parse_dt(struct device *dev)
+ 	/* Children connected to this component via @outports */
+-	pdata->child_names = devm_kzalloc(dev, pdata->nr_outport *
+-					  sizeof(*pdata->child_names),
++	pdata->child_names = devm_kzalloc(dev,
++					  array_size(pdata->nr_outport, sizeof(*pdata->child_names)),
+ 					  GFP_KERNEL);
+ 	if (!pdata->child_names)
+ 		return -ENOMEM;
  
- 	key_count = of_get_child_count(np);
- 	keymap_data->keymap_size = key_count;
--	keymap = devm_kzalloc(dev, sizeof(uint32_t) * key_count, GFP_KERNEL);
-+	keymap = devm_kzalloc(dev, array_size(key_count, sizeof(uint32_t)),
-+			      GFP_KERNEL);
- 	if (!keymap) {
- 		dev_err(dev, "could not allocate memory for keymap\n");
- 		return ERR_PTR(-ENOMEM);
-diff --git a/drivers/input/matrix-keymap.c b/drivers/input/matrix-keymap.c
-index 8ccefc15c7a4..a4e1cad251b5 100644
---- a/drivers/input/matrix-keymap.c
-+++ b/drivers/input/matrix-keymap.c
-@@ -171,7 +171,7 @@ int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
+ 	/* Port number on the child this component is connected to */
+-	pdata->child_ports = devm_kzalloc(dev, pdata->nr_outport *
+-					  sizeof(*pdata->child_ports),
++	pdata->child_ports = devm_kzalloc(dev,
++					  array_size(pdata->nr_outport, sizeof(*pdata->child_ports)),
+ 					  GFP_KERNEL);
+ 	if (!pdata->child_ports)
+ 		return -ENOMEM;
+diff --git a/drivers/i2c/muxes/i2c-mux-gpio.c b/drivers/i2c/muxes/i2c-mux-gpio.c
+index 1a9973ede443..d0ea53112ec3 100644
+--- a/drivers/i2c/muxes/i2c-mux-gpio.c
++++ b/drivers/i2c/muxes/i2c-mux-gpio.c
+@@ -89,7 +89,7 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
+ 	mux->data.n_values = of_get_child_count(np);
  
- 	if (!keymap) {
- 		keymap = devm_kzalloc(input_dev->dev.parent,
--				      max_keys * sizeof(*keymap),
-+				      array_size(max_keys, sizeof(*keymap)),
- 				      GFP_KERNEL);
- 		if (!keymap) {
- 			dev_err(input_dev->dev.parent,
-diff --git a/drivers/input/rmi4/rmi_f54.c b/drivers/input/rmi4/rmi_f54.c
-index 5343f2c08f15..e8a59d164019 100644
---- a/drivers/input/rmi4/rmi_f54.c
-+++ b/drivers/input/rmi4/rmi_f54.c
-@@ -685,7 +685,7 @@ static int rmi_f54_probe(struct rmi_function *fn)
- 	rx = f54->num_rx_electrodes;
- 	tx = f54->num_tx_electrodes;
- 	f54->report_data = devm_kzalloc(&fn->dev,
--					sizeof(u16) * tx * rx,
-+					array3_size(tx, rx, sizeof(u16)),
+ 	values = devm_kzalloc(&pdev->dev,
+-			      sizeof(*mux->data.values) * mux->data.n_values,
++			      array_size(sizeof(*mux->data.values), mux->data.n_values),
+ 			      GFP_KERNEL);
+ 	if (!values) {
+ 		dev_err(&pdev->dev, "Cannot allocate values array");
+@@ -112,7 +112,8 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
+ 	}
+ 
+ 	gpios = devm_kzalloc(&pdev->dev,
+-			     sizeof(*mux->data.gpios) * mux->data.n_gpios, GFP_KERNEL);
++			     array_size(sizeof(*mux->data.gpios), mux->data.n_gpios),
++			     GFP_KERNEL);
+ 	if (!gpios) {
+ 		dev_err(&pdev->dev, "Cannot allocate gpios array");
+ 		return -ENOMEM;
+diff --git a/drivers/i2c/muxes/i2c-mux-reg.c b/drivers/i2c/muxes/i2c-mux-reg.c
+index c948e5a4cb04..2a0067885859 100644
+--- a/drivers/i2c/muxes/i2c-mux-reg.c
++++ b/drivers/i2c/muxes/i2c-mux-reg.c
+@@ -125,7 +125,7 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
+ 	mux->data.write_only = of_property_read_bool(np, "write-only");
+ 
+ 	values = devm_kzalloc(&pdev->dev,
+-			      sizeof(*mux->data.values) * mux->data.n_values,
++			      array_size(sizeof(*mux->data.values), mux->data.n_values),
+ 			      GFP_KERNEL);
+ 	if (!values) {
+ 		dev_err(&pdev->dev, "Cannot allocate values array");
+diff --git a/drivers/iio/adc/at91_adc.c b/drivers/iio/adc/at91_adc.c
+index 71a5ee652b79..a700ffd1cf6d 100644
+--- a/drivers/iio/adc/at91_adc.c
++++ b/drivers/iio/adc/at91_adc.c
+@@ -625,7 +625,7 @@ static int at91_adc_trigger_init(struct iio_dev *idev)
+ 	int i, ret;
+ 
+ 	st->trig = devm_kzalloc(&idev->dev,
+-				st->trigger_number * sizeof(*st->trig),
++				array_size(st->trigger_number, sizeof(*st->trig)),
+ 				GFP_KERNEL);
+ 
+ 	if (st->trig == NULL) {
+@@ -908,8 +908,8 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
+ 	st->registers = &st->caps->registers;
+ 	st->num_channels = st->caps->num_channels;
+ 	st->trigger_number = of_get_child_count(node);
+-	st->trigger_list = devm_kzalloc(&idev->dev, st->trigger_number *
+-					sizeof(struct at91_adc_trigger),
++	st->trigger_list = devm_kzalloc(&idev->dev,
++					array_size(st->trigger_number, sizeof(struct at91_adc_trigger)),
  					GFP_KERNEL);
- 	if (f54->report_data == NULL)
- 		return -ENOMEM;
-diff --git a/drivers/iommu/arm-smmu.c b/drivers/iommu/arm-smmu.c
-index 69e7c60792a8..0d0e7ca608e1 100644
---- a/drivers/iommu/arm-smmu.c
-+++ b/drivers/iommu/arm-smmu.c
-@@ -2082,7 +2082,8 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
- 		return -ENODEV;
- 	}
+ 	if (!st->trigger_list) {
+ 		dev_err(&idev->dev, "Could not allocate trigger list memory.\n");
+diff --git a/drivers/iio/adc/max1027.c b/drivers/iio/adc/max1027.c
+index 375da6491499..b24739fa8de0 100644
+--- a/drivers/iio/adc/max1027.c
++++ b/drivers/iio/adc/max1027.c
+@@ -423,7 +423,7 @@ static int max1027_probe(struct spi_device *spi)
+ 	indio_dev->available_scan_masks = st->info->available_scan_masks;
  
--	smmu->irqs = devm_kzalloc(dev, sizeof(*smmu->irqs) * num_irqs,
-+	smmu->irqs = devm_kzalloc(dev,
-+				  array_size(num_irqs, sizeof(*smmu->irqs)),
+ 	st->buffer = devm_kmalloc(&indio_dev->dev,
+-				  indio_dev->num_channels * 2,
++				  array_size(indio_dev->num_channels, 2),
  				  GFP_KERNEL);
- 	if (!smmu->irqs) {
- 		dev_err(dev, "failed to allocate %d irqs\n", num_irqs);
-diff --git a/drivers/iommu/rockchip-iommu.c b/drivers/iommu/rockchip-iommu.c
-index 5fc8656c60f9..58380b4a17b3 100644
---- a/drivers/iommu/rockchip-iommu.c
-+++ b/drivers/iommu/rockchip-iommu.c
-@@ -1135,7 +1135,8 @@ static int rk_iommu_probe(struct platform_device *pdev)
- 	iommu->dev = dev;
- 	iommu->num_mmu = 0;
+ 	if (st->buffer == NULL) {
+ 		dev_err(&indio_dev->dev, "Can't allocate buffer\n");
+diff --git a/drivers/iio/adc/max1363.c b/drivers/iio/adc/max1363.c
+index 7f1848dac9bf..9b80e752cb74 100644
+--- a/drivers/iio/adc/max1363.c
++++ b/drivers/iio/adc/max1363.c
+@@ -1453,8 +1453,8 @@ static int max1363_alloc_scan_masks(struct iio_dev *indio_dev)
+ 	int i;
  
--	iommu->bases = devm_kzalloc(dev, sizeof(*iommu->bases) * num_res,
-+	iommu->bases = devm_kzalloc(dev,
-+				    array_size(num_res, sizeof(*iommu->bases)),
- 				    GFP_KERNEL);
- 	if (!iommu->bases)
+ 	masks = devm_kzalloc(&indio_dev->dev,
+-			BITS_TO_LONGS(MAX1363_MAX_CHANNELS) * sizeof(long) *
+-			(st->chip_info->num_modes + 1), GFP_KERNEL);
++			     array3_size(BITS_TO_LONGS(MAX1363_MAX_CHANNELS), sizeof(long), (st->chip_info->num_modes + 1)),
++			     GFP_KERNEL);
+ 	if (!masks)
  		return -ENOMEM;
-diff --git a/drivers/leds/leds-lp55xx-common.c b/drivers/leds/leds-lp55xx-common.c
-index 5377f22ff994..152ce2804a60 100644
---- a/drivers/leds/leds-lp55xx-common.c
-+++ b/drivers/leds/leds-lp55xx-common.c
-@@ -560,7 +560,8 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
- 		return ERR_PTR(-EINVAL);
+ 
+diff --git a/drivers/iio/adc/twl6030-gpadc.c b/drivers/iio/adc/twl6030-gpadc.c
+index dc83f8f6c3d3..cbd624d14cf8 100644
+--- a/drivers/iio/adc/twl6030-gpadc.c
++++ b/drivers/iio/adc/twl6030-gpadc.c
+@@ -899,8 +899,8 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
+ 	gpadc = iio_priv(indio_dev);
+ 
+ 	gpadc->twl6030_cal_tbl = devm_kzalloc(dev,
+-					sizeof(*gpadc->twl6030_cal_tbl) *
+-					pdata->nchannels, GFP_KERNEL);
++					      array_size(sizeof(*gpadc->twl6030_cal_tbl), pdata->nchannels),
++					      GFP_KERNEL);
+ 	if (!gpadc->twl6030_cal_tbl)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/iio/dac/ad5592r-base.c b/drivers/iio/dac/ad5592r-base.c
+index 9234c6a09a93..2869f18bfb84 100644
+--- a/drivers/iio/dac/ad5592r-base.c
++++ b/drivers/iio/dac/ad5592r-base.c
+@@ -537,7 +537,8 @@ static int ad5592r_alloc_channels(struct ad5592r_state *st)
  	}
  
--	cfg = devm_kzalloc(dev, sizeof(*cfg) * num_channels, GFP_KERNEL);
-+	cfg = devm_kzalloc(dev, array_size(num_channels, sizeof(*cfg)),
+ 	channels = devm_kzalloc(st->dev,
+-			(1 + 2 * num_channels) * sizeof(*channels), GFP_KERNEL);
++				array_size((1 + 2 * num_channels), sizeof(*channels)),
++				GFP_KERNEL);
+ 	if (!channels)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/input/keyboard/clps711x-keypad.c b/drivers/input/keyboard/clps711x-keypad.c
+index 997e3e97f573..ccec4ba51b26 100644
+--- a/drivers/input/keyboard/clps711x-keypad.c
++++ b/drivers/input/keyboard/clps711x-keypad.c
+@@ -110,8 +110,8 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
+ 		return -EINVAL;
+ 
+ 	priv->gpio_data = devm_kzalloc(dev,
+-				sizeof(*priv->gpio_data) * priv->row_count,
+-				GFP_KERNEL);
++				       array_size(sizeof(*priv->gpio_data), priv->row_count),
++				       GFP_KERNEL);
+ 	if (!priv->gpio_data)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/input/keyboard/matrix_keypad.c b/drivers/input/keyboard/matrix_keypad.c
+index 41614c185918..0fb6f630692e 100644
+--- a/drivers/input/keyboard/matrix_keypad.c
++++ b/drivers/input/keyboard/matrix_keypad.c
+@@ -444,8 +444,7 @@ matrix_keypad_parse_dt(struct device *dev)
+ 						&pdata->col_scan_delay_us);
+ 
+ 	gpios = devm_kzalloc(dev,
+-			     sizeof(unsigned int) *
+-				(pdata->num_row_gpios + pdata->num_col_gpios),
++			     array_size(sizeof(unsigned int), (pdata->num_row_gpios + pdata->num_col_gpios)),
+ 			     GFP_KERNEL);
+ 	if (!gpios) {
+ 		dev_err(dev, "could not allocate memory for gpios\n");
+diff --git a/drivers/input/misc/rotary_encoder.c b/drivers/input/misc/rotary_encoder.c
+index 1588aecafff7..9b549cb8c193 100644
+--- a/drivers/input/misc/rotary_encoder.c
++++ b/drivers/input/misc/rotary_encoder.c
+@@ -284,7 +284,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
+ 
+ 	encoder->irq =
+ 		devm_kzalloc(dev,
+-			     sizeof(*encoder->irq) * encoder->gpios->ndescs,
++			     array_size(sizeof(*encoder->irq), encoder->gpios->ndescs),
+ 			     GFP_KERNEL);
+ 	if (!encoder->irq)
+ 		return -ENOMEM;
+diff --git a/drivers/input/rmi4/rmi_driver.c b/drivers/input/rmi4/rmi_driver.c
+index f5954981e9ee..890ff95edf06 100644
+--- a/drivers/input/rmi4/rmi_driver.c
++++ b/drivers/input/rmi4/rmi_driver.c
+@@ -636,9 +636,9 @@ int rmi_read_register_desc(struct rmi_device *d, u16 addr,
+ 	rdesc->num_registers = bitmap_weight(rdesc->presense_map,
+ 						RMI_REG_DESC_PRESENSE_BITS);
+ 
+-	rdesc->registers = devm_kzalloc(&d->dev, rdesc->num_registers *
+-				sizeof(struct rmi_register_desc_item),
+-				GFP_KERNEL);
++	rdesc->registers = devm_kzalloc(&d->dev,
++					array_size(rdesc->num_registers, sizeof(struct rmi_register_desc_item)),
++					GFP_KERNEL);
+ 	if (!rdesc->registers)
+ 		return -ENOMEM;
+ 
+@@ -1061,7 +1061,7 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
+ 	data->num_of_irq_regs = (data->irq_count + 7) / 8;
+ 
+ 	size = BITS_TO_LONGS(data->irq_count) * sizeof(unsigned long);
+-	data->irq_memory = devm_kzalloc(dev, size * 4, GFP_KERNEL);
++	data->irq_memory = devm_kzalloc(dev, array_size(size, 4), GFP_KERNEL);
+ 	if (!data->irq_memory) {
+ 		dev_err(dev, "Failed to allocate memory for irq masks.\n");
+ 		return -ENOMEM;
+diff --git a/drivers/input/rmi4/rmi_f11.c b/drivers/input/rmi4/rmi_f11.c
+index bc5e37f30ac1..afa27747d28a 100644
+--- a/drivers/input/rmi4/rmi_f11.c
++++ b/drivers/input/rmi4/rmi_f11.c
+@@ -1191,13 +1191,14 @@ static int rmi_f11_initialize(struct rmi_function *fn)
+ 
+ 	/* allocate the in-kernel tracking buffers */
+ 	sensor->tracking_pos = devm_kzalloc(&fn->dev,
+-			sizeof(struct input_mt_pos) * sensor->nbr_fingers,
+-			GFP_KERNEL);
++					    array_size(sizeof(struct input_mt_pos), sensor->nbr_fingers),
++					    GFP_KERNEL);
+ 	sensor->tracking_slots = devm_kzalloc(&fn->dev,
+-			sizeof(int) * sensor->nbr_fingers, GFP_KERNEL);
++					      array_size(sizeof(int), sensor->nbr_fingers),
++					      GFP_KERNEL);
+ 	sensor->objs = devm_kzalloc(&fn->dev,
+-			sizeof(struct rmi_2d_sensor_abs_object)
+-			* sensor->nbr_fingers, GFP_KERNEL);
++				    array_size(sizeof(struct rmi_2d_sensor_abs_object), sensor->nbr_fingers),
++				    GFP_KERNEL);
+ 	if (!sensor->tracking_pos || !sensor->tracking_slots || !sensor->objs)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/input/rmi4/rmi_f12.c b/drivers/input/rmi4/rmi_f12.c
+index 8b0db086d68a..3982444d514e 100644
+--- a/drivers/input/rmi4/rmi_f12.c
++++ b/drivers/input/rmi4/rmi_f12.c
+@@ -503,13 +503,14 @@ static int rmi_f12_probe(struct rmi_function *fn)
+ 
+ 	/* allocate the in-kernel tracking buffers */
+ 	sensor->tracking_pos = devm_kzalloc(&fn->dev,
+-			sizeof(struct input_mt_pos) * sensor->nbr_fingers,
+-			GFP_KERNEL);
++					    array_size(sizeof(struct input_mt_pos), sensor->nbr_fingers),
++					    GFP_KERNEL);
+ 	sensor->tracking_slots = devm_kzalloc(&fn->dev,
+-			sizeof(int) * sensor->nbr_fingers, GFP_KERNEL);
++					      array_size(sizeof(int), sensor->nbr_fingers),
++					      GFP_KERNEL);
+ 	sensor->objs = devm_kzalloc(&fn->dev,
+-			sizeof(struct rmi_2d_sensor_abs_object)
+-			* sensor->nbr_fingers, GFP_KERNEL);
++				    array_size(sizeof(struct rmi_2d_sensor_abs_object), sensor->nbr_fingers),
++				    GFP_KERNEL);
+ 	if (!sensor->tracking_pos || !sensor->tracking_slots || !sensor->objs)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/input/rmi4/rmi_spi.c b/drivers/input/rmi4/rmi_spi.c
+index 76edbf2c1bce..2c0e77821819 100644
+--- a/drivers/input/rmi4/rmi_spi.c
++++ b/drivers/input/rmi4/rmi_spi.c
+@@ -69,8 +69,8 @@ static int rmi_spi_manage_pools(struct rmi_spi_xport *rmi_spi, int len)
+ 		buf_size = RMI_SPI_XFER_SIZE_LIMIT;
+ 
+ 	tmp = rmi_spi->rx_buf;
+-	buf = devm_kzalloc(&spi->dev, buf_size * 2,
+-				GFP_KERNEL | GFP_DMA);
++	buf = devm_kzalloc(&spi->dev, array_size(buf_size, 2),
++			   GFP_KERNEL | GFP_DMA);
+ 	if (!buf)
+ 		return -ENOMEM;
+ 
+@@ -97,8 +97,8 @@ static int rmi_spi_manage_pools(struct rmi_spi_xport *rmi_spi, int len)
+ 	 */
+ 	tmp = rmi_spi->rx_xfers;
+ 	xfer_buf = devm_kzalloc(&spi->dev,
+-		(rmi_spi->rx_xfer_count + rmi_spi->tx_xfer_count)
+-		* sizeof(struct spi_transfer), GFP_KERNEL);
++				array_size((rmi_spi->rx_xfer_count + rmi_spi->tx_xfer_count), sizeof(struct spi_transfer)),
++				GFP_KERNEL);
+ 	if (!xfer_buf)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/iommu/mtk_iommu.c b/drivers/iommu/mtk_iommu.c
+index f2832a10fcea..363c0c84753c 100644
+--- a/drivers/iommu/mtk_iommu.c
++++ b/drivers/iommu/mtk_iommu.c
+@@ -593,7 +593,8 @@ static int mtk_iommu_probe(struct platform_device *pdev)
+ 	data->m4u_plat = (enum mtk_iommu_plat)of_device_get_match_data(dev);
+ 
+ 	/* Protect memory. HW will access here while translation fault.*/
+-	protect = devm_kzalloc(dev, MTK_PROTECT_PA_ALIGN * 2, GFP_KERNEL);
++	protect = devm_kzalloc(dev, array_size(MTK_PROTECT_PA_ALIGN, 2),
++			       GFP_KERNEL);
+ 	if (!protect)
+ 		return -ENOMEM;
+ 	data->protect_base = ALIGN(virt_to_phys(protect), MTK_PROTECT_PA_ALIGN);
+diff --git a/drivers/iommu/mtk_iommu_v1.c b/drivers/iommu/mtk_iommu_v1.c
+index a7c2a973784f..00787ab2ff0e 100644
+--- a/drivers/iommu/mtk_iommu_v1.c
++++ b/drivers/iommu/mtk_iommu_v1.c
+@@ -566,8 +566,8 @@ static int mtk_iommu_probe(struct platform_device *pdev)
+ 	data->dev = dev;
+ 
+ 	/* Protect memory. HW will access here while translation fault.*/
+-	protect = devm_kzalloc(dev, MTK_PROTECT_PA_ALIGN * 2,
+-			GFP_KERNEL | GFP_DMA);
++	protect = devm_kzalloc(dev, array_size(MTK_PROTECT_PA_ALIGN, 2),
++			       GFP_KERNEL | GFP_DMA);
+ 	if (!protect)
+ 		return -ENOMEM;
+ 	data->protect_base = ALIGN(virt_to_phys(protect), MTK_PROTECT_PA_ALIGN);
+diff --git a/drivers/irqchip/irq-imgpdc.c b/drivers/irqchip/irq-imgpdc.c
+index e80263e16c4c..ea276a033a96 100644
+--- a/drivers/irqchip/irq-imgpdc.c
++++ b/drivers/irqchip/irq-imgpdc.c
+@@ -354,7 +354,8 @@ static int pdc_intc_probe(struct platform_device *pdev)
+ 	priv->nr_syswakes = val;
+ 
+ 	/* Get peripheral IRQ numbers */
+-	priv->perip_irqs = devm_kzalloc(&pdev->dev, 4 * priv->nr_perips,
++	priv->perip_irqs = devm_kzalloc(&pdev->dev,
++					array_size(4, priv->nr_perips),
+ 					GFP_KERNEL);
+ 	if (!priv->perip_irqs) {
+ 		dev_err(&pdev->dev, "cannot allocate perip IRQ list\n");
+diff --git a/drivers/irqchip/irq-mvebu-gicp.c b/drivers/irqchip/irq-mvebu-gicp.c
+index 17a4a7b6cdbb..05f3240169d3 100644
+--- a/drivers/irqchip/irq-mvebu-gicp.c
++++ b/drivers/irqchip/irq-mvebu-gicp.c
+@@ -208,8 +208,7 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
+ 
+ 	gicp->spi_ranges =
+ 		devm_kzalloc(&pdev->dev,
+-			     gicp->spi_ranges_cnt *
+-			     sizeof(struct mvebu_gicp_spi_range),
++			     array_size(gicp->spi_ranges_cnt, sizeof(struct mvebu_gicp_spi_range)),
+ 			     GFP_KERNEL);
+ 	if (!gicp->spi_ranges)
+ 		return -ENOMEM;
+@@ -227,8 +226,8 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	gicp->spi_bitmap = devm_kzalloc(&pdev->dev,
+-				BITS_TO_LONGS(gicp->spi_cnt) * sizeof(long),
+-				GFP_KERNEL);
++					array_size(BITS_TO_LONGS(gicp->spi_cnt), sizeof(long)),
++					GFP_KERNEL);
+ 	if (!gicp->spi_bitmap)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/leds/leds-adp5520.c b/drivers/leds/leds-adp5520.c
+index 853b2d3bdb17..38ed03f6777e 100644
+--- a/drivers/leds/leds-adp5520.c
++++ b/drivers/leds/leds-adp5520.c
+@@ -108,8 +108,9 @@ static int adp5520_led_probe(struct platform_device *pdev)
+ 		return -EFAULT;
+ 	}
+ 
+-	led = devm_kzalloc(&pdev->dev, sizeof(*led) * pdata->num_leds,
+-				GFP_KERNEL);
++	led = devm_kzalloc(&pdev->dev,
++			   array_size(sizeof(*led), pdata->num_leds),
 +			   GFP_KERNEL);
- 	if (!cfg)
- 		return ERR_PTR(-ENOMEM);
+ 	if (!led)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/leds/leds-apu.c b/drivers/leds/leds-apu.c
+index 90eeedcbf371..4913163eec4c 100644
+--- a/drivers/leds/leds-apu.c
++++ b/drivers/leds/leds-apu.c
+@@ -172,8 +172,8 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
+ 	int err;
+ 
+ 	apu_led->pled = devm_kzalloc(dev,
+-		sizeof(struct apu_led_priv) * apu_led->num_led_instances,
+-		GFP_KERNEL);
++				     array_size(sizeof(struct apu_led_priv), apu_led->num_led_instances),
++				     GFP_KERNEL);
+ 
+ 	if (!apu_led->pled)
+ 		return -ENOMEM;
+diff --git a/drivers/leds/leds-da9052.c b/drivers/leds/leds-da9052.c
+index f8c7d82c2652..6724daf3b4c9 100644
+--- a/drivers/leds/leds-da9052.c
++++ b/drivers/leds/leds-da9052.c
+@@ -114,7 +114,7 @@ static int da9052_led_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	led = devm_kzalloc(&pdev->dev,
+-			   sizeof(struct da9052_led) * pled->num_leds,
++			   array_size(sizeof(struct da9052_led), pled->num_leds),
+ 			   GFP_KERNEL);
+ 	if (!led) {
+ 		error = -ENOMEM;
+diff --git a/drivers/leds/leds-lp5521.c b/drivers/leds/leds-lp5521.c
+index 55c0517fbe03..dc7e737e9d9a 100644
+--- a/drivers/leds/leds-lp5521.c
++++ b/drivers/leds/leds-lp5521.c
+@@ -534,7 +534,8 @@ static int lp5521_probe(struct i2c_client *client,
+ 		return -ENOMEM;
+ 
+ 	led = devm_kzalloc(&client->dev,
+-			sizeof(*led) * pdata->num_channels, GFP_KERNEL);
++			   array_size(sizeof(*led), pdata->num_channels),
++			   GFP_KERNEL);
+ 	if (!led)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/leds/leds-lp5523.c b/drivers/leds/leds-lp5523.c
+index 52b6f529e278..0b811709b737 100644
+--- a/drivers/leds/leds-lp5523.c
++++ b/drivers/leds/leds-lp5523.c
+@@ -899,7 +899,8 @@ static int lp5523_probe(struct i2c_client *client,
+ 		return -ENOMEM;
+ 
+ 	led = devm_kzalloc(&client->dev,
+-			sizeof(*led) * pdata->num_channels, GFP_KERNEL);
++			   array_size(sizeof(*led), pdata->num_channels),
++			   GFP_KERNEL);
+ 	if (!led)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/leds/leds-lp5562.c b/drivers/leds/leds-lp5562.c
+index 05ffa34fb6ad..cd333fda36c8 100644
+--- a/drivers/leds/leds-lp5562.c
++++ b/drivers/leds/leds-lp5562.c
+@@ -535,7 +535,8 @@ static int lp5562_probe(struct i2c_client *client,
+ 		return -ENOMEM;
+ 
+ 	led = devm_kzalloc(&client->dev,
+-			sizeof(*led) * pdata->num_channels, GFP_KERNEL);
++			   array_size(sizeof(*led), pdata->num_channels),
++			   GFP_KERNEL);
+ 	if (!led)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/leds/leds-lp8501.c b/drivers/leds/leds-lp8501.c
+index 3adb113cf02e..80d8ac004959 100644
+--- a/drivers/leds/leds-lp8501.c
++++ b/drivers/leds/leds-lp8501.c
+@@ -328,7 +328,8 @@ static int lp8501_probe(struct i2c_client *client,
+ 		return -ENOMEM;
+ 
+ 	led = devm_kzalloc(&client->dev,
+-			sizeof(*led) * pdata->num_channels, GFP_KERNEL);
++			   array_size(sizeof(*led), pdata->num_channels),
++			   GFP_KERNEL);
+ 	if (!led)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/leds/leds-lt3593.c b/drivers/leds/leds-lt3593.c
+index a7ff510cbdd0..1c2c94f810de 100644
+--- a/drivers/leds/leds-lt3593.c
++++ b/drivers/leds/leds-lt3593.c
+@@ -129,8 +129,8 @@ static int lt3593_led_probe(struct platform_device *pdev)
+ 		return -EBUSY;
+ 
+ 	leds_data = devm_kzalloc(&pdev->dev,
+-			sizeof(struct lt3593_led_data) * pdata->num_leds,
+-			GFP_KERNEL);
++				 array_size(sizeof(struct lt3593_led_data), pdata->num_leds),
++				 GFP_KERNEL);
+ 	if (!leds_data)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/leds/leds-mc13783.c b/drivers/leds/leds-mc13783.c
+index 2421cf104991..872d561cfc74 100644
+--- a/drivers/leds/leds-mc13783.c
++++ b/drivers/leds/leds-mc13783.c
+@@ -136,7 +136,8 @@ static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
+ 
+ 	pdata->num_leds = of_get_child_count(parent);
+ 
+-	pdata->led = devm_kzalloc(dev, pdata->num_leds * sizeof(*pdata->led),
++	pdata->led = devm_kzalloc(dev,
++				  array_size(pdata->num_leds, sizeof(*pdata->led)),
+ 				  GFP_KERNEL);
+ 	if (!pdata->led) {
+ 		ret = -ENOMEM;
+@@ -210,7 +211,8 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
+ 		return -EINVAL;
+ 	}
+ 
+-	leds->led = devm_kzalloc(dev, leds->num_leds * sizeof(*leds->led),
++	leds->led = devm_kzalloc(dev,
++				 array_size(leds->num_leds, sizeof(*leds->led)),
+ 				 GFP_KERNEL);
+ 	if (!leds->led)
+ 		return -ENOMEM;
+diff --git a/drivers/leds/leds-mlxcpld.c b/drivers/leds/leds-mlxcpld.c
+index 281482e1d50f..523e69857351 100644
+--- a/drivers/leds/leds-mlxcpld.c
++++ b/drivers/leds/leds-mlxcpld.c
+@@ -329,8 +329,9 @@ static int mlxcpld_led_config(struct device *dev,
+ 	int i;
+ 	int err;
+ 
+-	cpld->pled = devm_kzalloc(dev, sizeof(struct mlxcpld_led_priv) *
+-				  cpld->num_led_instances, GFP_KERNEL);
++	cpld->pled = devm_kzalloc(dev,
++				  array_size(sizeof(struct mlxcpld_led_priv), cpld->num_led_instances),
++				  GFP_KERNEL);
+ 	if (!cpld->pled)
+ 		return -ENOMEM;
  
 diff --git a/drivers/leds/leds-netxbig.c b/drivers/leds/leds-netxbig.c
-index f48b1aed9b4e..ad47fac3ed4d 100644
+index ad47fac3ed4d..1e23bb8c8332 100644
 --- a/drivers/leds/leds-netxbig.c
 +++ b/drivers/leds/leds-netxbig.c
-@@ -335,7 +335,8 @@ static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
- 		return ret;
- 	}
- 	num_addr = ret;
--	addr = devm_kzalloc(dev, num_addr * sizeof(*addr), GFP_KERNEL);
-+	addr = devm_kzalloc(dev, array_size(num_addr, sizeof(*addr)),
-+			    GFP_KERNEL);
- 	if (!addr)
- 		return -ENOMEM;
- 
-@@ -355,7 +356,8 @@ static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
- 		return ret;
- 	}
- 	num_data = ret;
--	data = devm_kzalloc(dev, num_data * sizeof(*data), GFP_KERNEL);
-+	data = devm_kzalloc(dev, array_size(num_data, sizeof(*data)),
-+			    GFP_KERNEL);
- 	if (!data)
- 		return -ENOMEM;
- 
-@@ -415,7 +417,8 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
- 		if (ret % 3)
- 			return -EINVAL;
- 		num_timers = ret / 3;
--		timers = devm_kzalloc(dev, num_timers * sizeof(*timers),
-+		timers = devm_kzalloc(dev,
-+				      array_size(num_timers, sizeof(*timers)),
- 				      GFP_KERNEL);
- 		if (!timers)
- 			return -ENOMEM;
-@@ -444,7 +447,8 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
- 		return -ENODEV;
+@@ -565,7 +565,7 @@ static int netxbig_led_probe(struct platform_device *pdev)
  	}
  
--	leds = devm_kzalloc(dev, num_leds * sizeof(*leds), GFP_KERNEL);
-+	leds = devm_kzalloc(dev, array_size(num_leds, sizeof(*leds)),
-+			    GFP_KERNEL);
- 	if (!leds)
+ 	leds_data = devm_kzalloc(&pdev->dev,
+-				 pdata->num_leds * sizeof(*leds_data),
++				 array_size(pdata->num_leds, sizeof(*leds_data)),
+ 				 GFP_KERNEL);
+ 	if (!leds_data)
  		return -ENOMEM;
- 
-@@ -471,7 +475,7 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
- 
- 		mode_val =
- 			devm_kzalloc(dev,
--				     NETXBIG_LED_MODE_NUM * sizeof(*mode_val),
-+				     array_size(NETXBIG_LED_MODE_NUM, sizeof(*mode_val)),
- 				     GFP_KERNEL);
- 		if (!mode_val) {
- 			ret = -ENOMEM;
-diff --git a/drivers/leds/leds-ns2.c b/drivers/leds/leds-ns2.c
-index 506b75b190e7..0d485920859f 100644
---- a/drivers/leds/leds-ns2.c
-+++ b/drivers/leds/leds-ns2.c
-@@ -264,7 +264,7 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
- 	if (!num_leds)
- 		return -ENODEV;
- 
--	leds = devm_kzalloc(dev, num_leds * sizeof(struct ns2_led),
-+	leds = devm_kzalloc(dev, array_size(num_leds, sizeof(struct ns2_led)),
- 			    GFP_KERNEL);
- 	if (!leds)
- 		return -ENOMEM;
-@@ -299,7 +299,7 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
- 
- 		num_modes = ret / 3;
- 		modval = devm_kzalloc(dev,
--				      num_modes * sizeof(struct ns2_led_modval),
-+				      array_size(num_modes, sizeof(struct ns2_led_modval)),
- 				      GFP_KERNEL);
- 		if (!modval)
- 			return -ENOMEM;
-diff --git a/drivers/leds/leds-tca6507.c b/drivers/leds/leds-tca6507.c
-index c12c16fb1b9c..0ef429e8dfe7 100644
---- a/drivers/leds/leds-tca6507.c
-+++ b/drivers/leds/leds-tca6507.c
-@@ -698,7 +698,8 @@ tca6507_led_dt_init(struct i2c_client *client)
- 		return ERR_PTR(-ENODEV);
- 
- 	tca_leds = devm_kzalloc(&client->dev,
--			sizeof(struct led_info) * NUM_LEDS, GFP_KERNEL);
-+				array_size(NUM_LEDS, sizeof(struct led_info)),
-+				GFP_KERNEL);
- 	if (!tca_leds)
+diff --git a/drivers/leds/leds-pca955x.c b/drivers/leds/leds-pca955x.c
+index 78183f90820e..362ff1cb3dae 100644
+--- a/drivers/leds/leds-pca955x.c
++++ b/drivers/leds/leds-pca955x.c
+@@ -391,7 +391,7 @@ pca955x_pdata_of_init(struct i2c_client *client, struct pca955x_chipdef *chip)
  		return ERR_PTR(-ENOMEM);
  
-diff --git a/drivers/mailbox/mailbox-sti.c b/drivers/mailbox/mailbox-sti.c
-index 41bcd339b68a..2761d1089047 100644
---- a/drivers/mailbox/mailbox-sti.c
-+++ b/drivers/mailbox/mailbox-sti.c
-@@ -443,7 +443,8 @@ static int sti_mbox_probe(struct platform_device *pdev)
+ 	pdata->leds = devm_kzalloc(&client->dev,
+-				   sizeof(struct pca955x_led) * chip->bits,
++				   array_size(sizeof(struct pca955x_led), chip->bits),
+ 				   GFP_KERNEL);
+ 	if (!pdata->leds)
+ 		return ERR_PTR(-ENOMEM);
+@@ -495,7 +495,8 @@ static int pca955x_probe(struct i2c_client *client,
  		return -ENOMEM;
  
- 	chans = devm_kzalloc(&pdev->dev,
--			     sizeof(*chans) * STI_MBOX_CHAN_MAX, GFP_KERNEL);
-+			     array_size(STI_MBOX_CHAN_MAX, sizeof(*chans)),
-+			     GFP_KERNEL);
- 	if (!chans)
+ 	pca955x->leds = devm_kzalloc(&client->dev,
+-			sizeof(*pca955x_led) * chip->bits, GFP_KERNEL);
++				     array_size(sizeof(*pca955x_led), chip->bits),
++				     GFP_KERNEL);
+ 	if (!pca955x->leds)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/leds/leds-pca963x.c b/drivers/leds/leds-pca963x.c
+index 3bf9a1271819..38e9a832db21 100644
+--- a/drivers/leds/leds-pca963x.c
++++ b/drivers/leds/leds-pca963x.c
+@@ -301,7 +301,8 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
+ 		return ERR_PTR(-ENODEV);
+ 
+ 	pca963x_leds = devm_kzalloc(&client->dev,
+-			sizeof(struct led_info) * chip->n_leds, GFP_KERNEL);
++				    array_size(sizeof(struct led_info), chip->n_leds),
++				    GFP_KERNEL);
+ 	if (!pca963x_leds)
+ 		return ERR_PTR(-ENOMEM);
+ 
+@@ -407,8 +408,9 @@ static int pca963x_probe(struct i2c_client *client,
+ 								GFP_KERNEL);
+ 	if (!pca963x_chip)
+ 		return -ENOMEM;
+-	pca963x = devm_kzalloc(&client->dev, chip->n_leds * sizeof(*pca963x),
+-								GFP_KERNEL);
++	pca963x = devm_kzalloc(&client->dev,
++			       array_size(chip->n_leds, sizeof(*pca963x)),
++			       GFP_KERNEL);
+ 	if (!pca963x)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/mailbox/hi6220-mailbox.c b/drivers/mailbox/hi6220-mailbox.c
+index 519376d3534c..cf84c120c3a9 100644
+--- a/drivers/mailbox/hi6220-mailbox.c
++++ b/drivers/mailbox/hi6220-mailbox.c
+@@ -283,12 +283,14 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
+ 	mbox->dev = dev;
+ 	mbox->chan_num = MBOX_CHAN_MAX;
+ 	mbox->mchan = devm_kzalloc(dev,
+-		mbox->chan_num * sizeof(*mbox->mchan), GFP_KERNEL);
++				   array_size(mbox->chan_num, sizeof(*mbox->mchan)),
++				   GFP_KERNEL);
+ 	if (!mbox->mchan)
+ 		return -ENOMEM;
+ 
+ 	mbox->chan = devm_kzalloc(dev,
+-		mbox->chan_num * sizeof(*mbox->chan), GFP_KERNEL);
++				  array_size(mbox->chan_num, sizeof(*mbox->chan)),
++				  GFP_KERNEL);
+ 	if (!mbox->chan)
  		return -ENOMEM;
  
 diff --git a/drivers/mailbox/omap-mailbox.c b/drivers/mailbox/omap-mailbox.c
-index 2517038a8452..d9709f32f578 100644
+index d9709f32f578..2ca04f1aa15b 100644
 --- a/drivers/mailbox/omap-mailbox.c
 +++ b/drivers/mailbox/omap-mailbox.c
-@@ -729,7 +729,8 @@ static int omap_mbox_probe(struct platform_device *pdev)
- 		return -ENODEV;
- 	}
- 
--	finfoblk = devm_kzalloc(&pdev->dev, info_count * sizeof(*finfoblk),
-+	finfoblk = devm_kzalloc(&pdev->dev,
-+				array_size(info_count, sizeof(*finfoblk)),
- 				GFP_KERNEL);
- 	if (!finfoblk)
+@@ -781,12 +781,14 @@ static int omap_mbox_probe(struct platform_device *pdev)
  		return -ENOMEM;
-@@ -773,7 +774,8 @@ static int omap_mbox_probe(struct platform_device *pdev)
- 	if (IS_ERR(mdev->mbox_base))
- 		return PTR_ERR(mdev->mbox_base);
  
--	mdev->irq_ctx = devm_kzalloc(&pdev->dev, num_users * sizeof(u32),
-+	mdev->irq_ctx = devm_kzalloc(&pdev->dev,
-+				     array_size(num_users, sizeof(u32)),
- 				     GFP_KERNEL);
- 	if (!mdev->irq_ctx)
+ 	/* allocate one extra for marking end of list */
+-	list = devm_kzalloc(&pdev->dev, (info_count + 1) * sizeof(*list),
++	list = devm_kzalloc(&pdev->dev,
++			    array_size((info_count + 1), sizeof(*list)),
+ 			    GFP_KERNEL);
+ 	if (!list)
  		return -ENOMEM;
-@@ -789,7 +791,8 @@ static int omap_mbox_probe(struct platform_device *pdev)
+ 
+-	chnls = devm_kzalloc(&pdev->dev, (info_count + 1) * sizeof(*chnls),
++	chnls = devm_kzalloc(&pdev->dev,
++			     array_size((info_count + 1), sizeof(*chnls)),
+ 			     GFP_KERNEL);
  	if (!chnls)
  		return -ENOMEM;
+diff --git a/drivers/media/platform/am437x/am437x-vpfe.c b/drivers/media/platform/am437x/am437x-vpfe.c
+index 601ae6487617..e9ecab990ff9 100644
+--- a/drivers/media/platform/am437x/am437x-vpfe.c
++++ b/drivers/media/platform/am437x/am437x-vpfe.c
+@@ -2586,8 +2586,9 @@ static int vpfe_probe(struct platform_device *pdev)
  
--	mboxblk = devm_kzalloc(&pdev->dev, info_count * sizeof(*mbox),
-+	mboxblk = devm_kzalloc(&pdev->dev,
-+			       array_size(info_count, sizeof(*mbox)),
- 			       GFP_KERNEL);
- 	if (!mboxblk)
- 		return -ENOMEM;
-diff --git a/drivers/mailbox/ti-msgmgr.c b/drivers/mailbox/ti-msgmgr.c
-index 78753a87ba4d..8237db43a204 100644
---- a/drivers/mailbox/ti-msgmgr.c
-+++ b/drivers/mailbox/ti-msgmgr.c
-@@ -568,12 +568,14 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
- 	}
- 	inst->num_valid_queues = queue_count;
+ 	pm_runtime_put_sync(&pdev->dev);
  
--	qinst = devm_kzalloc(dev, sizeof(*qinst) * queue_count, GFP_KERNEL);
-+	qinst = devm_kzalloc(dev, array_size(queue_count, sizeof(*qinst)),
-+			     GFP_KERNEL);
- 	if (!qinst)
- 		return -ENOMEM;
- 	inst->qinsts = qinst;
- 
--	chans = devm_kzalloc(dev, sizeof(*chans) * queue_count, GFP_KERNEL);
-+	chans = devm_kzalloc(dev, array_size(queue_count, sizeof(*chans)),
-+			     GFP_KERNEL);
- 	if (!chans)
- 		return -ENOMEM;
- 	inst->chans = chans;
-diff --git a/drivers/media/i2c/s5k5baf.c b/drivers/media/i2c/s5k5baf.c
-index ff46d2c96cea..a3bb3841d6b7 100644
---- a/drivers/media/i2c/s5k5baf.c
-+++ b/drivers/media/i2c/s5k5baf.c
-@@ -373,7 +373,7 @@ static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
- 	data += S5K5BAG_FW_TAG_LEN;
- 	count -= S5K5BAG_FW_TAG_LEN;
- 
--	d = devm_kzalloc(dev, count * sizeof(u16), GFP_KERNEL);
-+	d = devm_kzalloc(dev, array_size(count, sizeof(u16)), GFP_KERNEL);
- 	if (!d)
- 		return -ENOMEM;
- 
-diff --git a/drivers/media/platform/davinci/vpif_capture.c b/drivers/media/platform/davinci/vpif_capture.c
-index 9364cdf62f54..244cac2eea6a 100644
---- a/drivers/media/platform/davinci/vpif_capture.c
-+++ b/drivers/media/platform/davinci/vpif_capture.c
-@@ -1528,8 +1528,9 @@ vpif_capture_get_pdata(struct platform_device *pdev)
- 	if (!pdata)
- 		return NULL;
- 	pdata->subdev_info =
--		devm_kzalloc(&pdev->dev, sizeof(*pdata->subdev_info) *
--			     VPIF_CAPTURE_NUM_CHANNELS, GFP_KERNEL);
-+		devm_kzalloc(&pdev->dev,
-+			     array_size(VPIF_CAPTURE_NUM_CHANNELS, sizeof(*pdata->subdev_info)),
-+			     GFP_KERNEL);
- 
- 	if (!pdata->subdev_info)
- 		return NULL;
-@@ -1547,8 +1548,7 @@ vpif_capture_get_pdata(struct platform_device *pdev)
- 		sdinfo = &pdata->subdev_info[i];
- 		chan = &pdata->chan_config[i];
- 		chan->inputs = devm_kzalloc(&pdev->dev,
--					    sizeof(*chan->inputs) *
--					    VPIF_CAPTURE_NUM_CHANNELS,
-+					    array_size(VPIF_CAPTURE_NUM_CHANNELS, sizeof(*chan->inputs)),
- 					    GFP_KERNEL);
- 		if (!chan->inputs)
- 			return NULL;
-diff --git a/drivers/media/platform/vsp1/vsp1_entity.c b/drivers/media/platform/vsp1/vsp1_entity.c
-index 54de15095709..405388e0ec37 100644
---- a/drivers/media/platform/vsp1/vsp1_entity.c
-+++ b/drivers/media/platform/vsp1/vsp1_entity.c
-@@ -511,7 +511,8 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
- 	entity->source_pad = num_pads - 1;
- 
- 	/* Allocate and initialize pads. */
--	entity->pads = devm_kzalloc(vsp1->dev, num_pads * sizeof(*entity->pads),
-+	entity->pads = devm_kzalloc(vsp1->dev,
-+				    array_size(num_pads, sizeof(*entity->pads)),
- 				    GFP_KERNEL);
- 	if (entity->pads == NULL)
- 		return -ENOMEM;
-diff --git a/drivers/media/platform/xilinx/xilinx-vipp.c b/drivers/media/platform/xilinx/xilinx-vipp.c
-index 6bb28cd49dae..ef8eb8e32480 100644
---- a/drivers/media/platform/xilinx/xilinx-vipp.c
-+++ b/drivers/media/platform/xilinx/xilinx-vipp.c
-@@ -532,7 +532,8 @@ static int xvip_graph_init(struct xvip_composite_device *xdev)
- 
- 	/* Register the subdevices notifier. */
- 	num_subdevs = xdev->num_subdevs;
--	subdevs = devm_kzalloc(xdev->dev, sizeof(*subdevs) * num_subdevs,
-+	subdevs = devm_kzalloc(xdev->dev,
-+			       array_size(num_subdevs, sizeof(*subdevs)),
- 			       GFP_KERNEL);
- 	if (subdevs == NULL) {
- 		ret = -ENOMEM;
-diff --git a/drivers/memory/of_memory.c b/drivers/memory/of_memory.c
-index 568f05ed961a..c7c61418a354 100644
---- a/drivers/memory/of_memory.c
-+++ b/drivers/memory/of_memory.c
-@@ -126,8 +126,9 @@ const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
- 			arr_sz++;
- 
- 	if (arr_sz)
--		timings = devm_kzalloc(dev, sizeof(*timings) * arr_sz,
--			GFP_KERNEL);
-+		timings = devm_kzalloc(dev,
-+				       array_size(arr_sz, sizeof(*timings)),
-+				       GFP_KERNEL);
- 
- 	if (!timings)
- 		goto default_timings;
-diff --git a/drivers/mfd/ab8500-debugfs.c b/drivers/mfd/ab8500-debugfs.c
-index 8ba41073dd89..3e4a238f8583 100644
---- a/drivers/mfd/ab8500-debugfs.c
-+++ b/drivers/mfd/ab8500-debugfs.c
-@@ -2661,17 +2661,20 @@ static int ab8500_debug_probe(struct platform_device *plf)
- 	num_irqs = ab8500->mask_size;
- 
- 	irq_count = devm_kzalloc(&plf->dev,
--				 sizeof(*irq_count)*num_irqs, GFP_KERNEL);
-+				 array_size(num_irqs, sizeof(*irq_count)),
-+				 GFP_KERNEL);
- 	if (!irq_count)
- 		return -ENOMEM;
- 
- 	dev_attr = devm_kzalloc(&plf->dev,
--				sizeof(*dev_attr)*num_irqs, GFP_KERNEL);
-+				array_size(num_irqs, sizeof(*dev_attr)),
+-	vpfe->sd = devm_kzalloc(&pdev->dev, sizeof(struct v4l2_subdev *) *
+-				ARRAY_SIZE(vpfe->cfg->asd), GFP_KERNEL);
++	vpfe->sd = devm_kzalloc(&pdev->dev,
++				array_size(sizeof(struct v4l2_subdev *), ARRAY_SIZE(vpfe->cfg->asd)),
 +				GFP_KERNEL);
- 	if (!dev_attr)
- 		return -ENOMEM;
- 
- 	event_name = devm_kzalloc(&plf->dev,
--				  sizeof(*event_name)*num_irqs, GFP_KERNEL);
-+				  array_size(num_irqs, sizeof(*event_name)),
-+				  GFP_KERNEL);
- 	if (!event_name)
- 		return -ENOMEM;
- 
-diff --git a/drivers/mfd/twl-core.c b/drivers/mfd/twl-core.c
-index d3133a371e27..e5bb7d6d9d0f 100644
---- a/drivers/mfd/twl-core.c
-+++ b/drivers/mfd/twl-core.c
-@@ -1140,8 +1140,8 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
- 
- 	num_slaves = twl_get_num_slaves();
- 	twl_priv->twl_modules = devm_kzalloc(&client->dev,
--					 sizeof(struct twl_client) * num_slaves,
--					 GFP_KERNEL);
-+					     array_size(num_slaves, sizeof(struct twl_client)),
-+					     GFP_KERNEL);
- 	if (!twl_priv->twl_modules) {
- 		status = -ENOMEM;
- 		goto free;
-diff --git a/drivers/misc/sram.c b/drivers/misc/sram.c
-index a9d217c9afcc..eff8eae3b005 100644
---- a/drivers/misc/sram.c
-+++ b/drivers/misc/sram.c
-@@ -265,8 +265,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
- 
- 	if (exports) {
- 		sram->partition = devm_kzalloc(sram->dev,
--				       exports * sizeof(*sram->partition),
--				       GFP_KERNEL);
-+					       array_size(exports, sizeof(*sram->partition)),
-+					       GFP_KERNEL);
- 		if (!sram->partition) {
- 			ret = -ENOMEM;
- 			goto err_chunks;
-diff --git a/drivers/mtd/devices/docg3.c b/drivers/mtd/devices/docg3.c
-index a1782ceae772..14608fa4400f 100644
---- a/drivers/mtd/devices/docg3.c
-+++ b/drivers/mtd/devices/docg3.c
-@@ -1995,7 +1995,8 @@ static int __init docg3_probe(struct platform_device *pdev)
- 	base = devm_ioremap(dev, ress->start, DOC_IOSPACE_SIZE);
- 
- 	ret = -ENOMEM;
--	cascade = devm_kzalloc(dev, sizeof(*cascade) * DOC_MAX_NBFLOORS,
-+	cascade = devm_kzalloc(dev,
-+			       array_size(DOC_MAX_NBFLOORS, sizeof(*cascade)),
- 			       GFP_KERNEL);
- 	if (!cascade)
- 		return ret;
-diff --git a/drivers/mtd/nand/raw/qcom_nandc.c b/drivers/mtd/nand/raw/qcom_nandc.c
-index b554fb6e609c..d5e22922d011 100644
---- a/drivers/mtd/nand/raw/qcom_nandc.c
-+++ b/drivers/mtd/nand/raw/qcom_nandc.c
-@@ -2511,8 +2511,8 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
- 		return -ENOMEM;
- 
- 	nandc->reg_read_buf = devm_kzalloc(nandc->dev,
--				MAX_REG_RD * sizeof(*nandc->reg_read_buf),
--				GFP_KERNEL);
-+					   array_size(MAX_REG_RD, sizeof(*nandc->reg_read_buf)),
-+					   GFP_KERNEL);
- 	if (!nandc->reg_read_buf)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/ethernet/amazon/ena/ena_ethtool.c b/drivers/net/ethernet/amazon/ena/ena_ethtool.c
-index 060cb18fa659..5eca39bd674d 100644
---- a/drivers/net/ethernet/amazon/ena/ena_ethtool.c
-+++ b/drivers/net/ethernet/amazon/ena/ena_ethtool.c
-@@ -839,7 +839,7 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
- 	}
- 
- 	strings_buf = devm_kzalloc(&adapter->pdev->dev,
--				   strings_num * ETH_GSTRING_LEN,
-+				   array_size(ETH_GSTRING_LEN, strings_num),
- 				   GFP_ATOMIC);
- 	if (!strings_buf) {
- 		netif_err(adapter, drv, netdev,
-@@ -848,7 +848,7 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
- 	}
- 
- 	data_buf = devm_kzalloc(&adapter->pdev->dev,
--				strings_num * sizeof(u64),
-+				array_size(strings_num, sizeof(u64)),
- 				GFP_ATOMIC);
- 	if (!data_buf) {
- 		netif_err(adapter, drv, netdev,
-diff --git a/drivers/net/ethernet/ethoc.c b/drivers/net/ethernet/ethoc.c
-index 8bb0db990c8f..828f39dc72ba 100644
---- a/drivers/net/ethernet/ethoc.c
-+++ b/drivers/net/ethernet/ethoc.c
-@@ -1141,7 +1141,9 @@ static int ethoc_probe(struct platform_device *pdev)
- 	dev_dbg(&pdev->dev, "ethoc: num_tx: %d num_rx: %d\n",
- 		priv->num_tx, priv->num_rx);
- 
--	priv->vma = devm_kzalloc(&pdev->dev, num_bd*sizeof(void *), GFP_KERNEL);
-+	priv->vma = devm_kzalloc(&pdev->dev,
-+				 array_size(num_bd, sizeof(void *)),
-+				 GFP_KERNEL);
- 	if (!priv->vma) {
+ 	if (!vpfe->sd) {
  		ret = -ENOMEM;
- 		goto free;
-diff --git a/drivers/net/ethernet/freescale/dpaa/dpaa_eth.c b/drivers/net/ethernet/freescale/dpaa/dpaa_eth.c
-index fd43f98ddbe7..91ab4ee50d67 100644
---- a/drivers/net/ethernet/freescale/dpaa/dpaa_eth.c
-+++ b/drivers/net/ethernet/freescale/dpaa/dpaa_eth.c
-@@ -664,7 +664,7 @@ static struct dpaa_fq *dpaa_fq_alloc(struct device *dev,
- 	struct dpaa_fq *dpaa_fq;
- 	int i;
+ 		goto probe_out_v4l2_unregister;
+diff --git a/drivers/media/platform/qcom/camss-8x16/camss-csid.c b/drivers/media/platform/qcom/camss-8x16/camss-csid.c
+index 64df82817de3..cee01659c431 100644
+--- a/drivers/media/platform/qcom/camss-8x16/camss-csid.c
++++ b/drivers/media/platform/qcom/camss-8x16/camss-csid.c
+@@ -845,8 +845,9 @@ int msm_csid_subdev_init(struct csid_device *csid,
+ 	while (res->clock[csid->nclocks])
+ 		csid->nclocks++;
  
--	dpaa_fq = devm_kzalloc(dev, sizeof(*dpaa_fq) * count,
-+	dpaa_fq = devm_kzalloc(dev, array_size(count, sizeof(*dpaa_fq)),
- 			       GFP_KERNEL);
- 	if (!dpaa_fq)
- 		return NULL;
-diff --git a/drivers/net/ethernet/ni/nixge.c b/drivers/net/ethernet/ni/nixge.c
-index 27364b7572fc..8c4fd186ac8b 100644
---- a/drivers/net/ethernet/ni/nixge.c
-+++ b/drivers/net/ethernet/ni/nixge.c
-@@ -248,8 +248,7 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
- 		goto out;
- 
- 	priv->tx_skb = devm_kzalloc(ndev->dev.parent,
--				    sizeof(*priv->tx_skb) *
--				    TX_BD_NUM,
-+				    array_size(TX_BD_NUM, sizeof(*priv->tx_skb)),
- 				    GFP_KERNEL);
- 	if (!priv->tx_skb)
- 		goto out;
-diff --git a/drivers/net/wireless/mediatek/mt76/mac80211.c b/drivers/net/wireless/mediatek/mt76/mac80211.c
-index 4f30cdcd2b53..12ff10d2f921 100644
---- a/drivers/net/wireless/mediatek/mt76/mac80211.c
-+++ b/drivers/net/wireless/mediatek/mt76/mac80211.c
-@@ -181,7 +181,8 @@ mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
- 	if (!chanlist)
+-	csid->clock = devm_kzalloc(dev, csid->nclocks * sizeof(*csid->clock),
+-				    GFP_KERNEL);
++	csid->clock = devm_kzalloc(dev,
++				   array_size(csid->nclocks, sizeof(*csid->clock)),
++				   GFP_KERNEL);
+ 	if (!csid->clock)
  		return -ENOMEM;
  
--	msband->chan = devm_kzalloc(dev->dev, n_chan * sizeof(*msband->chan),
-+	msband->chan = devm_kzalloc(dev->dev,
-+				    array_size(n_chan, sizeof(*msband->chan)),
- 				    GFP_KERNEL);
- 	if (!msband->chan)
- 		return -ENOMEM;
-diff --git a/drivers/nfc/fdp/i2c.c b/drivers/nfc/fdp/i2c.c
-index c4da50e07bbc..935728080c59 100644
---- a/drivers/nfc/fdp/i2c.c
-+++ b/drivers/nfc/fdp/i2c.c
-@@ -260,7 +260,7 @@ static void fdp_nci_i2c_read_device_properties(struct device *dev,
- 		len++;
- 
- 		*fw_vsc_cfg = devm_kmalloc(dev,
--					   len * sizeof(**fw_vsc_cfg),
-+					   array_size(len, sizeof(**fw_vsc_cfg)),
- 					   GFP_KERNEL);
- 
- 		r = device_property_read_u8_array(dev, FDP_DP_FW_VSC_CFG_NAME,
-diff --git a/drivers/pci/dwc/pci-dra7xx.c b/drivers/pci/dwc/pci-dra7xx.c
-index ed8558d638e5..eea624066777 100644
---- a/drivers/pci/dwc/pci-dra7xx.c
-+++ b/drivers/pci/dwc/pci-dra7xx.c
-@@ -638,11 +638,13 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
- 		return phy_count;
- 	}
- 
--	phy = devm_kzalloc(dev, sizeof(*phy) * phy_count, GFP_KERNEL);
-+	phy = devm_kzalloc(dev, array_size(phy_count, sizeof(*phy)),
-+			   GFP_KERNEL);
- 	if (!phy)
- 		return -ENOMEM;
- 
--	link = devm_kzalloc(dev, sizeof(*link) * phy_count, GFP_KERNEL);
-+	link = devm_kzalloc(dev, array_size(phy_count, sizeof(*link)),
-+			    GFP_KERNEL);
- 	if (!link)
- 		return -ENOMEM;
- 
-diff --git a/drivers/pinctrl/berlin/berlin.c b/drivers/pinctrl/berlin/berlin.c
-index cc3bd2efafe3..4b710037cea6 100644
---- a/drivers/pinctrl/berlin/berlin.c
-+++ b/drivers/pinctrl/berlin/berlin.c
-@@ -220,7 +220,7 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
- 
- 	/* we will reallocate later */
- 	pctrl->functions = devm_kzalloc(&pdev->dev,
--					max_functions * sizeof(*pctrl->functions),
-+					array_size(max_functions, sizeof(*pctrl->functions)),
- 					GFP_KERNEL);
- 	if (!pctrl->functions)
- 		return -ENOMEM;
-diff --git a/drivers/pinctrl/freescale/pinctrl-imx1-core.c b/drivers/pinctrl/freescale/pinctrl-imx1-core.c
-index 4eedd874bd02..ebf32b65d822 100644
---- a/drivers/pinctrl/freescale/pinctrl-imx1-core.c
-+++ b/drivers/pinctrl/freescale/pinctrl-imx1-core.c
-@@ -572,11 +572,13 @@ static int imx1_pinctrl_parse_dt(struct platform_device *pdev,
- 
- 	info->nfunctions = nfuncs;
- 	info->functions = devm_kzalloc(&pdev->dev,
--			nfuncs * sizeof(struct imx1_pmx_func), GFP_KERNEL);
-+				       array_size(nfuncs, sizeof(struct imx1_pmx_func)),
-+				       GFP_KERNEL);
- 
- 	info->ngroups = ngroups;
- 	info->groups = devm_kzalloc(&pdev->dev,
--			ngroups * sizeof(struct imx1_pin_group), GFP_KERNEL);
-+				    array_size(ngroups, sizeof(struct imx1_pin_group)),
-+				    GFP_KERNEL);
- 
- 
- 	if (!info->functions || !info->groups)
-diff --git a/drivers/pinctrl/mvebu/pinctrl-armada-xp.c b/drivers/pinctrl/mvebu/pinctrl-armada-xp.c
-index b854f1ee5de5..7c07575819ea 100644
---- a/drivers/pinctrl/mvebu/pinctrl-armada-xp.c
-+++ b/drivers/pinctrl/mvebu/pinctrl-armada-xp.c
-@@ -630,7 +630,8 @@ static int armada_xp_pinctrl_probe(struct platform_device *pdev)
- 
- 	nregs = DIV_ROUND_UP(soc->nmodes, MVEBU_MPPS_PER_REG);
- 
--	mpp_saved_regs = devm_kmalloc(&pdev->dev, nregs * sizeof(u32),
-+	mpp_saved_regs = devm_kmalloc(&pdev->dev,
-+				      array_size(nregs, sizeof(u32)),
- 				      GFP_KERNEL);
- 	if (!mpp_saved_regs)
- 		return -ENOMEM;
-diff --git a/drivers/pinctrl/mvebu/pinctrl-mvebu.c b/drivers/pinctrl/mvebu/pinctrl-mvebu.c
-index 9e05cfaf75f0..437345990da7 100644
---- a/drivers/pinctrl/mvebu/pinctrl-mvebu.c
-+++ b/drivers/pinctrl/mvebu/pinctrl-mvebu.c
-@@ -501,8 +501,9 @@ static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
- 
- 	/* we allocate functions for number of pins and hope
- 	 * there are fewer unique functions than pins available */
--	funcs = devm_kzalloc(&pdev->dev, funcsize *
--			     sizeof(struct mvebu_pinctrl_function), GFP_KERNEL);
-+	funcs = devm_kzalloc(&pdev->dev,
-+			     array_size(funcsize, sizeof(struct mvebu_pinctrl_function)),
-+			     GFP_KERNEL);
- 	if (!funcs)
- 		return -ENOMEM;
- 
-diff --git a/drivers/pinctrl/pinctrl-at91.c b/drivers/pinctrl/pinctrl-at91.c
-index 297f1d161211..2e9224ad8d11 100644
---- a/drivers/pinctrl/pinctrl-at91.c
-+++ b/drivers/pinctrl/pinctrl-at91.c
-@@ -269,7 +269,9 @@ static int at91_dt_node_to_map(struct pinctrl_dev *pctldev,
- 	}
- 
- 	map_num += grp->npins;
--	new_map = devm_kzalloc(pctldev->dev, sizeof(*new_map) * map_num, GFP_KERNEL);
-+	new_map = devm_kzalloc(pctldev->dev,
-+			       array_size(map_num, sizeof(*new_map)),
-+			       GFP_KERNEL);
- 	if (!new_map)
- 		return -ENOMEM;
- 
-@@ -1049,7 +1051,9 @@ static int at91_pinctrl_mux_mask(struct at91_pinctrl *info,
- 	}
- 	info->nmux = size / gpio_banks;
- 
--	info->mux_mask = devm_kzalloc(info->dev, sizeof(u32) * size, GFP_KERNEL);
-+	info->mux_mask = devm_kzalloc(info->dev,
-+				      array_size(size, sizeof(u32)),
-+				      GFP_KERNEL);
- 	if (!info->mux_mask)
- 		return -ENOMEM;
- 
-diff --git a/drivers/pinctrl/pinctrl-axp209.c b/drivers/pinctrl/pinctrl-axp209.c
-index 1231bbbfa744..f81dc2e301d6 100644
---- a/drivers/pinctrl/pinctrl-axp209.c
-+++ b/drivers/pinctrl/pinctrl-axp209.c
-@@ -328,7 +328,8 @@ static void axp20x_funcs_groups_from_mask(struct device *dev, unsigned int mask,
- 
- 	func->ngroups = ngroups;
- 	if (func->ngroups > 0) {
--		func->groups = devm_kzalloc(dev, ngroups * sizeof(const char *),
-+		func->groups = devm_kzalloc(dev,
-+					    array_size(ngroups, sizeof(const char *)),
- 					    GFP_KERNEL);
- 		group = func->groups;
- 		for_each_set_bit(bit, &mask_cpy, mask_len) {
-@@ -359,7 +360,7 @@ static void axp20x_build_funcs_groups(struct platform_device *pdev)
- 	for (i = 0; i <= AXP20X_FUNC_GPIO_IN; i++) {
- 		pctl->funcs[i].ngroups = npins;
- 		pctl->funcs[i].groups = devm_kzalloc(&pdev->dev,
--						     npins * sizeof(char *),
-+						     array_size(npins, sizeof(char *)),
- 						     GFP_KERNEL);
- 		for (pin = 0; pin < npins; pin++)
- 			pctl->funcs[i].groups[pin] = pctl->desc->pins[pin].name;
-diff --git a/drivers/pinctrl/pinctrl-digicolor.c b/drivers/pinctrl/pinctrl-digicolor.c
-index ce269ced4d49..eeaa231e178b 100644
---- a/drivers/pinctrl/pinctrl-digicolor.c
-+++ b/drivers/pinctrl/pinctrl-digicolor.c
-@@ -291,10 +291,11 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
- 	if (IS_ERR(pmap->regs))
- 		return PTR_ERR(pmap->regs);
- 
--	pins = devm_kzalloc(&pdev->dev, sizeof(*pins)*PINS_COUNT, GFP_KERNEL);
-+	pins = devm_kzalloc(&pdev->dev, array_size(PINS_COUNT, sizeof(*pins)),
-+			    GFP_KERNEL);
- 	if (!pins)
- 		return -ENOMEM;
--	pin_names = devm_kzalloc(&pdev->dev, name_len * PINS_COUNT,
-+	pin_names = devm_kzalloc(&pdev->dev, array_size(PINS_COUNT, name_len),
- 				 GFP_KERNEL);
- 	if (!pin_names)
- 		return -ENOMEM;
-diff --git a/drivers/pinctrl/pinctrl-lpc18xx.c b/drivers/pinctrl/pinctrl-lpc18xx.c
-index d090f37ca4a1..e15312add697 100644
---- a/drivers/pinctrl/pinctrl-lpc18xx.c
-+++ b/drivers/pinctrl/pinctrl-lpc18xx.c
-@@ -1308,8 +1308,9 @@ static int lpc18xx_create_group_func_map(struct device *dev,
+@@ -868,8 +869,9 @@ int msm_csid_subdev_init(struct csid_device *csid,
+ 			continue;
  		}
  
- 		scu->func[func].ngroups = ngroups;
--		scu->func[func].groups = devm_kzalloc(dev, ngroups *
--						      sizeof(char *), GFP_KERNEL);
-+		scu->func[func].groups = devm_kzalloc(dev,
-+						      array_size(ngroups, sizeof(char *)),
-+						      GFP_KERNEL);
- 		if (!scu->func[func].groups)
+-		clock->freq = devm_kzalloc(dev, clock->nfreqs *
+-					   sizeof(*clock->freq), GFP_KERNEL);
++		clock->freq = devm_kzalloc(dev,
++					   array_size(clock->nfreqs, sizeof(*clock->freq)),
++					   GFP_KERNEL);
+ 		if (!clock->freq)
  			return -ENOMEM;
  
-diff --git a/drivers/pinctrl/pinctrl-ocelot.c b/drivers/pinctrl/pinctrl-ocelot.c
-index b5b3547fdcb2..6bac629c57a7 100644
---- a/drivers/pinctrl/pinctrl-ocelot.c
-+++ b/drivers/pinctrl/pinctrl-ocelot.c
-@@ -330,9 +330,9 @@ static int ocelot_create_group_func_map(struct device *dev,
+diff --git a/drivers/media/platform/qcom/camss-8x16/camss-csiphy.c b/drivers/media/platform/qcom/camss-8x16/camss-csiphy.c
+index 072c6cf053f6..522026f16853 100644
+--- a/drivers/media/platform/qcom/camss-8x16/camss-csiphy.c
++++ b/drivers/media/platform/qcom/camss-8x16/camss-csiphy.c
+@@ -732,8 +732,9 @@ int msm_csiphy_subdev_init(struct csiphy_device *csiphy,
+ 	while (res->clock[csiphy->nclocks])
+ 		csiphy->nclocks++;
+ 
+-	csiphy->clock = devm_kzalloc(dev, csiphy->nclocks *
+-				     sizeof(*csiphy->clock), GFP_KERNEL);
++	csiphy->clock = devm_kzalloc(dev,
++				     array_size(csiphy->nclocks, sizeof(*csiphy->clock)),
++				     GFP_KERNEL);
+ 	if (!csiphy->clock)
+ 		return -ENOMEM;
+ 
+@@ -755,8 +756,9 @@ int msm_csiphy_subdev_init(struct csiphy_device *csiphy,
+ 			continue;
  		}
  
- 		info->func[f].ngroups = npins;
--		info->func[f].groups = devm_kzalloc(dev, npins *
--							 sizeof(char *),
--							 GFP_KERNEL);
-+		info->func[f].groups = devm_kzalloc(dev,
-+						    array_size(npins, sizeof(char *)),
-+						    GFP_KERNEL);
- 		if (!info->func[f].groups)
+-		clock->freq = devm_kzalloc(dev, clock->nfreqs *
+-					   sizeof(*clock->freq), GFP_KERNEL);
++		clock->freq = devm_kzalloc(dev,
++					   array_size(clock->nfreqs, sizeof(*clock->freq)),
++					   GFP_KERNEL);
+ 		if (!clock->freq)
  			return -ENOMEM;
  
-diff --git a/drivers/pinctrl/pinctrl-rockchip.c b/drivers/pinctrl/pinctrl-rockchip.c
-index 3924779f5578..5f9e3e3b598c 100644
---- a/drivers/pinctrl/pinctrl-rockchip.c
-+++ b/drivers/pinctrl/pinctrl-rockchip.c
-@@ -506,8 +506,9 @@ static int rockchip_dt_node_to_map(struct pinctrl_dev *pctldev,
+diff --git a/drivers/media/platform/qcom/camss-8x16/camss-ispif.c b/drivers/media/platform/qcom/camss-8x16/camss-ispif.c
+index 24da529397b5..b15afee3fd17 100644
+--- a/drivers/media/platform/qcom/camss-8x16/camss-ispif.c
++++ b/drivers/media/platform/qcom/camss-8x16/camss-ispif.c
+@@ -948,7 +948,8 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
+ 	while (res->clock[ispif->nclocks])
+ 		ispif->nclocks++;
+ 
+-	ispif->clock = devm_kzalloc(dev, ispif->nclocks * sizeof(*ispif->clock),
++	ispif->clock = devm_kzalloc(dev,
++				    array_size(ispif->nclocks, sizeof(*ispif->clock)),
+ 				    GFP_KERNEL);
+ 	if (!ispif->clock)
+ 		return -ENOMEM;
+@@ -968,8 +969,9 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
+ 	while (res->clock_for_reset[ispif->nclocks_for_reset])
+ 		ispif->nclocks_for_reset++;
+ 
+-	ispif->clock_for_reset = devm_kzalloc(dev, ispif->nclocks_for_reset *
+-			sizeof(*ispif->clock_for_reset), GFP_KERNEL);
++	ispif->clock_for_reset = devm_kzalloc(dev,
++					      array_size(ispif->nclocks_for_reset, sizeof(*ispif->clock_for_reset)),
++					      GFP_KERNEL);
+ 	if (!ispif->clock_for_reset)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/media/platform/qcom/camss-8x16/camss-vfe.c b/drivers/media/platform/qcom/camss-8x16/camss-vfe.c
+index 55232a912950..0d9a46004f58 100644
+--- a/drivers/media/platform/qcom/camss-8x16/camss-vfe.c
++++ b/drivers/media/platform/qcom/camss-8x16/camss-vfe.c
+@@ -2794,7 +2794,8 @@ int msm_vfe_subdev_init(struct vfe_device *vfe, const struct resources *res)
+ 	while (res->clock[vfe->nclocks])
+ 		vfe->nclocks++;
+ 
+-	vfe->clock = devm_kzalloc(dev, vfe->nclocks * sizeof(*vfe->clock),
++	vfe->clock = devm_kzalloc(dev,
++				  array_size(vfe->nclocks, sizeof(*vfe->clock)),
+ 				  GFP_KERNEL);
+ 	if (!vfe->clock)
+ 		return -ENOMEM;
+@@ -2817,8 +2818,9 @@ int msm_vfe_subdev_init(struct vfe_device *vfe, const struct resources *res)
+ 			continue;
+ 		}
+ 
+-		clock->freq = devm_kzalloc(dev, clock->nfreqs *
+-					   sizeof(*clock->freq), GFP_KERNEL);
++		clock->freq = devm_kzalloc(dev,
++					   array_size(clock->nfreqs, sizeof(*clock->freq)),
++					   GFP_KERNEL);
+ 		if (!clock->freq)
+ 			return -ENOMEM;
+ 
+diff --git a/drivers/media/platform/qcom/camss-8x16/camss.c b/drivers/media/platform/qcom/camss-8x16/camss.c
+index 05f06c98aa64..c6223c707432 100644
+--- a/drivers/media/platform/qcom/camss-8x16/camss.c
++++ b/drivers/media/platform/qcom/camss-8x16/camss.c
+@@ -271,7 +271,8 @@ static int camss_of_parse_endpoint_node(struct device *dev,
+ 	lncfg->clk.pol = mipi_csi2->lane_polarities[0];
+ 	lncfg->num_data = mipi_csi2->num_data_lanes;
+ 
+-	lncfg->data = devm_kzalloc(dev, lncfg->num_data * sizeof(*lncfg->data),
++	lncfg->data = devm_kzalloc(dev,
++				   array_size(lncfg->num_data, sizeof(*lncfg->data)),
+ 				   GFP_KERNEL);
+ 	if (!lncfg->data)
+ 		return -ENOMEM;
+diff --git a/drivers/media/v4l2-core/v4l2-flash-led-class.c b/drivers/media/v4l2-core/v4l2-flash-led-class.c
+index 4ceef217de83..26a648e1c1df 100644
+--- a/drivers/media/v4l2-core/v4l2-flash-led-class.c
++++ b/drivers/media/v4l2-core/v4l2-flash-led-class.c
+@@ -413,8 +413,8 @@ static int v4l2_flash_init_controls(struct v4l2_flash *v4l2_flash,
+ 	int i, ret, num_ctrls = 0;
+ 
+ 	v4l2_flash->ctrls = devm_kzalloc(v4l2_flash->sd.dev,
+-					sizeof(*v4l2_flash->ctrls) *
+-					(STROBE_SOURCE + 1), GFP_KERNEL);
++					 array_size(sizeof(*v4l2_flash->ctrls), (STROBE_SOURCE + 1)),
++					 GFP_KERNEL);
+ 	if (!v4l2_flash->ctrls)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/mfd/htc-i2cpld.c b/drivers/mfd/htc-i2cpld.c
+index 3f9eee5f8fb9..ef9a1aabd1e0 100644
+--- a/drivers/mfd/htc-i2cpld.c
++++ b/drivers/mfd/htc-i2cpld.c
+@@ -477,7 +477,8 @@ static int htcpld_setup_chips(struct platform_device *pdev)
+ 
+ 	/* Setup each chip's output GPIOs */
+ 	htcpld->nchips = pdata->num_chip;
+-	htcpld->chip = devm_kzalloc(dev, sizeof(struct htcpld_chip) * htcpld->nchips,
++	htcpld->chip = devm_kzalloc(dev,
++				    array_size(sizeof(struct htcpld_chip), htcpld->nchips),
+ 				    GFP_KERNEL);
+ 	if (!htcpld->chip) {
+ 		dev_warn(dev, "Unable to allocate memory for chips\n");
+diff --git a/drivers/mfd/motorola-cpcap.c b/drivers/mfd/motorola-cpcap.c
+index d2cc1eabac05..8198c9c25a9e 100644
+--- a/drivers/mfd/motorola-cpcap.c
++++ b/drivers/mfd/motorola-cpcap.c
+@@ -173,9 +173,7 @@ static int cpcap_init_irq(struct cpcap_ddata *cpcap)
+ 	int ret;
+ 
+ 	cpcap->irqs = devm_kzalloc(&cpcap->spi->dev,
+-				   sizeof(*cpcap->irqs) *
+-				   CPCAP_NR_IRQ_REG_BANKS *
+-				   cpcap->regmap_conf->val_bits,
++				   array3_size(sizeof(*cpcap->irqs), CPCAP_NR_IRQ_REG_BANKS, cpcap->regmap_conf->val_bits),
+ 				   GFP_KERNEL);
+ 	if (!cpcap->irqs)
+ 		return -ENOMEM;
+diff --git a/drivers/mfd/omap-usb-tll.c b/drivers/mfd/omap-usb-tll.c
+index 44a5d66314c6..65b05566c381 100644
+--- a/drivers/mfd/omap-usb-tll.c
++++ b/drivers/mfd/omap-usb-tll.c
+@@ -254,8 +254,9 @@ static int usbtll_omap_probe(struct platform_device *pdev)
+ 		break;
  	}
  
- 	map_num += grp->npins;
--	new_map = devm_kzalloc(pctldev->dev, sizeof(*new_map) * map_num,
--								GFP_KERNEL);
-+	new_map = devm_kzalloc(pctldev->dev,
-+			       array_size(map_num, sizeof(*new_map)),
-+			       GFP_KERNEL);
- 	if (!new_map)
+-	tll->ch_clk = devm_kzalloc(dev, sizeof(struct clk *) * tll->nch,
+-						GFP_KERNEL);
++	tll->ch_clk = devm_kzalloc(dev,
++				   array_size(sizeof(struct clk *), tll->nch),
++				   GFP_KERNEL);
+ 	if (!tll->ch_clk) {
+ 		ret = -ENOMEM;
+ 		dev_err(dev, "Couldn't allocate memory for channel clocks\n");
+diff --git a/drivers/mfd/sprd-sc27xx-spi.c b/drivers/mfd/sprd-sc27xx-spi.c
+index 56a4782f0569..36533a2bf18e 100644
+--- a/drivers/mfd/sprd-sc27xx-spi.c
++++ b/drivers/mfd/sprd-sc27xx-spi.c
+@@ -196,8 +196,9 @@ static int sprd_pmic_probe(struct spi_device *spi)
+ 	ddata->irq_chip.num_irqs = pdata->num_irqs;
+ 	ddata->irq_chip.mask_invert = true;
+ 
+-	ddata->irqs = devm_kzalloc(&spi->dev, sizeof(struct regmap_irq) *
+-				   pdata->num_irqs, GFP_KERNEL);
++	ddata->irqs = devm_kzalloc(&spi->dev,
++				   array_size(sizeof(struct regmap_irq), pdata->num_irqs),
++				   GFP_KERNEL);
+ 	if (!ddata->irqs)
  		return -ENOMEM;
  
-diff --git a/drivers/pinctrl/pinctrl-single.c b/drivers/pinctrl/pinctrl-single.c
-index a7c5eb39b1eb..d773f9cbef4f 100644
---- a/drivers/pinctrl/pinctrl-single.c
-+++ b/drivers/pinctrl/pinctrl-single.c
-@@ -710,8 +710,8 @@ static int pcs_allocate_pin_table(struct pcs_device *pcs)
+diff --git a/drivers/mfd/wm8994-core.c b/drivers/mfd/wm8994-core.c
+index 953d0790ffd5..9429c7c9d86b 100644
+--- a/drivers/mfd/wm8994-core.c
++++ b/drivers/mfd/wm8994-core.c
+@@ -369,8 +369,8 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
+ 	}
  
- 	dev_dbg(pcs->dev, "allocating %i pins\n", nr_pins);
- 	pcs->pins.pa = devm_kzalloc(pcs->dev,
--				sizeof(*pcs->pins.pa) * nr_pins,
--				GFP_KERNEL);
-+				    array_size(nr_pins, sizeof(*pcs->pins.pa)),
-+				    GFP_KERNEL);
- 	if (!pcs->pins.pa)
- 		return -ENOMEM;
- 
-@@ -922,14 +922,15 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
+ 	wm8994->supplies = devm_kzalloc(wm8994->dev,
+-					sizeof(struct regulator_bulk_data) *
+-					wm8994->num_supplies, GFP_KERNEL);
++					array_size(sizeof(struct regulator_bulk_data), wm8994->num_supplies),
++					GFP_KERNEL);
+ 	if (!wm8994->supplies) {
+ 		ret = -ENOMEM;
+ 		goto err;
+diff --git a/drivers/mmc/host/sdhci-omap.c b/drivers/mmc/host/sdhci-omap.c
+index 1456abd5eeb9..6a47fca6117b 100644
+--- a/drivers/mmc/host/sdhci-omap.c
++++ b/drivers/mmc/host/sdhci-omap.c
+@@ -762,8 +762,9 @@ static int sdhci_omap_config_iodelay_pinctrl_state(struct sdhci_omap_host
+ 	if (!(omap_host->flags & SDHCI_OMAP_REQUIRE_IODELAY))
  		return 0;
  
- 	func->conf = devm_kzalloc(pcs->dev,
--				  sizeof(struct pcs_conf_vals) * nconfs,
-+				  array_size(nconfs, sizeof(struct pcs_conf_vals)),
+-	pinctrl_state = devm_kzalloc(dev, sizeof(*pinctrl_state) *
+-				     (MMC_TIMING_MMC_HS200 + 1), GFP_KERNEL);
++	pinctrl_state = devm_kzalloc(dev,
++				     array_size(sizeof(*pinctrl_state), (MMC_TIMING_MMC_HS200 + 1)),
++				     GFP_KERNEL);
+ 	if (!pinctrl_state)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/mtd/nand/raw/s3c2410.c b/drivers/mtd/nand/raw/s3c2410.c
+index 1bc0458063d8..015abf1fc2a3 100644
+--- a/drivers/mtd/nand/raw/s3c2410.c
++++ b/drivers/mtd/nand/raw/s3c2410.c
+@@ -1038,7 +1038,8 @@ static int s3c24xx_nand_probe_dt(struct platform_device *pdev)
+ 	if (!pdata->nr_sets)
+ 		return 0;
+ 
+-	sets = devm_kzalloc(&pdev->dev, sizeof(*sets) * pdata->nr_sets,
++	sets = devm_kzalloc(&pdev->dev,
++			    array_size(sizeof(*sets), pdata->nr_sets),
+ 			    GFP_KERNEL);
+ 	if (!sets)
+ 		return -ENOMEM;
+diff --git a/drivers/net/dsa/b53/b53_common.c b/drivers/net/dsa/b53/b53_common.c
+index 78616787f2a3..45623e705627 100644
+--- a/drivers/net/dsa/b53/b53_common.c
++++ b/drivers/net/dsa/b53/b53_common.c
+@@ -1955,13 +1955,13 @@ static int b53_switch_init(struct b53_device *dev)
+ 	dev->enabled_ports |= BIT(dev->cpu_port);
+ 
+ 	dev->ports = devm_kzalloc(dev->dev,
+-				  sizeof(struct b53_port) * dev->num_ports,
++				  array_size(sizeof(struct b53_port), dev->num_ports),
  				  GFP_KERNEL);
- 	if (!func->conf)
+ 	if (!dev->ports)
  		return -ENOMEM;
- 	func->nconfs = nconfs;
- 	conf = &(func->conf[0]);
- 	m++;
--	settings = devm_kzalloc(pcs->dev, sizeof(unsigned long) * nconfs,
-+	settings = devm_kzalloc(pcs->dev,
-+				array_size(nconfs, sizeof(unsigned long)),
- 				GFP_KERNEL);
- 	if (!settings)
+ 
+ 	dev->vlans = devm_kzalloc(dev->dev,
+-				  sizeof(struct b53_vlan) * dev->num_vlans,
++				  array_size(sizeof(struct b53_vlan), dev->num_vlans),
+ 				  GFP_KERNEL);
+ 	if (!dev->vlans)
  		return -ENOMEM;
-@@ -985,11 +986,13 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
+diff --git a/drivers/net/ethernet/hisilicon/hns3/hns3_enet.c b/drivers/net/ethernet/hisilicon/hns3/hns3_enet.c
+index 8c55965a66ac..c0b464299084 100644
+--- a/drivers/net/ethernet/hisilicon/hns3/hns3_enet.c
++++ b/drivers/net/ethernet/hisilicon/hns3/hns3_enet.c
+@@ -2879,8 +2879,8 @@ static int hns3_get_ring_config(struct hns3_nic_priv *priv)
+ 	struct pci_dev *pdev = h->pdev;
+ 	int i, ret;
+ 
+-	priv->ring_data =  devm_kzalloc(&pdev->dev, h->kinfo.num_tqps *
+-					sizeof(*priv->ring_data) * 2,
++	priv->ring_data =  devm_kzalloc(&pdev->dev,
++					array3_size(h->kinfo.num_tqps, sizeof(*priv->ring_data), 2),
+ 					GFP_KERNEL);
+ 	if (!priv->ring_data)
+ 		return -ENOMEM;
+diff --git a/drivers/net/ethernet/ti/cpsw.c b/drivers/net/ethernet/ti/cpsw.c
+index 30371274409d..7dfceb9b71ad 100644
+--- a/drivers/net/ethernet/ti/cpsw.c
++++ b/drivers/net/ethernet/ti/cpsw.c
+@@ -2704,8 +2704,8 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
+ 	}
+ 	data->active_slave = prop;
+ 
+-	data->slave_data = devm_kzalloc(&pdev->dev, data->slaves
+-					* sizeof(struct cpsw_slave_data),
++	data->slave_data = devm_kzalloc(&pdev->dev,
++					array_size(data->slaves, sizeof(struct cpsw_slave_data)),
+ 					GFP_KERNEL);
+ 	if (!data->slave_data)
+ 		return -ENOMEM;
+@@ -3034,7 +3034,7 @@ static int cpsw_probe(struct platform_device *pdev)
+ 	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
+ 
+ 	cpsw->slaves = devm_kzalloc(&pdev->dev,
+-				    sizeof(struct cpsw_slave) * data->slaves,
++				    array_size(sizeof(struct cpsw_slave), data->slaves),
+ 				    GFP_KERNEL);
+ 	if (!cpsw->slaves) {
+ 		ret = -ENOMEM;
+diff --git a/drivers/net/ethernet/ti/netcp_ethss.c b/drivers/net/ethernet/ti/netcp_ethss.c
+index 56dbc0b9fedc..7912ae57d611 100644
+--- a/drivers/net/ethernet/ti/netcp_ethss.c
++++ b/drivers/net/ethernet/ti/netcp_ethss.c
+@@ -3171,7 +3171,7 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
+ 	gbe_dev->num_et_stats = ARRAY_SIZE(xgbe10_et_stats);
+ 
+ 	gbe_dev->hw_stats = devm_kzalloc(gbe_dev->dev,
+-					 gbe_dev->num_et_stats * sizeof(u64),
++					 array_size(gbe_dev->num_et_stats, sizeof(u64)),
+ 					 GFP_KERNEL);
+ 	if (!gbe_dev->hw_stats) {
+ 		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
+@@ -3180,7 +3180,7 @@ static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
+ 
+ 	gbe_dev->hw_stats_prev =
+ 		devm_kzalloc(gbe_dev->dev,
+-			     gbe_dev->num_et_stats * sizeof(u32),
++			     array_size(gbe_dev->num_et_stats, sizeof(u32)),
+ 			     GFP_KERNEL);
+ 	if (!gbe_dev->hw_stats_prev) {
+ 		dev_err(gbe_dev->dev,
+@@ -3291,7 +3291,7 @@ static int set_gbe_ethss14_priv(struct gbe_priv *gbe_dev,
+ 	gbe_dev->num_et_stats = ARRAY_SIZE(gbe13_et_stats);
+ 
+ 	gbe_dev->hw_stats = devm_kzalloc(gbe_dev->dev,
+-					 gbe_dev->num_et_stats * sizeof(u64),
++					 array_size(gbe_dev->num_et_stats, sizeof(u64)),
+ 					 GFP_KERNEL);
+ 	if (!gbe_dev->hw_stats) {
+ 		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
+@@ -3300,7 +3300,7 @@ static int set_gbe_ethss14_priv(struct gbe_priv *gbe_dev,
+ 
+ 	gbe_dev->hw_stats_prev =
+ 		devm_kzalloc(gbe_dev->dev,
+-			     gbe_dev->num_et_stats * sizeof(u32),
++			     array_size(gbe_dev->num_et_stats, sizeof(u32)),
+ 			     GFP_KERNEL);
+ 	if (!gbe_dev->hw_stats_prev) {
+ 		dev_err(gbe_dev->dev,
+@@ -3363,7 +3363,7 @@ static int set_gbenu_ethss_priv(struct gbe_priv *gbe_dev,
+ 					GBENU_ET_STATS_PORT_SIZE;
+ 
+ 	gbe_dev->hw_stats = devm_kzalloc(gbe_dev->dev,
+-					 gbe_dev->num_et_stats * sizeof(u64),
++					 array_size(gbe_dev->num_et_stats, sizeof(u64)),
+ 					 GFP_KERNEL);
+ 	if (!gbe_dev->hw_stats) {
+ 		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
+@@ -3372,7 +3372,7 @@ static int set_gbenu_ethss_priv(struct gbe_priv *gbe_dev,
+ 
+ 	gbe_dev->hw_stats_prev =
+ 		devm_kzalloc(gbe_dev->dev,
+-			     gbe_dev->num_et_stats * sizeof(u32),
++			     array_size(gbe_dev->num_et_stats, sizeof(u32)),
+ 			     GFP_KERNEL);
+ 	if (!gbe_dev->hw_stats_prev) {
+ 		dev_err(gbe_dev->dev,
+diff --git a/drivers/net/phy/phy_led_triggers.c b/drivers/net/phy/phy_led_triggers.c
+index 39ecad25b201..4375cab832d9 100644
+--- a/drivers/net/phy/phy_led_triggers.c
++++ b/drivers/net/phy/phy_led_triggers.c
+@@ -129,9 +129,8 @@ int phy_led_triggers_register(struct phy_device *phy)
+ 		goto out_free_link;
+ 
+ 	phy->phy_led_triggers = devm_kzalloc(&phy->mdio.dev,
+-					    sizeof(struct phy_led_trigger) *
+-						   phy->phy_num_led_triggers,
+-					    GFP_KERNEL);
++					     array_size(sizeof(struct phy_led_trigger), phy->phy_num_led_triggers),
++					     GFP_KERNEL);
+ 	if (!phy->phy_led_triggers) {
+ 		err = -ENOMEM;
+ 		goto out_unreg_link;
+diff --git a/drivers/pci/cadence/pcie-cadence-ep.c b/drivers/pci/cadence/pcie-cadence-ep.c
+index 3d8283e450a9..5699adafe491 100644
+--- a/drivers/pci/cadence/pcie-cadence-ep.c
++++ b/drivers/pci/cadence/pcie-cadence-ep.c
+@@ -467,7 +467,8 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
+ 		dev_err(dev, "missing \"cdns,max-outbound-regions\"\n");
+ 		return ret;
+ 	}
+-	ep->ob_addr = devm_kzalloc(dev, ep->max_regions * sizeof(*ep->ob_addr),
++	ep->ob_addr = devm_kzalloc(dev,
++				   array_size(ep->max_regions, sizeof(*ep->ob_addr)),
+ 				   GFP_KERNEL);
+ 	if (!ep->ob_addr)
+ 		return -ENOMEM;
+diff --git a/drivers/pci/dwc/pcie-designware-ep.c b/drivers/pci/dwc/pcie-designware-ep.c
+index f07678bf7cfc..58c108099d84 100644
+--- a/drivers/pci/dwc/pcie-designware-ep.c
++++ b/drivers/pci/dwc/pcie-designware-ep.c
+@@ -366,19 +366,20 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
  		return -EINVAL;
  	}
  
--	vals = devm_kzalloc(pcs->dev, sizeof(*vals) * rows, GFP_KERNEL);
-+	vals = devm_kzalloc(pcs->dev, array_size(rows, sizeof(*vals)),
-+			    GFP_KERNEL);
- 	if (!vals)
+-	ep->ib_window_map = devm_kzalloc(dev, sizeof(long) *
+-					 BITS_TO_LONGS(ep->num_ib_windows),
++	ep->ib_window_map = devm_kzalloc(dev,
++					 array_size(sizeof(long), BITS_TO_LONGS(ep->num_ib_windows)),
+ 					 GFP_KERNEL);
+ 	if (!ep->ib_window_map)
  		return -ENOMEM;
  
--	pins = devm_kzalloc(pcs->dev, sizeof(*pins) * rows, GFP_KERNEL);
-+	pins = devm_kzalloc(pcs->dev, array_size(rows, sizeof(*pins)),
-+			    GFP_KERNEL);
- 	if (!pins)
- 		goto free_vals;
- 
-@@ -1086,13 +1089,15 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
- 
- 	npins_in_row = pcs->width / pcs->bits_per_pin;
- 
--	vals = devm_kzalloc(pcs->dev, sizeof(*vals) * rows * npins_in_row,
--			GFP_KERNEL);
-+	vals = devm_kzalloc(pcs->dev,
-+			    array3_size(rows, npins_in_row, sizeof(*vals)),
-+			    GFP_KERNEL);
- 	if (!vals)
+-	ep->ob_window_map = devm_kzalloc(dev, sizeof(long) *
+-					 BITS_TO_LONGS(ep->num_ob_windows),
++	ep->ob_window_map = devm_kzalloc(dev,
++					 array_size(sizeof(long), BITS_TO_LONGS(ep->num_ob_windows)),
+ 					 GFP_KERNEL);
+ 	if (!ep->ob_window_map)
  		return -ENOMEM;
  
--	pins = devm_kzalloc(pcs->dev, sizeof(*pins) * rows * npins_in_row,
--			GFP_KERNEL);
-+	pins = devm_kzalloc(pcs->dev,
-+			    array3_size(rows, npins_in_row, sizeof(*pins)),
-+			    GFP_KERNEL);
- 	if (!pins)
- 		goto free_vals;
- 
-@@ -1214,7 +1219,8 @@ static int pcs_dt_node_to_map(struct pinctrl_dev *pctldev,
- 	pcs = pinctrl_dev_get_drvdata(pctldev);
- 
- 	/* create 2 maps. One is for pinmux, and the other is for pinconf. */
--	*map = devm_kzalloc(pcs->dev, sizeof(**map) * 2, GFP_KERNEL);
-+	*map = devm_kzalloc(pcs->dev, array_size(2, sizeof(**map)),
-+			    GFP_KERNEL);
- 	if (!*map)
+-	addr = devm_kzalloc(dev, sizeof(phys_addr_t) * ep->num_ob_windows,
++	addr = devm_kzalloc(dev,
++			    array_size(sizeof(phys_addr_t), ep->num_ob_windows),
+ 			    GFP_KERNEL);
+ 	if (!addr)
  		return -ENOMEM;
+diff --git a/drivers/pinctrl/berlin/berlin.c b/drivers/pinctrl/berlin/berlin.c
+index 4b710037cea6..6c6012877c6f 100644
+--- a/drivers/pinctrl/berlin/berlin.c
++++ b/drivers/pinctrl/berlin/berlin.c
+@@ -265,7 +265,7 @@ static int berlin_pinctrl_build_state(struct platform_device *pdev)
+ 			if (!function->groups) {
+ 				function->groups =
+ 					devm_kzalloc(&pdev->dev,
+-						     function->ngroups * sizeof(char *),
++						     array_size(function->ngroups, sizeof(char *)),
+ 						     GFP_KERNEL);
  
-diff --git a/drivers/pinctrl/pinctrl-st.c b/drivers/pinctrl/pinctrl-st.c
-index 2081c67667a8..342fb4627006 100644
---- a/drivers/pinctrl/pinctrl-st.c
-+++ b/drivers/pinctrl/pinctrl-st.c
-@@ -824,7 +824,8 @@ static int st_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
+ 				if (!function->groups)
+diff --git a/drivers/pinctrl/freescale/pinctrl-imx.c b/drivers/pinctrl/freescale/pinctrl-imx.c
+index 8734e5f05b46..1a31b8df3da3 100644
+--- a/drivers/pinctrl/freescale/pinctrl-imx.c
++++ b/drivers/pinctrl/freescale/pinctrl-imx.c
+@@ -475,10 +475,12 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
+ 	config = imx_pinconf_parse_generic_config(np, ipctl);
  
- 	map_num = grp->npins + 1;
- 	new_map = devm_kzalloc(pctldev->dev,
--				sizeof(*new_map) * map_num, GFP_KERNEL);
-+			       array_size(map_num, sizeof(*new_map)),
-+			       GFP_KERNEL);
- 	if (!new_map)
- 		return -ENOMEM;
- 
-@@ -1191,9 +1192,11 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
- 
- 	grp->npins = npins;
- 	grp->name = np->name;
--	grp->pins = devm_kzalloc(info->dev, npins * sizeof(u32), GFP_KERNEL);
-+	grp->pins = devm_kzalloc(info->dev, array_size(npins, sizeof(u32)),
+ 	grp->num_pins = size / pin_size;
+-	grp->data = devm_kzalloc(ipctl->dev, grp->num_pins *
+-				 sizeof(struct imx_pin), GFP_KERNEL);
+-	grp->pins = devm_kzalloc(ipctl->dev, grp->num_pins *
+-				 sizeof(unsigned int), GFP_KERNEL);
++	grp->data = devm_kzalloc(ipctl->dev,
++				 array_size(grp->num_pins, sizeof(struct imx_pin)),
 +				 GFP_KERNEL);
- 	grp->pin_conf = devm_kzalloc(info->dev,
--					npins * sizeof(*conf), GFP_KERNEL);
-+				     array_size(npins, sizeof(*conf)),
-+				     GFP_KERNEL);
- 
- 	if (!grp->pins || !grp->pin_conf)
- 		return -ENOMEM;
-diff --git a/drivers/pinctrl/samsung/pinctrl-exynos5440.c b/drivers/pinctrl/samsung/pinctrl-exynos5440.c
-index 832ba81e192e..3a962c3ae3f4 100644
---- a/drivers/pinctrl/samsung/pinctrl-exynos5440.c
-+++ b/drivers/pinctrl/samsung/pinctrl-exynos5440.c
-@@ -666,13 +666,15 @@ static int exynos5440_pinctrl_parse_dt(struct platform_device *pdev,
- 	if (!grp_cnt)
- 		return -EINVAL;
- 
--	groups = devm_kzalloc(dev, grp_cnt * sizeof(*groups), GFP_KERNEL);
-+	groups = devm_kzalloc(dev, array_size(grp_cnt, sizeof(*groups)),
-+			      GFP_KERNEL);
- 	if (!groups)
- 		return -EINVAL;
- 
- 	grp = groups;
- 
--	functions = devm_kzalloc(dev, grp_cnt * sizeof(*functions), GFP_KERNEL);
-+	functions = devm_kzalloc(dev, array_size(grp_cnt, sizeof(*functions)),
++	grp->pins = devm_kzalloc(ipctl->dev,
++				 array_size(grp->num_pins, sizeof(unsigned int)),
 +				 GFP_KERNEL);
- 	if (!functions)
+ 	if (!grp->pins || !grp->data)
+ 		return -ENOMEM;
+ 
+@@ -696,8 +698,9 @@ int imx_pinctrl_probe(struct platform_device *pdev,
+ 	if (!ipctl)
+ 		return -ENOMEM;
+ 
+-	ipctl->pin_regs = devm_kmalloc(&pdev->dev, sizeof(*ipctl->pin_regs) *
+-				      info->npins, GFP_KERNEL);
++	ipctl->pin_regs = devm_kmalloc(&pdev->dev,
++				       array_size(sizeof(*ipctl->pin_regs), info->npins),
++				       GFP_KERNEL);
+ 	if (!ipctl->pin_regs)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/freescale/pinctrl-imx1-core.c b/drivers/pinctrl/freescale/pinctrl-imx1-core.c
+index ebf32b65d822..730f7178414c 100644
+--- a/drivers/pinctrl/freescale/pinctrl-imx1-core.c
++++ b/drivers/pinctrl/freescale/pinctrl-imx1-core.c
+@@ -489,9 +489,11 @@ static int imx1_pinctrl_parse_groups(struct device_node *np,
+ 
+ 	grp->npins = size / 12;
+ 	grp->pins = devm_kzalloc(info->dev,
+-			grp->npins * sizeof(struct imx1_pin), GFP_KERNEL);
++				 array_size(grp->npins, sizeof(struct imx1_pin)),
++				 GFP_KERNEL);
+ 	grp->pin_ids = devm_kzalloc(info->dev,
+-			grp->npins * sizeof(unsigned int), GFP_KERNEL);
++				    array_size(grp->npins, sizeof(unsigned int)),
++				    GFP_KERNEL);
+ 
+ 	if (!grp->pins || !grp->pin_ids)
+ 		return -ENOMEM;
+@@ -529,7 +531,8 @@ static int imx1_pinctrl_parse_functions(struct device_node *np,
  		return -EINVAL;
  
-@@ -754,8 +756,9 @@ static int exynos5440_pinctrl_register(struct platform_device *pdev,
- 	ctrldesc->pmxops = &exynos5440_pinmux_ops;
- 	ctrldesc->confops = &exynos5440_pinconf_ops;
+ 	func->groups = devm_kzalloc(info->dev,
+-			func->num_groups * sizeof(char *), GFP_KERNEL);
++				    array_size(func->num_groups, sizeof(char *)),
++				    GFP_KERNEL);
+ 
+ 	if (!func->groups)
+ 		return -ENOMEM;
+diff --git a/drivers/pinctrl/freescale/pinctrl-mxs.c b/drivers/pinctrl/freescale/pinctrl-mxs.c
+index ea3bb26b0c3e..e9689b23b9a8 100644
+--- a/drivers/pinctrl/freescale/pinctrl-mxs.c
++++ b/drivers/pinctrl/freescale/pinctrl-mxs.c
+@@ -377,12 +377,14 @@ static int mxs_pinctrl_parse_group(struct platform_device *pdev,
+ 		return -EINVAL;
+ 	g->npins = length / sizeof(u32);
+ 
+-	g->pins = devm_kzalloc(&pdev->dev, g->npins * sizeof(*g->pins),
++	g->pins = devm_kzalloc(&pdev->dev,
++			       array_size(g->npins, sizeof(*g->pins)),
+ 			       GFP_KERNEL);
+ 	if (!g->pins)
+ 		return -ENOMEM;
+ 
+-	g->muxsel = devm_kzalloc(&pdev->dev, g->npins * sizeof(*g->muxsel),
++	g->muxsel = devm_kzalloc(&pdev->dev,
++				 array_size(g->npins, sizeof(*g->muxsel)),
+ 				 GFP_KERNEL);
+ 	if (!g->muxsel)
+ 		return -ENOMEM;
+@@ -433,13 +435,15 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
+ 		}
+ 	}
+ 
+-	soc->functions = devm_kzalloc(&pdev->dev, soc->nfunctions *
+-				      sizeof(*soc->functions), GFP_KERNEL);
++	soc->functions = devm_kzalloc(&pdev->dev,
++				      array_size(soc->nfunctions, sizeof(*soc->functions)),
++				      GFP_KERNEL);
+ 	if (!soc->functions)
+ 		return -ENOMEM;
+ 
+-	soc->groups = devm_kzalloc(&pdev->dev, soc->ngroups *
+-				   sizeof(*soc->groups), GFP_KERNEL);
++	soc->groups = devm_kzalloc(&pdev->dev,
++				   array_size(soc->ngroups, sizeof(*soc->groups)),
++				   GFP_KERNEL);
+ 	if (!soc->groups)
+ 		return -ENOMEM;
+ 
+@@ -499,8 +503,8 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
+ 
+ 		if (strcmp(fn, child->name)) {
+ 			f = &soc->functions[idxf++];
+-			f->groups = devm_kzalloc(&pdev->dev, f->ngroups *
+-						 sizeof(*f->groups),
++			f->groups = devm_kzalloc(&pdev->dev,
++						 array_size(f->ngroups, sizeof(*f->groups)),
+ 						 GFP_KERNEL);
+ 			if (!f->groups)
+ 				return -ENOMEM;
+diff --git a/drivers/pinctrl/mvebu/pinctrl-armada-37xx.c b/drivers/pinctrl/mvebu/pinctrl-armada-37xx.c
+index 5b63248c8209..d8baecb3890a 100644
+--- a/drivers/pinctrl/mvebu/pinctrl-armada-37xx.c
++++ b/drivers/pinctrl/mvebu/pinctrl-armada-37xx.c
+@@ -869,8 +869,8 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
+ 		int i, j, f;
+ 
+ 		grp->pins = devm_kzalloc(info->dev,
+-					 (grp->npins + grp->extra_npins) *
+-					 sizeof(*grp->pins), GFP_KERNEL);
++					 array_size((grp->npins + grp->extra_npins), sizeof(*grp->pins)),
++					 GFP_KERNEL);
+ 		if (!grp->pins)
+ 			return -ENOMEM;
+ 
+@@ -920,8 +920,8 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
+ 		const char **groups;
+ 		int g;
+ 
+-		funcs[n].groups = devm_kzalloc(info->dev, funcs[n].ngroups *
+-					       sizeof(*(funcs[n].groups)),
++		funcs[n].groups = devm_kzalloc(info->dev,
++					       array_size(funcs[n].ngroups, sizeof(*(funcs[n].groups))),
+ 					       GFP_KERNEL);
+ 		if (!funcs[n].groups)
+ 			return -ENOMEM;
+@@ -960,8 +960,9 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
+ 	ctrldesc->pmxops = &armada_37xx_pmx_ops;
+ 	ctrldesc->confops = &armada_37xx_pinconf_ops;
  
 -	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
--				EXYNOS5440_MAX_PINS, GFP_KERNEL);
+-			       pin_data->nr_pins, GFP_KERNEL);
 +	pindesc = devm_kzalloc(&pdev->dev,
-+			       array_size(EXYNOS5440_MAX_PINS, sizeof(*pindesc)),
++			       array_size(sizeof(*pindesc), pin_data->nr_pins),
 +			       GFP_KERNEL);
  	if (!pindesc)
  		return -ENOMEM;
- 	ctrldesc->pins = pindesc;
-@@ -909,8 +912,9 @@ static int exynos5440_gpio_irq_init(struct platform_device *pdev,
- 	struct exynos5440_gpio_intr_data *intd;
- 	int i, irq, ret;
  
--	intd = devm_kzalloc(dev, sizeof(*intd) * EXYNOS5440_MAX_GPIO_INT,
--					GFP_KERNEL);
-+	intd = devm_kzalloc(dev,
-+			    array_size(EXYNOS5440_MAX_GPIO_INT, sizeof(*intd)),
-+			    GFP_KERNEL);
- 	if (!intd)
+@@ -980,8 +981,9 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
+ 	 * we allocate functions for number of pins and hope there are
+ 	 * fewer unique functions than pins available
+ 	 */
+-	info->funcs = devm_kzalloc(&pdev->dev, pin_data->nr_pins *
+-			   sizeof(struct armada_37xx_pmx_func), GFP_KERNEL);
++	info->funcs = devm_kzalloc(&pdev->dev,
++				   array_size(pin_data->nr_pins, sizeof(struct armada_37xx_pmx_func)),
++				   GFP_KERNEL);
+ 	if (!info->funcs)
  		return -ENOMEM;
  
-diff --git a/drivers/pinctrl/samsung/pinctrl-samsung.c b/drivers/pinctrl/samsung/pinctrl-samsung.c
-index 336e88d7bdb9..dd9b17e1fbba 100644
---- a/drivers/pinctrl/samsung/pinctrl-samsung.c
-+++ b/drivers/pinctrl/samsung/pinctrl-samsung.c
-@@ -682,7 +682,8 @@ static int samsung_pinctrl_create_function(struct device *dev,
+diff --git a/drivers/pinctrl/mvebu/pinctrl-mvebu.c b/drivers/pinctrl/mvebu/pinctrl-mvebu.c
+index 437345990da7..3b884fa9e180 100644
+--- a/drivers/pinctrl/mvebu/pinctrl-mvebu.c
++++ b/drivers/pinctrl/mvebu/pinctrl-mvebu.c
+@@ -551,8 +551,8 @@ static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
+ 			/* allocate group name array if not done already */
+ 			if (!f->groups) {
+ 				f->groups = devm_kzalloc(&pdev->dev,
+-						 f->num_groups * sizeof(char *),
+-						 GFP_KERNEL);
++							 array_size(f->num_groups, sizeof(char *)),
++							 GFP_KERNEL);
+ 				if (!f->groups)
+ 					return -ENOMEM;
+ 			}
+@@ -623,8 +623,9 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
+ 		}
+ 	}
  
- 	func->name = func_np->full_name;
+-	pdesc = devm_kzalloc(&pdev->dev, pctl->desc.npins *
+-			     sizeof(struct pinctrl_pin_desc), GFP_KERNEL);
++	pdesc = devm_kzalloc(&pdev->dev,
++			     array_size(pctl->desc.npins, sizeof(struct pinctrl_pin_desc)),
++			     GFP_KERNEL);
+ 	if (!pdesc)
+ 		return -ENOMEM;
  
--	func->groups = devm_kzalloc(dev, npins * sizeof(char *), GFP_KERNEL);
-+	func->groups = devm_kzalloc(dev, array_size(npins, sizeof(char *)),
+diff --git a/drivers/pinctrl/pinctrl-at91-pio4.c b/drivers/pinctrl/pinctrl-at91-pio4.c
+index 4b57a13758a4..5287e07ccf37 100644
+--- a/drivers/pinctrl/pinctrl-at91-pio4.c
++++ b/drivers/pinctrl/pinctrl-at91-pio4.c
+@@ -943,28 +943,31 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
+ 		return PTR_ERR(atmel_pioctrl->clk);
+ 	}
+ 
+-	atmel_pioctrl->pins = devm_kzalloc(dev, sizeof(*atmel_pioctrl->pins)
+-			* atmel_pioctrl->npins, GFP_KERNEL);
++	atmel_pioctrl->pins = devm_kzalloc(dev,
++					   array_size(sizeof(*atmel_pioctrl->pins), atmel_pioctrl->npins),
++					   GFP_KERNEL);
+ 	if (!atmel_pioctrl->pins)
+ 		return -ENOMEM;
+ 
+-	pin_desc = devm_kzalloc(dev, sizeof(*pin_desc)
+-			* atmel_pioctrl->npins, GFP_KERNEL);
++	pin_desc = devm_kzalloc(dev,
++				array_size(sizeof(*pin_desc), atmel_pioctrl->npins),
++				GFP_KERNEL);
+ 	if (!pin_desc)
+ 		return -ENOMEM;
+ 	atmel_pinctrl_desc.pins = pin_desc;
+ 	atmel_pinctrl_desc.npins = atmel_pioctrl->npins;
+ 
+ 	/* One pin is one group since a pin can achieve all functions. */
+-	group_names = devm_kzalloc(dev, sizeof(*group_names)
+-			* atmel_pioctrl->npins, GFP_KERNEL);
++	group_names = devm_kzalloc(dev,
++				   array_size(sizeof(*group_names), atmel_pioctrl->npins),
++				   GFP_KERNEL);
+ 	if (!group_names)
+ 		return -ENOMEM;
+ 	atmel_pioctrl->group_names = group_names;
+ 
+ 	atmel_pioctrl->groups = devm_kzalloc(&pdev->dev,
+-			sizeof(*atmel_pioctrl->groups) * atmel_pioctrl->npins,
+-			GFP_KERNEL);
++					     array_size(sizeof(*atmel_pioctrl->groups), atmel_pioctrl->npins),
++					     GFP_KERNEL);
+ 	if (!atmel_pioctrl->groups)
+ 		return -ENOMEM;
+ 	for (i = 0 ; i < atmel_pioctrl->npins; i++) {
+@@ -1000,19 +1003,20 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
+ 	atmel_pioctrl->gpio_chip->names = atmel_pioctrl->group_names;
+ 
+ 	atmel_pioctrl->pm_wakeup_sources = devm_kzalloc(dev,
+-			sizeof(*atmel_pioctrl->pm_wakeup_sources)
+-			* atmel_pioctrl->nbanks, GFP_KERNEL);
++							array_size(sizeof(*atmel_pioctrl->pm_wakeup_sources), atmel_pioctrl->nbanks),
++							GFP_KERNEL);
+ 	if (!atmel_pioctrl->pm_wakeup_sources)
+ 		return -ENOMEM;
+ 
+ 	atmel_pioctrl->pm_suspend_backup = devm_kzalloc(dev,
+-			sizeof(*atmel_pioctrl->pm_suspend_backup)
+-			* atmel_pioctrl->nbanks, GFP_KERNEL);
++							array_size(sizeof(*atmel_pioctrl->pm_suspend_backup), atmel_pioctrl->nbanks),
++							GFP_KERNEL);
+ 	if (!atmel_pioctrl->pm_suspend_backup)
+ 		return -ENOMEM;
+ 
+-	atmel_pioctrl->irqs = devm_kzalloc(dev, sizeof(*atmel_pioctrl->irqs)
+-			* atmel_pioctrl->nbanks, GFP_KERNEL);
++	atmel_pioctrl->irqs = devm_kzalloc(dev,
++					   array_size(sizeof(*atmel_pioctrl->irqs), atmel_pioctrl->nbanks),
++					   GFP_KERNEL);
+ 	if (!atmel_pioctrl->irqs)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/pinctrl-at91.c b/drivers/pinctrl/pinctrl-at91.c
+index 2e9224ad8d11..cc04448375d3 100644
+--- a/drivers/pinctrl/pinctrl-at91.c
++++ b/drivers/pinctrl/pinctrl-at91.c
+@@ -1091,10 +1091,12 @@ static int at91_pinctrl_parse_groups(struct device_node *np,
+ 	}
+ 
+ 	grp->npins = size / 4;
+-	pin = grp->pins_conf = devm_kzalloc(info->dev, grp->npins * sizeof(struct at91_pmx_pin),
+-				GFP_KERNEL);
+-	grp->pins = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned int),
+-				GFP_KERNEL);
++	pin = grp->pins_conf = devm_kzalloc(info->dev,
++					    array_size(grp->npins, sizeof(struct at91_pmx_pin)),
++					    GFP_KERNEL);
++	grp->pins = devm_kzalloc(info->dev,
++				 array_size(grp->npins, sizeof(unsigned int)),
++				 GFP_KERNEL);
+ 	if (!grp->pins_conf || !grp->pins)
+ 		return -ENOMEM;
+ 
+@@ -1134,7 +1136,8 @@ static int at91_pinctrl_parse_functions(struct device_node *np,
+ 		return -EINVAL;
+ 	}
+ 	func->groups = devm_kzalloc(info->dev,
+-			func->ngroups * sizeof(char *), GFP_KERNEL);
++				    array_size(func->ngroups, sizeof(char *)),
 +				    GFP_KERNEL);
  	if (!func->groups)
  		return -ENOMEM;
  
-@@ -739,8 +740,9 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
- 		}
+@@ -1196,13 +1199,15 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
+ 
+ 	dev_dbg(&pdev->dev, "nfunctions = %d\n", info->nfunctions);
+ 	dev_dbg(&pdev->dev, "ngroups = %d\n", info->ngroups);
+-	info->functions = devm_kzalloc(&pdev->dev, info->nfunctions * sizeof(struct at91_pmx_func),
+-					GFP_KERNEL);
++	info->functions = devm_kzalloc(&pdev->dev,
++				       array_size(info->nfunctions, sizeof(struct at91_pmx_func)),
++				       GFP_KERNEL);
+ 	if (!info->functions)
+ 		return -ENOMEM;
+ 
+-	info->groups = devm_kzalloc(&pdev->dev, info->ngroups * sizeof(struct at91_pin_group),
+-					GFP_KERNEL);
++	info->groups = devm_kzalloc(&pdev->dev,
++				    array_size(info->ngroups, sizeof(struct at91_pin_group)),
++				    GFP_KERNEL);
+ 	if (!info->groups)
+ 		return -ENOMEM;
+ 
+@@ -1260,7 +1265,9 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
+ 	at91_pinctrl_desc.name = dev_name(&pdev->dev);
+ 	at91_pinctrl_desc.npins = gpio_banks * MAX_NB_GPIO_PER_BANK;
+ 	at91_pinctrl_desc.pins = pdesc =
+-		devm_kzalloc(&pdev->dev, sizeof(*pdesc) * at91_pinctrl_desc.npins, GFP_KERNEL);
++		devm_kzalloc(&pdev->dev,
++			     array_size(sizeof(*pdesc), at91_pinctrl_desc.npins),
++			     GFP_KERNEL);
+ 
+ 	if (!at91_pinctrl_desc.pins)
+ 		return -ENOMEM;
+@@ -1767,7 +1774,8 @@ static int at91_gpio_probe(struct platform_device *pdev)
+ 			chip->ngpio = ngpio;
  	}
  
--	functions = devm_kzalloc(dev, func_cnt * sizeof(*functions),
+-	names = devm_kzalloc(&pdev->dev, sizeof(char *) * chip->ngpio,
++	names = devm_kzalloc(&pdev->dev,
++			     array_size(sizeof(char *), chip->ngpio),
+ 			     GFP_KERNEL);
+ 
+ 	if (!names) {
+diff --git a/drivers/pinctrl/pinctrl-ingenic.c b/drivers/pinctrl/pinctrl-ingenic.c
+index ac38a3f9f86b..026b0fc45d8d 100644
+--- a/drivers/pinctrl/pinctrl-ingenic.c
++++ b/drivers/pinctrl/pinctrl-ingenic.c
+@@ -771,7 +771,8 @@ static int ingenic_pinctrl_probe(struct platform_device *pdev)
+ 	pctl_desc->confops = &ingenic_confops;
+ 	pctl_desc->npins = chip_info->num_chips * PINS_PER_GPIO_CHIP;
+ 	pctl_desc->pins = jzpc->pdesc = devm_kzalloc(&pdev->dev,
+-			sizeof(*jzpc->pdesc) * pctl_desc->npins, GFP_KERNEL);
++						     array_size(sizeof(*jzpc->pdesc), pctl_desc->npins),
++						     GFP_KERNEL);
+ 	if (!jzpc->pdesc)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/pinctrl-rockchip.c b/drivers/pinctrl/pinctrl-rockchip.c
+index 5f9e3e3b598c..0031aec54c30 100644
+--- a/drivers/pinctrl/pinctrl-rockchip.c
++++ b/drivers/pinctrl/pinctrl-rockchip.c
+@@ -2319,11 +2319,12 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
+ 
+ 	grp->npins = size / 4;
+ 
+-	grp->pins = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned int),
+-						GFP_KERNEL);
+-	grp->data = devm_kzalloc(info->dev, grp->npins *
+-					  sizeof(struct rockchip_pin_config),
 -					GFP_KERNEL);
-+	functions = devm_kzalloc(dev,
-+				 array_size(func_cnt, sizeof(*functions)),
++	grp->pins = devm_kzalloc(info->dev,
++				 array_size(grp->npins, sizeof(unsigned int)),
 +				 GFP_KERNEL);
- 	if (!functions)
- 		return ERR_PTR(-ENOMEM);
- 	func = functions;
-diff --git a/drivers/pinctrl/sh-pfc/core.c b/drivers/pinctrl/sh-pfc/core.c
-index 74861b7b5b0d..108dd21d08a6 100644
---- a/drivers/pinctrl/sh-pfc/core.c
-+++ b/drivers/pinctrl/sh-pfc/core.c
-@@ -57,7 +57,8 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
++	grp->data = devm_kzalloc(info->dev,
++				 array_size(grp->npins, sizeof(struct rockchip_pin_config)),
++				 GFP_KERNEL);
+ 	if (!grp->pins || !grp->data)
+ 		return -ENOMEM;
+ 
+@@ -2375,7 +2376,8 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
+ 		return 0;
+ 
+ 	func->groups = devm_kzalloc(info->dev,
+-			func->ngroups * sizeof(char *), GFP_KERNEL);
++				    array_size(func->ngroups, sizeof(char *)),
++				    GFP_KERNEL);
+ 	if (!func->groups)
+ 		return -ENOMEM;
+ 
+@@ -2406,15 +2408,15 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
+ 	dev_dbg(&pdev->dev, "nfunctions = %d\n", info->nfunctions);
+ 	dev_dbg(&pdev->dev, "ngroups = %d\n", info->ngroups);
+ 
+-	info->functions = devm_kzalloc(dev, info->nfunctions *
+-					      sizeof(struct rockchip_pmx_func),
+-					      GFP_KERNEL);
++	info->functions = devm_kzalloc(dev,
++				       array_size(info->nfunctions, sizeof(struct rockchip_pmx_func)),
++				       GFP_KERNEL);
+ 	if (!info->functions)
  		return -EINVAL;
  
- 	/* Allocate memory windows and IRQs arrays. */
--	windows = devm_kzalloc(pfc->dev, num_windows * sizeof(*windows),
-+	windows = devm_kzalloc(pfc->dev,
-+			       array_size(num_windows, sizeof(*windows)),
- 			       GFP_KERNEL);
- 	if (windows == NULL)
- 		return -ENOMEM;
-@@ -66,7 +67,8 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
- 	pfc->windows = windows;
+-	info->groups = devm_kzalloc(dev, info->ngroups *
+-					    sizeof(struct rockchip_pin_group),
+-					    GFP_KERNEL);
++	info->groups = devm_kzalloc(dev,
++				    array_size(info->ngroups, sizeof(struct rockchip_pin_group)),
++				    GFP_KERNEL);
+ 	if (!info->groups)
+ 		return -EINVAL;
  
- 	if (num_irqs) {
--		irqs = devm_kzalloc(pfc->dev, num_irqs * sizeof(*irqs),
-+		irqs = devm_kzalloc(pfc->dev,
-+				    array_size(num_irqs, sizeof(*irqs)),
- 				    GFP_KERNEL);
- 		if (irqs == NULL)
+@@ -2450,8 +2452,9 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
+ 	ctrldesc->pmxops = &rockchip_pmx_ops;
+ 	ctrldesc->confops = &rockchip_pinconf_ops;
+ 
+-	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
+-			info->ctrl->nr_pins, GFP_KERNEL);
++	pindesc = devm_kzalloc(&pdev->dev,
++			       array_size(sizeof(*pindesc), info->ctrl->nr_pins),
++			       GFP_KERNEL);
+ 	if (!pindesc)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/pinctrl-st.c b/drivers/pinctrl/pinctrl-st.c
+index 342fb4627006..e3f608d7cf5b 100644
+--- a/drivers/pinctrl/pinctrl-st.c
++++ b/drivers/pinctrl/pinctrl-st.c
+@@ -1253,7 +1253,8 @@ static int st_pctl_parse_functions(struct device_node *np,
+ 		return -EINVAL;
+ 	}
+ 	func->groups = devm_kzalloc(info->dev,
+-			func->ngroups * sizeof(char *), GFP_KERNEL);
++				    array_size(func->ngroups, sizeof(char *)),
++				    GFP_KERNEL);
+ 	if (!func->groups)
+ 		return -ENOMEM;
+ 
+@@ -1577,13 +1578,16 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
+ 	dev_info(&pdev->dev, "ngroups = %d\n", info->ngroups);
+ 
+ 	info->functions = devm_kzalloc(&pdev->dev,
+-		info->nfunctions * sizeof(*info->functions), GFP_KERNEL);
++				       array_size(info->nfunctions, sizeof(*info->functions)),
++				       GFP_KERNEL);
+ 
+ 	info->groups = devm_kzalloc(&pdev->dev,
+-			info->ngroups * sizeof(*info->groups) ,	GFP_KERNEL);
++				    array_size(info->ngroups, sizeof(*info->groups)),
++				    GFP_KERNEL);
+ 
+ 	info->banks = devm_kzalloc(&pdev->dev,
+-			info->nbanks * sizeof(*info->banks), GFP_KERNEL);
++				   array_size(info->nbanks, sizeof(*info->banks)),
++				   GFP_KERNEL);
+ 
+ 	if (!info->functions || !info->groups || !info->banks)
+ 		return -ENOMEM;
+@@ -1612,7 +1616,8 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
+ 
+ 	pctl_desc->npins = info->nbanks * ST_GPIO_PINS_PER_BANK;
+ 	pdesc =	devm_kzalloc(&pdev->dev,
+-			sizeof(*pdesc) * pctl_desc->npins, GFP_KERNEL);
++				    array_size(sizeof(*pdesc), pctl_desc->npins),
++				    GFP_KERNEL);
+ 	if (!pdesc)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/pinctrl-xway.c b/drivers/pinctrl/pinctrl-xway.c
+index cd0f402c1164..9535c93f04fc 100644
+--- a/drivers/pinctrl/pinctrl-xway.c
++++ b/drivers/pinctrl/pinctrl-xway.c
+@@ -1728,8 +1728,8 @@ static int pinmux_xway_probe(struct platform_device *pdev)
+ 
+ 	/* load our pad descriptors */
+ 	xway_info.pads = devm_kzalloc(&pdev->dev,
+-			sizeof(struct pinctrl_pin_desc) * xway_chip.ngpio,
+-			GFP_KERNEL);
++				      array_size(sizeof(struct pinctrl_pin_desc), xway_chip.ngpio),
++				      GFP_KERNEL);
+ 	if (!xway_info.pads)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/samsung/pinctrl-exynos.c b/drivers/pinctrl/samsung/pinctrl-exynos.c
+index 0a625a64ff5d..7158a71c7962 100644
+--- a/drivers/pinctrl/samsung/pinctrl-exynos.c
++++ b/drivers/pinctrl/samsung/pinctrl-exynos.c
+@@ -491,8 +491,9 @@ int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
+ 			continue;
+ 		}
+ 
+-		weint_data = devm_kzalloc(dev, bank->nr_pins
+-					* sizeof(*weint_data), GFP_KERNEL);
++		weint_data = devm_kzalloc(dev,
++					  array_size(bank->nr_pins, sizeof(*weint_data)),
++					  GFP_KERNEL);
+ 		if (!weint_data)
  			return -ENOMEM;
-@@ -444,7 +446,8 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
+ 
+diff --git a/drivers/pinctrl/samsung/pinctrl-exynos5440.c b/drivers/pinctrl/samsung/pinctrl-exynos5440.c
+index 3a962c3ae3f4..41f0a8438afe 100644
+--- a/drivers/pinctrl/samsung/pinctrl-exynos5440.c
++++ b/drivers/pinctrl/samsung/pinctrl-exynos5440.c
+@@ -637,7 +637,8 @@ static int exynos5440_pinctrl_parse_dt_pins(struct platform_device *pdev,
+ 		return -EINVAL;
  	}
  
- 	pfc->nr_ranges = nr_ranges;
--	pfc->ranges = devm_kzalloc(pfc->dev, sizeof(*pfc->ranges) * nr_ranges,
-+	pfc->ranges = devm_kzalloc(pfc->dev,
-+				   array_size(nr_ranges, sizeof(*pfc->ranges)),
- 				   GFP_KERNEL);
- 	if (pfc->ranges == NULL)
+-	*pin_list = devm_kzalloc(dev, *npins * sizeof(**pin_list), GFP_KERNEL);
++	*pin_list = devm_kzalloc(dev, array_size(*npins, sizeof(**pin_list)),
++				 GFP_KERNEL);
+ 	if (!*pin_list)
  		return -ENOMEM;
+ 
+@@ -772,8 +773,9 @@ static int exynos5440_pinctrl_register(struct platform_device *pdev,
+ 	 * allocate space for storing the dynamically generated names for all
+ 	 * the pins which belong to this pin-controller.
+ 	 */
+-	pin_names = devm_kzalloc(&pdev->dev, sizeof(char) * PIN_NAME_LENGTH *
+-					ctrldesc->npins, GFP_KERNEL);
++	pin_names = devm_kzalloc(&pdev->dev,
++				 array3_size(sizeof(char), PIN_NAME_LENGTH, ctrldesc->npins),
++				 GFP_KERNEL);
+ 	if (!pin_names)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/samsung/pinctrl-samsung.c b/drivers/pinctrl/samsung/pinctrl-samsung.c
+index dd9b17e1fbba..ee245a36d72d 100644
+--- a/drivers/pinctrl/samsung/pinctrl-samsung.c
++++ b/drivers/pinctrl/samsung/pinctrl-samsung.c
+@@ -645,8 +645,9 @@ static struct samsung_pin_group *samsung_pinctrl_create_groups(
+ 	const struct pinctrl_pin_desc *pdesc;
+ 	int i;
+ 
+-	groups = devm_kzalloc(dev, ctrldesc->npins * sizeof(*groups),
+-				GFP_KERNEL);
++	groups = devm_kzalloc(dev,
++			      array_size(ctrldesc->npins, sizeof(*groups)),
++			      GFP_KERNEL);
+ 	if (!groups)
+ 		return ERR_PTR(-EINVAL);
+ 	grp = groups;
+@@ -833,8 +834,9 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
+ 	ctrldesc->pmxops = &samsung_pinmux_ops;
+ 	ctrldesc->confops = &samsung_pinconf_ops;
+ 
+-	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
+-			drvdata->nr_pins, GFP_KERNEL);
++	pindesc = devm_kzalloc(&pdev->dev,
++			       array_size(sizeof(*pindesc), drvdata->nr_pins),
++			       GFP_KERNEL);
+ 	if (!pindesc)
+ 		return -ENOMEM;
+ 	ctrldesc->pins = pindesc;
+@@ -848,8 +850,9 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
+ 	 * allocate space for storing the dynamically generated names for all
+ 	 * the pins which belong to this pin-controller.
+ 	 */
+-	pin_names = devm_kzalloc(&pdev->dev, sizeof(char) * PIN_NAME_LENGTH *
+-					drvdata->nr_pins, GFP_KERNEL);
++	pin_names = devm_kzalloc(&pdev->dev,
++				 array3_size(sizeof(char), PIN_NAME_LENGTH, drvdata->nr_pins),
++				 GFP_KERNEL);
+ 	if (!pin_names)
+ 		return -ENOMEM;
+ 
 diff --git a/drivers/pinctrl/sh-pfc/gpio.c b/drivers/pinctrl/sh-pfc/gpio.c
-index 946d9be50b62..fe9b20cb7612 100644
+index fe9b20cb7612..f5896bbb62b5 100644
 --- a/drivers/pinctrl/sh-pfc/gpio.c
 +++ b/drivers/pinctrl/sh-pfc/gpio.c
-@@ -107,7 +107,8 @@ static int gpio_setup_data_regs(struct sh_pfc_chip *chip)
- 	for (i = 0; pfc->info->data_regs[i].reg_width; ++i)
- 		;
+@@ -225,8 +225,9 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
+ 	struct gpio_chip *gc = &chip->gpio_chip;
+ 	int ret;
  
--	chip->regs = devm_kzalloc(pfc->dev, i * sizeof(*chip->regs),
-+	chip->regs = devm_kzalloc(pfc->dev,
-+				  array_size(i, sizeof(*chip->regs)),
- 				  GFP_KERNEL);
- 	if (chip->regs == NULL)
+-	chip->pins = devm_kzalloc(pfc->dev, pfc->info->nr_pins *
+-				  sizeof(*chip->pins), GFP_KERNEL);
++	chip->pins = devm_kzalloc(pfc->dev,
++				  array_size(pfc->info->nr_pins, sizeof(*chip->pins)),
++				  GFP_KERNEL);
+ 	if (chip->pins == NULL)
  		return -ENOMEM;
-diff --git a/drivers/pinctrl/ti/pinctrl-ti-iodelay.c b/drivers/pinctrl/ti/pinctrl-ti-iodelay.c
-index a8a6510183b6..f77a7d124a75 100644
---- a/drivers/pinctrl/ti/pinctrl-ti-iodelay.c
-+++ b/drivers/pinctrl/ti/pinctrl-ti-iodelay.c
-@@ -510,11 +510,13 @@ static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
- 		goto free_map;
+ 
+diff --git a/drivers/pinctrl/sh-pfc/pinctrl.c b/drivers/pinctrl/sh-pfc/pinctrl.c
+index 70db21638901..6e89d45d0527 100644
+--- a/drivers/pinctrl/sh-pfc/pinctrl.c
++++ b/drivers/pinctrl/sh-pfc/pinctrl.c
+@@ -771,13 +771,13 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
+ 
+ 	/* Allocate and initialize the pins and configs arrays. */
+ 	pmx->pins = devm_kzalloc(pfc->dev,
+-				 sizeof(*pmx->pins) * pfc->info->nr_pins,
++				 array_size(sizeof(*pmx->pins), pfc->info->nr_pins),
+ 				 GFP_KERNEL);
+ 	if (unlikely(!pmx->pins))
+ 		return -ENOMEM;
+ 
+ 	pmx->configs = devm_kzalloc(pfc->dev,
+-				    sizeof(*pmx->configs) * pfc->info->nr_pins,
++				    array_size(sizeof(*pmx->configs), pfc->info->nr_pins),
+ 				    GFP_KERNEL);
+ 	if (unlikely(!pmx->configs))
+ 		return -ENOMEM;
+diff --git a/drivers/pinctrl/spear/pinctrl-plgpio.c b/drivers/pinctrl/spear/pinctrl-plgpio.c
+index d2123e396b29..9467a2c78a4c 100644
+--- a/drivers/pinctrl/spear/pinctrl-plgpio.c
++++ b/drivers/pinctrl/spear/pinctrl-plgpio.c
+@@ -539,9 +539,8 @@ static int plgpio_probe(struct platform_device *pdev)
+ 
+ #ifdef CONFIG_PM_SLEEP
+ 	plgpio->csave_regs = devm_kzalloc(&pdev->dev,
+-			sizeof(*plgpio->csave_regs) *
+-			DIV_ROUND_UP(plgpio->chip.ngpio, MAX_GPIO_PER_REG),
+-			GFP_KERNEL);
++					  array_size(sizeof(*plgpio->csave_regs), DIV_ROUND_UP(plgpio->chip.ngpio, MAX_GPIO_PER_REG)),
++					  GFP_KERNEL);
+ 	if (!plgpio->csave_regs)
+ 		return -ENOMEM;
+ #endif
+diff --git a/drivers/pinctrl/sprd/pinctrl-sprd.c b/drivers/pinctrl/sprd/pinctrl-sprd.c
+index ba1c2ca406e4..200fbb66f91a 100644
+--- a/drivers/pinctrl/sprd/pinctrl-sprd.c
++++ b/drivers/pinctrl/sprd/pinctrl-sprd.c
+@@ -879,8 +879,9 @@ static int sprd_pinctrl_parse_groups(struct device_node *np,
+ 
+ 	grp->name = np->name;
+ 	grp->npins = ret;
+-	grp->pins = devm_kzalloc(sprd_pctl->dev, grp->npins *
+-				 sizeof(unsigned int), GFP_KERNEL);
++	grp->pins = devm_kzalloc(sprd_pctl->dev,
++				 array_size(grp->npins, sizeof(unsigned int)),
++				 GFP_KERNEL);
+ 	if (!grp->pins)
+ 		return -ENOMEM;
+ 
+@@ -931,14 +932,14 @@ static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
+ 	if (!info->ngroups)
+ 		return 0;
+ 
+-	info->groups = devm_kzalloc(sprd_pctl->dev, info->ngroups *
+-				    sizeof(struct sprd_pin_group),
++	info->groups = devm_kzalloc(sprd_pctl->dev,
++				    array_size(info->ngroups, sizeof(struct sprd_pin_group)),
+ 				    GFP_KERNEL);
+ 	if (!info->groups)
+ 		return -ENOMEM;
+ 
+ 	info->grp_names = devm_kzalloc(sprd_pctl->dev,
+-				       info->ngroups * sizeof(char *),
++				       array_size(info->ngroups, sizeof(char *)),
+ 				       GFP_KERNEL);
+ 	if (!info->grp_names)
+ 		return -ENOMEM;
+@@ -981,7 +982,7 @@ static int sprd_pinctrl_add_pins(struct sprd_pinctrl *sprd_pctl,
+ 
+ 	info->npins = pins_cnt;
+ 	info->pins = devm_kzalloc(sprd_pctl->dev,
+-				  info->npins * sizeof(struct sprd_pin),
++				  array_size(info->npins, sizeof(struct sprd_pin)),
+ 				  GFP_KERNEL);
+ 	if (!info->pins)
+ 		return -ENOMEM;
+@@ -1057,8 +1058,8 @@ int sprd_pinctrl_core_probe(struct platform_device *pdev,
+ 		return ret;
  	}
  
--	pins = devm_kzalloc(iod->dev, sizeof(*pins) * rows, GFP_KERNEL);
-+	pins = devm_kzalloc(iod->dev, array_size(rows, sizeof(*pins)),
-+			    GFP_KERNEL);
+-	pin_desc = devm_kzalloc(&pdev->dev, pinctrl_info->npins *
+-				sizeof(struct pinctrl_pin_desc),
++	pin_desc = devm_kzalloc(&pdev->dev,
++				array_size(pinctrl_info->npins, sizeof(struct pinctrl_pin_desc)),
+ 				GFP_KERNEL);
+ 	if (!pin_desc)
+ 		return -ENOMEM;
+diff --git a/drivers/pinctrl/sunxi/pinctrl-sunxi.c b/drivers/pinctrl/sunxi/pinctrl-sunxi.c
+index 14ccf7722d65..e87b3bb1e4f7 100644
+--- a/drivers/pinctrl/sunxi/pinctrl-sunxi.c
++++ b/drivers/pinctrl/sunxi/pinctrl-sunxi.c
+@@ -1058,7 +1058,7 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
+ 	 * number we will ever see.
+ 	 */
+ 	pctl->groups = devm_kzalloc(&pdev->dev,
+-				    pctl->desc->npins * sizeof(*pctl->groups),
++				    array_size(pctl->desc->npins, sizeof(*pctl->groups)),
+ 				    GFP_KERNEL);
+ 	if (!pctl->groups)
+ 		return -ENOMEM;
+@@ -1082,7 +1082,7 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
+ 	 * we'll reallocate that later anyway
+ 	 */
+ 	pctl->functions = devm_kzalloc(&pdev->dev,
+-				       pctl->ngroups * sizeof(*pctl->functions),
++				       array_size(pctl->ngroups, sizeof(*pctl->functions)),
+ 				       GFP_KERNEL);
+ 	if (!pctl->functions)
+ 		return -ENOMEM;
+@@ -1140,7 +1140,7 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
+ 			if (!func_item->groups) {
+ 				func_item->groups =
+ 					devm_kzalloc(&pdev->dev,
+-						     func_item->ngroups * sizeof(*func_item->groups),
++						     array_size(func_item->ngroups, sizeof(*func_item->groups)),
+ 						     GFP_KERNEL);
+ 				if (!func_item->groups)
+ 					return -ENOMEM;
+@@ -1284,7 +1284,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
+ 	}
+ 
+ 	pins = devm_kzalloc(&pdev->dev,
+-			    pctl->desc->npins * sizeof(*pins),
++			    array_size(pctl->desc->npins, sizeof(*pins)),
+ 			    GFP_KERNEL);
  	if (!pins)
- 		goto free_group;
- 
--	cfg = devm_kzalloc(iod->dev, sizeof(*cfg) * rows, GFP_KERNEL);
-+	cfg = devm_kzalloc(iod->dev, array_size(rows, sizeof(*cfg)),
-+			   GFP_KERNEL);
- 	if (!cfg) {
- 		error = -ENOMEM;
- 		goto free_pins;
-@@ -749,7 +751,8 @@ static int ti_iodelay_alloc_pins(struct device *dev,
- 	nr_pins = ti_iodelay_offset_to_pin(iod, r->regmap_config->max_register);
- 	dev_dbg(dev, "Allocating %i pins\n", nr_pins);
- 
--	iod->pa = devm_kzalloc(dev, sizeof(*iod->pa) * nr_pins, GFP_KERNEL);
-+	iod->pa = devm_kzalloc(dev, array_size(nr_pins, sizeof(*iod->pa)),
-+			       GFP_KERNEL);
- 	if (!iod->pa)
+ 		return -ENOMEM;
+diff --git a/drivers/pinctrl/tegra/pinctrl-tegra.c b/drivers/pinctrl/tegra/pinctrl-tegra.c
+index 72c718e66ebb..a6cff5148445 100644
+--- a/drivers/pinctrl/tegra/pinctrl-tegra.c
++++ b/drivers/pinctrl/tegra/pinctrl-tegra.c
+@@ -677,8 +677,8 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
+ 	 * This over-allocates slightly, since not all groups are mux groups.
+ 	 */
+ 	pmx->group_pins = devm_kzalloc(&pdev->dev,
+-		soc_data->ngroups * 4 * sizeof(*pmx->group_pins),
+-		GFP_KERNEL);
++				       array3_size(soc_data->ngroups, 4, sizeof(*pmx->group_pins)),
++				       GFP_KERNEL);
+ 	if (!pmx->group_pins)
  		return -ENOMEM;
  
+@@ -719,7 +719,8 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
+ 	}
+ 	pmx->nbanks = i;
+ 
+-	pmx->regs = devm_kzalloc(&pdev->dev, pmx->nbanks * sizeof(*pmx->regs),
++	pmx->regs = devm_kzalloc(&pdev->dev,
++				 array_size(pmx->nbanks, sizeof(*pmx->regs)),
+ 				 GFP_KERNEL);
+ 	if (!pmx->regs)
+ 		return -ENOMEM;
 diff --git a/drivers/pinctrl/zte/pinctrl-zx.c b/drivers/pinctrl/zte/pinctrl-zx.c
-index ded366bb6564..f9fd665529c2 100644
+index f9fd665529c2..48b2e8d6a34e 100644
 --- a/drivers/pinctrl/zte/pinctrl-zx.c
 +++ b/drivers/pinctrl/zte/pinctrl-zx.c
-@@ -277,7 +277,8 @@ static int zx_pinctrl_build_state(struct platform_device *pdev)
+@@ -364,9 +364,8 @@ static int zx_pinctrl_build_state(struct platform_device *pdev)
+ 			func = functions + j;
+ 			if (!func->group_names) {
+ 				func->group_names = devm_kzalloc(&pdev->dev,
+-						func->num_group_names *
+-						sizeof(*func->group_names),
+-						GFP_KERNEL);
++								 array_size(func->num_group_names, sizeof(*func->group_names)),
++								 GFP_KERNEL);
+ 				if (!func->group_names) {
+ 					kfree(functions);
+ 					return -ENOMEM;
+diff --git a/drivers/power/supply/charger-manager.c b/drivers/power/supply/charger-manager.c
+index 1de4b4493824..8604e2034a05 100644
+--- a/drivers/power/supply/charger-manager.c
++++ b/drivers/power/supply/charger-manager.c
+@@ -1380,7 +1380,8 @@ static int charger_manager_register_sysfs(struct charger_manager *cm)
  
- 	/* Every single pin composes a group */
- 	ngroups = info->npins;
--	groups = devm_kzalloc(&pdev->dev, ngroups * sizeof(*groups),
-+	groups = devm_kzalloc(&pdev->dev,
-+			      array_size(ngroups, sizeof(*groups)),
- 			      GFP_KERNEL);
- 	if (!groups)
- 		return -ENOMEM;
-diff --git a/drivers/platform/mellanox/mlxreg-hotplug.c b/drivers/platform/mellanox/mlxreg-hotplug.c
-index ea9e7f4479ca..fe6770c5d793 100644
---- a/drivers/platform/mellanox/mlxreg-hotplug.c
-+++ b/drivers/platform/mellanox/mlxreg-hotplug.c
-@@ -217,8 +217,8 @@ static int mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
- 		}
- 	}
- 
--	priv->group.attrs = devm_kzalloc(&priv->pdev->dev, num_attrs *
--					 sizeof(struct attribute *),
-+	priv->group.attrs = devm_kzalloc(&priv->pdev->dev,
-+					 array_size(num_attrs, sizeof(struct attribute *)),
- 					 GFP_KERNEL);
- 	if (!priv->group.attrs)
- 		return -ENOMEM;
-diff --git a/drivers/pwm/pwm-lp3943.c b/drivers/pwm/pwm-lp3943.c
-index 52584e9962ed..1129fad706d9 100644
---- a/drivers/pwm/pwm-lp3943.c
-+++ b/drivers/pwm/pwm-lp3943.c
-@@ -225,7 +225,8 @@ static int lp3943_pwm_parse_dt(struct device *dev,
- 		if (num_outputs == 0)
- 			continue;
- 
--		output = devm_kzalloc(dev, sizeof(*output) * num_outputs,
-+		output = devm_kzalloc(dev,
-+				      array_size(num_outputs, sizeof(*output)),
- 				      GFP_KERNEL);
- 		if (!output)
+ 		snprintf(buf, 10, "charger.%d", i);
+ 		str = devm_kzalloc(cm->dev,
+-				sizeof(char) * (strlen(buf) + 1), GFP_KERNEL);
++				   array_size(sizeof(char), (strlen(buf) + 1)),
++				   GFP_KERNEL);
+ 		if (!str)
  			return -ENOMEM;
-diff --git a/drivers/regulator/act8865-regulator.c b/drivers/regulator/act8865-regulator.c
-index 7652477e6a9d..ab6443b087ea 100644
---- a/drivers/regulator/act8865-regulator.c
-+++ b/drivers/regulator/act8865-regulator.c
-@@ -425,8 +425,8 @@ static int act8865_pdata_from_dt(struct device *dev,
- 		return matched;
  
- 	pdata->regulators = devm_kzalloc(dev,
--					 sizeof(struct act8865_regulator_data) *
--					 num_matches, GFP_KERNEL);
-+					 array_size(num_matches, sizeof(struct act8865_regulator_data)),
-+					 GFP_KERNEL);
- 	if (!pdata->regulators)
+@@ -1522,8 +1523,9 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
+ 	of_property_read_u32(np, "cm-num-chargers", &num_chgs);
+ 	if (num_chgs) {
+ 		/* Allocate empty bin at the tail of array */
+-		desc->psy_charger_stat = devm_kzalloc(dev, sizeof(char *)
+-						* (num_chgs + 1), GFP_KERNEL);
++		desc->psy_charger_stat = devm_kzalloc(dev,
++						      array_size(sizeof(char *), (num_chgs + 1)),
++						      GFP_KERNEL);
+ 		if (desc->psy_charger_stat) {
+ 			int i;
+ 			for (i = 0; i < num_chgs; i++)
+@@ -1555,8 +1557,8 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
+ 		struct charger_regulator *chg_regs;
+ 		struct device_node *child;
+ 
+-		chg_regs = devm_kzalloc(dev, sizeof(*chg_regs)
+-					* desc->num_charger_regulators,
++		chg_regs = devm_kzalloc(dev,
++					array_size(sizeof(*chg_regs), desc->num_charger_regulators),
+ 					GFP_KERNEL);
+ 		if (!chg_regs)
+ 			return ERR_PTR(-ENOMEM);
+@@ -1573,9 +1575,9 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
+ 			/* charger cables */
+ 			chg_regs->num_cables = of_get_child_count(child);
+ 			if (chg_regs->num_cables) {
+-				cables = devm_kzalloc(dev, sizeof(*cables)
+-						* chg_regs->num_cables,
+-						GFP_KERNEL);
++				cables = devm_kzalloc(dev,
++						      array_size(sizeof(*cables), chg_regs->num_cables),
++						      GFP_KERNEL);
+ 				if (!cables) {
+ 					of_node_put(child);
+ 					return ERR_PTR(-ENOMEM);
+@@ -1725,9 +1727,8 @@ static int charger_manager_probe(struct platform_device *pdev)
+ 
+ 	/* Allocate for psy properties because they may vary */
+ 	cm->charger_psy_desc.properties = devm_kzalloc(&pdev->dev,
+-				sizeof(enum power_supply_property)
+-				* (ARRAY_SIZE(default_charger_props) +
+-				NUM_CHARGER_PSY_OPTIONAL), GFP_KERNEL);
++						       array_size(sizeof(enum power_supply_property), (ARRAY_SIZE(default_charger_props) + NUM_CHARGER_PSY_OPTIONAL)),
++						       GFP_KERNEL);
+ 	if (!cm->charger_psy_desc.properties)
  		return -ENOMEM;
  
-diff --git a/drivers/regulator/as3711-regulator.c b/drivers/regulator/as3711-regulator.c
-index 874d415d6b4f..6b23a8fde872 100644
---- a/drivers/regulator/as3711-regulator.c
-+++ b/drivers/regulator/as3711-regulator.c
-@@ -239,8 +239,9 @@ static int as3711_regulator_probe(struct platform_device *pdev)
- 		}
+diff --git a/drivers/power/supply/power_supply_core.c b/drivers/power/supply/power_supply_core.c
+index feac7b066e6c..c55741ff23be 100644
+--- a/drivers/power/supply/power_supply_core.c
++++ b/drivers/power/supply/power_supply_core.c
+@@ -263,7 +263,7 @@ static int power_supply_check_supplies(struct power_supply *psy)
+ 		return -ENOMEM;
+ 
+ 	*psy->supplied_from = devm_kzalloc(&psy->dev,
+-					   sizeof(char *) * (cnt - 1),
++					   array_size(sizeof(char *), (cnt - 1)),
+ 					   GFP_KERNEL);
+ 	if (!*psy->supplied_from)
+ 		return -ENOMEM;
+diff --git a/drivers/regulator/gpio-regulator.c b/drivers/regulator/gpio-regulator.c
+index a86b8997bb54..9f558b58d08d 100644
+--- a/drivers/regulator/gpio-regulator.c
++++ b/drivers/regulator/gpio-regulator.c
+@@ -173,8 +173,8 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
+ 	if (ret > 0) {
+ 		config->nr_gpios = ret;
+ 		config->gpios = devm_kzalloc(dev,
+-					sizeof(struct gpio) * config->nr_gpios,
+-					GFP_KERNEL);
++					     array_size(sizeof(struct gpio), config->nr_gpios),
++					     GFP_KERNEL);
+ 		if (!config->gpios)
+ 			return ERR_PTR(-ENOMEM);
+ 
+@@ -215,9 +215,8 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
  	}
  
--	regs = devm_kzalloc(&pdev->dev, AS3711_REGULATOR_NUM *
--			sizeof(struct as3711_regulator), GFP_KERNEL);
-+	regs = devm_kzalloc(&pdev->dev,
-+			    array_size(AS3711_REGULATOR_NUM, sizeof(struct as3711_regulator)),
-+			    GFP_KERNEL);
- 	if (!regs)
- 		return -ENOMEM;
- 
-diff --git a/drivers/regulator/bcm590xx-regulator.c b/drivers/regulator/bcm590xx-regulator.c
-index 9dd715407b39..19cdec081a9a 100644
---- a/drivers/regulator/bcm590xx-regulator.c
-+++ b/drivers/regulator/bcm590xx-regulator.c
-@@ -383,8 +383,9 @@ static int bcm590xx_probe(struct platform_device *pdev)
- 
- 	platform_set_drvdata(pdev, pmu);
- 
--	pmu->desc = devm_kzalloc(&pdev->dev, BCM590XX_NUM_REGS *
--			sizeof(struct regulator_desc), GFP_KERNEL);
-+	pmu->desc = devm_kzalloc(&pdev->dev,
-+				 array_size(BCM590XX_NUM_REGS, sizeof(struct regulator_desc)),
-+				 GFP_KERNEL);
- 	if (!pmu->desc)
- 		return -ENOMEM;
- 
-diff --git a/drivers/regulator/da9063-regulator.c b/drivers/regulator/da9063-regulator.c
-index 6a8f9cd69f52..5bedf1a182ab 100644
---- a/drivers/regulator/da9063-regulator.c
-+++ b/drivers/regulator/da9063-regulator.c
-@@ -682,8 +682,8 @@ static struct da9063_regulators_pdata *da9063_parse_regulators_dt(
+ 	config->states = devm_kzalloc(dev,
+-				sizeof(struct gpio_regulator_state)
+-				* (proplen / 2),
+-				GFP_KERNEL);
++				      array_size(sizeof(struct gpio_regulator_state), (proplen / 2)),
++				      GFP_KERNEL);
+ 	if (!config->states)
  		return ERR_PTR(-ENOMEM);
  
- 	pdata->regulator_data = devm_kzalloc(&pdev->dev,
--					num * sizeof(*pdata->regulator_data),
--					GFP_KERNEL);
-+					     array_size(num, sizeof(*pdata->regulator_data)),
-+					     GFP_KERNEL);
- 	if (!pdata->regulator_data)
- 		return ERR_PTR(-ENOMEM);
- 	pdata->n_regulators = num;
-diff --git a/drivers/regulator/max1586.c b/drivers/regulator/max1586.c
-index 66bbaa999433..40c5e8a1da47 100644
---- a/drivers/regulator/max1586.c
-+++ b/drivers/regulator/max1586.c
-@@ -194,8 +194,9 @@ static int of_get_max1586_platform_data(struct device *dev,
- 	if (matched <= 0)
- 		return matched;
+diff --git a/drivers/regulator/max8997-regulator.c b/drivers/regulator/max8997-regulator.c
+index 559b9ac45404..fb16b5ceac7d 100644
+--- a/drivers/regulator/max8997-regulator.c
++++ b/drivers/regulator/max8997-regulator.c
+@@ -929,8 +929,9 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
+ 	/* count the number of regulators to be supported in pmic */
+ 	pdata->num_regulators = of_get_child_count(regulators_np);
  
--	pdata->subdevs = devm_kzalloc(dev, sizeof(struct max1586_subdev_data) *
--						matched, GFP_KERNEL);
-+	pdata->subdevs = devm_kzalloc(dev,
-+				      array_size(matched, sizeof(struct max1586_subdev_data)),
-+				      GFP_KERNEL);
- 	if (!pdata->subdevs)
+-	rdata = devm_kzalloc(&pdev->dev, sizeof(*rdata) *
+-				pdata->num_regulators, GFP_KERNEL);
++	rdata = devm_kzalloc(&pdev->dev,
++			     array_size(sizeof(*rdata), pdata->num_regulators),
++			     GFP_KERNEL);
+ 	if (!rdata) {
+ 		of_node_put(regulators_np);
+ 		return -ENOMEM;
+diff --git a/drivers/regulator/max8998.c b/drivers/regulator/max8998.c
+index 3027e7ce100b..d145e0c1e22c 100644
+--- a/drivers/regulator/max8998.c
++++ b/drivers/regulator/max8998.c
+@@ -671,8 +671,9 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
+ 	/* count the number of regulators to be supported in pmic */
+ 	pdata->num_regulators = of_get_child_count(regulators_np);
+ 
+-	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
+-				pdata->num_regulators, GFP_KERNEL);
++	rdata = devm_kzalloc(iodev->dev,
++			     array_size(sizeof(*rdata), pdata->num_regulators),
++			     GFP_KERNEL);
+ 	if (!rdata) {
+ 		of_node_put(regulators_np);
+ 		return -ENOMEM;
+diff --git a/drivers/regulator/mc13xxx-regulator-core.c b/drivers/regulator/mc13xxx-regulator-core.c
+index 0281c31ae2ed..5c4325c54aae 100644
+--- a/drivers/regulator/mc13xxx-regulator-core.c
++++ b/drivers/regulator/mc13xxx-regulator-core.c
+@@ -175,7 +175,8 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
+ 	if (!parent)
+ 		return NULL;
+ 
+-	data = devm_kzalloc(&pdev->dev, sizeof(*data) * priv->num_regulators,
++	data = devm_kzalloc(&pdev->dev,
++			    array_size(sizeof(*data), priv->num_regulators),
+ 			    GFP_KERNEL);
+ 	if (!data) {
+ 		of_node_put(parent);
+diff --git a/drivers/regulator/s5m8767.c b/drivers/regulator/s5m8767.c
+index 4836947e1521..0a22673d2c80 100644
+--- a/drivers/regulator/s5m8767.c
++++ b/drivers/regulator/s5m8767.c
+@@ -553,13 +553,15 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
+ 	/* count the number of regulators to be supported in pmic */
+ 	pdata->num_regulators = of_get_child_count(regulators_np);
+ 
+-	rdata = devm_kzalloc(&pdev->dev, sizeof(*rdata) *
+-				pdata->num_regulators, GFP_KERNEL);
++	rdata = devm_kzalloc(&pdev->dev,
++			     array_size(sizeof(*rdata), pdata->num_regulators),
++			     GFP_KERNEL);
+ 	if (!rdata)
  		return -ENOMEM;
  
-diff --git a/drivers/regulator/max8660.c b/drivers/regulator/max8660.c
-index a6183425f27d..f0e88e0f9b10 100644
---- a/drivers/regulator/max8660.c
-+++ b/drivers/regulator/max8660.c
-@@ -351,8 +351,9 @@ static int max8660_pdata_from_dt(struct device *dev,
- 	if (matched <= 0)
- 		return matched;
- 
--	pdata->subdevs = devm_kzalloc(dev, sizeof(struct max8660_subdev_data) *
--						matched, GFP_KERNEL);
-+	pdata->subdevs = devm_kzalloc(dev,
-+				      array_size(matched, sizeof(struct max8660_subdev_data)),
-+				      GFP_KERNEL);
- 	if (!pdata->subdevs)
+-	rmode = devm_kzalloc(&pdev->dev, sizeof(*rmode) *
+-				pdata->num_regulators, GFP_KERNEL);
++	rmode = devm_kzalloc(&pdev->dev,
++			     array_size(sizeof(*rmode), pdata->num_regulators),
++			     GFP_KERNEL);
+ 	if (!rmode)
  		return -ENOMEM;
  
-diff --git a/drivers/regulator/pbias-regulator.c b/drivers/regulator/pbias-regulator.c
-index 8f782d22fdbe..750d06a9f61a 100644
---- a/drivers/regulator/pbias-regulator.c
-+++ b/drivers/regulator/pbias-regulator.c
-@@ -173,8 +173,9 @@ static int pbias_regulator_probe(struct platform_device *pdev)
- 	if (count < 0)
- 		return count;
- 
--	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct pbias_regulator_data)
--			       * count, GFP_KERNEL);
-+	drvdata = devm_kzalloc(&pdev->dev,
-+			       array_size(count, sizeof(struct pbias_regulator_data)),
-+			       GFP_KERNEL);
- 	if (!drvdata)
- 		return -ENOMEM;
- 
-diff --git a/drivers/regulator/rc5t583-regulator.c b/drivers/regulator/rc5t583-regulator.c
-index d0f1340168b1..70551a66aaa1 100644
---- a/drivers/regulator/rc5t583-regulator.c
-+++ b/drivers/regulator/rc5t583-regulator.c
-@@ -132,8 +132,9 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
+diff --git a/drivers/regulator/tps65910-regulator.c b/drivers/regulator/tps65910-regulator.c
+index 81672a58fcc2..55e43ee75653 100644
+--- a/drivers/regulator/tps65910-regulator.c
++++ b/drivers/regulator/tps65910-regulator.c
+@@ -1131,18 +1131,21 @@ static int tps65910_probe(struct platform_device *pdev)
  		return -ENODEV;
  	}
  
--	regs = devm_kzalloc(&pdev->dev, RC5T583_REGULATOR_MAX *
--			sizeof(struct rc5t583_regulator), GFP_KERNEL);
-+	regs = devm_kzalloc(&pdev->dev,
-+			    array_size(RC5T583_REGULATOR_MAX, sizeof(struct rc5t583_regulator)),
-+			    GFP_KERNEL);
- 	if (!regs)
+-	pmic->desc = devm_kzalloc(&pdev->dev, pmic->num_regulators *
+-			sizeof(struct regulator_desc), GFP_KERNEL);
++	pmic->desc = devm_kzalloc(&pdev->dev,
++				  array_size(pmic->num_regulators, sizeof(struct regulator_desc)),
++				  GFP_KERNEL);
+ 	if (!pmic->desc)
  		return -ENOMEM;
  
-diff --git a/drivers/regulator/s2mps11.c b/drivers/regulator/s2mps11.c
-index afc6518b3680..ec8913380cc4 100644
---- a/drivers/regulator/s2mps11.c
-+++ b/drivers/regulator/s2mps11.c
-@@ -1140,8 +1140,8 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
- 	}
- 
- 	s2mps11->ext_control_gpio = devm_kmalloc(&pdev->dev,
--			sizeof(*s2mps11->ext_control_gpio) * rdev_num,
--			GFP_KERNEL);
-+						 array_size(rdev_num, sizeof(*s2mps11->ext_control_gpio)),
-+						 GFP_KERNEL);
- 	if (!s2mps11->ext_control_gpio)
- 		return -ENOMEM;
- 	/*
-diff --git a/drivers/regulator/ti-abb-regulator.c b/drivers/regulator/ti-abb-regulator.c
-index d2f994298753..e46937f7eb0e 100644
---- a/drivers/regulator/ti-abb-regulator.c
-+++ b/drivers/regulator/ti-abb-regulator.c
-@@ -532,13 +532,15 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
- 	}
- 	num_entries /= num_values;
- 
--	info = devm_kzalloc(dev, sizeof(*info) * num_entries, GFP_KERNEL);
-+	info = devm_kzalloc(dev, array_size(num_entries, sizeof(*info)),
-+			    GFP_KERNEL);
- 	if (!info)
+-	pmic->info = devm_kzalloc(&pdev->dev, pmic->num_regulators *
+-			sizeof(struct tps_info *), GFP_KERNEL);
++	pmic->info = devm_kzalloc(&pdev->dev,
++				  array_size(pmic->num_regulators, sizeof(struct tps_info *)),
++				  GFP_KERNEL);
+ 	if (!pmic->info)
  		return -ENOMEM;
  
- 	abb->info = info;
- 
--	volt_table = devm_kzalloc(dev, sizeof(unsigned int) * num_entries,
-+	volt_table = devm_kzalloc(dev,
-+				  array_size(num_entries, sizeof(unsigned int)),
- 				  GFP_KERNEL);
- 	if (!volt_table)
- 		return -ENOMEM;
-diff --git a/drivers/regulator/tps65090-regulator.c b/drivers/regulator/tps65090-regulator.c
-index 395f35dc8cdb..d68086912942 100644
---- a/drivers/regulator/tps65090-regulator.c
-+++ b/drivers/regulator/tps65090-regulator.c
-@@ -351,8 +351,9 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
- 	if (!tps65090_pdata)
- 		return ERR_PTR(-ENOMEM);
- 
--	reg_pdata = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX *
--				sizeof(*reg_pdata), GFP_KERNEL);
-+	reg_pdata = devm_kzalloc(&pdev->dev,
-+				 array_size(TPS65090_REGULATOR_MAX, sizeof(*reg_pdata)),
-+				 GFP_KERNEL);
- 	if (!reg_pdata)
- 		return ERR_PTR(-ENOMEM);
- 
-@@ -432,8 +433,9 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
- 		return tps65090_pdata ? PTR_ERR(tps65090_pdata) : -EINVAL;
- 	}
- 
--	pmic = devm_kzalloc(&pdev->dev, TPS65090_REGULATOR_MAX * sizeof(*pmic),
--			GFP_KERNEL);
-+	pmic = devm_kzalloc(&pdev->dev,
-+			    array_size(TPS65090_REGULATOR_MAX, sizeof(*pmic)),
-+			    GFP_KERNEL);
- 	if (!pmic)
+-	pmic->rdev = devm_kzalloc(&pdev->dev, pmic->num_regulators *
+-			sizeof(struct regulator_dev *), GFP_KERNEL);
++	pmic->rdev = devm_kzalloc(&pdev->dev,
++				  array_size(pmic->num_regulators, sizeof(struct regulator_dev *)),
++				  GFP_KERNEL);
+ 	if (!pmic->rdev)
  		return -ENOMEM;
  
-diff --git a/drivers/regulator/tps65217-regulator.c b/drivers/regulator/tps65217-regulator.c
-index 7b12e880d1ea..e865895c8ab5 100644
---- a/drivers/regulator/tps65217-regulator.c
-+++ b/drivers/regulator/tps65217-regulator.c
-@@ -229,8 +229,9 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
- 	unsigned int val;
+diff --git a/drivers/scsi/ufs/ufshcd.c b/drivers/scsi/ufs/ufshcd.c
+index c5b1bf1cadcb..626df8711151 100644
+--- a/drivers/scsi/ufs/ufshcd.c
++++ b/drivers/scsi/ufs/ufshcd.c
+@@ -3234,7 +3234,7 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
  
- 	/* Allocate memory for strobes */
--	tps->strobes = devm_kzalloc(&pdev->dev, sizeof(u8) *
--				    TPS65217_NUM_REGULATOR, GFP_KERNEL);
-+	tps->strobes = devm_kzalloc(&pdev->dev,
-+				    array_size(TPS65217_NUM_REGULATOR, sizeof(u8)),
-+				    GFP_KERNEL);
- 
- 	platform_set_drvdata(pdev, tps);
- 
-diff --git a/drivers/regulator/tps65218-regulator.c b/drivers/regulator/tps65218-regulator.c
-index 1827185beacc..f8056fb5a41c 100644
---- a/drivers/regulator/tps65218-regulator.c
-+++ b/drivers/regulator/tps65218-regulator.c
-@@ -324,8 +324,9 @@ static int tps65218_regulator_probe(struct platform_device *pdev)
- 	config.regmap = tps->regmap;
- 
- 	/* Allocate memory for strobes */
--	tps->strobes = devm_kzalloc(&pdev->dev, sizeof(u8) *
--				    TPS65218_NUM_REGULATOR, GFP_KERNEL);
-+	tps->strobes = devm_kzalloc(&pdev->dev,
-+				    array_size(TPS65218_NUM_REGULATOR, sizeof(u8)),
-+				    GFP_KERNEL);
- 	if (!tps->strobes)
- 		return -ENOMEM;
- 
-diff --git a/drivers/regulator/tps80031-regulator.c b/drivers/regulator/tps80031-regulator.c
-index d4cc60ad18ae..f5a4647e67cb 100644
---- a/drivers/regulator/tps80031-regulator.c
-+++ b/drivers/regulator/tps80031-regulator.c
-@@ -692,7 +692,8 @@ static int tps80031_regulator_probe(struct platform_device *pdev)
- 	}
- 
- 	pmic = devm_kzalloc(&pdev->dev,
--			TPS80031_REGULATOR_MAX * sizeof(*pmic), GFP_KERNEL);
-+			    array_size(TPS80031_REGULATOR_MAX, sizeof(*pmic)),
-+			    GFP_KERNEL);
- 	if (!pmic)
- 		return -ENOMEM;
- 
-diff --git a/drivers/reset/reset-ti-syscon.c b/drivers/reset/reset-ti-syscon.c
-index 99520b0a1329..3f3cc2567363 100644
---- a/drivers/reset/reset-ti-syscon.c
-+++ b/drivers/reset/reset-ti-syscon.c
-@@ -189,7 +189,9 @@ static int ti_syscon_reset_probe(struct platform_device *pdev)
- 	}
- 
- 	nr_controls = (size / sizeof(*list)) / 7;
--	controls = devm_kzalloc(dev, nr_controls * sizeof(*controls), GFP_KERNEL);
-+	controls = devm_kzalloc(dev,
-+				array_size(nr_controls, sizeof(*controls)),
-+				GFP_KERNEL);
- 	if (!controls)
- 		return -ENOMEM;
- 
-diff --git a/drivers/scsi/isci/init.c b/drivers/scsi/isci/init.c
-index 922e3e56c90d..8b64c5831e8a 100644
---- a/drivers/scsi/isci/init.c
-+++ b/drivers/scsi/isci/init.c
-@@ -233,13 +233,13 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
- 	struct asd_sas_port **sas_ports;
- 
- 	sas_phys = devm_kzalloc(&isci_host->pdev->dev,
--				SCI_MAX_PHYS * sizeof(void *),
-+				array_size(SCI_MAX_PHYS, sizeof(void *)),
+ 	/* Allocate memory for local reference block */
+ 	hba->lrb = devm_kzalloc(hba->dev,
+-				hba->nutrs * sizeof(struct ufshcd_lrb),
++				array_size(hba->nutrs, sizeof(struct ufshcd_lrb)),
  				GFP_KERNEL);
- 	if (!sas_phys)
- 		return -ENOMEM;
+ 	if (!hba->lrb) {
+ 		dev_err(hba->dev, "LRB Memory allocation failed\n");
+diff --git a/drivers/spi/spi-davinci.c b/drivers/spi/spi-davinci.c
+index 60d59b003aa4..afbc325bb467 100644
+--- a/drivers/spi/spi-davinci.c
++++ b/drivers/spi/spi-davinci.c
+@@ -924,8 +924,8 @@ static int davinci_spi_probe(struct platform_device *pdev)
+ 	pdata = &dspi->pdata;
  
- 	sas_ports = devm_kzalloc(&isci_host->pdev->dev,
--				 SCI_MAX_PORTS * sizeof(void *),
-+				 array_size(SCI_MAX_PORTS, sizeof(void *)),
- 				 GFP_KERNEL);
- 	if (!sas_ports)
- 		return -ENOMEM;
-diff --git a/drivers/scsi/ufs/ufshcd-pltfrm.c b/drivers/scsi/ufs/ufshcd-pltfrm.c
-index e82bde077296..024bdf2449be 100644
---- a/drivers/scsi/ufs/ufshcd-pltfrm.c
-+++ b/drivers/scsi/ufs/ufshcd-pltfrm.c
-@@ -86,8 +86,8 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
- 		goto out;
- 	}
- 
--	clkfreq = devm_kzalloc(dev, sz * sizeof(*clkfreq),
--			GFP_KERNEL);
-+	clkfreq = devm_kzalloc(dev, array_size(sz, sizeof(*clkfreq)),
-+			       GFP_KERNEL);
- 	if (!clkfreq) {
+ 	dspi->bytes_per_word = devm_kzalloc(&pdev->dev,
+-					    sizeof(*dspi->bytes_per_word) *
+-					    pdata->num_chipselect, GFP_KERNEL);
++					    array_size(sizeof(*dspi->bytes_per_word), pdata->num_chipselect),
++					    GFP_KERNEL);
+ 	if (dspi->bytes_per_word == NULL) {
  		ret = -ENOMEM;
- 		goto out;
-diff --git a/drivers/soc/bcm/raspberrypi-power.c b/drivers/soc/bcm/raspberrypi-power.c
-index fe96a8b956fb..d7fd987a8e42 100644
---- a/drivers/soc/bcm/raspberrypi-power.c
-+++ b/drivers/soc/bcm/raspberrypi-power.c
-@@ -165,8 +165,9 @@ static int rpi_power_probe(struct platform_device *pdev)
+ 		goto free_master;
+diff --git a/drivers/spi/spi-ep93xx.c b/drivers/spi/spi-ep93xx.c
+index e5cc07357746..b005f2682d9a 100644
+--- a/drivers/spi/spi-ep93xx.c
++++ b/drivers/spi/spi-ep93xx.c
+@@ -672,7 +672,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
+ 
+ 	master->num_chipselect = info->num_chipselect;
+ 	master->cs_gpios = devm_kzalloc(&master->dev,
+-					sizeof(int) * master->num_chipselect,
++					array_size(sizeof(int), master->num_chipselect),
+ 					GFP_KERNEL);
+ 	if (!master->cs_gpios) {
+ 		error = -ENOMEM;
+diff --git a/drivers/spi/spi-gpio.c b/drivers/spi/spi-gpio.c
+index b85a93cad44a..6dc13a23c81e 100644
+--- a/drivers/spi/spi-gpio.c
++++ b/drivers/spi/spi-gpio.c
+@@ -374,8 +374,8 @@ static int spi_gpio_probe(struct platform_device *pdev)
+ 	spi_gpio = spi_master_get_devdata(master);
+ 
+ 	spi_gpio->cs_gpios = devm_kzalloc(&pdev->dev,
+-				pdata->num_chipselect * sizeof(*spi_gpio->cs_gpios),
+-				GFP_KERNEL);
++					  array_size(pdata->num_chipselect, sizeof(*spi_gpio->cs_gpios)),
++					  GFP_KERNEL);
+ 	if (!spi_gpio->cs_gpios)
  		return -ENOMEM;
  
- 	rpi_domains->xlate.domains =
--		devm_kzalloc(dev, sizeof(*rpi_domains->xlate.domains) *
--			     RPI_POWER_DOMAIN_COUNT, GFP_KERNEL);
-+		devm_kzalloc(dev,
-+			     array_size(RPI_POWER_DOMAIN_COUNT, sizeof(*rpi_domains->xlate.domains)),
-+			     GFP_KERNEL);
- 	if (!rpi_domains->xlate.domains)
+diff --git a/drivers/spi/spi-imx.c b/drivers/spi/spi-imx.c
+index 6f57592a7f95..c8d561a031c3 100644
+--- a/drivers/spi/spi-imx.c
++++ b/drivers/spi/spi-imx.c
+@@ -1528,7 +1528,8 @@ static int spi_imx_probe(struct platform_device *pdev)
+ 		master->num_chipselect = mxc_platform_info->num_chipselect;
+ 		if (mxc_platform_info->chipselect) {
+ 			master->cs_gpios = devm_kzalloc(&master->dev,
+-				sizeof(int) * master->num_chipselect, GFP_KERNEL);
++							array_size(sizeof(int), master->num_chipselect),
++							GFP_KERNEL);
+ 			if (!master->cs_gpios)
+ 				return -ENOMEM;
+ 
+diff --git a/drivers/spi/spi-oc-tiny.c b/drivers/spi/spi-oc-tiny.c
+index b5911282a611..7d0df916a0f9 100644
+--- a/drivers/spi/spi-oc-tiny.c
++++ b/drivers/spi/spi-oc-tiny.c
+@@ -214,8 +214,8 @@ static int tiny_spi_of_probe(struct platform_device *pdev)
+ 	hw->gpio_cs_count = of_gpio_count(np);
+ 	if (hw->gpio_cs_count > 0) {
+ 		hw->gpio_cs = devm_kzalloc(&pdev->dev,
+-				hw->gpio_cs_count * sizeof(unsigned int),
+-				GFP_KERNEL);
++					   array_size(hw->gpio_cs_count, sizeof(unsigned int)),
++					   GFP_KERNEL);
+ 		if (!hw->gpio_cs)
+ 			return -ENOMEM;
+ 	}
+diff --git a/drivers/spi/spi.c b/drivers/spi/spi.c
+index 7b213faa0a2b..c1a9e5e86727 100644
+--- a/drivers/spi/spi.c
++++ b/drivers/spi/spi.c
+@@ -2041,7 +2041,8 @@ static int of_spi_register_master(struct spi_controller *ctlr)
+ 	else if (nb < 0)
+ 		return nb;
+ 
+-	cs = devm_kzalloc(&ctlr->dev, sizeof(int) * ctlr->num_chipselect,
++	cs = devm_kzalloc(&ctlr->dev,
++			  array_size(sizeof(int), ctlr->num_chipselect),
+ 			  GFP_KERNEL);
+ 	ctlr->cs_gpios = cs;
+ 
+diff --git a/drivers/staging/media/atomisp/pci/atomisp2/atomisp_subdev.c b/drivers/staging/media/atomisp/pci/atomisp2/atomisp_subdev.c
+index 49a9973b4289..57dca09652a5 100644
+--- a/drivers/staging/media/atomisp/pci/atomisp2/atomisp_subdev.c
++++ b/drivers/staging/media/atomisp/pci/atomisp2/atomisp_subdev.c
+@@ -1401,8 +1401,9 @@ int atomisp_subdev_init(struct atomisp_device *isp)
+ 	 * multiple streams
+ 	 */
+ 	isp->num_of_streams = 2;
+-	isp->asd = devm_kzalloc(isp->dev, sizeof(struct atomisp_sub_device) *
+-			       isp->num_of_streams, GFP_KERNEL);
++	isp->asd = devm_kzalloc(isp->dev,
++				array_size(sizeof(struct atomisp_sub_device), isp->num_of_streams),
++				GFP_KERNEL);
+ 	if (!isp->asd)
  		return -ENOMEM;
- 
-diff --git a/drivers/soc/mediatek/mtk-scpsys.c b/drivers/soc/mediatek/mtk-scpsys.c
-index d762a46d434f..be1e3a80260a 100644
---- a/drivers/soc/mediatek/mtk-scpsys.c
-+++ b/drivers/soc/mediatek/mtk-scpsys.c
-@@ -408,14 +408,16 @@ static struct scp *init_scp(struct platform_device *pdev,
- 		return ERR_CAST(scp->base);
- 
- 	scp->domains = devm_kzalloc(&pdev->dev,
--				sizeof(*scp->domains) * num, GFP_KERNEL);
-+				    array_size(num, sizeof(*scp->domains)),
-+				    GFP_KERNEL);
- 	if (!scp->domains)
- 		return ERR_PTR(-ENOMEM);
- 
- 	pd_data = &scp->pd_data;
- 
- 	pd_data->domains = devm_kzalloc(&pdev->dev,
--			sizeof(*pd_data->domains) * num, GFP_KERNEL);
-+					array_size(num, sizeof(*pd_data->domains)),
-+					GFP_KERNEL);
- 	if (!pd_data->domains)
- 		return ERR_PTR(-ENOMEM);
- 
-diff --git a/drivers/soc/ti/knav_qmss_acc.c b/drivers/soc/ti/knav_qmss_acc.c
-index 3d7225f4e77f..91a3511155d2 100644
---- a/drivers/soc/ti/knav_qmss_acc.c
-+++ b/drivers/soc/ti/knav_qmss_acc.c
-@@ -406,7 +406,8 @@ static int knav_acc_init_queue(struct knav_range_info *range,
- 	unsigned id = kq->id - range->queue_base;
- 
- 	kq->descs = devm_kzalloc(range->kdev->dev,
--				 ACC_DESCS_MAX * sizeof(u32), GFP_KERNEL);
-+				 array_size(ACC_DESCS_MAX, sizeof(u32)),
-+				 GFP_KERNEL);
- 	if (!kq->descs)
- 		return -ENOMEM;
- 
-@@ -552,7 +553,8 @@ int knav_init_acc_range(struct knav_device *kdev,
- 	info->list_size = list_size;
- 	mem_size   = PAGE_ALIGN(list_size * 2);
- 	info->mem_size  = mem_size;
--	range->acc = devm_kzalloc(kdev->dev, channels * sizeof(*range->acc),
-+	range->acc = devm_kzalloc(kdev->dev,
-+				  array_size(channels, sizeof(*range->acc)),
- 				  GFP_KERNEL);
- 	if (!range->acc)
- 		return -ENOMEM;
-diff --git a/drivers/spi/spi-pl022.c b/drivers/spi/spi-pl022.c
-index 4797c57f4263..885d7e5a31e0 100644
---- a/drivers/spi/spi-pl022.c
-+++ b/drivers/spi/spi-pl022.c
-@@ -2135,7 +2135,8 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
- 	pl022->master_info = platform_info;
- 	pl022->adev = adev;
- 	pl022->vendor = id->data;
--	pl022->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
-+	pl022->chipselects = devm_kzalloc(dev,
-+					  array_size(num_cs, sizeof(int)),
- 					  GFP_KERNEL);
- 	if (!pl022->chipselects) {
- 		status = -ENOMEM;
-diff --git a/drivers/staging/greybus/audio_topology.c b/drivers/staging/greybus/audio_topology.c
-index de4b1b2b12f3..1044e510af03 100644
---- a/drivers/staging/greybus/audio_topology.c
-+++ b/drivers/staging/greybus/audio_topology.c
-@@ -144,7 +144,8 @@ static const char **gb_generate_enum_strings(struct gbaudio_module_info *gb,
- 	__u8 *data;
- 
- 	items = le32_to_cpu(gbenum->items);
--	strings = devm_kzalloc(gb->dev, sizeof(char *) * items, GFP_KERNEL);
-+	strings = devm_kzalloc(gb->dev, array_size(items, sizeof(char *)),
-+			       GFP_KERNEL);
- 	data = gbenum->names;
- 
- 	for (i = 0; i < items; i++) {
+ 	for (i = 0; i < isp->num_of_streams; i++) {
 diff --git a/drivers/staging/media/imx/imx-media-dev.c b/drivers/staging/media/imx/imx-media-dev.c
-index 289d775c4820..f2801e0c447c 100644
+index f2801e0c447c..f5a8db883a8d 100644
 --- a/drivers/staging/media/imx/imx-media-dev.c
 +++ b/drivers/staging/media/imx/imx-media-dev.c
-@@ -544,7 +544,8 @@ static int imx_media_probe(struct platform_device *pdev)
- 		goto unreg_dev;
- 	}
+@@ -303,10 +303,9 @@ static int imx_media_alloc_pad_vdev_lists(struct imx_media_dev *imxmd)
  
--	subdevs = devm_kzalloc(imxmd->md.dev, sizeof(*subdevs) * num_subdevs,
-+	subdevs = devm_kzalloc(imxmd->md.dev,
-+			       array_size(num_subdevs, sizeof(*subdevs)),
- 			       GFP_KERNEL);
- 	if (!subdevs) {
- 		ret = -ENOMEM;
-diff --git a/drivers/thermal/thermal-generic-adc.c b/drivers/thermal/thermal-generic-adc.c
-index 46d3005335c7..e29724b1adf7 100644
---- a/drivers/thermal/thermal-generic-adc.c
-+++ b/drivers/thermal/thermal-generic-adc.c
-@@ -87,8 +87,9 @@ static int gadc_thermal_read_linear_lookup_table(struct device *dev,
- 		return -EINVAL;
- 	}
- 
--	gti->lookup_table = devm_kzalloc(dev, sizeof(*gti->lookup_table) *
--					 ntable, GFP_KERNEL);
-+	gti->lookup_table = devm_kzalloc(dev,
-+					 array_size(ntable, sizeof(*gti->lookup_table)),
-+					 GFP_KERNEL);
- 	if (!gti->lookup_table)
- 		return -ENOMEM;
- 
-diff --git a/drivers/video/backlight/lp855x_bl.c b/drivers/video/backlight/lp855x_bl.c
-index 939f057836e1..af3e3cc87493 100644
---- a/drivers/video/backlight/lp855x_bl.c
-+++ b/drivers/video/backlight/lp855x_bl.c
-@@ -374,7 +374,8 @@ static int lp855x_parse_dt(struct lp855x *lp)
- 		struct device_node *child;
- 		int i = 0;
- 
--		rom = devm_kzalloc(dev, sizeof(*rom) * rom_length, GFP_KERNEL);
-+		rom = devm_kzalloc(dev, array_size(rom_length, sizeof(*rom)),
-+				   GFP_KERNEL);
- 		if (!rom)
+ 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
+ 		entity = &sd->entity;
+-		vdev_lists = devm_kzalloc(
+-			imxmd->md.dev,
+-			entity->num_pads * sizeof(*vdev_lists),
+-			GFP_KERNEL);
++		vdev_lists = devm_kzalloc(imxmd->md.dev,
++					  array_size(entity->num_pads, sizeof(*vdev_lists)),
++					  GFP_KERNEL);
+ 		if (!vdev_lists)
  			return -ENOMEM;
  
-diff --git a/drivers/video/fbdev/au1100fb.c b/drivers/video/fbdev/au1100fb.c
-index 7c9a672e9811..27f99e380735 100644
---- a/drivers/video/fbdev/au1100fb.c
-+++ b/drivers/video/fbdev/au1100fb.c
-@@ -501,7 +501,8 @@ static int au1100fb_drv_probe(struct platform_device *dev)
- 	fbdev->info.fix = au1100fb_fix;
+diff --git a/drivers/staging/mt7621-pinctrl/pinctrl-rt2880.c b/drivers/staging/mt7621-pinctrl/pinctrl-rt2880.c
+index cc8c4e2a9614..c86f8e0ba65f 100644
+--- a/drivers/staging/mt7621-pinctrl/pinctrl-rt2880.c
++++ b/drivers/staging/mt7621-pinctrl/pinctrl-rt2880.c
+@@ -288,7 +288,9 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
+ 	}
  
- 	fbdev->info.pseudo_palette =
--		devm_kzalloc(&dev->dev, sizeof(u32) * 16, GFP_KERNEL);
-+		devm_kzalloc(&dev->dev, array_size(16, sizeof(u32)),
-+			     GFP_KERNEL);
- 	if (!fbdev->info.pseudo_palette)
- 		return -ENOMEM;
+ 	/* allocate the group names array needed by the gpio function */
+-	p->group_names = devm_kzalloc(p->dev, sizeof(char *) * p->group_count, GFP_KERNEL);
++	p->group_names = devm_kzalloc(p->dev,
++				      array_size(sizeof(char *), p->group_count),
++				      GFP_KERNEL);
+ 	if (!p->group_names)
+ 		return -1;
  
-diff --git a/drivers/video/fbdev/mxsfb.c b/drivers/video/fbdev/mxsfb.c
-index 246bea3a7d9b..21fc17081f59 100644
---- a/drivers/video/fbdev/mxsfb.c
-+++ b/drivers/video/fbdev/mxsfb.c
-@@ -931,7 +931,8 @@ static int mxsfb_probe(struct platform_device *pdev)
- 	if (IS_ERR(host->reg_lcd))
- 		host->reg_lcd = NULL;
+@@ -301,8 +303,12 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
+ 	p->func_count++;
  
--	fb_info->pseudo_palette = devm_kzalloc(&pdev->dev, sizeof(u32) * 16,
-+	fb_info->pseudo_palette = devm_kzalloc(&pdev->dev,
-+					       array_size(16, sizeof(u32)),
- 					       GFP_KERNEL);
- 	if (!fb_info->pseudo_palette) {
- 		ret = -ENOMEM;
-diff --git a/drivers/video/fbdev/omap2/omapfb/vrfb.c b/drivers/video/fbdev/omap2/omapfb/vrfb.c
-index f346b02eee1d..c0b72e798074 100644
---- a/drivers/video/fbdev/omap2/omapfb/vrfb.c
-+++ b/drivers/video/fbdev/omap2/omapfb/vrfb.c
-@@ -360,8 +360,8 @@ static int __init vrfb_probe(struct platform_device *pdev)
- 	num_ctxs = pdev->num_resources - 1;
+ 	/* allocate our function and group mapping index buffers */
+-	f = p->func = devm_kzalloc(p->dev, sizeof(struct rt2880_pmx_func) * p->func_count, GFP_KERNEL);
+-	gpio_func.groups = devm_kzalloc(p->dev, sizeof(int) * p->group_count, GFP_KERNEL);
++	f = p->func = devm_kzalloc(p->dev,
++				   array_size(sizeof(struct rt2880_pmx_func), p->func_count),
++				   GFP_KERNEL);
++	gpio_func.groups = devm_kzalloc(p->dev,
++					array_size(sizeof(int), p->group_count),
++					GFP_KERNEL);
+ 	if (!f || !gpio_func.groups)
+ 		return -1;
  
- 	ctxs = devm_kzalloc(&pdev->dev,
--			sizeof(struct vrfb_ctx) * num_ctxs,
--			GFP_KERNEL);
-+			    array_size(num_ctxs, sizeof(struct vrfb_ctx)),
-+			    GFP_KERNEL);
+@@ -338,7 +344,9 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
+ 		if (!p->func[i]->pin_count)
+ 			continue;
  
- 	if (!ctxs)
- 		return -ENOMEM;
-diff --git a/fs/f2fs/checkpoint.c b/fs/f2fs/checkpoint.c
-index bf779461df13..dfa11f47eda6 100644
---- a/fs/f2fs/checkpoint.c
-+++ b/fs/f2fs/checkpoint.c
-@@ -802,7 +802,8 @@ int get_valid_checkpoint(struct f2fs_sb_info *sbi)
- 	block_t cp_blk_no;
- 	int i;
- 
--	sbi->ckpt = f2fs_kzalloc(sbi, cp_blks * blk_size, GFP_KERNEL);
-+	sbi->ckpt = f2fs_kzalloc(sbi, array_size(blk_size, cp_blks),
-+				 GFP_KERNEL);
- 	if (!sbi->ckpt)
- 		return -ENOMEM;
- 	/*
-diff --git a/fs/f2fs/segment.c b/fs/f2fs/segment.c
-index 5854cc4e1d67..ae06ab1c387c 100644
---- a/fs/f2fs/segment.c
-+++ b/fs/f2fs/segment.c
-@@ -3564,7 +3564,8 @@ static int build_curseg(struct f2fs_sb_info *sbi)
- 	struct curseg_info *array;
- 	int i;
- 
--	array = f2fs_kzalloc(sbi, sizeof(*array) * NR_CURSEG_TYPE, GFP_KERNEL);
-+	array = f2fs_kzalloc(sbi, array_size(NR_CURSEG_TYPE, sizeof(*array)),
-+			     GFP_KERNEL);
- 	if (!array)
- 		return -ENOMEM;
- 
-diff --git a/fs/f2fs/super.c b/fs/f2fs/super.c
-index 42d564c5ccd0..0cf47f3c149a 100644
---- a/fs/f2fs/super.c
-+++ b/fs/f2fs/super.c
-@@ -2359,8 +2359,9 @@ static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
- 
- #define F2FS_REPORT_NR_ZONES   4096
- 
--	zones = f2fs_kzalloc(sbi, sizeof(struct blk_zone) *
--				F2FS_REPORT_NR_ZONES, GFP_KERNEL);
-+	zones = f2fs_kzalloc(sbi,
-+			     array_size(F2FS_REPORT_NR_ZONES, sizeof(struct blk_zone)),
-+			     GFP_KERNEL);
- 	if (!zones)
- 		return -ENOMEM;
- 
-@@ -2500,8 +2501,9 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
- 	 * Initialize multiple devices information, or single
- 	 * zoned block device information.
- 	 */
--	sbi->devs = f2fs_kzalloc(sbi, sizeof(struct f2fs_dev_info) *
--						max_devices, GFP_KERNEL);
-+	sbi->devs = f2fs_kzalloc(sbi,
-+				 array_size(max_devices, sizeof(struct f2fs_dev_info)),
-+				 GFP_KERNEL);
- 	if (!sbi->devs)
- 		return -ENOMEM;
- 
-@@ -2724,8 +2726,8 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
- 		int j;
- 
- 		sbi->write_io[i] = f2fs_kmalloc(sbi,
--					n * sizeof(struct f2fs_bio_info),
--					GFP_KERNEL);
-+						array_size(n, sizeof(struct f2fs_bio_info)),
+-		p->func[i]->pins = devm_kzalloc(p->dev, sizeof(int) * p->func[i]->pin_count, GFP_KERNEL);
++		p->func[i]->pins = devm_kzalloc(p->dev,
++						array_size(sizeof(int), p->func[i]->pin_count),
 +						GFP_KERNEL);
- 		if (!sbi->write_io[i]) {
- 			err = -ENOMEM;
- 			goto free_options;
-diff --git a/sound/soc/au1x/dbdma2.c b/sound/soc/au1x/dbdma2.c
-index fb650659c3a3..2b182e65e131 100644
---- a/sound/soc/au1x/dbdma2.c
-+++ b/sound/soc/au1x/dbdma2.c
-@@ -340,7 +340,7 @@ static int au1xpsc_pcm_drvprobe(struct platform_device *pdev)
- 	struct au1xpsc_audio_dmadata *dmadata;
+ 		for (j = 0; j < p->func[i]->pin_count; j++)
+ 			p->func[i]->pins[j] = p->func[i]->pin_first + j;
  
- 	dmadata = devm_kzalloc(&pdev->dev,
--			       2 * sizeof(struct au1xpsc_audio_dmadata),
-+			       array_size(2, sizeof(struct au1xpsc_audio_dmadata)),
- 			       GFP_KERNEL);
- 	if (!dmadata)
- 		return -ENOMEM;
-diff --git a/sound/soc/codecs/hdmi-codec.c b/sound/soc/codecs/hdmi-codec.c
-index 6fa11888672d..cc17643fbcad 100644
---- a/sound/soc/codecs/hdmi-codec.c
-+++ b/sound/soc/codecs/hdmi-codec.c
-@@ -771,7 +771,8 @@ static int hdmi_codec_probe(struct platform_device *pdev)
- 	hcp->hcd = *hcd;
- 	mutex_init(&hcp->current_stream_lock);
- 
--	hcp->daidrv = devm_kzalloc(dev, dai_count * sizeof(*hcp->daidrv),
-+	hcp->daidrv = devm_kzalloc(dev,
-+				   array_size(dai_count, sizeof(*hcp->daidrv)),
- 				   GFP_KERNEL);
- 	if (!hcp->daidrv)
- 		return -ENOMEM;
-diff --git a/sound/soc/codecs/rt5645.c b/sound/soc/codecs/rt5645.c
-index bc8d829ce45b..3a76e6f6ba4f 100644
---- a/sound/soc/codecs/rt5645.c
-+++ b/sound/soc/codecs/rt5645.c
-@@ -3450,7 +3450,8 @@ static int rt5645_probe(struct snd_soc_component *component)
- 		component->card->long_name = rt5645->pdata.long_name;
- 
- 	rt5645->eq_param = devm_kzalloc(component->dev,
--		RT5645_HWEQ_NUM * sizeof(struct rt5645_eq_param_s), GFP_KERNEL);
-+					array_size(RT5645_HWEQ_NUM, sizeof(struct rt5645_eq_param_s)),
-+					GFP_KERNEL);
- 
- 	return 0;
- }
-diff --git a/sound/soc/generic/audio-graph-card.c b/sound/soc/generic/audio-graph-card.c
-index 1b6164249341..529aa693644b 100644
---- a/sound/soc/generic/audio-graph-card.c
-+++ b/sound/soc/generic/audio-graph-card.c
-@@ -296,8 +296,10 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
- 	if (num == 0)
- 		return -EINVAL;
- 
--	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
--	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
-+	dai_props = devm_kzalloc(dev, array_size(num, sizeof(*dai_props)),
-+				 GFP_KERNEL);
-+	dai_link  = devm_kzalloc(dev, array_size(num, sizeof(*dai_link)),
-+				 GFP_KERNEL);
- 	if (!dai_props || !dai_link)
- 		return -ENOMEM;
- 
-diff --git a/sound/soc/generic/audio-graph-scu-card.c b/sound/soc/generic/audio-graph-scu-card.c
-index a967aa143d51..e1f133563b6c 100644
---- a/sound/soc/generic/audio-graph-scu-card.c
-+++ b/sound/soc/generic/audio-graph-scu-card.c
-@@ -348,8 +348,10 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
- 	if (num == 0)
- 		return -EINVAL;
- 
--	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
--	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
-+	dai_props = devm_kzalloc(dev, array_size(num, sizeof(*dai_props)),
-+				 GFP_KERNEL);
-+	dai_link  = devm_kzalloc(dev, array_size(num, sizeof(*dai_link)),
-+				 GFP_KERNEL);
- 	if (!dai_props || !dai_link)
- 		return -ENOMEM;
- 
-diff --git a/sound/soc/generic/simple-card.c b/sound/soc/generic/simple-card.c
-index 6959a74a6f49..c01a97ad724c 100644
---- a/sound/soc/generic/simple-card.c
-+++ b/sound/soc/generic/simple-card.c
-@@ -320,7 +320,8 @@ static int asoc_simple_card_parse_aux_devs(struct device_node *node,
- 		return -EINVAL;
- 
- 	card->aux_dev = devm_kzalloc(dev,
--			n * sizeof(*card->aux_dev), GFP_KERNEL);
-+				     array_size(n, sizeof(*card->aux_dev)),
-+				     GFP_KERNEL);
- 	if (!card->aux_dev)
- 		return -ENOMEM;
- 
-@@ -414,8 +415,10 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
- 	if (!priv)
- 		return -ENOMEM;
- 
--	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
--	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
-+	dai_props = devm_kzalloc(dev, array_size(num, sizeof(*dai_props)),
-+				 GFP_KERNEL);
-+	dai_link  = devm_kzalloc(dev, array_size(num, sizeof(*dai_link)),
-+				 GFP_KERNEL);
- 	if (!dai_props || !dai_link)
- 		return -ENOMEM;
- 
-diff --git a/sound/soc/generic/simple-scu-card.c b/sound/soc/generic/simple-scu-card.c
-index 48606c63562a..adad35b8c250 100644
---- a/sound/soc/generic/simple-scu-card.c
-+++ b/sound/soc/generic/simple-scu-card.c
-@@ -246,8 +246,10 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
- 
- 	num = of_get_child_count(np);
- 
--	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
--	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
-+	dai_props = devm_kzalloc(dev, array_size(num, sizeof(*dai_props)),
-+				 GFP_KERNEL);
-+	dai_link  = devm_kzalloc(dev, array_size(num, sizeof(*dai_link)),
-+				 GFP_KERNEL);
- 	if (!dai_props || !dai_link)
- 		return -ENOMEM;
- 
-diff --git a/sound/soc/intel/skylake/skl-topology.c b/sound/soc/intel/skylake/skl-topology.c
-index 3b1dca419883..d67a08528fb0 100644
---- a/sound/soc/intel/skylake/skl-topology.c
-+++ b/sound/soc/intel/skylake/skl-topology.c
-@@ -2427,8 +2427,9 @@ static int skl_tplg_get_token(struct device *dev,
- 
- 	case SKL_TKN_U8_DYN_IN_PIN:
- 		if (!mconfig->m_in_pin)
--			mconfig->m_in_pin = devm_kzalloc(dev, MAX_IN_QUEUE *
--					sizeof(*mconfig->m_in_pin), GFP_KERNEL);
-+			mconfig->m_in_pin = devm_kzalloc(dev,
-+							 array_size(MAX_IN_QUEUE, sizeof(*mconfig->m_in_pin)),
-+							 GFP_KERNEL);
- 		if (!mconfig->m_in_pin)
- 			return -ENOMEM;
- 
-@@ -2438,8 +2439,9 @@ static int skl_tplg_get_token(struct device *dev,
- 
- 	case SKL_TKN_U8_DYN_OUT_PIN:
- 		if (!mconfig->m_out_pin)
--			mconfig->m_out_pin = devm_kzalloc(dev, MAX_IN_QUEUE *
--					sizeof(*mconfig->m_in_pin), GFP_KERNEL);
-+			mconfig->m_out_pin = devm_kzalloc(dev,
-+							  array_size(MAX_IN_QUEUE, sizeof(*mconfig->m_in_pin)),
-+							  GFP_KERNEL);
- 		if (!mconfig->m_out_pin)
- 			return -ENOMEM;
- 
-diff --git a/sound/soc/pxa/mmp-sspa.c b/sound/soc/pxa/mmp-sspa.c
-index 7c998ea4ebee..4ccbb72db83d 100644
---- a/sound/soc/pxa/mmp-sspa.c
-+++ b/sound/soc/pxa/mmp-sspa.c
-@@ -426,8 +426,8 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
- 		return -ENOMEM;
- 
- 	priv->dma_params = devm_kzalloc(&pdev->dev,
--			2 * sizeof(struct snd_dmaengine_dai_dma_data),
--			GFP_KERNEL);
-+					array_size(2, sizeof(struct snd_dmaengine_dai_dma_data)),
-+					GFP_KERNEL);
- 	if (priv->dma_params == NULL)
- 		return -ENOMEM;
- 
-diff --git a/sound/soc/rockchip/rk3399_gru_sound.c b/sound/soc/rockchip/rk3399_gru_sound.c
-index 9a10181a0811..af35991314b9 100644
---- a/sound/soc/rockchip/rk3399_gru_sound.c
-+++ b/sound/soc/rockchip/rk3399_gru_sound.c
-@@ -506,7 +506,7 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
- 	num_routes = 0;
- 	for (i = 0; i < ARRAY_SIZE(rockchip_routes); i++)
- 		num_routes += rockchip_routes[i].num_routes;
--	routes = devm_kzalloc(dev, num_routes * sizeof(*routes),
-+	routes = devm_kzalloc(dev, array_size(num_routes, sizeof(*routes)),
- 			      GFP_KERNEL);
- 	if (!routes)
- 		return -ENOMEM;
-diff --git a/sound/soc/sh/rcar/cmd.c b/sound/soc/sh/rcar/cmd.c
-index f1d4fb566892..a676fa246519 100644
---- a/sound/soc/sh/rcar/cmd.c
-+++ b/sound/soc/sh/rcar/cmd.c
-@@ -156,7 +156,7 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
- 	if (!nr)
- 		return 0;
- 
--	cmd = devm_kzalloc(dev, sizeof(*cmd) * nr, GFP_KERNEL);
-+	cmd = devm_kzalloc(dev, array_size(nr, sizeof(*cmd)), GFP_KERNEL);
- 	if (!cmd)
- 		return -ENOMEM;
- 
-diff --git a/sound/soc/sh/rcar/core.c b/sound/soc/sh/rcar/core.c
-index 6a76688a8ba9..9900fac9ad04 100644
---- a/sound/soc/sh/rcar/core.c
-+++ b/sound/soc/sh/rcar/core.c
-@@ -1110,8 +1110,8 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
- 	if (!nr)
- 		return -EINVAL;
- 
--	rdrv = devm_kzalloc(dev, sizeof(*rdrv) * nr, GFP_KERNEL);
--	rdai = devm_kzalloc(dev, sizeof(*rdai) * nr, GFP_KERNEL);
-+	rdrv = devm_kzalloc(dev, array_size(nr, sizeof(*rdrv)), GFP_KERNEL);
-+	rdai = devm_kzalloc(dev, array_size(nr, sizeof(*rdai)), GFP_KERNEL);
- 	if (!rdrv || !rdai)
- 		return -ENOMEM;
- 
-diff --git a/sound/soc/sh/rcar/ctu.c b/sound/soc/sh/rcar/ctu.c
-index d201d551866d..4cea8f278136 100644
---- a/sound/soc/sh/rcar/ctu.c
-+++ b/sound/soc/sh/rcar/ctu.c
-@@ -378,7 +378,7 @@ int rsnd_ctu_probe(struct rsnd_priv *priv)
- 		goto rsnd_ctu_probe_done;
+@@ -348,12 +356,13 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
  	}
  
--	ctu = devm_kzalloc(dev, sizeof(*ctu) * nr, GFP_KERNEL);
-+	ctu = devm_kzalloc(dev, array_size(nr, sizeof(*ctu)), GFP_KERNEL);
- 	if (!ctu) {
+ 	/* the buffer that tells us which pins are gpio */
+-	p->gpio = devm_kzalloc(p->dev,sizeof(uint8_t) * p->max_pins,
+-		GFP_KERNEL);
++	p->gpio = devm_kzalloc(p->dev,
++			       array_size(sizeof(uint8_t), p->max_pins),
++			       GFP_KERNEL);
+ 	/* the pads needed to tell pinctrl about our pins */
+ 	p->pads = devm_kzalloc(p->dev,
+-		sizeof(struct pinctrl_pin_desc) * p->max_pins,
+-		GFP_KERNEL);
++			       array_size(sizeof(struct pinctrl_pin_desc), p->max_pins),
++			       GFP_KERNEL);
+ 	if (!p->pads || !p->gpio ) {
+ 		dev_err(p->dev, "Failed to allocate gpio data\n");
+ 		return -ENOMEM;
+diff --git a/drivers/thermal/tegra/soctherm.c b/drivers/thermal/tegra/soctherm.c
+index 455b58ce2652..727e8dc9b422 100644
+--- a/drivers/thermal/tegra/soctherm.c
++++ b/drivers/thermal/tegra/soctherm.c
+@@ -1344,7 +1344,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	tegra->calib = devm_kzalloc(&pdev->dev,
+-				    sizeof(u32) * soc->num_tsensors,
++				    array_size(sizeof(u32), soc->num_tsensors),
+ 				    GFP_KERNEL);
+ 	if (!tegra->calib)
+ 		return -ENOMEM;
+@@ -1364,7 +1364,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	tegra->thermctl_tzs = devm_kzalloc(&pdev->dev,
+-					   sizeof(*z) * soc->num_ttgs,
++					   array_size(sizeof(*z), soc->num_ttgs),
+ 					   GFP_KERNEL);
+ 	if (!tegra->thermctl_tzs)
+ 		return -ENOMEM;
+diff --git a/drivers/tty/serial/rp2.c b/drivers/tty/serial/rp2.c
+index 520b43b23543..c096a55b57f0 100644
+--- a/drivers/tty/serial/rp2.c
++++ b/drivers/tty/serial/rp2.c
+@@ -774,7 +774,8 @@ static int rp2_probe(struct pci_dev *pdev,
+ 
+ 	rp2_init_card(card);
+ 
+-	ports = devm_kzalloc(&pdev->dev, sizeof(*ports) * card->n_ports,
++	ports = devm_kzalloc(&pdev->dev,
++			     array_size(sizeof(*ports), card->n_ports),
+ 			     GFP_KERNEL);
+ 	if (!ports)
+ 		return -ENOMEM;
+diff --git a/drivers/usb/gadget/udc/atmel_usba_udc.c b/drivers/usb/gadget/udc/atmel_usba_udc.c
+index 27c16399c7e8..2c51bd71bdbe 100644
+--- a/drivers/usb/gadget/udc/atmel_usba_udc.c
++++ b/drivers/usb/gadget/udc/atmel_usba_udc.c
+@@ -2087,7 +2087,8 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
+ 		udc->num_ep = usba_config_fifo_table(udc);
+ 	}
+ 
+-	eps = devm_kzalloc(&pdev->dev, sizeof(struct usba_ep) * udc->num_ep,
++	eps = devm_kzalloc(&pdev->dev,
++			   array_size(sizeof(struct usba_ep), udc->num_ep),
+ 			   GFP_KERNEL);
+ 	if (!eps)
+ 		return ERR_PTR(-ENOMEM);
+diff --git a/drivers/usb/gadget/udc/pch_udc.c b/drivers/usb/gadget/udc/pch_udc.c
+index afaea11ec771..b372f761ba8f 100644
+--- a/drivers/usb/gadget/udc/pch_udc.c
++++ b/drivers/usb/gadget/udc/pch_udc.c
+@@ -2951,7 +2951,8 @@ static int init_dma_pools(struct pch_udc_dev *dev)
+ 	dev->ep[UDC_EP0IN_IDX].td_data = NULL;
+ 	dev->ep[UDC_EP0IN_IDX].td_data_phys = 0;
+ 
+-	ep0out_buf = devm_kzalloc(&dev->pdev->dev, UDC_EP0OUT_BUFF_SIZE * 4,
++	ep0out_buf = devm_kzalloc(&dev->pdev->dev,
++				  array_size(UDC_EP0OUT_BUFF_SIZE, 4),
+ 				  GFP_KERNEL);
+ 	if (!ep0out_buf)
+ 		return -ENOMEM;
+diff --git a/drivers/usb/gadget/udc/renesas_usb3.c b/drivers/usb/gadget/udc/renesas_usb3.c
+index 409cde4e6a51..a8ad4ed0bdf2 100644
+--- a/drivers/usb/gadget/udc/renesas_usb3.c
++++ b/drivers/usb/gadget/udc/renesas_usb3.c
+@@ -2428,7 +2428,8 @@ static int renesas_usb3_init_ep(struct renesas_usb3 *usb3, struct device *dev,
+ 	if (usb3->num_usb3_eps > USB3_MAX_NUM_PIPES)
+ 		usb3->num_usb3_eps = USB3_MAX_NUM_PIPES;
+ 
+-	usb3->usb3_ep = devm_kzalloc(dev, sizeof(*usb3_ep) * usb3->num_usb3_eps,
++	usb3->usb3_ep = devm_kzalloc(dev,
++				     array_size(sizeof(*usb3_ep), usb3->num_usb3_eps),
+ 				     GFP_KERNEL);
+ 	if (!usb3->usb3_ep)
+ 		return -ENOMEM;
+diff --git a/drivers/video/backlight/adp8860_bl.c b/drivers/video/backlight/adp8860_bl.c
+index e7315bf14d60..e8c1e75429cd 100644
+--- a/drivers/video/backlight/adp8860_bl.c
++++ b/drivers/video/backlight/adp8860_bl.c
+@@ -223,8 +223,9 @@ static int adp8860_led_probe(struct i2c_client *client)
+ 	struct led_info *cur_led;
+ 	int ret, i;
+ 
+-	led = devm_kzalloc(&client->dev, sizeof(*led) * pdata->num_leds,
+-				GFP_KERNEL);
++	led = devm_kzalloc(&client->dev,
++			   array_size(sizeof(*led), pdata->num_leds),
++			   GFP_KERNEL);
+ 	if (led == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/video/backlight/adp8870_bl.c b/drivers/video/backlight/adp8870_bl.c
+index 058d1def2d1f..133edb92a439 100644
+--- a/drivers/video/backlight/adp8870_bl.c
++++ b/drivers/video/backlight/adp8870_bl.c
+@@ -246,8 +246,9 @@ static int adp8870_led_probe(struct i2c_client *client)
+ 	struct led_info *cur_led;
+ 	int ret, i;
+ 
+-	led = devm_kzalloc(&client->dev, pdata->num_leds * sizeof(*led),
+-				GFP_KERNEL);
++	led = devm_kzalloc(&client->dev,
++			   array_size(pdata->num_leds, sizeof(*led)),
++			   GFP_KERNEL);
+ 	if (led == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/fs/f2fs/node.c b/fs/f2fs/node.c
+index f202398e20ea..8646b7f3f4a9 100644
+--- a/fs/f2fs/node.c
++++ b/fs/f2fs/node.c
+@@ -2730,8 +2730,9 @@ static int init_free_nid_cache(struct f2fs_sb_info *sbi)
+ 	struct f2fs_nm_info *nm_i = NM_I(sbi);
+ 	int i;
+ 
+-	nm_i->free_nid_bitmap = f2fs_kzalloc(sbi, nm_i->nat_blocks *
+-				sizeof(unsigned char *), GFP_KERNEL);
++	nm_i->free_nid_bitmap = f2fs_kzalloc(sbi,
++					     array_size(nm_i->nat_blocks, sizeof(unsigned char *)),
++					     GFP_KERNEL);
+ 	if (!nm_i->free_nid_bitmap)
+ 		return -ENOMEM;
+ 
+diff --git a/sound/soc/codecs/wm8994.c b/sound/soc/codecs/wm8994.c
+index 6e9e32a07259..3febe7f1c35a 100644
+--- a/sound/soc/codecs/wm8994.c
++++ b/sound/soc/codecs/wm8994.c
+@@ -3299,7 +3299,8 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
+ 
+ 		/* We need an array of texts for the enum API */
+ 		wm8994->drc_texts = devm_kzalloc(wm8994->hubs.component->dev,
+-			    sizeof(char *) * pdata->num_drc_cfgs, GFP_KERNEL);
++						 array_size(sizeof(char *), pdata->num_drc_cfgs),
++						 GFP_KERNEL);
+ 		if (!wm8994->drc_texts)
+ 			return;
+ 
+diff --git a/sound/soc/davinci/davinci-mcasp.c b/sound/soc/davinci/davinci-mcasp.c
+index 03ba218160ca..41e0e37839c5 100644
+--- a/sound/soc/davinci/davinci-mcasp.c
++++ b/sound/soc/davinci/davinci-mcasp.c
+@@ -1869,8 +1869,8 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
+ 	mcasp->num_serializer = pdata->num_serializer;
+ #ifdef CONFIG_PM_SLEEP
+ 	mcasp->context.xrsr_regs = devm_kzalloc(&pdev->dev,
+-					sizeof(u32) * mcasp->num_serializer,
+-					GFP_KERNEL);
++						array_size(sizeof(u32), mcasp->num_serializer),
++						GFP_KERNEL);
+ 	if (!mcasp->context.xrsr_regs) {
  		ret = -ENOMEM;
- 		goto rsnd_ctu_probe_done;
-diff --git a/sound/soc/sh/rcar/dvc.c b/sound/soc/sh/rcar/dvc.c
-index dbe54f024d68..e97e46a6c32d 100644
---- a/sound/soc/sh/rcar/dvc.c
-+++ b/sound/soc/sh/rcar/dvc.c
-@@ -344,7 +344,8 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
- 		goto rsnd_dvc_probe_done;
+ 		goto err;
+@@ -2004,13 +2004,13 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
+ 	 * bytes.
+ 	 */
+ 	mcasp->chconstr[SNDRV_PCM_STREAM_PLAYBACK].list =
+-		devm_kzalloc(mcasp->dev, sizeof(unsigned int) *
+-			     (32 + mcasp->num_serializer - 1),
++		devm_kzalloc(mcasp->dev,
++			     array_size(sizeof(unsigned int), (32 + mcasp->num_serializer - 1)),
+ 			     GFP_KERNEL);
+ 
+ 	mcasp->chconstr[SNDRV_PCM_STREAM_CAPTURE].list =
+-		devm_kzalloc(mcasp->dev, sizeof(unsigned int) *
+-			     (32 + mcasp->num_serializer - 1),
++		devm_kzalloc(mcasp->dev,
++			     array_size(sizeof(unsigned int), (32 + mcasp->num_serializer - 1)),
+ 			     GFP_KERNEL);
+ 
+ 	if (!mcasp->chconstr[SNDRV_PCM_STREAM_PLAYBACK].list ||
+diff --git a/sound/soc/img/img-i2s-in.c b/sound/soc/img/img-i2s-in.c
+index d7fbb0a0a28b..dab6c6f50b34 100644
+--- a/sound/soc/img/img-i2s-in.c
++++ b/sound/soc/img/img-i2s-in.c
+@@ -510,7 +510,8 @@ static int img_i2s_in_probe(struct platform_device *pdev)
+ 	pm_runtime_put(&pdev->dev);
+ 
+ 	i2s->suspend_ch_ctl = devm_kzalloc(dev,
+-		sizeof(*i2s->suspend_ch_ctl) * i2s->max_i2s_chan, GFP_KERNEL);
++					   array_size(sizeof(*i2s->suspend_ch_ctl), i2s->max_i2s_chan),
++					   GFP_KERNEL);
+ 	if (!i2s->suspend_ch_ctl) {
+ 		ret = -ENOMEM;
+ 		goto err_suspend;
+diff --git a/sound/soc/img/img-i2s-out.c b/sound/soc/img/img-i2s-out.c
+index 30a95bcef2db..5205607b0d7f 100644
+--- a/sound/soc/img/img-i2s-out.c
++++ b/sound/soc/img/img-i2s-out.c
+@@ -480,7 +480,8 @@ static int img_i2s_out_probe(struct platform_device *pdev)
  	}
  
--	dvc	= devm_kzalloc(dev, sizeof(*dvc) * nr, GFP_KERNEL);
-+	dvc	= devm_kzalloc(dev, array_size(nr, sizeof(*dvc)),
+ 	i2s->suspend_ch_ctl = devm_kzalloc(dev,
+-		sizeof(*i2s->suspend_ch_ctl) * i2s->max_i2s_chan, GFP_KERNEL);
++					   array_size(sizeof(*i2s->suspend_ch_ctl), i2s->max_i2s_chan),
++					   GFP_KERNEL);
+ 	if (!i2s->suspend_ch_ctl)
+ 		return -ENOMEM;
+ 
+diff --git a/sound/soc/uniphier/aio-cpu.c b/sound/soc/uniphier/aio-cpu.c
+index 1e5eb8e6f8c7..db781dbde2e9 100644
+--- a/sound/soc/uniphier/aio-cpu.c
++++ b/sound/soc/uniphier/aio-cpu.c
+@@ -498,14 +498,15 @@ int uniphier_aio_probe(struct platform_device *pdev)
+ 
+ 	chip->num_aios = chip->chip_spec->num_dais;
+ 	chip->aios = devm_kzalloc(dev,
+-				  sizeof(struct uniphier_aio) * chip->num_aios,
++				  array_size(sizeof(struct uniphier_aio), chip->num_aios),
+ 				  GFP_KERNEL);
+ 	if (!chip->aios)
+ 		return -ENOMEM;
+ 
+ 	chip->num_plls = chip->chip_spec->num_plls;
+-	chip->plls = devm_kzalloc(dev, sizeof(struct uniphier_aio_pll) *
+-				  chip->num_plls, GFP_KERNEL);
++	chip->plls = devm_kzalloc(dev,
++				  array_size(sizeof(struct uniphier_aio_pll), chip->num_plls),
 +				  GFP_KERNEL);
- 	if (!dvc) {
- 		ret = -ENOMEM;
- 		goto rsnd_dvc_probe_done;
-diff --git a/sound/soc/sh/rcar/mix.c b/sound/soc/sh/rcar/mix.c
-index 7998380766f6..387f2a2ca6e0 100644
---- a/sound/soc/sh/rcar/mix.c
-+++ b/sound/soc/sh/rcar/mix.c
-@@ -294,7 +294,8 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
- 		goto rsnd_mix_probe_done;
- 	}
- 
--	mix	= devm_kzalloc(dev, sizeof(*mix) * nr, GFP_KERNEL);
-+	mix	= devm_kzalloc(dev, array_size(nr, sizeof(*mix)),
-+				  GFP_KERNEL);
- 	if (!mix) {
- 		ret = -ENOMEM;
- 		goto rsnd_mix_probe_done;
-diff --git a/sound/soc/sh/rcar/src.c b/sound/soc/sh/rcar/src.c
-index a727e71587b6..651a6d7c677f 100644
---- a/sound/soc/sh/rcar/src.c
-+++ b/sound/soc/sh/rcar/src.c
-@@ -575,7 +575,8 @@ int rsnd_src_probe(struct rsnd_priv *priv)
- 		goto rsnd_src_probe_done;
- 	}
- 
--	src	= devm_kzalloc(dev, sizeof(*src) * nr, GFP_KERNEL);
-+	src	= devm_kzalloc(dev, array_size(nr, sizeof(*src)),
-+				  GFP_KERNEL);
- 	if (!src) {
- 		ret = -ENOMEM;
- 		goto rsnd_src_probe_done;
-diff --git a/sound/soc/sh/rcar/ssi.c b/sound/soc/sh/rcar/ssi.c
-index 333b802681ad..46532f538d59 100644
---- a/sound/soc/sh/rcar/ssi.c
-+++ b/sound/soc/sh/rcar/ssi.c
-@@ -1109,7 +1109,8 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
- 		goto rsnd_ssi_probe_done;
- 	}
- 
--	ssi	= devm_kzalloc(dev, sizeof(*ssi) * nr, GFP_KERNEL);
-+	ssi	= devm_kzalloc(dev, array_size(nr, sizeof(*ssi)),
-+				  GFP_KERNEL);
- 	if (!ssi) {
- 		ret = -ENOMEM;
- 		goto rsnd_ssi_probe_done;
-diff --git a/sound/soc/sh/rcar/ssiu.c b/sound/soc/sh/rcar/ssiu.c
-index 6ff8a36c2c82..8c3d2d369ac4 100644
---- a/sound/soc/sh/rcar/ssiu.c
-+++ b/sound/soc/sh/rcar/ssiu.c
-@@ -258,7 +258,8 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
- 
- 	/* same number to SSI */
- 	nr	= priv->ssi_nr;
--	ssiu	= devm_kzalloc(dev, sizeof(*ssiu) * nr, GFP_KERNEL);
-+	ssiu	= devm_kzalloc(dev, array_size(nr, sizeof(*ssiu)),
-+				   GFP_KERNEL);
- 	if (!ssiu)
+ 	if (!chip->plls)
  		return -ENOMEM;
- 
-diff --git a/sound/soc/soc-core.c b/sound/soc/soc-core.c
-index ae5d7f515697..fd447baef465 100644
---- a/sound/soc/soc-core.c
-+++ b/sound/soc/soc-core.c
-@@ -4085,7 +4085,8 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
- 		return -EINVAL;
- 	}
- 
--	routes = devm_kzalloc(card->dev, num_routes * sizeof(*routes),
-+	routes = devm_kzalloc(card->dev,
-+			      array_size(num_routes, sizeof(*routes)),
- 			      GFP_KERNEL);
- 	if (!routes) {
- 		dev_err(card->dev,
-@@ -4410,7 +4411,7 @@ int snd_soc_of_get_dai_link_codecs(struct device *dev,
- 		return num_codecs;
- 	}
- 	component = devm_kzalloc(dev,
--				 sizeof *component * num_codecs,
-+				 array_size(num_codecs, sizeof(*component)),
- 				 GFP_KERNEL);
- 	if (!component)
- 		return -ENOMEM;
+ 	memcpy(chip->plls, chip->chip_spec->plls,
 -- 
 2.17.0
