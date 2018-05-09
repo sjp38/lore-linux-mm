@@ -1,76 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C816B04EF
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:47:17 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p1-v6so23449978wrm.7
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:47:17 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k50-v6si1001131edb.231.2018.05.09.04.47.15
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B575A6B04F2
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:56:56 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id u137-v6so14669404itc.4
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:56:56 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0130.outbound.protection.outlook.com. [104.47.1.130])
+        by mx.google.com with ESMTPS id r15-v6si2514121iti.74.2018.05.09.04.56.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 May 2018 04:47:15 -0700 (PDT)
-Date: Wed, 9 May 2018 13:47:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [External] [RFC PATCH v1 3/6] mm, zone_type: create ZONE_NVM and
- fill into GFP_ZONE_TABLE
-Message-ID: <20180509114712.GP32366@dhcp22.suse.cz>
-References: <1525746628-114136-1-git-send-email-yehs1@lenovo.com>
- <1525746628-114136-4-git-send-email-yehs1@lenovo.com>
- <HK2PR03MB1684653383FFEDAE9B41A548929A0@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <ce3a6f37-3b13-0c35-6895-35156c7a290c@infradead.org>
- <HK2PR03MB16847B78265A033C7310DDCB92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 09 May 2018 04:56:55 -0700 (PDT)
+Subject: [PATCH v4 00/13] Improve shrink_slab() scalability (old complexity
+ was O(n^2), new is O(n))
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Wed, 09 May 2018 14:56:43 +0300
+Message-ID: <152586686544.3048.15776787801312398314.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <HK2PR03MB16847B78265A033C7310DDCB92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huaisheng HS1 Ye <yehs1@lenovo.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@infradead.org" <willy@infradead.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, Ocean HY1 He <hehy1@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On Wed 09-05-18 04:22:10, Huaisheng HS1 Ye wrote:
-> 
-> > On 05/07/2018 07:33 PM, Huaisheng HS1 Ye wrote:
-> > > diff --git a/mm/Kconfig b/mm/Kconfig
-> > > index c782e8f..5fe1f63 100644
-> > > --- a/mm/Kconfig
-> > > +++ b/mm/Kconfig
-> > > @@ -687,6 +687,22 @@ config ZONE_DEVICE
-> > >
-> > > +config ZONE_NVM
-> > > +	bool "Manage NVDIMM (pmem) by memory management (EXPERIMENTAL)"
-> > > +	depends on NUMA && X86_64
-> > 
-> > Hi,
-> > I'm curious why this depends on NUMA. Couldn't it be useful in non-NUMA
-> > (i.e., UMA) configs?
-> > 
-> I wrote these patches with two sockets testing platform, and there are two DDRs and two NVDIMMs have been installed to it.
-> So, for every socket it has one DDR and one NVDIMM with it. Here is memory region from memblock, you can get its distribution.
-> 
->  435 [    0.000000] Zone ranges:
->  436 [    0.000000]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
->  437 [    0.000000]   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
->  438 [    0.000000]   Normal   [mem 0x0000000100000000-0x00000046bfffffff]
->  439 [    0.000000]   NVM      [mem 0x0000000440000000-0x00000046bfffffff]
->  440 [    0.000000]   Device   empty
->  441 [    0.000000] Movable zone start for each node
->  442 [    0.000000] Early memory node ranges
->  443 [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009ffff]
->  444 [    0.000000]   node   0: [mem 0x0000000000100000-0x00000000a69c2fff]
->  445 [    0.000000]   node   0: [mem 0x00000000a7654000-0x00000000a85eefff]
->  446 [    0.000000]   node   0: [mem 0x00000000ab399000-0x00000000af3f6fff]
->  447 [    0.000000]   node   0: [mem 0x00000000af429000-0x00000000af7fffff]
->  448 [    0.000000]   node   0: [mem 0x0000000100000000-0x000000043fffffff]	Normal 0
->  449 [    0.000000]   node   0: [mem 0x0000000440000000-0x000000237fffffff]	NVDIMM 0
->  450 [    0.000000]   node   1: [mem 0x0000002380000000-0x000000277fffffff]	Normal 1
->  451 [    0.000000]   node   1: [mem 0x0000002780000000-0x00000046bfffffff]	NVDIMM 1
-> 
-> If we disable NUMA, there is a result as Normal an NVDIMM zones will be overlapping with each other.
-> Current mm treats all memory regions equally, it divides zones just by size, like 16M for DMA, 4G for DMA32, and others above for Normal.
-> The spanned range of all zones couldn't be overlapped.
+Hi,
 
-No, this is not correct. Zones can overlap.
--- 
-Michal Hocko
-SUSE Labs
+this patches solves the problem with slow shrink_slab() occuring
+on the machines having many shrinkers and memory cgroups (i.e.,
+with many containers). The problem is complexity of shrink_slab()
+is O(n^2) and it grows too fast with the growth of containers
+numbers.
+
+Let we have 200 containers, and every container has 10 mounts
+and 10 cgroups. All container tasks are isolated, and they don't
+touch foreign containers mounts.
+
+In case of global reclaim, a task has to iterate all over the memcgs
+and to call all the memcg-aware shrinkers for all of them. This means,
+the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
+and since there are 2000 memcgs, the total calls of do_shrink_slab()
+are 2000 * 2000 = 4000000.
+
+4 million calls are not a number operations, which can takes 1 cpu cycle.
+E.g., super_cache_count() accesses at least two lists, and makes arifmetical
+calculations. Even, if there are no charged objects, we do these calculations,
+and replaces cpu caches by read memory. I observed nodes spending almost 100%
+time in kernel, in case of intensive writing and global reclaim. The writer
+consumes pages fast, but it's need to shrink_slab() before the reclaimer
+reached shrink pages function (and frees SWAP_CLUSTER_MAX pages). Even if
+there is no writing, the iterations just waste the time, and slows reclaim down.
+
+Let's see the small test below:
+
+$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+$mkdir /sys/fs/cgroup/memory/ct
+$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+$for i in `seq 0 4000`;
+	do mkdir /sys/fs/cgroup/memory/ct/$i;
+	echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
+	mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file;
+done
+
+Then, let's see drop caches time (5 sequential calls):
+$time echo 3 > /proc/sys/vm/drop_caches
+
+0.00user 13.78system 0:13.78elapsed 99%CPU
+0.00user 5.59system 0:05.60elapsed 99%CPU
+0.00user 5.48system 0:05.48elapsed 99%CPU
+0.00user 8.35system 0:08.35elapsed 99%CPU
+0.00user 8.34system 0:08.35elapsed 99%CPU
+
+
+Last four calls don't actually shrink something. So, the iterations
+over slab shrinkers take 5.48 seconds. Not so good for scalability.
+
+The patchset solves the problem by making shrink_slab() of O(n)
+complexity. There are following functional actions:
+
+1)Assign id to every registered memcg-aware shrinker.
+2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
+  and set a shrinker-related bit after the first element
+  is added to lru list (also, when removed child memcg
+  elements are reparanted).
+3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
+  and call a shrinker if its bit is set in memcg's shrinker
+  bitmap.
+  (Also, there is a functionality to clear the bit, after
+  last element is shrinked).
+
+This gives signify performance increase. The result after patchset is applied:
+
+$time echo 3 > /proc/sys/vm/drop_caches
+
+0.00user 1.10system 0:01.10elapsed 99%CPU
+0.00user 0.00system 0:00.01elapsed 64%CPU
+0.00user 0.01system 0:00.01elapsed 82%CPU
+0.00user 0.00system 0:00.01elapsed 64%CPU
+0.00user 0.01system 0:00.01elapsed 82%CPU
+
+The results show the performance increases at least in 548 times.
+
+So, the patchset makes shrink_slab() of less complexity and improves
+the performance in such types of load I pointed. This will give a profit
+in case of !global reclaim case, since there also will be less
+do_shrink_slab() calls.
+
+This patchset is made against linux-next.git tree.
+
+v4: Do not use memcg mem_cgroup_idr for iteration over mem cgroups
+
+v3: Many changes requested in commentaries to v2:
+
+1)rebase on prealloc_shrinker() code base
+2)root_mem_cgroup is made out of memcg maps
+3)rwsem replaced with shrinkers_nr_max_mutex
+4)changes around assignment of shrinker id to list lru
+5)everything renamed
+
+v2: Many changes requested in commentaries to v1:
+
+1)the code mostly moved to mm/memcontrol.c;
+2)using IDR instead of array of shrinkers;
+3)added a possibility to assign list_lru shrinker id
+  at the time of shrinker registering;
+4)reorginized locking and renamed functions and variables.
+
+---
+
+Kirill Tkhai (13):
+      mm: Assign id to every memcg-aware shrinker
+      memcg: Move up for_each_mem_cgroup{,_tree} defines
+      mm: Assign memcg-aware shrinkers bitmap to memcg
+      mm: Refactoring in workingset_init()
+      fs: Refactoring in alloc_super()
+      fs: Propagate shrinker::id to list_lru
+      list_lru: Add memcg argument to list_lru_from_kmem()
+      list_lru: Pass dst_memcg argument to memcg_drain_list_lru_node()
+      list_lru: Pass lru argument to memcg_drain_list_lru_node()
+      mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
+      mm: Iterate only over charged shrinkers during memcg shrink_slab()
+      mm: Add SHRINK_EMPTY shrinker methods return value
+      mm: Clear shrinker bit if there are no objects related to memcg
+
+
+ fs/super.c                 |   18 ++++-
+ include/linux/list_lru.h   |    3 +
+ include/linux/memcontrol.h |   32 ++++++++
+ include/linux/shrinker.h   |   11 ++-
+ mm/list_lru.c              |   65 +++++++++++++----
+ mm/memcontrol.c            |  146 ++++++++++++++++++++++++++++++++++----
+ mm/vmscan.c                |  170 +++++++++++++++++++++++++++++++++++++++++---
+ mm/workingset.c            |   13 +++
+ 8 files changed, 405 insertions(+), 53 deletions(-)
+
+--
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
