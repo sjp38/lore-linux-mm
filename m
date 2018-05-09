@@ -1,57 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 28AF06B02F8
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 05:16:17 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id v145-v6so27785693vkv.17
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 02:16:17 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n196-v6sor13042250vkd.282.2018.05.09.02.16.15
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 47FFD6B04C9
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 05:18:30 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e1-v6so3998584wma.3
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 02:18:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 70sor2787358wmf.63.2018.05.09.02.18.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 09 May 2018 02:16:15 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180508162829.7729-1-glider@google.com> <20180508214445.lnqbct6dgrhyxp4a@black.fi.intel.com>
-In-Reply-To: <20180508214445.lnqbct6dgrhyxp4a@black.fi.intel.com>
+        Wed, 09 May 2018 02:18:29 -0700 (PDT)
 From: Alexander Potapenko <glider@google.com>
-Date: Wed, 09 May 2018 09:16:03 +0000
-Message-ID: <CAG_fn=UrQw4qRofUgHb4A_j4hbuefSwGtFMfCtYS318HWXFSFA@mail.gmail.com>
-Subject: Re: [PATCH v2] x86/boot/64/clang: Use fixup_pointer() to access '__supported_pte_mask'
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH v3] x86/boot/64/clang: Use fixup_pointer() to access '__supported_pte_mask'
+Date: Wed,  9 May 2018 11:18:22 +0200
+Message-Id: <20180509091822.191810-1-glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: dave.hansen@linux.intel.com, Ingo Molnar <mingo@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Matthias Kaehlcke <mka@chromium.org>, Dmitriy Vyukov <dvyukov@google.com>, Michael Davidson <md@google.com>
+To: dave.hansen@linux.intel.com, mingo@kernel.org, kirill.shutemov@linux.intel.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mka@chromium.org, dvyukov@google.com, md@google.com
 
-On Tue, May 8, 2018 at 11:44 PM Kirill A. Shutemov <
-kirill.shutemov@linux.intel.com> wrote:
+Clang builds with defconfig started crashing after commit fb43d6cb91ef
+("x86/mm: Do not auto-massage page protections")
+This was caused by introducing a new global access in __startup_64().
 
-> On Tue, May 08, 2018 at 04:28:29PM +0000, Alexander Potapenko wrote:
-> > @@ -196,7 +204,8 @@ unsigned long __head __startup_64(unsigned long
-physaddr,
-> >
-> >       pmd_entry =3D __PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL;
-> >       /* Filter out unsupported __PAGE_KERNEL_* bits: */
-> > -     pmd_entry &=3D __supported_pte_mask;
-> > +     mask_ptr =3D (pteval_t *)fixup_pointer(&__supported_pte_mask,
-physaddr);
+Code in __startup_64() can be relocated during execution, but the compiler
+doesn't have to generate PC-relative relocations when accessing globals
+from that function. Clang actually does not generate them, which leads
+to boot-time crashes. To work around this problem, every global pointer
+must be adjusted using fixup_pointer().
 
-> Do we really need the cast here?
-Correct, we do not.
+Signed-off-by: Alexander Potapenko <glider@google.com>
+Fixes: fb43d6cb91ef ("x86/mm: Do not auto-massage page protections")
+---
+ v3: removed unnecessary cast
+ v2: better patch description, added a comment to __startup_64()
+---
+ arch/x86/kernel/head64.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-> --
->   Kirill A. Shutemov
-
-
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 0c408f8c4ed4..5ea28e9a0250 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -104,6 +104,13 @@ static bool __head check_la57_support(unsigned long physaddr)
+ }
+ #endif
+ 
++
++/* Code in __startup_64() can be relocated during execution, but the compiler
++ * doesn't have to generate PC-relative relocations when accessing globals from
++ * that function. Clang actually does not generate them, which leads to
++ * boot-time crashes. To work around this problem, every global pointer must
++ * be adjusted using fixup_pointer().
++ */
+ unsigned long __head __startup_64(unsigned long physaddr,
+ 				  struct boot_params *bp)
+ {
+@@ -113,6 +120,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
+ 	p4dval_t *p4d;
+ 	pudval_t *pud;
+ 	pmdval_t *pmd, pmd_entry;
++	pteval_t *mask_ptr;
+ 	bool la57;
+ 	int i;
+ 	unsigned int *next_pgt_ptr;
+@@ -196,7 +204,8 @@ unsigned long __head __startup_64(unsigned long physaddr,
+ 
+ 	pmd_entry = __PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL;
+ 	/* Filter out unsupported __PAGE_KERNEL_* bits: */
+-	pmd_entry &= __supported_pte_mask;
++	mask_ptr = fixup_pointer(&__supported_pte_mask, physaddr);
++	pmd_entry &= *mask_ptr;
+ 	pmd_entry += sme_get_me_mask();
+ 	pmd_entry +=  physaddr;
+ 
+-- 
+2.17.0.441.gb46fe60e1d-goog
