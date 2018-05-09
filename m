@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 235306B0540
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 13:18:52 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t5-v6so4066207ply.13
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 10:18:52 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 47E3C6B0541
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 13:18:53 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 91-v6so4060344plf.6
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 10:18:53 -0700 (PDT)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id o9-v6si15900013pgn.199.2018.05.09.10.18.50
+        by mx.google.com with ESMTPS id o9-v6si15900013pgn.199.2018.05.09.10.18.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 10:18:50 -0700 (PDT)
-Subject: [PATCH 04/13] x86/pkeys/selftests: Avoid printf-in-signal deadlocks
+        Wed, 09 May 2018 10:18:52 -0700 (PDT)
+Subject: [PATCH 05/13] x86/pkeys/selftests: Allow faults on unknown keys
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 09 May 2018 10:13:44 -0700
+Date: Wed, 09 May 2018 10:13:46 -0700
 References: <20180509171336.76636D88@viggo.jf.intel.com>
 In-Reply-To: <20180509171336.76636D88@viggo.jf.intel.com>
-Message-Id: <20180509171344.C53FD2F3@viggo.jf.intel.com>
+Message-Id: <20180509171345.7FC7DA00@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,10 +23,9 @@ Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.i
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-printf() and friends are unusable in signal handlers.  They deadlock.
-The pkey selftest does not do any normal printing in signal handlers,
-only extra debugging.  So, just print the format string so we get
-*some* output when debugging.
+The exec-only pkey is allocated inside the kernel and userspace
+is not told what it is.  So, allow PK faults to occur that have
+an unknown key.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Ram Pai <linuxram@us.ibm.com>
@@ -38,49 +37,33 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Shuah Khan <shuah@kernel.org>
 ---
 
- b/tools/testing/selftests/x86/pkey-helpers.h |   20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+ b/tools/testing/selftests/x86/protection_keys.c |   10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
-diff -puN tools/testing/selftests/x86/pkey-helpers.h~pkeys-selftests-avoid-print-in-signal-deadlocks tools/testing/selftests/x86/pkey-helpers.h
---- a/tools/testing/selftests/x86/pkey-helpers.h~pkeys-selftests-avoid-print-in-signal-deadlocks	2018-05-09 09:20:19.738698404 -0700
-+++ b/tools/testing/selftests/x86/pkey-helpers.h	2018-05-09 09:20:19.742698404 -0700
-@@ -26,30 +26,26 @@ static inline void sigsafe_printf(const
- {
- 	va_list ap;
- 
--	va_start(ap, format);
- 	if (!dprint_in_signal) {
-+		va_start(ap, format);
- 		vprintf(format, ap);
-+		va_end(ap);
- 	} else {
- 		int ret;
--		int len = vsnprintf(dprint_in_signal_buffer,
--				    DPRINT_IN_SIGNAL_BUF_SIZE,
--				    format, ap);
- 		/*
--		 * len is amount that would have been printed,
--		 * but actual write is truncated at BUF_SIZE.
-+		 * No printf() functions are signal-safe.
-+		 * They deadlock easily. Write the format
-+		 * string to get some output, even if
-+		 * incomplete.
- 		 */
--		if (len > DPRINT_IN_SIGNAL_BUF_SIZE)
--			len = DPRINT_IN_SIGNAL_BUF_SIZE;
--		ret = write(1, dprint_in_signal_buffer, len);
-+		ret = write(1, format, strlen(format));
- 		if (ret < 0)
--			abort();
-+			exit(1);
- 	}
--	va_end(ap);
+diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-unknown-exec-only-key tools/testing/selftests/x86/protection_keys.c
+--- a/tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-unknown-exec-only-key	2018-05-09 09:20:20.253698403 -0700
++++ b/tools/testing/selftests/x86/protection_keys.c	2018-05-09 09:20:20.257698403 -0700
+@@ -906,13 +906,21 @@ void *malloc_pkey(long size, int prot, u
  }
- #define dprintf_level(level, args...) do {	\
- 	if (level <= DEBUG_LEVEL)		\
- 		sigsafe_printf(args);		\
--	fflush(NULL);				\
- } while (0)
- #define dprintf0(args...) dprintf_level(0, args)
- #define dprintf1(args...) dprintf_level(1, args)
+ 
+ int last_pkru_faults;
++#define UNKNOWN_PKEY -2
+ void expected_pk_fault(int pkey)
+ {
+ 	dprintf2("%s(): last_pkru_faults: %d pkru_faults: %d\n",
+ 			__func__, last_pkru_faults, pkru_faults);
+ 	dprintf2("%s(%d): last_si_pkey: %d\n", __func__, pkey, last_si_pkey);
+ 	pkey_assert(last_pkru_faults + 1 == pkru_faults);
+-	pkey_assert(last_si_pkey == pkey);
++
++       /*
++	* For exec-only memory, we do not know the pkey in
++	* advance, so skip this check.
++	*/
++	if (pkey != UNKNOWN_PKEY)
++		pkey_assert(last_si_pkey == pkey);
++
+ 	/*
+ 	 * The signal handler shold have cleared out PKRU to let the
+ 	 * test program continue.  We now have to restore it.
 _
