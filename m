@@ -1,71 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C62D6B04DF
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 06:46:28 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g1so26102072pfh.19
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 03:46:28 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q75si24390319pfk.268.2018.05.09.03.46.27
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 38F846B04E1
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 06:46:38 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id e74so4293049wmg.5
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 03:46:38 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x4-v6si618421edq.436.2018.05.09.03.46.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 09 May 2018 03:46:27 -0700 (PDT)
-Date: Wed, 9 May 2018 12:46:18 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 6/7] psi: pressure stall information for CPU, memory, and
- IO
-Message-ID: <20180509104618.GP12217@hirez.programming.kicks-ass.net>
-References: <20180507210135.1823-1-hannes@cmpxchg.org>
- <20180507210135.1823-7-hannes@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 09 May 2018 03:46:37 -0700 (PDT)
+Date: Wed, 9 May 2018 12:46:35 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v9 5/9] mm: fix __gup_device_huge vs unmap
+Message-ID: <20180509104635.57upe2fri7abqu7p@quack2.suse.cz>
+References: <152461278149.17530.2867511144531572045.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152461280975.17530.2817946409563456285.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180507210135.1823-7-hannes@cmpxchg.org>
+In-Reply-To: <152461280975.17530.2817946409563456285.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, stable@vger.kernel.org, Jan Kara <jack@suse.cz>, david@fromorbit.com, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, May 07, 2018 at 05:01:34PM -0400, Johannes Weiner wrote:
+On Tue 24-04-18 16:33:29, Dan Williams wrote:
+> get_user_pages_fast() for device pages is missing the typical validation
+> that all page references have been taken while the mapping was valid.
+> Without this validation truncate operations can not reliably coordinate
+> against new page reference events like O_DIRECT.
+> 
+> Cc: <stable@vger.kernel.org>
+> Fixes: 3565fce3a659 ("mm, x86: get_user_pages() for dax mappings")
+> Reported-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-> @@ -2038,6 +2038,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
->  	cpu = select_task_rq(p, p->wake_cpu, SD_BALANCE_WAKE, wake_flags);
->  	if (task_cpu(p) != cpu) {
->  		wake_flags |= WF_MIGRATED;
-> +		psi_ttwu_dequeue(p);
->  		set_task_cpu(p, cpu);
->  	}
+The patch looks good to me. You can add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
+
+> ---
+>  mm/gup.c |   36 ++++++++++++++++++++++++++----------
+>  1 file changed, 26 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/gup.c b/mm/gup.c
+> index 76af4cfeaf68..84dd2063ca3d 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -1456,32 +1456,48 @@ static int __gup_device_huge(unsigned long pfn, unsigned long addr,
+>  	return 1;
+>  }
 >  
-
-> +static inline void psi_ttwu_dequeue(struct task_struct *p)
-> +{
-> +	/*
-> +	 * Is the task being migrated during a wakeup? Make sure to
-> +	 * deregister its sleep-persistent psi states from the old
-> +	 * queue, and let psi_enqueue() know it has to requeue.
-> +	 */
-> +	if (unlikely(p->in_iowait || (p->flags & PF_MEMSTALL))) {
-> +		struct rq_flags rf;
-> +		struct rq *rq;
-> +		int clear = 0;
+> -static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
+> +static int __gup_device_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+>  		unsigned long end, struct page **pages, int *nr)
+>  {
+>  	unsigned long fault_pfn;
+> +	int nr_start = *nr;
 > +
-> +		if (p->in_iowait)
-> +			clear |= TSK_IOWAIT;
-> +		if (p->flags & PF_MEMSTALL)
-> +			clear |= TSK_MEMSTALL;
-> +
-> +		rq = __task_rq_lock(p, &rf);
-> +		update_rq_clock(rq);
-> +		psi_task_change(p, rq_clock(rq), clear, 0);
-> +		p->sched_psi_wake_requeue = 1;
-> +		__task_rq_unlock(rq, &rf);
+> +	fault_pfn = pmd_pfn(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+> +	if (!__gup_device_huge(fault_pfn, addr, end, pages, nr))
+> +		return 0;
+>  
+> -	fault_pfn = pmd_pfn(pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+> -	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
+> +	if (unlikely(pmd_val(orig) != pmd_val(*pmdp))) {
+> +		undo_dev_pagemap(nr, nr_start, pages);
+> +		return 0;
 > +	}
-> +}
-
-Yeah, no... not happening.
-
-We spend a lot of time to never touch the old rq->lock on wakeups. Mason
-was the one pushing for that, so he should very well know this.
-
-The one cross-cpu atomic (iowait) is already a problem (the whole iowait
-accounting being useless makes it even worse), adding significant remote
-prodding is just really bad.
+> +	return 1;
+>  }
+>  
+> -static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
+> +static int __gup_device_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+>  		unsigned long end, struct page **pages, int *nr)
+>  {
+>  	unsigned long fault_pfn;
+> +	int nr_start = *nr;
+> +
+> +	fault_pfn = pud_pfn(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+> +	if (!__gup_device_huge(fault_pfn, addr, end, pages, nr))
+> +		return 0;
+>  
+> -	fault_pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+> -	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
+> +	if (unlikely(pud_val(orig) != pud_val(*pudp))) {
+> +		undo_dev_pagemap(nr, nr_start, pages);
+> +		return 0;
+> +	}
+> +	return 1;
+>  }
+>  #else
+> -static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
+> +static int __gup_device_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+>  		unsigned long end, struct page **pages, int *nr)
+>  {
+>  	BUILD_BUG();
+>  	return 0;
+>  }
+>  
+> -static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
+> +static int __gup_device_huge_pud(pud_t pud, pud_t *pudp, unsigned long addr,
+>  		unsigned long end, struct page **pages, int *nr)
+>  {
+>  	BUILD_BUG();
+> @@ -1499,7 +1515,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+>  		return 0;
+>  
+>  	if (pmd_devmap(orig))
+> -		return __gup_device_huge_pmd(orig, addr, end, pages, nr);
+> +		return __gup_device_huge_pmd(orig, pmdp, addr, end, pages, nr);
+>  
+>  	refs = 0;
+>  	page = pmd_page(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+> @@ -1537,7 +1553,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+>  		return 0;
+>  
+>  	if (pud_devmap(orig))
+> -		return __gup_device_huge_pud(orig, addr, end, pages, nr);
+> +		return __gup_device_huge_pud(orig, pudp, addr, end, pages, nr);
+>  
+>  	refs = 0;
+>  	page = pud_page(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
