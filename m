@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 35BD36B039A
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:18:10 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 3-v6so20061641wry.0
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:18:10 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f22-v6si1083446edq.84.2018.05.09.01.18.08
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E22906B039C
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:18:31 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id b31-v6so3348263plb.5
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:18:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g9-v6sor6098236pgo.273.2018.05.09.01.18.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 May 2018 01:18:08 -0700 (PDT)
-Date: Wed, 9 May 2018 10:18:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: drain memcg stock on force_empty
-Message-ID: <20180509081807.GG32366@dhcp22.suse.cz>
-References: <20180507201651.165879-1-shakeelb@google.com>
+        (Google Transport Security);
+        Wed, 09 May 2018 01:18:30 -0700 (PDT)
+Date: Wed, 9 May 2018 17:18:25 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm/memblock: print memblock_remove
+Message-ID: <20180509081825.GA220810@rodete-desktop-imager.corp.google.com>
+References: <20180508104223.8028-1-minchan@kernel.org>
+ <20180509081214.GE32366@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180507201651.165879-1-shakeelb@google.com>
+In-Reply-To: <20180509081214.GE32366@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Junaid Shahid <junaids@google.com>, Junaid Shahid <juanids@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Mon 07-05-18 13:16:51, Shakeel Butt wrote:
-> From: Junaid Shahid <junaids@google.com>
+On Wed, May 09, 2018 at 10:12:14AM +0200, Michal Hocko wrote:
+> On Tue 08-05-18 19:42:23, Minchan Kim wrote:
+> > memblock_remove report is useful to see why MemTotal of /proc/meminfo
+> > between two kernels makes difference.
+> > 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  mm/memblock.c | 5 +++++
+> >  1 file changed, 5 insertions(+)
+> > 
+> > diff --git a/mm/memblock.c b/mm/memblock.c
+> > index 5228f594b13c..03d48d8835ba 100644
+> > --- a/mm/memblock.c
+> > +++ b/mm/memblock.c
+> > @@ -697,6 +697,11 @@ static int __init_memblock memblock_remove_range(struct memblock_type *type,
+> >  
+> >  int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
+> >  {
+> > +	phys_addr_t end = base + size - 1;
+> > +
+> > +	memblock_dbg("memblock_remove: [%pa-%pa] %pS\n",
+> > +		     &base, &end, (void *)_RET_IP_);
 > 
-> The per-cpu memcg stock can retain a charge of upto 32 pages. On a
-> machine with large number of cpus, this can amount to a decent amount
-> of memory. Additionally force_empty interface might be triggering
-> unneeded memcg reclaims.
+> Other callers of memblock_dbg use %pF. Is there any reason to be
+> different here?
+
+checkpatch hit me.
+
+WARNING: Deprecated vsprintf pointer extension '%pF' - use %pS instead
+#24: FILE: mm/memblock.c:702:
++       memblock_dbg("memblock_remove: [%pa-%pa] %pF\n",
++                    &base, &end, (void *)_RET_IP_);
+
 > 
-> Signed-off-by: Junaid Shahid <juanids@google.com>
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> Other that that looks ok to me.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/memcontrol.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e2d33a37f971..2c3c69524b49 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2841,6 +2841,9 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
->  
->  	/* we call try-to-free pages for make this cgroup empty */
->  	lru_add_drain_all();
-> +
-> +	drain_all_stock(memcg);
-> +
->  	/* try to free all pages in this cgroup */
->  	while (nr_retries && page_counter_read(&memcg->memory)) {
->  		int progress;
-> -- 
-> 2.17.0.441.gb46fe60e1d-goog
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks, Michal.
