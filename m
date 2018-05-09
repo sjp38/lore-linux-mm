@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E22906B039C
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:18:31 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id b31-v6so3348263plb.5
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:18:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g9-v6sor6098236pgo.273.2018.05.09.01.18.30
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 04EF26B039E
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:24:06 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id d9-v6so3357104plj.4
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:24:05 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id 32-v6si14910130plc.252.2018.05.09.01.24.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 09 May 2018 01:18:30 -0700 (PDT)
-Date: Wed, 9 May 2018 17:18:25 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm/memblock: print memblock_remove
-Message-ID: <20180509081825.GA220810@rodete-desktop-imager.corp.google.com>
-References: <20180508104223.8028-1-minchan@kernel.org>
- <20180509081214.GE32366@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180509081214.GE32366@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 May 2018 01:24:04 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm] mm, THP, doc: Add document for thp_swpout/thp_swpout_fallback
+Date: Wed,  9 May 2018 16:23:41 +0800
+Message-Id: <20180509082341.13953-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>
+Cc: linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, May 09, 2018 at 10:12:14AM +0200, Michal Hocko wrote:
-> On Tue 08-05-18 19:42:23, Minchan Kim wrote:
-> > memblock_remove report is useful to see why MemTotal of /proc/meminfo
-> > between two kernels makes difference.
-> > 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  mm/memblock.c | 5 +++++
-> >  1 file changed, 5 insertions(+)
-> > 
-> > diff --git a/mm/memblock.c b/mm/memblock.c
-> > index 5228f594b13c..03d48d8835ba 100644
-> > --- a/mm/memblock.c
-> > +++ b/mm/memblock.c
-> > @@ -697,6 +697,11 @@ static int __init_memblock memblock_remove_range(struct memblock_type *type,
-> >  
-> >  int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
-> >  {
-> > +	phys_addr_t end = base + size - 1;
-> > +
-> > +	memblock_dbg("memblock_remove: [%pa-%pa] %pS\n",
-> > +		     &base, &end, (void *)_RET_IP_);
-> 
-> Other callers of memblock_dbg use %pF. Is there any reason to be
-> different here?
+From: Huang Ying <ying.huang@intel.com>
 
-checkpatch hit me.
+Add document for newly added thp_swpout, thp_swpout_fallback fields in
+/proc/vmstat.
 
-WARNING: Deprecated vsprintf pointer extension '%pF' - use %pS instead
-#24: FILE: mm/memblock.c:702:
-+       memblock_dbg("memblock_remove: [%pa-%pa] %pF\n",
-+                    &base, &end, (void *)_RET_IP_);
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+---
+ Documentation/vm/transhuge.rst | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-> 
-> Other that that looks ok to me.
-
-Thanks, Michal.
+diff --git a/Documentation/vm/transhuge.rst b/Documentation/vm/transhuge.rst
+index 569d182cc973..2c6867fca6ff 100644
+--- a/Documentation/vm/transhuge.rst
++++ b/Documentation/vm/transhuge.rst
+@@ -355,6 +355,15 @@ thp_zero_page_alloc_failed
+ 	is incremented if kernel fails to allocate
+ 	huge zero page and falls back to using small pages.
+ 
++thp_swpout
++	is incremented every time a huge page is swapout in one
++	piece without splitting.
++
++thp_swpout_fallback
++	is incremented if a huge page has to be split before swapout.
++	Usually because failed to allocate some continuous swap space
++	for the huge page.
++
+ As the system ages, allocating huge pages may be expensive as the
+ system uses memory compaction to copy data around memory to free a
+ huge page for use. There are some counters in ``/proc/vmstat`` to help
+-- 
+2.16.1
