@@ -1,65 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 541BC6B0318
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 21:34:33 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id u127so25415850qka.9
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 18:34:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w66sor7688486qkc.24.2018.05.08.18.34.32
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C3C116B0324
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 21:39:40 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b25so25381565pfn.10
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 18:39:40 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a68-v6si25841710pli.158.2018.05.08.18.39.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 08 May 2018 18:34:32 -0700 (PDT)
-From: Kent Overstreet <kent.overstreet@gmail.com>
-Subject: [PATCH 10/10] block: Add sysfs entry for fua support
-Date: Tue,  8 May 2018 21:33:58 -0400
-Message-Id: <20180509013358.16399-11-kent.overstreet@gmail.com>
-In-Reply-To: <20180509013358.16399-1-kent.overstreet@gmail.com>
-References: <20180509013358.16399-1-kent.overstreet@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 08 May 2018 18:39:39 -0700 (PDT)
+Date: Tue, 8 May 2018 18:39:35 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: provide a fallback for PAGE_KERNEL_RO for
+ architectures
+Message-ID: <20180509013935.GA8131@bombadil.infradead.org>
+References: <20180428001526.22475-1-mcgrof@kernel.org>
+ <20180428031810.GA14566@bombadil.infradead.org>
+ <20180509010438.GM27853@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180509010438.GM27853@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Ingo Molnar <mingo@kernel.org>
-Cc: Kent Overstreet <kent.overstreet@gmail.com>
+To: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Cc: Tony Luck <tony.luck@intel.com>, arnd@arndb.de, gregkh@linuxfoundation.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org
 
-Signed-off-by: Kent Overstreet <kent.overstreet@gmail.com>
----
- block/blk-sysfs.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+On Wed, May 09, 2018 at 01:04:38AM +0000, Luis R. Rodriguez wrote:
+> On Fri, Apr 27, 2018 at 08:18:10PM -0700, Matthew Wilcox wrote:
+> > ia64: Add PAGE_KERNEL_RO and PAGE_KERNEL_EXEC
+> > 
+> > The rest of the kernel was falling back to simple PAGE_KERNEL pages; using
+> > PAGE_KERNEL_RO and PAGE_KERNEL_EXEC provide better protection against
+> > unintended writes.
+> > 
+> > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> Nice, should I queue this into my series as well?
 
-diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
-index cbea895a55..d6dd7d8198 100644
---- a/block/blk-sysfs.c
-+++ b/block/blk-sysfs.c
-@@ -497,6 +497,11 @@ static ssize_t queue_wc_store(struct request_queue *q, const char *page,
- 	return count;
- }
- 
-+static ssize_t queue_fua_show(struct request_queue *q, char *page)
-+{
-+	return sprintf(page, "%u\n", test_bit(QUEUE_FLAG_FUA, &q->queue_flags));
-+}
-+
- static ssize_t queue_dax_show(struct request_queue *q, char *page)
- {
- 	return queue_var_show(blk_queue_dax(q), page);
-@@ -665,6 +670,11 @@ static struct queue_sysfs_entry queue_wc_entry = {
- 	.store = queue_wc_store,
- };
- 
-+static struct queue_sysfs_entry queue_fua_entry = {
-+	.attr = {.name = "fua", .mode = S_IRUGO },
-+	.show = queue_fua_show,
-+};
-+
- static struct queue_sysfs_entry queue_dax_entry = {
- 	.attr = {.name = "dax", .mode = S_IRUGO },
- 	.show = queue_dax_show,
-@@ -714,6 +724,7 @@ static struct attribute *default_attrs[] = {
- 	&queue_random_entry.attr,
- 	&queue_poll_entry.attr,
- 	&queue_wc_entry.attr,
-+	&queue_fua_entry.attr,
- 	&queue_dax_entry.attr,
- 	&queue_wb_lat_entry.attr,
- 	&queue_poll_delay_entry.attr,
--- 
-2.17.0
+A little reluctant to queue it without anyone having tested it.  Heck,
+I didn't even check it compiled ;-)
+
+We used to just break architectures and let them fix it up for this kind
+of thing.  That's not really acceptable nowadays, but I don't know how
+we get arch maintainers to fix up their ports now.
