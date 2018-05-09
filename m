@@ -1,144 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 48CAD6B050B
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:59:07 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id x2-v6so3632856plv.0
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:59:07 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0138.outbound.protection.outlook.com. [104.47.0.138])
-        by mx.google.com with ESMTPS id 1-v6si945429ply.226.2018.05.09.04.59.05
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F1666B050D
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 08:00:53 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w14-v6so23438979wrk.22
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 05:00:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r21-v6si725358edb.199.2018.05.09.05.00.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 May 2018 04:59:06 -0700 (PDT)
-Subject: [PATCH v4 13/13] mm: Clear shrinker bit if there are no objects
- related to memcg
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Wed, 09 May 2018 14:58:56 +0300
-Message-ID: <152586713627.3048.6958181425724648686.stgit@localhost.localdomain>
-In-Reply-To: <152586686544.3048.15776787801312398314.stgit@localhost.localdomain>
-References: <152586686544.3048.15776787801312398314.stgit@localhost.localdomain>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 09 May 2018 05:00:52 -0700 (PDT)
+Date: Wed, 9 May 2018 14:00:50 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
+Message-ID: <20180509120050.eyuprdh75grhdsh4@pathway.suse.cz>
+References: <20180420140157.2nx5nkojj7l2y7if@pathway.suse.cz>
+ <20180420101751.6c1c70e8@gandalf.local.home>
+ <20180420145720.hb7bbyd5xbm5je32@pathway.suse.cz>
+ <20180420111307.44008fc7@gandalf.local.home>
+ <20180423103232.k23yulv2e7fah42r@pathway.suse.cz>
+ <20180423073603.6b3294ba@gandalf.local.home>
+ <20180423124502.423fb57thvbf3zet@pathway.suse.cz>
+ <20180425053146.GA25288@jagdpanzerIV>
+ <20180426094211.okftwdzgfn72rik3@pathway.suse.cz>
+ <20180427102245.GA591@jagdpanzerIV>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180427102245.GA591@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-To avoid further unneed calls of do_shrink_slab()
-for shrinkers, which already do not have any charged
-objects in a memcg, their bits have to be cleared.
+On Fri 2018-04-27 19:22:45, Sergey Senozhatsky wrote:
+> On (04/26/18 11:42), Petr Mladek wrote:
+> [..]
+> > Honestly, I do not believe that console drivers are like Scheherazade.
+> > They are not able to make up long interesting stories. Let's say that
+> > lockdep splat has more than 100 lines but it can happen only once.
+> > Let's say that WARNs have about 40 lines. I somehow doubt that we
+> > could ever see 10 different WARN calls from one con->write() call.
+> 
+> The problem here is that it takes a human being with IQ to tell what's
+> repetitive, what's useless and what's not.
+> 
+> 	vprintk(...)
+> 	{
+> 		if (!__ratelimit())
+> 			return;
+> 	}
+> 
+> has zero IQ to make such decisions.
 
-This patch introduces a lockless mechanism to do that
-without races without parallel list lru add. After
-do_shrink_slab() returns SHRINK_EMPTY the first time,
-we clear the bit and call it once again. Then we restore
-the bit, if the new return value is different.
+You make it too complicated. Also it seems that you repeatedly
+hide the fact that con->write() context is recursive. Just try to add
+printk() into call_console_drivers() and see what happens.
 
-Note, that single smp_mb__after_atomic() in shrink_slab_memcg()
-covers two situations:
+IMHO, if con->write() wants to add more than 1000 (or 100 or whatever
+sane limit) new lines then something is really wrong and we should
+stop it. It is that simple.
 
-1)list_lru_add()     shrink_slab_memcg
-    list_add_tail()    for_each_set_bit() <--- read bit
-                         do_shrink_slab() <--- missed list update (no barrier)
-    <MB>                 <MB>
-    set_bit()            do_shrink_slab() <--- seen list update
 
-This situation, when the first do_shrink_slab() sees set bit,
-but it doesn't see list update (i.e., race with the first element
-queueing), is rare. So we don't add <MB> before the first call
-of do_shrink_slab() instead of this to do not slow down generic
-case. Also, it's need the second call as seen in below in (2).
+> > > But we first need a real reason. Right now it looks to me like
+> > > we have "a solution" to a problem which we have never witnessed.
+> > 
+> > I am trying to find a "simple" and generic solution for the problem
+> > reported by Tejun:
+> [..]
+> > 1. Console is IPMI emulated serial console.  Super slow.  Also
+> >    netconsole is in use.
+> > 2. System runs out of memory, OOM triggers.
+> > 3. OOM handler is printing out OOM debug info.
+> > 4. While trying to emit the messages for netconsole, the network stack
+> >    / driver tries to allocate memory and then fail, which in turn
+> >    triggers allocation failure or other warning messages.  printk was
+> >    already flushing, so the messages are queued on the ring.
+> > 5. OOM handler keeps flushing but 4 repeats and the queue is never
+> >    shrinking.  Because OOM handler is trapped in printk flushing, it
+> >    never manages to free memory and no one else can enter OOM path
+> >    either, so the system is trapped in this state.
+> > </paste>
 
-2)list_lru_add()      shrink_slab_memcg()
-    list_add_tail()     ...
-    set_bit()           ...
-  ...                   for_each_set_bit()
-  do_shrink_slab()        do_shrink_slab()
-    clear_bit()           ...
-  ...                     ...
-  list_lru_add()          ...
-    list_add_tail()       clear_bit()
-    <MB>                  <MB>
-    set_bit()             do_shrink_slab()
+IMHO, we do not need to chase down this particular problem. It was
+already "solved" by the commit 400e22499dd92613821 ("mm: don't warn
+about allocations which stall for too long").
 
-The barriers guarantees, the second do_shrink_slab()
-in the right side task sees list update if really
-cleared the bit. This case is drawn in the code comment.
+It was just an example. I wanted to make con->write() generally safe.
+I thought that the problem (recursion) was clear enough.
 
-[Results/performance of the patchset]
 
-After the whole patchset applied the below test shows signify
-increase of performance:
+> Yes, and that's why I want to take a look at the logs/backtraces.
 
-$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
-$mkdir /sys/fs/cgroup/memory/ct
-$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
-    $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i; echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs; mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file; done
+If you want more cases to analyze, fair enough. I do not have any
+at hands. It is not an urgent issue for me and I am not going to
+spend more time on this.
 
-Then, 5 sequential calls of drop caches:
-$time echo 3 > /proc/sys/vm/drop_caches
-
-1)Before:
-0.00user 13.78system 0:13.78elapsed 99%CPU
-0.00user 5.59system 0:05.60elapsed 99%CPU
-0.00user 5.48system 0:05.48elapsed 99%CPU
-0.00user 8.35system 0:08.35elapsed 99%CPU
-0.00user 8.34system 0:08.35elapsed 99%CPU
-
-2)After
-0.00user 1.10system 0:01.10elapsed 99%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-
-The results show the performance increases at least in 548 times.
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- include/linux/memcontrol.h |    2 ++
- mm/vmscan.c                |   19 +++++++++++++++++--
- 2 files changed, 19 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 4548b09e44a7..9f00554aa59c 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -1255,6 +1255,8 @@ static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int
- 
- 		rcu_read_lock();
- 		map = MEMCG_SHRINKER_MAP(memcg, nid);
-+		/* Pairs with smp mb in shrink_slab() */
-+		smp_mb__before_atomic();
- 		set_bit(nr, map->map);
- 		rcu_read_unlock();
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 80743878576c..49cdf9a17d6f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -586,8 +586,23 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			continue;
- 
- 		ret = do_shrink_slab(&sc, shrinker, priority);
--		if (ret == SHRINK_EMPTY)
--			ret = 0;
-+		if (ret == SHRINK_EMPTY) {
-+			clear_bit(i, map->map);
-+			/*
-+			 * Pairs with mb in memcg_set_shrinker_bit():
-+			 *
-+			 * list_lru_add()     shrink_slab_memcg()
-+			 *   list_add_tail()    clear_bit()
-+			 *   <MB>               <MB>
-+			 *   set_bit()          do_shrink_slab()
-+			 */
-+			smp_mb__after_atomic();
-+			ret = do_shrink_slab(&sc, shrinker, priority);
-+			if (ret == SHRINK_EMPTY)
-+				ret = 0;
-+			else
-+				memcg_set_shrinker_bit(memcg, nid, i);
-+		}
- 		freed += ret;
- 
- 		if (rwsem_is_contended(&shrinker_rwsem)) {
+Best Regards,
+Petr
