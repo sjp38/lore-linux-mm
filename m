@@ -1,52 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 216AA6B04C3
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:53:39 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id n2-v6so19485715pgs.2
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:53:39 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id x1-v6si25257590plv.520.2018.05.09.01.53.37
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B95046B04C8
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:58:28 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 62so21435292pfw.21
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:58:28 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p6-v6sor4450536pgc.316.2018.05.09.01.58.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 01:53:38 -0700 (PDT)
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [RFC v3 PATCH 5/5] mm/can_skip_merge(): make it more aggressive to attempt cluster alloc/free
-Date: Wed,  9 May 2018 16:54:50 +0800
-Message-Id: <20180509085450.3524-6-aaron.lu@intel.com>
-In-Reply-To: <20180509085450.3524-1-aaron.lu@intel.com>
-References: <20180509085450.3524-1-aaron.lu@intel.com>
+        (Google Transport Security);
+        Wed, 09 May 2018 01:58:27 -0700 (PDT)
+Date: Wed, 9 May 2018 17:58:22 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180509085822.GB353@jagdpanzerIV>
+References: <20180110132418.7080-1-pmladek@suse.com>
+ <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
+ <20180110162900.GA21753@linux.suse>
+ <20180110170223.GF3668920@devbig577.frc2.facebook.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180110170223.GF3668920@devbig577.frc2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, Tariq Toukan <tariqt@mellanox.com>
+To: Tejun Heo <tj@kernel.org>, Petr Mladek <pmladek@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-After system runs a long time, it's easy for a zone to have no
-suitable high order page available and that will stop cluster alloc
-and free in current implementation due to compact_considered > 0.
+Hi,
 
-To make it favour order0 alloc/free, relax the condition to only
-disallow cluster alloc/free when problem would occur, e.g. when
-compaction is in progress.
+Move printk and (some of) MM people to the recipients list.
 
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
- mm/internal.h | 4 ----
- 1 file changed, 4 deletions(-)
+On (01/10/18 09:02), Tejun Heo wrote:
+[..]
+> The particular case that we've been seeing regularly in the fleet was
+> the following scenario.
+> 
+> 1. Console is IPMI emulated serial console.  Super slow.  Also
+>    netconsole is in use.
+> 2. System runs out of memory, OOM triggers.
+> 3. OOM handler is printing out OOM debug info.
+> 4. While trying to emit the messages for netconsole, the network stack
+>    / driver tries to allocate memory and then fail, which in turn
+>    triggers allocation failure or other warning messages.  printk was
+>    already flushing, so the messages are queued on the ring.
+> 5. OOM handler keeps flushing but 4 repeats and the queue is never
+>    shrinking.  Because OOM handler is trapped in printk flushing, it
+>    never manages to free memory and no one else can enter OOM path
+>    either, so the system is trapped in this state.
 
-diff --git a/mm/internal.h b/mm/internal.h
-index e3f209f8fb39..521aa4d8f3c1 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -552,10 +552,6 @@ void try_to_merge_page(struct page *page);
- #ifdef CONFIG_COMPACTION
- static inline bool can_skip_merge(struct zone *zone, int order)
- {
--	/* Compaction has failed in this zone, we shouldn't skip merging */
--	if (zone->compact_considered)
--		return false;
--
- 	/* Only consider no_merge for order 0 pages */
- 	if (order)
- 		return false;
--- 
-2.14.3
+Tejun, we have a theory [since there are no logs available] that what
+you are looking at is something as follows:
+
+console_unlock()
+{
+  for (;;) {
+   call_console_drivers()
+     kmalloc()/etc        /* netconsole, skb kmalloc(), for instance */
+      __alloc_pages_slowpath()
+        warn_alloc()      /* a bunch of printk() -> log_store() */
+  }
+}
+
+Now, warn_alloc() is rate limited to
+	DEFAULT_RATELIMIT_INTERVAL / DEFAULT_RATELIMIT_BURST
+
+so net console driver can add 10 warn_alloc() reports every 5 seconds to
+the logbuf.
+
+You have a "super slow" IPMI console and net console. So for every
+logbuf entry we do:
+
+console_unlock()
+{
+  for (;;) {
+    call_console_drivers(msg) -> IPMI_write()
+    call_console_drivers(msg) -> netconsole_write() -> skb kmalloc() -> warn_alloc() -> ratelimit
+  }
+}
+
+IPMI_write() is very slow, as you have noted, so it consumes time
+printing messages, simultaneously warn_alloc() rate limit depends on
+time. *Probably*, slow IPMI_write() is unable to flush 10 warn_alloc()
+reports under 5 seconds, which gives net console a chance to add another
+10 warn_alloc()-s, while the previous 10 warn_alloc()-s have not been
+flushed yet.
+
+It seems that DEFAULT_RATELIMIT_INTERVAL / DEFAULT_RATELIMIT_BURST
+warn_alloc() rate limit is too permissive for your setup.
+
+Can you confirm that the theory is actually correct?
+
+If it is correct, then can we simply tweak warn_alloc() rate limit?
+Say, make it x2 / x4 / etc. times less verbose? E.g. "up to 5 warn_alloc()-s
+every 10 seconds"? What do MM folks think?
+
+	-ss
