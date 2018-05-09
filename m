@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A80066B0546
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 13:18:59 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id d9-v6so4057728plj.4
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 10:18:59 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id k22-v6si14182347pll.393.2018.05.09.10.18.58
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 483C66B0547
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 13:19:00 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c187so1913893pfa.20
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 10:19:00 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id t127-v6si1047914pgc.519.2018.05.09.10.18.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 10:18:58 -0700 (PDT)
-Subject: [PATCH 08/13] x86/pkeys/selftests: Fix pkey exhaustion test off-by-one
+        Wed, 09 May 2018 10:18:59 -0700 (PDT)
+Subject: [PATCH 10/13] x86/pkeys/selftests: Fix pointer math
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 09 May 2018 10:13:50 -0700
+Date: Wed, 09 May 2018 10:13:52 -0700
 References: <20180509171336.76636D88@viggo.jf.intel.com>
 In-Reply-To: <20180509171336.76636D88@viggo.jf.intel.com>
-Message-Id: <20180509171350.E1656B95@viggo.jf.intel.com>
+Message-Id: <20180509171352.9BE09819@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,15 +23,15 @@ Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.i
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-In our "exhaust all pkeys" test, we make sure that there
-is the expected number available.  Turns out that the
-test did not cover the execute-only key, but discussed
-it anyway.  It did *not* discuss the test-allocated
-key.
+We dump out the entire area of the siginfo where the si_pkey_ptr is
+supposed to be.  But, we do some math on the poitner, which is a u32.
+We intended to do byte math, not u32 math on the pointer.
 
-Now that we have a test for the mprotect(PROT_EXEC) case,
-this off-by-one issue showed itself.  Correct the off-by-
-one and add the explanation for the case we missed.
+Cast it over to a u8* so it works.
+
+Also, move this block of code to below th si_code check.  It doesn't
+hurt anything, but the si_pkey field is gibberish for other signal
+types.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Ram Pai <linuxram@us.ibm.com>
@@ -43,31 +43,38 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Shuah Khan <shuah@kernel.org>
 ---
 
- b/tools/testing/selftests/x86/protection_keys.c |   13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ b/tools/testing/selftests/x86/protection_keys.c |   14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-exhaust-off-by-one tools/testing/selftests/x86/protection_keys.c
---- a/tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-exhaust-off-by-one	2018-05-09 09:20:21.786698399 -0700
-+++ b/tools/testing/selftests/x86/protection_keys.c	2018-05-09 09:20:21.790698399 -0700
-@@ -1148,12 +1148,15 @@ void test_pkey_alloc_exhaust(int *ptr, u
- 	pkey_assert(i < NR_PKEYS*2);
+diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-fix-pointer-math tools/testing/selftests/x86/protection_keys.c
+--- a/tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-fix-pointer-math	2018-05-09 09:20:22.825698397 -0700
++++ b/tools/testing/selftests/x86/protection_keys.c	2018-05-09 09:20:22.830698397 -0700
+@@ -293,13 +293,6 @@ void signal_handler(int signum, siginfo_
+ 		dump_mem(pkru_ptr - 128, 256);
+ 	pkey_assert(*pkru_ptr);
  
- 	/*
--	 * There are 16 pkeys supported in hardware.  One is taken
--	 * up for the default (0) and another can be taken up by
--	 * an execute-only mapping.  Ensure that we can allocate
--	 * at least 14 (16-2).
-+	 * There are 16 pkeys supported in hardware.  Three are
-+	 * allocated by the time we get here:
-+	 *   1. The default key (0)
-+	 *   2. One possibly consumed by an execute-only mapping.
-+	 *   3. One allocated by the test code and passed in via
-+	 *      'pkey' to this function.
-+	 * Ensure that we can allocate at least another 13 (16-3).
- 	 */
--	pkey_assert(i >= NR_PKEYS-2);
-+	pkey_assert(i >= NR_PKEYS-3);
+-	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
+-	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
+-	dump_mem(si_pkey_ptr - 8, 24);
+-	siginfo_pkey = *si_pkey_ptr;
+-	pkey_assert(siginfo_pkey < NR_PKEYS);
+-	last_si_pkey = siginfo_pkey;
+-
+ 	if ((si->si_code == SEGV_MAPERR) ||
+ 	    (si->si_code == SEGV_ACCERR) ||
+ 	    (si->si_code == SEGV_BNDERR)) {
+@@ -307,6 +300,13 @@ void signal_handler(int signum, siginfo_
+ 		exit(4);
+ 	}
  
- 	for (i = 0; i < nr_allocated_pkeys; i++) {
- 		err = sys_pkey_free(allocated_pkeys[i]);
++	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
++	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
++	dump_mem((u8 *)si_pkey_ptr - 8, 24);
++	siginfo_pkey = *si_pkey_ptr;
++	pkey_assert(siginfo_pkey < NR_PKEYS);
++	last_si_pkey = siginfo_pkey;
++
+ 	dprintf1("signal pkru from xsave: %08x\n", *pkru_ptr);
+ 	/* need __rdpkru() version so we do not do shadow_pkru checking */
+ 	dprintf1("signal pkru from  pkru: %08x\n", __rdpkru());
 _
