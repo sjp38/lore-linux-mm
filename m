@@ -1,79 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 837D56B04ED
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:38:57 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m8-v6so7613840pgq.9
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:38:57 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z11si10176964pfm.330.2018.05.09.04.38.56
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 19C816B04EF
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:47:17 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p1-v6so23449978wrm.7
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:47:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k50-v6si1001131edb.231.2018.05.09.04.47.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 09 May 2018 04:38:56 -0700 (PDT)
-Date: Wed, 9 May 2018 13:38:49 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 6/7] psi: pressure stall information for CPU, memory, and
- IO
-Message-ID: <20180509113849.GJ12235@hirez.programming.kicks-ass.net>
-References: <20180507210135.1823-1-hannes@cmpxchg.org>
- <20180507210135.1823-7-hannes@cmpxchg.org>
- <20180509104618.GP12217@hirez.programming.kicks-ass.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 09 May 2018 04:47:15 -0700 (PDT)
+Date: Wed, 9 May 2018 13:47:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [External] [RFC PATCH v1 3/6] mm, zone_type: create ZONE_NVM and
+ fill into GFP_ZONE_TABLE
+Message-ID: <20180509114712.GP32366@dhcp22.suse.cz>
+References: <1525746628-114136-1-git-send-email-yehs1@lenovo.com>
+ <1525746628-114136-4-git-send-email-yehs1@lenovo.com>
+ <HK2PR03MB1684653383FFEDAE9B41A548929A0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <ce3a6f37-3b13-0c35-6895-35156c7a290c@infradead.org>
+ <HK2PR03MB16847B78265A033C7310DDCB92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180509104618.GP12217@hirez.programming.kicks-ass.net>
+In-Reply-To: <HK2PR03MB16847B78265A033C7310DDCB92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
+To: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@infradead.org" <willy@infradead.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, Ocean HY1 He <hehy1@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Wed, May 09, 2018 at 12:46:18PM +0200, Peter Zijlstra wrote:
-> On Mon, May 07, 2018 at 05:01:34PM -0400, Johannes Weiner wrote:
+On Wed 09-05-18 04:22:10, Huaisheng HS1 Ye wrote:
 > 
-> > @@ -2038,6 +2038,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
-> >  	cpu = select_task_rq(p, p->wake_cpu, SD_BALANCE_WAKE, wake_flags);
-> >  	if (task_cpu(p) != cpu) {
-> >  		wake_flags |= WF_MIGRATED;
-> > +		psi_ttwu_dequeue(p);
-> >  		set_task_cpu(p, cpu);
-> >  	}
-> >  
+> > On 05/07/2018 07:33 PM, Huaisheng HS1 Ye wrote:
+> > > diff --git a/mm/Kconfig b/mm/Kconfig
+> > > index c782e8f..5fe1f63 100644
+> > > --- a/mm/Kconfig
+> > > +++ b/mm/Kconfig
+> > > @@ -687,6 +687,22 @@ config ZONE_DEVICE
+> > >
+> > > +config ZONE_NVM
+> > > +	bool "Manage NVDIMM (pmem) by memory management (EXPERIMENTAL)"
+> > > +	depends on NUMA && X86_64
+> > 
+> > Hi,
+> > I'm curious why this depends on NUMA. Couldn't it be useful in non-NUMA
+> > (i.e., UMA) configs?
+> > 
+> I wrote these patches with two sockets testing platform, and there are two DDRs and two NVDIMMs have been installed to it.
+> So, for every socket it has one DDR and one NVDIMM with it. Here is memory region from memblock, you can get its distribution.
 > 
-> > +static inline void psi_ttwu_dequeue(struct task_struct *p)
-> > +{
-> > +	/*
-> > +	 * Is the task being migrated during a wakeup? Make sure to
-> > +	 * deregister its sleep-persistent psi states from the old
-> > +	 * queue, and let psi_enqueue() know it has to requeue.
-> > +	 */
-> > +	if (unlikely(p->in_iowait || (p->flags & PF_MEMSTALL))) {
-> > +		struct rq_flags rf;
-> > +		struct rq *rq;
-> > +		int clear = 0;
-> > +
-> > +		if (p->in_iowait)
-> > +			clear |= TSK_IOWAIT;
-> > +		if (p->flags & PF_MEMSTALL)
-> > +			clear |= TSK_MEMSTALL;
-> > +
-> > +		rq = __task_rq_lock(p, &rf);
-> > +		update_rq_clock(rq);
-> > +		psi_task_change(p, rq_clock(rq), clear, 0);
-> > +		p->sched_psi_wake_requeue = 1;
-> > +		__task_rq_unlock(rq, &rf);
-> > +	}
-> > +}
+>  435 [    0.000000] Zone ranges:
+>  436 [    0.000000]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+>  437 [    0.000000]   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+>  438 [    0.000000]   Normal   [mem 0x0000000100000000-0x00000046bfffffff]
+>  439 [    0.000000]   NVM      [mem 0x0000000440000000-0x00000046bfffffff]
+>  440 [    0.000000]   Device   empty
+>  441 [    0.000000] Movable zone start for each node
+>  442 [    0.000000] Early memory node ranges
+>  443 [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009ffff]
+>  444 [    0.000000]   node   0: [mem 0x0000000000100000-0x00000000a69c2fff]
+>  445 [    0.000000]   node   0: [mem 0x00000000a7654000-0x00000000a85eefff]
+>  446 [    0.000000]   node   0: [mem 0x00000000ab399000-0x00000000af3f6fff]
+>  447 [    0.000000]   node   0: [mem 0x00000000af429000-0x00000000af7fffff]
+>  448 [    0.000000]   node   0: [mem 0x0000000100000000-0x000000043fffffff]	Normal 0
+>  449 [    0.000000]   node   0: [mem 0x0000000440000000-0x000000237fffffff]	NVDIMM 0
+>  450 [    0.000000]   node   1: [mem 0x0000002380000000-0x000000277fffffff]	Normal 1
+>  451 [    0.000000]   node   1: [mem 0x0000002780000000-0x00000046bfffffff]	NVDIMM 1
 > 
-> Yeah, no... not happening.
-> 
-> We spend a lot of time to never touch the old rq->lock on wakeups. Mason
-> was the one pushing for that, so he should very well know this.
-> 
-> The one cross-cpu atomic (iowait) is already a problem (the whole iowait
-> accounting being useless makes it even worse), adding significant remote
-> prodding is just really bad.
+> If we disable NUMA, there is a result as Normal an NVDIMM zones will be overlapping with each other.
+> Current mm treats all memory regions equally, it divides zones just by size, like 16M for DMA, 4G for DMA32, and others above for Normal.
+> The spanned range of all zones couldn't be overlapped.
 
-Also, since all you need is the global number, I don't think you
-actually need any of this. See what we do for nr_uninterruptible.
-
-In general I think you want to (re)read loadavg.c some more, and maybe
-reuse a bit more of that.
+No, this is not correct. Zones can overlap.
+-- 
+Michal Hocko
+SUSE Labs
