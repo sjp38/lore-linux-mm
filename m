@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4766C6B0508
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:58:46 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id z5so14537709pfz.6
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:58:46 -0700 (PDT)
-Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30133.outbound.protection.outlook.com. [40.107.3.133])
-        by mx.google.com with ESMTPS id v40-v6si26769206plg.84.2018.05.09.04.58.44
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C722E6B0509
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:58:55 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m4-v6so5589792pgu.5
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:58:55 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0093.outbound.protection.outlook.com. [104.47.0.93])
+        by mx.google.com with ESMTPS id a96-v6si19595116pla.169.2018.05.09.04.58.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 May 2018 04:58:45 -0700 (PDT)
-Subject: [PATCH v4 11/13] mm: Iterate only over charged shrinkers during
- memcg shrink_slab()
+        Wed, 09 May 2018 04:58:54 -0700 (PDT)
+Subject: [PATCH v4 12/13] mm: Add SHRINK_EMPTY shrinker methods return value
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Wed, 09 May 2018 14:58:38 +0300
-Message-ID: <152586711800.3048.17462409401469930692.stgit@localhost.localdomain>
+Date: Wed, 09 May 2018 14:58:46 +0300
+Message-ID: <152586712683.3048.16055139533907163272.stgit@localhost.localdomain>
 In-Reply-To: <152586686544.3048.15776787801312398314.stgit@localhost.localdomain>
 References: <152586686544.3048.15776787801312398314.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -23,136 +22,117 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-Using the preparations made in previous patches, in case of memcg
-shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
-bitmap. To do that, we separate iterations over memcg-aware and
-!memcg-aware shrinkers, and memcg-aware shrinkers are chosen
-via for_each_set_bit() from the bitmap. In case of big nodes,
-having many isolated environments, this gives significant
-performance growth. See next patches for the details.
+We need to differ the situations, when shrinker has
+very small amount of objects (see vfs_pressure_ratio()
+called from super_cache_count()), and when it has no
+objects at all. Currently, in the both of these cases,
+shrinker::count_objects() returns 0.
 
-Note, that the patch does not respect to empty memcg shrinkers,
-since we never clear the bitmap bits after we set it once.
-Their shrinkers will be called again, with no shrinked objects
-as result. This functionality is provided by next patches.
+The patch introduces new SHRINK_EMPTY return value,
+which will be used for "no objects at all" case.
+It's is a refactoring mostly, as SHRINK_EMPTY is replaced
+by 0 by all callers of do_shrink_slab() in this patch,
+and all the magic will happen in further.
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- include/linux/memcontrol.h |    1 +
- mm/vmscan.c                |   70 ++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 62 insertions(+), 9 deletions(-)
+ fs/super.c               |    3 +++
+ include/linux/shrinker.h |    7 +++++--
+ mm/vmscan.c              |   12 +++++++++---
+ mm/workingset.c          |    3 +++
+ 4 files changed, 20 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 1fb2f96dc2f6..4548b09e44a7 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -756,6 +756,7 @@ void mem_cgroup_split_huge_fixup(struct page *head);
- #define MEM_CGROUP_ID_MAX	0
+diff --git a/fs/super.c b/fs/super.c
+index c9a6ef33a98b..9a10e44d866b 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -134,6 +134,9 @@ static unsigned long super_cache_count(struct shrinker *shrink,
+ 	total_objects += list_lru_shrink_count(&sb->s_dentry_lru, sc);
+ 	total_objects += list_lru_shrink_count(&sb->s_inode_lru, sc);
  
- struct mem_cgroup;
-+#define root_mem_cgroup NULL
++	if (!total_objects)
++		return SHRINK_EMPTY;
++
+ 	total_objects = vfs_pressure_ratio(total_objects);
+ 	return total_objects;
+ }
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index a9ec364e1b0b..4081016540bf 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -34,12 +34,15 @@ struct shrink_control {
+ };
  
- static inline bool mem_cgroup_disabled(void)
- {
+ #define SHRINK_STOP (~0UL)
++#define SHRINK_EMPTY (~0UL - 1)
+ /*
+  * A callback you can register to apply pressure to ageable caches.
+  *
+  * @count_objects should return the number of freeable items in the cache. If
+- * there are no objects to free or the number of freeable items cannot be
+- * determined, it should return 0. No deadlock checks should be done during the
++ * there are no objects to free, it should return SHRINK_EMPTY, while 0 is
++ * returned in cases of the number of freeable items cannot be determined
++ * or shrinker should skip this cache for this time (e.g., their number
++ * is below shrinkable limit). No deadlock checks should be done during the
+  * count callback - the shrinker relies on aggregating scan counts that couldn't
+  * be executed due to potential deadlocks to be run at a later call when the
+  * deadlock condition is no longer pending.
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d1940244d0bf..648b08621334 100644
+index 648b08621334..80743878576c 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -376,6 +376,7 @@ int prealloc_shrinker(struct shrinker *shrinker)
- 			goto free_deferred;
- 	}
+@@ -446,8 +446,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	long scanned = 0, next_deferred;
  
-+	INIT_LIST_HEAD(&shrinker->list);
- 	return 0;
- 
- free_deferred:
-@@ -547,6 +548,63 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	return freed;
- }
- 
-+#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-+static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
-+			struct mem_cgroup *memcg, int priority)
-+{
-+	struct memcg_shrinker_map *map;
-+	unsigned long freed = 0;
-+	int ret, i;
-+
-+	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
-+		return 0;
-+
-+	if (!down_read_trylock(&shrinker_rwsem))
-+		return 0;
-+
-+	/*
-+	 * 1)Caller passes only alive memcg, so map can't be NULL.
-+	 * 2)shrinker_rwsem protects from maps expanding.
-+	 */
-+	map = rcu_dereference_protected(MEMCG_SHRINKER_MAP(memcg, nid), true);
-+	BUG_ON(!map);
-+
-+	for_each_set_bit(i, map->map, memcg_shrinker_nr_max) {
-+		struct shrink_control sc = {
-+			.gfp_mask = gfp_mask,
-+			.nid = nid,
-+			.memcg = memcg,
-+		};
-+		struct shrinker *shrinker;
-+
-+		shrinker = idr_find(&shrinker_idr, i);
-+		if (!shrinker) {
-+			clear_bit(i, map->map);
-+			continue;
-+		}
-+		if (list_empty(&shrinker->list))
-+			continue;
-+
-+		ret = do_shrink_slab(&sc, shrinker, priority);
-+		freed += ret;
-+
-+		if (rwsem_is_contended(&shrinker_rwsem)) {
-+			freed = freed ? : 1;
-+			break;
-+		}
-+	}
-+
-+	up_read(&shrinker_rwsem);
-+	return freed;
-+}
-+#else
-+static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
-+			struct mem_cgroup *memcg, int priority)
-+{
-+	return 0;
-+}
-+#endif
-+
- /**
-  * shrink_slab - shrink slab caches
-  * @gfp_mask: allocation context
-@@ -576,8 +634,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
- 
--	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
+ 	freeable = shrinker->count_objects(shrinker, shrinkctl);
+-	if (freeable == 0)
 -		return 0;
-+	if (memcg && memcg != root_mem_cgroup)
-+		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
++	if (freeable == 0 || freeable == SHRINK_EMPTY)
++		return freeable;
  
- 	if (!down_read_trylock(&shrinker_rwsem))
- 		goto out;
-@@ -589,13 +647,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 			.memcg = memcg,
- 		};
- 
--		/*
--		 * If kernel memory accounting is disabled, we ignore
--		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
--		 * passing NULL for memcg.
--		 */
--		if (memcg_kmem_enabled() &&
--		    !!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
-+		if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+ 	/*
+ 	 * copy the current shrinker scan count into a local variable
+@@ -586,6 +586,8 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
  			continue;
  
+ 		ret = do_shrink_slab(&sc, shrinker, priority);
++		if (ret == SHRINK_EMPTY)
++			ret = 0;
+ 		freed += ret;
+ 
+ 		if (rwsem_is_contended(&shrinker_rwsem)) {
+@@ -633,6 +635,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ {
+ 	struct shrinker *shrinker;
+ 	unsigned long freed = 0;
++	int ret;
+ 
+ 	if (memcg && memcg != root_mem_cgroup)
+ 		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
+@@ -653,7 +656,10 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
  		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+ 			sc.nid = 0;
+ 
+-		freed += do_shrink_slab(&sc, shrinker, priority);
++		ret = do_shrink_slab(&sc, shrinker, priority);
++		if (ret == SHRINK_EMPTY)
++			ret = 0;
++		freed += ret;
+ 		/*
+ 		 * Bail out if someone want to register a new shrinker to
+ 		 * prevent the regsitration from being stalled for long periods
+diff --git a/mm/workingset.c b/mm/workingset.c
+index b8900573db25..ae0555169b22 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -402,6 +402,9 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 	}
+ 	max_nodes = cache >> (RADIX_TREE_MAP_SHIFT - 3);
+ 
++	if (!nodes)
++		return SHRINK_EMPTY;
++
+ 	if (nodes <= max_nodes)
+ 		return 0;
+ 	return nodes - max_nodes;
