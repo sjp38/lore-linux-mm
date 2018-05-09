@@ -1,48 +1,447 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B4056B04D9
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 06:26:59 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b192-v6so6426746wmb.1
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 03:26:59 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id c49-v6si23755470wrc.256.2018.05.09.03.26.58
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 472516B04DB
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 06:29:15 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id d4-v6so23745001wrn.15
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 03:29:15 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z15-v6si1934602ede.189.2018.05.09.03.29.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 09 May 2018 03:26:58 -0700 (PDT)
-Date: Wed, 9 May 2018 12:26:46 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 6/7] psi: pressure stall information for CPU, memory, and
- IO
-Message-ID: <20180509102646.GO12217@hirez.programming.kicks-ass.net>
-References: <20180507210135.1823-1-hannes@cmpxchg.org>
- <20180507210135.1823-7-hannes@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 09 May 2018 03:29:13 -0700 (PDT)
+Date: Wed, 9 May 2018 12:29:11 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v9 3/9] memremap: split devm_memremap_pages() and
+ memremap() infrastructure
+Message-ID: <20180509102911.fqr7p3urcsielgqo@quack2.suse.cz>
+References: <152461278149.17530.2867511144531572045.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152461279892.17530.9006728553718402327.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20180507210135.1823-7-hannes@cmpxchg.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <152461279892.17530.9006728553718402327.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, david@fromorbit.com, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, May 07, 2018 at 05:01:34PM -0400, Johannes Weiner wrote:
-> +static void psi_clock(struct work_struct *work)
+On Tue 24-04-18 16:33:19, Dan Williams wrote:
+> Currently, kernel/memremap.c contains generic code for supporting
+> memremap() (CONFIG_HAS_IOMEM) and devm_memremap_pages()
+> (CONFIG_ZONE_DEVICE). This causes ongoing build maintenance problems as
+> additions to memremap.c, especially for the ZONE_DEVICE case, need to be
+> careful about being placed in ifdef guards. Remove the need for these
+> ifdef guards by moving the ZONE_DEVICE support functions to their own
+> compilation unit.
+> 
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: "Jerome Glisse" <jglisse@redhat.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+
+Good idea. You can add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
+> ---
+>  kernel/Makefile   |    3 +
+>  kernel/iomem.c    |  167 ++++++++++++++++++++++++++++++++++++++++++++++++++
+>  kernel/memremap.c |  178 +----------------------------------------------------
+>  3 files changed, 171 insertions(+), 177 deletions(-)
+>  create mode 100644 kernel/iomem.c
+> 
+> diff --git a/kernel/Makefile b/kernel/Makefile
+> index f85ae5dfa474..9b9241361311 100644
+> --- a/kernel/Makefile
+> +++ b/kernel/Makefile
+> @@ -112,7 +112,8 @@ obj-$(CONFIG_JUMP_LABEL) += jump_label.o
+>  obj-$(CONFIG_CONTEXT_TRACKING) += context_tracking.o
+>  obj-$(CONFIG_TORTURE_TEST) += torture.o
+>  
+> -obj-$(CONFIG_HAS_IOMEM) += memremap.o
+> +obj-$(CONFIG_HAS_IOMEM) += iomem.o
+> +obj-$(CONFIG_ZONE_DEVICE) += memremap.o
+>  
+>  $(obj)/configs.o: $(obj)/config_data.h
+>  
+> diff --git a/kernel/iomem.c b/kernel/iomem.c
+> new file mode 100644
+> index 000000000000..f7525e14ebc6
+> --- /dev/null
+> +++ b/kernel/iomem.c
+> @@ -0,0 +1,167 @@
+> +/* SPDX-License-Identifier: GPL-2.0 */
+> +#include <linux/device.h>
+> +#include <linux/types.h>
+> +#include <linux/io.h>
+> +#include <linux/mm.h>
+> +
+> +#ifndef ioremap_cache
+> +/* temporary while we convert existing ioremap_cache users to memremap */
+> +__weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
 > +{
-
-> +	dwork = to_delayed_work(work);
-> +	group = container_of(dwork, struct psi_group, clock_work);
-> +
-
-> +
-> +	/* Keep the clock ticking only when there is action */
-> +	if (nonidle_total)
-> +		schedule_delayed_work(dwork, MY_LOAD_FREQ);
+> +	return ioremap(offset, size);
 > +}
-
-Note that this doesn't generate a stable frequency for the callback.
-The (nondeterministic) time spend doing the actual work is added to each
-period, this gives an unconditional downward bias to the frequency, but
-also makes it very unstable.
-
-You want explicit management of timer->expires, and add MY_LOAD_FREQ
-(which is a misnomer) to it and not reset it based on jiffies.
+> +#endif
+> +
+> +#ifndef arch_memremap_wb
+> +static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
+> +{
+> +	return (__force void *)ioremap_cache(offset, size);
+> +}
+> +#endif
+> +
+> +#ifndef arch_memremap_can_ram_remap
+> +static bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
+> +					unsigned long flags)
+> +{
+> +	return true;
+> +}
+> +#endif
+> +
+> +static void *try_ram_remap(resource_size_t offset, size_t size,
+> +			   unsigned long flags)
+> +{
+> +	unsigned long pfn = PHYS_PFN(offset);
+> +
+> +	/* In the simple case just return the existing linear address */
+> +	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)) &&
+> +	    arch_memremap_can_ram_remap(offset, size, flags))
+> +		return __va(offset);
+> +
+> +	return NULL; /* fallback to arch_memremap_wb */
+> +}
+> +
+> +/**
+> + * memremap() - remap an iomem_resource as cacheable memory
+> + * @offset: iomem resource start address
+> + * @size: size of remap
+> + * @flags: any of MEMREMAP_WB, MEMREMAP_WT, MEMREMAP_WC,
+> + *		  MEMREMAP_ENC, MEMREMAP_DEC
+> + *
+> + * memremap() is "ioremap" for cases where it is known that the resource
+> + * being mapped does not have i/o side effects and the __iomem
+> + * annotation is not applicable. In the case of multiple flags, the different
+> + * mapping types will be attempted in the order listed below until one of
+> + * them succeeds.
+> + *
+> + * MEMREMAP_WB - matches the default mapping for System RAM on
+> + * the architecture.  This is usually a read-allocate write-back cache.
+> + * Morever, if MEMREMAP_WB is specified and the requested remap region is RAM
+> + * memremap() will bypass establishing a new mapping and instead return
+> + * a pointer into the direct map.
+> + *
+> + * MEMREMAP_WT - establish a mapping whereby writes either bypass the
+> + * cache or are written through to memory and never exist in a
+> + * cache-dirty state with respect to program visibility.  Attempts to
+> + * map System RAM with this mapping type will fail.
+> + *
+> + * MEMREMAP_WC - establish a writecombine mapping, whereby writes may
+> + * be coalesced together (e.g. in the CPU's write buffers), but is otherwise
+> + * uncached. Attempts to map System RAM with this mapping type will fail.
+> + */
+> +void *memremap(resource_size_t offset, size_t size, unsigned long flags)
+> +{
+> +	int is_ram = region_intersects(offset, size,
+> +				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+> +	void *addr = NULL;
+> +
+> +	if (!flags)
+> +		return NULL;
+> +
+> +	if (is_ram == REGION_MIXED) {
+> +		WARN_ONCE(1, "memremap attempted on mixed range %pa size: %#lx\n",
+> +				&offset, (unsigned long) size);
+> +		return NULL;
+> +	}
+> +
+> +	/* Try all mapping types requested until one returns non-NULL */
+> +	if (flags & MEMREMAP_WB) {
+> +		/*
+> +		 * MEMREMAP_WB is special in that it can be satisifed
+> +		 * from the direct map.  Some archs depend on the
+> +		 * capability of memremap() to autodetect cases where
+> +		 * the requested range is potentially in System RAM.
+> +		 */
+> +		if (is_ram == REGION_INTERSECTS)
+> +			addr = try_ram_remap(offset, size, flags);
+> +		if (!addr)
+> +			addr = arch_memremap_wb(offset, size);
+> +	}
+> +
+> +	/*
+> +	 * If we don't have a mapping yet and other request flags are
+> +	 * present then we will be attempting to establish a new virtual
+> +	 * address mapping.  Enforce that this mapping is not aliasing
+> +	 * System RAM.
+> +	 */
+> +	if (!addr && is_ram == REGION_INTERSECTS && flags != MEMREMAP_WB) {
+> +		WARN_ONCE(1, "memremap attempted on ram %pa size: %#lx\n",
+> +				&offset, (unsigned long) size);
+> +		return NULL;
+> +	}
+> +
+> +	if (!addr && (flags & MEMREMAP_WT))
+> +		addr = ioremap_wt(offset, size);
+> +
+> +	if (!addr && (flags & MEMREMAP_WC))
+> +		addr = ioremap_wc(offset, size);
+> +
+> +	return addr;
+> +}
+> +EXPORT_SYMBOL(memremap);
+> +
+> +void memunmap(void *addr)
+> +{
+> +	if (is_vmalloc_addr(addr))
+> +		iounmap((void __iomem *) addr);
+> +}
+> +EXPORT_SYMBOL(memunmap);
+> +
+> +static void devm_memremap_release(struct device *dev, void *res)
+> +{
+> +	memunmap(*(void **)res);
+> +}
+> +
+> +static int devm_memremap_match(struct device *dev, void *res, void *match_data)
+> +{
+> +	return *(void **)res == match_data;
+> +}
+> +
+> +void *devm_memremap(struct device *dev, resource_size_t offset,
+> +		size_t size, unsigned long flags)
+> +{
+> +	void **ptr, *addr;
+> +
+> +	ptr = devres_alloc_node(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
+> +			dev_to_node(dev));
+> +	if (!ptr)
+> +		return ERR_PTR(-ENOMEM);
+> +
+> +	addr = memremap(offset, size, flags);
+> +	if (addr) {
+> +		*ptr = addr;
+> +		devres_add(dev, ptr);
+> +	} else {
+> +		devres_free(ptr);
+> +		return ERR_PTR(-ENXIO);
+> +	}
+> +
+> +	return addr;
+> +}
+> +EXPORT_SYMBOL(devm_memremap);
+> +
+> +void devm_memunmap(struct device *dev, void *addr)
+> +{
+> +	WARN_ON(devres_release(dev, devm_memremap_release,
+> +				devm_memremap_match, addr));
+> +}
+> +EXPORT_SYMBOL(devm_memunmap);
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index 895e6b76b25e..37a9604133f6 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -1,15 +1,5 @@
+> -/*
+> - * Copyright(c) 2015 Intel Corporation. All rights reserved.
+> - *
+> - * This program is free software; you can redistribute it and/or modify
+> - * it under the terms of version 2 of the GNU General Public License as
+> - * published by the Free Software Foundation.
+> - *
+> - * This program is distributed in the hope that it will be useful, but
+> - * WITHOUT ANY WARRANTY; without even the implied warranty of
+> - * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+> - * General Public License for more details.
+> - */
+> +/* SPDX-License-Identifier: GPL-2.0 */
+> +/* Copyright(c) 2015 Intel Corporation. All rights reserved. */
+>  #include <linux/radix-tree.h>
+>  #include <linux/device.h>
+>  #include <linux/types.h>
+> @@ -20,169 +10,6 @@
+>  #include <linux/swap.h>
+>  #include <linux/swapops.h>
+>  
+> -#ifndef ioremap_cache
+> -/* temporary while we convert existing ioremap_cache users to memremap */
+> -__weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
+> -{
+> -	return ioremap(offset, size);
+> -}
+> -#endif
+> -
+> -#ifndef arch_memremap_wb
+> -static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
+> -{
+> -	return (__force void *)ioremap_cache(offset, size);
+> -}
+> -#endif
+> -
+> -#ifndef arch_memremap_can_ram_remap
+> -static bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
+> -					unsigned long flags)
+> -{
+> -	return true;
+> -}
+> -#endif
+> -
+> -static void *try_ram_remap(resource_size_t offset, size_t size,
+> -			   unsigned long flags)
+> -{
+> -	unsigned long pfn = PHYS_PFN(offset);
+> -
+> -	/* In the simple case just return the existing linear address */
+> -	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)) &&
+> -	    arch_memremap_can_ram_remap(offset, size, flags))
+> -		return __va(offset);
+> -
+> -	return NULL; /* fallback to arch_memremap_wb */
+> -}
+> -
+> -/**
+> - * memremap() - remap an iomem_resource as cacheable memory
+> - * @offset: iomem resource start address
+> - * @size: size of remap
+> - * @flags: any of MEMREMAP_WB, MEMREMAP_WT, MEMREMAP_WC,
+> - *		  MEMREMAP_ENC, MEMREMAP_DEC
+> - *
+> - * memremap() is "ioremap" for cases where it is known that the resource
+> - * being mapped does not have i/o side effects and the __iomem
+> - * annotation is not applicable. In the case of multiple flags, the different
+> - * mapping types will be attempted in the order listed below until one of
+> - * them succeeds.
+> - *
+> - * MEMREMAP_WB - matches the default mapping for System RAM on
+> - * the architecture.  This is usually a read-allocate write-back cache.
+> - * Morever, if MEMREMAP_WB is specified and the requested remap region is RAM
+> - * memremap() will bypass establishing a new mapping and instead return
+> - * a pointer into the direct map.
+> - *
+> - * MEMREMAP_WT - establish a mapping whereby writes either bypass the
+> - * cache or are written through to memory and never exist in a
+> - * cache-dirty state with respect to program visibility.  Attempts to
+> - * map System RAM with this mapping type will fail.
+> - *
+> - * MEMREMAP_WC - establish a writecombine mapping, whereby writes may
+> - * be coalesced together (e.g. in the CPU's write buffers), but is otherwise
+> - * uncached. Attempts to map System RAM with this mapping type will fail.
+> - */
+> -void *memremap(resource_size_t offset, size_t size, unsigned long flags)
+> -{
+> -	int is_ram = region_intersects(offset, size,
+> -				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+> -	void *addr = NULL;
+> -
+> -	if (!flags)
+> -		return NULL;
+> -
+> -	if (is_ram == REGION_MIXED) {
+> -		WARN_ONCE(1, "memremap attempted on mixed range %pa size: %#lx\n",
+> -				&offset, (unsigned long) size);
+> -		return NULL;
+> -	}
+> -
+> -	/* Try all mapping types requested until one returns non-NULL */
+> -	if (flags & MEMREMAP_WB) {
+> -		/*
+> -		 * MEMREMAP_WB is special in that it can be satisifed
+> -		 * from the direct map.  Some archs depend on the
+> -		 * capability of memremap() to autodetect cases where
+> -		 * the requested range is potentially in System RAM.
+> -		 */
+> -		if (is_ram == REGION_INTERSECTS)
+> -			addr = try_ram_remap(offset, size, flags);
+> -		if (!addr)
+> -			addr = arch_memremap_wb(offset, size);
+> -	}
+> -
+> -	/*
+> -	 * If we don't have a mapping yet and other request flags are
+> -	 * present then we will be attempting to establish a new virtual
+> -	 * address mapping.  Enforce that this mapping is not aliasing
+> -	 * System RAM.
+> -	 */
+> -	if (!addr && is_ram == REGION_INTERSECTS && flags != MEMREMAP_WB) {
+> -		WARN_ONCE(1, "memremap attempted on ram %pa size: %#lx\n",
+> -				&offset, (unsigned long) size);
+> -		return NULL;
+> -	}
+> -
+> -	if (!addr && (flags & MEMREMAP_WT))
+> -		addr = ioremap_wt(offset, size);
+> -
+> -	if (!addr && (flags & MEMREMAP_WC))
+> -		addr = ioremap_wc(offset, size);
+> -
+> -	return addr;
+> -}
+> -EXPORT_SYMBOL(memremap);
+> -
+> -void memunmap(void *addr)
+> -{
+> -	if (is_vmalloc_addr(addr))
+> -		iounmap((void __iomem *) addr);
+> -}
+> -EXPORT_SYMBOL(memunmap);
+> -
+> -static void devm_memremap_release(struct device *dev, void *res)
+> -{
+> -	memunmap(*(void **)res);
+> -}
+> -
+> -static int devm_memremap_match(struct device *dev, void *res, void *match_data)
+> -{
+> -	return *(void **)res == match_data;
+> -}
+> -
+> -void *devm_memremap(struct device *dev, resource_size_t offset,
+> -		size_t size, unsigned long flags)
+> -{
+> -	void **ptr, *addr;
+> -
+> -	ptr = devres_alloc_node(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
+> -			dev_to_node(dev));
+> -	if (!ptr)
+> -		return ERR_PTR(-ENOMEM);
+> -
+> -	addr = memremap(offset, size, flags);
+> -	if (addr) {
+> -		*ptr = addr;
+> -		devres_add(dev, ptr);
+> -	} else {
+> -		devres_free(ptr);
+> -		return ERR_PTR(-ENXIO);
+> -	}
+> -
+> -	return addr;
+> -}
+> -EXPORT_SYMBOL(devm_memremap);
+> -
+> -void devm_memunmap(struct device *dev, void *addr)
+> -{
+> -	WARN_ON(devres_release(dev, devm_memremap_release,
+> -				devm_memremap_match, addr));
+> -}
+> -EXPORT_SYMBOL(devm_memunmap);
+> -
+> -#ifdef CONFIG_ZONE_DEVICE
+>  static DEFINE_MUTEX(pgmap_lock);
+>  static RADIX_TREE(pgmap_radix, GFP_KERNEL);
+>  #define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
+> @@ -473,7 +300,6 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
+>  
+>  	return pgmap;
+>  }
+> -#endif /* CONFIG_ZONE_DEVICE */
+>  
+>  #if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+>  void put_zone_device_private_or_public_page(struct page *page)
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
