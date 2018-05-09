@@ -1,104 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B2606B0520
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 10:41:37 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id s3so26349742pfh.0
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 07:41:37 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f2-v6si21121361pgs.655.2018.05.09.07.41.35
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 853A66B0522
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 10:57:23 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id m20-v6so14704632qtm.6
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 07:57:23 -0700 (PDT)
+Received: from mail1.bemta8.messagelabs.com (mail1.bemta8.messagelabs.com. [216.82.243.199])
+        by mx.google.com with ESMTPS id m9si5745230qki.378.2018.05.09.07.57.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 07:41:36 -0700 (PDT)
-Received: from mail-wr0-f169.google.com (mail-wr0-f169.google.com [209.85.128.169])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6E97C2184F
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 14:41:35 +0000 (UTC)
-Received: by mail-wr0-f169.google.com with SMTP id v15-v6so35857102wrm.10
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 07:41:35 -0700 (PDT)
+        Wed, 09 May 2018 07:57:21 -0700 (PDT)
+From: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Subject: RE: [External]  Re: [PATCH 2/3] include/linux/gfp.h: use unsigned int
+ in gfp_zone
+Date: Wed, 9 May 2018 14:57:07 +0000
+Message-ID: <HK2PR03MB1684C9AC9D21C628CCA977FD92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
+References: <1525416729-108201-1-git-send-email-yehs1@lenovo.com>
+ <1525416729-108201-3-git-send-email-yehs1@lenovo.com>
+ <20180504133533.GR4535@dhcp22.suse.cz>
+ <20180504154004.GB29829@bombadil.infradead.org>
+ <HK2PR03MB168459A1C4FB2B7D3E1F6A4A92840@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180506134814.GB7362@bombadil.infradead.org>
+ <HK2PR03MB168447008C658172FFDA402992840@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180506185532.GA13604@bombadil.infradead.org>
+ <HK2PR03MB1684BF10B3B515BFABD35F8B929B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180507184410.GA12361@bombadil.infradead.org>
+ <20180507212500.bdphwfhk55w6vlbb@twin.jikos.cz>
+In-Reply-To: <20180507212500.bdphwfhk55w6vlbb@twin.jikos.cz>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
- <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com> <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
- <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net> <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
- <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
- <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com> <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
- <20180503021058.GA5670@ram.oc3035372033.ibm.com> <CALCETrXRQF08exQVZqtTLOKbC8Ywq5x4EYH_1D7r5v9bdOSwbg@mail.gmail.com>
- <927c8325-4c98-d7af-b921-6aafcf8fe992@redhat.com> <CALCETrX46wR_MDW=m9SVm=ejQmPAmD3+2oC3iapf75bPhnEAWQ@mail.gmail.com>
- <314e1a48-db94-9b37-8793-a95a2082c9e2@redhat.com>
-In-Reply-To: <314e1a48-db94-9b37-8793-a95a2082c9e2@redhat.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 09 May 2018 14:41:23 +0000
-Message-ID: <CALCETrUGjN8mhOaLqGcau-pPKm9TQW8k05hZrh52prRNdC5yQQ@mail.gmail.com>
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
- signal semantics
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Andrew Lutomirski <luto@kernel.org>, linuxram@us.ibm.com, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: Matthew Wilcox <willy@infradead.org>, "dsterba@suse.cz" <dsterba@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, May 8, 2018 at 5:40 AM Florian Weimer <fweimer@redhat.com> wrote:
 
-> On 05/08/2018 04:49 AM, Andy Lutomirski wrote:
-> > On Mon, May 7, 2018 at 2:48 AM Florian Weimer <fweimer@redhat.com>
-wrote:
+> On Mon, May 07, 2018 at 11:44:10AM -0700, Matthew Wilcox wrote:
+> > On Mon, May 07, 2018 at 05:16:50PM +0000, Huaisheng HS1 Ye wrote:
+> > > I hope it couldn't cause problem, but based on my analyzation it has =
+the potential
+> to go wrong if users still use the flags as usual, which are __GFP_DMA, _=
+_GFP_DMA32
+> and __GFP_HIGHMEM.
+> > > Let me take an example with my testing platform, these logics are muc=
+h abstract,
+> an example will be helpful.
+> > >
+> > > There is a two sockets X86_64 server, No HIGHMEM and it has 16 + 16GB=
+ memories.
+> > > Its zone types shall be like this below,
+> > >
+> > > ZONE_DMA		0		0b0000
+> > > ZONE_DMA32		1		0b0001
+> > > ZONE_NORMAL		2		0b0010
+> > > (OPT_ZONE_HIGHMEM)	2		0b0010
+> > > ZONE_MOVABLE		3		0b0011
+> > > ZONE_DEVICE		4		0b0100 (virtual zone)
+> > > __MAX_NR_ZONES	5
+> > >
+> > > __GFP_DMA	=3D ZONE_DMA ^ ZONE_NORMAL=3D 0b0010
+> > > __GFP_DMA32	=3D ZONE_DMA32 ^ ZONE_NORMAL=3D 0b0011
+> > > __GFP_HIGHMEM =3D OPT_ZONE_HIGHMEM ^ ZONE_NORMAL =3D 0b0000
+> > > __GFP_MOVABLE	=3D ZONE_MOVABLE ^ ZONE_NORMAL | ___GFP_MOVABLE =3D 0b1=
+001
+> > >
+> > > Eg.
+> > > If a driver uses flags like this below,
+> > > Step 1:
+> > > gfp_mask  |  __GFP_DMA32;
+> > > (0b 0000		|	0b 0011	=3D 0b 0011)
+> > > gfp_mask's low four bits shall equal to 0011, assuming no __GFP_MOVAB=
+LE
+> > >
+> > > Step 2:
+> > > gfp_mask  & ~__GFP_DMA;
+> > > (0b 0011	 & ~0b0010   =3D 0b0001)
+> > > gfp_mask's low four bits shall equal to 0001 now, then when it enter =
+gfp_zone(),
+> > >
+> > > return ((__force int)flags & ___GFP_ZONE_MASK) ^ ZONE_NORMAL;
+> > > (0b0001 ^ 0b0010 =3D 0b0011)
+> > > You know 0011 means that ZONE_MOVABLE will be returned.
+> > > In this case, error can be found, because gfp_mask needs to get ZONE_=
+DMA32 originally.
+> > > But with existing GFP_ZONE_TABLE/BAD, it is correct. Because the bits=
+ are way of
+> 0x1, 0x2, 0x4, 0x8
 > >
-> >> On 05/03/2018 06:05 AM, Andy Lutomirski wrote:
-> >>> On Wed, May 2, 2018 at 7:11 PM Ram Pai <linuxram@us.ibm.com> wrote:
-> >>>
-> >>>> On Wed, May 02, 2018 at 09:23:49PM +0000, Andy Lutomirski wrote:
-> >>>>>
-> >>>>>> If I recall correctly, the POWER maintainer did express a strong
-> >>> desire
-> >>>>>> back then for (what is, I believe) their current semantics, which
-my
-> >>>>>> PKEY_ALLOC_SIGNALINHERIT patch implements for x86, too.
-> >>>>>
-> >>>>> Ram, I really really don't like the POWER semantics.  Can you give
-> > some
-> >>>>> justification for them?  Does POWER at least have an atomic way for
-> >>>>> userspace to modify just the key it wants to modify or, even better,
-> >>>>> special load and store instructions to use alternate keys?
-> >>>
-> >>>> I wouldn't call it POWER semantics. The way I implemented it on power
-> >>>> lead to the semantics, given that nothing was explicitly stated
-> >>>> about how the semantics should work within a signal handler.
-> >>>
-> >>> I think that this is further evidence that we should introduce a new
-> >>> pkey_alloc() mode and deprecate the old.  To the extent possible, this
-> >>> thing should work the same way on x86 and POWER.
+> > Yes, I understand your point here.  My point was that this was already =
+a bug;
+> > the caller shouldn't simply be clearing __GFP_DMA; they really mean to =
+clear
+> > all of the GFP_ZONE bits so that they allocate from ZONE_NORMAL.  And f=
+or
+> > that, they should be using ~GFP_ZONEMASK
 > >
-> >> Do you propose to change POWER or to change x86?
+> > Unless they already know, of course.  For example, this one in
+> > arch/x86/mm/pgtable.c is fine:
 > >
-> > Sorry for being slow to reply.  I propose to introduce a new
-> > PKEY_ALLOC_something variant on x86 and POWER and to make the behavior
-> > match on both.
+> >         if (strcmp(arg, "nohigh") =3D=3D 0)
+> >                 __userpte_alloc_gfp &=3D ~__GFP_HIGHMEM;
+> >
+> > because it knows that __userpte_alloc_gfp can only have __GFP_HIGHMEM s=
+et.
+> >
+> > But something like btrfs should almost certainly be using ~GFP_ZONEMASK=
+.
+>=20
+> Agreed, the direct use of __GFP_DMA32 was added in 3ba7ab220e8918176c6f
+> to substitute GFP_NOFS, so the allocation flags are less restrictive but
+> still acceptable for allocation from slab.
+>=20
+> The requirement from btrfs is to avoid highmem, the 'must be acceptable
+> for slab' requirement is more MM internal and should have been hidden
+> under some opaque flag mask. There was no strong need for that at the
+> time.
 
-> So basically implement PKEY_ALLOC_SETSIGNAL for POWER, and keep the
-> existing (different) behavior without the flag?
+Hi Matthew,
 
-> Ram, would you be okay with that?  Could you give me a hand if
-> necessary?  (I assume we have silicon in-house because it's a
-> long-standing feature of the POWER platform which was simply dormant on
-> Linux until now.)
+Should we add an error detection in gfp_zone? How about this?
 
-> > It should at least update the values loaded when a signal
-> > is delivered and it should probably also update it for new threads.
-
-> I think we should keep inheritance for new threads and fork.  pkey_alloc
-> only has a single access rights argument, which makes it hard to reuse
-> this interface if there are two (three) separate sets of access rights.
+@@ -377,6 +377,8 @@ static inline enum zone_type gfp_zone(gfp_t flags)
+                z =3D OPT_ZONE_HIGHMEM +
+                        !!((__force unsigned int)flags & ___GFP_MOVABLE);
+        }
++
++       VM_BUG_ON(z > ZONE_MOVABLE);
+        return z;
+ }
 
 
-Hmm.  I can get on board with the idea that fork() / clone() /
-pthread_create() are all just special cases of the idea that the thread
-that *calls* them should have the right pkey values, and the latter is
-already busted given our inability to asynchronously propagate the new mode
-in pkey_alloc().  So let's so PKEY_ALLOC_SETSIGNAL as a starting point.
-
-One thing we could do, though: the current initual state on process
-creation is all access blocked on all keys.  We could change it so that
-half the keys are fully blocked and half are read-only.  Then we could add
-a PKEY_ALLOC_STRICT or similar that allocates a key with the correct
-initial state *and* does the setsignal thing.  If there are no keys left
-with the correct initial state, then it fails.
+Sincerely,
+Huaisheng Ye
