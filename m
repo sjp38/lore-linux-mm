@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C87096B04AF
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:40:06 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id f19-v6so19459161pgv.4
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:40:06 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 31C956B04B1
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:40:10 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id bd7-v6so3380681plb.20
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:40:10 -0700 (PDT)
 Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id z9-v6si21682595plk.94.2018.05.09.01.40.05
+        by mx.google.com with ESMTPS id z9-v6si21682595plk.94.2018.05.09.01.40.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 01:40:05 -0700 (PDT)
+        Wed, 09 May 2018 01:40:09 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -V2 18/21] mm, THP, swap: Support PMD swap mapping in mincore()
-Date: Wed,  9 May 2018 16:38:43 +0800
-Message-Id: <20180509083846.14823-19-ying.huang@intel.com>
+Subject: [PATCH -mm -V2 19/21] mm, THP, swap: Support PMD swap mapping in common path
+Date: Wed,  9 May 2018 16:38:44 +0800
+Message-Id: <20180509083846.14823-20-ying.huang@intel.com>
 In-Reply-To: <20180509083846.14823-1-ying.huang@intel.com>
 References: <20180509083846.14823-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,9 +22,8 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@int
 
 From: Huang Ying <ying.huang@intel.com>
 
-During mincore(), for PMD swap mapping, swap cache will be looked up.
-If the resulting page isn't compound page, the PMD swap mapping will
-be split and fallback to PTE swap mapping processing.
+Original code is only for PMD migration entry, it is revised to
+support PMD swap mapping.
 
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -39,98 +38,148 @@ Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Zi Yan <zi.yan@cs.rutgers.edu>
 ---
- mm/mincore.c | 37 +++++++++++++++++++++++++++++++------
- 1 file changed, 31 insertions(+), 6 deletions(-)
+ fs/proc/task_mmu.c |  8 ++++----
+ mm/gup.c           | 34 ++++++++++++++++++++++------------
+ mm/huge_memory.c   |  6 +++---
+ mm/mempolicy.c     |  2 +-
+ 4 files changed, 30 insertions(+), 20 deletions(-)
 
-diff --git a/mm/mincore.c b/mm/mincore.c
-index a66f2052c7b1..897dd2c187e8 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -48,7 +48,8 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
-  * and is up to date; i.e. that no page-in operation would be required
-  * at this time if an application were to map and access this page.
-  */
--static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
-+static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff,
-+				  bool *compound)
- {
- 	unsigned char present = 0;
- 	struct page *page;
-@@ -86,6 +87,8 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
- #endif
- 	if (page) {
- 		present = PageUptodate(page);
-+		if (compound)
-+			*compound = PageCompound(page);
- 		put_page(page);
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index a20c6e495bb2..b061b9003a24 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -977,7 +977,7 @@ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
+ 		pmd = pmd_clear_soft_dirty(pmd);
+ 
+ 		set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
+-	} else if (is_migration_entry(pmd_to_swp_entry(pmd))) {
++	} else if (is_swap_pmd(pmd)) {
+ 		pmd = pmd_swp_clear_soft_dirty(pmd);
+ 		set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
  	}
+@@ -1307,7 +1307,7 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 				frame = pmd_pfn(pmd) +
+ 					((addr & ~PMD_MASK) >> PAGE_SHIFT);
+ 		}
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#if defined(CONFIG_ARCH_ENABLE_THP_MIGRATION) || defined(CONFIG_THP_SWAP)
+ 		else if (is_swap_pmd(pmd)) {
+ 			swp_entry_t entry = pmd_to_swp_entry(pmd);
+ 			unsigned long offset = swp_offset(entry);
+@@ -1318,8 +1318,8 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 			flags |= PM_SWAP;
+ 			if (pmd_swp_soft_dirty(pmd))
+ 				flags |= PM_SOFT_DIRTY;
+-			VM_BUG_ON(!is_pmd_migration_entry(pmd));
+-			page = migration_entry_to_page(entry);
++			if (is_pmd_migration_entry(pmd))
++				page = migration_entry_to_page(entry);
+ 		}
+ #endif
  
-@@ -103,7 +106,8 @@ static int __mincore_unmapped_range(unsigned long addr, unsigned long end,
- 
- 		pgoff = linear_page_index(vma, addr);
- 		for (i = 0; i < nr; i++, pgoff++)
--			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
-+			vec[i] = mincore_page(vma->vm_file->f_mapping,
-+					      pgoff, NULL);
- 	} else {
- 		for (i = 0; i < nr; i++)
- 			vec[i] = 0;
-@@ -127,14 +131,36 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	pte_t *ptep;
- 	unsigned char *vec = walk->private;
- 	int nr = (end - addr) >> PAGE_SHIFT;
+diff --git a/mm/gup.c b/mm/gup.c
+index cf43ff4168b6..43c64a2493da 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -216,6 +216,7 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 	spinlock_t *ptl;
+ 	struct page *page;
+ 	struct mm_struct *mm = vma->vm_mm;
 +	swp_entry_t entry;
  
- 	ptl = pmd_trans_huge_lock(pmd, vma);
- 	if (ptl) {
--		memset(vec, 1, nr);
-+		unsigned char val = 1;
-+		bool compound;
-+
-+		if (thp_swap_supported() && is_swap_pmd(*pmd)) {
-+			entry = pmd_to_swp_entry(*pmd);
-+			if (!non_swap_entry(entry)) {
-+				val = mincore_page(swap_address_space(entry),
-+						   swp_offset(entry),
-+						   &compound);
-+				/*
-+				 * The huge swap cluster has been
-+				 * split under us
-+				 */
-+				if (!compound) {
-+					__split_huge_swap_pmd(vma, addr, pmd);
-+					spin_unlock(ptl);
-+					goto fallback;
-+				}
-+			}
+ 	pmd = pmd_offset(pudp, address);
+ 	/*
+@@ -243,18 +244,21 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 	if (!pmd_present(pmdval)) {
+ 		if (likely(!(flags & FOLL_MIGRATION)))
+ 			return no_page_table(vma, flags);
+-		VM_BUG_ON(thp_migration_supported() &&
+-				  !is_pmd_migration_entry(pmdval));
+-		if (is_pmd_migration_entry(pmdval))
++		entry = pmd_to_swp_entry(pmdval);
++		if (thp_migration_supported() && is_migration_entry(entry)) {
+ 			pmd_migration_entry_wait(mm, pmd);
+-		pmdval = READ_ONCE(*pmd);
+-		/*
+-		 * MADV_DONTNEED may convert the pmd to null because
+-		 * mmap_sem is held in read mode
+-		 */
+-		if (pmd_none(pmdval))
++			pmdval = READ_ONCE(*pmd);
++			/*
++			 * MADV_DONTNEED may convert the pmd to null because
++			 * mmap_sem is held in read mode
++			 */
++			if (pmd_none(pmdval))
++				return no_page_table(vma, flags);
++			goto retry;
 +		}
-+		memset(vec, val, nr);
- 		spin_unlock(ptl);
- 		goto out;
++		if (thp_swap_supported() && !non_swap_entry(entry))
+ 			return no_page_table(vma, flags);
+-		goto retry;
++		VM_BUG_ON(1);
  	}
+ 	if (pmd_devmap(pmdval)) {
+ 		ptl = pmd_lock(mm, pmd);
+@@ -276,11 +280,17 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 		return no_page_table(vma, flags);
+ 	}
+ 	if (unlikely(!pmd_present(*pmd))) {
++		entry = pmd_to_swp_entry(*pmd);
+ 		spin_unlock(ptl);
+ 		if (likely(!(flags & FOLL_MIGRATION)))
+ 			return no_page_table(vma, flags);
+-		pmd_migration_entry_wait(mm, pmd);
+-		goto retry_locked;
++		if (thp_migration_supported() && is_migration_entry(entry)) {
++			pmd_migration_entry_wait(mm, pmd);
++			goto retry_locked;
++		}
++		if (thp_swap_supported() && !non_swap_entry(entry))
++			return no_page_table(vma, flags);
++		VM_BUG_ON(1);
+ 	}
+ 	if (unlikely(!pmd_trans_huge(*pmd))) {
+ 		spin_unlock(ptl);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 154316bb34bb..4c2b1f3be038 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2077,7 +2077,7 @@ static inline int pmd_move_must_withdraw(spinlock_t *new_pmd_ptl,
+ static pmd_t move_soft_dirty_pmd(pmd_t pmd)
+ {
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+-	if (unlikely(is_pmd_migration_entry(pmd)))
++	if (unlikely(is_swap_pmd(pmd)))
+ 		pmd = pmd_swp_mksoft_dirty(pmd);
+ 	else if (pmd_present(pmd))
+ 		pmd = pmd_mksoft_dirty(pmd);
+@@ -2163,11 +2163,11 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 	preserve_write = prot_numa && pmd_write(*pmd);
+ 	ret = 1;
  
-+fallback:
- 	if (pmd_trans_unstable(pmd)) {
- 		__mincore_unmapped_range(addr, end, vma, vec);
- 		goto out;
-@@ -150,8 +176,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 		else if (pte_present(pte))
- 			*vec = 1;
- 		else { /* pte is a swap entry */
--			swp_entry_t entry = pte_to_swp_entry(pte);
--
-+			entry = pte_to_swp_entry(pte);
- 			if (non_swap_entry(entry)) {
- 				/*
- 				 * migration or hwpoison entries are always
-@@ -161,7 +186,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			} else {
- #ifdef CONFIG_SWAP
- 				*vec = mincore_page(swap_address_space(entry),
--						    swp_offset(entry));
-+						    swp_offset(entry), NULL);
- #else
- 				WARN_ON(1);
- 				*vec = 1;
+-#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++#if defined(CONFIG_ARCH_ENABLE_THP_MIGRATION) || defined(CONFIG_THP_SWAP)
+ 	if (is_swap_pmd(*pmd)) {
+ 		swp_entry_t entry = pmd_to_swp_entry(*pmd);
+ 
+-		VM_BUG_ON(!is_pmd_migration_entry(*pmd));
++		VM_BUG_ON(!thp_swap_supported() && !is_migration_entry(entry));
+ 		if (is_write_migration_entry(entry)) {
+ 			pmd_t newpmd;
+ 			/*
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 9ac49ef17b4e..180d7c08f6cc 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -436,7 +436,7 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+ 	struct queue_pages *qp = walk->private;
+ 	unsigned long flags;
+ 
+-	if (unlikely(is_pmd_migration_entry(*pmd))) {
++	if (unlikely(is_swap_pmd(*pmd))) {
+ 		ret = 1;
+ 		goto unlock;
+ 	}
 -- 
 2.16.1
