@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CCB396B0346
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 03:49:01 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j14so13166825pfn.11
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 00:49:01 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DD916B0348
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 03:49:05 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id x32-v6so3307756pld.16
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 00:49:05 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v80si14937264pfa.173.2018.05.09.00.49.00
+        by mx.google.com with ESMTPS id n184-v6si14617473pga.330.2018.05.09.00.49.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 09 May 2018 00:49:00 -0700 (PDT)
+        Wed, 09 May 2018 00:49:04 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 07/33] mm: split ->readpages calls to avoid non-contiguous pages lists
-Date: Wed,  9 May 2018 09:48:04 +0200
-Message-Id: <20180509074830.16196-8-hch@lst.de>
+Subject: [PATCH 08/33] iomap: use __bio_add_page in iomap_dio_zero
+Date: Wed,  9 May 2018 09:48:05 +0200
+Message-Id: <20180509074830.16196-9-hch@lst.de>
 In-Reply-To: <20180509074830.16196-1-hch@lst.de>
 References: <20180509074830.16196-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,38 +20,27 @@ List-ID: <linux-mm.kvack.org>
 To: linux-xfs@vger.kernel.org
 Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-That way file systems don't have to go spotting for non-contiguous pages
-and work around them.  It also kicks off I/O earlier, allowing it to
-finish earlier and reduce latency.
+We don't need any merging logic, and this also replaces a BUG_ON with a
+WARN_ON_ONCE inside __bio_add_page for the impossible overflow condition.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/readahead.c | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ fs/iomap.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 16d0cb1e2616..3f608e00286d 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -177,8 +177,18 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 		rcu_read_lock();
- 		page = radix_tree_lookup(&mapping->i_pages, page_offset);
- 		rcu_read_unlock();
--		if (page && !radix_tree_exceptional_entry(page))
-+		if (page && !radix_tree_exceptional_entry(page)) {
-+			/*
-+			 * Page already present?  Kick off the current batch of
-+			 * contiguous pages before continueing with the next
-+			 * batch.
-+			 */
-+			if (nr_pages)
-+				read_pages(mapping, filp, &page_pool, nr_pages,
-+						gfp_mask);
-+			nr_pages = 0;
- 			continue;
-+		}
+diff --git a/fs/iomap.c b/fs/iomap.c
+index b3592183b1a0..58bb39bac72b 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -951,8 +951,7 @@ iomap_dio_zero(struct iomap_dio *dio, struct iomap *iomap, loff_t pos,
+ 	bio->bi_end_io = iomap_dio_bio_end_io;
  
- 		page = __page_cache_alloc(gfp_mask);
- 		if (!page)
+ 	get_page(page);
+-	if (bio_add_page(bio, page, len, 0) != len)
+-		BUG();
++	__bio_add_page(bio, page, len, 0);
+ 	bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_SYNC | REQ_IDLE);
+ 
+ 	atomic_inc(&dio->ref);
 -- 
 2.17.0
