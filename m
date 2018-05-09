@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E8C56B059D
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 18:55:16 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id a6-v6so94348pll.22
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 15:55:16 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AAE9E6B05A0
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 19:31:04 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id s7-v6so58301pgp.15
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 16:31:04 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s6-v6si22588232pgr.369.2018.05.09.15.55.13
+        by mx.google.com with ESMTPS id p11-v6si17981480plk.294.2018.05.09.16.31.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 15:55:13 -0700 (PDT)
-Date: Wed, 9 May 2018 15:55:11 -0700
+        Wed, 09 May 2018 16:31:03 -0700 (PDT)
+Date: Wed, 9 May 2018 16:31:01 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 01/13] mm: Assign id to every memcg-aware shrinker
-Message-Id: <20180509155511.9bb3de08b33d617559e5fb3a@linux-foundation.org>
-In-Reply-To: <152586701534.3048.9132875744525159636.stgit@localhost.localdomain>
-References: <152586686544.3048.15776787801312398314.stgit@localhost.localdomain>
-	<152586701534.3048.9132875744525159636.stgit@localhost.localdomain>
+Subject: Re: [PATCH v2] mm/ksm: ignore STABLE_FLAG of rmap_item->address in
+ rmap_walk_ksm
+Message-Id: <20180509163101.02f23de1842a822c61fc68ff@linux-foundation.org>
+In-Reply-To: <1525403506-6750-1-git-send-email-hejianet@gmail.com>
+References: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
+	<1525403506-6750-1-git-send-email-hejianet@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Jia He <hejianet@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jia.he@hxt-semitech.com, Hugh Dickins <hughd@google.com>
 
-On Wed, 09 May 2018 14:56:55 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+On Fri,  4 May 2018 11:11:46 +0800 Jia He <hejianet@gmail.com> wrote:
 
-> The patch introduces shrinker::id number, which is used to enumerate
-> memcg-aware shrinkers. The number start from 0, and the code tries
-> to maintain it as small as possible.
-> 
-> This will be used as to represent a memcg-aware shrinkers in memcg
-> shrinkers map.
+> In our armv8a server(QDF2400), I noticed lots of WARN_ON caused by PAGE_SIZE
+> unaligned for rmap_item->address under memory pressure tests(start 20 guests
+> and run memhog in the host).
 > 
 > ...
->
-> --- a/fs/super.c
-> +++ b/fs/super.c
-> @@ -248,6 +248,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
->  	s->s_time_gran = 1000000000;
->  	s->cleancache_poolid = CLEANCACHE_NO_POOL;
->  
-> +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> 
+> In rmap_walk_ksm, the rmap_item->address might still have the STABLE_FLAG,
+> then the start and end in handle_hva_to_gpa might not be PAGE_SIZE aligned.
+> Thus it will cause exceptions in handle_hva_to_gpa on arm64.
+> 
+> This patch fixes it by ignoring(not removing) the low bits of address when
+> doing rmap_walk_ksm.
+> 
+> Signed-off-by: jia.he@hxt-semitech.com
 
-It would be more conventional to do this logic in Kconfig - define a
-new MEMCG_SHRINKER which equals MEMCG && !SLOB.
+I assumed you wanted this patch to be committed as
+From:jia.he@hxt-semitech.com rather than From:hejianet@gmail.com, so I
+made that change.  Please let me know if this was inappropriate.
 
-This ifdef occurs a distressing number of times in the patchset :( I
-wonder if there's something we can do about that.
+You can do this yourself by adding an explicit From: line to the very
+start of the patch's email text.
 
-Also, why doesn't it work with slob?  Please describe the issue in the
-changelogs somewhere.
-
-It's a pretty big patchset.  I *could* merge it up in the hope that
-someone is planning do do a review soon.  But is there such a person?
+Also, a storm of WARN_ONs is pretty poor behaviour.  Is that the only
+misbehaviour which this bug causes?  Do you think the fix should be
+backported into earlier kernels?
