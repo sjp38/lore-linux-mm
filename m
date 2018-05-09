@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 320356B036D
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 03:50:16 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id h32-v6so3305984pld.15
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 00:50:16 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 558E16B036D
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 03:50:19 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x23so18346981pfm.7
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 00:50:19 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e129si15354824pfa.217.2018.05.09.00.50.14
+        by mx.google.com with ESMTPS id a71-v6si21092589pge.159.2018.05.09.00.50.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 09 May 2018 00:50:14 -0700 (PDT)
+        Wed, 09 May 2018 00:50:18 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 24/33] xfs: don't look at buffer heads in xfs_add_to_ioend
-Date: Wed,  9 May 2018 09:48:21 +0200
-Message-Id: <20180509074830.16196-25-hch@lst.de>
+Subject: [PATCH 25/33] xfs: move all writeback buffer_head manipulation into xfs_map_at_offset
+Date: Wed,  9 May 2018 09:48:22 +0200
+Message-Id: <20180509074830.16196-26-hch@lst.de>
 In-Reply-To: <20180509074830.16196-1-hch@lst.de>
 References: <20180509074830.16196-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,157 +20,67 @@ List-ID: <linux-mm.kvack.org>
 To: linux-xfs@vger.kernel.org
 Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-Calculate all information for the bio based on the passed in information
-without requiring a buffer_head structure.
+This keeps it in a single place so it can be made otional more easily.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/xfs/xfs_aops.c | 68 ++++++++++++++++++++++-------------------------
- 1 file changed, 32 insertions(+), 36 deletions(-)
+ fs/xfs/xfs_aops.c | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)
 
 diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index 7ebd686cb723..f6d28e6aa911 100644
+index f6d28e6aa911..c76c943473be 100644
 --- a/fs/xfs/xfs_aops.c
 +++ b/fs/xfs/xfs_aops.c
-@@ -44,7 +44,6 @@ struct xfs_writepage_ctx {
- 	struct xfs_bmbt_irec    imap;
- 	unsigned int		io_type;
- 	struct xfs_ioend	*ioend;
--	sector_t		last_block;
- };
- 
- void
-@@ -545,11 +544,6 @@ xfs_start_page_writeback(
- 	unlock_page(page);
+@@ -505,21 +505,6 @@ xfs_imap_valid(
+ 		offset < imap->br_startoff + imap->br_blockcount;
  }
  
--static inline int xfs_bio_add_buffer(struct bio *bio, struct buffer_head *bh)
--{
--	return bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
--}
--
- /*
-  * Submit the bio for an ioend. We are passed an ioend with a bio attached to
-  * it, and we submit that bio. The ioend may be used for multiple bio
-@@ -604,27 +598,20 @@ xfs_submit_ioend(
- 	return 0;
- }
- 
--static void
--xfs_init_bio_from_bh(
--	struct bio		*bio,
+-STATIC void
+-xfs_start_buffer_writeback(
 -	struct buffer_head	*bh)
 -{
--	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
--	bio_set_dev(bio, bh->b_bdev);
+-	ASSERT(buffer_mapped(bh));
+-	ASSERT(buffer_locked(bh));
+-	ASSERT(!buffer_delay(bh));
+-	ASSERT(!buffer_unwritten(bh));
+-
+-	bh->b_end_io = NULL;
+-	set_buffer_async_write(bh);
+-	set_buffer_uptodate(bh);
+-	clear_buffer_dirty(bh);
 -}
 -
- static struct xfs_ioend *
- xfs_alloc_ioend(
- 	struct inode		*inode,
- 	unsigned int		type,
- 	xfs_off_t		offset,
--	struct buffer_head	*bh)
-+	struct block_device	*bdev,
-+	sector_t		sector)
- {
- 	struct xfs_ioend	*ioend;
- 	struct bio		*bio;
- 
- 	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, xfs_ioend_bioset);
--	xfs_init_bio_from_bh(bio, bh);
-+	bio_set_dev(bio, bdev);
-+	bio->bi_iter.bi_sector = sector;
- 
- 	ioend = container_of(bio, struct xfs_ioend, io_inline_bio);
- 	INIT_LIST_HEAD(&ioend->io_list);
-@@ -649,13 +636,14 @@ static void
- xfs_chain_bio(
- 	struct xfs_ioend	*ioend,
- 	struct writeback_control *wbc,
--	struct buffer_head	*bh)
-+	struct block_device	*bdev,
-+	sector_t		sector)
- {
- 	struct bio *new;
- 
- 	new = bio_alloc(GFP_NOFS, BIO_MAX_PAGES);
--	xfs_init_bio_from_bh(new, bh);
--
-+	bio_set_dev(new, bdev);
-+	new->bi_iter.bi_sector = sector;
- 	bio_chain(ioend->io_bio, new);
- 	bio_get(ioend->io_bio);		/* for xfs_destroy_ioend */
- 	ioend->io_bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
-@@ -665,39 +653,45 @@ xfs_chain_bio(
- }
- 
- /*
-- * Test to see if we've been building up a completion structure for
-- * earlier buffers -- if so, we try to append to this ioend if we
-- * can, otherwise we finish off any current ioend and start another.
-- * Return the ioend we finished off so that the caller can submit it
-- * once it has finished processing the dirty page.
-+ * Test to see if we have an existing ioend structure that we could append to
-+ * first, otherwise finish off the current ioend and start another.
-  */
  STATIC void
- xfs_add_to_ioend(
- 	struct inode		*inode,
--	struct buffer_head	*bh,
- 	xfs_off_t		offset,
-+	struct page		*page,
- 	struct xfs_writepage_ctx *wpc,
- 	struct writeback_control *wbc,
- 	struct list_head	*iolist)
- {
-+	struct xfs_inode	*ip = XFS_I(inode);
-+	struct xfs_mount	*mp = ip->i_mount;
-+	struct block_device	*bdev = xfs_find_bdev_for_inode(inode);
-+	unsigned		len = i_blocksize(inode);
-+	unsigned		poff = offset & (PAGE_SIZE - 1);
-+	sector_t		sector;
-+
-+	sector = xfs_fsb_to_db(ip, wpc->imap.br_startblock) +
-+		((offset - XFS_FSB_TO_B(mp, wpc->imap.br_startoff)) >> 9);
-+
- 	if (!wpc->ioend || wpc->io_type != wpc->ioend->io_type ||
--	    bh->b_blocknr != wpc->last_block + 1 ||
-+	    sector != bio_end_sector(wpc->ioend->io_bio) ||
- 	    offset != wpc->ioend->io_offset + wpc->ioend->io_size) {
- 		if (wpc->ioend)
- 			list_add(&wpc->ioend->io_list, iolist);
--		wpc->ioend = xfs_alloc_ioend(inode, wpc->io_type, offset, bh);
-+		wpc->ioend = xfs_alloc_ioend(inode, wpc->io_type, offset,
-+				bdev, sector);
- 	}
+ xfs_start_page_writeback(
+ 	struct page		*page,
+@@ -728,6 +713,7 @@ xfs_map_at_offset(
+ 	ASSERT(imap->br_startblock != HOLESTARTBLOCK);
+ 	ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
  
- 	/*
--	 * If the buffer doesn't fit into the bio we need to allocate a new
--	 * one.  This shouldn't happen more than once for a given buffer.
-+	 * If the block doesn't fit into the bio we need to allocate a new
-+	 * one.  This shouldn't happen more than once for a given block.
++	lock_buffer(bh);
+ 	xfs_map_buffer(inode, bh, imap, offset);
+ 	set_buffer_mapped(bh);
+ 	clear_buffer_delay(bh);
+@@ -740,6 +726,10 @@ xfs_map_at_offset(
+ 	 * set the bdev now.
  	 */
--	while (xfs_bio_add_buffer(wpc->ioend->io_bio, bh) != bh->b_size)
--		xfs_chain_bio(wpc->ioend, wbc, bh);
-+	while (bio_add_page(wpc->ioend->io_bio, page, len, poff) != len)
-+		xfs_chain_bio(wpc->ioend, wbc, bdev, sector);
- 
--	wpc->ioend->io_size += bh->b_size;
--	wpc->last_block = bh->b_blocknr;
--	xfs_start_buffer_writeback(bh);
-+	wpc->ioend->io_size += len;
+ 	bh->b_bdev = xfs_find_bdev_for_inode(inode);
++	bh->b_end_io = NULL;
++	set_buffer_async_write(bh);
++	set_buffer_uptodate(bh);
++	clear_buffer_dirty(bh);
  }
  
  STATIC void
-@@ -893,7 +887,9 @@ xfs_writepage_map(
+@@ -885,11 +875,9 @@ xfs_writepage_map(
+ 			continue;
+ 		}
  
- 		lock_buffer(bh);
+-		lock_buffer(bh);
  		xfs_map_at_offset(inode, bh, &wpc->imap, file_offset);
--		xfs_add_to_ioend(inode, bh, file_offset, wpc, wbc, &submit_list);
-+		xfs_add_to_ioend(inode, file_offset, page, wpc, wbc,
-+				&submit_list);
-+		xfs_start_buffer_writeback(bh);
+ 		xfs_add_to_ioend(inode, file_offset, page, wpc, wbc,
+ 				&submit_list);
+-		xfs_start_buffer_writeback(bh);
  		count++;
  	}
  
