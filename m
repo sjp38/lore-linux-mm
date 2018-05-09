@@ -1,73 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B82AF6B04EC
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:34:49 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p189so4013526pfp.2
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:34:49 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id d15-v6si25989300plj.186.2018.05.09.04.34.48
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 837D56B04ED
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:38:57 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m8-v6so7613840pgq.9
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:38:57 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z11si10176964pfm.330.2018.05.09.04.38.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 09 May 2018 04:34:48 -0700 (PDT)
-Date: Wed, 9 May 2018 04:34:46 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 04/13] mm: Use array_size() helpers for kmalloc()
-Message-ID: <20180509113446.GA18549@bombadil.infradead.org>
-References: <20180509004229.36341-1-keescook@chromium.org>
- <20180509004229.36341-5-keescook@chromium.org>
+        Wed, 09 May 2018 04:38:56 -0700 (PDT)
+Date: Wed, 9 May 2018 13:38:49 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 6/7] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180509113849.GJ12235@hirez.programming.kicks-ass.net>
+References: <20180507210135.1823-1-hannes@cmpxchg.org>
+ <20180507210135.1823-7-hannes@cmpxchg.org>
+ <20180509104618.GP12217@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180509004229.36341-5-keescook@chromium.org>
+In-Reply-To: <20180509104618.GP12217@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-On Tue, May 08, 2018 at 05:42:20PM -0700, Kees Cook wrote:
-> @@ -499,6 +500,8 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
->   */
->  static __always_inline void *kmalloc(size_t size, gfp_t flags)
->  {
-> +	if (size == SIZE_MAX)
-> +		return NULL;
->  	if (__builtin_constant_p(size)) {
->  		if (size > KMALLOC_MAX_CACHE_SIZE)
->  			return kmalloc_large(size, flags);
+On Wed, May 09, 2018 at 12:46:18PM +0200, Peter Zijlstra wrote:
+> On Mon, May 07, 2018 at 05:01:34PM -0400, Johannes Weiner wrote:
+> 
+> > @@ -2038,6 +2038,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
+> >  	cpu = select_task_rq(p, p->wake_cpu, SD_BALANCE_WAKE, wake_flags);
+> >  	if (task_cpu(p) != cpu) {
+> >  		wake_flags |= WF_MIGRATED;
+> > +		psi_ttwu_dequeue(p);
+> >  		set_task_cpu(p, cpu);
+> >  	}
+> >  
+> 
+> > +static inline void psi_ttwu_dequeue(struct task_struct *p)
+> > +{
+> > +	/*
+> > +	 * Is the task being migrated during a wakeup? Make sure to
+> > +	 * deregister its sleep-persistent psi states from the old
+> > +	 * queue, and let psi_enqueue() know it has to requeue.
+> > +	 */
+> > +	if (unlikely(p->in_iowait || (p->flags & PF_MEMSTALL))) {
+> > +		struct rq_flags rf;
+> > +		struct rq *rq;
+> > +		int clear = 0;
+> > +
+> > +		if (p->in_iowait)
+> > +			clear |= TSK_IOWAIT;
+> > +		if (p->flags & PF_MEMSTALL)
+> > +			clear |= TSK_MEMSTALL;
+> > +
+> > +		rq = __task_rq_lock(p, &rf);
+> > +		update_rq_clock(rq);
+> > +		psi_task_change(p, rq_clock(rq), clear, 0);
+> > +		p->sched_psi_wake_requeue = 1;
+> > +		__task_rq_unlock(rq, &rf);
+> > +	}
+> > +}
+> 
+> Yeah, no... not happening.
+> 
+> We spend a lot of time to never touch the old rq->lock on wakeups. Mason
+> was the one pushing for that, so he should very well know this.
+> 
+> The one cross-cpu atomic (iowait) is already a problem (the whole iowait
+> accounting being useless makes it even worse), adding significant remote
+> prodding is just really bad.
 
-I don't like the add-checking-to-every-call-site part of this patch.
-Fine, the compiler will optimise it away if it can calculate it at compile
-time, but there are a lot of situations where it can't.  You aren't
-adding any safety by doing this; trying to allocate SIZE_MAX bytes is
-guaranteed to fail, and it doesn't need to fail quickly.
+Also, since all you need is the global number, I don't think you
+actually need any of this. See what we do for nr_uninterruptible.
 
-> @@ -624,11 +629,13 @@ int memcg_update_all_caches(int num_memcgs);
->   */
->  static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
->  {
-> -	if (size != 0 && n > SIZE_MAX / size)
-> +	size_t bytes = array_size(n, size);
-> +
-> +	if (bytes == SIZE_MAX)
->  		return NULL;
->  	if (__builtin_constant_p(n) && __builtin_constant_p(size))
-> -		return kmalloc(n * size, flags);
-> -	return __kmalloc(n * size, flags);
-> +		return kmalloc(bytes, flags);
-> +	return __kmalloc(bytes, flags);
->  }
->  
->  /**
-> @@ -639,7 +646,9 @@ static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
->   */
->  static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
->  {
-> -	return kmalloc_array(n, size, flags | __GFP_ZERO);
-> +	size_t bytes = array_size(n, size);
-> +
-> +	return kmalloc(bytes, flags | __GFP_ZERO);
->  }
-
-Hmm.  I wonder why we have the kmalloc/__kmalloc "optimisation"
-in kmalloc_array, but not kcalloc.  Bet we don't really need it in
-kmalloc_array.  I'll do some testing.
+In general I think you want to (re)read loadavg.c some more, and maybe
+reuse a bit more of that.
