@@ -1,37 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 51EE26B050F
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 08:13:34 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id q8-v6so33102872ioh.7
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 05:13:34 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j81-v6sor13747034ioj.150.2018.05.09.05.13.33
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B20F6B0511
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 08:27:36 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id a127-v6so5602676wmh.6
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 05:27:36 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f27-v6si383175edj.330.2018.05.09.05.27.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 09 May 2018 05:13:33 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 09 May 2018 05:27:34 -0700 (PDT)
+Date: Wed, 9 May 2018 14:27:33 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v9 9/9] xfs, dax: introduce xfs_break_dax_layouts()
+Message-ID: <20180509122733.lokyqv5aluwhlml7@quack2.suse.cz>
+References: <152461278149.17530.2867511144531572045.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152461283072.17530.11313844322317294220.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180509052632.GB15939@rapoport-lnx>
-References: <cover.1525798753.git.andreyknvl@google.com> <bc150eb0a71437400c64a4388805327fbaf9bb30.1525798754.git.andreyknvl@google.com>
- <20180509052632.GB15939@rapoport-lnx>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 9 May 2018 14:13:30 +0200
-Message-ID: <CAAeHK+z=6cY59C9F5sz4OUEkGyiS1GFySx--5+Di0k1o9OjKsg@mail.gmail.com>
-Subject: Re: [PATCH v1 16/16] khwasan: update kasan documentation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <152461283072.17530.11313844322317294220.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, Dave Chinner <david@fromorbit.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 9, 2018 at 7:26 AM, Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
->
-> Typos: in turn is only supported
->
-> of the
->
+On Tue 24-04-18 16:33:50, Dan Williams wrote:
+> xfs_break_dax_layouts(), similar to xfs_break_leased_layouts(), scans
+> for busy / pinned dax pages and waits for those pages to go idle before
+> any potential extent unmap operation.
+> 
+> dax_layout_busy_page() handles synchronizing against new page-busy
+> events (get_user_pages). It invalidates all mappings to trigger the
+> get_user_pages slow path which will eventually block on the xfs inode
+> lock held in XFS_MMAPLOCK_EXCL mode. If dax_layout_busy_page() finds a
+> busy page it returns it for xfs to wait for the page-idle event that
+> will fire when the page reference count reaches 1 (recall ZONE_DEVICE
+> pages are idle at count 1, see generic_dax_pagefree()).
+> 
+> While waiting, the XFS_MMAPLOCK_EXCL lock is dropped in order to not
+> deadlock the process that might be trying to elevate the page count of
+> more pages before arranging for any of them to go idle. I.e. the typical
+> case of submitting I/O is that iov_iter_get_pages() elevates the
+> reference count of all pages in the I/O before starting I/O on the first
+> page. The process of elevating the reference count of all pages involved
+> in an I/O may cause faults that need to take XFS_MMAPLOCK_EXCL.
+> 
+> Although XFS_MMAPLOCK_EXCL is dropped while waiting, XFS_IOLOCK_EXCL is
+> held while sleeping. We need this to prevent starvation of the truncate
+> path as continuous submission of direct-I/O could starve the truncate
+> path indefinitely if the lock is dropped.
+> 
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Reported-by: Jan Kara <jack@suse.cz>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Hi Mike!
+Looks good to me except some nits below. Feel free to add:
 
-Will fix both in v2.
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Thanks!
+for as much as it is worth with XFS code ;)
+
+> +static int
+> +xfs_break_dax_layouts(
+> +	struct inode		*inode,
+> +	uint			iolock,
+> +	bool			*did_unlock)
+> +{
+> +	struct page		*page;
+> +
+> +	*did_unlock = false;
+> +	page = dax_layout_busy_page(inode->i_mapping);
+> +	if (!page)
+> +		return 0;
+> +
+> +	return ___wait_var_event(&page->_refcount,
+> +			atomic_read(&page->_refcount) == 1, TASK_INTERRUPTIBLE,
+> +			0, 0, xfs_wait_dax_page(inode, did_unlock));
+> +}
+> +
+>  int
+>  xfs_break_layouts(
+>  	struct inode		*inode,
+> @@ -729,17 +760,23 @@ xfs_break_layouts(
+>  
+>  	ASSERT(xfs_isilocked(XFS_I(inode), XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL));
+>  
+> -	switch (reason) {
+> -	case BREAK_UNMAP:
+> -		ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
+> -		/* fall through */
+> -	case BREAK_WRITE:
+> -		error = xfs_break_leased_layouts(inode, iolock, &retry);
+> -		break;
+> -	default:
+> -		WARN_ON_ONCE(1);
+> -		return -EINVAL;
+> -	}
+> +	do {
+> +		switch (reason) {
+> +		case BREAK_UNMAP:
+> +			ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
+
+Maybe move the assertion to xfs_break_dax_layouts()?
+
+> +
+> +			error = xfs_break_dax_layouts(inode, *iolock, &retry);
+> +			/* fall through */
+> +		case BREAK_WRITE:
+> +			if (error || retry)
+> +				break;
+
+The error handling IMHO belongs above the 'fall through' comment above.
+
+> +			error = xfs_break_leased_layouts(inode, iolock, &retry);
+> +			break;
+> +		default:
+> +			WARN_ON_ONCE(1);
+> +			return -EINVAL;
+> +		}
+> +	} while (error == 0 && retry);
+
+As a general 'taste' comment, I prefer if the 'retry' is always initialized
+to 'false' at the beginning of the loop body in these kinds of loops. That
+way it is obvious we are doing the right thing when looking at the loop
+body and we don't have to verify that each case statement initializes
+'retry' properly (in fact I'd remove the initialization from
+xfs_break_dax_layouts() and xfs_break_leased_layouts()). But this is more a
+matter of taste and consistency with other code in the area so I defer to
+XFS maintainers for a final opinion. Darrick?
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
