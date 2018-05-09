@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ED1156B0545
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 13:18:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id z1so10718050pfh.3
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 10:18:58 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id s196-v6si3202216pgc.567.2018.05.09.10.18.57
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A80066B0546
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 13:18:59 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id d9-v6so4057728plj.4
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 10:18:59 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id k22-v6si14182347pll.393.2018.05.09.10.18.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 10:18:57 -0700 (PDT)
-Subject: [PATCH 09/13] x86/pkeys: Override pkey when moving away from PROT_EXEC
+        Wed, 09 May 2018 10:18:58 -0700 (PDT)
+Subject: [PATCH 08/13] x86/pkeys/selftests: Fix pkey exhaustion test off-by-one
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 09 May 2018 10:13:51 -0700
+Date: Wed, 09 May 2018 10:13:50 -0700
 References: <20180509171336.76636D88@viggo.jf.intel.com>
 In-Reply-To: <20180509171336.76636D88@viggo.jf.intel.com>
-Message-Id: <20180509171351.084C5A71@viggo.jf.intel.com>
+Message-Id: <20180509171350.E1656B95@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, shakeelb@google.com, stable@vger.kernel.org, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
+Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, mingo@kernel.org, akpm@linux-foundation.org, shuah@kernel.org
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-I got a bug report that the following code (roughly) was
-causing a SIGSEGV:
+In our "exhaust all pkeys" test, we make sure that there
+is the expected number available.  Turns out that the
+test did not cover the execute-only key, but discussed
+it anyway.  It did *not* discuss the test-allocated
+key.
 
-	mprotect(ptr, size, PROT_EXEC);
-	mprotect(ptr, size, PROT_NONE);
-	mprotect(ptr, size, PROT_READ);
-	*ptr = 100;
-
-The problem is hit when the mprotect(PROT_EXEC)
-is implicitly assigned a protection key to the VMA, and made
-that key ACCESS_DENY|WRITE_DENY.  The PROT_NONE mprotect()
-failed to remove the protection key, and the PROT_NONE->
-PROT_READ left the PTE usable, but the pkey still in place
-and left the memory inaccessible.
-
-To fix this, we ensure that we always "override" the pkee
-at mprotect() if the VMA does not have execute-only
-permissions, but the VMA has the execute-only pkey.
-
-We had a check for PROT_READ/WRITE, but it did not work
-for PROT_NONE.  This entirely removes the PROT_* checks,
-which ensures that PROT_NONE now works.
+Now that we have a test for the mprotect(PROT_EXEC) case,
+this off-by-one issue showed itself.  Correct the off-by-
+one and add the explanation for the case we missed.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Fixes: 62b5f7d013f ("mm/core, x86/mm/pkeys: Add execute-only protection keys support")
-Reported-by: Shakeel Butt <shakeelb@google.com>
-Cc: stable@vger.kernel.org
 Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: Dave Hansen <dave.hansen@intel.com>
@@ -59,85 +43,31 @@ Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Shuah Khan <shuah@kernel.org>
 ---
 
- b/arch/x86/include/asm/pkeys.h |   12 +++++++++++-
- b/arch/x86/mm/pkeys.c          |   21 +++++++++++----------
- 2 files changed, 22 insertions(+), 11 deletions(-)
+ b/tools/testing/selftests/x86/protection_keys.c |   13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
 
-diff -puN arch/x86/include/asm/pkeys.h~pkeys-abandon-exec-only-pkey-more-aggressively arch/x86/include/asm/pkeys.h
---- a/arch/x86/include/asm/pkeys.h~pkeys-abandon-exec-only-pkey-more-aggressively	2018-05-09 09:20:22.295698398 -0700
-+++ b/arch/x86/include/asm/pkeys.h	2018-05-09 09:20:22.300698398 -0700
-@@ -2,6 +2,8 @@
- #ifndef _ASM_X86_PKEYS_H
- #define _ASM_X86_PKEYS_H
+diff -puN tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-exhaust-off-by-one tools/testing/selftests/x86/protection_keys.c
+--- a/tools/testing/selftests/x86/protection_keys.c~pkeys-selftests-exhaust-off-by-one	2018-05-09 09:20:21.786698399 -0700
++++ b/tools/testing/selftests/x86/protection_keys.c	2018-05-09 09:20:21.790698399 -0700
+@@ -1148,12 +1148,15 @@ void test_pkey_alloc_exhaust(int *ptr, u
+ 	pkey_assert(i < NR_PKEYS*2);
  
-+#define ARCH_DEFAULT_PKEY	0
-+
- #define arch_max_pkey() (boot_cpu_has(X86_FEATURE_OSPKE) ? 16 : 1)
- 
- extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
-@@ -15,7 +17,7 @@ extern int __execute_only_pkey(struct mm
- static inline int execute_only_pkey(struct mm_struct *mm)
- {
- 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
--		return 0;
-+		return ARCH_DEFAULT_PKEY;
- 
- 	return __execute_only_pkey(mm);
- }
-@@ -56,6 +58,14 @@ bool mm_pkey_is_allocated(struct mm_stru
- 		return false;
- 	if (pkey >= arch_max_pkey())
- 		return false;
-+	/*
-+	 * The exec-only pkey is set in the allocation map, but
-+	 * is not available to any of the user interfaces like
-+	 * mprotect_pkey().
-+	 */
-+	if (pkey == mm->context.execute_only_pkey)
-+		return false;
-+
- 	return mm_pkey_allocation_map(mm) & (1U << pkey);
- }
- 
-diff -puN arch/x86/mm/pkeys.c~pkeys-abandon-exec-only-pkey-more-aggressively arch/x86/mm/pkeys.c
---- a/arch/x86/mm/pkeys.c~pkeys-abandon-exec-only-pkey-more-aggressively	2018-05-09 09:20:22.297698398 -0700
-+++ b/arch/x86/mm/pkeys.c	2018-05-09 09:20:22.301698398 -0700
-@@ -94,26 +94,27 @@ int __arch_override_mprotect_pkey(struct
- 	 */
- 	if (pkey != -1)
- 		return pkey;
--	/*
--	 * Look for a protection-key-drive execute-only mapping
--	 * which is now being given permissions that are not
--	 * execute-only.  Move it back to the default pkey.
--	 */
--	if (vma_is_pkey_exec_only(vma) &&
--	    (prot & (PROT_READ|PROT_WRITE))) {
--		return 0;
--	}
-+
  	/*
- 	 * The mapping is execute-only.  Go try to get the
- 	 * execute-only protection key.  If we fail to do that,
- 	 * fall through as if we do not have execute-only
--	 * support.
-+	 * support in this mm.
+-	 * There are 16 pkeys supported in hardware.  One is taken
+-	 * up for the default (0) and another can be taken up by
+-	 * an execute-only mapping.  Ensure that we can allocate
+-	 * at least 14 (16-2).
++	 * There are 16 pkeys supported in hardware.  Three are
++	 * allocated by the time we get here:
++	 *   1. The default key (0)
++	 *   2. One possibly consumed by an execute-only mapping.
++	 *   3. One allocated by the test code and passed in via
++	 *      'pkey' to this function.
++	 * Ensure that we can allocate at least another 13 (16-3).
  	 */
- 	if (prot == PROT_EXEC) {
- 		pkey = execute_only_pkey(vma->vm_mm);
- 		if (pkey > 0)
- 			return pkey;
-+	} else if (vma_is_pkey_exec_only(vma)) {
-+		/*
-+		 * Protections are *not* PROT_EXEC, but the mapping
-+		 * is using the exec-only pkey.  This mapping was
-+		 * PROT_EXEC and will no longer be.  Move back to
-+		 * the default pkey.
-+		 */
-+		return ARCH_DEFAULT_PKEY;
- 	}
-+
- 	/*
- 	 * This is a vanilla, non-pkey mprotect (or we failed to
- 	 * setup execute-only), inherit the pkey from the VMA we
+-	pkey_assert(i >= NR_PKEYS-2);
++	pkey_assert(i >= NR_PKEYS-3);
+ 
+ 	for (i = 0; i < nr_allocated_pkeys; i++) {
+ 		err = sys_pkey_free(allocated_pkeys[i]);
 _
