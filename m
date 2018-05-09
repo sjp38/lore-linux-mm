@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A39A36B02F2
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 20:42:45 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id a9-v6so19002853pgt.6
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 17:42:45 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 17B076B02F2
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 20:42:46 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id x2-v6so2741836plv.0
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 17:42:46 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k8-v6sor9719314plt.57.2018.05.08.17.42.44
+        by mx.google.com with SMTPS id a33-v6sor8246907pli.106.2018.05.08.17.42.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Tue, 08 May 2018 17:42:44 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 01/13] compiler.h: enable builtin overflow checkers and add fallback code
-Date: Tue,  8 May 2018 17:42:17 -0700
-Message-Id: <20180509004229.36341-2-keescook@chromium.org>
+Subject: [PATCH 05/13] mm: Use array_size() helpers for kvmalloc()
+Date: Tue,  8 May 2018 17:42:21 -0700
+Message-Id: <20180509004229.36341-6-keescook@chromium.org>
 In-Reply-To: <20180509004229.36341-1-keescook@chromium.org>
 References: <20180509004229.36341-1-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,330 +20,51 @@ List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <mawilcox@microsoft.com>
 Cc: Kees Cook <keescook@chromium.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Instead of open-coded multiplication, use the new array_size() helper
+to detect overflow in kvmalloc()-family functions.
 
-This adds wrappers for the __builtin overflow checkers present in gcc
-5.1+ as well as fallback implementations for earlier compilers. It's not
-that easy to implement the fully generic __builtin_X_overflow(T1 a, T2
-b, T3 *d) in macros, so the fallback code assumes that T1, T2 and T3 are
-the same. We obviously don't want the wrappers to have different
-semantics depending on $GCC_VERSION, so we also insist on that even when
-using the builtins.
-
-There are a few problems with the 'a+b < a' idiom for checking for
-overflow: For signed types, it relies on undefined behaviour and is
-not actually complete (it doesn't check underflow;
-e.g. INT_MIN+INT_MIN == 0 isn't caught). Due to type promotion it
-is wrong for all types (signed and unsigned) narrower than
-int. Similarly, when a and b does not have the same type, there are
-subtle cases like
-
-  u32 a;
-
-  if (a + sizeof(foo) < a)
-    return -EOVERFLOW;
-  a += sizeof(foo);
-
-where the test is always false on 64 bit platforms. Add to that that it
-is not always possible to determine the types involved at a glance.
-
-The new overflow.h is somewhat bulky, but that's mostly a result of
-trying to be type-generic, complete (e.g. catching not only overflow
-but also signed underflow) and not relying on undefined behaviour.
-
-Linus is of course right [1] that for unsigned subtraction a-b, the
-right way to check for overflow (underflow) is "b > a" and not
-"__builtin_sub_overflow(a, b, &d)", but that's just one out of six cases
-covered here, and included mostly for completeness.
-
-So is it worth it? I think it is, if nothing else for the documentation
-value of seeing
-
-  if (check_add_overflow(a, b, &d))
-    return -EGOAWAY;
-  do_stuff_with(d);
-
-instead of the open-coded (and possibly wrong and/or incomplete and/or
-UBsan-tickling)
-
-  if (a+b < a)
-    return -EGOAWAY;
-  do_stuff_with(a+b);
-
-While gcc does recognize the 'a+b < a' idiom for testing unsigned add
-overflow, it doesn't do nearly as good for unsigned multiplication
-(there's also no single well-established idiom). So using
-check_mul_overflow in kcalloc and friends may also make gcc generate
-slightly better code.
-
-[1] https://lkml.org/lkml/2015/11/2/658
-
-Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- include/linux/compiler-clang.h |  14 +++
- include/linux/compiler-gcc.h   |   4 +
- include/linux/compiler-intel.h |   4 +
- include/linux/overflow.h       | 205 +++++++++++++++++++++++++++++++++
- 4 files changed, 227 insertions(+)
- create mode 100644 include/linux/overflow.h
+ include/linux/mm.h      | 6 +++---
+ include/linux/vmalloc.h | 1 +
+ 2 files changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
-index 7d98e263e048..7087446c24c8 100644
---- a/include/linux/compiler-clang.h
-+++ b/include/linux/compiler-clang.h
-@@ -32,3 +32,17 @@
- #ifdef __noretpoline
- #undef __noretpoline
- #endif
-+
-+/*
-+ * Not all versions of clang implement the the type-generic versions
-+ * of the builtin overflow checkers. Fortunately, clang implements
-+ * __has_builtin allowing us to avoid awkward version
-+ * checks. Unfortunately, we don't know which version of gcc clang
-+ * pretends to be, so the macro may or may not be defined.
-+ */
-+#undef COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW
-+#if __has_builtin(__builtin_mul_overflow) && \
-+    __has_builtin(__builtin_add_overflow) && \
-+    __has_builtin(__builtin_sub_overflow)
-+#define COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW 1
-+#endif
-diff --git a/include/linux/compiler-gcc.h b/include/linux/compiler-gcc.h
-index b4bf73f5e38f..f1a7492a5cc8 100644
---- a/include/linux/compiler-gcc.h
-+++ b/include/linux/compiler-gcc.h
-@@ -343,3 +343,7 @@
-  * code
-  */
- #define uninitialized_var(x) x = x
-+
-+#if GCC_VERSION >= 50100
-+#define COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW 1
-+#endif
-diff --git a/include/linux/compiler-intel.h b/include/linux/compiler-intel.h
-index bfa08160db3a..547cdc920a3c 100644
---- a/include/linux/compiler-intel.h
-+++ b/include/linux/compiler-intel.h
-@@ -44,3 +44,7 @@
- #define __builtin_bswap16 _bswap16
- #endif
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1ac1f06a4be6..c97ed9aa3412 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -25,6 +25,7 @@
+ #include <linux/err.h>
+ #include <linux/page_ref.h>
+ #include <linux/memremap.h>
++#include <linux/overflow.h>
  
-+/*
-+ * icc defines __GNUC__, but does not implement the builtin overflow checkers.
-+ */
-+#undef COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW
-diff --git a/include/linux/overflow.h b/include/linux/overflow.h
-new file mode 100644
-index 000000000000..c8890ec358a7
---- /dev/null
-+++ b/include/linux/overflow.h
-@@ -0,0 +1,205 @@
-+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
-+#ifndef __LINUX_OVERFLOW_H
-+#define __LINUX_OVERFLOW_H
-+
-+#include <linux/compiler.h>
-+
-+/*
-+ * In the fallback code below, we need to compute the minimum and
-+ * maximum values representable in a given type. These macros may also
-+ * be useful elsewhere, so we provide them outside the
-+ * COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW block.
-+ *
-+ * It would seem more obvious to do something like
-+ *
-+ * #define type_min(T) (T)(is_signed_type(T) ? (T)1 << (8*sizeof(T)-1) : 0)
-+ * #define type_max(T) (T)(is_signed_type(T) ? ((T)1 << (8*sizeof(T)-1)) - 1 : ~(T)0)
-+ *
-+ * Unfortunately, the middle expressions, strictly speaking, have
-+ * undefined behaviour, and at least some versions of gcc warn about
-+ * the type_max expression (but not if -fsanitize=undefined is in
-+ * effect; in that case, the warning is deferred to runtime...).
-+ *
-+ * The slightly excessive casting in type_min is to make sure the
-+ * macros also produce sensible values for the exotic type _Bool. [The
-+ * overflow checkers only almost work for _Bool, but that's
-+ * a-feature-not-a-bug, since people shouldn't be doing arithmetic on
-+ * _Bools. Besides, the gcc builtins don't allow _Bool* as third
-+ * argument.]
-+ *
-+ * Idea stolen from
-+ * https://mail-index.netbsd.org/tech-misc/2007/02/05/0000.html -
-+ * credit to Christian Biere.
-+ */
-+#define is_signed_type(type)       (((type)(-1)) < (type)1)
-+#define __type_half_max(type) ((type)1 << (8*sizeof(type) - 1 - is_signed_type(type)))
-+#define type_max(T) ((T)((__type_half_max(T) - 1) + __type_half_max(T)))
-+#define type_min(T) ((T)((T)-type_max(T)-(T)1))
-+
-+
-+#ifdef COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW
-+/*
-+ * For simplicity and code hygiene, the fallback code below insists on
-+ * a, b and *d having the same type (similar to the min() and max()
-+ * macros), whereas gcc's type-generic overflow checkers accept
-+ * different types. Hence we don't just make check_add_overflow an
-+ * alias for __builtin_add_overflow, but add type checks similar to
-+ * below.
-+ */
-+#define check_add_overflow(a, b, d) ({		\
-+	typeof(a) __a = (a);			\
-+	typeof(b) __b = (b);			\
-+	typeof(d) __d = (d);			\
-+	(void) (&__a == &__b);			\
-+	(void) (&__a == __d);			\
-+	__builtin_add_overflow(__a, __b, __d);	\
-+})
-+
-+#define check_sub_overflow(a, b, d) ({		\
-+	typeof(a) __a = (a);			\
-+	typeof(b) __b = (b);			\
-+	typeof(d) __d = (d);			\
-+	(void) (&__a == &__b);			\
-+	(void) (&__a == __d);			\
-+	__builtin_sub_overflow(__a, __b, __d);	\
-+})
-+
-+#define check_mul_overflow(a, b, d) ({		\
-+	typeof(a) __a = (a);			\
-+	typeof(b) __b = (b);			\
-+	typeof(d) __d = (d);			\
-+	(void) (&__a == &__b);			\
-+	(void) (&__a == __d);			\
-+	__builtin_mul_overflow(__a, __b, __d);	\
-+})
-+
-+#else
-+
-+
-+/* Checking for unsigned overflow is relatively easy without causing UB. */
-+#define __unsigned_add_overflow(a, b, d) ({	\
-+	typeof(a) __a = (a);			\
-+	typeof(b) __b = (b);			\
-+	typeof(d) __d = (d);			\
-+	(void) (&__a == &__b);			\
-+	(void) (&__a == __d);			\
-+	*__d = __a + __b;			\
-+	*__d < __a;				\
-+})
-+#define __unsigned_sub_overflow(a, b, d) ({	\
-+	typeof(a) __a = (a);			\
-+	typeof(b) __b = (b);			\
-+	typeof(d) __d = (d);			\
-+	(void) (&__a == &__b);			\
-+	(void) (&__a == __d);			\
-+	*__d = __a - __b;			\
-+	__a < __b;				\
-+})
-+/*
-+ * If one of a or b is a compile-time constant, this avoids a division.
-+ */
-+#define __unsigned_mul_overflow(a, b, d) ({		\
-+	typeof(a) __a = (a);				\
-+	typeof(b) __b = (b);				\
-+	typeof(d) __d = (d);				\
-+	(void) (&__a == &__b);				\
-+	(void) (&__a == __d);				\
-+	*__d = __a * __b;				\
-+	__builtin_constant_p(__b) ?			\
-+	  __b > 0 && __a > type_max(typeof(__a)) / __b : \
-+	  __a > 0 && __b > type_max(typeof(__b)) / __a;	 \
-+})
-+
-+/*
-+ * For signed types, detecting overflow is much harder, especially if
-+ * we want to avoid UB. But the interface of these macros is such that
-+ * we must provide a result in *d, and in fact we must produce the
-+ * result promised by gcc's builtins, which is simply the possibly
-+ * wrapped-around value. Fortunately, we can just formally do the
-+ * operations in the widest relevant unsigned type (u64) and then
-+ * truncate the result - gcc is smart enough to generate the same code
-+ * with and without the (u64) casts.
-+ */
-+
-+/*
-+ * Adding two signed integers can overflow only if they have the same
-+ * sign, and overflow has happened iff the result has the opposite
-+ * sign.
-+ */
-+#define __signed_add_overflow(a, b, d) ({	\
-+	typeof(a) __a = (a);			\
-+	typeof(b) __b = (b);			\
-+	typeof(d) __d = (d);			\
-+	(void) (&__a == &__b);			\
-+	(void) (&__a == __d);			\
-+	*__d = (u64)__a + (u64)__b;		\
-+	(((~(__a ^ __b)) & (*__d ^ __a))	\
-+		& type_min(typeof(__a))) != 0;	\
-+})
-+
-+/*
-+ * Subtraction is similar, except that overflow can now happen only
-+ * when the signs are opposite. In this case, overflow has happened if
-+ * the result has the opposite sign of a.
-+ */
-+#define __signed_sub_overflow(a, b, d) ({	\
-+	typeof(a) __a = (a);			\
-+	typeof(b) __b = (b);			\
-+	typeof(d) __d = (d);			\
-+	(void) (&__a == &__b);			\
-+	(void) (&__a == __d);			\
-+	*__d = (u64)__a - (u64)__b;		\
-+	((((__a ^ __b)) & (*__d ^ __a))		\
-+		& type_min(typeof(__a))) != 0;	\
-+})
-+
-+/*
-+ * Signed multiplication is rather hard. gcc always follows C99, so
-+ * division is truncated towards 0. This means that we can write the
-+ * overflow check like this:
-+ *
-+ * (a > 0 && (b > MAX/a || b < MIN/a)) ||
-+ * (a < -1 && (b > MIN/a || b < MAX/a) ||
-+ * (a == -1 && b == MIN)
-+ *
-+ * The redundant casts of -1 are to silence an annoying -Wtype-limits
-+ * (included in -Wextra) warning: When the type is u8 or u16, the
-+ * __b_c_e in check_mul_overflow obviously selects
-+ * __unsigned_mul_overflow, but unfortunately gcc still parses this
-+ * code and warns about the limited range of __b.
-+ */
-+
-+#define __signed_mul_overflow(a, b, d) ({				\
-+	typeof(a) __a = (a);						\
-+	typeof(b) __b = (b);						\
-+	typeof(d) __d = (d);						\
-+	typeof(a) __tmax = type_max(typeof(a));				\
-+	typeof(a) __tmin = type_min(typeof(a));				\
-+	(void) (&__a == &__b);						\
-+	(void) (&__a == __d);						\
-+	*__d = (u64)__a * (u64)__b;					\
-+	(__b > 0   && (__a > __tmax/__b || __a < __tmin/__b)) ||	\
-+	(__b < (typeof(__b))-1  && (__a > __tmin/__b || __a < __tmax/__b)) || \
-+	(__b == (typeof(__b))-1 && __a == __tmin);			\
-+})
-+
-+
-+#define check_add_overflow(a, b, d)					\
-+	__builtin_choose_expr(is_signed_type(typeof(a)),		\
-+			__signed_add_overflow(a, b, d),			\
-+			__unsigned_add_overflow(a, b, d))
-+
-+#define check_sub_overflow(a, b, d)					\
-+	__builtin_choose_expr(is_signed_type(typeof(a)),		\
-+			__signed_sub_overflow(a, b, d),			\
-+			__unsigned_sub_overflow(a, b, d))
-+
-+#define check_mul_overflow(a, b, d)					\
-+	__builtin_choose_expr(is_signed_type(typeof(a)),		\
-+			__signed_mul_overflow(a, b, d),			\
-+			__unsigned_mul_overflow(a, b, d))
-+
-+
-+#endif /* COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW */
-+
-+#endif /* __LINUX_OVERFLOW_H */
+ struct mempolicy;
+ struct anon_vma;
+@@ -560,10 +561,9 @@ static inline void *kvzalloc(size_t size, gfp_t flags)
+ 
+ static inline void *kvmalloc_array(size_t n, size_t size, gfp_t flags)
+ {
+-	if (size != 0 && n > SIZE_MAX / size)
+-		return NULL;
++	size_t bytes = array_size(n, size);
+ 
+-	return kvmalloc(n * size, flags);
++	return kvmalloc(bytes, flags);
+ }
+ 
+ extern void kvfree(const void *addr);
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 1e5d8c392f15..398e9c95cd61 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -8,6 +8,7 @@
+ #include <linux/llist.h>
+ #include <asm/page.h>		/* pgprot_t */
+ #include <linux/rbtree.h>
++#include <linux/overflow.h>
+ 
+ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
+ struct notifier_block;		/* in notifier.h */
 -- 
 2.17.0
