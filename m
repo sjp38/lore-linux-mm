@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 811FF6B04B3
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:40:13 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id u7-v6so3390524plq.3
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:40:13 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BD7D6B04B5
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 04:40:16 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e3so8624299pfe.15
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 01:40:16 -0700 (PDT)
 Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id z9-v6si21682595plk.94.2018.05.09.01.40.12
+        by mx.google.com with ESMTPS id z9-v6si21682595plk.94.2018.05.09.01.40.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 01:40:12 -0700 (PDT)
+        Wed, 09 May 2018 01:40:14 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -V2 20/21] mm, THP, swap: create PMD swap mapping when unmap the THP
-Date: Wed,  9 May 2018 16:38:45 +0800
-Message-Id: <20180509083846.14823-21-ying.huang@intel.com>
+Subject: [PATCH -mm -V2 21/21] mm, THP: Avoid to split THP when reclaim MADV_FREE THP
+Date: Wed,  9 May 2018 16:38:46 +0800
+Message-Id: <20180509083846.14823-22-ying.huang@intel.com>
 In-Reply-To: <20180509083846.14823-1-ying.huang@intel.com>
 References: <20180509083846.14823-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,21 +22,14 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@int
 
 From: Huang Ying <ying.huang@intel.com>
 
-This is the final step of the THP swapin support.  When reclaiming a
-anonymous THP, after allocating the huge swap cluster and add the THP
-into swap cache, the PMD page mapping will be changed to the mapping
-to the swap space.  Previously, the PMD page mapping will be split
-before being changed.  In this patch, the unmap code is enhanced not
-to split the PMD mapping, but create a PMD swap mapping to replace it
-instead.  So later when clear the SWAP_HAS_CACHE flag in the last step
-of swapout, the huge swap cluster will be kept instead of being split,
-and when swapin, the huge swap cluster will be read as a whole into a
-THP.  That is, the THP will not be split during swapout/swapin.  This
-can eliminate the overhead of splitting/collapsing, and reduce the
-page fault count, etc.  But more important, the utilization of THP is
-improved greatly, that is, much more THP will be kept when swapping is
-used, so that we can take full advantage of THP including its high
-performance for swapout/swapin.
+Previously, to reclaim MADV_FREE THP, the THP will be split firstly,
+then reclaim each sub-pages.  This wastes cycles to split THP and
+unmap and free each sub-pages, and split THP even if it has been
+written since MADV_FREE.  We have to do this because MADV_FREE THP
+reclaiming shares same try_to_unmap() calling with swap, while swap
+needs to split the PMD page mapping at that time.  Now swap can
+process PMD mapping, this makes it easy to avoid to split THP when
+MADV_FREE THP is reclaimed.
 
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -51,163 +44,95 @@ Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Zi Yan <zi.yan@cs.rutgers.edu>
 ---
- include/linux/huge_mm.h | 11 +++++++++++
- mm/huge_memory.c        | 30 ++++++++++++++++++++++++++++++
- mm/rmap.c               | 43 +++++++++++++++++++++++++++++++++++++++++--
- mm/vmscan.c             |  6 +-----
- 4 files changed, 83 insertions(+), 7 deletions(-)
+ mm/huge_memory.c | 41 ++++++++++++++++++++++++++++++++---------
+ mm/vmscan.c      |  3 ++-
+ 2 files changed, 34 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 5001c28b3d18..d03fcddcc42d 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -404,6 +404,8 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
-+struct page_vma_mapped_walk;
-+
- #ifdef CONFIG_THP_SWAP
- extern void __split_huge_swap_pmd(struct vm_area_struct *vma,
- 				  unsigned long haddr,
-@@ -411,6 +413,8 @@ extern void __split_huge_swap_pmd(struct vm_area_struct *vma,
- extern int split_huge_swap_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			       unsigned long address, pmd_t orig_pmd);
- extern int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd);
-+extern bool set_pmd_swap_entry(struct page_vma_mapped_walk *pvmw,
-+	struct page *page, unsigned long address, pmd_t pmdval);
- 
- static inline bool transparent_hugepage_swapin_enabled(
- 	struct vm_area_struct *vma)
-@@ -452,6 +456,13 @@ static inline int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 982369511bcc..2a20e0aaba48 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1674,6 +1674,15 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
  	return 0;
  }
  
-+static inline bool set_pmd_swap_entry(struct page_vma_mapped_walk *pvmw,
-+				      struct page *page, unsigned long address,
-+				      pmd_t pmdval)
++static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
 +{
-+	return false;
++	pgtable_t pgtable;
++
++	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
++	pte_free(mm, pgtable);
++	mm_dec_nr_ptes(mm);
 +}
 +
- static inline bool transparent_hugepage_swapin_enabled(
- 	struct vm_area_struct *vma)
- {
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4c2b1f3be038..982369511bcc 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1879,6 +1879,36 @@ int do_huge_pmd_swap_page(struct vm_fault *vmf, pmd_t orig_pmd)
- 	count_vm_event(THP_SWPIN_FALLBACK);
- 	goto fallback;
- }
-+
-+bool set_pmd_swap_entry(struct page_vma_mapped_walk *pvmw, struct page *page,
-+			unsigned long address, pmd_t pmdval)
-+{
-+	struct vm_area_struct *vma = pvmw->vma;
-+	struct mm_struct *mm = vma->vm_mm;
-+	pmd_t swp_pmd;
-+	swp_entry_t entry = { .val = page_private(page) };
-+
-+	if (swap_duplicate(&entry, true) < 0) {
-+		set_pmd_at(mm, address, pvmw->pmd, pmdval);
+ #ifdef CONFIG_THP_SWAP
+ void __split_huge_swap_pmd(struct vm_area_struct *vma,
+ 			   unsigned long haddr,
+@@ -1888,6 +1897,28 @@ bool set_pmd_swap_entry(struct page_vma_mapped_walk *pvmw, struct page *page,
+ 	pmd_t swp_pmd;
+ 	swp_entry_t entry = { .val = page_private(page) };
+ 
++	if (unlikely(PageSwapBacked(page) != PageSwapCache(page))) {
++		WARN_ON_ONCE(1);
 +		return false;
 +	}
-+	if (list_empty(&mm->mmlist)) {
-+		spin_lock(&mmlist_lock);
-+		if (list_empty(&mm->mmlist))
-+			list_add(&mm->mmlist, &init_mm.mmlist);
-+		spin_unlock(&mmlist_lock);
-+	}
-+	add_mm_counter(mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-+	add_mm_counter(mm, MM_SWAPENTS, HPAGE_PMD_NR);
-+	swp_pmd = swp_entry_to_pmd(entry);
-+	if (pmd_soft_dirty(pmdval))
-+		swp_pmd = pmd_swp_mksoft_dirty(swp_pmd);
-+	set_pmd_at(mm, address, pvmw->pmd, swp_pmd);
 +
-+	page_remove_rmap(page, true);
-+	put_page(page);
-+	return true;
-+}
++	/* MADV_FREE page check */
++	if (!PageSwapBacked(page)) {
++		if (!PageDirty(page)) {
++			zap_deposited_table(mm, pvmw->pmd);
++			add_mm_counter(mm, MM_ANONPAGES, -HPAGE_PMD_NR);
++			goto out_remove_rmap;
++		}
++
++		/*
++		 * If the page was redirtied, it cannot be
++		 * discarded. Remap the page to page table.
++		 */
++		set_pmd_at(mm, address, pvmw->pmd, pmdval);
++		SetPageSwapBacked(page);
++		return false;
++	}
++
+ 	if (swap_duplicate(&entry, true) < 0) {
+ 		set_pmd_at(mm, address, pvmw->pmd, pmdval);
+ 		return false;
+@@ -1905,21 +1936,13 @@ bool set_pmd_swap_entry(struct page_vma_mapped_walk *pvmw, struct page *page,
+ 		swp_pmd = pmd_swp_mksoft_dirty(swp_pmd);
+ 	set_pmd_at(mm, address, pvmw->pmd, swp_pmd);
+ 
++out_remove_rmap:
+ 	page_remove_rmap(page, true);
+ 	put_page(page);
+ 	return true;
+ }
  #endif
  
- static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 5f45d6325c40..4861b1a86e2a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1402,12 +1402,51 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 				continue;
- 		}
- 
-+		address = pvmw.address;
-+
-+#ifdef CONFIG_THP_SWAP
-+		/* PMD-mapped THP swap entry */
-+		if (thp_swap_supported() && !pvmw.pte && PageAnon(page)) {
-+			pmd_t pmdval;
-+
-+			VM_BUG_ON_PAGE(PageHuge(page) ||
-+				       !PageTransCompound(page), page);
-+
-+			flush_cache_range(vma, address,
-+					  address + HPAGE_PMD_SIZE);
-+			mmu_notifier_invalidate_range_start(mm, address,
-+					address + HPAGE_PMD_SIZE);
-+			if (should_defer_flush(mm, flags)) {
-+				/* check comments for PTE below */
-+				pmdval = pmdp_huge_get_and_clear(mm, address,
-+								 pvmw.pmd);
-+				set_tlb_ubc_flush_pending(mm,
-+							  pmd_dirty(pmdval));
-+			} else
-+				pmdval = pmdp_huge_clear_flush(vma, address,
-+							       pvmw.pmd);
-+
-+			/*
-+			 * Move the dirty bit to the page. Now the pmd
-+			 * is gone.
-+			 */
-+			if (pmd_dirty(pmdval))
-+				set_page_dirty(page);
-+
-+			/* Update high watermark before we lower rss */
-+			update_hiwater_rss(mm);
-+
-+			ret = set_pmd_swap_entry(&pvmw, page, address, pmdval);
-+			mmu_notifier_invalidate_range_end(mm, address,
-+					address + HPAGE_PMD_SIZE);
-+			continue;
-+		}
-+#endif
-+
- 		/* Unexpected PMD-mapped THP? */
- 		VM_BUG_ON_PAGE(!pvmw.pte, page);
- 
- 		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
--		address = pvmw.address;
+-static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
+-{
+-	pgtable_t pgtable;
 -
- 
- 		if (IS_ENABLED(CONFIG_MIGRATION) &&
- 		    (flags & TTU_MIGRATION) &&
+-	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+-	pte_free(mm, pgtable);
+-	mm_dec_nr_ptes(mm);
+-}
+-
+ /*
+  * Return true if we do MADV_FREE successfully on entire pmd page.
+  * Otherwise, return false.
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 10c8a38c5eef..b71c1bbad932 100644
+index b71c1bbad932..7cf5a18da5a2 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1148,11 +1148,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * processes. Try to unmap it here.
- 		 */
- 		if (page_mapped(page)) {
--			enum ttu_flags flags = ttu_flags | TTU_BATCH_FLUSH;
--
--			if (unlikely(PageTransHuge(page)))
--				flags |= TTU_SPLIT_HUGE_PMD;
--			if (!try_to_unmap(page, flags)) {
-+			if (!try_to_unmap(page, ttu_flags | TTU_BATCH_FLUSH)) {
- 				nr_unmap_fail++;
- 				goto activate_locked;
+@@ -1137,7 +1137,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 				/* Adding to swap updated mapping */
+ 				mapping = page_mapping(page);
  			}
+-		} else if (unlikely(PageTransHuge(page))) {
++		} else if (unlikely(PageTransHuge(page)) &&
++			   (!thp_swap_supported() || !PageAnon(page))) {
+ 			/* Split file THP */
+ 			if (split_huge_page_to_list(page, page_list))
+ 				goto keep_locked;
 -- 
 2.16.1
