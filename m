@@ -1,42 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EDE5E6B0344
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 03:49:00 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id 35-v6so3291446pla.18
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 00:49:00 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u9-v6si26433579plk.516.2018.05.09.00.48.59
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CCB396B0346
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 03:49:01 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j14so13166825pfn.11
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 00:49:01 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v80si14937264pfa.173.2018.05.09.00.49.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 May 2018 00:48:59 -0700 (PDT)
-Date: Wed, 9 May 2018 09:48:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [External]  Re: [PATCH 3/3] mm/page_alloc: Fix typo in debug
- info of calculate_node_totalpages
-Message-ID: <20180509074857.GD32366@dhcp22.suse.cz>
-References: <1525416729-108201-1-git-send-email-yehs1@lenovo.com>
- <1525416729-108201-4-git-send-email-yehs1@lenovo.com>
- <20180504131854.GQ4535@dhcp22.suse.cz>
- <HK2PR03MB16841DAC9D4C5D0569676F7692850@HK2PR03MB1684.apcprd03.prod.outlook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <HK2PR03MB16841DAC9D4C5D0569676F7692850@HK2PR03MB1684.apcprd03.prod.outlook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 09 May 2018 00:49:00 -0700 (PDT)
+From: Christoph Hellwig <hch@lst.de>
+Subject: [PATCH 07/33] mm: split ->readpages calls to avoid non-contiguous pages lists
+Date: Wed,  9 May 2018 09:48:04 +0200
+Message-Id: <20180509074830.16196-8-hch@lst.de>
+In-Reply-To: <20180509074830.16196-1-hch@lst.de>
+References: <20180509074830.16196-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huaisheng HS1 Ye <yehs1@lenovo.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-xfs@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Sat 05-05-18 02:10:35, Huaisheng HS1 Ye wrote:
-[...]
-> But this printk is a relatively meaningful reference within dmesg log.
-> Especially for people who doesn't have much experience, or someone
-> has a plan to modify boundary of zones within free_area_init_*.
+That way file systems don't have to go spotting for non-contiguous pages
+and work around them.  It also kicks off I/O earlier, allowing it to
+finish earlier and reduce latency.
 
-Could you be more specific please? I am not saying that the printk is
-pointless but it is DEBUG and as such it doesn't give us a very good
-picture.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ mm/readahead.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
 
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 16d0cb1e2616..3f608e00286d 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -177,8 +177,18 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 		rcu_read_lock();
+ 		page = radix_tree_lookup(&mapping->i_pages, page_offset);
+ 		rcu_read_unlock();
+-		if (page && !radix_tree_exceptional_entry(page))
++		if (page && !radix_tree_exceptional_entry(page)) {
++			/*
++			 * Page already present?  Kick off the current batch of
++			 * contiguous pages before continueing with the next
++			 * batch.
++			 */
++			if (nr_pages)
++				read_pages(mapping, filp, &page_pool, nr_pages,
++						gfp_mask);
++			nr_pages = 0;
+ 			continue;
++		}
+ 
+ 		page = __page_cache_alloc(gfp_mask);
+ 		if (!page)
 -- 
-Michal Hocko
-SUSE Labs
+2.17.0
