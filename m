@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 57FA46B030E
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 21:34:20 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id t130so25135246qke.11
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 18:34:20 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C7836B030F
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 21:34:22 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id t3-v6so25759760qto.14
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 18:34:22 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f53-v6sor16507715qtf.115.2018.05.08.18.34.19
+        by mx.google.com with SMTPS id s48-v6sor16487191qtc.121.2018.05.08.18.34.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 08 May 2018 18:34:19 -0700 (PDT)
+        Tue, 08 May 2018 18:34:21 -0700 (PDT)
 From: Kent Overstreet <kent.overstreet@gmail.com>
-Subject: [PATCH 03/10] block: Add bioset_init()/bioset_exit()
-Date: Tue,  8 May 2018 21:33:51 -0400
-Message-Id: <20180509013358.16399-4-kent.overstreet@gmail.com>
+Subject: [PATCH 04/10] block: Use bioset_init() for fs_bio_set
+Date: Tue,  8 May 2018 21:33:52 -0400
+Message-Id: <20180509013358.16399-5-kent.overstreet@gmail.com>
 In-Reply-To: <20180509013358.16399-1-kent.overstreet@gmail.com>
 References: <20180509013358.16399-1-kent.overstreet@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,163 +20,86 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Ingo Molnar <mingo@kernel.org>
 Cc: Kent Overstreet <kent.overstreet@gmail.com>
 
-Similarly to mempool_init()/mempool_exit(), take a pointer indirection
-out of allocation/freeing by allowing biosets to be embedded in other
-structs.
+Minor optimization - remove a pointer indirection when using fs_bio_set.
 
 Signed-off-by: Kent Overstreet <kent.overstreet@gmail.com>
 ---
- block/bio.c         | 93 +++++++++++++++++++++++++++++++--------------
- include/linux/bio.h |  2 +
- 2 files changed, 67 insertions(+), 28 deletions(-)
+ block/bio.c                         | 7 +++----
+ block/blk-core.c                    | 2 +-
+ drivers/target/target_core_iblock.c | 2 +-
+ include/linux/bio.h                 | 4 ++--
+ 4 files changed, 7 insertions(+), 8 deletions(-)
 
 diff --git a/block/bio.c b/block/bio.c
-index 360e9bcea5..980befd919 100644
+index 980befd919..b7cdad6fc4 100644
 --- a/block/bio.c
 +++ b/block/bio.c
-@@ -1856,21 +1856,83 @@ int biovec_init_pool(mempool_t *pool, int pool_entries)
- 	return mempool_init_slab_pool(pool, pool_entries, bp->slab);
- }
+@@ -53,7 +53,7 @@ static struct biovec_slab bvec_slabs[BVEC_POOL_NR] __read_mostly = {
+  * fs_bio_set is the bio_set containing bio and iovec memory pools used by
+  * IO code that does not need private memory pools.
+  */
+-struct bio_set *fs_bio_set;
++struct bio_set fs_bio_set;
+ EXPORT_SYMBOL(fs_bio_set);
  
--void bioset_free(struct bio_set *bs)
-+/*
-+ * bioset_exit - exit a bioset initialized with bioset_init()
-+ *
-+ * May be called on a zeroed but uninitialized bioset (i.e. allocated with
-+ * kzalloc()).
-+ */
-+void bioset_exit(struct bio_set *bs)
- {
- 	if (bs->rescue_workqueue)
- 		destroy_workqueue(bs->rescue_workqueue);
-+	bs->rescue_workqueue = NULL;
+ /*
+@@ -2055,11 +2055,10 @@ static int __init init_bio(void)
+ 	bio_integrity_init();
+ 	biovec_init_slabs();
  
- 	mempool_exit(&bs->bio_pool);
- 	mempool_exit(&bs->bvec_pool);
+-	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
+-	if (!fs_bio_set)
++	if (bioset_init(&fs_bio_set, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS))
+ 		panic("bio: can't allocate bios\n");
  
- 	bioset_integrity_free(bs);
--	bio_put_slab(bs);
-+	if (bs->bio_slab)
-+		bio_put_slab(bs);
-+	bs->bio_slab = NULL;
-+}
-+EXPORT_SYMBOL(bioset_exit);
+-	if (bioset_integrity_create(fs_bio_set, BIO_POOL_SIZE))
++	if (bioset_integrity_create(&fs_bio_set, BIO_POOL_SIZE))
+ 		panic("bio: can't create integrity pool\n");
  
-+void bioset_free(struct bio_set *bs)
-+{
-+	bioset_exit(bs);
- 	kfree(bs);
- }
- EXPORT_SYMBOL(bioset_free);
+ 	return 0;
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 6d82c4f7fa..66f24798ef 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -3409,7 +3409,7 @@ int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
+ 	struct bio *bio, *bio_src;
  
-+/**
-+ * bioset_init - Initialize a bio_set
-+ * @pool_size:	Number of bio and bio_vecs to cache in the mempool
-+ * @front_pad:	Number of bytes to allocate in front of the returned bio
-+ * @flags:	Flags to modify behavior, currently %BIOSET_NEED_BVECS
-+ *              and %BIOSET_NEED_RESCUER
-+ *
-+ * Similar to bioset_create(), but initializes a passed-in bioset instead of
-+ * separately allocating it.
-+ */
-+int bioset_init(struct bio_set *bs,
-+		unsigned int pool_size,
-+		unsigned int front_pad,
-+		int flags)
-+{
-+	unsigned int back_pad = BIO_INLINE_VECS * sizeof(struct bio_vec);
-+
-+	bs->front_pad = front_pad;
-+
-+	spin_lock_init(&bs->rescue_lock);
-+	bio_list_init(&bs->rescue_list);
-+	INIT_WORK(&bs->rescue_work, bio_alloc_rescue);
-+
-+	bs->bio_slab = bio_find_or_create_slab(front_pad + back_pad);
-+	if (!bs->bio_slab)
-+		return -ENOMEM;
-+
-+	if (mempool_init_slab_pool(&bs->bio_pool, pool_size, bs->bio_slab))
-+		goto bad;
-+
-+	if ((flags & BIOSET_NEED_BVECS) &&
-+	    biovec_init_pool(&bs->bvec_pool, pool_size))
-+		goto bad;
-+
-+	if (!(flags & BIOSET_NEED_RESCUER))
-+		return 0;
-+
-+	bs->rescue_workqueue = alloc_workqueue("bioset", WQ_MEM_RECLAIM, 0);
-+	if (!bs->rescue_workqueue)
-+		goto bad;
-+
-+	return 0;
-+bad:
-+	bioset_exit(bs);
-+	return -ENOMEM;
-+}
-+EXPORT_SYMBOL(bioset_init);
-+
- /**
-  * bioset_create  - Create a bio_set
-  * @pool_size:	Number of bio and bio_vecs to cache in the mempool
-@@ -1895,43 +1957,18 @@ struct bio_set *bioset_create(unsigned int pool_size,
- 			      unsigned int front_pad,
- 			      int flags)
- {
--	unsigned int back_pad = BIO_INLINE_VECS * sizeof(struct bio_vec);
- 	struct bio_set *bs;
- 
- 	bs = kzalloc(sizeof(*bs), GFP_KERNEL);
  	if (!bs)
- 		return NULL;
+-		bs = fs_bio_set;
++		bs = &fs_bio_set;
  
--	bs->front_pad = front_pad;
--
--	spin_lock_init(&bs->rescue_lock);
--	bio_list_init(&bs->rescue_list);
--	INIT_WORK(&bs->rescue_work, bio_alloc_rescue);
--
--	bs->bio_slab = bio_find_or_create_slab(front_pad + back_pad);
--	if (!bs->bio_slab) {
-+	if (bioset_init(bs, pool_size, front_pad, flags)) {
- 		kfree(bs);
- 		return NULL;
+ 	__rq_for_each_bio(bio_src, rq_src) {
+ 		bio = bio_clone_fast(bio_src, gfp_mask, bs);
+diff --git a/drivers/target/target_core_iblock.c b/drivers/target/target_core_iblock.c
+index 07c814c426..c969c01c7c 100644
+--- a/drivers/target/target_core_iblock.c
++++ b/drivers/target/target_core_iblock.c
+@@ -164,7 +164,7 @@ static int iblock_configure_device(struct se_device *dev)
+ 				goto out_blkdev_put;
+ 			}
+ 			pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
+-				 bs->bio_integrity_pool);
++				 &bs->bio_integrity_pool);
+ 		}
+ 		dev->dev_attrib.hw_pi_prot_type = dev->dev_attrib.pi_prot_type;
  	}
- 
--	if (mempool_init_slab_pool(&bs->bio_pool, pool_size, bs->bio_slab))
--		goto bad;
--
--	if ((flags & BIOSET_NEED_BVECS) &&
--	    biovec_init_pool(&bs->bvec_pool, pool_size))
--		goto bad;
--
--	if (!(flags & BIOSET_NEED_RESCUER))
--		return bs;
--
--	bs->rescue_workqueue = alloc_workqueue("bioset", WQ_MEM_RECLAIM, 0);
--	if (!bs->rescue_workqueue)
--		goto bad;
--
- 	return bs;
--bad:
--	bioset_free(bs);
--	return NULL;
- }
- EXPORT_SYMBOL(bioset_create);
- 
 diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 720f7261d0..fa3cf94a50 100644
+index fa3cf94a50..91b02520e2 100644
 --- a/include/linux/bio.h
 +++ b/include/linux/bio.h
-@@ -406,6 +406,8 @@ static inline struct bio *bio_next_split(struct bio *bio, int sectors,
- 	return bio_split(bio, sectors, gfp, bs);
+@@ -423,11 +423,11 @@ extern void __bio_clone_fast(struct bio *, struct bio *);
+ extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
+ extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *bs);
+ 
+-extern struct bio_set *fs_bio_set;
++extern struct bio_set fs_bio_set;
+ 
+ static inline struct bio *bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
+ {
+-	return bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
++	return bio_alloc_bioset(gfp_mask, nr_iovecs, &fs_bio_set);
  }
  
-+extern int bioset_init(struct bio_set *, unsigned int, unsigned int, int flags);
-+extern void bioset_exit(struct bio_set *);
- extern struct bio_set *bioset_create(unsigned int, unsigned int, int flags);
- enum {
- 	BIOSET_NEED_BVECS = BIT(0),
+ static inline struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned int nr_iovecs)
 -- 
 2.17.0
