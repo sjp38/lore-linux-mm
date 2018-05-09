@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A6D76B0583
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 16:02:41 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id s8-v6so20028404pgf.0
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 13:02:41 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 790DF6B0584
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 16:02:42 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id q15so6513325pff.17
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 13:02:42 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t25sor8179392pfj.60.2018.05.09.13.02.40
+        by mx.google.com with SMTPS id h132-v6sor5824802pgc.390.2018.05.09.13.02.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 09 May 2018 13:02:40 -0700 (PDT)
+        Wed, 09 May 2018 13:02:41 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v2 5/6] mm: Use overflow helpers in kvmalloc()
-Date: Wed,  9 May 2018 13:02:22 -0700
-Message-Id: <20180509200223.22451-6-keescook@chromium.org>
+Subject: [PATCH v2 6/6] device: Use overflow helpers for devm_kmalloc()
+Date: Wed,  9 May 2018 13:02:23 -0700
+Message-Id: <20180509200223.22451-7-keescook@chromium.org>
 In-Reply-To: <20180509200223.22451-1-keescook@chromium.org>
 References: <20180509200223.22451-1-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,54 +20,61 @@ List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <mawilcox@microsoft.com>
 Cc: Kees Cook <keescook@chromium.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Matthew Wilcox <willy@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-Instead of open-coded multiplication and bounds checking, use the new
-overflow helper. Additionally prepare for vmalloc() users to add
-array_size()-family helpers in the future.
+Use the overflow helpers both in existing multiplication-using inlines as
+well as the addition-overflow case in the core allocation routine.
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- include/linux/mm.h      | 7 +++++--
- include/linux/vmalloc.h | 1 +
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ drivers/base/devres.c  | 7 ++++++-
+ include/linux/device.h | 8 ++++++--
+ 2 files changed, 12 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 1ac1f06a4be6..7cb1c6a6bf82 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
+diff --git a/drivers/base/devres.c b/drivers/base/devres.c
+index 95b67281cd2a..f98a097e73f2 100644
+--- a/drivers/base/devres.c
++++ b/drivers/base/devres.c
+@@ -84,9 +84,14 @@ static struct devres_group * node_to_group(struct devres_node *node)
+ static __always_inline struct devres * alloc_dr(dr_release_t release,
+ 						size_t size, gfp_t gfp, int nid)
+ {
+-	size_t tot_size = sizeof(struct devres) + size;
++	size_t tot_size;
+ 	struct devres *dr;
+ 
++	/* We must catch any near-SIZE_MAX cases that could overflow. */
++	if (unlikely(check_add_overflow(sizeof(struct devres), size,
++					&tot_size)))
++		return NULL;
++
+ 	dr = kmalloc_node_track_caller(tot_size, gfp, nid);
+ 	if (unlikely(!dr))
+ 		return NULL;
+diff --git a/include/linux/device.h b/include/linux/device.h
+index 0059b99e1f25..e78a050d6e7e 100644
+--- a/include/linux/device.h
++++ b/include/linux/device.h
 @@ -25,6 +25,7 @@
- #include <linux/err.h>
- #include <linux/page_ref.h>
- #include <linux/memremap.h>
+ #include <linux/ratelimit.h>
+ #include <linux/uidgid.h>
+ #include <linux/gfp.h>
 +#include <linux/overflow.h>
+ #include <asm/device.h>
  
- struct mempolicy;
- struct anon_vma;
-@@ -560,10 +561,12 @@ static inline void *kvzalloc(size_t size, gfp_t flags)
- 
- static inline void *kvmalloc_array(size_t n, size_t size, gfp_t flags)
+ struct device;
+@@ -666,9 +667,12 @@ static inline void *devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
+ static inline void *devm_kmalloc_array(struct device *dev,
+ 				       size_t n, size_t size, gfp_t flags)
  {
 -	if (size != 0 && n > SIZE_MAX / size)
 +	size_t bytes;
 +
 +	if (unlikely(check_mul_overflow(n, size, &bytes)))
  		return NULL;
- 
--	return kvmalloc(n * size, flags);
-+	return kvmalloc(bytes, flags);
+-	return devm_kmalloc(dev, n * size, flags);
++
++	return devm_kmalloc(dev, bytes, flags);
  }
- 
- extern void kvfree(const void *addr);
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 1e5d8c392f15..398e9c95cd61 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -8,6 +8,7 @@
- #include <linux/llist.h>
- #include <asm/page.h>		/* pgprot_t */
- #include <linux/rbtree.h>
-+#include <linux/overflow.h>
- 
- struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
- struct notifier_block;		/* in notifier.h */
+ static inline void *devm_kcalloc(struct device *dev,
+ 				 size_t n, size_t size, gfp_t flags)
 -- 
 2.17.0
