@@ -1,59 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D79086B0569
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 15:18:48 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id y124so6931552qkc.8
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 12:18:48 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id g10-v6si658769qvj.17.2018.05.09.12.18.47
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BE8F6B056C
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 15:37:04 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e15-v6so59938wmh.6
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 12:37:04 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id s62si8378012wmf.190.2018.05.09.12.37.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 12:18:47 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH] mm: allow deferred page init for vmemmap only
-Date: Wed,  9 May 2018 15:17:13 -0400
-Message-Id: <20180509191713.23794-1-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 09 May 2018 12:37:03 -0700 (PDT)
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Subject: [PATCH v2 0/8] Introduce refcount_dec_and_lock_irqsave()
+Date: Wed,  9 May 2018 21:36:37 +0200
+Message-Id: <20180509193645.830-1-bigeasy@linutronix.de>
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mhocko@suse.com, linux-mm@kvack.org, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, rostedt@goodmis.org, fengguang.wu@intel.com, dennisszhou@gmail.com
+To: linux-kernel@vger.kernel.org
+Cc: tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, Anna-Maria Gleixner <anna-maria@linutronix.de>
 
-It is unsafe to do virtual to physical translations before mm_init() is
-called if struct page is needed in order to determine the memory section
-number (see SECTION_IN_PAGE_FLAGS). This is because only in mm_init() we
-initialize struct pages for all the allocated memory when deferred struct
-pages are used.
+This series is a v2 of the atomic_dec_and_lock_irqsave(). Now refcount_*
+is used instead of atomic_* as suggested by Peter Zijlstra.
 
-My recent fix exposed this problem, because it greatly reduced number of
-pages that are initialized before mm_init(), but the problem existed even
-before my fix, as Fengguang Wu found.
+Patch
+- 1-3 converts the user from atomic_* API to refcount_* API
+- 4 implements refcount_dec_and_lock_irqsave
+- 5-8 converts the local_irq_save() + refcount_dec_and_lock() users to
+  refcount_dec_and_lock_irqsave()
 
-Since FLATMEM is already disallowed for deferred struct pages, it makes
-sense to allow deferred struct pages only on systems with
-SPARSEMEM_VMEMMAP.
+The whole series sits also at
+  git://git.kernel.org/pub/scm/linux/kernel/git/bigeasy/staging.git refcoun=
+t_t_irqsave
 
-The problems are discussed in these threads:
-http://lkml.kernel.org/r/20180418135300.inazvpxjxowogyge@wfg-t540p.sh.intel.com
-http://lkml.kernel.org/r/20180419013128.iurzouiqxvcnpbvz@wfg-t540p.sh.intel.com
-http://lkml.kernel.org/r/20180426202619.2768-1-pasha.tatashin@oracle.com
-
-Fixes: 3a80a7fa7989 ("mm: meminit: initialise a subset of struct pages if CONFIG_DEFERRED_STRUCT_PAGE_INIT is set")
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
----
- mm/Kconfig | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index d5004d82a1d6..1cd32d67ca30 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -635,7 +635,7 @@ config DEFERRED_STRUCT_PAGE_INIT
- 	bool "Defer initialisation of struct pages to kthreads"
- 	default n
- 	depends on NO_BOOTMEM
--	depends on !FLATMEM
-+	depends on SPARSEMEM_VMEMMAP
- 	help
- 	  Ordinarily all struct pages are initialised during early boot in a
- 	  single thread. On very large machines this can take a considerable
--- 
-2.17.0
+Sebastian
