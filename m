@@ -1,55 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AD30F6B055F
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 14:11:56 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b192-v6so6969848wmb.1
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 11:11:56 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id v6-v6si6909226edd.380.2018.05.09.11.11.54
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7150D6B0562
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 14:27:26 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id u56-v6so23742389wrf.18
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 11:27:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y22-v6sor20314482edi.53.2018.05.09.11.27.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 11:11:55 -0700 (PDT)
-Date: Wed, 9 May 2018 19:07:39 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v3 2/2] mm: ignore memory.min of abandoned memory cgroups
-Message-ID: <20180509180734.GA4856@castle.DHCP.thefacebook.com>
-References: <20180503114358.7952-1-guro@fb.com>
- <20180503114358.7952-2-guro@fb.com>
- <20180503173835.GA28437@cmpxchg.org>
+        (Google Transport Security);
+        Wed, 09 May 2018 11:27:25 -0700 (PDT)
+Subject: Re: [PATCH 03/13] overflow.h: Add allocation size calculation helpers
+References: <20180509004229.36341-1-keescook@chromium.org>
+ <20180509004229.36341-4-keescook@chromium.org>
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Message-ID: <b481bbb2-758f-dcd3-3e1a-8b3137081614@rasmusvillemoes.dk>
+Date: Wed, 9 May 2018 20:27:22 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180503173835.GA28437@cmpxchg.org>
+In-Reply-To: <20180509004229.36341-4-keescook@chromium.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>
+To: Kees Cook <keescook@chromium.org>, Matthew Wilcox <mawilcox@microsoft.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On Thu, May 03, 2018 at 01:38:35PM -0400, Johannes Weiner wrote:
-> On Thu, May 03, 2018 at 12:43:58PM +0100, Roman Gushchin wrote:
-> > If a cgroup has no associated tasks, invoking the OOM killer
-> > won't help release any memory, so respecting the memory.min
-> > can lead to an infinite OOM loop or system stall.
-> > 
-> > Let's ignore memory.min of unpopulated cgroups.
-> > 
-> > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > Cc: Tejun Heo <tj@kernel.org>
+On 2018-05-09 02:42, Kees Cook wrote:
+> In preparation for replacing unchecked overflows for memory allocations,
+> this creates helpers for the 3 most common calculations:
 > 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> I wouldn't mind merging this into the previous patch. It's fairly
-> small, and there is no reason to introduce an infinite OOM loop
-> scenario into the tree, even if it's just for one commit.
+> array_size(a, b): 2-dimensional array
+> array3_size(a, b, c): 2-dimensional array
 
-OK, makes sense.
-Here is an updated version: I've merged two commits into one,
-added a small note about empty cgroups to docs and rebased to mm.
+yeah... complete confusion...
 
-Andrew, can you, please, pull this one?
-Thank you!
+> +/**
+> + * array_size() - Calculate size of 2-dimensional array.
+> + *
+> + * @a: dimension one
+> + * @b: dimension two
+> + *
+> + * Calculates size of 2-dimensional array: @a * @b.
+> + *
+> + * Returns: number of bytes needed to represent the array or SIZE_MAX on
+> + * overflow.
+> + */
+> +static inline __must_check size_t array_size(size_t a, size_t b)
+> +{
+> +	size_t bytes;
+> +
+> +	if (check_mul_overflow(a, b, &bytes))
+> +		return SIZE_MAX;
+> +
+> +	return bytes;
+> +}
+> +
+> +/**
+> + * array3_size() - Calculate size of 3-dimensional array.
+> + *
 
---
+...IDGI. array_size is/will most often be used to calculate the size of
+a one-dimensional array, count*elemsize, accessed as foo[i]. Won't a
+three-factor product usually be dim1*dim2*elemsize, i.e. 2-dimensional,
+accessed (because C is lame) as foo[i*dim2 + j]?
+
+> +/**
+> + * struct_size() - Calculate size of structure with trailing array.
+> + * @p: Pointer to the structure.
+> + * @member: Name of the array member.
+> + * @n: Number of elements in the array.
+> + *
+> + * Calculates size of memory needed for structure @p followed by an
+> + * array of @n @member elements.
+> + *
+> + * Return: number of bytes needed or SIZE_MAX on overflow.
+> + */
+> +#define struct_size(p, member, n)					\
+> +	__ab_c_size(n,							\
+> +		    sizeof(*(p)->member) + __must_be_array((p)->member),\
+> +		    offsetof(typeof(*(p)), member))
+> +
+> +
+
+struct s { int a; char b; char c[]; } has sizeof > offsetof(c), so for
+small enough n, we end up allocating less than sizeof(struct s). And the
+caller might reasonably do memset(s, 0, sizeof(*s)) to initialize all
+members before c. In practice our allocators round up to a multiple of
+8, so I don't think it's a big problem, but some sanitizer might
+complain. But I do think you should make that addend sizeof() instead of
+offsetof().
+
+Rasmus
