@@ -1,69 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C7EDF6B0333
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 03:45:12 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e16so1024116pfn.5
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 00:45:12 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k127-v6si1249951pgk.256.2018.05.09.00.45.11
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EB916B0335
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 03:48:42 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id l85so24007086pfb.18
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 00:48:42 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y70si3184723pfg.121.2018.05.09.00.48.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 May 2018 00:45:11 -0700 (PDT)
-Date: Wed, 9 May 2018 09:45:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: drain stocks on resize limit
-Message-ID: <20180509074508.GC32366@dhcp22.suse.cz>
-References: <20180504205548.110696-1-shakeelb@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180504205548.110696-1-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 09 May 2018 00:48:40 -0700 (PDT)
+From: Christoph Hellwig <hch@lst.de>
+Subject: [PATCH 01/33] block: add a lower-level bio_add_page interface
+Date: Wed,  9 May 2018 09:47:58 +0200
+Message-Id: <20180509074830.16196-2-hch@lst.de>
+In-Reply-To: <20180509074830.16196-1-hch@lst.de>
+References: <20180509074830.16196-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-xfs@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 04-05-18 13:55:48, Shakeel Butt wrote:
-> Resizing the memcg limit for cgroup-v2 drains the stocks before
-> triggering the memcg reclaim. Do the same for cgroup-v1 to make the
-> behavior consistent.
-> 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+For the upcoming removal of buffer heads in XFS we need to keep track of
+the number of outstanding writeback requests per page.  For this we need
+to know if bio_add_page merged a region with the previous bvec or not.
+Instead of adding additional arguments this refactors bio_add_page to
+be implemented using three lower level helpers which users like XFS can
+use directly if they care about the merge decisions.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ block/bio.c         | 87 ++++++++++++++++++++++++++++++---------------
+ include/linux/bio.h |  9 +++++
+ 2 files changed, 67 insertions(+), 29 deletions(-)
 
-> ---
->  mm/memcontrol.c | 7 +++++++
->  1 file changed, 7 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 25b148c2d222..e2d33a37f971 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2463,6 +2463,7 @@ static int mem_cgroup_resize_max(struct mem_cgroup *memcg,
->  				 unsigned long max, bool memsw)
->  {
->  	bool enlarge = false;
-> +	bool drained = false;
->  	int ret;
->  	bool limits_invariant;
->  	struct page_counter *counter = memsw ? &memcg->memsw : &memcg->memory;
-> @@ -2493,6 +2494,12 @@ static int mem_cgroup_resize_max(struct mem_cgroup *memcg,
->  		if (!ret)
->  			break;
->  
-> +		if (!drained) {
-> +			drain_all_stock(memcg);
-> +			drained = true;
-> +			continue;
-> +		}
-> +
->  		if (!try_to_free_mem_cgroup_pages(memcg, 1,
->  					GFP_KERNEL, !memsw)) {
->  			ret = -EBUSY;
-> -- 
-> 2.17.0.441.gb46fe60e1d-goog
-
+diff --git a/block/bio.c b/block/bio.c
+index 53e0f0a1ed94..6ceba6adbf42 100644
+--- a/block/bio.c
++++ b/block/bio.c
+@@ -773,7 +773,7 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
+ 			return 0;
+ 	}
+ 
+-	if (bio->bi_vcnt >= bio->bi_max_vecs)
++	if (bio_full(bio))
+ 		return 0;
+ 
+ 	/*
+@@ -820,6 +820,59 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
+ }
+ EXPORT_SYMBOL(bio_add_pc_page);
+ 
++/**
++ * __bio_try_merge_page - try adding data to an existing bvec
++ * @bio: destination bio
++ * @page: page to add
++ * @len: length of the range to add
++ * @off: offset into @page
++ *
++ * Try adding the data described at @page + @offset to the last bvec of @bio.
++ * Return %true on success or %false on failure.  This can happen frequently
++ * for file systems with a block size smaller than the page size.
++ */
++bool __bio_try_merge_page(struct bio *bio, struct page *page,
++		unsigned int len, unsigned int off)
++{
++	if (bio->bi_vcnt > 0) {
++		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
++
++		if (page == bv->bv_page && off == bv->bv_offset + bv->bv_len) {
++			bv->bv_len += len;
++			bio->bi_iter.bi_size += len;
++			return true;
++		}
++	}
++	return false;
++}
++EXPORT_SYMBOL_GPL(__bio_try_merge_page);
++
++/**
++ * __bio_add_page - add page to a bio in a new segment
++ * @bio: destination bio
++ * @page: page to add
++ * @len: length of the range to add
++ * @off: offset into @page
++ *
++ * Add the data at @page + @offset to @bio as a new bvec.  The caller must
++ * ensure that @bio has space for another bvec.
++ */
++void __bio_add_page(struct bio *bio, struct page *page,
++		unsigned int len, unsigned int off)
++{
++	struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt];
++
++	WARN_ON_ONCE(bio_full(bio));
++
++	bv->bv_page = page;
++	bv->bv_offset = off;
++	bv->bv_len = len;
++
++	bio->bi_iter.bi_size += len;
++	bio->bi_vcnt++;
++}
++EXPORT_SYMBOL_GPL(__bio_add_page);
++
+ /**
+  *	bio_add_page	-	attempt to add page to bio
+  *	@bio: destination bio
+@@ -833,40 +886,16 @@ EXPORT_SYMBOL(bio_add_pc_page);
+ int bio_add_page(struct bio *bio, struct page *page,
+ 		 unsigned int len, unsigned int offset)
+ {
+-	struct bio_vec *bv;
+-
+ 	/*
+ 	 * cloned bio must not modify vec list
+ 	 */
+ 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
+ 		return 0;
+-
+-	/*
+-	 * For filesystems with a blocksize smaller than the pagesize
+-	 * we will often be called with the same page as last time and
+-	 * a consecutive offset.  Optimize this special case.
+-	 */
+-	if (bio->bi_vcnt > 0) {
+-		bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+-
+-		if (page == bv->bv_page &&
+-		    offset == bv->bv_offset + bv->bv_len) {
+-			bv->bv_len += len;
+-			goto done;
+-		}
++	if (!__bio_try_merge_page(bio, page, len, offset)) {
++		if (bio_full(bio))
++			return 0;
++		__bio_add_page(bio, page, len, offset);
+ 	}
+-
+-	if (bio->bi_vcnt >= bio->bi_max_vecs)
+-		return 0;
+-
+-	bv		= &bio->bi_io_vec[bio->bi_vcnt];
+-	bv->bv_page	= page;
+-	bv->bv_len	= len;
+-	bv->bv_offset	= offset;
+-
+-	bio->bi_vcnt++;
+-done:
+-	bio->bi_iter.bi_size += len;
+ 	return len;
+ }
+ EXPORT_SYMBOL(bio_add_page);
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index ce547a25e8ae..3e73c8bc25ea 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -123,6 +123,11 @@ static inline void *bio_data(struct bio *bio)
+ 	return NULL;
+ }
+ 
++static inline bool bio_full(struct bio *bio)
++{
++	return bio->bi_vcnt >= bio->bi_max_vecs;
++}
++
+ /*
+  * will die
+  */
+@@ -470,6 +475,10 @@ void bio_chain(struct bio *, struct bio *);
+ extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
+ extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
+ 			   unsigned int, unsigned int);
++bool __bio_try_merge_page(struct bio *bio, struct page *page,
++		unsigned int len, unsigned int off);
++void __bio_add_page(struct bio *bio, struct page *page,
++		unsigned int len, unsigned int off);
+ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
+ struct rq_map_data;
+ extern struct bio *bio_map_user_iov(struct request_queue *,
 -- 
-Michal Hocko
-SUSE Labs
+2.17.0
