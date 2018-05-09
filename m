@@ -1,120 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 229096B026C
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 12:46:34 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id u127so27075873qka.9
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 09:46:34 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id d13si5664520qki.85.2018.05.09.09.46.32
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 591E86B0538
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 13:01:44 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id h62-v6so15133639vke.1
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 10:01:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b18sor11692135uak.175.2018.05.09.10.01.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 09:46:32 -0700 (PDT)
-Date: Wed, 9 May 2018 09:46:28 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 10/33] iomap: add an iomap-based bmap implementation
-Message-ID: <20180509164628.GV11261@magnolia>
-References: <20180509074830.16196-1-hch@lst.de>
- <20180509074830.16196-11-hch@lst.de>
+        (Google Transport Security);
+        Wed, 09 May 2018 10:01:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180509074830.16196-11-hch@lst.de>
+In-Reply-To: <4baffc55-510e-96d3-3487-5ea09f993a0c@redhat.com>
+References: <20180509004229.36341-1-keescook@chromium.org> <4baffc55-510e-96d3-3487-5ea09f993a0c@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 9 May 2018 10:01:41 -0700
+Message-ID: <CAGXu5jKXq7--CYgp8Q+k00RjjGJY+o71RMr51NPuWS1eM0KX1w@mail.gmail.com>
+Subject: Re: [RFC][PATCH 00/13] Provide saturating helpers for allocation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Laura Abbott <labbott@redhat.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
-On Wed, May 09, 2018 at 09:48:07AM +0200, Christoph Hellwig wrote:
-> This adds a simple iomap-based implementation of the legacy ->bmap
-> interface.  Note that we can't easily add checks for rt or reflink
-> files, so these will have to remain in the callers.  This interface
-> just needs to die..
+On Wed, May 9, 2018 at 9:08 AM, Laura Abbott <labbott@redhat.com> wrote:
+> On 05/08/2018 05:42 PM, Kees Cook wrote:
+>>
+>> This is a stab at providing three new helpers for allocation size
+>> calculation:
+>>
+>> struct_size(), array_size(), and array3_size().
+>>
+>> These are implemented on top of Rasmus's overflow checking functions,
+>> and the last 8 patches are all treewide conversions of open-coded
+>> multiplications into the various combinations of the helper functions.
+>>
+>> -Kees
+>>
+>>
+> Obvious question (that might indicate this deserves documentation?)
+>
+> What's the difference between
+>
+> kmalloc_array(cnt, sizeof(struct blah), GFP_KERNEL);
+>
+> and
+>
+> kmalloc(array_size(cnt, struct blah), GFP_KERNEL);
+>
+>
+> and when would you use one over the other?
 
-You /can/ check these...
+If I'm understanding the intentions here, the next set of treewide
+changes would be to remove *calloc() and *_array() in favor of using
+the array_size() helper. (i.e. reducing proliferation of allocator
+helpers in favor of using the *_size() helpers.
 
-if (iomap->bdev != inode->i_sb->s_bdev)
-	return 0;
-if (iomap->flags & IOMAP_F_SHARED)
-	return 0;
+There are, however, some cases that don't map well to
+{struct,array,array3}_size(), specifically cases of additions in
+finding a count. For example, stuff like:
 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  fs/iomap.c            | 29 +++++++++++++++++++++++++++++
->  include/linux/iomap.h |  3 +++
->  2 files changed, 32 insertions(+)
-> 
-> diff --git a/fs/iomap.c b/fs/iomap.c
-> index af525cb47339..049e0c4aacac 100644
-> --- a/fs/iomap.c
-> +++ b/fs/iomap.c
-> @@ -1201,3 +1201,32 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
->  	return ret;
->  }
->  EXPORT_SYMBOL_GPL(iomap_dio_rw);
-> +
-> +static loff_t
-> +iomap_bmap_actor(struct inode *inode, loff_t pos, loff_t length,
-> +		void *data, struct iomap *iomap)
-> +{
-> +	sector_t *bno = data;
-> +
-> +	if (iomap->type == IOMAP_MAPPED)
-> +		*bno = (iomap->addr + pos - iomap->offset) >> inode->i_blkbits;
+kmalloc(sizeof(header) + sizeof(trailing_array) * (count + SOMETHING), gfp...)
 
-Does this need to be careful w.r.t. overflow on systems where sector_t
-is a 32-bit unsigned long?
+This gets currently mapped to:
 
-Also, ioctl_fibmap() typecasts the returned sector_t to an int, which
-also seems broken.  I agree the interface needs to die, but ioctls take
-a long time to deprecate.
+kmalloc(struct_size(header, trailing_array, (count + SOMETHING), gfp...)
 
---D
+But we run the risk in some cases of having even the addition
+overflow. I think we need to have a "saturating add" too. Something
+like:
 
-> +	return 0;
-> +}
-> +
-> +/* legacy ->bmap interface.  0 is the error return (!) */
-> +sector_t
-> +iomap_bmap(struct address_space *mapping, sector_t bno,
-> +		const struct iomap_ops *ops)
-> +{
-> +	struct inode *inode = mapping->host;
-> +	loff_t pos = bno >> inode->i_blkbits;
-> +	unsigned blocksize = i_blocksize(inode);
-> +
-> +	if (filemap_write_and_wait(mapping))
-> +		return 0;
-> +
-> +	bno = 0;
-> +	iomap_apply(inode, pos, blocksize, 0, ops, &bno, iomap_bmap_actor);
-> +	return bno;
-> +}
-> +EXPORT_SYMBOL_GPL(iomap_bmap);
-> diff --git a/include/linux/iomap.h b/include/linux/iomap.h
-> index 19a07de28212..07f73224c38b 100644
-> --- a/include/linux/iomap.h
-> +++ b/include/linux/iomap.h
-> @@ -4,6 +4,7 @@
->  
->  #include <linux/types.h>
->  
-> +struct address_space;
->  struct fiemap_extent_info;
->  struct inode;
->  struct iov_iter;
-> @@ -95,6 +96,8 @@ loff_t iomap_seek_hole(struct inode *inode, loff_t offset,
->  		const struct iomap_ops *ops);
->  loff_t iomap_seek_data(struct inode *inode, loff_t offset,
->  		const struct iomap_ops *ops);
-> +sector_t iomap_bmap(struct address_space *mapping, sector_t bno,
-> +		const struct iomap_ops *ops);
->  
->  /*
->   * Flags for direct I/O ->end_io:
-> -- 
-> 2.17.0
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+kmalloc(struct_size(header, trailing_array, sat_add(count, SOMETHING), gfp...)
+
+It's a bit ugly, but it would cover nearly all the remaining cases...
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
