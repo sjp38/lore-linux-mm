@@ -1,99 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1666B050D
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 08:00:53 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id w14-v6so23438979wrk.22
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 05:00:53 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r21-v6si725358edb.199.2018.05.09.05.00.52
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 51EE26B050F
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 08:13:34 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id q8-v6so33102872ioh.7
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 05:13:34 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j81-v6sor13747034ioj.150.2018.05.09.05.13.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 May 2018 05:00:52 -0700 (PDT)
-Date: Wed, 9 May 2018 14:00:50 +0200
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH] printk: Ratelimit messages printed by console drivers
-Message-ID: <20180509120050.eyuprdh75grhdsh4@pathway.suse.cz>
-References: <20180420140157.2nx5nkojj7l2y7if@pathway.suse.cz>
- <20180420101751.6c1c70e8@gandalf.local.home>
- <20180420145720.hb7bbyd5xbm5je32@pathway.suse.cz>
- <20180420111307.44008fc7@gandalf.local.home>
- <20180423103232.k23yulv2e7fah42r@pathway.suse.cz>
- <20180423073603.6b3294ba@gandalf.local.home>
- <20180423124502.423fb57thvbf3zet@pathway.suse.cz>
- <20180425053146.GA25288@jagdpanzerIV>
- <20180426094211.okftwdzgfn72rik3@pathway.suse.cz>
- <20180427102245.GA591@jagdpanzerIV>
+        (Google Transport Security);
+        Wed, 09 May 2018 05:13:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180427102245.GA591@jagdpanzerIV>
+In-Reply-To: <20180509052632.GB15939@rapoport-lnx>
+References: <cover.1525798753.git.andreyknvl@google.com> <bc150eb0a71437400c64a4388805327fbaf9bb30.1525798754.git.andreyknvl@google.com>
+ <20180509052632.GB15939@rapoport-lnx>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 9 May 2018 14:13:30 +0200
+Message-ID: <CAAeHK+z=6cY59C9F5sz4OUEkGyiS1GFySx--5+Di0k1o9OjKsg@mail.gmail.com>
+Subject: Re: [PATCH v1 16/16] khwasan: update kasan documentation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-On Fri 2018-04-27 19:22:45, Sergey Senozhatsky wrote:
-> On (04/26/18 11:42), Petr Mladek wrote:
-> [..]
-> > Honestly, I do not believe that console drivers are like Scheherazade.
-> > They are not able to make up long interesting stories. Let's say that
-> > lockdep splat has more than 100 lines but it can happen only once.
-> > Let's say that WARNs have about 40 lines. I somehow doubt that we
-> > could ever see 10 different WARN calls from one con->write() call.
-> 
-> The problem here is that it takes a human being with IQ to tell what's
-> repetitive, what's useless and what's not.
-> 
-> 	vprintk(...)
-> 	{
-> 		if (!__ratelimit())
-> 			return;
-> 	}
-> 
-> has zero IQ to make such decisions.
+On Wed, May 9, 2018 at 7:26 AM, Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+>
+> Typos: in turn is only supported
+>
+> of the
+>
 
-You make it too complicated. Also it seems that you repeatedly
-hide the fact that con->write() context is recursive. Just try to add
-printk() into call_console_drivers() and see what happens.
+Hi Mike!
 
-IMHO, if con->write() wants to add more than 1000 (or 100 or whatever
-sane limit) new lines then something is really wrong and we should
-stop it. It is that simple.
+Will fix both in v2.
 
-
-> > > But we first need a real reason. Right now it looks to me like
-> > > we have "a solution" to a problem which we have never witnessed.
-> > 
-> > I am trying to find a "simple" and generic solution for the problem
-> > reported by Tejun:
-> [..]
-> > 1. Console is IPMI emulated serial console.  Super slow.  Also
-> >    netconsole is in use.
-> > 2. System runs out of memory, OOM triggers.
-> > 3. OOM handler is printing out OOM debug info.
-> > 4. While trying to emit the messages for netconsole, the network stack
-> >    / driver tries to allocate memory and then fail, which in turn
-> >    triggers allocation failure or other warning messages.  printk was
-> >    already flushing, so the messages are queued on the ring.
-> > 5. OOM handler keeps flushing but 4 repeats and the queue is never
-> >    shrinking.  Because OOM handler is trapped in printk flushing, it
-> >    never manages to free memory and no one else can enter OOM path
-> >    either, so the system is trapped in this state.
-> > </paste>
-
-IMHO, we do not need to chase down this particular problem. It was
-already "solved" by the commit 400e22499dd92613821 ("mm: don't warn
-about allocations which stall for too long").
-
-It was just an example. I wanted to make con->write() generally safe.
-I thought that the problem (recursion) was clear enough.
-
-
-> Yes, and that's why I want to take a look at the logs/backtraces.
-
-If you want more cases to analyze, fair enough. I do not have any
-at hands. It is not an urgent issue for me and I am not going to
-spend more time on this.
-
-Best Regards,
-Petr
+Thanks!
