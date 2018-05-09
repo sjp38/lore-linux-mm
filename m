@@ -1,153 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 924816B051D
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 10:38:52 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r63so24447233pfl.12
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 07:38:52 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id j3-v6si26200957pld.300.2018.05.09.07.38.50
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2606B0520
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 10:41:37 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id s3so26349742pfh.0
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 07:41:37 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f2-v6si21121361pgs.655.2018.05.09.07.41.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 07:38:51 -0700 (PDT)
-Date: Wed, 9 May 2018 07:38:43 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH v9 9/9] xfs, dax: introduce xfs_break_dax_layouts()
-Message-ID: <20180509143843.GH11261@magnolia>
-References: <152461278149.17530.2867511144531572045.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152461283072.17530.11313844322317294220.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Wed, 09 May 2018 07:41:36 -0700 (PDT)
+Received: from mail-wr0-f169.google.com (mail-wr0-f169.google.com [209.85.128.169])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6E97C2184F
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 14:41:35 +0000 (UTC)
+Received: by mail-wr0-f169.google.com with SMTP id v15-v6so35857102wrm.10
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 07:41:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <152461283072.17530.11313844322317294220.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com>
+ <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com> <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com>
+ <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net> <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
+ <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
+ <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com> <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
+ <20180503021058.GA5670@ram.oc3035372033.ibm.com> <CALCETrXRQF08exQVZqtTLOKbC8Ywq5x4EYH_1D7r5v9bdOSwbg@mail.gmail.com>
+ <927c8325-4c98-d7af-b921-6aafcf8fe992@redhat.com> <CALCETrX46wR_MDW=m9SVm=ejQmPAmD3+2oC3iapf75bPhnEAWQ@mail.gmail.com>
+ <314e1a48-db94-9b37-8793-a95a2082c9e2@redhat.com>
+In-Reply-To: <314e1a48-db94-9b37-8793-a95a2082c9e2@redhat.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 09 May 2018 14:41:23 +0000
+Message-ID: <CALCETrUGjN8mhOaLqGcau-pPKm9TQW8k05hZrh52prRNdC5yQQ@mail.gmail.com>
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
+ signal semantics
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, Dave Chinner <david@fromorbit.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Andrew Lutomirski <luto@kernel.org>, linuxram@us.ibm.com, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Tue, Apr 24, 2018 at 04:33:50PM -0700, Dan Williams wrote:
-> xfs_break_dax_layouts(), similar to xfs_break_leased_layouts(), scans
-> for busy / pinned dax pages and waits for those pages to go idle before
-> any potential extent unmap operation.
-> 
-> dax_layout_busy_page() handles synchronizing against new page-busy
-> events (get_user_pages). It invalidates all mappings to trigger the
-> get_user_pages slow path which will eventually block on the xfs inode
-> lock held in XFS_MMAPLOCK_EXCL mode. If dax_layout_busy_page() finds a
-> busy page it returns it for xfs to wait for the page-idle event that
-> will fire when the page reference count reaches 1 (recall ZONE_DEVICE
-> pages are idle at count 1, see generic_dax_pagefree()).
-> 
-> While waiting, the XFS_MMAPLOCK_EXCL lock is dropped in order to not
-> deadlock the process that might be trying to elevate the page count of
-> more pages before arranging for any of them to go idle. I.e. the typical
-> case of submitting I/O is that iov_iter_get_pages() elevates the
-> reference count of all pages in the I/O before starting I/O on the first
-> page. The process of elevating the reference count of all pages involved
-> in an I/O may cause faults that need to take XFS_MMAPLOCK_EXCL.
-> 
-> Although XFS_MMAPLOCK_EXCL is dropped while waiting, XFS_IOLOCK_EXCL is
-> held while sleeping. We need this to prevent starvation of the truncate
-> path as continuous submission of direct-I/O could starve the truncate
-> path indefinitely if the lock is dropped.
-> 
-> Cc: Dave Chinner <david@fromorbit.com>
-> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Reported-by: Jan Kara <jack@suse.cz>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+On Tue, May 8, 2018 at 5:40 AM Florian Weimer <fweimer@redhat.com> wrote:
 
-I should've acked this explicitly since it's xfs code,
-Acked-by: Darrick J. Wong <darrick.wong@oracle.com>
+> On 05/08/2018 04:49 AM, Andy Lutomirski wrote:
+> > On Mon, May 7, 2018 at 2:48 AM Florian Weimer <fweimer@redhat.com>
+wrote:
+> >
+> >> On 05/03/2018 06:05 AM, Andy Lutomirski wrote:
+> >>> On Wed, May 2, 2018 at 7:11 PM Ram Pai <linuxram@us.ibm.com> wrote:
+> >>>
+> >>>> On Wed, May 02, 2018 at 09:23:49PM +0000, Andy Lutomirski wrote:
+> >>>>>
+> >>>>>> If I recall correctly, the POWER maintainer did express a strong
+> >>> desire
+> >>>>>> back then for (what is, I believe) their current semantics, which
+my
+> >>>>>> PKEY_ALLOC_SIGNALINHERIT patch implements for x86, too.
+> >>>>>
+> >>>>> Ram, I really really don't like the POWER semantics.  Can you give
+> > some
+> >>>>> justification for them?  Does POWER at least have an atomic way for
+> >>>>> userspace to modify just the key it wants to modify or, even better,
+> >>>>> special load and store instructions to use alternate keys?
+> >>>
+> >>>> I wouldn't call it POWER semantics. The way I implemented it on power
+> >>>> lead to the semantics, given that nothing was explicitly stated
+> >>>> about how the semantics should work within a signal handler.
+> >>>
+> >>> I think that this is further evidence that we should introduce a new
+> >>> pkey_alloc() mode and deprecate the old.  To the extent possible, this
+> >>> thing should work the same way on x86 and POWER.
+> >
+> >> Do you propose to change POWER or to change x86?
+> >
+> > Sorry for being slow to reply.  I propose to introduce a new
+> > PKEY_ALLOC_something variant on x86 and POWER and to make the behavior
+> > match on both.
 
-The rest of it looks fine enough to me too, but there's no
-Acked-by-goober tag to put on them. :P
+> So basically implement PKEY_ALLOC_SETSIGNAL for POWER, and keep the
+> existing (different) behavior without the flag?
 
---D
+> Ram, would you be okay with that?  Could you give me a hand if
+> necessary?  (I assume we have silicon in-house because it's a
+> long-standing feature of the POWER platform which was simply dormant on
+> Linux until now.)
 
-> ---
->  fs/xfs/xfs_file.c |   59 +++++++++++++++++++++++++++++++++++++++++++----------
->  1 file changed, 48 insertions(+), 11 deletions(-)
-> 
-> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> index 1a5176b21803..4e98d0dcc035 100644
-> --- a/fs/xfs/xfs_file.c
-> +++ b/fs/xfs/xfs_file.c
-> @@ -718,6 +718,37 @@ xfs_file_write_iter(
->  	return ret;
->  }
->  
-> +static void
-> +xfs_wait_dax_page(
-> +	struct inode		*inode,
-> +	bool			*did_unlock)
-> +{
-> +	struct xfs_inode        *ip = XFS_I(inode);
-> +
-> +	*did_unlock = true;
-> +	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
-> +	schedule();
-> +	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-> +}
-> +
-> +static int
-> +xfs_break_dax_layouts(
-> +	struct inode		*inode,
-> +	uint			iolock,
-> +	bool			*did_unlock)
-> +{
-> +	struct page		*page;
-> +
-> +	*did_unlock = false;
-> +	page = dax_layout_busy_page(inode->i_mapping);
-> +	if (!page)
-> +		return 0;
-> +
-> +	return ___wait_var_event(&page->_refcount,
-> +			atomic_read(&page->_refcount) == 1, TASK_INTERRUPTIBLE,
-> +			0, 0, xfs_wait_dax_page(inode, did_unlock));
-> +}
-> +
->  int
->  xfs_break_layouts(
->  	struct inode		*inode,
-> @@ -729,17 +760,23 @@ xfs_break_layouts(
->  
->  	ASSERT(xfs_isilocked(XFS_I(inode), XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL));
->  
-> -	switch (reason) {
-> -	case BREAK_UNMAP:
-> -		ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
-> -		/* fall through */
-> -	case BREAK_WRITE:
-> -		error = xfs_break_leased_layouts(inode, iolock, &retry);
-> -		break;
-> -	default:
-> -		WARN_ON_ONCE(1);
-> -		return -EINVAL;
-> -	}
-> +	do {
-> +		switch (reason) {
-> +		case BREAK_UNMAP:
-> +			ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
-> +
-> +			error = xfs_break_dax_layouts(inode, *iolock, &retry);
-> +			/* fall through */
-> +		case BREAK_WRITE:
-> +			if (error || retry)
-> +				break;
-> +			error = xfs_break_leased_layouts(inode, iolock, &retry);
-> +			break;
-> +		default:
-> +			WARN_ON_ONCE(1);
-> +			return -EINVAL;
-> +		}
-> +	} while (error == 0 && retry);
->  
->  	return error;
->  }
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > It should at least update the values loaded when a signal
+> > is delivered and it should probably also update it for new threads.
+
+> I think we should keep inheritance for new threads and fork.  pkey_alloc
+> only has a single access rights argument, which makes it hard to reuse
+> this interface if there are two (three) separate sets of access rights.
+
+
+Hmm.  I can get on board with the idea that fork() / clone() /
+pthread_create() are all just special cases of the idea that the thread
+that *calls* them should have the right pkey values, and the latter is
+already busted given our inability to asynchronously propagate the new mode
+in pkey_alloc().  So let's so PKEY_ALLOC_SETSIGNAL as a starting point.
+
+One thing we could do, though: the current initual state on process
+creation is all access blocked on all keys.  We could change it so that
+half the keys are fully blocked and half are read-only.  Then we could add
+a PKEY_ALLOC_STRICT or similar that allocates a key with the correct
+initial state *and* does the setsignal thing.  If there are no keys left
+with the correct initial state, then it fails.
