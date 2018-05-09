@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D16C76B0500
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:58:37 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e20so26139292pff.14
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:58:37 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0122.outbound.protection.outlook.com. [104.47.0.122])
-        by mx.google.com with ESMTPS id m1-v6si21685009pgm.413.2018.05.09.04.58.36
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4766C6B0508
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 07:58:46 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id z5so14537709pfz.6
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 04:58:46 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30133.outbound.protection.outlook.com. [40.107.3.133])
+        by mx.google.com with ESMTPS id v40-v6si26769206plg.84.2018.05.09.04.58.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 May 2018 04:58:36 -0700 (PDT)
-Subject: [PATCH v4 10/13] mm: Set bit in memcg shrinker bitmap on first
- list_lru item apearance
+        Wed, 09 May 2018 04:58:45 -0700 (PDT)
+Subject: [PATCH v4 11/13] mm: Iterate only over charged shrinkers during
+ memcg shrink_slab()
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Wed, 09 May 2018 14:58:28 +0300
-Message-ID: <152586710832.3048.5849744392387674244.stgit@localhost.localdomain>
+Date: Wed, 09 May 2018 14:58:38 +0300
+Message-ID: <152586711800.3048.17462409401469930692.stgit@localhost.localdomain>
 In-Reply-To: <152586686544.3048.15776787801312398314.stgit@localhost.localdomain>
 References: <152586686544.3048.15776787801312398314.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -23,115 +23,136 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-Introduce set_shrinker_bit() function to set shrinker-related
-bit in memcg shrinker bitmap, and set the bit after the first
-item is added and in case of reparenting destroyed memcg's items.
+Using the preparations made in previous patches, in case of memcg
+shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
+bitmap. To do that, we separate iterations over memcg-aware and
+!memcg-aware shrinkers, and memcg-aware shrinkers are chosen
+via for_each_set_bit() from the bitmap. In case of big nodes,
+having many isolated environments, this gives significant
+performance growth. See next patches for the details.
 
-This will allow next patch to make shrinkers be called only,
-in case of they have charged objects at the moment, and
-to improve shrink_slab() performance.
+Note, that the patch does not respect to empty memcg shrinkers,
+since we never clear the bitmap bits after we set it once.
+Their shrinkers will be called again, with no shrinked objects
+as result. This functionality is provided by next patches.
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- include/linux/memcontrol.h |   13 +++++++++++++
- mm/list_lru.c              |   22 ++++++++++++++++++++--
- 2 files changed, 33 insertions(+), 2 deletions(-)
+ include/linux/memcontrol.h |    1 +
+ mm/vmscan.c                |   70 ++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 62 insertions(+), 9 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index c159f3abe168..1fb2f96dc2f6 100644
+index 1fb2f96dc2f6..4548b09e44a7 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -1247,6 +1247,17 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
+@@ -756,6 +756,7 @@ void mem_cgroup_split_huge_fixup(struct page *head);
+ #define MEM_CGROUP_ID_MAX	0
  
- extern int memcg_expand_shrinker_maps(int old_id, int id);
+ struct mem_cgroup;
++#define root_mem_cgroup NULL
  
-+static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int nr)
+ static inline bool mem_cgroup_disabled(void)
+ {
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index d1940244d0bf..648b08621334 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -376,6 +376,7 @@ int prealloc_shrinker(struct shrinker *shrinker)
+ 			goto free_deferred;
+ 	}
+ 
++	INIT_LIST_HEAD(&shrinker->list);
+ 	return 0;
+ 
+ free_deferred:
+@@ -547,6 +548,63 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	return freed;
+ }
+ 
++#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
++static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
++			struct mem_cgroup *memcg, int priority)
 +{
-+	if (nr >= 0 && memcg && memcg != root_mem_cgroup) {
-+		struct memcg_shrinker_map *map;
++	struct memcg_shrinker_map *map;
++	unsigned long freed = 0;
++	int ret, i;
 +
-+		rcu_read_lock();
-+		map = MEMCG_SHRINKER_MAP(memcg, nid);
-+		set_bit(nr, map->map);
-+		rcu_read_unlock();
++	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
++		return 0;
++
++	if (!down_read_trylock(&shrinker_rwsem))
++		return 0;
++
++	/*
++	 * 1)Caller passes only alive memcg, so map can't be NULL.
++	 * 2)shrinker_rwsem protects from maps expanding.
++	 */
++	map = rcu_dereference_protected(MEMCG_SHRINKER_MAP(memcg, nid), true);
++	BUG_ON(!map);
++
++	for_each_set_bit(i, map->map, memcg_shrinker_nr_max) {
++		struct shrink_control sc = {
++			.gfp_mask = gfp_mask,
++			.nid = nid,
++			.memcg = memcg,
++		};
++		struct shrinker *shrinker;
++
++		shrinker = idr_find(&shrinker_idr, i);
++		if (!shrinker) {
++			clear_bit(i, map->map);
++			continue;
++		}
++		if (list_empty(&shrinker->list))
++			continue;
++
++		ret = do_shrink_slab(&sc, shrinker, priority);
++		freed += ret;
++
++		if (rwsem_is_contended(&shrinker_rwsem)) {
++			freed = freed ? : 1;
++			break;
++		}
 +	}
-+}
- #else
- #define for_each_memcg_cache_index(_idx)	\
- 	for (; NULL; )
-@@ -1269,6 +1280,8 @@ static inline void memcg_put_cache_ids(void)
- {
- }
- 
-+static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
-+					  int node, int id) { }
- #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
- 
- #endif /* _LINUX_MEMCONTROL_H */
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index ed0f97b0c087..478567332746 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -30,6 +30,11 @@ static void list_lru_unregister(struct list_lru *lru)
- 	list_del(&lru->list);
- 	mutex_unlock(&list_lrus_mutex);
- }
 +
-+static int lru_shrinker_id(struct list_lru *lru)
-+{
-+	return lru->shrinker_id;
++	up_read(&shrinker_rwsem);
++	return freed;
 +}
- #else
- static void list_lru_register(struct list_lru *lru)
- {
-@@ -38,6 +43,11 @@ static void list_lru_register(struct list_lru *lru)
- static void list_lru_unregister(struct list_lru *lru)
- {
- }
++#else
++static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
++			struct mem_cgroup *memcg, int priority)
++{
++	return 0;
++}
++#endif
 +
-+static int lru_shrinker_id(struct list_lru *lru)
-+{
-+	return -1;
-+}
- #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
+ /**
+  * shrink_slab - shrink slab caches
+  * @gfp_mask: allocation context
+@@ -576,8 +634,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 	struct shrinker *shrinker;
+ 	unsigned long freed = 0;
  
- #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
-@@ -121,13 +131,17 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
- {
- 	int nid = page_to_nid(virt_to_page(item));
- 	struct list_lru_node *nlru = &lru->node[nid];
-+	struct mem_cgroup *memcg;
- 	struct list_lru_one *l;
+-	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
+-		return 0;
++	if (memcg && memcg != root_mem_cgroup)
++		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
  
- 	spin_lock(&nlru->lock);
- 	if (list_empty(item)) {
--		l = list_lru_from_kmem(nlru, item, NULL);
-+		l = list_lru_from_kmem(nlru, item, &memcg);
- 		list_add_tail(item, &l->list);
--		l->nr_items++;
-+		/* Set shrinker bit if the first element was added */
-+		if (!l->nr_items++)
-+			memcg_set_shrinker_bit(memcg, nid,
-+					       lru_shrinker_id(lru));
- 		nlru->nr_items++;
- 		spin_unlock(&nlru->lock);
- 		return true;
-@@ -522,6 +536,7 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
- 	struct list_lru_node *nlru = &lru->node[nid];
- 	int dst_idx = dst_memcg->kmemcg_id;
- 	struct list_lru_one *src, *dst;
-+	bool set;
+ 	if (!down_read_trylock(&shrinker_rwsem))
+ 		goto out;
+@@ -589,13 +647,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 			.memcg = memcg,
+ 		};
  
- 	/*
- 	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
-@@ -533,7 +548,10 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
- 	dst = list_lru_from_memcg_idx(nlru, dst_idx);
+-		/*
+-		 * If kernel memory accounting is disabled, we ignore
+-		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
+-		 * passing NULL for memcg.
+-		 */
+-		if (memcg_kmem_enabled() &&
+-		    !!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
++		if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+ 			continue;
  
- 	list_splice_init(&src->list, &dst->list);
-+	set = (!dst->nr_items && src->nr_items);
- 	dst->nr_items += src->nr_items;
-+	if (set)
-+		memcg_set_shrinker_bit(dst_memcg, nid, lru_shrinker_id(lru));
- 	src->nr_items = 0;
- 
- 	spin_unlock_irq(&nlru->lock);
+ 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
