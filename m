@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DF7A66B02FC
-	for <linux-mm@kvack.org>; Tue,  8 May 2018 20:42:58 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id u7-v6so2749885plq.3
-        for <linux-mm@kvack.org>; Tue, 08 May 2018 17:42:58 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 23EDA6B02FD
+	for <linux-mm@kvack.org>; Tue,  8 May 2018 20:42:59 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id b31-v6so2743043plb.5
+        for <linux-mm@kvack.org>; Tue, 08 May 2018 17:42:59 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 8sor8350498pfa.103.2018.05.08.17.42.53
+        by mx.google.com with SMTPS id 184sor8303737pfg.112.2018.05.08.17.42.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 08 May 2018 17:42:53 -0700 (PDT)
+        Tue, 08 May 2018 17:42:52 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 10/13] treewide: Use array_size() for kmalloc()-family, leftovers
-Date: Tue,  8 May 2018 17:42:26 -0700
-Message-Id: <20180509004229.36341-11-keescook@chromium.org>
+Subject: [PATCH 09/13] treewide: Use array_size() for kmalloc()-family
+Date: Tue,  8 May 2018 17:42:25 -0700
+Message-Id: <20180509004229.36341-10-keescook@chromium.org>
 In-Reply-To: <20180509004229.36341-1-keescook@chromium.org>
 References: <20180509004229.36341-1-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,8654 +20,9412 @@ List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <mawilcox@microsoft.com>
 Cc: Kees Cook <keescook@chromium.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-Several odd cases remain:
+For kmalloc()-family allocations, instead of A * B, use array_size().
+Similarly,instead of A * B *C, use array3_size(). Automatically generated
+using the following Coccinelle script:
 
-Unchecked addition:
-
-  +1 is very very common:
-    new = kmalloc(array_size((valid_extensions + 1), EDID_LENGTH),
-
-  plenty of others:
-    ptr = kmalloc(array_size(obj->package.count + ACPI_VIDEO_FIRST_LEVEL,
-			     sizeof(*br->levels)), GFP_KERNEL);
-
-Single-byte values:
-    array_size(sizeof(char *), E1)
-    array_size(E1, sizeof(char *))
-
-other glitches, e.g. should use array3_size():
-    ptr = kzalloc(array_size(sizeof(void *), (NUM_CT_SUMS * CHN_NUM)),
-		  GFP_KERNEL);
-
-Generated with the following Coccinelle script:
-
-// Any remaining multi-factor products, first at least 3-factor products...
+// 2-factor product with sizeof(variable)
 @@
 identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
-expression GFP, E1, E2, E3;
+expression GFP, THING;
+identifier COUNT;
 @@
 
-- alloc(E1 * E2 * E3, GFP)
-+ alloc(array3_size(E1, E2, E3), GFP)
+- alloc(sizeof(THING) * COUNT, GFP)
++ alloc(array_size(COUNT, sizeof(THING)), GFP)
 
-// ... and then all remaining 2 factors products.
+// 2-factor product with sizeof(type)
 @@
 identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
-expression GFP, E1, E2;
+expression GFP;
+identifier COUNT;
+type TYPE;
 @@
 
-- alloc(E1 * E2, GFP)
-+ alloc(array_size(E1, E2), GFP)
+- alloc(sizeof(TYPE) * COUNT, GFP)
++ alloc(array_size(COUNT, sizeof(TYPE)), GFP)
 
-Signed-off-by: Kees Cook <keescook@chromium.org>
+// 2-factor product with sizeof(variable) and constant
+@@
+identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
+expression GFP, THING;
+constant COUNT;
+@@
+
+- alloc(sizeof(THING) * COUNT, GFP)
++ alloc(array_size(COUNT, sizeof(THING)), GFP)
+
+// 2-factor product with sizeof(type) and constant
+@@
+identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
+expression GFP;
+constant COUNT;
+type TYPE;
+@@
+
+- alloc(sizeof(TYPE) * COUNT, GFP)
++ alloc(array_size(COUNT, sizeof(TYPE)), GFP)
+
+// 3-factor product with 1 sizeof(variable)
+@@
+identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
+expression GFP, THING;
+identifier STRIDE, COUNT;
+@@
+
+- alloc(sizeof(THING) * COUNT * STRIDE, GFP)
++ alloc(array3_size(COUNT, STRIDE, sizeof(THING)), GFP)
+
+// 3-factor product with 2 sizeof(variable)
+@@
+identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
+expression GFP, THING1, THING2;
+identifier COUNT;
+@@
+
+- alloc(sizeof(THING1) * sizeof(THING2) * COUNT, GFP)
++ alloc(array3_size(COUNT, sizeof(THING1), sizeof(THING2)), GFP)
+
+// 3-factor product with 1 sizeof(type)
+@@
+identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
+expression GFP;
+identifier STRIDE, COUNT;
+type TYPE;
+@@
+
+- alloc(sizeof(TYPE) * COUNT * STRIDE, GFP)
++ alloc(array3_size(COUNT, STRIDE, sizeof(TYPE)), GFP)
+
+// 3-factor product with 2 sizeof(type)
+@@
+identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
+expression GFP;
+identifier COUNT;
+type TYPE1, TYPE2;
+@@
+
+- alloc(sizeof(TYPE1) * sizeof(TYPE2) * COUNT, GFP)
++ alloc(array3_size(COUNT, sizeof(TYPE1), sizeof(TYPE2)), GFP)
+
+// 3-factor product with mixed sizeof() type/variable
+@@
+identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
+expression GFP, THING;
+identifier COUNT;
+type TYPE;
+@@
+
+- alloc(sizeof(TYPE) * sizeof(THING) * COUNT, GFP)
++ alloc(array3_size(COUNT, sizeof(TYPE), sizeof(THING)), GFP)
+
+// 2-factor product, only identifiers
+@@
+identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
+expression GFP;
+identifier SIZE, COUNT;
+@@
+
+- alloc(SIZE * COUNT, GFP)
++ alloc(array_size(COUNT, SIZE), GFP)
+
+// 3-factor product, only identifiers
+@@
+identifier alloc =~ "kmalloc|kzalloc|kvmalloc|kvzalloc";
+expression GFP;
+identifier STRIDE, SIZE, COUNT;
+@@
+
+- alloc(COUNT * STRIDE * SIZE, GFP)
++ alloc(array3_size(COUNT, STRIDE, SIZE), GFP)
 ---
- arch/arm/mach-omap2/hsmmc.c                   |  3 +-
- arch/arm64/kernel/armv8_deprecated.c          |  4 +--
- arch/arm64/mm/context.c                       |  2 +-
- arch/ia64/kernel/mca_drv.c                    |  3 +-
- arch/ia64/mm/tlb.c                            |  4 +--
- arch/ia64/sn/pci/pcibr/pcibr_provider.c       |  3 +-
- arch/mips/alchemy/common/clock.c              |  2 +-
+ arch/arm/kernel/sys_oabi-compat.c             |  4 +-
+ arch/arm/mach-footbridge/dc21285.c            |  2 +-
+ arch/arm/mach-ixp4xx/common-pci.c             |  2 +-
+ arch/arm/mach-omap1/mcbsp.c                   |  2 +-
+ arch/arm/mach-omap2/omap_device.c             |  5 +-
+ arch/arm/mach-omap2/prm_common.c              | 10 ++--
+ arch/arm/mach-vexpress/spc.c                  |  2 +-
+ arch/arm/mm/dma-mapping.c                     |  4 +-
+ arch/arm/mm/pgd.c                             |  2 +-
+ arch/arm/probes/kprobes/test-core.c           |  4 +-
+ arch/ia64/kernel/topology.c                   |  7 +--
+ arch/ia64/sn/kernel/io_common.c               |  3 +-
+ arch/ia64/sn/kernel/irq.c                     |  3 +-
+ arch/mips/alchemy/common/dbdma.c              |  7 +--
  arch/mips/alchemy/common/platform.c           |  2 +-
- arch/mips/bmips/dma.c                         |  2 +-
- arch/powerpc/kernel/vdso.c                    |  4 +--
- arch/powerpc/mm/numa.c                        |  2 +-
- arch/powerpc/net/bpf_jit_comp.c               |  2 +-
- arch/powerpc/net/bpf_jit_comp64.c             |  2 +-
- arch/powerpc/oprofile/cell/spu_profiler.c     |  4 +--
- arch/powerpc/platforms/4xx/msi.c              |  3 +-
- arch/powerpc/sysdev/mpic.c                    |  2 +-
- arch/powerpc/sysdev/xive/native.c             |  2 +-
- arch/s390/hypfs/hypfs_diag0c.c                |  3 +-
- arch/s390/kernel/vdso.c                       |  4 +--
- arch/sparc/kernel/sys_sparc_64.c              |  5 +--
- arch/um/drivers/vector_kern.c                 | 12 +++----
- arch/unicore32/kernel/pm.c                    |  4 +--
- arch/x86/events/amd/iommu.c                   |  3 +-
- arch/x86/events/intel/uncore.c                |  2 +-
- arch/x86/kernel/cpu/mcheck/mce_amd.c          |  2 +-
- arch/x86/kernel/hpet.c                        |  2 +-
- arch/x86/kvm/svm.c                            |  3 +-
- arch/x86/kvm/x86.c                            |  2 +-
- arch/x86/net/bpf_jit_comp.c                   |  2 +-
- arch/x86/pci/xen.c                            |  2 +-
- crypto/tcrypt.c                               |  2 +-
- crypto/testmgr.c                              |  3 +-
- drivers/acpi/acpi_video.c                     |  4 +--
- drivers/acpi/processor_perflib.c              |  2 +-
- drivers/acpi/processor_throttling.c           |  2 +-
- drivers/acpi/sysfs.c                          |  6 ++--
- drivers/android/binder_alloc.c                |  3 +-
- drivers/atm/he.c                              |  2 +-
- drivers/atm/iphase.c                          |  2 +-
- drivers/atm/solos-pci.c                       |  3 +-
- drivers/block/DAC960.c                        |  4 +--
- drivers/block/amiflop.c                       |  2 +-
- drivers/block/null_blk.c                      |  7 ++--
- drivers/block/rsxx/core.c                     |  3 +-
- drivers/block/rsxx/dma.c                      |  2 +-
- drivers/block/xen-blkback/xenbus.c            |  3 +-
- drivers/block/xen-blkfront.c                  |  9 +++--
- drivers/block/z2ram.c                         |  4 +--
- drivers/char/agp/amd-k7-agp.c                 |  3 +-
- drivers/char/agp/ati-agp.c                    |  3 +-
- drivers/char/agp/compat_ioctl.c               |  6 ++--
- drivers/char/agp/sworks-agp.c                 |  2 +-
- drivers/char/agp/uninorth-agp.c               |  3 +-
- drivers/char/ipmi/ipmi_ssif.c                 |  3 +-
- drivers/clk/st/clkgen-pll.c                   |  2 +-
- drivers/clk/sunxi/clk-usb.c                   |  3 +-
- drivers/clk/tegra/clk.c                       |  4 +--
- drivers/clk/ti/apll.c                         |  3 +-
- drivers/clk/ti/divider.c                      |  5 +--
- drivers/clk/ti/dpll.c                         |  3 +-
- drivers/clocksource/sh_cmt.c                  |  2 +-
- drivers/clocksource/sh_mtu2.c                 |  2 +-
- drivers/clocksource/sh_tmu.c                  |  2 +-
- drivers/cpufreq/acpi-cpufreq.c                |  4 +--
- drivers/cpufreq/bmips-cpufreq.c               |  3 +-
- drivers/cpufreq/cppc_cpufreq.c                |  3 +-
- drivers/cpufreq/ia64-acpi-cpufreq.c           |  5 ++-
- drivers/cpufreq/longhaul.c                    |  4 +--
- drivers/cpufreq/pxa3xx-cpufreq.c              |  2 +-
- drivers/cpufreq/sfi-cpufreq.c                 |  4 +--
- drivers/cpufreq/spear-cpufreq.c               |  3 +-
- drivers/crypto/amcc/crypto4xx_core.c          |  4 +--
- drivers/crypto/caam/ctrl.c                    |  4 +--
- drivers/crypto/inside-secure/safexcel_hash.c  |  2 +-
- drivers/crypto/marvell/hash.c                 |  2 +-
- drivers/crypto/qat/qat_common/qat_uclo.c      |  4 +--
- drivers/crypto/stm32/stm32-hash.c             |  2 +-
- drivers/dma/coh901318.c                       |  2 +-
- drivers/dma/pl330.c                           |  4 +--
- drivers/dma/sh/shdma-base.c                   |  4 +--
- drivers/edac/amd64_edac.c                     |  3 +-
- drivers/edac/i7core_edac.c                    |  2 +-
- drivers/extcon/extcon.c                       | 16 ++++-----
- drivers/firmware/efi/runtime-map.c            |  3 +-
- .../gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v7.c |  6 ++--
- .../gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v8.c |  6 ++--
- drivers/gpu/drm/amd/amdgpu/amdgpu_dpm.c       |  3 +-
- drivers/gpu/drm/amd/amdgpu/atom.c             |  4 +--
- drivers/gpu/drm/amd/amdgpu/ci_dpm.c           |  4 +--
- drivers/gpu/drm/amd/amdgpu/kv_dpm.c           |  4 +--
- drivers/gpu/drm/amd/amdgpu/si_dpm.c           |  4 +--
- drivers/gpu/drm/amd/amdkfd/kfd_chardev.c      |  4 +--
- .../drm/amd/display/dc/dce/dce_clock_source.c |  4 +--
- .../amd/display/modules/color/color_gamma.c   | 36 ++++++++++---------
- .../gpu/drm/amd/display/modules/stats/stats.c |  4 +--
- drivers/gpu/drm/ast/ast_main.c                |  3 +-
- drivers/gpu/drm/drm_edid.c                    |  3 +-
- drivers/gpu/drm/gma500/mid_bios.c             |  2 +-
- drivers/gpu/drm/i915/selftests/intel_uncore.c |  2 +-
- drivers/gpu/drm/nouveau/nvif/mmu.c            |  9 +++--
- drivers/gpu/drm/nouveau/nvif/object.c         |  3 +-
- drivers/gpu/drm/nouveau/nvif/vmm.c            |  3 +-
- .../gpu/drm/nouveau/nvkm/engine/fifo/gk104.c  |  2 +-
- .../gpu/drm/nouveau/nvkm/engine/gr/ctxnv40.c  |  2 +-
- .../gpu/drm/nouveau/nvkm/engine/gr/ctxnv50.c  |  2 +-
+ arch/mips/alchemy/devboards/platform.c        |  5 +-
+ arch/mips/txx9/rbtx4939/setup.c               |  2 +-
+ arch/powerpc/lib/rheap.c                      |  3 +-
+ arch/powerpc/platforms/4xx/hsta_msi.c         |  3 +-
+ arch/powerpc/platforms/4xx/pci.c              |  2 +-
+ .../powerpc/platforms/powernv/opal-sysparam.c |  8 +--
+ arch/powerpc/sysdev/mpic.c                    |  6 ++-
+ arch/s390/appldata/appldata_base.c            |  3 +-
+ arch/s390/kernel/debug.c                      |  6 ++-
+ arch/s390/kernel/perf_cpum_cf_events.c        |  2 +-
+ arch/s390/mm/extmem.c                         |  3 +-
+ arch/sh/drivers/dma/dmabrg.c                  |  2 +-
+ arch/sh/drivers/pci/pcie-sh7786.c             |  2 +-
+ arch/sparc/kernel/nmi.c                       |  3 +-
+ arch/sparc/net/bpf_jit_comp_32.c              |  2 +-
+ arch/um/drivers/ubd_kern.c                    | 12 ++---
+ arch/um/drivers/vector_user.c                 |  4 +-
+ arch/um/os-Linux/sigio.c                      |  2 +-
+ arch/x86/events/core.c                        |  2 +-
+ arch/x86/kernel/cpu/mcheck/mce.c              |  3 +-
+ arch/x86/kernel/cpu/mtrr/if.c                 |  2 +-
+ arch/x86/kernel/hpet.c                        |  3 +-
+ arch/x86/kernel/ksysfs.c                      |  2 +-
+ arch/x86/kvm/page_track.c                     |  4 +-
+ arch/x86/kvm/x86.c                            |  6 ++-
+ arch/x86/platform/uv/tlb_uv.c                 |  3 +-
+ arch/x86/platform/uv/uv_time.c                |  3 +-
+ block/bio.c                                   |  3 +-
+ block/blk-tag.c                               |  6 ++-
+ block/partitions/ldm.c                        |  2 +-
+ drivers/acpi/acpi_platform.c                  |  2 +-
+ drivers/acpi/apei/erst.c                      |  3 +-
+ drivers/acpi/apei/hest.c                      |  3 +-
+ drivers/ata/libata-core.c                     |  3 +-
+ drivers/ata/libata-pmp.c                      |  2 +-
+ drivers/atm/fore200e.c                        |  3 +-
+ drivers/auxdisplay/cfag12864b.c               |  4 +-
+ drivers/block/drbd/drbd_main.c                |  3 +-
+ drivers/block/loop.c                          |  3 +-
+ drivers/block/null_blk.c                      |  3 +-
+ drivers/block/ps3vram.c                       |  4 +-
+ drivers/block/xen-blkfront.c                  |  8 +--
+ drivers/cdrom/cdrom.c                         |  3 +-
+ drivers/char/agp/isoch.c                      |  2 +-
+ drivers/char/agp/sgi-agp.c                    |  3 +-
+ drivers/char/virtio_console.c                 | 12 +++--
+ drivers/clk/renesas/clk-r8a7740.c             |  2 +-
+ drivers/clk/renesas/clk-r8a7779.c             |  2 +-
+ drivers/clk/renesas/clk-rcar-gen2.c           |  2 +-
+ drivers/clk/renesas/clk-rz.c                  |  2 +-
+ drivers/clk/rockchip/clk-rockchip.c           |  3 +-
+ drivers/clk/st/clkgen-fsyn.c                  |  2 +-
+ drivers/clk/tegra/clk.c                       |  2 +-
+ drivers/cpufreq/arm_big_little.c              |  2 +-
+ drivers/cpufreq/s3c24xx-cpufreq.c             |  2 +-
+ drivers/crypto/amcc/crypto4xx_core.c          |  4 +-
+ drivers/crypto/chelsio/chtls/chtls_io.c       |  3 +-
+ drivers/crypto/n2_core.c                      |  4 +-
+ drivers/dma/bestcomm/bestcomm.c               |  3 +-
+ drivers/dma/ioat/init.c                       |  4 +-
+ drivers/dma/mv_xor.c                          |  4 +-
+ drivers/dma/pl330.c                           |  3 +-
+ drivers/dma/xilinx/zynqmp_dma.c               |  2 +-
+ drivers/extcon/extcon.c                       |  4 +-
+ drivers/firewire/core-iso.c                   |  2 +-
+ drivers/firewire/net.c                        |  2 +-
+ drivers/firmware/dell_rbu.c                   |  4 +-
+ drivers/firmware/efi/capsule.c                |  3 +-
+ drivers/fmc/fmc-sdb.c                         |  6 ++-
+ drivers/gpio/gpio-ml-ioh.c                    |  2 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_acp.c       | 10 ++--
+ drivers/gpu/drm/amd/amdgpu/amdgpu_test.c      |  2 +-
+ drivers/gpu/drm/amd/amdgpu/ci_dpm.c           |  3 +-
+ drivers/gpu/drm/amd/amdgpu/si_dpm.c           |  3 +-
+ .../amd/display/amdgpu_dm/amdgpu_dm_helpers.c |  2 +-
+ .../gpu/drm/amd/display/dc/basics/logger.c    |  2 +-
+ .../gpu/drm/amd/display/dc/basics/vector.c    |  6 ++-
+ .../drm/amd/display/dc/gpio/gpio_service.c    |  2 +-
+ .../amd/display/modules/freesync/freesync.c   |  4 +-
+ drivers/gpu/drm/amd/powerplay/hwmgr/pp_psm.c  |  2 +-
+ drivers/gpu/drm/i915/gvt/vgpu.c               |  2 +-
+ drivers/gpu/drm/i915/intel_hdcp.c             |  3 +-
+ drivers/gpu/drm/nouveau/nvkm/core/event.c     |  2 +-
+ .../drm/nouveau/nvkm/subdev/bios/iccsense.c   |  3 +-
+ .../gpu/drm/nouveau/nvkm/subdev/fb/ramgt215.c |  2 +-
+ drivers/gpu/drm/nouveau/nvkm/subdev/mmu/mem.c |  4 +-
+ drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c |  3 +-
  drivers/gpu/drm/omapdrm/omap_dmm_tiler.c      |  2 +-
- drivers/gpu/drm/qxl/qxl_kms.c                 |  2 +-
- drivers/gpu/drm/radeon/atom.c                 |  4 +--
- drivers/gpu/drm/radeon/ci_dpm.c               |  4 +--
- drivers/gpu/drm/radeon/kv_dpm.c               |  4 +--
- drivers/gpu/drm/radeon/ni_dpm.c               |  4 +--
- drivers/gpu/drm/radeon/r600_dpm.c             |  3 +-
- drivers/gpu/drm/radeon/radeon_atombios.c      | 16 ++++-----
- drivers/gpu/drm/radeon/rs780_dpm.c            |  4 +--
- drivers/gpu/drm/radeon/rv6xx_dpm.c            |  4 +--
- drivers/gpu/drm/radeon/rv770_dpm.c            |  4 +--
- drivers/gpu/drm/radeon/si_dpm.c               |  4 +--
- drivers/gpu/drm/radeon/sumo_dpm.c             |  4 +--
- drivers/gpu/drm/radeon/trinity_dpm.c          |  4 +--
- drivers/gpu/drm/savage/savage_bci.c           |  4 +--
- drivers/gpu/drm/selftests/test-drm_mm.c       |  4 +--
- drivers/gpu/drm/tinydrm/repaper.c             |  2 +-
- drivers/gpu/drm/vc4/vc4_plane.c               |  2 +-
- drivers/gpu/drm/vmwgfx/vmwgfx_surface.c       |  3 +-
- drivers/hid/hid-core.c                        |  4 +--
- drivers/hid/hid-picolcd_fb.c                  |  3 +-
- drivers/hv/hv_util.c                          |  2 +-
- drivers/hv/ring_buffer.c                      |  2 +-
- drivers/hwmon/acpi_power_meter.c              |  6 ++--
- drivers/hwmon/ibmpex.c                        |  2 +-
- drivers/i2c/i2c-stub.c                        |  4 +--
- drivers/ide/hpt366.c                          |  3 +-
- drivers/ide/ide-ioctls.c                      |  2 +-
- drivers/ide/ide-probe.c                       |  2 +-
- drivers/iio/imu/adis_buffer.c                 |  3 +-
- drivers/iio/inkern.c                          |  2 +-
- drivers/infiniband/core/cache.c               |  4 +--
- drivers/infiniband/core/cma.c                 |  2 +-
- drivers/infiniband/core/device.c              |  3 +-
- drivers/infiniband/hw/cxgb4/device.c          |  4 +--
- drivers/infiniband/hw/cxgb4/id_table.c        |  4 +--
- drivers/infiniband/hw/cxgb4/qp.c              |  8 ++---
- drivers/infiniband/hw/mlx4/main.c             |  3 +-
- drivers/infiniband/hw/mlx4/qp.c               |  2 +-
- drivers/infiniband/hw/mlx5/srq.c              |  3 +-
- drivers/infiniband/hw/mthca/mthca_allocator.c |  2 +-
- drivers/infiniband/hw/mthca/mthca_cmd.c       |  3 +-
- drivers/infiniband/hw/mthca/mthca_memfree.c   |  3 +-
- drivers/infiniband/hw/mthca/mthca_mr.c        |  2 +-
- drivers/infiniband/hw/mthca/mthca_qp.c        |  2 +-
- drivers/infiniband/hw/mthca/mthca_srq.c       |  2 +-
- drivers/infiniband/hw/nes/nes_hw.c            |  4 +--
- drivers/infiniband/hw/ocrdma/ocrdma_verbs.c   | 15 ++++----
- drivers/infiniband/hw/qedr/verbs.c            |  4 +--
- drivers/infiniband/hw/qib/qib_iba6120.c       |  8 ++---
- drivers/infiniband/hw/qib/qib_iba7220.c       |  8 ++---
- drivers/infiniband/hw/qib/qib_iba7322.c       | 12 +++----
- drivers/infiniband/hw/qib/qib_init.c          |  4 +--
- drivers/infiniband/hw/usnic/usnic_ib_qp_grp.c |  4 +--
- drivers/infiniband/ulp/iser/iser_initiator.c  |  4 +--
- drivers/infiniband/ulp/srp/ib_srp.c           |  6 ++--
- drivers/iommu/omap-iommu.c                    |  3 +-
- drivers/irqchip/irq-alpine-msi.c              |  2 +-
- drivers/irqchip/irq-gic-v2m.c                 |  2 +-
- drivers/irqchip/irq-gic-v3-its.c              |  6 ++--
- drivers/irqchip/irq-partition-percpu.c        |  2 +-
- drivers/isdn/capi/capidrv.c                   |  3 +-
- drivers/isdn/gigaset/capi.c                   |  6 ++--
- drivers/isdn/gigaset/i4l.c                    |  3 +-
- drivers/isdn/hisax/fsm.c                      |  3 +-
- drivers/isdn/i4l/isdn_common.c                |  3 +-
- drivers/isdn/mISDN/fsm.c                      |  4 +--
- drivers/lightnvm/pblk-init.c                  |  8 ++---
- drivers/md/bcache/super.c                     |  5 ++-
- drivers/md/dm-crypt.c                         |  4 +--
- drivers/md/dm-integrity.c                     | 12 ++++---
- drivers/md/dm-stats.c                         |  3 +-
- drivers/md/dm-verity-target.c                 |  4 +--
- drivers/md/md-cluster.c                       |  5 ++-
- drivers/md/md-multipath.c                     |  2 +-
- drivers/md/raid0.c                            |  7 ++--
- drivers/md/raid1.c                            |  9 +++--
- drivers/md/raid10.c                           | 10 ++----
- drivers/md/raid5.c                            |  6 ++--
- drivers/media/pci/bt8xx/bttv-risc.c           |  2 +-
- drivers/media/pci/ivtv/ivtv-yuv.c             |  3 +-
- drivers/media/pci/saa7164/saa7164-fw.c        |  2 +-
- drivers/media/pci/zoran/zoran_card.c          |  2 +-
- drivers/media/pci/zoran/zoran_driver.c        |  2 +-
- drivers/media/platform/vivid/vivid-core.c     |  4 +--
- drivers/media/spi/cxd2880-spi.c               |  2 +-
- drivers/media/usb/cx231xx/cx231xx-audio.c     |  3 +-
- drivers/media/usb/go7007/go7007-fw.c          |  2 +-
- drivers/media/usb/gspca/t613.c                |  2 +-
- drivers/media/usb/pvrusb2/pvrusb2-hdw.c       |  2 +-
- drivers/media/usb/stk1160/stk1160-core.c      |  4 +--
- drivers/media/usb/usbvision/usbvision-video.c |  3 +-
- drivers/media/usb/uvc/uvc_video.c             |  2 +-
- drivers/media/v4l2-core/videobuf-dma-sg.c     |  3 +-
+ drivers/gpu/drm/omapdrm/omap_gem.c            |  6 ++-
+ drivers/gpu/drm/radeon/btc_dpm.c              |  3 +-
+ drivers/gpu/drm/radeon/ci_dpm.c               |  3 +-
+ drivers/gpu/drm/radeon/ni_dpm.c               |  3 +-
+ drivers/gpu/drm/radeon/radeon_atombios.c      |  9 ++--
+ drivers/gpu/drm/radeon/radeon_combios.c       |  9 ++--
+ drivers/gpu/drm/radeon/radeon_test.c          |  2 +-
+ drivers/gpu/drm/radeon/si_dpm.c               |  3 +-
+ drivers/gpu/drm/tegra/fb.c                    |  3 +-
+ drivers/gpu/drm/ttm/ttm_page_alloc.c          |  5 +-
+ drivers/gpu/drm/ttm/ttm_page_alloc_dma.c      |  5 +-
+ drivers/hid/hid-core.c                        |  2 +-
+ drivers/hid/hid-debug.c                       |  7 +--
+ drivers/hid/hidraw.c                          |  2 +-
+ drivers/hv/hv.c                               |  2 +-
+ drivers/hwmon/coretemp.c                      |  2 +-
+ drivers/hwmon/i5k_amb.c                       |  4 +-
+ drivers/i2c/busses/i2c-amd756-s4882.c         |  6 +--
+ drivers/i2c/busses/i2c-nforce2-s4985.c        |  6 ++-
+ drivers/i2c/busses/i2c-nforce2.c              |  3 +-
+ drivers/i2c/i2c-dev.c                         |  3 +-
+ drivers/ide/it821x.c                          |  2 +-
+ drivers/infiniband/core/fmr_pool.c            |  2 +-
+ drivers/infiniband/core/iwpm_util.c           |  8 +--
+ drivers/infiniband/hw/cxgb3/cxio_hal.c        |  6 ++-
+ drivers/infiniband/hw/cxgb4/device.c          |  3 +-
+ drivers/infiniband/hw/hns/hns_roce_hw_v2.c    |  2 +-
+ drivers/infiniband/hw/mlx4/mad.c              |  2 +-
+ drivers/infiniband/hw/mlx4/main.c             |  6 ++-
+ drivers/infiniband/hw/mlx5/srq.c              |  2 +-
+ drivers/infiniband/hw/mthca/mthca_allocator.c | 11 ++--
+ drivers/infiniband/hw/mthca/mthca_eq.c        |  4 +-
+ drivers/infiniband/hw/mthca/mthca_mr.c        |  3 +-
+ drivers/infiniband/hw/mthca/mthca_profile.c   |  3 +-
+ drivers/infiniband/hw/nes/nes_mgt.c           |  3 +-
+ drivers/infiniband/hw/nes/nes_nic.c           |  2 +-
+ drivers/infiniband/hw/nes/nes_verbs.c         |  4 +-
+ drivers/infiniband/hw/ocrdma/ocrdma_hw.c      |  3 +-
+ drivers/infiniband/hw/ocrdma/ocrdma_main.c    | 11 ++--
+ drivers/infiniband/hw/qedr/main.c             |  4 +-
+ drivers/infiniband/hw/qib/qib_iba7322.c       | 16 +++---
+ drivers/infiniband/hw/usnic/usnic_vnic.c      |  3 +-
+ drivers/infiniband/ulp/ipoib/ipoib_main.c     |  6 +--
+ drivers/infiniband/ulp/isert/ib_isert.c       |  4 +-
+ drivers/infiniband/ulp/srpt/ib_srpt.c         |  2 +-
+ drivers/input/joystick/joydump.c              |  3 +-
+ drivers/input/keyboard/omap4-keypad.c         |  2 +-
+ drivers/iommu/dmar.c                          |  3 +-
+ drivers/iommu/intel-iommu.c                   |  7 +--
+ drivers/ipack/carriers/tpci200.c              |  4 +-
+ drivers/irqchip/irq-gic-v3-its.c              | 11 ++--
+ drivers/irqchip/irq-gic-v3.c                  |  5 +-
+ drivers/irqchip/irq-s3c24xx.c                 |  2 +-
+ drivers/isdn/capi/capi.c                      |  2 +-
+ drivers/isdn/gigaset/common.c                 |  5 +-
+ drivers/isdn/hardware/avm/b1.c                |  3 +-
+ drivers/isdn/hisax/hfc_2bds0.c                |  2 +-
+ drivers/isdn/hisax/hfc_2bs0.c                 |  2 +-
+ drivers/isdn/hisax/netjet.c                   |  6 +--
+ drivers/isdn/i4l/isdn_common.c                |  6 +--
+ drivers/mailbox/pcc.c                         |  4 +-
+ drivers/md/dm-integrity.c                     |  3 +-
+ drivers/md/dm-snap.c                          |  4 +-
+ drivers/md/dm-table.c                         |  2 +-
+ drivers/md/md-bitmap.c                        |  6 +--
+ drivers/md/raid10.c                           |  3 +-
+ drivers/md/raid5.c                            | 11 ++--
+ drivers/media/dvb-frontends/dib7000p.c        |  4 +-
+ drivers/media/dvb-frontends/dib8000.c         |  6 ++-
+ drivers/media/dvb-frontends/dib9000.c         |  6 ++-
+ drivers/media/pci/ivtv/ivtvfb.c               |  3 +-
+ drivers/media/usb/au0828/au0828-video.c       |  7 +--
+ drivers/media/usb/cpia2/cpia2_usb.c           |  3 +-
+ drivers/media/usb/cx231xx/cx231xx-core.c      |  8 +--
+ drivers/media/usb/cx231xx/cx231xx-vbi.c       |  4 +-
+ drivers/media/usb/go7007/go7007-usb.c         |  3 +-
+ drivers/media/usb/pvrusb2/pvrusb2-std.c       |  2 +-
+ drivers/media/usb/stk1160/stk1160-video.c     |  7 +--
+ drivers/media/usb/stkwebcam/stk-webcam.c      |  4 +-
+ drivers/media/usb/tm6000/tm6000-video.c       | 13 +++--
+ drivers/media/usb/usbtv/usbtv-video.c         |  4 +-
  drivers/memstick/core/ms_block.c              |  3 +-
- drivers/message/fusion/mptlan.c               |  5 +--
- drivers/mfd/cros_ec_dev.c                     |  6 ++--
- drivers/mfd/mfd-core.c                        |  3 +-
- drivers/misc/eeprom/idt_89hpesx.c             |  3 +-
- drivers/misc/genwqe/card_ddcb.c               |  8 ++---
- drivers/misc/sgi-xp/xpnet.c                   |  4 +--
- drivers/misc/sram.c                           |  2 +-
- drivers/mtd/chips/cfi_cmdset_0001.c           |  7 ++--
- drivers/mtd/chips/cfi_cmdset_0002.c           |  4 +--
- drivers/mtd/chips/cfi_cmdset_0020.c           |  4 +--
- drivers/mtd/ftl.c                             | 12 +++----
- drivers/mtd/inftlmount.c                      |  6 ++--
- drivers/mtd/lpddr/lpddr_cmds.c                |  4 +--
+ drivers/mfd/timberdale.c                      |  4 +-
+ drivers/misc/altera-stapl/altera.c            |  9 ++--
+ drivers/misc/cxl/guest.c                      |  3 +-
+ drivers/misc/cxl/of.c                         |  2 +-
+ drivers/misc/sgi-xp/xpc_main.c                |  6 +--
+ drivers/misc/sgi-xp/xpc_partition.c           |  2 +-
+ drivers/misc/vmw_vmci/vmci_queue_pair.c       |  6 ++-
+ drivers/mtd/ar7part.c                         |  3 +-
+ drivers/mtd/bcm47xxpart.c                     |  2 +-
+ drivers/mtd/chips/cfi_cmdset_0002.c           |  3 +-
+ drivers/mtd/devices/docg3.c                   |  3 +-
  drivers/mtd/maps/physmap_of_core.c            |  2 +-
- drivers/mtd/maps/vmu-flash.c                  |  8 ++---
- drivers/mtd/mtdswap.c                         |  2 +-
- drivers/mtd/nand/onenand/onenand_base.c       |  4 +--
- drivers/mtd/nftlmount.c                       |  6 ++--
- drivers/mtd/sm_ftl.c                          | 11 +++---
- drivers/mtd/ssfdc.c                           |  4 +--
- drivers/mtd/tests/pagetest.c                  |  2 +-
- drivers/mtd/ubi/eba.c                         |  4 +--
- drivers/mtd/ubi/wl.c                          |  3 +-
- drivers/net/bonding/bond_main.c               |  3 +-
- drivers/net/can/grcan.c                       |  5 +--
- .../ethernet/atheros/atl1c/atl1c_ethtool.c    |  4 +--
- .../ethernet/atheros/atl1e/atl1e_ethtool.c    |  4 +--
- drivers/net/ethernet/atheros/atlx/atl2.c      |  4 +--
- drivers/net/ethernet/broadcom/bcm63xx_enet.c  |  4 +--
- .../net/ethernet/broadcom/bnx2x/bnx2x_sriov.c |  4 +--
- drivers/net/ethernet/broadcom/cnic.c          |  7 ++--
+ drivers/mtd/mtdconcat.c                       |  4 +-
+ drivers/mtd/nand/raw/nand_bch.c               |  2 +-
+ drivers/mtd/ofpart.c                          |  4 +-
+ drivers/mtd/parsers/parser_trx.c              |  2 +-
+ drivers/mtd/parsers/sharpslpart.c             |  4 +-
+ drivers/mtd/tests/stresstest.c                |  2 +-
+ drivers/mtd/ubi/eba.c                         |  5 +-
+ drivers/net/can/slcan.c                       |  3 +-
+ drivers/net/ethernet/amd/lance.c              |  8 +--
+ drivers/net/ethernet/broadcom/bnx2.c          |  2 +-
+ .../net/ethernet/broadcom/bnx2x/bnx2x_sriov.c |  7 ++-
+ drivers/net/ethernet/broadcom/bnxt/bnxt_vfr.c |  2 +-
+ drivers/net/ethernet/broadcom/cnic.c          |  4 +-
+ drivers/net/ethernet/broadcom/tg3.c           |  4 +-
  drivers/net/ethernet/brocade/bna/bnad.c       |  2 +-
- .../ethernet/cavium/thunder/nicvf_queues.c    |  4 +--
- .../net/ethernet/chelsio/cxgb4/cxgb4_main.c   |  4 +--
- drivers/net/ethernet/freescale/ucc_geth.c     |  6 ++--
- drivers/net/ethernet/hisilicon/hns/hns_enet.c |  2 +-
- drivers/net/ethernet/ibm/ibmveth.c            |  3 +-
- .../net/ethernet/intel/e1000/e1000_ethtool.c  |  4 +--
- drivers/net/ethernet/intel/e1000e/ethtool.c   |  2 +-
- drivers/net/ethernet/intel/e1000e/netdev.c    |  3 +-
- drivers/net/ethernet/intel/igb/igb_ethtool.c  |  6 ++--
- drivers/net/ethernet/intel/igb/igb_main.c     |  6 ++--
- .../net/ethernet/intel/ixgb/ixgb_ethtool.c    |  4 +--
- drivers/net/ethernet/intel/ixgbe/ixgbe_main.c |  3 +-
- drivers/net/ethernet/jme.c                    |  8 ++---
- drivers/net/ethernet/mellanox/mlx4/alloc.c    |  4 +--
- drivers/net/ethernet/mellanox/mlx4/cmd.c      | 17 +++++----
- drivers/net/ethernet/mellanox/mlx4/eq.c       |  2 +-
- .../ethernet/mellanox/mlx4/resource_tracker.c | 21 +++++------
- .../ethernet/mellanox/mlx5/core/fpga/conn.c   |  8 ++---
- .../ethernet/mellanox/mlx5/core/fpga/ipsec.c  |  2 +-
- .../ethernet/mellanox/mlx5/core/lib/clock.c   |  4 +--
- drivers/net/ethernet/micrel/ksz884x.c         |  2 +-
- drivers/net/ethernet/moxa/moxart_ether.c      |  4 +--
- .../net/ethernet/neterion/vxge/vxge-main.c    |  4 +--
- drivers/net/ethernet/nvidia/forcedeth.c       |  6 ++--
- drivers/net/ethernet/qlogic/qed/qed_debug.c   |  6 ++--
- drivers/net/ethernet/qlogic/qed/qed_dev.c     | 12 +++----
- .../net/ethernet/qlogic/qed/qed_init_ops.c    |  3 +-
- drivers/net/ethernet/qlogic/qed/qed_l2.c      |  2 +-
- drivers/net/ethernet/qlogic/qed/qed_mcp.c     |  3 +-
- drivers/net/ethernet/qlogic/qlge/qlge_main.c  |  3 +-
- drivers/net/usb/asix_common.c                 |  4 +--
- drivers/net/usb/ax88179_178a.c                |  2 +-
- drivers/net/usb/usbnet.c                      |  2 +-
- drivers/net/virtio_net.c                      |  6 ++--
- drivers/net/wan/fsl_ucc_hdlc.c                |  4 +--
- drivers/net/wireless/ath/ath10k/htt_rx.c      |  2 +-
- drivers/net/wireless/ath/ath5k/phy.c          |  4 +--
- drivers/net/wireless/ath/ath9k/ar9003_paprd.c |  2 +-
- drivers/net/wireless/ath/carl9170/main.c      |  4 +--
- .../broadcom/brcm80211/brcmfmac/msgbuf.c      |  4 +--
- .../broadcom/brcm80211/brcmsmac/phy/phy_n.c   |  3 +-
- drivers/net/wireless/intel/iwlegacy/common.c  |  8 ++---
- drivers/net/wireless/intersil/p54/eeprom.c    |  4 +--
- .../net/wireless/intersil/prism54/oid_mgt.c   |  3 +-
- drivers/net/wireless/marvell/mwifiex/sdio.c   |  8 ++---
- drivers/net/wireless/mediatek/mt7601u/init.c  |  4 +--
- .../net/wireless/quantenna/qtnfmac/commands.c |  2 +-
- .../net/wireless/ralink/rt2x00/rt2x00debug.c  |  7 ++--
- drivers/net/wireless/realtek/rtlwifi/efuse.c  |  4 +--
- drivers/net/wireless/rsi/rsi_91x_mgmt.c       |  2 +-
- drivers/net/wireless/st/cw1200/queue.c        |  4 +--
- drivers/net/wireless/st/cw1200/scan.c         |  5 ++-
- drivers/net/wireless/ti/wlcore/spi.c          |  3 +-
- drivers/nvmem/sunxi_sid.c                     |  2 +-
- drivers/of/platform.c                         |  3 +-
- drivers/opp/ti-opp-supply.c                   |  4 +--
- drivers/pci/msi.c                             |  3 +-
- drivers/pinctrl/bcm/pinctrl-bcm2835.c         |  4 +--
- drivers/pinctrl/pinctrl-lantiq.c              |  3 +-
- drivers/pinctrl/vt8500/pinctrl-wmt.c          |  2 +-
- drivers/platform/x86/alienware-wmi.c          |  6 ++--
- drivers/platform/x86/panasonic-laptop.c       |  3 +-
- drivers/rapidio/rio-scan.c                    |  5 ++-
- drivers/s390/block/dasd_eer.c                 |  2 +-
- drivers/s390/block/dcssblk.c                  |  5 ++-
- drivers/s390/char/vmur.c                      |  2 +-
- drivers/s390/char/zcore.c                     |  3 +-
- drivers/s390/crypto/pkey_api.c                |  2 +-
- drivers/s390/net/qeth_core_main.c             | 18 +++++-----
- drivers/scsi/aacraid/linit.c                  |  3 +-
- drivers/scsi/aic7xxx/aic79xx_core.c           |  3 +-
- drivers/scsi/aic94xx/aic94xx_hwi.c            |  9 ++---
- drivers/scsi/aic94xx/aic94xx_init.c           |  2 +-
- drivers/scsi/be2iscsi/be_main.c               | 31 +++++++---------
- drivers/scsi/bfa/bfad_bsg.c                   |  4 +--
- drivers/scsi/csiostor/csio_wr.c               |  6 ++--
- drivers/scsi/dpt_i2o.c                        |  2 +-
- drivers/scsi/esas2r/esas2r_init.c             |  4 +--
- drivers/scsi/hpsa.c                           | 23 ++++++------
- drivers/scsi/ipr.c                            |  4 +--
- drivers/scsi/libiscsi.c                       |  3 +-
- drivers/scsi/libsas/sas_expander.c            |  3 +-
- drivers/scsi/lpfc/lpfc_sli.c                  |  5 ++-
- drivers/scsi/lpfc/lpfc_vport.c                |  2 +-
- drivers/scsi/mac53c94.c                       |  4 +--
- drivers/scsi/megaraid/megaraid_mm.c           |  8 ++---
- drivers/scsi/pm8001/pm8001_ctl.c              |  2 +-
- drivers/scsi/qedi/qedi_main.c                 |  3 +-
- drivers/scsi/qla2xxx/qla_init.c               |  8 ++---
- drivers/scsi/qla2xxx/qla_isr.c                |  4 +--
- drivers/scsi/qla2xxx/qla_os.c                 | 12 +++----
- drivers/scsi/qla2xxx/qla_target.c             |  4 +--
- drivers/scsi/smartpqi/smartpqi_init.c         |  4 +--
- drivers/sh/intc/core.c                        | 10 +++---
- drivers/sh/maple/maple.c                      |  2 +-
- drivers/soc/fsl/qbman/qman_test_stash.c       |  2 +-
- drivers/staging/lustre/lustre/lov/lov_io.c    |  5 ++-
- .../staging/lustre/lustre/lov/lov_object.c    |  4 +--
- .../staging/lustre/lustre/ptlrpc/sec_bulk.c   |  5 ++-
- .../pci/atomisp2/css2400/sh_css_firmware.c    |  5 ++-
- drivers/staging/rtl8192u/r8192U_core.c        |  2 +-
- .../staging/rtl8723bs/os_dep/ioctl_linux.c    |  2 +-
- drivers/staging/rtlwifi/efuse.c               |  4 +--
- drivers/staging/rts5208/ms.c                  |  2 +-
- drivers/target/target_core_user.c             |  4 +--
- .../int340x_thermal/acpi_thermal_rel.c        |  4 +--
- drivers/thermal/of-thermal.c                  |  6 ++--
- drivers/tty/hvc/hvc_iucv.c                    |  2 +-
- drivers/tty/isicom.c                          |  2 +-
- drivers/tty/serial/serial_core.c              |  3 +-
- drivers/tty/vt/selection.c                    |  3 +-
- drivers/usb/core/message.c                    |  3 +-
- drivers/usb/gadget/udc/fsl_udc_core.c         |  3 +-
- drivers/usb/host/ehci-sched.c                 |  4 +--
- drivers/usb/host/imx21-hcd.c                  |  4 +--
- drivers/usb/host/isp1362-hcd.c                |  2 +-
- drivers/usb/host/xhci-mem.c                   |  8 ++---
- drivers/usb/misc/ldusb.c                      |  6 ++--
- drivers/usb/mon/mon_bin.c                     |  3 +-
- drivers/usb/storage/alauda.c                  |  3 +-
- drivers/usb/storage/ene_ub6250.c              | 12 ++++---
- drivers/usb/storage/isd200.c                  |  2 +-
- drivers/usb/storage/sddr55.c                  |  2 +-
- drivers/usb/wusbcore/wa-rpipe.c               |  2 +-
- drivers/uwb/est.c                             |  2 +-
- drivers/uwb/i1480/dfu/usb.c                   |  2 +-
- drivers/video/console/sticore.c               |  2 +-
- drivers/video/fbdev/core/bitblit.c            |  5 +--
- drivers/video/fbdev/core/fbcon.c              |  3 +-
- drivers/video/fbdev/core/fbcon_ccw.c          |  8 +++--
- drivers/video/fbdev/core/fbcon_cw.c           |  8 +++--
- drivers/video/fbdev/core/fbcon_ud.c           |  5 +--
- drivers/video/fbdev/core/fbmem.c              |  9 ++---
- drivers/video/fbdev/core/fbmon.c              |  4 +--
- drivers/video/fbdev/i810/i810_main.c          |  4 +--
- drivers/video/fbdev/intelfb/intelfbdrv.c      |  2 +-
- drivers/video/fbdev/matrox/g450_pll.c         |  3 +-
- drivers/video/fbdev/mb862xx/mb862xxfb_accel.c |  2 +-
- drivers/video/fbdev/nvidia/nvidia.c           |  5 +--
- drivers/video/fbdev/riva/fbdev.c              |  5 +--
- drivers/video/fbdev/uvesafb.c                 |  7 ++--
- drivers/video/of_display_timing.c             |  4 +--
- drivers/virt/vboxguest/vboxguest_core.c       |  3 +-
- drivers/xen/xen-pciback/pciback_ops.c         |  2 +-
- fs/afs/cmservice.c                            |  3 +-
- fs/btrfs/check-integrity.c                    |  5 ++-
- fs/ceph/mds_client.c                          |  4 +--
- fs/cifs/smb2pdu.c                             |  2 +-
- fs/cifs/transport.c                           |  4 +--
- fs/ext4/extents.c                             |  8 ++---
- fs/ext4/resize.c                              |  6 ++--
- fs/fuse/dev.c                                 |  6 ++--
- fs/gfs2/dir.c                                 |  2 +-
- fs/gfs2/rgrp.c                                |  2 +-
- fs/hpfs/dnode.c                               |  2 +-
- fs/hpfs/map.c                                 |  2 +-
- fs/jffs2/wbuf.c                               |  3 +-
- fs/jfs/jfs_dtree.c                            | 14 ++++----
- fs/jfs/jfs_unicode.c                          |  2 +-
- fs/nfsd/export.c                              |  4 +--
- fs/ocfs2/journal.c                            |  2 +-
- fs/ocfs2/sysfile.c                            |  4 +--
- fs/overlayfs/namei.c                          |  2 +-
- fs/proc/proc_sysctl.c                         |  2 +-
- fs/proc/task_mmu.c                            |  2 +-
- fs/reiserfs/inode.c                           |  3 +-
- fs/reiserfs/journal.c                         |  8 ++---
- fs/select.c                                   |  2 +-
- fs/ubifs/lpt.c                                |  7 ++--
- fs/ubifs/tnc.c                                |  2 +-
- fs/ubifs/tnc_commit.c                         |  3 +-
- fs/udf/super.c                                |  4 +--
- fs/ufs/super.c                                |  2 +-
- kernel/bpf/lpm_trie.c                         |  2 +-
- kernel/bpf/verifier.c                         |  3 +-
- kernel/cgroup/cpuset.c                        |  2 +-
- kernel/debug/kdb/kdb_main.c                   |  9 ++---
- kernel/events/uprobes.c                       |  3 +-
- kernel/fail_function.c                        |  2 +-
- kernel/locking/locktorture.c                  | 10 +++---
- kernel/relay.c                                |  3 +-
- kernel/sysctl.c                               |  2 +-
- kernel/trace/trace.c                          |  5 +--
- lib/argv_split.c                              |  2 +-
- lib/reed_solomon/reed_solomon.c               |  9 +++--
- lib/test_string.c                             |  6 ++--
- lib/test_user_copy.c                          |  2 +-
- mm/slab.c                                     |  3 +-
- mm/slub.c                                     | 12 +++----
+ drivers/net/ethernet/calxeda/xgmac.c          |  4 +-
+ .../ethernet/cavium/liquidio/lio_vf_main.c    |  4 +-
+ drivers/net/ethernet/chelsio/cxgb4/clip_tbl.c |  3 +-
+ .../ethernet/chelsio/cxgb4/cxgb4_debugfs.c    |  2 +-
+ .../net/ethernet/chelsio/cxgb4/cxgb4_tc_u32.c |  3 +-
+ .../net/ethernet/chelsio/cxgb4/cxgb4_uld.c    |  6 +--
+ drivers/net/ethernet/cortina/gemini.c         |  4 +-
+ drivers/net/ethernet/intel/ixgb/ixgb_main.c   |  4 +-
+ .../net/ethernet/intel/ixgbe/ixgbe_ethtool.c  |  2 +-
+ .../net/ethernet/mellanox/mlx4/en_netdev.c    | 16 +++---
+ drivers/net/ethernet/mellanox/mlx4/main.c     |  6 ++-
+ .../ethernet/mellanox/mlxsw/spectrum_qdisc.c  |  2 +-
+ .../net/ethernet/neterion/vxge/vxge-config.c  | 12 +++--
+ .../ethernet/oki-semi/pch_gbe/pch_gbe_main.c  |  2 +-
+ drivers/net/ethernet/pasemi/pasemi_mac.c      |  8 +--
+ .../net/ethernet/qlogic/qed/qed_init_ops.c    |  4 +-
+ .../net/ethernet/qlogic/qlcnic/qlcnic_main.c  |  8 +--
+ .../qlogic/qlcnic/qlcnic_sriov_common.c       | 10 ++--
+ drivers/net/ethernet/socionext/netsec.c       |  3 +-
+ .../net/ethernet/toshiba/ps3_gelic_wireless.c |  4 +-
+ drivers/net/gtp.c                             |  6 ++-
+ drivers/net/hippi/rrunner.c                   |  3 +-
+ drivers/net/phy/dp83640.c                     |  4 +-
+ drivers/net/slip/slip.c                       |  4 +-
+ drivers/net/team/team.c                       |  5 +-
+ drivers/net/usb/smsc95xx.c                    |  3 +-
+ drivers/net/virtio_net.c                      |  9 ++--
+ drivers/net/wireless/ath/ath10k/wmi-tlv.c     |  2 +-
+ drivers/net/wireless/ath/ath6kl/cfg80211.c    |  3 +-
+ drivers/net/wireless/ath/ath9k/hw.c           |  4 +-
+ drivers/net/wireless/ath/carl9170/main.c      |  3 +-
+ drivers/net/wireless/broadcom/b43/phy_n.c     |  2 +-
+ .../net/wireless/broadcom/b43legacy/main.c    |  3 +-
+ .../broadcom/brcm80211/brcmfmac/p2p.c         |  2 +-
+ .../broadcom/brcm80211/brcmsmac/main.c        |  9 ++--
+ .../broadcom/brcm80211/brcmsmac/phy/phy_lcn.c |  8 +--
+ .../broadcom/brcm80211/brcmsmac/phy/phy_n.c   |  5 +-
+ drivers/net/wireless/cisco/airo.c             |  2 +-
+ drivers/net/wireless/intel/ipw2x00/ipw2100.c  |  5 +-
+ drivers/net/wireless/intel/ipw2x00/ipw2200.c  |  8 +--
+ drivers/net/wireless/intel/iwlegacy/common.c  |  6 ++-
+ drivers/net/wireless/intel/iwlwifi/mvm/scan.c |  3 +-
+ .../wireless/intersil/hostap/hostap_info.c    |  2 +-
+ .../wireless/intersil/hostap/hostap_ioctl.c   |  6 ++-
+ drivers/net/wireless/intersil/p54/eeprom.c    |  6 +--
+ .../wireless/marvell/mwifiex/11n_rxreorder.c  |  4 +-
+ drivers/net/wireless/realtek/rtlwifi/usb.c    |  2 +-
+ drivers/net/wireless/st/cw1200/queue.c        |  6 +--
+ drivers/net/wireless/zydas/zd1211rw/zd_mac.c  |  3 +-
+ drivers/nvmem/rockchip-efuse.c                |  6 ++-
+ drivers/of/unittest.c                         |  2 +-
+ drivers/pci/msi.c                             |  2 +-
+ drivers/pci/pci-sysfs.c                       |  2 +-
+ drivers/pcmcia/cistpl.c                       |  4 +-
+ drivers/pcmcia/pd6729.c                       |  2 +-
+ drivers/pinctrl/freescale/pinctrl-imx.c       |  3 +-
+ drivers/pinctrl/freescale/pinctrl-imx1-core.c |  3 +-
+ drivers/pinctrl/freescale/pinctrl-mxs.c       |  2 +-
+ drivers/pinctrl/samsung/pinctrl-exynos5440.c  |  4 +-
+ drivers/pinctrl/sirf/pinctrl-sirf.c           |  2 +-
+ drivers/pinctrl/spear/pinctrl-spear.c         |  2 +-
+ drivers/pinctrl/sunxi/pinctrl-sunxi.c         |  6 ++-
+ drivers/platform/x86/intel_ips.c              | 18 ++++---
+ drivers/platform/x86/thinkpad_acpi.c          |  2 +-
+ drivers/power/supply/wm97xx_battery.c         |  2 +-
+ drivers/power/supply/z2_battery.c             |  2 +-
+ drivers/powercap/powercap_sys.c               |  8 +--
+ drivers/regulator/s2mps11.c                   |  2 +-
+ drivers/s390/char/keyboard.c                  |  3 +-
+ drivers/s390/char/tty3270.c                   |  3 +-
+ drivers/s390/cio/qdio_setup.c                 |  2 +-
+ drivers/s390/cio/qdio_thinint.c               |  4 +-
+ drivers/s390/crypto/pkey_api.c                |  3 +-
+ drivers/s390/net/ctcm_main.c                  |  3 +-
+ drivers/s390/net/qeth_core_main.c             |  4 +-
+ drivers/scsi/BusLogic.c                       |  4 +-
+ drivers/scsi/aacraid/aachba.c                 |  3 +-
+ drivers/scsi/aha1542.c                        |  3 +-
+ drivers/scsi/aic7xxx/aic7xxx_core.c           |  4 +-
+ drivers/scsi/arm/queue.c                      |  3 +-
+ drivers/scsi/be2iscsi/be_main.c               |  4 +-
+ drivers/scsi/bfa/bfad_attr.c                  |  2 +-
+ drivers/scsi/bnx2fc/bnx2fc_fcoe.c             |  2 +-
+ drivers/scsi/bnx2fc/bnx2fc_io.c               |  8 +--
+ drivers/scsi/esas2r/esas2r_init.c             |  6 +--
+ drivers/scsi/fcoe/fcoe_ctlr.c                 |  2 +-
+ drivers/scsi/hpsa.c                           | 18 ++++---
+ drivers/scsi/ipr.c                            |  4 +-
+ drivers/scsi/lpfc/lpfc_init.c                 |  6 +--
+ drivers/scsi/lpfc/lpfc_mem.c                  |  4 +-
+ drivers/scsi/lpfc/lpfc_sli.c                  | 54 +++++++------------
+ drivers/scsi/megaraid.c                       |  3 +-
+ drivers/scsi/megaraid/megaraid_sas_base.c     |  7 ++-
+ drivers/scsi/megaraid/megaraid_sas_fusion.c   |  2 +-
+ drivers/scsi/osst.c                           |  6 ++-
+ drivers/scsi/pmcraid.c                        |  4 +-
+ drivers/scsi/qla2xxx/qla_nx.c                 |  2 +-
+ drivers/scsi/qla2xxx/qla_target.c             |  4 +-
+ drivers/scsi/qla4xxx/ql4_nx.c                 |  2 +-
+ drivers/scsi/scsi_debug.c                     |  2 +-
+ drivers/scsi/ses.c                            |  3 +-
+ drivers/scsi/sg.c                             |  2 +-
+ drivers/scsi/smartpqi/smartpqi_init.c         |  4 +-
+ drivers/scsi/st.c                             |  4 +-
+ drivers/scsi/virtio_scsi.c                    |  8 +--
+ drivers/sh/clk/cpg.c                          |  2 +-
+ drivers/slimbus/qcom-ctrl.c                   |  2 +-
+ drivers/soc/fsl/qbman/qman.c                  |  2 +-
+ drivers/staging/lustre/lnet/lnet/lib-socket.c |  4 +-
+ .../staging/lustre/lnet/selftest/console.c    |  7 +--
+ .../lustre/lustre/obdclass/lustre_handles.c   |  4 +-
+ .../pci/atomisp2/atomisp_compat_css20.c       |  4 +-
+ .../media/atomisp/pci/atomisp2/atomisp_fops.c |  2 +-
+ .../pci/atomisp2/hmm/hmm_reserved_pool.c      |  4 +-
+ .../staging/mt7621-pinctrl/pinctrl-rt2880.c   |  3 +-
+ .../staging/rtl8192u/ieee80211/ieee80211_rx.c |  4 +-
+ .../staging/unisys/visorhba/visorhba_main.c   |  2 +-
+ drivers/target/target_core_transport.c        |  2 +-
+ .../int340x_thermal/int340x_thermal_zone.c    |  5 +-
+ drivers/thermal/x86_pkg_temp_thermal.c        |  3 +-
+ drivers/tty/ehv_bytechan.c                    |  3 +-
+ drivers/tty/goldfish.c                        |  4 +-
+ drivers/tty/hvc/hvcs.c                        |  3 +-
+ drivers/tty/serial/atmel_serial.c             |  4 +-
+ drivers/tty/serial/pch_uart.c                 |  3 +-
+ drivers/tty/serial/sunsab.c                   |  4 +-
+ drivers/tty/vt/consolemap.c                   |  8 +--
+ drivers/tty/vt/keyboard.c                     |  8 +--
+ drivers/uio/uio_pruss.c                       |  3 +-
+ drivers/usb/core/devio.c                      |  4 +-
+ drivers/usb/core/hub.c                        |  3 +-
+ drivers/usb/core/message.c                    |  4 +-
+ drivers/usb/dwc2/hcd.c                        |  9 ++--
+ drivers/usb/gadget/udc/bdc/bdc_ep.c           |  5 +-
+ drivers/usb/host/fhci-tds.c                   |  2 +-
+ drivers/usb/host/ohci-dbg.c                   |  2 +-
+ drivers/usb/host/xhci-mem.c                   | 17 +++---
+ drivers/usb/renesas_usbhs/mod_gadget.c        |  3 +-
+ drivers/usb/renesas_usbhs/pipe.c              |  3 +-
+ drivers/usb/serial/iuu_phoenix.c              |  4 +-
+ drivers/usb/storage/sddr09.c                  |  6 ++-
+ drivers/usb/storage/sddr55.c                  |  6 ++-
+ drivers/vhost/net.c                           |  6 +--
+ drivers/vhost/scsi.c                          | 14 ++---
+ drivers/vhost/test.c                          |  2 +-
+ drivers/vhost/vhost.c                         |  8 +--
+ drivers/vhost/vringh.c                        |  2 +-
+ drivers/video/fbdev/broadsheetfb.c            |  3 +-
+ drivers/video/fbdev/core/fbcon_rotate.c       |  2 +-
+ drivers/video/fbdev/core/fbmon.c              |  5 +-
+ drivers/video/fbdev/imxfb.c                   |  3 +-
+ drivers/video/fbdev/mmp/fb/mmpfb.c            |  4 +-
+ .../video/fbdev/omap2/omapfb/dss/manager.c    |  4 +-
+ .../video/fbdev/omap2/omapfb/dss/overlay.c    |  4 +-
+ drivers/video/fbdev/pvr2fb.c                  |  3 +-
+ drivers/video/fbdev/uvesafb.c                 |  2 +-
+ drivers/video/fbdev/via/viafbdev.c            |  3 +-
+ drivers/video/fbdev/w100fb.c                  |  3 +-
+ drivers/virt/fsl_hypervisor.c                 |  3 +-
+ drivers/virt/vboxguest/vboxguest_core.c       |  2 +-
+ drivers/virtio/virtio_pci_common.c            |  4 +-
+ drivers/virtio/virtio_ring.c                  |  2 +-
+ drivers/xen/arm-device.c                      |  7 +--
+ drivers/xen/evtchn.c                          |  3 +-
+ drivers/xen/grant-table.c                     |  5 +-
+ fs/9p/fid.c                                   |  2 +-
+ fs/adfs/super.c                               |  2 +-
+ fs/afs/cmservice.c                            |  6 ++-
+ fs/binfmt_elf.c                               |  3 +-
+ fs/binfmt_elf_fdpic.c                         |  3 +-
+ fs/block_dev.c                                |  3 +-
+ fs/ceph/addr.c                                |  6 +--
+ fs/ceph/file.c                                |  2 +-
+ fs/cifs/asn1.c                                |  2 +-
+ fs/cifs/cifsacl.c                             |  2 +-
+ fs/cifs/inode.c                               |  4 +-
+ fs/cifs/smb2pdu.c                             |  6 +--
+ fs/exofs/inode.c                              |  2 +-
+ fs/ext2/super.c                               |  3 +-
+ fs/ext4/extents.c                             |  2 +-
+ fs/ext4/resize.c                              | 10 ++--
+ fs/ext4/super.c                               |  5 +-
+ fs/fat/namei_vfat.c                           |  2 +-
+ fs/fuse/dev.c                                 |  7 +--
+ fs/gfs2/dir.c                                 |  4 +-
+ fs/gfs2/glock.c                               |  3 +-
+ fs/gfs2/quota.c                               |  3 +-
+ fs/gfs2/super.c                               |  3 +-
+ fs/jbd2/revoke.c                              |  3 +-
+ fs/jfs/jfs_dmap.c                             |  3 +-
+ fs/mbcache.c                                  |  2 +-
+ fs/namei.c                                    |  8 +--
+ fs/nfs/flexfilelayout/flexfilelayout.c        |  2 +-
+ fs/nfs/flexfilelayout/flexfilelayoutdev.c     |  2 +-
+ fs/nfsd/nfs4recover.c                         |  4 +-
+ fs/nfsd/nfs4state.c                           | 16 +++---
+ fs/ntfs/compress.c                            |  2 +-
+ fs/ocfs2/cluster/tcp.c                        |  2 +-
+ fs/ocfs2/dlm/dlmdomain.c                      |  2 +-
+ fs/proc/base.c                                |  3 +-
+ fs/read_write.c                               |  6 ++-
+ fs/splice.c                                   |  9 ++--
+ fs/ubifs/journal.c                            |  2 +-
+ fs/ubifs/lpt.c                                |  5 +-
+ fs/ubifs/super.c                              |  3 +-
+ fs/ubifs/tnc_commit.c                         |  2 +-
+ fs/udf/super.c                                |  3 +-
+ ipc/sem.c                                     |  2 +-
+ kernel/cgroup/cgroup-v1.c                     |  2 +-
+ kernel/cgroup/cpuset.c                        |  3 +-
+ kernel/sched/fair.c                           |  5 +-
+ kernel/sched/rt.c                             |  4 +-
+ kernel/sched/topology.c                       |  2 +-
+ kernel/trace/ftrace.c                         | 21 ++++----
+ kernel/trace/trace.c                          |  5 +-
+ kernel/trace/trace_events_filter.c            |  8 +--
+ kernel/user_namespace.c                       |  4 +-
+ kernel/workqueue.c                            |  2 +-
+ lib/bucket_locks.c                            |  3 +-
+ lib/interval_tree_test.c                      |  5 +-
+ lib/kfifo.c                                   |  2 +-
+ lib/lru_cache.c                               |  3 +-
+ lib/mpi/mpiutil.c                             |  6 ++-
+ lib/rbtree_test.c                             |  2 +-
+ lib/scatterlist.c                             |  3 +-
+ mm/gup_benchmark.c                            |  2 +-
+ mm/huge_memory.c                              |  2 +-
+ mm/hugetlb.c                                  |  3 +-
+ mm/slub.c                                     |  5 +-
+ mm/swap_slots.c                               |  4 +-
+ mm/swap_state.c                               |  3 +-
  mm/swapfile.c                                 |  2 +-
- net/9p/protocol.c                             |  5 ++-
- net/can/bcm.c                                 |  6 ++--
- net/ceph/osdmap.c                             |  2 +-
- net/core/ethtool.c                            |  2 +-
- net/ipv4/fib_frontend.c                       |  2 +-
- net/mac80211/util.c                           |  4 +--
- net/netfilter/xt_dccp.c                       |  2 +-
- net/netlink/genetlink.c                       |  8 ++---
- net/rds/ib.c                                  |  2 +-
- net/sched/sch_fq_codel.c                      |  7 ++--
- net/smc/smc_wr.c                              |  5 ++-
- net/sunrpc/auth_gss/auth_gss.c                |  4 +--
- net/sunrpc/auth_gss/gss_krb5_crypto.c         |  2 +-
- net/sunrpc/auth_gss/gss_rpc_upcall.c          |  3 +-
- net/sunrpc/cache.c                            |  2 +-
- net/tipc/netlink_compat.c                     |  4 +--
- security/keys/trusted.c                       |  2 +-
- sound/core/pcm_native.c                       |  4 +--
- sound/firewire/dice/dice-transaction.c        |  4 +--
- sound/pci/cs46xx/cs46xx_lib.c                 |  6 ++--
- sound/pci/ctxfi/ctatc.c                       |  2 +-
- sound/pci/ctxfi/ctdaio.c                      |  3 +-
- sound/pci/ctxfi/ctmixer.c                     |  5 +--
- sound/pci/ctxfi/ctsrc.c                       |  2 +-
- sound/pci/emu10k1/emufx.c                     |  6 ++--
+ net/9p/trans_virtio.c                         |  3 +-
+ net/atm/mpc.c                                 |  3 +-
+ net/bluetooth/hci_core.c                      |  3 +-
+ net/bluetooth/l2cap_core.c                    |  3 +-
+ net/bridge/br_multicast.c                     |  2 +-
+ net/ceph/pagevec.c                            |  4 +-
+ net/core/dev.c                                |  3 +-
+ net/core/ethtool.c                            |  4 +-
+ net/dcb/dcbnl.c                               |  3 +-
+ net/dccp/ccids/ccid2.c                        |  3 +-
+ net/ieee802154/nl-phy.c                       |  2 +-
+ net/ipv4/route.c                              |  6 ++-
+ net/ipv6/icmp.c                               |  3 +-
+ net/ipv6/ila/ila_xlat.c                       |  3 +-
+ net/ipv6/route.c                              |  2 +-
+ net/mac80211/chan.c                           |  3 +-
+ net/mac80211/main.c                           |  3 +-
+ net/mac80211/rc80211_minstrel.c               |  5 +-
+ net/mac80211/rc80211_minstrel_ht.c            |  6 ++-
+ net/mac80211/scan.c                           |  2 +-
+ net/netfilter/nf_conntrack_proto.c            |  3 +-
+ net/netfilter/nf_nat_core.c                   |  2 +-
+ net/netfilter/nf_tables_api.c                 |  4 +-
+ net/netfilter/nfnetlink_cthelper.c            |  4 +-
+ net/netfilter/x_tables.c                      |  3 +-
+ net/netrom/af_netrom.c                        |  3 +-
+ net/openvswitch/datapath.c                    |  2 +-
+ net/openvswitch/vport.c                       |  2 +-
+ net/rds/info.c                                |  3 +-
+ net/rose/af_rose.c                            |  3 +-
+ net/rxrpc/rxkad.c                             |  2 +-
+ net/sched/sch_hhf.c                           |  8 +--
+ net/sctp/auth.c                               |  4 +-
+ net/sctp/protocol.c                           |  3 +-
+ net/wireless/nl80211.c                        |  4 +-
+ security/apparmor/policy_unpack.c             |  2 +-
+ security/selinux/ss/services.c                |  2 +-
+ sound/core/pcm_compat.c                       |  2 +-
+ sound/core/seq/seq_midi_emul.c                |  3 +-
+ sound/firewire/fireface/ff-protocol-ff400.c   |  2 +-
+ sound/firewire/packets-buffer.c               |  3 +-
+ sound/oss/dmasound/dmasound_core.c            |  2 +-
+ sound/pci/cs46xx/dsp_spos.c                   |  3 +-
+ sound/pci/ctxfi/ctatc.c                       | 23 +++++---
  sound/pci/hda/hda_codec.c                     |  3 +-
- sound/soc/codecs/wm8904.c                     |  4 +--
- sound/soc/codecs/wm8958-dsp2.c                | 16 ++++-----
- sound/soc/codecs/wm_adsp.c                    |  2 +-
- sound/soc/soc-core.c                          |  5 ++-
- sound/soc/soc-dapm.c                          |  5 ++-
- sound/soc/soc-topology.c                      |  2 +-
+ sound/pci/hda/hda_proc.c                      |  2 +-
+ sound/pci/hda/patch_ca0132.c                  |  3 +-
+ sound/pci/via82xx.c                           |  3 +-
+ sound/pci/via82xx_modem.c                     |  3 +-
+ sound/pci/ymfpci/ymfpci_main.c                |  2 +-
+ sound/soc/intel/common/sst-ipc.c              |  4 +-
+ sound/usb/6fire/pcm.c                         |  8 +--
+ sound/usb/caiaq/audio.c                       |  9 ++--
  sound/usb/format.c                            |  3 +-
- sound/usb/line6/capture.c                     |  4 +--
- sound/usb/line6/pcm.c                         |  4 +--
- sound/usb/line6/playback.c                    |  4 +--
- sound/usb/mixer.c                             |  3 +-
+ sound/usb/pcm.c                               |  2 +-
+ sound/usb/usx2y/usbusx2y.c                    |  2 +-
  sound/usb/usx2y/usbusx2yaudio.c               |  3 +-
- 460 files changed, 1015 insertions(+), 925 deletions(-)
+ tools/virtio/ringtest/ptr_ring.c              |  2 +-
+ virt/kvm/arm/vgic/vgic-v4.c                   |  2 +-
+ 503 files changed, 1155 insertions(+), 912 deletions(-)
 
-diff --git a/arch/arm/mach-omap2/hsmmc.c b/arch/arm/mach-omap2/hsmmc.c
-index b064066d431c..34d7b3a50ab7 100644
---- a/arch/arm/mach-omap2/hsmmc.c
-+++ b/arch/arm/mach-omap2/hsmmc.c
-@@ -35,7 +35,8 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
- {
- 	char *hc_name;
- 
--	hc_name = kzalloc(sizeof(char) * (HSMMC_NAME_LEN + 1), GFP_KERNEL);
-+	hc_name = kzalloc(array_size(sizeof(char), (HSMMC_NAME_LEN + 1)),
-+			  GFP_KERNEL);
- 	if (!hc_name) {
- 		kfree(hc_name);
+diff --git a/arch/arm/kernel/sys_oabi-compat.c b/arch/arm/kernel/sys_oabi-compat.c
+index b9786f491873..fcf7b230a65e 100644
+--- a/arch/arm/kernel/sys_oabi-compat.c
++++ b/arch/arm/kernel/sys_oabi-compat.c
+@@ -286,7 +286,7 @@ asmlinkage long sys_oabi_epoll_wait(int epfd,
+ 		return -EINVAL;
+ 	if (!access_ok(VERIFY_WRITE, events, sizeof(*events) * maxevents))
+ 		return -EFAULT;
+-	kbuf = kmalloc(sizeof(*kbuf) * maxevents, GFP_KERNEL);
++	kbuf = kmalloc(array_size(maxevents, sizeof(*kbuf)), GFP_KERNEL);
+ 	if (!kbuf)
  		return -ENOMEM;
-diff --git a/arch/arm64/kernel/armv8_deprecated.c b/arch/arm64/kernel/armv8_deprecated.c
-index 6e47fc3ab549..869f98e0c114 100644
---- a/arch/arm64/kernel/armv8_deprecated.c
-+++ b/arch/arm64/kernel/armv8_deprecated.c
-@@ -235,8 +235,8 @@ static void __init register_insn_emulation_sysctl(void)
- 	struct insn_emulation *insn;
- 	struct ctl_table *insns_sysctl, *sysctl;
+ 	fs = get_fs();
+@@ -324,7 +324,7 @@ asmlinkage long sys_oabi_semtimedop(int semid,
+ 		return -EINVAL;
+ 	if (!access_ok(VERIFY_READ, tsops, sizeof(*tsops) * nsops))
+ 		return -EFAULT;
+-	sops = kmalloc(sizeof(*sops) * nsops, GFP_KERNEL);
++	sops = kmalloc(array_size(nsops, sizeof(*sops)), GFP_KERNEL);
+ 	if (!sops)
+ 		return -ENOMEM;
+ 	err = 0;
+diff --git a/arch/arm/mach-footbridge/dc21285.c b/arch/arm/mach-footbridge/dc21285.c
+index e7b350f18f5f..46188ceb0407 100644
+--- a/arch/arm/mach-footbridge/dc21285.c
++++ b/arch/arm/mach-footbridge/dc21285.c
+@@ -252,7 +252,7 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
+ 	if (nr || !footbridge_cfn_mode())
+ 		return 0;
  
--	insns_sysctl = kzalloc(sizeof(*sysctl) * (nr_insn_emulated + 1),
--			      GFP_KERNEL);
-+	insns_sysctl = kzalloc(array_size(sizeof(*sysctl), (nr_insn_emulated + 1)),
-+			       GFP_KERNEL);
+-	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
++	res = kzalloc(array_size(2, sizeof(struct resource)), GFP_KERNEL);
+ 	if (!res) {
+ 		printk("out of memory for root bus resources");
+ 		return 0;
+diff --git a/arch/arm/mach-ixp4xx/common-pci.c b/arch/arm/mach-ixp4xx/common-pci.c
+index bcf3df59f71b..6710ac32550b 100644
+--- a/arch/arm/mach-ixp4xx/common-pci.c
++++ b/arch/arm/mach-ixp4xx/common-pci.c
+@@ -421,7 +421,7 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
+ 	if (nr >= 1)
+ 		return 0;
  
- 	raw_spin_lock_irqsave(&insn_emulation_lock, flags);
- 	list_for_each_entry(insn, &insn_emulation, node) {
-diff --git a/arch/arm64/mm/context.c b/arch/arm64/mm/context.c
-index 301417ae2ba8..aa98ad0a70e2 100644
---- a/arch/arm64/mm/context.c
-+++ b/arch/arm64/mm/context.c
-@@ -263,7 +263,7 @@ static int asids_init(void)
- 	 */
- 	WARN_ON(NUM_USER_ASIDS - 1 <= num_possible_cpus());
- 	atomic64_set(&asid_generation, ASID_FIRST_VERSION);
--	asid_map = kzalloc(BITS_TO_LONGS(NUM_USER_ASIDS) * sizeof(*asid_map),
-+	asid_map = kzalloc(array_size(BITS_TO_LONGS(NUM_USER_ASIDS), sizeof(*asid_map)),
- 			   GFP_KERNEL);
- 	if (!asid_map)
- 		panic("Failed to allocate bitmap for %lu ASIDs\n",
-diff --git a/arch/ia64/kernel/mca_drv.c b/arch/ia64/kernel/mca_drv.c
-index 94f8bf777afa..820857c09048 100644
---- a/arch/ia64/kernel/mca_drv.c
-+++ b/arch/ia64/kernel/mca_drv.c
-@@ -350,7 +350,8 @@ init_record_index_pools(void)
- 	/* - 3 - */
- 	slidx_pool.max_idx = (rec_max_size/sect_min_size) * 2 + 1;
- 	slidx_pool.buffer =
--		kmalloc(slidx_pool.max_idx * sizeof(slidx_list_t), GFP_KERNEL);
-+		kmalloc(array_size(slidx_pool.max_idx, sizeof(slidx_list_t)),
-+			GFP_KERNEL);
+-	res = kzalloc(sizeof(*res) * 2, GFP_KERNEL);
++	res = kzalloc(array_size(2, sizeof(*res)), GFP_KERNEL);
+ 	if (res == NULL) {
+ 		/* 
+ 		 * If we're out of memory this early, something is wrong,
+diff --git a/arch/arm/mach-omap1/mcbsp.c b/arch/arm/mach-omap1/mcbsp.c
+index 8ed67f8d1762..9955a3f132cd 100644
+--- a/arch/arm/mach-omap1/mcbsp.c
++++ b/arch/arm/mach-omap1/mcbsp.c
+@@ -389,7 +389,7 @@ static void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
+ {
+ 	int i;
  
- 	return slidx_pool.buffer ? 0 : -ENOMEM;
- }
-diff --git a/arch/ia64/mm/tlb.c b/arch/ia64/mm/tlb.c
-index 46ecc5d948aa..b39c9f62b7ac 100644
---- a/arch/ia64/mm/tlb.c
-+++ b/arch/ia64/mm/tlb.c
-@@ -430,8 +430,8 @@ int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size)
- 	int cpu = smp_processor_id();
- 
- 	if (!ia64_idtrs[cpu]) {
--		ia64_idtrs[cpu] = kmalloc(2 * IA64_TR_ALLOC_MAX *
--				sizeof (struct ia64_tr_entry), GFP_KERNEL);
-+		ia64_idtrs[cpu] = kmalloc(array3_size(2, IA64_TR_ALLOC_MAX, sizeof(struct ia64_tr_entry)),
-+					  GFP_KERNEL);
- 		if (!ia64_idtrs[cpu])
- 			return -ENOMEM;
- 	}
-diff --git a/arch/ia64/sn/pci/pcibr/pcibr_provider.c b/arch/ia64/sn/pci/pcibr/pcibr_provider.c
-index 8dbbef4a4f47..49a7b23f5fc9 100644
---- a/arch/ia64/sn/pci/pcibr/pcibr_provider.c
-+++ b/arch/ia64/sn/pci/pcibr/pcibr_provider.c
-@@ -184,7 +184,8 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
- 	/* Setup the PMU ATE map */
- 	soft->pbi_int_ate_resource.lowest_free_index = 0;
- 	soft->pbi_int_ate_resource.ate =
--	    kzalloc(soft->pbi_int_ate_size * sizeof(u64), GFP_KERNEL);
-+	    kzalloc(array_size(soft->pbi_int_ate_size, sizeof(u64)),
-+		    GFP_KERNEL);
- 
- 	if (!soft->pbi_int_ate_resource.ate) {
- 		kfree(soft);
-diff --git a/arch/mips/alchemy/common/clock.c b/arch/mips/alchemy/common/clock.c
-index 6b6f6851df92..de5237f930c4 100644
---- a/arch/mips/alchemy/common/clock.c
-+++ b/arch/mips/alchemy/common/clock.c
-@@ -985,7 +985,7 @@ static int __init alchemy_clk_setup_imux(int ctype)
+-	omap_mcbsp_devices = kzalloc(size * sizeof(struct platform_device *),
++	omap_mcbsp_devices = kzalloc(array_size(size, sizeof(struct platform_device *)),
+ 				     GFP_KERNEL);
+ 	if (!omap_mcbsp_devices) {
+ 		printk(KERN_ERR "Could not register McBSP devices\n");
+diff --git a/arch/arm/mach-omap2/omap_device.c b/arch/arm/mach-omap2/omap_device.c
+index 3b829a50d1db..1c1b200ada50 100644
+--- a/arch/arm/mach-omap2/omap_device.c
++++ b/arch/arm/mach-omap2/omap_device.c
+@@ -155,7 +155,8 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
+ 	if (!omap_hwmod_parse_module_range(NULL, node, &res))
  		return -ENODEV;
+ 
+-	hwmods = kzalloc(sizeof(struct omap_hwmod *) * oh_cnt, GFP_KERNEL);
++	hwmods = kzalloc(array_size(oh_cnt, sizeof(struct omap_hwmod *)),
++			 GFP_KERNEL);
+ 	if (!hwmods) {
+ 		ret = -ENOMEM;
+ 		goto odbfd_exit;
+@@ -405,7 +406,7 @@ omap_device_copy_resources(struct omap_hwmod *oh,
+ 		goto error;
  	}
  
--	a = kzalloc((sizeof(*a)) * 6, GFP_KERNEL);
-+	a = kzalloc(array_size((sizeof(*a)), 6), GFP_KERNEL);
- 	if (!a)
+-	res = kzalloc(sizeof(*res) * 2, GFP_KERNEL);
++	res = kzalloc(array_size(2, sizeof(*res)), GFP_KERNEL);
+ 	if (!res)
+ 		return -ENOMEM;
+ 
+diff --git a/arch/arm/mach-omap2/prm_common.c b/arch/arm/mach-omap2/prm_common.c
+index 021b5a8b9c0a..805b50753253 100644
+--- a/arch/arm/mach-omap2/prm_common.c
++++ b/arch/arm/mach-omap2/prm_common.c
+@@ -285,10 +285,12 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
+ 
+ 	prcm_irq_setup = irq_setup;
+ 
+-	prcm_irq_chips = kzalloc(sizeof(void *) * nr_regs, GFP_KERNEL);
+-	prcm_irq_setup->saved_mask = kzalloc(sizeof(u32) * nr_regs, GFP_KERNEL);
+-	prcm_irq_setup->priority_mask = kzalloc(sizeof(u32) * nr_regs,
+-		GFP_KERNEL);
++	prcm_irq_chips = kzalloc(array_size(nr_regs, sizeof(void *)),
++				 GFP_KERNEL);
++	prcm_irq_setup->saved_mask = kzalloc(array_size(nr_regs, sizeof(u32)),
++					     GFP_KERNEL);
++	prcm_irq_setup->priority_mask = kzalloc(array_size(nr_regs, sizeof(u32)),
++						GFP_KERNEL);
+ 
+ 	if (!prcm_irq_chips || !prcm_irq_setup->saved_mask ||
+ 	    !prcm_irq_setup->priority_mask)
+diff --git a/arch/arm/mach-vexpress/spc.c b/arch/arm/mach-vexpress/spc.c
+index 21c064267af5..893f29642248 100644
+--- a/arch/arm/mach-vexpress/spc.c
++++ b/arch/arm/mach-vexpress/spc.c
+@@ -403,7 +403,7 @@ static int ve_spc_populate_opps(uint32_t cluster)
+ 	uint32_t data = 0, off, ret, idx;
+ 	struct ve_spc_opp *opps;
+ 
+-	opps = kzalloc(sizeof(*opps) * MAX_OPPS, GFP_KERNEL);
++	opps = kzalloc(array_size(MAX_OPPS, sizeof(*opps)), GFP_KERNEL);
+ 	if (!opps)
+ 		return -ENOMEM;
+ 
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 8c398fedbbb6..d61502849e7f 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -2185,8 +2185,8 @@ arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, u64 size)
+ 		goto err;
+ 
+ 	mapping->bitmap_size = bitmap_size;
+-	mapping->bitmaps = kzalloc(extensions * sizeof(unsigned long *),
+-				GFP_KERNEL);
++	mapping->bitmaps = kzalloc(array_size(extensions, sizeof(unsigned long *)),
++				   GFP_KERNEL);
+ 	if (!mapping->bitmaps)
+ 		goto err2;
+ 
+diff --git a/arch/arm/mm/pgd.c b/arch/arm/mm/pgd.c
+index 61e281cb29fb..f520a3a6ec00 100644
+--- a/arch/arm/mm/pgd.c
++++ b/arch/arm/mm/pgd.c
+@@ -20,7 +20,7 @@
+ #include "mm.h"
+ 
+ #ifdef CONFIG_ARM_LPAE
+-#define __pgd_alloc()	kmalloc(PTRS_PER_PGD * sizeof(pgd_t), GFP_KERNEL)
++#define __pgd_alloc()	kmalloc(array_size(PTRS_PER_PGD, sizeof(pgd_t)), GFP_KERNEL)
+ #define __pgd_free(pgd)	kfree(pgd)
+ #else
+ #define __pgd_alloc()	(pgd_t *)__get_free_pages(GFP_KERNEL, 2)
+diff --git a/arch/arm/probes/kprobes/test-core.c b/arch/arm/probes/kprobes/test-core.c
+index 9ed0129bed3c..7d8f7b30b78b 100644
+--- a/arch/arm/probes/kprobes/test-core.c
++++ b/arch/arm/probes/kprobes/test-core.c
+@@ -766,8 +766,8 @@ static int coverage_start_fn(const struct decode_header *h, void *args)
+ 
+ static int coverage_start(const union decode_item *table)
+ {
+-	coverage.base = kmalloc(MAX_COVERAGE_ENTRIES *
+-				sizeof(struct coverage_entry), GFP_KERNEL);
++	coverage.base = kmalloc(array_size(MAX_COVERAGE_ENTRIES, sizeof(struct coverage_entry)),
++				GFP_KERNEL);
+ 	coverage.num_entries = 0;
+ 	coverage.nesting = 0;
+ 	return table_iter(table, coverage_start_fn, &coverage);
+diff --git a/arch/ia64/kernel/topology.c b/arch/ia64/kernel/topology.c
+index d76529cbff20..e867f4267851 100644
+--- a/arch/ia64/kernel/topology.c
++++ b/arch/ia64/kernel/topology.c
+@@ -85,7 +85,8 @@ static int __init topology_init(void)
+ 	}
+ #endif
+ 
+-	sysfs_cpus = kzalloc(sizeof(struct ia64_cpu) * NR_CPUS, GFP_KERNEL);
++	sysfs_cpus = kzalloc(array_size(NR_CPUS, sizeof(struct ia64_cpu)),
++			     GFP_KERNEL);
+ 	if (!sysfs_cpus)
+ 		panic("kzalloc in topology_init failed - NR_CPUS too big?");
+ 
+@@ -319,8 +320,8 @@ static int cpu_cache_sysfs_init(unsigned int cpu)
+ 		return -1;
+ 	}
+ 
+-	this_cache=kzalloc(sizeof(struct cache_info)*unique_caches,
+-			GFP_KERNEL);
++	this_cache=kzalloc(array_size(unique_caches, sizeof(struct cache_info)),
++			   GFP_KERNEL);
+ 	if (this_cache == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/arch/ia64/sn/kernel/io_common.c b/arch/ia64/sn/kernel/io_common.c
+index 11f2275570fb..b46365a8b4c0 100644
+--- a/arch/ia64/sn/kernel/io_common.c
++++ b/arch/ia64/sn/kernel/io_common.c
+@@ -132,7 +132,8 @@ static s64 sn_device_fixup_war(u64 nasid, u64 widget, int device,
+ 	printk_once(KERN_WARNING
+ 		"PROM version < 4.50 -- implementing old PROM flush WAR\n");
+ 
+-	war_list = kzalloc(DEV_PER_WIDGET * sizeof(*war_list), GFP_KERNEL);
++	war_list = kzalloc(array_size(DEV_PER_WIDGET, sizeof(*war_list)),
++			   GFP_KERNEL);
+ 	BUG_ON(!war_list);
+ 
+ 	SAL_CALL_NOLOCK(isrv, SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST,
+diff --git a/arch/ia64/sn/kernel/irq.c b/arch/ia64/sn/kernel/irq.c
+index 85d095154902..e78b26d60195 100644
+--- a/arch/ia64/sn/kernel/irq.c
++++ b/arch/ia64/sn/kernel/irq.c
+@@ -474,7 +474,8 @@ void __init sn_irq_lh_init(void)
+ {
+ 	int i;
+ 
+-	sn_irq_lh = kmalloc(sizeof(struct list_head *) * NR_IRQS, GFP_KERNEL);
++	sn_irq_lh = kmalloc(array_size(NR_IRQS, sizeof(struct list_head *)),
++			    GFP_KERNEL);
+ 	if (!sn_irq_lh)
+ 		panic("SN PCI INIT: Failed to allocate memory for PCI init\n");
+ 
+diff --git a/arch/mips/alchemy/common/dbdma.c b/arch/mips/alchemy/common/dbdma.c
+index fc482d900ddd..8040f76bbbc2 100644
+--- a/arch/mips/alchemy/common/dbdma.c
++++ b/arch/mips/alchemy/common/dbdma.c
+@@ -411,8 +411,8 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
+ 	 * and if we try that first we are likely to not waste larger
+ 	 * slabs of memory.
+ 	 */
+-	desc_base = (u32)kmalloc(entries * sizeof(au1x_ddma_desc_t),
+-				 GFP_KERNEL|GFP_DMA);
++	desc_base = (u32)kmalloc(array_size(entries, sizeof(au1x_ddma_desc_t)),
++				 GFP_KERNEL | GFP_DMA);
+ 	if (desc_base == 0)
+ 		return 0;
+ 
+@@ -1050,7 +1050,8 @@ static int __init dbdma_setup(unsigned int irq, dbdev_tab_t *idtable)
+ {
+ 	int ret;
+ 
+-	dbdev_tab = kzalloc(sizeof(dbdev_tab_t) * DBDEV_TAB_SIZE, GFP_KERNEL);
++	dbdev_tab = kzalloc(array_size(DBDEV_TAB_SIZE, sizeof(dbdev_tab_t)),
++			    GFP_KERNEL);
+ 	if (!dbdev_tab)
  		return -ENOMEM;
  
 diff --git a/arch/mips/alchemy/common/platform.c b/arch/mips/alchemy/common/platform.c
-index cb2c316a2165..c83ed99c7d96 100644
+index d77a64f4c78b..cb2c316a2165 100644
 --- a/arch/mips/alchemy/common/platform.c
 +++ b/arch/mips/alchemy/common/platform.c
-@@ -115,7 +115,7 @@ static void __init alchemy_setup_uarts(int ctype)
- 	uartclk = clk_get_rate(clk);
- 	clk_put(clk);
+@@ -198,7 +198,7 @@ static unsigned long alchemy_ehci_data[][2] __initdata = {
  
--	ports = kzalloc(s * (c + 1), GFP_KERNEL);
-+	ports = kzalloc(array_size(s, (c + 1)), GFP_KERNEL);
- 	if (!ports) {
- 		printk(KERN_INFO "Alchemy: no memory for UART data\n");
- 		return;
-diff --git a/arch/mips/bmips/dma.c b/arch/mips/bmips/dma.c
-index 04790f4e1805..52f630b9b289 100644
---- a/arch/mips/bmips/dma.c
-+++ b/arch/mips/bmips/dma.c
-@@ -94,7 +94,7 @@ static int __init bmips_init_dma_ranges(void)
- 		goto out_bad;
+ static int __init _new_usbres(struct resource **r, struct platform_device **d)
+ {
+-	*r = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
++	*r = kzalloc(array_size(2, sizeof(struct resource)), GFP_KERNEL);
+ 	if (!*r)
+ 		return -ENOMEM;
+ 	*d = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
+diff --git a/arch/mips/alchemy/devboards/platform.c b/arch/mips/alchemy/devboards/platform.c
+index 4640edab207c..9584940417aa 100644
+--- a/arch/mips/alchemy/devboards/platform.c
++++ b/arch/mips/alchemy/devboards/platform.c
+@@ -103,7 +103,7 @@ int __init db1x_register_pcmcia_socket(phys_addr_t pcmcia_attr_start,
+ 	if (stschg_irq)
+ 		cnt++;
  
- 	/* add a dummy (zero) entry at the end as a sentinel */
--	bmips_dma_ranges = kzalloc(sizeof(struct bmips_dma_range) * (len + 1),
-+	bmips_dma_ranges = kzalloc(array_size(sizeof(struct bmips_dma_range), (len + 1)),
- 				   GFP_KERNEL);
- 	if (!bmips_dma_ranges)
- 		goto out_bad;
-diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
-index b44ec104a5a1..3d5dfa77c824 100644
---- a/arch/powerpc/kernel/vdso.c
-+++ b/arch/powerpc/kernel/vdso.c
-@@ -791,7 +791,7 @@ static int __init vdso_init(void)
+-	sr = kzalloc(sizeof(struct resource) * cnt, GFP_KERNEL);
++	sr = kzalloc(array_size(cnt, sizeof(struct resource)), GFP_KERNEL);
+ 	if (!sr)
+ 		return -ENOMEM;
  
- #ifdef CONFIG_VDSO32
- 	/* Make sure pages are in the correct state */
--	vdso32_pagelist = kzalloc(sizeof(struct page *) * (vdso32_pages + 2),
-+	vdso32_pagelist = kzalloc(array_size(sizeof(struct page *), (vdso32_pages + 2)),
+@@ -178,7 +178,8 @@ int __init db1x_register_norflash(unsigned long size, int width,
+ 		return -EINVAL;
+ 
+ 	ret = -ENOMEM;
+-	parts = kzalloc(sizeof(struct mtd_partition) * 5, GFP_KERNEL);
++	parts = kzalloc(array_size(5, sizeof(struct mtd_partition)),
++			GFP_KERNEL);
+ 	if (!parts)
+ 		goto out;
+ 
+diff --git a/arch/mips/txx9/rbtx4939/setup.c b/arch/mips/txx9/rbtx4939/setup.c
+index fd26fadc8617..ff5c6e4a52f8 100644
+--- a/arch/mips/txx9/rbtx4939/setup.c
++++ b/arch/mips/txx9/rbtx4939/setup.c
+@@ -219,7 +219,7 @@ static int __init rbtx4939_led_probe(struct platform_device *pdev)
+ 		"nand-disk",
+ 	};
+ 
+-	leds_data = kzalloc(sizeof(*leds_data) * RBTX4939_MAX_7SEGLEDS,
++	leds_data = kzalloc(array_size(RBTX4939_MAX_7SEGLEDS, sizeof(*leds_data)),
+ 			    GFP_KERNEL);
+ 	if (!leds_data)
+ 		return -ENOMEM;
+diff --git a/arch/powerpc/lib/rheap.c b/arch/powerpc/lib/rheap.c
+index 94058c21a482..a0faeea397b8 100644
+--- a/arch/powerpc/lib/rheap.c
++++ b/arch/powerpc/lib/rheap.c
+@@ -54,7 +54,8 @@ static int grow(rh_info_t * info, int max_blocks)
+ 
+ 	new_blocks = max_blocks - info->max_blocks;
+ 
+-	block = kmalloc(sizeof(rh_block_t) * max_blocks, GFP_ATOMIC);
++	block = kmalloc(array_size(max_blocks, sizeof(rh_block_t)),
++			GFP_ATOMIC);
+ 	if (block == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/arch/powerpc/platforms/4xx/hsta_msi.c b/arch/powerpc/platforms/4xx/hsta_msi.c
+index 9926ad67af76..11dbc6146b8d 100644
+--- a/arch/powerpc/platforms/4xx/hsta_msi.c
++++ b/arch/powerpc/platforms/4xx/hsta_msi.c
+@@ -156,7 +156,8 @@ static int hsta_msi_probe(struct platform_device *pdev)
+ 	if (ret)
+ 		goto out;
+ 
+-	ppc4xx_hsta_msi.irq_map = kmalloc(sizeof(int) * irq_count, GFP_KERNEL);
++	ppc4xx_hsta_msi.irq_map = kmalloc(array_size(irq_count, sizeof(int)),
++					  GFP_KERNEL);
+ 	if (!ppc4xx_hsta_msi.irq_map) {
+ 		ret = -ENOMEM;
+ 		goto out1;
+diff --git a/arch/powerpc/platforms/4xx/pci.c b/arch/powerpc/platforms/4xx/pci.c
+index 73e6b36bcd51..188ed628e616 100644
+--- a/arch/powerpc/platforms/4xx/pci.c
++++ b/arch/powerpc/platforms/4xx/pci.c
+@@ -1449,7 +1449,7 @@ static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
+ 	count = ppc4xx_pciex_hwops->core_init(np);
+ 	if (count > 0) {
+ 		ppc4xx_pciex_ports =
+-		       kzalloc(count * sizeof(struct ppc4xx_pciex_port),
++		       kzalloc(array_size(count, sizeof(struct ppc4xx_pciex_port)),
+ 			       GFP_KERNEL);
+ 		if (ppc4xx_pciex_ports) {
+ 			ppc4xx_pciex_port_count = count;
+diff --git a/arch/powerpc/platforms/powernv/opal-sysparam.c b/arch/powerpc/platforms/powernv/opal-sysparam.c
+index 6fd4092798d5..9217d0162242 100644
+--- a/arch/powerpc/platforms/powernv/opal-sysparam.c
++++ b/arch/powerpc/platforms/powernv/opal-sysparam.c
+@@ -198,21 +198,21 @@ void __init opal_sys_param_init(void)
+ 		goto out_param_buf;
+ 	}
+ 
+-	id = kzalloc(sizeof(*id) * count, GFP_KERNEL);
++	id = kzalloc(array_size(count, sizeof(*id)), GFP_KERNEL);
+ 	if (!id) {
+ 		pr_err("SYSPARAM: Failed to allocate memory to read parameter "
+ 				"id\n");
+ 		goto out_param_buf;
+ 	}
+ 
+-	size = kzalloc(sizeof(*size) * count, GFP_KERNEL);
++	size = kzalloc(array_size(count, sizeof(*size)), GFP_KERNEL);
+ 	if (!size) {
+ 		pr_err("SYSPARAM: Failed to allocate memory to read parameter "
+ 				"size\n");
+ 		goto out_free_id;
+ 	}
+ 
+-	perm = kzalloc(sizeof(*perm) * count, GFP_KERNEL);
++	perm = kzalloc(array_size(count, sizeof(*perm)), GFP_KERNEL);
+ 	if (!perm) {
+ 		pr_err("SYSPARAM: Failed to allocate memory to read supported "
+ 				"action on the parameter");
+@@ -235,7 +235,7 @@ void __init opal_sys_param_init(void)
+ 		goto out_free_perm;
+ 	}
+ 
+-	attr = kzalloc(sizeof(*attr) * count, GFP_KERNEL);
++	attr = kzalloc(array_size(count, sizeof(*attr)), GFP_KERNEL);
+ 	if (!attr) {
+ 		pr_err("SYSPARAM: Failed to allocate memory for parameter "
+ 				"attributes\n");
+diff --git a/arch/powerpc/sysdev/mpic.c b/arch/powerpc/sysdev/mpic.c
+index 1d4e0ef658d3..0e9920e6ab9b 100644
+--- a/arch/powerpc/sysdev/mpic.c
++++ b/arch/powerpc/sysdev/mpic.c
+@@ -544,7 +544,8 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
+ 	printk(KERN_INFO "mpic: Setting up HT PICs workarounds for U3/U4\n");
+ 
+ 	/* Allocate fixups array */
+-	mpic->fixups = kzalloc(128 * sizeof(*mpic->fixups), GFP_KERNEL);
++	mpic->fixups = kzalloc(array_size(128, sizeof(*mpic->fixups)),
++			       GFP_KERNEL);
+ 	BUG_ON(mpic->fixups == NULL);
+ 
+ 	/* Init spinlock */
+@@ -1324,7 +1325,8 @@ struct mpic * __init mpic_alloc(struct device_node *node,
+ 	if (psrc) {
+ 		/* Allocate a bitmap with one bit per interrupt */
+ 		unsigned int mapsize = BITS_TO_LONGS(intvec_top + 1);
+-		mpic->protected = kzalloc(mapsize*sizeof(long), GFP_KERNEL);
++		mpic->protected = kzalloc(array_size(mapsize, sizeof(long)),
++					  GFP_KERNEL);
+ 		BUG_ON(mpic->protected == NULL);
+ 		for (i = 0; i < psize/sizeof(u32); i++) {
+ 			if (psrc[i] > intvec_top)
+diff --git a/arch/s390/appldata/appldata_base.c b/arch/s390/appldata/appldata_base.c
+index cb6e8066b1ad..8cc9d9559f81 100644
+--- a/arch/s390/appldata/appldata_base.c
++++ b/arch/s390/appldata/appldata_base.c
+@@ -391,7 +391,8 @@ int appldata_register_ops(struct appldata_ops *ops)
+ 	if (ops->size > APPLDATA_MAX_REC_SIZE)
+ 		return -EINVAL;
+ 
+-	ops->ctl_table = kzalloc(4 * sizeof(struct ctl_table), GFP_KERNEL);
++	ops->ctl_table = kzalloc(array_size(4, sizeof(struct ctl_table)),
++				 GFP_KERNEL);
+ 	if (!ops->ctl_table)
+ 		return -ENOMEM;
+ 
+diff --git a/arch/s390/kernel/debug.c b/arch/s390/kernel/debug.c
+index 80e974adb9e8..de5a9120f22c 100644
+--- a/arch/s390/kernel/debug.c
++++ b/arch/s390/kernel/debug.c
+@@ -194,11 +194,13 @@ static debug_entry_t ***debug_areas_alloc(int pages_per_area, int nr_areas)
+ 	debug_entry_t ***areas;
+ 	int i, j;
+ 
+-	areas = kmalloc(nr_areas * sizeof(debug_entry_t **), GFP_KERNEL);
++	areas = kmalloc(array_size(nr_areas, sizeof(debug_entry_t **)),
++			GFP_KERNEL);
+ 	if (!areas)
+ 		goto fail_malloc_areas;
+ 	for (i = 0; i < nr_areas; i++) {
+-		areas[i] = kmalloc(pages_per_area * sizeof(debug_entry_t *), GFP_KERNEL);
++		areas[i] = kmalloc(array_size(pages_per_area, sizeof(debug_entry_t *)),
++				   GFP_KERNEL);
+ 		if (!areas[i])
+ 			goto fail_malloc_areas2;
+ 		for (j = 0; j < pages_per_area; j++) {
+diff --git a/arch/s390/kernel/perf_cpum_cf_events.c b/arch/s390/kernel/perf_cpum_cf_events.c
+index 5ee27dc9a10c..9514a2f0e407 100644
+--- a/arch/s390/kernel/perf_cpum_cf_events.c
++++ b/arch/s390/kernel/perf_cpum_cf_events.c
+@@ -527,7 +527,7 @@ static __init struct attribute **merge_attr(struct attribute **a,
+ 		j++;
+ 	j++;
+ 
+-	new = kmalloc(sizeof(struct attribute *) * j, GFP_KERNEL);
++	new = kmalloc(array_size(j, sizeof(struct attribute *)), GFP_KERNEL);
+ 	if (!new)
+ 		return NULL;
+ 	j = 0;
+diff --git a/arch/s390/mm/extmem.c b/arch/s390/mm/extmem.c
+index 920d40894535..c8c4f31f33cf 100644
+--- a/arch/s390/mm/extmem.c
++++ b/arch/s390/mm/extmem.c
+@@ -103,7 +103,8 @@ static int scode_set;
+ static int
+ dcss_set_subcodes(void)
+ {
+-	char *name = kmalloc(8 * sizeof(char), GFP_KERNEL | GFP_DMA);
++	char *name = kmalloc(array_size(8, sizeof(char)),
++			     GFP_KERNEL | GFP_DMA);
+ 	unsigned long rx, ry;
+ 	int rc;
+ 
+diff --git a/arch/sh/drivers/dma/dmabrg.c b/arch/sh/drivers/dma/dmabrg.c
+index c0dd904483c7..e3a647958d96 100644
+--- a/arch/sh/drivers/dma/dmabrg.c
++++ b/arch/sh/drivers/dma/dmabrg.c
+@@ -154,7 +154,7 @@ static int __init dmabrg_init(void)
+ 	unsigned long or;
+ 	int ret;
+ 
+-	dmabrg_handlers = kzalloc(10 * sizeof(struct dmabrg_handler),
++	dmabrg_handlers = kzalloc(array_size(10, sizeof(struct dmabrg_handler)),
  				  GFP_KERNEL);
- 	BUG_ON(vdso32_pagelist == NULL);
- 	for (i = 0; i < vdso32_pages; i++) {
-@@ -805,7 +805,7 @@ static int __init vdso_init(void)
- #endif
+ 	if (!dmabrg_handlers)
+ 		return -ENOMEM;
+diff --git a/arch/sh/drivers/pci/pcie-sh7786.c b/arch/sh/drivers/pci/pcie-sh7786.c
+index 382e7ecf4c82..0c14a46c3c02 100644
+--- a/arch/sh/drivers/pci/pcie-sh7786.c
++++ b/arch/sh/drivers/pci/pcie-sh7786.c
+@@ -561,7 +561,7 @@ static int __init sh7786_pcie_init(void)
+ 	if (unlikely(nr_ports == 0))
+ 		return -ENODEV;
  
- #ifdef CONFIG_PPC64
--	vdso64_pagelist = kzalloc(sizeof(struct page *) * (vdso64_pages + 2),
-+	vdso64_pagelist = kzalloc(array_size(sizeof(struct page *), (vdso64_pages + 2)),
- 				  GFP_KERNEL);
- 	BUG_ON(vdso64_pagelist == NULL);
- 	for (i = 0; i < vdso64_pages; i++) {
-diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
-index 57a5029b4521..fcd62435e0d1 100644
---- a/arch/powerpc/mm/numa.c
-+++ b/arch/powerpc/mm/numa.c
-@@ -1316,7 +1316,7 @@ int numa_update_cpu_topology(bool cpus_locked)
- 	if (!weight)
+-	sh7786_pcie_ports = kzalloc(nr_ports * sizeof(struct sh7786_pcie_port),
++	sh7786_pcie_ports = kzalloc(array_size(nr_ports, sizeof(struct sh7786_pcie_port)),
+ 				    GFP_KERNEL);
+ 	if (unlikely(!sh7786_pcie_ports))
+ 		return -ENOMEM;
+diff --git a/arch/sparc/kernel/nmi.c b/arch/sparc/kernel/nmi.c
+index 048ad783ea3f..5c6a7414deb7 100644
+--- a/arch/sparc/kernel/nmi.c
++++ b/arch/sparc/kernel/nmi.c
+@@ -166,7 +166,8 @@ static int __init check_nmi_watchdog(void)
+ 	if (!atomic_read(&nmi_active))
  		return 0;
  
--	updates = kzalloc(weight * (sizeof(*updates)), GFP_KERNEL);
-+	updates = kzalloc(array_size(weight, (sizeof(*updates))), GFP_KERNEL);
- 	if (!updates)
- 		return 0;
- 
-diff --git a/arch/powerpc/net/bpf_jit_comp.c b/arch/powerpc/net/bpf_jit_comp.c
-index a9636d8cba15..df5cb33130ea 100644
---- a/arch/powerpc/net/bpf_jit_comp.c
-+++ b/arch/powerpc/net/bpf_jit_comp.c
-@@ -566,7 +566,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
+-	prev_nmi_count = kmalloc(nr_cpu_ids * sizeof(unsigned int), GFP_KERNEL);
++	prev_nmi_count = kmalloc(array_size(nr_cpu_ids, sizeof(unsigned int)),
++				 GFP_KERNEL);
+ 	if (!prev_nmi_count) {
+ 		err = -ENOMEM;
+ 		goto error;
+diff --git a/arch/sparc/net/bpf_jit_comp_32.c b/arch/sparc/net/bpf_jit_comp_32.c
+index 3bd8ca95e521..a6c7ce7bbd1f 100644
+--- a/arch/sparc/net/bpf_jit_comp_32.c
++++ b/arch/sparc/net/bpf_jit_comp_32.c
+@@ -335,7 +335,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
  	if (!bpf_jit_enable)
  		return;
  
--	addrs = kzalloc((flen+1) * sizeof(*addrs), GFP_KERNEL);
-+	addrs = kzalloc(array_size((flen + 1), sizeof(*addrs)), GFP_KERNEL);
+-	addrs = kmalloc(flen * sizeof(*addrs), GFP_KERNEL);
++	addrs = kmalloc(array_size(flen, sizeof(*addrs)), GFP_KERNEL);
  	if (addrs == NULL)
  		return;
  
-diff --git a/arch/powerpc/net/bpf_jit_comp64.c b/arch/powerpc/net/bpf_jit_comp64.c
-index 0ef3d9580e98..356ffc113bf8 100644
---- a/arch/powerpc/net/bpf_jit_comp64.c
-+++ b/arch/powerpc/net/bpf_jit_comp64.c
-@@ -999,7 +999,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
+diff --git a/arch/um/drivers/ubd_kern.c b/arch/um/drivers/ubd_kern.c
+index d4e8c497ae86..070696d0ee56 100644
+--- a/arch/um/drivers/ubd_kern.c
++++ b/arch/um/drivers/ubd_kern.c
+@@ -1139,20 +1139,16 @@ static int __init ubd_init(void)
+ 			return -1;
  	}
  
- 	flen = fp->len;
--	addrs = kzalloc((flen+1) * sizeof(*addrs), GFP_KERNEL);
-+	addrs = kzalloc(array_size((flen + 1), sizeof(*addrs)), GFP_KERNEL);
- 	if (addrs == NULL) {
- 		fp = org_fp;
- 		goto out;
-diff --git a/arch/powerpc/oprofile/cell/spu_profiler.c b/arch/powerpc/oprofile/cell/spu_profiler.c
-index 5182f2936af2..872527c79282 100644
---- a/arch/powerpc/oprofile/cell/spu_profiler.c
-+++ b/arch/powerpc/oprofile/cell/spu_profiler.c
-@@ -210,8 +210,8 @@ int start_spu_profiling_cycles(unsigned int cycles_reset)
- 	timer.function = profile_spus;
+-	irq_req_buffer = kmalloc(
+-			sizeof(struct io_thread_req *) * UBD_REQ_BUFFER_SIZE,
+-			GFP_KERNEL
+-		);
++	irq_req_buffer = kmalloc(array_size(UBD_REQ_BUFFER_SIZE, sizeof(struct io_thread_req *)),
++				 GFP_KERNEL);
+ 	irq_remainder = 0;
  
- 	/* Allocate arrays for collecting SPU PC samples */
--	samples = kzalloc(SPUS_PER_NODE *
--			  TRACE_ARRAY_SIZE * sizeof(u32), GFP_KERNEL);
-+	samples = kzalloc(array3_size(SPUS_PER_NODE, TRACE_ARRAY_SIZE, sizeof(u32)),
-+			  GFP_KERNEL);
- 
- 	if (!samples)
- 		return -ENOMEM;
-diff --git a/arch/powerpc/platforms/4xx/msi.c b/arch/powerpc/platforms/4xx/msi.c
-index 96aaae678928..0cc7a90a67c7 100644
---- a/arch/powerpc/platforms/4xx/msi.c
-+++ b/arch/powerpc/platforms/4xx/msi.c
-@@ -89,7 +89,8 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
- 	if (type == PCI_CAP_ID_MSIX)
- 		pr_debug("ppc4xx msi: MSI-X untested, trying anyway.\n");
- 
--	msi_data->msi_virqs = kmalloc((msi_irqs) * sizeof(int), GFP_KERNEL);
-+	msi_data->msi_virqs = kmalloc(array_size((msi_irqs), sizeof(int)),
-+				      GFP_KERNEL);
- 	if (!msi_data->msi_virqs)
- 		return -ENOMEM;
- 
-diff --git a/arch/powerpc/sysdev/mpic.c b/arch/powerpc/sysdev/mpic.c
-index 0e9920e6ab9b..dac268bd2db6 100644
---- a/arch/powerpc/sysdev/mpic.c
-+++ b/arch/powerpc/sysdev/mpic.c
-@@ -1641,7 +1641,7 @@ void __init mpic_init(struct mpic *mpic)
- 
- #ifdef CONFIG_PM
- 	/* allocate memory to save mpic state */
--	mpic->save_data = kmalloc(mpic->num_sources * sizeof(*mpic->save_data),
-+	mpic->save_data = kmalloc(array_size(mpic->num_sources, sizeof(*mpic->save_data)),
- 				  GFP_KERNEL);
- 	BUG_ON(mpic->save_data == NULL);
- #endif
-diff --git a/arch/powerpc/sysdev/xive/native.c b/arch/powerpc/sysdev/xive/native.c
-index b48454be5b98..8ee92bfcf9ea 100644
---- a/arch/powerpc/sysdev/xive/native.c
-+++ b/arch/powerpc/sysdev/xive/native.c
-@@ -489,7 +489,7 @@ static bool xive_parse_provisioning(struct device_node *np)
- 	if (rc == 0)
- 		return true;
- 
--	xive_provision_chips = kzalloc(4 * xive_provision_chip_count,
-+	xive_provision_chips = kzalloc(array_size(4, xive_provision_chip_count),
- 				       GFP_KERNEL);
- 	if (WARN_ON(!xive_provision_chips))
- 		return false;
-diff --git a/arch/s390/hypfs/hypfs_diag0c.c b/arch/s390/hypfs/hypfs_diag0c.c
-index dce87f1bec94..4d02d768811d 100644
---- a/arch/s390/hypfs/hypfs_diag0c.c
-+++ b/arch/s390/hypfs/hypfs_diag0c.c
-@@ -49,7 +49,8 @@ static void *diag0c_store(unsigned int *count)
- 
- 	get_online_cpus();
- 	cpu_count = num_online_cpus();
--	cpu_vec = kmalloc(sizeof(*cpu_vec) * num_possible_cpus(), GFP_KERNEL);
-+	cpu_vec = kmalloc(array_size(sizeof(*cpu_vec), num_possible_cpus()),
-+			  GFP_KERNEL);
- 	if (!cpu_vec)
- 		goto fail_put_online_cpus;
- 	/* Note: Diag 0c needs 8 byte alignment and real storage */
-diff --git a/arch/s390/kernel/vdso.c b/arch/s390/kernel/vdso.c
-index f3a1c7c6824e..430670401eac 100644
---- a/arch/s390/kernel/vdso.c
-+++ b/arch/s390/kernel/vdso.c
-@@ -285,7 +285,7 @@ static int __init vdso_init(void)
- 			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
- 
- 	/* Make sure pages are in the correct state */
--	vdso32_pagelist = kzalloc(sizeof(struct page *) * (vdso32_pages + 1),
-+	vdso32_pagelist = kzalloc(array_size(sizeof(struct page *), (vdso32_pages + 1)),
- 				  GFP_KERNEL);
- 	BUG_ON(vdso32_pagelist == NULL);
- 	for (i = 0; i < vdso32_pages - 1; i++) {
-@@ -303,7 +303,7 @@ static int __init vdso_init(void)
- 			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
- 
- 	/* Make sure pages are in the correct state */
--	vdso64_pagelist = kzalloc(sizeof(struct page *) * (vdso64_pages + 1),
-+	vdso64_pagelist = kzalloc(array_size(sizeof(struct page *), (vdso64_pages + 1)),
- 				  GFP_KERNEL);
- 	BUG_ON(vdso64_pagelist == NULL);
- 	for (i = 0; i < vdso64_pages - 1; i++) {
-diff --git a/arch/sparc/kernel/sys_sparc_64.c b/arch/sparc/kernel/sys_sparc_64.c
-index 9ef8de63f28b..241442c731a7 100644
---- a/arch/sparc/kernel/sys_sparc_64.c
-+++ b/arch/sparc/kernel/sys_sparc_64.c
-@@ -571,7 +571,8 @@ SYSCALL_DEFINE5(utrap_install, utrap_entry_t, type,
+ 	if (irq_req_buffer == NULL) {
+ 		printk(KERN_ERR "Failed to initialize ubd buffering\n");
+ 		return -1;
  	}
- 	if (!current_thread_info()->utraps) {
- 		current_thread_info()->utraps =
--			kzalloc((UT_TRAP_INSTRUCTION_31+1)*sizeof(long), GFP_KERNEL);
-+			kzalloc(array_size((UT_TRAP_INSTRUCTION_31 + 1), sizeof(long)),
+-	io_req_buffer = kmalloc(
+-			sizeof(struct io_thread_req *) * UBD_REQ_BUFFER_SIZE,
+-			GFP_KERNEL
+-		);
++	io_req_buffer = kmalloc(array_size(UBD_REQ_BUFFER_SIZE, sizeof(struct io_thread_req *)),
 +				GFP_KERNEL);
- 		if (!current_thread_info()->utraps)
- 			return -ENOMEM;
- 		current_thread_info()->utraps[0] = 1;
-@@ -581,7 +582,7 @@ SYSCALL_DEFINE5(utrap_install, utrap_entry_t, type,
- 			unsigned long *p = current_thread_info()->utraps;
  
- 			current_thread_info()->utraps =
--				kmalloc((UT_TRAP_INSTRUCTION_31+1)*sizeof(long),
-+				kmalloc(array_size((UT_TRAP_INSTRUCTION_31 + 1), sizeof(long)),
- 					GFP_KERNEL);
- 			if (!current_thread_info()->utraps) {
- 				current_thread_info()->utraps = p;
-diff --git a/arch/um/drivers/vector_kern.c b/arch/um/drivers/vector_kern.c
-index 02168fe25105..8d4abf6b7043 100644
---- a/arch/um/drivers/vector_kern.c
-+++ b/arch/um/drivers/vector_kern.c
-@@ -527,15 +527,11 @@ static struct vector_queue *create_queue(
- 	result->max_iov_frags = num_extra_frags;
- 	for (i = 0; i < max_size; i++) {
- 		if (vp->header_size > 0)
--			iov = kmalloc(
--				sizeof(struct iovec) * (3 + num_extra_frags),
--				GFP_KERNEL
--			);
-+			iov = kmalloc(array_size(sizeof(struct iovec), (3 + num_extra_frags)),
-+				      GFP_KERNEL);
- 		else
--			iov = kmalloc(
--				sizeof(struct iovec) * (2 + num_extra_frags),
--				GFP_KERNEL
--			);
-+			iov = kmalloc(array_size(sizeof(struct iovec), (2 + num_extra_frags)),
-+				      GFP_KERNEL);
- 		if (iov == NULL)
- 			goto out_fail;
- 		mmsg_vector->msg_hdr.msg_iov = iov;
-diff --git a/arch/unicore32/kernel/pm.c b/arch/unicore32/kernel/pm.c
-index 784bc2db3b28..e7be768c9875 100644
---- a/arch/unicore32/kernel/pm.c
-+++ b/arch/unicore32/kernel/pm.c
-@@ -109,8 +109,8 @@ static int __init puv3_pm_init(void)
- 		return -EINVAL;
- 	}
+ 	io_remainder = 0;
  
--	sleep_save = kmalloc(puv3_cpu_pm_fns->save_count
--				* sizeof(unsigned long), GFP_KERNEL);
-+	sleep_save = kmalloc(array_size(puv3_cpu_pm_fns->save_count, sizeof(unsigned long)),
-+			     GFP_KERNEL);
- 	if (!sleep_save) {
- 		printk(KERN_ERR "failed to alloc memory for pm save\n");
- 		return -ENOMEM;
-diff --git a/arch/x86/events/amd/iommu.c b/arch/x86/events/amd/iommu.c
-index 38b5d41b0c37..7f5346239593 100644
---- a/arch/x86/events/amd/iommu.c
-+++ b/arch/x86/events/amd/iommu.c
-@@ -387,7 +387,8 @@ static __init int _init_events_attrs(void)
- 	while (amd_iommu_v2_event_descs[i].attr.attr.name)
- 		i++;
+diff --git a/arch/um/drivers/vector_user.c b/arch/um/drivers/vector_user.c
+index 4d6a78e31089..3e968398a13e 100644
+--- a/arch/um/drivers/vector_user.c
++++ b/arch/um/drivers/vector_user.c
+@@ -563,8 +563,8 @@ void *uml_vector_default_bpf(int fd, void *mac)
+ 		.filter = NULL,
+ 	};
  
--	attrs = kzalloc(sizeof(struct attribute **) * (i + 1), GFP_KERNEL);
-+	attrs = kzalloc(array_size(sizeof(struct attribute **), (i + 1)),
-+			GFP_KERNEL);
- 	if (!attrs)
- 		return -ENOMEM;
- 
-diff --git a/arch/x86/events/intel/uncore.c b/arch/x86/events/intel/uncore.c
-index a7956fc7ca1d..8a8c70312cdc 100644
---- a/arch/x86/events/intel/uncore.c
-+++ b/arch/x86/events/intel/uncore.c
-@@ -810,7 +810,7 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
- 	size_t size;
- 	int i, j;
- 
--	pmus = kzalloc(sizeof(*pmus) * type->num_boxes, GFP_KERNEL);
-+	pmus = kzalloc(array_size(sizeof(*pmus), type->num_boxes), GFP_KERNEL);
- 	if (!pmus)
- 		return -ENOMEM;
- 
-diff --git a/arch/x86/kernel/cpu/mcheck/mce_amd.c b/arch/x86/kernel/cpu/mcheck/mce_amd.c
-index f7666eef4a87..b003b9a9ff88 100644
---- a/arch/x86/kernel/cpu/mcheck/mce_amd.c
-+++ b/arch/x86/kernel/cpu/mcheck/mce_amd.c
-@@ -1386,7 +1386,7 @@ int mce_threshold_create_device(unsigned int cpu)
- 	if (bp)
+-	bpf = uml_kmalloc(
+-		sizeof(struct sock_filter) * DEFAULT_BPF_LEN, UM_GFP_KERNEL);
++	bpf = uml_kmalloc(array_size(DEFAULT_BPF_LEN, sizeof(struct sock_filter)),
++			  UM_GFP_KERNEL);
+ 	if (bpf != NULL) {
+ 		bpf_prog.filter = bpf;
+ 		/* ld	[8] */
+diff --git a/arch/um/os-Linux/sigio.c b/arch/um/os-Linux/sigio.c
+index 46e762f926eb..b1d8213e72ef 100644
+--- a/arch/um/os-Linux/sigio.c
++++ b/arch/um/os-Linux/sigio.c
+@@ -107,7 +107,7 @@ static int need_poll(struct pollfds *polls, int n)
+ 	if (n <= polls->size)
  		return 0;
  
--	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
-+	bp = kzalloc(array_size(sizeof(struct threshold_bank *), mca_cfg.banks),
- 		     GFP_KERNEL);
- 	if (!bp)
+-	new = uml_kmalloc(n * sizeof(struct pollfd), UM_GFP_ATOMIC);
++	new = uml_kmalloc(array_size(n, sizeof(struct pollfd)), UM_GFP_ATOMIC);
+ 	if (new == NULL) {
+ 		printk(UM_KERN_ERR "need_poll : failed to allocate new "
+ 		       "pollfds\n");
+diff --git a/arch/x86/events/core.c b/arch/x86/events/core.c
+index a6006e7bb729..08753fca0e88 100644
+--- a/arch/x86/events/core.c
++++ b/arch/x86/events/core.c
+@@ -1631,7 +1631,7 @@ __init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
+ 		j++;
+ 	j++;
+ 
+-	new = kmalloc(sizeof(struct attribute *) * j, GFP_KERNEL);
++	new = kmalloc(array_size(j, sizeof(struct attribute *)), GFP_KERNEL);
+ 	if (!new)
+ 		return NULL;
+ 
+diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+index 42cf2880d0ed..f364bfd7696a 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce.c
++++ b/arch/x86/kernel/cpu/mcheck/mce.c
+@@ -1457,7 +1457,8 @@ static int __mcheck_cpu_mce_banks_init(void)
+ 	int i;
+ 	u8 num_banks = mca_cfg.banks;
+ 
+-	mce_banks = kzalloc(num_banks * sizeof(struct mce_bank), GFP_KERNEL);
++	mce_banks = kzalloc(array_size(num_banks, sizeof(struct mce_bank)),
++			    GFP_KERNEL);
+ 	if (!mce_banks)
  		return -ENOMEM;
+ 
+diff --git a/arch/x86/kernel/cpu/mtrr/if.c b/arch/x86/kernel/cpu/mtrr/if.c
+index 558444b23923..c5122de92138 100644
+--- a/arch/x86/kernel/cpu/mtrr/if.c
++++ b/arch/x86/kernel/cpu/mtrr/if.c
+@@ -43,7 +43,7 @@ mtrr_file_add(unsigned long base, unsigned long size,
+ 
+ 	max = num_var_ranges;
+ 	if (fcount == NULL) {
+-		fcount = kzalloc(max * sizeof *fcount, GFP_KERNEL);
++		fcount = kzalloc(array_size(max, sizeof(*fcount)), GFP_KERNEL);
+ 		if (!fcount)
+ 			return -ENOMEM;
+ 		FILE_FCOUNT(file) = fcount;
 diff --git a/arch/x86/kernel/hpet.c b/arch/x86/kernel/hpet.c
-index 29345edb485a..2289a9319a57 100644
+index 8ce4212e2b8d..29345edb485a 100644
 --- a/arch/x86/kernel/hpet.c
 +++ b/arch/x86/kernel/hpet.c
-@@ -967,7 +967,7 @@ int __init hpet_enable(void)
- #endif
- 
- 	cfg = hpet_readl(HPET_CFG);
--	hpet_boot_cfg = kmalloc((last + 2) * sizeof(*hpet_boot_cfg),
-+	hpet_boot_cfg = kmalloc(array_size((last + 2), sizeof(*hpet_boot_cfg)),
- 				GFP_KERNEL);
- 	if (hpet_boot_cfg)
- 		*hpet_boot_cfg = cfg;
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index 1fc05e428aba..27e6fb051792 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -995,7 +995,8 @@ static int svm_cpu_init(int cpu)
- 
- 	if (svm_sev_enabled()) {
- 		r = -ENOMEM;
--		sd->sev_vmcbs = kmalloc((max_sev_asid + 1) * sizeof(void *), GFP_KERNEL);
-+		sd->sev_vmcbs = kmalloc(array_size((max_sev_asid + 1), sizeof(void *)),
-+					GFP_KERNEL);
- 		if (!sd->sev_vmcbs)
- 			goto err_1;
- 	}
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 3b706eb0bde9..be133bc82a41 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -8608,7 +8608,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
- 	} else
- 		static_key_slow_inc(&kvm_no_apic_vcpu);
- 
--	vcpu->arch.mce_banks = kzalloc(KVM_MAX_MCE_BANKS * sizeof(u64) * 4,
-+	vcpu->arch.mce_banks = kzalloc(array3_size(KVM_MAX_MCE_BANKS, sizeof(u64), 4),
- 				       GFP_KERNEL);
- 	if (!vcpu->arch.mce_banks) {
- 		r = -ENOMEM;
-diff --git a/arch/x86/net/bpf_jit_comp.c b/arch/x86/net/bpf_jit_comp.c
-index b725154182cc..e8cb543258e4 100644
---- a/arch/x86/net/bpf_jit_comp.c
-+++ b/arch/x86/net/bpf_jit_comp.c
-@@ -1202,7 +1202,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
- 		extra_pass = true;
- 		goto skip_init_addrs;
- 	}
--	addrs = kmalloc(prog->len * sizeof(*addrs), GFP_KERNEL);
-+	addrs = kmalloc(array_size(prog->len, sizeof(*addrs)), GFP_KERNEL);
- 	if (!addrs) {
- 		prog = orig_prog;
- 		goto out_addrs;
-diff --git a/arch/x86/pci/xen.c b/arch/x86/pci/xen.c
-index 9542a746dc50..70eef70f00e6 100644
---- a/arch/x86/pci/xen.c
-+++ b/arch/x86/pci/xen.c
-@@ -168,7 +168,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
- 	if (type == PCI_CAP_ID_MSI && nvec > 1)
- 		return 1;
- 
--	v = kzalloc(sizeof(int) * max(1, nvec), GFP_KERNEL);
-+	v = kzalloc(array_size(sizeof(int), max(1, nvec)), GFP_KERNEL);
- 	if (!v)
- 		return -ENOMEM;
- 
-diff --git a/crypto/tcrypt.c b/crypto/tcrypt.c
-index 51fe7c8744ae..52bcfe7a9dc5 100644
---- a/crypto/tcrypt.c
-+++ b/crypto/tcrypt.c
-@@ -547,7 +547,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
- 	if (testmgr_alloc_buf(xoutbuf))
- 		goto out_nooutbuf;
- 
--	sg = kmalloc(sizeof(*sg) * 9 * 2, GFP_KERNEL);
-+	sg = kmalloc(array3_size(sizeof(*sg), 9, 2), GFP_KERNEL);
- 	if (!sg)
- 		goto out_nosg;
- 	sgout = &sg[9];
-diff --git a/crypto/testmgr.c b/crypto/testmgr.c
-index af4a01c5037b..a7a9baf8a227 100644
---- a/crypto/testmgr.c
-+++ b/crypto/testmgr.c
-@@ -605,7 +605,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
- 		goto out_nooutbuf;
- 
- 	/* avoid "the frame size is larger than 1024 bytes" compiler warning */
--	sg = kmalloc(sizeof(*sg) * 8 * (diff_dst ? 4 : 2), GFP_KERNEL);
-+	sg = kmalloc(array3_size(sizeof(*sg), 8, (diff_dst ? 4 : 2)),
-+		     GFP_KERNEL);
- 	if (!sg)
- 		goto out_nosg;
- 	sgout = &sg[16];
-diff --git a/drivers/acpi/acpi_video.c b/drivers/acpi/acpi_video.c
-index 76fb96966f7b..79339b4f9dfb 100644
---- a/drivers/acpi/acpi_video.c
-+++ b/drivers/acpi/acpi_video.c
-@@ -832,8 +832,8 @@ int acpi_video_get_levels(struct acpi_device *device,
- 	 * in order to account for buggy BIOS which don't export the first two
- 	 * special levels (see below)
- 	 */
--	br->levels = kmalloc((obj->package.count + ACPI_VIDEO_FIRST_LEVEL) *
--	                     sizeof(*br->levels), GFP_KERNEL);
-+	br->levels = kmalloc(array_size((obj->package.count + ACPI_VIDEO_FIRST_LEVEL), sizeof(*br->levels)),
-+			     GFP_KERNEL);
- 	if (!br->levels) {
- 		result = -ENOMEM;
- 		goto out_free;
-diff --git a/drivers/acpi/processor_perflib.c b/drivers/acpi/processor_perflib.c
-index a651ab3490d8..59051c6b11e9 100644
---- a/drivers/acpi/processor_perflib.c
-+++ b/drivers/acpi/processor_perflib.c
-@@ -343,7 +343,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
- 
- 	pr->performance->state_count = pss->package.count;
- 	pr->performance->states =
--	    kmalloc(sizeof(struct acpi_processor_px) * pss->package.count,
-+	    kmalloc(array_size(sizeof(struct acpi_processor_px), pss->package.count),
- 		    GFP_KERNEL);
- 	if (!pr->performance->states) {
- 		result = -ENOMEM;
-diff --git a/drivers/acpi/processor_throttling.c b/drivers/acpi/processor_throttling.c
-index 7f9aff4b8d62..40720a67eba9 100644
---- a/drivers/acpi/processor_throttling.c
-+++ b/drivers/acpi/processor_throttling.c
-@@ -534,7 +534,7 @@ static int acpi_processor_get_throttling_states(struct acpi_processor *pr)
- 
- 	pr->throttling.state_count = tss->package.count;
- 	pr->throttling.states_tss =
--	    kmalloc(sizeof(struct acpi_processor_tx_tss) * tss->package.count,
-+	    kmalloc(array_size(sizeof(struct acpi_processor_tx_tss), tss->package.count),
- 		    GFP_KERNEL);
- 	if (!pr->throttling.states_tss) {
- 		result = -ENOMEM;
-diff --git a/drivers/acpi/sysfs.c b/drivers/acpi/sysfs.c
-index 4fc59c3bc673..63851d391278 100644
---- a/drivers/acpi/sysfs.c
-+++ b/drivers/acpi/sysfs.c
-@@ -857,12 +857,12 @@ void acpi_irq_stats_init(void)
- 	num_gpes = acpi_current_gpe_count;
- 	num_counters = num_gpes + ACPI_NUM_FIXED_EVENTS + NUM_COUNTERS_EXTRA;
- 
--	all_attrs = kzalloc(sizeof(struct attribute *) * (num_counters + 1),
-+	all_attrs = kzalloc(array_size(sizeof(struct attribute *), (num_counters + 1)),
- 			    GFP_KERNEL);
- 	if (all_attrs == NULL)
+@@ -610,7 +610,8 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
+ 	if (!hpet_domain)
  		return;
  
--	all_counters = kzalloc(sizeof(struct event_counter) * (num_counters),
-+	all_counters = kzalloc(array_size(sizeof(struct event_counter), (num_counters)),
- 			       GFP_KERNEL);
- 	if (all_counters == NULL)
- 		goto fail;
-@@ -871,7 +871,7 @@ void acpi_irq_stats_init(void)
- 	if (ACPI_FAILURE(status))
- 		goto fail;
+-	hpet_devs = kzalloc(sizeof(struct hpet_dev) * num_timers, GFP_KERNEL);
++	hpet_devs = kzalloc(array_size(num_timers, sizeof(struct hpet_dev)),
++			    GFP_KERNEL);
+ 	if (!hpet_devs)
+ 		return;
  
--	counter_attrs = kzalloc(sizeof(struct kobj_attribute) * (num_counters),
-+	counter_attrs = kzalloc(array_size(sizeof(struct kobj_attribute), (num_counters)),
- 				GFP_KERNEL);
- 	if (counter_attrs == NULL)
- 		goto fail;
-diff --git a/drivers/android/binder_alloc.c b/drivers/android/binder_alloc.c
-index 5a426c877dfb..3dbb1bcbe555 100644
---- a/drivers/android/binder_alloc.c
-+++ b/drivers/android/binder_alloc.c
-@@ -692,8 +692,7 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
- 		}
- 	}
- #endif
--	alloc->pages = kzalloc(sizeof(alloc->pages[0]) *
--				   ((vma->vm_end - vma->vm_start) / PAGE_SIZE),
-+	alloc->pages = kzalloc(array_size(sizeof(alloc->pages[0]), ((vma->vm_end - vma->vm_start) / PAGE_SIZE)),
- 			       GFP_KERNEL);
- 	if (alloc->pages == NULL) {
+diff --git a/arch/x86/kernel/ksysfs.c b/arch/x86/kernel/ksysfs.c
+index 8c1cc08f514f..715bc75407d7 100644
+--- a/arch/x86/kernel/ksysfs.c
++++ b/arch/x86/kernel/ksysfs.c
+@@ -283,7 +283,7 @@ static int __init create_setup_data_nodes(struct kobject *parent)
+ 	if (ret)
+ 		goto out_setup_data_kobj;
+ 
+-	kobjp = kmalloc(sizeof(*kobjp) * nr, GFP_KERNEL);
++	kobjp = kmalloc(array_size(nr, sizeof(*kobjp)), GFP_KERNEL);
+ 	if (!kobjp) {
  		ret = -ENOMEM;
-diff --git a/drivers/atm/he.c b/drivers/atm/he.c
-index 29f102dcfec4..c8d12ab7a57b 100644
---- a/drivers/atm/he.c
-+++ b/drivers/atm/he.c
-@@ -656,7 +656,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
- 	unsigned long long rate_cps;
- 	int mult, buf, buf_limit = 4;
+ 		goto out_setup_data_kobj;
+diff --git a/arch/x86/kvm/page_track.c b/arch/x86/kvm/page_track.c
+index 01c1371f39f8..abde9b08dd98 100644
+--- a/arch/x86/kvm/page_track.c
++++ b/arch/x86/kvm/page_track.c
+@@ -40,8 +40,8 @@ int kvm_page_track_create_memslot(struct kvm_memory_slot *slot,
+ 	int  i;
  
--	rategrid = kmalloc( sizeof(unsigned) * 16 * 16, GFP_KERNEL);
-+	rategrid = kmalloc(array3_size(sizeof(unsigned), 16, 16), GFP_KERNEL);
- 	if (!rategrid)
+ 	for (i = 0; i < KVM_PAGE_TRACK_MAX; i++) {
+-		slot->arch.gfn_track[i] = kvzalloc(npages *
+-					    sizeof(*slot->arch.gfn_track[i]), GFP_KERNEL);
++		slot->arch.gfn_track[i] = kvzalloc(array_size(npages, sizeof(*slot->arch.gfn_track[i])),
++						   GFP_KERNEL);
+ 		if (!slot->arch.gfn_track[i])
+ 			goto track_free;
+ 	}
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 51ecd381793b..3b706eb0bde9 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -8871,13 +8871,15 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
+ 				      slot->base_gfn, level) + 1;
+ 
+ 		slot->arch.rmap[i] =
+-			kvzalloc(lpages * sizeof(*slot->arch.rmap[i]), GFP_KERNEL);
++			kvzalloc(array_size(lpages, sizeof(*slot->arch.rmap[i])),
++				 GFP_KERNEL);
+ 		if (!slot->arch.rmap[i])
+ 			goto out_free;
+ 		if (i == 0)
+ 			continue;
+ 
+-		linfo = kvzalloc(lpages * sizeof(*linfo), GFP_KERNEL);
++		linfo = kvzalloc(array_size(lpages, sizeof(*linfo)),
++				 GFP_KERNEL);
+ 		if (!linfo)
+ 			goto out_free;
+ 
+diff --git a/arch/x86/platform/uv/tlb_uv.c b/arch/x86/platform/uv/tlb_uv.c
+index b36caae0fb2f..d7fae2d761e0 100644
+--- a/arch/x86/platform/uv/tlb_uv.c
++++ b/arch/x86/platform/uv/tlb_uv.c
+@@ -2142,7 +2142,8 @@ static int __init init_per_cpu(int nuvhubs, int base_part_pnode)
+ 	if (is_uv3_hub() || is_uv2_hub() || is_uv1_hub())
+ 		timeout_us = calculate_destination_timeout();
+ 
+-	vp = kmalloc(nuvhubs * sizeof(struct uvhub_desc), GFP_KERNEL);
++	vp = kmalloc(array_size(nuvhubs, sizeof(struct uvhub_desc)),
++		     GFP_KERNEL);
+ 	uvhub_descs = (struct uvhub_desc *)vp;
+ 	memset(uvhub_descs, 0, nuvhubs * sizeof(struct uvhub_desc));
+ 	uvhub_mask = kzalloc((nuvhubs+7)/8, GFP_KERNEL);
+diff --git a/arch/x86/platform/uv/uv_time.c b/arch/x86/platform/uv/uv_time.c
+index b082d71b08ee..462d84cf691f 100644
+--- a/arch/x86/platform/uv/uv_time.c
++++ b/arch/x86/platform/uv/uv_time.c
+@@ -158,7 +158,8 @@ static __init int uv_rtc_allocate_timers(void)
+ {
+ 	int cpu;
+ 
+-	blade_info = kzalloc(uv_possible_blades * sizeof(void *), GFP_KERNEL);
++	blade_info = kzalloc(array_size(uv_possible_blades, sizeof(void *)),
++			     GFP_KERNEL);
+ 	if (!blade_info)
  		return -ENOMEM;
  
-diff --git a/drivers/atm/iphase.c b/drivers/atm/iphase.c
-index be076606d30e..fa14b364e206 100644
---- a/drivers/atm/iphase.c
-+++ b/drivers/atm/iphase.c
-@@ -1618,7 +1618,7 @@ static int rx_init(struct atm_dev *dev)
- 	skb_queue_head_init(&iadev->rx_dma_q);  
- 	iadev->rx_free_desc_qhead = NULL;   
+diff --git a/block/bio.c b/block/bio.c
+index 53e0f0a1ed94..84e3349df3e4 100644
+--- a/block/bio.c
++++ b/block/bio.c
+@@ -2013,7 +2013,8 @@ static int __init init_bio(void)
+ {
+ 	bio_slab_max = 2;
+ 	bio_slab_nr = 0;
+-	bio_slabs = kzalloc(bio_slab_max * sizeof(struct bio_slab), GFP_KERNEL);
++	bio_slabs = kzalloc(array_size(bio_slab_max, sizeof(struct bio_slab)),
++			    GFP_KERNEL);
+ 	if (!bio_slabs)
+ 		panic("bio: can't allocate bios\n");
  
--	iadev->rx_open = kzalloc(4 * iadev->num_vc, GFP_KERNEL);
-+	iadev->rx_open = kzalloc(array_size(4, iadev->num_vc), GFP_KERNEL);
- 	if (!iadev->rx_open) {
- 		printk(KERN_ERR DEV_LABEL "itf %d couldn't get free page\n",
- 		dev->number);  
-diff --git a/drivers/atm/solos-pci.c b/drivers/atm/solos-pci.c
-index 0df1a1c80b00..ccfca3af5f86 100644
---- a/drivers/atm/solos-pci.c
-+++ b/drivers/atm/solos-pci.c
-@@ -1291,7 +1291,8 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
- 		card->using_dma = 1;
- 		if (1) { /* All known FPGA versions so far */
- 			card->dma_alignment = 3;
--			card->dma_bounce = kmalloc(card->nr_ports * BUF_SIZE, GFP_KERNEL);
-+			card->dma_bounce = kmalloc(array_size(card->nr_ports, BUF_SIZE),
-+						   GFP_KERNEL);
- 			if (!card->dma_bounce) {
- 				dev_warn(&card->dev->dev, "Failed to allocate DMA bounce buffers\n");
- 				err = -ENOMEM;
-diff --git a/drivers/block/DAC960.c b/drivers/block/DAC960.c
-index f781eff7d23e..92f4b6d846dd 100644
---- a/drivers/block/DAC960.c
-+++ b/drivers/block/DAC960.c
-@@ -5724,8 +5724,8 @@ static bool DAC960_CheckStatusBuffer(DAC960_Controller_T *Controller,
-       Controller->CombinedStatusBufferLength = NewStatusBufferLength;
-       return true;
-     }
--  NewStatusBuffer = kmalloc(2 * Controller->CombinedStatusBufferLength,
--			     GFP_ATOMIC);
-+  NewStatusBuffer = kmalloc(array_size(2, Controller->CombinedStatusBufferLength),
-+                            GFP_ATOMIC);
-   if (NewStatusBuffer == NULL)
-     {
-       DAC960_Warning("Unable to expand Combined Status Buffer - Truncating\n",
-diff --git a/drivers/block/amiflop.c b/drivers/block/amiflop.c
-index 3aaf6af3ec23..4b55783d76ae 100644
---- a/drivers/block/amiflop.c
-+++ b/drivers/block/amiflop.c
-@@ -1727,7 +1727,7 @@ static int __init fd_probe_drives(void)
+diff --git a/block/blk-tag.c b/block/blk-tag.c
+index 09f19c6c52ce..e71a4327ebb9 100644
+--- a/block/blk-tag.c
++++ b/block/blk-tag.c
+@@ -99,12 +99,14 @@ init_tag_map(struct request_queue *q, struct blk_queue_tag *tags, int depth)
+ 		       __func__, depth);
+ 	}
+ 
+-	tag_index = kzalloc(depth * sizeof(struct request *), GFP_ATOMIC);
++	tag_index = kzalloc(array_size(depth, sizeof(struct request *)),
++			    GFP_ATOMIC);
+ 	if (!tag_index)
+ 		goto fail;
+ 
+ 	nr_ulongs = ALIGN(depth, BITS_PER_LONG) / BITS_PER_LONG;
+-	tag_map = kzalloc(nr_ulongs * sizeof(unsigned long), GFP_ATOMIC);
++	tag_map = kzalloc(array_size(nr_ulongs, sizeof(unsigned long)),
++			  GFP_ATOMIC);
+ 	if (!tag_map)
+ 		goto fail;
+ 
+diff --git a/block/partitions/ldm.c b/block/partitions/ldm.c
+index 2a365c756648..6964714e71b7 100644
+--- a/block/partitions/ldm.c
++++ b/block/partitions/ldm.c
+@@ -378,7 +378,7 @@ static bool ldm_validate_tocblocks(struct parsed_partitions *state,
+ 	BUG_ON(!state || !ldb);
+ 	ph = &ldb->ph;
+ 	tb[0] = &ldb->toc;
+-	tb[1] = kmalloc(sizeof(*tb[1]) * 3, GFP_KERNEL);
++	tb[1] = kmalloc(array_size(3, sizeof(*tb[1])), GFP_KERNEL);
+ 	if (!tb[1]) {
+ 		ldm_crit("Out of memory.");
+ 		goto err;
+diff --git a/drivers/acpi/acpi_platform.c b/drivers/acpi/acpi_platform.c
+index 88cd949003f3..635a06a11144 100644
+--- a/drivers/acpi/acpi_platform.c
++++ b/drivers/acpi/acpi_platform.c
+@@ -82,7 +82,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
+ 	if (count < 0) {
+ 		return NULL;
+ 	} else if (count > 0) {
+-		resources = kzalloc(count * sizeof(struct resource),
++		resources = kzalloc(array_size(count, sizeof(struct resource)),
+ 				    GFP_KERNEL);
+ 		if (!resources) {
+ 			dev_err(&adev->dev, "No memory for resources\n");
+diff --git a/drivers/acpi/apei/erst.c b/drivers/acpi/apei/erst.c
+index 9bff853e85f3..0214377af50a 100644
+--- a/drivers/acpi/apei/erst.c
++++ b/drivers/acpi/apei/erst.c
+@@ -524,7 +524,8 @@ static int __erst_record_id_cache_add_one(void)
+ 				pr_warn(FW_WARN "too many record IDs!\n");
+ 			return 0;
  		}
+-		new_entries = kvmalloc(new_size * sizeof(entries[0]), GFP_KERNEL);
++		new_entries = kvmalloc(array_size(new_size, sizeof(entries[0])),
++				       GFP_KERNEL);
+ 		if (!new_entries)
+ 			return -ENOMEM;
+ 		memcpy(new_entries, entries,
+diff --git a/drivers/acpi/apei/hest.c b/drivers/acpi/apei/hest.c
+index 9cb74115a43d..1434aa591931 100644
+--- a/drivers/acpi/apei/hest.c
++++ b/drivers/acpi/apei/hest.c
+@@ -195,7 +195,8 @@ static int __init hest_ghes_dev_register(unsigned int ghes_count)
+ 	struct ghes_arr ghes_arr;
  
- 		drives++;
--		if ((unit[drive].trackbuf = kmalloc(FLOPPY_MAX_SECTORS * 512, GFP_KERNEL)) == NULL) {
-+		if ((unit[drive].trackbuf = kmalloc(array_size(FLOPPY_MAX_SECTORS, 512), GFP_KERNEL)) == NULL) {
- 			printk("no mem for ");
- 			unit[drive].type = &drive_types[num_dr_types - 1]; /* FD_NODRIVE */
- 			drives--;
+ 	ghes_arr.count = 0;
+-	ghes_arr.ghes_devs = kmalloc(sizeof(void *) * ghes_count, GFP_KERNEL);
++	ghes_arr.ghes_devs = kmalloc(array_size(ghes_count, sizeof(void *)),
++				     GFP_KERNEL);
+ 	if (!ghes_arr.ghes_devs)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/ata/libata-core.c b/drivers/ata/libata-core.c
+index 8bc71ca61e7f..9ea0c8e25fc8 100644
+--- a/drivers/ata/libata-core.c
++++ b/drivers/ata/libata-core.c
+@@ -6984,7 +6984,8 @@ static void __init ata_parse_force_param(void)
+ 		if (*p == ',')
+ 			size++;
+ 
+-	ata_force_tbl = kzalloc(sizeof(ata_force_tbl[0]) * size, GFP_KERNEL);
++	ata_force_tbl = kzalloc(array_size(size, sizeof(ata_force_tbl[0])),
++				GFP_KERNEL);
+ 	if (!ata_force_tbl) {
+ 		printk(KERN_WARNING "ata: failed to extend force table, "
+ 		       "libata.force ignored\n");
+diff --git a/drivers/ata/libata-pmp.c b/drivers/ata/libata-pmp.c
+index 85aa76116a30..6c0e4181e6f9 100644
+--- a/drivers/ata/libata-pmp.c
++++ b/drivers/ata/libata-pmp.c
+@@ -340,7 +340,7 @@ static int sata_pmp_init_links (struct ata_port *ap, int nr_ports)
+ 	int i, err;
+ 
+ 	if (!pmp_link) {
+-		pmp_link = kzalloc(sizeof(pmp_link[0]) * SATA_PMP_MAX_PORTS,
++		pmp_link = kzalloc(array_size(SATA_PMP_MAX_PORTS, sizeof(pmp_link[0])),
+ 				   GFP_NOIO);
+ 		if (!pmp_link)
+ 			return -ENOMEM;
+diff --git a/drivers/atm/fore200e.c b/drivers/atm/fore200e.c
+index 6ebc4e4820fc..337297a565e6 100644
+--- a/drivers/atm/fore200e.c
++++ b/drivers/atm/fore200e.c
+@@ -2094,7 +2094,8 @@ static int fore200e_alloc_rx_buf(struct fore200e *fore200e)
+ 	    DPRINTK(2, "rx buffers %d / %d are being allocated\n", scheme, magn);
+ 
+ 	    /* allocate the array of receive buffers */
+-	    buffer = bsq->buffer = kzalloc(nbr * sizeof(struct buffer), GFP_KERNEL);
++	    buffer = bsq->buffer = kzalloc(array_size(nbr, sizeof(struct buffer)),
++                                           GFP_KERNEL);
+ 
+ 	    if (buffer == NULL)
+ 		return -ENOMEM;
+diff --git a/drivers/auxdisplay/cfag12864b.c b/drivers/auxdisplay/cfag12864b.c
+index 41ce4bd96813..2b14e5647355 100644
+--- a/drivers/auxdisplay/cfag12864b.c
++++ b/drivers/auxdisplay/cfag12864b.c
+@@ -347,8 +347,8 @@ static int __init cfag12864b_init(void)
+ 		goto none;
+ 	}
+ 
+-	cfag12864b_cache = kmalloc(sizeof(unsigned char) *
+-		CFAG12864B_SIZE, GFP_KERNEL);
++	cfag12864b_cache = kmalloc(array_size(CFAG12864B_SIZE, sizeof(unsigned char)),
++				   GFP_KERNEL);
+ 	if (cfag12864b_cache == NULL) {
+ 		printk(KERN_ERR CFAG12864B_NAME ": ERROR: "
+ 			"can't alloc cache buffer (%i bytes)\n",
+diff --git a/drivers/block/drbd/drbd_main.c b/drivers/block/drbd/drbd_main.c
+index 185f1ef00a7c..7533c27d152d 100644
+--- a/drivers/block/drbd/drbd_main.c
++++ b/drivers/block/drbd/drbd_main.c
+@@ -511,7 +511,8 @@ static void drbd_calc_cpu_mask(cpumask_var_t *cpu_mask)
+ {
+ 	unsigned int *resources_per_cpu, min_index = ~0;
+ 
+-	resources_per_cpu = kzalloc(nr_cpu_ids * sizeof(*resources_per_cpu), GFP_KERNEL);
++	resources_per_cpu = kzalloc(array_size(nr_cpu_ids, sizeof(*resources_per_cpu)),
++				    GFP_KERNEL);
+ 	if (resources_per_cpu) {
+ 		struct drbd_resource *resource;
+ 		unsigned int cpu, min = ~0;
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index c9d04497a415..13d89cbceacb 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -500,7 +500,8 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 
+ 		__rq_for_each_bio(bio, rq)
+ 			segments += bio_segments(bio);
+-		bvec = kmalloc(sizeof(struct bio_vec) * segments, GFP_NOIO);
++		bvec = kmalloc(array_size(segments, sizeof(struct bio_vec)),
++			       GFP_NOIO);
+ 		if (!bvec)
+ 			return -EIO;
+ 		cmd->bvec = bvec;
 diff --git a/drivers/block/null_blk.c b/drivers/block/null_blk.c
-index df02a9211ae3..bd285a55d765 100644
+index a76553293a31..df02a9211ae3 100644
 --- a/drivers/block/null_blk.c
 +++ b/drivers/block/null_blk.c
-@@ -1573,7 +1573,8 @@ static int setup_commands(struct nullb_queue *nq)
- 	struct nullb_cmd *cmd;
- 	int i, tag_size;
- 
--	nq->cmds = kzalloc(nq->queue_depth * sizeof(*cmd), GFP_KERNEL);
-+	nq->cmds = kzalloc(array_size(nq->queue_depth, sizeof(*cmd)),
-+			   GFP_KERNEL);
- 	if (!nq->cmds)
+@@ -1578,7 +1578,8 @@ static int setup_commands(struct nullb_queue *nq)
  		return -ENOMEM;
  
-@@ -1597,8 +1598,8 @@ static int setup_commands(struct nullb_queue *nq)
- 
- static int setup_queues(struct nullb *nullb)
- {
--	nullb->queues = kzalloc(nullb->dev->submit_queues *
--		sizeof(struct nullb_queue), GFP_KERNEL);
-+	nullb->queues = kzalloc(array_size(nullb->dev->submit_queues, sizeof(struct nullb_queue)),
-+				GFP_KERNEL);
- 	if (!nullb->queues)
+ 	tag_size = ALIGN(nq->queue_depth, BITS_PER_LONG) / BITS_PER_LONG;
+-	nq->tag_map = kzalloc(tag_size * sizeof(unsigned long), GFP_KERNEL);
++	nq->tag_map = kzalloc(array_size(tag_size, sizeof(unsigned long)),
++			      GFP_KERNEL);
+ 	if (!nq->tag_map) {
+ 		kfree(nq->cmds);
  		return -ENOMEM;
+diff --git a/drivers/block/ps3vram.c b/drivers/block/ps3vram.c
+index 6a55959cbf78..c52903761b13 100644
+--- a/drivers/block/ps3vram.c
++++ b/drivers/block/ps3vram.c
+@@ -407,8 +407,8 @@ static int ps3vram_cache_init(struct ps3_system_bus_device *dev)
  
-diff --git a/drivers/block/rsxx/core.c b/drivers/block/rsxx/core.c
-index 34997df132e2..2b0e5277fb46 100644
---- a/drivers/block/rsxx/core.c
-+++ b/drivers/block/rsxx/core.c
-@@ -873,7 +873,8 @@ static int rsxx_pci_probe(struct pci_dev *dev,
- 		dev_info(CARD_TO_DEV(card),
- 			"Failed reading the number of DMA targets\n");
- 
--	card->ctrl = kzalloc(card->n_targets * sizeof(*card->ctrl), GFP_KERNEL);
-+	card->ctrl = kzalloc(array_size(card->n_targets, sizeof(*card->ctrl)),
-+			     GFP_KERNEL);
- 	if (!card->ctrl) {
- 		st = -ENOMEM;
- 		goto failed_dma_setup;
-diff --git a/drivers/block/rsxx/dma.c b/drivers/block/rsxx/dma.c
-index beaccf197a5a..42e914fdd4de 100644
---- a/drivers/block/rsxx/dma.c
-+++ b/drivers/block/rsxx/dma.c
-@@ -1038,7 +1038,7 @@ int rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card)
- 	struct rsxx_dma *dma;
- 	struct list_head *issued_dmas;
- 
--	issued_dmas = kzalloc(sizeof(*issued_dmas) * card->n_targets,
-+	issued_dmas = kzalloc(array_size(sizeof(*issued_dmas), card->n_targets),
- 			      GFP_KERNEL);
- 	if (!issued_dmas)
- 		return -ENOMEM;
-diff --git a/drivers/block/xen-blkback/xenbus.c b/drivers/block/xen-blkback/xenbus.c
-index 21c1be1eb226..e2af6ad48c88 100644
---- a/drivers/block/xen-blkback/xenbus.c
-+++ b/drivers/block/xen-blkback/xenbus.c
-@@ -139,7 +139,8 @@ static int xen_blkif_alloc_rings(struct xen_blkif *blkif)
- {
- 	unsigned int r;
- 
--	blkif->rings = kzalloc(blkif->nr_rings * sizeof(struct xen_blkif_ring), GFP_KERNEL);
-+	blkif->rings = kzalloc(array_size(blkif->nr_rings, sizeof(struct xen_blkif_ring)),
-+			       GFP_KERNEL);
- 	if (!blkif->rings)
+ 	priv->cache.page_count = CACHE_PAGE_COUNT;
+ 	priv->cache.page_size = CACHE_PAGE_SIZE;
+-	priv->cache.tags = kzalloc(sizeof(struct ps3vram_tag) *
+-				   CACHE_PAGE_COUNT, GFP_KERNEL);
++	priv->cache.tags = kzalloc(array_size(CACHE_PAGE_COUNT, sizeof(struct ps3vram_tag)),
++				   GFP_KERNEL);
+ 	if (!priv->cache.tags)
  		return -ENOMEM;
  
 diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
-index c6469b956520..e955f092534d 100644
+index 2a8e7813bd1a..c6469b956520 100644
 --- a/drivers/block/xen-blkfront.c
 +++ b/drivers/block/xen-blkfront.c
-@@ -1907,7 +1907,8 @@ static int negotiate_mq(struct blkfront_info *info)
- 	if (!info->nr_rings)
- 		info->nr_rings = 1;
+@@ -2217,10 +2217,10 @@ static int blkfront_setup_indirect(struct blkfront_ring_info *rinfo)
+ 	}
  
--	info->rinfo = kzalloc(sizeof(struct blkfront_ring_info) * info->nr_rings, GFP_KERNEL);
-+	info->rinfo = kzalloc(array_size(sizeof(struct blkfront_ring_info), info->nr_rings),
-+			      GFP_KERNEL);
- 	if (!info->rinfo) {
- 		xenbus_dev_fatal(info->xbdev, -ENOMEM, "allocating ring_info structure");
- 		return -ENOMEM;
-@@ -2222,10 +2223,8 @@ static int blkfront_setup_indirect(struct blkfront_ring_info *rinfo)
- 		rinfo->shadow[i].sg = kzalloc(array_size(psegs, sizeof(rinfo->shadow[i].sg[0])),
- 					      GFP_NOIO);
+ 	for (i = 0; i < BLK_RING_SIZE(info); i++) {
+-		rinfo->shadow[i].grants_used = kzalloc(
+-			sizeof(rinfo->shadow[i].grants_used[0]) * grants,
+-			GFP_NOIO);
+-		rinfo->shadow[i].sg = kzalloc(sizeof(rinfo->shadow[i].sg[0]) * psegs, GFP_NOIO);
++		rinfo->shadow[i].grants_used = kzalloc(array_size(grants, sizeof(rinfo->shadow[i].grants_used[0])),
++						       GFP_NOIO);
++		rinfo->shadow[i].sg = kzalloc(array_size(psegs, sizeof(rinfo->shadow[i].sg[0])),
++					      GFP_NOIO);
  		if (info->max_indirect_segments)
--			rinfo->shadow[i].indirect_grants = kzalloc(
--				sizeof(rinfo->shadow[i].indirect_grants[0]) *
--				INDIRECT_GREFS(grants),
--				GFP_NOIO);
-+			rinfo->shadow[i].indirect_grants = kzalloc(array_size(sizeof(rinfo->shadow[i].indirect_grants[0]), INDIRECT_GREFS(grants)),
-+								   GFP_NOIO);
- 		if ((rinfo->shadow[i].grants_used == NULL) ||
- 			(rinfo->shadow[i].sg == NULL) ||
- 		     (info->max_indirect_segments &&
-diff --git a/drivers/block/z2ram.c b/drivers/block/z2ram.c
-index 8f9130ab5887..f7dc10f80c74 100644
---- a/drivers/block/z2ram.c
-+++ b/drivers/block/z2ram.c
-@@ -197,8 +197,8 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
- 		vaddr = (unsigned long)z_remap_nocache_nonser(paddr, size);
- #endif
- 		z2ram_map = 
--			kmalloc((size/Z2RAM_CHUNKSIZE)*sizeof(z2ram_map[0]),
--				GFP_KERNEL);
-+			kmalloc(array_size((size / Z2RAM_CHUNKSIZE), sizeof(z2ram_map[0])),
-+                                GFP_KERNEL);
- 		if ( z2ram_map == NULL )
- 		{
- 		    printk( KERN_ERR DEVICE_NAME
-diff --git a/drivers/char/agp/amd-k7-agp.c b/drivers/char/agp/amd-k7-agp.c
-index b450544dcaf0..a5fc089d47ca 100644
---- a/drivers/char/agp/amd-k7-agp.c
-+++ b/drivers/char/agp/amd-k7-agp.c
-@@ -85,7 +85,8 @@ static int amd_create_gatt_pages(int nr_tables)
- 	int retval = 0;
- 	int i;
+ 			rinfo->shadow[i].indirect_grants = kzalloc(
+ 				sizeof(rinfo->shadow[i].indirect_grants[0]) *
+diff --git a/drivers/cdrom/cdrom.c b/drivers/cdrom/cdrom.c
+index 8327478effd0..3a56395710a1 100644
+--- a/drivers/cdrom/cdrom.c
++++ b/drivers/cdrom/cdrom.c
+@@ -2132,7 +2132,8 @@ static int cdrom_read_cdda_old(struct cdrom_device_info *cdi, __u8 __user *ubuf,
+ 	 */
+ 	nr = nframes;
+ 	do {
+-		cgc.buffer = kmalloc(CD_FRAMESIZE_RAW * nr, GFP_KERNEL);
++		cgc.buffer = kmalloc(array_size(nr, CD_FRAMESIZE_RAW),
++				     GFP_KERNEL);
+ 		if (cgc.buffer)
+ 			break;
  
--	tables = kzalloc((nr_tables + 1) * sizeof(struct amd_page_map *),GFP_KERNEL);
-+	tables = kzalloc(array_size((nr_tables + 1), sizeof(struct amd_page_map *)),
-+			 GFP_KERNEL);
- 	if (tables == NULL)
+diff --git a/drivers/char/agp/isoch.c b/drivers/char/agp/isoch.c
+index fc8e1bc3347d..affd779f6bbe 100644
+--- a/drivers/char/agp/isoch.c
++++ b/drivers/char/agp/isoch.c
+@@ -93,7 +93,7 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
+ 	 * We'll work with an array of isoch_data's (one for each
+ 	 * device in dev_list) throughout this function.
+ 	 */
+-	if ((master = kmalloc(ndevs * sizeof(*master), GFP_KERNEL)) == NULL) {
++	if ((master = kmalloc(array_size(ndevs, sizeof(*master)), GFP_KERNEL)) == NULL) {
+ 		ret = -ENOMEM;
+ 		goto get_out;
+ 	}
+diff --git a/drivers/char/agp/sgi-agp.c b/drivers/char/agp/sgi-agp.c
+index 3051c73bc383..b5ab61a02f7e 100644
+--- a/drivers/char/agp/sgi-agp.c
++++ b/drivers/char/agp/sgi-agp.c
+@@ -280,8 +280,7 @@ static int agp_sgi_init(void)
+ 	else
+ 		return 0;
+ 
+-	sgi_tioca_agp_bridges = kmalloc(tioca_gart_found *
+-					sizeof(struct agp_bridge_data *),
++	sgi_tioca_agp_bridges = kmalloc(array_size(tioca_gart_found, sizeof(struct agp_bridge_data *)),
+ 					GFP_KERNEL);
+ 	if (!sgi_tioca_agp_bridges)
  		return -ENOMEM;
+diff --git a/drivers/char/virtio_console.c b/drivers/char/virtio_console.c
+index 468f06134012..5ef7fc2f49d3 100644
+--- a/drivers/char/virtio_console.c
++++ b/drivers/char/virtio_console.c
+@@ -1902,12 +1902,14 @@ static int init_vqs(struct ports_device *portdev)
+ 	nr_ports = portdev->max_nr_ports;
+ 	nr_queues = use_multiport(portdev) ? (nr_ports + 1) * 2 : 2;
  
-diff --git a/drivers/char/agp/ati-agp.c b/drivers/char/agp/ati-agp.c
-index 88b4cbee4dac..38427afc096b 100644
---- a/drivers/char/agp/ati-agp.c
-+++ b/drivers/char/agp/ati-agp.c
-@@ -108,7 +108,8 @@ static int ati_create_gatt_pages(int nr_tables)
- 	int retval = 0;
- 	int i;
- 
--	tables = kzalloc((nr_tables + 1) * sizeof(struct ati_page_map *),GFP_KERNEL);
-+	tables = kzalloc(array_size((nr_tables + 1), sizeof(struct ati_page_map *)),
-+			 GFP_KERNEL);
- 	if (tables == NULL)
- 		return -ENOMEM;
- 
-diff --git a/drivers/char/agp/compat_ioctl.c b/drivers/char/agp/compat_ioctl.c
-index 2053f70ef66b..05223a10f41d 100644
---- a/drivers/char/agp/compat_ioctl.c
-+++ b/drivers/char/agp/compat_ioctl.c
-@@ -98,11 +98,13 @@ static int compat_agpioc_reserve_wrap(struct agp_file_private *priv, void __user
- 		if (ureserve.seg_count >= 16384)
- 			return -EINVAL;
- 
--		usegment = kmalloc(sizeof(*usegment) * ureserve.seg_count, GFP_KERNEL);
-+		usegment = kmalloc(array_size(sizeof(*usegment), ureserve.seg_count),
-+				   GFP_KERNEL);
- 		if (!usegment)
- 			return -ENOMEM;
- 
--		ksegment = kmalloc(sizeof(*ksegment) * kreserve.seg_count, GFP_KERNEL);
-+		ksegment = kmalloc(array_size(sizeof(*ksegment), kreserve.seg_count),
-+				   GFP_KERNEL);
- 		if (!ksegment) {
- 			kfree(usegment);
- 			return -ENOMEM;
-diff --git a/drivers/char/agp/sworks-agp.c b/drivers/char/agp/sworks-agp.c
-index 4dbdd3bc9bb8..1eac07936a93 100644
---- a/drivers/char/agp/sworks-agp.c
-+++ b/drivers/char/agp/sworks-agp.c
-@@ -96,7 +96,7 @@ static int serverworks_create_gatt_pages(int nr_tables)
- 	int retval = 0;
- 	int i;
- 
--	tables = kzalloc((nr_tables + 1) * sizeof(struct serverworks_page_map *),
-+	tables = kzalloc(array_size((nr_tables + 1), sizeof(struct serverworks_page_map *)),
- 			 GFP_KERNEL);
- 	if (tables == NULL)
- 		return -ENOMEM;
-diff --git a/drivers/char/agp/uninorth-agp.c b/drivers/char/agp/uninorth-agp.c
-index c381c8e396fc..f6511937a77d 100644
---- a/drivers/char/agp/uninorth-agp.c
-+++ b/drivers/char/agp/uninorth-agp.c
-@@ -402,7 +402,8 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
- 	if (table == NULL)
- 		return -ENOMEM;
- 
--	uninorth_priv.pages_arr = kmalloc((1 << page_order) * sizeof(struct page*), GFP_KERNEL);
-+	uninorth_priv.pages_arr = kmalloc(array_size((1 << page_order), sizeof(struct page *)),
-+					  GFP_KERNEL);
- 	if (uninorth_priv.pages_arr == NULL)
- 		goto enomem;
- 
-diff --git a/drivers/char/ipmi/ipmi_ssif.c b/drivers/char/ipmi/ipmi_ssif.c
-index 35a82f4bfd78..0d1932f5a5a5 100644
---- a/drivers/char/ipmi/ipmi_ssif.c
-+++ b/drivers/char/ipmi/ipmi_ssif.c
-@@ -1874,7 +1874,8 @@ static unsigned short *ssif_address_list(void)
- 	list_for_each_entry(info, &ssif_infos, link)
- 		count++;
- 
--	address_list = kzalloc(sizeof(*address_list) * (count + 1), GFP_KERNEL);
-+	address_list = kzalloc(array_size(sizeof(*address_list), (count + 1)),
+-	vqs = kmalloc(nr_queues * sizeof(struct virtqueue *), GFP_KERNEL);
+-	io_callbacks = kmalloc(nr_queues * sizeof(vq_callback_t *), GFP_KERNEL);
+-	io_names = kmalloc(nr_queues * sizeof(char *), GFP_KERNEL);
+-	portdev->in_vqs = kmalloc(nr_ports * sizeof(struct virtqueue *),
++	vqs = kmalloc(array_size(nr_queues, sizeof(struct virtqueue *)),
++		      GFP_KERNEL);
++	io_callbacks = kmalloc(array_size(nr_queues, sizeof(vq_callback_t *)),
 +			       GFP_KERNEL);
- 	if (!address_list)
- 		return NULL;
++	io_names = kmalloc(array_size(nr_queues, sizeof(char *)), GFP_KERNEL);
++	portdev->in_vqs = kmalloc(array_size(nr_ports, sizeof(struct virtqueue *)),
+ 				  GFP_KERNEL);
+-	portdev->out_vqs = kmalloc(nr_ports * sizeof(struct virtqueue *),
++	portdev->out_vqs = kmalloc(array_size(nr_ports, sizeof(struct virtqueue *)),
+ 				   GFP_KERNEL);
+ 	if (!vqs || !io_callbacks || !io_names || !portdev->in_vqs ||
+ 	    !portdev->out_vqs) {
+diff --git a/drivers/clk/renesas/clk-r8a7740.c b/drivers/clk/renesas/clk-r8a7740.c
+index d074f8e982d0..d17fb702258b 100644
+--- a/drivers/clk/renesas/clk-r8a7740.c
++++ b/drivers/clk/renesas/clk-r8a7740.c
+@@ -161,7 +161,7 @@ static void __init r8a7740_cpg_clocks_init(struct device_node *np)
+ 	}
  
-diff --git a/drivers/clk/st/clkgen-pll.c b/drivers/clk/st/clkgen-pll.c
-index 25bda48a5d35..78d366344882 100644
---- a/drivers/clk/st/clkgen-pll.c
-+++ b/drivers/clk/st/clkgen-pll.c
-@@ -738,7 +738,7 @@ static void __init clkgen_c32_pll_setup(struct device_node *np,
+ 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
+-	clks = kzalloc(num_clks * sizeof(*clks), GFP_KERNEL);
++	clks = kzalloc(array_size(num_clks, sizeof(*clks)), GFP_KERNEL);
+ 	if (cpg == NULL || clks == NULL) {
+ 		/* We're leaking memory on purpose, there's no point in cleaning
+ 		 * up as the system won't boot anyway.
+diff --git a/drivers/clk/renesas/clk-r8a7779.c b/drivers/clk/renesas/clk-r8a7779.c
+index 27fbfafaf2cd..62671236b5d7 100644
+--- a/drivers/clk/renesas/clk-r8a7779.c
++++ b/drivers/clk/renesas/clk-r8a7779.c
+@@ -138,7 +138,7 @@ static void __init r8a7779_cpg_clocks_init(struct device_node *np)
+ 	}
+ 
+ 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
+-	clks = kzalloc(CPG_NUM_CLOCKS * sizeof(*clks), GFP_KERNEL);
++	clks = kzalloc(array_size(CPG_NUM_CLOCKS, sizeof(*clks)), GFP_KERNEL);
+ 	if (cpg == NULL || clks == NULL) {
+ 		/* We're leaking memory on purpose, there's no point in cleaning
+ 		 * up as the system won't boot anyway.
+diff --git a/drivers/clk/renesas/clk-rcar-gen2.c b/drivers/clk/renesas/clk-rcar-gen2.c
+index ee32a022e6da..2c664643b05a 100644
+--- a/drivers/clk/renesas/clk-rcar-gen2.c
++++ b/drivers/clk/renesas/clk-rcar-gen2.c
+@@ -417,7 +417,7 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
+ 	}
+ 
+ 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
+-	clks = kzalloc(num_clks * sizeof(*clks), GFP_KERNEL);
++	clks = kzalloc(array_size(num_clks, sizeof(*clks)), GFP_KERNEL);
+ 	if (cpg == NULL || clks == NULL) {
+ 		/* We're leaking memory on purpose, there's no point in cleaning
+ 		 * up as the system won't boot anyway.
+diff --git a/drivers/clk/renesas/clk-rz.c b/drivers/clk/renesas/clk-rz.c
+index 67dd712aa723..c366aae95154 100644
+--- a/drivers/clk/renesas/clk-rz.c
++++ b/drivers/clk/renesas/clk-rz.c
+@@ -97,7 +97,7 @@ static void __init rz_cpg_clocks_init(struct device_node *np)
  		return;
  
- 	clk_data->clk_num = num_odfs;
--	clk_data->clks = kzalloc(clk_data->clk_num * sizeof(struct clk *),
-+	clk_data->clks = kzalloc(array_size(clk_data->clk_num, sizeof(struct clk *)),
- 				 GFP_KERNEL);
+ 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
+-	clks = kzalloc(num_clks * sizeof(*clks), GFP_KERNEL);
++	clks = kzalloc(array_size(num_clks, sizeof(*clks)), GFP_KERNEL);
+ 	BUG_ON(!cpg || !clks);
  
- 	if (!clk_data->clks)
-diff --git a/drivers/clk/sunxi/clk-usb.c b/drivers/clk/sunxi/clk-usb.c
-index fe0c3d169377..513d16c2e4c5 100644
---- a/drivers/clk/sunxi/clk-usb.c
-+++ b/drivers/clk/sunxi/clk-usb.c
-@@ -122,7 +122,8 @@ static void __init sunxi_usb_clk_setup(struct device_node *node,
- 	if (!clk_data)
+ 	cpg->data.clks = clks;
+diff --git a/drivers/clk/rockchip/clk-rockchip.c b/drivers/clk/rockchip/clk-rockchip.c
+index 2c9bb81144c9..fe1e06c1526f 100644
+--- a/drivers/clk/rockchip/clk-rockchip.c
++++ b/drivers/clk/rockchip/clk-rockchip.c
+@@ -58,7 +58,8 @@ static void __init rk2928_gate_clk_init(struct device_node *node)
  		return;
+ 	}
  
--	clk_data->clks = kzalloc((qty+1) * sizeof(struct clk *), GFP_KERNEL);
-+	clk_data->clks = kzalloc(array_size((qty + 1), sizeof(struct clk *)),
+-	clk_data->clks = kzalloc(qty * sizeof(struct clk *), GFP_KERNEL);
++	clk_data->clks = kzalloc(array_size(qty, sizeof(struct clk *)),
 +				 GFP_KERNEL);
  	if (!clk_data->clks) {
  		kfree(clk_data);
+ 		iounmap(reg);
+diff --git a/drivers/clk/st/clkgen-fsyn.c b/drivers/clk/st/clkgen-fsyn.c
+index 14819d919df1..ddd6caa6ab19 100644
+--- a/drivers/clk/st/clkgen-fsyn.c
++++ b/drivers/clk/st/clkgen-fsyn.c
+@@ -874,7 +874,7 @@ static void __init st_of_create_quadfs_fsynths(
  		return;
+ 
+ 	clk_data->clk_num = QUADFS_MAX_CHAN;
+-	clk_data->clks = kzalloc(QUADFS_MAX_CHAN * sizeof(struct clk *),
++	clk_data->clks = kzalloc(array_size(QUADFS_MAX_CHAN, sizeof(struct clk *)),
+ 				 GFP_KERNEL);
+ 
+ 	if (!clk_data->clks) {
 diff --git a/drivers/clk/tegra/clk.c b/drivers/clk/tegra/clk.c
-index 2115110745c5..0502647ff921 100644
+index ba923f0d5953..2115110745c5 100644
 --- a/drivers/clk/tegra/clk.c
 +++ b/drivers/clk/tegra/clk.c
-@@ -216,8 +216,8 @@ struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
- 	if (WARN_ON(banks > ARRAY_SIZE(periph_regs)))
- 		return NULL;
+@@ -223,7 +223,7 @@ struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
  
--	periph_clk_enb_refcnt = kzalloc(32 * banks *
--				sizeof(*periph_clk_enb_refcnt), GFP_KERNEL);
-+	periph_clk_enb_refcnt = kzalloc(array3_size(32, banks, sizeof(*periph_clk_enb_refcnt)),
-+					GFP_KERNEL);
- 	if (!periph_clk_enb_refcnt)
- 		return NULL;
+ 	periph_banks = banks;
  
-diff --git a/drivers/clk/ti/apll.c b/drivers/clk/ti/apll.c
-index 9498e9363b57..999e90a1e9aa 100644
---- a/drivers/clk/ti/apll.c
-+++ b/drivers/clk/ti/apll.c
-@@ -206,7 +206,8 @@ static void __init of_dra7_apll_setup(struct device_node *node)
- 		goto cleanup;
- 	}
+-	clks = kzalloc(num * sizeof(struct clk *), GFP_KERNEL);
++	clks = kzalloc(array_size(num, sizeof(struct clk *)), GFP_KERNEL);
+ 	if (!clks)
+ 		kfree(periph_clk_enb_refcnt);
  
--	parent_names = kzalloc(sizeof(char *) * init->num_parents, GFP_KERNEL);
-+	parent_names = kzalloc(array_size(sizeof(char *), init->num_parents),
-+			       GFP_KERNEL);
- 	if (!parent_names)
- 		goto cleanup;
+diff --git a/drivers/cpufreq/arm_big_little.c b/drivers/cpufreq/arm_big_little.c
+index 1d7ef5fc1977..d9f5a4946a1b 100644
+--- a/drivers/cpufreq/arm_big_little.c
++++ b/drivers/cpufreq/arm_big_little.c
+@@ -280,7 +280,7 @@ static int merge_cluster_tables(void)
+ 	for (i = 0; i < MAX_CLUSTERS; i++)
+ 		count += get_table_count(freq_table[i]);
  
-diff --git a/drivers/clk/ti/divider.c b/drivers/clk/ti/divider.c
-index aaa277dd6d99..e06cc4074595 100644
---- a/drivers/clk/ti/divider.c
-+++ b/drivers/clk/ti/divider.c
-@@ -366,7 +366,7 @@ int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
- 
- 	num_dividers = i;
- 
--	tmp = kzalloc(sizeof(*tmp) * (valid_div + 1), GFP_KERNEL);
-+	tmp = kzalloc(array_size(sizeof(*tmp), (valid_div + 1)), GFP_KERNEL);
- 	if (!tmp)
- 		return -ENOMEM;
- 
-@@ -496,7 +496,8 @@ __init ti_clk_get_div_table(struct device_node *node)
- 		return ERR_PTR(-EINVAL);
- 	}
- 
--	table = kzalloc(sizeof(*table) * (valid_div + 1), GFP_KERNEL);
-+	table = kzalloc(array_size(sizeof(*table), (valid_div + 1)),
-+			GFP_KERNEL);
- 
+-	table = kzalloc(sizeof(*table) * count, GFP_KERNEL);
++	table = kzalloc(array_size(count, sizeof(*table)), GFP_KERNEL);
  	if (!table)
- 		return ERR_PTR(-ENOMEM);
-diff --git a/drivers/clk/ti/dpll.c b/drivers/clk/ti/dpll.c
-index 7d33ca9042cb..357b136525d4 100644
---- a/drivers/clk/ti/dpll.c
-+++ b/drivers/clk/ti/dpll.c
-@@ -309,7 +309,8 @@ static void __init of_ti_dpll_setup(struct device_node *node,
- 		goto cleanup;
- 	}
- 
--	parent_names = kzalloc(sizeof(char *) * init->num_parents, GFP_KERNEL);
-+	parent_names = kzalloc(array_size(sizeof(char *), init->num_parents),
-+			       GFP_KERNEL);
- 	if (!parent_names)
- 		goto cleanup;
- 
-diff --git a/drivers/clocksource/sh_cmt.c b/drivers/clocksource/sh_cmt.c
-index 70b3cf8e23d0..6a015d2e3a72 100644
---- a/drivers/clocksource/sh_cmt.c
-+++ b/drivers/clocksource/sh_cmt.c
-@@ -1000,7 +1000,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
- 
- 	/* Allocate and setup the channels. */
- 	cmt->num_channels = hweight8(cmt->hw_channels);
--	cmt->channels = kzalloc(cmt->num_channels * sizeof(*cmt->channels),
-+	cmt->channels = kzalloc(array_size(cmt->num_channels, sizeof(*cmt->channels)),
- 				GFP_KERNEL);
- 	if (cmt->channels == NULL) {
- 		ret = -ENOMEM;
-diff --git a/drivers/clocksource/sh_mtu2.c b/drivers/clocksource/sh_mtu2.c
-index 53aa7e92a7d7..06229dd18d82 100644
---- a/drivers/clocksource/sh_mtu2.c
-+++ b/drivers/clocksource/sh_mtu2.c
-@@ -418,7 +418,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
- 	/* Allocate and setup the channels. */
- 	mtu->num_channels = 3;
- 
--	mtu->channels = kzalloc(sizeof(*mtu->channels) * mtu->num_channels,
-+	mtu->channels = kzalloc(array_size(sizeof(*mtu->channels), mtu->num_channels),
- 				GFP_KERNEL);
- 	if (mtu->channels == NULL) {
- 		ret = -ENOMEM;
-diff --git a/drivers/clocksource/sh_tmu.c b/drivers/clocksource/sh_tmu.c
-index 31d881621e41..cf3039867d3f 100644
---- a/drivers/clocksource/sh_tmu.c
-+++ b/drivers/clocksource/sh_tmu.c
-@@ -569,7 +569,7 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
- 	}
- 
- 	/* Allocate and setup the channels. */
--	tmu->channels = kzalloc(sizeof(*tmu->channels) * tmu->num_channels,
-+	tmu->channels = kzalloc(array_size(sizeof(*tmu->channels), tmu->num_channels),
- 				GFP_KERNEL);
- 	if (tmu->channels == NULL) {
- 		ret = -ENOMEM;
-diff --git a/drivers/cpufreq/acpi-cpufreq.c b/drivers/cpufreq/acpi-cpufreq.c
-index 9449657d72f0..f9cb7947f417 100644
---- a/drivers/cpufreq/acpi-cpufreq.c
-+++ b/drivers/cpufreq/acpi-cpufreq.c
-@@ -759,8 +759,8 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
- 		goto err_unreg;
- 	}
- 
--	freq_table = kzalloc(sizeof(*freq_table) *
--		    (perf->state_count+1), GFP_KERNEL);
-+	freq_table = kzalloc(array_size(sizeof(*freq_table), (perf->state_count + 1)),
-+			     GFP_KERNEL);
- 	if (!freq_table) {
- 		result = -ENOMEM;
- 		goto err_unreg;
-diff --git a/drivers/cpufreq/bmips-cpufreq.c b/drivers/cpufreq/bmips-cpufreq.c
-index 1653151b77df..c626c7e35c79 100644
---- a/drivers/cpufreq/bmips-cpufreq.c
-+++ b/drivers/cpufreq/bmips-cpufreq.c
-@@ -71,7 +71,8 @@ bmips_cpufreq_get_freq_table(const struct cpufreq_policy *policy)
- 
- 	cpu_freq = htp_freq_to_cpu_freq(priv->clk_mult);
- 
--	table = kmalloc((priv->max_freqs + 1) * sizeof(*table), GFP_KERNEL);
-+	table = kmalloc(array_size((priv->max_freqs + 1), sizeof(*table)),
-+			GFP_KERNEL);
- 	if (!table)
- 		return ERR_PTR(-ENOMEM);
- 
-diff --git a/drivers/cpufreq/cppc_cpufreq.c b/drivers/cpufreq/cppc_cpufreq.c
-index bc5fc1630876..f3c89d313373 100644
---- a/drivers/cpufreq/cppc_cpufreq.c
-+++ b/drivers/cpufreq/cppc_cpufreq.c
-@@ -215,7 +215,8 @@ static int __init cppc_cpufreq_init(void)
- 	if (acpi_disabled)
- 		return -ENODEV;
- 
--	all_cpu_data = kzalloc(sizeof(void *) * num_possible_cpus(), GFP_KERNEL);
-+	all_cpu_data = kzalloc(array_size(sizeof(void *), num_possible_cpus()),
-+			       GFP_KERNEL);
- 	if (!all_cpu_data)
  		return -ENOMEM;
  
-diff --git a/drivers/cpufreq/ia64-acpi-cpufreq.c b/drivers/cpufreq/ia64-acpi-cpufreq.c
-index 7974a2fdb760..82c7b6cf1b1b 100644
---- a/drivers/cpufreq/ia64-acpi-cpufreq.c
-+++ b/drivers/cpufreq/ia64-acpi-cpufreq.c
-@@ -241,9 +241,8 @@ acpi_cpufreq_cpu_init (
- 	}
+diff --git a/drivers/cpufreq/s3c24xx-cpufreq.c b/drivers/cpufreq/s3c24xx-cpufreq.c
+index 909bd6e27639..97a30ebe86d4 100644
+--- a/drivers/cpufreq/s3c24xx-cpufreq.c
++++ b/drivers/cpufreq/s3c24xx-cpufreq.c
+@@ -562,7 +562,7 @@ static int s3c_cpufreq_build_freq(void)
+ 	size = cpu_cur.info->calc_freqtable(&cpu_cur, NULL, 0);
+ 	size++;
  
- 	/* alloc freq_table */
--	freq_table = kzalloc(sizeof(*freq_table) *
--	                           (data->acpi_data.state_count + 1),
--	                           GFP_KERNEL);
-+	freq_table = kzalloc(array_size(sizeof(*freq_table), (data->acpi_data.state_count + 1)),
-+			     GFP_KERNEL);
- 	if (!freq_table) {
- 		result = -ENOMEM;
- 		goto err_unreg;
-diff --git a/drivers/cpufreq/longhaul.c b/drivers/cpufreq/longhaul.c
-index 61a4c5b08219..5baffe147876 100644
---- a/drivers/cpufreq/longhaul.c
-+++ b/drivers/cpufreq/longhaul.c
-@@ -474,8 +474,8 @@ static int longhaul_get_ranges(void)
- 		return -EINVAL;
- 	}
- 
--	longhaul_table = kzalloc((numscales + 1) * sizeof(*longhaul_table),
--			GFP_KERNEL);
-+	longhaul_table = kzalloc(array_size((numscales + 1), sizeof(*longhaul_table)),
-+				 GFP_KERNEL);
- 	if (!longhaul_table)
+-	ftab = kzalloc(sizeof(*ftab) * size, GFP_KERNEL);
++	ftab = kzalloc(array_size(size, sizeof(*ftab)), GFP_KERNEL);
+ 	if (!ftab)
  		return -ENOMEM;
  
-diff --git a/drivers/cpufreq/pxa3xx-cpufreq.c b/drivers/cpufreq/pxa3xx-cpufreq.c
-index 7acc7fa4536d..3c5ececd350a 100644
---- a/drivers/cpufreq/pxa3xx-cpufreq.c
-+++ b/drivers/cpufreq/pxa3xx-cpufreq.c
-@@ -93,7 +93,7 @@ static int setup_freqs_table(struct cpufreq_policy *policy,
- 	struct cpufreq_frequency_table *table;
- 	int i;
- 
--	table = kzalloc((num + 1) * sizeof(*table), GFP_KERNEL);
-+	table = kzalloc(array_size((num + 1), sizeof(*table)), GFP_KERNEL);
- 	if (table == NULL)
- 		return -ENOMEM;
- 
-diff --git a/drivers/cpufreq/sfi-cpufreq.c b/drivers/cpufreq/sfi-cpufreq.c
-index 9767afe05da2..08a51615a2c5 100644
---- a/drivers/cpufreq/sfi-cpufreq.c
-+++ b/drivers/cpufreq/sfi-cpufreq.c
-@@ -95,8 +95,8 @@ static int __init sfi_cpufreq_init(void)
- 	if (ret)
- 		return ret;
- 
--	freq_table = kzalloc(sizeof(*freq_table) *
--			(num_freq_table_entries + 1), GFP_KERNEL);
-+	freq_table = kzalloc(array_size(sizeof(*freq_table), (num_freq_table_entries + 1)),
-+			     GFP_KERNEL);
- 	if (!freq_table) {
- 		ret = -ENOMEM;
- 		goto err_free_array;
-diff --git a/drivers/cpufreq/spear-cpufreq.c b/drivers/cpufreq/spear-cpufreq.c
-index 195f27f9c1cb..b6023a74fa51 100644
---- a/drivers/cpufreq/spear-cpufreq.c
-+++ b/drivers/cpufreq/spear-cpufreq.c
-@@ -195,7 +195,8 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
- 	cnt = prop->length / sizeof(u32);
- 	val = prop->value;
- 
--	freq_tbl = kzalloc(sizeof(*freq_tbl) * (cnt + 1), GFP_KERNEL);
-+	freq_tbl = kzalloc(array_size(sizeof(*freq_tbl), (cnt + 1)),
-+			   GFP_KERNEL);
- 	if (!freq_tbl) {
- 		ret = -ENOMEM;
- 		goto out_put_node;
 diff --git a/drivers/crypto/amcc/crypto4xx_core.c b/drivers/crypto/amcc/crypto4xx_core.c
-index db1ce09759a5..b45f4755d1c3 100644
+index 76f459ad2821..db1ce09759a5 100644
 --- a/drivers/crypto/amcc/crypto4xx_core.c
 +++ b/drivers/crypto/amcc/crypto4xx_core.c
-@@ -140,11 +140,11 @@ static void crypto4xx_hw_init(struct crypto4xx_device *dev)
- 
- int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size)
- {
--	ctx->sa_in = kzalloc(size * 4, GFP_ATOMIC);
-+	ctx->sa_in = kzalloc(array_size(size, 4), GFP_ATOMIC);
- 	if (ctx->sa_in == NULL)
+@@ -179,8 +179,8 @@ static u32 crypto4xx_build_pdr(struct crypto4xx_device *dev)
+ 	if (!dev->pdr)
  		return -ENOMEM;
  
--	ctx->sa_out = kzalloc(size * 4, GFP_ATOMIC);
-+	ctx->sa_out = kzalloc(array_size(size, 4), GFP_ATOMIC);
- 	if (ctx->sa_out == NULL) {
- 		kfree(ctx->sa_in);
- 		ctx->sa_in = NULL;
-diff --git a/drivers/crypto/caam/ctrl.c b/drivers/crypto/caam/ctrl.c
-index e4cc636e1104..b6531f55d3f4 100644
---- a/drivers/crypto/caam/ctrl.c
-+++ b/drivers/crypto/caam/ctrl.c
-@@ -201,7 +201,7 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
- 	int ret = 0, sh_idx;
- 
- 	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
--	desc = kmalloc(CAAM_CMD_SZ * 7, GFP_KERNEL);
-+	desc = kmalloc(array_size(CAAM_CMD_SZ, 7), GFP_KERNEL);
- 	if (!desc)
- 		return -ENOMEM;
- 
-@@ -266,7 +266,7 @@ static int deinstantiate_rng(struct device *ctrldev, int state_handle_mask)
- 	u32 *desc, status;
- 	int sh_idx, ret = 0;
- 
--	desc = kmalloc(CAAM_CMD_SZ * 3, GFP_KERNEL);
-+	desc = kmalloc(array_size(CAAM_CMD_SZ, 3), GFP_KERNEL);
- 	if (!desc)
- 		return -ENOMEM;
- 
-diff --git a/drivers/crypto/inside-secure/safexcel_hash.c b/drivers/crypto/inside-secure/safexcel_hash.c
-index 317b9e480312..0e6eaef50b71 100644
---- a/drivers/crypto/inside-secure/safexcel_hash.c
-+++ b/drivers/crypto/inside-secure/safexcel_hash.c
-@@ -935,7 +935,7 @@ static int safexcel_hmac_setkey(const char *alg, const u8 *key,
- 	crypto_ahash_clear_flags(tfm, ~0);
- 	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
- 
--	ipad = kzalloc(2 * blocksize, GFP_KERNEL);
-+	ipad = kzalloc(array_size(2, blocksize), GFP_KERNEL);
- 	if (!ipad) {
- 		ret = -ENOMEM;
- 		goto free_request;
-diff --git a/drivers/crypto/marvell/hash.c b/drivers/crypto/marvell/hash.c
-index e61b08566093..1878e574d142 100644
---- a/drivers/crypto/marvell/hash.c
-+++ b/drivers/crypto/marvell/hash.c
-@@ -1198,7 +1198,7 @@ static int mv_cesa_ahmac_setkey(const char *hash_alg_name,
- 
- 	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
- 
--	ipad = kzalloc(2 * blocksize, GFP_KERNEL);
-+	ipad = kzalloc(array_size(2, blocksize), GFP_KERNEL);
- 	if (!ipad) {
- 		ret = -ENOMEM;
- 		goto free_req;
-diff --git a/drivers/crypto/qat/qat_common/qat_uclo.c b/drivers/crypto/qat/qat_common/qat_uclo.c
-index 98d22c2096e3..775052106420 100644
---- a/drivers/crypto/qat/qat_common/qat_uclo.c
-+++ b/drivers/crypto/qat/qat_common/qat_uclo.c
-@@ -1162,8 +1162,8 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
- 	suof_handle->img_table.num_simgs = suof_ptr->num_chunks - 1;
- 
- 	if (suof_handle->img_table.num_simgs != 0) {
--		suof_img_hdr = kzalloc(suof_handle->img_table.num_simgs *
--				       sizeof(img_header), GFP_KERNEL);
-+		suof_img_hdr = kzalloc(array_size(suof_handle->img_table.num_simgs, sizeof(img_header)),
-+				       GFP_KERNEL);
- 		if (!suof_img_hdr)
- 			return -ENOMEM;
- 		suof_handle->img_table.simg_hdr = suof_img_hdr;
-diff --git a/drivers/crypto/stm32/stm32-hash.c b/drivers/crypto/stm32/stm32-hash.c
-index 981e45692695..e3d8c40b126d 100644
---- a/drivers/crypto/stm32/stm32-hash.c
-+++ b/drivers/crypto/stm32/stm32-hash.c
-@@ -970,7 +970,7 @@ static int stm32_hash_export(struct ahash_request *req, void *out)
- 	while (!(stm32_hash_read(hdev, HASH_SR) & HASH_SR_DATA_INPUT_READY))
- 		cpu_relax();
- 
--	rctx->hw_context = kmalloc(sizeof(u32) * (3 + HASH_CSR_REGISTER_NUMBER),
-+	rctx->hw_context = kmalloc(array_size(sizeof(u32), (3 + HASH_CSR_REGISTER_NUMBER)),
- 				   GFP_KERNEL);
- 
- 	preg = rctx->hw_context;
-diff --git a/drivers/dma/coh901318.c b/drivers/dma/coh901318.c
-index da74fd74636b..8d25ce0fa65c 100644
---- a/drivers/dma/coh901318.c
-+++ b/drivers/dma/coh901318.c
-@@ -1345,7 +1345,7 @@ static ssize_t coh901318_debugfs_read(struct file *file, char __user *buf,
- 	int ret;
- 	int i;
- 
--	dev_buf = kmalloc(4*1024, GFP_KERNEL);
-+	dev_buf = kmalloc(array_size(4, 1024), GFP_KERNEL);
- 	if (dev_buf == NULL)
- 		return -ENOMEM;
- 	tmp = dev_buf;
-diff --git a/drivers/dma/pl330.c b/drivers/dma/pl330.c
-index 96238a30e804..93b547f7829e 100644
---- a/drivers/dma/pl330.c
-+++ b/drivers/dma/pl330.c
-@@ -1763,8 +1763,8 @@ static int dmac_alloc_threads(struct pl330_dmac *pl330)
- 	int i;
- 
- 	/* Allocate 1 Manager and 'chans' Channel threads */
--	pl330->channels = kzalloc((1 + chans) * sizeof(*thrd),
--					GFP_KERNEL);
-+	pl330->channels = kzalloc(array_size((1 + chans), sizeof(*thrd)),
-+				  GFP_KERNEL);
- 	if (!pl330->channels)
- 		return -ENOMEM;
- 
-diff --git a/drivers/dma/sh/shdma-base.c b/drivers/dma/sh/shdma-base.c
-index 12fa48e380cf..2ced781731e1 100644
---- a/drivers/dma/sh/shdma-base.c
-+++ b/drivers/dma/sh/shdma-base.c
-@@ -1045,8 +1045,8 @@ EXPORT_SYMBOL(shdma_cleanup);
- 
- static int __init shdma_enter(void)
- {
--	shdma_slave_used = kzalloc(DIV_ROUND_UP(slave_num, BITS_PER_LONG) *
--				    sizeof(long), GFP_KERNEL);
-+	shdma_slave_used = kzalloc(array_size(DIV_ROUND_UP(slave_num, BITS_PER_LONG), sizeof(long)),
-+				   GFP_KERNEL);
- 	if (!shdma_slave_used)
- 		return -ENOMEM;
- 	return 0;
-diff --git a/drivers/edac/amd64_edac.c b/drivers/edac/amd64_edac.c
-index 329cb96f886f..5f87a26356fb 100644
---- a/drivers/edac/amd64_edac.c
-+++ b/drivers/edac/amd64_edac.c
-@@ -3451,7 +3451,8 @@ static int __init amd64_edac_init(void)
- 	opstate_init();
- 
- 	err = -ENOMEM;
--	ecc_stngs = kzalloc(amd_nb_num() * sizeof(ecc_stngs[0]), GFP_KERNEL);
-+	ecc_stngs = kzalloc(array_size(amd_nb_num(), sizeof(ecc_stngs[0])),
-+			    GFP_KERNEL);
- 	if (!ecc_stngs)
- 		goto err_free;
- 
-diff --git a/drivers/edac/i7core_edac.c b/drivers/edac/i7core_edac.c
-index 8c5540160a23..cbf0c0a650b7 100644
---- a/drivers/edac/i7core_edac.c
-+++ b/drivers/edac/i7core_edac.c
-@@ -461,7 +461,7 @@ static struct i7core_dev *alloc_i7core_dev(u8 socket,
- 	if (!i7core_dev)
- 		return NULL;
- 
--	i7core_dev->pdev = kzalloc(sizeof(*i7core_dev->pdev) * table->n_devs,
-+	i7core_dev->pdev = kzalloc(array_size(sizeof(*i7core_dev->pdev), table->n_devs),
- 				   GFP_KERNEL);
- 	if (!i7core_dev->pdev) {
- 		kfree(i7core_dev);
-diff --git a/drivers/extcon/extcon.c b/drivers/extcon/extcon.c
-index 498b2d29d52f..929c20b81175 100644
---- a/drivers/extcon/extcon.c
-+++ b/drivers/extcon/extcon.c
-@@ -1126,8 +1126,8 @@ int extcon_dev_register(struct extcon_dev *edev)
- 		char *str;
- 		struct extcon_cable *cable;
- 
--		edev->cables = kzalloc(sizeof(struct extcon_cable) *
--				       edev->max_supported, GFP_KERNEL);
-+		edev->cables = kzalloc(array_size(sizeof(struct extcon_cable), edev->max_supported),
-+				       GFP_KERNEL);
- 		if (!edev->cables) {
- 			ret = -ENOMEM;
- 			goto err_sysfs_alloc;
-@@ -1136,7 +1136,7 @@ int extcon_dev_register(struct extcon_dev *edev)
- 			cable = &edev->cables[index];
- 
- 			snprintf(buf, 10, "cable.%d", index);
--			str = kzalloc(sizeof(char) * (strlen(buf) + 1),
-+			str = kzalloc(array_size(sizeof(char), (strlen(buf) + 1)),
- 				      GFP_KERNEL);
- 			if (!str) {
- 				for (index--; index >= 0; index--) {
-@@ -1177,8 +1177,8 @@ int extcon_dev_register(struct extcon_dev *edev)
- 		for (index = 0; edev->mutually_exclusive[index]; index++)
- 			;
- 
--		edev->attrs_muex = kzalloc(sizeof(struct attribute *) *
--					   (index + 1), GFP_KERNEL);
-+		edev->attrs_muex = kzalloc(array_size(sizeof(struct attribute *), (index + 1)),
-+					   GFP_KERNEL);
- 		if (!edev->attrs_muex) {
- 			ret = -ENOMEM;
- 			goto err_muex;
-@@ -1194,7 +1194,7 @@ int extcon_dev_register(struct extcon_dev *edev)
- 
- 		for (index = 0; edev->mutually_exclusive[index]; index++) {
- 			sprintf(buf, "0x%x", edev->mutually_exclusive[index]);
--			name = kzalloc(sizeof(char) * (strlen(buf) + 1),
-+			name = kzalloc(array_size(sizeof(char), (strlen(buf) + 1)),
- 				       GFP_KERNEL);
- 			if (!name) {
- 				for (index--; index >= 0; index--) {
-@@ -1220,8 +1220,8 @@ int extcon_dev_register(struct extcon_dev *edev)
- 
- 	if (edev->max_supported) {
- 		edev->extcon_dev_type.groups =
--			kzalloc(sizeof(struct attribute_group *) *
--				(edev->max_supported + 2), GFP_KERNEL);
-+			kzalloc(array_size(sizeof(struct attribute_group *), (edev->max_supported + 2)),
-+				GFP_KERNEL);
- 		if (!edev->extcon_dev_type.groups) {
- 			ret = -ENOMEM;
- 			goto err_alloc_groups;
-diff --git a/drivers/firmware/efi/runtime-map.c b/drivers/firmware/efi/runtime-map.c
-index f377609ff141..a95007d24d00 100644
---- a/drivers/firmware/efi/runtime-map.c
-+++ b/drivers/firmware/efi/runtime-map.c
-@@ -166,7 +166,8 @@ int __init efi_runtime_map_init(struct kobject *efi_kobj)
- 	if (!efi_enabled(EFI_MEMMAP))
- 		return 0;
- 
--	map_entries = kzalloc(efi.memmap.nr_map * sizeof(entry), GFP_KERNEL);
-+	map_entries = kzalloc(array_size(efi.memmap.nr_map, sizeof(entry)),
-+			      GFP_KERNEL);
- 	if (!map_entries) {
- 		ret = -ENOMEM;
- 		goto out;
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v7.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v7.c
-index ea54e53172b9..e690cb43cffe 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v7.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v7.c
-@@ -417,7 +417,8 @@ static int kgd_hqd_dump(struct kgd_dev *kgd,
- 		(*dump)[i++][1] = RREG32(addr);		\
- 	} while (0)
- 
--	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
-+	*dump = kmalloc(array3_size(HQD_N_REGS, 2, sizeof(uint32_t)),
-+			GFP_KERNEL);
- 	if (*dump == NULL)
- 		return -ENOMEM;
- 
-@@ -514,7 +515,8 @@ static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
- #undef HQD_N_REGS
- #define HQD_N_REGS (19+4)
- 
--	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
-+	*dump = kmalloc(array3_size(HQD_N_REGS, 2, sizeof(uint32_t)),
-+			GFP_KERNEL);
- 	if (*dump == NULL)
- 		return -ENOMEM;
- 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v8.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v8.c
-index 89264c9a5e9f..a9e878f55df2 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v8.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v8.c
-@@ -405,7 +405,8 @@ static int kgd_hqd_dump(struct kgd_dev *kgd,
- 		(*dump)[i++][1] = RREG32(addr);		\
- 	} while (0)
- 
--	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
-+	*dump = kmalloc(array3_size(HQD_N_REGS, 2, sizeof(uint32_t)),
-+			GFP_KERNEL);
- 	if (*dump == NULL)
- 		return -ENOMEM;
- 
-@@ -501,7 +502,8 @@ static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
- #undef HQD_N_REGS
- #define HQD_N_REGS (19+4+2+3+7)
- 
--	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
-+	*dump = kmalloc(array3_size(HQD_N_REGS, 2, sizeof(uint32_t)),
-+			GFP_KERNEL);
- 	if (*dump == NULL)
- 		return -ENOMEM;
- 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_dpm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_dpm.c
-index e997ebbe43ea..1271aea3899c 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_dpm.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_dpm.c
-@@ -432,8 +432,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
- 			ATOM_PPLIB_PhaseSheddingLimits_Record *entry;
- 
- 			adev->pm.dpm.dyn_state.phase_shedding_limits_table.entries =
--				kzalloc(psl->ucNumEntries *
--					sizeof(struct amdgpu_phase_shedding_limits_entry),
-+				kzalloc(array_size(psl->ucNumEntries, sizeof(struct amdgpu_phase_shedding_limits_entry)),
- 					GFP_KERNEL);
- 			if (!adev->pm.dpm.dyn_state.phase_shedding_limits_table.entries) {
- 				amdgpu_free_extended_power_table(adev);
-diff --git a/drivers/gpu/drm/amd/amdgpu/atom.c b/drivers/gpu/drm/amd/amdgpu/atom.c
-index 69500a8b4e2d..5e30b23cc5c7 100644
---- a/drivers/gpu/drm/amd/amdgpu/atom.c
-+++ b/drivers/gpu/drm/amd/amdgpu/atom.c
-@@ -1221,7 +1221,7 @@ static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index,
- 	ectx.abort = false;
- 	ectx.last_jump = 0;
- 	if (ws)
--		ectx.ws = kzalloc(4 * ws, GFP_KERNEL);
-+		ectx.ws = kzalloc(array_size(4, ws), GFP_KERNEL);
- 	else
- 		ectx.ws = NULL;
- 
-@@ -1282,7 +1282,7 @@ static int atom_iio_len[] = { 1, 2, 3, 3, 3, 3, 4, 4, 4, 3 };
- 
- static void atom_index_iio(struct atom_context *ctx, int base)
- {
--	ctx->iio = kzalloc(2 * 256, GFP_KERNEL);
-+	ctx->iio = kzalloc(array_size(2, 256), GFP_KERNEL);
- 	if (!ctx->iio)
- 		return;
- 	while (CU8(base) == ATOM_IIO_START) {
-diff --git a/drivers/gpu/drm/amd/amdgpu/ci_dpm.c b/drivers/gpu/drm/amd/amdgpu/ci_dpm.c
-index 0c1e6ae61ff2..e839b1e1d4e6 100644
---- a/drivers/gpu/drm/amd/amdgpu/ci_dpm.c
-+++ b/drivers/gpu/drm/amd/amdgpu/ci_dpm.c
-@@ -5679,8 +5679,8 @@ static int ci_parse_power_table(struct amdgpu_device *adev)
- 		(mode_info->atom_context->bios + data_offset +
- 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
- 
--	adev->pm.dpm.ps = kzalloc(sizeof(struct amdgpu_ps) *
--				  state_array->ucNumEntries, GFP_KERNEL);
-+	adev->pm.dpm.ps = kzalloc(array_size(sizeof(struct amdgpu_ps), state_array->ucNumEntries),
-+				  GFP_KERNEL);
- 	if (!adev->pm.dpm.ps)
- 		return -ENOMEM;
- 	power_state_offset = (u8 *)state_array->states;
-diff --git a/drivers/gpu/drm/amd/amdgpu/kv_dpm.c b/drivers/gpu/drm/amd/amdgpu/kv_dpm.c
-index 26ba984ab2b7..75a33e3421d7 100644
---- a/drivers/gpu/drm/amd/amdgpu/kv_dpm.c
-+++ b/drivers/gpu/drm/amd/amdgpu/kv_dpm.c
-@@ -2727,8 +2727,8 @@ static int kv_parse_power_table(struct amdgpu_device *adev)
- 		(mode_info->atom_context->bios + data_offset +
- 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
- 
--	adev->pm.dpm.ps = kzalloc(sizeof(struct amdgpu_ps) *
--				  state_array->ucNumEntries, GFP_KERNEL);
-+	adev->pm.dpm.ps = kzalloc(array_size(sizeof(struct amdgpu_ps), state_array->ucNumEntries),
-+				  GFP_KERNEL);
- 	if (!adev->pm.dpm.ps)
- 		return -ENOMEM;
- 	power_state_offset = (u8 *)state_array->states;
-diff --git a/drivers/gpu/drm/amd/amdgpu/si_dpm.c b/drivers/gpu/drm/amd/amdgpu/si_dpm.c
-index 6e12d8f28859..f568915b5165 100644
---- a/drivers/gpu/drm/amd/amdgpu/si_dpm.c
-+++ b/drivers/gpu/drm/amd/amdgpu/si_dpm.c
-@@ -7242,8 +7242,8 @@ static int si_parse_power_table(struct amdgpu_device *adev)
- 		(mode_info->atom_context->bios + data_offset +
- 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
- 
--	adev->pm.dpm.ps = kzalloc(sizeof(struct amdgpu_ps) *
--				  state_array->ucNumEntries, GFP_KERNEL);
-+	adev->pm.dpm.ps = kzalloc(array_size(sizeof(struct amdgpu_ps), state_array->ucNumEntries),
-+				  GFP_KERNEL);
- 	if (!adev->pm.dpm.ps)
- 		return -ENOMEM;
- 	power_state_offset = (u8 *)state_array->states;
-diff --git a/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c b/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c
-index cd679cf1fd30..a01017e7563c 100644
---- a/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c
-+++ b/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c
-@@ -1295,7 +1295,7 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
- 		return -EINVAL;
- 	}
- 
--	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
-+	devices_arr = kmalloc(array_size(args->n_devices, sizeof(*devices_arr)),
- 			      GFP_KERNEL);
- 	if (!devices_arr)
- 		return -ENOMEM;
-@@ -1404,7 +1404,7 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
- 		return -EINVAL;
- 	}
- 
--	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
-+	devices_arr = kmalloc(array_size(args->n_devices, sizeof(*devices_arr)),
- 			      GFP_KERNEL);
- 	if (!devices_arr)
- 		return -ENOMEM;
-diff --git a/drivers/gpu/drm/amd/display/dc/dce/dce_clock_source.c b/drivers/gpu/drm/amd/display/dc/dce/dce_clock_source.c
-index 0aa2cda60890..cf71674f9e7d 100644
---- a/drivers/gpu/drm/amd/display/dc/dce/dce_clock_source.c
-+++ b/drivers/gpu/drm/amd/display/dc/dce/dce_clock_source.c
-@@ -1076,13 +1076,13 @@ static void get_ss_info_from_atombios(
- 	if (*ss_entries_num == 0)
- 		return;
- 
--	ss_info = kzalloc(sizeof(struct spread_spectrum_info) * (*ss_entries_num),
-+	ss_info = kzalloc(array_size(sizeof(struct spread_spectrum_info), (*ss_entries_num)),
- 			  GFP_KERNEL);
- 	ss_info_cur = ss_info;
- 	if (ss_info == NULL)
- 		return;
- 
--	ss_data = kzalloc(sizeof(struct spread_spectrum_data) * (*ss_entries_num),
-+	ss_data = kzalloc(array_size(sizeof(struct spread_spectrum_data), (*ss_entries_num)),
- 			  GFP_KERNEL);
- 	if (ss_data == NULL)
- 		goto out_free_info;
-diff --git a/drivers/gpu/drm/amd/display/modules/color/color_gamma.c b/drivers/gpu/drm/amd/display/modules/color/color_gamma.c
-index e7e374f56864..123665a02759 100644
---- a/drivers/gpu/drm/amd/display/modules/color/color_gamma.c
-+++ b/drivers/gpu/drm/amd/display/modules/color/color_gamma.c
-@@ -1093,19 +1093,20 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
- 
- 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
- 
--	rgb_user = kzalloc(sizeof(*rgb_user) * (ramp->num_entries + _EXTRA_POINTS),
-+	rgb_user = kzalloc(array_size(sizeof(*rgb_user), (ramp->num_entries + _EXTRA_POINTS)),
- 			   GFP_KERNEL);
- 	if (!rgb_user)
- 		goto rgb_user_alloc_fail;
--	rgb_regamma = kzalloc(sizeof(*rgb_regamma) * (MAX_HW_POINTS + _EXTRA_POINTS),
--			GFP_KERNEL);
-+	rgb_regamma = kzalloc(array_size(sizeof(*rgb_regamma), (MAX_HW_POINTS + _EXTRA_POINTS)),
-+			      GFP_KERNEL);
- 	if (!rgb_regamma)
- 		goto rgb_regamma_alloc_fail;
--	axix_x = kzalloc(sizeof(*axix_x) * (ramp->num_entries + 3),
-+	axix_x = kzalloc(array_size(sizeof(*axix_x), (ramp->num_entries + 3)),
- 			 GFP_KERNEL);
- 	if (!axix_x)
- 		goto axix_x_alloc_fail;
--	coeff = kzalloc(sizeof(*coeff) * (MAX_HW_POINTS + _EXTRA_POINTS), GFP_KERNEL);
-+	coeff = kzalloc(array_size(sizeof(*coeff), (MAX_HW_POINTS + _EXTRA_POINTS)),
-+			GFP_KERNEL);
- 	if (!coeff)
- 		goto coeff_alloc_fail;
- 
-@@ -1192,19 +1193,20 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
- 
- 	input_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
- 
--	rgb_user = kzalloc(sizeof(*rgb_user) * (ramp->num_entries + _EXTRA_POINTS),
-+	rgb_user = kzalloc(array_size(sizeof(*rgb_user), (ramp->num_entries + _EXTRA_POINTS)),
- 			   GFP_KERNEL);
- 	if (!rgb_user)
- 		goto rgb_user_alloc_fail;
--	curve = kzalloc(sizeof(*curve) * (MAX_HW_POINTS + _EXTRA_POINTS),
-+	curve = kzalloc(array_size(sizeof(*curve), (MAX_HW_POINTS + _EXTRA_POINTS)),
- 			GFP_KERNEL);
- 	if (!curve)
- 		goto curve_alloc_fail;
--	axix_x = kzalloc(sizeof(*axix_x) * (ramp->num_entries + _EXTRA_POINTS),
-+	axix_x = kzalloc(array_size(sizeof(*axix_x), (ramp->num_entries + _EXTRA_POINTS)),
- 			 GFP_KERNEL);
- 	if (!axix_x)
- 		goto axix_x_alloc_fail;
--	coeff = kzalloc(sizeof(*coeff) * (MAX_HW_POINTS + _EXTRA_POINTS), GFP_KERNEL);
-+	coeff = kzalloc(array_size(sizeof(*coeff), (MAX_HW_POINTS + _EXTRA_POINTS)),
-+			GFP_KERNEL);
- 	if (!coeff)
- 		goto coeff_alloc_fail;
- 
-@@ -1281,8 +1283,8 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
- 		}
- 		ret = true;
- 	} else if (trans == TRANSFER_FUNCTION_PQ) {
--		rgb_regamma = kzalloc(sizeof(*rgb_regamma) * (MAX_HW_POINTS +
--						_EXTRA_POINTS), GFP_KERNEL);
-+		rgb_regamma = kzalloc(array_size(sizeof(*rgb_regamma), (MAX_HW_POINTS + _EXTRA_POINTS)),
-+				      GFP_KERNEL);
- 		if (!rgb_regamma)
- 			goto rgb_regamma_alloc_fail;
- 		points->end_exponent = 7;
-@@ -1305,8 +1307,8 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
- 		kfree(rgb_regamma);
- 	} else if (trans == TRANSFER_FUNCTION_SRGB ||
- 			  trans == TRANSFER_FUNCTION_BT709) {
--		rgb_regamma = kzalloc(sizeof(*rgb_regamma) * (MAX_HW_POINTS +
--						_EXTRA_POINTS), GFP_KERNEL);
-+		rgb_regamma = kzalloc(array_size(sizeof(*rgb_regamma), (MAX_HW_POINTS + _EXTRA_POINTS)),
-+				      GFP_KERNEL);
- 		if (!rgb_regamma)
- 			goto rgb_regamma_alloc_fail;
- 		points->end_exponent = 0;
-@@ -1348,8 +1350,8 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
- 		}
- 		ret = true;
- 	} else if (trans == TRANSFER_FUNCTION_PQ) {
--		rgb_degamma = kzalloc(sizeof(*rgb_degamma) * (MAX_HW_POINTS +
--						_EXTRA_POINTS), GFP_KERNEL);
-+		rgb_degamma = kzalloc(array_size(sizeof(*rgb_degamma), (MAX_HW_POINTS + _EXTRA_POINTS)),
-+				      GFP_KERNEL);
- 		if (!rgb_degamma)
- 			goto rgb_degamma_alloc_fail;
- 
-@@ -1367,8 +1369,8 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
- 		kfree(rgb_degamma);
- 	} else if (trans == TRANSFER_FUNCTION_SRGB ||
- 			  trans == TRANSFER_FUNCTION_BT709) {
--		rgb_degamma = kzalloc(sizeof(*rgb_degamma) * (MAX_HW_POINTS +
--						_EXTRA_POINTS), GFP_KERNEL);
-+		rgb_degamma = kzalloc(array_size(sizeof(*rgb_degamma), (MAX_HW_POINTS + _EXTRA_POINTS)),
-+				      GFP_KERNEL);
- 		if (!rgb_degamma)
- 			goto rgb_degamma_alloc_fail;
- 
-diff --git a/drivers/gpu/drm/amd/display/modules/stats/stats.c b/drivers/gpu/drm/amd/display/modules/stats/stats.c
-index 041f87b73d5f..39e04e2fca9e 100644
---- a/drivers/gpu/drm/amd/display/modules/stats/stats.c
-+++ b/drivers/gpu/drm/amd/display/modules/stats/stats.c
-@@ -125,8 +125,8 @@ struct mod_stats *mod_stats_create(struct dc *dc)
- 			core_stats->entries = reg_data;
- 	}
- 
--	core_stats->time = kzalloc(sizeof(struct stats_time_cache) * core_stats->entries,
--					GFP_KERNEL);
-+	core_stats->time = kzalloc(array_size(sizeof(struct stats_time_cache), core_stats->entries),
-+				   GFP_KERNEL);
- 
- 	if (core_stats->time == NULL)
- 		goto fail_construct;
-diff --git a/drivers/gpu/drm/ast/ast_main.c b/drivers/gpu/drm/ast/ast_main.c
-index dac355812adc..c4b79513242c 100644
---- a/drivers/gpu/drm/ast/ast_main.c
-+++ b/drivers/gpu/drm/ast/ast_main.c
-@@ -235,7 +235,8 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
- 			ast->tx_chip_type = AST_TX_SIL164;
- 			break;
- 		case 0x08:
--			ast->dp501_fw_addr = kzalloc(32*1024, GFP_KERNEL);
-+			ast->dp501_fw_addr = kzalloc(array_size(32, 1024),
-+						     GFP_KERNEL);
- 			if (ast->dp501_fw_addr) {
- 				/* backup firmware */
- 				if (ast_backup_fw(dev, ast->dp501_fw_addr, 32*1024)) {
-diff --git a/drivers/gpu/drm/drm_edid.c b/drivers/gpu/drm/drm_edid.c
-index 134069f36482..37bf40a16aa4 100644
---- a/drivers/gpu/drm/drm_edid.c
-+++ b/drivers/gpu/drm/drm_edid.c
-@@ -1633,7 +1633,8 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
- 		edid[EDID_LENGTH-1] += edid[0x7e] - valid_extensions;
- 		edid[0x7e] = valid_extensions;
- 
--		new = kmalloc((valid_extensions + 1) * EDID_LENGTH, GFP_KERNEL);
-+		new = kmalloc(array_size((valid_extensions + 1), EDID_LENGTH),
-+			      GFP_KERNEL);
- 		if (!new)
- 			goto out;
- 
-diff --git a/drivers/gpu/drm/gma500/mid_bios.c b/drivers/gpu/drm/gma500/mid_bios.c
-index 7171b7475f58..b5c1bec74f02 100644
---- a/drivers/gpu/drm/gma500/mid_bios.c
-+++ b/drivers/gpu/drm/gma500/mid_bios.c
-@@ -239,7 +239,7 @@ static int mid_get_vbt_data_r10(struct drm_psb_private *dev_priv, u32 addr)
- 	if (read_vbt_r10(addr, &vbt))
- 		return -1;
- 
--	gct = kmalloc(sizeof(*gct) * vbt.panel_count, GFP_KERNEL);
-+	gct = kmalloc(array_size(sizeof(*gct), vbt.panel_count), GFP_KERNEL);
- 	if (!gct)
- 		return -ENOMEM;
- 
-diff --git a/drivers/gpu/drm/i915/selftests/intel_uncore.c b/drivers/gpu/drm/i915/selftests/intel_uncore.c
-index f76f2597df5c..5a0fafdb15e0 100644
---- a/drivers/gpu/drm/i915/selftests/intel_uncore.c
-+++ b/drivers/gpu/drm/i915/selftests/intel_uncore.c
-@@ -137,7 +137,7 @@ static int intel_uncore_check_forcewake_domains(struct drm_i915_private *dev_pri
- 	if (!IS_ENABLED(CONFIG_DRM_I915_SELFTEST_BROKEN))
- 		return 0;
- 
--	valid = kzalloc(BITS_TO_LONGS(FW_RANGE) * sizeof(*valid),
-+	valid = kzalloc(array_size(BITS_TO_LONGS(FW_RANGE), sizeof(*valid)),
- 			GFP_KERNEL);
- 	if (!valid)
- 		return -ENOMEM;
-diff --git a/drivers/gpu/drm/nouveau/nvif/mmu.c b/drivers/gpu/drm/nouveau/nvif/mmu.c
-index 15d0dcbf7ab4..232dbced31f0 100644
---- a/drivers/gpu/drm/nouveau/nvif/mmu.c
-+++ b/drivers/gpu/drm/nouveau/nvif/mmu.c
-@@ -54,12 +54,15 @@ nvif_mmu_init(struct nvif_object *parent, s32 oclass, struct nvif_mmu *mmu)
- 	mmu->type_nr = args.type_nr;
- 	mmu->kind_nr = args.kind_nr;
- 
--	mmu->heap = kmalloc(sizeof(*mmu->heap) * mmu->heap_nr, GFP_KERNEL);
--	mmu->type = kmalloc(sizeof(*mmu->type) * mmu->type_nr, GFP_KERNEL);
-+	mmu->heap = kmalloc(array_size(sizeof(*mmu->heap), mmu->heap_nr),
-+			    GFP_KERNEL);
-+	mmu->type = kmalloc(array_size(sizeof(*mmu->type), mmu->type_nr),
-+			    GFP_KERNEL);
- 	if (ret = -ENOMEM, !mmu->heap || !mmu->type)
- 		goto done;
- 
--	mmu->kind = kmalloc(sizeof(*mmu->kind) * mmu->kind_nr, GFP_KERNEL);
-+	mmu->kind = kmalloc(array_size(sizeof(*mmu->kind), mmu->kind_nr),
-+			    GFP_KERNEL);
- 	if (!mmu->kind && mmu->kind_nr)
- 		goto done;
- 
-diff --git a/drivers/gpu/drm/nouveau/nvif/object.c b/drivers/gpu/drm/nouveau/nvif/object.c
-index 40adfe9b334b..c744342cc21f 100644
---- a/drivers/gpu/drm/nouveau/nvif/object.c
-+++ b/drivers/gpu/drm/nouveau/nvif/object.c
-@@ -83,7 +83,8 @@ nvif_object_sclass_get(struct nvif_object *object, struct nvif_sclass **psclass)
- 			return ret;
- 	}
- 
--	*psclass = kzalloc(sizeof(**psclass) * args->sclass.count, GFP_KERNEL);
-+	*psclass = kzalloc(array_size(sizeof(**psclass), args->sclass.count),
-+			   GFP_KERNEL);
- 	if (*psclass) {
- 		for (i = 0; i < args->sclass.count; i++) {
- 			(*psclass)[i].oclass = args->sclass.oclass[i].oclass;
-diff --git a/drivers/gpu/drm/nouveau/nvif/vmm.c b/drivers/gpu/drm/nouveau/nvif/vmm.c
-index 31cdb2d2e1ff..aa5f205c856d 100644
---- a/drivers/gpu/drm/nouveau/nvif/vmm.c
-+++ b/drivers/gpu/drm/nouveau/nvif/vmm.c
-@@ -138,7 +138,8 @@ nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, u64 addr, u64 size,
- 	vmm->limit = args->size;
- 
- 	vmm->page_nr = args->page_nr;
--	vmm->page = kmalloc(sizeof(*vmm->page) * vmm->page_nr, GFP_KERNEL);
-+	vmm->page = kmalloc(array_size(sizeof(*vmm->page), vmm->page_nr),
-+			    GFP_KERNEL);
- 	if (!vmm->page) {
- 		ret = -ENOMEM;
- 		goto done;
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/fifo/gk104.c b/drivers/gpu/drm/nouveau/nvkm/engine/fifo/gk104.c
-index 84bd703dd897..11f2eb3a55a0 100644
---- a/drivers/gpu/drm/nouveau/nvkm/engine/fifo/gk104.c
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/fifo/gk104.c
-@@ -782,7 +782,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
- 	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
- 
- 	/* Read PBDMA->runlist(s) mapping from HW. */
--	if (!(map = kzalloc(sizeof(*map) * fifo->pbdma_nr, GFP_KERNEL)))
-+	if (!(map = kzalloc(array_size(sizeof(*map), fifo->pbdma_nr), GFP_KERNEL)))
- 		return -ENOMEM;
- 
- 	for (i = 0; i < fifo->pbdma_nr; i++)
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/gr/ctxnv40.c b/drivers/gpu/drm/nouveau/nvkm/engine/gr/ctxnv40.c
-index 80a6b017af64..20aabddeebcc 100644
---- a/drivers/gpu/drm/nouveau/nvkm/engine/gr/ctxnv40.c
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/gr/ctxnv40.c
-@@ -670,7 +670,7 @@ nv40_grctx_fill(struct nvkm_device *device, struct nvkm_gpuobj *mem)
- int
- nv40_grctx_init(struct nvkm_device *device, u32 *size)
- {
--	u32 *ctxprog = kmalloc(256 * 4, GFP_KERNEL), i;
-+	u32 *ctxprog = kmalloc(array_size(256, 4), GFP_KERNEL), i;
- 	struct nvkm_grctx ctx = {
- 		.device = device,
- 		.mode = NVKM_GRCTX_PROG,
-diff --git a/drivers/gpu/drm/nouveau/nvkm/engine/gr/ctxnv50.c b/drivers/gpu/drm/nouveau/nvkm/engine/gr/ctxnv50.c
-index c8bb9191f9a2..bbbe3bfcdade 100644
---- a/drivers/gpu/drm/nouveau/nvkm/engine/gr/ctxnv50.c
-+++ b/drivers/gpu/drm/nouveau/nvkm/engine/gr/ctxnv50.c
-@@ -265,7 +265,7 @@ nv50_grctx_fill(struct nvkm_device *device, struct nvkm_gpuobj *mem)
- int
- nv50_grctx_init(struct nvkm_device *device, u32 *size)
- {
--	u32 *ctxprog = kmalloc(512 * 4, GFP_KERNEL), i;
-+	u32 *ctxprog = kmalloc(array_size(512, 4), GFP_KERNEL), i;
- 	struct nvkm_grctx ctx = {
- 		.device = device,
- 		.mode = NVKM_GRCTX_PROG,
-diff --git a/drivers/gpu/drm/omapdrm/omap_dmm_tiler.c b/drivers/gpu/drm/omapdrm/omap_dmm_tiler.c
-index c6ad066c9ccf..70b6498808b1 100644
---- a/drivers/gpu/drm/omapdrm/omap_dmm_tiler.c
-+++ b/drivers/gpu/drm/omapdrm/omap_dmm_tiler.c
-@@ -937,7 +937,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
- 	w_adj = omap_dmm->container_width / xdiv;
- 
- 	map = kmalloc(array_size(h_adj, sizeof(*map)), GFP_KERNEL);
--	global_map = kmalloc((w_adj + 1) * h_adj, GFP_KERNEL);
-+	global_map = kmalloc(array_size((w_adj + 1), h_adj), GFP_KERNEL);
- 
- 	if (!map || !global_map)
- 		goto error;
-diff --git a/drivers/gpu/drm/qxl/qxl_kms.c b/drivers/gpu/drm/qxl/qxl_kms.c
-index c5716a0ca3b8..d6551eeda91c 100644
---- a/drivers/gpu/drm/qxl/qxl_kms.c
-+++ b/drivers/gpu/drm/qxl/qxl_kms.c
-@@ -200,7 +200,7 @@ int qxl_device_init(struct qxl_device *qdev,
- 		(~(uint64_t)0) >> (qdev->slot_id_bits + qdev->slot_gen_bits);
- 
- 	qdev->mem_slots =
--		kmalloc(qdev->n_mem_slots * sizeof(struct qxl_memslot),
-+		kmalloc(array_size(qdev->n_mem_slots, sizeof(struct qxl_memslot)),
- 			GFP_KERNEL);
- 
- 	idr_init(&qdev->release_idr);
-diff --git a/drivers/gpu/drm/radeon/atom.c b/drivers/gpu/drm/radeon/atom.c
-index 6a2e091aa7b6..a88a40d595fd 100644
---- a/drivers/gpu/drm/radeon/atom.c
-+++ b/drivers/gpu/drm/radeon/atom.c
-@@ -1176,7 +1176,7 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
- 	ectx.abort = false;
- 	ectx.last_jump = 0;
- 	if (ws)
--		ectx.ws = kzalloc(4 * ws, GFP_KERNEL);
-+		ectx.ws = kzalloc(array_size(4, ws), GFP_KERNEL);
- 	else
- 		ectx.ws = NULL;
- 
-@@ -1246,7 +1246,7 @@ static int atom_iio_len[] = { 1, 2, 3, 3, 3, 3, 4, 4, 4, 3 };
- 
- static void atom_index_iio(struct atom_context *ctx, int base)
- {
--	ctx->iio = kzalloc(2 * 256, GFP_KERNEL);
-+	ctx->iio = kzalloc(array_size(2, 256), GFP_KERNEL);
- 	if (!ctx->iio)
- 		return;
- 	while (CU8(base) == ATOM_IIO_START) {
-diff --git a/drivers/gpu/drm/radeon/ci_dpm.c b/drivers/gpu/drm/radeon/ci_dpm.c
-index bdefba5d7287..d315cebb9a6c 100644
---- a/drivers/gpu/drm/radeon/ci_dpm.c
-+++ b/drivers/gpu/drm/radeon/ci_dpm.c
-@@ -5568,8 +5568,8 @@ static int ci_parse_power_table(struct radeon_device *rdev)
- 		(mode_info->atom_context->bios + data_offset +
- 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
- 
--	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
--				  state_array->ucNumEntries, GFP_KERNEL);
-+	rdev->pm.dpm.ps = kzalloc(array_size(sizeof(struct radeon_ps), state_array->ucNumEntries),
-+				  GFP_KERNEL);
- 	if (!rdev->pm.dpm.ps)
- 		return -ENOMEM;
- 	power_state_offset = (u8 *)state_array->states;
-diff --git a/drivers/gpu/drm/radeon/kv_dpm.c b/drivers/gpu/drm/radeon/kv_dpm.c
-index ae1529b0ef6f..41fd562df59a 100644
---- a/drivers/gpu/drm/radeon/kv_dpm.c
-+++ b/drivers/gpu/drm/radeon/kv_dpm.c
-@@ -2660,8 +2660,8 @@ static int kv_parse_power_table(struct radeon_device *rdev)
- 		(mode_info->atom_context->bios + data_offset +
- 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
- 
--	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
--				  state_array->ucNumEntries, GFP_KERNEL);
-+	rdev->pm.dpm.ps = kzalloc(array_size(sizeof(struct radeon_ps), state_array->ucNumEntries),
-+				  GFP_KERNEL);
- 	if (!rdev->pm.dpm.ps)
- 		return -ENOMEM;
- 	power_state_offset = (u8 *)state_array->states;
-diff --git a/drivers/gpu/drm/radeon/ni_dpm.c b/drivers/gpu/drm/radeon/ni_dpm.c
-index 021ca86432b0..550d6326c0a3 100644
---- a/drivers/gpu/drm/radeon/ni_dpm.c
-+++ b/drivers/gpu/drm/radeon/ni_dpm.c
-@@ -3998,8 +3998,8 @@ static int ni_parse_power_table(struct radeon_device *rdev)
- 		return -EINVAL;
- 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
- 
--	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
--				  power_info->pplib.ucNumStates, GFP_KERNEL);
-+	rdev->pm.dpm.ps = kzalloc(array_size(sizeof(struct radeon_ps), power_info->pplib.ucNumStates),
-+				  GFP_KERNEL);
- 	if (!rdev->pm.dpm.ps)
- 		return -ENOMEM;
- 
-diff --git a/drivers/gpu/drm/radeon/r600_dpm.c b/drivers/gpu/drm/radeon/r600_dpm.c
-index 31d1b4710844..6abfe2411b0d 100644
---- a/drivers/gpu/drm/radeon/r600_dpm.c
-+++ b/drivers/gpu/drm/radeon/r600_dpm.c
-@@ -991,8 +991,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
- 			ATOM_PPLIB_PhaseSheddingLimits_Record *entry;
- 
- 			rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries =
--				kzalloc(psl->ucNumEntries *
--					sizeof(struct radeon_phase_shedding_limits_entry),
-+				kzalloc(array_size(psl->ucNumEntries, sizeof(struct radeon_phase_shedding_limits_entry)),
- 					GFP_KERNEL);
- 			if (!rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries) {
- 				r600_free_extended_power_table(rdev);
-diff --git a/drivers/gpu/drm/radeon/radeon_atombios.c b/drivers/gpu/drm/radeon/radeon_atombios.c
-index 49693891ac9f..d52580198750 100644
---- a/drivers/gpu/drm/radeon/radeon_atombios.c
-+++ b/drivers/gpu/drm/radeon/radeon_atombios.c
-@@ -2589,8 +2589,8 @@ static int radeon_atombios_parse_power_table_4_5(struct radeon_device *rdev)
- 	radeon_atombios_add_pplib_thermal_controller(rdev, &power_info->pplib.sThermalController);
- 	if (power_info->pplib.ucNumStates == 0)
- 		return state_index;
--	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) *
--				       power_info->pplib.ucNumStates, GFP_KERNEL);
-+	rdev->pm.power_state = kzalloc(array_size(sizeof(struct radeon_power_state), power_info->pplib.ucNumStates),
-+				       GFP_KERNEL);
- 	if (!rdev->pm.power_state)
- 		return state_index;
- 	/* first mode is usually default, followed by low to high */
-@@ -2605,9 +2605,7 @@ static int radeon_atombios_parse_power_table_4_5(struct radeon_device *rdev)
- 			 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset) +
- 			 (power_state->v1.ucNonClockStateIndex *
- 			  power_info->pplib.ucNonClockSize));
--		rdev->pm.power_state[i].clock_info = kzalloc(sizeof(struct radeon_pm_clock_info) *
--							     ((power_info->pplib.ucStateEntrySize - 1) ?
--							      (power_info->pplib.ucStateEntrySize - 1) : 1),
-+		rdev->pm.power_state[i].clock_info = kzalloc(array_size(sizeof(struct radeon_pm_clock_info), ((power_info->pplib.ucStateEntrySize - 1) ? (power_info->pplib.ucStateEntrySize - 1) : 1)),
- 							     GFP_KERNEL);
- 		if (!rdev->pm.power_state[i].clock_info)
- 			return state_index;
-@@ -2690,8 +2688,8 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
- 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
- 	if (state_array->ucNumEntries == 0)
- 		return state_index;
--	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) *
--				       state_array->ucNumEntries, GFP_KERNEL);
-+	rdev->pm.power_state = kzalloc(array_size(sizeof(struct radeon_power_state), state_array->ucNumEntries),
-+				       GFP_KERNEL);
- 	if (!rdev->pm.power_state)
- 		return state_index;
- 	power_state_offset = (u8 *)state_array->states;
-@@ -2701,9 +2699,7 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
- 		non_clock_array_index = power_state->v2.nonClockInfoIndex;
- 		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
- 			&non_clock_info_array->nonClockInfo[non_clock_array_index];
--		rdev->pm.power_state[i].clock_info = kzalloc(sizeof(struct radeon_pm_clock_info) *
--							     (power_state->v2.ucNumDPMLevels ?
--							      power_state->v2.ucNumDPMLevels : 1),
-+		rdev->pm.power_state[i].clock_info = kzalloc(array_size(sizeof(struct radeon_pm_clock_info), (power_state->v2.ucNumDPMLevels ? power_state->v2.ucNumDPMLevels : 1)),
- 							     GFP_KERNEL);
- 		if (!rdev->pm.power_state[i].clock_info)
- 			return state_index;
-diff --git a/drivers/gpu/drm/radeon/rs780_dpm.c b/drivers/gpu/drm/radeon/rs780_dpm.c
-index b5e4e09a8996..63db68c55f46 100644
---- a/drivers/gpu/drm/radeon/rs780_dpm.c
-+++ b/drivers/gpu/drm/radeon/rs780_dpm.c
-@@ -804,8 +804,8 @@ static int rs780_parse_power_table(struct radeon_device *rdev)
- 		return -EINVAL;
- 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
- 
--	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
--				  power_info->pplib.ucNumStates, GFP_KERNEL);
-+	rdev->pm.dpm.ps = kzalloc(array_size(sizeof(struct radeon_ps), power_info->pplib.ucNumStates),
-+				  GFP_KERNEL);
- 	if (!rdev->pm.dpm.ps)
- 		return -ENOMEM;
- 
-diff --git a/drivers/gpu/drm/radeon/rv6xx_dpm.c b/drivers/gpu/drm/radeon/rv6xx_dpm.c
-index d91aa3944593..4bc50fbe28f8 100644
---- a/drivers/gpu/drm/radeon/rv6xx_dpm.c
-+++ b/drivers/gpu/drm/radeon/rv6xx_dpm.c
-@@ -1888,8 +1888,8 @@ static int rv6xx_parse_power_table(struct radeon_device *rdev)
- 		return -EINVAL;
- 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
- 
--	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
--				  power_info->pplib.ucNumStates, GFP_KERNEL);
-+	rdev->pm.dpm.ps = kzalloc(array_size(sizeof(struct radeon_ps), power_info->pplib.ucNumStates),
-+				  GFP_KERNEL);
- 	if (!rdev->pm.dpm.ps)
- 		return -ENOMEM;
- 
-diff --git a/drivers/gpu/drm/radeon/rv770_dpm.c b/drivers/gpu/drm/radeon/rv770_dpm.c
-index cb2a7ec4e217..4180cef575af 100644
---- a/drivers/gpu/drm/radeon/rv770_dpm.c
-+++ b/drivers/gpu/drm/radeon/rv770_dpm.c
-@@ -2282,8 +2282,8 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
- 		return -EINVAL;
- 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
- 
--	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
--				  power_info->pplib.ucNumStates, GFP_KERNEL);
-+	rdev->pm.dpm.ps = kzalloc(array_size(sizeof(struct radeon_ps), power_info->pplib.ucNumStates),
-+				  GFP_KERNEL);
- 	if (!rdev->pm.dpm.ps)
- 		return -ENOMEM;
- 
-diff --git a/drivers/gpu/drm/radeon/si_dpm.c b/drivers/gpu/drm/radeon/si_dpm.c
-index 0e2a43220a23..14eb59ff6441 100644
---- a/drivers/gpu/drm/radeon/si_dpm.c
-+++ b/drivers/gpu/drm/radeon/si_dpm.c
-@@ -6832,8 +6832,8 @@ static int si_parse_power_table(struct radeon_device *rdev)
- 		(mode_info->atom_context->bios + data_offset +
- 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
- 
--	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
--				  state_array->ucNumEntries, GFP_KERNEL);
-+	rdev->pm.dpm.ps = kzalloc(array_size(sizeof(struct radeon_ps), state_array->ucNumEntries),
-+				  GFP_KERNEL);
- 	if (!rdev->pm.dpm.ps)
- 		return -ENOMEM;
- 	power_state_offset = (u8 *)state_array->states;
-diff --git a/drivers/gpu/drm/radeon/sumo_dpm.c b/drivers/gpu/drm/radeon/sumo_dpm.c
-index fd4804829e46..e23d25f67f20 100644
---- a/drivers/gpu/drm/radeon/sumo_dpm.c
-+++ b/drivers/gpu/drm/radeon/sumo_dpm.c
-@@ -1482,8 +1482,8 @@ static int sumo_parse_power_table(struct radeon_device *rdev)
- 		(mode_info->atom_context->bios + data_offset +
- 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
- 
--	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
--				  state_array->ucNumEntries, GFP_KERNEL);
-+	rdev->pm.dpm.ps = kzalloc(array_size(sizeof(struct radeon_ps), state_array->ucNumEntries),
-+				  GFP_KERNEL);
- 	if (!rdev->pm.dpm.ps)
- 		return -ENOMEM;
- 	power_state_offset = (u8 *)state_array->states;
-diff --git a/drivers/gpu/drm/radeon/trinity_dpm.c b/drivers/gpu/drm/radeon/trinity_dpm.c
-index 2ef7c4e5e495..3e9bc85392cf 100644
---- a/drivers/gpu/drm/radeon/trinity_dpm.c
-+++ b/drivers/gpu/drm/radeon/trinity_dpm.c
-@@ -1757,8 +1757,8 @@ static int trinity_parse_power_table(struct radeon_device *rdev)
- 		(mode_info->atom_context->bios + data_offset +
- 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
- 
--	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
--				  state_array->ucNumEntries, GFP_KERNEL);
-+	rdev->pm.dpm.ps = kzalloc(array_size(sizeof(struct radeon_ps), state_array->ucNumEntries),
-+				  GFP_KERNEL);
- 	if (!rdev->pm.dpm.ps)
- 		return -ENOMEM;
- 	power_state_offset = (u8 *)state_array->states;
-diff --git a/drivers/gpu/drm/savage/savage_bci.c b/drivers/gpu/drm/savage/savage_bci.c
-index 2a5b8466d806..fd7e2eb84008 100644
---- a/drivers/gpu/drm/savage/savage_bci.c
-+++ b/drivers/gpu/drm/savage/savage_bci.c
-@@ -298,8 +298,8 @@ static int savage_dma_init(drm_savage_private_t * dev_priv)
- 
- 	dev_priv->nr_dma_pages = dev_priv->cmd_dma->size /
- 	    (SAVAGE_DMA_PAGE_SIZE * 4);
--	dev_priv->dma_pages = kmalloc(sizeof(drm_savage_dma_page_t) *
--				      dev_priv->nr_dma_pages, GFP_KERNEL);
-+	dev_priv->dma_pages = kmalloc(array_size(sizeof(drm_savage_dma_page_t), dev_priv->nr_dma_pages),
-+				      GFP_KERNEL);
- 	if (dev_priv->dma_pages == NULL)
- 		return -ENOMEM;
- 
-diff --git a/drivers/gpu/drm/selftests/test-drm_mm.c b/drivers/gpu/drm/selftests/test-drm_mm.c
-index 7cc935d7b7aa..12701321ce77 100644
---- a/drivers/gpu/drm/selftests/test-drm_mm.c
-+++ b/drivers/gpu/drm/selftests/test-drm_mm.c
-@@ -1631,7 +1631,7 @@ static int igt_topdown(void *ignored)
- 	if (!nodes)
- 		goto err;
- 
--	bitmap = kzalloc(count / BITS_PER_LONG * sizeof(unsigned long),
-+	bitmap = kzalloc(array_size(count / BITS_PER_LONG, sizeof(unsigned long)),
- 			 GFP_KERNEL);
- 	if (!bitmap)
- 		goto err_nodes;
-@@ -1745,7 +1745,7 @@ static int igt_bottomup(void *ignored)
- 	if (!nodes)
- 		goto err;
- 
--	bitmap = kzalloc(count / BITS_PER_LONG * sizeof(unsigned long),
-+	bitmap = kzalloc(array_size(count / BITS_PER_LONG, sizeof(unsigned long)),
- 			 GFP_KERNEL);
- 	if (!bitmap)
- 		goto err_nodes;
-diff --git a/drivers/gpu/drm/tinydrm/repaper.c b/drivers/gpu/drm/tinydrm/repaper.c
-index 75740630c410..ac719fc27cec 100644
---- a/drivers/gpu/drm/tinydrm/repaper.c
-+++ b/drivers/gpu/drm/tinydrm/repaper.c
-@@ -554,7 +554,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
- 	DRM_DEBUG("Flushing [FB:%d] st=%ums\n", fb->base.id,
- 		  epd->factored_stage_time);
- 
--	buf = kmalloc(fb->width * fb->height, GFP_KERNEL);
-+	buf = kmalloc(array_size(fb->width, fb->height), GFP_KERNEL);
- 	if (!buf) {
- 		ret = -ENOMEM;
- 		goto out_unlock;
-diff --git a/drivers/gpu/drm/vc4/vc4_plane.c b/drivers/gpu/drm/vc4/vc4_plane.c
-index ce39390be389..ad0fe5526f9f 100644
---- a/drivers/gpu/drm/vc4/vc4_plane.c
-+++ b/drivers/gpu/drm/vc4/vc4_plane.c
-@@ -208,7 +208,7 @@ static void vc4_dlist_write(struct vc4_plane_state *vc4_state, u32 val)
- {
- 	if (vc4_state->dlist_count == vc4_state->dlist_size) {
- 		u32 new_size = max(4u, vc4_state->dlist_count * 2);
--		u32 *new_dlist = kmalloc(new_size * 4, GFP_KERNEL);
-+		u32 *new_dlist = kmalloc(array_size(new_size, 4), GFP_KERNEL);
- 
- 		if (!new_dlist)
- 			return;
-diff --git a/drivers/gpu/drm/vmwgfx/vmwgfx_surface.c b/drivers/gpu/drm/vmwgfx/vmwgfx_surface.c
-index b236c48bf265..fd62883105b4 100644
---- a/drivers/gpu/drm/vmwgfx/vmwgfx_surface.c
-+++ b/drivers/gpu/drm/vmwgfx/vmwgfx_surface.c
-@@ -811,7 +811,8 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
- 	    srf->sizes[0].height == 64 &&
- 	    srf->format == SVGA3D_A8R8G8B8) {
- 
--		srf->snooper.image = kzalloc(64 * 64 * 4, GFP_KERNEL);
-+		srf->snooper.image = kzalloc(array3_size(64, 64, 4),
-+					     GFP_KERNEL);
- 		if (!srf->snooper.image) {
- 			DRM_ERROR("Failed to allocate cursor_image\n");
- 			ret = -ENOMEM;
-diff --git a/drivers/hid/hid-core.c b/drivers/hid/hid-core.c
-index f82dc60d432e..82c52d4db552 100644
---- a/drivers/hid/hid-core.c
-+++ b/drivers/hid/hid-core.c
-@@ -131,8 +131,8 @@ static int open_collection(struct hid_parser *parser, unsigned type)
- 	}
- 
- 	if (parser->device->maxcollection == parser->device->collection_size) {
--		collection = kmalloc(sizeof(struct hid_collection) *
--				parser->device->collection_size * 2, GFP_KERNEL);
-+		collection = kmalloc(array3_size(sizeof(struct hid_collection), parser->device->collection_size, 2),
-+				     GFP_KERNEL);
- 		if (collection == NULL) {
- 			hid_err(parser->device, "failed to reallocate collection array\n");
- 			return -ENOMEM;
-diff --git a/drivers/hid/hid-picolcd_fb.c b/drivers/hid/hid-picolcd_fb.c
-index 7f965e231433..c3fd50d8ae6e 100644
---- a/drivers/hid/hid-picolcd_fb.c
-+++ b/drivers/hid/hid-picolcd_fb.c
-@@ -394,7 +394,8 @@ static int picolcd_set_par(struct fb_info *info)
- 		return -EINVAL;
- 
- 	o_fb   = fbdata->bitmap;
--	tmp_fb = kmalloc(PICOLCDFB_SIZE*info->var.bits_per_pixel, GFP_KERNEL);
-+	tmp_fb = kmalloc(array_size(PICOLCDFB_SIZE, info->var.bits_per_pixel),
-+			 GFP_KERNEL);
- 	if (!tmp_fb)
- 		return -ENOMEM;
- 
-diff --git a/drivers/hv/hv_util.c b/drivers/hv/hv_util.c
-index 14dce25c104f..3676eb44da0f 100644
---- a/drivers/hv/hv_util.c
-+++ b/drivers/hv/hv_util.c
-@@ -401,7 +401,7 @@ static int util_probe(struct hv_device *dev,
- 		(struct hv_util_service *)dev_id->driver_data;
- 	int ret;
- 
--	srv->recv_buffer = kmalloc(PAGE_SIZE * 4, GFP_KERNEL);
-+	srv->recv_buffer = kmalloc(array_size(PAGE_SIZE, 4), GFP_KERNEL);
- 	if (!srv->recv_buffer)
- 		return -ENOMEM;
- 	srv->channel = dev->channel;
-diff --git a/drivers/hv/ring_buffer.c b/drivers/hv/ring_buffer.c
-index 8699bb969e7e..e8dcc2f2e2f5 100644
---- a/drivers/hv/ring_buffer.c
-+++ b/drivers/hv/ring_buffer.c
-@@ -202,7 +202,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
- 	 * First page holds struct hv_ring_buffer, do wraparound mapping for
- 	 * the rest.
- 	 */
--	pages_wraparound = kzalloc(sizeof(struct page *) * (page_cnt * 2 - 1),
-+	pages_wraparound = kzalloc(array_size(sizeof(struct page *), (page_cnt * 2 - 1)),
- 				   GFP_KERNEL);
- 	if (!pages_wraparound)
- 		return -ENOMEM;
-diff --git a/drivers/hwmon/acpi_power_meter.c b/drivers/hwmon/acpi_power_meter.c
-index 14a94d90c028..b4aefddce879 100644
---- a/drivers/hwmon/acpi_power_meter.c
-+++ b/drivers/hwmon/acpi_power_meter.c
-@@ -575,8 +575,8 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
- 	if (!pss->package.count)
- 		goto end;
- 
--	resource->domain_devices = kzalloc(sizeof(struct acpi_device *) *
--					   pss->package.count, GFP_KERNEL);
-+	resource->domain_devices = kzalloc(array_size(sizeof(struct acpi_device *), pss->package.count),
-+					   GFP_KERNEL);
- 	if (!resource->domain_devices) {
- 		res = -ENOMEM;
- 		goto end;
-@@ -796,7 +796,7 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
- 			goto error;
- 		}
- 
--		*str = kzalloc(sizeof(u8) * (element->string.length + 1),
-+		*str = kzalloc(array_size(sizeof(u8), (element->string.length + 1)),
- 			       GFP_KERNEL);
- 		if (!*str) {
- 			res = -ENOMEM;
-diff --git a/drivers/hwmon/ibmpex.c b/drivers/hwmon/ibmpex.c
-index 21b9c72f16bd..cd88f6f52444 100644
---- a/drivers/hwmon/ibmpex.c
-+++ b/drivers/hwmon/ibmpex.c
-@@ -387,7 +387,7 @@ static int ibmpex_find_sensors(struct ibmpex_bmc_data *data)
- 		return -ENOENT;
- 	data->num_sensors = err;
- 
--	data->sensors = kzalloc(data->num_sensors * sizeof(*data->sensors),
-+	data->sensors = kzalloc(array_size(data->num_sensors, sizeof(*data->sensors)),
- 				GFP_KERNEL);
- 	if (!data->sensors)
- 		return -ENOMEM;
-diff --git a/drivers/i2c/i2c-stub.c b/drivers/i2c/i2c-stub.c
-index 4a9ad91c5ba3..371910ff378d 100644
---- a/drivers/i2c/i2c-stub.c
-+++ b/drivers/i2c/i2c-stub.c
-@@ -338,8 +338,8 @@ static int __init i2c_stub_allocate_banks(int i)
- 		chip->bank_mask >>= 1;
- 	}
- 
--	chip->bank_words = kzalloc(chip->bank_mask * chip->bank_size *
--				   sizeof(u16), GFP_KERNEL);
-+	chip->bank_words = kzalloc(array3_size(chip->bank_mask, chip->bank_size, sizeof(u16)),
-+				   GFP_KERNEL);
- 	if (!chip->bank_words)
- 		return -ENOMEM;
- 
-diff --git a/drivers/ide/hpt366.c b/drivers/ide/hpt366.c
-index 4b5dc0162e67..eca23ccf9df2 100644
---- a/drivers/ide/hpt366.c
-+++ b/drivers/ide/hpt366.c
-@@ -1455,7 +1455,8 @@ static int hpt366_init_one(struct pci_dev *dev, const struct pci_device_id *id)
- 	if (info == &hpt36x || info == &hpt374)
- 		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
- 
--	dyn_info = kzalloc(sizeof(*dyn_info) * (dev2 ? 2 : 1), GFP_KERNEL);
-+	dyn_info = kzalloc(array_size(sizeof(*dyn_info), (dev2 ? 2 : 1)),
-+			   GFP_KERNEL);
- 	if (dyn_info == NULL) {
- 		printk(KERN_ERR "%s %s: out of memory!\n",
- 			d.name, pci_name(dev));
-diff --git a/drivers/ide/ide-ioctls.c b/drivers/ide/ide-ioctls.c
-index 3661abb16a5f..b6b5af433d6d 100644
---- a/drivers/ide/ide-ioctls.c
-+++ b/drivers/ide/ide-ioctls.c
-@@ -67,7 +67,7 @@ static int ide_get_identity_ioctl(ide_drive_t *drive, unsigned int cmd,
- 	}
- 
- 	/* ata_id_to_hd_driveid() relies on 'id' to be fully allocated. */
--	id = kmalloc(ATA_ID_WORDS * 2, GFP_KERNEL);
-+	id = kmalloc(array_size(ATA_ID_WORDS, 2), GFP_KERNEL);
- 	if (id == NULL) {
- 		rc = -ENOMEM;
- 		goto out;
-diff --git a/drivers/ide/ide-probe.c b/drivers/ide/ide-probe.c
-index 2019e66eada7..c3f8c67a73a4 100644
---- a/drivers/ide/ide-probe.c
-+++ b/drivers/ide/ide-probe.c
-@@ -989,7 +989,7 @@ static int hwif_init(ide_hwif_t *hwif)
- 	if (!hwif->sg_max_nents)
- 		hwif->sg_max_nents = PRD_ENTRIES;
- 
--	hwif->sg_table = kmalloc(sizeof(struct scatterlist)*hwif->sg_max_nents,
-+	hwif->sg_table = kmalloc(array_size(sizeof(struct scatterlist), hwif->sg_max_nents),
- 				 GFP_KERNEL);
- 	if (!hwif->sg_table) {
- 		printk(KERN_ERR "%s: unable to allocate SG table.\n", hwif->name);
-diff --git a/drivers/iio/imu/adis_buffer.c b/drivers/iio/imu/adis_buffer.c
-index 36607d52fee0..f3f0650f3b74 100644
---- a/drivers/iio/imu/adis_buffer.c
-+++ b/drivers/iio/imu/adis_buffer.c
-@@ -38,7 +38,8 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
- 	if (!adis->xfer)
- 		return -ENOMEM;
- 
--	adis->buffer = kzalloc(indio_dev->scan_bytes * 2, GFP_KERNEL);
-+	adis->buffer = kzalloc(array_size(indio_dev->scan_bytes, 2),
-+			       GFP_KERNEL);
- 	if (!adis->buffer)
- 		return -ENOMEM;
- 
-diff --git a/drivers/iio/inkern.c b/drivers/iio/inkern.c
-index ec98790e2a28..5c3d7eeb8dc7 100644
---- a/drivers/iio/inkern.c
-+++ b/drivers/iio/inkern.c
-@@ -436,7 +436,7 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
- 	}
- 
- 	/* NULL terminated array to save passing size */
--	chans = kzalloc(sizeof(*chans)*(nummaps + 1), GFP_KERNEL);
-+	chans = kzalloc(array_size(sizeof(*chans), (nummaps + 1)), GFP_KERNEL);
- 	if (chans == NULL) {
- 		ret = -ENOMEM;
- 		goto error_ret;
-diff --git a/drivers/infiniband/core/cache.c b/drivers/infiniband/core/cache.c
-index 8174b5e70682..d5dd74f1c8ca 100644
---- a/drivers/infiniband/core/cache.c
-+++ b/drivers/infiniband/core/cache.c
-@@ -1233,8 +1233,8 @@ int ib_cache_setup_one(struct ib_device *device)
- 	rwlock_init(&device->cache.lock);
- 
- 	device->cache.ports =
--		kzalloc(sizeof(*device->cache.ports) *
--			(rdma_end_port(device) - rdma_start_port(device) + 1), GFP_KERNEL);
-+		kzalloc(array_size(sizeof(*device->cache.ports), (rdma_end_port(device) - rdma_start_port(device) + 1)),
-+			GFP_KERNEL);
- 	if (!device->cache.ports)
- 		return -ENOMEM;
- 
-diff --git a/drivers/infiniband/core/cma.c b/drivers/infiniband/core/cma.c
-index 51a641002e10..8b59c9e55578 100644
---- a/drivers/infiniband/core/cma.c
-+++ b/drivers/infiniband/core/cma.c
-@@ -1802,7 +1802,7 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
- 
- 	rt = &id->route;
- 	rt->num_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
--	rt->path_rec = kmalloc(sizeof *rt->path_rec * rt->num_paths,
-+	rt->path_rec = kmalloc(array_size(sizeof *rt->path_rec, rt->num_paths),
- 			       GFP_KERNEL);
- 	if (!rt->path_rec)
- 		goto err;
-diff --git a/drivers/infiniband/core/device.c b/drivers/infiniband/core/device.c
-index ea9fbcfb21bd..8fc80c3480a7 100644
---- a/drivers/infiniband/core/device.c
-+++ b/drivers/infiniband/core/device.c
-@@ -336,8 +336,7 @@ static int read_port_immutable(struct ib_device *device)
- 	 * Therefore port_immutable is declared as a 1 based array with
- 	 * potential empty slots at the beginning.
- 	 */
--	device->port_immutable = kzalloc(sizeof(*device->port_immutable)
--					 * (end_port + 1),
-+	device->port_immutable = kzalloc(array_size(sizeof(*device->port_immutable), (end_port + 1)),
- 					 GFP_KERNEL);
- 	if (!device->port_immutable)
- 		return -ENOMEM;
-diff --git a/drivers/infiniband/hw/cxgb4/device.c b/drivers/infiniband/hw/cxgb4/device.c
-index cc024ffc5f4f..85b1e6ce4cb4 100644
---- a/drivers/infiniband/hw/cxgb4/device.c
-+++ b/drivers/infiniband/hw/cxgb4/device.c
-@@ -859,8 +859,8 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
- 	rdev->status_page->cq_size = rdev->lldi.vr->cq.size;
- 
- 	if (c4iw_wr_log) {
--		rdev->wr_log = kzalloc((1 << c4iw_wr_log_size_order) *
--				       sizeof(*rdev->wr_log), GFP_KERNEL);
-+		rdev->wr_log = kzalloc(array_size((1 << c4iw_wr_log_size_order), sizeof(*rdev->wr_log)),
-+				       GFP_KERNEL);
- 		if (rdev->wr_log) {
- 			rdev->wr_log_size = 1 << c4iw_wr_log_size_order;
- 			atomic_set(&rdev->wr_log_idx, 0);
-diff --git a/drivers/infiniband/hw/cxgb4/id_table.c b/drivers/infiniband/hw/cxgb4/id_table.c
-index 5c2cfdea06ad..f937deb905a5 100644
---- a/drivers/infiniband/hw/cxgb4/id_table.c
-+++ b/drivers/infiniband/hw/cxgb4/id_table.c
-@@ -92,8 +92,8 @@ int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,
- 		alloc->last = 0;
- 	alloc->max  = num;
- 	spin_lock_init(&alloc->lock);
--	alloc->table = kmalloc(BITS_TO_LONGS(num) * sizeof(long),
+-	dev->pdr_uinfo = kzalloc(sizeof(struct pd_uinfo) * PPC4XX_NUM_PD,
 -				GFP_KERNEL);
-+	alloc->table = kmalloc(array_size(BITS_TO_LONGS(num), sizeof(long)),
-+			       GFP_KERNEL);
- 	if (!alloc->table)
- 		return -ENOMEM;
- 
-diff --git a/drivers/infiniband/hw/cxgb4/qp.c b/drivers/infiniband/hw/cxgb4/qp.c
-index de77b6027d69..544c8052771c 100644
---- a/drivers/infiniband/hw/cxgb4/qp.c
-+++ b/drivers/infiniband/hw/cxgb4/qp.c
-@@ -216,15 +216,15 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
- 	}
- 
- 	if (!user) {
--		wq->sq.sw_sq = kzalloc(wq->sq.size * sizeof *wq->sq.sw_sq,
--				 GFP_KERNEL);
-+		wq->sq.sw_sq = kzalloc(array_size(wq->sq.size, sizeof *wq->sq.sw_sq),
-+				       GFP_KERNEL);
- 		if (!wq->sq.sw_sq) {
- 			ret = -ENOMEM;
- 			goto free_rq_qid;
- 		}
- 
--		wq->rq.sw_rq = kzalloc(wq->rq.size * sizeof *wq->rq.sw_rq,
--				 GFP_KERNEL);
-+		wq->rq.sw_rq = kzalloc(array_size(wq->rq.size, sizeof *wq->rq.sw_rq),
-+				       GFP_KERNEL);
- 		if (!wq->rq.sw_rq) {
- 			ret = -ENOMEM;
- 			goto free_sw_sq;
-diff --git a/drivers/infiniband/hw/mlx4/main.c b/drivers/infiniband/hw/mlx4/main.c
-index d449e1472d53..cc8f975c6c84 100644
---- a/drivers/infiniband/hw/mlx4/main.c
-+++ b/drivers/infiniband/hw/mlx4/main.c
-@@ -2909,8 +2909,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
- 			goto err_counter;
- 
- 		ibdev->ib_uc_qpns_bitmap =
--			kmalloc(BITS_TO_LONGS(ibdev->steer_qpn_count) *
--				sizeof(long),
-+			kmalloc(array_size(BITS_TO_LONGS(ibdev->steer_qpn_count), sizeof(long)),
- 				GFP_KERNEL);
- 		if (!ibdev->ib_uc_qpns_bitmap)
- 			goto err_steer_qp_release;
-diff --git a/drivers/infiniband/hw/mlx4/qp.c b/drivers/infiniband/hw/mlx4/qp.c
-index 50af8915e7ec..36a764d06828 100644
---- a/drivers/infiniband/hw/mlx4/qp.c
-+++ b/drivers/infiniband/hw/mlx4/qp.c
-@@ -573,7 +573,7 @@ static int alloc_proxy_bufs(struct ib_device *dev, struct mlx4_ib_qp *qp)
- 	int i;
- 
- 	qp->sqp_proxy_rcv =
--		kmalloc(sizeof (struct mlx4_ib_buf) * qp->rq.wqe_cnt,
-+		kmalloc(array_size(sizeof(struct mlx4_ib_buf), qp->rq.wqe_cnt),
- 			GFP_KERNEL);
- 	if (!qp->sqp_proxy_rcv)
- 		return -ENOMEM;
-diff --git a/drivers/infiniband/hw/mlx5/srq.c b/drivers/infiniband/hw/mlx5/srq.c
-index 0148b8f559a4..1738ff09bb3f 100644
---- a/drivers/infiniband/hw/mlx5/srq.c
-+++ b/drivers/infiniband/hw/mlx5/srq.c
-@@ -189,7 +189,8 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
- 	}
- 
- 	mlx5_ib_dbg(dev, "srq->buf.page_shift = %d\n", srq->buf.page_shift);
--	in->pas = kvzalloc(sizeof(*in->pas) * srq->buf.npages, GFP_KERNEL);
-+	in->pas = kvzalloc(array_size(sizeof(*in->pas), srq->buf.npages),
-+			   GFP_KERNEL);
- 	if (!in->pas) {
- 		err = -ENOMEM;
- 		goto err_buf;
-diff --git a/drivers/infiniband/hw/mthca/mthca_allocator.c b/drivers/infiniband/hw/mthca/mthca_allocator.c
-index dfa35adf5b91..2ff4a4eb2eb4 100644
---- a/drivers/infiniband/hw/mthca/mthca_allocator.c
-+++ b/drivers/infiniband/hw/mthca/mthca_allocator.c
-@@ -90,7 +90,7 @@ int mthca_alloc_init(struct mthca_alloc *alloc, u32 num, u32 mask,
- 	alloc->max  = num;
- 	alloc->mask = mask;
- 	spin_lock_init(&alloc->lock);
--	alloc->table = kmalloc(BITS_TO_LONGS(num) * sizeof (long),
-+	alloc->table = kmalloc(array_size(BITS_TO_LONGS(num), sizeof(long)),
- 			       GFP_KERNEL);
- 	if (!alloc->table)
- 		return -ENOMEM;
-diff --git a/drivers/infiniband/hw/mthca/mthca_cmd.c b/drivers/infiniband/hw/mthca/mthca_cmd.c
-index 419a2a20c047..a2519dbf6465 100644
---- a/drivers/infiniband/hw/mthca/mthca_cmd.c
-+++ b/drivers/infiniband/hw/mthca/mthca_cmd.c
-@@ -565,8 +565,7 @@ int mthca_cmd_use_events(struct mthca_dev *dev)
- {
- 	int i;
- 
--	dev->cmd.context = kmalloc(dev->cmd.max_cmds *
--				   sizeof (struct mthca_cmd_context),
-+	dev->cmd.context = kmalloc(array_size(dev->cmd.max_cmds, sizeof(struct mthca_cmd_context)),
- 				   GFP_KERNEL);
- 	if (!dev->cmd.context)
- 		return -ENOMEM;
-diff --git a/drivers/infiniband/hw/mthca/mthca_memfree.c b/drivers/infiniband/hw/mthca/mthca_memfree.c
-index 7a31be3c3e73..e4acaba9c53a 100644
---- a/drivers/infiniband/hw/mthca/mthca_memfree.c
-+++ b/drivers/infiniband/hw/mthca/mthca_memfree.c
-@@ -712,8 +712,7 @@ int mthca_init_db_tab(struct mthca_dev *dev)
- 	dev->db_tab->max_group1 = 0;
- 	dev->db_tab->min_group2 = dev->db_tab->npages - 1;
- 
--	dev->db_tab->page = kmalloc(dev->db_tab->npages *
--				    sizeof *dev->db_tab->page,
-+	dev->db_tab->page = kmalloc(array_size(dev->db_tab->npages, sizeof *dev->db_tab->page),
- 				    GFP_KERNEL);
- 	if (!dev->db_tab->page) {
- 		kfree(dev->db_tab);
-diff --git a/drivers/infiniband/hw/mthca/mthca_mr.c b/drivers/infiniband/hw/mthca/mthca_mr.c
-index 88d3a53966e1..6c907f2756fc 100644
---- a/drivers/infiniband/hw/mthca/mthca_mr.c
-+++ b/drivers/infiniband/hw/mthca/mthca_mr.c
-@@ -144,7 +144,7 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
- 	buddy->max_order = max_order;
- 	spin_lock_init(&buddy->lock);
- 
--	buddy->bits = kzalloc((buddy->max_order + 1) * sizeof (long *),
-+	buddy->bits = kzalloc(array_size((buddy->max_order + 1), sizeof(long *)),
- 			      GFP_KERNEL);
- 	buddy->num_free = kcalloc((buddy->max_order + 1), sizeof *buddy->num_free,
- 				  GFP_KERNEL);
-diff --git a/drivers/infiniband/hw/mthca/mthca_qp.c b/drivers/infiniband/hw/mthca/mthca_qp.c
-index d21960cd9a49..c89f5766124b 100644
---- a/drivers/infiniband/hw/mthca/mthca_qp.c
-+++ b/drivers/infiniband/hw/mthca/mthca_qp.c
-@@ -1054,7 +1054,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
- 	size = PAGE_ALIGN(qp->send_wqe_offset +
- 			  (qp->sq.max << qp->sq.wqe_shift));
- 
--	qp->wrid = kmalloc((qp->rq.max + qp->sq.max) * sizeof (u64),
-+	qp->wrid = kmalloc(array_size((qp->rq.max + qp->sq.max), sizeof(u64)),
- 			   GFP_KERNEL);
- 	if (!qp->wrid)
- 		goto err_out;
-diff --git a/drivers/infiniband/hw/mthca/mthca_srq.c b/drivers/infiniband/hw/mthca/mthca_srq.c
-index d22f970480c0..18c97813c8f3 100644
---- a/drivers/infiniband/hw/mthca/mthca_srq.c
-+++ b/drivers/infiniband/hw/mthca/mthca_srq.c
-@@ -155,7 +155,7 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
- 	if (pd->ibpd.uobject)
- 		return 0;
- 
--	srq->wrid = kmalloc(srq->max * sizeof (u64), GFP_KERNEL);
-+	srq->wrid = kmalloc(array_size(srq->max, sizeof(u64)), GFP_KERNEL);
- 	if (!srq->wrid)
- 		return -ENOMEM;
- 
-diff --git a/drivers/infiniband/hw/nes/nes_hw.c b/drivers/infiniband/hw/nes/nes_hw.c
-index 18a7de1c3923..71dd65806ac7 100644
---- a/drivers/infiniband/hw/nes/nes_hw.c
-+++ b/drivers/infiniband/hw/nes/nes_hw.c
-@@ -1001,8 +1001,8 @@ int nes_init_cqp(struct nes_device *nesdev)
- 	}
- 
- 	/* Allocate a twice the number of CQP requests as the SQ size */
--	nesdev->nes_cqp_requests = kzalloc(sizeof(struct nes_cqp_request) *
--			2 * NES_CQP_SQ_SIZE, GFP_KERNEL);
-+	nesdev->nes_cqp_requests = kzalloc(array3_size(sizeof(struct nes_cqp_request), 2, NES_CQP_SQ_SIZE),
-+					   GFP_KERNEL);
- 	if (!nesdev->nes_cqp_requests) {
- 		pci_free_consistent(nesdev->pcidev, nesdev->cqp_mem_size, nesdev->cqp.sq_vbase,
- 				nesdev->cqp.sq_pbase);
-diff --git a/drivers/infiniband/hw/ocrdma/ocrdma_verbs.c b/drivers/infiniband/hw/ocrdma/ocrdma_verbs.c
-index 784ed6b09a46..1aea9f3f7a9f 100644
---- a/drivers/infiniband/hw/ocrdma/ocrdma_verbs.c
-+++ b/drivers/infiniband/hw/ocrdma/ocrdma_verbs.c
-@@ -843,8 +843,8 @@ static int ocrdma_build_pbl_tbl(struct ocrdma_dev *dev, struct ocrdma_hw_mr *mr)
- 	void *va;
- 	dma_addr_t pa;
- 
--	mr->pbl_table = kzalloc(sizeof(struct ocrdma_pbl) *
--				mr->num_pbls, GFP_KERNEL);
-+	mr->pbl_table = kzalloc(array_size(sizeof(struct ocrdma_pbl), mr->num_pbls),
-+				GFP_KERNEL);
- 
- 	if (!mr->pbl_table)
- 		return -ENOMEM;
-@@ -1323,12 +1323,12 @@ static void ocrdma_set_qp_db(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
- static int ocrdma_alloc_wr_id_tbl(struct ocrdma_qp *qp)
- {
- 	qp->wqe_wr_id_tbl =
--	    kzalloc(sizeof(*(qp->wqe_wr_id_tbl)) * qp->sq.max_cnt,
-+	    kzalloc(array_size(sizeof(*(qp->wqe_wr_id_tbl)), qp->sq.max_cnt),
- 		    GFP_KERNEL);
- 	if (qp->wqe_wr_id_tbl == NULL)
- 		return -ENOMEM;
- 	qp->rqe_wr_id_tbl =
--	    kzalloc(sizeof(u64) * qp->rq.max_cnt, GFP_KERNEL);
-+	    kzalloc(array_size(sizeof(u64), qp->rq.max_cnt), GFP_KERNEL);
- 	if (qp->rqe_wr_id_tbl == NULL)
- 		return -ENOMEM;
- 
-@@ -1865,15 +1865,16 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
- 
- 	if (udata == NULL) {
- 		status = -ENOMEM;
--		srq->rqe_wr_id_tbl = kzalloc(sizeof(u64) * srq->rq.max_cnt,
--			    GFP_KERNEL);
-+		srq->rqe_wr_id_tbl = kzalloc(array_size(sizeof(u64), srq->rq.max_cnt),
-+					     GFP_KERNEL);
- 		if (srq->rqe_wr_id_tbl == NULL)
- 			goto arm_err;
- 
- 		srq->bit_fields_len = (srq->rq.max_cnt / 32) +
- 		    (srq->rq.max_cnt % 32 ? 1 : 0);
- 		srq->idx_bit_fields =
--		    kmalloc(srq->bit_fields_len * sizeof(u32), GFP_KERNEL);
-+		    kmalloc(array_size(srq->bit_fields_len, sizeof(u32)),
-+			    GFP_KERNEL);
- 		if (srq->idx_bit_fields == NULL)
- 			goto arm_err;
- 		memset(srq->idx_bit_fields, 0xff,
-diff --git a/drivers/infiniband/hw/qedr/verbs.c b/drivers/infiniband/hw/qedr/verbs.c
-index 7d3763b2e01c..3543de8dbb1b 100644
---- a/drivers/infiniband/hw/qedr/verbs.c
-+++ b/drivers/infiniband/hw/qedr/verbs.c
-@@ -1616,7 +1616,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
- 	qp->sq.max_wr = min_t(u32, attrs->cap.max_send_wr * dev->wq_multiplier,
- 			      dev->attr.max_sqe);
- 
--	qp->wqe_wr_id = kzalloc(qp->sq.max_wr * sizeof(*qp->wqe_wr_id),
-+	qp->wqe_wr_id = kzalloc(array_size(qp->sq.max_wr, sizeof(*qp->wqe_wr_id)),
- 				GFP_KERNEL);
- 	if (!qp->wqe_wr_id) {
- 		DP_ERR(dev, "create qp: failed SQ shadow memory allocation\n");
-@@ -1634,7 +1634,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
- 	qp->rq.max_wr = (u16) max_t(u32, attrs->cap.max_recv_wr, 1);
- 
- 	/* Allocate driver internal RQ array */
--	qp->rqe_wr_id = kzalloc(qp->rq.max_wr * sizeof(*qp->rqe_wr_id),
-+	qp->rqe_wr_id = kzalloc(array_size(qp->rq.max_wr, sizeof(*qp->rqe_wr_id)),
- 				GFP_KERNEL);
- 	if (!qp->rqe_wr_id) {
- 		DP_ERR(dev,
-diff --git a/drivers/infiniband/hw/qib/qib_iba6120.c b/drivers/infiniband/hw/qib/qib_iba6120.c
-index 8a15e5c7dd91..dcaf5d5b23ca 100644
---- a/drivers/infiniband/hw/qib/qib_iba6120.c
-+++ b/drivers/infiniband/hw/qib/qib_iba6120.c
-@@ -2496,15 +2496,15 @@ static void init_6120_cntrnames(struct qib_devdata *dd)
- 		dd->cspec->cntrnamelen = sizeof(cntr6120names) - 1;
- 	else
- 		dd->cspec->cntrnamelen = 1 + s - cntr6120names;
--	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
--		* sizeof(u64), GFP_KERNEL);
-+	dd->cspec->cntrs = kmalloc(array_size(dd->cspec->ncntrs, sizeof(u64)),
-+				   GFP_KERNEL);
- 
- 	for (i = 0, s = (char *)portcntr6120names; s; i++)
- 		s = strchr(s + 1, '\n');
- 	dd->cspec->nportcntrs = i - 1;
- 	dd->cspec->portcntrnamelen = sizeof(portcntr6120names) - 1;
--	dd->cspec->portcntrs = kmalloc(dd->cspec->nportcntrs
--		* sizeof(u64), GFP_KERNEL);
-+	dd->cspec->portcntrs = kmalloc(array_size(dd->cspec->nportcntrs, sizeof(u64)),
-+				       GFP_KERNEL);
- }
- 
- static u32 qib_read_6120cntrs(struct qib_devdata *dd, loff_t pos, char **namep,
-diff --git a/drivers/infiniband/hw/qib/qib_iba7220.c b/drivers/infiniband/hw/qib/qib_iba7220.c
-index bdff2326731e..3b4439bc460b 100644
---- a/drivers/infiniband/hw/qib/qib_iba7220.c
-+++ b/drivers/infiniband/hw/qib/qib_iba7220.c
-@@ -3147,15 +3147,15 @@ static void init_7220_cntrnames(struct qib_devdata *dd)
- 		dd->cspec->cntrnamelen = sizeof(cntr7220names) - 1;
- 	else
- 		dd->cspec->cntrnamelen = 1 + s - cntr7220names;
--	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
--		* sizeof(u64), GFP_KERNEL);
-+	dd->cspec->cntrs = kmalloc(array_size(dd->cspec->ncntrs, sizeof(u64)),
-+				   GFP_KERNEL);
- 
- 	for (i = 0, s = (char *)portcntr7220names; s; i++)
- 		s = strchr(s + 1, '\n');
- 	dd->cspec->nportcntrs = i - 1;
- 	dd->cspec->portcntrnamelen = sizeof(portcntr7220names) - 1;
--	dd->cspec->portcntrs = kmalloc(dd->cspec->nportcntrs
--		* sizeof(u64), GFP_KERNEL);
-+	dd->cspec->portcntrs = kmalloc(array_size(dd->cspec->nportcntrs, sizeof(u64)),
-+				       GFP_KERNEL);
- }
- 
- static u32 qib_read_7220cntrs(struct qib_devdata *dd, loff_t pos, char **namep,
-diff --git a/drivers/infiniband/hw/qib/qib_iba7322.c b/drivers/infiniband/hw/qib/qib_iba7322.c
-index 57583362bf3e..01eb34949c6e 100644
---- a/drivers/infiniband/hw/qib/qib_iba7322.c
-+++ b/drivers/infiniband/hw/qib/qib_iba7322.c
-@@ -3648,8 +3648,8 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
- 
- 	if (msix_entries) {
- 		/* can be up to 512 bytes, too big for stack */
--		msix_vecsave = kmalloc(2 * dd->cspec->num_msix_entries *
--			sizeof(u64), GFP_KERNEL);
-+		msix_vecsave = kmalloc(array3_size(2, dd->cspec->num_msix_entries, sizeof(u64)),
-+				       GFP_KERNEL);
- 	}
- 
- 	/*
-@@ -5009,16 +5009,16 @@ static void init_7322_cntrnames(struct qib_devdata *dd)
- 		dd->cspec->cntrnamelen = sizeof(cntr7322names) - 1;
- 	else
- 		dd->cspec->cntrnamelen = 1 + s - cntr7322names;
--	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
--		* sizeof(u64), GFP_KERNEL);
-+	dd->cspec->cntrs = kmalloc(array_size(dd->cspec->ncntrs, sizeof(u64)),
-+				   GFP_KERNEL);
- 
- 	for (i = 0, s = (char *)portcntr7322names; s; i++)
- 		s = strchr(s + 1, '\n');
- 	dd->cspec->nportcntrs = i - 1;
- 	dd->cspec->portcntrnamelen = sizeof(portcntr7322names) - 1;
- 	for (i = 0; i < dd->num_pports; ++i) {
--		dd->pport[i].cpspec->portcntrs = kmalloc(dd->cspec->nportcntrs
--			* sizeof(u64), GFP_KERNEL);
-+		dd->pport[i].cpspec->portcntrs = kmalloc(array_size(dd->cspec->nportcntrs, sizeof(u64)),
-+							 GFP_KERNEL);
- 	}
- }
- 
-diff --git a/drivers/infiniband/hw/qib/qib_init.c b/drivers/infiniband/hw/qib/qib_init.c
-index 6c68f8a97018..aef7258fc768 100644
---- a/drivers/infiniband/hw/qib/qib_init.c
-+++ b/drivers/infiniband/hw/qib/qib_init.c
-@@ -1130,8 +1130,8 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
- 	if (!qib_cpulist_count) {
- 		u32 count = num_online_cpus();
- 
--		qib_cpulist = kzalloc(BITS_TO_LONGS(count) *
--				      sizeof(long), GFP_KERNEL);
-+		qib_cpulist = kzalloc(array_size(BITS_TO_LONGS(count), sizeof(long)),
-+				      GFP_KERNEL);
- 		if (qib_cpulist)
- 			qib_cpulist_count = count;
- 	}
-diff --git a/drivers/infiniband/hw/usnic/usnic_ib_qp_grp.c b/drivers/infiniband/hw/usnic/usnic_ib_qp_grp.c
-index 912d8ef04352..81f6d578cfe3 100644
---- a/drivers/infiniband/hw/usnic/usnic_ib_qp_grp.c
-+++ b/drivers/infiniband/hw/usnic/usnic_ib_qp_grp.c
-@@ -543,8 +543,8 @@ alloc_res_chunk_list(struct usnic_vnic *vnic,
- 		/* Do Nothing */
- 	}
- 
--	res_chunk_list = kzalloc(sizeof(*res_chunk_list)*(res_lst_sz+1),
--					GFP_ATOMIC);
-+	res_chunk_list = kzalloc(array_size(sizeof(*res_chunk_list), (res_lst_sz + 1)),
-+				 GFP_ATOMIC);
- 	if (!res_chunk_list)
- 		return ERR_PTR(-ENOMEM);
- 
-diff --git a/drivers/infiniband/ulp/iser/iser_initiator.c b/drivers/infiniband/ulp/iser/iser_initiator.c
-index df49c4eb67f7..bab3bc3ff40f 100644
---- a/drivers/infiniband/ulp/iser/iser_initiator.c
-+++ b/drivers/infiniband/ulp/iser/iser_initiator.c
-@@ -258,8 +258,8 @@ int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
- 		goto alloc_login_buf_fail;
- 
- 	iser_conn->num_rx_descs = session->cmds_max;
--	iser_conn->rx_descs = kmalloc(iser_conn->num_rx_descs *
--				sizeof(struct iser_rx_desc), GFP_KERNEL);
-+	iser_conn->rx_descs = kmalloc(array_size(iser_conn->num_rx_descs, sizeof(struct iser_rx_desc)),
-+				      GFP_KERNEL);
- 	if (!iser_conn->rx_descs)
- 		goto rx_desc_alloc_fail;
- 
-diff --git a/drivers/infiniband/ulp/srp/ib_srp.c b/drivers/infiniband/ulp/srp/ib_srp.c
-index c35d2cd37d70..da6b4fa10700 100644
---- a/drivers/infiniband/ulp/srp/ib_srp.c
-+++ b/drivers/infiniband/ulp/srp/ib_srp.c
-@@ -1035,7 +1035,7 @@ static int srp_alloc_req_data(struct srp_rdma_ch *ch)
- 
- 	for (i = 0; i < target->req_ring_size; ++i) {
- 		req = &ch->req_ring[i];
--		mr_list = kmalloc(target->mr_per_cmd * sizeof(void *),
-+		mr_list = kmalloc(array_size(target->mr_per_cmd, sizeof(void *)),
- 				  GFP_KERNEL);
- 		if (!mr_list)
- 			goto out;
-@@ -1043,8 +1043,8 @@ static int srp_alloc_req_data(struct srp_rdma_ch *ch)
- 			req->fr_list = mr_list;
- 		} else {
- 			req->fmr_list = mr_list;
--			req->map_page = kmalloc(srp_dev->max_pages_per_mr *
--						sizeof(void *), GFP_KERNEL);
-+			req->map_page = kmalloc(array_size(srp_dev->max_pages_per_mr, sizeof(void *)),
-+						GFP_KERNEL);
- 			if (!req->map_page)
- 				goto out;
- 		}
-diff --git a/drivers/iommu/omap-iommu.c b/drivers/iommu/omap-iommu.c
-index c33b7b104e72..4aad0dc2f25e 100644
---- a/drivers/iommu/omap-iommu.c
-+++ b/drivers/iommu/omap-iommu.c
-@@ -1455,7 +1455,8 @@ static int omap_iommu_add_device(struct device *dev)
- 	if (num_iommus < 0)
- 		return 0;
- 
--	arch_data = kzalloc((num_iommus + 1) * sizeof(*arch_data), GFP_KERNEL);
-+	arch_data = kzalloc(array_size((num_iommus + 1), sizeof(*arch_data)),
-+			    GFP_KERNEL);
- 	if (!arch_data)
- 		return -ENOMEM;
- 
-diff --git a/drivers/irqchip/irq-alpine-msi.c b/drivers/irqchip/irq-alpine-msi.c
-index 63d980995d17..f24b3d547dca 100644
---- a/drivers/irqchip/irq-alpine-msi.c
-+++ b/drivers/irqchip/irq-alpine-msi.c
-@@ -268,7 +268,7 @@ static int alpine_msix_init(struct device_node *node,
- 		goto err_priv;
- 	}
- 
--	priv->msi_map = kzalloc(sizeof(*priv->msi_map) * BITS_TO_LONGS(priv->num_spis),
-+	priv->msi_map = kzalloc(array_size(sizeof(*priv->msi_map), BITS_TO_LONGS(priv->num_spis)),
- 				GFP_KERNEL);
- 	if (!priv->msi_map) {
- 		ret = -ENOMEM;
-diff --git a/drivers/irqchip/irq-gic-v2m.c b/drivers/irqchip/irq-gic-v2m.c
-index 1ff38aff9f29..6fb94d7bf75c 100644
---- a/drivers/irqchip/irq-gic-v2m.c
-+++ b/drivers/irqchip/irq-gic-v2m.c
-@@ -361,7 +361,7 @@ static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
- 		break;
- 	}
- 
--	v2m->bm = kzalloc(sizeof(long) * BITS_TO_LONGS(v2m->nr_spis),
-+	v2m->bm = kzalloc(array_size(sizeof(long), BITS_TO_LONGS(v2m->nr_spis)),
- 			  GFP_KERNEL);
- 	if (!v2m->bm) {
- 		ret = -ENOMEM;
-diff --git a/drivers/irqchip/irq-gic-v3-its.c b/drivers/irqchip/irq-gic-v3-its.c
-index d1a9972c4f58..4d526504e56a 100644
---- a/drivers/irqchip/irq-gic-v3-its.c
-+++ b/drivers/irqchip/irq-gic-v3-its.c
-@@ -1239,7 +1239,7 @@ static int its_vlpi_map(struct irq_data *d, struct its_cmd_info *info)
- 	if (!its_dev->event_map.vm) {
- 		struct its_vlpi_map *maps;
- 
--		maps = kzalloc(sizeof(*maps) * its_dev->event_map.nr_lpis,
-+		maps = kzalloc(array_size(sizeof(*maps), its_dev->event_map.nr_lpis),
- 			       GFP_KERNEL);
- 		if (!maps) {
- 			ret = -ENOMEM;
-@@ -1437,7 +1437,7 @@ static int __init its_lpi_init(u32 id_bits)
- {
- 	lpi_chunks = its_lpi_to_chunk(1UL << id_bits);
- 
--	lpi_bitmap = kzalloc(BITS_TO_LONGS(lpi_chunks) * sizeof(long),
-+	lpi_bitmap = kzalloc(array_size(BITS_TO_LONGS(lpi_chunks), sizeof(long)),
- 			     GFP_KERNEL);
- 	if (!lpi_bitmap) {
- 		lpi_chunks = 0;
-@@ -1471,7 +1471,7 @@ static unsigned long *its_lpi_alloc_chunks(int nr_irqs, int *base, int *nr_ids)
- 	if (!nr_chunks)
- 		goto out;
- 
--	bitmap = kzalloc(BITS_TO_LONGS(nr_chunks * IRQS_PER_CHUNK) * sizeof (long),
-+	bitmap = kzalloc(array_size(BITS_TO_LONGS(nr_chunks * IRQS_PER_CHUNK), sizeof(long)),
- 			 GFP_ATOMIC);
- 	if (!bitmap)
- 		goto out;
-diff --git a/drivers/irqchip/irq-partition-percpu.c b/drivers/irqchip/irq-partition-percpu.c
-index ccd72c2cbc23..b6fd0027b300 100644
---- a/drivers/irqchip/irq-partition-percpu.c
-+++ b/drivers/irqchip/irq-partition-percpu.c
-@@ -229,7 +229,7 @@ struct partition_desc *partition_create_desc(struct fwnode_handle *fwnode,
- 		goto out;
- 	desc->domain = d;
- 
--	desc->bitmap = kzalloc(sizeof(long) * BITS_TO_LONGS(nr_parts),
-+	desc->bitmap = kzalloc(array_size(sizeof(long), BITS_TO_LONGS(nr_parts)),
- 			       GFP_KERNEL);
- 	if (WARN_ON(!desc->bitmap))
- 		goto out;
-diff --git a/drivers/isdn/capi/capidrv.c b/drivers/isdn/capi/capidrv.c
-index 49fef08858c5..0d137d918e21 100644
---- a/drivers/isdn/capi/capidrv.c
-+++ b/drivers/isdn/capi/capidrv.c
-@@ -2268,7 +2268,8 @@ static int capidrv_addcontr(u16 contr, struct capi_profile *profp)
- 	strcpy(card->name, id);
- 	card->contrnr = contr;
- 	card->nbchan = profp->nbchannel;
--	card->bchans = kmalloc(sizeof(capidrv_bchan) * card->nbchan, GFP_ATOMIC);
-+	card->bchans = kmalloc(array_size(sizeof(capidrv_bchan), card->nbchan),
-+			       GFP_ATOMIC);
- 	if (!card->bchans) {
- 		printk(KERN_WARNING
- 		       "capidrv: (%s) Could not allocate bchan-structs.\n", id);
-diff --git a/drivers/isdn/gigaset/capi.c b/drivers/isdn/gigaset/capi.c
-index ccec7778cad2..1b954e0072d4 100644
---- a/drivers/isdn/gigaset/capi.c
-+++ b/drivers/isdn/gigaset/capi.c
-@@ -252,7 +252,7 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
- 		return;
- 	if (l > 64)
- 		l = 64; /* arbitrary limit */
--	dbgline = kmalloc(3 * l, GFP_ATOMIC);
-+	dbgline = kmalloc(array_size(3, l), GFP_ATOMIC);
- 	if (!dbgline)
- 		return;
- 	for (i = 0; i < l; i++) {
-@@ -272,7 +272,7 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
- 			return;
- 		if (l > 64)
- 			l = 64; /* arbitrary limit */
--		dbgline = kmalloc(3 * l, GFP_ATOMIC);
-+		dbgline = kmalloc(array_size(3, l), GFP_ATOMIC);
- 		if (!dbgline)
- 			return;
- 		data += CAPIMSG_LEN(data);
-@@ -1370,7 +1370,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
- 	cmsg->adr.adrPLCI |= (bcs->channel + 1) << 8;
- 
- 	/* build command table */
--	commands = kzalloc(AT_NUM * (sizeof *commands), GFP_KERNEL);
-+	commands = kzalloc(array_size(AT_NUM, (sizeof *commands)), GFP_KERNEL);
- 	if (!commands)
- 		goto oom;
- 
-diff --git a/drivers/isdn/gigaset/i4l.c b/drivers/isdn/gigaset/i4l.c
-index 2d75329007f1..b7345c68c4a6 100644
---- a/drivers/isdn/gigaset/i4l.c
-+++ b/drivers/isdn/gigaset/i4l.c
-@@ -243,7 +243,8 @@ static int command_from_LL(isdn_ctrl *cntrl)
- 		dev_kfree_skb(bcs->rx_skb);
- 		gigaset_new_rx_skb(bcs);
- 
--		commands = kzalloc(AT_NUM * (sizeof *commands), GFP_ATOMIC);
-+		commands = kzalloc(array_size(AT_NUM, (sizeof *commands)),
-+				   GFP_ATOMIC);
- 		if (!commands) {
- 			gigaset_free_channel(bcs);
- 			dev_err(cs->dev, "ISDN_CMD_DIAL: out of memory\n");
-diff --git a/drivers/isdn/hisax/fsm.c b/drivers/isdn/hisax/fsm.c
-index 3e020ec0f65e..5ed317482f3f 100644
---- a/drivers/isdn/hisax/fsm.c
-+++ b/drivers/isdn/hisax/fsm.c
-@@ -27,7 +27,8 @@ FsmNew(struct Fsm *fsm, struct FsmNode *fnlist, int fncount)
- 	int i;
- 
- 	fsm->jumpmatrix =
--		kzalloc(sizeof(FSMFNPTR) * fsm->state_count * fsm->event_count, GFP_KERNEL);
-+		kzalloc(array3_size(sizeof(FSMFNPTR), fsm->state_count, fsm->event_count),
-+			GFP_KERNEL);
- 	if (!fsm->jumpmatrix)
- 		return -ENOMEM;
- 
-diff --git a/drivers/isdn/i4l/isdn_common.c b/drivers/isdn/i4l/isdn_common.c
-index b628da5e2d2e..fd136ec9028c 100644
---- a/drivers/isdn/i4l/isdn_common.c
-+++ b/drivers/isdn/i4l/isdn_common.c
-@@ -2103,7 +2103,8 @@ isdn_add_channels(isdn_driver_t *d, int drvidx, int n, int adding)
- 
- 	if ((adding) && (d->rcv_waitq))
- 		kfree(d->rcv_waitq);
--	d->rcv_waitq = kmalloc(sizeof(wait_queue_head_t) * 2 * m, GFP_ATOMIC);
-+	d->rcv_waitq = kmalloc(array3_size(sizeof(wait_queue_head_t), 2, m),
-+			       GFP_ATOMIC);
- 	if (!d->rcv_waitq) {
- 		printk(KERN_WARNING "register_isdn: Could not alloc rcv_waitq\n");
- 		if (!adding) {
-diff --git a/drivers/isdn/mISDN/fsm.c b/drivers/isdn/mISDN/fsm.c
-index cabcb906e0b5..0cf9ec54eca4 100644
---- a/drivers/isdn/mISDN/fsm.c
-+++ b/drivers/isdn/mISDN/fsm.c
-@@ -32,8 +32,8 @@ mISDN_FsmNew(struct Fsm *fsm,
- {
- 	int i;
- 
--	fsm->jumpmatrix = kzalloc(sizeof(FSMFNPTR) * fsm->state_count *
--				  fsm->event_count, GFP_KERNEL);
-+	fsm->jumpmatrix = kzalloc(array3_size(sizeof(FSMFNPTR), fsm->state_count, fsm->event_count),
-+				  GFP_KERNEL);
- 	if (fsm->jumpmatrix == NULL)
- 		return -ENOMEM;
- 
-diff --git a/drivers/lightnvm/pblk-init.c b/drivers/lightnvm/pblk-init.c
-index 91a5bc2556a3..ae92984028d8 100644
---- a/drivers/lightnvm/pblk-init.c
-+++ b/drivers/lightnvm/pblk-init.c
-@@ -366,8 +366,8 @@ static int pblk_core_init(struct pblk *pblk)
- 		return -EINVAL;
- 	}
- 
--	pblk->pad_dist = kzalloc((pblk->min_write_pgs - 1) * sizeof(atomic64_t),
--								GFP_KERNEL);
-+	pblk->pad_dist = kzalloc(array_size((pblk->min_write_pgs - 1), sizeof(atomic64_t)),
++	dev->pdr_uinfo = kzalloc(array_size(PPC4XX_NUM_PD, sizeof(struct pd_uinfo)),
 +				 GFP_KERNEL);
- 	if (!pblk->pad_dist)
- 		return -ENOMEM;
- 
-@@ -814,8 +814,8 @@ static int pblk_alloc_line_meta(struct pblk *pblk, struct pblk_line *line)
- 		return -ENOMEM;
+ 	if (!dev->pdr_uinfo) {
+ 		dma_free_coherent(dev->core_dev->device,
+ 				  sizeof(struct ce_pd) * PPC4XX_NUM_PD,
+diff --git a/drivers/crypto/chelsio/chtls/chtls_io.c b/drivers/crypto/chelsio/chtls/chtls_io.c
+index 5a75be43950f..b057bc7496ab 100644
+--- a/drivers/crypto/chelsio/chtls/chtls_io.c
++++ b/drivers/crypto/chelsio/chtls/chtls_io.c
+@@ -240,7 +240,8 @@ static int tls_copy_ivs(struct sock *sk, struct sk_buff *skb)
  	}
  
--	line->chks = kmalloc(lm->blk_per_line * sizeof(struct nvm_chk_meta),
--								GFP_KERNEL);
-+	line->chks = kmalloc(array_size(lm->blk_per_line, sizeof(struct nvm_chk_meta)),
-+			     GFP_KERNEL);
- 	if (!line->chks) {
- 		kfree(line->erase_bitmap);
- 		kfree(line->blk_bitmap);
-diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
-index d90d9e59ca00..4bc6adc990bd 100644
---- a/drivers/md/bcache/super.c
-+++ b/drivers/md/bcache/super.c
-@@ -1659,7 +1659,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
- 	iter_size = (sb->bucket_size / sb->block_size + 1) *
- 		sizeof(struct btree_iter_set);
- 
--	if (!(c->devices = kzalloc(c->nr_uuids * sizeof(void *), GFP_KERNEL)) ||
-+	if (!(c->devices = kzalloc(array_size(c->nr_uuids, sizeof(void *)), GFP_KERNEL)) ||
- 	    !(c->bio_meta = mempool_create_kmalloc_pool(2,
- 				sizeof(struct bbio) + sizeof(struct bio_vec) *
- 				bucket_pages(c))) ||
-@@ -1987,8 +1987,7 @@ static int cache_alloc(struct cache *ca)
- 	    !init_heap(&ca->heap,	free << 3, GFP_KERNEL) ||
- 	    !(ca->buckets	= vzalloc(sizeof(struct bucket) *
- 					  ca->sb.nbuckets)) ||
--	    !(ca->prio_buckets	= kzalloc(sizeof(uint64_t) * prio_buckets(ca) *
--					  2, GFP_KERNEL)) ||
-+	    !(ca->prio_buckets	= kzalloc(array3_size(sizeof(uint64_t), prio_buckets(ca), 2), GFP_KERNEL)) ||
- 	    !(ca->disk_buckets	= alloc_bucket_pages(GFP_KERNEL, ca)))
+ 	/* generate the  IVs */
+-	ivs = kmalloc(number_of_ivs * CIPHER_BLOCK_SIZE, GFP_ATOMIC);
++	ivs = kmalloc(array_size(CIPHER_BLOCK_SIZE, number_of_ivs),
++		      GFP_ATOMIC);
+ 	if (!ivs)
  		return -ENOMEM;
- 
-diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index 44ff473dab3e..cb24b2cd8169 100644
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -1878,8 +1878,8 @@ static int crypt_alloc_tfms_skcipher(struct crypt_config *cc, char *ciphermode)
- 	unsigned i;
- 	int err;
- 
--	cc->cipher_tfm.tfms = kzalloc(cc->tfms_count *
--				      sizeof(struct crypto_skcipher *), GFP_KERNEL);
-+	cc->cipher_tfm.tfms = kzalloc(array_size(cc->tfms_count, sizeof(struct crypto_skcipher *)),
-+				      GFP_KERNEL);
- 	if (!cc->cipher_tfm.tfms)
- 		return -ENOMEM;
- 
-diff --git a/drivers/md/dm-integrity.c b/drivers/md/dm-integrity.c
-index 9c354be188d4..71ba1b1f8844 100644
---- a/drivers/md/dm-integrity.c
-+++ b/drivers/md/dm-integrity.c
-@@ -2448,7 +2448,8 @@ static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_int
- 	struct scatterlist **sl;
- 	unsigned i;
- 
--	sl = kvmalloc(ic->journal_sections * sizeof(struct scatterlist *), GFP_KERNEL | __GFP_ZERO);
-+	sl = kvmalloc(array_size(ic->journal_sections, sizeof(struct scatterlist *)),
-+		      GFP_KERNEL | __GFP_ZERO);
- 	if (!sl)
- 		return NULL;
- 
-@@ -2644,7 +2645,8 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
- 				goto bad;
- 			}
- 
--			sg = kvmalloc((ic->journal_pages + 1) * sizeof(struct scatterlist), GFP_KERNEL);
-+			sg = kvmalloc(array_size((ic->journal_pages + 1), sizeof(struct scatterlist)),
-+				      GFP_KERNEL);
- 			if (!sg) {
- 				*error = "Unable to allocate sg list";
- 				r = -ENOMEM;
-@@ -2710,7 +2712,8 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
- 				r = -ENOMEM;
- 				goto bad;
- 			}
--			ic->sk_requests = kvmalloc(ic->journal_sections * sizeof(struct skcipher_request *), GFP_KERNEL | __GFP_ZERO);
-+			ic->sk_requests = kvmalloc(array_size(ic->journal_sections, sizeof(struct skcipher_request *)),
-+						   GFP_KERNEL | __GFP_ZERO);
- 			if (!ic->sk_requests) {
- 				*error = "Unable to allocate sk requests";
- 				r = -ENOMEM;
-@@ -2744,7 +2747,8 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
- 					r = -ENOMEM;
- 					goto bad;
- 				}
--				section_req->iv = kmalloc(ivsize * 2, GFP_KERNEL);
-+				section_req->iv = kmalloc(array_size(ivsize, 2),
-+							  GFP_KERNEL);
- 				if (!section_req->iv) {
- 					skcipher_request_free(section_req);
- 					*error = "Unable to allocate iv";
-diff --git a/drivers/md/dm-stats.c b/drivers/md/dm-stats.c
-index 56059fb56e2d..7e596d510539 100644
---- a/drivers/md/dm-stats.c
-+++ b/drivers/md/dm-stats.c
-@@ -915,7 +915,8 @@ static int parse_histogram(const char *h, unsigned *n_histogram_entries,
- 		if (*q == ',')
- 			(*n_histogram_entries)++;
- 
--	*histogram_boundaries = kmalloc(*n_histogram_entries * sizeof(unsigned long long), GFP_KERNEL);
-+	*histogram_boundaries = kmalloc(array_size(*n_histogram_entries, sizeof(unsigned long long)),
-+					GFP_KERNEL);
- 	if (!*histogram_boundaries)
- 		return -ENOMEM;
- 
-diff --git a/drivers/md/dm-verity-target.c b/drivers/md/dm-verity-target.c
-index fc893f636a98..a3c93bf054c6 100644
---- a/drivers/md/dm-verity-target.c
-+++ b/drivers/md/dm-verity-target.c
-@@ -797,8 +797,8 @@ static int verity_alloc_most_once(struct dm_verity *v)
- 		return -E2BIG;
- 	}
- 
--	v->validated_blocks = kvzalloc(BITS_TO_LONGS(v->data_blocks) *
--				       sizeof(unsigned long), GFP_KERNEL);
-+	v->validated_blocks = kvzalloc(array_size(BITS_TO_LONGS(v->data_blocks), sizeof(unsigned long)),
-+				       GFP_KERNEL);
- 	if (!v->validated_blocks) {
- 		ti->error = "failed to allocate bitset for check_at_most_once";
- 		return -ENOMEM;
-diff --git a/drivers/md/md-cluster.c b/drivers/md/md-cluster.c
-index 79bfbc840385..c65cc9986656 100644
---- a/drivers/md/md-cluster.c
-+++ b/drivers/md/md-cluster.c
-@@ -1380,9 +1380,8 @@ static int lock_all_bitmaps(struct mddev *mddev)
- 	char str[64];
- 	struct md_cluster_info *cinfo = mddev->cluster_info;
- 
--	cinfo->other_bitmap_lockres = kzalloc((mddev->bitmap_info.nodes - 1) *
--					     sizeof(struct dlm_lock_resource *),
--					     GFP_KERNEL);
-+	cinfo->other_bitmap_lockres = kzalloc(array_size((mddev->bitmap_info.nodes - 1), sizeof(struct dlm_lock_resource *)),
-+					      GFP_KERNEL);
- 	if (!cinfo->other_bitmap_lockres) {
- 		pr_err("md: can't alloc mem for other bitmap locks\n");
- 		return 0;
-diff --git a/drivers/md/md-multipath.c b/drivers/md/md-multipath.c
-index 0a7e99d62c69..7836a23f92d8 100644
---- a/drivers/md/md-multipath.c
-+++ b/drivers/md/md-multipath.c
-@@ -398,7 +398,7 @@ static int multipath_run (struct mddev *mddev)
- 	if (!conf)
- 		goto out;
- 
--	conf->multipaths = kzalloc(sizeof(struct multipath_info)*mddev->raid_disks,
-+	conf->multipaths = kzalloc(array_size(sizeof(struct multipath_info), mddev->raid_disks),
- 				   GFP_KERNEL);
- 	if (!conf->multipaths)
- 		goto out_free_conf;
-diff --git a/drivers/md/raid0.c b/drivers/md/raid0.c
-index 584c10347267..a99f1e35a0a6 100644
---- a/drivers/md/raid0.c
-+++ b/drivers/md/raid0.c
-@@ -159,12 +159,11 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
- 	}
+ 	get_random_bytes(ivs, number_of_ivs * CIPHER_BLOCK_SIZE);
+diff --git a/drivers/crypto/n2_core.c b/drivers/crypto/n2_core.c
+index 80e9c842aad4..3dc59d88bd80 100644
+--- a/drivers/crypto/n2_core.c
++++ b/drivers/crypto/n2_core.c
+@@ -1919,12 +1919,12 @@ static int grab_global_resources(void)
+ 		goto out_hvapi_release;
  
  	err = -ENOMEM;
--	conf->strip_zone = kzalloc(sizeof(struct strip_zone)*
--				conf->nr_strip_zones, GFP_KERNEL);
-+	conf->strip_zone = kzalloc(array_size(sizeof(struct strip_zone), conf->nr_strip_zones),
-+				   GFP_KERNEL);
- 	if (!conf->strip_zone)
- 		goto abort;
--	conf->devlist = kzalloc(sizeof(struct md_rdev*)*
--				conf->nr_strip_zones*mddev->raid_disks,
-+	conf->devlist = kzalloc(array3_size(sizeof(struct md_rdev *), conf->nr_strip_zones, mddev->raid_disks),
- 				GFP_KERNEL);
- 	if (!conf->devlist)
- 		goto abort;
-diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-index e9e3308cb0a7..13f74e2c9ef8 100644
---- a/drivers/md/raid1.c
-+++ b/drivers/md/raid1.c
-@@ -126,7 +126,7 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
- 	if (!r1_bio)
- 		return NULL;
- 
--	rps = kmalloc(sizeof(struct resync_pages) * pi->raid_disks,
-+	rps = kmalloc(array_size(sizeof(struct resync_pages), pi->raid_disks),
- 		      gfp_flags);
- 	if (!rps)
- 		goto out_free_r1bio;
-@@ -2939,9 +2939,8 @@ static struct r1conf *setup_conf(struct mddev *mddev)
- 	if (!conf->barrier)
- 		goto abort;
- 
--	conf->mirrors = kzalloc(sizeof(struct raid1_info)
--				* mddev->raid_disks * 2,
--				 GFP_KERNEL);
-+	conf->mirrors = kzalloc(array3_size(sizeof(struct raid1_info), mddev->raid_disks, 2),
-+				GFP_KERNEL);
- 	if (!conf->mirrors)
- 		goto abort;
- 
-@@ -3243,7 +3242,7 @@ static int raid1_reshape(struct mddev *mddev)
- 		kfree(newpoolinfo);
- 		return -ENOMEM;
- 	}
--	newmirrors = kzalloc(sizeof(struct raid1_info) * raid_disks * 2,
-+	newmirrors = kzalloc(array3_size(sizeof(struct raid1_info), raid_disks, 2),
+-	cpu_to_cwq = kzalloc(sizeof(struct spu_queue *) * NR_CPUS,
++	cpu_to_cwq = kzalloc(array_size(NR_CPUS, sizeof(struct spu_queue *)),
  			     GFP_KERNEL);
- 	if (!newmirrors) {
- 		kfree(newpoolinfo);
-diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
-index 2a7bd1000cb5..7bd1077d5986 100644
---- a/drivers/md/raid10.c
-+++ b/drivers/md/raid10.c
-@@ -3688,8 +3688,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
- 		goto out;
+ 	if (!cpu_to_cwq)
+ 		goto out_queue_cache_destroy;
  
- 	/* FIXME calc properly */
--	conf->mirrors = kzalloc(sizeof(struct raid10_info)*(mddev->raid_disks +
--							    max(0,-mddev->delta_disks)),
-+	conf->mirrors = kzalloc(array_size(sizeof(struct raid10_info), (mddev->raid_disks + max(0, -mddev->delta_disks))),
- 				GFP_KERNEL);
- 	if (!conf->mirrors)
- 		goto out;
-@@ -4130,11 +4129,8 @@ static int raid10_check_reshape(struct mddev *mddev)
- 	conf->mirrors_new = NULL;
- 	if (mddev->delta_disks > 0) {
- 		/* allocate new 'mirrors' list */
--		conf->mirrors_new = kzalloc(
--			sizeof(struct raid10_info)
--			*(mddev->raid_disks +
--			  mddev->delta_disks),
--			GFP_KERNEL);
-+		conf->mirrors_new = kzalloc(array_size(sizeof(struct raid10_info), (mddev->raid_disks + mddev->delta_disks)),
-+					    GFP_KERNEL);
- 		if (!conf->mirrors_new)
- 			return -ENOMEM;
- 	}
-diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
-index c08d83dcf1e2..7d0c5c6bcce5 100644
---- a/drivers/md/raid5.c
-+++ b/drivers/md/raid5.c
-@@ -6659,9 +6659,9 @@ static int alloc_thread_groups(struct r5conf *conf, int cnt,
- 	}
- 	*group_cnt = num_possible_nodes();
- 	size = sizeof(struct r5worker) * cnt;
--	workers = kzalloc(size * *group_cnt, GFP_NOIO);
--	*worker_groups = kzalloc(sizeof(struct r5worker_group) *
--				*group_cnt, GFP_NOIO);
-+	workers = kzalloc(array_size(size, *group_cnt), GFP_NOIO);
-+	*worker_groups = kzalloc(array_size(sizeof(struct r5worker_group), *group_cnt),
-+				 GFP_NOIO);
- 	if (!*worker_groups || !workers) {
- 		kfree(workers);
- 		kfree(*worker_groups);
-diff --git a/drivers/media/pci/bt8xx/bttv-risc.c b/drivers/media/pci/bt8xx/bttv-risc.c
-index 3859dde98be2..3185c4ae2269 100644
---- a/drivers/media/pci/bt8xx/bttv-risc.c
-+++ b/drivers/media/pci/bt8xx/bttv-risc.c
-@@ -255,7 +255,7 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
- 	u32 addr;
+-	cpu_to_mau = kzalloc(sizeof(struct spu_queue *) * NR_CPUS,
++	cpu_to_mau = kzalloc(array_size(NR_CPUS, sizeof(struct spu_queue *)),
+ 			     GFP_KERNEL);
+ 	if (!cpu_to_mau)
+ 		goto out_free_cwq_table;
+diff --git a/drivers/dma/bestcomm/bestcomm.c b/drivers/dma/bestcomm/bestcomm.c
+index 7a67b8345092..cfb395e3f3c9 100644
+--- a/drivers/dma/bestcomm/bestcomm.c
++++ b/drivers/dma/bestcomm/bestcomm.c
+@@ -87,7 +87,8 @@ bcom_task_alloc(int bd_count, int bd_size, int priv_size)
  
- 	/* skip list for window clipping */
--	if (NULL == (skips = kmalloc(sizeof(*skips) * ov->nclips,GFP_KERNEL)))
-+	if (NULL == (skips = kmalloc(array_size(sizeof(*skips), ov->nclips), GFP_KERNEL)))
+ 	/* Init the BDs, if needed */
+ 	if (bd_count) {
+-		tsk->cookie = kmalloc(sizeof(void*) * bd_count, GFP_KERNEL);
++		tsk->cookie = kmalloc(array_size(bd_count, sizeof(void *)),
++				      GFP_KERNEL);
+ 		if (!tsk->cookie)
+ 			goto error;
+ 
+diff --git a/drivers/dma/ioat/init.c b/drivers/dma/ioat/init.c
+index 7792a9186f9c..f24df47308ad 100644
+--- a/drivers/dma/ioat/init.c
++++ b/drivers/dma/ioat/init.c
+@@ -322,10 +322,10 @@ static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
+ 	unsigned long tmo;
+ 	unsigned long flags;
+ 
+-	src = kzalloc(sizeof(u8) * IOAT_TEST_SIZE, GFP_KERNEL);
++	src = kzalloc(array_size(IOAT_TEST_SIZE, sizeof(u8)), GFP_KERNEL);
+ 	if (!src)
  		return -ENOMEM;
- 
- 	/* estimate risc mem: worst case is (1.5*clip+1) * lines instructions
-diff --git a/drivers/media/pci/ivtv/ivtv-yuv.c b/drivers/media/pci/ivtv/ivtv-yuv.c
-index 44936d6d7c39..3a03251068b4 100644
---- a/drivers/media/pci/ivtv/ivtv-yuv.c
-+++ b/drivers/media/pci/ivtv/ivtv-yuv.c
-@@ -935,7 +935,8 @@ static void ivtv_yuv_init(struct ivtv *itv)
- 	}
- 
- 	/* We need a buffer for blanking when Y plane is offset - non-fatal if we can't get one */
--	yi->blanking_ptr = kzalloc(720 * 16, GFP_KERNEL|__GFP_NOWARN);
-+	yi->blanking_ptr = kzalloc(array_size(720, 16),
-+				   GFP_KERNEL | __GFP_NOWARN);
- 	if (yi->blanking_ptr) {
- 		yi->blanking_dmaptr = pci_map_single(itv->pdev, yi->blanking_ptr, 720*16, PCI_DMA_TODEVICE);
- 	} else {
-diff --git a/drivers/media/pci/saa7164/saa7164-fw.c b/drivers/media/pci/saa7164/saa7164-fw.c
-index ef4906406ebf..5d6b62cd39bd 100644
---- a/drivers/media/pci/saa7164/saa7164-fw.c
-+++ b/drivers/media/pci/saa7164/saa7164-fw.c
-@@ -89,7 +89,7 @@ static int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
- 		goto out;
- 	}
- 
--	srcbuf = kzalloc(4 * 1048576, GFP_KERNEL);
-+	srcbuf = kzalloc(array_size(4, 1048576), GFP_KERNEL);
- 	if (NULL == srcbuf) {
- 		ret = -ENOMEM;
- 		goto out;
-diff --git a/drivers/media/pci/zoran/zoran_card.c b/drivers/media/pci/zoran/zoran_card.c
-index a6b9ebd20263..4efe363f96cf 100644
---- a/drivers/media/pci/zoran/zoran_card.c
-+++ b/drivers/media/pci/zoran/zoran_card.c
-@@ -1028,7 +1028,7 @@ static int zr36057_init (struct zoran *zr)
- 
- 	/* allocate memory *before* doing anything to the hardware
- 	 * in case allocation fails */
--	zr->stat_com = kzalloc(BUZ_NUM_STAT_COM * 4, GFP_KERNEL);
-+	zr->stat_com = kzalloc(array_size(BUZ_NUM_STAT_COM, 4), GFP_KERNEL);
- 	zr->video_dev = video_device_alloc();
- 	if (!zr->stat_com || !zr->video_dev) {
- 		dprintk(1,
-diff --git a/drivers/media/pci/zoran/zoran_driver.c b/drivers/media/pci/zoran/zoran_driver.c
-index 14f9c0e26a1c..1296dafb7c4d 100644
---- a/drivers/media/pci/zoran/zoran_driver.c
-+++ b/drivers/media/pci/zoran/zoran_driver.c
-@@ -941,7 +941,7 @@ static int zoran_open(struct file *file)
- 	/* used to be BUZ_MAX_WIDTH/HEIGHT, but that gives overflows
- 	 * on norm-change! */
- 	fh->overlay_mask =
--	    kmalloc(((768 + 31) / 32) * 576 * 4, GFP_KERNEL);
-+	    kmalloc(array3_size(((768 + 31) / 32), 576, 4), GFP_KERNEL);
- 	if (!fh->overlay_mask) {
- 		dprintk(1,
- 			KERN_ERR
-diff --git a/drivers/media/platform/vivid/vivid-core.c b/drivers/media/platform/vivid/vivid-core.c
-index 82ec216f2ad8..9042f17de0bc 100644
---- a/drivers/media/platform/vivid/vivid-core.c
-+++ b/drivers/media/platform/vivid/vivid-core.c
-@@ -859,8 +859,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
- 	/* create a string array containing the names of all the preset timings */
- 	while (v4l2_dv_timings_presets[dev->query_dv_timings_size].bt.width)
- 		dev->query_dv_timings_size++;
--	dev->query_dv_timings_qmenu = kmalloc(dev->query_dv_timings_size *
--					   (sizeof(void *) + 32), GFP_KERNEL);
-+	dev->query_dv_timings_qmenu = kmalloc(array_size(dev->query_dv_timings_size, (sizeof(void *) + 32)),
-+					      GFP_KERNEL);
- 	if (dev->query_dv_timings_qmenu == NULL)
- 		goto free_dev;
- 	for (i = 0; i < dev->query_dv_timings_size; i++) {
-diff --git a/drivers/media/spi/cxd2880-spi.c b/drivers/media/spi/cxd2880-spi.c
-index 4df3bd312f48..a86889992dc7 100644
---- a/drivers/media/spi/cxd2880-spi.c
-+++ b/drivers/media/spi/cxd2880-spi.c
-@@ -398,7 +398,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
- 
- 	if (dvb_spi->feed_count == 0) {
- 		dvb_spi->ts_buf =
--			kmalloc(MAX_TRANS_PKT * 188,
-+			kmalloc(array_size(MAX_TRANS_PKT, 188),
- 				GFP_KERNEL | GFP_DMA);
- 		if (!dvb_spi->ts_buf) {
- 			pr_err("ts buffer allocate failed\n");
-diff --git a/drivers/media/usb/cx231xx/cx231xx-audio.c b/drivers/media/usb/cx231xx/cx231xx-audio.c
-index d96236d786d1..651f5381f3b3 100644
---- a/drivers/media/usb/cx231xx/cx231xx-audio.c
-+++ b/drivers/media/usb/cx231xx/cx231xx-audio.c
-@@ -710,7 +710,8 @@ static int cx231xx_audio_init(struct cx231xx *dev)
- 	dev_info(dev->dev,
- 		"audio EndPoint Addr 0x%x, Alternate settings: %i\n",
- 		adev->end_point_addr, adev->num_alt);
--	adev->alt_max_pkt_size = kmalloc(32 * adev->num_alt, GFP_KERNEL);
-+	adev->alt_max_pkt_size = kmalloc(array_size(32, adev->num_alt),
-+					 GFP_KERNEL);
- 	if (!adev->alt_max_pkt_size) {
- 		err = -ENOMEM;
- 		goto err_free_card;
-diff --git a/drivers/media/usb/go7007/go7007-fw.c b/drivers/media/usb/go7007/go7007-fw.c
-index 60bf5f0644d1..8ff27ee28703 100644
---- a/drivers/media/usb/go7007/go7007-fw.c
-+++ b/drivers/media/usb/go7007/go7007-fw.c
-@@ -1576,7 +1576,7 @@ int go7007_construct_fw_image(struct go7007 *go, u8 **fw, int *fwlen)
- 			GO7007_FW_NAME);
- 		return -1;
- 	}
--	code = kzalloc(codespace * 2, GFP_KERNEL);
-+	code = kzalloc(array_size(codespace, 2), GFP_KERNEL);
- 	if (code == NULL)
- 		goto fw_failed;
- 
-diff --git a/drivers/media/usb/gspca/t613.c b/drivers/media/usb/gspca/t613.c
-index 0ae557cd15ef..36b87e714de4 100644
---- a/drivers/media/usb/gspca/t613.c
-+++ b/drivers/media/usb/gspca/t613.c
-@@ -363,7 +363,7 @@ static void reg_w_ixbuf(struct gspca_dev *gspca_dev,
- 	if (len * 2 <= USB_BUF_SZ) {
- 		p = tmpbuf = gspca_dev->usb_buf;
- 	} else {
--		p = tmpbuf = kmalloc(len * 2, GFP_KERNEL);
-+		p = tmpbuf = kmalloc(array_size(len, 2), GFP_KERNEL);
- 		if (!tmpbuf) {
- 			pr_err("Out of memory\n");
- 			return;
-diff --git a/drivers/media/usb/pvrusb2/pvrusb2-hdw.c b/drivers/media/usb/pvrusb2/pvrusb2-hdw.c
-index e0353161ccd6..72dde82f3ade 100644
---- a/drivers/media/usb/pvrusb2/pvrusb2-hdw.c
-+++ b/drivers/media/usb/pvrusb2/pvrusb2-hdw.c
-@@ -2413,7 +2413,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
- 
- 	hdw->control_cnt = CTRLDEF_COUNT;
- 	hdw->control_cnt += MPEGDEF_COUNT;
--	hdw->controls = kzalloc(sizeof(struct pvr2_ctrl) * hdw->control_cnt,
-+	hdw->controls = kzalloc(array_size(sizeof(struct pvr2_ctrl), hdw->control_cnt),
- 				GFP_KERNEL);
- 	if (!hdw->controls) goto fail;
- 	hdw->hdw_desc = hdw_desc;
-diff --git a/drivers/media/usb/stk1160/stk1160-core.c b/drivers/media/usb/stk1160/stk1160-core.c
-index bea8bbbb84fb..93a0daaaf03f 100644
---- a/drivers/media/usb/stk1160/stk1160-core.c
-+++ b/drivers/media/usb/stk1160/stk1160-core.c
-@@ -288,8 +288,8 @@ static int stk1160_probe(struct usb_interface *interface,
- 		return -ENODEV;
- 
- 	/* Alloc an array for all possible max_pkt_size */
--	alt_max_pkt_size = kmalloc(sizeof(alt_max_pkt_size[0]) *
--			interface->num_altsetting, GFP_KERNEL);
-+	alt_max_pkt_size = kmalloc(array_size(sizeof(alt_max_pkt_size[0]), interface->num_altsetting),
-+				   GFP_KERNEL);
- 	if (alt_max_pkt_size == NULL)
+-	dest = kzalloc(sizeof(u8) * IOAT_TEST_SIZE, GFP_KERNEL);
++	dest = kzalloc(array_size(IOAT_TEST_SIZE, sizeof(u8)), GFP_KERNEL);
+ 	if (!dest) {
+ 		kfree(src);
  		return -ENOMEM;
- 
-diff --git a/drivers/media/usb/usbvision/usbvision-video.c b/drivers/media/usb/usbvision/usbvision-video.c
-index 0f5954a1fea2..fd54491c1c0c 100644
---- a/drivers/media/usb/usbvision/usbvision-video.c
-+++ b/drivers/media/usb/usbvision/usbvision-video.c
-@@ -1492,7 +1492,8 @@ static int usbvision_probe(struct usb_interface *intf,
- 
- 	usbvision->num_alt = uif->num_altsetting;
- 	PDEBUG(DBG_PROBE, "Alternate settings: %i", usbvision->num_alt);
--	usbvision->alt_max_pkt_size = kmalloc(32 * usbvision->num_alt, GFP_KERNEL);
-+	usbvision->alt_max_pkt_size = kmalloc(array_size(32, usbvision->num_alt),
-+					      GFP_KERNEL);
- 	if (!usbvision->alt_max_pkt_size) {
- 		ret = -ENOMEM;
- 		goto err_pkt;
-diff --git a/drivers/media/usb/uvc/uvc_video.c b/drivers/media/usb/uvc/uvc_video.c
-index aa0082fe5833..22dbc3067e33 100644
---- a/drivers/media/usb/uvc/uvc_video.c
-+++ b/drivers/media/usb/uvc/uvc_video.c
-@@ -501,7 +501,7 @@ static int uvc_video_clock_init(struct uvc_streaming *stream)
- 	spin_lock_init(&clock->lock);
- 	clock->size = 32;
- 
--	clock->samples = kmalloc(clock->size * sizeof(*clock->samples),
-+	clock->samples = kmalloc(array_size(clock->size, sizeof(*clock->samples)),
- 				 GFP_KERNEL);
- 	if (clock->samples == NULL)
- 		return -ENOMEM;
-diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
-index add2edb23eac..d713c1d56fbd 100644
---- a/drivers/media/v4l2-core/videobuf-dma-sg.c
-+++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
-@@ -175,7 +175,8 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
- 	dma->offset = data & ~PAGE_MASK;
- 	dma->size = size;
- 	dma->nr_pages = last-first+1;
--	dma->pages = kmalloc(dma->nr_pages * sizeof(struct page *), GFP_KERNEL);
-+	dma->pages = kmalloc(array_size(dma->nr_pages, sizeof(struct page *)),
-+			     GFP_KERNEL);
- 	if (NULL == dma->pages)
- 		return -ENOMEM;
- 
-diff --git a/drivers/memstick/core/ms_block.c b/drivers/memstick/core/ms_block.c
-index a3db881094e1..be04ccd7cd84 100644
---- a/drivers/memstick/core/ms_block.c
-+++ b/drivers/memstick/core/ms_block.c
-@@ -1342,7 +1342,8 @@ static int msb_ftl_initialize(struct msb_data *msb)
- 	msb->used_blocks_bitmap = kzalloc(msb->block_count / 8, GFP_KERNEL);
- 	msb->erased_blocks_bitmap = kzalloc(msb->block_count / 8, GFP_KERNEL);
- 	msb->lba_to_pba_table =
--		kmalloc(msb->logical_block_count * sizeof(u16), GFP_KERNEL);
-+		kmalloc(array_size(msb->logical_block_count, sizeof(u16)),
-+			GFP_KERNEL);
- 
- 	if (!msb->used_blocks_bitmap || !msb->lba_to_pba_table ||
- 						!msb->erased_blocks_bitmap) {
-diff --git a/drivers/message/fusion/mptlan.c b/drivers/message/fusion/mptlan.c
-index 55dd71bbdc2a..a2b1766e52fb 100644
---- a/drivers/message/fusion/mptlan.c
-+++ b/drivers/message/fusion/mptlan.c
-@@ -394,7 +394,8 @@ mpt_lan_open(struct net_device *dev)
- 				"a moment.\n");
- 	}
- 
--	priv->mpt_txfidx = kmalloc(priv->tx_max_out * sizeof(int), GFP_KERNEL);
-+	priv->mpt_txfidx = kmalloc(array_size(priv->tx_max_out, sizeof(int)),
-+				   GFP_KERNEL);
- 	if (priv->mpt_txfidx == NULL)
- 		goto out;
- 	priv->mpt_txfidx_tail = -1;
-@@ -408,7 +409,7 @@ mpt_lan_open(struct net_device *dev)
- 
- 	dlprintk((KERN_INFO MYNAM "@lo: Finished initializing SendCtl\n"));
- 
--	priv->mpt_rxfidx = kmalloc(priv->max_buckets_out * sizeof(int),
-+	priv->mpt_rxfidx = kmalloc(array_size(priv->max_buckets_out, sizeof(int)),
- 				   GFP_KERNEL);
- 	if (priv->mpt_rxfidx == NULL)
- 		goto out_SendCtl;
-diff --git a/drivers/mfd/cros_ec_dev.c b/drivers/mfd/cros_ec_dev.c
-index eafd06f62a3a..8fdb6d491ecc 100644
---- a/drivers/mfd/cros_ec_dev.c
-+++ b/drivers/mfd/cros_ec_dev.c
-@@ -306,13 +306,13 @@ static void cros_ec_sensors_register(struct cros_ec_dev *ec)
- 	resp = (struct ec_response_motion_sense *)msg->data;
- 	sensor_num = resp->dump.sensor_count;
- 	/* Allocate 1 extra sensors in FIFO are needed */
--	sensor_cells = kzalloc(sizeof(struct mfd_cell) * (sensor_num + 1),
-+	sensor_cells = kzalloc(array_size(sizeof(struct mfd_cell), (sensor_num + 1)),
- 			       GFP_KERNEL);
- 	if (sensor_cells == NULL)
- 		goto error;
- 
--	sensor_platforms = kzalloc(sizeof(struct cros_ec_sensor_platform) *
--		  (sensor_num + 1), GFP_KERNEL);
-+	sensor_platforms = kzalloc(array_size(sizeof(struct cros_ec_sensor_platform), (sensor_num + 1)),
-+				   GFP_KERNEL);
- 	if (sensor_platforms == NULL)
- 		goto error_platforms;
- 
-diff --git a/drivers/mfd/mfd-core.c b/drivers/mfd/mfd-core.c
-index c57e407020f1..1af9c406b192 100644
---- a/drivers/mfd/mfd-core.c
-+++ b/drivers/mfd/mfd-core.c
-@@ -158,7 +158,8 @@ static int mfd_add_device(struct device *parent, int id,
- 	if (!pdev)
- 		goto fail_alloc;
- 
--	res = kzalloc(sizeof(*res) * cell->num_resources, GFP_KERNEL);
-+	res = kzalloc(array_size(sizeof(*res), cell->num_resources),
-+		      GFP_KERNEL);
- 	if (!res)
- 		goto fail_device;
- 
-diff --git a/drivers/misc/eeprom/idt_89hpesx.c b/drivers/misc/eeprom/idt_89hpesx.c
-index 34a5a41578d7..967f522a22a8 100644
---- a/drivers/misc/eeprom/idt_89hpesx.c
-+++ b/drivers/misc/eeprom/idt_89hpesx.c
-@@ -964,7 +964,8 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
- 	if (colon_ch != NULL) {
- 		csraddr_len = colon_ch - buf;
- 		csraddr_str =
--			kmalloc(sizeof(char)*(csraddr_len + 1), GFP_KERNEL);
-+			kmalloc(array_size(sizeof(char), (csraddr_len + 1)),
-+				GFP_KERNEL);
- 		if (csraddr_str == NULL) {
- 			ret = -ENOMEM;
- 			goto free_buf;
-diff --git a/drivers/misc/genwqe/card_ddcb.c b/drivers/misc/genwqe/card_ddcb.c
-index b7f8d35c17a9..f9c05dd7b7dc 100644
---- a/drivers/misc/genwqe/card_ddcb.c
-+++ b/drivers/misc/genwqe/card_ddcb.c
-@@ -1048,15 +1048,15 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
- 			"[%s] **err: could not allocate DDCB **\n", __func__);
- 		return -ENOMEM;
- 	}
--	queue->ddcb_req = kzalloc(sizeof(struct ddcb_requ *) *
--				  queue->ddcb_max, GFP_KERNEL);
-+	queue->ddcb_req = kzalloc(array_size(sizeof(struct ddcb_requ *), queue->ddcb_max),
-+				  GFP_KERNEL);
- 	if (!queue->ddcb_req) {
- 		rc = -ENOMEM;
- 		goto free_ddcbs;
- 	}
- 
--	queue->ddcb_waitqs = kzalloc(sizeof(wait_queue_head_t) *
--				     queue->ddcb_max, GFP_KERNEL);
-+	queue->ddcb_waitqs = kzalloc(array_size(sizeof(wait_queue_head_t), queue->ddcb_max),
-+				     GFP_KERNEL);
- 	if (!queue->ddcb_waitqs) {
- 		rc = -ENOMEM;
- 		goto free_requs;
-diff --git a/drivers/misc/sgi-xp/xpnet.c b/drivers/misc/sgi-xp/xpnet.c
-index 0c26eaf5f62b..1f4595132820 100644
---- a/drivers/misc/sgi-xp/xpnet.c
-+++ b/drivers/misc/sgi-xp/xpnet.c
-@@ -520,8 +520,8 @@ xpnet_init(void)
- 
- 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);
- 
--	xpnet_broadcast_partitions = kzalloc(BITS_TO_LONGS(xp_max_npartitions) *
--					     sizeof(long), GFP_KERNEL);
-+	xpnet_broadcast_partitions = kzalloc(array_size(BITS_TO_LONGS(xp_max_npartitions), sizeof(long)),
-+					     GFP_KERNEL);
- 	if (xpnet_broadcast_partitions == NULL)
- 		return -ENOMEM;
- 
-diff --git a/drivers/misc/sram.c b/drivers/misc/sram.c
-index fc0415771c00..a9d217c9afcc 100644
---- a/drivers/misc/sram.c
-+++ b/drivers/misc/sram.c
-@@ -185,7 +185,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
- 	 * after the reserved blocks from the dt are processed.
- 	 */
- 	nblocks = (np) ? of_get_available_child_count(np) + 1 : 1;
--	rblocks = kzalloc((nblocks) * sizeof(*rblocks), GFP_KERNEL);
-+	rblocks = kzalloc(array_size((nblocks), sizeof(*rblocks)), GFP_KERNEL);
- 	if (!rblocks)
- 		return -ENOMEM;
- 
-diff --git a/drivers/mtd/chips/cfi_cmdset_0001.c b/drivers/mtd/chips/cfi_cmdset_0001.c
-index d4c07b85f18e..038b7f814f84 100644
---- a/drivers/mtd/chips/cfi_cmdset_0001.c
-+++ b/drivers/mtd/chips/cfi_cmdset_0001.c
-@@ -596,8 +596,8 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
- 	mtd->size = devsize * cfi->numchips;
- 
- 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
--	mtd->eraseregions = kzalloc(sizeof(struct mtd_erase_region_info)
--			* mtd->numeraseregions, GFP_KERNEL);
-+	mtd->eraseregions = kzalloc(array_size(sizeof(struct mtd_erase_region_info), mtd->numeraseregions),
-+				    GFP_KERNEL);
- 	if (!mtd->eraseregions)
- 		goto setup_err;
- 
-@@ -746,7 +746,8 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
- 		newcfi = kmalloc(sizeof(struct cfi_private) + numvirtchips * sizeof(struct flchip), GFP_KERNEL);
- 		if (!newcfi)
- 			return -ENOMEM;
--		shared = kmalloc(sizeof(struct flchip_shared) * cfi->numchips, GFP_KERNEL);
-+		shared = kmalloc(array_size(sizeof(struct flchip_shared), cfi->numchips),
-+				 GFP_KERNEL);
- 		if (!shared) {
- 			kfree(newcfi);
- 			return -ENOMEM;
-diff --git a/drivers/mtd/chips/cfi_cmdset_0002.c b/drivers/mtd/chips/cfi_cmdset_0002.c
-index 5799f866629a..8c8c91774f15 100644
---- a/drivers/mtd/chips/cfi_cmdset_0002.c
-+++ b/drivers/mtd/chips/cfi_cmdset_0002.c
-@@ -692,8 +692,8 @@ static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
- 	mtd->size = devsize * cfi->numchips;
- 
- 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
--	mtd->eraseregions = kmalloc(sizeof(struct mtd_erase_region_info)
--				    * mtd->numeraseregions, GFP_KERNEL);
-+	mtd->eraseregions = kmalloc(array_size(sizeof(struct mtd_erase_region_info), mtd->numeraseregions),
-+				    GFP_KERNEL);
- 	if (!mtd->eraseregions)
- 		goto setup_err;
- 
-diff --git a/drivers/mtd/chips/cfi_cmdset_0020.c b/drivers/mtd/chips/cfi_cmdset_0020.c
-index 7b7658a05036..9375f7aa4135 100644
---- a/drivers/mtd/chips/cfi_cmdset_0020.c
-+++ b/drivers/mtd/chips/cfi_cmdset_0020.c
-@@ -184,8 +184,8 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
- 	mtd->size = devsize * cfi->numchips;
- 
- 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
--	mtd->eraseregions = kmalloc(sizeof(struct mtd_erase_region_info)
--			* mtd->numeraseregions, GFP_KERNEL);
-+	mtd->eraseregions = kmalloc(array_size(sizeof(struct mtd_erase_region_info), mtd->numeraseregions),
-+				    GFP_KERNEL);
- 	if (!mtd->eraseregions) {
- 		kfree(cfi->cmdset_priv);
- 		kfree(mtd);
-diff --git a/drivers/mtd/ftl.c b/drivers/mtd/ftl.c
-index ef6ad2551d57..75d0acf73395 100644
---- a/drivers/mtd/ftl.c
-+++ b/drivers/mtd/ftl.c
-@@ -201,15 +201,15 @@ static int build_maps(partition_t *part)
-     /* Set up erase unit maps */
-     part->DataUnits = le16_to_cpu(part->header.NumEraseUnits) -
- 	part->header.NumTransferUnits;
--    part->EUNInfo = kmalloc(part->DataUnits * sizeof(struct eun_info_t),
--			    GFP_KERNEL);
-+    part->EUNInfo = kmalloc(array_size(part->DataUnits, sizeof(struct eun_info_t)),
-+                            GFP_KERNEL);
-     if (!part->EUNInfo)
- 	    goto out;
-     for (i = 0; i < part->DataUnits; i++)
- 	part->EUNInfo[i].Offset = 0xffffffff;
-     part->XferInfo =
--	kmalloc(part->header.NumTransferUnits * sizeof(struct xfer_info_t),
--		GFP_KERNEL);
-+	kmalloc(array_size(part->header.NumTransferUnits, sizeof(struct xfer_info_t)),
-+                GFP_KERNEL);
-     if (!part->XferInfo)
- 	    goto out_EUNInfo;
- 
-@@ -269,8 +269,8 @@ static int build_maps(partition_t *part)
-     memset(part->VirtualBlockMap, 0xff, blocks * sizeof(uint32_t));
-     part->BlocksPerUnit = (1 << header.EraseUnitSize) >> header.BlockSize;
- 
--    part->bam_cache = kmalloc(part->BlocksPerUnit * sizeof(uint32_t),
--			      GFP_KERNEL);
-+    part->bam_cache = kmalloc(array_size(part->BlocksPerUnit, sizeof(uint32_t)),
-+                              GFP_KERNEL);
-     if (!part->bam_cache)
- 	    goto out_VirtualBlockMap;
- 
-diff --git a/drivers/mtd/inftlmount.c b/drivers/mtd/inftlmount.c
-index aab4f68bd36f..c5b8e5c54ac6 100644
---- a/drivers/mtd/inftlmount.c
-+++ b/drivers/mtd/inftlmount.c
-@@ -270,7 +270,8 @@ static int find_boot_record(struct INFTLrecord *inftl)
- 		inftl->nb_blocks = ip->lastUnit + 1;
- 
- 		/* Memory alloc */
--		inftl->PUtable = kmalloc(inftl->nb_blocks * sizeof(u16), GFP_KERNEL);
-+		inftl->PUtable = kmalloc(array_size(inftl->nb_blocks, sizeof(u16)),
-+					 GFP_KERNEL);
- 		if (!inftl->PUtable) {
- 			printk(KERN_WARNING "INFTL: allocation of PUtable "
- 				"failed (%zd bytes)\n",
-@@ -278,7 +279,8 @@ static int find_boot_record(struct INFTLrecord *inftl)
- 			return -ENOMEM;
- 		}
- 
--		inftl->VUtable = kmalloc(inftl->nb_blocks * sizeof(u16), GFP_KERNEL);
-+		inftl->VUtable = kmalloc(array_size(inftl->nb_blocks, sizeof(u16)),
-+					 GFP_KERNEL);
- 		if (!inftl->VUtable) {
- 			kfree(inftl->PUtable);
- 			printk(KERN_WARNING "INFTL: allocation of VUtable "
-diff --git a/drivers/mtd/lpddr/lpddr_cmds.c b/drivers/mtd/lpddr/lpddr_cmds.c
-index 5c5ba3c7c79d..fc11a0c6b20f 100644
---- a/drivers/mtd/lpddr/lpddr_cmds.c
-+++ b/drivers/mtd/lpddr/lpddr_cmds.c
-@@ -78,8 +78,8 @@ struct mtd_info *lpddr_cmdset(struct map_info *map)
- 	mtd->erasesize = 1 << lpddr->qinfo->UniformBlockSizeShift;
- 	mtd->writesize = 1 << lpddr->qinfo->BufSizeShift;
- 
--	shared = kmalloc(sizeof(struct flchip_shared) * lpddr->numchips,
--						GFP_KERNEL);
-+	shared = kmalloc(array_size(sizeof(struct flchip_shared), lpddr->numchips),
-+			 GFP_KERNEL);
- 	if (!shared) {
- 		kfree(lpddr);
- 		kfree(mtd);
-diff --git a/drivers/mtd/maps/physmap_of_core.c b/drivers/mtd/maps/physmap_of_core.c
-index 8f859b488a98..a064ff24dc83 100644
---- a/drivers/mtd/maps/physmap_of_core.c
-+++ b/drivers/mtd/maps/physmap_of_core.c
-@@ -124,7 +124,7 @@ static const char * const *of_get_probes(struct device_node *dp)
- 	if (count < 0)
- 		return part_probe_types_def;
- 
--	res = kzalloc((count + 1) * sizeof(*res), GFP_KERNEL);
-+	res = kzalloc(array_size((count + 1), sizeof(*res)), GFP_KERNEL);
- 	if (!res)
- 		return NULL;
- 
-diff --git a/drivers/mtd/maps/vmu-flash.c b/drivers/mtd/maps/vmu-flash.c
-index 6b223cfe92b7..45a7fb236905 100644
---- a/drivers/mtd/maps/vmu-flash.c
-+++ b/drivers/mtd/maps/vmu-flash.c
-@@ -629,15 +629,15 @@ static int vmu_connect(struct maple_device *mdev)
- 	* Not sure there are actually any multi-partition devices in the
- 	* real world, but the hardware supports them, so, so will we
- 	*/
--	card->parts = kmalloc(sizeof(struct vmupart) * card->partitions,
--		GFP_KERNEL);
-+	card->parts = kmalloc(array_size(sizeof(struct vmupart), card->partitions),
-+			      GFP_KERNEL);
- 	if (!card->parts) {
- 		error = -ENOMEM;
- 		goto fail_partitions;
- 	}
- 
--	card->mtd = kmalloc(sizeof(struct mtd_info) * card->partitions,
--		GFP_KERNEL);
-+	card->mtd = kmalloc(array_size(sizeof(struct mtd_info), card->partitions),
-+			    GFP_KERNEL);
- 	if (!card->mtd) {
- 		error = -ENOMEM;
- 		goto fail_mtd_info;
-diff --git a/drivers/mtd/mtdswap.c b/drivers/mtd/mtdswap.c
-index 7161f8a17f62..239668f07916 100644
---- a/drivers/mtd/mtdswap.c
-+++ b/drivers/mtd/mtdswap.c
-@@ -1340,7 +1340,7 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
- 	if (!d->page_buf)
- 		goto page_buf_fail;
- 
--	d->oob_buf = kmalloc(2 * mtd->oobavail, GFP_KERNEL);
-+	d->oob_buf = kmalloc(array_size(2, mtd->oobavail), GFP_KERNEL);
- 	if (!d->oob_buf)
- 		goto oob_buf_fail;
- 
-diff --git a/drivers/mtd/nand/onenand/onenand_base.c b/drivers/mtd/nand/onenand/onenand_base.c
-index b7105192cb12..153a8a280878 100644
---- a/drivers/mtd/nand/onenand/onenand_base.c
-+++ b/drivers/mtd/nand/onenand/onenand_base.c
-@@ -3721,8 +3721,8 @@ static int onenand_probe(struct mtd_info *mtd)
- 		this->dies = ONENAND_IS_DDP(this) ? 2 : 1;
- 		/* Maximum possible erase regions */
- 		mtd->numeraseregions = this->dies << 1;
--		mtd->eraseregions = kzalloc(sizeof(struct mtd_erase_region_info)
--					* (this->dies << 1), GFP_KERNEL);
-+		mtd->eraseregions = kzalloc(array_size(sizeof(struct mtd_erase_region_info), (this->dies << 1)),
-+					    GFP_KERNEL);
- 		if (!mtd->eraseregions)
- 			return -ENOMEM;
- 	}
-diff --git a/drivers/mtd/nftlmount.c b/drivers/mtd/nftlmount.c
-index a6fbfa4e5799..37e8fcdc268c 100644
---- a/drivers/mtd/nftlmount.c
-+++ b/drivers/mtd/nftlmount.c
-@@ -199,13 +199,15 @@ device is already correct.
- 		nftl->lastEUN = nftl->nb_blocks - 1;
- 
- 		/* memory alloc */
--		nftl->EUNtable = kmalloc(nftl->nb_blocks * sizeof(u16), GFP_KERNEL);
-+		nftl->EUNtable = kmalloc(array_size(nftl->nb_blocks, sizeof(u16)),
-+					 GFP_KERNEL);
- 		if (!nftl->EUNtable) {
- 			printk(KERN_NOTICE "NFTL: allocation of EUNtable failed\n");
- 			return -ENOMEM;
- 		}
- 
--		nftl->ReplUnitTable = kmalloc(nftl->nb_blocks * sizeof(u16), GFP_KERNEL);
-+		nftl->ReplUnitTable = kmalloc(array_size(nftl->nb_blocks, sizeof(u16)),
-+					      GFP_KERNEL);
- 		if (!nftl->ReplUnitTable) {
- 			kfree(nftl->EUNtable);
- 			printk(KERN_NOTICE "NFTL: allocation of ReplUnitTable failed\n");
-diff --git a/drivers/mtd/sm_ftl.c b/drivers/mtd/sm_ftl.c
-index 79636349df96..389057bdd5e8 100644
---- a/drivers/mtd/sm_ftl.c
-+++ b/drivers/mtd/sm_ftl.c
-@@ -82,8 +82,8 @@ static struct attribute_group *sm_create_sysfs_attributes(struct sm_ftl *ftl)
- 
- 
- 	/* Create array of pointers to the attributes */
--	attributes = kzalloc(sizeof(struct attribute *) * (NUM_ATTRIBUTES + 1),
--								GFP_KERNEL);
-+	attributes = kzalloc(array_size(sizeof(struct attribute *), (NUM_ATTRIBUTES + 1)),
-+			     GFP_KERNEL);
- 	if (!attributes)
- 		goto error3;
- 	attributes[0] = &vendor_attribute->dev_attr.attr;
-@@ -750,7 +750,8 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
- 	dbg("initializing zone %d", zone_num);
- 
- 	/* Allocate memory for FTL table */
--	zone->lba_to_phys_table = kmalloc(ftl->max_lba * 2, GFP_KERNEL);
-+	zone->lba_to_phys_table = kmalloc(array_size(ftl->max_lba, 2),
-+					  GFP_KERNEL);
- 
- 	if (!zone->lba_to_phys_table)
- 		return -ENOMEM;
-@@ -1137,8 +1138,8 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
- 		goto error2;
- 
- 	/* Allocate zone array, it will be initialized on demand */
--	ftl->zones = kzalloc(sizeof(struct ftl_zone) * ftl->zone_count,
--								GFP_KERNEL);
-+	ftl->zones = kzalloc(array_size(sizeof(struct ftl_zone), ftl->zone_count),
-+			     GFP_KERNEL);
- 	if (!ftl->zones)
- 		goto error3;
- 
-diff --git a/drivers/mtd/ssfdc.c b/drivers/mtd/ssfdc.c
-index 95f0bf95f095..aa363182e012 100644
---- a/drivers/mtd/ssfdc.c
-+++ b/drivers/mtd/ssfdc.c
-@@ -332,8 +332,8 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
- 				(long)ssfdc->sectors;
- 
- 	/* Allocate logical block map */
--	ssfdc->logic_block_map = kmalloc(sizeof(ssfdc->logic_block_map[0]) *
--					 ssfdc->map_len, GFP_KERNEL);
-+	ssfdc->logic_block_map = kmalloc(array_size(sizeof(ssfdc->logic_block_map[0]), ssfdc->map_len),
-+                                         GFP_KERNEL);
- 	if (!ssfdc->logic_block_map)
- 		goto out_err;
- 	memset(ssfdc->logic_block_map, 0xff, sizeof(ssfdc->logic_block_map[0]) *
-diff --git a/drivers/mtd/tests/pagetest.c b/drivers/mtd/tests/pagetest.c
-index bc303cac9f43..71c34bfdfc68 100644
---- a/drivers/mtd/tests/pagetest.c
-+++ b/drivers/mtd/tests/pagetest.c
-@@ -127,7 +127,7 @@ static int crosstest(void)
- 	unsigned char *pp1, *pp2, *pp3, *pp4;
- 
- 	pr_info("crosstest\n");
--	pp1 = kzalloc(pgsize * 4, GFP_KERNEL);
-+	pp1 = kzalloc(array_size(pgsize, 4), GFP_KERNEL);
- 	if (!pp1)
- 		return -ENOMEM;
- 	pp2 = pp1 + pgsize;
-diff --git a/drivers/mtd/ubi/eba.c b/drivers/mtd/ubi/eba.c
-index 5d09fde485e5..763c8e0fbd28 100644
---- a/drivers/mtd/ubi/eba.c
-+++ b/drivers/mtd/ubi/eba.c
-@@ -1443,14 +1443,14 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
- 		if (!vol)
- 			continue;
- 
--		scan_eba[i] = kmalloc(vol->reserved_pebs * sizeof(**scan_eba),
-+		scan_eba[i] = kmalloc(array_size(vol->reserved_pebs, sizeof(**scan_eba)),
- 				      GFP_KERNEL);
- 		if (!scan_eba[i]) {
- 			ret = -ENOMEM;
- 			goto out_free;
- 		}
- 
--		fm_eba[i] = kmalloc(vol->reserved_pebs * sizeof(**fm_eba),
-+		fm_eba[i] = kmalloc(array_size(vol->reserved_pebs, sizeof(**fm_eba)),
- 				    GFP_KERNEL);
- 		if (!fm_eba[i]) {
- 			ret = -ENOMEM;
-diff --git a/drivers/mtd/ubi/wl.c b/drivers/mtd/ubi/wl.c
-index 2052a647220e..12f9f9254e3f 100644
---- a/drivers/mtd/ubi/wl.c
-+++ b/drivers/mtd/ubi/wl.c
-@@ -1594,7 +1594,8 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
- 	sprintf(ubi->bgt_name, UBI_BGT_NAME_PATTERN, ubi->ubi_num);
- 
- 	err = -ENOMEM;
--	ubi->lookuptbl = kzalloc(ubi->peb_count * sizeof(void *), GFP_KERNEL);
-+	ubi->lookuptbl = kzalloc(array_size(ubi->peb_count, sizeof(void *)),
-+				 GFP_KERNEL);
- 	if (!ubi->lookuptbl)
- 		return err;
- 
-diff --git a/drivers/net/bonding/bond_main.c b/drivers/net/bonding/bond_main.c
-index b7b113018853..6c958e59a1ca 100644
---- a/drivers/net/bonding/bond_main.c
-+++ b/drivers/net/bonding/bond_main.c
-@@ -2391,7 +2391,8 @@ struct bond_vlan_tag *bond_verify_device_path(struct net_device *start_dev,
- 	struct list_head  *iter;
- 
- 	if (start_dev == end_dev) {
--		tags = kzalloc(sizeof(*tags) * (level + 1), GFP_ATOMIC);
-+		tags = kzalloc(array_size(sizeof(*tags), (level + 1)),
-+			       GFP_ATOMIC);
- 		if (!tags)
- 			return ERR_PTR(-ENOMEM);
- 		tags[level].vlan_proto = VLAN_N_VID;
-diff --git a/drivers/net/can/grcan.c b/drivers/net/can/grcan.c
-index 2d3046afa80d..65656aa8758f 100644
---- a/drivers/net/can/grcan.c
-+++ b/drivers/net/can/grcan.c
-@@ -1057,7 +1057,7 @@ static int grcan_open(struct net_device *dev)
- 		return err;
- 	}
- 
--	priv->echo_skb = kzalloc(dma->tx.size * sizeof(*priv->echo_skb),
-+	priv->echo_skb = kzalloc(array_size(dma->tx.size, sizeof(*priv->echo_skb)),
- 				 GFP_KERNEL);
- 	if (!priv->echo_skb) {
- 		err = -ENOMEM;
-@@ -1066,7 +1066,8 @@ static int grcan_open(struct net_device *dev)
- 	priv->can.echo_skb_max = dma->tx.size;
- 	priv->can.echo_skb = priv->echo_skb;
- 
--	priv->txdlc = kzalloc(dma->tx.size * sizeof(*priv->txdlc), GFP_KERNEL);
-+	priv->txdlc = kzalloc(array_size(dma->tx.size, sizeof(*priv->txdlc)),
-+			      GFP_KERNEL);
- 	if (!priv->txdlc) {
- 		err = -ENOMEM;
- 		goto exit_free_echo_skb;
-diff --git a/drivers/net/ethernet/atheros/atl1c/atl1c_ethtool.c b/drivers/net/ethernet/atheros/atl1c/atl1c_ethtool.c
-index cfe86a20c899..fc0b0680d498 100644
---- a/drivers/net/ethernet/atheros/atl1c/atl1c_ethtool.c
-+++ b/drivers/net/ethernet/atheros/atl1c/atl1c_ethtool.c
-@@ -209,8 +209,8 @@ static int atl1c_get_eeprom(struct net_device *netdev,
- 	first_dword = eeprom->offset >> 2;
- 	last_dword = (eeprom->offset + eeprom->len - 1) >> 2;
- 
--	eeprom_buff = kmalloc(sizeof(u32) *
--			(last_dword - first_dword + 1), GFP_KERNEL);
-+	eeprom_buff = kmalloc(array_size(sizeof(u32), (last_dword - first_dword + 1)),
-+			      GFP_KERNEL);
- 	if (eeprom_buff == NULL)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/ethernet/atheros/atl1e/atl1e_ethtool.c b/drivers/net/ethernet/atheros/atl1e/atl1e_ethtool.c
-index cb489e7e8374..c56e89304b0e 100644
---- a/drivers/net/ethernet/atheros/atl1e/atl1e_ethtool.c
-+++ b/drivers/net/ethernet/atheros/atl1e/atl1e_ethtool.c
-@@ -236,8 +236,8 @@ static int atl1e_get_eeprom(struct net_device *netdev,
- 	first_dword = eeprom->offset >> 2;
- 	last_dword = (eeprom->offset + eeprom->len - 1) >> 2;
- 
--	eeprom_buff = kmalloc(sizeof(u32) *
--			(last_dword - first_dword + 1), GFP_KERNEL);
-+	eeprom_buff = kmalloc(array_size(sizeof(u32), (last_dword - first_dword + 1)),
-+			      GFP_KERNEL);
- 	if (eeprom_buff == NULL)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/ethernet/atheros/atlx/atl2.c b/drivers/net/ethernet/atheros/atlx/atl2.c
-index db4bcc51023a..d714a93bb31d 100644
---- a/drivers/net/ethernet/atheros/atlx/atl2.c
-+++ b/drivers/net/ethernet/atheros/atlx/atl2.c
-@@ -1941,8 +1941,8 @@ static int atl2_get_eeprom(struct net_device *netdev,
- 	first_dword = eeprom->offset >> 2;
- 	last_dword = (eeprom->offset + eeprom->len - 1) >> 2;
- 
--	eeprom_buff = kmalloc(sizeof(u32) * (last_dword - first_dword + 1),
--		GFP_KERNEL);
-+	eeprom_buff = kmalloc(array_size(sizeof(u32), (last_dword - first_dword + 1)),
-+			      GFP_KERNEL);
- 	if (!eeprom_buff)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/ethernet/broadcom/bcm63xx_enet.c b/drivers/net/ethernet/broadcom/bcm63xx_enet.c
-index 14a59e51db67..338e2c891b0c 100644
---- a/drivers/net/ethernet/broadcom/bcm63xx_enet.c
-+++ b/drivers/net/ethernet/broadcom/bcm63xx_enet.c
-@@ -2150,7 +2150,7 @@ static int bcm_enetsw_open(struct net_device *dev)
- 	priv->tx_desc_alloc_size = size;
- 	priv->tx_desc_cpu = p;
- 
--	priv->tx_skb = kzalloc(sizeof(struct sk_buff *) * priv->tx_ring_size,
-+	priv->tx_skb = kzalloc(array_size(sizeof(struct sk_buff *), priv->tx_ring_size),
- 			       GFP_KERNEL);
- 	if (!priv->tx_skb) {
- 		dev_err(kdev, "cannot allocate rx skb queue\n");
-@@ -2164,7 +2164,7 @@ static int bcm_enetsw_open(struct net_device *dev)
- 	spin_lock_init(&priv->tx_lock);
- 
- 	/* init & fill rx ring with skbs */
--	priv->rx_skb = kzalloc(sizeof(struct sk_buff *) * priv->rx_ring_size,
-+	priv->rx_skb = kzalloc(array_size(sizeof(struct sk_buff *), priv->rx_ring_size),
- 			       GFP_KERNEL);
- 	if (!priv->rx_skb) {
- 		dev_err(kdev, "cannot allocate rx skb queue\n");
-diff --git a/drivers/net/ethernet/broadcom/bnx2x/bnx2x_sriov.c b/drivers/net/ethernet/broadcom/bnx2x/bnx2x_sriov.c
-index 5d1d54478ef2..1ba2eba7795c 100644
---- a/drivers/net/ethernet/broadcom/bnx2x/bnx2x_sriov.c
-+++ b/drivers/net/ethernet/broadcom/bnx2x/bnx2x_sriov.c
-@@ -1253,8 +1253,8 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
- 	   num_vfs_param, iov->nr_virtfn);
- 
- 	/* allocate the vf array */
--	bp->vfdb->vfs = kzalloc(sizeof(struct bnx2x_virtf) *
--				BNX2X_NR_VIRTFN(bp), GFP_KERNEL);
-+	bp->vfdb->vfs = kzalloc(array_size(sizeof(struct bnx2x_virtf), BNX2X_NR_VIRTFN(bp)),
-+				GFP_KERNEL);
- 	if (!bp->vfdb->vfs) {
- 		BNX2X_ERR("failed to allocate vf array\n");
- 		err = -ENOMEM;
-diff --git a/drivers/net/ethernet/broadcom/cnic.c b/drivers/net/ethernet/broadcom/cnic.c
-index f23611362756..2fb2b30383f2 100644
---- a/drivers/net/ethernet/broadcom/cnic.c
-+++ b/drivers/net/ethernet/broadcom/cnic.c
-@@ -660,7 +660,8 @@ static int cnic_init_id_tbl(struct cnic_id_tbl *id_tbl, u32 size, u32 start_id,
- 	id_tbl->max = size;
- 	id_tbl->next = next;
- 	spin_lock_init(&id_tbl->lock);
--	id_tbl->table = kzalloc(DIV_ROUND_UP(size, 32) * 4, GFP_KERNEL);
-+	id_tbl->table = kzalloc(array_size(DIV_ROUND_UP(size, 32), 4),
-+				GFP_KERNEL);
- 	if (!id_tbl->table)
- 		return -ENOMEM;
- 
-@@ -1260,8 +1261,8 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
- 	if (!cp->iscsi_tbl)
- 		goto error;
- 
--	cp->ctx_tbl = kzalloc(sizeof(struct cnic_context) *
--				cp->max_cid_space, GFP_KERNEL);
-+	cp->ctx_tbl = kzalloc(array_size(sizeof(struct cnic_context), cp->max_cid_space),
-+			      GFP_KERNEL);
- 	if (!cp->ctx_tbl)
- 		goto error;
- 
-diff --git a/drivers/net/ethernet/brocade/bna/bnad.c b/drivers/net/ethernet/brocade/bna/bnad.c
-index 30685a7e27ff..198cca6c7ee2 100644
---- a/drivers/net/ethernet/brocade/bna/bnad.c
-+++ b/drivers/net/ethernet/brocade/bna/bnad.c
-@@ -3182,7 +3182,7 @@ bnad_set_rx_mcast_fltr(struct bnad *bnad)
- 	if (mc_count > bna_attr(&bnad->bna)->num_mcmac)
- 		goto mode_allmulti;
- 
--	mac_list = kzalloc((mc_count + 1) * ETH_ALEN, GFP_ATOMIC);
-+	mac_list = kzalloc(array_size((mc_count + 1), ETH_ALEN), GFP_ATOMIC);
- 
- 	if (mac_list == NULL)
- 		goto mode_allmulti;
-diff --git a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
-index d42704d07484..871826b2a143 100644
---- a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
-+++ b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
-@@ -292,8 +292,8 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
- 		rbdr->is_xdp = true;
- 	}
- 	rbdr->pgcnt = roundup_pow_of_two(rbdr->pgcnt);
--	rbdr->pgcache = kzalloc(sizeof(*rbdr->pgcache) *
--				rbdr->pgcnt, GFP_KERNEL);
-+	rbdr->pgcache = kzalloc(array_size(sizeof(*rbdr->pgcache), rbdr->pgcnt),
-+				GFP_KERNEL);
- 	if (!rbdr->pgcache)
- 		return -ENOMEM;
- 	rbdr->pgidx = 0;
-diff --git a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c
-index 24d2865b8806..480d0a472bed 100644
---- a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c
-+++ b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c
-@@ -708,7 +708,7 @@ int cxgb4_write_rss(const struct port_info *pi, const u16 *queues)
- 	const struct sge_eth_rxq *rxq;
- 
- 	rxq = &adapter->sge.ethrxq[pi->first_qset];
--	rss = kmalloc(pi->rss_size * sizeof(u16), GFP_KERNEL);
-+	rss = kmalloc(array_size(pi->rss_size, sizeof(u16)), GFP_KERNEL);
- 	if (!rss)
- 		return -ENOMEM;
- 
-@@ -4948,7 +4948,7 @@ static int enable_msix(struct adapter *adap)
- 		max_ingq += (MAX_OFLD_QSETS * adap->num_uld);
- 	if (is_offload(adap))
- 		max_ingq += (MAX_OFLD_QSETS * adap->num_ofld_uld);
--	entries = kmalloc(sizeof(*entries) * (max_ingq + 1),
-+	entries = kmalloc(array_size(sizeof(*entries), (max_ingq + 1)),
- 			  GFP_KERNEL);
- 	if (!entries)
- 		return -ENOMEM;
-diff --git a/drivers/net/ethernet/freescale/ucc_geth.c b/drivers/net/ethernet/freescale/ucc_geth.c
-index a96b838cffce..787487a64409 100644
---- a/drivers/net/ethernet/freescale/ucc_geth.c
-+++ b/drivers/net/ethernet/freescale/ucc_geth.c
-@@ -2253,8 +2253,7 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
- 	/* Init Tx bds */
- 	for (j = 0; j < ug_info->numQueuesTx; j++) {
- 		/* Setup the skbuff rings */
--		ugeth->tx_skbuff[j] = kmalloc(sizeof(struct sk_buff *) *
--					      ugeth->ug_info->bdRingLenTx[j],
-+		ugeth->tx_skbuff[j] = kmalloc(array_size(sizeof(struct sk_buff *), ugeth->ug_info->bdRingLenTx[j]),
- 					      GFP_KERNEL);
- 
- 		if (ugeth->tx_skbuff[j] == NULL) {
-@@ -2326,8 +2325,7 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
- 	/* Init Rx bds */
- 	for (j = 0; j < ug_info->numQueuesRx; j++) {
- 		/* Setup the skbuff rings */
--		ugeth->rx_skbuff[j] = kmalloc(sizeof(struct sk_buff *) *
--					      ugeth->ug_info->bdRingLenRx[j],
-+		ugeth->rx_skbuff[j] = kmalloc(array_size(sizeof(struct sk_buff *), ugeth->ug_info->bdRingLenRx[j]),
- 					      GFP_KERNEL);
- 
- 		if (ugeth->rx_skbuff[j] == NULL) {
-diff --git a/drivers/net/ethernet/hisilicon/hns/hns_enet.c b/drivers/net/ethernet/hisilicon/hns/hns_enet.c
-index 1ccb6443d2ed..f676cab05cf9 100644
---- a/drivers/net/ethernet/hisilicon/hns/hns_enet.c
-+++ b/drivers/net/ethernet/hisilicon/hns/hns_enet.c
-@@ -2197,7 +2197,7 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
- 		return -EINVAL;
- 	}
- 
--	priv->ring_data = kzalloc(h->q_num * sizeof(*priv->ring_data) * 2,
-+	priv->ring_data = kzalloc(array3_size(h->q_num, sizeof(*priv->ring_data), 2),
- 				  GFP_KERNEL);
- 	if (!priv->ring_data)
- 		return -ENOMEM;
-diff --git a/drivers/net/ethernet/ibm/ibmveth.c b/drivers/net/ethernet/ibm/ibmveth.c
-index c1b51edaaf62..2e30b088acb1 100644
---- a/drivers/net/ethernet/ibm/ibmveth.c
-+++ b/drivers/net/ethernet/ibm/ibmveth.c
-@@ -171,7 +171,8 @@ static int ibmveth_alloc_buffer_pool(struct ibmveth_buff_pool *pool)
- {
- 	int i;
- 
--	pool->free_map = kmalloc(sizeof(u16) * pool->size, GFP_KERNEL);
-+	pool->free_map = kmalloc(array_size(sizeof(u16), pool->size),
-+				 GFP_KERNEL);
- 
- 	if (!pool->free_map)
- 		return -1;
-diff --git a/drivers/net/ethernet/intel/e1000/e1000_ethtool.c b/drivers/net/ethernet/intel/e1000/e1000_ethtool.c
-index 3e80ca170dd7..2414180c49e9 100644
---- a/drivers/net/ethernet/intel/e1000/e1000_ethtool.c
-+++ b/drivers/net/ethernet/intel/e1000/e1000_ethtool.c
-@@ -456,8 +456,8 @@ static int e1000_get_eeprom(struct net_device *netdev,
- 	first_word = eeprom->offset >> 1;
- 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
- 
--	eeprom_buff = kmalloc(sizeof(u16) *
--			(last_word - first_word + 1), GFP_KERNEL);
-+	eeprom_buff = kmalloc(array_size(sizeof(u16), (last_word - first_word + 1)),
-+			      GFP_KERNEL);
- 	if (!eeprom_buff)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/ethernet/intel/e1000e/ethtool.c b/drivers/net/ethernet/intel/e1000e/ethtool.c
-index 64dc0c11147f..1ba1cd9a7a59 100644
---- a/drivers/net/ethernet/intel/e1000e/ethtool.c
-+++ b/drivers/net/ethernet/intel/e1000e/ethtool.c
-@@ -528,7 +528,7 @@ static int e1000_get_eeprom(struct net_device *netdev,
- 	first_word = eeprom->offset >> 1;
- 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
- 
--	eeprom_buff = kmalloc(sizeof(u16) * (last_word - first_word + 1),
-+	eeprom_buff = kmalloc(array_size(sizeof(u16), (last_word - first_word + 1)),
- 			      GFP_KERNEL);
- 	if (!eeprom_buff)
- 		return -ENOMEM;
-diff --git a/drivers/net/ethernet/intel/e1000e/netdev.c b/drivers/net/ethernet/intel/e1000e/netdev.c
-index ec4a9759a6f2..11791980e815 100644
---- a/drivers/net/ethernet/intel/e1000e/netdev.c
-+++ b/drivers/net/ethernet/intel/e1000e/netdev.c
-@@ -3331,7 +3331,8 @@ static int e1000e_write_mc_addr_list(struct net_device *netdev)
- 		return 0;
- 	}
- 
--	mta_list = kzalloc(netdev_mc_count(netdev) * ETH_ALEN, GFP_ATOMIC);
-+	mta_list = kzalloc(array_size(netdev_mc_count(netdev), ETH_ALEN),
-+			   GFP_ATOMIC);
- 	if (!mta_list)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/ethernet/intel/igb/igb_ethtool.c b/drivers/net/ethernet/intel/igb/igb_ethtool.c
-index e77ba0d5866d..7c96a34c1460 100644
---- a/drivers/net/ethernet/intel/igb/igb_ethtool.c
-+++ b/drivers/net/ethernet/intel/igb/igb_ethtool.c
-@@ -757,8 +757,8 @@ static int igb_get_eeprom(struct net_device *netdev,
- 	first_word = eeprom->offset >> 1;
- 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
- 
--	eeprom_buff = kmalloc(sizeof(u16) *
--			(last_word - first_word + 1), GFP_KERNEL);
-+	eeprom_buff = kmalloc(array_size(sizeof(u16), (last_word - first_word + 1)),
-+			      GFP_KERNEL);
- 	if (!eeprom_buff)
- 		return -ENOMEM;
- 
-@@ -3203,7 +3203,7 @@ static int igb_get_module_eeprom(struct net_device *netdev,
- 	first_word = ee->offset >> 1;
- 	last_word = (ee->offset + ee->len - 1) >> 1;
- 
--	dataword = kmalloc(sizeof(u16) * (last_word - first_word + 1),
-+	dataword = kmalloc(array_size(sizeof(u16), (last_word - first_word + 1)),
- 			   GFP_KERNEL);
- 	if (!dataword)
- 		return -ENOMEM;
-diff --git a/drivers/net/ethernet/intel/igb/igb_main.c b/drivers/net/ethernet/intel/igb/igb_main.c
-index c1c0bc30a16d..4f57425f9817 100644
---- a/drivers/net/ethernet/intel/igb/igb_main.c
-+++ b/drivers/net/ethernet/intel/igb/igb_main.c
-@@ -3518,8 +3518,8 @@ static int igb_sw_init(struct igb_adapter *adapter)
- 	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
- 	adapter->flags |= IGB_FLAG_HAS_MSIX;
- 
--	adapter->mac_table = kzalloc(sizeof(struct igb_mac_addr) *
--				     hw->mac.rar_entry_count, GFP_ATOMIC);
-+	adapter->mac_table = kzalloc(array_size(sizeof(struct igb_mac_addr), hw->mac.rar_entry_count),
-+				     GFP_ATOMIC);
- 	if (!adapter->mac_table)
- 		return -ENOMEM;
- 
-@@ -4503,7 +4503,7 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
- 		return 0;
- 	}
- 
--	mta_list = kzalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
-+	mta_list = kzalloc(array_size(netdev_mc_count(netdev), 6), GFP_ATOMIC);
- 	if (!mta_list)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/ethernet/intel/ixgb/ixgb_ethtool.c b/drivers/net/ethernet/intel/ixgb/ixgb_ethtool.c
-index d10a0d242dda..d432c70dc77d 100644
---- a/drivers/net/ethernet/intel/ixgb/ixgb_ethtool.c
-+++ b/drivers/net/ethernet/intel/ixgb/ixgb_ethtool.c
-@@ -400,8 +400,8 @@ ixgb_get_eeprom(struct net_device *netdev,
- 	first_word = eeprom->offset >> 1;
- 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
- 
--	eeprom_buff = kmalloc(sizeof(__le16) *
--			(last_word - first_word + 1), GFP_KERNEL);
-+	eeprom_buff = kmalloc(array_size(sizeof(__le16), (last_word - first_word + 1)),
-+			      GFP_KERNEL);
- 	if (!eeprom_buff)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-index afadba99f7b8..4786e236cb90 100644
---- a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-+++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-@@ -6136,8 +6136,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
- 	for (i = 1; i < IXGBE_MAX_LINK_HANDLE; i++)
- 		adapter->jump_tables[i] = NULL;
- 
--	adapter->mac_table = kzalloc(sizeof(struct ixgbe_mac_addr) *
--				     hw->mac.num_rar_entries,
-+	adapter->mac_table = kzalloc(array_size(sizeof(struct ixgbe_mac_addr), hw->mac.num_rar_entries),
- 				     GFP_ATOMIC);
- 	if (!adapter->mac_table)
- 		return -ENOMEM;
-diff --git a/drivers/net/ethernet/jme.c b/drivers/net/ethernet/jme.c
-index 8a165842fa85..2b12e4bf2087 100644
---- a/drivers/net/ethernet/jme.c
-+++ b/drivers/net/ethernet/jme.c
-@@ -589,8 +589,8 @@ jme_setup_tx_resources(struct jme_adapter *jme)
- 	atomic_set(&txring->next_to_clean, 0);
- 	atomic_set(&txring->nr_free, jme->tx_ring_size);
- 
--	txring->bufinf		= kzalloc(sizeof(struct jme_buffer_info) *
--					jme->tx_ring_size, GFP_ATOMIC);
-+	txring->bufinf		= kzalloc(array_size(sizeof(struct jme_buffer_info), jme->tx_ring_size),
-+						GFP_ATOMIC);
- 	if (unlikely(!(txring->bufinf)))
- 		goto err_free_txring;
- 
-@@ -838,8 +838,8 @@ jme_setup_rx_resources(struct jme_adapter *jme)
- 	rxring->next_to_use	= 0;
- 	atomic_set(&rxring->next_to_clean, 0);
- 
--	rxring->bufinf		= kzalloc(sizeof(struct jme_buffer_info) *
--					jme->rx_ring_size, GFP_ATOMIC);
-+	rxring->bufinf		= kzalloc(array_size(sizeof(struct jme_buffer_info), jme->rx_ring_size),
-+						GFP_ATOMIC);
- 	if (unlikely(!(rxring->bufinf)))
- 		goto err_free_rxring;
- 
-diff --git a/drivers/net/ethernet/mellanox/mlx4/alloc.c b/drivers/net/ethernet/mellanox/mlx4/alloc.c
-index 6dabd983e7e0..37a3d1d24700 100644
---- a/drivers/net/ethernet/mellanox/mlx4/alloc.c
-+++ b/drivers/net/ethernet/mellanox/mlx4/alloc.c
-@@ -185,8 +185,8 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
- 	bitmap->avail = num - reserved_top - reserved_bot;
- 	bitmap->effective_len = bitmap->avail;
- 	spin_lock_init(&bitmap->lock);
--	bitmap->table = kzalloc(BITS_TO_LONGS(bitmap->max) *
--				sizeof(long), GFP_KERNEL);
-+	bitmap->table = kzalloc(array_size(BITS_TO_LONGS(bitmap->max), sizeof(long)),
-+				GFP_KERNEL);
- 	if (!bitmap->table)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/ethernet/mellanox/mlx4/cmd.c b/drivers/net/ethernet/mellanox/mlx4/cmd.c
-index 6a9086dc1e92..3c0156c1c236 100644
---- a/drivers/net/ethernet/mellanox/mlx4/cmd.c
-+++ b/drivers/net/ethernet/mellanox/mlx4/cmd.c
-@@ -2377,20 +2377,20 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
- 		struct mlx4_vf_admin_state *vf_admin;
- 
- 		priv->mfunc.master.slave_state =
--			kzalloc(dev->num_slaves *
--				sizeof(struct mlx4_slave_state), GFP_KERNEL);
-+			kzalloc(array_size(dev->num_slaves, sizeof(struct mlx4_slave_state)),
-+				GFP_KERNEL);
- 		if (!priv->mfunc.master.slave_state)
- 			goto err_comm;
- 
- 		priv->mfunc.master.vf_admin =
--			kzalloc(dev->num_slaves *
--				sizeof(struct mlx4_vf_admin_state), GFP_KERNEL);
-+			kzalloc(array_size(dev->num_slaves, sizeof(struct mlx4_vf_admin_state)),
-+				GFP_KERNEL);
- 		if (!priv->mfunc.master.vf_admin)
- 			goto err_comm_admin;
- 
- 		priv->mfunc.master.vf_oper =
--			kzalloc(dev->num_slaves *
--				sizeof(struct mlx4_vf_oper_state), GFP_KERNEL);
-+			kzalloc(array_size(dev->num_slaves, sizeof(struct mlx4_vf_oper_state)),
-+				GFP_KERNEL);
- 		if (!priv->mfunc.master.vf_oper)
- 			goto err_comm_oper;
- 
-@@ -2636,9 +2636,8 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
- 	int i;
+diff --git a/drivers/dma/mv_xor.c b/drivers/dma/mv_xor.c
+index 1993889003fd..dd7583a1d4ad 100644
+--- a/drivers/dma/mv_xor.c
++++ b/drivers/dma/mv_xor.c
+@@ -777,11 +777,11 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
+ 	struct dmaengine_unmap_data *unmap;
  	int err = 0;
  
--	priv->cmd.context = kmalloc(priv->cmd.max_cmds *
--				   sizeof(struct mlx4_cmd_context),
--				   GFP_KERNEL);
-+	priv->cmd.context = kmalloc(array_size(priv->cmd.max_cmds, sizeof(struct mlx4_cmd_context)),
-+				    GFP_KERNEL);
- 	if (!priv->cmd.context)
+-	src = kmalloc(sizeof(u8) * PAGE_SIZE, GFP_KERNEL);
++	src = kmalloc(array_size(PAGE_SIZE, sizeof(u8)), GFP_KERNEL);
+ 	if (!src)
  		return -ENOMEM;
  
-diff --git a/drivers/net/ethernet/mellanox/mlx4/eq.c b/drivers/net/ethernet/mellanox/mlx4/eq.c
-index 6f57c052053e..a956094e0706 100644
---- a/drivers/net/ethernet/mellanox/mlx4/eq.c
-+++ b/drivers/net/ethernet/mellanox/mlx4/eq.c
-@@ -1211,7 +1211,7 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
- 	}
- 
- 	priv->eq_table.irq_names =
--		kmalloc(MLX4_IRQNAME_SIZE * (dev->caps.num_comp_vectors + 1),
-+		kmalloc(array_size(MLX4_IRQNAME_SIZE, (dev->caps.num_comp_vectors + 1)),
- 			GFP_KERNEL);
- 	if (!priv->eq_table.irq_names) {
- 		err = -ENOMEM;
-diff --git a/drivers/net/ethernet/mellanox/mlx4/resource_tracker.c b/drivers/net/ethernet/mellanox/mlx4/resource_tracker.c
-index 29e50f787349..5bd7975ff870 100644
---- a/drivers/net/ethernet/mellanox/mlx4/resource_tracker.c
-+++ b/drivers/net/ethernet/mellanox/mlx4/resource_tracker.c
-@@ -487,7 +487,7 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
- 	int max_vfs_guarantee_counter = get_max_gauranteed_vfs_counter(dev);
- 
- 	priv->mfunc.master.res_tracker.slave_list =
--		kzalloc(dev->num_slaves * sizeof(struct slave_list),
-+		kzalloc(array_size(dev->num_slaves, sizeof(struct slave_list)),
- 			GFP_KERNEL);
- 	if (!priv->mfunc.master.res_tracker.slave_list)
+-	dest = kzalloc(sizeof(u8) * PAGE_SIZE, GFP_KERNEL);
++	dest = kzalloc(array_size(PAGE_SIZE, sizeof(u8)), GFP_KERNEL);
+ 	if (!dest) {
+ 		kfree(src);
  		return -ENOMEM;
-@@ -507,19 +507,16 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
- 	for (i = 0; i < MLX4_NUM_OF_RESOURCE_TYPE; i++) {
- 		struct resource_allocator *res_alloc =
- 			&priv->mfunc.master.res_tracker.res_alloc[i];
--		res_alloc->quota = kmalloc((dev->persist->num_vfs + 1) *
--					   sizeof(int), GFP_KERNEL);
--		res_alloc->guaranteed = kmalloc((dev->persist->num_vfs + 1) *
--						sizeof(int), GFP_KERNEL);
-+		res_alloc->quota = kmalloc(array_size((dev->persist->num_vfs + 1), sizeof(int)),
-+					   GFP_KERNEL);
-+		res_alloc->guaranteed = kmalloc(array_size((dev->persist->num_vfs + 1), sizeof(int)),
-+						GFP_KERNEL);
- 		if (i == RES_MAC || i == RES_VLAN)
--			res_alloc->allocated = kzalloc(MLX4_MAX_PORTS *
--						       (dev->persist->num_vfs
--						       + 1) *
--						       sizeof(int), GFP_KERNEL);
-+			res_alloc->allocated = kzalloc(array3_size(MLX4_MAX_PORTS, (dev->persist->num_vfs + 1), sizeof(int)),
-+						       GFP_KERNEL);
- 		else
--			res_alloc->allocated = kzalloc((dev->persist->
--							num_vfs + 1) *
--						       sizeof(int), GFP_KERNEL);
-+			res_alloc->allocated = kzalloc(array_size((dev->persist->num_vfs + 1), sizeof(int)),
-+						       GFP_KERNEL);
- 		/* Reduce the sink counter */
- 		if (i == RES_COUNTER)
- 			res_alloc->res_free = dev->caps.max_counters - 1;
-diff --git a/drivers/net/ethernet/mellanox/mlx5/core/fpga/conn.c b/drivers/net/ethernet/mellanox/mlx5/core/fpga/conn.c
-index de7fe087d6fe..195718dd133e 100644
---- a/drivers/net/ethernet/mellanox/mlx5/core/fpga/conn.c
-+++ b/drivers/net/ethernet/mellanox/mlx5/core/fpga/conn.c
-@@ -549,15 +549,15 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
- 	if (err)
- 		goto out;
+diff --git a/drivers/dma/pl330.c b/drivers/dma/pl330.c
+index de1fd59fe136..96238a30e804 100644
+--- a/drivers/dma/pl330.c
++++ b/drivers/dma/pl330.c
+@@ -2881,7 +2881,8 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
  
--	conn->qp.rq.bufs = kvzalloc(sizeof(conn->qp.rq.bufs[0]) *
--				    conn->qp.rq.size, GFP_KERNEL);
-+	conn->qp.rq.bufs = kvzalloc(array_size(sizeof(conn->qp.rq.bufs[0]), conn->qp.rq.size),
-+				    GFP_KERNEL);
- 	if (!conn->qp.rq.bufs) {
- 		err = -ENOMEM;
- 		goto err_wq;
- 	}
+ 	pl330->num_peripherals = num_chan;
  
--	conn->qp.sq.bufs = kvzalloc(sizeof(conn->qp.sq.bufs[0]) *
--				    conn->qp.sq.size, GFP_KERNEL);
-+	conn->qp.sq.bufs = kvzalloc(array_size(sizeof(conn->qp.sq.bufs[0]), conn->qp.sq.size),
-+				    GFP_KERNEL);
- 	if (!conn->qp.sq.bufs) {
- 		err = -ENOMEM;
- 		goto err_rq_bufs;
-diff --git a/drivers/net/ethernet/mellanox/mlx5/core/fpga/ipsec.c b/drivers/net/ethernet/mellanox/mlx5/core/fpga/ipsec.c
-index 0f5da499a223..3e53cd7834fa 100644
---- a/drivers/net/ethernet/mellanox/mlx5/core/fpga/ipsec.c
-+++ b/drivers/net/ethernet/mellanox/mlx5/core/fpga/ipsec.c
-@@ -386,7 +386,7 @@ int mlx5_fpga_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
- 
- 	count = mlx5_fpga_ipsec_counters_count(mdev);
- 
--	data = kzalloc(sizeof(*data) * count * 2, GFP_KERNEL);
-+	data = kzalloc(array3_size(sizeof(*data), count, 2), GFP_KERNEL);
- 	if (!data) {
+-	pl330->peripherals = kzalloc(num_chan * sizeof(*pch), GFP_KERNEL);
++	pl330->peripherals = kzalloc(array_size(num_chan, sizeof(*pch)),
++				     GFP_KERNEL);
+ 	if (!pl330->peripherals) {
  		ret = -ENOMEM;
- 		goto out;
-diff --git a/drivers/net/ethernet/mellanox/mlx5/core/lib/clock.c b/drivers/net/ethernet/mellanox/mlx5/core/lib/clock.c
-index 857035583ccd..e4688b35ca55 100644
---- a/drivers/net/ethernet/mellanox/mlx5/core/lib/clock.c
-+++ b/drivers/net/ethernet/mellanox/mlx5/core/lib/clock.c
-@@ -394,8 +394,8 @@ static int mlx5_init_pin_config(struct mlx5_clock *clock)
- 	int i;
+ 		goto probe_err2;
+diff --git a/drivers/dma/xilinx/zynqmp_dma.c b/drivers/dma/xilinx/zynqmp_dma.c
+index f14645817ed8..b741d6b1192c 100644
+--- a/drivers/dma/xilinx/zynqmp_dma.c
++++ b/drivers/dma/xilinx/zynqmp_dma.c
+@@ -471,7 +471,7 @@ static int zynqmp_dma_alloc_chan_resources(struct dma_chan *dchan)
+ 	if (ret < 0)
+ 		return ret;
  
- 	clock->ptp_info.pin_config =
--			kzalloc(sizeof(*clock->ptp_info.pin_config) *
--				clock->ptp_info.n_pins, GFP_KERNEL);
-+			kzalloc(array_size(sizeof(*clock->ptp_info.pin_config), clock->ptp_info.n_pins),
-+				GFP_KERNEL);
- 	if (!clock->ptp_info.pin_config)
+-	chan->sw_desc_pool = kzalloc(sizeof(*desc) * ZYNQMP_DMA_NUM_DESCS,
++	chan->sw_desc_pool = kzalloc(array_size(ZYNQMP_DMA_NUM_DESCS, sizeof(*desc)),
+ 				     GFP_KERNEL);
+ 	if (!chan->sw_desc_pool)
  		return -ENOMEM;
- 	clock->ptp_info.enable = mlx5_ptp_enable;
-diff --git a/drivers/net/ethernet/micrel/ksz884x.c b/drivers/net/ethernet/micrel/ksz884x.c
-index 52207508744c..ed029b96eac3 100644
---- a/drivers/net/ethernet/micrel/ksz884x.c
-+++ b/drivers/net/ethernet/micrel/ksz884x.c
-@@ -4372,7 +4372,7 @@ static void ksz_update_timer(struct ksz_timer_info *info)
-  */
- static int ksz_alloc_soft_desc(struct ksz_desc_info *desc_info, int transmit)
- {
--	desc_info->ring = kzalloc(sizeof(struct ksz_desc) * desc_info->alloc,
-+	desc_info->ring = kzalloc(array_size(sizeof(struct ksz_desc), desc_info->alloc),
- 				  GFP_KERNEL);
- 	if (!desc_info->ring)
- 		return 1;
-diff --git a/drivers/net/ethernet/moxa/moxart_ether.c b/drivers/net/ethernet/moxa/moxart_ether.c
-index 2e4effa9fe45..61199e478248 100644
---- a/drivers/net/ethernet/moxa/moxart_ether.c
-+++ b/drivers/net/ethernet/moxa/moxart_ether.c
-@@ -507,14 +507,14 @@ static int moxart_mac_probe(struct platform_device *pdev)
- 		goto init_fail;
- 	}
+diff --git a/drivers/extcon/extcon.c b/drivers/extcon/extcon.c
+index 8bff5fd18185..498b2d29d52f 100644
+--- a/drivers/extcon/extcon.c
++++ b/drivers/extcon/extcon.c
+@@ -1184,8 +1184,8 @@ int extcon_dev_register(struct extcon_dev *edev)
+ 			goto err_muex;
+ 		}
  
--	priv->tx_buf_base = kmalloc(priv->tx_buf_size * TX_DESC_NUM,
-+	priv->tx_buf_base = kmalloc(array_size(priv->tx_buf_size, TX_DESC_NUM),
- 				    GFP_ATOMIC);
- 	if (!priv->tx_buf_base) {
- 		ret = -ENOMEM;
- 		goto init_fail;
- 	}
+-		edev->d_attrs_muex = kzalloc(sizeof(struct device_attribute) *
+-					     index, GFP_KERNEL);
++		edev->d_attrs_muex = kzalloc(array_size(index, sizeof(struct device_attribute)),
++					     GFP_KERNEL);
+ 		if (!edev->d_attrs_muex) {
+ 			ret = -ENOMEM;
+ 			kfree(edev->attrs_muex);
+diff --git a/drivers/firewire/core-iso.c b/drivers/firewire/core-iso.c
+index 38c0aa60b2cb..c0205cb3d77d 100644
+--- a/drivers/firewire/core-iso.c
++++ b/drivers/firewire/core-iso.c
+@@ -45,7 +45,7 @@ int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
  
--	priv->rx_buf_base = kmalloc(priv->rx_buf_size * RX_DESC_NUM,
-+	priv->rx_buf_base = kmalloc(array_size(priv->rx_buf_size, RX_DESC_NUM),
- 				    GFP_ATOMIC);
- 	if (!priv->rx_buf_base) {
- 		ret = -ENOMEM;
-diff --git a/drivers/net/ethernet/neterion/vxge/vxge-main.c b/drivers/net/ethernet/neterion/vxge/vxge-main.c
-index b2299f2b2155..e51040939b3b 100644
---- a/drivers/net/ethernet/neterion/vxge/vxge-main.c
-+++ b/drivers/net/ethernet/neterion/vxge/vxge-main.c
-@@ -3429,8 +3429,8 @@ static int vxge_device_register(struct __vxge_hw_device *hldev,
- 	vxge_initialize_ethtool_ops(ndev);
- 
- 	/* Allocate memory for vpath */
--	vdev->vpaths = kzalloc((sizeof(struct vxge_vpath)) *
--				no_of_vpath, GFP_KERNEL);
-+	vdev->vpaths = kzalloc(array_size((sizeof(struct vxge_vpath)), no_of_vpath),
-+			       GFP_KERNEL);
- 	if (!vdev->vpaths) {
- 		vxge_debug_init(VXGE_ERR,
- 			"%s: vpath memory allocation failed",
-diff --git a/drivers/net/ethernet/nvidia/forcedeth.c b/drivers/net/ethernet/nvidia/forcedeth.c
-index 66c665d0b926..d2ceb214174d 100644
---- a/drivers/net/ethernet/nvidia/forcedeth.c
-+++ b/drivers/net/ethernet/nvidia/forcedeth.c
-@@ -4630,8 +4630,10 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
- 					       ring->tx_pending),
- 					       &ring_addr, GFP_ATOMIC);
- 	}
--	rx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->rx_pending, GFP_KERNEL);
--	tx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->tx_pending, GFP_KERNEL);
-+	rx_skbuff = kmalloc(array_size(sizeof(struct nv_skb_map), ring->rx_pending),
-+			    GFP_KERNEL);
-+	tx_skbuff = kmalloc(array_size(sizeof(struct nv_skb_map), ring->tx_pending),
-+			    GFP_KERNEL);
- 	if (!rxtx_ring || !rx_skbuff || !tx_skbuff) {
- 		/* fall back to old rings */
- 		if (!nv_optimized(np)) {
-diff --git a/drivers/net/ethernet/qlogic/qed/qed_debug.c b/drivers/net/ethernet/qlogic/qed/qed_debug.c
-index 4926c5532fba..a3c6b98f75e4 100644
---- a/drivers/net/ethernet/qlogic/qed/qed_debug.c
-+++ b/drivers/net/ethernet/qlogic/qed/qed_debug.c
-@@ -6558,7 +6558,8 @@ static enum dbg_status qed_mcp_trace_alloc_meta(struct qed_hwfn *p_hwfn,
- 
- 	/* Read no. of modules and allocate memory for their pointers */
- 	meta->modules_num = qed_read_byte_from_buf(meta_buf_bytes, &offset);
--	meta->modules = kzalloc(meta->modules_num * sizeof(char *), GFP_KERNEL);
-+	meta->modules = kzalloc(array_size(meta->modules_num, sizeof(char *)),
-+				GFP_KERNEL);
- 	if (!meta->modules)
- 		return DBG_STATUS_VIRT_MEM_ALLOC_FAILED;
- 
-@@ -6586,8 +6587,7 @@ static enum dbg_status qed_mcp_trace_alloc_meta(struct qed_hwfn *p_hwfn,
- 
- 	/* Read number of formats and allocate memory for all formats */
- 	meta->formats_num = qed_read_dword_from_buf(meta_buf_bytes, &offset);
--	meta->formats = kzalloc(meta->formats_num *
--				sizeof(struct mcp_trace_format),
-+	meta->formats = kzalloc(array_size(meta->formats_num, sizeof(struct mcp_trace_format)),
+ 	buffer->page_count = 0;
+ 	buffer->page_count_mapped = 0;
+-	buffer->pages = kmalloc(page_count * sizeof(buffer->pages[0]),
++	buffer->pages = kmalloc(array_size(page_count, sizeof(buffer->pages[0])),
  				GFP_KERNEL);
- 	if (!meta->formats)
- 		return DBG_STATUS_VIRT_MEM_ALLOC_FAILED;
-diff --git a/drivers/net/ethernet/qlogic/qed/qed_dev.c b/drivers/net/ethernet/qlogic/qed/qed_dev.c
-index d2ad5e92c74f..c9f804bf8ef3 100644
---- a/drivers/net/ethernet/qlogic/qed/qed_dev.c
-+++ b/drivers/net/ethernet/qlogic/qed/qed_dev.c
-@@ -814,26 +814,22 @@ static int qed_alloc_qm_data(struct qed_hwfn *p_hwfn)
- 	if (rc)
- 		goto alloc_err;
+ 	if (buffer->pages == NULL)
+ 		return -ENOMEM;
+diff --git a/drivers/firewire/net.c b/drivers/firewire/net.c
+index 60e75e6d9104..24ac0ef25695 100644
+--- a/drivers/firewire/net.c
++++ b/drivers/firewire/net.c
+@@ -1121,7 +1121,7 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
+ 	max_receive = 1U << (dev->card->max_receive + 1);
+ 	num_packets = (FWNET_ISO_PAGE_COUNT * PAGE_SIZE) / max_receive;
  
--	qm_info->qm_pq_params = kzalloc(sizeof(*qm_info->qm_pq_params) *
--					qed_init_qm_get_num_pqs(p_hwfn),
-+	qm_info->qm_pq_params = kzalloc(array_size(sizeof(*qm_info->qm_pq_params), qed_init_qm_get_num_pqs(p_hwfn)),
- 					GFP_KERNEL);
- 	if (!qm_info->qm_pq_params)
- 		goto alloc_err;
+-	ptrptr = kmalloc(sizeof(void *) * num_packets, GFP_KERNEL);
++	ptrptr = kmalloc(array_size(num_packets, sizeof(void *)), GFP_KERNEL);
+ 	if (!ptrptr) {
+ 		retval = -ENOMEM;
+ 		goto failed;
+diff --git a/drivers/firmware/dell_rbu.c b/drivers/firmware/dell_rbu.c
+index 2f452f1f7c8a..44b7755dc8f1 100644
+--- a/drivers/firmware/dell_rbu.c
++++ b/drivers/firmware/dell_rbu.c
+@@ -146,8 +146,8 @@ static int create_packet(void *data, size_t length)
+ 	packet_array_size = max(
+ 	       		(unsigned int)(allocation_floor / rbu_data.packetsize),
+ 			(unsigned int)1);
+-	invalid_addr_packet_array = kzalloc(packet_array_size * sizeof(void*),
+-						GFP_KERNEL);
++	invalid_addr_packet_array = kzalloc(array_size(packet_array_size, sizeof(void *)),
++					    GFP_KERNEL);
  
--	qm_info->qm_vport_params = kzalloc(sizeof(*qm_info->qm_vport_params) *
--					   qed_init_qm_get_num_vports(p_hwfn),
-+	qm_info->qm_vport_params = kzalloc(array_size(sizeof(*qm_info->qm_vport_params), qed_init_qm_get_num_vports(p_hwfn)),
- 					   GFP_KERNEL);
- 	if (!qm_info->qm_vport_params)
- 		goto alloc_err;
+ 	if (!invalid_addr_packet_array) {
+ 		printk(KERN_WARNING
+diff --git a/drivers/firmware/efi/capsule.c b/drivers/firmware/efi/capsule.c
+index 901b9306bf94..9e8dd2805b04 100644
+--- a/drivers/firmware/efi/capsule.c
++++ b/drivers/firmware/efi/capsule.c
+@@ -231,7 +231,8 @@ int efi_capsule_update(efi_capsule_header_t *capsule, phys_addr_t *pages)
+ 	count = DIV_ROUND_UP(imagesize, PAGE_SIZE);
+ 	sg_count = sg_pages_num(count);
  
--	qm_info->qm_port_params = kzalloc(sizeof(*qm_info->qm_port_params) *
--					  p_hwfn->cdev->num_ports_in_engine,
-+	qm_info->qm_port_params = kzalloc(array_size(sizeof(*qm_info->qm_port_params), p_hwfn->cdev->num_ports_in_engine),
- 					  GFP_KERNEL);
- 	if (!qm_info->qm_port_params)
- 		goto alloc_err;
- 
--	qm_info->wfq_data = kzalloc(sizeof(*qm_info->wfq_data) *
--				    qed_init_qm_get_num_vports(p_hwfn),
-+	qm_info->wfq_data = kzalloc(array_size(sizeof(*qm_info->wfq_data), qed_init_qm_get_num_vports(p_hwfn)),
- 				    GFP_KERNEL);
- 	if (!qm_info->wfq_data)
- 		goto alloc_err;
-diff --git a/drivers/net/ethernet/qlogic/qed/qed_init_ops.c b/drivers/net/ethernet/qlogic/qed/qed_init_ops.c
-index 06b1fad88360..3dc5f70656be 100644
---- a/drivers/net/ethernet/qlogic/qed/qed_init_ops.c
-+++ b/drivers/net/ethernet/qlogic/qed/qed_init_ops.c
-@@ -498,7 +498,8 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
- 	num_init_ops = cdev->fw_data->init_ops_size;
- 	init_ops = cdev->fw_data->init_ops;
- 
--	p_hwfn->unzip_buf = kzalloc(MAX_ZIPPED_SIZE * 4, GFP_ATOMIC);
-+	p_hwfn->unzip_buf = kzalloc(array_size(MAX_ZIPPED_SIZE, 4),
-+				    GFP_ATOMIC);
- 	if (!p_hwfn->unzip_buf)
+-	sg_pages = kzalloc(sg_count * sizeof(*sg_pages), GFP_KERNEL);
++	sg_pages = kzalloc(array_size(sg_count, sizeof(*sg_pages)),
++			   GFP_KERNEL);
+ 	if (!sg_pages)
  		return -ENOMEM;
  
-diff --git a/drivers/net/ethernet/qlogic/qed/qed_l2.c b/drivers/net/ethernet/qlogic/qed/qed_l2.c
-index e874504e8b28..9fcf8fd81f66 100644
---- a/drivers/net/ethernet/qlogic/qed/qed_l2.c
-+++ b/drivers/net/ethernet/qlogic/qed/qed_l2.c
-@@ -98,7 +98,7 @@ int qed_l2_alloc(struct qed_hwfn *p_hwfn)
- 		p_l2_info->queues = max_t(u8, rx, tx);
+diff --git a/drivers/fmc/fmc-sdb.c b/drivers/fmc/fmc-sdb.c
+index ffdc1762b580..6a67ceeb410d 100644
+--- a/drivers/fmc/fmc-sdb.c
++++ b/drivers/fmc/fmc-sdb.c
+@@ -48,8 +48,10 @@ static struct sdb_array *__fmc_scan_sdb_tree(struct fmc_device *fmc,
+ 	arr = kzalloc(sizeof(*arr), GFP_KERNEL);
+ 	if (!arr)
+ 		return ERR_PTR(-ENOMEM);
+-	arr->record = kzalloc(sizeof(arr->record[0]) * n, GFP_KERNEL);
+-	arr->subtree = kzalloc(sizeof(arr->subtree[0]) * n, GFP_KERNEL);
++	arr->record = kzalloc(array_size(n, sizeof(arr->record[0])),
++			      GFP_KERNEL);
++	arr->subtree = kzalloc(array_size(n, sizeof(arr->subtree[0])),
++			       GFP_KERNEL);
+ 	if (!arr->record || !arr->subtree) {
+ 		kfree(arr->record);
+ 		kfree(arr->subtree);
+diff --git a/drivers/gpio/gpio-ml-ioh.c b/drivers/gpio/gpio-ml-ioh.c
+index b3678bd1c120..6c2b313d932f 100644
+--- a/drivers/gpio/gpio-ml-ioh.c
++++ b/drivers/gpio/gpio-ml-ioh.c
+@@ -443,7 +443,7 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
+ 		goto err_iomap;
  	}
  
--	pp_qids = kzalloc(sizeof(unsigned long *) * p_l2_info->queues,
-+	pp_qids = kzalloc(array_size(sizeof(unsigned long *), p_l2_info->queues),
- 			  GFP_KERNEL);
- 	if (!pp_qids)
- 		return -ENOMEM;
-diff --git a/drivers/net/ethernet/qlogic/qed/qed_mcp.c b/drivers/net/ethernet/qlogic/qed/qed_mcp.c
-index ec0d425766a7..41d650dff539 100644
---- a/drivers/net/ethernet/qlogic/qed/qed_mcp.c
-+++ b/drivers/net/ethernet/qlogic/qed/qed_mcp.c
-@@ -2497,8 +2497,7 @@ int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn)
- 		goto err0;
+-	chip_save = kzalloc(sizeof(*chip) * 8, GFP_KERNEL);
++	chip_save = kzalloc(array_size(8, sizeof(*chip)), GFP_KERNEL);
+ 	if (chip_save == NULL) {
+ 		ret = -ENOMEM;
+ 		goto err_kzalloc;
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_acp.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_acp.c
+index a29362f9ef41..bdddde996444 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_acp.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_acp.c
+@@ -311,20 +311,22 @@ static int acp_hw_init(void *handle)
+ 		pm_genpd_init(&adev->acp.acp_genpd->gpd, NULL, false);
  	}
  
--	nvm_info->image_att = kmalloc(nvm_info->num_images *
--				      sizeof(struct bist_nvm_image_att),
-+	nvm_info->image_att = kmalloc(array_size(nvm_info->num_images, sizeof(struct bist_nvm_image_att)),
- 				      GFP_KERNEL);
- 	if (!nvm_info->image_att) {
- 		rc = -ENOMEM;
-diff --git a/drivers/net/ethernet/qlogic/qlge/qlge_main.c b/drivers/net/ethernet/qlogic/qlge/qlge_main.c
-index 8293c2028002..4fc20aa7114e 100644
---- a/drivers/net/ethernet/qlogic/qlge/qlge_main.c
-+++ b/drivers/net/ethernet/qlogic/qlge/qlge_main.c
-@@ -2810,7 +2810,8 @@ static int ql_alloc_tx_resources(struct ql_adapter *qdev,
- 		goto pci_alloc_err;
+-	adev->acp.acp_cell = kzalloc(sizeof(struct mfd_cell) * ACP_DEVS,
+-							GFP_KERNEL);
++	adev->acp.acp_cell = kzalloc(array_size(ACP_DEVS, sizeof(struct mfd_cell)),
++				     GFP_KERNEL);
  
- 	tx_ring->q =
--	    kmalloc(tx_ring->wq_len * sizeof(struct tx_ring_desc), GFP_KERNEL);
-+	    kmalloc(array_size(tx_ring->wq_len, sizeof(struct tx_ring_desc)),
-+		    GFP_KERNEL);
- 	if (tx_ring->q == NULL)
- 		goto err;
- 
-diff --git a/drivers/net/usb/asix_common.c b/drivers/net/usb/asix_common.c
-index f4d7362eb325..d19e868afe25 100644
---- a/drivers/net/usb/asix_common.c
-+++ b/drivers/net/usb/asix_common.c
-@@ -640,7 +640,7 @@ int asix_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
- 	first_word = eeprom->offset >> 1;
- 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
- 
--	eeprom_buff = kmalloc(sizeof(u16) * (last_word - first_word + 1),
-+	eeprom_buff = kmalloc(array_size(sizeof(u16), (last_word - first_word + 1)),
- 			      GFP_KERNEL);
- 	if (!eeprom_buff)
+ 	if (adev->acp.acp_cell == NULL)
  		return -ENOMEM;
-@@ -680,7 +680,7 @@ int asix_set_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
- 	first_word = eeprom->offset >> 1;
- 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
  
--	eeprom_buff = kmalloc(sizeof(u16) * (last_word - first_word + 1),
-+	eeprom_buff = kmalloc(array_size(sizeof(u16), (last_word - first_word + 1)),
- 			      GFP_KERNEL);
- 	if (!eeprom_buff)
- 		return -ENOMEM;
-diff --git a/drivers/net/usb/ax88179_178a.c b/drivers/net/usb/ax88179_178a.c
-index a6ef75907ae9..c09c93153de7 100644
---- a/drivers/net/usb/ax88179_178a.c
-+++ b/drivers/net/usb/ax88179_178a.c
-@@ -599,7 +599,7 @@ ax88179_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
+-	adev->acp.acp_res = kzalloc(sizeof(struct resource) * 4, GFP_KERNEL);
++	adev->acp.acp_res = kzalloc(array_size(4, sizeof(struct resource)),
++				    GFP_KERNEL);
  
- 	first_word = eeprom->offset >> 1;
- 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
--	eeprom_buff = kmalloc(sizeof(u16) * (last_word - first_word + 1),
-+	eeprom_buff = kmalloc(array_size(sizeof(u16), (last_word - first_word + 1)),
- 			      GFP_KERNEL);
- 	if (!eeprom_buff)
+ 	if (adev->acp.acp_res == NULL) {
+ 		kfree(adev->acp.acp_cell);
  		return -ENOMEM;
-diff --git a/drivers/net/usb/usbnet.c b/drivers/net/usb/usbnet.c
-index d9eea8cfe6cb..9e0530468102 100644
---- a/drivers/net/usb/usbnet.c
-+++ b/drivers/net/usb/usbnet.c
-@@ -1323,7 +1323,7 @@ static int build_dma_sg(const struct sk_buff *skb, struct urb *urb)
+ 	}
+ 
+-	i2s_pdata = kzalloc(sizeof(struct i2s_platform_data) * 2, GFP_KERNEL);
++	i2s_pdata = kzalloc(array_size(2, sizeof(struct i2s_platform_data)),
++			    GFP_KERNEL);
+ 	if (i2s_pdata == NULL) {
+ 		kfree(adev->acp.acp_res);
+ 		kfree(adev->acp.acp_cell);
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_test.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_test.c
+index 2dbe87591f81..e008106321be 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_test.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_test.c
+@@ -52,7 +52,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
+ 		n -= adev->irq.ih.ring_size;
+ 	n /= size;
+ 
+-	gtt_obj = kzalloc(n * sizeof(*gtt_obj), GFP_KERNEL);
++	gtt_obj = kzalloc(array_size(n, sizeof(*gtt_obj)), GFP_KERNEL);
+ 	if (!gtt_obj) {
+ 		DRM_ERROR("Failed to allocate %d pointers\n", n);
+ 		r = 1;
+diff --git a/drivers/gpu/drm/amd/amdgpu/ci_dpm.c b/drivers/gpu/drm/amd/amdgpu/ci_dpm.c
+index 47ef3e6e7178..0c1e6ae61ff2 100644
+--- a/drivers/gpu/drm/amd/amdgpu/ci_dpm.c
++++ b/drivers/gpu/drm/amd/amdgpu/ci_dpm.c
+@@ -5927,7 +5927,8 @@ static int ci_dpm_init(struct amdgpu_device *adev)
+ 	ci_set_private_data_variables_based_on_pptable(adev);
+ 
+ 	adev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
+-		kzalloc(4 * sizeof(struct amdgpu_clock_voltage_dependency_entry), GFP_KERNEL);
++		kzalloc(array_size(4, sizeof(struct amdgpu_clock_voltage_dependency_entry)),
++			GFP_KERNEL);
+ 	if (!adev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
+ 		ci_dpm_fini(adev);
+ 		return -ENOMEM;
+diff --git a/drivers/gpu/drm/amd/amdgpu/si_dpm.c b/drivers/gpu/drm/amd/amdgpu/si_dpm.c
+index 797d505bf9ee..6e12d8f28859 100644
+--- a/drivers/gpu/drm/amd/amdgpu/si_dpm.c
++++ b/drivers/gpu/drm/amd/amdgpu/si_dpm.c
+@@ -7346,7 +7346,8 @@ static int si_dpm_init(struct amdgpu_device *adev)
+ 		return ret;
+ 
+ 	adev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
+-		kzalloc(4 * sizeof(struct amdgpu_clock_voltage_dependency_entry), GFP_KERNEL);
++		kzalloc(array_size(4, sizeof(struct amdgpu_clock_voltage_dependency_entry)),
++			GFP_KERNEL);
+ 	if (!adev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
+ 		amdgpu_free_extended_power_table(adev);
+ 		return -ENOMEM;
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_helpers.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_helpers.c
+index ca0b08bfa2cf..5c4d44153514 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_helpers.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_helpers.c
+@@ -440,7 +440,7 @@ bool dm_helpers_submit_i2c(
+ 		return false;
+ 	}
+ 
+-	msgs = kzalloc(num * sizeof(struct i2c_msg), GFP_KERNEL);
++	msgs = kzalloc(array_size(num, sizeof(struct i2c_msg)), GFP_KERNEL);
+ 
+ 	if (!msgs)
+ 		return false;
+diff --git a/drivers/gpu/drm/amd/display/dc/basics/logger.c b/drivers/gpu/drm/amd/display/dc/basics/logger.c
+index 31bee054f43a..4ce5e98f3688 100644
+--- a/drivers/gpu/drm/amd/display/dc/basics/logger.c
++++ b/drivers/gpu/drm/amd/display/dc/basics/logger.c
+@@ -364,7 +364,7 @@ void dm_logger_open(
+ 	entry->type = log_type;
+ 	entry->logger = logger;
+ 
+-	entry->buf = kzalloc(DAL_LOGGER_BUFFER_MAX_SIZE * sizeof(char),
++	entry->buf = kzalloc(array_size(DAL_LOGGER_BUFFER_MAX_SIZE, sizeof(char)),
+ 			     GFP_KERNEL);
+ 
+ 	entry->buf_offset = 0;
+diff --git a/drivers/gpu/drm/amd/display/dc/basics/vector.c b/drivers/gpu/drm/amd/display/dc/basics/vector.c
+index 217b8f1f7bf6..79f23ae28bf7 100644
+--- a/drivers/gpu/drm/amd/display/dc/basics/vector.c
++++ b/drivers/gpu/drm/amd/display/dc/basics/vector.c
+@@ -40,7 +40,8 @@ bool dal_vector_construct(
+ 		return false;
+ 	}
+ 
+-	vector->container = kzalloc(struct_size * capacity, GFP_KERNEL);
++	vector->container = kzalloc(array_size(capacity, struct_size),
++				    GFP_KERNEL);
+ 	if (vector->container == NULL)
+ 		return false;
+ 	vector->capacity = capacity;
+@@ -67,7 +68,8 @@ bool dal_vector_presized_costruct(
+ 		return false;
+ 	}
+ 
+-	vector->container = kzalloc(struct_size * count, GFP_KERNEL);
++	vector->container = kzalloc(array_size(count, struct_size),
++				    GFP_KERNEL);
+ 
+ 	if (vector->container == NULL)
+ 		return false;
+diff --git a/drivers/gpu/drm/amd/display/dc/gpio/gpio_service.c b/drivers/gpu/drm/amd/display/dc/gpio/gpio_service.c
+index 80038e0e610f..989c2224660e 100644
+--- a/drivers/gpu/drm/amd/display/dc/gpio/gpio_service.c
++++ b/drivers/gpu/drm/amd/display/dc/gpio/gpio_service.c
+@@ -98,7 +98,7 @@ struct gpio_service *dal_gpio_service_create(
+ 			if (number_of_bits) {
+ 				uint32_t index_of_uint = 0;
+ 
+-				slot = kzalloc(number_of_uints * sizeof(uint32_t),
++				slot = kzalloc(array_size(number_of_uints, sizeof(uint32_t)),
+ 					       GFP_KERNEL);
+ 
+ 				if (!slot) {
+diff --git a/drivers/gpu/drm/amd/display/modules/freesync/freesync.c b/drivers/gpu/drm/amd/display/modules/freesync/freesync.c
+index 27d4003aa2c7..f7fd1732f4a2 100644
+--- a/drivers/gpu/drm/amd/display/modules/freesync/freesync.c
++++ b/drivers/gpu/drm/amd/display/modules/freesync/freesync.c
+@@ -155,8 +155,8 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
+ 	if (core_freesync == NULL)
+ 		goto fail_alloc_context;
+ 
+-	core_freesync->map = kzalloc(sizeof(struct freesync_entity) * MOD_FREESYNC_MAX_CONCURRENT_STREAMS,
+-					GFP_KERNEL);
++	core_freesync->map = kzalloc(array_size(MOD_FREESYNC_MAX_CONCURRENT_STREAMS, sizeof(struct freesync_entity)),
++				     GFP_KERNEL);
+ 
+ 	if (core_freesync->map == NULL)
+ 		goto fail_alloc_map;
+diff --git a/drivers/gpu/drm/amd/powerplay/hwmgr/pp_psm.c b/drivers/gpu/drm/amd/powerplay/hwmgr/pp_psm.c
+index 0f2851b5b368..fc45b805dc10 100644
+--- a/drivers/gpu/drm/amd/powerplay/hwmgr/pp_psm.c
++++ b/drivers/gpu/drm/amd/powerplay/hwmgr/pp_psm.c
+@@ -50,7 +50,7 @@ int psm_init_power_state_table(struct pp_hwmgr *hwmgr)
  		return 0;
- 
- 	/* reserve one for zero packet */
--	urb->sg = kmalloc((num_sgs + 1) * sizeof(struct scatterlist),
-+	urb->sg = kmalloc(array_size((num_sgs + 1), sizeof(struct scatterlist)),
- 			  GFP_ATOMIC);
- 	if (!urb->sg)
- 		return -ENOMEM;
-diff --git a/drivers/net/virtio_net.c b/drivers/net/virtio_net.c
-index fb627b35ae1b..d9fb409a2bcd 100644
---- a/drivers/net/virtio_net.c
-+++ b/drivers/net/virtio_net.c
-@@ -2559,10 +2559,12 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
- 	vi->ctrl = kzalloc(sizeof(*vi->ctrl), GFP_KERNEL);
- 	if (!vi->ctrl)
- 		goto err_ctrl;
--	vi->sq = kzalloc(sizeof(*vi->sq) * vi->max_queue_pairs, GFP_KERNEL);
-+	vi->sq = kzalloc(array_size(sizeof(*vi->sq), vi->max_queue_pairs),
-+			 GFP_KERNEL);
- 	if (!vi->sq)
- 		goto err_sq;
--	vi->rq = kzalloc(sizeof(*vi->rq) * vi->max_queue_pairs, GFP_KERNEL);
-+	vi->rq = kzalloc(array_size(sizeof(*vi->rq), vi->max_queue_pairs),
-+			 GFP_KERNEL);
- 	if (!vi->rq)
- 		goto err_rq;
- 
-diff --git a/drivers/net/wan/fsl_ucc_hdlc.c b/drivers/net/wan/fsl_ucc_hdlc.c
-index 33df76405b86..0bbf1c6b7828 100644
---- a/drivers/net/wan/fsl_ucc_hdlc.c
-+++ b/drivers/net/wan/fsl_ucc_hdlc.c
-@@ -198,12 +198,12 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
- 		goto free_tx_bd;
  	}
  
--	priv->rx_skbuff = kzalloc(priv->rx_ring_size * sizeof(*priv->rx_skbuff),
-+	priv->rx_skbuff = kzalloc(array_size(priv->rx_ring_size, sizeof(*priv->rx_skbuff)),
- 				  GFP_KERNEL);
- 	if (!priv->rx_skbuff)
- 		goto free_ucc_pram;
- 
--	priv->tx_skbuff = kzalloc(priv->tx_ring_size * sizeof(*priv->tx_skbuff),
-+	priv->tx_skbuff = kzalloc(array_size(priv->tx_ring_size, sizeof(*priv->tx_skbuff)),
- 				  GFP_KERNEL);
- 	if (!priv->tx_skbuff)
- 		goto free_rx_skbuff;
-diff --git a/drivers/net/wireless/ath/ath10k/htt_rx.c b/drivers/net/wireless/ath/ath10k/htt_rx.c
-index 5e02e26158f6..3fc68f060fe9 100644
---- a/drivers/net/wireless/ath/ath10k/htt_rx.c
-+++ b/drivers/net/wireless/ath/ath10k/htt_rx.c
-@@ -581,7 +581,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
- 	}
- 
- 	htt->rx_ring.netbufs_ring =
--		kzalloc(htt->rx_ring.size * sizeof(struct sk_buff *),
-+		kzalloc(array_size(htt->rx_ring.size, sizeof(struct sk_buff *)),
- 			GFP_KERNEL);
- 	if (!htt->rx_ring.netbufs_ring)
- 		goto err_netbuf;
-diff --git a/drivers/net/wireless/ath/ath5k/phy.c b/drivers/net/wireless/ath/ath5k/phy.c
-index 641b13a279e1..3e7e4ae829ee 100644
---- a/drivers/net/wireless/ath/ath5k/phy.c
-+++ b/drivers/net/wireless/ath/ath5k/phy.c
-@@ -890,8 +890,8 @@ ath5k_hw_rfregs_init(struct ath5k_hw *ah,
- 	 * ah->ah_rf_banks based on ah->ah_rf_banks_size
- 	 * we set above */
- 	if (ah->ah_rf_banks == NULL) {
--		ah->ah_rf_banks = kmalloc(sizeof(u32) * ah->ah_rf_banks_size,
--								GFP_KERNEL);
-+		ah->ah_rf_banks = kmalloc(array_size(sizeof(u32), ah->ah_rf_banks_size),
-+					  GFP_KERNEL);
- 		if (ah->ah_rf_banks == NULL) {
- 			ATH5K_ERR(ah, "out of memory\n");
- 			return -ENOMEM;
-diff --git a/drivers/net/wireless/ath/ath9k/ar9003_paprd.c b/drivers/net/wireless/ath/ath9k/ar9003_paprd.c
-index 6343cc91953e..1dcd5cc57abd 100644
---- a/drivers/net/wireless/ath/ath9k/ar9003_paprd.c
-+++ b/drivers/net/wireless/ath/ath9k/ar9003_paprd.c
-@@ -925,7 +925,7 @@ int ar9003_paprd_create_curve(struct ath_hw *ah,
- 
- 	memset(caldata->pa_table[chain], 0, sizeof(caldata->pa_table[chain]));
- 
--	buf = kmalloc(2 * 48 * sizeof(u32), GFP_KERNEL);
-+	buf = kmalloc(array3_size(2, 48, sizeof(u32)), GFP_KERNEL);
- 	if (!buf)
+-	hwmgr->ps = kzalloc(size * table_entries, GFP_KERNEL);
++	hwmgr->ps = kzalloc(array_size(table_entries, size), GFP_KERNEL);
+ 	if (hwmgr->ps == NULL)
  		return -ENOMEM;
  
-diff --git a/drivers/net/wireless/ath/carl9170/main.c b/drivers/net/wireless/ath/carl9170/main.c
-index 04cfdd6bef55..f4a00dc294d9 100644
---- a/drivers/net/wireless/ath/carl9170/main.c
-+++ b/drivers/net/wireless/ath/carl9170/main.c
-@@ -1989,8 +1989,8 @@ int carl9170_register(struct ar9170 *ar)
- 	if (WARN_ON(ar->mem_bitmap))
+diff --git a/drivers/gpu/drm/i915/gvt/vgpu.c b/drivers/gpu/drm/i915/gvt/vgpu.c
+index 2e0a02a80fe4..9efeb37d2242 100644
+--- a/drivers/gpu/drm/i915/gvt/vgpu.c
++++ b/drivers/gpu/drm/i915/gvt/vgpu.c
+@@ -121,7 +121,7 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
+ 	high_avail = gvt_hidden_sz(gvt) - HOST_HIGH_GM_SIZE;
+ 	num_types = sizeof(vgpu_types) / sizeof(vgpu_types[0]);
+ 
+-	gvt->types = kzalloc(num_types * sizeof(struct intel_vgpu_type),
++	gvt->types = kzalloc(array_size(num_types, sizeof(struct intel_vgpu_type)),
+ 			     GFP_KERNEL);
+ 	if (!gvt->types)
+ 		return -ENOMEM;
+diff --git a/drivers/gpu/drm/i915/intel_hdcp.c b/drivers/gpu/drm/i915/intel_hdcp.c
+index 14ca5d3057a7..4a9463205eae 100644
+--- a/drivers/gpu/drm/i915/intel_hdcp.c
++++ b/drivers/gpu/drm/i915/intel_hdcp.c
+@@ -181,7 +181,8 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
+ 	if (num_downstream == 0)
  		return -EINVAL;
  
--	ar->mem_bitmap = kzalloc(roundup(ar->fw.mem_blocks, BITS_PER_LONG) *
--				 sizeof(unsigned long), GFP_KERNEL);
-+	ar->mem_bitmap = kzalloc(array_size(roundup(ar->fw.mem_blocks, BITS_PER_LONG), sizeof(unsigned long)),
-+				 GFP_KERNEL);
- 
- 	if (!ar->mem_bitmap)
+-	ksv_fifo = kzalloc(num_downstream * DRM_HDCP_KSV_LEN, GFP_KERNEL);
++	ksv_fifo = kzalloc(array_size(DRM_HDCP_KSV_LEN, num_downstream),
++			   GFP_KERNEL);
+ 	if (!ksv_fifo)
  		return -ENOMEM;
-diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/msgbuf.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/msgbuf.c
-index 49d37ad96958..57063218f7f4 100644
---- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/msgbuf.c
-+++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/msgbuf.c
-@@ -1486,8 +1486,8 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
- 		(struct brcmf_commonring **)if_msgbuf->commonrings;
- 	msgbuf->flowrings = (struct brcmf_commonring **)if_msgbuf->flowrings;
- 	msgbuf->max_flowrings = if_msgbuf->max_flowrings;
--	msgbuf->flowring_dma_handle = kzalloc(msgbuf->max_flowrings *
--		sizeof(*msgbuf->flowring_dma_handle), GFP_KERNEL);
-+	msgbuf->flowring_dma_handle = kzalloc(array_size(msgbuf->max_flowrings, sizeof(*msgbuf->flowring_dma_handle)),
-+					      GFP_KERNEL);
- 	if (!msgbuf->flowring_dma_handle)
- 		goto fail;
  
-diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_n.c b/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_n.c
-index 88eb34244caa..fc2cc7cecdd2 100644
---- a/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_n.c
-+++ b/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_n.c
-@@ -24665,7 +24665,8 @@ wlc_phy_a1_nphy(struct brcms_phy *pi, u8 core, u32 winsz, u32 start,
+diff --git a/drivers/gpu/drm/nouveau/nvkm/core/event.c b/drivers/gpu/drm/nouveau/nvkm/core/event.c
+index 4e8d3fa042df..5e44bbb74177 100644
+--- a/drivers/gpu/drm/nouveau/nvkm/core/event.c
++++ b/drivers/gpu/drm/nouveau/nvkm/core/event.c
+@@ -84,7 +84,7 @@ int
+ nvkm_event_init(const struct nvkm_event_func *func, int types_nr, int index_nr,
+ 		struct nvkm_event *event)
+ {
+-	event->refs = kzalloc(sizeof(*event->refs) * index_nr * types_nr,
++	event->refs = kzalloc(array3_size(index_nr, types_nr, sizeof(*event->refs)),
+ 			      GFP_KERNEL);
+ 	if (!event->refs)
+ 		return -ENOMEM;
+diff --git a/drivers/gpu/drm/nouveau/nvkm/subdev/bios/iccsense.c b/drivers/gpu/drm/nouveau/nvkm/subdev/bios/iccsense.c
+index 73e463ed55c3..3d63dd153a93 100644
+--- a/drivers/gpu/drm/nouveau/nvkm/subdev/bios/iccsense.c
++++ b/drivers/gpu/drm/nouveau/nvkm/subdev/bios/iccsense.c
+@@ -73,7 +73,8 @@ nvbios_iccsense_parse(struct nvkm_bios *bios, struct nvbios_iccsense *iccsense)
+ 	}
  
- 	sz = end - start + 1;
+ 	iccsense->nr_entry = cnt;
+-	iccsense->rail = kmalloc(sizeof(struct pwr_rail_t) * cnt, GFP_KERNEL);
++	iccsense->rail = kmalloc(array_size(cnt, sizeof(struct pwr_rail_t)),
++				 GFP_KERNEL);
+ 	if (!iccsense->rail)
+ 		return -ENOMEM;
  
--	buf = kmalloc(2 * sizeof(u32) * NPHY_PAPD_EPS_TBL_SIZE, GFP_ATOMIC);
-+	buf = kmalloc(array3_size(2, sizeof(u32), NPHY_PAPD_EPS_TBL_SIZE),
-+		      GFP_ATOMIC);
- 	if (NULL == buf)
+diff --git a/drivers/gpu/drm/nouveau/nvkm/subdev/fb/ramgt215.c b/drivers/gpu/drm/nouveau/nvkm/subdev/fb/ramgt215.c
+index 920b3d347803..df0c370c850d 100644
+--- a/drivers/gpu/drm/nouveau/nvkm/subdev/fb/ramgt215.c
++++ b/drivers/gpu/drm/nouveau/nvkm/subdev/fb/ramgt215.c
+@@ -171,7 +171,7 @@ gt215_link_train(struct gt215_ram *ram)
+ 		return -ENOSYS;
+ 
+ 	/* XXX: Multiple partitions? */
+-	result = kmalloc(64 * sizeof(u32), GFP_KERNEL);
++	result = kmalloc(array_size(64, sizeof(u32)), GFP_KERNEL);
+ 	if (!result)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/mem.c b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/mem.c
+index 39808489f21d..51aeb655d84b 100644
+--- a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/mem.c
++++ b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/mem.c
+@@ -191,9 +191,9 @@ nvkm_mem_new_host(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
+ 	nvkm_memory_ctor(&nvkm_mem_dma, &mem->memory);
+ 	size = ALIGN(size, PAGE_SIZE) >> PAGE_SHIFT;
+ 
+-	if (!(mem->mem = kvmalloc(sizeof(*mem->mem) * size, GFP_KERNEL)))
++	if (!(mem->mem = kvmalloc(array_size(size, sizeof(*mem->mem)), GFP_KERNEL)))
+ 		return -ENOMEM;
+-	if (!(mem->dma = kvmalloc(sizeof(*mem->dma) * size, GFP_KERNEL)))
++	if (!(mem->dma = kvmalloc(array_size(size, sizeof(*mem->dma)), GFP_KERNEL)))
+ 		return -ENOMEM;
+ 
+ 	if (mmu->dma_bits > 32)
+diff --git a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c
+index 1c12e58f44c2..c873505bfb7a 100644
+--- a/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c
++++ b/drivers/gpu/drm/nouveau/nvkm/subdev/mmu/vmm.c
+@@ -59,7 +59,8 @@ nvkm_vmm_pt_new(const struct nvkm_vmm_desc *desc, bool sparse,
+ 	pgt->sparse = sparse;
+ 
+ 	if (desc->type == PGD) {
+-		pgt->pde = kvzalloc(sizeof(*pgt->pde) * pten, GFP_KERNEL);
++		pgt->pde = kvzalloc(array_size(pten, sizeof(*pgt->pde)),
++				    GFP_KERNEL);
+ 		if (!pgt->pde) {
+ 			kfree(pgt);
+ 			return NULL;
+diff --git a/drivers/gpu/drm/omapdrm/omap_dmm_tiler.c b/drivers/gpu/drm/omapdrm/omap_dmm_tiler.c
+index f9fa1c90b35c..c6ad066c9ccf 100644
+--- a/drivers/gpu/drm/omapdrm/omap_dmm_tiler.c
++++ b/drivers/gpu/drm/omapdrm/omap_dmm_tiler.c
+@@ -936,7 +936,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
+ 	h_adj = omap_dmm->container_height / ydiv;
+ 	w_adj = omap_dmm->container_width / xdiv;
+ 
+-	map = kmalloc(h_adj * sizeof(*map), GFP_KERNEL);
++	map = kmalloc(array_size(h_adj, sizeof(*map)), GFP_KERNEL);
+ 	global_map = kmalloc((w_adj + 1) * h_adj, GFP_KERNEL);
+ 
+ 	if (!map || !global_map)
+diff --git a/drivers/gpu/drm/omapdrm/omap_gem.c b/drivers/gpu/drm/omapdrm/omap_gem.c
+index 0faf042b82e1..f0fef82ac6f2 100644
+--- a/drivers/gpu/drm/omapdrm/omap_gem.c
++++ b/drivers/gpu/drm/omapdrm/omap_gem.c
+@@ -244,7 +244,8 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
+ 	 * DSS, GPU, etc. are not cache coherent:
+ 	 */
+ 	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
+-		addrs = kmalloc(npages * sizeof(*addrs), GFP_KERNEL);
++		addrs = kmalloc(array_size(npages, sizeof(*addrs)),
++				GFP_KERNEL);
+ 		if (!addrs) {
+ 			ret = -ENOMEM;
+ 			goto free_pages;
+@@ -268,7 +269,8 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
+ 			}
+ 		}
+ 	} else {
+-		addrs = kzalloc(npages * sizeof(*addrs), GFP_KERNEL);
++		addrs = kzalloc(array_size(npages, sizeof(*addrs)),
++				GFP_KERNEL);
+ 		if (!addrs) {
+ 			ret = -ENOMEM;
+ 			goto free_pages;
+diff --git a/drivers/gpu/drm/radeon/btc_dpm.c b/drivers/gpu/drm/radeon/btc_dpm.c
+index 95652e643da1..22f816799437 100644
+--- a/drivers/gpu/drm/radeon/btc_dpm.c
++++ b/drivers/gpu/drm/radeon/btc_dpm.c
+@@ -2581,7 +2581,8 @@ int btc_dpm_init(struct radeon_device *rdev)
+ 		return ret;
+ 
+ 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
+-		kzalloc(4 * sizeof(struct radeon_clock_voltage_dependency_entry), GFP_KERNEL);
++		kzalloc(array_size(4, sizeof(struct radeon_clock_voltage_dependency_entry)),
++			GFP_KERNEL);
+ 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
+ 		r600_free_extended_power_table(rdev);
+ 		return -ENOMEM;
+diff --git a/drivers/gpu/drm/radeon/ci_dpm.c b/drivers/gpu/drm/radeon/ci_dpm.c
+index 7e1b04dc5593..bdefba5d7287 100644
+--- a/drivers/gpu/drm/radeon/ci_dpm.c
++++ b/drivers/gpu/drm/radeon/ci_dpm.c
+@@ -5770,7 +5770,8 @@ int ci_dpm_init(struct radeon_device *rdev)
+ 	ci_set_private_data_variables_based_on_pptable(rdev);
+ 
+ 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
+-		kzalloc(4 * sizeof(struct radeon_clock_voltage_dependency_entry), GFP_KERNEL);
++		kzalloc(array_size(4, sizeof(struct radeon_clock_voltage_dependency_entry)),
++			GFP_KERNEL);
+ 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
+ 		ci_dpm_fini(rdev);
+ 		return -ENOMEM;
+diff --git a/drivers/gpu/drm/radeon/ni_dpm.c b/drivers/gpu/drm/radeon/ni_dpm.c
+index 9416e72f86aa..021ca86432b0 100644
+--- a/drivers/gpu/drm/radeon/ni_dpm.c
++++ b/drivers/gpu/drm/radeon/ni_dpm.c
+@@ -4075,7 +4075,8 @@ int ni_dpm_init(struct radeon_device *rdev)
+ 		return ret;
+ 
+ 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
+-		kzalloc(4 * sizeof(struct radeon_clock_voltage_dependency_entry), GFP_KERNEL);
++		kzalloc(array_size(4, sizeof(struct radeon_clock_voltage_dependency_entry)),
++			GFP_KERNEL);
+ 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
+ 		r600_free_extended_power_table(rdev);
+ 		return -ENOMEM;
+diff --git a/drivers/gpu/drm/radeon/radeon_atombios.c b/drivers/gpu/drm/radeon/radeon_atombios.c
+index 4134759a6823..49693891ac9f 100644
+--- a/drivers/gpu/drm/radeon/radeon_atombios.c
++++ b/drivers/gpu/drm/radeon/radeon_atombios.c
+@@ -2126,13 +2126,15 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
+ 		num_modes = ATOM_MAX_NUMBEROF_POWER_BLOCK;
+ 	if (num_modes == 0)
+ 		return state_index;
+-	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) * num_modes, GFP_KERNEL);
++	rdev->pm.power_state = kzalloc(array_size(num_modes, sizeof(struct radeon_power_state)),
++				       GFP_KERNEL);
+ 	if (!rdev->pm.power_state)
+ 		return state_index;
+ 	/* last mode is usually default, array is low to high */
+ 	for (i = 0; i < num_modes; i++) {
+ 		rdev->pm.power_state[state_index].clock_info =
+-			kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
++			kzalloc(array_size(1, sizeof(struct radeon_pm_clock_info)),
++				GFP_KERNEL);
+ 		if (!rdev->pm.power_state[state_index].clock_info)
+ 			return state_index;
+ 		rdev->pm.power_state[state_index].num_clock_modes = 1;
+@@ -2782,7 +2784,8 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
+ 		rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state), GFP_KERNEL);
+ 		if (rdev->pm.power_state) {
+ 			rdev->pm.power_state[0].clock_info =
+-				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
++				kzalloc(array_size(1, sizeof(struct radeon_pm_clock_info)),
++				        GFP_KERNEL);
+ 			if (rdev->pm.power_state[0].clock_info) {
+ 				/* add the default mode */
+ 				rdev->pm.power_state[state_index].type =
+diff --git a/drivers/gpu/drm/radeon/radeon_combios.c b/drivers/gpu/drm/radeon/radeon_combios.c
+index 3178ba0c537c..bfef144602f5 100644
+--- a/drivers/gpu/drm/radeon/radeon_combios.c
++++ b/drivers/gpu/drm/radeon/radeon_combios.c
+@@ -2642,13 +2642,16 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
+ 	rdev->pm.default_power_state_index = -1;
+ 
+ 	/* allocate 2 power states */
+-	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) * 2, GFP_KERNEL);
++	rdev->pm.power_state = kzalloc(array_size(2, sizeof(struct radeon_power_state)),
++				       GFP_KERNEL);
+ 	if (rdev->pm.power_state) {
+ 		/* allocate 1 clock mode per state */
+ 		rdev->pm.power_state[0].clock_info =
+-			kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
++			kzalloc(array_size(1, sizeof(struct radeon_pm_clock_info)),
++				GFP_KERNEL);
+ 		rdev->pm.power_state[1].clock_info =
+-			kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
++			kzalloc(array_size(1, sizeof(struct radeon_pm_clock_info)),
++				GFP_KERNEL);
+ 		if (!rdev->pm.power_state[0].clock_info ||
+ 		    !rdev->pm.power_state[1].clock_info)
+ 			goto pm_failed;
+diff --git a/drivers/gpu/drm/radeon/radeon_test.c b/drivers/gpu/drm/radeon/radeon_test.c
+index f5e9abfadb56..c6b8d6a94b8e 100644
+--- a/drivers/gpu/drm/radeon/radeon_test.c
++++ b/drivers/gpu/drm/radeon/radeon_test.c
+@@ -59,7 +59,7 @@ static void radeon_do_test_moves(struct radeon_device *rdev, int flag)
+ 	n = rdev->mc.gtt_size - rdev->gart_pin_size;
+ 	n /= size;
+ 
+-	gtt_obj = kzalloc(n * sizeof(*gtt_obj), GFP_KERNEL);
++	gtt_obj = kzalloc(array_size(n, sizeof(*gtt_obj)), GFP_KERNEL);
+ 	if (!gtt_obj) {
+ 		DRM_ERROR("Failed to allocate %d pointers\n", n);
+ 		r = 1;
+diff --git a/drivers/gpu/drm/radeon/si_dpm.c b/drivers/gpu/drm/radeon/si_dpm.c
+index 90d5b41007bf..0e2a43220a23 100644
+--- a/drivers/gpu/drm/radeon/si_dpm.c
++++ b/drivers/gpu/drm/radeon/si_dpm.c
+@@ -6941,7 +6941,8 @@ int si_dpm_init(struct radeon_device *rdev)
+ 		return ret;
+ 
+ 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
+-		kzalloc(4 * sizeof(struct radeon_clock_voltage_dependency_entry), GFP_KERNEL);
++		kzalloc(array_size(4, sizeof(struct radeon_clock_voltage_dependency_entry)),
++			GFP_KERNEL);
+ 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
+ 		r600_free_extended_power_table(rdev);
+ 		return -ENOMEM;
+diff --git a/drivers/gpu/drm/tegra/fb.c b/drivers/gpu/drm/tegra/fb.c
+index e69434909a42..9d7b7a48d660 100644
+--- a/drivers/gpu/drm/tegra/fb.c
++++ b/drivers/gpu/drm/tegra/fb.c
+@@ -149,7 +149,8 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
+ 	if (!fb)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	fb->planes = kzalloc(num_planes * sizeof(*planes), GFP_KERNEL);
++	fb->planes = kzalloc(array_size(num_planes, sizeof(*planes)),
++			     GFP_KERNEL);
+ 	if (!fb->planes) {
+ 		kfree(fb);
+ 		return ERR_PTR(-ENOMEM);
+diff --git a/drivers/gpu/drm/ttm/ttm_page_alloc.c b/drivers/gpu/drm/ttm/ttm_page_alloc.c
+index f0481b7b60c5..a77fcd164f13 100644
+--- a/drivers/gpu/drm/ttm/ttm_page_alloc.c
++++ b/drivers/gpu/drm/ttm/ttm_page_alloc.c
+@@ -348,7 +348,7 @@ static int ttm_page_pool_free(struct ttm_page_pool *pool, unsigned nr_free,
+ 	if (use_static)
+ 		pages_to_free = static_buf;
+ 	else
+-		pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
++		pages_to_free = kmalloc(array_size(npages_to_free, sizeof(struct page *)),
+ 					GFP_KERNEL);
+ 	if (!pages_to_free) {
+ 		pr_debug("Failed to allocate memory for pool free operation\n");
+@@ -547,7 +547,8 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
+ 	unsigned max_cpages = min(count << order, (unsigned)NUM_PAGES_TO_ALLOC);
+ 
+ 	/* allocate array for page caching change */
+-	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
++	caching_array = kmalloc(array_size(max_cpages, sizeof(struct page *)),
++				GFP_KERNEL);
+ 
+ 	if (!caching_array) {
+ 		pr_debug("Unable to allocate table for new pages\n");
+diff --git a/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c b/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c
+index 8a25d1974385..3500babe2572 100644
+--- a/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c
++++ b/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c
+@@ -463,7 +463,7 @@ static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free,
+ 	if (use_static)
+ 		pages_to_free = static_buf;
+ 	else
+-		pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
++		pages_to_free = kmalloc(array_size(npages_to_free, sizeof(struct page *)),
+ 					GFP_KERNEL);
+ 
+ 	if (!pages_to_free) {
+@@ -753,7 +753,8 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
+ 			(unsigned)(PAGE_SIZE/sizeof(struct page *)));
+ 
+ 	/* allocate array for page caching change */
+-	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
++	caching_array = kmalloc(array_size(max_cpages, sizeof(struct page *)),
++				GFP_KERNEL);
+ 
+ 	if (!caching_array) {
+ 		pr_debug("%s: Unable to allocate table for new pages\n",
+diff --git a/drivers/hid/hid-core.c b/drivers/hid/hid-core.c
+index 5d7cc6bbbac6..f82dc60d432e 100644
+--- a/drivers/hid/hid-core.c
++++ b/drivers/hid/hid-core.c
+@@ -1271,7 +1271,7 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
+ 	__s32 max = field->logical_maximum;
+ 	__s32 *value;
+ 
+-	value = kmalloc(sizeof(__s32) * count, GFP_ATOMIC);
++	value = kmalloc(array_size(count, sizeof(__s32)), GFP_ATOMIC);
+ 	if (!value)
  		return;
  
-diff --git a/drivers/net/wireless/intel/iwlegacy/common.c b/drivers/net/wireless/intel/iwlegacy/common.c
-index a5d5748f5d30..093fac4694e8 100644
---- a/drivers/net/wireless/intel/iwlegacy/common.c
-+++ b/drivers/net/wireless/intel/iwlegacy/common.c
-@@ -922,7 +922,7 @@ il_init_channel_map(struct il_priv *il)
- 	D_EEPROM("Parsing data for %d channels.\n", il->channel_count);
+diff --git a/drivers/hid/hid-debug.c b/drivers/hid/hid-debug.c
+index 4f4e7a08a07b..a20a5ac3cc70 100644
+--- a/drivers/hid/hid-debug.c
++++ b/drivers/hid/hid-debug.c
+@@ -457,7 +457,8 @@ static char *resolv_usage_page(unsigned page, struct seq_file *f) {
+ 	char *buf = NULL;
  
- 	il->channel_info =
--	    kzalloc(sizeof(struct il_channel_info) * il->channel_count,
-+	    kzalloc(array_size(sizeof(struct il_channel_info), il->channel_count),
- 		    GFP_KERNEL);
- 	if (!il->channel_info) {
- 		IL_ERR("Could not allocate channel_info\n");
-@@ -3457,7 +3457,7 @@ il_init_geos(struct il_priv *il)
+ 	if (!f) {
+-		buf = kzalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
++		buf = kzalloc(array_size(HID_DEBUG_BUFSIZE, sizeof(char)),
++			      GFP_ATOMIC);
+ 		if (!buf)
+ 			return ERR_PTR(-ENOMEM);
+ 	}
+@@ -685,7 +686,7 @@ void hid_dump_report(struct hid_device *hid, int type, u8 *data,
+ 	char *buf;
+ 	unsigned int i;
+ 
+-	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
++	buf = kmalloc(array_size(HID_DEBUG_BUFSIZE, sizeof(char)), GFP_ATOMIC);
+ 
+ 	if (!buf)
+ 		return;
+@@ -1088,7 +1089,7 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
+ 		goto out;
  	}
  
- 	channels =
--	    kzalloc(sizeof(struct ieee80211_channel) * il->channel_count,
-+	    kzalloc(array_size(sizeof(struct ieee80211_channel), il->channel_count),
- 		    GFP_KERNEL);
- 	if (!channels)
- 		return -ENOMEM;
-@@ -4656,8 +4656,8 @@ il_alloc_txq_mem(struct il_priv *il)
+-	if (!(list->hid_debug_buf = kzalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_KERNEL))) {
++	if (!(list->hid_debug_buf = kzalloc(array_size(HID_DEBUG_BUFSIZE, sizeof(char)), GFP_KERNEL))) {
+ 		err = -ENOMEM;
+ 		kfree(list);
+ 		goto out;
+diff --git a/drivers/hid/hidraw.c b/drivers/hid/hidraw.c
+index b39844adea47..6dc9e5b65e16 100644
+--- a/drivers/hid/hidraw.c
++++ b/drivers/hid/hidraw.c
+@@ -218,7 +218,7 @@ static ssize_t hidraw_get_report(struct file *file, char __user *buffer, size_t
+ 		goto out;
+ 	}
+ 
+-	buf = kmalloc(count * sizeof(__u8), GFP_KERNEL);
++	buf = kmalloc(array_size(count, sizeof(__u8)), GFP_KERNEL);
+ 	if (!buf) {
+ 		ret = -ENOMEM;
+ 		goto out;
+diff --git a/drivers/hv/hv.c b/drivers/hv/hv.c
+index 9b82549cbbc8..e8343d005898 100644
+--- a/drivers/hv/hv.c
++++ b/drivers/hv/hv.c
+@@ -190,7 +190,7 @@ int hv_synic_alloc(void)
  {
- 	if (!il->txq)
- 		il->txq =
--		    kzalloc(sizeof(struct il_tx_queue) *
--			    il->cfg->num_of_queues, GFP_KERNEL);
-+		    kzalloc(array_size(sizeof(struct il_tx_queue), il->cfg->num_of_queues),
-+			    GFP_KERNEL);
- 	if (!il->txq) {
- 		IL_ERR("Not enough memory for txq\n");
- 		return -ENOMEM;
-diff --git a/drivers/net/wireless/intersil/p54/eeprom.c b/drivers/net/wireless/intersil/p54/eeprom.c
-index b792fe1eda66..aa4d83e0b0b4 100644
---- a/drivers/net/wireless/intersil/p54/eeprom.c
-+++ b/drivers/net/wireless/intersil/p54/eeprom.c
-@@ -161,8 +161,8 @@ static int p54_generate_band(struct ieee80211_hw *dev,
- 	if (!tmp)
- 		goto err_out;
+ 	int cpu;
  
--	tmp->channels = kzalloc(sizeof(struct ieee80211_channel) *
--				list->band_channel_num[band], GFP_KERNEL);
-+	tmp->channels = kzalloc(array_size(sizeof(struct ieee80211_channel), list->band_channel_num[band]),
+-	hv_context.hv_numa_map = kzalloc(sizeof(struct cpumask) * nr_node_ids,
++	hv_context.hv_numa_map = kzalloc(array_size(nr_node_ids, sizeof(struct cpumask)),
+ 					 GFP_KERNEL);
+ 	if (hv_context.hv_numa_map == NULL) {
+ 		pr_err("Unable to allocate NUMA map\n");
+diff --git a/drivers/hwmon/coretemp.c b/drivers/hwmon/coretemp.c
+index 72c338eb5fae..bb647588c0cf 100644
+--- a/drivers/hwmon/coretemp.c
++++ b/drivers/hwmon/coretemp.c
+@@ -742,7 +742,7 @@ static int __init coretemp_init(void)
+ 		return -ENODEV;
+ 
+ 	max_packages = topology_max_packages();
+-	pkg_devices = kzalloc(max_packages * sizeof(struct platform_device *),
++	pkg_devices = kzalloc(array_size(max_packages, sizeof(struct platform_device *)),
+ 			      GFP_KERNEL);
+ 	if (!pkg_devices)
+ 		return -ENOMEM;
+diff --git a/drivers/hwmon/i5k_amb.c b/drivers/hwmon/i5k_amb.c
+index 9397d2f0e79a..ba92064dd43e 100644
+--- a/drivers/hwmon/i5k_amb.c
++++ b/drivers/hwmon/i5k_amb.c
+@@ -274,8 +274,8 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
+ 		num_ambs += hweight16(data->amb_present[i] & 0x7fff);
+ 
+ 	/* Set up sysfs stuff */
+-	data->attrs = kzalloc(sizeof(*data->attrs) * num_ambs * KNOBS_PER_AMB,
+-				GFP_KERNEL);
++	data->attrs = kzalloc(array3_size(num_ambs, KNOBS_PER_AMB, sizeof(*data->attrs)),
++			      GFP_KERNEL);
+ 	if (!data->attrs)
+ 		return -ENOMEM;
+ 	data->num_attrs = 0;
+diff --git a/drivers/i2c/busses/i2c-amd756-s4882.c b/drivers/i2c/busses/i2c-amd756-s4882.c
+index 65e324054970..4305d3f686b9 100644
+--- a/drivers/i2c/busses/i2c-amd756-s4882.c
++++ b/drivers/i2c/busses/i2c-amd756-s4882.c
+@@ -169,13 +169,11 @@ static int __init amd756_s4882_init(void)
+ 
+ 	printk(KERN_INFO "Enabling SMBus multiplexing for Tyan S4882\n");
+ 	/* Define the 5 virtual adapters and algorithms structures */
+-	if (!(s4882_adapter = kzalloc(5 * sizeof(struct i2c_adapter),
+-				      GFP_KERNEL))) {
++	if (!(s4882_adapter = kzalloc(array_size(5, sizeof(struct i2c_adapter)), GFP_KERNEL))) {
+ 		error = -ENOMEM;
+ 		goto ERROR1;
+ 	}
+-	if (!(s4882_algo = kzalloc(5 * sizeof(struct i2c_algorithm),
+-				   GFP_KERNEL))) {
++	if (!(s4882_algo = kzalloc(array_size(5, sizeof(struct i2c_algorithm)), GFP_KERNEL))) {
+ 		error = -ENOMEM;
+ 		goto ERROR2;
+ 	}
+diff --git a/drivers/i2c/busses/i2c-nforce2-s4985.c b/drivers/i2c/busses/i2c-nforce2-s4985.c
+index 88eda09e73c0..b89f362ac38b 100644
+--- a/drivers/i2c/busses/i2c-nforce2-s4985.c
++++ b/drivers/i2c/busses/i2c-nforce2-s4985.c
+@@ -164,12 +164,14 @@ static int __init nforce2_s4985_init(void)
+ 
+ 	printk(KERN_INFO "Enabling SMBus multiplexing for Tyan S4985\n");
+ 	/* Define the 5 virtual adapters and algorithms structures */
+-	s4985_adapter = kzalloc(5 * sizeof(struct i2c_adapter), GFP_KERNEL);
++	s4985_adapter = kzalloc(array_size(5, sizeof(struct i2c_adapter)),
 +				GFP_KERNEL);
- 	if (!tmp->channels)
- 		goto err_out;
+ 	if (!s4985_adapter) {
+ 		error = -ENOMEM;
+ 		goto ERROR1;
+ 	}
+-	s4985_algo = kzalloc(5 * sizeof(struct i2c_algorithm), GFP_KERNEL);
++	s4985_algo = kzalloc(array_size(5, sizeof(struct i2c_algorithm)),
++			     GFP_KERNEL);
+ 	if (!s4985_algo) {
+ 		error = -ENOMEM;
+ 		goto ERROR2;
+diff --git a/drivers/i2c/busses/i2c-nforce2.c b/drivers/i2c/busses/i2c-nforce2.c
+index 3241bb9d6c18..115f0c86731a 100644
+--- a/drivers/i2c/busses/i2c-nforce2.c
++++ b/drivers/i2c/busses/i2c-nforce2.c
+@@ -381,7 +381,8 @@ static int nforce2_probe(struct pci_dev *dev, const struct pci_device_id *id)
+ 	int res1, res2;
  
-diff --git a/drivers/net/wireless/intersil/prism54/oid_mgt.c b/drivers/net/wireless/intersil/prism54/oid_mgt.c
-index 6528ed5b9b1d..9b26131745b0 100644
---- a/drivers/net/wireless/intersil/prism54/oid_mgt.c
-+++ b/drivers/net/wireless/intersil/prism54/oid_mgt.c
-@@ -244,8 +244,7 @@ mgt_init(islpci_private *priv)
- 	/* Alloc the cache */
- 	for (i = 0; i < OID_NUM_LAST; i++) {
- 		if (isl_oid[i].flags & OID_FLAG_CACHED) {
--			priv->mib[i] = kzalloc(isl_oid[i].size *
--					       (isl_oid[i].range + 1),
-+			priv->mib[i] = kzalloc(array_size(isl_oid[i].size, (isl_oid[i].range + 1)),
- 					       GFP_KERNEL);
- 			if (!priv->mib[i])
- 				return -ENOMEM;
-diff --git a/drivers/net/wireless/marvell/mwifiex/sdio.c b/drivers/net/wireless/marvell/mwifiex/sdio.c
-index a82880132af4..a69c8018e549 100644
---- a/drivers/net/wireless/marvell/mwifiex/sdio.c
-+++ b/drivers/net/wireless/marvell/mwifiex/sdio.c
-@@ -2094,15 +2094,15 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
+ 	/* we support 2 SMBus adapters */
+-	smbuses = kzalloc(2 * sizeof(struct nforce2_smbus), GFP_KERNEL);
++	smbuses = kzalloc(array_size(2, sizeof(struct nforce2_smbus)),
++			  GFP_KERNEL);
+ 	if (!smbuses)
+ 		return -ENOMEM;
+ 	pci_set_drvdata(dev, smbuses);
+diff --git a/drivers/i2c/i2c-dev.c b/drivers/i2c/i2c-dev.c
+index 036a03f0d0a6..0bcdfacb483e 100644
+--- a/drivers/i2c/i2c-dev.c
++++ b/drivers/i2c/i2c-dev.c
+@@ -244,7 +244,8 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
+ 	u8 __user **data_ptrs;
+ 	int i, res;
+ 
+-	data_ptrs = kmalloc(nmsgs * sizeof(u8 __user *), GFP_KERNEL);
++	data_ptrs = kmalloc(array_size(nmsgs, sizeof(u8 __user *)),
++			    GFP_KERNEL);
+ 	if (data_ptrs == NULL) {
+ 		kfree(msgs);
+ 		return -ENOMEM;
+diff --git a/drivers/ide/it821x.c b/drivers/ide/it821x.c
+index 04029d18a696..fa11eb26c2ed 100644
+--- a/drivers/ide/it821x.c
++++ b/drivers/ide/it821x.c
+@@ -652,7 +652,7 @@ static int it821x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+ 	struct it821x_dev *itdevs;
+ 	int rc;
+ 
+-	itdevs = kzalloc(2 * sizeof(*itdevs), GFP_KERNEL);
++	itdevs = kzalloc(array_size(2, sizeof(*itdevs)), GFP_KERNEL);
+ 	if (itdevs == NULL) {
+ 		printk(KERN_ERR DRV_NAME " %s: out of memory\n", pci_name(dev));
+ 		return -ENOMEM;
+diff --git a/drivers/infiniband/core/fmr_pool.c b/drivers/infiniband/core/fmr_pool.c
+index a0a9ed719031..d4c864700b38 100644
+--- a/drivers/infiniband/core/fmr_pool.c
++++ b/drivers/infiniband/core/fmr_pool.c
+@@ -235,7 +235,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
+ 
+ 	if (params->cache) {
+ 		pool->cache_bucket =
+-			kmalloc(IB_FMR_HASH_SIZE * sizeof *pool->cache_bucket,
++			kmalloc(array_size(IB_FMR_HASH_SIZE, sizeof(*pool->cache_bucket)),
+ 				GFP_KERNEL);
+ 		if (!pool->cache_bucket) {
+ 			ret = -ENOMEM;
+diff --git a/drivers/infiniband/core/iwpm_util.c b/drivers/infiniband/core/iwpm_util.c
+index 9821ae900f6d..bb724690c5a2 100644
+--- a/drivers/infiniband/core/iwpm_util.c
++++ b/drivers/infiniband/core/iwpm_util.c
+@@ -56,14 +56,14 @@ int iwpm_init(u8 nl_client)
+ 	int ret = 0;
+ 	mutex_lock(&iwpm_admin_lock);
+ 	if (atomic_read(&iwpm_admin.refcount) == 0) {
+-		iwpm_hash_bucket = kzalloc(IWPM_MAPINFO_HASH_SIZE *
+-					sizeof(struct hlist_head), GFP_KERNEL);
++		iwpm_hash_bucket = kzalloc(array_size(IWPM_MAPINFO_HASH_SIZE, sizeof(struct hlist_head)),
++					   GFP_KERNEL);
+ 		if (!iwpm_hash_bucket) {
+ 			ret = -ENOMEM;
+ 			goto init_exit;
+ 		}
+-		iwpm_reminfo_bucket = kzalloc(IWPM_REMINFO_HASH_SIZE *
+-					sizeof(struct hlist_head), GFP_KERNEL);
++		iwpm_reminfo_bucket = kzalloc(array_size(IWPM_REMINFO_HASH_SIZE, sizeof(struct hlist_head)),
++					      GFP_KERNEL);
+ 		if (!iwpm_reminfo_bucket) {
+ 			kfree(iwpm_hash_bucket);
+ 			ret = -ENOMEM;
+diff --git a/drivers/infiniband/hw/cxgb3/cxio_hal.c b/drivers/infiniband/hw/cxgb3/cxio_hal.c
+index 3328acc53c2a..5596f7853fea 100644
+--- a/drivers/infiniband/hw/cxgb3/cxio_hal.c
++++ b/drivers/infiniband/hw/cxgb3/cxio_hal.c
+@@ -279,7 +279,8 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
+ 	if (!wq->qpid)
  		return -ENOMEM;
  
- 	/* Allocate skb pointer buffers */
--	card->mpa_rx.skb_arr = kzalloc((sizeof(void *)) *
--				       card->mp_agg_pkt_limit, GFP_KERNEL);
-+	card->mpa_rx.skb_arr = kzalloc(array_size((sizeof(void *)), card->mp_agg_pkt_limit),
+-	wq->rq = kzalloc(depth * sizeof(struct t3_swrq), GFP_KERNEL);
++	wq->rq = kzalloc(array_size(depth, sizeof(struct t3_swrq)),
++			 GFP_KERNEL);
+ 	if (!wq->rq)
+ 		goto err1;
+ 
+@@ -287,7 +288,8 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
+ 	if (!wq->rq_addr)
+ 		goto err2;
+ 
+-	wq->sq = kzalloc(depth * sizeof(struct t3_swsq), GFP_KERNEL);
++	wq->sq = kzalloc(array_size(depth, sizeof(struct t3_swsq)),
++			 GFP_KERNEL);
+ 	if (!wq->sq)
+ 		goto err3;
+ 
+diff --git a/drivers/infiniband/hw/cxgb4/device.c b/drivers/infiniband/hw/cxgb4/device.c
+index feeb8ee6f4a2..cc024ffc5f4f 100644
+--- a/drivers/infiniband/hw/cxgb4/device.c
++++ b/drivers/infiniband/hw/cxgb4/device.c
+@@ -1438,7 +1438,8 @@ static void recover_queues(struct uld_ctx *ctx)
+ 	ctx->dev->db_state = RECOVERY;
+ 	idr_for_each(&ctx->dev->qpidr, count_qps, &count);
+ 
+-	qp_list.qps = kzalloc(count * sizeof *qp_list.qps, GFP_ATOMIC);
++	qp_list.qps = kzalloc(array_size(count, sizeof(*qp_list.qps)),
++			      GFP_ATOMIC);
+ 	if (!qp_list.qps) {
+ 		spin_unlock_irq(&ctx->dev->lock);
+ 		return;
+diff --git a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+index 8b84ab7800d8..aeebf3fc894f 100644
+--- a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
++++ b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+@@ -3120,7 +3120,7 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
+ 	struct device *dev = hr_dev->dev;
+ 	int ret = -EINVAL;
+ 
+-	context = kzalloc(2 * sizeof(*context), GFP_KERNEL);
++	context = kzalloc(array_size(2, sizeof(*context)), GFP_KERNEL);
+ 	if (!context)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/infiniband/hw/mlx4/mad.c b/drivers/infiniband/hw/mlx4/mad.c
+index 0793a21d76f4..1f46498ddafa 100644
+--- a/drivers/infiniband/hw/mlx4/mad.c
++++ b/drivers/infiniband/hw/mlx4/mad.c
+@@ -1613,7 +1613,7 @@ static int mlx4_ib_alloc_pv_bufs(struct mlx4_ib_demux_pv_ctx *ctx,
+ 
+ 	tun_qp = &ctx->qp[qp_type];
+ 
+-	tun_qp->ring = kzalloc(sizeof (struct mlx4_ib_buf) * MLX4_NUM_TUNNEL_BUFS,
++	tun_qp->ring = kzalloc(array_size(MLX4_NUM_TUNNEL_BUFS, sizeof(struct mlx4_ib_buf)),
+ 			       GFP_KERNEL);
+ 	if (!tun_qp->ring)
+ 		return -ENOMEM;
+diff --git a/drivers/infiniband/hw/mlx4/main.c b/drivers/infiniband/hw/mlx4/main.c
+index 5b70744f414a..d449e1472d53 100644
+--- a/drivers/infiniband/hw/mlx4/main.c
++++ b/drivers/infiniband/hw/mlx4/main.c
+@@ -302,7 +302,8 @@ static int mlx4_ib_add_gid(const union ib_gid *gid,
+ 		ctx->refcount++;
+ 	}
+ 	if (!ret && hw_update) {
+-		gids = kmalloc(sizeof(*gids) * MLX4_MAX_PORT_GIDS, GFP_ATOMIC);
++		gids = kmalloc(array_size(MLX4_MAX_PORT_GIDS, sizeof(*gids)),
++			       GFP_ATOMIC);
+ 		if (!gids) {
+ 			ret = -ENOMEM;
+ 		} else {
+@@ -354,7 +355,8 @@ static int mlx4_ib_del_gid(const struct ib_gid_attr *attr, void **context)
+ 	if (!ret && hw_update) {
+ 		int i;
+ 
+-		gids = kmalloc(sizeof(*gids) * MLX4_MAX_PORT_GIDS, GFP_ATOMIC);
++		gids = kmalloc(array_size(MLX4_MAX_PORT_GIDS, sizeof(*gids)),
++			       GFP_ATOMIC);
+ 		if (!gids) {
+ 			ret = -ENOMEM;
+ 		} else {
+diff --git a/drivers/infiniband/hw/mlx5/srq.c b/drivers/infiniband/hw/mlx5/srq.c
+index 3c7522d025f2..0148b8f559a4 100644
+--- a/drivers/infiniband/hw/mlx5/srq.c
++++ b/drivers/infiniband/hw/mlx5/srq.c
+@@ -127,7 +127,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
+ 		goto err_umem;
+ 	}
+ 
+-	in->pas = kvzalloc(sizeof(*in->pas) * ncont, GFP_KERNEL);
++	in->pas = kvzalloc(array_size(ncont, sizeof(*in->pas)), GFP_KERNEL);
+ 	if (!in->pas) {
+ 		err = -ENOMEM;
+ 		goto err_umem;
+diff --git a/drivers/infiniband/hw/mthca/mthca_allocator.c b/drivers/infiniband/hw/mthca/mthca_allocator.c
+index b4e0cf4e95cd..dfa35adf5b91 100644
+--- a/drivers/infiniband/hw/mthca/mthca_allocator.c
++++ b/drivers/infiniband/hw/mthca/mthca_allocator.c
+@@ -162,7 +162,8 @@ int mthca_array_init(struct mthca_array *array, int nent)
+ 	int npage = (nent * sizeof (void *) + PAGE_SIZE - 1) / PAGE_SIZE;
+ 	int i;
+ 
+-	array->page_list = kmalloc(npage * sizeof *array->page_list, GFP_KERNEL);
++	array->page_list = kmalloc(array_size(npage, sizeof(*array->page_list)),
++				   GFP_KERNEL);
+ 	if (!array->page_list)
+ 		return -ENOMEM;
+ 
+@@ -220,7 +221,8 @@ int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
+ 			npages *= 2;
+ 		}
+ 
+-		dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
++		dma_list = kmalloc(array_size(npages, sizeof(*dma_list)),
++				   GFP_KERNEL);
+ 		if (!dma_list)
+ 			goto err_free;
+ 
+@@ -231,11 +233,12 @@ int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
+ 		npages     = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+ 		shift      = PAGE_SHIFT;
+ 
+-		dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
++		dma_list = kmalloc(array_size(npages, sizeof(*dma_list)),
++				   GFP_KERNEL);
+ 		if (!dma_list)
+ 			return -ENOMEM;
+ 
+-		buf->page_list = kmalloc(npages * sizeof *buf->page_list,
++		buf->page_list = kmalloc(array_size(npages, sizeof(*buf->page_list)),
+ 					 GFP_KERNEL);
+ 		if (!buf->page_list)
+ 			goto err_out;
+diff --git a/drivers/infiniband/hw/mthca/mthca_eq.c b/drivers/infiniband/hw/mthca/mthca_eq.c
+index 690201738993..a58d80e9dd41 100644
+--- a/drivers/infiniband/hw/mthca/mthca_eq.c
++++ b/drivers/infiniband/hw/mthca/mthca_eq.c
+@@ -479,7 +479,7 @@ static int mthca_create_eq(struct mthca_dev *dev,
+ 	eq->nent = roundup_pow_of_two(max(nent, 2));
+ 	npages = ALIGN(eq->nent * MTHCA_EQ_ENTRY_SIZE, PAGE_SIZE) / PAGE_SIZE;
+ 
+-	eq->page_list = kmalloc(npages * sizeof *eq->page_list,
++	eq->page_list = kmalloc(array_size(npages, sizeof(*eq->page_list)),
+ 				GFP_KERNEL);
+ 	if (!eq->page_list)
+ 		goto err_out;
+@@ -487,7 +487,7 @@ static int mthca_create_eq(struct mthca_dev *dev,
+ 	for (i = 0; i < npages; ++i)
+ 		eq->page_list[i].buf = NULL;
+ 
+-	dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
++	dma_list = kmalloc(array_size(npages, sizeof(*dma_list)), GFP_KERNEL);
+ 	if (!dma_list)
+ 		goto err_out_free;
+ 
+diff --git a/drivers/infiniband/hw/mthca/mthca_mr.c b/drivers/infiniband/hw/mthca/mthca_mr.c
+index ed9a989e501b..88d3a53966e1 100644
+--- a/drivers/infiniband/hw/mthca/mthca_mr.c
++++ b/drivers/infiniband/hw/mthca/mthca_mr.c
+@@ -153,7 +153,8 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
+ 
+ 	for (i = 0; i <= buddy->max_order; ++i) {
+ 		s = BITS_TO_LONGS(1 << (buddy->max_order - i));
+-		buddy->bits[i] = kmalloc(s * sizeof (long), GFP_KERNEL);
++		buddy->bits[i] = kmalloc(array_size(s, sizeof(long)),
++					 GFP_KERNEL);
+ 		if (!buddy->bits[i])
+ 			goto err_out_free;
+ 		bitmap_zero(buddy->bits[i],
+diff --git a/drivers/infiniband/hw/mthca/mthca_profile.c b/drivers/infiniband/hw/mthca/mthca_profile.c
+index 15d064479ef6..a28a4dab088c 100644
+--- a/drivers/infiniband/hw/mthca/mthca_profile.c
++++ b/drivers/infiniband/hw/mthca/mthca_profile.c
+@@ -79,7 +79,8 @@ s64 mthca_make_profile(struct mthca_dev *dev,
+ 	struct mthca_resource *profile;
+ 	int i, j;
+ 
+-	profile = kzalloc(MTHCA_RES_NUM * sizeof *profile, GFP_KERNEL);
++	profile = kzalloc(array_size(MTHCA_RES_NUM, sizeof(*profile)),
++			  GFP_KERNEL);
+ 	if (!profile)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/infiniband/hw/nes/nes_mgt.c b/drivers/infiniband/hw/nes/nes_mgt.c
+index 21e0ebd39a05..668f22a8cac2 100644
+--- a/drivers/infiniband/hw/nes/nes_mgt.c
++++ b/drivers/infiniband/hw/nes/nes_mgt.c
+@@ -878,7 +878,8 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
+ 	int ret;
+ 
+ 	/* Allocate space the all mgt QPs once */
+-	mgtvnic = kzalloc(NES_MGT_QP_COUNT * sizeof(struct nes_vnic_mgt), GFP_KERNEL);
++	mgtvnic = kzalloc(array_size(NES_MGT_QP_COUNT, sizeof(struct nes_vnic_mgt)),
++			  GFP_KERNEL);
+ 	if (!mgtvnic)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/infiniband/hw/nes/nes_nic.c b/drivers/infiniband/hw/nes/nes_nic.c
+index 0a75164cedea..205e76befe63 100644
+--- a/drivers/infiniband/hw/nes/nes_nic.c
++++ b/drivers/infiniband/hw/nes/nes_nic.c
+@@ -904,7 +904,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
+ 		int i;
+ 		struct netdev_hw_addr *ha;
+ 
+-		addrs = kmalloc(ETH_ALEN * mc_count, GFP_ATOMIC);
++		addrs = kmalloc(array_size(mc_count, ETH_ALEN), GFP_ATOMIC);
+ 		if (!addrs) {
+ 			set_allmulti(nesdev, nic_active_bit);
+ 			goto unlock;
+diff --git a/drivers/infiniband/hw/nes/nes_verbs.c b/drivers/infiniband/hw/nes/nes_verbs.c
+index 1040a6e34230..515dc93a4a60 100644
+--- a/drivers/infiniband/hw/nes/nes_verbs.c
++++ b/drivers/infiniband/hw/nes/nes_verbs.c
+@@ -2254,8 +2254,8 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
+ 								ibmr = ERR_PTR(-ENOMEM);
+ 								goto reg_user_mr_err;
+ 							}
+-							root_vpbl.leaf_vpbl = kzalloc(sizeof(*root_vpbl.leaf_vpbl)*1024,
+-									GFP_KERNEL);
++							root_vpbl.leaf_vpbl = kzalloc(array_size(1024, sizeof(*root_vpbl.leaf_vpbl)),
++										      GFP_KERNEL);
+ 							if (!root_vpbl.leaf_vpbl) {
+ 								ib_umem_release(region);
+ 								pci_free_consistent(nesdev->pcidev, 8192, root_vpbl.pbl_vbase,
+diff --git a/drivers/infiniband/hw/ocrdma/ocrdma_hw.c b/drivers/infiniband/hw/ocrdma/ocrdma_hw.c
+index 2c260e1c29d1..a10617f11ad4 100644
+--- a/drivers/infiniband/hw/ocrdma/ocrdma_hw.c
++++ b/drivers/infiniband/hw/ocrdma/ocrdma_hw.c
+@@ -3096,7 +3096,8 @@ static int ocrdma_create_eqs(struct ocrdma_dev *dev)
+ 	if (!num_eq)
+ 		return -EINVAL;
+ 
+-	dev->eq_tbl = kzalloc(sizeof(struct ocrdma_eq) * num_eq, GFP_KERNEL);
++	dev->eq_tbl = kzalloc(array_size(num_eq, sizeof(struct ocrdma_eq)),
++			      GFP_KERNEL);
+ 	if (!dev->eq_tbl)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/infiniband/hw/ocrdma/ocrdma_main.c b/drivers/infiniband/hw/ocrdma/ocrdma_main.c
+index eb8b6a935016..5dde3565a9a2 100644
+--- a/drivers/infiniband/hw/ocrdma/ocrdma_main.c
++++ b/drivers/infiniband/hw/ocrdma/ocrdma_main.c
+@@ -221,19 +221,20 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
+ static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
+ {
+ 	mutex_init(&dev->dev_lock);
+-	dev->cq_tbl = kzalloc(sizeof(struct ocrdma_cq *) *
+-			      OCRDMA_MAX_CQ, GFP_KERNEL);
++	dev->cq_tbl = kzalloc(array_size(OCRDMA_MAX_CQ, sizeof(struct ocrdma_cq *)),
++			      GFP_KERNEL);
+ 	if (!dev->cq_tbl)
+ 		goto alloc_err;
+ 
+ 	if (dev->attr.max_qp) {
+-		dev->qp_tbl = kzalloc(sizeof(struct ocrdma_qp *) *
+-				      OCRDMA_MAX_QP, GFP_KERNEL);
++		dev->qp_tbl = kzalloc(array_size(OCRDMA_MAX_QP, sizeof(struct ocrdma_qp *)),
++				      GFP_KERNEL);
+ 		if (!dev->qp_tbl)
+ 			goto alloc_err;
+ 	}
+ 
+-	dev->stag_arr = kzalloc(sizeof(u64) * OCRDMA_MAX_STAG, GFP_KERNEL);
++	dev->stag_arr = kzalloc(array_size(OCRDMA_MAX_STAG, sizeof(u64)),
++				GFP_KERNEL);
+ 	if (dev->stag_arr == NULL)
+ 		goto alloc_err;
+ 
+diff --git a/drivers/infiniband/hw/qedr/main.c b/drivers/infiniband/hw/qedr/main.c
+index f4cb60b658ea..c291177a7cdc 100644
+--- a/drivers/infiniband/hw/qedr/main.c
++++ b/drivers/infiniband/hw/qedr/main.c
+@@ -317,8 +317,8 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
+ 	u16 n_entries;
+ 	int i, rc;
+ 
+-	dev->sgid_tbl = kzalloc(sizeof(union ib_gid) *
+-				QEDR_MAX_SGID, GFP_KERNEL);
++	dev->sgid_tbl = kzalloc(array_size(QEDR_MAX_SGID, sizeof(union ib_gid)),
++				GFP_KERNEL);
+ 	if (!dev->sgid_tbl)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/infiniband/hw/qib/qib_iba7322.c b/drivers/infiniband/hw/qib/qib_iba7322.c
+index 8414ae44a518..57583362bf3e 100644
+--- a/drivers/infiniband/hw/qib/qib_iba7322.c
++++ b/drivers/infiniband/hw/qib/qib_iba7322.c
+@@ -6412,12 +6412,12 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
+ 	sbufcnt = dd->piobcnt2k + dd->piobcnt4k +
+ 		NUM_VL15_BUFS + BITS_PER_LONG - 1;
+ 	sbufcnt /= BITS_PER_LONG;
+-	dd->cspec->sendchkenable = kmalloc(sbufcnt *
+-		sizeof(*dd->cspec->sendchkenable), GFP_KERNEL);
+-	dd->cspec->sendgrhchk = kmalloc(sbufcnt *
+-		sizeof(*dd->cspec->sendgrhchk), GFP_KERNEL);
+-	dd->cspec->sendibchk = kmalloc(sbufcnt *
+-		sizeof(*dd->cspec->sendibchk), GFP_KERNEL);
++	dd->cspec->sendchkenable = kmalloc(array_size(sbufcnt, sizeof(*dd->cspec->sendchkenable)),
++					   GFP_KERNEL);
++	dd->cspec->sendgrhchk = kmalloc(array_size(sbufcnt, sizeof(*dd->cspec->sendgrhchk)),
++					GFP_KERNEL);
++	dd->cspec->sendibchk = kmalloc(array_size(sbufcnt, sizeof(*dd->cspec->sendibchk)),
 +				       GFP_KERNEL);
- 	if (!card->mpa_rx.skb_arr) {
- 		kfree(card->mp_regs);
+ 	if (!dd->cspec->sendchkenable || !dd->cspec->sendgrhchk ||
+ 		!dd->cspec->sendibchk) {
+ 		ret = -ENOMEM;
+@@ -7290,8 +7290,8 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
+ 		actual_cnt -= dd->num_pports;
+ 
+ 	tabsize = actual_cnt;
+-	dd->cspec->msix_entries = kzalloc(tabsize *
+-			sizeof(struct qib_msix_entry), GFP_KERNEL);
++	dd->cspec->msix_entries = kzalloc(array_size(tabsize, sizeof(struct qib_msix_entry)),
++					  GFP_KERNEL);
+ 	if (!dd->cspec->msix_entries)
+ 		tabsize = 0;
+ 
+diff --git a/drivers/infiniband/hw/usnic/usnic_vnic.c b/drivers/infiniband/hw/usnic/usnic_vnic.c
+index e7b0030254da..b13bdb1a1a81 100644
+--- a/drivers/infiniband/hw/usnic/usnic_vnic.c
++++ b/drivers/infiniband/hw/usnic/usnic_vnic.c
+@@ -312,7 +312,8 @@ static int usnic_vnic_alloc_res_chunk(struct usnic_vnic *vnic,
+ 	}
+ 
+ 	chunk->cnt = chunk->free_cnt = cnt;
+-	chunk->res = kzalloc(sizeof(*(chunk->res))*cnt, GFP_KERNEL);
++	chunk->res = kzalloc(array_size(cnt, sizeof(*(chunk->res))),
++			     GFP_KERNEL);
+ 	if (!chunk->res)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/infiniband/ulp/ipoib/ipoib_main.c b/drivers/infiniband/ulp/ipoib/ipoib_main.c
+index 161ba8c76285..8097b1d8422f 100644
+--- a/drivers/infiniband/ulp/ipoib/ipoib_main.c
++++ b/drivers/infiniband/ulp/ipoib/ipoib_main.c
+@@ -1525,7 +1525,7 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
+ 		return -ENOMEM;
+ 	set_bit(IPOIB_STOP_NEIGH_GC, &priv->flags);
+ 	size = roundup_pow_of_two(arp_tbl.gc_thresh3);
+-	buckets = kzalloc(size * sizeof(*buckets), GFP_KERNEL);
++	buckets = kzalloc(array_size(size, sizeof(*buckets)), GFP_KERNEL);
+ 	if (!buckets) {
+ 		kfree(htbl);
+ 		return -ENOMEM;
+@@ -1703,8 +1703,8 @@ static int ipoib_dev_init_default(struct net_device *dev)
+ 	ipoib_napi_add(dev);
+ 
+ 	/* Allocate RX/TX "rings" to hold queued skbs */
+-	priv->rx_ring =	kzalloc(ipoib_recvq_size * sizeof *priv->rx_ring,
+-				GFP_KERNEL);
++	priv->rx_ring =	kzalloc(array_size(ipoib_recvq_size, sizeof(*priv->rx_ring)),
++				       GFP_KERNEL);
+ 	if (!priv->rx_ring)
+ 		goto out;
+ 
+diff --git a/drivers/infiniband/ulp/isert/ib_isert.c b/drivers/infiniband/ulp/isert/ib_isert.c
+index fff40b097947..f68ef506f11c 100644
+--- a/drivers/infiniband/ulp/isert/ib_isert.c
++++ b/drivers/infiniband/ulp/isert/ib_isert.c
+@@ -181,8 +181,8 @@ isert_alloc_rx_descriptors(struct isert_conn *isert_conn)
+ 	u64 dma_addr;
+ 	int i, j;
+ 
+-	isert_conn->rx_descs = kzalloc(ISERT_QP_MAX_RECV_DTOS *
+-				sizeof(struct iser_rx_desc), GFP_KERNEL);
++	isert_conn->rx_descs = kzalloc(array_size(ISERT_QP_MAX_RECV_DTOS, sizeof(struct iser_rx_desc)),
++				       GFP_KERNEL);
+ 	if (!isert_conn->rx_descs)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/infiniband/ulp/srpt/ib_srpt.c b/drivers/infiniband/ulp/srpt/ib_srpt.c
+index dfec0e1fac29..620cfdeddefc 100644
+--- a/drivers/infiniband/ulp/srpt/ib_srpt.c
++++ b/drivers/infiniband/ulp/srpt/ib_srpt.c
+@@ -720,7 +720,7 @@ static struct srpt_ioctx **srpt_alloc_ioctx_ring(struct srpt_device *sdev,
+ 	WARN_ON(ioctx_size != sizeof(struct srpt_recv_ioctx)
+ 		&& ioctx_size != sizeof(struct srpt_send_ioctx));
+ 
+-	ring = kmalloc(ring_size * sizeof(ring[0]), GFP_KERNEL);
++	ring = kmalloc(array_size(ring_size, sizeof(ring[0])), GFP_KERNEL);
+ 	if (!ring)
+ 		goto out;
+ 	for (i = 0; i < ring_size; ++i) {
+diff --git a/drivers/input/joystick/joydump.c b/drivers/input/joystick/joydump.c
+index d1c6e4846a4a..01f5b97c2937 100644
+--- a/drivers/input/joystick/joydump.c
++++ b/drivers/input/joystick/joydump.c
+@@ -80,7 +80,8 @@ static int joydump_connect(struct gameport *gameport, struct gameport_driver *dr
+ 
+ 	timeout = gameport_time(gameport, 10000); /* 10 ms */
+ 
+-	buf = kmalloc(BUF_SIZE * sizeof(struct joydump), GFP_KERNEL);
++	buf = kmalloc(array_size(BUF_SIZE, sizeof(struct joydump)),
++		      GFP_KERNEL);
+ 	if (!buf) {
+ 		printk(KERN_INFO "joydump: no memory for testing\n");
+ 		goto jd_end;
+diff --git a/drivers/input/keyboard/omap4-keypad.c b/drivers/input/keyboard/omap4-keypad.c
+index 940d38b08e6b..f09f870f1fb0 100644
+--- a/drivers/input/keyboard/omap4-keypad.c
++++ b/drivers/input/keyboard/omap4-keypad.c
+@@ -337,7 +337,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
+ 
+ 	keypad_data->row_shift = get_count_order(keypad_data->cols);
+ 	max_keys = keypad_data->rows << keypad_data->row_shift;
+-	keypad_data->keymap = kzalloc(max_keys * sizeof(keypad_data->keymap[0]),
++	keypad_data->keymap = kzalloc(array_size(max_keys, sizeof(keypad_data->keymap[0])),
+ 				      GFP_KERNEL);
+ 	if (!keypad_data->keymap) {
+ 		dev_err(&pdev->dev, "Not enough memory for keymap\n");
+diff --git a/drivers/iommu/dmar.c b/drivers/iommu/dmar.c
+index accf58388bdb..e7774b6551c6 100644
+--- a/drivers/iommu/dmar.c
++++ b/drivers/iommu/dmar.c
+@@ -1458,7 +1458,8 @@ int dmar_enable_qi(struct intel_iommu *iommu)
+ 
+ 	qi->desc = page_address(desc_page);
+ 
+-	qi->desc_status = kzalloc(QI_LENGTH * sizeof(int), GFP_ATOMIC);
++	qi->desc_status = kzalloc(array_size(QI_LENGTH, sizeof(int)),
++				  GFP_ATOMIC);
+ 	if (!qi->desc_status) {
+ 		free_page((unsigned long) qi->desc);
+ 		kfree(qi);
+diff --git a/drivers/iommu/intel-iommu.c b/drivers/iommu/intel-iommu.c
+index 749d8f235346..7bf4810ce41d 100644
+--- a/drivers/iommu/intel-iommu.c
++++ b/drivers/iommu/intel-iommu.c
+@@ -3177,7 +3177,8 @@ static int copy_translation_tables(struct intel_iommu *iommu)
+ 	/* This is too big for the stack - allocate it from slab */
+ 	ctxt_table_entries = ext ? 512 : 256;
+ 	ret = -ENOMEM;
+-	ctxt_tbls = kzalloc(ctxt_table_entries * sizeof(void *), GFP_KERNEL);
++	ctxt_tbls = kzalloc(array_size(ctxt_table_entries, sizeof(void *)),
++			    GFP_KERNEL);
+ 	if (!ctxt_tbls)
+ 		goto out_unmap;
+ 
+@@ -4034,8 +4035,8 @@ static int iommu_suspend(void)
+ 	unsigned long flag;
+ 
+ 	for_each_active_iommu(iommu, drhd) {
+-		iommu->iommu_state = kzalloc(sizeof(u32) * MAX_SR_DMAR_REGS,
+-						 GFP_ATOMIC);
++		iommu->iommu_state = kzalloc(array_size(MAX_SR_DMAR_REGS, sizeof(u32)),
++					     GFP_ATOMIC);
+ 		if (!iommu->iommu_state)
+ 			goto nomem;
+ 	}
+diff --git a/drivers/ipack/carriers/tpci200.c b/drivers/ipack/carriers/tpci200.c
+index 9b23843dcad4..b7797e913e4b 100644
+--- a/drivers/ipack/carriers/tpci200.c
++++ b/drivers/ipack/carriers/tpci200.c
+@@ -457,8 +457,8 @@ static int tpci200_install(struct tpci200_board *tpci200)
+ {
+ 	int res;
+ 
+-	tpci200->slots = kzalloc(
+-		TPCI200_NB_SLOT * sizeof(struct tpci200_slot), GFP_KERNEL);
++	tpci200->slots = kzalloc(array_size(TPCI200_NB_SLOT, sizeof(struct tpci200_slot)),
++				 GFP_KERNEL);
+ 	if (tpci200->slots == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/irqchip/irq-gic-v3-its.c b/drivers/irqchip/irq-gic-v3-its.c
+index 5416f2b2ac21..d1a9972c4f58 100644
+--- a/drivers/irqchip/irq-gic-v3-its.c
++++ b/drivers/irqchip/irq-gic-v3-its.c
+@@ -1823,7 +1823,7 @@ static int its_alloc_tables(struct its_node *its)
+ 
+ static int its_alloc_collections(struct its_node *its)
+ {
+-	its->collections = kzalloc(nr_cpu_ids * sizeof(*its->collections),
++	its->collections = kzalloc(array_size(nr_cpu_ids, sizeof(*its->collections)),
+ 				   GFP_KERNEL);
+ 	if (!its->collections)
+ 		return -ENOMEM;
+@@ -2124,10 +2124,11 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
+ 	if (alloc_lpis) {
+ 		lpi_map = its_lpi_alloc_chunks(nvecs, &lpi_base, &nr_lpis);
+ 		if (lpi_map)
+-			col_map = kzalloc(sizeof(*col_map) * nr_lpis,
++			col_map = kzalloc(array_size(nr_lpis, sizeof(*col_map)),
+ 					  GFP_KERNEL);
+ 	} else {
+-		col_map = kzalloc(sizeof(*col_map) * nr_ites, GFP_KERNEL);
++		col_map = kzalloc(array_size(nr_ites, sizeof(*col_map)),
++				  GFP_KERNEL);
+ 		nr_lpis = 0;
+ 		lpi_base = 0;
+ 	}
+@@ -3183,7 +3184,7 @@ static int its_init_vpe_domain(void)
+ 	its = list_first_entry(&its_nodes, struct its_node, entry);
+ 
+ 	entries = roundup_pow_of_two(nr_cpu_ids);
+-	vpe_proxy.vpes = kzalloc(sizeof(*vpe_proxy.vpes) * entries,
++	vpe_proxy.vpes = kzalloc(array_size(entries, sizeof(*vpe_proxy.vpes)),
+ 				 GFP_KERNEL);
+ 	if (!vpe_proxy.vpes) {
+ 		pr_err("ITS: Can't allocate GICv4 proxy device array\n");
+@@ -3567,7 +3568,7 @@ static void __init acpi_table_parse_srat_its(void)
+ 	if (count <= 0)
+ 		return;
+ 
+-	its_srat_maps = kmalloc(count * sizeof(struct its_srat_map),
++	its_srat_maps = kmalloc(array_size(count, sizeof(struct its_srat_map)),
+ 				GFP_KERNEL);
+ 	if (!its_srat_maps) {
+ 		pr_warn("SRAT: Failed to allocate memory for its_srat_maps!\n");
+diff --git a/drivers/irqchip/irq-gic-v3.c b/drivers/irqchip/irq-gic-v3.c
+index e5d101418390..537bf15fc46d 100644
+--- a/drivers/irqchip/irq-gic-v3.c
++++ b/drivers/irqchip/irq-gic-v3.c
+@@ -1160,7 +1160,7 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
+ 	if (!nr_parts)
+ 		goto out_put_node;
+ 
+-	parts = kzalloc(sizeof(*parts) * nr_parts, GFP_KERNEL);
++	parts = kzalloc(array_size(nr_parts, sizeof(*parts)), GFP_KERNEL);
+ 	if (WARN_ON(!parts))
+ 		goto out_put_node;
+ 
+@@ -1282,7 +1282,8 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
+ 	if (of_property_read_u32(node, "#redistributor-regions", &nr_redist_regions))
+ 		nr_redist_regions = 1;
+ 
+-	rdist_regs = kzalloc(sizeof(*rdist_regs) * nr_redist_regions, GFP_KERNEL);
++	rdist_regs = kzalloc(array_size(nr_redist_regions, sizeof(*rdist_regs)),
++			     GFP_KERNEL);
+ 	if (!rdist_regs) {
+ 		err = -ENOMEM;
+ 		goto out_unmap_dist;
+diff --git a/drivers/irqchip/irq-s3c24xx.c b/drivers/irqchip/irq-s3c24xx.c
+index ec0e6a8cdb75..e37bebc36d28 100644
+--- a/drivers/irqchip/irq-s3c24xx.c
++++ b/drivers/irqchip/irq-s3c24xx.c
+@@ -1261,7 +1261,7 @@ static int __init s3c_init_intc_of(struct device_node *np,
+ 			return -ENOMEM;
+ 
+ 		intc->domain = domain;
+-		intc->irqs = kzalloc(sizeof(struct s3c_irq_data) * 32,
++		intc->irqs = kzalloc(array_size(32, sizeof(struct s3c_irq_data)),
+ 				     GFP_KERNEL);
+ 		if (!intc->irqs) {
+ 			kfree(intc);
+diff --git a/drivers/isdn/capi/capi.c b/drivers/isdn/capi/capi.c
+index 19cd93783c87..0ac75cb7d7b0 100644
+--- a/drivers/isdn/capi/capi.c
++++ b/drivers/isdn/capi/capi.c
+@@ -1260,7 +1260,7 @@ static int __init capinc_tty_init(void)
+ 	if (capi_ttyminors <= 0)
+ 		capi_ttyminors = CAPINC_NR_PORTS;
+ 
+-	capiminors = kzalloc(sizeof(struct capiminor *) * capi_ttyminors,
++	capiminors = kzalloc(array_size(capi_ttyminors, sizeof(struct capiminor *)),
+ 			     GFP_KERNEL);
+ 	if (!capiminors)
+ 		return -ENOMEM;
+diff --git a/drivers/isdn/gigaset/common.c b/drivers/isdn/gigaset/common.c
+index 15482c5de33c..57ecbbc5c4f5 100644
+--- a/drivers/isdn/gigaset/common.c
++++ b/drivers/isdn/gigaset/common.c
+@@ -710,7 +710,8 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
+ 	cs->mode = M_UNKNOWN;
+ 	cs->mstate = MS_UNINITIALIZED;
+ 
+-	cs->bcs = kmalloc(channels * sizeof(struct bc_state), GFP_KERNEL);
++	cs->bcs = kmalloc(array_size(channels, sizeof(struct bc_state)),
++			  GFP_KERNEL);
+ 	cs->inbuf = kmalloc(sizeof(struct inbuf_t), GFP_KERNEL);
+ 	if (!cs->bcs || !cs->inbuf) {
+ 		pr_err("out of memory\n");
+@@ -1089,7 +1090,7 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
+ 	drv->owner = owner;
+ 	INIT_LIST_HEAD(&drv->list);
+ 
+-	drv->cs = kmalloc(minors * sizeof *drv->cs, GFP_KERNEL);
++	drv->cs = kmalloc(array_size(minors, sizeof(*drv->cs)), GFP_KERNEL);
+ 	if (!drv->cs)
+ 		goto error;
+ 
+diff --git a/drivers/isdn/hardware/avm/b1.c b/drivers/isdn/hardware/avm/b1.c
+index b1833d08a5fe..8103b1eb409a 100644
+--- a/drivers/isdn/hardware/avm/b1.c
++++ b/drivers/isdn/hardware/avm/b1.c
+@@ -72,7 +72,8 @@ avmcard *b1_alloc_card(int nr_controllers)
+ 	if (!card)
+ 		return NULL;
+ 
+-	cinfo = kzalloc(sizeof(*cinfo) * nr_controllers, GFP_KERNEL);
++	cinfo = kzalloc(array_size(nr_controllers, sizeof(*cinfo)),
++			GFP_KERNEL);
+ 	if (!cinfo) {
+ 		kfree(card);
+ 		return NULL;
+diff --git a/drivers/isdn/hisax/hfc_2bds0.c b/drivers/isdn/hisax/hfc_2bds0.c
+index 86b82172e992..50e77782b98a 100644
+--- a/drivers/isdn/hisax/hfc_2bds0.c
++++ b/drivers/isdn/hisax/hfc_2bds0.c
+@@ -1024,7 +1024,7 @@ static unsigned int
+ 	int i;
+ 	unsigned *send;
+ 
+-	if (!(send = kmalloc(cnt * sizeof(unsigned int), GFP_ATOMIC))) {
++	if (!(send = kmalloc(array_size(cnt, sizeof(unsigned int)), GFP_ATOMIC))) {
+ 		printk(KERN_WARNING
+ 		       "HiSax: No memory for hfcd.send\n");
+ 		return (NULL);
+diff --git a/drivers/isdn/hisax/hfc_2bs0.c b/drivers/isdn/hisax/hfc_2bs0.c
+index 14dada42874e..dcfb516d46bc 100644
+--- a/drivers/isdn/hisax/hfc_2bs0.c
++++ b/drivers/isdn/hisax/hfc_2bs0.c
+@@ -557,7 +557,7 @@ init_send(struct BCState *bcs)
+ {
+ 	int i;
+ 
+-	if (!(bcs->hw.hfc.send = kmalloc(32 * sizeof(unsigned int), GFP_ATOMIC))) {
++	if (!(bcs->hw.hfc.send = kmalloc(array_size(32, sizeof(unsigned int)), GFP_ATOMIC))) {
+ 		printk(KERN_WARNING
+ 		       "HiSax: No memory for hfc.send\n");
+ 		return;
+diff --git a/drivers/isdn/hisax/netjet.c b/drivers/isdn/hisax/netjet.c
+index b7f54fa29228..cdaf9119fdc5 100644
+--- a/drivers/isdn/hisax/netjet.c
++++ b/drivers/isdn/hisax/netjet.c
+@@ -912,8 +912,7 @@ setstack_tiger(struct PStack *st, struct BCState *bcs)
+ void
+ inittiger(struct IsdnCardState *cs)
+ {
+-	if (!(cs->bcs[0].hw.tiger.send = kmalloc(NETJET_DMA_TXSIZE * sizeof(unsigned int),
+-						 GFP_KERNEL | GFP_DMA))) {
++	if (!(cs->bcs[0].hw.tiger.send = kmalloc(array_size(NETJET_DMA_TXSIZE, sizeof(unsigned int)), GFP_KERNEL | GFP_DMA))) {
+ 		printk(KERN_WARNING
+ 		       "HiSax: No memory for tiger.send\n");
+ 		return;
+@@ -933,8 +932,7 @@ inittiger(struct IsdnCardState *cs)
+ 	     cs->hw.njet.base + NETJET_DMA_READ_IRQ);
+ 	outl(virt_to_bus(cs->bcs[0].hw.tiger.s_end),
+ 	     cs->hw.njet.base + NETJET_DMA_READ_END);
+-	if (!(cs->bcs[0].hw.tiger.rec = kmalloc(NETJET_DMA_RXSIZE * sizeof(unsigned int),
+-						GFP_KERNEL | GFP_DMA))) {
++	if (!(cs->bcs[0].hw.tiger.rec = kmalloc(array_size(NETJET_DMA_RXSIZE, sizeof(unsigned int)), GFP_KERNEL | GFP_DMA))) {
+ 		printk(KERN_WARNING
+ 		       "HiSax: No memory for tiger.rec\n");
+ 		return;
+diff --git a/drivers/isdn/i4l/isdn_common.c b/drivers/isdn/i4l/isdn_common.c
+index 7c6f3f5d9d9a..b628da5e2d2e 100644
+--- a/drivers/isdn/i4l/isdn_common.c
++++ b/drivers/isdn/i4l/isdn_common.c
+@@ -2070,14 +2070,14 @@ isdn_add_channels(isdn_driver_t *d, int drvidx, int n, int adding)
+ 
+ 	if ((adding) && (d->rcverr))
+ 		kfree(d->rcverr);
+-	if (!(d->rcverr = kzalloc(sizeof(int) * m, GFP_ATOMIC))) {
++	if (!(d->rcverr = kzalloc(array_size(m, sizeof(int)), GFP_ATOMIC))) {
+ 		printk(KERN_WARNING "register_isdn: Could not alloc rcverr\n");
+ 		return -1;
+ 	}
+ 
+ 	if ((adding) && (d->rcvcount))
+ 		kfree(d->rcvcount);
+-	if (!(d->rcvcount = kzalloc(sizeof(int) * m, GFP_ATOMIC))) {
++	if (!(d->rcvcount = kzalloc(array_size(m, sizeof(int)), GFP_ATOMIC))) {
+ 		printk(KERN_WARNING "register_isdn: Could not alloc rcvcount\n");
+ 		if (!adding)
+ 			kfree(d->rcverr);
+@@ -2089,7 +2089,7 @@ isdn_add_channels(isdn_driver_t *d, int drvidx, int n, int adding)
+ 			skb_queue_purge(&d->rpqueue[j]);
+ 		kfree(d->rpqueue);
+ 	}
+-	if (!(d->rpqueue = kmalloc(sizeof(struct sk_buff_head) * m, GFP_ATOMIC))) {
++	if (!(d->rpqueue = kmalloc(array_size(m, sizeof(struct sk_buff_head)), GFP_ATOMIC))) {
+ 		printk(KERN_WARNING "register_isdn: Could not alloc rpqueue\n");
+ 		if (!adding) {
+ 			kfree(d->rcvcount);
+diff --git a/drivers/mailbox/pcc.c b/drivers/mailbox/pcc.c
+index 3ef7f036ceea..d375cd2cdb28 100644
+--- a/drivers/mailbox/pcc.c
++++ b/drivers/mailbox/pcc.c
+@@ -476,8 +476,8 @@ static int __init acpi_pcc_probe(void)
+ 		return -EINVAL;
+ 	}
+ 
+-	pcc_mbox_channels = kzalloc(sizeof(struct mbox_chan) *
+-			sum, GFP_KERNEL);
++	pcc_mbox_channels = kzalloc(array_size(sum, sizeof(struct mbox_chan)),
++				    GFP_KERNEL);
+ 	if (!pcc_mbox_channels) {
+ 		pr_err("Could not allocate space for PCC mbox channels\n");
+ 		return -ENOMEM;
+diff --git a/drivers/md/dm-integrity.c b/drivers/md/dm-integrity.c
+index 77d9fe58dae2..9c354be188d4 100644
+--- a/drivers/md/dm-integrity.c
++++ b/drivers/md/dm-integrity.c
+@@ -2464,7 +2464,8 @@ static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_int
+ 
+ 		n_pages = (end_index - start_index + 1);
+ 
+-		s = kvmalloc(n_pages * sizeof(struct scatterlist), GFP_KERNEL);
++		s = kvmalloc(array_size(n_pages, sizeof(struct scatterlist)),
++			     GFP_KERNEL);
+ 		if (!s) {
+ 			dm_integrity_free_journal_scatterlist(ic, sl);
+ 			return NULL;
+diff --git a/drivers/md/dm-snap.c b/drivers/md/dm-snap.c
+index 216035be5661..dcc957e488e2 100644
+--- a/drivers/md/dm-snap.c
++++ b/drivers/md/dm-snap.c
+@@ -326,7 +326,7 @@ static int init_origin_hash(void)
+ {
+ 	int i;
+ 
+-	_origins = kmalloc(ORIGIN_HASH_SIZE * sizeof(struct list_head),
++	_origins = kmalloc(array_size(ORIGIN_HASH_SIZE, sizeof(struct list_head)),
+ 			   GFP_KERNEL);
+ 	if (!_origins) {
+ 		DMERR("unable to allocate memory for _origins");
+@@ -335,7 +335,7 @@ static int init_origin_hash(void)
+ 	for (i = 0; i < ORIGIN_HASH_SIZE; i++)
+ 		INIT_LIST_HEAD(_origins + i);
+ 
+-	_dm_origins = kmalloc(ORIGIN_HASH_SIZE * sizeof(struct list_head),
++	_dm_origins = kmalloc(array_size(ORIGIN_HASH_SIZE, sizeof(struct list_head)),
+ 			      GFP_KERNEL);
+ 	if (!_dm_origins) {
+ 		DMERR("unable to allocate memory for _dm_origins");
+diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
+index caa51dd351b6..227818e985bb 100644
+--- a/drivers/md/dm-table.c
++++ b/drivers/md/dm-table.c
+@@ -561,7 +561,7 @@ static char **realloc_argv(unsigned *size, char **old_argv)
+ 		new_size = 8;
+ 		gfp = GFP_NOIO;
+ 	}
+-	argv = kmalloc(new_size * sizeof(*argv), gfp);
++	argv = kmalloc(array_size(new_size, sizeof(*argv)), gfp);
+ 	if (argv) {
+ 		memcpy(argv, old_argv, *size * sizeof(*argv));
+ 		*size = new_size;
+diff --git a/drivers/md/md-bitmap.c b/drivers/md/md-bitmap.c
+index 239c7bb3929b..c46dbc4dc367 100644
+--- a/drivers/md/md-bitmap.c
++++ b/drivers/md/md-bitmap.c
+@@ -789,8 +789,8 @@ static int bitmap_storage_alloc(struct bitmap_storage *store,
+ 	num_pages = DIV_ROUND_UP(bytes, PAGE_SIZE);
+ 	offset = slot_number * num_pages;
+ 
+-	store->filemap = kmalloc(sizeof(struct page *)
+-				 * num_pages, GFP_KERNEL);
++	store->filemap = kmalloc(array_size(num_pages, sizeof(struct page *)),
++				 GFP_KERNEL);
+ 	if (!store->filemap)
+ 		return -ENOMEM;
+ 
+@@ -2117,7 +2117,7 @@ int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
+ 
+ 	pages = DIV_ROUND_UP(chunks, PAGE_COUNTER_RATIO);
+ 
+-	new_bp = kzalloc(pages * sizeof(*new_bp), GFP_KERNEL);
++	new_bp = kzalloc(array_size(pages, sizeof(*new_bp)), GFP_KERNEL);
+ 	ret = -ENOMEM;
+ 	if (!new_bp) {
+ 		bitmap_file_unmap(&store);
+diff --git a/drivers/md/raid10.c b/drivers/md/raid10.c
+index 3c60774c8430..2a7bd1000cb5 100644
+--- a/drivers/md/raid10.c
++++ b/drivers/md/raid10.c
+@@ -175,7 +175,8 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
+ 		nalloc_rp = nalloc;
+ 	else
+ 		nalloc_rp = nalloc * 2;
+-	rps = kmalloc(sizeof(struct resync_pages) * nalloc_rp, gfp_flags);
++	rps = kmalloc(array_size(nalloc_rp, sizeof(struct resync_pages)),
++		      gfp_flags);
+ 	if (!rps)
+ 		goto out_free_r10bio;
+ 
+diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
+index be117d0a65a8..c08d83dcf1e2 100644
+--- a/drivers/md/raid5.c
++++ b/drivers/md/raid5.c
+@@ -2391,7 +2391,8 @@ static int resize_stripes(struct r5conf *conf, int newsize)
+ 	 * is completely stalled, so now is a good time to resize
+ 	 * conf->disks and the scribble region
+ 	 */
+-	ndisks = kzalloc(newsize * sizeof(struct disk_info), GFP_NOIO);
++	ndisks = kzalloc(array_size(newsize, sizeof(struct disk_info)),
++			 GFP_NOIO);
+ 	if (ndisks) {
+ 		for (i = 0; i < conf->pool_size; i++)
+ 			ndisks[i] = conf->disks[i];
+@@ -6888,8 +6889,8 @@ static struct r5conf *setup_conf(struct mddev *mddev)
+ 		goto abort;
+ 	INIT_LIST_HEAD(&conf->free_list);
+ 	INIT_LIST_HEAD(&conf->pending_list);
+-	conf->pending_data = kzalloc(sizeof(struct r5pending_data) *
+-		PENDING_IO_MAX, GFP_KERNEL);
++	conf->pending_data = kzalloc(array_size(PENDING_IO_MAX, sizeof(struct r5pending_data)),
++				     GFP_KERNEL);
+ 	if (!conf->pending_data)
+ 		goto abort;
+ 	for (i = 0; i < PENDING_IO_MAX; i++)
+@@ -6938,8 +6939,8 @@ static struct r5conf *setup_conf(struct mddev *mddev)
+ 		conf->previous_raid_disks = mddev->raid_disks - mddev->delta_disks;
+ 	max_disks = max(conf->raid_disks, conf->previous_raid_disks);
+ 
+-	conf->disks = kzalloc(max_disks * sizeof(struct disk_info),
+-			      GFP_KERNEL);
++	conf->disks = kzalloc(array_size(max_disks, sizeof(struct disk_info)),
++		              GFP_KERNEL);
+ 
+ 	if (!conf->disks)
+ 		goto abort;
+diff --git a/drivers/media/dvb-frontends/dib7000p.c b/drivers/media/dvb-frontends/dib7000p.c
+index 902af482448e..c5e4000c0c05 100644
+--- a/drivers/media/dvb-frontends/dib7000p.c
++++ b/drivers/media/dvb-frontends/dib7000p.c
+@@ -2018,10 +2018,10 @@ static int dib7000pc_detection(struct i2c_adapter *i2c_adap)
+ 	};
+ 	int ret = 0;
+ 
+-	tx = kzalloc(2*sizeof(u8), GFP_KERNEL);
++	tx = kzalloc(array_size(2, sizeof(u8)), GFP_KERNEL);
+ 	if (!tx)
+ 		return -ENOMEM;
+-	rx = kzalloc(2*sizeof(u8), GFP_KERNEL);
++	rx = kzalloc(array_size(2, sizeof(u8)), GFP_KERNEL);
+ 	if (!rx) {
+ 		ret = -ENOMEM;
+ 		goto rx_memory_error;
+diff --git a/drivers/media/dvb-frontends/dib8000.c b/drivers/media/dvb-frontends/dib8000.c
+index 6f35173d2968..09b69bebf3ba 100644
+--- a/drivers/media/dvb-frontends/dib8000.c
++++ b/drivers/media/dvb-frontends/dib8000.c
+@@ -4271,12 +4271,14 @@ static int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods,
+ 	u8 new_addr = 0;
+ 	struct i2c_device client = {.adap = host };
+ 
+-	client.i2c_write_buffer = kzalloc(4 * sizeof(u8), GFP_KERNEL);
++	client.i2c_write_buffer = kzalloc(array_size(4, sizeof(u8)),
++					  GFP_KERNEL);
+ 	if (!client.i2c_write_buffer) {
+ 		dprintk("%s: not enough memory\n", __func__);
+ 		return -ENOMEM;
+ 	}
+-	client.i2c_read_buffer = kzalloc(4 * sizeof(u8), GFP_KERNEL);
++	client.i2c_read_buffer = kzalloc(array_size(4, sizeof(u8)),
++					 GFP_KERNEL);
+ 	if (!client.i2c_read_buffer) {
+ 		dprintk("%s: not enough memory\n", __func__);
+ 		ret = -ENOMEM;
+diff --git a/drivers/media/dvb-frontends/dib9000.c b/drivers/media/dvb-frontends/dib9000.c
+index f9289f488de7..d4ffed23a541 100644
+--- a/drivers/media/dvb-frontends/dib9000.c
++++ b/drivers/media/dvb-frontends/dib9000.c
+@@ -2381,12 +2381,14 @@ int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defaul
+ 	u8 new_addr = 0;
+ 	struct i2c_device client = {.i2c_adap = i2c };
+ 
+-	client.i2c_write_buffer = kzalloc(4 * sizeof(u8), GFP_KERNEL);
++	client.i2c_write_buffer = kzalloc(array_size(4, sizeof(u8)),
++					  GFP_KERNEL);
+ 	if (!client.i2c_write_buffer) {
+ 		dprintk("%s: not enough memory\n", __func__);
+ 		return -ENOMEM;
+ 	}
+-	client.i2c_read_buffer = kzalloc(4 * sizeof(u8), GFP_KERNEL);
++	client.i2c_read_buffer = kzalloc(array_size(4, sizeof(u8)),
++					 GFP_KERNEL);
+ 	if (!client.i2c_read_buffer) {
+ 		dprintk("%s: not enough memory\n", __func__);
+ 		ret = -ENOMEM;
+diff --git a/drivers/media/pci/ivtv/ivtvfb.c b/drivers/media/pci/ivtv/ivtvfb.c
+index 8e62b8be6529..aa5eb1b8d63e 100644
+--- a/drivers/media/pci/ivtv/ivtvfb.c
++++ b/drivers/media/pci/ivtv/ivtvfb.c
+@@ -1077,7 +1077,8 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
+ 
+ 	/* Allocate the pseudo palette */
+ 	oi->ivtvfb_info.pseudo_palette =
+-		kmalloc(sizeof(u32) * 16, GFP_KERNEL|__GFP_NOWARN);
++		kmalloc(array_size(16, sizeof(u32)),
++			GFP_KERNEL | __GFP_NOWARN);
+ 
+ 	if (!oi->ivtvfb_info.pseudo_palette) {
+ 		IVTVFB_ERR("abort, unable to alloc pseudo palette\n");
+diff --git a/drivers/media/usb/au0828/au0828-video.c b/drivers/media/usb/au0828/au0828-video.c
+index 964cd7bcdd2c..80330668d09e 100644
+--- a/drivers/media/usb/au0828/au0828-video.c
++++ b/drivers/media/usb/au0828/au0828-video.c
+@@ -217,14 +217,15 @@ static int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
+ 	dev->isoc_ctl.isoc_copy = isoc_copy;
+ 	dev->isoc_ctl.num_bufs = num_bufs;
+ 
+-	dev->isoc_ctl.urb = kzalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
++	dev->isoc_ctl.urb = kzalloc(array_size(num_bufs, sizeof(void *)),
++				    GFP_KERNEL);
+ 	if (!dev->isoc_ctl.urb) {
+ 		au0828_isocdbg("cannot alloc memory for usb buffers\n");
  		return -ENOMEM;
  	}
  
--	card->mpa_rx.len_arr = kzalloc(sizeof(*card->mpa_rx.len_arr) *
--				       card->mp_agg_pkt_limit, GFP_KERNEL);
-+	card->mpa_rx.len_arr = kzalloc(array_size(sizeof(*card->mpa_rx.len_arr), card->mp_agg_pkt_limit),
-+				       GFP_KERNEL);
- 	if (!card->mpa_rx.len_arr) {
- 		kfree(card->mp_regs);
- 		kfree(card->mpa_rx.skb_arr);
-diff --git a/drivers/net/wireless/mediatek/mt7601u/init.c b/drivers/net/wireless/mediatek/mt7601u/init.c
-index d3b611aaf061..1b1014e9afcd 100644
---- a/drivers/net/wireless/mediatek/mt7601u/init.c
-+++ b/drivers/net/wireless/mediatek/mt7601u/init.c
-@@ -182,7 +182,7 @@ static int mt7601u_init_wcid_mem(struct mt7601u_dev *dev)
- 	u32 *vals;
- 	int i, ret;
+-	dev->isoc_ctl.transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
+-					      GFP_KERNEL);
++	dev->isoc_ctl.transfer_buffer = kzalloc(array_size(num_bufs, sizeof(void *)),
++						GFP_KERNEL);
+ 	if (!dev->isoc_ctl.transfer_buffer) {
+ 		au0828_isocdbg("cannot allocate memory for usb transfer\n");
+ 		kfree(dev->isoc_ctl.urb);
+diff --git a/drivers/media/usb/cpia2/cpia2_usb.c b/drivers/media/usb/cpia2/cpia2_usb.c
+index b51fc372ca25..55dc1f09d4c6 100644
+--- a/drivers/media/usb/cpia2/cpia2_usb.c
++++ b/drivers/media/usb/cpia2/cpia2_usb.c
+@@ -663,7 +663,8 @@ static int submit_urbs(struct camera_data *cam)
+ 		if (cam->sbuf[i].data)
+ 			continue;
+ 		cam->sbuf[i].data =
+-		    kmalloc(FRAMES_PER_DESC * FRAME_SIZE_PER_DESC, GFP_KERNEL);
++		    kmalloc(array_size(FRAME_SIZE_PER_DESC, FRAMES_PER_DESC),
++			    GFP_KERNEL);
+ 		if (!cam->sbuf[i].data) {
+ 			while (--i >= 0) {
+ 				kfree(cam->sbuf[i].data);
+diff --git a/drivers/media/usb/cx231xx/cx231xx-core.c b/drivers/media/usb/cx231xx/cx231xx-core.c
+index 4f43668df15d..aa73fb2a1bf6 100644
+--- a/drivers/media/usb/cx231xx/cx231xx-core.c
++++ b/drivers/media/usb/cx231xx/cx231xx-core.c
+@@ -1034,7 +1034,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
+ 		dma_q->partial_buf[i] = 0;
  
--	vals = kmalloc(sizeof(*vals) * N_WCIDS * 2, GFP_KERNEL);
-+	vals = kmalloc(array3_size(sizeof(*vals), N_WCIDS, 2), GFP_KERNEL);
- 	if (!vals)
+ 	dev->video_mode.isoc_ctl.urb =
+-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
++	    kzalloc(array_size(num_bufs, sizeof(void *)), GFP_KERNEL);
+ 	if (!dev->video_mode.isoc_ctl.urb) {
+ 		dev_err(dev->dev,
+ 			"cannot alloc memory for usb buffers\n");
+@@ -1042,7 +1042,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
+ 	}
+ 
+ 	dev->video_mode.isoc_ctl.transfer_buffer =
+-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
++	    kzalloc(array_size(num_bufs, sizeof(void *)), GFP_KERNEL);
+ 	if (!dev->video_mode.isoc_ctl.transfer_buffer) {
+ 		dev_err(dev->dev,
+ 			"cannot allocate memory for usbtransfer\n");
+@@ -1169,7 +1169,7 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
+ 		dma_q->partial_buf[i] = 0;
+ 
+ 	dev->video_mode.bulk_ctl.urb =
+-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
++	    kzalloc(array_size(num_bufs, sizeof(void *)), GFP_KERNEL);
+ 	if (!dev->video_mode.bulk_ctl.urb) {
+ 		dev_err(dev->dev,
+ 			"cannot alloc memory for usb buffers\n");
+@@ -1177,7 +1177,7 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
+ 	}
+ 
+ 	dev->video_mode.bulk_ctl.transfer_buffer =
+-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
++	    kzalloc(array_size(num_bufs, sizeof(void *)), GFP_KERNEL);
+ 	if (!dev->video_mode.bulk_ctl.transfer_buffer) {
+ 		dev_err(dev->dev,
+ 			"cannot allocate memory for usbtransfer\n");
+diff --git a/drivers/media/usb/cx231xx/cx231xx-vbi.c b/drivers/media/usb/cx231xx/cx231xx-vbi.c
+index d3bfe8e23b1f..6e2a2d6e651b 100644
+--- a/drivers/media/usb/cx231xx/cx231xx-vbi.c
++++ b/drivers/media/usb/cx231xx/cx231xx-vbi.c
+@@ -415,7 +415,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
+ 	for (i = 0; i < 8; i++)
+ 		dma_q->partial_buf[i] = 0;
+ 
+-	dev->vbi_mode.bulk_ctl.urb = kzalloc(sizeof(void *) * num_bufs,
++	dev->vbi_mode.bulk_ctl.urb = kzalloc(array_size(num_bufs, sizeof(void *)),
+ 					     GFP_KERNEL);
+ 	if (!dev->vbi_mode.bulk_ctl.urb) {
+ 		dev_err(dev->dev,
+@@ -424,7 +424,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
+ 	}
+ 
+ 	dev->vbi_mode.bulk_ctl.transfer_buffer =
+-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
++	    kzalloc(array_size(num_bufs, sizeof(void *)), GFP_KERNEL);
+ 	if (!dev->vbi_mode.bulk_ctl.transfer_buffer) {
+ 		dev_err(dev->dev,
+ 			"cannot allocate memory for usbtransfer\n");
+diff --git a/drivers/media/usb/go7007/go7007-usb.c b/drivers/media/usb/go7007/go7007-usb.c
+index ed9bcaf08d5e..0c0c6de6345e 100644
+--- a/drivers/media/usb/go7007/go7007-usb.c
++++ b/drivers/media/usb/go7007/go7007-usb.c
+@@ -1143,7 +1143,8 @@ static int go7007_usb_probe(struct usb_interface *intf,
+ 	usb->intr_urb = usb_alloc_urb(0, GFP_KERNEL);
+ 	if (usb->intr_urb == NULL)
+ 		goto allocfail;
+-	usb->intr_urb->transfer_buffer = kmalloc(2*sizeof(u16), GFP_KERNEL);
++	usb->intr_urb->transfer_buffer = kmalloc(array_size(2, sizeof(u16)),
++						 GFP_KERNEL);
+ 	if (usb->intr_urb->transfer_buffer == NULL)
+ 		goto allocfail;
+ 
+diff --git a/drivers/media/usb/pvrusb2/pvrusb2-std.c b/drivers/media/usb/pvrusb2/pvrusb2-std.c
+index 21bb20dba82c..a37920accac5 100644
+--- a/drivers/media/usb/pvrusb2/pvrusb2-std.c
++++ b/drivers/media/usb/pvrusb2/pvrusb2-std.c
+@@ -361,7 +361,7 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
+ 		   std_cnt);
+ 	if (!std_cnt) return NULL; // paranoia
+ 
+-	stddefs = kzalloc(sizeof(struct v4l2_standard) * std_cnt,
++	stddefs = kzalloc(array_size(std_cnt, sizeof(struct v4l2_standard)),
+ 			  GFP_KERNEL);
+ 	if (!stddefs)
+ 		return NULL;
+diff --git a/drivers/media/usb/stk1160/stk1160-video.c b/drivers/media/usb/stk1160/stk1160-video.c
+index 423c03a0638d..ac3869a3630c 100644
+--- a/drivers/media/usb/stk1160/stk1160-video.c
++++ b/drivers/media/usb/stk1160/stk1160-video.c
+@@ -439,14 +439,15 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
+ 
+ 	dev->isoc_ctl.buf = NULL;
+ 	dev->isoc_ctl.max_pkt_size = dev->max_pkt_size;
+-	dev->isoc_ctl.urb = kzalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
++	dev->isoc_ctl.urb = kzalloc(array_size(num_bufs, sizeof(void *)),
++				    GFP_KERNEL);
+ 	if (!dev->isoc_ctl.urb) {
+ 		stk1160_err("out of memory for urb array\n");
  		return -ENOMEM;
+ 	}
  
-@@ -211,7 +211,7 @@ static int mt7601u_init_wcid_attr_mem(struct mt7601u_dev *dev)
- 	u32 *vals;
- 	int i, ret;
- 
--	vals = kmalloc(sizeof(*vals) * N_WCIDS * 2, GFP_KERNEL);
-+	vals = kmalloc(array3_size(sizeof(*vals), N_WCIDS, 2), GFP_KERNEL);
- 	if (!vals)
- 		return -ENOMEM;
- 
-diff --git a/drivers/net/wireless/quantenna/qtnfmac/commands.c b/drivers/net/wireless/quantenna/qtnfmac/commands.c
-index deca0060eb27..4cb71b3d9f3e 100644
---- a/drivers/net/wireless/quantenna/qtnfmac/commands.c
-+++ b/drivers/net/wireless/quantenna/qtnfmac/commands.c
-@@ -1193,7 +1193,7 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
- 				return -EINVAL;
- 			}
- 
--			limits = kzalloc(sizeof(*limits) * rec->n_limits,
-+			limits = kzalloc(array_size(sizeof(*limits), rec->n_limits),
- 					 GFP_KERNEL);
- 			if (!limits)
- 				return -ENOMEM;
-diff --git a/drivers/net/wireless/ralink/rt2x00/rt2x00debug.c b/drivers/net/wireless/ralink/rt2x00/rt2x00debug.c
-index 0eee479583b8..645436c5d515 100644
---- a/drivers/net/wireless/ralink/rt2x00/rt2x00debug.c
-+++ b/drivers/net/wireless/ralink/rt2x00/rt2x00debug.c
-@@ -397,7 +397,8 @@ static ssize_t rt2x00debug_read_crypto_stats(struct file *file,
- 	if (*offset)
+-	dev->isoc_ctl.transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
+-					      GFP_KERNEL);
++	dev->isoc_ctl.transfer_buffer = kzalloc(array_size(num_bufs, sizeof(void *)),
++						GFP_KERNEL);
+ 	if (!dev->isoc_ctl.transfer_buffer) {
+ 		stk1160_err("out of memory for usb transfers\n");
+ 		kfree(dev->isoc_ctl.urb);
+diff --git a/drivers/media/usb/stkwebcam/stk-webcam.c b/drivers/media/usb/stkwebcam/stk-webcam.c
+index 22389b56ec24..541e3c2349b1 100644
+--- a/drivers/media/usb/stkwebcam/stk-webcam.c
++++ b/drivers/media/usb/stkwebcam/stk-webcam.c
+@@ -567,8 +567,8 @@ static int stk_prepare_sio_buffers(struct stk_camera *dev, unsigned n_sbufs)
+ 	if (dev->sio_bufs != NULL)
+ 		pr_err("sio_bufs already allocated\n");
+ 	else {
+-		dev->sio_bufs = kzalloc(n_sbufs * sizeof(struct stk_sio_buffer),
+-				GFP_KERNEL);
++		dev->sio_bufs = kzalloc(array_size(n_sbufs, sizeof(struct stk_sio_buffer)),
++					GFP_KERNEL);
+ 		if (dev->sio_bufs == NULL)
+ 			return -ENOMEM;
+ 		for (i = 0; i < n_sbufs; i++) {
+diff --git a/drivers/media/usb/tm6000/tm6000-video.c b/drivers/media/usb/tm6000/tm6000-video.c
+index b2399d4266da..9ef9f71094f5 100644
+--- a/drivers/media/usb/tm6000/tm6000-video.c
++++ b/drivers/media/usb/tm6000/tm6000-video.c
+@@ -463,11 +463,13 @@ static int tm6000_alloc_urb_buffers(struct tm6000_core *dev)
+ 	if (dev->urb_buffer)
  		return 0;
  
--	data = kzalloc((1 + CIPHER_MAX) * MAX_LINE_LENGTH, GFP_KERNEL);
-+	data = kzalloc(array_size((1 + CIPHER_MAX), MAX_LINE_LENGTH),
-+		       GFP_KERNEL);
- 	if (!data)
+-	dev->urb_buffer = kmalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
++	dev->urb_buffer = kmalloc(array_size(num_bufs, sizeof(void *)),
++				  GFP_KERNEL);
+ 	if (!dev->urb_buffer)
  		return -ENOMEM;
  
-@@ -597,7 +598,7 @@ static struct dentry *rt2x00debug_create_file_driver(const char *name,
- {
- 	char *data;
+-	dev->urb_dma = kmalloc(sizeof(dma_addr_t *)*num_bufs, GFP_KERNEL);
++	dev->urb_dma = kmalloc(array_size(num_bufs, sizeof(dma_addr_t *)),
++			       GFP_KERNEL);
+ 	if (!dev->urb_dma)
+ 		return -ENOMEM;
  
--	data = kzalloc(3 * MAX_LINE_LENGTH, GFP_KERNEL);
-+	data = kzalloc(array_size(3, MAX_LINE_LENGTH), GFP_KERNEL);
- 	if (!data)
+@@ -583,12 +585,13 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
+ 
+ 	dev->isoc_ctl.num_bufs = num_bufs;
+ 
+-	dev->isoc_ctl.urb = kmalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
++	dev->isoc_ctl.urb = kmalloc(array_size(num_bufs, sizeof(void *)),
++				    GFP_KERNEL);
+ 	if (!dev->isoc_ctl.urb)
+ 		return -ENOMEM;
+ 
+-	dev->isoc_ctl.transfer_buffer = kmalloc(sizeof(void *)*num_bufs,
+-				   GFP_KERNEL);
++	dev->isoc_ctl.transfer_buffer = kmalloc(array_size(num_bufs, sizeof(void *)),
++						GFP_KERNEL);
+ 	if (!dev->isoc_ctl.transfer_buffer) {
+ 		kfree(dev->isoc_ctl.urb);
+ 		return -ENOMEM;
+diff --git a/drivers/media/usb/usbtv/usbtv-video.c b/drivers/media/usb/usbtv/usbtv-video.c
+index 3668a04359e8..a4433d5518e6 100644
+--- a/drivers/media/usb/usbtv/usbtv-video.c
++++ b/drivers/media/usb/usbtv/usbtv-video.c
+@@ -424,8 +424,8 @@ static struct urb *usbtv_setup_iso_transfer(struct usbtv *usbtv)
+ 	ip->pipe = usb_rcvisocpipe(usbtv->udev, USBTV_VIDEO_ENDP);
+ 	ip->interval = 1;
+ 	ip->transfer_flags = URB_ISO_ASAP;
+-	ip->transfer_buffer = kzalloc(size * USBTV_ISOC_PACKETS,
+-						GFP_KERNEL);
++	ip->transfer_buffer = kzalloc(array_size(USBTV_ISOC_PACKETS, size),
++				      GFP_KERNEL);
+ 	if (!ip->transfer_buffer) {
+ 		usb_free_urb(ip);
  		return NULL;
+diff --git a/drivers/memstick/core/ms_block.c b/drivers/memstick/core/ms_block.c
+index 57b13dfbd21e..a3db881094e1 100644
+--- a/drivers/memstick/core/ms_block.c
++++ b/drivers/memstick/core/ms_block.c
+@@ -1201,7 +1201,8 @@ static int msb_read_boot_blocks(struct msb_data *msb)
+ 	dbg_verbose("Start of a scan for the boot blocks");
  
-@@ -619,7 +620,7 @@ static struct dentry *rt2x00debug_create_file_chipset(const char *name,
- 	const struct rt2x00debug *debug = intf->debug;
- 	char *data;
+ 	if (!msb->boot_page) {
+-		page = kmalloc(sizeof(struct ms_boot_page)*2, GFP_KERNEL);
++		page = kmalloc(array_size(2, sizeof(struct ms_boot_page)),
++			       GFP_KERNEL);
+ 		if (!page)
+ 			return -ENOMEM;
  
--	data = kzalloc(9 * MAX_LINE_LENGTH, GFP_KERNEL);
-+	data = kzalloc(array_size(9, MAX_LINE_LENGTH), GFP_KERNEL);
- 	if (!data)
- 		return NULL;
- 
-diff --git a/drivers/net/wireless/realtek/rtlwifi/efuse.c b/drivers/net/wireless/realtek/rtlwifi/efuse.c
-index fd13d4ef53b8..6d8d58589e06 100644
---- a/drivers/net/wireless/realtek/rtlwifi/efuse.c
-+++ b/drivers/net/wireless/realtek/rtlwifi/efuse.c
-@@ -258,8 +258,8 @@ void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
+diff --git a/drivers/mfd/timberdale.c b/drivers/mfd/timberdale.c
+index cd4a6d7d6750..74ef35d3041d 100644
+--- a/drivers/mfd/timberdale.c
++++ b/drivers/mfd/timberdale.c
+@@ -707,8 +707,8 @@ static int timb_probe(struct pci_dev *dev,
+ 		goto err_config;
  	}
  
- 	/* allocate memory for efuse_tbl and efuse_word */
--	efuse_tbl = kzalloc(rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE] *
--			    sizeof(u8), GFP_ATOMIC);
-+	efuse_tbl = kzalloc(array_size(rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE], sizeof(u8)),
-+			    GFP_ATOMIC);
- 	if (!efuse_tbl)
+-	msix_entries = kzalloc(TIMBERDALE_NR_IRQS * sizeof(*msix_entries),
+-		GFP_KERNEL);
++	msix_entries = kzalloc(array_size(TIMBERDALE_NR_IRQS, sizeof(*msix_entries)),
++			       GFP_KERNEL);
+ 	if (!msix_entries)
+ 		goto err_config;
+ 
+diff --git a/drivers/misc/altera-stapl/altera.c b/drivers/misc/altera-stapl/altera.c
+index f53e217e963f..50e86182217f 100644
+--- a/drivers/misc/altera-stapl/altera.c
++++ b/drivers/misc/altera-stapl/altera.c
+@@ -304,13 +304,14 @@ static int altera_execute(struct altera_state *astate,
+ 	if (sym_count <= 0)
+ 		goto exit_done;
+ 
+-	vars = kzalloc(sym_count * sizeof(long), GFP_KERNEL);
++	vars = kzalloc(array_size(sym_count, sizeof(long)), GFP_KERNEL);
+ 
+ 	if (vars == NULL)
+ 		status = -ENOMEM;
+ 
+ 	if (status == 0) {
+-		var_size = kzalloc(sym_count * sizeof(s32), GFP_KERNEL);
++		var_size = kzalloc(array_size(sym_count, sizeof(s32)),
++				   GFP_KERNEL);
+ 
+ 		if (var_size == NULL)
+ 			status = -ENOMEM;
+@@ -1136,8 +1137,8 @@ static int altera_execute(struct altera_state *astate,
+ 				/* Allocate a writable buffer for this array */
+ 				count = var_size[variable_id];
+ 				long_tmp = vars[variable_id];
+-				longptr_tmp = kzalloc(count * sizeof(long),
+-								GFP_KERNEL);
++				longptr_tmp = kzalloc(array_size(count, sizeof(long)),
++						      GFP_KERNEL);
+ 				vars[variable_id] = (long)longptr_tmp;
+ 
+ 				if (vars[variable_id] == 0) {
+diff --git a/drivers/misc/cxl/guest.c b/drivers/misc/cxl/guest.c
+index f58b4b6c79f2..911ea2e8b863 100644
+--- a/drivers/misc/cxl/guest.c
++++ b/drivers/misc/cxl/guest.c
+@@ -89,7 +89,8 @@ static ssize_t guest_collect_vpd(struct cxl *adapter, struct cxl_afu *afu,
+ 		mod = 0;
+ 	}
+ 
+-	vpd_buf = kzalloc(entries * sizeof(unsigned long *), GFP_KERNEL);
++	vpd_buf = kzalloc(array_size(entries, sizeof(unsigned long *)),
++			  GFP_KERNEL);
+ 	if (!vpd_buf)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/misc/cxl/of.c b/drivers/misc/cxl/of.c
+index ec175ea5dfba..48433e888468 100644
+--- a/drivers/misc/cxl/of.c
++++ b/drivers/misc/cxl/of.c
+@@ -302,7 +302,7 @@ static int read_adapter_irq_config(struct cxl *adapter, struct device_node *np)
+ 	if (nranges == 0 || (nranges * 2 * sizeof(int)) != len)
+ 		return -EINVAL;
+ 
+-	adapter->guest->irq_avail = kzalloc(nranges * sizeof(struct irq_avail),
++	adapter->guest->irq_avail = kzalloc(array_size(nranges, sizeof(struct irq_avail)),
+ 					    GFP_KERNEL);
+ 	if (adapter->guest->irq_avail == NULL)
+ 		return -ENOMEM;
+diff --git a/drivers/misc/sgi-xp/xpc_main.c b/drivers/misc/sgi-xp/xpc_main.c
+index 0c775d6fcf59..5c833f11636c 100644
+--- a/drivers/misc/sgi-xp/xpc_main.c
++++ b/drivers/misc/sgi-xp/xpc_main.c
+@@ -416,7 +416,7 @@ xpc_setup_ch_structures(struct xpc_partition *part)
+ 	 * memory.
+ 	 */
+ 	DBUG_ON(part->channels != NULL);
+-	part->channels = kzalloc(sizeof(struct xpc_channel) * XPC_MAX_NCHANNELS,
++	part->channels = kzalloc(array_size(XPC_MAX_NCHANNELS, sizeof(struct xpc_channel)),
+ 				 GFP_KERNEL);
+ 	if (part->channels == NULL) {
+ 		dev_err(xpc_chan, "can't get memory for channels\n");
+@@ -905,8 +905,8 @@ xpc_setup_partitions(void)
+ 	short partid;
+ 	struct xpc_partition *part;
+ 
+-	xpc_partitions = kzalloc(sizeof(struct xpc_partition) *
+-				 xp_max_npartitions, GFP_KERNEL);
++	xpc_partitions = kzalloc(array_size(xp_max_npartitions, sizeof(struct xpc_partition)),
++				 GFP_KERNEL);
+ 	if (xpc_partitions == NULL) {
+ 		dev_err(xpc_part, "can't get memory for partition structure\n");
+ 		return -ENOMEM;
+diff --git a/drivers/misc/sgi-xp/xpc_partition.c b/drivers/misc/sgi-xp/xpc_partition.c
+index 6956f7e7d439..cc45797f8a2c 100644
+--- a/drivers/misc/sgi-xp/xpc_partition.c
++++ b/drivers/misc/sgi-xp/xpc_partition.c
+@@ -425,7 +425,7 @@ xpc_discovery(void)
+ 	if (remote_rp == NULL)
  		return;
- 	efuse_word = kcalloc(EFUSE_MAX_WORD_UNIT, sizeof(u16 *), GFP_ATOMIC);
-diff --git a/drivers/net/wireless/rsi/rsi_91x_mgmt.c b/drivers/net/wireless/rsi/rsi_91x_mgmt.c
-index c21fca750fd4..daa5f8573f37 100644
---- a/drivers/net/wireless/rsi/rsi_91x_mgmt.c
-+++ b/drivers/net/wireless/rsi/rsi_91x_mgmt.c
-@@ -1194,7 +1194,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
+ 
+-	discovered_nasids = kzalloc(sizeof(long) * xpc_nasid_mask_nlongs,
++	discovered_nasids = kzalloc(array_size(xpc_nasid_mask_nlongs, sizeof(long)),
+ 				    GFP_KERNEL);
+ 	if (discovered_nasids == NULL) {
+ 		kfree(remote_rp_base);
+diff --git a/drivers/misc/vmw_vmci/vmci_queue_pair.c b/drivers/misc/vmw_vmci/vmci_queue_pair.c
+index 0339538c182d..175609841e7d 100644
+--- a/drivers/misc/vmw_vmci/vmci_queue_pair.c
++++ b/drivers/misc/vmw_vmci/vmci_queue_pair.c
+@@ -449,12 +449,14 @@ static int qp_alloc_ppn_set(void *prod_q,
+ 		return VMCI_ERROR_ALREADY_EXISTS;
+ 
+ 	produce_ppns =
+-	    kmalloc(num_produce_pages * sizeof(*produce_ppns), GFP_KERNEL);
++	    kmalloc(array_size(num_produce_pages, sizeof(*produce_ppns)),
++		    GFP_KERNEL);
+ 	if (!produce_ppns)
+ 		return VMCI_ERROR_NO_MEM;
+ 
+ 	consume_ppns =
+-	    kmalloc(num_consume_pages * sizeof(*consume_ppns), GFP_KERNEL);
++	    kmalloc(array_size(num_consume_pages, sizeof(*consume_ppns)),
++		    GFP_KERNEL);
+ 	if (!consume_ppns) {
+ 		kfree(produce_ppns);
+ 		return VMCI_ERROR_NO_MEM;
+diff --git a/drivers/mtd/ar7part.c b/drivers/mtd/ar7part.c
+index 90575deff0ae..8607508fbd6b 100644
+--- a/drivers/mtd/ar7part.c
++++ b/drivers/mtd/ar7part.c
+@@ -55,7 +55,8 @@ static int create_mtd_partitions(struct mtd_info *master,
+ 	int retries = 10;
+ 	struct mtd_partition *ar7_parts;
+ 
+-	ar7_parts = kzalloc(sizeof(*ar7_parts) * AR7_PARTS, GFP_KERNEL);
++	ar7_parts = kzalloc(array_size(AR7_PARTS, sizeof(*ar7_parts)),
++			    GFP_KERNEL);
+ 	if (!ar7_parts)
  		return -ENOMEM;
+ 	ar7_parts[0].name = "loader";
+diff --git a/drivers/mtd/bcm47xxpart.c b/drivers/mtd/bcm47xxpart.c
+index fe2581d9d882..3b71155619a2 100644
+--- a/drivers/mtd/bcm47xxpart.c
++++ b/drivers/mtd/bcm47xxpart.c
+@@ -110,7 +110,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
+ 		blocksize = 0x1000;
+ 
+ 	/* Alloc */
+-	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
++	parts = kzalloc(array_size(BCM47XXPART_MAX_PARTS, sizeof(struct mtd_partition)),
+ 			GFP_KERNEL);
+ 	if (!parts)
+ 		return -ENOMEM;
+diff --git a/drivers/mtd/chips/cfi_cmdset_0002.c b/drivers/mtd/chips/cfi_cmdset_0002.c
+index 668e2cbc155b..5799f866629a 100644
+--- a/drivers/mtd/chips/cfi_cmdset_0002.c
++++ b/drivers/mtd/chips/cfi_cmdset_0002.c
+@@ -2622,7 +2622,8 @@ static int __maybe_unused cfi_ppb_unlock(struct mtd_info *mtd, loff_t ofs,
+ 	 * first check the locking status of all sectors and save
+ 	 * it for future use.
+ 	 */
+-	sect = kzalloc(MAX_SECTORS * sizeof(struct ppb_lock), GFP_KERNEL);
++	sect = kzalloc(array_size(MAX_SECTORS, sizeof(struct ppb_lock)),
++		       GFP_KERNEL);
+ 	if (!sect)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/mtd/devices/docg3.c b/drivers/mtd/devices/docg3.c
+index c594fe5eac08..a1782ceae772 100644
+--- a/drivers/mtd/devices/docg3.c
++++ b/drivers/mtd/devices/docg3.c
+@@ -1828,7 +1828,8 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
+ 	mtd->dev.parent = dev;
+ 	bbt_nbpages = DIV_ROUND_UP(docg3->max_block + 1,
+ 				   8 * DOC_LAYOUT_PAGE_SIZE);
+-	docg3->bbt = kzalloc(bbt_nbpages * DOC_LAYOUT_PAGE_SIZE, GFP_KERNEL);
++	docg3->bbt = kzalloc(array_size(DOC_LAYOUT_PAGE_SIZE, bbt_nbpages),
++			     GFP_KERNEL);
+ 	if (!docg3->bbt)
+ 		goto nomem3;
+ 
+diff --git a/drivers/mtd/maps/physmap_of_core.c b/drivers/mtd/maps/physmap_of_core.c
+index 527b1682381f..8f859b488a98 100644
+--- a/drivers/mtd/maps/physmap_of_core.c
++++ b/drivers/mtd/maps/physmap_of_core.c
+@@ -197,7 +197,7 @@ static int of_flash_probe(struct platform_device *dev)
+ 
+ 	dev_set_drvdata(&dev->dev, info);
+ 
+-	mtd_list = kzalloc(sizeof(*mtd_list) * count, GFP_KERNEL);
++	mtd_list = kzalloc(array_size(count, sizeof(*mtd_list)), GFP_KERNEL);
+ 	if (!mtd_list)
+ 		goto err_flash_remove;
+ 
+diff --git a/drivers/mtd/mtdconcat.c b/drivers/mtd/mtdconcat.c
+index 6b86d1a73cf2..b5eafaa16efa 100644
+--- a/drivers/mtd/mtdconcat.c
++++ b/drivers/mtd/mtdconcat.c
+@@ -778,8 +778,8 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
+ 		concat->mtd.erasesize = max_erasesize;
+ 		concat->mtd.numeraseregions = num_erase_region;
+ 		concat->mtd.eraseregions = erase_region_p =
+-		    kmalloc(num_erase_region *
+-			    sizeof (struct mtd_erase_region_info), GFP_KERNEL);
++		    kmalloc(array_size(num_erase_region, sizeof(struct mtd_erase_region_info)),
++			    GFP_KERNEL);
+ 		if (!erase_region_p) {
+ 			kfree(concat);
+ 			printk
+diff --git a/drivers/mtd/nand/raw/nand_bch.c b/drivers/mtd/nand/raw/nand_bch.c
+index 7f11b68f6db1..8ad34b2621fe 100644
+--- a/drivers/mtd/nand/raw/nand_bch.c
++++ b/drivers/mtd/nand/raw/nand_bch.c
+@@ -186,7 +186,7 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
  	}
  
--	selected_rates = kzalloc(2 * RSI_TBL_SZ, GFP_KERNEL);
-+	selected_rates = kzalloc(array_size(2, RSI_TBL_SZ), GFP_KERNEL);
- 	if (!selected_rates) {
- 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of mem\n",
- 			__func__);
+ 	nbc->eccmask = kmalloc(eccbytes, GFP_KERNEL);
+-	nbc->errloc = kmalloc(t*sizeof(*nbc->errloc), GFP_KERNEL);
++	nbc->errloc = kmalloc(array_size(t, sizeof(*nbc->errloc)), GFP_KERNEL);
+ 	if (!nbc->eccmask || !nbc->errloc)
+ 		goto fail;
+ 	/*
+diff --git a/drivers/mtd/ofpart.c b/drivers/mtd/ofpart.c
+index 615f8c173162..407e2867879d 100644
+--- a/drivers/mtd/ofpart.c
++++ b/drivers/mtd/ofpart.c
+@@ -71,7 +71,7 @@ static int parse_fixed_partitions(struct mtd_info *master,
+ 	if (nr_parts == 0)
+ 		return 0;
+ 
+-	parts = kzalloc(nr_parts * sizeof(*parts), GFP_KERNEL);
++	parts = kzalloc(array_size(nr_parts, sizeof(*parts)), GFP_KERNEL);
+ 	if (!parts)
+ 		return -ENOMEM;
+ 
+@@ -177,7 +177,7 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
+ 
+ 	nr_parts = plen / sizeof(part[0]);
+ 
+-	parts = kzalloc(nr_parts * sizeof(*parts), GFP_KERNEL);
++	parts = kzalloc(array_size(nr_parts, sizeof(*parts)), GFP_KERNEL);
+ 	if (!parts)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/mtd/parsers/parser_trx.c b/drivers/mtd/parsers/parser_trx.c
+index df360a75e1eb..256ec568b0ab 100644
+--- a/drivers/mtd/parsers/parser_trx.c
++++ b/drivers/mtd/parsers/parser_trx.c
+@@ -62,7 +62,7 @@ static int parser_trx_parse(struct mtd_info *mtd,
+ 	uint8_t curr_part = 0, i = 0;
+ 	int err;
+ 
+-	parts = kzalloc(sizeof(struct mtd_partition) * TRX_PARSER_MAX_PARTS,
++	parts = kzalloc(array_size(TRX_PARSER_MAX_PARTS, sizeof(struct mtd_partition)),
+ 			GFP_KERNEL);
+ 	if (!parts)
+ 		return -ENOMEM;
+diff --git a/drivers/mtd/parsers/sharpslpart.c b/drivers/mtd/parsers/sharpslpart.c
+index 8893dc82a5c8..bf9c7c76fffc 100644
+--- a/drivers/mtd/parsers/sharpslpart.c
++++ b/drivers/mtd/parsers/sharpslpart.c
+@@ -362,8 +362,8 @@ static int sharpsl_parse_mtd_partitions(struct mtd_info *master,
+ 		return err;
+ 	}
+ 
+-	sharpsl_nand_parts = kzalloc(sizeof(*sharpsl_nand_parts) *
+-				     SHARPSL_NAND_PARTS, GFP_KERNEL);
++	sharpsl_nand_parts = kzalloc(array_size(SHARPSL_NAND_PARTS, sizeof(*sharpsl_nand_parts)),
++				     GFP_KERNEL);
+ 	if (!sharpsl_nand_parts)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/mtd/tests/stresstest.c b/drivers/mtd/tests/stresstest.c
+index e509f8aa9a7e..4f60398f111c 100644
+--- a/drivers/mtd/tests/stresstest.c
++++ b/drivers/mtd/tests/stresstest.c
+@@ -199,7 +199,7 @@ static int __init mtd_stresstest_init(void)
+ 	err = -ENOMEM;
+ 	readbuf = vmalloc(bufsize);
+ 	writebuf = vmalloc(bufsize);
+-	offsets = kmalloc(ebcnt * sizeof(int), GFP_KERNEL);
++	offsets = kmalloc(array_size(ebcnt, sizeof(int)), GFP_KERNEL);
+ 	if (!readbuf || !writebuf || !offsets)
+ 		goto out;
+ 	for (i = 0; i < ebcnt; i++)
+diff --git a/drivers/mtd/ubi/eba.c b/drivers/mtd/ubi/eba.c
+index 250e30fac61b..5d09fde485e5 100644
+--- a/drivers/mtd/ubi/eba.c
++++ b/drivers/mtd/ubi/eba.c
+@@ -1427,11 +1427,12 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
+ 
+ 	num_volumes = ubi->vtbl_slots + UBI_INT_VOL_COUNT;
+ 
+-	scan_eba = kmalloc(sizeof(*scan_eba) * num_volumes, GFP_KERNEL);
++	scan_eba = kmalloc(array_size(num_volumes, sizeof(*scan_eba)),
++			   GFP_KERNEL);
+ 	if (!scan_eba)
+ 		return -ENOMEM;
+ 
+-	fm_eba = kmalloc(sizeof(*fm_eba) * num_volumes, GFP_KERNEL);
++	fm_eba = kmalloc(array_size(num_volumes, sizeof(*fm_eba)), GFP_KERNEL);
+ 	if (!fm_eba) {
+ 		kfree(scan_eba);
+ 		return -ENOMEM;
+diff --git a/drivers/net/can/slcan.c b/drivers/net/can/slcan.c
+index 89d60d8e467c..9f00b4015dc9 100644
+--- a/drivers/net/can/slcan.c
++++ b/drivers/net/can/slcan.c
+@@ -703,7 +703,8 @@ static int __init slcan_init(void)
+ 	pr_info("slcan: serial line CAN interface driver\n");
+ 	pr_info("slcan: %d dynamic interface channels.\n", maxdev);
+ 
+-	slcan_devs = kzalloc(sizeof(struct net_device *)*maxdev, GFP_KERNEL);
++	slcan_devs = kzalloc(array_size(maxdev, sizeof(struct net_device *)),
++			     GFP_KERNEL);
+ 	if (!slcan_devs)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/net/ethernet/amd/lance.c b/drivers/net/ethernet/amd/lance.c
+index 12a6a93d221b..689a227d18f2 100644
+--- a/drivers/net/ethernet/amd/lance.c
++++ b/drivers/net/ethernet/amd/lance.c
+@@ -551,13 +551,13 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int
+ 	if (lance_debug > 6) printk(" (#0x%05lx)", (unsigned long)lp);
+ 	dev->ml_priv = lp;
+ 	lp->name = chipname;
+-	lp->rx_buffs = (unsigned long)kmalloc(PKT_BUF_SZ*RX_RING_SIZE,
+-						  GFP_DMA | GFP_KERNEL);
++	lp->rx_buffs = (unsigned long)kmalloc(array_size(RX_RING_SIZE, PKT_BUF_SZ),
++					      GFP_DMA | GFP_KERNEL);
+ 	if (!lp->rx_buffs)
+ 		goto out_lp;
+ 	if (lance_need_isa_bounce_buffers) {
+-		lp->tx_bounce_buffs = kmalloc(PKT_BUF_SZ*TX_RING_SIZE,
+-						  GFP_DMA | GFP_KERNEL);
++		lp->tx_bounce_buffs = kmalloc(array_size(TX_RING_SIZE, PKT_BUF_SZ),
++					      GFP_DMA | GFP_KERNEL);
+ 		if (!lp->tx_bounce_buffs)
+ 			goto out_rx;
+ 	} else
+diff --git a/drivers/net/ethernet/broadcom/bnx2.c b/drivers/net/ethernet/broadcom/bnx2.c
+index 9ffc4a8c5fc7..067c5f349808 100644
+--- a/drivers/net/ethernet/broadcom/bnx2.c
++++ b/drivers/net/ethernet/broadcom/bnx2.c
+@@ -2666,7 +2666,7 @@ bnx2_alloc_bad_rbuf(struct bnx2 *bp)
+ 	u32 good_mbuf_cnt;
+ 	u32 val;
+ 
+-	good_mbuf = kmalloc(512 * sizeof(u16), GFP_KERNEL);
++	good_mbuf = kmalloc(array_size(512, sizeof(u16)), GFP_KERNEL);
+ 	if (good_mbuf == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/net/ethernet/broadcom/bnx2x/bnx2x_sriov.c b/drivers/net/ethernet/broadcom/bnx2x/bnx2x_sriov.c
+index ffa7959f6b31..5d1d54478ef2 100644
+--- a/drivers/net/ethernet/broadcom/bnx2x/bnx2x_sriov.c
++++ b/drivers/net/ethernet/broadcom/bnx2x/bnx2x_sriov.c
+@@ -571,7 +571,7 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
+ 	else
+ 		set_bit(RAMROD_COMP_WAIT, &mcast.ramrod_flags);
+ 	if (mc_num) {
+-		mc = kzalloc(mc_num * sizeof(struct bnx2x_mcast_list_elem),
++		mc = kzalloc(array_size(mc_num, sizeof(struct bnx2x_mcast_list_elem)),
+ 			     GFP_KERNEL);
+ 		if (!mc) {
+ 			BNX2X_ERR("Cannot Configure multicasts due to lack of memory\n");
+@@ -1278,9 +1278,8 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
+ 	}
+ 
+ 	/* allocate the queue arrays for all VFs */
+-	bp->vfdb->vfqs = kzalloc(
+-		BNX2X_MAX_NUM_VF_QUEUES * sizeof(struct bnx2x_vf_queue),
+-		GFP_KERNEL);
++	bp->vfdb->vfqs = kzalloc(array_size(BNX2X_MAX_NUM_VF_QUEUES, sizeof(struct bnx2x_vf_queue)),
++				 GFP_KERNEL);
+ 
+ 	if (!bp->vfdb->vfqs) {
+ 		BNX2X_ERR("failed to allocate vf queue array\n");
+diff --git a/drivers/net/ethernet/broadcom/bnxt/bnxt_vfr.c b/drivers/net/ethernet/broadcom/bnxt/bnxt_vfr.c
+index 38f635cf8408..dddaa97e2b1b 100644
+--- a/drivers/net/ethernet/broadcom/bnxt/bnxt_vfr.c
++++ b/drivers/net/ethernet/broadcom/bnxt/bnxt_vfr.c
+@@ -444,7 +444,7 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
+ 		return -ENOMEM;
+ 
+ 	/* storage for cfa_code to vf-idx mapping */
+-	cfa_code_map = kmalloc(sizeof(*bp->cfa_code_map) * MAX_CFA_CODE,
++	cfa_code_map = kmalloc(array_size(MAX_CFA_CODE, sizeof(*bp->cfa_code_map)),
+ 			       GFP_KERNEL);
+ 	if (!cfa_code_map) {
+ 		rc = -ENOMEM;
+diff --git a/drivers/net/ethernet/broadcom/cnic.c b/drivers/net/ethernet/broadcom/cnic.c
+index 8bc126a156e8..f23611362756 100644
+--- a/drivers/net/ethernet/broadcom/cnic.c
++++ b/drivers/net/ethernet/broadcom/cnic.c
+@@ -1255,7 +1255,7 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
+ 			cp->fcoe_init_cid = 0x10;
+ 	}
+ 
+-	cp->iscsi_tbl = kzalloc(sizeof(struct cnic_iscsi) * MAX_ISCSI_TBL_SZ,
++	cp->iscsi_tbl = kzalloc(array_size(MAX_ISCSI_TBL_SZ, sizeof(struct cnic_iscsi)),
+ 				GFP_KERNEL);
+ 	if (!cp->iscsi_tbl)
+ 		goto error;
+@@ -4100,7 +4100,7 @@ static int cnic_cm_alloc_mem(struct cnic_dev *dev)
+ 	struct cnic_local *cp = dev->cnic_priv;
+ 	u32 port_id;
+ 
+-	cp->csk_tbl = kzalloc(sizeof(struct cnic_sock) * MAX_CM_SK_TBL_SZ,
++	cp->csk_tbl = kzalloc(array_size(MAX_CM_SK_TBL_SZ, sizeof(struct cnic_sock)),
+ 			      GFP_KERNEL);
+ 	if (!cp->csk_tbl)
+ 		return -ENOMEM;
+diff --git a/drivers/net/ethernet/broadcom/tg3.c b/drivers/net/ethernet/broadcom/tg3.c
+index 08bbb639be1a..667dbb3038f4 100644
+--- a/drivers/net/ethernet/broadcom/tg3.c
++++ b/drivers/net/ethernet/broadcom/tg3.c
+@@ -8631,8 +8631,8 @@ static int tg3_mem_tx_acquire(struct tg3 *tp)
+ 		tnapi++;
+ 
+ 	for (i = 0; i < tp->txq_cnt; i++, tnapi++) {
+-		tnapi->tx_buffers = kzalloc(sizeof(struct tg3_tx_ring_info) *
+-					    TG3_TX_RING_SIZE, GFP_KERNEL);
++		tnapi->tx_buffers = kzalloc(array_size(TG3_TX_RING_SIZE, sizeof(struct tg3_tx_ring_info)),
++					    GFP_KERNEL);
+ 		if (!tnapi->tx_buffers)
+ 			goto err_out;
+ 
+diff --git a/drivers/net/ethernet/brocade/bna/bnad.c b/drivers/net/ethernet/brocade/bna/bnad.c
+index 69cc3e0119d6..30685a7e27ff 100644
+--- a/drivers/net/ethernet/brocade/bna/bnad.c
++++ b/drivers/net/ethernet/brocade/bna/bnad.c
+@@ -3141,7 +3141,7 @@ bnad_set_rx_ucast_fltr(struct bnad *bnad)
+ 	if (uc_count > bna_attr(&bnad->bna)->num_ucmac)
+ 		goto mode_default;
+ 
+-	mac_list = kzalloc(uc_count * ETH_ALEN, GFP_ATOMIC);
++	mac_list = kzalloc(array_size(ETH_ALEN, uc_count), GFP_ATOMIC);
+ 	if (mac_list == NULL)
+ 		goto mode_default;
+ 
+diff --git a/drivers/net/ethernet/calxeda/xgmac.c b/drivers/net/ethernet/calxeda/xgmac.c
+index 2bd7c638b178..a95919b0fac4 100644
+--- a/drivers/net/ethernet/calxeda/xgmac.c
++++ b/drivers/net/ethernet/calxeda/xgmac.c
+@@ -739,7 +739,7 @@ static int xgmac_dma_desc_rings_init(struct net_device *dev)
+ 
+ 	netdev_dbg(priv->dev, "mtu [%d] bfsize [%d]\n", dev->mtu, bfsize);
+ 
+-	priv->rx_skbuff = kzalloc(sizeof(struct sk_buff *) * DMA_RX_RING_SZ,
++	priv->rx_skbuff = kzalloc(array_size(DMA_RX_RING_SZ, sizeof(struct sk_buff *)),
+ 				  GFP_KERNEL);
+ 	if (!priv->rx_skbuff)
+ 		return -ENOMEM;
+@@ -752,7 +752,7 @@ static int xgmac_dma_desc_rings_init(struct net_device *dev)
+ 	if (!priv->dma_rx)
+ 		goto err_dma_rx;
+ 
+-	priv->tx_skbuff = kzalloc(sizeof(struct sk_buff *) * DMA_TX_RING_SZ,
++	priv->tx_skbuff = kzalloc(array_size(DMA_TX_RING_SZ, sizeof(struct sk_buff *)),
+ 				  GFP_KERNEL);
+ 	if (!priv->tx_skbuff)
+ 		goto err_tx_skb;
+diff --git a/drivers/net/ethernet/cavium/liquidio/lio_vf_main.c b/drivers/net/ethernet/cavium/liquidio/lio_vf_main.c
+index f92dfa411de6..e8f5fa5dedd3 100644
+--- a/drivers/net/ethernet/cavium/liquidio/lio_vf_main.c
++++ b/drivers/net/ethernet/cavium/liquidio/lio_vf_main.c
+@@ -354,12 +354,12 @@ static int setup_glists(struct lio *lio, int num_iqs)
+ 	int i, j;
+ 
+ 	lio->glist_lock =
+-	    kzalloc(sizeof(*lio->glist_lock) * num_iqs, GFP_KERNEL);
++	    kzalloc(array_size(num_iqs, sizeof(*lio->glist_lock)), GFP_KERNEL);
+ 	if (!lio->glist_lock)
+ 		return -ENOMEM;
+ 
+ 	lio->glist =
+-	    kzalloc(sizeof(*lio->glist) * num_iqs, GFP_KERNEL);
++	    kzalloc(array_size(num_iqs, sizeof(*lio->glist)), GFP_KERNEL);
+ 	if (!lio->glist) {
+ 		kfree(lio->glist_lock);
+ 		lio->glist_lock = NULL;
+diff --git a/drivers/net/ethernet/chelsio/cxgb4/clip_tbl.c b/drivers/net/ethernet/chelsio/cxgb4/clip_tbl.c
+index 290039026ece..6e7dc11680ab 100644
+--- a/drivers/net/ethernet/chelsio/cxgb4/clip_tbl.c
++++ b/drivers/net/ethernet/chelsio/cxgb4/clip_tbl.c
+@@ -304,7 +304,8 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
+ 	for (i = 0; i < ctbl->clipt_size; ++i)
+ 		INIT_LIST_HEAD(&ctbl->hash_list[i]);
+ 
+-	cl_list = kvzalloc(clipt_size*sizeof(struct clip_entry), GFP_KERNEL);
++	cl_list = kvzalloc(array_size(clipt_size, sizeof(struct clip_entry)),
++			   GFP_KERNEL);
+ 	if (!cl_list) {
+ 		kvfree(ctbl);
+ 		return NULL;
+diff --git a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_debugfs.c b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_debugfs.c
+index 251d5bdc972f..f714b0ef2001 100644
+--- a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_debugfs.c
++++ b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_debugfs.c
+@@ -873,7 +873,7 @@ static int cctrl_tbl_show(struct seq_file *seq, void *v)
+ 	u16 (*incr)[NCCTRL_WIN];
+ 	struct adapter *adap = seq->private;
+ 
+-	incr = kmalloc(sizeof(*incr) * NMTUS, GFP_KERNEL);
++	incr = kmalloc(array_size(NMTUS, sizeof(*incr)), GFP_KERNEL);
+ 	if (!incr)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_tc_u32.c b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_tc_u32.c
+index ab174bcfbfb0..c35f0a54b177 100644
+--- a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_tc_u32.c
++++ b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_tc_u32.c
+@@ -457,7 +457,8 @@ struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
+ 		unsigned int bmap_size;
+ 
+ 		bmap_size = BITS_TO_LONGS(max_tids);
+-		link->tid_map = kvzalloc(sizeof(unsigned long) * bmap_size, GFP_KERNEL);
++		link->tid_map = kvzalloc(array_size(bmap_size, sizeof(unsigned long)),
++					 GFP_KERNEL);
+ 		if (!link->tid_map)
+ 			goto out_no_mem;
+ 		bitmap_zero(link->tid_map, max_tids);
+diff --git a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_uld.c b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_uld.c
+index a95cde0fadf7..3ed6c73ffbe6 100644
+--- a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_uld.c
++++ b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_uld.c
+@@ -561,14 +561,12 @@ int t4_uld_mem_alloc(struct adapter *adap)
+ 	if (!adap->uld)
+ 		return -ENOMEM;
+ 
+-	s->uld_rxq_info = kzalloc(CXGB4_ULD_MAX *
+-				  sizeof(struct sge_uld_rxq_info *),
++	s->uld_rxq_info = kzalloc(array_size(CXGB4_ULD_MAX, sizeof(struct sge_uld_rxq_info *)),
+ 				  GFP_KERNEL);
+ 	if (!s->uld_rxq_info)
+ 		goto err_uld;
+ 
+-	s->uld_txq_info = kzalloc(CXGB4_TX_MAX *
+-				  sizeof(struct sge_uld_txq_info *),
++	s->uld_txq_info = kzalloc(array_size(CXGB4_TX_MAX, sizeof(struct sge_uld_txq_info *)),
+ 				  GFP_KERNEL);
+ 	if (!s->uld_txq_info)
+ 		goto err_uld_rx;
+diff --git a/drivers/net/ethernet/cortina/gemini.c b/drivers/net/ethernet/cortina/gemini.c
+index bd3f6e4d1341..ee469dc269f8 100644
+--- a/drivers/net/ethernet/cortina/gemini.c
++++ b/drivers/net/ethernet/cortina/gemini.c
+@@ -910,8 +910,8 @@ static int geth_setup_freeq(struct gemini_ethernet *geth)
+ 	}
+ 
+ 	/* Allocate a mapping to page look-up index */
+-	geth->freeq_pages = kzalloc(pages * sizeof(*geth->freeq_pages),
+-				   GFP_KERNEL);
++	geth->freeq_pages = kzalloc(array_size(pages, sizeof(*geth->freeq_pages)),
++				    GFP_KERNEL);
+ 	if (!geth->freeq_pages)
+ 		goto err_freeq;
+ 	geth->num_freeq_pages = pages;
+diff --git a/drivers/net/ethernet/intel/ixgb/ixgb_main.c b/drivers/net/ethernet/intel/ixgb/ixgb_main.c
+index 2353c383f0a7..323b479dbf4c 100644
+--- a/drivers/net/ethernet/intel/ixgb/ixgb_main.c
++++ b/drivers/net/ethernet/intel/ixgb/ixgb_main.c
+@@ -1118,8 +1118,8 @@ ixgb_set_multi(struct net_device *netdev)
+ 		rctl |= IXGB_RCTL_MPE;
+ 		IXGB_WRITE_REG(hw, RCTL, rctl);
+ 	} else {
+-		u8 *mta = kmalloc(IXGB_MAX_NUM_MULTICAST_ADDRESSES *
+-			      ETH_ALEN, GFP_ATOMIC);
++		u8 *mta = kmalloc(array_size(ETH_ALEN, IXGB_MAX_NUM_MULTICAST_ADDRESSES),
++				  GFP_ATOMIC);
+ 		u8 *addr;
+ 		if (!mta)
+ 			goto alloc_failed;
+diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_ethtool.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_ethtool.c
+index c0e6ab42e0e1..d234c52debbf 100644
+--- a/drivers/net/ethernet/intel/ixgbe/ixgbe_ethtool.c
++++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_ethtool.c
+@@ -926,7 +926,7 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
+ 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
+ 	eeprom_len = last_word - first_word + 1;
+ 
+-	eeprom_buff = kmalloc(sizeof(u16) * eeprom_len, GFP_KERNEL);
++	eeprom_buff = kmalloc(array_size(eeprom_len, sizeof(u16)), GFP_KERNEL);
+ 	if (!eeprom_buff)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/net/ethernet/mellanox/mlx4/en_netdev.c b/drivers/net/ethernet/mellanox/mlx4/en_netdev.c
+index e0adac4a9a19..d66e832a6e8b 100644
+--- a/drivers/net/ethernet/mellanox/mlx4/en_netdev.c
++++ b/drivers/net/ethernet/mellanox/mlx4/en_netdev.c
+@@ -2229,13 +2229,13 @@ static int mlx4_en_copy_priv(struct mlx4_en_priv *dst,
+ 		if (!dst->tx_ring_num[t])
+ 			continue;
+ 
+-		dst->tx_ring[t] = kzalloc(sizeof(struct mlx4_en_tx_ring *) *
+-					  MAX_TX_RINGS, GFP_KERNEL);
++		dst->tx_ring[t] = kzalloc(array_size(MAX_TX_RINGS, sizeof(struct mlx4_en_tx_ring *)),
++					  GFP_KERNEL);
+ 		if (!dst->tx_ring[t])
+ 			goto err_free_tx;
+ 
+-		dst->tx_cq[t] = kzalloc(sizeof(struct mlx4_en_cq *) *
+-					MAX_TX_RINGS, GFP_KERNEL);
++		dst->tx_cq[t] = kzalloc(array_size(MAX_TX_RINGS, sizeof(struct mlx4_en_cq *)),
++					GFP_KERNEL);
+ 		if (!dst->tx_cq[t]) {
+ 			kfree(dst->tx_ring[t]);
+ 			goto err_free_tx;
+@@ -3320,14 +3320,14 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
+ 		if (!priv->tx_ring_num[t])
+ 			continue;
+ 
+-		priv->tx_ring[t] = kzalloc(sizeof(struct mlx4_en_tx_ring *) *
+-					   MAX_TX_RINGS, GFP_KERNEL);
++		priv->tx_ring[t] = kzalloc(array_size(MAX_TX_RINGS, sizeof(struct mlx4_en_tx_ring *)),
++					   GFP_KERNEL);
+ 		if (!priv->tx_ring[t]) {
+ 			err = -ENOMEM;
+ 			goto err_free_tx;
+ 		}
+-		priv->tx_cq[t] = kzalloc(sizeof(struct mlx4_en_cq *) *
+-					 MAX_TX_RINGS, GFP_KERNEL);
++		priv->tx_cq[t] = kzalloc(array_size(MAX_TX_RINGS, sizeof(struct mlx4_en_cq *)),
++					 GFP_KERNEL);
+ 		if (!priv->tx_cq[t]) {
+ 			kfree(priv->tx_ring[t]);
+ 			err = -ENOMEM;
+diff --git a/drivers/net/ethernet/mellanox/mlx4/main.c b/drivers/net/ethernet/mellanox/mlx4/main.c
+index bfef69235d71..c80f27a2a423 100644
+--- a/drivers/net/ethernet/mellanox/mlx4/main.c
++++ b/drivers/net/ethernet/mellanox/mlx4/main.c
+@@ -2977,7 +2977,8 @@ static int mlx4_init_steering(struct mlx4_dev *dev)
+ 	int num_entries = dev->caps.num_ports;
+ 	int i, j;
+ 
+-	priv->steer = kzalloc(sizeof(struct mlx4_steer) * num_entries, GFP_KERNEL);
++	priv->steer = kzalloc(array_size(num_entries, sizeof(struct mlx4_steer)),
++			      GFP_KERNEL);
+ 	if (!priv->steer)
+ 		return -ENOMEM;
+ 
+@@ -3098,7 +3099,8 @@ static u64 mlx4_enable_sriov(struct mlx4_dev *dev, struct pci_dev *pdev,
+ 		}
+ 	}
+ 
+-	dev->dev_vfs = kzalloc(total_vfs * sizeof(*dev->dev_vfs), GFP_KERNEL);
++	dev->dev_vfs = kzalloc(array_size(total_vfs, sizeof(*dev->dev_vfs)),
++			       GFP_KERNEL);
+ 	if (NULL == dev->dev_vfs) {
+ 		mlx4_err(dev, "Failed to allocate memory for VFs\n");
+ 		goto disable_sriov;
+diff --git a/drivers/net/ethernet/mellanox/mlxsw/spectrum_qdisc.c b/drivers/net/ethernet/mellanox/mlxsw/spectrum_qdisc.c
+index 91262b0573e3..30a1f5c762d3 100644
+--- a/drivers/net/ethernet/mellanox/mlxsw/spectrum_qdisc.c
++++ b/drivers/net/ethernet/mellanox/mlxsw/spectrum_qdisc.c
+@@ -740,7 +740,7 @@ int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port)
+ 	mlxsw_sp_port->root_qdisc->prio_bitmap = 0xff;
+ 	mlxsw_sp_port->root_qdisc->tclass_num = MLXSW_SP_PORT_DEFAULT_TCLASS;
+ 
+-	mlxsw_sp_qdisc = kzalloc(sizeof(*mlxsw_sp_qdisc) * IEEE_8021QAZ_MAX_TCS,
++	mlxsw_sp_qdisc = kzalloc(array_size(IEEE_8021QAZ_MAX_TCS, sizeof(*mlxsw_sp_qdisc)),
+ 				 GFP_KERNEL);
+ 	if (!mlxsw_sp_qdisc)
+ 		goto err_tclass_qdiscs_init;
+diff --git a/drivers/net/ethernet/neterion/vxge/vxge-config.c b/drivers/net/ethernet/neterion/vxge/vxge-config.c
+index 6223930a8155..64f56f71066b 100644
+--- a/drivers/net/ethernet/neterion/vxge/vxge-config.c
++++ b/drivers/net/ethernet/neterion/vxge/vxge-config.c
+@@ -2220,22 +2220,26 @@ __vxge_hw_channel_allocate(struct __vxge_hw_vpath_handle *vph,
+ 	channel->length = length;
+ 	channel->vp_id = vp_id;
+ 
+-	channel->work_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
++	channel->work_arr = kzalloc(array_size(length, sizeof(void *)),
++				    GFP_KERNEL);
+ 	if (channel->work_arr == NULL)
+ 		goto exit1;
+ 
+-	channel->free_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
++	channel->free_arr = kzalloc(array_size(length, sizeof(void *)),
++				    GFP_KERNEL);
+ 	if (channel->free_arr == NULL)
+ 		goto exit1;
+ 	channel->free_ptr = length;
+ 
+-	channel->reserve_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
++	channel->reserve_arr = kzalloc(array_size(length, sizeof(void *)),
++				       GFP_KERNEL);
+ 	if (channel->reserve_arr == NULL)
+ 		goto exit1;
+ 	channel->reserve_ptr = length;
+ 	channel->reserve_top = 0;
+ 
+-	channel->orig_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
++	channel->orig_arr = kzalloc(array_size(length, sizeof(void *)),
++				    GFP_KERNEL);
+ 	if (channel->orig_arr == NULL)
+ 		goto exit1;
+ 
+diff --git a/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_main.c b/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_main.c
+index 7cd494611a74..3a949994ff25 100644
+--- a/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_main.c
++++ b/drivers/net/ethernet/oki-semi/pch_gbe/pch_gbe_main.c
+@@ -2178,7 +2178,7 @@ static void pch_gbe_set_multi(struct net_device *netdev)
+ 
+ 	if (mc_count >= PCH_GBE_MAR_ENTRIES)
+ 		return;
+-	mta_list = kmalloc(mc_count * ETH_ALEN, GFP_ATOMIC);
++	mta_list = kmalloc(array_size(ETH_ALEN, mc_count), GFP_ATOMIC);
+ 	if (!mta_list)
+ 		return;
+ 
+diff --git a/drivers/net/ethernet/pasemi/pasemi_mac.c b/drivers/net/ethernet/pasemi/pasemi_mac.c
+index 07a2eb3781b1..a80772bf125c 100644
+--- a/drivers/net/ethernet/pasemi/pasemi_mac.c
++++ b/drivers/net/ethernet/pasemi/pasemi_mac.c
+@@ -390,8 +390,8 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
+ 	spin_lock_init(&ring->lock);
+ 
+ 	ring->size = RX_RING_SIZE;
+-	ring->ring_info = kzalloc(sizeof(struct pasemi_mac_buffer) *
+-				  RX_RING_SIZE, GFP_KERNEL);
++	ring->ring_info = kzalloc(array_size(RX_RING_SIZE, sizeof(struct pasemi_mac_buffer)),
++				  GFP_KERNEL);
+ 
+ 	if (!ring->ring_info)
+ 		goto out_ring_info;
+@@ -473,8 +473,8 @@ pasemi_mac_setup_tx_resources(const struct net_device *dev)
+ 	spin_lock_init(&ring->lock);
+ 
+ 	ring->size = TX_RING_SIZE;
+-	ring->ring_info = kzalloc(sizeof(struct pasemi_mac_buffer) *
+-				  TX_RING_SIZE, GFP_KERNEL);
++	ring->ring_info = kzalloc(array_size(TX_RING_SIZE, sizeof(struct pasemi_mac_buffer)),
++				  GFP_KERNEL);
+ 	if (!ring->ring_info)
+ 		goto out_ring_info;
+ 
+diff --git a/drivers/net/ethernet/qlogic/qed/qed_init_ops.c b/drivers/net/ethernet/qlogic/qed/qed_init_ops.c
+index 3bb76da6baa2..06b1fad88360 100644
+--- a/drivers/net/ethernet/qlogic/qed/qed_init_ops.c
++++ b/drivers/net/ethernet/qlogic/qed/qed_init_ops.c
+@@ -149,12 +149,12 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn)
+ 	if (IS_VF(p_hwfn->cdev))
+ 		return 0;
+ 
+-	rt_data->b_valid = kzalloc(sizeof(bool) * RUNTIME_ARRAY_SIZE,
++	rt_data->b_valid = kzalloc(array_size(RUNTIME_ARRAY_SIZE, sizeof(bool)),
+ 				   GFP_KERNEL);
+ 	if (!rt_data->b_valid)
+ 		return -ENOMEM;
+ 
+-	rt_data->init_val = kzalloc(sizeof(u32) * RUNTIME_ARRAY_SIZE,
++	rt_data->init_val = kzalloc(array_size(RUNTIME_ARRAY_SIZE, sizeof(u32)),
+ 				    GFP_KERNEL);
+ 	if (!rt_data->init_val) {
+ 		kfree(rt_data->b_valid);
+diff --git a/drivers/net/ethernet/qlogic/qlcnic/qlcnic_main.c b/drivers/net/ethernet/qlogic/qlcnic/qlcnic_main.c
+index 1b5f7d57b6f8..f425cc12d472 100644
+--- a/drivers/net/ethernet/qlogic/qlcnic/qlcnic_main.c
++++ b/drivers/net/ethernet/qlogic/qlcnic/qlcnic_main.c
+@@ -1025,15 +1025,15 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
+ 
+ 	act_pci_func = ahw->total_nic_func;
+ 
+-	adapter->npars = kzalloc(sizeof(struct qlcnic_npar_info) *
+-				 act_pci_func, GFP_KERNEL);
++	adapter->npars = kzalloc(array_size(act_pci_func, sizeof(struct qlcnic_npar_info)),
++				 GFP_KERNEL);
+ 	if (!adapter->npars) {
+ 		ret = -ENOMEM;
+ 		goto err_pci_info;
+ 	}
+ 
+-	adapter->eswitch = kzalloc(sizeof(struct qlcnic_eswitch) *
+-				QLCNIC_NIU_MAX_XG_PORTS, GFP_KERNEL);
++	adapter->eswitch = kzalloc(array_size(QLCNIC_NIU_MAX_XG_PORTS, sizeof(struct qlcnic_eswitch)),
++				   GFP_KERNEL);
+ 	if (!adapter->eswitch) {
+ 		ret = -ENOMEM;
+ 		goto err_npars;
+diff --git a/drivers/net/ethernet/qlogic/qlcnic/qlcnic_sriov_common.c b/drivers/net/ethernet/qlogic/qlcnic/qlcnic_sriov_common.c
+index c58180f40844..debfa149e27d 100644
+--- a/drivers/net/ethernet/qlogic/qlcnic/qlcnic_sriov_common.c
++++ b/drivers/net/ethernet/qlogic/qlcnic/qlcnic_sriov_common.c
+@@ -157,8 +157,8 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
+ 	adapter->ahw->sriov = sriov;
+ 	sriov->num_vfs = num_vfs;
+ 	bc = &sriov->bc;
+-	sriov->vf_info = kzalloc(sizeof(struct qlcnic_vf_info) *
+-				 num_vfs, GFP_KERNEL);
++	sriov->vf_info = kzalloc(array_size(num_vfs, sizeof(struct qlcnic_vf_info)),
++				 GFP_KERNEL);
+ 	if (!sriov->vf_info) {
+ 		err = -ENOMEM;
+ 		goto qlcnic_free_sriov;
+@@ -450,7 +450,8 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
+ 		return 0;
+ 
+ 	num_vlans = sriov->num_allowed_vlans;
+-	sriov->allowed_vlans = kzalloc(sizeof(u16) * num_vlans, GFP_KERNEL);
++	sriov->allowed_vlans = kzalloc(array_size(num_vlans, sizeof(u16)),
++				       GFP_KERNEL);
+ 	if (!sriov->allowed_vlans)
+ 		return -ENOMEM;
+ 
+@@ -706,7 +707,8 @@ static inline int qlcnic_sriov_alloc_bc_trans(struct qlcnic_bc_trans **trans)
+ static inline int qlcnic_sriov_alloc_bc_msg(struct qlcnic_bc_hdr **hdr,
+ 					    u32 size)
+ {
+-	*hdr = kzalloc(sizeof(struct qlcnic_bc_hdr) * size, GFP_ATOMIC);
++	*hdr = kzalloc(array_size(size, sizeof(struct qlcnic_bc_hdr)),
++		       GFP_ATOMIC);
+ 	if (!*hdr)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/net/ethernet/socionext/netsec.c b/drivers/net/ethernet/socionext/netsec.c
+index f4c0b02ddad8..98dfeb50d07b 100644
+--- a/drivers/net/ethernet/socionext/netsec.c
++++ b/drivers/net/ethernet/socionext/netsec.c
+@@ -973,7 +973,8 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
+ 		goto err;
+ 	}
+ 
+-	dring->desc = kzalloc(DESC_NUM * sizeof(*dring->desc), GFP_KERNEL);
++	dring->desc = kzalloc(array_size(DESC_NUM, sizeof(*dring->desc)),
++			      GFP_KERNEL);
+ 	if (!dring->desc) {
+ 		ret = -ENOMEM;
+ 		goto err;
+diff --git a/drivers/net/ethernet/toshiba/ps3_gelic_wireless.c b/drivers/net/ethernet/toshiba/ps3_gelic_wireless.c
+index eed18f88bdff..e947c33fd9d5 100644
+--- a/drivers/net/ethernet/toshiba/ps3_gelic_wireless.c
++++ b/drivers/net/ethernet/toshiba/ps3_gelic_wireless.c
+@@ -2320,8 +2320,8 @@ static struct net_device *gelic_wl_alloc(struct gelic_card *card)
+ 	pr_debug("%s: wl=%p port=%p\n", __func__, wl, port);
+ 
+ 	/* allocate scan list */
+-	wl->networks = kzalloc(sizeof(struct gelic_wl_scan_info) *
+-			       GELIC_WL_BSS_MAX_ENT, GFP_KERNEL);
++	wl->networks = kzalloc(array_size(GELIC_WL_BSS_MAX_ENT, sizeof(struct gelic_wl_scan_info)),
++			       GFP_KERNEL);
+ 
+ 	if (!wl->networks)
+ 		goto fail_bss;
+diff --git a/drivers/net/gtp.c b/drivers/net/gtp.c
+index f38e32a7ec9c..683f1de30b0b 100644
+--- a/drivers/net/gtp.c
++++ b/drivers/net/gtp.c
+@@ -742,11 +742,13 @@ static int gtp_hashtable_new(struct gtp_dev *gtp, int hsize)
+ {
+ 	int i;
+ 
+-	gtp->addr_hash = kmalloc(sizeof(struct hlist_head) * hsize, GFP_KERNEL);
++	gtp->addr_hash = kmalloc(array_size(hsize, sizeof(struct hlist_head)),
++				 GFP_KERNEL);
+ 	if (gtp->addr_hash == NULL)
+ 		return -ENOMEM;
+ 
+-	gtp->tid_hash = kmalloc(sizeof(struct hlist_head) * hsize, GFP_KERNEL);
++	gtp->tid_hash = kmalloc(array_size(hsize, sizeof(struct hlist_head)),
++				GFP_KERNEL);
+ 	if (gtp->tid_hash == NULL)
+ 		goto err1;
+ 
+diff --git a/drivers/net/hippi/rrunner.c b/drivers/net/hippi/rrunner.c
+index 1ab97d99b9ba..83e77a320573 100644
+--- a/drivers/net/hippi/rrunner.c
++++ b/drivers/net/hippi/rrunner.c
+@@ -1583,7 +1583,8 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+ 			return -EPERM;
+ 		}
+ 
+-		image = kmalloc(EEPROM_WORDS * sizeof(u32), GFP_KERNEL);
++		image = kmalloc(array_size(EEPROM_WORDS, sizeof(u32)),
++				GFP_KERNEL);
+ 		if (!image)
+ 			return -ENOMEM;
+ 
+diff --git a/drivers/net/phy/dp83640.c b/drivers/net/phy/dp83640.c
+index a6c87793d899..eb79d72506da 100644
+--- a/drivers/net/phy/dp83640.c
++++ b/drivers/net/phy/dp83640.c
+@@ -1097,8 +1097,8 @@ static struct dp83640_clock *dp83640_clock_get_bus(struct mii_bus *bus)
+ 	if (!clock)
+ 		goto out;
+ 
+-	clock->caps.pin_config = kzalloc(sizeof(struct ptp_pin_desc) *
+-					 DP83640_N_PINS, GFP_KERNEL);
++	clock->caps.pin_config = kzalloc(array_size(DP83640_N_PINS, sizeof(struct ptp_pin_desc)),
++					 GFP_KERNEL);
+ 	if (!clock->caps.pin_config) {
+ 		kfree(clock);
+ 		clock = NULL;
+diff --git a/drivers/net/slip/slip.c b/drivers/net/slip/slip.c
+index 8940417c30e5..e033cacbf743 100644
+--- a/drivers/net/slip/slip.c
++++ b/drivers/net/slip/slip.c
+@@ -1307,8 +1307,8 @@ static int __init slip_init(void)
+ 	printk(KERN_INFO "SLIP linefill/keepalive option.\n");
+ #endif
+ 
+-	slip_devs = kzalloc(sizeof(struct net_device *)*slip_maxdev,
+-								GFP_KERNEL);
++	slip_devs = kzalloc(array_size(slip_maxdev, sizeof(struct net_device *)),
++			    GFP_KERNEL);
+ 	if (!slip_devs)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/net/team/team.c b/drivers/net/team/team.c
+index acbe84967834..4319acb3a7d8 100644
+--- a/drivers/net/team/team.c
++++ b/drivers/net/team/team.c
+@@ -280,7 +280,7 @@ static int __team_options_register(struct team *team,
+ 	struct team_option **dst_opts;
+ 	int err;
+ 
+-	dst_opts = kzalloc(sizeof(struct team_option *) * option_count,
++	dst_opts = kzalloc(array_size(option_count, sizeof(struct team_option *)),
+ 			   GFP_KERNEL);
+ 	if (!dst_opts)
+ 		return -ENOMEM;
+@@ -791,7 +791,8 @@ static int team_queue_override_init(struct team *team)
+ 
+ 	if (!queue_cnt)
+ 		return 0;
+-	listarr = kmalloc(sizeof(struct list_head) * queue_cnt, GFP_KERNEL);
++	listarr = kmalloc(array_size(queue_cnt, sizeof(struct list_head)),
++			  GFP_KERNEL);
+ 	if (!listarr)
+ 		return -ENOMEM;
+ 	team->qom_lists = listarr;
+diff --git a/drivers/net/usb/smsc95xx.c b/drivers/net/usb/smsc95xx.c
+index 309b88acd3d0..8817e8ff2cd7 100644
+--- a/drivers/net/usb/smsc95xx.c
++++ b/drivers/net/usb/smsc95xx.c
+@@ -1661,7 +1661,8 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
+ 	}
+ 
+ 	if (pdata->wolopts & (WAKE_BCAST | WAKE_MCAST | WAKE_ARP | WAKE_UCAST)) {
+-		u32 *filter_mask = kzalloc(sizeof(u32) * 32, GFP_KERNEL);
++		u32 *filter_mask = kzalloc(array_size(32, sizeof(u32)),
++					   GFP_KERNEL);
+ 		u32 command[2];
+ 		u32 offset[2];
+ 		u32 crc[4];
+diff --git a/drivers/net/virtio_net.c b/drivers/net/virtio_net.c
+index 770422e953f7..fb627b35ae1b 100644
+--- a/drivers/net/virtio_net.c
++++ b/drivers/net/virtio_net.c
+@@ -2480,17 +2480,18 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
+ 		    virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ);
+ 
+ 	/* Allocate space for find_vqs parameters */
+-	vqs = kzalloc(total_vqs * sizeof(*vqs), GFP_KERNEL);
++	vqs = kzalloc(array_size(total_vqs, sizeof(*vqs)), GFP_KERNEL);
+ 	if (!vqs)
+ 		goto err_vq;
+-	callbacks = kmalloc(total_vqs * sizeof(*callbacks), GFP_KERNEL);
++	callbacks = kmalloc(array_size(total_vqs, sizeof(*callbacks)),
++			    GFP_KERNEL);
+ 	if (!callbacks)
+ 		goto err_callback;
+-	names = kmalloc(total_vqs * sizeof(*names), GFP_KERNEL);
++	names = kmalloc(array_size(total_vqs, sizeof(*names)), GFP_KERNEL);
+ 	if (!names)
+ 		goto err_names;
+ 	if (!vi->big_packets || vi->mergeable_rx_bufs) {
+-		ctx = kzalloc(total_vqs * sizeof(*ctx), GFP_KERNEL);
++		ctx = kzalloc(array_size(total_vqs, sizeof(*ctx)), GFP_KERNEL);
+ 		if (!ctx)
+ 			goto err_ctx;
+ 	} else {
+diff --git a/drivers/net/wireless/ath/ath10k/wmi-tlv.c b/drivers/net/wireless/ath/ath10k/wmi-tlv.c
+index 9d1b0a459069..a6ccb99a7913 100644
+--- a/drivers/net/wireless/ath/ath10k/wmi-tlv.c
++++ b/drivers/net/wireless/ath/ath10k/wmi-tlv.c
+@@ -155,7 +155,7 @@ ath10k_wmi_tlv_parse_alloc(struct ath10k *ar, const void *ptr,
+ 	const void **tb;
+ 	int ret;
+ 
+-	tb = kzalloc(sizeof(*tb) * WMI_TLV_TAG_MAX, gfp);
++	tb = kzalloc(array_size(WMI_TLV_TAG_MAX, sizeof(*tb)), gfp);
+ 	if (!tb)
+ 		return ERR_PTR(-ENOMEM);
+ 
+diff --git a/drivers/net/wireless/ath/ath6kl/cfg80211.c b/drivers/net/wireless/ath/ath6kl/cfg80211.c
+index 2ba8cf3f38af..81bb05d979f4 100644
+--- a/drivers/net/wireless/ath/ath6kl/cfg80211.c
++++ b/drivers/net/wireless/ath/ath6kl/cfg80211.c
+@@ -1041,7 +1041,8 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy,
+ 
+ 		n_channels = request->n_channels;
+ 
+-		channels = kzalloc(n_channels * sizeof(u16), GFP_KERNEL);
++		channels = kzalloc(array_size(n_channels, sizeof(u16)),
++				   GFP_KERNEL);
+ 		if (channels == NULL) {
+ 			ath6kl_warn("failed to set scan channels, scan all channels");
+ 			n_channels = 0;
+diff --git a/drivers/net/wireless/ath/ath9k/hw.c b/drivers/net/wireless/ath/ath9k/hw.c
+index 6b37036b2d36..ab77ed1702be 100644
+--- a/drivers/net/wireless/ath/ath9k/hw.c
++++ b/drivers/net/wireless/ath/ath9k/hw.c
+@@ -127,13 +127,13 @@ void ath9k_hw_read_array(struct ath_hw *ah, u32 array[][2], int size)
+ 	u32 *tmp_reg_list, *tmp_data;
+ 	int i;
+ 
+-	tmp_reg_list = kmalloc(size * sizeof(u32), GFP_KERNEL);
++	tmp_reg_list = kmalloc(array_size(size, sizeof(u32)), GFP_KERNEL);
+ 	if (!tmp_reg_list) {
+ 		dev_err(ah->dev, "%s: tmp_reg_list: alloc filed\n", __func__);
+ 		return;
+ 	}
+ 
+-	tmp_data = kmalloc(size * sizeof(u32), GFP_KERNEL);
++	tmp_data = kmalloc(array_size(size, sizeof(u32)), GFP_KERNEL);
+ 	if (!tmp_data) {
+ 		dev_err(ah->dev, "%s tmp_data: alloc filed\n", __func__);
+ 		goto error_tmp_data;
+diff --git a/drivers/net/wireless/ath/carl9170/main.c b/drivers/net/wireless/ath/carl9170/main.c
+index 29e93c953d93..04cfdd6bef55 100644
+--- a/drivers/net/wireless/ath/carl9170/main.c
++++ b/drivers/net/wireless/ath/carl9170/main.c
+@@ -1958,7 +1958,8 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
+ 	if (!bands)
+ 		return -EINVAL;
+ 
+-	ar->survey = kzalloc(sizeof(struct survey_info) * chans, GFP_KERNEL);
++	ar->survey = kzalloc(array_size(chans, sizeof(struct survey_info)),
++			     GFP_KERNEL);
+ 	if (!ar->survey)
+ 		return -ENOMEM;
+ 	ar->num_channels = chans;
+diff --git a/drivers/net/wireless/broadcom/b43/phy_n.c b/drivers/net/wireless/broadcom/b43/phy_n.c
+index f2a2f41e3c96..2f6fb4b00718 100644
+--- a/drivers/net/wireless/broadcom/b43/phy_n.c
++++ b/drivers/net/wireless/broadcom/b43/phy_n.c
+@@ -1518,7 +1518,7 @@ static int b43_nphy_load_samples(struct b43_wldev *dev,
+ 	u16 i;
+ 	u32 *data;
+ 
+-	data = kzalloc(len * sizeof(u32), GFP_KERNEL);
++	data = kzalloc(array_size(len, sizeof(u32)), GFP_KERNEL);
+ 	if (!data) {
+ 		b43err(dev->wl, "allocation for samples loading failed\n");
+ 		return -ENOMEM;
+diff --git a/drivers/net/wireless/broadcom/b43legacy/main.c b/drivers/net/wireless/broadcom/b43legacy/main.c
+index f1e3dad57629..111b9266ce46 100644
+--- a/drivers/net/wireless/broadcom/b43legacy/main.c
++++ b/drivers/net/wireless/broadcom/b43legacy/main.c
+@@ -3300,8 +3300,7 @@ static int b43legacy_wireless_core_init(struct b43legacy_wldev *dev)
+ 
+ 	if ((phy->type == B43legacy_PHYTYPE_B) ||
+ 	    (phy->type == B43legacy_PHYTYPE_G)) {
+-		phy->_lo_pairs = kzalloc(sizeof(struct b43legacy_lopair)
+-					 * B43legacy_LO_COUNT,
++		phy->_lo_pairs = kzalloc(array_size(B43legacy_LO_COUNT, sizeof(struct b43legacy_lopair)),
+ 					 GFP_KERNEL);
+ 		if (!phy->_lo_pairs)
+ 			return -ENOMEM;
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/p2p.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/p2p.c
+index bcef208a81a5..37431ba2a904 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/p2p.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/p2p.c
+@@ -1058,7 +1058,7 @@ static s32 brcmf_p2p_act_frm_search(struct brcmf_p2p_info *p2p, u16 channel)
+ 		channel_cnt = AF_PEER_SEARCH_CNT;
+ 	else
+ 		channel_cnt = SOCIAL_CHAN_CNT;
+-	default_chan_list = kzalloc(channel_cnt * sizeof(*default_chan_list),
++	default_chan_list = kzalloc(array_size(channel_cnt, sizeof(*default_chan_list)),
+ 				    GFP_KERNEL);
+ 	if (default_chan_list == NULL) {
+ 		brcmf_err("channel list allocation failed\n");
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmsmac/main.c b/drivers/net/wireless/broadcom/brcm80211/brcmsmac/main.c
+index 0a14942b8216..e79ce5a11d5b 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmsmac/main.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmsmac/main.c
+@@ -507,7 +507,8 @@ brcms_c_attach_malloc(uint unit, uint *err, uint devid)
+ 	wlc->hw->wlc = wlc;
+ 
+ 	wlc->hw->bandstate[0] =
+-		kzalloc(sizeof(struct brcms_hw_band) * MAXBANDS, GFP_ATOMIC);
++		kzalloc(array_size(MAXBANDS, sizeof(struct brcms_hw_band)),
++			GFP_ATOMIC);
+ 	if (wlc->hw->bandstate[0] == NULL) {
+ 		*err = 1006;
+ 		goto fail;
+@@ -521,7 +522,8 @@ brcms_c_attach_malloc(uint unit, uint *err, uint devid)
+ 	}
+ 
+ 	wlc->modulecb =
+-		kzalloc(sizeof(struct modulecb) * BRCMS_MAXMODULES, GFP_ATOMIC);
++		kzalloc(array_size(BRCMS_MAXMODULES, sizeof(struct modulecb)),
++			GFP_ATOMIC);
+ 	if (wlc->modulecb == NULL) {
+ 		*err = 1009;
+ 		goto fail;
+@@ -553,7 +555,8 @@ brcms_c_attach_malloc(uint unit, uint *err, uint devid)
+ 	}
+ 
+ 	wlc->bandstate[0] =
+-		kzalloc(sizeof(struct brcms_band)*MAXBANDS, GFP_ATOMIC);
++		kzalloc(array_size(MAXBANDS, sizeof(struct brcms_band)),
++			GFP_ATOMIC);
+ 	if (wlc->bandstate[0] == NULL) {
+ 		*err = 1025;
+ 		goto fail;
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_lcn.c b/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_lcn.c
+index 93d4cde0eb31..44e5c305e2b8 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_lcn.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_lcn.c
+@@ -1387,7 +1387,7 @@ wlc_lcnphy_rx_iq_cal(struct brcms_phy *pi,
+ 	s16 *ptr;
+ 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
+ 
+-	ptr = kmalloc(sizeof(s16) * 131, GFP_ATOMIC);
++	ptr = kmalloc(array_size(131, sizeof(s16)), GFP_ATOMIC);
+ 	if (NULL == ptr)
+ 		return false;
+ 	if (module == 2) {
+@@ -2670,7 +2670,7 @@ wlc_lcnphy_tx_iqlo_cal(struct brcms_phy *pi,
+ 	u16 *values_to_save;
+ 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
+ 
+-	values_to_save = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
++	values_to_save = kmalloc(array_size(20, sizeof(u16)), GFP_ATOMIC);
+ 	if (NULL == values_to_save)
+ 		return;
+ 
+@@ -3683,11 +3683,11 @@ wlc_lcnphy_a1(struct brcms_phy *pi, int cal_type, int num_levels,
+ 	u16 *phy_c32;
+ 	phy_c21 = 0;
+ 	phy_c10 = phy_c13 = phy_c14 = phy_c8 = 0;
+-	ptr = kmalloc(sizeof(s16) * 131, GFP_ATOMIC);
++	ptr = kmalloc(array_size(131, sizeof(s16)), GFP_ATOMIC);
+ 	if (NULL == ptr)
+ 		return;
+ 
+-	phy_c32 = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
++	phy_c32 = kmalloc(array_size(20, sizeof(u16)), GFP_ATOMIC);
+ 	if (NULL == phy_c32) {
+ 		kfree(ptr);
+ 		return;
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_n.c b/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_n.c
+index 7e01981bc5c8..88eb34244caa 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_n.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmsmac/phy/phy_n.c
+@@ -23032,7 +23032,7 @@ wlc_phy_loadsampletable_nphy(struct brcms_phy *pi, struct cordic_iq *tone_buf,
+ 	u16 t;
+ 	u32 *data_buf = NULL;
+ 
+-	data_buf = kmalloc(sizeof(u32) * num_samps, GFP_ATOMIC);
++	data_buf = kmalloc(array_size(num_samps, sizeof(u32)), GFP_ATOMIC);
+ 	if (data_buf == NULL)
+ 		return;
+ 
+@@ -23074,7 +23074,8 @@ wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
+ 		tbl_len = (phy_bw << 1);
+ 	}
+ 
+-	tone_buf = kmalloc(sizeof(struct cordic_iq) * tbl_len, GFP_ATOMIC);
++	tone_buf = kmalloc(array_size(tbl_len, sizeof(struct cordic_iq)),
++			   GFP_ATOMIC);
+ 	if (tone_buf == NULL)
+ 		return 0;
+ 
+diff --git a/drivers/net/wireless/cisco/airo.c b/drivers/net/wireless/cisco/airo.c
+index ce0fbf83285f..ce0c4c987e53 100644
+--- a/drivers/net/wireless/cisco/airo.c
++++ b/drivers/net/wireless/cisco/airo.c
+@@ -7127,7 +7127,7 @@ static int airo_get_aplist(struct net_device *dev,
+ 	int i;
+ 	int loseSync = capable(CAP_NET_ADMIN) ? 1: -1;
+ 
+-	qual = kmalloc(IW_MAX_AP * sizeof(*qual), GFP_KERNEL);
++	qual = kmalloc(array_size(IW_MAX_AP, sizeof(*qual)), GFP_KERNEL);
+ 	if (!qual)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/net/wireless/intel/ipw2x00/ipw2100.c b/drivers/net/wireless/intel/ipw2x00/ipw2100.c
+index 236b52423506..920ecaf4152c 100644
+--- a/drivers/net/wireless/intel/ipw2x00/ipw2100.c
++++ b/drivers/net/wireless/intel/ipw2x00/ipw2100.c
+@@ -3445,7 +3445,7 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
+ 	dma_addr_t p;
+ 
+ 	priv->msg_buffers =
+-	    kmalloc(IPW_COMMAND_POOL_SIZE * sizeof(struct ipw2100_tx_packet),
++	    kmalloc(array_size(IPW_COMMAND_POOL_SIZE, sizeof(struct ipw2100_tx_packet)),
+ 		    GFP_KERNEL);
+ 	if (!priv->msg_buffers)
+ 		return -ENOMEM;
+@@ -4587,8 +4587,7 @@ static int ipw2100_rx_allocate(struct ipw2100_priv *priv)
+ 	/*
+ 	 * allocate packets
+ 	 */
+-	priv->rx_buffers = kmalloc(RX_QUEUE_LENGTH *
+-				   sizeof(struct ipw2100_rx_packet),
++	priv->rx_buffers = kmalloc(array_size(RX_QUEUE_LENGTH, sizeof(struct ipw2100_rx_packet)),
+ 				   GFP_KERNEL);
+ 	if (!priv->rx_buffers) {
+ 		IPW_DEBUG_INFO("can't allocate rx packet buffer table\n");
+diff --git a/drivers/net/wireless/intel/ipw2x00/ipw2200.c b/drivers/net/wireless/intel/ipw2x00/ipw2200.c
+index 87a5e414c2f7..27ff4b3ab683 100644
+--- a/drivers/net/wireless/intel/ipw2x00/ipw2200.c
++++ b/drivers/net/wireless/intel/ipw2x00/ipw2200.c
+@@ -3208,13 +3208,13 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
+ 
+ 	IPW_DEBUG_TRACE("<< :\n");
+ 
+-	virts = kmalloc(sizeof(void *) * CB_NUMBER_OF_ELEMENTS_SMALL,
++	virts = kmalloc(array_size(CB_NUMBER_OF_ELEMENTS_SMALL, sizeof(void *)),
+ 			GFP_KERNEL);
+ 	if (!virts)
+ 		return -ENOMEM;
+ 
+-	phys = kmalloc(sizeof(dma_addr_t) * CB_NUMBER_OF_ELEMENTS_SMALL,
+-			GFP_KERNEL);
++	phys = kmalloc(array_size(CB_NUMBER_OF_ELEMENTS_SMALL, sizeof(dma_addr_t)),
++		       GFP_KERNEL);
+ 	if (!phys) {
+ 		kfree(virts);
+ 		return -ENOMEM;
+@@ -3782,7 +3782,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
+ {
+ 	struct pci_dev *dev = priv->pci_dev;
+ 
+-	q->txb = kmalloc(sizeof(q->txb[0]) * count, GFP_KERNEL);
++	q->txb = kmalloc(array_size(count, sizeof(q->txb[0])), GFP_KERNEL);
+ 	if (!q->txb) {
+ 		IPW_ERROR("vmalloc for auxiliary BD structures failed\n");
+ 		return -ENOMEM;
+diff --git a/drivers/net/wireless/intel/iwlegacy/common.c b/drivers/net/wireless/intel/iwlegacy/common.c
+index 063e19ced7c8..a5d5748f5d30 100644
+--- a/drivers/net/wireless/intel/iwlegacy/common.c
++++ b/drivers/net/wireless/intel/iwlegacy/common.c
+@@ -3041,9 +3041,11 @@ il_tx_queue_init(struct il_priv *il, u32 txq_id)
+ 	}
+ 
+ 	txq->meta =
+-	    kzalloc(sizeof(struct il_cmd_meta) * actual_slots, GFP_KERNEL);
++	    kzalloc(array_size(actual_slots, sizeof(struct il_cmd_meta)),
++		    GFP_KERNEL);
+ 	txq->cmd =
+-	    kzalloc(sizeof(struct il_device_cmd *) * actual_slots, GFP_KERNEL);
++	    kzalloc(array_size(actual_slots, sizeof(struct il_device_cmd *)),
++		    GFP_KERNEL);
+ 
+ 	if (!txq->meta || !txq->cmd)
+ 		goto out_free_arrays;
+diff --git a/drivers/net/wireless/intel/iwlwifi/mvm/scan.c b/drivers/net/wireless/intel/iwlwifi/mvm/scan.c
+index b31f0ffbbbf0..8c43feeef85d 100644
+--- a/drivers/net/wireless/intel/iwlwifi/mvm/scan.c
++++ b/drivers/net/wireless/intel/iwlwifi/mvm/scan.c
+@@ -533,7 +533,8 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
+ 	else
+ 		blacklist_len = IWL_SCAN_MAX_BLACKLIST_LEN;
+ 
+-	blacklist = kzalloc(sizeof(*blacklist) * blacklist_len, GFP_KERNEL);
++	blacklist = kzalloc(array_size(blacklist_len, sizeof(*blacklist)),
++			    GFP_KERNEL);
+ 	if (!blacklist)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/net/wireless/intersil/hostap/hostap_info.c b/drivers/net/wireless/intersil/hostap/hostap_info.c
+index de8a099a9386..01301da80674 100644
+--- a/drivers/net/wireless/intersil/hostap/hostap_info.c
++++ b/drivers/net/wireless/intersil/hostap/hostap_info.c
+@@ -271,7 +271,7 @@ static void prism2_info_scanresults(local_info_t *local, unsigned char *buf,
+ 	left -= 4;
+ 
+ 	new_count = left / sizeof(struct hfa384x_scan_result);
+-	results = kmalloc(new_count * sizeof(struct hfa384x_hostscan_result),
++	results = kmalloc(array_size(new_count, sizeof(struct hfa384x_hostscan_result)),
+ 			  GFP_ATOMIC);
+ 	if (results == NULL)
+ 		return;
+diff --git a/drivers/net/wireless/intersil/hostap/hostap_ioctl.c b/drivers/net/wireless/intersil/hostap/hostap_ioctl.c
+index c1bc0a6ef300..c9ce414ee84f 100644
+--- a/drivers/net/wireless/intersil/hostap/hostap_ioctl.c
++++ b/drivers/net/wireless/intersil/hostap/hostap_ioctl.c
+@@ -513,8 +513,10 @@ static int prism2_ioctl_giwaplist(struct net_device *dev,
+ 		return -EOPNOTSUPP;
+ 	}
+ 
+-	addr = kmalloc(sizeof(struct sockaddr) * IW_MAX_AP, GFP_KERNEL);
+-	qual = kmalloc(sizeof(struct iw_quality) * IW_MAX_AP, GFP_KERNEL);
++	addr = kmalloc(array_size(IW_MAX_AP, sizeof(struct sockaddr)),
++		       GFP_KERNEL);
++	qual = kmalloc(array_size(IW_MAX_AP, sizeof(struct iw_quality)),
++		       GFP_KERNEL);
+ 	if (addr == NULL || qual == NULL) {
+ 		kfree(addr);
+ 		kfree(qual);
+diff --git a/drivers/net/wireless/intersil/p54/eeprom.c b/drivers/net/wireless/intersil/p54/eeprom.c
+index d4c73d39336f..b792fe1eda66 100644
+--- a/drivers/net/wireless/intersil/p54/eeprom.c
++++ b/drivers/net/wireless/intersil/p54/eeprom.c
+@@ -344,7 +344,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
+ 		goto free;
+ 	}
+ 	priv->chan_num = max_channel_num;
+-	priv->survey = kzalloc(sizeof(struct survey_info) * max_channel_num,
++	priv->survey = kzalloc(array_size(max_channel_num, sizeof(struct survey_info)),
+ 			       GFP_KERNEL);
+ 	if (!priv->survey) {
+ 		ret = -ENOMEM;
+@@ -352,8 +352,8 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
+ 	}
+ 
+ 	list->max_entries = max_channel_num;
+-	list->channels = kzalloc(sizeof(struct p54_channel_entry) *
+-				 max_channel_num, GFP_KERNEL);
++	list->channels = kzalloc(array_size(max_channel_num, sizeof(struct p54_channel_entry)),
++				 GFP_KERNEL);
+ 	if (!list->channels) {
+ 		ret = -ENOMEM;
+ 		goto free;
+diff --git a/drivers/net/wireless/marvell/mwifiex/11n_rxreorder.c b/drivers/net/wireless/marvell/mwifiex/11n_rxreorder.c
+index 1edcddaf7b4b..3c5974ce5809 100644
+--- a/drivers/net/wireless/marvell/mwifiex/11n_rxreorder.c
++++ b/drivers/net/wireless/marvell/mwifiex/11n_rxreorder.c
+@@ -399,8 +399,8 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
+ 
+ 	new_node->win_size = win_size;
+ 
+-	new_node->rx_reorder_ptr = kzalloc(sizeof(void *) * win_size,
+-					GFP_KERNEL);
++	new_node->rx_reorder_ptr = kzalloc(array_size(win_size, sizeof(void *)),
++					   GFP_KERNEL);
+ 	if (!new_node->rx_reorder_ptr) {
+ 		kfree((u8 *) new_node);
+ 		mwifiex_dbg(priv->adapter, ERROR,
+diff --git a/drivers/net/wireless/realtek/rtlwifi/usb.c b/drivers/net/wireless/realtek/rtlwifi/usb.c
+index ce3103bb8ebb..db46f24edb21 100644
+--- a/drivers/net/wireless/realtek/rtlwifi/usb.c
++++ b/drivers/net/wireless/realtek/rtlwifi/usb.c
+@@ -1048,7 +1048,7 @@ int rtl_usb_probe(struct usb_interface *intf,
+ 	}
+ 	rtlpriv = hw->priv;
+ 	rtlpriv->hw = hw;
+-	rtlpriv->usb_data = kzalloc(RTL_USB_MAX_RX_COUNT * sizeof(u32),
++	rtlpriv->usb_data = kzalloc(array_size(RTL_USB_MAX_RX_COUNT, sizeof(u32)),
+ 				    GFP_KERNEL);
+ 	if (!rtlpriv->usb_data)
+ 		return -ENOMEM;
 diff --git a/drivers/net/wireless/st/cw1200/queue.c b/drivers/net/wireless/st/cw1200/queue.c
-index 8b8453fac571..5a0da3d63721 100644
+index 5153d2cfd991..8b8453fac571 100644
 --- a/drivers/net/wireless/st/cw1200/queue.c
 +++ b/drivers/net/wireless/st/cw1200/queue.c
-@@ -186,8 +186,8 @@ int cw1200_queue_init(struct cw1200_queue *queue,
+@@ -154,7 +154,7 @@ int cw1200_queue_stats_init(struct cw1200_queue_stats *stats,
+ 	spin_lock_init(&stats->lock);
+ 	init_waitqueue_head(&stats->wait_link_id_empty);
+ 
+-	stats->link_map_cache = kzalloc(sizeof(int) * map_capacity,
++	stats->link_map_cache = kzalloc(array_size(map_capacity, sizeof(int)),
+ 					GFP_KERNEL);
+ 	if (!stats->link_map_cache)
+ 		return -ENOMEM;
+@@ -181,8 +181,8 @@ int cw1200_queue_init(struct cw1200_queue *queue,
+ 	spin_lock_init(&queue->lock);
+ 	timer_setup(&queue->gc, cw1200_queue_gc, 0);
+ 
+-	queue->pool = kzalloc(sizeof(struct cw1200_queue_item) * capacity,
+-			GFP_KERNEL);
++	queue->pool = kzalloc(array_size(capacity, sizeof(struct cw1200_queue_item)),
++			      GFP_KERNEL);
  	if (!queue->pool)
  		return -ENOMEM;
  
--	queue->link_map_cache = kzalloc(sizeof(int) * stats->map_capacity,
--			GFP_KERNEL);
-+	queue->link_map_cache = kzalloc(array_size(sizeof(int), stats->map_capacity),
-+					GFP_KERNEL);
- 	if (!queue->link_map_cache) {
- 		kfree(queue->pool);
- 		queue->pool = NULL;
-diff --git a/drivers/net/wireless/st/cw1200/scan.c b/drivers/net/wireless/st/cw1200/scan.c
-index cc2ce60f4f09..1474b0280665 100644
---- a/drivers/net/wireless/st/cw1200/scan.c
-+++ b/drivers/net/wireless/st/cw1200/scan.c
-@@ -230,9 +230,8 @@ void cw1200_scan_work(struct work_struct *work)
- 			scan.type = WSM_SCAN_TYPE_BACKGROUND;
- 			scan.flags = WSM_SCAN_FLAG_FORCE_BACKGROUND;
- 		}
--		scan.ch = kzalloc(
--			sizeof(struct wsm_scan_ch) * (it - priv->scan.curr),
--			GFP_KERNEL);
-+		scan.ch = kzalloc(array_size(sizeof(struct wsm_scan_ch), (it - priv->scan.curr)),
-+				  GFP_KERNEL);
- 		if (!scan.ch) {
- 			priv->scan.status = -ENOMEM;
- 			goto fail;
-diff --git a/drivers/net/wireless/ti/wlcore/spi.c b/drivers/net/wireless/ti/wlcore/spi.c
-index 62ce54a949e9..a811388d8979 100644
---- a/drivers/net/wireless/ti/wlcore/spi.c
-+++ b/drivers/net/wireless/ti/wlcore/spi.c
-@@ -321,7 +321,8 @@ static int __wl12xx_spi_raw_write(struct device *child, int addr,
- 	int i;
+diff --git a/drivers/net/wireless/zydas/zd1211rw/zd_mac.c b/drivers/net/wireless/zydas/zd1211rw/zd_mac.c
+index b01b44a5d16e..aefa19089bc9 100644
+--- a/drivers/net/wireless/zydas/zd1211rw/zd_mac.c
++++ b/drivers/net/wireless/zydas/zd1211rw/zd_mac.c
+@@ -732,7 +732,8 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon,
  
- 	/* SPI write buffers - 2 for each chunk */
--	t = kzalloc(sizeof(*t) * 2 * WSPI_MAX_NUM_OF_CHUNKS, GFP_KERNEL);
-+	t = kzalloc(array3_size(sizeof(*t), 2, WSPI_MAX_NUM_OF_CHUNKS),
-+		    GFP_KERNEL);
- 	if (!t)
+ 	/* Alloc memory for full beacon write at once. */
+ 	num_cmds = 1 + zd_chip_is_zd1211b(&mac->chip) + full_len;
+-	ioreqs = kmalloc(num_cmds * sizeof(struct zd_ioreq32), GFP_KERNEL);
++	ioreqs = kmalloc(array_size(num_cmds, sizeof(struct zd_ioreq32)),
++			 GFP_KERNEL);
+ 	if (!ioreqs) {
+ 		r = -ENOMEM;
+ 		goto out_nofree;
+diff --git a/drivers/nvmem/rockchip-efuse.c b/drivers/nvmem/rockchip-efuse.c
+index b3b0b648be62..146de9489339 100644
+--- a/drivers/nvmem/rockchip-efuse.c
++++ b/drivers/nvmem/rockchip-efuse.c
+@@ -122,7 +122,8 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
+ 	addr_offset = offset % RK3399_NBYTES;
+ 	addr_len = addr_end - addr_start;
+ 
+-	buf = kzalloc(sizeof(*buf) * addr_len * RK3399_NBYTES, GFP_KERNEL);
++	buf = kzalloc(array3_size(addr_len, RK3399_NBYTES, sizeof(*buf)),
++		      GFP_KERNEL);
+ 	if (!buf) {
+ 		ret = -ENOMEM;
+ 		goto nomem;
+@@ -174,7 +175,8 @@ static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
+ 	addr_offset = offset % RK3399_NBYTES;
+ 	addr_len = addr_end - addr_start;
+ 
+-	buf = kzalloc(sizeof(*buf) * addr_len * RK3399_NBYTES, GFP_KERNEL);
++	buf = kzalloc(array3_size(addr_len, RK3399_NBYTES, sizeof(*buf)),
++		      GFP_KERNEL);
+ 	if (!buf) {
+ 		clk_disable_unprepare(efuse->clk);
  		return -ENOMEM;
- 
-diff --git a/drivers/nvmem/sunxi_sid.c b/drivers/nvmem/sunxi_sid.c
-index 26bb637afe92..a796c5582f3f 100644
---- a/drivers/nvmem/sunxi_sid.c
-+++ b/drivers/nvmem/sunxi_sid.c
-@@ -185,7 +185,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
- 	if (IS_ERR(nvmem))
- 		return PTR_ERR(nvmem);
- 
--	randomness = kzalloc(sizeof(u8) * (size), GFP_KERNEL);
-+	randomness = kzalloc(array_size(sizeof(u8), (size)), GFP_KERNEL);
- 	if (!randomness) {
- 		ret = -EINVAL;
- 		goto err_unreg_nvmem;
-diff --git a/drivers/of/platform.c b/drivers/of/platform.c
-index c00d81dfac0b..ae23aa217dd1 100644
---- a/drivers/of/platform.c
-+++ b/drivers/of/platform.c
-@@ -124,7 +124,8 @@ struct platform_device *of_device_alloc(struct device_node *np,
- 
- 	/* Populate the resource table */
- 	if (num_irq || num_reg) {
--		res = kzalloc(sizeof(*res) * (num_irq + num_reg), GFP_KERNEL);
-+		res = kzalloc(array_size(sizeof(*res), (num_irq + num_reg)),
-+			      GFP_KERNEL);
- 		if (!res) {
- 			platform_device_put(dev);
- 			return NULL;
-diff --git a/drivers/opp/ti-opp-supply.c b/drivers/opp/ti-opp-supply.c
-index 370eff3acd8a..1f4c5a308701 100644
---- a/drivers/opp/ti-opp-supply.c
-+++ b/drivers/opp/ti-opp-supply.c
-@@ -122,8 +122,8 @@ static int _store_optimized_voltages(struct device *dev,
- 		goto out;
+diff --git a/drivers/of/unittest.c b/drivers/of/unittest.c
+index 6bb37c18292a..bda3e153cb30 100644
+--- a/drivers/of/unittest.c
++++ b/drivers/of/unittest.c
+@@ -156,7 +156,7 @@ static void __init of_unittest_dynamic(void)
  	}
  
--	table = kzalloc(sizeof(*data->vdd_table) *
--				  data->num_vdd_table, GFP_KERNEL);
-+	table = kzalloc(array_size(sizeof(*data->vdd_table), data->num_vdd_table),
-+			GFP_KERNEL);
- 	if (!table) {
- 		ret = -ENOMEM;
- 		goto out;
+ 	/* Array of 4 properties for the purpose of testing */
+-	prop = kzalloc(sizeof(*prop) * 4, GFP_KERNEL);
++	prop = kzalloc(array_size(4, sizeof(*prop)), GFP_KERNEL);
+ 	if (!prop) {
+ 		unittest(0, "kzalloc() failed\n");
+ 		return;
 diff --git a/drivers/pci/msi.c b/drivers/pci/msi.c
-index 82d241f5bf3b..8512c7c11ef1 100644
+index 30250631efe7..82d241f5bf3b 100644
 --- a/drivers/pci/msi.c
 +++ b/drivers/pci/msi.c
-@@ -474,7 +474,8 @@ static int populate_msi_sysfs(struct pci_dev *pdev)
- 		return 0;
+@@ -501,7 +501,7 @@ static int populate_msi_sysfs(struct pci_dev *pdev)
+ 	msi_irq_group->name = "msi_irqs";
+ 	msi_irq_group->attrs = msi_attrs;
  
- 	/* Dynamically create the MSI attributes for the PCI device */
--	msi_attrs = kzalloc(sizeof(void *) * (num_msi + 1), GFP_KERNEL);
-+	msi_attrs = kzalloc(array_size(sizeof(void *), (num_msi + 1)),
+-	msi_irq_groups = kzalloc(sizeof(void *) * 2, GFP_KERNEL);
++	msi_irq_groups = kzalloc(array_size(2, sizeof(void *)), GFP_KERNEL);
+ 	if (!msi_irq_groups)
+ 		goto error_irq_group;
+ 	msi_irq_groups[0] = msi_irq_group;
+diff --git a/drivers/pci/pci-sysfs.c b/drivers/pci/pci-sysfs.c
+index 366d93af051d..d2e06e9786e0 100644
+--- a/drivers/pci/pci-sysfs.c
++++ b/drivers/pci/pci-sysfs.c
+@@ -1073,7 +1073,7 @@ void pci_create_legacy_files(struct pci_bus *b)
+ {
+ 	int error;
+ 
+-	b->legacy_io = kzalloc(sizeof(struct bin_attribute) * 2,
++	b->legacy_io = kzalloc(array_size(2, sizeof(struct bin_attribute)),
+ 			       GFP_ATOMIC);
+ 	if (!b->legacy_io)
+ 		goto kzalloc_err;
+diff --git a/drivers/pcmcia/cistpl.c b/drivers/pcmcia/cistpl.c
+index 102646fedb56..86fb0aff8aa9 100644
+--- a/drivers/pcmcia/cistpl.c
++++ b/drivers/pcmcia/cistpl.c
+@@ -1481,11 +1481,11 @@ static ssize_t pccard_extract_cis(struct pcmcia_socket *s, char *buf,
+ 	u_char *tuplebuffer;
+ 	u_char *tempbuffer;
+ 
+-	tuplebuffer = kmalloc(sizeof(u_char) * 256, GFP_KERNEL);
++	tuplebuffer = kmalloc(array_size(256, sizeof(u_char)), GFP_KERNEL);
+ 	if (!tuplebuffer)
+ 		return -ENOMEM;
+ 
+-	tempbuffer = kmalloc(sizeof(u_char) * 258, GFP_KERNEL);
++	tempbuffer = kmalloc(array_size(258, sizeof(u_char)), GFP_KERNEL);
+ 	if (!tempbuffer) {
+ 		ret = -ENOMEM;
+ 		goto free_tuple;
+diff --git a/drivers/pcmcia/pd6729.c b/drivers/pcmcia/pd6729.c
+index 959ae3e65ef8..df5707d2e02b 100644
+--- a/drivers/pcmcia/pd6729.c
++++ b/drivers/pcmcia/pd6729.c
+@@ -628,7 +628,7 @@ static int pd6729_pci_probe(struct pci_dev *dev,
+ 	char configbyte;
+ 	struct pd6729_socket *socket;
+ 
+-	socket = kzalloc(sizeof(struct pd6729_socket) * MAX_SOCKETS,
++	socket = kzalloc(array_size(MAX_SOCKETS, sizeof(struct pd6729_socket)),
+ 			 GFP_KERNEL);
+ 	if (!socket) {
+ 		dev_warn(&dev->dev, "failed to kzalloc socket.\n");
+diff --git a/drivers/pinctrl/freescale/pinctrl-imx.c b/drivers/pinctrl/freescale/pinctrl-imx.c
+index 24aaddd760a0..8734e5f05b46 100644
+--- a/drivers/pinctrl/freescale/pinctrl-imx.c
++++ b/drivers/pinctrl/freescale/pinctrl-imx.c
+@@ -86,7 +86,8 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
+ 			map_num++;
+ 	}
+ 
+-	new_map = kmalloc(sizeof(struct pinctrl_map) * map_num, GFP_KERNEL);
++	new_map = kmalloc(array_size(map_num, sizeof(struct pinctrl_map)),
++			  GFP_KERNEL);
+ 	if (!new_map)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/freescale/pinctrl-imx1-core.c b/drivers/pinctrl/freescale/pinctrl-imx1-core.c
+index a4e9f430d452..4eedd874bd02 100644
+--- a/drivers/pinctrl/freescale/pinctrl-imx1-core.c
++++ b/drivers/pinctrl/freescale/pinctrl-imx1-core.c
+@@ -246,7 +246,8 @@ static int imx1_dt_node_to_map(struct pinctrl_dev *pctldev,
+ 	for (i = 0; i < grp->npins; i++)
+ 		map_num++;
+ 
+-	new_map = kmalloc(sizeof(struct pinctrl_map) * map_num, GFP_KERNEL);
++	new_map = kmalloc(array_size(map_num, sizeof(struct pinctrl_map)),
++			  GFP_KERNEL);
+ 	if (!new_map)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/freescale/pinctrl-mxs.c b/drivers/pinctrl/freescale/pinctrl-mxs.c
+index 6852010a6d70..ea3bb26b0c3e 100644
+--- a/drivers/pinctrl/freescale/pinctrl-mxs.c
++++ b/drivers/pinctrl/freescale/pinctrl-mxs.c
+@@ -96,7 +96,7 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
+ 	if (!purecfg && config)
+ 		new_num = 2;
+ 
+-	new_map = kzalloc(sizeof(*new_map) * new_num, GFP_KERNEL);
++	new_map = kzalloc(array_size(new_num, sizeof(*new_map)), GFP_KERNEL);
+ 	if (!new_map)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/samsung/pinctrl-exynos5440.c b/drivers/pinctrl/samsung/pinctrl-exynos5440.c
+index 3d8d5e812839..832ba81e192e 100644
+--- a/drivers/pinctrl/samsung/pinctrl-exynos5440.c
++++ b/drivers/pinctrl/samsung/pinctrl-exynos5440.c
+@@ -201,7 +201,7 @@ static int exynos5440_dt_node_to_map(struct pinctrl_dev *pctldev,
+ 	}
+ 
+ 	/* Allocate memory for pin-map entries */
+-	map = kzalloc(sizeof(*map) * map_cnt, GFP_KERNEL);
++	map = kzalloc(array_size(map_cnt, sizeof(*map)), GFP_KERNEL);
+ 	if (!map)
+ 		return -ENOMEM;
+ 	*nmaps = 0;
+@@ -222,7 +222,7 @@ static int exynos5440_dt_node_to_map(struct pinctrl_dev *pctldev,
+ 		goto skip_cfgs;
+ 
+ 	/* Allocate memory for config entries */
+-	cfg = kzalloc(sizeof(*cfg) * cfg_cnt, GFP_KERNEL);
++	cfg = kzalloc(array_size(cfg_cnt, sizeof(*cfg)), GFP_KERNEL);
+ 	if (!cfg)
+ 		goto free_gname;
+ 
+diff --git a/drivers/pinctrl/sirf/pinctrl-sirf.c b/drivers/pinctrl/sirf/pinctrl-sirf.c
+index ca2347d0d579..b45d16276c05 100644
+--- a/drivers/pinctrl/sirf/pinctrl-sirf.c
++++ b/drivers/pinctrl/sirf/pinctrl-sirf.c
+@@ -108,7 +108,7 @@ static int sirfsoc_dt_node_to_map(struct pinctrl_dev *pctldev,
+ 		return -ENODEV;
+ 	}
+ 
+-	*map = kzalloc(sizeof(**map) * count, GFP_KERNEL);
++	*map = kzalloc(array_size(count, sizeof(**map)), GFP_KERNEL);
+ 	if (!*map)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/spear/pinctrl-spear.c b/drivers/pinctrl/spear/pinctrl-spear.c
+index efe79d3f7659..c108914c0888 100644
+--- a/drivers/pinctrl/spear/pinctrl-spear.c
++++ b/drivers/pinctrl/spear/pinctrl-spear.c
+@@ -172,7 +172,7 @@ static int spear_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
+ 		return -ENODEV;
+ 	}
+ 
+-	*map = kzalloc(sizeof(**map) * count, GFP_KERNEL);
++	*map = kzalloc(array_size(count, sizeof(**map)), GFP_KERNEL);
+ 	if (!*map)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/pinctrl/sunxi/pinctrl-sunxi.c b/drivers/pinctrl/sunxi/pinctrl-sunxi.c
+index 020d6d84639c..14ccf7722d65 100644
+--- a/drivers/pinctrl/sunxi/pinctrl-sunxi.c
++++ b/drivers/pinctrl/sunxi/pinctrl-sunxi.c
+@@ -277,7 +277,8 @@ static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
+ 	if (!configlen)
+ 		return NULL;
+ 
+-	pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);
++	pinconfig = kzalloc(array_size(configlen, sizeof(*pinconfig)),
 +			    GFP_KERNEL);
- 	if (!msi_attrs)
- 		return -ENOMEM;
- 	for_each_pci_msi_entry(entry, pdev) {
-diff --git a/drivers/pinctrl/bcm/pinctrl-bcm2835.c b/drivers/pinctrl/bcm/pinctrl-bcm2835.c
-index 785c366fd6d6..3974f48a3bd5 100644
---- a/drivers/pinctrl/bcm/pinctrl-bcm2835.c
-+++ b/drivers/pinctrl/bcm/pinctrl-bcm2835.c
-@@ -775,8 +775,8 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
- 		maps_per_pin++;
- 	if (num_pulls)
- 		maps_per_pin++;
--	cur_map = maps = kzalloc(num_pins * maps_per_pin * sizeof(*maps),
--				GFP_KERNEL);
-+	cur_map = maps = kzalloc(array3_size(num_pins, maps_per_pin, sizeof(*maps)),
-+				 GFP_KERNEL);
- 	if (!maps)
- 		return -ENOMEM;
+ 	if (!pinconfig)
+ 		return ERR_PTR(-ENOMEM);
  
-diff --git a/drivers/pinctrl/pinctrl-lantiq.c b/drivers/pinctrl/pinctrl-lantiq.c
-index 41dc39c7a7b1..81632af3a86a 100644
---- a/drivers/pinctrl/pinctrl-lantiq.c
-+++ b/drivers/pinctrl/pinctrl-lantiq.c
-@@ -158,7 +158,8 @@ static int ltq_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
- 
- 	for_each_child_of_node(np_config, np)
- 		max_maps += ltq_pinctrl_dt_subnode_size(np);
--	*map = kzalloc(max_maps * sizeof(struct pinctrl_map) * 2, GFP_KERNEL);
-+	*map = kzalloc(array3_size(max_maps, sizeof(struct pinctrl_map), 2),
+@@ -352,7 +353,8 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
+ 	 * any configuration.
+ 	 */
+ 	nmaps = npins * 2;
+-	*map = kmalloc(nmaps * sizeof(struct pinctrl_map), GFP_KERNEL);
++	*map = kmalloc(array_size(nmaps, sizeof(struct pinctrl_map)),
 +		       GFP_KERNEL);
  	if (!*map)
  		return -ENOMEM;
- 	tmp = *map;
-diff --git a/drivers/pinctrl/vt8500/pinctrl-wmt.c b/drivers/pinctrl/vt8500/pinctrl-wmt.c
-index d73956bdc211..291d29734c52 100644
---- a/drivers/pinctrl/vt8500/pinctrl-wmt.c
-+++ b/drivers/pinctrl/vt8500/pinctrl-wmt.c
-@@ -352,7 +352,7 @@ static int wmt_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
- 	if (num_pulls)
- 		maps_per_pin++;
  
--	cur_map = maps = kzalloc(num_pins * maps_per_pin * sizeof(*maps),
-+	cur_map = maps = kzalloc(array3_size(num_pins, maps_per_pin, sizeof(*maps)),
- 				 GFP_KERNEL);
- 	if (!maps)
- 		return -ENOMEM;
-diff --git a/drivers/platform/x86/alienware-wmi.c b/drivers/platform/x86/alienware-wmi.c
-index 9d7dbd925065..4c3d24ddbdd9 100644
---- a/drivers/platform/x86/alienware-wmi.c
-+++ b/drivers/platform/x86/alienware-wmi.c
-@@ -458,19 +458,19 @@ static int alienware_zone_init(struct platform_device *dev)
- 	 *      - zone_data num_zones is for the distinct zones
- 	 */
- 	zone_dev_attrs =
--	    kzalloc(sizeof(struct device_attribute) * (quirks->num_zones + 1),
-+	    kzalloc(array_size(sizeof(struct device_attribute), (quirks->num_zones + 1)),
- 		    GFP_KERNEL);
- 	if (!zone_dev_attrs)
+diff --git a/drivers/platform/x86/intel_ips.c b/drivers/platform/x86/intel_ips.c
+index a0c95853fd3f..98f7264c9092 100644
+--- a/drivers/platform/x86/intel_ips.c
++++ b/drivers/platform/x86/intel_ips.c
+@@ -964,12 +964,18 @@ static int ips_monitor(void *data)
+ 	u16 *mcp_samples, *ctv1_samples, *ctv2_samples, *mch_samples;
+ 	u8 cur_seqno, last_seqno;
+ 
+-	mcp_samples = kzalloc(sizeof(u16) * IPS_SAMPLE_COUNT, GFP_KERNEL);
+-	ctv1_samples = kzalloc(sizeof(u16) * IPS_SAMPLE_COUNT, GFP_KERNEL);
+-	ctv2_samples = kzalloc(sizeof(u16) * IPS_SAMPLE_COUNT, GFP_KERNEL);
+-	mch_samples = kzalloc(sizeof(u16) * IPS_SAMPLE_COUNT, GFP_KERNEL);
+-	cpu_samples = kzalloc(sizeof(u32) * IPS_SAMPLE_COUNT, GFP_KERNEL);
+-	mchp_samples = kzalloc(sizeof(u32) * IPS_SAMPLE_COUNT, GFP_KERNEL);
++	mcp_samples = kzalloc(array_size(IPS_SAMPLE_COUNT, sizeof(u16)),
++			      GFP_KERNEL);
++	ctv1_samples = kzalloc(array_size(IPS_SAMPLE_COUNT, sizeof(u16)),
++			       GFP_KERNEL);
++	ctv2_samples = kzalloc(array_size(IPS_SAMPLE_COUNT, sizeof(u16)),
++			       GFP_KERNEL);
++	mch_samples = kzalloc(array_size(IPS_SAMPLE_COUNT, sizeof(u16)),
++			      GFP_KERNEL);
++	cpu_samples = kzalloc(array_size(IPS_SAMPLE_COUNT, sizeof(u32)),
++			      GFP_KERNEL);
++	mchp_samples = kzalloc(array_size(IPS_SAMPLE_COUNT, sizeof(u32)),
++			       GFP_KERNEL);
+ 	if (!mcp_samples || !ctv1_samples || !ctv2_samples || !mch_samples ||
+ 			!cpu_samples || !mchp_samples) {
+ 		dev_err(ips->dev,
+diff --git a/drivers/platform/x86/thinkpad_acpi.c b/drivers/platform/x86/thinkpad_acpi.c
+index da1ca4856ea1..0e109e5e2f73 100644
+--- a/drivers/platform/x86/thinkpad_acpi.c
++++ b/drivers/platform/x86/thinkpad_acpi.c
+@@ -6006,7 +6006,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
+ 	if (led_supported == TPACPI_LED_NONE)
+ 		return 1;
+ 
+-	tpacpi_leds = kzalloc(sizeof(*tpacpi_leds) * TPACPI_LED_NUMLEDS,
++	tpacpi_leds = kzalloc(array_size(TPACPI_LED_NUMLEDS, sizeof(*tpacpi_leds)),
+ 			      GFP_KERNEL);
+ 	if (!tpacpi_leds) {
+ 		pr_err("Out of memory for LED data\n");
+diff --git a/drivers/power/supply/wm97xx_battery.c b/drivers/power/supply/wm97xx_battery.c
+index bd4f66651513..231d8b059bc4 100644
+--- a/drivers/power/supply/wm97xx_battery.c
++++ b/drivers/power/supply/wm97xx_battery.c
+@@ -201,7 +201,7 @@ static int wm97xx_bat_probe(struct platform_device *dev)
+ 	if (pdata->min_voltage >= 0)
+ 		props++;	/* POWER_SUPPLY_PROP_VOLTAGE_MIN */
+ 
+-	prop = kzalloc(props * sizeof(*prop), GFP_KERNEL);
++	prop = kzalloc(array_size(props, sizeof(*prop)), GFP_KERNEL);
+ 	if (!prop) {
+ 		ret = -ENOMEM;
+ 		goto err3;
+diff --git a/drivers/power/supply/z2_battery.c b/drivers/power/supply/z2_battery.c
+index 8a43b49cfd35..4e8f9ff7b6d1 100644
+--- a/drivers/power/supply/z2_battery.c
++++ b/drivers/power/supply/z2_battery.c
+@@ -146,7 +146,7 @@ static int z2_batt_ps_init(struct z2_charger *charger, int props)
+ 	if (info->min_voltage >= 0)
+ 		props++;	/* POWER_SUPPLY_PROP_VOLTAGE_MIN */
+ 
+-	prop = kzalloc(props * sizeof(*prop), GFP_KERNEL);
++	prop = kzalloc(array_size(props, sizeof(*prop)), GFP_KERNEL);
+ 	if (!prop)
  		return -ENOMEM;
  
- 	zone_attrs =
--	    kzalloc(sizeof(struct attribute *) * (quirks->num_zones + 2),
-+	    kzalloc(array_size(sizeof(struct attribute *), (quirks->num_zones + 2)),
- 		    GFP_KERNEL);
- 	if (!zone_attrs)
- 		return -ENOMEM;
+diff --git a/drivers/powercap/powercap_sys.c b/drivers/powercap/powercap_sys.c
+index 64b2b2501a79..0a988158a563 100644
+--- a/drivers/powercap/powercap_sys.c
++++ b/drivers/powercap/powercap_sys.c
+@@ -545,15 +545,15 @@ struct powercap_zone *powercap_register_zone(
+ 	dev_set_name(&power_zone->dev, "%s:%x",
+ 					dev_name(power_zone->dev.parent),
+ 					power_zone->id);
+-	power_zone->constraints = kzalloc(sizeof(*power_zone->constraints) *
+-					 nr_constraints, GFP_KERNEL);
++	power_zone->constraints = kzalloc(array_size(nr_constraints, sizeof(*power_zone->constraints)),
++					  GFP_KERNEL);
+ 	if (!power_zone->constraints)
+ 		goto err_const_alloc;
  
- 	zone_data =
--	    kzalloc(sizeof(struct platform_zone) * (quirks->num_zones),
-+	    kzalloc(array_size(sizeof(struct platform_zone), (quirks->num_zones)),
- 		    GFP_KERNEL);
- 	if (!zone_data)
- 		return -ENOMEM;
-diff --git a/drivers/platform/x86/panasonic-laptop.c b/drivers/platform/x86/panasonic-laptop.c
-index 5c39b3211709..9d103996582d 100644
---- a/drivers/platform/x86/panasonic-laptop.c
-+++ b/drivers/platform/x86/panasonic-laptop.c
-@@ -571,7 +571,8 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
- 		return -ENOMEM;
+ 	nr_attrs = nr_constraints * POWERCAP_CONSTRAINTS_ATTRS +
+ 						POWERCAP_ZONE_MAX_ATTRS + 1;
+-	power_zone->zone_dev_attrs = kzalloc(sizeof(void *) *
+-						nr_attrs, GFP_KERNEL);
++	power_zone->zone_dev_attrs = kzalloc(array_size(nr_attrs, sizeof(void *)),
++					     GFP_KERNEL);
+ 	if (!power_zone->zone_dev_attrs)
+ 		goto err_attr_alloc;
+ 	create_power_zone_common_attributes(power_zone);
+diff --git a/drivers/regulator/s2mps11.c b/drivers/regulator/s2mps11.c
+index 7726b874e539..afc6518b3680 100644
+--- a/drivers/regulator/s2mps11.c
++++ b/drivers/regulator/s2mps11.c
+@@ -1162,7 +1162,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
+ 		}
  	}
  
--	pcc->sinf = kzalloc(sizeof(u32) * (num_sifr + 1), GFP_KERNEL);
-+	pcc->sinf = kzalloc(array_size(sizeof(u32), (num_sifr + 1)),
-+			    GFP_KERNEL);
- 	if (!pcc->sinf) {
- 		result = -ENOMEM;
- 		goto out_hotkey;
-diff --git a/drivers/rapidio/rio-scan.c b/drivers/rapidio/rio-scan.c
-index 161b927d9de1..7582badc41a1 100644
---- a/drivers/rapidio/rio-scan.c
-+++ b/drivers/rapidio/rio-scan.c
-@@ -425,9 +425,8 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
- 		rswitch = rdev->rswitch;
- 		rswitch->port_ok = 0;
- 		spin_lock_init(&rswitch->lock);
--		rswitch->route_table = kzalloc(sizeof(u8)*
--					RIO_MAX_ROUTE_ENTRIES(port->sys_size),
--					GFP_KERNEL);
-+		rswitch->route_table = kzalloc(array_size(sizeof(u8), RIO_MAX_ROUTE_ENTRIES(port->sys_size)),
-+					       GFP_KERNEL);
- 		if (!rswitch->route_table)
- 			goto cleanup;
- 		/* Initialize switch route table */
-diff --git a/drivers/s390/block/dasd_eer.c b/drivers/s390/block/dasd_eer.c
-index fb2c3599d95c..f9a22546c347 100644
---- a/drivers/s390/block/dasd_eer.c
-+++ b/drivers/s390/block/dasd_eer.c
-@@ -561,7 +561,7 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
- 		return -EINVAL;
- 	}
- 	eerb->buffersize = eerb->buffer_page_count * PAGE_SIZE;
--	eerb->buffer = kmalloc(eerb->buffer_page_count * sizeof(char *),
-+	eerb->buffer = kmalloc(array_size(eerb->buffer_page_count, sizeof(char *)),
- 			       GFP_KERNEL);
-         if (!eerb->buffer) {
- 		kfree(eerb);
-diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-index 0a312e450207..be861315be77 100644
---- a/drivers/s390/block/dcssblk.c
-+++ b/drivers/s390/block/dcssblk.c
-@@ -231,9 +231,8 @@ dcssblk_is_continuous(struct dcssblk_dev_info *dev_info)
- 	if (dev_info->num_of_segments <= 1)
- 		return 0;
- 
--	sort_list = kzalloc(
--			sizeof(struct segment_info) * dev_info->num_of_segments,
--			GFP_KERNEL);
-+	sort_list = kzalloc(array_size(sizeof(struct segment_info), dev_info->num_of_segments),
-+			    GFP_KERNEL);
- 	if (sort_list == NULL)
+-	rdata = kzalloc(sizeof(*rdata) * rdev_num, GFP_KERNEL);
++	rdata = kzalloc(array_size(rdev_num, sizeof(*rdata)), GFP_KERNEL);
+ 	if (!rdata)
  		return -ENOMEM;
- 	i = 0;
-diff --git a/drivers/s390/char/vmur.c b/drivers/s390/char/vmur.c
-index 52aa89424318..c594dc9efab8 100644
---- a/drivers/s390/char/vmur.c
-+++ b/drivers/s390/char/vmur.c
-@@ -242,7 +242,7 @@ static struct ccw1 *alloc_chan_prog(const char __user *ubuf, int rec_count,
- 	 * That means we allocate room for CCWs to cover count/reclen
- 	 * records plus a NOP.
- 	 */
--	cpa = kzalloc((rec_count + 1) * sizeof(struct ccw1),
-+	cpa = kzalloc(array_size((rec_count + 1), sizeof(struct ccw1)),
- 		      GFP_KERNEL | GFP_DMA);
- 	if (!cpa)
- 		return ERR_PTR(-ENOMEM);
-diff --git a/drivers/s390/char/zcore.c b/drivers/s390/char/zcore.c
-index 4369662cfff5..68689ee669d6 100644
---- a/drivers/s390/char/zcore.c
-+++ b/drivers/s390/char/zcore.c
-@@ -152,7 +152,8 @@ static int zcore_memmap_open(struct inode *inode, struct file *filp)
- 	char *buf;
- 	int i = 0;
  
--	buf = kzalloc(memblock.memory.cnt * CHUNK_INFO_SIZE, GFP_KERNEL);
-+	buf = kzalloc(array_size(memblock.memory.cnt, CHUNK_INFO_SIZE),
-+		      GFP_KERNEL);
- 	if (!buf) {
- 		return -ENOMEM;
+diff --git a/drivers/s390/char/keyboard.c b/drivers/s390/char/keyboard.c
+index db1fbf9b00b5..b2a2a56101e6 100644
+--- a/drivers/s390/char/keyboard.c
++++ b/drivers/s390/char/keyboard.c
+@@ -78,7 +78,8 @@ kbd_alloc(void) {
+ 		}
  	}
+ 	kbd->fn_handler =
+-		kzalloc(sizeof(fn_handler_fn *) * NR_FN_HANDLER, GFP_KERNEL);
++		kzalloc(array_size(NR_FN_HANDLER, sizeof(fn_handler_fn *)),
++			GFP_KERNEL);
+ 	if (!kbd->fn_handler)
+ 		goto out_func;
+ 	kbd->accent_table = kmemdup(ebc_accent_table,
+diff --git a/drivers/s390/char/tty3270.c b/drivers/s390/char/tty3270.c
+index 1c98023cffd4..7879adcc16cf 100644
+--- a/drivers/s390/char/tty3270.c
++++ b/drivers/s390/char/tty3270.c
+@@ -719,7 +719,8 @@ tty3270_alloc_view(void)
+ 	if (!tp)
+ 		goto out_err;
+ 	tp->freemem_pages =
+-		kmalloc(sizeof(void *) * TTY3270_STRING_PAGES, GFP_KERNEL);
++		kmalloc(array_size(TTY3270_STRING_PAGES, sizeof(void *)),
++			GFP_KERNEL);
+ 	if (!tp->freemem_pages)
+ 		goto out_tp;
+ 	INIT_LIST_HEAD(&tp->freemem);
+diff --git a/drivers/s390/cio/qdio_setup.c b/drivers/s390/cio/qdio_setup.c
+index 439991d71b14..1116503f701a 100644
+--- a/drivers/s390/cio/qdio_setup.c
++++ b/drivers/s390/cio/qdio_setup.c
+@@ -542,7 +542,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
+ 
+ int qdio_enable_async_operation(struct qdio_output_q *outq)
+ {
+-	outq->aobs = kzalloc(sizeof(struct qaob *) * QDIO_MAX_BUFFERS_PER_Q,
++	outq->aobs = kzalloc(array_size(QDIO_MAX_BUFFERS_PER_Q, sizeof(struct qaob *)),
+ 			     GFP_ATOMIC);
+ 	if (!outq->aobs) {
+ 		outq->use_cq = 0;
+diff --git a/drivers/s390/cio/qdio_thinint.c b/drivers/s390/cio/qdio_thinint.c
+index 0787b587e4b8..2029229e2209 100644
+--- a/drivers/s390/cio/qdio_thinint.c
++++ b/drivers/s390/cio/qdio_thinint.c
+@@ -241,8 +241,8 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
+ /* allocate non-shared indicators and shared indicator */
+ int __init tiqdio_allocate_memory(void)
+ {
+-	q_indicators = kzalloc(sizeof(struct indicator_t) * TIQDIO_NR_INDICATORS,
+-			     GFP_KERNEL);
++	q_indicators = kzalloc(array_size(TIQDIO_NR_INDICATORS, sizeof(struct indicator_t)),
++			       GFP_KERNEL);
+ 	if (!q_indicators)
+ 		return -ENOMEM;
+ 	return 0;
 diff --git a/drivers/s390/crypto/pkey_api.c b/drivers/s390/crypto/pkey_api.c
-index 2dfe566c208a..3ec3cb27885a 100644
+index ed80d00cdb6f..2dfe566c208a 100644
 --- a/drivers/s390/crypto/pkey_api.c
 +++ b/drivers/s390/crypto/pkey_api.c
-@@ -121,7 +121,7 @@ static int alloc_and_prep_cprbmem(size_t paramblen,
- 	 * allocate consecutive memory for request CPRB, request param
- 	 * block, reply CPRB and reply param block
- 	 */
--	cprbmem = kzalloc(2 * cprbplusparamblen, GFP_KERNEL);
-+	cprbmem = kzalloc(array_size(2, cprbplusparamblen), GFP_KERNEL);
- 	if (!cprbmem)
+@@ -899,8 +899,7 @@ int pkey_findcard(const struct pkey_seckey *seckey,
+ 		return -EINVAL;
+ 
+ 	/* fetch status of all crypto cards */
+-	device_status = kmalloc(MAX_ZDEV_ENTRIES_EXT
+-				* sizeof(struct zcrypt_device_status_ext),
++	device_status = kmalloc(array_size(MAX_ZDEV_ENTRIES_EXT, sizeof(struct zcrypt_device_status_ext)),
+ 				GFP_KERNEL);
+ 	if (!device_status)
  		return -ENOMEM;
+diff --git a/drivers/s390/net/ctcm_main.c b/drivers/s390/net/ctcm_main.c
+index 7ce98b70cad3..d54c6de82c63 100644
+--- a/drivers/s390/net/ctcm_main.c
++++ b/drivers/s390/net/ctcm_main.c
+@@ -1379,7 +1379,8 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
+ 	} else
+ 		ccw_num = 8;
+ 
+-	ch->ccw = kzalloc(ccw_num * sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
++	ch->ccw = kzalloc(array_size(ccw_num, sizeof(struct ccw1)),
++			  GFP_KERNEL | GFP_DMA);
+ 	if (ch->ccw == NULL)
+ 					goto nomem_return;
  
 diff --git a/drivers/s390/net/qeth_core_main.c b/drivers/s390/net/qeth_core_main.c
-index cc8d1591a4ff..39f4f38b5fc8 100644
+index 04fefa5bb08d..cc8d1591a4ff 100644
 --- a/drivers/s390/net/qeth_core_main.c
 +++ b/drivers/s390/net/qeth_core_main.c
-@@ -374,9 +374,8 @@ static int qeth_alloc_cq(struct qeth_card *card)
- 		}
- 		card->qdio.no_in_queues = 2;
- 		card->qdio.out_bufstates =
--			kzalloc(card->qdio.no_out_queues *
--				QDIO_MAX_BUFFERS_PER_Q *
--				sizeof(struct qdio_outbuf_state), GFP_KERNEL);
-+			kzalloc(array3_size(card->qdio.no_out_queues, QDIO_MAX_BUFFERS_PER_Q, sizeof(struct qdio_outbuf_state)),
-+				GFP_KERNEL);
- 		outbuf_states = card->qdio.out_bufstates;
- 		if (outbuf_states == NULL) {
- 			rc = -1;
-@@ -2549,8 +2548,8 @@ static int qeth_alloc_qdio_buffers(struct qeth_card *card)
+@@ -4988,8 +4988,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
  
- 	/* outbound */
- 	card->qdio.out_qs =
--		kzalloc(card->qdio.no_out_queues *
--			sizeof(struct qeth_qdio_out_q *), GFP_KERNEL);
-+		kzalloc(array_size(card->qdio.no_out_queues, sizeof(struct qeth_qdio_out_q *)),
-+			GFP_KERNEL);
- 	if (!card->qdio.out_qs)
- 		goto out_freepool;
- 	for (i = 0; i < card->qdio.no_out_queues; ++i) {
-@@ -4998,8 +4997,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
- 	qeth_create_qib_param_field(card, qib_param_field);
- 	qeth_create_qib_param_field_blkt(card, qib_param_field);
+ 	QETH_DBF_TEXT(SETUP, 2, "qdioest");
  
--	in_sbal_ptrs = kzalloc(card->qdio.no_in_queues *
--			       QDIO_MAX_BUFFERS_PER_Q * sizeof(void *),
-+	in_sbal_ptrs = kzalloc(array3_size(card->qdio.no_in_queues, QDIO_MAX_BUFFERS_PER_Q, sizeof(void *)),
- 			       GFP_KERNEL);
- 	if (!in_sbal_ptrs) {
- 		rc = -ENOMEM;
-@@ -5010,7 +5008,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
- 			virt_to_phys(card->qdio.in_q->bufs[i].buffer);
- 	}
+-	qib_param_field = kzalloc(QDIO_MAX_BUFFERS_PER_Q * sizeof(char),
+-			      GFP_KERNEL);
++	qib_param_field = kzalloc(array_size(QDIO_MAX_BUFFERS_PER_Q, sizeof(char)),
++				  GFP_KERNEL);
+ 	if (!qib_param_field) {
+ 		rc =  -ENOMEM;
+ 		goto out_free_nothing;
+diff --git a/drivers/scsi/BusLogic.c b/drivers/scsi/BusLogic.c
+index 35380a58d3f0..bcbef23fabb4 100644
+--- a/drivers/scsi/BusLogic.c
++++ b/drivers/scsi/BusLogic.c
+@@ -2366,8 +2366,8 @@ static int __init blogic_init(void)
+ 	if (blogic_probe_options.noprobe)
+ 		return -ENODEV;
+ 	blogic_probeinfo_list =
+-	    kzalloc(BLOGIC_MAX_ADAPTERS * sizeof(struct blogic_probeinfo),
+-			    GFP_KERNEL);
++	    kzalloc(array_size(BLOGIC_MAX_ADAPTERS, sizeof(struct blogic_probeinfo)),
++		    GFP_KERNEL);
+ 	if (blogic_probeinfo_list == NULL) {
+ 		blogic_err("BusLogic: Unable to allocate Probe Info List\n",
+ 				NULL);
+diff --git a/drivers/scsi/aacraid/aachba.c b/drivers/scsi/aacraid/aachba.c
+index e7961cbd2c55..69f0574b39b3 100644
+--- a/drivers/scsi/aacraid/aachba.c
++++ b/drivers/scsi/aacraid/aachba.c
+@@ -4132,7 +4132,8 @@ static int aac_convert_sgraw2(struct aac_raw_io2 *rio2, int pages, int nseg, int
+ 	if (aac_convert_sgl == 0)
+ 		return 0;
  
--	queue_start_poll = kzalloc(sizeof(void *) * card->qdio.no_in_queues,
-+	queue_start_poll = kzalloc(array_size(sizeof(void *), card->qdio.no_in_queues),
- 				   GFP_KERNEL);
- 	if (!queue_start_poll) {
- 		rc = -ENOMEM;
-@@ -5022,8 +5020,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
- 	qeth_qdio_establish_cq(card, in_sbal_ptrs, queue_start_poll);
+-	sge = kmalloc(nseg_new * sizeof(struct sge_ieee1212), GFP_ATOMIC);
++	sge = kmalloc(array_size(nseg_new, sizeof(struct sge_ieee1212)),
++		      GFP_ATOMIC);
+ 	if (sge == NULL)
+ 		return -ENOMEM;
  
- 	out_sbal_ptrs =
--		kzalloc(card->qdio.no_out_queues * QDIO_MAX_BUFFERS_PER_Q *
--			sizeof(void *), GFP_KERNEL);
-+		kzalloc(array3_size(card->qdio.no_out_queues, QDIO_MAX_BUFFERS_PER_Q, sizeof(void *)),
-+			GFP_KERNEL);
- 	if (!out_sbal_ptrs) {
- 		rc = -ENOMEM;
- 		goto out_free_queue_start_poll;
-diff --git a/drivers/scsi/aacraid/linit.c b/drivers/scsi/aacraid/linit.c
-index f24fb942065d..ce1409e2eb94 100644
---- a/drivers/scsi/aacraid/linit.c
-+++ b/drivers/scsi/aacraid/linit.c
-@@ -1681,7 +1681,8 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
- 	if (aac_reset_devices || reset_devices)
- 		aac->init_reset = true;
+diff --git a/drivers/scsi/aha1542.c b/drivers/scsi/aha1542.c
+index 124217927c4a..cef0f19feb95 100644
+--- a/drivers/scsi/aha1542.c
++++ b/drivers/scsi/aha1542.c
+@@ -400,7 +400,8 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
+ #endif
+ 	if (bufflen) {	/* allocate memory before taking host_lock */
+ 		sg_count = scsi_sg_count(cmd);
+-		cptr = kmalloc(sizeof(*cptr) * sg_count, GFP_KERNEL | GFP_DMA);
++		cptr = kmalloc(array_size(sg_count, sizeof(*cptr)),
++			       GFP_KERNEL | GFP_DMA);
+ 		if (!cptr)
+ 			return SCSI_MLQUEUE_HOST_BUSY;
+ 	} else {
+diff --git a/drivers/scsi/aic7xxx/aic7xxx_core.c b/drivers/scsi/aic7xxx/aic7xxx_core.c
+index e97eceacf522..235d622ecd37 100644
+--- a/drivers/scsi/aic7xxx/aic7xxx_core.c
++++ b/drivers/scsi/aic7xxx/aic7xxx_core.c
+@@ -4779,8 +4779,8 @@ ahc_init_scbdata(struct ahc_softc *ahc)
+ 	SLIST_INIT(&scb_data->sg_maps);
  
--	aac->fibs = kzalloc(sizeof(struct fib) * (shost->can_queue + AAC_NUM_MGT_FIB), GFP_KERNEL);
-+	aac->fibs = kzalloc(array_size(sizeof(struct fib), (shost->can_queue + AAC_NUM_MGT_FIB)),
-+			    GFP_KERNEL);
- 	if (!aac->fibs)
- 		goto out_free_host;
- 	spin_lock_init(&aac->fib_lock);
-diff --git a/drivers/scsi/aic7xxx/aic79xx_core.c b/drivers/scsi/aic7xxx/aic79xx_core.c
-index 034f4eebb160..52584ccc41a5 100644
---- a/drivers/scsi/aic7xxx/aic79xx_core.c
-+++ b/drivers/scsi/aic7xxx/aic79xx_core.c
-@@ -7063,7 +7063,8 @@ ahd_init(struct ahd_softc *ahd)
- 	AHD_ASSERT_MODES(ahd, AHD_MODE_SCSI_MSK, AHD_MODE_SCSI_MSK);
- 
- 	ahd->stack_size = ahd_probe_stack_size(ahd);
--	ahd->saved_stack = kmalloc(ahd->stack_size * sizeof(uint16_t), GFP_ATOMIC);
-+	ahd->saved_stack = kmalloc(array_size(ahd->stack_size, sizeof(uint16_t)),
-+				   GFP_ATOMIC);
- 	if (ahd->saved_stack == NULL)
+ 	/* Allocate SCB resources */
+-	scb_data->scbarray = kzalloc(sizeof(struct scb) * AHC_SCB_MAX_ALLOC,
+-				GFP_ATOMIC);
++	scb_data->scbarray = kzalloc(array_size(AHC_SCB_MAX_ALLOC, sizeof(struct scb)),
++				     GFP_ATOMIC);
+ 	if (scb_data->scbarray == NULL)
  		return (ENOMEM);
  
-diff --git a/drivers/scsi/aic94xx/aic94xx_hwi.c b/drivers/scsi/aic94xx/aic94xx_hwi.c
-index 2dbc8330d7d3..a63338f3eb7e 100644
---- a/drivers/scsi/aic94xx/aic94xx_hwi.c
-+++ b/drivers/scsi/aic94xx/aic94xx_hwi.c
-@@ -220,8 +220,8 @@ static int asd_init_scbs(struct asd_ha_struct *asd_ha)
- 
- 	/* allocate the index array and bitmap */
- 	asd_ha->seq.tc_index_bitmap_bits = asd_ha->hw_prof.max_scbs;
--	asd_ha->seq.tc_index_array = kzalloc(asd_ha->seq.tc_index_bitmap_bits*
--					     sizeof(void *), GFP_KERNEL);
-+	asd_ha->seq.tc_index_array = kzalloc(array_size(asd_ha->seq.tc_index_bitmap_bits, sizeof(void *)),
-+					     GFP_KERNEL);
- 	if (!asd_ha->seq.tc_index_array)
- 		return -ENOMEM;
- 
-@@ -291,7 +291,8 @@ static int asd_alloc_edbs(struct asd_ha_struct *asd_ha, gfp_t gfp_flags)
- 	struct asd_seq_data *seq = &asd_ha->seq;
- 	int i;
- 
--	seq->edb_arr = kmalloc(seq->num_edbs*sizeof(*seq->edb_arr), gfp_flags);
-+	seq->edb_arr = kmalloc(array_size(seq->num_edbs, sizeof(*seq->edb_arr)),
-+			       gfp_flags);
- 	if (!seq->edb_arr)
- 		return -ENOMEM;
- 
-@@ -323,7 +324,7 @@ static int asd_alloc_escbs(struct asd_ha_struct *asd_ha,
- 	struct asd_ascb *escb;
- 	int i, escbs;
- 
--	seq->escb_arr = kmalloc(seq->num_escbs*sizeof(*seq->escb_arr),
-+	seq->escb_arr = kmalloc(array_size(seq->num_escbs, sizeof(*seq->escb_arr)),
- 				gfp_flags);
- 	if (!seq->escb_arr)
- 		return -ENOMEM;
-diff --git a/drivers/scsi/aic94xx/aic94xx_init.c b/drivers/scsi/aic94xx/aic94xx_init.c
-index 6c838865ac5a..c926944663ad 100644
---- a/drivers/scsi/aic94xx/aic94xx_init.c
-+++ b/drivers/scsi/aic94xx/aic94xx_init.c
-@@ -350,7 +350,7 @@ static ssize_t asd_store_update_bios(struct device *dev,
- 	int flash_command = FLASH_CMD_NONE;
- 	int err = 0;
- 
--	cmd_ptr = kzalloc(count*2, GFP_KERNEL);
-+	cmd_ptr = kzalloc(array_size(count, 2), GFP_KERNEL);
- 
- 	if (!cmd_ptr) {
- 		err = FAIL_OUT_MEMORY;
+diff --git a/drivers/scsi/arm/queue.c b/drivers/scsi/arm/queue.c
+index 3441ce3ebabf..aa2bed2e09ef 100644
+--- a/drivers/scsi/arm/queue.c
++++ b/drivers/scsi/arm/queue.c
+@@ -70,7 +70,8 @@ int queue_initialise (Queue_t *queue)
+ 	 * need to keep free lists or allocate this
+ 	 * memory.
+ 	 */
+-	queue->alloc = q = kmalloc(sizeof(QE_t) * nqueues, GFP_KERNEL);
++	queue->alloc = q = kmalloc(array_size(nqueues, sizeof(QE_t)),
++				   GFP_KERNEL);
+ 	if (q) {
+ 		for (; nqueues; q++, nqueues--) {
+ 			SET_MAGIC(q, QUEUE_MAGIC_FREE);
 diff --git a/drivers/scsi/be2iscsi/be_main.c b/drivers/scsi/be2iscsi/be_main.c
-index ac7fbc7a9465..34d3cf37cdfc 100644
+index b3cfdd5f4d1c..ac7fbc7a9465 100644
 --- a/drivers/scsi/be2iscsi/be_main.c
 +++ b/drivers/scsi/be2iscsi/be_main.c
-@@ -2467,8 +2467,7 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
- 
- 	/* Allocate memory for wrb_context */
- 	phwi_ctrlr = phba->phwi_ctrlr;
--	phwi_ctrlr->wrb_context = kzalloc(sizeof(struct hwi_wrb_context) *
--					  phba->params.cxns_per_ctrl,
-+	phwi_ctrlr->wrb_context = kzalloc(array_size(sizeof(struct hwi_wrb_context), phba->params.cxns_per_ctrl),
- 					  GFP_KERNEL);
- 	if (!phwi_ctrlr->wrb_context) {
- 		kfree(phba->phwi_ctrlr);
-@@ -2620,8 +2619,7 @@ static int beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
- 
- 	/* Allocate memory for WRBQ */
- 	phwi_ctxt = phwi_ctrlr->phwi_ctxt;
--	phwi_ctxt->be_wrbq = kzalloc(sizeof(struct be_queue_info) *
--				     phba->params.cxns_per_ctrl,
-+	phwi_ctxt->be_wrbq = kzalloc(array_size(sizeof(struct be_queue_info), phba->params.cxns_per_ctrl),
- 				     GFP_KERNEL);
- 	if (!phwi_ctxt->be_wrbq) {
- 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-@@ -2632,16 +2630,16 @@ static int beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
- 	for (index = 0; index < phba->params.cxns_per_ctrl; index++) {
- 		pwrb_context = &phwi_ctrlr->wrb_context[index];
- 		pwrb_context->pwrb_handle_base =
--				kzalloc(sizeof(struct wrb_handle *) *
--					phba->params.wrbs_per_cxn, GFP_KERNEL);
-+				kzalloc(array_size(sizeof(struct wrb_handle *), phba->params.wrbs_per_cxn),
-+					GFP_KERNEL);
- 		if (!pwrb_context->pwrb_handle_base) {
- 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
- 				    "BM_%d : Mem Alloc Failed. Failing to load\n");
- 			goto init_wrb_hndl_failed;
- 		}
- 		pwrb_context->pwrb_handle_basestd =
--				kzalloc(sizeof(struct wrb_handle *) *
--					phba->params.wrbs_per_cxn, GFP_KERNEL);
-+				kzalloc(array_size(sizeof(struct wrb_handle *), phba->params.wrbs_per_cxn),
-+					GFP_KERNEL);
- 		if (!pwrb_context->pwrb_handle_basestd) {
- 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
- 				    "BM_%d : Mem Alloc Failed. Failing to load\n");
-@@ -3353,7 +3351,7 @@ beiscsi_create_wrb_rings(struct beiscsi_hba *phba,
- 	idx = 0;
- 	mem_descr = phba->init_mem;
- 	mem_descr += HWI_MEM_WRB;
--	pwrb_arr = kmalloc(sizeof(*pwrb_arr) * phba->params.cxns_per_ctrl,
-+	pwrb_arr = kmalloc(array_size(sizeof(*pwrb_arr), phba->params.cxns_per_ctrl),
- 			   GFP_KERNEL);
- 	if (!pwrb_arr) {
- 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-@@ -3894,17 +3892,14 @@ static int beiscsi_init_sgl_handle(struct beiscsi_hba *phba)
- 	mem_descr_sglh = phba->init_mem;
- 	mem_descr_sglh += HWI_MEM_SGLH;
- 	if (1 == mem_descr_sglh->num_elements) {
--		phba->io_sgl_hndl_base = kzalloc(sizeof(struct sgl_handle *) *
--						 phba->params.ios_per_ctrl,
-+		phba->io_sgl_hndl_base = kzalloc(array_size(sizeof(struct sgl_handle *), phba->params.ios_per_ctrl),
- 						 GFP_KERNEL);
- 		if (!phba->io_sgl_hndl_base) {
- 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
- 				    "BM_%d : Mem Alloc Failed. Failing to load\n");
- 			return -ENOMEM;
- 		}
--		phba->eh_sgl_hndl_base = kzalloc(sizeof(struct sgl_handle *) *
--						 (phba->params.icds_per_ctrl -
--						 phba->params.ios_per_ctrl),
-+		phba->eh_sgl_hndl_base = kzalloc(array_size(sizeof(struct sgl_handle *), (phba->params.icds_per_ctrl - phba->params.ios_per_ctrl)),
- 						 GFP_KERNEL);
- 		if (!phba->eh_sgl_hndl_base) {
- 			kfree(phba->io_sgl_hndl_base);
-@@ -4032,8 +4027,8 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
- 			phba->cid_array_info[ulp_num] = ptr_cid_info;
- 		}
+@@ -2483,7 +2483,7 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
+ 		return -ENOMEM;
  	}
--	phba->ep_array = kzalloc(sizeof(struct iscsi_endpoint *) *
--				 phba->params.cxns_per_ctrl, GFP_KERNEL);
-+	phba->ep_array = kzalloc(array_size(sizeof(struct iscsi_endpoint *), phba->params.cxns_per_ctrl),
+ 
+-	mem_arr_orig = kmalloc(sizeof(*mem_arr_orig) * BEISCSI_MAX_FRAGS_INIT,
++	mem_arr_orig = kmalloc(array_size(BEISCSI_MAX_FRAGS_INIT, sizeof(*mem_arr_orig)),
+ 			       GFP_KERNEL);
+ 	if (!mem_arr_orig) {
+ 		kfree(phba->init_mem);
+@@ -2533,7 +2533,7 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
+ 		} while (alloc_size);
+ 		mem_descr->num_elements = j;
+ 		mem_descr->size_in_bytes = phba->mem_req[i];
+-		mem_descr->mem_array = kmalloc(sizeof(*mem_arr) * j,
++		mem_descr->mem_array = kmalloc(array_size(j, sizeof(*mem_arr)),
+ 					       GFP_KERNEL);
+ 		if (!mem_descr->mem_array)
+ 			goto free_mem;
+diff --git a/drivers/scsi/bfa/bfad_attr.c b/drivers/scsi/bfa/bfad_attr.c
+index d4d276c757ea..1aa501d700eb 100644
+--- a/drivers/scsi/bfa/bfad_attr.c
++++ b/drivers/scsi/bfa/bfad_attr.c
+@@ -927,7 +927,7 @@ bfad_im_num_of_discovered_ports_show(struct device *dev,
+ 	struct bfa_rport_qualifier_s *rports = NULL;
+ 	unsigned long   flags;
+ 
+-	rports = kzalloc(sizeof(struct bfa_rport_qualifier_s) * nrports,
++	rports = kzalloc(array_size(nrports, sizeof(struct bfa_rport_qualifier_s)),
+ 			 GFP_ATOMIC);
+ 	if (rports == NULL)
+ 		return snprintf(buf, PAGE_SIZE, "Failed\n");
+diff --git a/drivers/scsi/bnx2fc/bnx2fc_fcoe.c b/drivers/scsi/bnx2fc/bnx2fc_fcoe.c
+index 65de1d0578a1..843e1207e044 100644
+--- a/drivers/scsi/bnx2fc/bnx2fc_fcoe.c
++++ b/drivers/scsi/bnx2fc/bnx2fc_fcoe.c
+@@ -1397,7 +1397,7 @@ static struct bnx2fc_hba *bnx2fc_hba_create(struct cnic_dev *cnic)
+ 	hba->next_conn_id = 0;
+ 
+ 	hba->tgt_ofld_list =
+-		kzalloc(sizeof(struct bnx2fc_rport *) * BNX2FC_NUM_MAX_SESS,
++		kzalloc(array_size(BNX2FC_NUM_MAX_SESS, sizeof(struct bnx2fc_rport *)),
+ 			GFP_KERNEL);
+ 	if (!hba->tgt_ofld_list) {
+ 		printk(KERN_ERR PFX "Unable to allocate tgt offload list\n");
+diff --git a/drivers/scsi/bnx2fc/bnx2fc_io.c b/drivers/scsi/bnx2fc/bnx2fc_io.c
+index 5a645b8b9af1..583b17f9ea3d 100644
+--- a/drivers/scsi/bnx2fc/bnx2fc_io.c
++++ b/drivers/scsi/bnx2fc/bnx2fc_io.c
+@@ -240,15 +240,15 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba)
+ 		return NULL;
+ 	}
+ 
+-	cmgr->free_list = kzalloc(sizeof(*cmgr->free_list) *
+-				  arr_sz, GFP_KERNEL);
++	cmgr->free_list = kzalloc(array_size(arr_sz, sizeof(*cmgr->free_list)),
++				  GFP_KERNEL);
+ 	if (!cmgr->free_list) {
+ 		printk(KERN_ERR PFX "failed to alloc free_list\n");
+ 		goto mem_err;
+ 	}
+ 
+-	cmgr->free_list_lock = kzalloc(sizeof(*cmgr->free_list_lock) *
+-				       arr_sz, GFP_KERNEL);
++	cmgr->free_list_lock = kzalloc(array_size(arr_sz, sizeof(*cmgr->free_list_lock)),
++				       GFP_KERNEL);
+ 	if (!cmgr->free_list_lock) {
+ 		printk(KERN_ERR PFX "failed to alloc free_list_lock\n");
+ 		kfree(cmgr->free_list);
+diff --git a/drivers/scsi/esas2r/esas2r_init.c b/drivers/scsi/esas2r/esas2r_init.c
+index 9dffcb28c9b7..ed2dd0d23a2a 100644
+--- a/drivers/scsi/esas2r/esas2r_init.c
++++ b/drivers/scsi/esas2r/esas2r_init.c
+@@ -833,7 +833,7 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
+ 
+ 	/* allocate requests for asynchronous events */
+ 	a->first_ae_req =
+-		kzalloc(num_ae_requests * sizeof(struct esas2r_request),
++		kzalloc(array_size(num_ae_requests, sizeof(struct esas2r_request)),
+ 			GFP_KERNEL);
+ 
+ 	if (a->first_ae_req == NULL) {
+@@ -843,8 +843,8 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
+ 	}
+ 
+ 	/* allocate the S/G list memory descriptors */
+-	a->sg_list_mds = kzalloc(
+-		num_sg_lists * sizeof(struct esas2r_mem_desc), GFP_KERNEL);
++	a->sg_list_mds = kzalloc(array_size(num_sg_lists, sizeof(struct esas2r_mem_desc)),
 +				 GFP_KERNEL);
- 	if (!phba->ep_array) {
- 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
- 			    "BM_%d : Failed to allocate memory in "
-@@ -4043,8 +4038,8 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
- 		goto free_memory;
+ 
+ 	if (a->sg_list_mds == NULL) {
+ 		esas2r_log(ESAS2R_LOG_CRIT,
+diff --git a/drivers/scsi/fcoe/fcoe_ctlr.c b/drivers/scsi/fcoe/fcoe_ctlr.c
+index 097f37de6ce9..16db6c46968a 100644
+--- a/drivers/scsi/fcoe/fcoe_ctlr.c
++++ b/drivers/scsi/fcoe/fcoe_ctlr.c
+@@ -1390,7 +1390,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
+ 	 */
+ 	num_vlink_desc = rlen / sizeof(*vp);
+ 	if (num_vlink_desc)
+-		vlink_desc_arr = kmalloc(sizeof(vp) * num_vlink_desc,
++		vlink_desc_arr = kmalloc(array_size(num_vlink_desc, sizeof(vp)),
+ 					 GFP_ATOMIC);
+ 	if (!vlink_desc_arr)
+ 		return;
+diff --git a/drivers/scsi/hpsa.c b/drivers/scsi/hpsa.c
+index 3a9eca163db8..307344abc722 100644
+--- a/drivers/scsi/hpsa.c
++++ b/drivers/scsi/hpsa.c
+@@ -1923,8 +1923,10 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h,
  	}
+ 	spin_unlock_irqrestore(&h->reset_lock, flags);
  
--	phba->conn_table = kzalloc(sizeof(struct beiscsi_conn *) *
--				   phba->params.cxns_per_ctrl, GFP_KERNEL);
-+	phba->conn_table = kzalloc(array_size(sizeof(struct beiscsi_conn *), phba->params.cxns_per_ctrl),
-+				   GFP_KERNEL);
- 	if (!phba->conn_table) {
- 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
- 			    "BM_%d : Failed to allocate memory in"
-diff --git a/drivers/scsi/bfa/bfad_bsg.c b/drivers/scsi/bfa/bfad_bsg.c
-index 7c884f881180..ad6ae5d1ca25 100644
---- a/drivers/scsi/bfa/bfad_bsg.c
-+++ b/drivers/scsi/bfa/bfad_bsg.c
-@@ -3252,8 +3252,8 @@ bfad_fcxp_map_sg(struct bfad_s *bfad, void *payload_kbuf,
- 	struct bfa_sge_s	*sg_table;
- 	int sge_num = 1;
+-	added = kzalloc(sizeof(*added) * HPSA_MAX_DEVICES, GFP_KERNEL);
+-	removed = kzalloc(sizeof(*removed) * HPSA_MAX_DEVICES, GFP_KERNEL);
++	added = kzalloc(array_size(HPSA_MAX_DEVICES, sizeof(*added)),
++			GFP_KERNEL);
++	removed = kzalloc(array_size(HPSA_MAX_DEVICES, sizeof(*removed)),
++			  GFP_KERNEL);
  
--	buf_base = kzalloc((sizeof(struct bfad_buf_info) +
--			   sizeof(struct bfa_sge_s)) * sge_num, GFP_KERNEL);
-+	buf_base = kzalloc(array_size((sizeof(struct bfad_buf_info) + sizeof(struct bfa_sge_s)), sge_num),
-+			   GFP_KERNEL);
- 	if (!buf_base)
+ 	if (!added || !removed) {
+ 		dev_warn(&h->pdev->dev, "out of memory in "
+@@ -4319,7 +4321,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
+ 	bool physical_device;
+ 	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
+ 
+-	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_DEVICES, GFP_KERNEL);
++	currentsd = kzalloc(array_size(HPSA_MAX_DEVICES, sizeof(*currentsd)),
++			    GFP_KERNEL);
+ 	physdev_list = kzalloc(sizeof(*physdev_list), GFP_KERNEL);
+ 	logdev_list = kzalloc(sizeof(*logdev_list), GFP_KERNEL);
+ 	tmpdevice = kzalloc(sizeof(*tmpdevice), GFP_KERNEL);
+@@ -6402,12 +6405,14 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
+ 		status = -EINVAL;
+ 		goto cleanup1;
+ 	}
+-	buff = kzalloc(SG_ENTRIES_IN_CMD * sizeof(char *), GFP_KERNEL);
++	buff = kzalloc(array_size(SG_ENTRIES_IN_CMD, sizeof(char *)),
++		       GFP_KERNEL);
+ 	if (!buff) {
+ 		status = -ENOMEM;
+ 		goto cleanup1;
+ 	}
+-	buff_size = kmalloc(SG_ENTRIES_IN_CMD * sizeof(int), GFP_KERNEL);
++	buff_size = kmalloc(array_size(SG_ENTRIES_IN_CMD, sizeof(int)),
++			    GFP_KERNEL);
+ 	if (!buff_size) {
+ 		status = -ENOMEM;
+ 		goto cleanup1;
+@@ -8507,7 +8512,8 @@ static struct ctlr_info *hpda_alloc_ctlr_info(void)
+ 	if (!h)
  		return NULL;
  
-diff --git a/drivers/scsi/csiostor/csio_wr.c b/drivers/scsi/csiostor/csio_wr.c
-index c0a17789752f..6dd3742d575f 100644
---- a/drivers/scsi/csiostor/csio_wr.c
-+++ b/drivers/scsi/csiostor/csio_wr.c
-@@ -276,8 +276,7 @@ csio_wr_alloc_q(struct csio_hw *hw, uint32_t qsize, uint32_t wrsize,
- 			q->un.iq.flq_idx = flq_idx;
+-	h->reply_map = kzalloc(sizeof(*h->reply_map) * nr_cpu_ids, GFP_KERNEL);
++	h->reply_map = kzalloc(array_size(nr_cpu_ids, sizeof(*h->reply_map)),
++			       GFP_KERNEL);
+ 	if (!h->reply_map) {
+ 		kfree(h);
+ 		return NULL;
+diff --git a/drivers/scsi/ipr.c b/drivers/scsi/ipr.c
+index dda1a64ab89c..d28b68c0d25d 100644
+--- a/drivers/scsi/ipr.c
++++ b/drivers/scsi/ipr.c
+@@ -9773,8 +9773,8 @@ static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
+ 		list_add_tail(&ioa_cfg->hostrcb[i]->queue, &ioa_cfg->hostrcb_free_q);
+ 	}
  
- 			flq = wrm->q_arr[q->un.iq.flq_idx];
--			flq->un.fl.bufs = kzalloc(flq->credits *
--						  sizeof(struct csio_dma_buf),
-+			flq->un.fl.bufs = kzalloc(array_size(flq->credits, sizeof(struct csio_dma_buf)),
+-	ioa_cfg->trace = kzalloc(sizeof(struct ipr_trace_entry) *
+-				 IPR_NUM_TRACE_ENTRIES, GFP_KERNEL);
++	ioa_cfg->trace = kzalloc(array_size(IPR_NUM_TRACE_ENTRIES, sizeof(struct ipr_trace_entry)),
++				 GFP_KERNEL);
+ 
+ 	if (!ioa_cfg->trace)
+ 		goto out_free_hostrcb_dma;
+diff --git a/drivers/scsi/lpfc/lpfc_init.c b/drivers/scsi/lpfc/lpfc_init.c
+index 7887468c71b4..8401e3b45be0 100644
+--- a/drivers/scsi/lpfc/lpfc_init.c
++++ b/drivers/scsi/lpfc/lpfc_init.c
+@@ -5712,8 +5712,8 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
+ 	}
+ 
+ 	if (!phba->sli.sli3_ring)
+-		phba->sli.sli3_ring = kzalloc(LPFC_SLI3_MAX_RING *
+-			sizeof(struct lpfc_sli_ring), GFP_KERNEL);
++		phba->sli.sli3_ring = kzalloc(array_size(LPFC_SLI3_MAX_RING, sizeof(struct lpfc_sli_ring)),
++					      GFP_KERNEL);
+ 	if (!phba->sli.sli3_ring)
+ 		return -ENOMEM;
+ 
+@@ -6207,7 +6207,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
+ 
+ 	/* Allocate eligible FCF bmask memory for FCF roundrobin failover */
+ 	longs = (LPFC_SLI4_FCF_TBL_INDX_MAX + BITS_PER_LONG - 1)/BITS_PER_LONG;
+-	phba->fcf.fcf_rr_bmask = kzalloc(longs * sizeof(unsigned long),
++	phba->fcf.fcf_rr_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
+ 					 GFP_KERNEL);
+ 	if (!phba->fcf.fcf_rr_bmask) {
+ 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+diff --git a/drivers/scsi/lpfc/lpfc_mem.c b/drivers/scsi/lpfc/lpfc_mem.c
+index 41361662ff08..1f8f5b98cb7a 100644
+--- a/drivers/scsi/lpfc/lpfc_mem.c
++++ b/drivers/scsi/lpfc/lpfc_mem.c
+@@ -120,8 +120,8 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
+ 	if (!phba->lpfc_mbuf_pool)
+ 		goto fail_free_dma_buf_pool;
+ 
+-	pool->elements = kmalloc(sizeof(struct lpfc_dmabuf) *
+-					 LPFC_MBUF_POOL_SIZE, GFP_KERNEL);
++	pool->elements = kmalloc(array_size(LPFC_MBUF_POOL_SIZE, sizeof(struct lpfc_dmabuf)),
++				 GFP_KERNEL);
+ 	if (!pool->elements)
+ 		goto fail_free_lpfc_mbuf_pool;
+ 
+diff --git a/drivers/scsi/lpfc/lpfc_sli.c b/drivers/scsi/lpfc/lpfc_sli.c
+index cb17e2b2be81..ac999abb4466 100644
+--- a/drivers/scsi/lpfc/lpfc_sli.c
++++ b/drivers/scsi/lpfc/lpfc_sli.c
+@@ -1692,7 +1692,7 @@ lpfc_sli_next_iotag(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+ 					   - LPFC_IOCBQ_LOOKUP_INCREMENT)) {
+ 		new_len = psli->iocbq_lookup_len + LPFC_IOCBQ_LOOKUP_INCREMENT;
+ 		spin_unlock_irq(&phba->hbalock);
+-		new_arr = kzalloc(new_len * sizeof (struct lpfc_iocbq *),
++		new_arr = kzalloc(array_size(new_len, sizeof(struct lpfc_iocbq *)),
+ 				  GFP_KERNEL);
+ 		if (new_arr) {
+ 			spin_lock_irq(&phba->hbalock);
+@@ -5114,7 +5114,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
+ 		 */
+ 		if ((phba->vpi_bmask == NULL) && (phba->vpi_ids == NULL)) {
+ 			longs = (phba->max_vpi + BITS_PER_LONG) / BITS_PER_LONG;
+-			phba->vpi_bmask = kzalloc(longs * sizeof(unsigned long),
++			phba->vpi_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
  						  GFP_KERNEL);
- 			if (!flq->un.fl.bufs) {
- 				csio_err(hw,
-@@ -1579,7 +1578,8 @@ csio_wrm_init(struct csio_wrm *wrm, struct csio_hw *hw)
+ 			if (!phba->vpi_bmask) {
+ 				rc = -ENOMEM;
+@@ -5808,15 +5808,13 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
+ 	length = sizeof(struct lpfc_rsrc_blks);
+ 	switch (type) {
+ 	case LPFC_RSC_TYPE_FCOE_RPI:
+-		phba->sli4_hba.rpi_bmask = kzalloc(longs *
+-						   sizeof(unsigned long),
++		phba->sli4_hba.rpi_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
+ 						   GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.rpi_bmask)) {
+ 			rc = -ENOMEM;
+ 			goto err_exit;
+ 		}
+-		phba->sli4_hba.rpi_ids = kzalloc(rsrc_id_cnt *
+-						 sizeof(uint16_t),
++		phba->sli4_hba.rpi_ids = kzalloc(array_size(rsrc_id_cnt, sizeof(uint16_t)),
+ 						 GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.rpi_ids)) {
+ 			kfree(phba->sli4_hba.rpi_bmask);
+@@ -5837,16 +5835,14 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
+ 		ext_blk_list = &phba->sli4_hba.lpfc_rpi_blk_list;
+ 		break;
+ 	case LPFC_RSC_TYPE_FCOE_VPI:
+-		phba->vpi_bmask = kzalloc(longs *
+-					  sizeof(unsigned long),
++		phba->vpi_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
+ 					  GFP_KERNEL);
+ 		if (unlikely(!phba->vpi_bmask)) {
+ 			rc = -ENOMEM;
+ 			goto err_exit;
+ 		}
+-		phba->vpi_ids = kzalloc(rsrc_id_cnt *
+-					 sizeof(uint16_t),
+-					 GFP_KERNEL);
++		phba->vpi_ids = kzalloc(array_size(rsrc_id_cnt, sizeof(uint16_t)),
++					GFP_KERNEL);
+ 		if (unlikely(!phba->vpi_ids)) {
+ 			kfree(phba->vpi_bmask);
+ 			rc = -ENOMEM;
+@@ -5859,16 +5855,14 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
+ 		ext_blk_list = &phba->lpfc_vpi_blk_list;
+ 		break;
+ 	case LPFC_RSC_TYPE_FCOE_XRI:
+-		phba->sli4_hba.xri_bmask = kzalloc(longs *
+-						   sizeof(unsigned long),
++		phba->sli4_hba.xri_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
+ 						   GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.xri_bmask)) {
+ 			rc = -ENOMEM;
+ 			goto err_exit;
+ 		}
+ 		phba->sli4_hba.max_cfg_param.xri_used = 0;
+-		phba->sli4_hba.xri_ids = kzalloc(rsrc_id_cnt *
+-						 sizeof(uint16_t),
++		phba->sli4_hba.xri_ids = kzalloc(array_size(rsrc_id_cnt, sizeof(uint16_t)),
+ 						 GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.xri_ids)) {
+ 			kfree(phba->sli4_hba.xri_bmask);
+@@ -5882,15 +5876,13 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
+ 		ext_blk_list = &phba->sli4_hba.lpfc_xri_blk_list;
+ 		break;
+ 	case LPFC_RSC_TYPE_FCOE_VFI:
+-		phba->sli4_hba.vfi_bmask = kzalloc(longs *
+-						   sizeof(unsigned long),
++		phba->sli4_hba.vfi_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
+ 						   GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.vfi_bmask)) {
+ 			rc = -ENOMEM;
+ 			goto err_exit;
+ 		}
+-		phba->sli4_hba.vfi_ids = kzalloc(rsrc_id_cnt *
+-						 sizeof(uint16_t),
++		phba->sli4_hba.vfi_ids = kzalloc(array_size(rsrc_id_cnt, sizeof(uint16_t)),
+ 						 GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.vfi_ids)) {
+ 			kfree(phba->sli4_hba.vfi_bmask);
+@@ -6222,15 +6214,13 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
+ 		}
+ 		base = phba->sli4_hba.max_cfg_param.rpi_base;
+ 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
+-		phba->sli4_hba.rpi_bmask = kzalloc(longs *
+-						   sizeof(unsigned long),
++		phba->sli4_hba.rpi_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
+ 						   GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.rpi_bmask)) {
+ 			rc = -ENOMEM;
+ 			goto err_exit;
+ 		}
+-		phba->sli4_hba.rpi_ids = kzalloc(count *
+-						 sizeof(uint16_t),
++		phba->sli4_hba.rpi_ids = kzalloc(array_size(count, sizeof(uint16_t)),
+ 						 GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.rpi_ids)) {
+ 			rc = -ENOMEM;
+@@ -6251,15 +6241,13 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
+ 		}
+ 		base = phba->sli4_hba.max_cfg_param.vpi_base;
+ 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
+-		phba->vpi_bmask = kzalloc(longs *
+-					  sizeof(unsigned long),
++		phba->vpi_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
+ 					  GFP_KERNEL);
+ 		if (unlikely(!phba->vpi_bmask)) {
+ 			rc = -ENOMEM;
+ 			goto free_rpi_ids;
+ 		}
+-		phba->vpi_ids = kzalloc(count *
+-					sizeof(uint16_t),
++		phba->vpi_ids = kzalloc(array_size(count, sizeof(uint16_t)),
+ 					GFP_KERNEL);
+ 		if (unlikely(!phba->vpi_ids)) {
+ 			rc = -ENOMEM;
+@@ -6280,16 +6268,14 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
+ 		}
+ 		base = phba->sli4_hba.max_cfg_param.xri_base;
+ 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
+-		phba->sli4_hba.xri_bmask = kzalloc(longs *
+-						   sizeof(unsigned long),
++		phba->sli4_hba.xri_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
+ 						   GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.xri_bmask)) {
+ 			rc = -ENOMEM;
+ 			goto free_vpi_ids;
+ 		}
+ 		phba->sli4_hba.max_cfg_param.xri_used = 0;
+-		phba->sli4_hba.xri_ids = kzalloc(count *
+-						 sizeof(uint16_t),
++		phba->sli4_hba.xri_ids = kzalloc(array_size(count, sizeof(uint16_t)),
+ 						 GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.xri_ids)) {
+ 			rc = -ENOMEM;
+@@ -6310,15 +6296,13 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
+ 		}
+ 		base = phba->sli4_hba.max_cfg_param.vfi_base;
+ 		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
+-		phba->sli4_hba.vfi_bmask = kzalloc(longs *
+-						   sizeof(unsigned long),
++		phba->sli4_hba.vfi_bmask = kzalloc(array_size(longs, sizeof(unsigned long)),
+ 						   GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.vfi_bmask)) {
+ 			rc = -ENOMEM;
+ 			goto free_xri_ids;
+ 		}
+-		phba->sli4_hba.vfi_ids = kzalloc(count *
+-						 sizeof(uint16_t),
++		phba->sli4_hba.vfi_ids = kzalloc(array_size(count, sizeof(uint16_t)),
+ 						 GFP_KERNEL);
+ 		if (unlikely(!phba->sli4_hba.vfi_ids)) {
+ 			rc = -ENOMEM;
+diff --git a/drivers/scsi/megaraid.c b/drivers/scsi/megaraid.c
+index 7195cff51d4c..92f51a3518b9 100644
+--- a/drivers/scsi/megaraid.c
++++ b/drivers/scsi/megaraid.c
+@@ -4322,7 +4322,8 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
+ 		goto out_host_put;
+ 	}
+ 
+-	adapter->scb_list = kmalloc(sizeof(scb_t) * MAX_COMMANDS, GFP_KERNEL);
++	adapter->scb_list = kmalloc(array_size(MAX_COMMANDS, sizeof(scb_t)),
++				    GFP_KERNEL);
+ 	if (!adapter->scb_list) {
+ 		dev_warn(&pdev->dev, "out of RAM\n");
+ 		goto out_free_cmd_buffer;
+diff --git a/drivers/scsi/megaraid/megaraid_sas_base.c b/drivers/scsi/megaraid/megaraid_sas_base.c
+index b89c6e6c0589..ee4968ced921 100644
+--- a/drivers/scsi/megaraid/megaraid_sas_base.c
++++ b/drivers/scsi/megaraid/megaraid_sas_base.c
+@@ -5423,9 +5423,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
+ 	/* stream detection initialization */
+ 	if (instance->adapter_type == VENTURA_SERIES) {
+ 		fusion->stream_detect_by_ld =
+-			kzalloc(sizeof(struct LD_STREAM_DETECT *)
+-			* MAX_LOGICAL_DRIVES_EXT,
+-			GFP_KERNEL);
++			kzalloc(array_size(MAX_LOGICAL_DRIVES_EXT, sizeof(struct LD_STREAM_DETECT *)),
++				GFP_KERNEL);
+ 		if (!fusion->stream_detect_by_ld) {
+ 			dev_err(&instance->pdev->dev,
+ 				"unable to allocate stream detection for pool of LDs\n");
+@@ -6144,7 +6143,7 @@ static inline int megasas_alloc_mfi_ctrl_mem(struct megasas_instance *instance)
+  */
+ static int megasas_alloc_ctrl_mem(struct megasas_instance *instance)
+ {
+-	instance->reply_map = kzalloc(sizeof(unsigned int) * nr_cpu_ids,
++	instance->reply_map = kzalloc(array_size(nr_cpu_ids, sizeof(unsigned int)),
+ 				      GFP_KERNEL);
+ 	if (!instance->reply_map)
+ 		return -ENOMEM;
+diff --git a/drivers/scsi/megaraid/megaraid_sas_fusion.c b/drivers/scsi/megaraid/megaraid_sas_fusion.c
+index ce97cde3b41c..093abc602f7d 100644
+--- a/drivers/scsi/megaraid/megaraid_sas_fusion.c
++++ b/drivers/scsi/megaraid/megaraid_sas_fusion.c
+@@ -487,7 +487,7 @@ megasas_alloc_cmdlist_fusion(struct megasas_instance *instance)
+ 	 * commands.
+ 	 */
+ 	fusion->cmd_list =
+-		kzalloc(sizeof(struct megasas_cmd_fusion *) * max_mpt_cmd,
++		kzalloc(array_size(max_mpt_cmd, sizeof(struct megasas_cmd_fusion *)),
+ 			GFP_KERNEL);
+ 	if (!fusion->cmd_list) {
+ 		dev_err(&instance->pdev->dev,
+diff --git a/drivers/scsi/osst.c b/drivers/scsi/osst.c
+index 20ec1c01dbd5..615faa0860a1 100644
+--- a/drivers/scsi/osst.c
++++ b/drivers/scsi/osst.c
+@@ -381,7 +381,8 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
+ 		struct scatterlist *sg, *sgl = (struct scatterlist *)buffer;
+ 		int i;
+ 
+-		pages = kzalloc(use_sg * sizeof(struct page *), GFP_KERNEL);
++		pages = kzalloc(array_size(use_sg, sizeof(struct page *)),
++				GFP_KERNEL);
+ 		if (!pages)
+ 			goto free_req;
+ 
+@@ -5856,7 +5857,8 @@ static int osst_probe(struct device *dev)
+ 	/* if this is the first attach, build the infrastructure */
+ 	write_lock(&os_scsi_tapes_lock);
+ 	if (os_scsi_tapes == NULL) {
+-		os_scsi_tapes = kmalloc(osst_max_dev * sizeof(struct osst_tape *), GFP_ATOMIC);
++		os_scsi_tapes = kmalloc(array_size(osst_max_dev, sizeof(struct osst_tape *)),
++                                        GFP_ATOMIC);
+ 		if (os_scsi_tapes == NULL) {
+ 			write_unlock(&os_scsi_tapes_lock);
+ 			printk(KERN_ERR "osst :E: Unable to allocate array for OnStream SCSI tapes.\n");
+diff --git a/drivers/scsi/pmcraid.c b/drivers/scsi/pmcraid.c
+index 95530393872d..5973557759f6 100644
+--- a/drivers/scsi/pmcraid.c
++++ b/drivers/scsi/pmcraid.c
+@@ -4873,8 +4873,8 @@ static int pmcraid_allocate_config_buffers(struct pmcraid_instance *pinstance)
+ 	int i;
+ 
+ 	pinstance->res_entries =
+-			kzalloc(sizeof(struct pmcraid_resource_entry) *
+-				PMCRAID_MAX_RESOURCES, GFP_KERNEL);
++			kzalloc(array_size(PMCRAID_MAX_RESOURCES, sizeof(struct pmcraid_resource_entry)),
++				GFP_KERNEL);
+ 
+ 	if (NULL == pinstance->res_entries) {
+ 		pmcraid_err("failed to allocate memory for resource table\n");
+diff --git a/drivers/scsi/qla2xxx/qla_nx.c b/drivers/scsi/qla2xxx/qla_nx.c
+index 872d66dd79cd..be2dd4612301 100644
+--- a/drivers/scsi/qla2xxx/qla_nx.c
++++ b/drivers/scsi/qla2xxx/qla_nx.c
+@@ -1230,7 +1230,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
+ 	ql_log(ql_log_info, vha, 0x0072,
+ 	    "%d CRB init values found in ROM.\n", n);
+ 
+-	buf = kmalloc(n * sizeof(struct crb_addr_pair), GFP_KERNEL);
++	buf = kmalloc(array_size(n, sizeof(struct crb_addr_pair)), GFP_KERNEL);
+ 	if (buf == NULL) {
+ 		ql_log(ql_log_fatal, vha, 0x010c,
+ 		    "Unable to allocate memory.\n");
+diff --git a/drivers/scsi/qla2xxx/qla_target.c b/drivers/scsi/qla2xxx/qla_target.c
+index 025dc2d3f3de..09997a1b1ec3 100644
+--- a/drivers/scsi/qla2xxx/qla_target.c
++++ b/drivers/scsi/qla2xxx/qla_target.c
+@@ -7007,8 +7007,8 @@ qlt_mem_alloc(struct qla_hw_data *ha)
+ 	if (!QLA_TGT_MODE_ENABLED())
+ 		return 0;
+ 
+-	ha->tgt.tgt_vp_map = kzalloc(sizeof(struct qla_tgt_vp_map) *
+-	    MAX_MULTI_ID_FABRIC, GFP_KERNEL);
++	ha->tgt.tgt_vp_map = kzalloc(array_size(MAX_MULTI_ID_FABRIC, sizeof(struct qla_tgt_vp_map)),
++				     GFP_KERNEL);
+ 	if (!ha->tgt.tgt_vp_map)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/scsi/qla4xxx/ql4_nx.c b/drivers/scsi/qla4xxx/ql4_nx.c
+index 43f73583ef5c..5895d6fd239d 100644
+--- a/drivers/scsi/qla4xxx/ql4_nx.c
++++ b/drivers/scsi/qla4xxx/ql4_nx.c
+@@ -1077,7 +1077,7 @@ qla4_82xx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
+ 	ql4_printk(KERN_INFO, ha,
+ 		"%s: %d CRB init values found in ROM.\n", DRIVER_NAME, n);
+ 
+-	buf = kmalloc(n * sizeof(struct crb_addr_pair), GFP_KERNEL);
++	buf = kmalloc(array_size(n, sizeof(struct crb_addr_pair)), GFP_KERNEL);
+ 	if (buf == NULL) {
+ 		ql4_printk(KERN_WARNING, ha,
+ 		    "%s: [ERROR] Unable to malloc memory.\n", DRIVER_NAME);
+diff --git a/drivers/scsi/scsi_debug.c b/drivers/scsi/scsi_debug.c
+index 9ef5e3b810f6..05cbbc913e6b 100644
+--- a/drivers/scsi/scsi_debug.c
++++ b/drivers/scsi/scsi_debug.c
+@@ -3441,7 +3441,7 @@ static int resp_comp_write(struct scsi_cmnd *scp,
+ 		return check_condition_result;
+ 	}
+ 	dnum = 2 * num;
+-	arr = kzalloc(dnum * lb_size, GFP_ATOMIC);
++	arr = kzalloc(array_size(lb_size, dnum), GFP_ATOMIC);
+ 	if (NULL == arr) {
+ 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
+ 				INSUFF_RES_ASCQ);
+diff --git a/drivers/scsi/ses.c b/drivers/scsi/ses.c
+index 62f04c0511cf..e5c2c518fce4 100644
+--- a/drivers/scsi/ses.c
++++ b/drivers/scsi/ses.c
+@@ -747,7 +747,8 @@ static int ses_intf_add(struct device *cdev,
+ 		buf = NULL;
+ 	}
+ page2_not_supported:
+-	scomp = kzalloc(sizeof(struct ses_component) * components, GFP_KERNEL);
++	scomp = kzalloc(array_size(components, sizeof(struct ses_component)),
++			GFP_KERNEL);
+ 	if (!scomp)
+ 		goto err_free;
+ 
+diff --git a/drivers/scsi/sg.c b/drivers/scsi/sg.c
+index c198b96368dd..88920b221e2a 100644
+--- a/drivers/scsi/sg.c
++++ b/drivers/scsi/sg.c
+@@ -1046,7 +1046,7 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
+ 		else {
+ 			sg_req_info_t *rinfo;
+ 
+-			rinfo = kzalloc(SZ_SG_REQ_INFO * SG_MAX_QUEUE,
++			rinfo = kzalloc(array_size(SG_MAX_QUEUE, SZ_SG_REQ_INFO),
+ 					GFP_KERNEL);
+ 			if (!rinfo)
+ 				return -ENOMEM;
+diff --git a/drivers/scsi/smartpqi/smartpqi_init.c b/drivers/scsi/smartpqi/smartpqi_init.c
+index 592b6dbf8b35..060bf5a27df8 100644
+--- a/drivers/scsi/smartpqi/smartpqi_init.c
++++ b/drivers/scsi/smartpqi/smartpqi_init.c
+@@ -1820,8 +1820,8 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
+ 
+ 	num_new_devices = num_physicals + num_logicals;
+ 
+-	new_device_list = kmalloc(sizeof(*new_device_list) *
+-		num_new_devices, GFP_KERNEL);
++	new_device_list = kmalloc(array_size(num_new_devices, sizeof(*new_device_list)),
++				  GFP_KERNEL);
+ 	if (!new_device_list) {
+ 		dev_warn(&ctrl_info->pci_dev->dev, "%s\n", out_of_memory_msg);
+ 		rc = -ENOMEM;
+diff --git a/drivers/scsi/st.c b/drivers/scsi/st.c
+index 6c399480783d..c3c9cd5a0dc8 100644
+--- a/drivers/scsi/st.c
++++ b/drivers/scsi/st.c
+@@ -3888,7 +3888,7 @@ static struct st_buffer *new_tape_buffer(int need_dma, int max_sg)
+ 	tb->dma = need_dma;
+ 	tb->buffer_size = 0;
+ 
+-	tb->reserved_pages = kzalloc(max_sg * sizeof(struct page *),
++	tb->reserved_pages = kzalloc(array_size(max_sg, sizeof(struct page *)),
+ 				     GFP_ATOMIC);
+ 	if (!tb->reserved_pages) {
+ 		kfree(tb);
+@@ -4915,7 +4915,7 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
+ 	if (count == 0)
+ 		return 0;
+ 
+-	if ((pages = kmalloc(max_pages * sizeof(*pages), GFP_KERNEL)) == NULL)
++	if ((pages = kmalloc(array_size(max_pages, sizeof(*pages)), GFP_KERNEL)) == NULL)
+ 		return -ENOMEM;
+ 
+         /* Try to fault in all of the necessary pages */
+diff --git a/drivers/scsi/virtio_scsi.c b/drivers/scsi/virtio_scsi.c
+index 45d04631888a..c41c65865ff2 100644
+--- a/drivers/scsi/virtio_scsi.c
++++ b/drivers/scsi/virtio_scsi.c
+@@ -794,9 +794,11 @@ static int virtscsi_init(struct virtio_device *vdev,
+ 	struct irq_affinity desc = { .pre_vectors = 2 };
+ 
+ 	num_vqs = vscsi->num_queues + VIRTIO_SCSI_VQ_BASE;
+-	vqs = kmalloc(num_vqs * sizeof(struct virtqueue *), GFP_KERNEL);
+-	callbacks = kmalloc(num_vqs * sizeof(vq_callback_t *), GFP_KERNEL);
+-	names = kmalloc(num_vqs * sizeof(char *), GFP_KERNEL);
++	vqs = kmalloc(array_size(num_vqs, sizeof(struct virtqueue *)),
++		      GFP_KERNEL);
++	callbacks = kmalloc(array_size(num_vqs, sizeof(vq_callback_t *)),
++			    GFP_KERNEL);
++	names = kmalloc(array_size(num_vqs, sizeof(char *)), GFP_KERNEL);
+ 
+ 	if (!callbacks || !vqs || !names) {
+ 		err = -ENOMEM;
+diff --git a/drivers/sh/clk/cpg.c b/drivers/sh/clk/cpg.c
+index 7442bc130055..ac87bf189d50 100644
+--- a/drivers/sh/clk/cpg.c
++++ b/drivers/sh/clk/cpg.c
+@@ -249,7 +249,7 @@ static int __init sh_clk_div_register_ops(struct clk *clks, int nr,
+ 	int k;
+ 
+ 	freq_table_size *= (nr_divs + 1);
+-	freq_table = kzalloc(freq_table_size * nr, GFP_KERNEL);
++	freq_table = kzalloc(array_size(nr, freq_table_size), GFP_KERNEL);
+ 	if (!freq_table) {
+ 		pr_err("%s: unable to alloc memory\n", __func__);
+ 		return -ENOMEM;
+diff --git a/drivers/slimbus/qcom-ctrl.c b/drivers/slimbus/qcom-ctrl.c
+index ffb46f915334..b21c1927eb40 100644
+--- a/drivers/slimbus/qcom-ctrl.c
++++ b/drivers/slimbus/qcom-ctrl.c
+@@ -541,7 +541,7 @@ static int qcom_slim_probe(struct platform_device *pdev)
+ 	ctrl->tx.sl_sz = SLIM_MSGQ_BUF_LEN;
+ 	ctrl->rx.n = QCOM_RX_MSGS;
+ 	ctrl->rx.sl_sz = SLIM_MSGQ_BUF_LEN;
+-	ctrl->wr_comp = kzalloc(sizeof(struct completion *) * QCOM_TX_MSGS,
++	ctrl->wr_comp = kzalloc(array_size(QCOM_TX_MSGS, sizeof(struct completion *)),
+ 				GFP_KERNEL);
+ 	if (!ctrl->wr_comp)
+ 		return -ENOMEM;
+diff --git a/drivers/soc/fsl/qbman/qman.c b/drivers/soc/fsl/qbman/qman.c
+index ba3cfa8e279b..edbdf520e07c 100644
+--- a/drivers/soc/fsl/qbman/qman.c
++++ b/drivers/soc/fsl/qbman/qman.c
+@@ -1181,7 +1181,7 @@ static int qman_create_portal(struct qman_portal *portal,
+ 	qm_dqrr_set_ithresh(p, QMAN_PIRQ_DQRR_ITHRESH);
+ 	qm_mr_set_ithresh(p, QMAN_PIRQ_MR_ITHRESH);
+ 	qm_out(p, QM_REG_ITPR, QMAN_PIRQ_IPERIOD);
+-	portal->cgrs = kmalloc(2 * sizeof(*cgrs), GFP_KERNEL);
++	portal->cgrs = kmalloc(array_size(2, sizeof(*cgrs)), GFP_KERNEL);
+ 	if (!portal->cgrs)
+ 		goto fail_cgrs;
+ 	/* initial snapshot is no-depletion */
+diff --git a/drivers/staging/lustre/lnet/lnet/lib-socket.c b/drivers/staging/lustre/lnet/lnet/lib-socket.c
+index 1bee667802b0..244a7a13947d 100644
+--- a/drivers/staging/lustre/lnet/lnet/lib-socket.c
++++ b/drivers/staging/lustre/lnet/lnet/lib-socket.c
+@@ -170,7 +170,7 @@ lnet_ipif_enumerate(char ***namesp)
+ 			      nalloc);
+ 		}
+ 
+-		ifr = kzalloc(nalloc * sizeof(*ifr), GFP_KERNEL);
++		ifr = kzalloc(array_size(nalloc, sizeof(*ifr)), GFP_KERNEL);
+ 		if (!ifr) {
+ 			CERROR("ENOMEM enumerating up to %d interfaces\n",
+ 			       nalloc);
+@@ -202,7 +202,7 @@ lnet_ipif_enumerate(char ***namesp)
+ 	if (!nfound)
+ 		goto out1;
+ 
+-	names = kzalloc(nfound * sizeof(*names), GFP_KERNEL);
++	names = kzalloc(array_size(nfound, sizeof(*names)), GFP_KERNEL);
+ 	if (!names) {
+ 		rc = -ENOMEM;
+ 		goto out1;
+diff --git a/drivers/staging/lustre/lnet/selftest/console.c b/drivers/staging/lustre/lnet/selftest/console.c
+index 1acd5cb324b1..76b2a6c895ed 100644
+--- a/drivers/staging/lustre/lnet/selftest/console.c
++++ b/drivers/staging/lustre/lnet/selftest/console.c
+@@ -861,7 +861,7 @@ lstcon_batch_add(char *name)
+ 		return -ENOMEM;
+ 	}
+ 
+-	bat->bat_cli_hash = kmalloc(sizeof(struct list_head) * LST_NODE_HASHSIZE,
++	bat->bat_cli_hash = kmalloc(array_size(LST_NODE_HASHSIZE, sizeof(struct list_head)),
+ 				    GFP_KERNEL);
+ 	if (!bat->bat_cli_hash) {
+ 		CERROR("Can't allocate hash for batch %s\n", name);
+@@ -870,7 +870,7 @@ lstcon_batch_add(char *name)
+ 		return -ENOMEM;
+ 	}
+ 
+-	bat->bat_srv_hash = kmalloc(sizeof(struct list_head) * LST_NODE_HASHSIZE,
++	bat->bat_srv_hash = kmalloc(array_size(LST_NODE_HASHSIZE, sizeof(struct list_head)),
+ 				    GFP_KERNEL);
+ 	if (!bat->bat_srv_hash) {
+ 		CERROR("Can't allocate hash for batch %s\n", name);
+@@ -2024,7 +2024,8 @@ lstcon_console_init(void)
+ 	INIT_LIST_HEAD(&console_session.ses_trans_list);
+ 
+ 	console_session.ses_ndl_hash =
+-		kmalloc(sizeof(struct list_head) * LST_GLOBAL_HASHSIZE, GFP_KERNEL);
++		kmalloc(array_size(LST_GLOBAL_HASHSIZE, sizeof(struct list_head)),
++			GFP_KERNEL);
+ 	if (!console_session.ses_ndl_hash)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/staging/lustre/lustre/obdclass/lustre_handles.c b/drivers/staging/lustre/lustre/obdclass/lustre_handles.c
+index f53b1a3c342e..8074d40a8f4c 100644
+--- a/drivers/staging/lustre/lustre/obdclass/lustre_handles.c
++++ b/drivers/staging/lustre/lustre/obdclass/lustre_handles.c
+@@ -184,8 +184,8 @@ int class_handle_init(void)
+ 
+ 	LASSERT(!handle_hash);
+ 
+-	handle_hash = kvzalloc(sizeof(*bucket) * HANDLE_HASH_SIZE,
+-				      GFP_KERNEL);
++	handle_hash = kvzalloc(array_size(HANDLE_HASH_SIZE, sizeof(*bucket)),
++			       GFP_KERNEL);
+ 	if (!handle_hash)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/staging/media/atomisp/pci/atomisp2/atomisp_compat_css20.c b/drivers/staging/media/atomisp/pci/atomisp2/atomisp_compat_css20.c
+index f668c68dc33a..06e6e24c2840 100644
+--- a/drivers/staging/media/atomisp/pci/atomisp2/atomisp_compat_css20.c
++++ b/drivers/staging/media/atomisp/pci/atomisp2/atomisp_compat_css20.c
+@@ -4313,8 +4313,8 @@ int atomisp_css_create_acc_pipe(struct atomisp_sub_device *asd)
+ 
+ 	pipe_config = &stream_env->pipe_configs[CSS_PIPE_ID_ACC];
+ 	ia_css_pipe_config_defaults(pipe_config);
+-	asd->acc.acc_stages = kzalloc(MAX_ACC_STAGES *
+-				sizeof(void *), GFP_KERNEL);
++	asd->acc.acc_stages = kzalloc(array_size(MAX_ACC_STAGES, sizeof(void *)),
++				      GFP_KERNEL);
+ 	if (!asd->acc.acc_stages)
+ 		return -ENOMEM;
+ 	pipe_config->acc_stages = asd->acc.acc_stages;
+diff --git a/drivers/staging/media/atomisp/pci/atomisp2/atomisp_fops.c b/drivers/staging/media/atomisp/pci/atomisp2/atomisp_fops.c
+index 709137f25700..f37fe9d49d37 100644
+--- a/drivers/staging/media/atomisp/pci/atomisp2/atomisp_fops.c
++++ b/drivers/staging/media/atomisp/pci/atomisp2/atomisp_fops.c
+@@ -1132,7 +1132,7 @@ static int remove_pad_from_frame(struct atomisp_device *isp,
+ 	ia_css_ptr load = in_frame->data;
+ 	ia_css_ptr store = load;
+ 
+-	buffer = kmalloc(width*sizeof(load), GFP_KERNEL);
++	buffer = kmalloc(array_size(width, sizeof(load)), GFP_KERNEL);
+ 	if (!buffer)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/staging/media/atomisp/pci/atomisp2/hmm/hmm_reserved_pool.c b/drivers/staging/media/atomisp/pci/atomisp2/hmm/hmm_reserved_pool.c
+index f300e7547997..9365bce201e8 100644
+--- a/drivers/staging/media/atomisp/pci/atomisp2/hmm/hmm_reserved_pool.c
++++ b/drivers/staging/media/atomisp/pci/atomisp2/hmm/hmm_reserved_pool.c
+@@ -91,8 +91,8 @@ static int hmm_reserved_pool_setup(struct hmm_reserved_pool_info **repool_info,
+ 	if (unlikely(!pool_info))
+ 		return -ENOMEM;
+ 
+-	pool_info->pages = kmalloc(sizeof(struct page *) * pool_size,
+-			GFP_KERNEL);
++	pool_info->pages = kmalloc(array_size(pool_size, sizeof(struct page *)),
++				   GFP_KERNEL);
+ 	if (unlikely(!pool_info->pages)) {
+ 		kfree(pool_info);
+ 		return -ENOMEM;
+diff --git a/drivers/staging/mt7621-pinctrl/pinctrl-rt2880.c b/drivers/staging/mt7621-pinctrl/pinctrl-rt2880.c
+index 3d2d1c2a006f..cc8c4e2a9614 100644
+--- a/drivers/staging/mt7621-pinctrl/pinctrl-rt2880.c
++++ b/drivers/staging/mt7621-pinctrl/pinctrl-rt2880.c
+@@ -143,7 +143,8 @@ static int rt2880_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrldev,
+ 	if (!max_maps)
+ 		return max_maps;
+ 
+-	*map = kzalloc(max_maps * sizeof(struct pinctrl_map), GFP_KERNEL);
++	*map = kzalloc(array_size(max_maps, sizeof(struct pinctrl_map)),
++		       GFP_KERNEL);
+ 	if (!*map)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/staging/rtl8192u/ieee80211/ieee80211_rx.c b/drivers/staging/rtl8192u/ieee80211/ieee80211_rx.c
+index 37a610d05ad2..3d052f932226 100644
+--- a/drivers/staging/rtl8192u/ieee80211/ieee80211_rx.c
++++ b/drivers/staging/rtl8192u/ieee80211/ieee80211_rx.c
+@@ -597,8 +597,8 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
+ 	bool			bMatchWinStart = false, bPktInBuf = false;
+ 	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): Seq is %d,pTS->RxIndicateSeq is %d, WinSize is %d\n",__func__,SeqNum,pTS->RxIndicateSeq,WinSize);
+ 
+-	prxbIndicateArray = kmalloc(sizeof(struct ieee80211_rxb *) *
+-			REORDER_WIN_SIZE, GFP_KERNEL);
++	prxbIndicateArray = kmalloc(array_size(REORDER_WIN_SIZE, sizeof(struct ieee80211_rxb *)),
++				    GFP_KERNEL);
+ 	if (!prxbIndicateArray)
+ 		return;
+ 
+diff --git a/drivers/staging/unisys/visorhba/visorhba_main.c b/drivers/staging/unisys/visorhba/visorhba_main.c
+index 167e98f8688e..c50c80c4c028 100644
+--- a/drivers/staging/unisys/visorhba/visorhba_main.c
++++ b/drivers/staging/unisys/visorhba/visorhba_main.c
+@@ -865,7 +865,7 @@ static void do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp,
+ 		if (cmdrsp->scsi.no_disk_result == 0)
+ 			return;
+ 
+-		buf = kzalloc(sizeof(char) * 36, GFP_KERNEL);
++		buf = kzalloc(array_size(36, sizeof(char)), GFP_KERNEL);
+ 		if (!buf)
+ 			return;
+ 
+diff --git a/drivers/target/target_core_transport.c b/drivers/target/target_core_transport.c
+index 4558f2e1fe1b..57ebd8f96c4c 100644
+--- a/drivers/target/target_core_transport.c
++++ b/drivers/target/target_core_transport.c
+@@ -250,7 +250,7 @@ int transport_alloc_session_tags(struct se_session *se_sess,
+ {
+ 	int rc;
+ 
+-	se_sess->sess_cmd_map = kzalloc(tag_num * tag_size,
++	se_sess->sess_cmd_map = kzalloc(array_size(tag_size, tag_num),
+ 					GFP_KERNEL | __GFP_NOWARN | __GFP_RETRY_MAYFAIL);
+ 	if (!se_sess->sess_cmd_map) {
+ 		se_sess->sess_cmd_map = vzalloc(tag_num * tag_size);
+diff --git a/drivers/thermal/int340x_thermal/int340x_thermal_zone.c b/drivers/thermal/int340x_thermal/int340x_thermal_zone.c
+index 145a5c53ff5c..a5e57829815a 100644
+--- a/drivers/thermal/int340x_thermal/int340x_thermal_zone.c
++++ b/drivers/thermal/int340x_thermal/int340x_thermal_zone.c
+@@ -239,9 +239,8 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
+ 	if (ACPI_FAILURE(status))
+ 		trip_cnt = 0;
+ 	else {
+-		int34x_thermal_zone->aux_trips = kzalloc(
+-				sizeof(*int34x_thermal_zone->aux_trips) *
+-				trip_cnt, GFP_KERNEL);
++		int34x_thermal_zone->aux_trips = kzalloc(array_size(trip_cnt, sizeof(*int34x_thermal_zone->aux_trips)),
++							 GFP_KERNEL);
+ 		if (!int34x_thermal_zone->aux_trips) {
+ 			ret = -ENOMEM;
+ 			goto err_trip_alloc;
+diff --git a/drivers/thermal/x86_pkg_temp_thermal.c b/drivers/thermal/x86_pkg_temp_thermal.c
+index 1a6c88b10a39..0467e0e777cc 100644
+--- a/drivers/thermal/x86_pkg_temp_thermal.c
++++ b/drivers/thermal/x86_pkg_temp_thermal.c
+@@ -516,7 +516,8 @@ static int __init pkg_temp_thermal_init(void)
+ 		return -ENODEV;
+ 
+ 	max_packages = topology_max_packages();
+-	packages = kzalloc(max_packages * sizeof(struct pkg_device *), GFP_KERNEL);
++	packages = kzalloc(array_size(max_packages, sizeof(struct pkg_device *)),
++			   GFP_KERNEL);
+ 	if (!packages)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/tty/ehv_bytechan.c b/drivers/tty/ehv_bytechan.c
+index 47ac56817c43..6c331d0c723f 100644
+--- a/drivers/tty/ehv_bytechan.c
++++ b/drivers/tty/ehv_bytechan.c
+@@ -754,7 +754,8 @@ static int __init ehv_bc_init(void)
+ 	 * array, then you can use pointer math (e.g. "bc - bcs") to get its
+ 	 * tty index.
+ 	 */
+-	bcs = kzalloc(count * sizeof(struct ehv_bc_data), GFP_KERNEL);
++	bcs = kzalloc(array_size(count, sizeof(struct ehv_bc_data)),
++		      GFP_KERNEL);
+ 	if (!bcs)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/tty/goldfish.c b/drivers/tty/goldfish.c
+index 1c1bd0afcd48..b200df58d0bf 100644
+--- a/drivers/tty/goldfish.c
++++ b/drivers/tty/goldfish.c
+@@ -245,8 +245,8 @@ static int goldfish_tty_create_driver(void)
+ 	int ret;
+ 	struct tty_driver *tty;
+ 
+-	goldfish_ttys = kzalloc(sizeof(*goldfish_ttys) *
+-				goldfish_tty_line_count, GFP_KERNEL);
++	goldfish_ttys = kzalloc(array_size(goldfish_tty_line_count, sizeof(*goldfish_ttys)),
++				GFP_KERNEL);
+ 	if (goldfish_ttys == NULL) {
+ 		ret = -ENOMEM;
+ 		goto err_alloc_goldfish_ttys_failed;
+diff --git a/drivers/tty/hvc/hvcs.c b/drivers/tty/hvc/hvcs.c
+index 1db1d97e72e7..91541f5c617f 100644
+--- a/drivers/tty/hvc/hvcs.c
++++ b/drivers/tty/hvc/hvcs.c
+@@ -1441,7 +1441,8 @@ static int hvcs_alloc_index_list(int n)
+ {
+ 	int i;
+ 
+-	hvcs_index_list = kmalloc(n * sizeof(hvcs_index_count),GFP_KERNEL);
++	hvcs_index_list = kmalloc(array_size(n, sizeof(hvcs_index_count)),
++				  GFP_KERNEL);
+ 	if (!hvcs_index_list)
+ 		return -ENOMEM;
+ 	hvcs_index_count = n;
+diff --git a/drivers/tty/serial/atmel_serial.c b/drivers/tty/serial/atmel_serial.c
+index e287fe8f10fc..14ab25b9f81e 100644
+--- a/drivers/tty/serial/atmel_serial.c
++++ b/drivers/tty/serial/atmel_serial.c
+@@ -2739,8 +2739,8 @@ static int atmel_serial_probe(struct platform_device *pdev)
+ 
+ 	if (!atmel_use_pdc_rx(&atmel_port->uart)) {
+ 		ret = -ENOMEM;
+-		data = kmalloc(sizeof(struct atmel_uart_char)
+-				* ATMEL_SERIAL_RINGSIZE, GFP_KERNEL);
++		data = kmalloc(array_size(ATMEL_SERIAL_RINGSIZE, sizeof(struct atmel_uart_char)),
++			       GFP_KERNEL);
+ 		if (!data)
+ 			goto err_alloc_ring;
+ 		atmel_port->rx_ring.buf = data;
+diff --git a/drivers/tty/serial/pch_uart.c b/drivers/tty/serial/pch_uart.c
+index 760d5dd0aada..c8db0dfb705a 100644
+--- a/drivers/tty/serial/pch_uart.c
++++ b/drivers/tty/serial/pch_uart.c
+@@ -991,7 +991,8 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
+ 
+ 	priv->tx_dma_use = 1;
+ 
+-	priv->sg_tx_p = kzalloc(sizeof(struct scatterlist)*num, GFP_ATOMIC);
++	priv->sg_tx_p = kzalloc(array_size(num, sizeof(struct scatterlist)),
++				GFP_ATOMIC);
+ 	if (!priv->sg_tx_p) {
+ 		dev_err(priv->port.dev, "%s:kzalloc Failed\n", __func__);
+ 		return 0;
+diff --git a/drivers/tty/serial/sunsab.c b/drivers/tty/serial/sunsab.c
+index b93d0225f8c9..dac59df12b94 100644
+--- a/drivers/tty/serial/sunsab.c
++++ b/drivers/tty/serial/sunsab.c
+@@ -1125,8 +1125,8 @@ static int __init sunsab_init(void)
+ 	}
+ 
+ 	if (num_channels) {
+-		sunsab_ports = kzalloc(sizeof(struct uart_sunsab_port) *
+-				       num_channels, GFP_KERNEL);
++		sunsab_ports = kzalloc(array_size(num_channels, sizeof(struct uart_sunsab_port)),
++				       GFP_KERNEL);
+ 		if (!sunsab_ports)
+ 			return -ENOMEM;
+ 
+diff --git a/drivers/tty/vt/consolemap.c b/drivers/tty/vt/consolemap.c
+index 722a6690c70d..fe01c6a9da90 100644
+--- a/drivers/tty/vt/consolemap.c
++++ b/drivers/tty/vt/consolemap.c
+@@ -231,7 +231,8 @@ static void set_inverse_trans_unicode(struct vc_data *conp,
+ 	q = p->inverse_trans_unicode;
+ 	if (!q) {
+ 		q = p->inverse_trans_unicode =
+-			kmalloc(MAX_GLYPH * sizeof(u16), GFP_KERNEL);
++			kmalloc(array_size(MAX_GLYPH, sizeof(u16)),
++				GFP_KERNEL);
+ 		if (!q)
+ 			return;
+ 	}
+@@ -479,7 +480,8 @@ con_insert_unipair(struct uni_pagedir *p, u_short unicode, u_short fontpos)
+ 
+ 	p1 = p->uni_pgdir[n = unicode >> 11];
+ 	if (!p1) {
+-		p1 = p->uni_pgdir[n] = kmalloc(32*sizeof(u16 *), GFP_KERNEL);
++		p1 = p->uni_pgdir[n] = kmalloc(array_size(32, sizeof(u16 *)),
++					       GFP_KERNEL);
+ 		if (!p1) return -ENOMEM;
+ 		for (i = 0; i < 32; i++)
+ 			p1[i] = NULL;
+@@ -487,7 +489,7 @@ con_insert_unipair(struct uni_pagedir *p, u_short unicode, u_short fontpos)
+ 
+ 	p2 = p1[n = (unicode >> 6) & 0x1f];
+ 	if (!p2) {
+-		p2 = p1[n] = kmalloc(64*sizeof(u16), GFP_KERNEL);
++		p2 = p1[n] = kmalloc(array_size(64, sizeof(u16)), GFP_KERNEL);
+ 		if (!p2) return -ENOMEM;
+ 		memset(p2, 0xff, 64*sizeof(u16)); /* No glyphs for the characters (yet) */
+ 	}
+diff --git a/drivers/tty/vt/keyboard.c b/drivers/tty/vt/keyboard.c
+index 5d412df8e943..66fac60c9fee 100644
+--- a/drivers/tty/vt/keyboard.c
++++ b/drivers/tty/vt/keyboard.c
+@@ -1624,8 +1624,8 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
+ 		struct kbdiacr *dia;
+ 		int i;
+ 
+-		dia = kmalloc(MAX_DIACR * sizeof(struct kbdiacr),
+-								GFP_KERNEL);
++		dia = kmalloc(array_size(MAX_DIACR, sizeof(struct kbdiacr)),
++			      GFP_KERNEL);
+ 		if (!dia)
+ 			return -ENOMEM;
+ 
+@@ -1657,8 +1657,8 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
+ 		struct kbdiacrsuc __user *a = udp;
+ 		void *buf;
+ 
+-		buf = kmalloc(MAX_DIACR * sizeof(struct kbdiacruc),
+-								GFP_KERNEL);
++		buf = kmalloc(array_size(MAX_DIACR, sizeof(struct kbdiacruc)),
++			      GFP_KERNEL);
+ 		if (buf == NULL)
+ 			return -ENOMEM;
+ 
+diff --git a/drivers/uio/uio_pruss.c b/drivers/uio/uio_pruss.c
+index 31d5b1d3b5af..12070589a1b7 100644
+--- a/drivers/uio/uio_pruss.c
++++ b/drivers/uio/uio_pruss.c
+@@ -129,7 +129,8 @@ static int pruss_probe(struct platform_device *pdev)
+ 	if (!gdev)
+ 		return -ENOMEM;
+ 
+-	gdev->info = kzalloc(sizeof(*p) * MAX_PRUSS_EVT, GFP_KERNEL);
++	gdev->info = kzalloc(array_size(MAX_PRUSS_EVT, sizeof(*p)),
++			     GFP_KERNEL);
+ 	if (!gdev->info) {
+ 		kfree(gdev);
+ 		return -ENOMEM;
+diff --git a/drivers/usb/core/devio.c b/drivers/usb/core/devio.c
+index 76e16c5251b9..8ec3da0cac27 100644
+--- a/drivers/usb/core/devio.c
++++ b/drivers/usb/core/devio.c
+@@ -897,7 +897,7 @@ static int parse_usbdevfs_streams(struct usb_dev_state *ps,
+ 	if (num_streams_ret && (num_streams < 2 || num_streams > 65536))
+ 		return -EINVAL;
+ 
+-	eps = kmalloc(num_eps * sizeof(*eps), GFP_KERNEL);
++	eps = kmalloc(array_size(num_eps, sizeof(*eps)), GFP_KERNEL);
+ 	if (!eps)
+ 		return -ENOMEM;
+ 
+@@ -1602,7 +1602,7 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
+ 	as->mem_usage = u;
+ 
+ 	if (num_sgs) {
+-		as->urb->sg = kmalloc(num_sgs * sizeof(struct scatterlist),
++		as->urb->sg = kmalloc(array_size(num_sgs, sizeof(struct scatterlist)),
+ 				      GFP_KERNEL);
+ 		if (!as->urb->sg) {
+ 			ret = -ENOMEM;
+diff --git a/drivers/usb/core/hub.c b/drivers/usb/core/hub.c
+index f6ea16e9f6bb..67ab881186b2 100644
+--- a/drivers/usb/core/hub.c
++++ b/drivers/usb/core/hub.c
+@@ -1371,7 +1371,8 @@ static int hub_configure(struct usb_hub *hub,
+ 	dev_info(hub_dev, "%d port%s detected\n", maxchild,
+ 			(maxchild == 1) ? "" : "s");
+ 
+-	hub->ports = kzalloc(maxchild * sizeof(struct usb_port *), GFP_KERNEL);
++	hub->ports = kzalloc(array_size(maxchild, sizeof(struct usb_port *)),
++			     GFP_KERNEL);
+ 	if (!hub->ports) {
+ 		ret = -ENOMEM;
+ 		goto fail;
+diff --git a/drivers/usb/core/message.c b/drivers/usb/core/message.c
+index 0c11d40a12bc..f6fdc9f54ec7 100644
+--- a/drivers/usb/core/message.c
++++ b/drivers/usb/core/message.c
+@@ -1824,8 +1824,8 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
+ 	n = nintf = 0;
+ 	if (cp) {
+ 		nintf = cp->desc.bNumInterfaces;
+-		new_interfaces = kmalloc(nintf * sizeof(*new_interfaces),
+-				GFP_NOIO);
++		new_interfaces = kmalloc(array_size(nintf, sizeof(*new_interfaces)),
++					 GFP_NOIO);
+ 		if (!new_interfaces)
+ 			return -ENOMEM;
+ 
+diff --git a/drivers/usb/dwc2/hcd.c b/drivers/usb/dwc2/hcd.c
+index 190f95964000..3a7f6f7cef64 100644
+--- a/drivers/usb/dwc2/hcd.c
++++ b/drivers/usb/dwc2/hcd.c
+@@ -5077,13 +5077,12 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
+ 	dev_dbg(hsotg->dev, "hcfg=%08x\n", hcfg);
+ 
+ #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
+-	hsotg->frame_num_array = kzalloc(sizeof(*hsotg->frame_num_array) *
+-					 FRAME_NUM_ARRAY_SIZE, GFP_KERNEL);
++	hsotg->frame_num_array = kzalloc(array_size(FRAME_NUM_ARRAY_SIZE, sizeof(*hsotg->frame_num_array)),
++					 GFP_KERNEL);
+ 	if (!hsotg->frame_num_array)
+ 		goto error1;
+-	hsotg->last_frame_num_array = kzalloc(
+-			sizeof(*hsotg->last_frame_num_array) *
+-			FRAME_NUM_ARRAY_SIZE, GFP_KERNEL);
++	hsotg->last_frame_num_array = kzalloc(array_size(FRAME_NUM_ARRAY_SIZE, sizeof(*hsotg->last_frame_num_array)),
++					      GFP_KERNEL);
+ 	if (!hsotg->last_frame_num_array)
+ 		goto error1;
+ #endif
+diff --git a/drivers/usb/gadget/udc/bdc/bdc_ep.c b/drivers/usb/gadget/udc/bdc/bdc_ep.c
+index 03149b9d7ea7..5ec898a79dfd 100644
+--- a/drivers/usb/gadget/udc/bdc/bdc_ep.c
++++ b/drivers/usb/gadget/udc/bdc/bdc_ep.c
+@@ -138,9 +138,8 @@ static int ep_bd_list_alloc(struct bdc_ep *ep)
+ 		__func__, ep, num_tabs);
+ 
+ 	/* Allocate memory for table array */
+-	ep->bd_list.bd_table_array = kzalloc(
+-					num_tabs * sizeof(struct bd_table *),
+-					GFP_ATOMIC);
++	ep->bd_list.bd_table_array = kzalloc(array_size(num_tabs, sizeof(struct bd_table *)),
++					     GFP_ATOMIC);
+ 	if (!ep->bd_list.bd_table_array)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/usb/host/fhci-tds.c b/drivers/usb/host/fhci-tds.c
+index 3a4e8f616751..275293f7212b 100644
+--- a/drivers/usb/host/fhci-tds.c
++++ b/drivers/usb/host/fhci-tds.c
+@@ -189,7 +189,7 @@ u32 fhci_create_ep(struct fhci_usb *usb, enum fhci_mem_alloc data_mem,
+ 			goto err;
+ 		}
+ 
+-		buff = kmalloc(1028 * sizeof(*buff), GFP_KERNEL);
++		buff = kmalloc(array_size(1028, sizeof(*buff)), GFP_KERNEL);
+ 		if (!buff) {
+ 			kfree(pkt);
+ 			err_for = "buffer";
+diff --git a/drivers/usb/host/ohci-dbg.c b/drivers/usb/host/ohci-dbg.c
+index ac7d4ac34b02..de7e249c1eef 100644
+--- a/drivers/usb/host/ohci-dbg.c
++++ b/drivers/usb/host/ohci-dbg.c
+@@ -492,7 +492,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
+ 	char			*next;
+ 	unsigned		i;
+ 
+-	seen = kmalloc(DBG_SCHED_LIMIT * sizeof *seen, GFP_ATOMIC);
++	seen = kmalloc(array_size(DBG_SCHED_LIMIT, sizeof(*seen)), GFP_ATOMIC);
+ 	if (!seen)
+ 		return 0;
+ 	seen_count = 0;
+diff --git a/drivers/usb/host/xhci-mem.c b/drivers/usb/host/xhci-mem.c
+index e5ace8995b3b..0b0d4893715e 100644
+--- a/drivers/usb/host/xhci-mem.c
++++ b/drivers/usb/host/xhci-mem.c
+@@ -633,9 +633,8 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
+ 	stream_info->num_stream_ctxs = num_stream_ctxs;
+ 
+ 	/* Initialize the array of virtual pointers to stream rings. */
+-	stream_info->stream_rings = kzalloc(
+-			sizeof(struct xhci_ring *)*num_streams,
+-			mem_flags);
++	stream_info->stream_rings = kzalloc(array_size(num_streams, sizeof(struct xhci_ring *)),
++					    mem_flags);
+ 	if (!stream_info->stream_rings)
+ 		goto cleanup_info;
+ 
+@@ -1652,7 +1651,8 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
+ 	if (!xhci->scratchpad->sp_array)
+ 		goto fail_sp2;
+ 
+-	xhci->scratchpad->sp_buffers = kzalloc(sizeof(void *) * num_sp, flags);
++	xhci->scratchpad->sp_buffers = kzalloc(array_size(num_sp, sizeof(void *)),
++					       flags);
+ 	if (!xhci->scratchpad->sp_buffers)
+ 		goto fail_sp3;
+ 
+@@ -2233,11 +2233,13 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
+ 	u32 cap_start;
+ 
+ 	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
+-	xhci->port_array = kzalloc(sizeof(*xhci->port_array)*num_ports, flags);
++	xhci->port_array = kzalloc(array_size(num_ports, sizeof(*xhci->port_array)),
++				   flags);
+ 	if (!xhci->port_array)
+ 		return -ENOMEM;
+ 
+-	xhci->rh_bw = kzalloc(sizeof(*xhci->rh_bw)*num_ports, flags);
++	xhci->rh_bw = kzalloc(array_size(num_ports, sizeof(*xhci->rh_bw)),
++			      flags);
+ 	if (!xhci->rh_bw)
+ 		return -ENOMEM;
+ 	for (i = 0; i < num_ports; i++) {
+@@ -2264,7 +2266,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
+ 						      XHCI_EXT_CAPS_PROTOCOL);
+ 	}
+ 
+-	xhci->ext_caps = kzalloc(sizeof(*xhci->ext_caps) * cap_count, flags);
++	xhci->ext_caps = kzalloc(array_size(cap_count, sizeof(*xhci->ext_caps)),
++				 flags);
+ 	if (!xhci->ext_caps)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/usb/renesas_usbhs/mod_gadget.c b/drivers/usb/renesas_usbhs/mod_gadget.c
+index 34ee9ebe12a3..46380dec3fd9 100644
+--- a/drivers/usb/renesas_usbhs/mod_gadget.c
++++ b/drivers/usb/renesas_usbhs/mod_gadget.c
+@@ -1068,7 +1068,8 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
+ 	if (!gpriv)
+ 		return -ENOMEM;
+ 
+-	uep = kzalloc(sizeof(struct usbhsg_uep) * pipe_size, GFP_KERNEL);
++	uep = kzalloc(array_size(pipe_size, sizeof(struct usbhsg_uep)),
++		      GFP_KERNEL);
+ 	if (!uep) {
+ 		ret = -ENOMEM;
+ 		goto usbhs_mod_gadget_probe_err_gpriv;
+diff --git a/drivers/usb/renesas_usbhs/pipe.c b/drivers/usb/renesas_usbhs/pipe.c
+index 9677e0e31475..8c5ceeb47dd3 100644
+--- a/drivers/usb/renesas_usbhs/pipe.c
++++ b/drivers/usb/renesas_usbhs/pipe.c
+@@ -803,7 +803,8 @@ int usbhs_pipe_probe(struct usbhs_priv *priv)
  		return -EINVAL;
  	}
  
--	wrm->q_arr = kzalloc(sizeof(struct csio_q *) * wrm->num_q, GFP_KERNEL);
-+	wrm->q_arr = kzalloc(array_size(sizeof(struct csio_q *), wrm->num_q),
+-	info->pipe = kzalloc(sizeof(struct usbhs_pipe) * pipe_size, GFP_KERNEL);
++	info->pipe = kzalloc(array_size(pipe_size, sizeof(struct usbhs_pipe)),
 +			     GFP_KERNEL);
- 	if (!wrm->q_arr)
- 		goto err;
- 
-diff --git a/drivers/scsi/dpt_i2o.c b/drivers/scsi/dpt_i2o.c
-index 5ceea8da7bb6..24af766ca1cb 100644
---- a/drivers/scsi/dpt_i2o.c
-+++ b/drivers/scsi/dpt_i2o.c
-@@ -1739,7 +1739,7 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
- 		reply_size = REPLY_FRAME_SIZE;
- 	}
- 	reply_size *= 4;
--	reply = kzalloc(REPLY_FRAME_SIZE*4, GFP_KERNEL);
-+	reply = kzalloc(array_size(REPLY_FRAME_SIZE, 4), GFP_KERNEL);
- 	if(reply == NULL) {
- 		printk(KERN_WARNING"%s: Could not allocate reply buffer\n",pHba->name);
- 		return -ENOMEM;
-diff --git a/drivers/scsi/esas2r/esas2r_init.c b/drivers/scsi/esas2r/esas2r_init.c
-index ed2dd0d23a2a..99033d53570b 100644
---- a/drivers/scsi/esas2r/esas2r_init.c
-+++ b/drivers/scsi/esas2r/esas2r_init.c
-@@ -854,8 +854,8 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
- 
- 	/* allocate the request table */
- 	a->req_table =
--		kzalloc((num_requests + num_ae_requests +
--			 1) * sizeof(struct esas2r_request *), GFP_KERNEL);
-+		kzalloc(array_size((num_requests + num_ae_requests + 1), sizeof(struct esas2r_request *)),
-+			GFP_KERNEL);
- 
- 	if (a->req_table == NULL) {
- 		esas2r_log(ESAS2R_LOG_CRIT,
-diff --git a/drivers/scsi/hpsa.c b/drivers/scsi/hpsa.c
-index 307344abc722..614ce0c52b81 100644
---- a/drivers/scsi/hpsa.c
-+++ b/drivers/scsi/hpsa.c
-@@ -2173,14 +2173,14 @@ static int hpsa_allocate_ioaccel2_sg_chain_blocks(struct ctlr_info *h)
- 		return 0;
- 
- 	h->ioaccel2_cmd_sg_list =
--		kzalloc(sizeof(*h->ioaccel2_cmd_sg_list) * h->nr_cmds,
--					GFP_KERNEL);
-+		kzalloc(array_size(sizeof(*h->ioaccel2_cmd_sg_list), h->nr_cmds),
-+			GFP_KERNEL);
- 	if (!h->ioaccel2_cmd_sg_list)
- 		return -ENOMEM;
- 	for (i = 0; i < h->nr_cmds; i++) {
- 		h->ioaccel2_cmd_sg_list[i] =
--			kmalloc(sizeof(*h->ioaccel2_cmd_sg_list[i]) *
--					h->maxsgentries, GFP_KERNEL);
-+			kmalloc(array_size(sizeof(*h->ioaccel2_cmd_sg_list[i]), h->maxsgentries),
-+				GFP_KERNEL);
- 		if (!h->ioaccel2_cmd_sg_list[i])
- 			goto clean;
- 	}
-@@ -2212,14 +2212,14 @@ static int hpsa_alloc_sg_chain_blocks(struct ctlr_info *h)
- 	if (h->chainsize <= 0)
- 		return 0;
- 
--	h->cmd_sg_list = kzalloc(sizeof(*h->cmd_sg_list) * h->nr_cmds,
--				GFP_KERNEL);
-+	h->cmd_sg_list = kzalloc(array_size(sizeof(*h->cmd_sg_list), h->nr_cmds),
-+				 GFP_KERNEL);
- 	if (!h->cmd_sg_list)
+ 	if (!info->pipe)
  		return -ENOMEM;
  
- 	for (i = 0; i < h->nr_cmds; i++) {
--		h->cmd_sg_list[i] = kmalloc(sizeof(*h->cmd_sg_list[i]) *
--						h->chainsize, GFP_KERNEL);
-+		h->cmd_sg_list[i] = kmalloc(array_size(sizeof(*h->cmd_sg_list[i]), h->chainsize),
-+					    GFP_KERNEL);
- 		if (!h->cmd_sg_list[i])
- 			goto clean;
+diff --git a/drivers/usb/serial/iuu_phoenix.c b/drivers/usb/serial/iuu_phoenix.c
+index 62c91e360baf..19d4f6576cdb 100644
+--- a/drivers/usb/serial/iuu_phoenix.c
++++ b/drivers/usb/serial/iuu_phoenix.c
+@@ -736,7 +736,7 @@ static int iuu_uart_on(struct usb_serial_port *port)
+ 	int status;
+ 	u8 *buf;
  
-@@ -7156,7 +7156,7 @@ static int controller_reset_failed(struct CfgTable __iomem *cfgtable)
- 	char *driver_ver, *old_driver_ver;
- 	int rc, size = sizeof(cfgtable->driver_version);
+-	buf = kmalloc(sizeof(u8) * 4, GFP_KERNEL);
++	buf = kmalloc(array_size(4, sizeof(u8)), GFP_KERNEL);
  
--	old_driver_ver = kmalloc(2 * size, GFP_KERNEL);
-+	old_driver_ver = kmalloc(array_size(2, size), GFP_KERNEL);
- 	if (!old_driver_ver)
+ 	if (!buf)
  		return -ENOMEM;
- 	driver_ver = old_driver_ver + size;
-@@ -7936,9 +7936,8 @@ static void hpsa_free_cmd_pool(struct ctlr_info *h)
+@@ -790,7 +790,7 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
+ 	unsigned int T1FrekvensHZ = 0;
  
- static int hpsa_alloc_cmd_pool(struct ctlr_info *h)
- {
--	h->cmd_pool_bits = kzalloc(
--		DIV_ROUND_UP(h->nr_cmds, BITS_PER_LONG) *
--		sizeof(unsigned long), GFP_KERNEL);
-+	h->cmd_pool_bits = kzalloc(array_size(DIV_ROUND_UP(h->nr_cmds, BITS_PER_LONG), sizeof(unsigned long)),
-+				   GFP_KERNEL);
- 	h->cmd_pool = pci_alloc_consistent(h->pdev,
- 		    h->nr_cmds * sizeof(*h->cmd_pool),
- 		    &(h->cmd_pool_dhandle));
-diff --git a/drivers/scsi/ipr.c b/drivers/scsi/ipr.c
-index d28b68c0d25d..45b9469cb963 100644
---- a/drivers/scsi/ipr.c
-+++ b/drivers/scsi/ipr.c
-@@ -9711,8 +9711,8 @@ static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
- 	int i, rc = -ENOMEM;
+ 	dev_dbg(&port->dev, "%s - enter baud_base=%d\n", __func__, baud_base);
+-	dataout = kmalloc(sizeof(u8) * 5, GFP_KERNEL);
++	dataout = kmalloc(array_size(5, sizeof(u8)), GFP_KERNEL);
  
- 	ENTER;
--	ioa_cfg->res_entries = kzalloc(sizeof(struct ipr_resource_entry) *
--				       ioa_cfg->max_devs_supported, GFP_KERNEL);
-+	ioa_cfg->res_entries = kzalloc(array_size(sizeof(struct ipr_resource_entry), ioa_cfg->max_devs_supported),
-+				       GFP_KERNEL);
- 
- 	if (!ioa_cfg->res_entries)
- 		goto out;
-diff --git a/drivers/scsi/libiscsi.c b/drivers/scsi/libiscsi.c
-index 15a2fef51e38..5016c429bbe1 100644
---- a/drivers/scsi/libiscsi.c
-+++ b/drivers/scsi/libiscsi.c
-@@ -2576,7 +2576,8 @@ iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
- 	 * the array. */
- 	if (items)
- 		num_arrays++;
--	q->pool = kvzalloc(num_arrays * max * sizeof(void*), GFP_KERNEL);
-+	q->pool = kvzalloc(array3_size(num_arrays, max, sizeof(void *)),
-+			   GFP_KERNEL);
- 	if (q->pool == NULL)
+ 	if (!dataout)
  		return -ENOMEM;
+diff --git a/drivers/usb/storage/sddr09.c b/drivers/usb/storage/sddr09.c
+index 1cf7dbfe277c..8181a49f0e21 100644
+--- a/drivers/usb/storage/sddr09.c
++++ b/drivers/usb/storage/sddr09.c
+@@ -1231,8 +1231,10 @@ sddr09_read_map(struct us_data *us) {
  
-diff --git a/drivers/scsi/libsas/sas_expander.c b/drivers/scsi/libsas/sas_expander.c
-index 8b7114348def..a8e185db1900 100644
---- a/drivers/scsi/libsas/sas_expander.c
-+++ b/drivers/scsi/libsas/sas_expander.c
-@@ -443,7 +443,8 @@ static int sas_expander_discover(struct domain_device *dev)
- 	struct expander_device *ex = &dev->ex_dev;
- 	int res = -ENOMEM;
+ 	kfree(info->lba_to_pba);
+ 	kfree(info->pba_to_lba);
+-	info->lba_to_pba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
+-	info->pba_to_lba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
++	info->lba_to_pba = kmalloc(array_size(numblocks, sizeof(int)),
++				   GFP_NOIO);
++	info->pba_to_lba = kmalloc(array_size(numblocks, sizeof(int)),
++				   GFP_NOIO);
  
--	ex->ex_phy = kzalloc(sizeof(*ex->ex_phy)*ex->num_phys, GFP_KERNEL);
-+	ex->ex_phy = kzalloc(array_size(sizeof(*ex->ex_phy), ex->num_phys),
-+			     GFP_KERNEL);
- 	if (!ex->ex_phy)
- 		return -ENOMEM;
- 
-diff --git a/drivers/scsi/lpfc/lpfc_sli.c b/drivers/scsi/lpfc/lpfc_sli.c
-index ac999abb4466..87f2616e7a65 100644
---- a/drivers/scsi/lpfc/lpfc_sli.c
-+++ b/drivers/scsi/lpfc/lpfc_sli.c
-@@ -5121,9 +5121,8 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
- 				goto lpfc_sli_hba_setup_error;
- 			}
- 
--			phba->vpi_ids = kzalloc(
--					(phba->max_vpi+1) * sizeof(uint16_t),
--					GFP_KERNEL);
-+			phba->vpi_ids = kzalloc(array_size((phba->max_vpi + 1), sizeof(uint16_t)),
-+						GFP_KERNEL);
- 			if (!phba->vpi_ids) {
- 				kfree(phba->vpi_bmask);
- 				rc = -ENOMEM;
-diff --git a/drivers/scsi/lpfc/lpfc_vport.c b/drivers/scsi/lpfc/lpfc_vport.c
-index c9d33b1268cb..068c5d7a5ee2 100644
---- a/drivers/scsi/lpfc/lpfc_vport.c
-+++ b/drivers/scsi/lpfc/lpfc_vport.c
-@@ -840,7 +840,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
- 	struct lpfc_vport *port_iterator;
- 	struct lpfc_vport **vports;
- 	int index = 0;
--	vports = kzalloc((phba->max_vports + 1) * sizeof(struct lpfc_vport *),
-+	vports = kzalloc(array_size((phba->max_vports + 1), sizeof(struct lpfc_vport *)),
- 			 GFP_KERNEL);
- 	if (vports == NULL)
- 		return NULL;
-diff --git a/drivers/scsi/mac53c94.c b/drivers/scsi/mac53c94.c
-index 8c4d3003b68b..e3d8fab8bd08 100644
---- a/drivers/scsi/mac53c94.c
-+++ b/drivers/scsi/mac53c94.c
-@@ -464,8 +464,8 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
-        	 * +1 to allow for aligning.
- 	 * XXX FIXME: Use DMA consistent routines
- 	 */
--       	dma_cmd_space = kmalloc((host->sg_tablesize + 2) *
--       				sizeof(struct dbdma_cmd), GFP_KERNEL);
-+       	dma_cmd_space = kmalloc(array_size((host->sg_tablesize + 2), sizeof(struct dbdma_cmd)),
-+				       GFP_KERNEL);
-        	if (dma_cmd_space == 0) {
-        		printk(KERN_ERR "mac53c94: couldn't allocate dma "
-        		       "command space for %pOF\n", node);
-diff --git a/drivers/scsi/megaraid/megaraid_mm.c b/drivers/scsi/megaraid/megaraid_mm.c
-index bb802b0c12b8..747bf93ad8f0 100644
---- a/drivers/scsi/megaraid/megaraid_mm.c
-+++ b/drivers/scsi/megaraid/megaraid_mm.c
-@@ -935,10 +935,10 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
- 	 * Allocate single blocks of memory for all required kiocs,
- 	 * mailboxes and passthru structures.
- 	 */
--	adapter->kioc_list	= kmalloc(sizeof(uioc_t) * lld_adp->max_kioc,
--						GFP_KERNEL);
--	adapter->mbox_list	= kmalloc(sizeof(mbox64_t) * lld_adp->max_kioc,
--						GFP_KERNEL);
-+	adapter->kioc_list	= kmalloc(array_size(sizeof(uioc_t), lld_adp->max_kioc),
-+					    GFP_KERNEL);
-+	adapter->mbox_list	= kmalloc(array_size(sizeof(mbox64_t), lld_adp->max_kioc),
-+					    GFP_KERNEL);
- 	adapter->pthru_dma_pool = dma_pool_create("megaraid mm pthru pool",
- 						&adapter->pdev->dev,
- 						sizeof(mraid_passthru_t),
-diff --git a/drivers/scsi/pm8001/pm8001_ctl.c b/drivers/scsi/pm8001/pm8001_ctl.c
-index 596f3ff965f5..4bdbcaf4929c 100644
---- a/drivers/scsi/pm8001/pm8001_ctl.c
-+++ b/drivers/scsi/pm8001/pm8001_ctl.c
-@@ -705,7 +705,7 @@ static ssize_t pm8001_store_update_fw(struct device *cdev,
- 		return -EINPROGRESS;
- 	pm8001_ha->fw_status = FLASH_IN_PROGRESS;
- 
--	cmd_ptr = kzalloc(count*2, GFP_KERNEL);
-+	cmd_ptr = kzalloc(array_size(count, 2), GFP_KERNEL);
- 	if (!cmd_ptr) {
- 		pm8001_ha->fw_status = FAIL_OUT_MEMORY;
- 		return -ENOMEM;
-diff --git a/drivers/scsi/qedi/qedi_main.c b/drivers/scsi/qedi/qedi_main.c
-index 4da3592aec0f..05017a3be374 100644
---- a/drivers/scsi/qedi/qedi_main.c
-+++ b/drivers/scsi/qedi/qedi_main.c
-@@ -523,7 +523,8 @@ static int qedi_init_id_tbl(struct qedi_portid_tbl *id_tbl, u16 size,
- 	id_tbl->max = size;
- 	id_tbl->next = next;
- 	spin_lock_init(&id_tbl->lock);
--	id_tbl->table = kzalloc(DIV_ROUND_UP(size, 32) * 4, GFP_KERNEL);
-+	id_tbl->table = kzalloc(array_size(DIV_ROUND_UP(size, 32), 4),
-+				GFP_KERNEL);
- 	if (!id_tbl->table)
- 		return -ENOMEM;
- 
-diff --git a/drivers/scsi/qla2xxx/qla_init.c b/drivers/scsi/qla2xxx/qla_init.c
-index 8f55dd44adae..95ad539cd3b6 100644
---- a/drivers/scsi/qla2xxx/qla_init.c
-+++ b/drivers/scsi/qla2xxx/qla_init.c
-@@ -3118,8 +3118,8 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
- 			req->num_outstanding_cmds = ha->cur_fw_iocb_count;
- 	}
- 
--	req->outstanding_cmds = kzalloc(sizeof(srb_t *) *
--	    req->num_outstanding_cmds, GFP_KERNEL);
-+	req->outstanding_cmds = kzalloc(array_size(sizeof(srb_t *), req->num_outstanding_cmds),
-+					GFP_KERNEL);
- 
- 	if (!req->outstanding_cmds) {
- 		/*
-@@ -3127,8 +3127,8 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
- 		 * initialization.
- 		 */
- 		req->num_outstanding_cmds = MIN_OUTSTANDING_COMMANDS;
--		req->outstanding_cmds = kzalloc(sizeof(srb_t *) *
--		    req->num_outstanding_cmds, GFP_KERNEL);
-+		req->outstanding_cmds = kzalloc(array_size(sizeof(srb_t *), req->num_outstanding_cmds),
-+						GFP_KERNEL);
- 
- 		if (!req->outstanding_cmds) {
- 			ql_log(ql_log_fatal, NULL, 0x0126,
-diff --git a/drivers/scsi/qla2xxx/qla_isr.c b/drivers/scsi/qla2xxx/qla_isr.c
-index a3dc83f9444d..c59401b4503f 100644
---- a/drivers/scsi/qla2xxx/qla_isr.c
-+++ b/drivers/scsi/qla2xxx/qla_isr.c
-@@ -3434,8 +3434,8 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
- 			    "Adjusted Max no of queues pairs: %d.\n", ha->max_qpairs);
- 		}
- 	}
--	ha->msix_entries = kzalloc(sizeof(struct qla_msix_entry) *
--				ha->msix_count, GFP_KERNEL);
-+	ha->msix_entries = kzalloc(array_size(sizeof(struct qla_msix_entry), ha->msix_count),
-+				   GFP_KERNEL);
- 	if (!ha->msix_entries) {
- 		ql_log(ql_log_fatal, vha, 0x00c8,
- 		    "Failed to allocate memory for ha->msix_entries.\n");
-diff --git a/drivers/scsi/qla2xxx/qla_os.c b/drivers/scsi/qla2xxx/qla_os.c
-index 15eaa6dded04..db39396bfaa0 100644
---- a/drivers/scsi/qla2xxx/qla_os.c
-+++ b/drivers/scsi/qla2xxx/qla_os.c
-@@ -410,7 +410,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
- 				struct rsp_que *rsp)
- {
- 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
--	ha->req_q_map = kzalloc(sizeof(struct req_que *) * ha->max_req_queues,
-+	ha->req_q_map = kzalloc(array_size(sizeof(struct req_que *), ha->max_req_queues),
- 				GFP_KERNEL);
- 	if (!ha->req_q_map) {
- 		ql_log(ql_log_fatal, vha, 0x003b,
-@@ -418,7 +418,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
- 		goto fail_req_map;
- 	}
- 
--	ha->rsp_q_map = kzalloc(sizeof(struct rsp_que *) * ha->max_rsp_queues,
-+	ha->rsp_q_map = kzalloc(array_size(sizeof(struct rsp_que *), ha->max_rsp_queues),
- 				GFP_KERNEL);
- 	if (!ha->rsp_q_map) {
- 		ql_log(ql_log_fatal, vha, 0x003c,
-@@ -4045,8 +4045,8 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
- 	    (*rsp)->ring);
- 	/* Allocate memory for NVRAM data for vports */
- 	if (ha->nvram_npiv_size) {
--		ha->npiv_info = kzalloc(sizeof(struct qla_npiv_entry) *
--		    ha->nvram_npiv_size, GFP_KERNEL);
-+		ha->npiv_info = kzalloc(array_size(sizeof(struct qla_npiv_entry), ha->nvram_npiv_size),
-+					GFP_KERNEL);
- 		if (!ha->npiv_info) {
- 			ql_log_pci(ql_log_fatal, ha->pdev, 0x002d,
- 			    "Failed to allocate memory for npiv_info.\n");
-@@ -4080,8 +4080,8 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
- 	INIT_LIST_HEAD(&ha->vp_list);
- 
- 	/* Allocate memory for our loop_id bitmap */
--	ha->loop_id_map = kzalloc(BITS_TO_LONGS(LOOPID_MAP_SIZE) * sizeof(long),
--	    GFP_KERNEL);
-+	ha->loop_id_map = kzalloc(array_size(BITS_TO_LONGS(LOOPID_MAP_SIZE), sizeof(long)),
-+				  GFP_KERNEL);
- 	if (!ha->loop_id_map)
- 		goto fail_loop_id_map;
- 	else {
-diff --git a/drivers/scsi/qla2xxx/qla_target.c b/drivers/scsi/qla2xxx/qla_target.c
-index 09997a1b1ec3..58ec467834b2 100644
---- a/drivers/scsi/qla2xxx/qla_target.c
-+++ b/drivers/scsi/qla2xxx/qla_target.c
-@@ -6166,8 +6166,8 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
- 		return -ENOMEM;
- 	}
- 
--	tgt->qphints = kzalloc((ha->max_qpairs + 1) *
--	    sizeof(struct qla_qpair_hint), GFP_KERNEL);
-+	tgt->qphints = kzalloc(array_size((ha->max_qpairs + 1), sizeof(struct qla_qpair_hint)),
-+			       GFP_KERNEL);
- 	if (!tgt->qphints) {
- 		kfree(tgt);
- 		ql_log(ql_log_warn, base_vha, 0x0197,
-diff --git a/drivers/scsi/smartpqi/smartpqi_init.c b/drivers/scsi/smartpqi/smartpqi_init.c
-index 060bf5a27df8..cea66df27781 100644
---- a/drivers/scsi/smartpqi/smartpqi_init.c
-+++ b/drivers/scsi/smartpqi/smartpqi_init.c
-@@ -4251,8 +4251,8 @@ static int pqi_alloc_io_resources(struct pqi_ctrl_info *ctrl_info)
- 	struct device *dev;
- 	struct pqi_io_request *io_request;
- 
--	ctrl_info->io_request_pool = kzalloc(ctrl_info->max_io_slots *
--		sizeof(ctrl_info->io_request_pool[0]), GFP_KERNEL);
-+	ctrl_info->io_request_pool = kzalloc(array_size(ctrl_info->max_io_slots, sizeof(ctrl_info->io_request_pool[0])),
-+					     GFP_KERNEL);
- 
- 	if (!ctrl_info->io_request_pool) {
- 		dev_err(&ctrl_info->pci_dev->dev,
-diff --git a/drivers/sh/intc/core.c b/drivers/sh/intc/core.c
-index 8e72bcbd3d6d..60dccb04ebc0 100644
---- a/drivers/sh/intc/core.c
-+++ b/drivers/sh/intc/core.c
-@@ -203,7 +203,7 @@ int __init register_intc_controller(struct intc_desc *desc)
- 
- 	if (desc->num_resources) {
- 		d->nr_windows = desc->num_resources;
--		d->window = kzalloc(d->nr_windows * sizeof(*d->window),
-+		d->window = kzalloc(array_size(d->nr_windows, sizeof(*d->window)),
- 				    GFP_NOWAIT);
- 		if (!d->window)
- 			goto err1;
-@@ -230,12 +230,12 @@ int __init register_intc_controller(struct intc_desc *desc)
- 	d->nr_reg += hw->ack_regs ? hw->nr_ack_regs : 0;
- 	d->nr_reg += hw->subgroups ? hw->nr_subgroups : 0;
- 
--	d->reg = kzalloc(d->nr_reg * sizeof(*d->reg), GFP_NOWAIT);
-+	d->reg = kzalloc(array_size(d->nr_reg, sizeof(*d->reg)), GFP_NOWAIT);
- 	if (!d->reg)
- 		goto err2;
- 
- #ifdef CONFIG_SMP
--	d->smp = kzalloc(d->nr_reg * sizeof(*d->smp), GFP_NOWAIT);
-+	d->smp = kzalloc(array_size(d->nr_reg, sizeof(*d->smp)), GFP_NOWAIT);
- 	if (!d->smp)
- 		goto err3;
- #endif
-@@ -253,7 +253,7 @@ int __init register_intc_controller(struct intc_desc *desc)
- 	}
- 
- 	if (hw->prio_regs) {
--		d->prio = kzalloc(hw->nr_vectors * sizeof(*d->prio),
-+		d->prio = kzalloc(array_size(hw->nr_vectors, sizeof(*d->prio)),
- 				  GFP_NOWAIT);
- 		if (!d->prio)
- 			goto err4;
-@@ -269,7 +269,7 @@ int __init register_intc_controller(struct intc_desc *desc)
- 	}
- 
- 	if (hw->sense_regs) {
--		d->sense = kzalloc(hw->nr_vectors * sizeof(*d->sense),
-+		d->sense = kzalloc(array_size(hw->nr_vectors, sizeof(*d->sense)),
- 				   GFP_NOWAIT);
- 		if (!d->sense)
- 			goto err5;
-diff --git a/drivers/sh/maple/maple.c b/drivers/sh/maple/maple.c
-index 7525039d812c..476aff20a67e 100644
---- a/drivers/sh/maple/maple.c
-+++ b/drivers/sh/maple/maple.c
-@@ -161,7 +161,7 @@ int maple_add_packet(struct maple_device *mdev, u32 function, u32 command,
- 	void *sendbuf = NULL;
- 
- 	if (length) {
--		sendbuf = kzalloc(length * 4, GFP_KERNEL);
-+		sendbuf = kzalloc(array_size(length, 4), GFP_KERNEL);
- 		if (!sendbuf) {
- 			ret = -ENOMEM;
- 			goto out;
-diff --git a/drivers/soc/fsl/qbman/qman_test_stash.c b/drivers/soc/fsl/qbman/qman_test_stash.c
-index e87b65403b67..e39356db13aa 100644
---- a/drivers/soc/fsl/qbman/qman_test_stash.c
-+++ b/drivers/soc/fsl/qbman/qman_test_stash.c
-@@ -221,7 +221,7 @@ static int allocate_frame_data(void)
- 
- 	pcfg = qman_get_qm_portal_config(qman_dma_portal);
- 
--	__frame_ptr = kmalloc(4 * HP_NUM_WORDS, GFP_KERNEL);
-+	__frame_ptr = kmalloc(array_size(4, HP_NUM_WORDS), GFP_KERNEL);
- 	if (!__frame_ptr)
- 		return -ENOMEM;
- 
-diff --git a/drivers/staging/lustre/lustre/lov/lov_io.c b/drivers/staging/lustre/lustre/lov/lov_io.c
-index b823f8a21856..406ecaf64930 100644
---- a/drivers/staging/lustre/lustre/lov/lov_io.c
-+++ b/drivers/staging/lustre/lustre/lov/lov_io.c
-@@ -243,9 +243,8 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
- 	 * when writing a page. -jay
- 	 */
- 	lio->lis_subs =
--		kvzalloc(lsm->lsm_stripe_count *
--				sizeof(lio->lis_subs[0]),
--				GFP_NOFS);
-+		kvzalloc(array_size(lsm->lsm_stripe_count, sizeof(lio->lis_subs[0])),
-+			 GFP_NOFS);
- 	if (lio->lis_subs) {
- 		lio->lis_nr_subios = lio->lis_stripe_count;
- 		lio->lis_single_subio_index = -1;
-diff --git a/drivers/staging/lustre/lustre/lov/lov_object.c b/drivers/staging/lustre/lustre/lov/lov_object.c
-index f7c69680cb7d..6aab63bc1063 100644
---- a/drivers/staging/lustre/lustre/lov/lov_object.c
-+++ b/drivers/staging/lustre/lustre/lov/lov_object.c
-@@ -242,8 +242,8 @@ static int lov_init_raid0(const struct lu_env *env, struct lov_device *dev,
- 	r0->lo_nr  = lsm->lsm_stripe_count;
- 	LASSERT(r0->lo_nr <= lov_targets_nr(dev));
- 
--	r0->lo_sub = kvzalloc(r0->lo_nr * sizeof(r0->lo_sub[0]),
--				     GFP_NOFS);
-+	r0->lo_sub = kvzalloc(array_size(r0->lo_nr, sizeof(r0->lo_sub[0])),
-+			      GFP_NOFS);
- 	if (r0->lo_sub) {
- 		int psz = 0;
- 
-diff --git a/drivers/staging/lustre/lustre/ptlrpc/sec_bulk.c b/drivers/staging/lustre/lustre/ptlrpc/sec_bulk.c
-index 625b9520d78f..ce1c152f79bb 100644
---- a/drivers/staging/lustre/lustre/ptlrpc/sec_bulk.c
-+++ b/drivers/staging/lustre/lustre/ptlrpc/sec_bulk.c
-@@ -375,9 +375,8 @@ static inline void enc_pools_alloc(void)
- {
- 	LASSERT(page_pools.epp_max_pools);
- 	page_pools.epp_pools =
--		kvzalloc(page_pools.epp_max_pools *
--				sizeof(*page_pools.epp_pools),
--				GFP_KERNEL);
-+		kvzalloc(array_size(page_pools.epp_max_pools, sizeof(*page_pools.epp_pools)),
-+			 GFP_KERNEL);
- }
- 
- static inline void enc_pools_free(void)
-diff --git a/drivers/staging/media/atomisp/pci/atomisp2/css2400/sh_css_firmware.c b/drivers/staging/media/atomisp/pci/atomisp2/css2400/sh_css_firmware.c
-index 8158ea40d069..bf2d6aa5db36 100644
---- a/drivers/staging/media/atomisp/pci/atomisp2/css2400/sh_css_firmware.c
-+++ b/drivers/staging/media/atomisp/pci/atomisp2/css2400/sh_css_firmware.c
-@@ -226,9 +226,8 @@ sh_css_load_firmware(const char *fw_data,
- 	sh_css_num_binaries = file_header->binary_nr;
- 	/* Only allocate memory for ISP blob info */
- 	if (sh_css_num_binaries > NUM_OF_SPS) {
--		sh_css_blob_info = kmalloc(
--					(sh_css_num_binaries - NUM_OF_SPS) *
--					sizeof(*sh_css_blob_info), GFP_KERNEL);
-+		sh_css_blob_info = kmalloc(array_size((sh_css_num_binaries - NUM_OF_SPS), sizeof(*sh_css_blob_info)),
-+					   GFP_KERNEL);
- 		if (!sh_css_blob_info)
- 			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
- 	} else {
-diff --git a/drivers/staging/rtl8192u/r8192U_core.c b/drivers/staging/rtl8192u/r8192U_core.c
-index d607c59761cf..0d4b85246210 100644
---- a/drivers/staging/rtl8192u/r8192U_core.c
-+++ b/drivers/staging/rtl8192u/r8192U_core.c
-@@ -1679,7 +1679,7 @@ static short rtl8192_usb_initendpoints(struct net_device *dev)
- {
- 	struct r8192_priv *priv = ieee80211_priv(dev);
- 
--	priv->rx_urb = kmalloc(sizeof(struct urb *) * (MAX_RX_URB + 1),
-+	priv->rx_urb = kmalloc(array_size(sizeof(struct urb *), (MAX_RX_URB + 1)),
- 			       GFP_KERNEL);
- 	if (!priv->rx_urb)
- 		return -ENOMEM;
-diff --git a/drivers/staging/rtl8723bs/os_dep/ioctl_linux.c b/drivers/staging/rtl8723bs/os_dep/ioctl_linux.c
-index b26533983864..12474855c806 100644
---- a/drivers/staging/rtl8723bs/os_dep/ioctl_linux.c
-+++ b/drivers/staging/rtl8723bs/os_dep/ioctl_linux.c
-@@ -321,7 +321,7 @@ static char *translate_scan(struct adapter *padapter,
- 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_wx_get_scan: ssid =%s\n", pnetwork->network.Ssid.Ssid));
- 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_wx_get_scan: wpa_len =%d rsn_len =%d\n", wpa_len, rsn_len));
- 
--		buf = kzalloc(MAX_WPA_IE_LEN*2, GFP_KERNEL);
-+		buf = kzalloc(array_size(MAX_WPA_IE_LEN, 2), GFP_KERNEL);
- 		if (!buf)
- 			return start;
- 		if (wpa_len > 0) {
-diff --git a/drivers/staging/rtlwifi/efuse.c b/drivers/staging/rtlwifi/efuse.c
-index d74c80d512c9..99f1f22505d4 100644
---- a/drivers/staging/rtlwifi/efuse.c
-+++ b/drivers/staging/rtlwifi/efuse.c
-@@ -248,8 +248,8 @@ void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
- 	}
- 
- 	/* allocate memory for efuse_tbl and efuse_word */
--	efuse_tbl = kzalloc(rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE] *
--			    sizeof(u8), GFP_ATOMIC);
-+	efuse_tbl = kzalloc(array_size(rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE], sizeof(u8)),
-+			    GFP_ATOMIC);
- 	if (!efuse_tbl)
- 		return;
- 	efuse_word = kcalloc(EFUSE_MAX_WORD_UNIT, sizeof(u16 *), GFP_ATOMIC);
-diff --git a/drivers/staging/rts5208/ms.c b/drivers/staging/rts5208/ms.c
-index 821256b95e22..126fa860a919 100644
---- a/drivers/staging/rts5208/ms.c
-+++ b/drivers/staging/rts5208/ms.c
-@@ -1049,7 +1049,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
- 		return STATUS_FAIL;
- 	}
- 
--	buf = kmalloc(64 * 512, GFP_KERNEL);
-+	buf = kmalloc(array_size(64, 512), GFP_KERNEL);
- 	if (!buf) {
- 		rtsx_trace(chip);
- 		return STATUS_ERROR;
-diff --git a/drivers/target/target_core_user.c b/drivers/target/target_core_user.c
-index 4ad89ea71a70..63a62ff5a868 100644
---- a/drivers/target/target_core_user.c
-+++ b/drivers/target/target_core_user.c
-@@ -1692,8 +1692,8 @@ static int tcmu_configure_device(struct se_device *dev)
- 
- 	info = &udev->uio_info;
- 
--	udev->data_bitmap = kzalloc(BITS_TO_LONGS(udev->max_blocks) *
--				    sizeof(unsigned long), GFP_KERNEL);
-+	udev->data_bitmap = kzalloc(array_size(BITS_TO_LONGS(udev->max_blocks), sizeof(unsigned long)),
-+				    GFP_KERNEL);
- 	if (!udev->data_bitmap) {
- 		ret = -ENOMEM;
- 		goto err_bitmap_alloc;
-diff --git a/drivers/thermal/int340x_thermal/acpi_thermal_rel.c b/drivers/thermal/int340x_thermal/acpi_thermal_rel.c
-index c719167e9f28..832bd6d61db6 100644
---- a/drivers/thermal/int340x_thermal/acpi_thermal_rel.c
-+++ b/drivers/thermal/int340x_thermal/acpi_thermal_rel.c
-@@ -96,7 +96,7 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
- 	}
- 
- 	*trt_count = p->package.count;
--	trts = kzalloc(*trt_count * sizeof(struct trt), GFP_KERNEL);
-+	trts = kzalloc(array_size(*trt_count, sizeof(struct trt)), GFP_KERNEL);
- 	if (!trts) {
- 		result = -ENOMEM;
- 		goto end;
-@@ -178,7 +178,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
- 
- 	/* ignore p->package.elements[0], as this is _ART Revision field */
- 	*art_count = p->package.count - 1;
--	arts = kzalloc(*art_count * sizeof(struct art), GFP_KERNEL);
-+	arts = kzalloc(array_size(*art_count, sizeof(struct art)), GFP_KERNEL);
- 	if (!arts) {
- 		result = -ENOMEM;
- 		goto end;
-diff --git a/drivers/thermal/of-thermal.c b/drivers/thermal/of-thermal.c
-index e09f0354a4bc..d758d7f7aa07 100644
---- a/drivers/thermal/of-thermal.c
-+++ b/drivers/thermal/of-thermal.c
-@@ -870,7 +870,8 @@ __init *thermal_of_build_thermal_zone(struct device_node *np)
- 	if (tz->ntrips == 0) /* must have at least one child */
- 		goto finish;
- 
--	tz->trips = kzalloc(tz->ntrips * sizeof(*tz->trips), GFP_KERNEL);
-+	tz->trips = kzalloc(array_size(tz->ntrips, sizeof(*tz->trips)),
-+			    GFP_KERNEL);
- 	if (!tz->trips) {
- 		ret = -ENOMEM;
- 		goto free_tz;
-@@ -896,7 +897,8 @@ __init *thermal_of_build_thermal_zone(struct device_node *np)
- 	if (tz->num_tbps == 0)
- 		goto finish;
- 
--	tz->tbps = kzalloc(tz->num_tbps * sizeof(*tz->tbps), GFP_KERNEL);
-+	tz->tbps = kzalloc(array_size(tz->num_tbps, sizeof(*tz->tbps)),
-+			   GFP_KERNEL);
- 	if (!tz->tbps) {
- 		ret = -ENOMEM;
- 		goto free_trips;
-diff --git a/drivers/tty/hvc/hvc_iucv.c b/drivers/tty/hvc/hvc_iucv.c
-index a74680729825..825331079061 100644
---- a/drivers/tty/hvc/hvc_iucv.c
-+++ b/drivers/tty/hvc/hvc_iucv.c
-@@ -1252,7 +1252,7 @@ static int hvc_iucv_setup_filter(const char *val)
- 	if (size > MAX_VMID_FILTER)
- 		return -ENOSPC;
- 
--	array = kzalloc(size * 8, GFP_KERNEL);
-+	array = kzalloc(array_size(size, 8), GFP_KERNEL);
- 	if (!array)
- 		return -ENOMEM;
- 
-diff --git a/drivers/tty/isicom.c b/drivers/tty/isicom.c
-index bdd3027ef01b..10c39cf042c9 100644
---- a/drivers/tty/isicom.c
-+++ b/drivers/tty/isicom.c
-@@ -1477,7 +1477,7 @@ static int load_firmware(struct pci_dev *pdev,
- 			goto errrelfw;
- 		}
- 
--		data = kmalloc(word_count * 2, GFP_KERNEL);
-+		data = kmalloc(array_size(word_count, 2), GFP_KERNEL);
- 		if (data == NULL) {
- 			dev_err(&pdev->dev, "Card%d, firmware upload "
- 				"failed, not enough memory\n", index + 1);
-diff --git a/drivers/tty/serial/serial_core.c b/drivers/tty/serial/serial_core.c
-index 0466f9f08a91..be8f348da37f 100644
---- a/drivers/tty/serial/serial_core.c
-+++ b/drivers/tty/serial/serial_core.c
-@@ -2458,7 +2458,8 @@ int uart_register_driver(struct uart_driver *drv)
- 	 * Maybe we should be using a slab cache for this, especially if
- 	 * we have a large number of ports to handle.
- 	 */
--	drv->state = kzalloc(sizeof(struct uart_state) * drv->nr, GFP_KERNEL);
-+	drv->state = kzalloc(array_size(sizeof(struct uart_state), drv->nr),
-+			     GFP_KERNEL);
- 	if (!drv->state)
- 		goto out;
- 
-diff --git a/drivers/tty/vt/selection.c b/drivers/tty/vt/selection.c
-index 7851383fbd6c..b521a6732f72 100644
---- a/drivers/tty/vt/selection.c
-+++ b/drivers/tty/vt/selection.c
-@@ -280,7 +280,8 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
- 
- 	/* Allocate a new buffer before freeing the old one ... */
- 	multiplier = use_unicode ? 3 : 1;  /* chars can take up to 3 bytes */
--	bp = kmalloc(((sel_end-sel_start)/2+1)*multiplier, GFP_KERNEL);
-+	bp = kmalloc(array_size(((sel_end - sel_start) / 2 + 1), multiplier),
-+		     GFP_KERNEL);
- 	if (!bp) {
- 		printk(KERN_WARNING "selection: kmalloc() failed\n");
- 		clear_selection();
-diff --git a/drivers/usb/core/message.c b/drivers/usb/core/message.c
-index f6fdc9f54ec7..2adf21e65a58 100644
---- a/drivers/usb/core/message.c
-+++ b/drivers/usb/core/message.c
-@@ -390,7 +390,8 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
- 	}
- 
- 	/* initialize all the urbs we'll use */
--	io->urbs = kmalloc(io->entries * sizeof(*io->urbs), mem_flags);
-+	io->urbs = kmalloc(array_size(io->entries, sizeof(*io->urbs)),
-+			   mem_flags);
- 	if (!io->urbs)
- 		goto nomem;
- 
-diff --git a/drivers/usb/gadget/udc/fsl_udc_core.c b/drivers/usb/gadget/udc/fsl_udc_core.c
-index 56b517a38865..c00d610ed648 100644
---- a/drivers/usb/gadget/udc/fsl_udc_core.c
-+++ b/drivers/usb/gadget/udc/fsl_udc_core.c
-@@ -2259,7 +2259,8 @@ static int struct_udc_setup(struct fsl_udc *udc,
- 	pdata = dev_get_platdata(&pdev->dev);
- 	udc->phy_mode = pdata->phy_mode;
- 
--	udc->eps = kzalloc(sizeof(struct fsl_ep) * udc->max_ep, GFP_KERNEL);
-+	udc->eps = kzalloc(array_size(sizeof(struct fsl_ep), udc->max_ep),
-+			   GFP_KERNEL);
- 	if (!udc->eps)
- 		return -1;
- 
-diff --git a/drivers/usb/host/ehci-sched.c b/drivers/usb/host/ehci-sched.c
-index 28e2a338b481..4fae637aa8e0 100644
---- a/drivers/usb/host/ehci-sched.c
-+++ b/drivers/usb/host/ehci-sched.c
-@@ -117,8 +117,8 @@ static struct ehci_tt *find_tt(struct usb_device *udev)
- 	if (utt->multi) {
- 		tt_index = utt->hcpriv;
- 		if (!tt_index) {		/* Create the index array */
--			tt_index = kzalloc(utt->hub->maxchild *
--					sizeof(*tt_index), GFP_ATOMIC);
-+			tt_index = kzalloc(array_size(utt->hub->maxchild, sizeof(*tt_index)),
-+					   GFP_ATOMIC);
- 			if (!tt_index)
- 				return ERR_PTR(-ENOMEM);
- 			utt->hcpriv = tt_index;
-diff --git a/drivers/usb/host/imx21-hcd.c b/drivers/usb/host/imx21-hcd.c
-index 3a8bbfe43a8e..26c816133de7 100644
---- a/drivers/usb/host/imx21-hcd.c
-+++ b/drivers/usb/host/imx21-hcd.c
-@@ -741,8 +741,8 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
- 	if (urb_priv == NULL)
- 		return -ENOMEM;
- 
--	urb_priv->isoc_td = kzalloc(
--		sizeof(struct td) * urb->number_of_packets, mem_flags);
-+	urb_priv->isoc_td = kzalloc(array_size(sizeof(struct td), urb->number_of_packets),
-+				    mem_flags);
- 	if (urb_priv->isoc_td == NULL) {
- 		ret = -ENOMEM;
- 		goto alloc_td_failed;
-diff --git a/drivers/usb/host/isp1362-hcd.c b/drivers/usb/host/isp1362-hcd.c
-index b21c386e6a46..c054b52148e5 100644
---- a/drivers/usb/host/isp1362-hcd.c
-+++ b/drivers/usb/host/isp1362-hcd.c
-@@ -2400,7 +2400,7 @@ static int isp1362_chip_test(struct isp1362_hcd *isp1362_hcd)
- 	u16 *ref;
- 	unsigned long flags;
- 
--	ref = kmalloc(2 * ISP1362_BUF_SIZE, GFP_KERNEL);
-+	ref = kmalloc(array_size(2, ISP1362_BUF_SIZE), GFP_KERNEL);
- 	if (ref) {
- 		int offset;
- 		u16 *tst = &ref[ISP1362_BUF_SIZE / 2];
-diff --git a/drivers/usb/host/xhci-mem.c b/drivers/usb/host/xhci-mem.c
-index 0b0d4893715e..8b32d7261b57 100644
---- a/drivers/usb/host/xhci-mem.c
-+++ b/drivers/usb/host/xhci-mem.c
-@@ -2310,8 +2310,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
- 	 * Not sure how the USB core will handle a hub with no ports...
- 	 */
- 	if (xhci->num_usb2_ports) {
--		xhci->usb2_ports = kmalloc(sizeof(*xhci->usb2_ports)*
--				xhci->num_usb2_ports, flags);
-+		xhci->usb2_ports = kmalloc(array_size(sizeof(*xhci->usb2_ports), xhci->num_usb2_ports),
-+					   flags);
- 		if (!xhci->usb2_ports)
- 			return -ENOMEM;
- 
-@@ -2335,8 +2335,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
- 		}
- 	}
- 	if (xhci->num_usb3_ports) {
--		xhci->usb3_ports = kmalloc(sizeof(*xhci->usb3_ports)*
--				xhci->num_usb3_ports, flags);
-+		xhci->usb3_ports = kmalloc(array_size(sizeof(*xhci->usb3_ports), xhci->num_usb3_ports),
-+					   flags);
- 		if (!xhci->usb3_ports)
- 			return -ENOMEM;
- 
-diff --git a/drivers/usb/misc/ldusb.c b/drivers/usb/misc/ldusb.c
-index 236a60f53099..55f13e665a86 100644
---- a/drivers/usb/misc/ldusb.c
-+++ b/drivers/usb/misc/ldusb.c
-@@ -695,7 +695,8 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
- 		dev_warn(&intf->dev, "Interrupt out endpoint not found (using control endpoint instead)\n");
- 
- 	dev->interrupt_in_endpoint_size = usb_endpoint_maxp(dev->interrupt_in_endpoint);
--	dev->ring_buffer = kmalloc(ring_buffer_size*(sizeof(size_t)+dev->interrupt_in_endpoint_size), GFP_KERNEL);
-+	dev->ring_buffer = kmalloc(array_size(ring_buffer_size, (sizeof(size_t) + dev->interrupt_in_endpoint_size)),
-+				   GFP_KERNEL);
- 	if (!dev->ring_buffer)
- 		goto error;
- 	dev->interrupt_in_buffer = kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
-@@ -706,7 +707,8 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
- 		goto error;
- 	dev->interrupt_out_endpoint_size = dev->interrupt_out_endpoint ? usb_endpoint_maxp(dev->interrupt_out_endpoint) :
- 									 udev->descriptor.bMaxPacketSize0;
--	dev->interrupt_out_buffer = kmalloc(write_buffer_size*dev->interrupt_out_endpoint_size, GFP_KERNEL);
-+	dev->interrupt_out_buffer = kmalloc(array_size(write_buffer_size, dev->interrupt_out_endpoint_size),
-+					    GFP_KERNEL);
- 	if (!dev->interrupt_out_buffer)
- 		goto error;
- 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
-diff --git a/drivers/usb/mon/mon_bin.c b/drivers/usb/mon/mon_bin.c
-index 2761fad66b95..d3bb24dc2be2 100644
---- a/drivers/usb/mon/mon_bin.c
-+++ b/drivers/usb/mon/mon_bin.c
-@@ -1024,7 +1024,8 @@ static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg
- 			return -EINVAL;
- 
- 		size = CHUNK_ALIGN(arg);
--		vec = kzalloc(sizeof(struct mon_pgmap) * (size / CHUNK_SIZE), GFP_KERNEL);
-+		vec = kzalloc(array_size(sizeof(struct mon_pgmap), (size / CHUNK_SIZE)),
-+			      GFP_KERNEL);
- 		if (vec == NULL) {
- 			ret = -ENOMEM;
- 			break;
-diff --git a/drivers/usb/storage/alauda.c b/drivers/usb/storage/alauda.c
-index 900591df8bb2..cd1fe1e87125 100644
---- a/drivers/usb/storage/alauda.c
-+++ b/drivers/usb/storage/alauda.c
-@@ -1025,7 +1025,8 @@ static int alauda_write_data(struct us_data *us, unsigned long address,
- 	 * We also need a temporary block buffer, where we read in the old data,
- 	 * overwrite parts with the new data, and manipulate the redundancy data
- 	 */
--	blockbuffer = kmalloc((pagesize + 64) * blocksize, GFP_NOIO);
-+	blockbuffer = kmalloc(array_size((pagesize + 64), blocksize),
-+			      GFP_NOIO);
- 	if (!blockbuffer) {
- 		kfree(buffer);
- 		return USB_STOR_TRANSPORT_ERROR;
-diff --git a/drivers/usb/storage/ene_ub6250.c b/drivers/usb/storage/ene_ub6250.c
-index 93cf57ac47d6..1b96afbc1b0d 100644
---- a/drivers/usb/storage/ene_ub6250.c
-+++ b/drivers/usb/storage/ene_ub6250.c
-@@ -807,8 +807,10 @@ static int ms_lib_alloc_logicalmap(struct us_data *us)
- 	u32  i;
- 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
- 
--	info->MS_Lib.Phy2LogMap = kmalloc(info->MS_Lib.NumberOfPhyBlock * sizeof(u16), GFP_KERNEL);
--	info->MS_Lib.Log2PhyMap = kmalloc(info->MS_Lib.NumberOfLogBlock * sizeof(u16), GFP_KERNEL);
-+	info->MS_Lib.Phy2LogMap = kmalloc(array_size(info->MS_Lib.NumberOfPhyBlock, sizeof(u16)),
-+					  GFP_KERNEL);
-+	info->MS_Lib.Log2PhyMap = kmalloc(array_size(info->MS_Lib.NumberOfLogBlock, sizeof(u16)),
-+					  GFP_KERNEL);
- 
- 	if ((info->MS_Lib.Phy2LogMap == NULL) || (info->MS_Lib.Log2PhyMap == NULL)) {
- 		ms_lib_free_logicalmap(us);
-@@ -1113,8 +1115,10 @@ static int ms_lib_alloc_writebuf(struct us_data *us)
- 
- 	info->MS_Lib.wrtblk = (u16)-1;
- 
--	info->MS_Lib.blkpag = kmalloc(info->MS_Lib.PagesPerBlock * info->MS_Lib.BytesPerSector, GFP_KERNEL);
--	info->MS_Lib.blkext = kmalloc(info->MS_Lib.PagesPerBlock * sizeof(struct ms_lib_type_extdat), GFP_KERNEL);
-+	info->MS_Lib.blkpag = kmalloc(array_size(info->MS_Lib.PagesPerBlock, info->MS_Lib.BytesPerSector),
-+				      GFP_KERNEL);
-+	info->MS_Lib.blkext = kmalloc(array_size(info->MS_Lib.PagesPerBlock, sizeof(struct ms_lib_type_extdat)),
-+				      GFP_KERNEL);
- 
- 	if ((info->MS_Lib.blkpag == NULL) || (info->MS_Lib.blkext == NULL)) {
- 		ms_lib_free_writebuf(us);
-diff --git a/drivers/usb/storage/isd200.c b/drivers/usb/storage/isd200.c
-index f5e4500d9970..6938f096f3c8 100644
---- a/drivers/usb/storage/isd200.c
-+++ b/drivers/usb/storage/isd200.c
-@@ -1458,7 +1458,7 @@ static int isd200_init_info(struct us_data *us)
- 	if (!info)
- 		return ISD200_ERROR;
- 
--	info->id = kzalloc(ATA_ID_WORDS * 2, GFP_KERNEL);
-+	info->id = kzalloc(array_size(ATA_ID_WORDS, 2), GFP_KERNEL);
- 	info->RegsBuf = kmalloc(sizeof(info->ATARegs), GFP_KERNEL);
- 	info->srb.sense_buffer = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
- 
+ 	if (info->lba_to_pba == NULL || info->pba_to_lba == NULL) {
+ 		printk(KERN_WARNING "sddr09_read_map: out of memory\n");
 diff --git a/drivers/usb/storage/sddr55.c b/drivers/usb/storage/sddr55.c
-index 306fa78a026d..4295621ed796 100644
+index 8c814b2ec9b2..306fa78a026d 100644
 --- a/drivers/usb/storage/sddr55.c
 +++ b/drivers/usb/storage/sddr55.c
-@@ -651,7 +651,7 @@ static int sddr55_read_map(struct us_data *us) {
+@@ -684,8 +684,10 @@ static int sddr55_read_map(struct us_data *us) {
  
- 	numblocks = info->capacity >> (info->blockshift + info->pageshift);
- 	
--	buffer = kmalloc( numblocks * 2, GFP_NOIO );
-+	buffer = kmalloc(array_size(numblocks, 2), GFP_NOIO);
- 	
- 	if (!buffer)
- 		return -1;
-diff --git a/drivers/usb/wusbcore/wa-rpipe.c b/drivers/usb/wusbcore/wa-rpipe.c
-index d0f1a6698460..0e9e30436f37 100644
---- a/drivers/usb/wusbcore/wa-rpipe.c
-+++ b/drivers/usb/wusbcore/wa-rpipe.c
-@@ -470,7 +470,7 @@ int rpipe_get_by_ep(struct wahc *wa, struct usb_host_endpoint *ep,
- int wa_rpipes_create(struct wahc *wa)
- {
- 	wa->rpipes = le16_to_cpu(wa->wa_descr->wNumRPipes);
--	wa->rpipe_bm = kzalloc(BITS_TO_LONGS(wa->rpipes)*sizeof(unsigned long),
-+	wa->rpipe_bm = kzalloc(array_size(BITS_TO_LONGS(wa->rpipes), sizeof(unsigned long)),
- 			       GFP_KERNEL);
- 	if (wa->rpipe_bm == NULL)
- 		return -ENOMEM;
-diff --git a/drivers/uwb/est.c b/drivers/uwb/est.c
-index f3e232584284..7c9ba8195c2c 100644
---- a/drivers/uwb/est.c
-+++ b/drivers/uwb/est.c
-@@ -217,7 +217,7 @@ static
- int uwb_est_grow(void)
- {
- 	size_t actual_size = uwb_est_size * sizeof(uwb_est[0]);
--	void *new = kmalloc(2 * actual_size, GFP_ATOMIC);
-+	void *new = kmalloc(array_size(2, actual_size), GFP_ATOMIC);
- 	if (new == NULL)
- 		return -ENOMEM;
- 	memcpy(new, uwb_est, actual_size);
-diff --git a/drivers/uwb/i1480/dfu/usb.c b/drivers/uwb/i1480/dfu/usb.c
-index a50cf45e530f..4a511052dd13 100644
---- a/drivers/uwb/i1480/dfu/usb.c
-+++ b/drivers/uwb/i1480/dfu/usb.c
-@@ -376,7 +376,7 @@ int i1480_usb_probe(struct usb_interface *iface, const struct usb_device_id *id)
+ 	kfree(info->lba_to_pba);
+ 	kfree(info->pba_to_lba);
+-	info->lba_to_pba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
+-	info->pba_to_lba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
++	info->lba_to_pba = kmalloc(array_size(numblocks, sizeof(int)),
++				   GFP_NOIO);
++	info->pba_to_lba = kmalloc(array_size(numblocks, sizeof(int)),
++				   GFP_NOIO);
  
- 	i1480 = &i1480_usb->i1480;
- 	i1480->buf_size = 512;
--	i1480->cmd_buf = kmalloc(2 * i1480->buf_size, GFP_KERNEL);
-+	i1480->cmd_buf = kmalloc(array_size(2, i1480->buf_size), GFP_KERNEL);
- 	if (i1480->cmd_buf == NULL) {
- 		dev_err(dev, "Cannot allocate transfer buffers\n");
- 		result = -ENOMEM;
-diff --git a/drivers/video/console/sticore.c b/drivers/video/console/sticore.c
-index 08b822656846..34f508444a27 100644
---- a/drivers/video/console/sticore.c
-+++ b/drivers/video/console/sticore.c
-@@ -649,7 +649,7 @@ static void *sti_bmode_font_raw(struct sti_cooked_font *f)
- 	unsigned char *n, *p, *q;
- 	int size = f->raw->bytes_per_char*256+sizeof(struct sti_rom_font);
- 	
--	n = kzalloc(4*size, STI_LOWMEM);
-+	n = kzalloc(array_size(4, size), STI_LOWMEM);
+ 	if (info->lba_to_pba == NULL || info->pba_to_lba == NULL) {
+ 		kfree(info->lba_to_pba);
+diff --git a/drivers/vhost/net.c b/drivers/vhost/net.c
+index 986058a57917..82c93acecaf0 100644
+--- a/drivers/vhost/net.c
++++ b/drivers/vhost/net.c
+@@ -269,8 +269,8 @@ static int vhost_net_set_ubuf_info(struct vhost_net *n)
+ 		zcopy = vhost_net_zcopy_mask & (0x1 << i);
+ 		if (!zcopy)
+ 			continue;
+-		n->vqs[i].ubuf_info = kmalloc(sizeof(*n->vqs[i].ubuf_info) *
+-					      UIO_MAXIOV, GFP_KERNEL);
++		n->vqs[i].ubuf_info = kmalloc(array_size(UIO_MAXIOV, sizeof(*n->vqs[i].ubuf_info)),
++					      GFP_KERNEL);
+ 		if  (!n->vqs[i].ubuf_info)
+ 			goto err;
+ 	}
+@@ -927,7 +927,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
+ 	n = kvmalloc(sizeof *n, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
  	if (!n)
- 		return NULL;
- 	p = n + 3;
-diff --git a/drivers/video/fbdev/core/bitblit.c b/drivers/video/fbdev/core/bitblit.c
-index 790900d646c0..85dd4278a0b7 100644
---- a/drivers/video/fbdev/core/bitblit.c
-+++ b/drivers/video/fbdev/core/bitblit.c
-@@ -269,7 +269,7 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info, int mode,
- 	if (attribute) {
- 		u8 *dst;
- 
--		dst = kmalloc(w * vc->vc_font.height, GFP_ATOMIC);
-+		dst = kmalloc(array_size(w, vc->vc_font.height), GFP_ATOMIC);
- 		if (!dst)
- 			return;
- 		kfree(ops->cursor_data);
-@@ -312,7 +312,8 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info, int mode,
- 	    vc->vc_cursor_type != ops->p->cursor_shape ||
- 	    ops->cursor_state.mask == NULL ||
- 	    ops->cursor_reset) {
--		char *mask = kmalloc(w*vc->vc_font.height, GFP_ATOMIC);
-+		char *mask = kmalloc(array_size(w, vc->vc_font.height),
-+				     GFP_ATOMIC);
- 		int cur_height, size, i = 0;
- 		u8 msk = 0xff;
- 
-diff --git a/drivers/video/fbdev/core/fbcon.c b/drivers/video/fbdev/core/fbcon.c
-index 3e330e0f56ed..c910e74d46ff 100644
---- a/drivers/video/fbdev/core/fbcon.c
-+++ b/drivers/video/fbdev/core/fbcon.c
-@@ -591,7 +591,8 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
- 		if (scr_readw(r) != vc->vc_video_erase_char)
- 			break;
- 	if (r != q && new_rows >= rows + logo_lines) {
--		save = kmalloc(logo_lines * new_cols * 2, GFP_KERNEL);
-+		save = kmalloc(array3_size(logo_lines, new_cols, 2),
-+			       GFP_KERNEL);
- 		if (save) {
- 			int i = cols < new_cols ? cols : new_cols;
- 			scr_memsetw(save, erase, logo_lines * new_cols * 2);
-diff --git a/drivers/video/fbdev/core/fbcon_ccw.c b/drivers/video/fbdev/core/fbcon_ccw.c
-index 37a8b0b22566..8267510f3125 100644
---- a/drivers/video/fbdev/core/fbcon_ccw.c
-+++ b/drivers/video/fbdev/core/fbcon_ccw.c
-@@ -258,7 +258,7 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
- 	if (attribute) {
- 		u8 *dst;
- 
--		dst = kmalloc(w * vc->vc_font.width, GFP_ATOMIC);
-+		dst = kmalloc(array_size(w, vc->vc_font.width), GFP_ATOMIC);
- 		if (!dst)
- 			return;
- 		kfree(ops->cursor_data);
-@@ -304,14 +304,16 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
- 	    vc->vc_cursor_type != ops->p->cursor_shape ||
- 	    ops->cursor_state.mask == NULL ||
- 	    ops->cursor_reset) {
--		char *tmp, *mask = kmalloc(w*vc->vc_font.width, GFP_ATOMIC);
-+		char *tmp, *mask = kmalloc(array_size(w, vc->vc_font.width),
-+					   GFP_ATOMIC);
- 		int cur_height, size, i = 0;
- 		int width = (vc->vc_font.width + 7)/8;
- 
- 		if (!mask)
- 			return;
- 
--		tmp = kmalloc(width * vc->vc_font.height, GFP_ATOMIC);
-+		tmp = kmalloc(array_size(width, vc->vc_font.height),
-+			      GFP_ATOMIC);
- 
- 		if (!tmp) {
- 			kfree(mask);
-diff --git a/drivers/video/fbdev/core/fbcon_cw.c b/drivers/video/fbdev/core/fbcon_cw.c
-index 1888f8c866e8..1a770f970c3f 100644
---- a/drivers/video/fbdev/core/fbcon_cw.c
-+++ b/drivers/video/fbdev/core/fbcon_cw.c
-@@ -241,7 +241,7 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
- 	if (attribute) {
- 		u8 *dst;
- 
--		dst = kmalloc(w * vc->vc_font.width, GFP_ATOMIC);
-+		dst = kmalloc(array_size(w, vc->vc_font.width), GFP_ATOMIC);
- 		if (!dst)
- 			return;
- 		kfree(ops->cursor_data);
-@@ -287,14 +287,16 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
- 	    vc->vc_cursor_type != ops->p->cursor_shape ||
- 	    ops->cursor_state.mask == NULL ||
- 	    ops->cursor_reset) {
--		char *tmp, *mask = kmalloc(w*vc->vc_font.width, GFP_ATOMIC);
-+		char *tmp, *mask = kmalloc(array_size(w, vc->vc_font.width),
-+					   GFP_ATOMIC);
- 		int cur_height, size, i = 0;
- 		int width = (vc->vc_font.width + 7)/8;
- 
- 		if (!mask)
- 			return;
- 
--		tmp = kmalloc(width * vc->vc_font.height, GFP_ATOMIC);
-+		tmp = kmalloc(array_size(width, vc->vc_font.height),
-+			      GFP_ATOMIC);
- 
- 		if (!tmp) {
- 			kfree(mask);
-diff --git a/drivers/video/fbdev/core/fbcon_ud.c b/drivers/video/fbdev/core/fbcon_ud.c
-index f98eee263597..0d9fded15f3a 100644
---- a/drivers/video/fbdev/core/fbcon_ud.c
-+++ b/drivers/video/fbdev/core/fbcon_ud.c
-@@ -289,7 +289,7 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, int mode,
- 	if (attribute) {
- 		u8 *dst;
- 
--		dst = kmalloc(w * vc->vc_font.height, GFP_ATOMIC);
-+		dst = kmalloc(array_size(w, vc->vc_font.height), GFP_ATOMIC);
- 		if (!dst)
- 			return;
- 		kfree(ops->cursor_data);
-@@ -335,7 +335,8 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, int mode,
- 	    vc->vc_cursor_type != ops->p->cursor_shape ||
- 	    ops->cursor_state.mask == NULL ||
- 	    ops->cursor_reset) {
--		char *mask = kmalloc(w*vc->vc_font.height, GFP_ATOMIC);
-+		char *mask = kmalloc(array_size(w, vc->vc_font.height),
-+				     GFP_ATOMIC);
- 		int cur_height, size, i = 0;
- 		u8 msk = 0xff;
- 
-diff --git a/drivers/video/fbdev/core/fbmem.c b/drivers/video/fbdev/core/fbmem.c
-index f741ba8df01b..e5620d065866 100644
---- a/drivers/video/fbdev/core/fbmem.c
-+++ b/drivers/video/fbdev/core/fbmem.c
-@@ -475,7 +475,7 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
- 
- 	if (fb_logo.needs_truepalette ||
- 	    fb_logo.needs_directpalette) {
--		palette = kmalloc(256 * 4, GFP_KERNEL);
-+		palette = kmalloc(array_size(256, 4), GFP_KERNEL);
- 		if (palette == NULL)
- 			return 0;
- 
-@@ -489,7 +489,8 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
+ 		return -ENOMEM;
+-	vqs = kmalloc(VHOST_NET_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
++	vqs = kmalloc(array_size(VHOST_NET_VQ_MAX, sizeof(*vqs)), GFP_KERNEL);
+ 	if (!vqs) {
+ 		kvfree(n);
+ 		return -ENOMEM;
+diff --git a/drivers/vhost/scsi.c b/drivers/vhost/scsi.c
+index 7ad57094d736..20a3c8e87dc9 100644
+--- a/drivers/vhost/scsi.c
++++ b/drivers/vhost/scsi.c
+@@ -1378,7 +1378,7 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
+ 			goto err_vs;
  	}
  
- 	if (fb_logo.depth <= 4) {
--		logo_new = kmalloc(logo->width * logo->height, GFP_KERNEL);
-+		logo_new = kmalloc(array_size(logo->width, logo->height),
-+				   GFP_KERNEL);
- 		if (logo_new == NULL) {
- 			kfree(palette);
- 			if (saved_pseudo_palette)
-@@ -506,8 +507,8 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
- 	image.height = logo->height;
+-	vqs = kmalloc(VHOST_SCSI_MAX_VQ * sizeof(*vqs), GFP_KERNEL);
++	vqs = kmalloc(array_size(VHOST_SCSI_MAX_VQ, sizeof(*vqs)), GFP_KERNEL);
+ 	if (!vqs)
+ 		goto err_vqs;
  
- 	if (rotate) {
--		logo_rotate = kmalloc(logo->width *
--				      logo->height, GFP_KERNEL);
-+		logo_rotate = kmalloc(array_size(logo->width, logo->height),
-+				      GFP_KERNEL);
- 		if (logo_rotate)
- 			fb_rotate_logo(info, logo_rotate, &image, rotate);
+@@ -1685,22 +1685,22 @@ static int vhost_scsi_nexus_cb(struct se_portal_group *se_tpg,
+ 	for (i = 0; i < VHOST_SCSI_DEFAULT_TAGS; i++) {
+ 		tv_cmd = &((struct vhost_scsi_cmd *)se_sess->sess_cmd_map)[i];
+ 
+-		tv_cmd->tvc_sgl = kzalloc(sizeof(struct scatterlist) *
+-					VHOST_SCSI_PREALLOC_SGLS, GFP_KERNEL);
++		tv_cmd->tvc_sgl = kzalloc(array_size(VHOST_SCSI_PREALLOC_SGLS, sizeof(struct scatterlist)),
++					  GFP_KERNEL);
+ 		if (!tv_cmd->tvc_sgl) {
+ 			pr_err("Unable to allocate tv_cmd->tvc_sgl\n");
+ 			goto out;
+ 		}
+ 
+-		tv_cmd->tvc_upages = kzalloc(sizeof(struct page *) *
+-				VHOST_SCSI_PREALLOC_UPAGES, GFP_KERNEL);
++		tv_cmd->tvc_upages = kzalloc(array_size(VHOST_SCSI_PREALLOC_UPAGES, sizeof(struct page *)),
++					     GFP_KERNEL);
+ 		if (!tv_cmd->tvc_upages) {
+ 			pr_err("Unable to allocate tv_cmd->tvc_upages\n");
+ 			goto out;
+ 		}
+ 
+-		tv_cmd->tvc_prot_sgl = kzalloc(sizeof(struct scatterlist) *
+-				VHOST_SCSI_PREALLOC_PROT_SGLS, GFP_KERNEL);
++		tv_cmd->tvc_prot_sgl = kzalloc(array_size(VHOST_SCSI_PREALLOC_PROT_SGLS, sizeof(struct scatterlist)),
++					       GFP_KERNEL);
+ 		if (!tv_cmd->tvc_prot_sgl) {
+ 			pr_err("Unable to allocate tv_cmd->tvc_prot_sgl\n");
+ 			goto out;
+diff --git a/drivers/vhost/test.c b/drivers/vhost/test.c
+index 906b8f0f19f7..c4db12a7a182 100644
+--- a/drivers/vhost/test.c
++++ b/drivers/vhost/test.c
+@@ -107,7 +107,7 @@ static int vhost_test_open(struct inode *inode, struct file *f)
+ 
+ 	if (!n)
+ 		return -ENOMEM;
+-	vqs = kmalloc(VHOST_TEST_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
++	vqs = kmalloc(array_size(VHOST_TEST_VQ_MAX, sizeof(*vqs)), GFP_KERNEL);
+ 	if (!vqs) {
+ 		kfree(n);
+ 		return -ENOMEM;
+diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+index f3bd8e941224..4fea3adc6721 100644
+--- a/drivers/vhost/vhost.c
++++ b/drivers/vhost/vhost.c
+@@ -385,10 +385,12 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
+ 
+ 	for (i = 0; i < dev->nvqs; ++i) {
+ 		vq = dev->vqs[i];
+-		vq->indirect = kmalloc(sizeof *vq->indirect * UIO_MAXIOV,
++		vq->indirect = kmalloc(array_size(UIO_MAXIOV, sizeof(*vq->indirect)),
+ 				       GFP_KERNEL);
+-		vq->log = kmalloc(sizeof *vq->log * UIO_MAXIOV, GFP_KERNEL);
+-		vq->heads = kmalloc(sizeof *vq->heads * UIO_MAXIOV, GFP_KERNEL);
++		vq->log = kmalloc(array_size(UIO_MAXIOV, sizeof(*vq->log)),
++				  GFP_KERNEL);
++		vq->heads = kmalloc(array_size(UIO_MAXIOV, sizeof(*vq->heads)),
++				    GFP_KERNEL);
+ 		if (!vq->indirect || !vq->log || !vq->heads)
+ 			goto err_nomem;
  	}
+diff --git a/drivers/vhost/vringh.c b/drivers/vhost/vringh.c
+index bb8971f2a634..d87425e7fe31 100644
+--- a/drivers/vhost/vringh.c
++++ b/drivers/vhost/vringh.c
+@@ -191,7 +191,7 @@ static int resize_iovec(struct vringh_kiov *iov, gfp_t gfp)
+ 	if (flag)
+ 		new = krealloc(iov->iov, new_num * sizeof(struct iovec), gfp);
+ 	else {
+-		new = kmalloc(new_num * sizeof(struct iovec), gfp);
++		new = kmalloc(array_size(new_num, sizeof(struct iovec)), gfp);
+ 		if (new) {
+ 			memcpy(new, iov->iov,
+ 			       iov->max_num * sizeof(struct iovec));
+diff --git a/drivers/video/fbdev/broadsheetfb.c b/drivers/video/fbdev/broadsheetfb.c
+index 9f9a7bef1ff6..59b89f8901e7 100644
+--- a/drivers/video/fbdev/broadsheetfb.c
++++ b/drivers/video/fbdev/broadsheetfb.c
+@@ -617,7 +617,8 @@ static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
+ 	int tail_start_addr;
+ 	int start_sector_addr;
+ 
+-	sector_buffer = kzalloc(sizeof(char)*sector_size, GFP_KERNEL);
++	sector_buffer = kzalloc(array_size(sector_size, sizeof(char)),
++				GFP_KERNEL);
+ 	if (!sector_buffer)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/video/fbdev/core/fbcon_rotate.c b/drivers/video/fbdev/core/fbcon_rotate.c
+index 8a51e4d95cc5..a6468416f547 100644
+--- a/drivers/video/fbdev/core/fbcon_rotate.c
++++ b/drivers/video/fbdev/core/fbcon_rotate.c
+@@ -46,7 +46,7 @@ static int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
+ 		info->fbops->fb_sync(info);
+ 
+ 	if (ops->fd_size < d_cellsize * len) {
+-		dst = kmalloc(d_cellsize * len, GFP_KERNEL);
++		dst = kmalloc(array_size(len, d_cellsize), GFP_KERNEL);
+ 
+ 		if (dst == NULL) {
+ 			err = -ENOMEM;
 diff --git a/drivers/video/fbdev/core/fbmon.c b/drivers/video/fbdev/core/fbmon.c
-index 24642cd9d25b..1b5c49e0923c 100644
+index 2b2d67328514..24642cd9d25b 100644
 --- a/drivers/video/fbdev/core/fbmon.c
 +++ b/drivers/video/fbdev/core/fbmon.c
-@@ -1056,8 +1056,8 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
- 	if (!(num + svd_n))
- 		return;
+@@ -620,7 +620,8 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize,
+ 	int num = 0, i, first = 1;
+ 	int ver, rev;
  
--	m = kzalloc((specs->modedb_len + num + svd_n) *
--		       sizeof(struct fb_videomode), GFP_KERNEL);
-+	m = kzalloc(array_size((specs->modedb_len + num + svd_n), sizeof(struct fb_videomode)),
-+		    GFP_KERNEL);
+-	mode = kzalloc(50 * sizeof(struct fb_videomode), GFP_KERNEL);
++	mode = kzalloc(array_size(50, sizeof(struct fb_videomode)),
++		       GFP_KERNEL);
+ 	if (mode == NULL)
+ 		return NULL;
  
+@@ -671,7 +672,7 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize,
+ 	}
+ 
+ 	*dbsize = num;
+-	m = kmalloc(num * sizeof(struct fb_videomode), GFP_KERNEL);
++	m = kmalloc(array_size(num, sizeof(struct fb_videomode)), GFP_KERNEL);
  	if (!m)
- 		return;
-diff --git a/drivers/video/fbdev/i810/i810_main.c b/drivers/video/fbdev/i810/i810_main.c
-index d18f7b31932c..aac30cfaaf5e 100644
---- a/drivers/video/fbdev/i810/i810_main.c
-+++ b/drivers/video/fbdev/i810/i810_main.c
-@@ -1513,7 +1513,7 @@ static int i810fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
- 		int size = ((cursor->image.width + 7) >> 3) *
- 			cursor->image.height;
- 		int i;
--		u8 *data = kmalloc(64 * 8, GFP_ATOMIC);
-+		u8 *data = kmalloc(array_size(64, 8), GFP_ATOMIC);
+ 		return mode;
+ 	memmove(m, mode, num * sizeof(struct fb_videomode));
+diff --git a/drivers/video/fbdev/imxfb.c b/drivers/video/fbdev/imxfb.c
+index ba82f97fb42b..45e0e8b084be 100644
+--- a/drivers/video/fbdev/imxfb.c
++++ b/drivers/video/fbdev/imxfb.c
+@@ -662,7 +662,8 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
  
- 		if (data == NULL)
- 			return -ENOMEM;
-@@ -2023,7 +2023,7 @@ static int i810fb_init_pci(struct pci_dev *dev,
- 	par = info->par;
- 	par->dev = dev;
+ 	pr_debug("%s\n",__func__);
  
--	if (!(info->pixmap.addr = kzalloc(8*1024, GFP_KERNEL))) {
-+	if (!(info->pixmap.addr = kzalloc(array_size(8, 1024), GFP_KERNEL))) {
- 		i810fb_release_resource(info, par);
- 		return -ENOMEM;
- 	}
-diff --git a/drivers/video/fbdev/intelfb/intelfbdrv.c b/drivers/video/fbdev/intelfb/intelfbdrv.c
-index d7463a2a5d83..b1f4b68967d6 100644
---- a/drivers/video/fbdev/intelfb/intelfbdrv.c
-+++ b/drivers/video/fbdev/intelfb/intelfbdrv.c
-@@ -506,7 +506,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
- 	dinfo->pdev  = pdev;
- 
- 	/* Reserve pixmap space. */
--	info->pixmap.addr = kzalloc(64 * 1024, GFP_KERNEL);
-+	info->pixmap.addr = kzalloc(array_size(64, 1024), GFP_KERNEL);
- 	if (info->pixmap.addr == NULL) {
- 		ERR_MSG("Cannot reserve pixmap memory.\n");
- 		goto err_out_pixmap;
-diff --git a/drivers/video/fbdev/matrox/g450_pll.c b/drivers/video/fbdev/matrox/g450_pll.c
-index c15f8a57498e..6adf58736da6 100644
---- a/drivers/video/fbdev/matrox/g450_pll.c
-+++ b/drivers/video/fbdev/matrox/g450_pll.c
-@@ -518,7 +518,8 @@ int matroxfb_g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
- {
- 	unsigned int* arr;
- 	
--	arr = kmalloc(sizeof(*arr) * MNP_TABLE_SIZE * 2, GFP_KERNEL);
-+	arr = kmalloc(array3_size(sizeof(*arr), MNP_TABLE_SIZE, 2),
-+		      GFP_KERNEL);
- 	if (arr) {
- 		int r;
- 
-diff --git a/drivers/video/fbdev/mb862xx/mb862xxfb_accel.c b/drivers/video/fbdev/mb862xx/mb862xxfb_accel.c
-index fe92eed6da70..f7012a88af34 100644
---- a/drivers/video/fbdev/mb862xx/mb862xxfb_accel.c
-+++ b/drivers/video/fbdev/mb862xx/mb862xxfb_accel.c
-@@ -245,7 +245,7 @@ static void mb86290fb_imageblit(struct fb_info *info,
- 		return;
- 	}
- 
--	cmd = kmalloc(cmdlen * 4, GFP_DMA);
-+	cmd = kmalloc(array_size(cmdlen, 4), GFP_DMA);
- 	if (!cmd)
- 		return cfb_imageblit(info, image);
- 	cmdfn(cmd, step, dx, dy, width, height, fgcolor, bgcolor, image, info);
-diff --git a/drivers/video/fbdev/nvidia/nvidia.c b/drivers/video/fbdev/nvidia/nvidia.c
-index 418a2d0d06a9..d35970a8887c 100644
---- a/drivers/video/fbdev/nvidia/nvidia.c
-+++ b/drivers/video/fbdev/nvidia/nvidia.c
-@@ -566,7 +566,8 @@ static int nvidiafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
- 		u8 *msk = (u8 *) cursor->mask;
- 		u8 *src;
- 
--		src = kmalloc(s_pitch * cursor->image.height, GFP_ATOMIC);
-+		src = kmalloc(array_size(s_pitch, cursor->image.height),
-+			      GFP_ATOMIC);
- 
- 		if (src) {
- 			switch (cursor->rop) {
-@@ -1284,7 +1285,7 @@ static int nvidiafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
- 
- 	par = info->par;
- 	par->pci_dev = pd;
--	info->pixmap.addr = kzalloc(8 * 1024, GFP_KERNEL);
-+	info->pixmap.addr = kzalloc(array_size(8, 1024), GFP_KERNEL);
- 
- 	if (info->pixmap.addr == NULL)
- 		goto err_out_kfree;
-diff --git a/drivers/video/fbdev/riva/fbdev.c b/drivers/video/fbdev/riva/fbdev.c
-index ff8282374f37..1a7f7a3fc93a 100644
---- a/drivers/video/fbdev/riva/fbdev.c
-+++ b/drivers/video/fbdev/riva/fbdev.c
-@@ -1615,7 +1615,8 @@ static int rivafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
- 		u8 *msk = (u8 *) cursor->mask;
- 		u8 *src;
- 		
--		src = kmalloc(s_pitch * cursor->image.height, GFP_ATOMIC);
-+		src = kmalloc(array_size(s_pitch, cursor->image.height),
-+			      GFP_ATOMIC);
- 
- 		if (src) {
- 			switch (cursor->rop) {
-@@ -1909,7 +1910,7 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
- 	default_par = info->par;
- 	default_par->pdev = pd;
- 
--	info->pixmap.addr = kzalloc(8 * 1024, GFP_KERNEL);
-+	info->pixmap.addr = kzalloc(array_size(8, 1024), GFP_KERNEL);
- 	if (info->pixmap.addr == NULL) {
- 	    	ret = -ENOMEM;
- 		goto err_framebuffer_release;
-diff --git a/drivers/video/fbdev/uvesafb.c b/drivers/video/fbdev/uvesafb.c
-index 889a3dee98e9..06a408fd6f2e 100644
---- a/drivers/video/fbdev/uvesafb.c
-+++ b/drivers/video/fbdev/uvesafb.c
-@@ -486,8 +486,8 @@ static int uvesafb_vbe_getmodes(struct uvesafb_ktask *task,
- 		mode++;
- 	}
- 
--	par->vbe_modes = kzalloc(sizeof(struct vbe_mode_ib) *
--				par->vbe_modes_cnt, GFP_KERNEL);
-+	par->vbe_modes = kzalloc(array_size(sizeof(struct vbe_mode_ib), par->vbe_modes_cnt),
-+				 GFP_KERNEL);
- 	if (!par->vbe_modes)
+-	info->pseudo_palette = kmalloc(sizeof(u32) * 16, GFP_KERNEL);
++	info->pseudo_palette = kmalloc(array_size(16, sizeof(u32)),
++				       GFP_KERNEL);
+ 	if (!info->pseudo_palette)
  		return -ENOMEM;
  
-@@ -1044,7 +1044,8 @@ static int uvesafb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
- 		    info->cmap.len || cmap->start < info->cmap.start)
- 			return -EINVAL;
- 
--		entries = kmalloc(sizeof(*entries) * cmap->len, GFP_KERNEL);
-+		entries = kmalloc(array_size(sizeof(*entries), cmap->len),
-+				  GFP_KERNEL);
- 		if (!entries)
- 			return -ENOMEM;
- 
-diff --git a/drivers/video/of_display_timing.c b/drivers/video/of_display_timing.c
-index 83b8963c9657..8b1fdc19cde5 100644
---- a/drivers/video/of_display_timing.c
-+++ b/drivers/video/of_display_timing.c
-@@ -181,8 +181,8 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
- 		goto entryfail;
+diff --git a/drivers/video/fbdev/mmp/fb/mmpfb.c b/drivers/video/fbdev/mmp/fb/mmpfb.c
+index 92279e02dd94..3ef95828da35 100644
+--- a/drivers/video/fbdev/mmp/fb/mmpfb.c
++++ b/drivers/video/fbdev/mmp/fb/mmpfb.c
+@@ -493,8 +493,8 @@ static int modes_setup(struct mmpfb_info *fbi)
+ 		return 0;
  	}
+ 	/* put videomode list to info structure */
+-	videomodes = kzalloc(sizeof(struct fb_videomode) * videomode_num,
+-			GFP_KERNEL);
++	videomodes = kzalloc(array_size(videomode_num, sizeof(struct fb_videomode)),
++			     GFP_KERNEL);
+ 	if (!videomodes) {
+ 		dev_err(fbi->dev, "can't malloc video modes\n");
+ 		return -ENOMEM;
+diff --git a/drivers/video/fbdev/omap2/omapfb/dss/manager.c b/drivers/video/fbdev/omap2/omapfb/dss/manager.c
+index 69f86d2cc274..ec2e52fcdda6 100644
+--- a/drivers/video/fbdev/omap2/omapfb/dss/manager.c
++++ b/drivers/video/fbdev/omap2/omapfb/dss/manager.c
+@@ -42,8 +42,8 @@ int dss_init_overlay_managers(void)
  
--	disp->timings = kzalloc(sizeof(struct display_timing *) *
--				disp->num_timings, GFP_KERNEL);
-+	disp->timings = kzalloc(array_size(sizeof(struct display_timing *), disp->num_timings),
-+				GFP_KERNEL);
- 	if (!disp->timings) {
- 		pr_err("%pOF: could not allocate timings array\n", np);
- 		goto entryfail;
-diff --git a/drivers/virt/vboxguest/vboxguest_core.c b/drivers/virt/vboxguest/vboxguest_core.c
-index 9f0f2f26d6eb..7e29412cbe87 100644
---- a/drivers/virt/vboxguest/vboxguest_core.c
-+++ b/drivers/virt/vboxguest/vboxguest_core.c
-@@ -69,7 +69,8 @@ static void vbg_guest_mappings_init(struct vbg_dev *gdev)
- 	/* Add 4M so that we can align the vmap to 4MiB as the host requires. */
- 	size = PAGE_ALIGN(req->hypervisor_size) + SZ_4M;
+ 	num_managers = dss_feat_get_num_mgrs();
  
--	pages = kmalloc(sizeof(*pages) * (size >> PAGE_SHIFT), GFP_KERNEL);
-+	pages = kmalloc(array_size(sizeof(*pages), (size >> PAGE_SHIFT)),
+-	managers = kzalloc(sizeof(struct omap_overlay_manager) * num_managers,
+-			GFP_KERNEL);
++	managers = kzalloc(array_size(num_managers, sizeof(struct omap_overlay_manager)),
++			   GFP_KERNEL);
+ 
+ 	BUG_ON(managers == NULL);
+ 
+diff --git a/drivers/video/fbdev/omap2/omapfb/dss/overlay.c b/drivers/video/fbdev/omap2/omapfb/dss/overlay.c
+index d6c5d75d2ef8..4905eded0160 100644
+--- a/drivers/video/fbdev/omap2/omapfb/dss/overlay.c
++++ b/drivers/video/fbdev/omap2/omapfb/dss/overlay.c
+@@ -59,8 +59,8 @@ void dss_init_overlays(struct platform_device *pdev)
+ 
+ 	num_overlays = dss_feat_get_num_ovls();
+ 
+-	overlays = kzalloc(sizeof(struct omap_overlay) * num_overlays,
+-			GFP_KERNEL);
++	overlays = kzalloc(array_size(num_overlays, sizeof(struct omap_overlay)),
++			   GFP_KERNEL);
+ 
+ 	BUG_ON(overlays == NULL);
+ 
+diff --git a/drivers/video/fbdev/pvr2fb.c b/drivers/video/fbdev/pvr2fb.c
+index a582d3ae7ac1..178c9d348467 100644
+--- a/drivers/video/fbdev/pvr2fb.c
++++ b/drivers/video/fbdev/pvr2fb.c
+@@ -682,7 +682,8 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
+ 
+ 	nr_pages = (count + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 
+-	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
++	pages = kmalloc(array_size(nr_pages, sizeof(struct page *)),
 +			GFP_KERNEL);
  	if (!pages)
- 		goto out;
- 
-diff --git a/drivers/xen/xen-pciback/pciback_ops.c b/drivers/xen/xen-pciback/pciback_ops.c
-index ee2c891b55c6..43897e381505 100644
---- a/drivers/xen/xen-pciback/pciback_ops.c
-+++ b/drivers/xen/xen-pciback/pciback_ops.c
-@@ -234,7 +234,7 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
- 	if (dev->msi_enabled || !(cmd & PCI_COMMAND_MEMORY))
- 		return -ENXIO;
- 
--	entries = kmalloc(op->value * sizeof(*entries), GFP_KERNEL);
-+	entries = kmalloc(array_size(op->value, sizeof(*entries)), GFP_KERNEL);
- 	if (entries == NULL)
  		return -ENOMEM;
  
+diff --git a/drivers/video/fbdev/uvesafb.c b/drivers/video/fbdev/uvesafb.c
+index 73676eb0244a..889a3dee98e9 100644
+--- a/drivers/video/fbdev/uvesafb.c
++++ b/drivers/video/fbdev/uvesafb.c
+@@ -858,7 +858,7 @@ static int uvesafb_vbe_init_mode(struct fb_info *info)
+ 	 * Convert the modelist into a modedb so that we can use it with
+ 	 * fb_find_mode().
+ 	 */
+-	mode = kzalloc(i * sizeof(*mode), GFP_KERNEL);
++	mode = kzalloc(array_size(i, sizeof(*mode)), GFP_KERNEL);
+ 	if (mode) {
+ 		i = 0;
+ 		list_for_each(pos, &info->modelist) {
+diff --git a/drivers/video/fbdev/via/viafbdev.c b/drivers/video/fbdev/via/viafbdev.c
+index badee04ef496..e708e24cc5d0 100644
+--- a/drivers/video/fbdev/via/viafbdev.c
++++ b/drivers/video/fbdev/via/viafbdev.c
+@@ -596,7 +596,8 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
+ 		break;
+ 
+ 	case VIAFB_GET_GAMMA_LUT:
+-		viafb_gamma_table = kmalloc(256 * sizeof(u32), GFP_KERNEL);
++		viafb_gamma_table = kmalloc(array_size(256, sizeof(u32)),
++					    GFP_KERNEL);
+ 		if (!viafb_gamma_table)
+ 			return -ENOMEM;
+ 		viafb_get_gamma_table(viafb_gamma_table);
+diff --git a/drivers/video/fbdev/w100fb.c b/drivers/video/fbdev/w100fb.c
+index 035ff6e02894..a71cfa861d57 100644
+--- a/drivers/video/fbdev/w100fb.c
++++ b/drivers/video/fbdev/w100fb.c
+@@ -693,7 +693,8 @@ int w100fb_probe(struct platform_device *pdev)
+ 		goto out;
+ 	}
+ 
+-	info->pseudo_palette = kmalloc(sizeof (u32) * MAX_PALETTES, GFP_KERNEL);
++	info->pseudo_palette = kmalloc(array_size(MAX_PALETTES, sizeof(u32)),
++				       GFP_KERNEL);
+ 	if (!info->pseudo_palette) {
+ 		err = -ENOMEM;
+ 		goto out;
+diff --git a/drivers/virt/fsl_hypervisor.c b/drivers/virt/fsl_hypervisor.c
+index 4e05d7f711fe..5c7338f288fb 100644
+--- a/drivers/virt/fsl_hypervisor.c
++++ b/drivers/virt/fsl_hypervisor.c
+@@ -223,7 +223,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
+ 	 * 'pages' is an array of struct page pointers that's initialized by
+ 	 * get_user_pages().
+ 	 */
+-	pages = kzalloc(num_pages * sizeof(struct page *), GFP_KERNEL);
++	pages = kzalloc(array_size(num_pages, sizeof(struct page *)),
++			GFP_KERNEL);
+ 	if (!pages) {
+ 		pr_debug("fsl-hv: could not allocate page list\n");
+ 		return -ENOMEM;
+diff --git a/drivers/virt/vboxguest/vboxguest_core.c b/drivers/virt/vboxguest/vboxguest_core.c
+index 190dbf8cfcb5..9f0f2f26d6eb 100644
+--- a/drivers/virt/vboxguest/vboxguest_core.c
++++ b/drivers/virt/vboxguest/vboxguest_core.c
+@@ -262,7 +262,7 @@ static int vbg_balloon_inflate(struct vbg_dev *gdev, u32 chunk_idx)
+ 	struct page **pages;
+ 	int i, rc, ret;
+ 
+-	pages = kmalloc(sizeof(*pages) * VMMDEV_MEMORY_BALLOON_CHUNK_PAGES,
++	pages = kmalloc(array_size(VMMDEV_MEMORY_BALLOON_CHUNK_PAGES, sizeof(*pages)),
+ 			GFP_KERNEL | __GFP_NOWARN);
+ 	if (!pages)
+ 		return -ENOMEM;
+diff --git a/drivers/virtio/virtio_pci_common.c b/drivers/virtio/virtio_pci_common.c
+index 48d4d1cf1cb6..0aa48dbf13fa 100644
+--- a/drivers/virtio/virtio_pci_common.c
++++ b/drivers/virtio/virtio_pci_common.c
+@@ -113,12 +113,12 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
+ 
+ 	vp_dev->msix_vectors = nvectors;
+ 
+-	vp_dev->msix_names = kmalloc(nvectors * sizeof *vp_dev->msix_names,
++	vp_dev->msix_names = kmalloc(array_size(nvectors, sizeof(*vp_dev->msix_names)),
+ 				     GFP_KERNEL);
+ 	if (!vp_dev->msix_names)
+ 		goto error;
+ 	vp_dev->msix_affinity_masks
+-		= kzalloc(nvectors * sizeof *vp_dev->msix_affinity_masks,
++		= kzalloc(array_size(nvectors, sizeof(*vp_dev->msix_affinity_masks)),
+ 			  GFP_KERNEL);
+ 	if (!vp_dev->msix_affinity_masks)
+ 		goto error;
+diff --git a/drivers/virtio/virtio_ring.c b/drivers/virtio/virtio_ring.c
+index 21d464a29cf8..87053be9e6b6 100644
+--- a/drivers/virtio/virtio_ring.c
++++ b/drivers/virtio/virtio_ring.c
+@@ -247,7 +247,7 @@ static struct vring_desc *alloc_indirect(struct virtqueue *_vq,
+ 	 */
+ 	gfp &= ~__GFP_HIGHMEM;
+ 
+-	desc = kmalloc(total_sg * sizeof(struct vring_desc), gfp);
++	desc = kmalloc(array_size(total_sg, sizeof(struct vring_desc)), gfp);
+ 	if (!desc)
+ 		return NULL;
+ 
+diff --git a/drivers/xen/arm-device.c b/drivers/xen/arm-device.c
+index 85dd20e05726..6c38f7ede8c2 100644
+--- a/drivers/xen/arm-device.c
++++ b/drivers/xen/arm-device.c
+@@ -70,9 +70,10 @@ static int xen_map_device_mmio(const struct resource *resources,
+ 		if ((resource_type(r) != IORESOURCE_MEM) || (nr == 0))
+ 			continue;
+ 
+-		gpfns = kzalloc(sizeof(xen_pfn_t) * nr, GFP_KERNEL);
+-		idxs = kzalloc(sizeof(xen_ulong_t) * nr, GFP_KERNEL);
+-		errs = kzalloc(sizeof(int) * nr, GFP_KERNEL);
++		gpfns = kzalloc(array_size(nr, sizeof(xen_pfn_t)), GFP_KERNEL);
++		idxs = kzalloc(array_size(nr, sizeof(xen_ulong_t)),
++			       GFP_KERNEL);
++		errs = kzalloc(array_size(nr, sizeof(int)), GFP_KERNEL);
+ 		if (!gpfns || !idxs || !errs) {
+ 			kfree(gpfns);
+ 			kfree(idxs);
+diff --git a/drivers/xen/evtchn.c b/drivers/xen/evtchn.c
+index 8cac07ab60ab..7df056308338 100644
+--- a/drivers/xen/evtchn.c
++++ b/drivers/xen/evtchn.c
+@@ -322,7 +322,8 @@ static int evtchn_resize_ring(struct per_user_data *u)
+ 	else
+ 		new_size = 2 * u->ring_size;
+ 
+-	new_ring = kvmalloc(new_size * sizeof(*new_ring), GFP_KERNEL);
++	new_ring = kvmalloc(array_size(new_size, sizeof(*new_ring)),
++			    GFP_KERNEL);
+ 	if (!new_ring)
+ 		return -ENOMEM;
+ 
+diff --git a/drivers/xen/grant-table.c b/drivers/xen/grant-table.c
+index 27be107d6480..c3376059ef54 100644
+--- a/drivers/xen/grant-table.c
++++ b/drivers/xen/grant-table.c
+@@ -1137,7 +1137,8 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
+ 	/* No need for kzalloc as it is initialized in following hypercall
+ 	 * GNTTABOP_setup_table.
+ 	 */
+-	frames = kmalloc(nr_gframes * sizeof(unsigned long), GFP_ATOMIC);
++	frames = kmalloc(array_size(nr_gframes, sizeof(unsigned long)),
++			 GFP_ATOMIC);
+ 	if (!frames)
+ 		return -ENOMEM;
+ 
+@@ -1300,7 +1301,7 @@ int gnttab_init(void)
+ 	max_nr_glist_frames = (max_nr_grant_frames *
+ 			       gnttab_interface->grefs_per_grant_frame / RPP);
+ 
+-	gnttab_list = kmalloc(max_nr_glist_frames * sizeof(grant_ref_t *),
++	gnttab_list = kmalloc(array_size(max_nr_glist_frames, sizeof(grant_ref_t *)),
+ 			      GFP_KERNEL);
+ 	if (gnttab_list == NULL)
+ 		return -ENOMEM;
+diff --git a/fs/9p/fid.c b/fs/9p/fid.c
+index ed4f8519b627..9966ada52d75 100644
+--- a/fs/9p/fid.c
++++ b/fs/9p/fid.c
+@@ -100,7 +100,7 @@ static int build_path_from_dentry(struct v9fs_session_info *v9ses,
+ 	for (ds = dentry; !IS_ROOT(ds); ds = ds->d_parent)
+ 		n++;
+ 
+-	wnames = kmalloc(sizeof(char *) * n, GFP_KERNEL);
++	wnames = kmalloc(array_size(n, sizeof(char *)), GFP_KERNEL);
+ 	if (!wnames)
+ 		goto err_out;
+ 
+diff --git a/fs/adfs/super.c b/fs/adfs/super.c
+index cfda2c7caedc..0004715f0e94 100644
+--- a/fs/adfs/super.c
++++ b/fs/adfs/super.c
+@@ -313,7 +313,7 @@ static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_di
+ 
+ 	asb->s_ids_per_zone = zone_size / (asb->s_idlen + 1);
+ 
+-	dm = kmalloc(nzones * sizeof(*dm), GFP_KERNEL);
++	dm = kmalloc(array_size(nzones, sizeof(*dm)), GFP_KERNEL);
+ 	if (dm == NULL) {
+ 		adfs_error(sb, "not enough memory");
+ 		return ERR_PTR(-ENOMEM);
 diff --git a/fs/afs/cmservice.c b/fs/afs/cmservice.c
-index b2c9728f8164..39b9af14e913 100644
+index 357de908df3a..b2c9728f8164 100644
 --- a/fs/afs/cmservice.c
 +++ b/fs/afs/cmservice.c
-@@ -203,7 +203,8 @@ static int afs_deliver_cb_callback(struct afs_call *call)
- 		if (call->count > AFSCBMAX)
- 			return afs_protocol_error(call, -EBADMSG);
- 
--		call->buffer = kmalloc(call->count * 3 * 4, GFP_KERNEL);
-+		call->buffer = kmalloc(array3_size(call->count, 3, 4),
+@@ -355,7 +355,8 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
+ 	switch (call->unmarshall) {
+ 	case 0:
+ 		call->offset = 0;
+-		call->buffer = kmalloc(11 * sizeof(__be32), GFP_KERNEL);
++		call->buffer = kmalloc(array_size(11, sizeof(__be32)),
 +				       GFP_KERNEL);
  		if (!call->buffer)
  			return -ENOMEM;
+ 		call->unmarshall++;
+@@ -478,7 +479,8 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
+ 	switch (call->unmarshall) {
+ 	case 0:
  		call->offset = 0;
-diff --git a/fs/btrfs/check-integrity.c b/fs/btrfs/check-integrity.c
-index dc062b195c46..5ef9a7b4bcbc 100644
---- a/fs/btrfs/check-integrity.c
-+++ b/fs/btrfs/check-integrity.c
-@@ -1603,9 +1603,8 @@ static int btrfsic_read_block(struct btrfsic_state *state,
- 
- 	num_pages = (block_ctx->len + (u64)PAGE_SIZE - 1) >>
- 		    PAGE_SHIFT;
--	block_ctx->mem_to_free = kzalloc((sizeof(*block_ctx->datav) +
--					  sizeof(*block_ctx->pagev)) *
--					 num_pages, GFP_NOFS);
-+	block_ctx->mem_to_free = kzalloc(array_size((sizeof(*block_ctx->datav) + sizeof(*block_ctx->pagev)), num_pages),
-+					 GFP_NOFS);
- 	if (!block_ctx->mem_to_free)
- 		return -ENOMEM;
- 	block_ctx->datav = block_ctx->mem_to_free;
-diff --git a/fs/ceph/mds_client.c b/fs/ceph/mds_client.c
-index 5ece2e6ad154..9eb0df9b44d0 100644
---- a/fs/ceph/mds_client.c
-+++ b/fs/ceph/mds_client.c
-@@ -2992,8 +2992,8 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
- 			num_flock_locks = 0;
- 		}
- 		if (num_fcntl_locks + num_flock_locks > 0) {
--			flocks = kmalloc((num_fcntl_locks + num_flock_locks) *
--					 sizeof(struct ceph_filelock), GFP_NOFS);
-+			flocks = kmalloc(array_size((num_fcntl_locks + num_flock_locks), sizeof(struct ceph_filelock)),
-+					 GFP_NOFS);
- 			if (!flocks) {
- 				err = -ENOMEM;
- 				goto out_free;
-diff --git a/fs/cifs/smb2pdu.c b/fs/cifs/smb2pdu.c
-index 987efc0d5f54..4a70724ead0c 100644
---- a/fs/cifs/smb2pdu.c
-+++ b/fs/cifs/smb2pdu.c
-@@ -1378,7 +1378,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
- 	if (!(ses->server) || !tree)
- 		return -EIO;
- 
--	unc_path = kmalloc(MAX_SHARENAME_LENGTH * 2, GFP_KERNEL);
-+	unc_path = kmalloc(array_size(MAX_SHARENAME_LENGTH, 2), GFP_KERNEL);
- 	if (unc_path == NULL)
- 		return -ENOMEM;
- 
-diff --git a/fs/cifs/transport.c b/fs/cifs/transport.c
-index 8f6f25918229..14745b90e2a6 100644
---- a/fs/cifs/transport.c
-+++ b/fs/cifs/transport.c
-@@ -832,7 +832,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
- 	int rc;
- 
- 	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
--		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
-+		new_iov = kmalloc(array_size(sizeof(struct kvec), (n_vec + 1)),
- 				  GFP_KERNEL);
- 		if (!new_iov)
+-		call->buffer = kmalloc(11 * sizeof(__be32), GFP_KERNEL);
++		call->buffer = kmalloc(array_size(11, sizeof(__be32)),
++				       GFP_KERNEL);
+ 		if (!call->buffer)
  			return -ENOMEM;
-@@ -871,7 +871,7 @@ smb2_send_recv(const unsigned int xid, struct cifs_ses *ses,
- 	__be32 rfc1002_marker;
+ 		call->unmarshall++;
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+index 4ad6f669fe34..b65133a6264e 100644
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -2010,7 +2010,8 @@ static int elf_note_info_init(struct elf_note_info *info)
+ 	INIT_LIST_HEAD(&info->thread_list);
  
- 	if (n_vec + 1 > CIFS_MAX_IOV_SIZE) {
--		new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1),
-+		new_iov = kmalloc(array_size(sizeof(struct kvec), (n_vec + 1)),
- 				  GFP_KERNEL);
- 		if (!new_iov)
+ 	/* Allocate space for ELF notes */
+-	info->notes = kmalloc(8 * sizeof(struct memelfnote), GFP_KERNEL);
++	info->notes = kmalloc(array_size(8, sizeof(struct memelfnote)),
++			      GFP_KERNEL);
+ 	if (!info->notes)
+ 		return 0;
+ 	info->psinfo = kmalloc(sizeof(*info->psinfo), GFP_KERNEL);
+diff --git a/fs/binfmt_elf_fdpic.c b/fs/binfmt_elf_fdpic.c
+index d90993adeffa..59e2f5442c50 100644
+--- a/fs/binfmt_elf_fdpic.c
++++ b/fs/binfmt_elf_fdpic.c
+@@ -1600,7 +1600,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
+ 	psinfo = kmalloc(sizeof(*psinfo), GFP_KERNEL);
+ 	if (!psinfo)
+ 		goto cleanup;
+-	notes = kmalloc(NUM_NOTES * sizeof(struct memelfnote), GFP_KERNEL);
++	notes = kmalloc(array_size(NUM_NOTES, sizeof(struct memelfnote)),
++			GFP_KERNEL);
+ 	if (!notes)
+ 		goto cleanup;
+ 	fpu = kmalloc(sizeof(*fpu), GFP_KERNEL);
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 7ec920e27065..4d34db5ac9c3 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -205,7 +205,8 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
+ 	if (nr_pages <= DIO_INLINE_BIO_VECS)
+ 		vecs = inline_vecs;
+ 	else {
+-		vecs = kmalloc(nr_pages * sizeof(struct bio_vec), GFP_KERNEL);
++		vecs = kmalloc(array_size(nr_pages, sizeof(struct bio_vec)),
++			       GFP_KERNEL);
+ 		if (!vecs)
  			return -ENOMEM;
-diff --git a/fs/ext4/extents.c b/fs/ext4/extents.c
-index 37deae1bbad3..661331441b4a 100644
---- a/fs/ext4/extents.c
-+++ b/fs/ext4/extents.c
-@@ -577,7 +577,7 @@ int ext4_ext_precache(struct inode *inode)
- 	down_read(&ei->i_data_sem);
- 	depth = ext_depth(inode);
- 
--	path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1),
-+	path = kzalloc(array_size(sizeof(struct ext4_ext_path), (depth + 1)),
- 		       GFP_NOFS);
- 	if (path == NULL) {
- 		up_read(&ei->i_data_sem);
-@@ -879,8 +879,8 @@ ext4_find_extent(struct inode *inode, ext4_lblk_t block,
  	}
- 	if (!path) {
- 		/* account possible depth increase */
--		path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 2),
--				GFP_NOFS);
-+		path = kzalloc(array_size(sizeof(struct ext4_ext_path), (depth + 2)),
-+			       GFP_NOFS);
- 		if (unlikely(!path))
- 			return ERR_PTR(-ENOMEM);
- 		path[0].p_maxdepth = depth + 1;
-@@ -2921,7 +2921,7 @@ int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start,
- 			path[k].p_block =
- 				le16_to_cpu(path[k].p_hdr->eh_entries)+1;
- 	} else {
--		path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1),
-+		path = kzalloc(array_size(sizeof(struct ext4_ext_path), (depth + 1)),
- 			       GFP_NOFS);
- 		if (path == NULL) {
- 			ext4_journal_stop(handle);
-diff --git a/fs/ext4/resize.c b/fs/ext4/resize.c
-index d5640ca8c499..c0b74b875b96 100644
---- a/fs/ext4/resize.c
-+++ b/fs/ext4/resize.c
-@@ -839,8 +839,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
- 	if (unlikely(err))
- 		goto exit_dind;
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index 5f7ad3d0df2e..d5c6825fb2b7 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -370,7 +370,7 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
  
--	n_group_desc = ext4_kvmalloc((gdb_num + 1) *
--				     sizeof(struct buffer_head *),
-+	n_group_desc = ext4_kvmalloc(array_size((gdb_num + 1), sizeof(struct buffer_head *)),
- 				     GFP_NOFS);
- 	if (!n_group_desc) {
- 		err = -ENOMEM;
-@@ -918,8 +917,7 @@ static int add_new_gdb_meta_bg(struct super_block *sb,
- 	gdb_bh = sb_bread(sb, gdblock);
- 	if (!gdb_bh)
- 		return -EIO;
--	n_group_desc = ext4_kvmalloc((gdb_num + 1) *
--				     sizeof(struct buffer_head *),
-+	n_group_desc = ext4_kvmalloc(array_size((gdb_num + 1), sizeof(struct buffer_head *)),
- 				     GFP_NOFS);
- 	if (!n_group_desc) {
- 		err = -ENOMEM;
-diff --git a/fs/fuse/dev.c b/fs/fuse/dev.c
-index 947e64abb95d..74975b3be6aa 100644
---- a/fs/fuse/dev.c
-+++ b/fs/fuse/dev.c
-@@ -1362,7 +1362,8 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
- 	if (!fud)
- 		return -EPERM;
+ 	/* build page vector */
+ 	nr_pages = calc_pages_for(0, len);
+-	pages = kmalloc(sizeof(*pages) * nr_pages, GFP_KERNEL);
++	pages = kmalloc(array_size(nr_pages, sizeof(*pages)), GFP_KERNEL);
+ 	if (!pages) {
+ 		ret = -ENOMEM;
+ 		goto out_put;
+@@ -966,7 +966,7 @@ static int ceph_writepages_start(struct address_space *mapping,
  
--	bufs = kmalloc(pipe->buffers * sizeof(struct pipe_buffer), GFP_KERNEL);
-+	bufs = kmalloc(array_size(pipe->buffers, sizeof(struct pipe_buffer)),
-+		       GFP_KERNEL);
- 	if (!bufs)
- 		return -ENOMEM;
+ 				BUG_ON(pages);
+ 				max_pages = calc_pages_for(0, (u64)len);
+-				pages = kmalloc(max_pages * sizeof (*pages),
++				pages = kmalloc(array_size(max_pages, sizeof(*pages)),
+ 						GFP_NOFS);
+ 				if (!pages) {
+ 					pool = fsc->wb_pagevec_pool;
+@@ -1113,7 +1113,7 @@ static int ceph_writepages_start(struct address_space *mapping,
  
-@@ -1943,7 +1944,8 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
- 	if (!fud)
- 		return -EPERM;
+ 			/* allocate new pages array for next request */
+ 			data_pages = pages;
+-			pages = kmalloc(locked_pages * sizeof (*pages),
++			pages = kmalloc(array_size(locked_pages, sizeof(*pages)),
+ 					GFP_NOFS);
+ 			if (!pages) {
+ 				pool = fsc->wb_pagevec_pool;
+diff --git a/fs/ceph/file.c b/fs/ceph/file.c
+index f85040d73e3d..467bdb1762f0 100644
+--- a/fs/ceph/file.c
++++ b/fs/ceph/file.c
+@@ -109,7 +109,7 @@ dio_get_pages_alloc(const struct iov_iter *it, size_t nbytes,
+ 	align = (unsigned long)(it->iov->iov_base + it->iov_offset) &
+ 		(PAGE_SIZE - 1);
+ 	npages = calc_pages_for(align, nbytes);
+-	pages = kvmalloc(sizeof(*pages) * npages, GFP_KERNEL);
++	pages = kvmalloc(array_size(npages, sizeof(*pages)), GFP_KERNEL);
+ 	if (!pages)
+ 		return ERR_PTR(-ENOMEM);
  
--	bufs = kmalloc(pipe->buffers * sizeof(struct pipe_buffer), GFP_KERNEL);
-+	bufs = kmalloc(array_size(pipe->buffers, sizeof(struct pipe_buffer)),
-+		       GFP_KERNEL);
- 	if (!bufs)
- 		return -ENOMEM;
- 
-diff --git a/fs/gfs2/dir.c b/fs/gfs2/dir.c
-index d68bf63af8b8..3f6aba012006 100644
---- a/fs/gfs2/dir.c
-+++ b/fs/gfs2/dir.c
-@@ -1169,7 +1169,7 @@ static int dir_double_exhash(struct gfs2_inode *dip)
- 	if (IS_ERR(hc))
- 		return PTR_ERR(hc);
- 
--	hc2 = kmalloc(hsize_bytes * 2, GFP_NOFS | __GFP_NOWARN);
-+	hc2 = kmalloc(array_size(hsize_bytes, 2), GFP_NOFS | __GFP_NOWARN);
- 	if (hc2 == NULL)
- 		hc2 = __vmalloc(hsize_bytes * 2, GFP_NOFS, PAGE_KERNEL);
- 
-diff --git a/fs/gfs2/rgrp.c b/fs/gfs2/rgrp.c
-index 8b683917a27e..948a167d34cf 100644
---- a/fs/gfs2/rgrp.c
-+++ b/fs/gfs2/rgrp.c
-@@ -2605,7 +2605,7 @@ void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state)
- {
- 	unsigned int x;
- 
--	rlist->rl_ghs = kmalloc(rlist->rl_rgrps * sizeof(struct gfs2_holder),
-+	rlist->rl_ghs = kmalloc(array_size(rlist->rl_rgrps, sizeof(struct gfs2_holder)),
- 				GFP_NOFS | __GFP_NOFAIL);
- 	for (x = 0; x < rlist->rl_rgrps; x++)
- 		gfs2_holder_init(rlist->rl_rgd[x]->rd_gl,
-diff --git a/fs/hpfs/dnode.c b/fs/hpfs/dnode.c
-index a4ad18afbdec..052a2dd64ea6 100644
---- a/fs/hpfs/dnode.c
-+++ b/fs/hpfs/dnode.c
-@@ -33,7 +33,7 @@ int hpfs_add_pos(struct inode *inode, loff_t *pos)
- 			if (hpfs_inode->i_rddir_off[i] == pos)
- 				return 0;
- 	if (!(i&0x0f)) {
--		if (!(ppos = kmalloc((i+0x11) * sizeof(loff_t*), GFP_NOFS))) {
-+		if (!(ppos = kmalloc(array_size((i + 0x11), sizeof(loff_t *)), GFP_NOFS))) {
- 			pr_err("out of memory for position list\n");
- 			return -ENOMEM;
- 		}
-diff --git a/fs/hpfs/map.c b/fs/hpfs/map.c
-index 7c49f1ef0c85..616ffe643e1e 100644
---- a/fs/hpfs/map.c
-+++ b/fs/hpfs/map.c
-@@ -115,7 +115,7 @@ __le32 *hpfs_load_bitmap_directory(struct super_block *s, secno bmp)
- 	int n = (hpfs_sb(s)->sb_fs_size + 0x200000 - 1) >> 21;
- 	int i;
- 	__le32 *b;
--	if (!(b = kmalloc(n * 512, GFP_KERNEL))) {
-+	if (!(b = kmalloc(array_size(n, 512), GFP_KERNEL))) {
- 		pr_err("can't allocate memory for bitmap directory\n");
- 		return NULL;
- 	}	
-diff --git a/fs/jffs2/wbuf.c b/fs/jffs2/wbuf.c
-index 2cfe487708e0..ac8ec1680544 100644
---- a/fs/jffs2/wbuf.c
-+++ b/fs/jffs2/wbuf.c
-@@ -1208,7 +1208,8 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
- 	if (!c->wbuf)
- 		return -ENOMEM;
- 
--	c->oobbuf = kmalloc(NR_OOB_SCAN_PAGES * c->oobavail, GFP_KERNEL);
-+	c->oobbuf = kmalloc(array_size(NR_OOB_SCAN_PAGES, c->oobavail),
-+			    GFP_KERNEL);
- 	if (!c->oobbuf) {
- 		kfree(c->wbuf);
- 		return -ENOMEM;
-diff --git a/fs/jfs/jfs_dtree.c b/fs/jfs/jfs_dtree.c
-index de2bcb36e079..70880fb1db18 100644
---- a/fs/jfs/jfs_dtree.c
-+++ b/fs/jfs/jfs_dtree.c
-@@ -594,7 +594,8 @@ int dtSearch(struct inode *ip, struct component_name * key, ino_t * data,
- 	struct component_name ciKey;
- 	struct super_block *sb = ip->i_sb;
- 
--	ciKey.name = kmalloc((JFS_NAME_MAX + 1) * sizeof(wchar_t), GFP_NOFS);
-+	ciKey.name = kmalloc(array_size((JFS_NAME_MAX + 1), sizeof(wchar_t)),
-+			     GFP_NOFS);
- 	if (!ciKey.name) {
- 		rc = -ENOMEM;
- 		goto dtSearch_Exit2;
-@@ -957,7 +958,8 @@ static int dtSplitUp(tid_t tid,
- 	smp = split->mp;
- 	sp = DT_PAGE(ip, smp);
- 
--	key.name = kmalloc((JFS_NAME_MAX + 2) * sizeof(wchar_t), GFP_NOFS);
-+	key.name = kmalloc(array_size((JFS_NAME_MAX + 2), sizeof(wchar_t)),
-+			   GFP_NOFS);
- 	if (!key.name) {
- 		DT_PUTPAGE(smp);
- 		rc = -ENOMEM;
-@@ -3779,13 +3781,13 @@ static int ciGetLeafPrefixKey(dtpage_t * lp, int li, dtpage_t * rp,
- 	struct component_name lkey;
- 	struct component_name rkey;
- 
--	lkey.name = kmalloc((JFS_NAME_MAX + 1) * sizeof(wchar_t),
--					GFP_KERNEL);
-+	lkey.name = kmalloc(array_size((JFS_NAME_MAX + 1), sizeof(wchar_t)),
-+			    GFP_KERNEL);
- 	if (lkey.name == NULL)
- 		return -ENOMEM;
- 
--	rkey.name = kmalloc((JFS_NAME_MAX + 1) * sizeof(wchar_t),
--					GFP_KERNEL);
-+	rkey.name = kmalloc(array_size((JFS_NAME_MAX + 1), sizeof(wchar_t)),
-+			    GFP_KERNEL);
- 	if (rkey.name == NULL) {
- 		kfree(lkey.name);
- 		return -ENOMEM;
-diff --git a/fs/jfs/jfs_unicode.c b/fs/jfs/jfs_unicode.c
-index c7de6f5bbefc..3c324911b127 100644
---- a/fs/jfs/jfs_unicode.c
-+++ b/fs/jfs/jfs_unicode.c
-@@ -121,7 +121,7 @@ int get_UCSname(struct component_name * uniName, struct dentry *dentry)
- 		return -ENAMETOOLONG;
- 
- 	uniName->name =
--	    kmalloc((length + 1) * sizeof(wchar_t), GFP_NOFS);
-+	    kmalloc(array_size((length + 1), sizeof(wchar_t)), GFP_NOFS);
- 
- 	if (uniName->name == NULL)
- 		return -ENOMEM;
-diff --git a/fs/nfsd/export.c b/fs/nfsd/export.c
-index 8ceb25a10ea0..fd042ba61e10 100644
---- a/fs/nfsd/export.c
-+++ b/fs/nfsd/export.c
-@@ -404,8 +404,8 @@ fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc)
- 	if (fsloc->locations_count == 0)
+diff --git a/fs/cifs/asn1.c b/fs/cifs/asn1.c
+index a3b56544c21b..385d21212c5a 100644
+--- a/fs/cifs/asn1.c
++++ b/fs/cifs/asn1.c
+@@ -428,7 +428,7 @@ asn1_oid_decode(struct asn1_ctx *ctx,
+ 	if (size < 2 || size > UINT_MAX/sizeof(unsigned long))
  		return 0;
  
--	fsloc->locations = kzalloc(fsloc->locations_count
--			* sizeof(struct nfsd4_fs_location), GFP_KERNEL);
-+	fsloc->locations = kzalloc(array_size(fsloc->locations_count, sizeof(struct nfsd4_fs_location)),
-+				   GFP_KERNEL);
- 	if (!fsloc->locations)
- 		return -ENOMEM;
- 	for (i=0; i < fsloc->locations_count; i++) {
-diff --git a/fs/ocfs2/journal.c b/fs/ocfs2/journal.c
-index e5dcea6cee5f..748d7e81bfcf 100644
---- a/fs/ocfs2/journal.c
-+++ b/fs/ocfs2/journal.c
-@@ -1383,7 +1383,7 @@ static int __ocfs2_recovery_thread(void *arg)
- 		goto bail;
- 	}
+-	*oid = kmalloc(size * sizeof(unsigned long), GFP_ATOMIC);
++	*oid = kmalloc(array_size(size, sizeof(unsigned long)), GFP_ATOMIC);
+ 	if (*oid == NULL)
+ 		return 0;
  
--	rm_quota = kzalloc(osb->max_slots * sizeof(int), GFP_NOFS);
-+	rm_quota = kzalloc(array_size(osb->max_slots, sizeof(int)), GFP_NOFS);
- 	if (!rm_quota) {
- 		status = -ENOMEM;
- 		goto bail;
-diff --git a/fs/ocfs2/sysfile.c b/fs/ocfs2/sysfile.c
-index af155c183123..bef0932590ce 100644
---- a/fs/ocfs2/sysfile.c
-+++ b/fs/ocfs2/sysfile.c
-@@ -69,9 +69,7 @@ static struct inode **get_local_system_inode(struct ocfs2_super *osb,
- 	spin_unlock(&osb->osb_lock);
+diff --git a/fs/cifs/cifsacl.c b/fs/cifs/cifsacl.c
+index 13a8a77322c9..c15aea7d712f 100644
+--- a/fs/cifs/cifsacl.c
++++ b/fs/cifs/cifsacl.c
+@@ -747,7 +747,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
  
- 	if (unlikely(!local_system_inodes)) {
--		local_system_inodes = kzalloc(sizeof(struct inode *) *
--					      NUM_LOCAL_SYSTEM_INODES *
--					      osb->max_slots,
-+		local_system_inodes = kzalloc(array3_size(sizeof(struct inode *), NUM_LOCAL_SYSTEM_INODES, osb->max_slots),
- 					      GFP_NOFS);
- 		if (!local_system_inodes) {
- 			mlog_errno(-ENOMEM);
-diff --git a/fs/overlayfs/namei.c b/fs/overlayfs/namei.c
-index 2dba29eadde6..ca9b06516f0d 100644
---- a/fs/overlayfs/namei.c
-+++ b/fs/overlayfs/namei.c
-@@ -612,7 +612,7 @@ static int ovl_get_index_name_fh(struct ovl_fh *fh, struct qstr *name)
- {
- 	char *n, *s;
- 
--	n = kzalloc(fh->len * 2, GFP_KERNEL);
-+	n = kzalloc(array_size(fh->len, 2), GFP_KERNEL);
- 	if (!n)
- 		return -ENOMEM;
- 
-diff --git a/fs/proc/proc_sysctl.c b/fs/proc/proc_sysctl.c
-index 8989936f2995..e4bb535b4df3 100644
---- a/fs/proc/proc_sysctl.c
-+++ b/fs/proc/proc_sysctl.c
-@@ -1417,7 +1417,7 @@ static int register_leaf_sysctl_tables(const char *path, char *pos,
- 	/* If there are mixed files and directories we need a new table */
- 	if (nr_dirs && nr_files) {
- 		struct ctl_table *new;
--		files = kzalloc(sizeof(struct ctl_table) * (nr_files + 1),
-+		files = kzalloc(array_size(sizeof(struct ctl_table), (nr_files + 1)),
+ 		if (num_aces > ULONG_MAX / sizeof(struct cifs_ace *))
+ 			return;
+-		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
++		ppace = kmalloc(array_size(num_aces, sizeof(struct cifs_ace *)),
  				GFP_KERNEL);
- 		if (!files)
- 			goto out;
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index c486ad4b43f0..70448d34bf2d 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1466,7 +1466,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
- 	pm.show_pfn = file_ns_capable(file, &init_user_ns, CAP_SYS_ADMIN);
+ 		if (!ppace)
+ 			return;
+diff --git a/fs/cifs/inode.c b/fs/cifs/inode.c
+index 3c371f7f5963..128342aa4ee9 100644
+--- a/fs/cifs/inode.c
++++ b/fs/cifs/inode.c
+@@ -1791,8 +1791,8 @@ cifs_rename2(struct inode *source_dir, struct dentry *source_dentry,
+ 		 * with unix extensions enabled.
+ 		 */
+ 		info_buf_source =
+-			kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO),
+-					GFP_KERNEL);
++			kmalloc(array_size(2, sizeof(FILE_UNIX_BASIC_INFO)),
++				GFP_KERNEL);
+ 		if (info_buf_source == NULL) {
+ 			rc = -ENOMEM;
+ 			goto cifs_rename_exit;
+diff --git a/fs/cifs/smb2pdu.c b/fs/cifs/smb2pdu.c
+index 0f044c4a2dc9..987efc0d5f54 100644
+--- a/fs/cifs/smb2pdu.c
++++ b/fs/cifs/smb2pdu.c
+@@ -3319,7 +3319,7 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
+ 	if (!num)
+ 		return -EINVAL;
  
- 	pm.len = (PAGEMAP_WALK_SIZE >> PAGE_SHIFT);
--	pm.buffer = kmalloc(pm.len * PM_ENTRY_BYTES, GFP_KERNEL);
-+	pm.buffer = kmalloc(array_size(pm.len, PM_ENTRY_BYTES), GFP_KERNEL);
- 	ret = -ENOMEM;
- 	if (!pm.buffer)
- 		goto out_mm;
-diff --git a/fs/reiserfs/inode.c b/fs/reiserfs/inode.c
-index b13fc024d2ee..e5e0781f6c35 100644
---- a/fs/reiserfs/inode.c
-+++ b/fs/reiserfs/inode.c
-@@ -1044,7 +1044,8 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
- 			if (blocks_needed == 1) {
- 				un = &unf_single;
- 			} else {
--				un = kzalloc(min(blocks_needed, max_to_insert) * UNFM_P_SIZE, GFP_NOFS);
-+				un = kzalloc(array_size(min(blocks_needed, max_to_insert), UNFM_P_SIZE),
-+					     GFP_NOFS);
- 				if (!un) {
- 					un = &unf_single;
- 					blocks_needed = 1;
-diff --git a/fs/reiserfs/journal.c b/fs/reiserfs/journal.c
-index 23148c3ed675..d8c85c9a3227 100644
---- a/fs/reiserfs/journal.c
-+++ b/fs/reiserfs/journal.c
-@@ -2192,10 +2192,10 @@ static int journal_read_transaction(struct super_block *sb,
- 	 * now we know we've got a good transaction, and it was
- 	 * inside the valid time ranges
- 	 */
--	log_blocks = kmalloc(get_desc_trans_len(desc) *
--			     sizeof(struct buffer_head *), GFP_NOFS);
--	real_blocks = kmalloc(get_desc_trans_len(desc) *
--			      sizeof(struct buffer_head *), GFP_NOFS);
-+	log_blocks = kmalloc(array_size(get_desc_trans_len(desc), sizeof(struct buffer_head *)),
-+			     GFP_NOFS);
-+	real_blocks = kmalloc(array_size(get_desc_trans_len(desc), sizeof(struct buffer_head *)),
-+			      GFP_NOFS);
- 	if (!log_blocks || !real_blocks) {
- 		brelse(c_bh);
- 		brelse(d_bh);
-diff --git a/fs/select.c b/fs/select.c
-index ba879c51288f..41ad4307f7b5 100644
---- a/fs/select.c
-+++ b/fs/select.c
-@@ -1223,7 +1223,7 @@ static int compat_core_sys_select(int n, compat_ulong_t __user *inp,
- 	size = FDS_BYTES(n);
- 	bits = stack_fds;
- 	if (size > sizeof(stack_fds) / 6) {
--		bits = kmalloc(6 * size, GFP_KERNEL);
-+		bits = kmalloc(array_size(6, size), GFP_KERNEL);
- 		ret = -ENOMEM;
- 		if (!bits)
- 			goto out_nofds;
-diff --git a/fs/ubifs/lpt.c b/fs/ubifs/lpt.c
-index 322f7aa7f44f..6f3a83cce258 100644
---- a/fs/ubifs/lpt.c
-+++ b/fs/ubifs/lpt.c
-@@ -628,7 +628,7 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
- 	/* Needed by 'ubifs_pack_lsave()' */
- 	c->main_first = c->leb_cnt - *main_lebs;
- 
--	lsave = kmalloc(sizeof(int) * c->lsave_cnt, GFP_KERNEL);
-+	lsave = kmalloc(array_size(sizeof(int), c->lsave_cnt), GFP_KERNEL);
- 	pnode = kzalloc(sizeof(struct ubifs_pnode), GFP_KERNEL);
- 	nnode = kzalloc(sizeof(struct ubifs_nnode), GFP_KERNEL);
- 	buf = vmalloc(c->leb_size);
-@@ -1698,7 +1698,8 @@ static int lpt_init_wr(struct ubifs_info *c)
+-	iov = kmalloc(sizeof(struct kvec) * num, GFP_KERNEL);
++	iov = kmalloc(array_size(num, sizeof(struct kvec)), GFP_KERNEL);
+ 	if (!iov)
  		return -ENOMEM;
  
- 	if (c->big_lpt) {
--		c->lsave = kmalloc(sizeof(int) * c->lsave_cnt, GFP_NOFS);
-+		c->lsave = kmalloc(array_size(sizeof(int), c->lsave_cnt),
-+				   GFP_NOFS);
- 		if (!c->lsave)
- 			return -ENOMEM;
- 		err = read_lsave(c);
-@@ -1940,7 +1941,7 @@ int ubifs_lpt_scan_nolock(struct ubifs_info *c, int start_lnum, int end_lnum,
- 			return err;
- 	}
+@@ -3380,7 +3380,7 @@ SMB2_rename(const unsigned int xid, struct cifs_tcon *tcon,
+ 	int rc;
+ 	int len = (2 * UniStrnlen((wchar_t *)target_file, PATH_MAX));
  
--	path = kmalloc(sizeof(struct lpt_scan_node) * (c->lpt_hght + 1),
-+	path = kmalloc(array_size(sizeof(struct lpt_scan_node), (c->lpt_hght + 1)),
- 		       GFP_NOFS);
- 	if (!path)
- 		return -ENOMEM;
-diff --git a/fs/ubifs/tnc.c b/fs/ubifs/tnc.c
-index ba3d0e0f8615..d3ccabce9be0 100644
---- a/fs/ubifs/tnc.c
-+++ b/fs/ubifs/tnc.c
-@@ -1104,7 +1104,7 @@ static struct ubifs_znode *dirty_cow_bottom_up(struct ubifs_info *c,
- 	ubifs_assert(znode);
- 	if (c->zroot.znode->level > BOTTOM_UP_HEIGHT) {
- 		kfree(c->bottom_up_buf);
--		c->bottom_up_buf = kmalloc(c->zroot.znode->level * sizeof(int),
-+		c->bottom_up_buf = kmalloc(array_size(c->zroot.znode->level, sizeof(int)),
- 					   GFP_NOFS);
- 		if (!c->bottom_up_buf)
- 			return ERR_PTR(-ENOMEM);
-diff --git a/fs/ubifs/tnc_commit.c b/fs/ubifs/tnc_commit.c
-index 3fad907bbd25..74841922335d 100644
---- a/fs/ubifs/tnc_commit.c
-+++ b/fs/ubifs/tnc_commit.c
-@@ -366,7 +366,8 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
- 
- 	dbg_gc("%d znodes to write", cnt);
- 
--	c->gap_lebs = kmalloc(sizeof(int) * (c->lst.idx_lebs + 1), GFP_NOFS);
-+	c->gap_lebs = kmalloc(array_size(sizeof(int), (c->lst.idx_lebs + 1)),
-+			      GFP_NOFS);
- 	if (!c->gap_lebs)
- 		return -ENOMEM;
- 
-diff --git a/fs/udf/super.c b/fs/udf/super.c
-index 55bcd93a1145..6a9a664848fc 100644
---- a/fs/udf/super.c
-+++ b/fs/udf/super.c
-@@ -1647,8 +1647,8 @@ static noinline int udf_process_sequence(
- 
- 	memset(data.vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
- 	data.size_part_descs = PART_DESC_ALLOC_STEP;
--	data.part_descs_loc = kzalloc(sizeof(*data.part_descs_loc) *
--					data.size_part_descs, GFP_KERNEL);
-+	data.part_descs_loc = kzalloc(array_size(sizeof(*data.part_descs_loc), data.size_part_descs),
-+				      GFP_KERNEL);
- 	if (!data.part_descs_loc)
- 		return -ENOMEM;
- 
-diff --git a/fs/ufs/super.c b/fs/ufs/super.c
-index 8254b8b3690f..543802fbf86d 100644
---- a/fs/ufs/super.c
-+++ b/fs/ufs/super.c
-@@ -541,7 +541,7 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
- 	 * Read cylinder group (we read only first fragment from block
- 	 * at this time) and prepare internal data structures for cg caching.
- 	 */
--	if (!(sbi->s_ucg = kmalloc (sizeof(struct buffer_head *) * uspi->s_ncg, GFP_NOFS)))
-+	if (!(sbi->s_ucg = kmalloc(array_size(sizeof(struct buffer_head *), uspi->s_ncg), GFP_NOFS)))
- 		goto failed;
- 	for (i = 0; i < uspi->s_ncg; i++) 
- 		sbi->s_ucg[i] = NULL;
-diff --git a/kernel/bpf/lpm_trie.c b/kernel/bpf/lpm_trie.c
-index b4b5b81e7251..6860fb1108f0 100644
---- a/kernel/bpf/lpm_trie.c
-+++ b/kernel/bpf/lpm_trie.c
-@@ -623,7 +623,7 @@ static int trie_get_next_key(struct bpf_map *map, void *_key, void *_next_key)
- 	if (!key || key->prefixlen > trie->max_prefixlen)
- 		goto find_leftmost;
- 
--	node_stack = kmalloc(trie->max_prefixlen * sizeof(struct lpm_trie_node *),
-+	node_stack = kmalloc(array_size(trie->max_prefixlen, sizeof(struct lpm_trie_node *)),
- 			     GFP_ATOMIC | __GFP_NOWARN);
- 	if (!node_stack)
- 		return -ENOMEM;
-diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
-index 5dd1dcb902bf..a3170ed0f8c9 100644
---- a/kernel/bpf/verifier.c
-+++ b/kernel/bpf/verifier.c
-@@ -5265,7 +5265,8 @@ static int jit_subprogs(struct bpf_verifier_env *env)
- 		insn->imm = 1;
- 	}
- 
--	func = kzalloc(sizeof(prog) * (env->subprog_cnt + 1), GFP_KERNEL);
-+	func = kzalloc(array_size(sizeof(prog), (env->subprog_cnt + 1)),
-+		       GFP_KERNEL);
- 	if (!func)
- 		return -ENOMEM;
- 
-diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
-index d68ef0115ee9..4c3f39aff8e6 100644
---- a/kernel/cgroup/cpuset.c
-+++ b/kernel/cgroup/cpuset.c
-@@ -683,7 +683,7 @@ static int generate_sched_domains(cpumask_var_t **domains,
- 		goto done;
- 	}
- 
--	csa = kmalloc(nr_cpusets() * sizeof(cp), GFP_KERNEL);
-+	csa = kmalloc(array_size(nr_cpusets(), sizeof(cp)), GFP_KERNEL);
- 	if (!csa)
- 		goto done;
- 	csn = 0;
-diff --git a/kernel/debug/kdb/kdb_main.c b/kernel/debug/kdb/kdb_main.c
-index e405677ee08d..ac7be4cc0809 100644
---- a/kernel/debug/kdb/kdb_main.c
-+++ b/kernel/debug/kdb/kdb_main.c
-@@ -691,7 +691,8 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
- 	}
- 	if (!s->usable)
- 		return KDB_NOTIMP;
--	s->command = kzalloc((s->count + 1) * sizeof(*(s->command)), GFP_KDB);
-+	s->command = kzalloc(array_size((s->count + 1), sizeof(*(s->command))),
-+			     GFP_KDB);
- 	if (!s->command) {
- 		kdb_printf("Could not allocate new kdb_defcmd table for %s\n",
- 			   cmdstr);
-@@ -729,7 +730,7 @@ static int kdb_defcmd(int argc, const char **argv)
- 		kdb_printf("Command only available during kdb_init()\n");
- 		return KDB_NOTIMP;
- 	}
--	defcmd_set = kmalloc((defcmd_set_count + 1) * sizeof(*defcmd_set),
-+	defcmd_set = kmalloc(array_size((defcmd_set_count + 1), sizeof(*defcmd_set)),
- 			     GFP_KDB);
- 	if (!defcmd_set)
- 		goto fail_defcmd;
-@@ -2706,8 +2707,8 @@ int kdb_register_flags(char *cmd,
- 	}
- 
- 	if (i >= kdb_max_commands) {
--		kdbtab_t *new = kmalloc((kdb_max_commands - KDB_BASE_CMD_MAX +
--			 kdb_command_extend) * sizeof(*new), GFP_KDB);
-+		kdbtab_t *new = kmalloc(array_size((kdb_max_commands - KDB_BASE_CMD_MAX + kdb_command_extend), sizeof(*new)),
-+					GFP_KDB);
- 		if (!new) {
- 			kdb_printf("Could not allocate new kdb_command "
- 				   "table\n");
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index ce6848e46e94..672f9e8439be 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -1185,7 +1185,8 @@ static struct xol_area *__create_xol_area(unsigned long vaddr)
- 	if (unlikely(!area))
- 		goto out;
- 
--	area->bitmap = kzalloc(BITS_TO_LONGS(UINSNS_PER_PAGE) * sizeof(long), GFP_KERNEL);
-+	area->bitmap = kzalloc(array_size(BITS_TO_LONGS(UINSNS_PER_PAGE), sizeof(long)),
-+			       GFP_KERNEL);
- 	if (!area->bitmap)
- 		goto free_area;
- 
-diff --git a/kernel/fail_function.c b/kernel/fail_function.c
-index 1d5632d8bbcc..c0694c049c2c 100644
---- a/kernel/fail_function.c
-+++ b/kernel/fail_function.c
-@@ -258,7 +258,7 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
- 	/* cut off if it is too long */
- 	if (count > KSYM_NAME_LEN)
- 		count = KSYM_NAME_LEN;
--	buf = kmalloc(sizeof(char) * (count + 1), GFP_KERNEL);
-+	buf = kmalloc(array_size(sizeof(char), (count + 1)), GFP_KERNEL);
- 	if (!buf)
- 		return -ENOMEM;
- 
-diff --git a/kernel/locking/locktorture.c b/kernel/locking/locktorture.c
-index 6850ffd69125..194c341e327f 100644
---- a/kernel/locking/locktorture.c
-+++ b/kernel/locking/locktorture.c
-@@ -913,7 +913,8 @@ static int __init lock_torture_init(void)
- 	/* Initialize the statistics so that each run gets its own numbers. */
- 	if (nwriters_stress) {
- 		lock_is_write_held = 0;
--		cxt.lwsa = kmalloc(sizeof(*cxt.lwsa) * cxt.nrealwriters_stress, GFP_KERNEL);
-+		cxt.lwsa = kmalloc(array_size(sizeof(*cxt.lwsa), cxt.nrealwriters_stress),
-+				   GFP_KERNEL);
- 		if (cxt.lwsa == NULL) {
- 			VERBOSE_TOROUT_STRING("cxt.lwsa: Out of memory");
- 			firsterr = -ENOMEM;
-@@ -942,7 +943,8 @@ static int __init lock_torture_init(void)
- 
- 		if (nreaders_stress) {
- 			lock_is_read_held = 0;
--			cxt.lrsa = kmalloc(sizeof(*cxt.lrsa) * cxt.nrealreaders_stress, GFP_KERNEL);
-+			cxt.lrsa = kmalloc(array_size(sizeof(*cxt.lrsa), cxt.nrealreaders_stress),
-+					   GFP_KERNEL);
- 			if (cxt.lrsa == NULL) {
- 				VERBOSE_TOROUT_STRING("cxt.lrsa: Out of memory");
- 				firsterr = -ENOMEM;
-@@ -985,7 +987,7 @@ static int __init lock_torture_init(void)
- 	}
- 
- 	if (nwriters_stress) {
--		writer_tasks = kzalloc(cxt.nrealwriters_stress * sizeof(writer_tasks[0]),
-+		writer_tasks = kzalloc(array_size(cxt.nrealwriters_stress, sizeof(writer_tasks[0])),
- 				       GFP_KERNEL);
- 		if (writer_tasks == NULL) {
- 			VERBOSE_TOROUT_ERRSTRING("writer_tasks: Out of memory");
-@@ -995,7 +997,7 @@ static int __init lock_torture_init(void)
- 	}
- 
- 	if (cxt.cur_ops->readlock) {
--		reader_tasks = kzalloc(cxt.nrealreaders_stress * sizeof(reader_tasks[0]),
-+		reader_tasks = kzalloc(array_size(cxt.nrealreaders_stress, sizeof(reader_tasks[0])),
- 				       GFP_KERNEL);
- 		if (reader_tasks == NULL) {
- 			VERBOSE_TOROUT_ERRSTRING("reader_tasks: Out of memory");
-diff --git a/kernel/relay.c b/kernel/relay.c
-index c955b10c973c..248ab20adc77 100644
---- a/kernel/relay.c
-+++ b/kernel/relay.c
-@@ -169,7 +169,8 @@ static struct rchan_buf *relay_create_buf(struct rchan *chan)
- 	buf = kzalloc(sizeof(struct rchan_buf), GFP_KERNEL);
- 	if (!buf)
- 		return NULL;
--	buf->padding = kmalloc(chan->n_subbufs * sizeof(size_t *), GFP_KERNEL);
-+	buf->padding = kmalloc(array_size(chan->n_subbufs, sizeof(size_t *)),
-+			       GFP_KERNEL);
- 	if (!buf->padding)
- 		goto free_buf;
- 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 6a78cf70761d..2a43effaaea3 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -3047,7 +3047,7 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
- 		if (IS_ERR(kbuf))
- 			return PTR_ERR(kbuf);
- 
--		tmp_bitmap = kzalloc(BITS_TO_LONGS(bitmap_len) * sizeof(unsigned long),
-+		tmp_bitmap = kzalloc(array_size(BITS_TO_LONGS(bitmap_len), sizeof(unsigned long)),
- 				     GFP_KERNEL);
- 		if (!tmp_bitmap) {
- 			kfree(kbuf);
-diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index d6694d7fb0e6..a46d08074582 100644
---- a/kernel/trace/trace.c
-+++ b/kernel/trace/trace.c
-@@ -4361,7 +4361,7 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
- 
- 	if (mask == TRACE_ITER_RECORD_TGID) {
- 		if (!tgid_map)
--			tgid_map = kzalloc((PID_MAX_DEFAULT + 1) * sizeof(*tgid_map),
-+			tgid_map = kzalloc(array_size((PID_MAX_DEFAULT + 1), sizeof(*tgid_map)),
- 					   GFP_KERNEL);
- 		if (!tgid_map) {
- 			tr->trace_flags &= ~TRACE_ITER_RECORD_TGID;
-@@ -5069,7 +5069,8 @@ trace_insert_eval_map_file(struct module *mod, struct trace_eval_map **start,
- 	 * where the head holds the module and length of array, and the
- 	 * tail holds a pointer to the next list.
- 	 */
--	map_array = kmalloc(sizeof(*map_array) * (len + 2), GFP_KERNEL);
-+	map_array = kmalloc(array_size(sizeof(*map_array), (len + 2)),
-+			    GFP_KERNEL);
- 	if (!map_array) {
- 		pr_warn("Unable to allocate trace eval mapping\n");
- 		return;
-diff --git a/lib/argv_split.c b/lib/argv_split.c
-index 5c35752a9414..67721cf97a63 100644
---- a/lib/argv_split.c
-+++ b/lib/argv_split.c
-@@ -69,7 +69,7 @@ char **argv_split(gfp_t gfp, const char *str, int *argcp)
- 		return NULL;
- 
- 	argc = count_argc(argv_str);
--	argv = kmalloc(sizeof(*argv) * (argc + 2), gfp);
-+	argv = kmalloc(array_size(sizeof(*argv), (argc + 2)), gfp);
- 	if (!argv) {
- 		kfree(argv_str);
- 		return NULL;
-diff --git a/lib/reed_solomon/reed_solomon.c b/lib/reed_solomon/reed_solomon.c
-index 06d04cfa9339..bde83becda91 100644
---- a/lib/reed_solomon/reed_solomon.c
-+++ b/lib/reed_solomon/reed_solomon.c
-@@ -85,15 +85,18 @@ static struct rs_control *rs_init(int symsize, int gfpoly, int (*gffunc)(int),
- 	rs->gffunc = gffunc;
- 
- 	/* Allocate the arrays */
--	rs->alpha_to = kmalloc(sizeof(uint16_t) * (rs->nn + 1), GFP_KERNEL);
-+	rs->alpha_to = kmalloc(array_size(sizeof(uint16_t), (rs->nn + 1)),
-+			       GFP_KERNEL);
- 	if (rs->alpha_to == NULL)
- 		goto errrs;
- 
--	rs->index_of = kmalloc(sizeof(uint16_t) * (rs->nn + 1), GFP_KERNEL);
-+	rs->index_of = kmalloc(array_size(sizeof(uint16_t), (rs->nn + 1)),
-+			       GFP_KERNEL);
- 	if (rs->index_of == NULL)
- 		goto erralp;
- 
--	rs->genpoly = kmalloc(sizeof(uint16_t) * (rs->nroots + 1), GFP_KERNEL);
-+	rs->genpoly = kmalloc(array_size(sizeof(uint16_t), (rs->nroots + 1)),
-+			      GFP_KERNEL);
- 	if(rs->genpoly == NULL)
- 		goto erridx;
- 
-diff --git a/lib/test_string.c b/lib/test_string.c
-index 0fcdb82dca86..6c0c8f5f0b28 100644
---- a/lib/test_string.c
-+++ b/lib/test_string.c
-@@ -8,7 +8,7 @@ static __init int memset16_selftest(void)
- 	unsigned i, j, k;
- 	u16 v, *p;
- 
--	p = kmalloc(256 * 2 * 2, GFP_KERNEL);
-+	p = kmalloc(array3_size(256, 2, 2), GFP_KERNEL);
- 	if (!p)
- 		return -1;
- 
-@@ -44,7 +44,7 @@ static __init int memset32_selftest(void)
- 	unsigned i, j, k;
- 	u32 v, *p;
- 
--	p = kmalloc(256 * 2 * 4, GFP_KERNEL);
-+	p = kmalloc(array3_size(256, 2, 4), GFP_KERNEL);
- 	if (!p)
- 		return -1;
- 
-@@ -80,7 +80,7 @@ static __init int memset64_selftest(void)
- 	unsigned i, j, k;
- 	u64 v, *p;
- 
--	p = kmalloc(256 * 2 * 8, GFP_KERNEL);
-+	p = kmalloc(array3_size(256, 2, 8), GFP_KERNEL);
- 	if (!p)
- 		return -1;
- 
-diff --git a/lib/test_user_copy.c b/lib/test_user_copy.c
-index e161f0498f42..9e7a3af57fbc 100644
---- a/lib/test_user_copy.c
-+++ b/lib/test_user_copy.c
-@@ -61,7 +61,7 @@ static int __init test_user_copy_init(void)
- 	u64 val_u64;
- #endif
- 
--	kmem = kmalloc(PAGE_SIZE * 2, GFP_KERNEL);
-+	kmem = kmalloc(array_size(PAGE_SIZE, 2), GFP_KERNEL);
- 	if (!kmem)
- 		return -ENOMEM;
- 
-diff --git a/mm/slab.c b/mm/slab.c
-index 2f308253c3d7..815828a26036 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4338,7 +4338,8 @@ static int leaks_show(struct seq_file *m, void *p)
- 	if (x[0] == x[1]) {
- 		/* Increase the buffer size */
- 		mutex_unlock(&slab_mutex);
--		m->private = kzalloc(x[0] * 4 * sizeof(unsigned long), GFP_KERNEL);
-+		m->private = kzalloc(array3_size(x[0], 4, sizeof(unsigned long)),
-+				     GFP_KERNEL);
- 		if (!m->private) {
- 			/* Too bad, we are really out */
- 			m->private = x;
-diff --git a/mm/slub.c b/mm/slub.c
-index 2726905b9dbf..9e7c7157f8cd 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3660,8 +3660,8 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
- #ifdef CONFIG_SLUB_DEBUG
- 	void *addr = page_address(page);
- 	void *p;
--	unsigned long *map = kzalloc(BITS_TO_LONGS(page->objects) *
--				     sizeof(long), GFP_ATOMIC);
-+	unsigned long *map = kzalloc(array_size(BITS_TO_LONGS(page->objects), sizeof(long)),
-+				     GFP_ATOMIC);
- 	if (!map)
- 		return;
- 	slab_err(s, page, text, s->name);
-@@ -4455,8 +4455,8 @@ static long validate_slab_cache(struct kmem_cache *s)
- {
- 	int node;
- 	unsigned long count = 0;
--	unsigned long *map = kmalloc(BITS_TO_LONGS(oo_objects(s->max)) *
--				sizeof(unsigned long), GFP_KERNEL);
-+	unsigned long *map = kmalloc(array_size(BITS_TO_LONGS(oo_objects(s->max)), sizeof(unsigned long)),
-+				     GFP_KERNEL);
- 	struct kmem_cache_node *n;
- 
- 	if (!map)
-@@ -4616,8 +4616,8 @@ static int list_locations(struct kmem_cache *s, char *buf,
- 	unsigned long i;
- 	struct loc_track t = { 0, 0, NULL };
- 	int node;
--	unsigned long *map = kmalloc(BITS_TO_LONGS(oo_objects(s->max)) *
--				     sizeof(unsigned long), GFP_KERNEL);
-+	unsigned long *map = kmalloc(array_size(BITS_TO_LONGS(oo_objects(s->max)), sizeof(unsigned long)),
-+				     GFP_KERNEL);
- 	struct kmem_cache_node *n;
- 
- 	if (!map || !alloc_loc_track(&t, PAGE_SIZE / sizeof(struct location),
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index fac13e7aab69..2f75036ea4b0 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3230,7 +3230,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	}
- 	/* frontswap enabled? set up bit-per-page map for frontswap */
- 	if (IS_ENABLED(CONFIG_FRONTSWAP))
--		frontswap_map = kvzalloc(BITS_TO_LONGS(maxpages) * sizeof(long),
-+		frontswap_map = kvzalloc(array_size(BITS_TO_LONGS(maxpages), sizeof(long)),
- 					 GFP_KERNEL);
- 
- 	if (p->bdev &&(swap_flags & SWAP_FLAG_DISCARD) && swap_discardable(p)) {
-diff --git a/net/9p/protocol.c b/net/9p/protocol.c
-index 16e10680518c..e53fb3fcc9a6 100644
---- a/net/9p/protocol.c
-+++ b/net/9p/protocol.c
-@@ -242,7 +242,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
- 								"w", nwname);
- 				if (!errcode) {
- 					*wnames =
--					    kmalloc(sizeof(char *) * *nwname,
-+					    kmalloc(array_size(sizeof(char *), *nwname),
- 						    GFP_NOFS);
- 					if (!*wnames)
- 						errcode = -ENOMEM;
-@@ -285,8 +285,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
- 				    p9pdu_readf(pdu, proto_version, "w", nwqid);
- 				if (!errcode) {
- 					*wqids =
--					    kmalloc(*nwqid *
--						    sizeof(struct p9_qid),
-+					    kmalloc(array_size(*nwqid, sizeof(struct p9_qid)),
- 						    GFP_NOFS);
- 					if (*wqids == NULL)
- 						errcode = -ENOMEM;
-diff --git a/net/can/bcm.c b/net/can/bcm.c
-index ac5e5e34fee3..44ede6298dbc 100644
---- a/net/can/bcm.c
-+++ b/net/can/bcm.c
-@@ -935,7 +935,7 @@ static int bcm_tx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
- 
- 		/* create array for CAN frames and copy the data */
- 		if (msg_head->nframes > 1) {
--			op->frames = kmalloc(msg_head->nframes * op->cfsiz,
-+			op->frames = kmalloc(array_size(msg_head->nframes, op->cfsiz),
- 					     GFP_KERNEL);
- 			if (!op->frames) {
- 				kfree(op);
-@@ -1107,7 +1107,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
- 
- 		if (msg_head->nframes > 1) {
- 			/* create array for CAN frames and copy the data */
--			op->frames = kmalloc(msg_head->nframes * op->cfsiz,
-+			op->frames = kmalloc(array_size(msg_head->nframes, op->cfsiz),
- 					     GFP_KERNEL);
- 			if (!op->frames) {
- 				kfree(op);
-@@ -1115,7 +1115,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
- 			}
- 
- 			/* create and init array for received CAN frames */
--			op->last_frames = kzalloc(msg_head->nframes * op->cfsiz,
-+			op->last_frames = kzalloc(array_size(msg_head->nframes, op->cfsiz),
- 						  GFP_KERNEL);
- 			if (!op->last_frames) {
- 				kfree(op->frames);
-diff --git a/net/ceph/osdmap.c b/net/ceph/osdmap.c
-index 9645ffd6acfb..e69907f531da 100644
---- a/net/ceph/osdmap.c
-+++ b/net/ceph/osdmap.c
-@@ -1299,7 +1299,7 @@ static int set_primary_affinity(struct ceph_osdmap *map, int osd, u32 aff)
- 	if (!map->osd_primary_affinity) {
- 		int i;
- 
--		map->osd_primary_affinity = kmalloc(map->max_osd*sizeof(u32),
-+		map->osd_primary_affinity = kmalloc(array_size(map->max_osd, sizeof(u32)),
- 						    GFP_NOFS);
- 		if (!map->osd_primary_affinity)
- 			return -ENOMEM;
-diff --git a/net/core/ethtool.c b/net/core/ethtool.c
-index 85db91f67e5d..136d81b40ade 100644
---- a/net/core/ethtool.c
-+++ b/net/core/ethtool.c
-@@ -1037,7 +1037,7 @@ static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
- 	if (info.cmd == ETHTOOL_GRXCLSRLALL) {
- 		if (info.rule_cnt > 0) {
- 			if (info.rule_cnt <= KMALLOC_MAX_SIZE / sizeof(u32))
--				rule_buf = kzalloc(info.rule_cnt * sizeof(u32),
-+				rule_buf = kzalloc(array_size(info.rule_cnt, sizeof(u32)),
- 						   GFP_USER);
- 			if (!rule_buf)
- 				return -ENOMEM;
-diff --git a/net/ipv4/fib_frontend.c b/net/ipv4/fib_frontend.c
-index f05afaf3235c..6fdea81c6ae6 100644
---- a/net/ipv4/fib_frontend.c
-+++ b/net/ipv4/fib_frontend.c
-@@ -563,7 +563,7 @@ static int rtentry_to_fib_config(struct net *net, int cmd, struct rtentry *rt,
- 		struct nlattr *mx;
- 		int len = 0;
- 
--		mx = kzalloc(3 * nla_total_size(4), GFP_KERNEL);
-+		mx = kzalloc(array_size(3, nla_total_size(4)), GFP_KERNEL);
- 		if (!mx)
- 			return -ENOMEM;
- 
-diff --git a/net/mac80211/util.c b/net/mac80211/util.c
-index 11f9cfc016d9..b2158c392fd2 100644
---- a/net/mac80211/util.c
-+++ b/net/mac80211/util.c
-@@ -1803,8 +1803,8 @@ static int ieee80211_reconfig_nan(struct ieee80211_sub_if_data *sdata)
- 	if (WARN_ON(res))
- 		return res;
- 
--	funcs = kzalloc((sdata->local->hw.max_nan_de_entries + 1) *
--			sizeof(*funcs), GFP_KERNEL);
-+	funcs = kzalloc(array_size((sdata->local->hw.max_nan_de_entries + 1), sizeof(*funcs)),
-+			GFP_KERNEL);
- 	if (!funcs)
- 		return -ENOMEM;
- 
-diff --git a/net/netfilter/xt_dccp.c b/net/netfilter/xt_dccp.c
-index b63d2a3d80ba..1de43cccf5a4 100644
---- a/net/netfilter/xt_dccp.c
-+++ b/net/netfilter/xt_dccp.c
-@@ -165,7 +165,7 @@ static int __init dccp_mt_init(void)
- 	/* doff is 8 bits, so the maximum option size is (4*256).  Don't put
- 	 * this in BSS since DaveM is worried about locked TLB's for kernel
- 	 * BSS. */
--	dccp_optbuf = kmalloc(256 * 4, GFP_KERNEL);
-+	dccp_optbuf = kmalloc(array_size(256, 4), GFP_KERNEL);
- 	if (!dccp_optbuf)
- 		return -ENOMEM;
- 	ret = xt_register_matches(dccp_mt_reg, ARRAY_SIZE(dccp_mt_reg));
-diff --git a/net/netlink/genetlink.c b/net/netlink/genetlink.c
-index b9ce82c9440f..14d81a8a6da7 100644
---- a/net/netlink/genetlink.c
-+++ b/net/netlink/genetlink.c
-@@ -352,8 +352,8 @@ int genl_register_family(struct genl_family *family)
- 	}
- 
- 	if (family->maxattr && !family->parallel_ops) {
--		family->attrbuf = kmalloc((family->maxattr+1) *
--					sizeof(struct nlattr *), GFP_KERNEL);
-+		family->attrbuf = kmalloc(array_size((family->maxattr + 1), sizeof(struct nlattr *)),
-+					  GFP_KERNEL);
- 		if (family->attrbuf == NULL) {
- 			err = -ENOMEM;
- 			goto errout_locked;
-@@ -566,8 +566,8 @@ static int genl_family_rcv_msg(const struct genl_family *family,
- 		return -EOPNOTSUPP;
- 
- 	if (family->maxattr && family->parallel_ops) {
--		attrbuf = kmalloc((family->maxattr+1) *
--					sizeof(struct nlattr *), GFP_KERNEL);
-+		attrbuf = kmalloc(array_size((family->maxattr + 1), sizeof(struct nlattr *)),
-+				  GFP_KERNEL);
- 		if (attrbuf == NULL)
- 			return -ENOMEM;
- 	} else
-diff --git a/net/rds/ib.c b/net/rds/ib.c
-index 02deee29e7f1..2a6c2817df4b 100644
---- a/net/rds/ib.c
-+++ b/net/rds/ib.c
-@@ -163,7 +163,7 @@ static void rds_ib_add_one(struct ib_device *device)
- 	rds_ibdev->max_initiator_depth = device->attrs.max_qp_init_rd_atom;
- 	rds_ibdev->max_responder_resources = device->attrs.max_qp_rd_atom;
- 
--	rds_ibdev->vector_load = kzalloc(sizeof(int) * device->num_comp_vectors,
-+	rds_ibdev->vector_load = kzalloc(array_size(sizeof(int), device->num_comp_vectors),
- 					 GFP_KERNEL);
- 	if (!rds_ibdev->vector_load) {
- 		pr_err("RDS/IB: %s failed to allocate vector memory\n",
-diff --git a/net/sched/sch_fq_codel.c b/net/sched/sch_fq_codel.c
-index 22fa13cf5d8b..22e2745b853d 100644
---- a/net/sched/sch_fq_codel.c
-+++ b/net/sched/sch_fq_codel.c
-@@ -489,11 +489,12 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt,
- 		return err;
- 
- 	if (!q->flows) {
--		q->flows = kvzalloc(q->flows_cnt *
--					   sizeof(struct fq_codel_flow), GFP_KERNEL);
-+		q->flows = kvzalloc(array_size(q->flows_cnt, sizeof(struct fq_codel_flow)),
-+				    GFP_KERNEL);
- 		if (!q->flows)
- 			return -ENOMEM;
--		q->backlogs = kvzalloc(q->flows_cnt * sizeof(u32), GFP_KERNEL);
-+		q->backlogs = kvzalloc(array_size(q->flows_cnt, sizeof(u32)),
-+				       GFP_KERNEL);
- 		if (!q->backlogs)
- 			return -ENOMEM;
- 		for (i = 0; i < q->flows_cnt; i++) {
-diff --git a/net/smc/smc_wr.c b/net/smc/smc_wr.c
-index 1b8af23e6e2b..ce23302d3bce 100644
---- a/net/smc/smc_wr.c
-+++ b/net/smc/smc_wr.c
-@@ -583,9 +583,8 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
- 				   GFP_KERNEL);
- 	if (!link->wr_rx_sges)
- 		goto no_mem_wr_tx_sges;
--	link->wr_tx_mask = kzalloc(
--		BITS_TO_LONGS(SMC_WR_BUF_CNT) * sizeof(*link->wr_tx_mask),
--		GFP_KERNEL);
-+	link->wr_tx_mask = kzalloc(array_size(BITS_TO_LONGS(SMC_WR_BUF_CNT), sizeof(*link->wr_tx_mask)),
-+				   GFP_KERNEL);
- 	if (!link->wr_tx_mask)
- 		goto no_mem_wr_rx_sges;
- 	link->wr_tx_pends = kcalloc(SMC_WR_BUF_CNT,
-diff --git a/net/sunrpc/auth_gss/auth_gss.c b/net/sunrpc/auth_gss/auth_gss.c
-index 9463af4b32e8..bb4857075a31 100644
---- a/net/sunrpc/auth_gss/auth_gss.c
-+++ b/net/sunrpc/auth_gss/auth_gss.c
-@@ -1753,8 +1753,8 @@ alloc_enc_pages(struct rpc_rqst *rqstp)
- 	last = (snd_buf->page_base + snd_buf->page_len - 1) >> PAGE_SHIFT;
- 	rqstp->rq_enc_pages_num = last - first + 1 + 1;
- 	rqstp->rq_enc_pages
--		= kmalloc(rqstp->rq_enc_pages_num * sizeof(struct page *),
--				GFP_NOFS);
-+		= kmalloc(array_size(rqstp->rq_enc_pages_num, sizeof(struct page *)),
-+			  GFP_NOFS);
- 	if (!rqstp->rq_enc_pages)
- 		goto out;
- 	for (i=0; i < rqstp->rq_enc_pages_num; i++) {
-diff --git a/net/sunrpc/auth_gss/gss_krb5_crypto.c b/net/sunrpc/auth_gss/gss_krb5_crypto.c
-index 8654494b4d0a..5859a6e64acd 100644
---- a/net/sunrpc/auth_gss/gss_krb5_crypto.c
-+++ b/net/sunrpc/auth_gss/gss_krb5_crypto.c
-@@ -682,7 +682,7 @@ gss_krb5_cts_crypt(struct crypto_skcipher *cipher, struct xdr_buf *buf,
- 		WARN_ON(0);
- 		return -ENOMEM;
- 	}
--	data = kmalloc(GSS_KRB5_MAX_BLOCKSIZE * 2, GFP_NOFS);
-+	data = kmalloc(array_size(GSS_KRB5_MAX_BLOCKSIZE, 2), GFP_NOFS);
+-	data = kmalloc(sizeof(void *) * 2, GFP_KERNEL);
++	data = kmalloc(array_size(2, sizeof(void *)), GFP_KERNEL);
  	if (!data)
  		return -ENOMEM;
  
-diff --git a/net/sunrpc/auth_gss/gss_rpc_upcall.c b/net/sunrpc/auth_gss/gss_rpc_upcall.c
-index 46b295e4f2b8..1b6375bac18a 100644
---- a/net/sunrpc/auth_gss/gss_rpc_upcall.c
-+++ b/net/sunrpc/auth_gss/gss_rpc_upcall.c
-@@ -224,7 +224,8 @@ static void gssp_free_receive_pages(struct gssx_arg_accept_sec_context *arg)
- static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
- {
- 	arg->npages = DIV_ROUND_UP(NGROUPS_MAX * 4, PAGE_SIZE);
--	arg->pages = kzalloc(arg->npages * sizeof(struct page *), GFP_KERNEL);
-+	arg->pages = kzalloc(array_size(arg->npages, sizeof(struct page *)),
-+			     GFP_KERNEL);
- 	/*
- 	 * XXX: actual pages are allocated by xdr layer in
- 	 * xdr_partial_copy_from_skb.
-diff --git a/net/sunrpc/cache.c b/net/sunrpc/cache.c
-index cdda4744c9b1..27a5bbb8e880 100644
---- a/net/sunrpc/cache.c
-+++ b/net/sunrpc/cache.c
-@@ -1683,7 +1683,7 @@ struct cache_detail *cache_create_net(const struct cache_detail *tmpl, struct ne
- 	if (cd == NULL)
- 		return ERR_PTR(-ENOMEM);
+@@ -3428,7 +3428,7 @@ SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
+ 	int rc;
+ 	int len = (2 * UniStrnlen((wchar_t *)target_file, PATH_MAX));
  
--	cd->hash_table = kzalloc(cd->hash_size * sizeof(struct hlist_head),
-+	cd->hash_table = kzalloc(array_size(cd->hash_size, sizeof(struct hlist_head)),
- 				 GFP_KERNEL);
- 	if (cd->hash_table == NULL) {
- 		kfree(cd);
-diff --git a/net/tipc/netlink_compat.c b/net/tipc/netlink_compat.c
-index 4492cda45566..7544e3efec02 100644
---- a/net/tipc/netlink_compat.c
-+++ b/net/tipc/netlink_compat.c
-@@ -285,8 +285,8 @@ static int __tipc_nl_compat_doit(struct tipc_nl_compat_cmd_doit *cmd,
- 	if (!trans_buf)
+-	data = kmalloc(sizeof(void *) * 2, GFP_KERNEL);
++	data = kmalloc(array_size(2, sizeof(void *)), GFP_KERNEL);
+ 	if (!data)
  		return -ENOMEM;
  
--	attrbuf = kmalloc((tipc_genl_family.maxattr + 1) *
--			sizeof(struct nlattr *), GFP_KERNEL);
-+	attrbuf = kmalloc(array_size((tipc_genl_family.maxattr + 1), sizeof(struct nlattr *)),
-+			  GFP_KERNEL);
- 	if (!attrbuf) {
- 		err = -ENOMEM;
- 		goto trans_out;
-diff --git a/security/keys/trusted.c b/security/keys/trusted.c
-index 423776682025..a4b1f4f94ea8 100644
---- a/security/keys/trusted.c
-+++ b/security/keys/trusted.c
-@@ -1148,7 +1148,7 @@ static long trusted_read(const struct key *key, char __user *buffer,
- 		return -EINVAL;
+diff --git a/fs/exofs/inode.c b/fs/exofs/inode.c
+index 0ac62811b341..30eae1ccafab 100644
+--- a/fs/exofs/inode.c
++++ b/fs/exofs/inode.c
+@@ -110,7 +110,7 @@ static int pcol_try_alloc(struct page_collect *pcol)
+ 	pages =  exofs_max_io_pages(&pcol->sbi->layout, pcol->expected_pages);
  
- 	if (buffer && buflen >= 2 * p->blob_len) {
--		ascii_buf = kmalloc(2 * p->blob_len, GFP_KERNEL);
-+		ascii_buf = kmalloc(array_size(2, p->blob_len), GFP_KERNEL);
- 		if (!ascii_buf)
+ 	for (; pages; pages >>= 1) {
+-		pcol->pages = kmalloc(pages * sizeof(struct page *),
++		pcol->pages = kmalloc(array_size(pages, sizeof(struct page *)),
+ 				      GFP_KERNEL);
+ 		if (likely(pcol->pages)) {
+ 			pcol->alloc_pages = pages;
+diff --git a/fs/ext2/super.c b/fs/ext2/super.c
+index de1694512f1f..6c784acceb6a 100644
+--- a/fs/ext2/super.c
++++ b/fs/ext2/super.c
+@@ -1083,7 +1083,8 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+  					/ EXT2_BLOCKS_PER_GROUP(sb)) + 1;
+ 	db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(sb) - 1) /
+ 		   EXT2_DESC_PER_BLOCK(sb);
+-	sbi->s_group_desc = kmalloc (db_count * sizeof (struct buffer_head *), GFP_KERNEL);
++	sbi->s_group_desc = kmalloc(array_size(db_count, sizeof(struct buffer_head *)),
++				    GFP_KERNEL);
+ 	if (sbi->s_group_desc == NULL) {
+ 		ext2_msg(sb, KERN_ERR, "error: not enough memory");
+ 		goto failed_mount;
+diff --git a/fs/ext4/extents.c b/fs/ext4/extents.c
+index 0a7315961bac..37deae1bbad3 100644
+--- a/fs/ext4/extents.c
++++ b/fs/ext4/extents.c
+@@ -1063,7 +1063,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
+ 	 * We need this to handle errors and free blocks
+ 	 * upon them.
+ 	 */
+-	ablocks = kzalloc(sizeof(ext4_fsblk_t) * depth, GFP_NOFS);
++	ablocks = kzalloc(array_size(depth, sizeof(ext4_fsblk_t)), GFP_NOFS);
+ 	if (!ablocks)
+ 		return -ENOMEM;
+ 
+diff --git a/fs/ext4/resize.c b/fs/ext4/resize.c
+index b6bec270a8e4..d5640ca8c499 100644
+--- a/fs/ext4/resize.c
++++ b/fs/ext4/resize.c
+@@ -204,12 +204,13 @@ static struct ext4_new_flex_group_data *alloc_flex_gd(unsigned long flexbg_size)
+ 		goto out2;
+ 	flex_gd->count = flexbg_size;
+ 
+-	flex_gd->groups = kmalloc(sizeof(struct ext4_new_group_data) *
+-				  flexbg_size, GFP_NOFS);
++	flex_gd->groups = kmalloc(array_size(flexbg_size, sizeof(struct ext4_new_group_data)),
++				  GFP_NOFS);
+ 	if (flex_gd->groups == NULL)
+ 		goto out2;
+ 
+-	flex_gd->bg_flags = kmalloc(flexbg_size * sizeof(__u16), GFP_NOFS);
++	flex_gd->bg_flags = kmalloc(array_size(flexbg_size, sizeof(__u16)),
++				    GFP_NOFS);
+ 	if (flex_gd->bg_flags == NULL)
+ 		goto out1;
+ 
+@@ -969,7 +970,8 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
+ 	int res, i;
+ 	int err;
+ 
+-	primary = kmalloc(reserved_gdb * sizeof(*primary), GFP_NOFS);
++	primary = kmalloc(array_size(reserved_gdb, sizeof(*primary)),
++			  GFP_NOFS);
+ 	if (!primary)
+ 		return -ENOMEM;
+ 
+diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+index 185f7e61f4cf..2395bda3cc46 100644
+--- a/fs/ext4/super.c
++++ b/fs/ext4/super.c
+@@ -3970,9 +3970,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
+ 			goto failed_mount;
+ 		}
+ 	}
+-	sbi->s_group_desc = kvmalloc(db_count *
+-					  sizeof(struct buffer_head *),
+-					  GFP_KERNEL);
++	sbi->s_group_desc = kvmalloc(array_size(db_count, sizeof(struct buffer_head *)),
++				     GFP_KERNEL);
+ 	if (sbi->s_group_desc == NULL) {
+ 		ext4_msg(sb, KERN_ERR, "not enough memory");
+ 		ret = -ENOMEM;
+diff --git a/fs/fat/namei_vfat.c b/fs/fat/namei_vfat.c
+index 2649759c478a..352b35bd5d55 100644
+--- a/fs/fat/namei_vfat.c
++++ b/fs/fat/namei_vfat.c
+@@ -664,7 +664,7 @@ static int vfat_add_entry(struct inode *dir, const struct qstr *qname,
+ 	if (len == 0)
+ 		return -ENOENT;
+ 
+-	slots = kmalloc(sizeof(*slots) * MSDOS_SLOTS, GFP_NOFS);
++	slots = kmalloc(array_size(MSDOS_SLOTS, sizeof(*slots)), GFP_NOFS);
+ 	if (slots == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/fs/fuse/dev.c b/fs/fuse/dev.c
+index 5d06384c2cae..947e64abb95d 100644
+--- a/fs/fuse/dev.c
++++ b/fs/fuse/dev.c
+@@ -64,9 +64,10 @@ static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
+ 			pages = req->inline_pages;
+ 			page_descs = req->inline_page_descs;
+ 		} else {
+-			pages = kmalloc(sizeof(struct page *) * npages, flags);
+-			page_descs = kmalloc(sizeof(struct fuse_page_desc) *
+-					     npages, flags);
++			pages = kmalloc(array_size(npages, sizeof(struct page *)),
++					flags);
++			page_descs = kmalloc(array_size(npages, sizeof(struct fuse_page_desc)),
++					     flags);
+ 		}
+ 
+ 		if (!pages || !page_descs) {
+diff --git a/fs/gfs2/dir.c b/fs/gfs2/dir.c
+index d9fb0ad6cc30..d68bf63af8b8 100644
+--- a/fs/gfs2/dir.c
++++ b/fs/gfs2/dir.c
+@@ -1055,7 +1055,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
+ 	/* Change the pointers.
+ 	   Don't bother distinguishing stuffed from non-stuffed.
+ 	   This code is complicated enough already. */
+-	lp = kmalloc(half_len * sizeof(__be64), GFP_NOFS);
++	lp = kmalloc(array_size(half_len, sizeof(__be64)), GFP_NOFS);
+ 	if (!lp) {
+ 		error = -ENOMEM;
+ 		goto fail_brelse;
+@@ -1596,7 +1596,7 @@ int gfs2_dir_read(struct inode *inode, struct dir_context *ctx,
+ 
+ 	error = -ENOMEM;
+ 	/* 96 is max number of dirents which can be stuffed into an inode */
+-	darr = kmalloc(96 * sizeof(struct gfs2_dirent *), GFP_NOFS);
++	darr = kmalloc(array_size(96, sizeof(struct gfs2_dirent *)), GFP_NOFS);
+ 	if (darr) {
+ 		g.pdent = (const struct gfs2_dirent **)darr;
+ 		g.offset = 0;
+diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+index 097bd3c0f270..399b16928a41 100644
+--- a/fs/gfs2/glock.c
++++ b/fs/gfs2/glock.c
+@@ -1303,7 +1303,8 @@ int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs)
+ 	default:
+ 		if (num_gh <= 4)
+ 			break;
+-		pph = kmalloc(num_gh * sizeof(struct gfs2_holder *), GFP_NOFS);
++		pph = kmalloc(array_size(num_gh, sizeof(struct gfs2_holder *)),
++			      GFP_NOFS);
+ 		if (!pph)
+ 			return -ENOMEM;
+ 	}
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index 7a98abd340ee..824cc96cea09 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -883,7 +883,8 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
+ 	gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
+ 			      &data_blocks, &ind_blocks);
+ 
+-	ghs = kmalloc(num_qd * sizeof(struct gfs2_holder), GFP_NOFS);
++	ghs = kmalloc(array_size(num_qd, sizeof(struct gfs2_holder)),
++		      GFP_NOFS);
+ 	if (!ghs)
+ 		return -ENOMEM;
+ 
+diff --git a/fs/gfs2/super.c b/fs/gfs2/super.c
+index cf5c7f3080d2..467fc8472690 100644
+--- a/fs/gfs2/super.c
++++ b/fs/gfs2/super.c
+@@ -1097,7 +1097,8 @@ static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host
+ 	int error = 0, err;
+ 
+ 	memset(sc, 0, sizeof(struct gfs2_statfs_change_host));
+-	gha = kmalloc(slots * sizeof(struct gfs2_holder), GFP_KERNEL);
++	gha = kmalloc(array_size(slots, sizeof(struct gfs2_holder)),
++		      GFP_KERNEL);
+ 	if (!gha)
+ 		return -ENOMEM;
+ 	for (x = 0; x < slots; x++)
+diff --git a/fs/jbd2/revoke.c b/fs/jbd2/revoke.c
+index 696ef15ec942..a8343b46d546 100644
+--- a/fs/jbd2/revoke.c
++++ b/fs/jbd2/revoke.c
+@@ -227,7 +227,8 @@ static struct jbd2_revoke_table_s *jbd2_journal_init_revoke_table(int hash_size)
+ 	table->hash_size = hash_size;
+ 	table->hash_shift = shift;
+ 	table->hash_table =
+-		kmalloc(hash_size * sizeof(struct list_head), GFP_KERNEL);
++		kmalloc(array_size(hash_size, sizeof(struct list_head)),
++			GFP_KERNEL);
+ 	if (!table->hash_table) {
+ 		kmem_cache_free(jbd2_revoke_table_cache, table);
+ 		table = NULL;
+diff --git a/fs/jfs/jfs_dmap.c b/fs/jfs/jfs_dmap.c
+index 2d514c7affc2..1b536e6e0c36 100644
+--- a/fs/jfs/jfs_dmap.c
++++ b/fs/jfs/jfs_dmap.c
+@@ -1641,7 +1641,8 @@ s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
+ 	max_ranges = nblocks;
+ 	do_div(max_ranges, minlen);
+ 	range_cnt = min_t(u64, max_ranges + 1, 32 * 1024);
+-	totrim = kmalloc(sizeof(struct range2trim) * range_cnt, GFP_NOFS);
++	totrim = kmalloc(array_size(range_cnt, sizeof(struct range2trim)),
++			 GFP_NOFS);
+ 	if (totrim == NULL) {
+ 		jfs_error(bmp->db_ipbmap->i_sb, "no memory for trim array\n");
+ 		IWRITE_UNLOCK(ipbmap);
+diff --git a/fs/mbcache.c b/fs/mbcache.c
+index bf41e2e72c18..9cf5cd890cb6 100644
+--- a/fs/mbcache.c
++++ b/fs/mbcache.c
+@@ -353,7 +353,7 @@ struct mb_cache *mb_cache_create(int bucket_bits)
+ 	cache->c_max_entries = bucket_count << 4;
+ 	INIT_LIST_HEAD(&cache->c_list);
+ 	spin_lock_init(&cache->c_list_lock);
+-	cache->c_hash = kmalloc(bucket_count * sizeof(struct hlist_bl_head),
++	cache->c_hash = kmalloc(array_size(bucket_count, sizeof(struct hlist_bl_head)),
+ 				GFP_KERNEL);
+ 	if (!cache->c_hash) {
+ 		kfree(cache);
+diff --git a/fs/namei.c b/fs/namei.c
+index 186bd2464fd5..5fd5c1b162d1 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -537,13 +537,13 @@ static int __nd_alloc_stack(struct nameidata *nd)
+ 	struct saved *p;
+ 
+ 	if (nd->flags & LOOKUP_RCU) {
+-		p= kmalloc(MAXSYMLINKS * sizeof(struct saved),
+-				  GFP_ATOMIC);
++		p= kmalloc(array_size(MAXSYMLINKS, sizeof(struct saved)),
++			   GFP_ATOMIC);
+ 		if (unlikely(!p))
+ 			return -ECHILD;
+ 	} else {
+-		p= kmalloc(MAXSYMLINKS * sizeof(struct saved),
+-				  GFP_KERNEL);
++		p= kmalloc(array_size(MAXSYMLINKS, sizeof(struct saved)),
++			   GFP_KERNEL);
+ 		if (unlikely(!p))
+ 			return -ENOMEM;
+ 	}
+diff --git a/fs/nfs/flexfilelayout/flexfilelayout.c b/fs/nfs/flexfilelayout/flexfilelayout.c
+index c75ad982bcfc..4cbf6dd84786 100644
+--- a/fs/nfs/flexfilelayout/flexfilelayout.c
++++ b/fs/nfs/flexfilelayout/flexfilelayout.c
+@@ -461,7 +461,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
+ 		fh_count = be32_to_cpup(p);
+ 
+ 		fls->mirror_array[i]->fh_versions =
+-			kzalloc(fh_count * sizeof(struct nfs_fh),
++			kzalloc(array_size(fh_count, sizeof(struct nfs_fh)),
+ 				gfp_flags);
+ 		if (fls->mirror_array[i]->fh_versions == NULL) {
+ 			rc = -ENOMEM;
+diff --git a/fs/nfs/flexfilelayout/flexfilelayoutdev.c b/fs/nfs/flexfilelayout/flexfilelayoutdev.c
+index d62279d3fc5d..bf4854e9c346 100644
+--- a/fs/nfs/flexfilelayout/flexfilelayoutdev.c
++++ b/fs/nfs/flexfilelayout/flexfilelayoutdev.c
+@@ -99,7 +99,7 @@ nfs4_ff_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
+ 	version_count = be32_to_cpup(p);
+ 	dprintk("%s: version count %d\n", __func__, version_count);
+ 
+-	ds_versions = kzalloc(version_count * sizeof(struct nfs4_ff_ds_version),
++	ds_versions = kzalloc(array_size(version_count, sizeof(struct nfs4_ff_ds_version)),
+ 			      gfp_flags);
+ 	if (!ds_versions)
+ 		goto out_scratch;
+diff --git a/fs/nfsd/nfs4recover.c b/fs/nfsd/nfs4recover.c
+index 66eaeb1e8c2c..74ffa4eb93c5 100644
+--- a/fs/nfsd/nfs4recover.c
++++ b/fs/nfsd/nfs4recover.c
+@@ -510,8 +510,8 @@ nfs4_legacy_state_init(struct net *net)
+ 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+ 	int i;
+ 
+-	nn->reclaim_str_hashtbl = kmalloc(sizeof(struct list_head) *
+-					  CLIENT_HASH_SIZE, GFP_KERNEL);
++	nn->reclaim_str_hashtbl = kmalloc(array_size(CLIENT_HASH_SIZE, sizeof(struct list_head)),
++					  GFP_KERNEL);
+ 	if (!nn->reclaim_str_hashtbl)
+ 		return -ENOMEM;
+ 
+diff --git a/fs/nfsd/nfs4state.c b/fs/nfsd/nfs4state.c
+index fc74d6f46bd5..70af7b8c2789 100644
+--- a/fs/nfsd/nfs4state.c
++++ b/fs/nfsd/nfs4state.c
+@@ -1807,8 +1807,8 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
+ 	clp->cl_name.data = kmemdup(name.data, name.len, GFP_KERNEL);
+ 	if (clp->cl_name.data == NULL)
+ 		goto err_no_name;
+-	clp->cl_ownerstr_hashtbl = kmalloc(sizeof(struct list_head) *
+-			OWNER_HASH_SIZE, GFP_KERNEL);
++	clp->cl_ownerstr_hashtbl = kmalloc(array_size(OWNER_HASH_SIZE, sizeof(struct list_head)),
++					   GFP_KERNEL);
+ 	if (!clp->cl_ownerstr_hashtbl)
+ 		goto err_no_hashtbl;
+ 	for (i = 0; i < OWNER_HASH_SIZE; i++)
+@@ -7093,16 +7093,16 @@ static int nfs4_state_create_net(struct net *net)
+ 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+ 	int i;
+ 
+-	nn->conf_id_hashtbl = kmalloc(sizeof(struct list_head) *
+-			CLIENT_HASH_SIZE, GFP_KERNEL);
++	nn->conf_id_hashtbl = kmalloc(array_size(CLIENT_HASH_SIZE, sizeof(struct list_head)),
++				      GFP_KERNEL);
+ 	if (!nn->conf_id_hashtbl)
+ 		goto err;
+-	nn->unconf_id_hashtbl = kmalloc(sizeof(struct list_head) *
+-			CLIENT_HASH_SIZE, GFP_KERNEL);
++	nn->unconf_id_hashtbl = kmalloc(array_size(CLIENT_HASH_SIZE, sizeof(struct list_head)),
++					GFP_KERNEL);
+ 	if (!nn->unconf_id_hashtbl)
+ 		goto err_unconf_id;
+-	nn->sessionid_hashtbl = kmalloc(sizeof(struct list_head) *
+-			SESSION_HASH_SIZE, GFP_KERNEL);
++	nn->sessionid_hashtbl = kmalloc(array_size(SESSION_HASH_SIZE, sizeof(struct list_head)),
++					GFP_KERNEL);
+ 	if (!nn->sessionid_hashtbl)
+ 		goto err_sessionid;
+ 
+diff --git a/fs/ntfs/compress.c b/fs/ntfs/compress.c
+index f8eb04387ca4..4de21fc801ee 100644
+--- a/fs/ntfs/compress.c
++++ b/fs/ntfs/compress.c
+@@ -527,7 +527,7 @@ int ntfs_read_compressed_block(struct page *page)
+ 	BUG_ON(ni->type != AT_DATA);
+ 	BUG_ON(ni->name_len);
+ 
+-	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_NOFS);
++	pages = kmalloc(array_size(nr_pages, sizeof(struct page *)), GFP_NOFS);
+ 
+ 	/* Allocate memory to store the buffer heads we need. */
+ 	bhs_size = cb_size / block_size * sizeof(struct buffer_head *);
+diff --git a/fs/ocfs2/cluster/tcp.c b/fs/ocfs2/cluster/tcp.c
+index e5076185cc1e..5981a9245f29 100644
+--- a/fs/ocfs2/cluster/tcp.c
++++ b/fs/ocfs2/cluster/tcp.c
+@@ -1078,7 +1078,7 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
+ 	o2net_set_nst_sock_container(&nst, sc);
+ 
+ 	veclen = caller_veclen + 1;
+-	vec = kmalloc(sizeof(struct kvec) * veclen, GFP_ATOMIC);
++	vec = kmalloc(array_size(veclen, sizeof(struct kvec)), GFP_ATOMIC);
+ 	if (vec == NULL) {
+ 		mlog(0, "failed to %zu element kvec!\n", veclen);
+ 		ret = -ENOMEM;
+diff --git a/fs/ocfs2/dlm/dlmdomain.c b/fs/ocfs2/dlm/dlmdomain.c
+index 425081be6161..a37e76e40b43 100644
+--- a/fs/ocfs2/dlm/dlmdomain.c
++++ b/fs/ocfs2/dlm/dlmdomain.c
+@@ -86,7 +86,7 @@ static void dlm_free_pagevec(void **vec, int pages)
+ 
+ static void **dlm_alloc_pagevec(int pages)
+ {
+-	void **vec = kmalloc(pages * sizeof(void *), GFP_KERNEL);
++	void **vec = kmalloc(array_size(pages, sizeof(void *)), GFP_KERNEL);
+ 	int i;
+ 
+ 	if (!vec)
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 1b2ede6abcdf..44bbe9db0e68 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -432,7 +432,8 @@ static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
+ 	int err;
+ 	int i;
+ 
+-	entries = kmalloc(MAX_STACK_TRACE_DEPTH * sizeof(*entries), GFP_KERNEL);
++	entries = kmalloc(array_size(MAX_STACK_TRACE_DEPTH, sizeof(*entries)),
++			  GFP_KERNEL);
+ 	if (!entries)
+ 		return -ENOMEM;
+ 
+diff --git a/fs/read_write.c b/fs/read_write.c
+index c4eabbfc90df..d75e8bcd7f78 100644
+--- a/fs/read_write.c
++++ b/fs/read_write.c
+@@ -778,7 +778,8 @@ ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
+ 		goto out;
+ 	}
+ 	if (nr_segs > fast_segs) {
+-		iov = kmalloc(nr_segs*sizeof(struct iovec), GFP_KERNEL);
++		iov = kmalloc(array_size(nr_segs, sizeof(struct iovec)),
++			      GFP_KERNEL);
+ 		if (iov == NULL) {
+ 			ret = -ENOMEM;
+ 			goto out;
+@@ -849,7 +850,8 @@ ssize_t compat_rw_copy_check_uvector(int type,
+ 		goto out;
+ 	if (nr_segs > fast_segs) {
+ 		ret = -ENOMEM;
+-		iov = kmalloc(nr_segs*sizeof(struct iovec), GFP_KERNEL);
++		iov = kmalloc(array_size(nr_segs, sizeof(struct iovec)),
++			      GFP_KERNEL);
+ 		if (iov == NULL)
+ 			goto out;
+ 	}
+diff --git a/fs/splice.c b/fs/splice.c
+index 005d09cf3fa8..ec9b2e4a0743 100644
+--- a/fs/splice.c
++++ b/fs/splice.c
+@@ -259,8 +259,10 @@ int splice_grow_spd(const struct pipe_inode_info *pipe, struct splice_pipe_desc
+ 	if (buffers <= PIPE_DEF_BUFFERS)
+ 		return 0;
+ 
+-	spd->pages = kmalloc(buffers * sizeof(struct page *), GFP_KERNEL);
+-	spd->partial = kmalloc(buffers * sizeof(struct partial_page), GFP_KERNEL);
++	spd->pages = kmalloc(array_size(buffers, sizeof(struct page *)),
++			     GFP_KERNEL);
++	spd->partial = kmalloc(array_size(buffers, sizeof(struct partial_page)),
++			       GFP_KERNEL);
+ 
+ 	if (spd->pages && spd->partial)
+ 		return 0;
+@@ -395,7 +397,8 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
+ 
+ 	vec = __vec;
+ 	if (nr_pages > PIPE_DEF_BUFFERS) {
+-		vec = kmalloc(nr_pages * sizeof(struct kvec), GFP_KERNEL);
++		vec = kmalloc(array_size(nr_pages, sizeof(struct kvec)),
++			      GFP_KERNEL);
+ 		if (unlikely(!vec)) {
+ 			res = -ENOMEM;
+ 			goto out;
+diff --git a/fs/ubifs/journal.c b/fs/ubifs/journal.c
+index 04c4ec6483e5..52563f6877ba 100644
+--- a/fs/ubifs/journal.c
++++ b/fs/ubifs/journal.c
+@@ -1286,7 +1286,7 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
+ 	int err, dlen, compr_type, out_len, old_dlen;
+ 
+ 	out_len = le32_to_cpu(dn->size);
+-	buf = kmalloc(out_len * WORST_COMPR_FACTOR, GFP_NOFS);
++	buf = kmalloc(array_size(WORST_COMPR_FACTOR, out_len), GFP_NOFS);
+ 	if (!buf)
+ 		return -ENOMEM;
+ 
+diff --git a/fs/ubifs/lpt.c b/fs/ubifs/lpt.c
+index 9a517109da0f..322f7aa7f44f 100644
+--- a/fs/ubifs/lpt.c
++++ b/fs/ubifs/lpt.c
+@@ -1636,7 +1636,7 @@ static int lpt_init_rd(struct ubifs_info *c)
+ 		return -ENOMEM;
+ 
+ 	for (i = 0; i < LPROPS_HEAP_CNT; i++) {
+-		c->lpt_heap[i].arr = kmalloc(sizeof(void *) * LPT_HEAP_SZ,
++		c->lpt_heap[i].arr = kmalloc(array_size(LPT_HEAP_SZ, sizeof(void *)),
+ 					     GFP_KERNEL);
+ 		if (!c->lpt_heap[i].arr)
+ 			return -ENOMEM;
+@@ -1644,7 +1644,8 @@ static int lpt_init_rd(struct ubifs_info *c)
+ 		c->lpt_heap[i].max_cnt = LPT_HEAP_SZ;
+ 	}
+ 
+-	c->dirty_idx.arr = kmalloc(sizeof(void *) * LPT_HEAP_SZ, GFP_KERNEL);
++	c->dirty_idx.arr = kmalloc(array_size(LPT_HEAP_SZ, sizeof(void *)),
++				   GFP_KERNEL);
+ 	if (!c->dirty_idx.arr)
+ 		return -ENOMEM;
+ 	c->dirty_idx.cnt = 0;
+diff --git a/fs/ubifs/super.c b/fs/ubifs/super.c
+index 6c397a389105..ca095a5919f6 100644
+--- a/fs/ubifs/super.c
++++ b/fs/ubifs/super.c
+@@ -1196,7 +1196,8 @@ static int mount_ubifs(struct ubifs_info *c)
+ 	 * never exceed 64.
+ 	 */
+ 	err = -ENOMEM;
+-	c->bottom_up_buf = kmalloc(BOTTOM_UP_HEIGHT * sizeof(int), GFP_KERNEL);
++	c->bottom_up_buf = kmalloc(array_size(BOTTOM_UP_HEIGHT, sizeof(int)),
++				   GFP_KERNEL);
+ 	if (!c->bottom_up_buf)
+ 		goto out_free;
+ 
+diff --git a/fs/ubifs/tnc_commit.c b/fs/ubifs/tnc_commit.c
+index aa31f60220ef..3fad907bbd25 100644
+--- a/fs/ubifs/tnc_commit.c
++++ b/fs/ubifs/tnc_commit.c
+@@ -674,7 +674,7 @@ static int alloc_idx_lebs(struct ubifs_info *c, int cnt)
+ 	dbg_cmt("need about %d empty LEBS for TNC commit", leb_cnt);
+ 	if (!leb_cnt)
+ 		return 0;
+-	c->ilebs = kmalloc(leb_cnt * sizeof(int), GFP_NOFS);
++	c->ilebs = kmalloc(array_size(leb_cnt, sizeof(int)), GFP_NOFS);
+ 	if (!c->ilebs)
+ 		return -ENOMEM;
+ 	for (i = 0; i < leb_cnt; i++) {
+diff --git a/fs/udf/super.c b/fs/udf/super.c
+index 7949c338efa5..55bcd93a1145 100644
+--- a/fs/udf/super.c
++++ b/fs/udf/super.c
+@@ -1587,7 +1587,8 @@ static struct udf_vds_record *handle_partition_descriptor(
+ 		struct udf_vds_record *new_loc;
+ 		unsigned int new_size = ALIGN(partnum, PART_DESC_ALLOC_STEP);
+ 
+-		new_loc = kzalloc(sizeof(*new_loc) * new_size, GFP_KERNEL);
++		new_loc = kzalloc(array_size(new_size, sizeof(*new_loc)),
++				  GFP_KERNEL);
+ 		if (!new_loc)
+ 			return ERR_PTR(-ENOMEM);
+ 		memcpy(new_loc, data->part_descs_loc,
+diff --git a/ipc/sem.c b/ipc/sem.c
+index 06be75d9217a..2e89e889abef 100644
+--- a/ipc/sem.c
++++ b/ipc/sem.c
+@@ -1936,7 +1936,7 @@ static long do_semtimedop(int semid, struct sembuf __user *tsops,
+ 	if (nsops > ns->sc_semopm)
+ 		return -E2BIG;
+ 	if (nsops > SEMOPM_FAST) {
+-		sops = kvmalloc(sizeof(*sops)*nsops, GFP_KERNEL);
++		sops = kvmalloc(array_size(nsops, sizeof(*sops)), GFP_KERNEL);
+ 		if (sops == NULL)
+ 			return -ENOMEM;
+ 	}
+diff --git a/kernel/cgroup/cgroup-v1.c b/kernel/cgroup/cgroup-v1.c
+index a2c05d2476ac..017db02d747c 100644
+--- a/kernel/cgroup/cgroup-v1.c
++++ b/kernel/cgroup/cgroup-v1.c
+@@ -197,7 +197,7 @@ static void *pidlist_allocate(int count)
+ 	if (PIDLIST_TOO_LARGE(count))
+ 		return vmalloc(count * sizeof(pid_t));
+ 	else
+-		return kmalloc(count * sizeof(pid_t), GFP_KERNEL);
++		return kmalloc(array_size(count, sizeof(pid_t)), GFP_KERNEL);
+ }
+ 
+ static void pidlist_free(void *p)
+diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+index b42037e6e81d..d68ef0115ee9 100644
+--- a/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
+@@ -753,7 +753,8 @@ static int generate_sched_domains(cpumask_var_t **domains,
+ 	 * The rest of the code, including the scheduler, can deal with
+ 	 * dattr==NULL case. No need to abort if alloc fails.
+ 	 */
+-	dattr = kmalloc(ndoms * sizeof(struct sched_domain_attr), GFP_KERNEL);
++	dattr = kmalloc(array_size(ndoms, sizeof(struct sched_domain_attr)),
++			GFP_KERNEL);
+ 
+ 	for (nslot = 0, i = 0; i < csn; i++) {
+ 		struct cpuset *a = csa[i];
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 54dc31e7ab9b..21085cd9dae0 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -10229,10 +10229,11 @@ int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
+ 	struct cfs_rq *cfs_rq;
+ 	int i;
+ 
+-	tg->cfs_rq = kzalloc(sizeof(cfs_rq) * nr_cpu_ids, GFP_KERNEL);
++	tg->cfs_rq = kzalloc(array_size(nr_cpu_ids, sizeof(cfs_rq)),
++			     GFP_KERNEL);
+ 	if (!tg->cfs_rq)
+ 		goto err;
+-	tg->se = kzalloc(sizeof(se) * nr_cpu_ids, GFP_KERNEL);
++	tg->se = kzalloc(array_size(nr_cpu_ids, sizeof(se)), GFP_KERNEL);
+ 	if (!tg->se)
+ 		goto err;
+ 
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index 7aef6b4e885a..fbebe4e1ed24 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -183,10 +183,10 @@ int alloc_rt_sched_group(struct task_group *tg, struct task_group *parent)
+ 	struct sched_rt_entity *rt_se;
+ 	int i;
+ 
+-	tg->rt_rq = kzalloc(sizeof(rt_rq) * nr_cpu_ids, GFP_KERNEL);
++	tg->rt_rq = kzalloc(array_size(nr_cpu_ids, sizeof(rt_rq)), GFP_KERNEL);
+ 	if (!tg->rt_rq)
+ 		goto err;
+-	tg->rt_se = kzalloc(sizeof(rt_se) * nr_cpu_ids, GFP_KERNEL);
++	tg->rt_se = kzalloc(array_size(nr_cpu_ids, sizeof(rt_se)), GFP_KERNEL);
+ 	if (!tg->rt_se)
+ 		goto err;
+ 
+diff --git a/kernel/sched/topology.c b/kernel/sched/topology.c
+index 64cc564f5255..d5812cb7b399 100644
+--- a/kernel/sched/topology.c
++++ b/kernel/sched/topology.c
+@@ -1750,7 +1750,7 @@ cpumask_var_t *alloc_sched_domains(unsigned int ndoms)
+ 	int i;
+ 	cpumask_var_t *doms;
+ 
+-	doms = kmalloc(sizeof(*doms) * ndoms, GFP_KERNEL);
++	doms = kmalloc(array_size(ndoms, sizeof(*doms)), GFP_KERNEL);
+ 	if (!doms)
+ 		return NULL;
+ 	for (i = 0; i < ndoms; i++) {
+diff --git a/kernel/trace/ftrace.c b/kernel/trace/ftrace.c
+index 16bbf062018f..dd408b1acddc 100644
+--- a/kernel/trace/ftrace.c
++++ b/kernel/trace/ftrace.c
+@@ -728,7 +728,8 @@ static int ftrace_profile_init_cpu(int cpu)
+ 	 */
+ 	size = FTRACE_PROFILE_HASH_SIZE;
+ 
+-	stat->hash = kzalloc(sizeof(struct hlist_head) * size, GFP_KERNEL);
++	stat->hash = kzalloc(array_size(size, sizeof(struct hlist_head)),
++			     GFP_KERNEL);
+ 
+ 	if (!stat->hash)
+ 		return -ENOMEM;
+@@ -6830,9 +6831,8 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
+ 	struct task_struct *g, *t;
+ 
+ 	for (i = 0; i < FTRACE_RETSTACK_ALLOC_SIZE; i++) {
+-		ret_stack_list[i] = kmalloc(FTRACE_RETFUNC_DEPTH
+-					* sizeof(struct ftrace_ret_stack),
+-					GFP_KERNEL);
++		ret_stack_list[i] = kmalloc(array_size(FTRACE_RETFUNC_DEPTH, sizeof(struct ftrace_ret_stack)),
++					    GFP_KERNEL);
+ 		if (!ret_stack_list[i]) {
+ 			start = 0;
+ 			end = i;
+@@ -6904,9 +6904,8 @@ static int start_graph_tracing(void)
+ 	struct ftrace_ret_stack **ret_stack_list;
+ 	int ret, cpu;
+ 
+-	ret_stack_list = kmalloc(FTRACE_RETSTACK_ALLOC_SIZE *
+-				sizeof(struct ftrace_ret_stack *),
+-				GFP_KERNEL);
++	ret_stack_list = kmalloc(array_size(FTRACE_RETSTACK_ALLOC_SIZE, sizeof(struct ftrace_ret_stack *)),
++				 GFP_KERNEL);
+ 
+ 	if (!ret_stack_list)
+ 		return -ENOMEM;
+@@ -7088,8 +7087,7 @@ void ftrace_graph_init_idle_task(struct task_struct *t, int cpu)
+ 
+ 		ret_stack = per_cpu(idle_ret_stack, cpu);
+ 		if (!ret_stack) {
+-			ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
+-					    * sizeof(struct ftrace_ret_stack),
++			ret_stack = kmalloc(array_size(FTRACE_RETFUNC_DEPTH, sizeof(struct ftrace_ret_stack)),
+ 					    GFP_KERNEL);
+ 			if (!ret_stack)
+ 				return;
+@@ -7109,9 +7107,8 @@ void ftrace_graph_init_task(struct task_struct *t)
+ 	if (ftrace_graph_active) {
+ 		struct ftrace_ret_stack *ret_stack;
+ 
+-		ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
+-				* sizeof(struct ftrace_ret_stack),
+-				GFP_KERNEL);
++		ret_stack = kmalloc(array_size(FTRACE_RETFUNC_DEPTH, sizeof(struct ftrace_ret_stack)),
++				    GFP_KERNEL);
+ 		if (!ret_stack)
+ 			return;
+ 		graph_init_task(t, ret_stack);
+diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
+index dfbcf9ee1447..d6694d7fb0e6 100644
+--- a/kernel/trace/trace.c
++++ b/kernel/trace/trace.c
+@@ -1751,12 +1751,13 @@ static inline void set_cmdline(int idx, const char *cmdline)
+ static int allocate_cmdlines_buffer(unsigned int val,
+ 				    struct saved_cmdlines_buffer *s)
+ {
+-	s->map_cmdline_to_pid = kmalloc(val * sizeof(*s->map_cmdline_to_pid),
++	s->map_cmdline_to_pid = kmalloc(array_size(val, sizeof(*s->map_cmdline_to_pid)),
+ 					GFP_KERNEL);
+ 	if (!s->map_cmdline_to_pid)
+ 		return -ENOMEM;
+ 
+-	s->saved_cmdlines = kmalloc(val * TASK_COMM_LEN, GFP_KERNEL);
++	s->saved_cmdlines = kmalloc(array_size(TASK_COMM_LEN, val),
++				    GFP_KERNEL);
+ 	if (!s->saved_cmdlines) {
+ 		kfree(s->map_cmdline_to_pid);
+ 		return -ENOMEM;
+diff --git a/kernel/trace/trace_events_filter.c b/kernel/trace/trace_events_filter.c
+index 9b4716bb8bb0..beb9e3cb22c8 100644
+--- a/kernel/trace/trace_events_filter.c
++++ b/kernel/trace/trace_events_filter.c
+@@ -436,15 +436,17 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
+ 
+ 	nr_preds += 2; /* For TRUE and FALSE */
+ 
+-	op_stack = kmalloc(sizeof(*op_stack) * nr_parens, GFP_KERNEL);
++	op_stack = kmalloc(array_size(nr_parens, sizeof(*op_stack)),
++			   GFP_KERNEL);
+ 	if (!op_stack)
+ 		return ERR_PTR(-ENOMEM);
+-	prog_stack = kmalloc(sizeof(*prog_stack) * nr_preds, GFP_KERNEL);
++	prog_stack = kmalloc(array_size(nr_preds, sizeof(*prog_stack)),
++			     GFP_KERNEL);
+ 	if (!prog_stack) {
+ 		parse_error(pe, -ENOMEM, 0);
+ 		goto out_free;
+ 	}
+-	inverts = kmalloc(sizeof(*inverts) * nr_preds, GFP_KERNEL);
++	inverts = kmalloc(array_size(nr_preds, sizeof(*inverts)), GFP_KERNEL);
+ 	if (!inverts) {
+ 		parse_error(pe, -ENOMEM, 0);
+ 		goto out_free;
+diff --git a/kernel/user_namespace.c b/kernel/user_namespace.c
+index 246d4d4ce5c7..7102739ad367 100644
+--- a/kernel/user_namespace.c
++++ b/kernel/user_namespace.c
+@@ -764,8 +764,8 @@ static int insert_extent(struct uid_gid_map *map, struct uid_gid_extent *extent)
+ 		struct uid_gid_extent *forward;
+ 
+ 		/* Allocate memory for 340 mappings. */
+-		forward = kmalloc(sizeof(struct uid_gid_extent) *
+-				 UID_GID_MAP_MAX_EXTENTS, GFP_KERNEL);
++		forward = kmalloc(array_size(UID_GID_MAP_MAX_EXTENTS, sizeof(struct uid_gid_extent)),
++				  GFP_KERNEL);
+ 		if (!forward)
  			return -ENOMEM;
  
-diff --git a/sound/core/pcm_native.c b/sound/core/pcm_native.c
-index 35ffccea94c3..585ea106ee50 100644
---- a/sound/core/pcm_native.c
-+++ b/sound/core/pcm_native.c
-@@ -3093,7 +3093,7 @@ static ssize_t snd_pcm_readv(struct kiocb *iocb, struct iov_iter *to)
- 	if (!frame_aligned(runtime, to->iov->iov_len))
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index c976e2bfbac5..894f8869b959 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -5590,7 +5590,7 @@ static void __init wq_numa_init(void)
+ 	 * available.  Build one from cpu_to_node() which should have been
+ 	 * fully initialized by now.
+ 	 */
+-	tbl = kzalloc(nr_node_ids * sizeof(tbl[0]), GFP_KERNEL);
++	tbl = kzalloc(array_size(nr_node_ids, sizeof(tbl[0])), GFP_KERNEL);
+ 	BUG_ON(!tbl);
+ 
+ 	for_each_node(node)
+diff --git a/lib/bucket_locks.c b/lib/bucket_locks.c
+index 266a97c5708b..9cdd8e2e7ba1 100644
+--- a/lib/bucket_locks.c
++++ b/lib/bucket_locks.c
+@@ -31,7 +31,8 @@ int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *locks_mask,
+ 
+ 	if (sizeof(spinlock_t) != 0) {
+ 		if (gfpflags_allow_blocking(gfp))
+-			tlocks = kvmalloc(size * sizeof(spinlock_t), gfp);
++			tlocks = kvmalloc(array_size(size, sizeof(spinlock_t)),
++					  gfp);
+ 		else
+ 			tlocks = kmalloc_array(size, sizeof(spinlock_t), gfp);
+ 		if (!tlocks)
+diff --git a/lib/interval_tree_test.c b/lib/interval_tree_test.c
+index 835242e74aaa..01c4802cab12 100644
+--- a/lib/interval_tree_test.c
++++ b/lib/interval_tree_test.c
+@@ -64,11 +64,12 @@ static int interval_tree_test_init(void)
+ 	unsigned long results;
+ 	cycles_t time1, time2, time;
+ 
+-	nodes = kmalloc(nnodes * sizeof(struct interval_tree_node), GFP_KERNEL);
++	nodes = kmalloc(array_size(nnodes, sizeof(struct interval_tree_node)),
++			GFP_KERNEL);
+ 	if (!nodes)
+ 		return -ENOMEM;
+ 
+-	queries = kmalloc(nsearches * sizeof(int), GFP_KERNEL);
++	queries = kmalloc(array_size(nsearches, sizeof(int)), GFP_KERNEL);
+ 	if (!queries) {
+ 		kfree(nodes);
+ 		return -ENOMEM;
+diff --git a/lib/kfifo.c b/lib/kfifo.c
+index b0f757bf7213..7ff1e25ff0d7 100644
+--- a/lib/kfifo.c
++++ b/lib/kfifo.c
+@@ -54,7 +54,7 @@ int __kfifo_alloc(struct __kfifo *fifo, unsigned int size,
  		return -EINVAL;
- 	frames = bytes_to_samples(runtime, to->iov->iov_len);
--	bufs = kmalloc(sizeof(void *) * to->nr_segs, GFP_KERNEL);
-+	bufs = kmalloc(array_size(sizeof(void *), to->nr_segs), GFP_KERNEL);
+ 	}
+ 
+-	fifo->data = kmalloc(size * esize, gfp_mask);
++	fifo->data = kmalloc(array_size(esize, size), gfp_mask);
+ 
+ 	if (!fifo->data) {
+ 		fifo->mask = 0;
+diff --git a/lib/lru_cache.c b/lib/lru_cache.c
+index 28ba40b99337..df171bc14f9e 100644
+--- a/lib/lru_cache.c
++++ b/lib/lru_cache.c
+@@ -119,7 +119,8 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
+ 	slot = kcalloc(e_count, sizeof(struct hlist_head), GFP_KERNEL);
+ 	if (!slot)
+ 		goto out_fail;
+-	element = kzalloc(e_count * sizeof(struct lc_element *), GFP_KERNEL);
++	element = kzalloc(array_size(e_count, sizeof(struct lc_element *)),
++			  GFP_KERNEL);
+ 	if (!element)
+ 		goto out_fail;
+ 
+diff --git a/lib/mpi/mpiutil.c b/lib/mpi/mpiutil.c
+index 314f4dfa603e..aa66eef3de8f 100644
+--- a/lib/mpi/mpiutil.c
++++ b/lib/mpi/mpiutil.c
+@@ -91,14 +91,16 @@ int mpi_resize(MPI a, unsigned nlimbs)
+ 		return 0;	/* no need to do it */
+ 
+ 	if (a->d) {
+-		p = kmalloc(nlimbs * sizeof(mpi_limb_t), GFP_KERNEL);
++		p = kmalloc(array_size(nlimbs, sizeof(mpi_limb_t)),
++			    GFP_KERNEL);
+ 		if (!p)
+ 			return -ENOMEM;
+ 		memcpy(p, a->d, a->alloced * sizeof(mpi_limb_t));
+ 		kzfree(a->d);
+ 		a->d = p;
+ 	} else {
+-		a->d = kzalloc(nlimbs * sizeof(mpi_limb_t), GFP_KERNEL);
++		a->d = kzalloc(array_size(nlimbs, sizeof(mpi_limb_t)),
++			       GFP_KERNEL);
+ 		if (!a->d)
+ 			return -ENOMEM;
+ 	}
+diff --git a/lib/rbtree_test.c b/lib/rbtree_test.c
+index 7d36c1e27ff6..ad90df17b5ca 100644
+--- a/lib/rbtree_test.c
++++ b/lib/rbtree_test.c
+@@ -247,7 +247,7 @@ static int __init rbtree_test_init(void)
+ 	cycles_t time1, time2, time;
+ 	struct rb_node *node;
+ 
+-	nodes = kmalloc(nnodes * sizeof(*nodes), GFP_KERNEL);
++	nodes = kmalloc(array_size(nnodes, sizeof(*nodes)), GFP_KERNEL);
+ 	if (!nodes)
+ 		return -ENOMEM;
+ 
+diff --git a/lib/scatterlist.c b/lib/scatterlist.c
+index 06dad7a072fd..48932d567bd4 100644
+--- a/lib/scatterlist.c
++++ b/lib/scatterlist.c
+@@ -170,7 +170,8 @@ static struct scatterlist *sg_kmalloc(unsigned int nents, gfp_t gfp_mask)
+ 		kmemleak_alloc(ptr, PAGE_SIZE, 1, gfp_mask);
+ 		return ptr;
+ 	} else
+-		return kmalloc(nents * sizeof(struct scatterlist), gfp_mask);
++		return kmalloc(array_size(nents, sizeof(struct scatterlist)),
++		               gfp_mask);
+ }
+ 
+ static void sg_kfree(struct scatterlist *sg, unsigned int nents)
+diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
+index 0f44759486e2..8706b1f4c60e 100644
+--- a/mm/gup_benchmark.c
++++ b/mm/gup_benchmark.c
+@@ -23,7 +23,7 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
+ 	struct page **pages;
+ 
+ 	nr_pages = gup->size / PAGE_SIZE;
+-	pages = kvzalloc(sizeof(void *) * nr_pages, GFP_KERNEL);
++	pages = kvzalloc(array_size(nr_pages, sizeof(void *)), GFP_KERNEL);
+ 	if (!pages)
+ 		return -ENOMEM;
+ 
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a3a1815f8e11..c1ea75e8bea6 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1134,7 +1134,7 @@ static int do_huge_pmd_wp_page_fallback(struct vm_fault *vmf, pmd_t orig_pmd,
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
+ 
+-	pages = kmalloc(sizeof(struct page *) * HPAGE_PMD_NR,
++	pages = kmalloc(array_size(HPAGE_PMD_NR, sizeof(struct page *)),
+ 			GFP_KERNEL);
+ 	if (unlikely(!pages)) {
+ 		ret |= VM_FAULT_OOM;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 218679138255..c7e4062ac77c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2798,7 +2798,8 @@ static int __init hugetlb_init(void)
+ 	num_fault_mutexes = 1;
+ #endif
+ 	hugetlb_fault_mutex_table =
+-		kmalloc(sizeof(struct mutex) * num_fault_mutexes, GFP_KERNEL);
++		kmalloc(array_size(num_fault_mutexes, sizeof(struct mutex)),
++			GFP_KERNEL);
+ 	BUG_ON(!hugetlb_fault_mutex_table);
+ 
+ 	for (i = 0; i < num_fault_mutexes; i++)
+diff --git a/mm/slub.c b/mm/slub.c
+index 44aa7847324a..2726905b9dbf 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4793,7 +4793,8 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
+ 	int x;
+ 	unsigned long *nodes;
+ 
+-	nodes = kzalloc(sizeof(unsigned long) * nr_node_ids, GFP_KERNEL);
++	nodes = kzalloc(array_size(nr_node_ids, sizeof(unsigned long)),
++			GFP_KERNEL);
+ 	if (!nodes)
+ 		return -ENOMEM;
+ 
+@@ -5342,7 +5343,7 @@ static int show_stat(struct kmem_cache *s, char *buf, enum stat_item si)
+ 	unsigned long sum  = 0;
+ 	int cpu;
+ 	int len;
+-	int *data = kmalloc(nr_cpu_ids * sizeof(int), GFP_KERNEL);
++	int *data = kmalloc(array_size(nr_cpu_ids, sizeof(int)), GFP_KERNEL);
+ 
+ 	if (!data)
+ 		return -ENOMEM;
+diff --git a/mm/swap_slots.c b/mm/swap_slots.c
+index f2641894f440..e2d3aeaae55a 100644
+--- a/mm/swap_slots.c
++++ b/mm/swap_slots.c
+@@ -122,12 +122,12 @@ static int alloc_swap_slot_cache(unsigned int cpu)
+ 	 * as kvzalloc could trigger reclaim and get_swap_page,
+ 	 * which can lock swap_slots_cache_mutex.
+ 	 */
+-	slots = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
++	slots = kvzalloc(array_size(SWAP_SLOTS_CACHE_SIZE, sizeof(swp_entry_t)),
+ 			 GFP_KERNEL);
+ 	if (!slots)
+ 		return -ENOMEM;
+ 
+-	slots_ret = kvzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE,
++	slots_ret = kvzalloc(array_size(SWAP_SLOTS_CACHE_SIZE, sizeof(swp_entry_t)),
+ 			     GFP_KERNEL);
+ 	if (!slots_ret) {
+ 		kvfree(slots);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 07f9aa2340c3..d785eae287e4 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -623,7 +623,8 @@ int init_swap_address_space(unsigned int type, unsigned long nr_pages)
+ 	unsigned int i, nr;
+ 
+ 	nr = DIV_ROUND_UP(nr_pages, SWAP_ADDRESS_SPACE_PAGES);
+-	spaces = kvzalloc(sizeof(struct address_space) * nr, GFP_KERNEL);
++	spaces = kvzalloc(array_size(nr, sizeof(struct address_space)),
++			  GFP_KERNEL);
+ 	if (!spaces)
+ 		return -ENOMEM;
+ 	for (i = 0; i < nr; i++) {
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index cc2cf04d9018..fac13e7aab69 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -3195,7 +3195,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 		p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
+ 		nr_cluster = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
+ 
+-		cluster_info = kvzalloc(nr_cluster * sizeof(*cluster_info),
++		cluster_info = kvzalloc(array_size(nr_cluster, sizeof(*cluster_info)),
+ 					GFP_KERNEL);
+ 		if (!cluster_info) {
+ 			error = -ENOMEM;
+diff --git a/net/9p/trans_virtio.c b/net/9p/trans_virtio.c
+index 3aa5a93ad107..34446afa2e57 100644
+--- a/net/9p/trans_virtio.c
++++ b/net/9p/trans_virtio.c
+@@ -361,7 +361,8 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
+ 		nr_pages = DIV_ROUND_UP((unsigned long)p + len, PAGE_SIZE) -
+ 			   (unsigned long)p / PAGE_SIZE;
+ 
+-		*pages = kmalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
++		*pages = kmalloc(array_size(nr_pages, sizeof(struct page *)),
++				 GFP_NOFS);
+ 		if (!*pages)
+ 			return -ENOMEM;
+ 
+diff --git a/net/atm/mpc.c b/net/atm/mpc.c
+index 31e0dcb970f8..fed8d9ac8c5d 100644
+--- a/net/atm/mpc.c
++++ b/net/atm/mpc.c
+@@ -472,7 +472,8 @@ static const uint8_t *copy_macs(struct mpoa_client *mpc,
+ 		if (mpc->number_of_mps_macs != 0)
+ 			kfree(mpc->mps_macs);
+ 		mpc->number_of_mps_macs = 0;
+-		mpc->mps_macs = kmalloc(num_macs * ETH_ALEN, GFP_KERNEL);
++		mpc->mps_macs = kmalloc(array_size(ETH_ALEN, num_macs),
++					GFP_KERNEL);
+ 		if (mpc->mps_macs == NULL) {
+ 			pr_info("(%s) out of mem\n", mpc->dev->name);
+ 			return NULL;
+diff --git a/net/bluetooth/hci_core.c b/net/bluetooth/hci_core.c
+index 40d260f2bea5..d83e1248379e 100644
+--- a/net/bluetooth/hci_core.c
++++ b/net/bluetooth/hci_core.c
+@@ -1290,7 +1290,8 @@ int hci_inquiry(void __user *arg)
+ 	/* cache_dump can't sleep. Therefore we allocate temp buffer and then
+ 	 * copy it to the user space.
+ 	 */
+-	buf = kmalloc(sizeof(struct inquiry_info) * max_rsp, GFP_KERNEL);
++	buf = kmalloc(array_size(max_rsp, sizeof(struct inquiry_info)),
++		      GFP_KERNEL);
+ 	if (!buf) {
+ 		err = -ENOMEM;
+ 		goto done;
+diff --git a/net/bluetooth/l2cap_core.c b/net/bluetooth/l2cap_core.c
+index 9b7907ebfa01..04d0ba6a0f80 100644
+--- a/net/bluetooth/l2cap_core.c
++++ b/net/bluetooth/l2cap_core.c
+@@ -331,7 +331,8 @@ static int l2cap_seq_list_init(struct l2cap_seq_list *seq_list, u16 size)
+ 	 */
+ 	alloc_size = roundup_pow_of_two(size);
+ 
+-	seq_list->list = kmalloc(sizeof(u16) * alloc_size, GFP_KERNEL);
++	seq_list->list = kmalloc(array_size(alloc_size, sizeof(u16)),
++				 GFP_KERNEL);
+ 	if (!seq_list->list)
+ 		return -ENOMEM;
+ 
+diff --git a/net/bridge/br_multicast.c b/net/bridge/br_multicast.c
+index cb4729539b82..5ba8e0b31444 100644
+--- a/net/bridge/br_multicast.c
++++ b/net/bridge/br_multicast.c
+@@ -333,7 +333,7 @@ static int br_mdb_rehash(struct net_bridge_mdb_htable __rcu **mdbp, int max,
+ 	mdb->max = max;
+ 	mdb->old = old;
+ 
+-	mdb->mhash = kzalloc(max * sizeof(*mdb->mhash), GFP_ATOMIC);
++	mdb->mhash = kzalloc(array_size(max, sizeof(*mdb->mhash)), GFP_ATOMIC);
+ 	if (!mdb->mhash) {
+ 		kfree(mdb);
+ 		return -ENOMEM;
+diff --git a/net/ceph/pagevec.c b/net/ceph/pagevec.c
+index a3d0adc828e6..94a4e810a382 100644
+--- a/net/ceph/pagevec.c
++++ b/net/ceph/pagevec.c
+@@ -20,7 +20,7 @@ struct page **ceph_get_direct_page_vector(const void __user *data,
+ 	int got = 0;
+ 	int rc = 0;
+ 
+-	pages = kmalloc(sizeof(*pages) * num_pages, GFP_NOFS);
++	pages = kmalloc(array_size(num_pages, sizeof(*pages)), GFP_NOFS);
+ 	if (!pages)
+ 		return ERR_PTR(-ENOMEM);
+ 
+@@ -74,7 +74,7 @@ struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags)
+ 	struct page **pages;
+ 	int i;
+ 
+-	pages = kmalloc(sizeof(*pages) * num_pages, flags);
++	pages = kmalloc(array_size(num_pages, sizeof(*pages)), flags);
+ 	if (!pages)
+ 		return ERR_PTR(-ENOMEM);
+ 	for (i = 0; i < num_pages; i++) {
+diff --git a/net/core/dev.c b/net/core/dev.c
+index af0558b00c6c..e59402dd1de3 100644
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -8785,7 +8785,8 @@ static struct hlist_head * __net_init netdev_create_hash(void)
+ 	int i;
+ 	struct hlist_head *hash;
+ 
+-	hash = kmalloc(sizeof(*hash) * NETDEV_HASHENTRIES, GFP_KERNEL);
++	hash = kmalloc(array_size(NETDEV_HASHENTRIES, sizeof(*hash)),
++		       GFP_KERNEL);
+ 	if (hash != NULL)
+ 		for (i = 0; i < NETDEV_HASHENTRIES; i++)
+ 			INIT_HLIST_HEAD(&hash[i]);
+diff --git a/net/core/ethtool.c b/net/core/ethtool.c
+index 03416e6dd5d7..85db91f67e5d 100644
+--- a/net/core/ethtool.c
++++ b/net/core/ethtool.c
+@@ -936,7 +936,7 @@ static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
+ 	memset(&info, 0, sizeof(info));
+ 	info.cmd = ETHTOOL_GSSET_INFO;
+ 
+-	info_buf = kzalloc(n_bits * sizeof(u32), GFP_USER);
++	info_buf = kzalloc(array_size(n_bits, sizeof(u32)), GFP_USER);
+ 	if (!info_buf)
+ 		return -ENOMEM;
+ 
+@@ -1836,7 +1836,7 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
+ 		return -EFAULT;
+ 
+ 	test.len = test_len;
+-	data = kmalloc(test_len * sizeof(u64), GFP_USER);
++	data = kmalloc(array_size(test_len, sizeof(u64)), GFP_USER);
+ 	if (!data)
+ 		return -ENOMEM;
+ 
+diff --git a/net/dcb/dcbnl.c b/net/dcb/dcbnl.c
+index bae7d78aa068..778fb3a41dbc 100644
+--- a/net/dcb/dcbnl.c
++++ b/net/dcb/dcbnl.c
+@@ -983,7 +983,8 @@ static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb,
+ 	 */
+ 	err = ops->peer_getappinfo(netdev, &info, &app_count);
+ 	if (!err && app_count) {
+-		table = kmalloc(sizeof(struct dcb_app) * app_count, GFP_KERNEL);
++		table = kmalloc(array_size(app_count, sizeof(struct dcb_app)),
++				GFP_KERNEL);
+ 		if (!table)
+ 			return -ENOMEM;
+ 
+diff --git a/net/dccp/ccids/ccid2.c b/net/dccp/ccids/ccid2.c
+index 92d016e87816..1f5289ea2db1 100644
+--- a/net/dccp/ccids/ccid2.c
++++ b/net/dccp/ccids/ccid2.c
+@@ -46,7 +46,8 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hc)
+ 		return -ENOMEM;
+ 
+ 	/* allocate buffer and initialize linked list */
+-	seqp = kmalloc(CCID2_SEQBUF_LEN * sizeof(struct ccid2_seq), gfp_any());
++	seqp = kmalloc(array_size(CCID2_SEQBUF_LEN, sizeof(struct ccid2_seq)),
++		       gfp_any());
+ 	if (seqp == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/net/ieee802154/nl-phy.c b/net/ieee802154/nl-phy.c
+index dc2960be51e0..3174f82a3298 100644
+--- a/net/ieee802154/nl-phy.c
++++ b/net/ieee802154/nl-phy.c
+@@ -38,7 +38,7 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
+ {
+ 	void *hdr;
+ 	int i, pages = 0;
+-	uint32_t *buf = kzalloc(32 * sizeof(uint32_t), GFP_KERNEL);
++	uint32_t *buf = kzalloc(array_size(32, sizeof(uint32_t)), GFP_KERNEL);
+ 
+ 	pr_debug("%s\n", __func__);
+ 
+diff --git a/net/ipv4/route.c b/net/ipv4/route.c
+index ccb25d80f679..db8434155788 100644
+--- a/net/ipv4/route.c
++++ b/net/ipv4/route.c
+@@ -660,7 +660,8 @@ static void update_or_create_fnhe(struct fib_nh *nh, __be32 daddr, __be32 gw,
+ 
+ 	hash = rcu_dereference(nh->nh_exceptions);
+ 	if (!hash) {
+-		hash = kzalloc(FNHE_HASH_SIZE * sizeof(*hash), GFP_ATOMIC);
++		hash = kzalloc(array_size(FNHE_HASH_SIZE, sizeof(*hash)),
++			       GFP_ATOMIC);
+ 		if (!hash)
+ 			goto out_unlock;
+ 		rcu_assign_pointer(nh->nh_exceptions, hash);
+@@ -3064,7 +3065,8 @@ int __init ip_rt_init(void)
+ {
+ 	int cpu;
+ 
+-	ip_idents = kmalloc(IP_IDENTS_SZ * sizeof(*ip_idents), GFP_KERNEL);
++	ip_idents = kmalloc(array_size(IP_IDENTS_SZ, sizeof(*ip_idents)),
++			    GFP_KERNEL);
+ 	if (!ip_idents)
+ 		panic("IP: failed to allocate ip_idents\n");
+ 
+diff --git a/net/ipv6/icmp.c b/net/ipv6/icmp.c
+index d8c4b6374377..e26063d7391c 100644
+--- a/net/ipv6/icmp.c
++++ b/net/ipv6/icmp.c
+@@ -956,7 +956,8 @@ static int __net_init icmpv6_sk_init(struct net *net)
+ 	int err, i, j;
+ 
+ 	net->ipv6.icmp_sk =
+-		kzalloc(nr_cpu_ids * sizeof(struct sock *), GFP_KERNEL);
++		kzalloc(array_size(nr_cpu_ids, sizeof(struct sock *)),
++			GFP_KERNEL);
+ 	if (!net->ipv6.icmp_sk)
+ 		return -ENOMEM;
+ 
+diff --git a/net/ipv6/ila/ila_xlat.c b/net/ipv6/ila/ila_xlat.c
+index 44c39c5f0638..f410255efffd 100644
+--- a/net/ipv6/ila/ila_xlat.c
++++ b/net/ipv6/ila/ila_xlat.c
+@@ -42,7 +42,8 @@ static int alloc_ila_locks(struct ila_net *ilan)
+ 	size = roundup_pow_of_two(nr_pcpus * LOCKS_PER_CPU);
+ 
+ 	if (sizeof(spinlock_t) != 0) {
+-		ilan->locks = kvmalloc(size * sizeof(spinlock_t), GFP_KERNEL);
++		ilan->locks = kvmalloc(array_size(size, sizeof(spinlock_t)),
++				       GFP_KERNEL);
+ 		if (!ilan->locks)
+ 			return -ENOMEM;
+ 		for (i = 0; i < size; i++)
+diff --git a/net/ipv6/route.c b/net/ipv6/route.c
+index 49b954d6d0fa..9043b1cd2e1e 100644
+--- a/net/ipv6/route.c
++++ b/net/ipv6/route.c
+@@ -2518,7 +2518,7 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
+ 	if (!cfg->fc_mx)
+ 		return 0;
+ 
+-	mp = kzalloc(sizeof(u32) * RTAX_MAX, GFP_KERNEL);
++	mp = kzalloc(array_size(RTAX_MAX, sizeof(u32)), GFP_KERNEL);
+ 	if (unlikely(!mp))
+ 		return -ENOMEM;
+ 
+diff --git a/net/mac80211/chan.c b/net/mac80211/chan.c
+index 89178b46b32f..0782df3ae888 100644
+--- a/net/mac80211/chan.c
++++ b/net/mac80211/chan.c
+@@ -1186,7 +1186,8 @@ static int ieee80211_chsw_switch_vifs(struct ieee80211_local *local,
+ 	lockdep_assert_held(&local->mtx);
+ 	lockdep_assert_held(&local->chanctx_mtx);
+ 
+-	vif_chsw = kzalloc(sizeof(vif_chsw[0]) * n_vifs, GFP_KERNEL);
++	vif_chsw = kzalloc(array_size(n_vifs, sizeof(vif_chsw[0])),
++			   GFP_KERNEL);
+ 	if (!vif_chsw)
+ 		return -ENOMEM;
+ 
+diff --git a/net/mac80211/main.c b/net/mac80211/main.c
+index 9ea17afaa237..1a402f72b6d4 100644
+--- a/net/mac80211/main.c
++++ b/net/mac80211/main.c
+@@ -769,7 +769,8 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
+ 		if (have_mfp)
+ 			n_suites += 4;
+ 
+-		suites = kmalloc(sizeof(u32) * n_suites, GFP_KERNEL);
++		suites = kmalloc(array_size(n_suites, sizeof(u32)),
++				 GFP_KERNEL);
+ 		if (!suites)
+ 			return -ENOMEM;
+ 
+diff --git a/net/mac80211/rc80211_minstrel.c b/net/mac80211/rc80211_minstrel.c
+index 8221bc5582ab..2640e64aeea6 100644
+--- a/net/mac80211/rc80211_minstrel.c
++++ b/net/mac80211/rc80211_minstrel.c
+@@ -592,11 +592,12 @@ minstrel_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
+ 			max_rates = sband->n_bitrates;
+ 	}
+ 
+-	mi->r = kzalloc(sizeof(struct minstrel_rate) * max_rates, gfp);
++	mi->r = kzalloc(array_size(max_rates, sizeof(struct minstrel_rate)),
++			gfp);
+ 	if (!mi->r)
+ 		goto error;
+ 
+-	mi->sample_table = kmalloc(SAMPLE_COLUMNS * max_rates, gfp);
++	mi->sample_table = kmalloc(array_size(max_rates, SAMPLE_COLUMNS), gfp);
+ 	if (!mi->sample_table)
+ 		goto error1;
+ 
+diff --git a/net/mac80211/rc80211_minstrel_ht.c b/net/mac80211/rc80211_minstrel_ht.c
+index fb586b6e5d49..11956d56f192 100644
+--- a/net/mac80211/rc80211_minstrel_ht.c
++++ b/net/mac80211/rc80211_minstrel_ht.c
+@@ -1313,11 +1313,13 @@ minstrel_ht_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
+ 	if (!msp)
+ 		return NULL;
+ 
+-	msp->ratelist = kzalloc(sizeof(struct minstrel_rate) * max_rates, gfp);
++	msp->ratelist = kzalloc(array_size(max_rates, sizeof(struct minstrel_rate)),
++				gfp);
+ 	if (!msp->ratelist)
+ 		goto error;
+ 
+-	msp->sample_table = kmalloc(SAMPLE_COLUMNS * max_rates, gfp);
++	msp->sample_table = kmalloc(array_size(max_rates, SAMPLE_COLUMNS),
++				    gfp);
+ 	if (!msp->sample_table)
+ 		goto error1;
+ 
+diff --git a/net/mac80211/scan.c b/net/mac80211/scan.c
+index a3b1bcc2b461..9d60f3b98689 100644
+--- a/net/mac80211/scan.c
++++ b/net/mac80211/scan.c
+@@ -1157,7 +1157,7 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
+ 		}
+ 	}
+ 
+-	ie = kzalloc(num_bands * iebufsz, GFP_KERNEL);
++	ie = kzalloc(array_size(iebufsz, num_bands), GFP_KERNEL);
+ 	if (!ie) {
+ 		ret = -ENOMEM;
+ 		goto out;
+diff --git a/net/netfilter/nf_conntrack_proto.c b/net/netfilter/nf_conntrack_proto.c
+index afdeca53e88b..d2b551261ee3 100644
+--- a/net/netfilter/nf_conntrack_proto.c
++++ b/net/netfilter/nf_conntrack_proto.c
+@@ -402,8 +402,7 @@ int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *l4proto)
+ 		struct nf_conntrack_l4proto __rcu **proto_array;
+ 		int i;
+ 
+-		proto_array = kmalloc(MAX_NF_CT_PROTO *
+-				      sizeof(struct nf_conntrack_l4proto *),
++		proto_array = kmalloc(array_size(MAX_NF_CT_PROTO, sizeof(struct nf_conntrack_l4proto *)),
+ 				      GFP_KERNEL);
+ 		if (proto_array == NULL) {
+ 			ret = -ENOMEM;
+diff --git a/net/netfilter/nf_nat_core.c b/net/netfilter/nf_nat_core.c
+index 617693ff9f4c..8d6ff8f2da79 100644
+--- a/net/netfilter/nf_nat_core.c
++++ b/net/netfilter/nf_nat_core.c
+@@ -587,7 +587,7 @@ int nf_nat_l4proto_register(u8 l3proto, const struct nf_nat_l4proto *l4proto)
+ 
+ 	mutex_lock(&nf_nat_proto_mutex);
+ 	if (nf_nat_l4protos[l3proto] == NULL) {
+-		l4protos = kmalloc(IPPROTO_MAX * sizeof(struct nf_nat_l4proto *),
++		l4protos = kmalloc(array_size(IPPROTO_MAX, sizeof(struct nf_nat_l4proto *)),
+ 				   GFP_KERNEL);
+ 		if (l4protos == NULL) {
+ 			ret = -ENOMEM;
+diff --git a/net/netfilter/nf_tables_api.c b/net/netfilter/nf_tables_api.c
+index 9134cc429ad4..7ac4f0d85eff 100644
+--- a/net/netfilter/nf_tables_api.c
++++ b/net/netfilter/nf_tables_api.c
+@@ -5006,7 +5006,7 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
+ 	if (err < 0)
+ 		return err;
+ 
+-	ops = kzalloc(sizeof(struct nf_hook_ops) * n, GFP_KERNEL);
++	ops = kzalloc(array_size(n, sizeof(struct nf_hook_ops)), GFP_KERNEL);
+ 	if (!ops)
+ 		return -ENOMEM;
+ 
+@@ -6671,7 +6671,7 @@ static int __init nf_tables_module_init(void)
+ 
+ 	nft_chain_filter_init();
+ 
+-	info = kmalloc(sizeof(struct nft_expr_info) * NFT_RULE_MAXEXPRS,
++	info = kmalloc(array_size(NFT_RULE_MAXEXPRS, sizeof(struct nft_expr_info)),
+ 		       GFP_KERNEL);
+ 	if (info == NULL) {
+ 		err = -ENOMEM;
+diff --git a/net/netfilter/nfnetlink_cthelper.c b/net/netfilter/nfnetlink_cthelper.c
+index 4a4b293fb2e5..42f5c7e52b4b 100644
+--- a/net/netfilter/nfnetlink_cthelper.c
++++ b/net/netfilter/nfnetlink_cthelper.c
+@@ -190,8 +190,8 @@ nfnl_cthelper_parse_expect_policy(struct nf_conntrack_helper *helper,
+ 	if (class_max > NF_CT_MAX_EXPECT_CLASSES)
+ 		return -EOVERFLOW;
+ 
+-	expect_policy = kzalloc(sizeof(struct nf_conntrack_expect_policy) *
+-				class_max, GFP_KERNEL);
++	expect_policy = kzalloc(array_size(class_max, sizeof(struct nf_conntrack_expect_policy)),
++				GFP_KERNEL);
+ 	if (expect_policy == NULL)
+ 		return -ENOMEM;
+ 
+diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
+index 71325fef647d..94f401d22291 100644
+--- a/net/netfilter/x_tables.c
++++ b/net/netfilter/x_tables.c
+@@ -1957,7 +1957,8 @@ static int __init xt_init(void)
+ 		seqcount_init(&per_cpu(xt_recseq, i));
+ 	}
+ 
+-	xt = kmalloc(sizeof(struct xt_af) * NFPROTO_NUMPROTO, GFP_KERNEL);
++	xt = kmalloc(array_size(NFPROTO_NUMPROTO, sizeof(struct xt_af)),
++		     GFP_KERNEL);
+ 	if (!xt)
+ 		return -ENOMEM;
+ 
+diff --git a/net/netrom/af_netrom.c b/net/netrom/af_netrom.c
+index 4221d98a314b..18257d48e642 100644
+--- a/net/netrom/af_netrom.c
++++ b/net/netrom/af_netrom.c
+@@ -1407,7 +1407,8 @@ static int __init nr_proto_init(void)
+ 		return -1;
+ 	}
+ 
+-	dev_nr = kzalloc(nr_ndevs * sizeof(struct net_device *), GFP_KERNEL);
++	dev_nr = kzalloc(array_size(nr_ndevs, sizeof(struct net_device *)),
++			 GFP_KERNEL);
+ 	if (dev_nr == NULL) {
+ 		printk(KERN_ERR "NET/ROM: nr_proto_init - unable to allocate device array\n");
+ 		return -1;
+diff --git a/net/openvswitch/datapath.c b/net/openvswitch/datapath.c
+index 015e24e08909..573cca3291dd 100644
+--- a/net/openvswitch/datapath.c
++++ b/net/openvswitch/datapath.c
+@@ -1578,7 +1578,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
+ 		goto err_destroy_table;
+ 	}
+ 
+-	dp->ports = kmalloc(DP_VPORT_HASH_BUCKETS * sizeof(struct hlist_head),
++	dp->ports = kmalloc(array_size(DP_VPORT_HASH_BUCKETS, sizeof(struct hlist_head)),
+ 			    GFP_KERNEL);
+ 	if (!dp->ports) {
+ 		err = -ENOMEM;
+diff --git a/net/openvswitch/vport.c b/net/openvswitch/vport.c
+index f81c1d0ddff4..ebc3f0ec1477 100644
+--- a/net/openvswitch/vport.c
++++ b/net/openvswitch/vport.c
+@@ -47,7 +47,7 @@ static struct hlist_head *dev_table;
+  */
+ int ovs_vport_init(void)
+ {
+-	dev_table = kzalloc(VPORT_HASH_BUCKETS * sizeof(struct hlist_head),
++	dev_table = kzalloc(array_size(VPORT_HASH_BUCKETS, sizeof(struct hlist_head)),
+ 			    GFP_KERNEL);
+ 	if (!dev_table)
+ 		return -ENOMEM;
+diff --git a/net/rds/info.c b/net/rds/info.c
+index 140a44a5f7b7..9d3870b77fd6 100644
+--- a/net/rds/info.c
++++ b/net/rds/info.c
+@@ -188,7 +188,8 @@ int rds_info_getsockopt(struct socket *sock, int optname, char __user *optval,
+ 	nr_pages = (PAGE_ALIGN(start + len) - (start & PAGE_MASK))
+ 			>> PAGE_SHIFT;
+ 
+-	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
++	pages = kmalloc(array_size(nr_pages, sizeof(struct page *)),
++			GFP_KERNEL);
+ 	if (!pages) {
+ 		ret = -ENOMEM;
+ 		goto out;
+diff --git a/net/rose/af_rose.c b/net/rose/af_rose.c
+index 9ff5e0a76593..052af3f8390b 100644
+--- a/net/rose/af_rose.c
++++ b/net/rose/af_rose.c
+@@ -1526,7 +1526,8 @@ static int __init rose_proto_init(void)
+ 
+ 	rose_callsign = null_ax25_address;
+ 
+-	dev_rose = kzalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
++	dev_rose = kzalloc(array_size(rose_ndevs, sizeof(struct net_device *)),
++			   GFP_KERNEL);
+ 	if (dev_rose == NULL) {
+ 		printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate device structure\n");
+ 		rc = -ENOMEM;
+diff --git a/net/rxrpc/rxkad.c b/net/rxrpc/rxkad.c
+index 588fea0dd362..6e22d1bcfbc8 100644
+--- a/net/rxrpc/rxkad.c
++++ b/net/rxrpc/rxkad.c
+@@ -432,7 +432,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
+ 
+ 	sg = _sg;
+ 	if (unlikely(nsg > 4)) {
+-		sg = kmalloc(sizeof(*sg) * nsg, GFP_NOIO);
++		sg = kmalloc(array_size(nsg, sizeof(*sg)), GFP_NOIO);
+ 		if (!sg)
+ 			goto nomem;
+ 	}
+diff --git a/net/sched/sch_hhf.c b/net/sched/sch_hhf.c
+index bce2632212d3..fd63d70aac0b 100644
+--- a/net/sched/sch_hhf.c
++++ b/net/sched/sch_hhf.c
+@@ -599,8 +599,8 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
+ 
+ 	if (!q->hh_flows) {
+ 		/* Initialize heavy-hitter flow table. */
+-		q->hh_flows = kvzalloc(HH_FLOWS_CNT *
+-					 sizeof(struct list_head), GFP_KERNEL);
++		q->hh_flows = kvzalloc(array_size(HH_FLOWS_CNT, sizeof(struct list_head)),
++				       GFP_KERNEL);
+ 		if (!q->hh_flows)
+ 			return -ENOMEM;
+ 		for (i = 0; i < HH_FLOWS_CNT; i++)
+@@ -614,8 +614,8 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
+ 
+ 		/* Initialize heavy-hitter filter arrays. */
+ 		for (i = 0; i < HHF_ARRAYS_CNT; i++) {
+-			q->hhf_arrays[i] = kvzalloc(HHF_ARRAYS_LEN *
+-						      sizeof(u32), GFP_KERNEL);
++			q->hhf_arrays[i] = kvzalloc(array_size(HHF_ARRAYS_LEN, sizeof(u32)),
++						    GFP_KERNEL);
+ 			if (!q->hhf_arrays[i]) {
+ 				/* Note: hhf_destroy() will be called
+ 				 * by our caller.
+diff --git a/net/sctp/auth.c b/net/sctp/auth.c
+index e64630cd3331..dac7d403e8a8 100644
+--- a/net/sctp/auth.c
++++ b/net/sctp/auth.c
+@@ -482,8 +482,8 @@ int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
+ 		return 0;
+ 
+ 	/* Allocated the array of pointers to transorms */
+-	ep->auth_hmacs = kzalloc(sizeof(struct crypto_shash *) *
+-				 SCTP_AUTH_NUM_HMACS, gfp);
++	ep->auth_hmacs = kzalloc(array_size(SCTP_AUTH_NUM_HMACS, sizeof(struct crypto_shash *)),
++				 gfp);
+ 	if (!ep->auth_hmacs)
+ 		return -ENOMEM;
+ 
+diff --git a/net/sctp/protocol.c b/net/sctp/protocol.c
+index d685f8456762..b53aabaaf1a6 100644
+--- a/net/sctp/protocol.c
++++ b/net/sctp/protocol.c
+@@ -1438,7 +1438,8 @@ static __init int sctp_init(void)
+ 	/* Allocate and initialize the endpoint hash table.  */
+ 	sctp_ep_hashsize = 64;
+ 	sctp_ep_hashtable =
+-		kmalloc(64 * sizeof(struct sctp_hashbucket), GFP_KERNEL);
++		kmalloc(array_size(64, sizeof(struct sctp_hashbucket)),
++			GFP_KERNEL);
+ 	if (!sctp_ep_hashtable) {
+ 		pr_err("Failed endpoint_hash alloc\n");
+ 		status = -ENOMEM;
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index ff28f8feeb09..fb722f6a8450 100644
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -10586,7 +10586,7 @@ static int nl80211_parse_wowlan_nd(struct cfg80211_registered_device *rdev,
+ 	struct nlattr **tb;
+ 	int err;
+ 
+-	tb = kzalloc(NUM_NL80211_ATTR * sizeof(*tb), GFP_KERNEL);
++	tb = kzalloc(array_size(NUM_NL80211_ATTR, sizeof(*tb)), GFP_KERNEL);
+ 	if (!tb)
+ 		return -ENOMEM;
+ 
+@@ -11546,7 +11546,7 @@ static int nl80211_nan_add_func(struct sk_buff *skb,
+ 
+ 			func->srf_num_macs = n_entries;
+ 			func->srf_macs =
+-				kzalloc(sizeof(*func->srf_macs) * n_entries,
++				kzalloc(array_size(n_entries, sizeof(*func->srf_macs)),
+ 					GFP_KERNEL);
+ 			if (!func->srf_macs) {
+ 				err = -ENOMEM;
+diff --git a/security/apparmor/policy_unpack.c b/security/apparmor/policy_unpack.c
+index b9e6b2cafa69..577a8ac47149 100644
+--- a/security/apparmor/policy_unpack.c
++++ b/security/apparmor/policy_unpack.c
+@@ -475,7 +475,7 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
+ 		/* currently 4 exec bits and entries 0-3 are reserved iupcx */
+ 		if (size > 16 - 4)
+ 			goto fail;
+-		profile->file.trans.table = kzalloc(sizeof(char *) * size,
++		profile->file.trans.table = kzalloc(array_size(size, sizeof(char *)),
+ 						    GFP_KERNEL);
+ 		if (!profile->file.trans.table)
+ 			goto fail;
+diff --git a/security/selinux/ss/services.c b/security/selinux/ss/services.c
+index 8057e19dc15f..7126d4b4ed4c 100644
+--- a/security/selinux/ss/services.c
++++ b/security/selinux/ss/services.c
+@@ -2118,7 +2118,7 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len)
+ 	int rc = 0;
+ 	struct policy_file file = { data, len }, *fp = &file;
+ 
+-	oldpolicydb = kzalloc(2 * sizeof(*oldpolicydb), GFP_KERNEL);
++	oldpolicydb = kzalloc(array_size(2, sizeof(*oldpolicydb)), GFP_KERNEL);
+ 	if (!oldpolicydb) {
+ 		rc = -ENOMEM;
+ 		goto out;
+diff --git a/sound/core/pcm_compat.c b/sound/core/pcm_compat.c
+index b719d0bd833e..0a904b384e40 100644
+--- a/sound/core/pcm_compat.c
++++ b/sound/core/pcm_compat.c
+@@ -429,7 +429,7 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
+ 	    get_user(frames, &data32->frames))
+ 		return -EFAULT;
+ 	bufptr = compat_ptr(buf);
+-	bufs = kmalloc(sizeof(void __user *) * ch, GFP_KERNEL);
++	bufs = kmalloc(array_size(ch, sizeof(void __user *)), GFP_KERNEL);
  	if (bufs == NULL)
  		return -ENOMEM;
- 	for (i = 0; i < to->nr_segs; ++i)
-@@ -3128,7 +3128,7 @@ static ssize_t snd_pcm_writev(struct kiocb *iocb, struct iov_iter *from)
- 	    !frame_aligned(runtime, from->iov->iov_len))
- 		return -EINVAL;
- 	frames = bytes_to_samples(runtime, from->iov->iov_len);
--	bufs = kmalloc(sizeof(void *) * from->nr_segs, GFP_KERNEL);
-+	bufs = kmalloc(array_size(sizeof(void *), from->nr_segs), GFP_KERNEL);
- 	if (bufs == NULL)
+ 	for (i = 0; i < ch; i++) {
+diff --git a/sound/core/seq/seq_midi_emul.c b/sound/core/seq/seq_midi_emul.c
+index 9e2912e3e80f..0d9527032967 100644
+--- a/sound/core/seq/seq_midi_emul.c
++++ b/sound/core/seq/seq_midi_emul.c
+@@ -657,7 +657,8 @@ static struct snd_midi_channel *snd_midi_channel_init_set(int n)
+ 	struct snd_midi_channel *chan;
+ 	int  i;
+ 
+-	chan = kmalloc(n * sizeof(struct snd_midi_channel), GFP_KERNEL);
++	chan = kmalloc(array_size(n, sizeof(struct snd_midi_channel)),
++		       GFP_KERNEL);
+ 	if (chan) {
+ 		for (i = 0; i < n; i++)
+ 			snd_midi_channel_init(chan+i, i);
+diff --git a/sound/firewire/fireface/ff-protocol-ff400.c b/sound/firewire/fireface/ff-protocol-ff400.c
+index 12aa15df435d..654a4f849605 100644
+--- a/sound/firewire/fireface/ff-protocol-ff400.c
++++ b/sound/firewire/fireface/ff-protocol-ff400.c
+@@ -147,7 +147,7 @@ static int ff400_switch_fetching_mode(struct snd_ff *ff, bool enable)
+ 	__le32 *reg;
+ 	int i;
+ 
+-	reg = kzalloc(sizeof(__le32) * 18, GFP_KERNEL);
++	reg = kzalloc(array_size(18, sizeof(__le32)), GFP_KERNEL);
+ 	if (reg == NULL)
  		return -ENOMEM;
- 	for (i = 0; i < from->nr_segs; ++i)
-diff --git a/sound/firewire/dice/dice-transaction.c b/sound/firewire/dice/dice-transaction.c
-index 0f0350320ae8..ae7c1ac80207 100644
---- a/sound/firewire/dice/dice-transaction.c
-+++ b/sound/firewire/dice/dice-transaction.c
-@@ -170,7 +170,7 @@ static int register_notification_address(struct snd_dice *dice, bool retry)
  
- 	retries = (retry) ? 3 : 0;
+diff --git a/sound/firewire/packets-buffer.c b/sound/firewire/packets-buffer.c
+index ea1506679c66..bb5c1858db99 100644
+--- a/sound/firewire/packets-buffer.c
++++ b/sound/firewire/packets-buffer.c
+@@ -27,7 +27,8 @@ int iso_packets_buffer_init(struct iso_packets_buffer *b, struct fw_unit *unit,
+ 	void *p;
+ 	int err;
  
--	buffer = kmalloc(2 * 8, GFP_KERNEL);
-+	buffer = kmalloc(array_size(2, 8), GFP_KERNEL);
- 	if (!buffer)
+-	b->packets = kmalloc(count * sizeof(*b->packets), GFP_KERNEL);
++	b->packets = kmalloc(array_size(count, sizeof(*b->packets)),
++			     GFP_KERNEL);
+ 	if (!b->packets) {
+ 		err = -ENOMEM;
+ 		goto error;
+diff --git a/sound/oss/dmasound/dmasound_core.c b/sound/oss/dmasound/dmasound_core.c
+index 8c0f8a9ee0ba..1b848a24e507 100644
+--- a/sound/oss/dmasound/dmasound_core.c
++++ b/sound/oss/dmasound/dmasound_core.c
+@@ -420,7 +420,7 @@ static int sq_allocate_buffers(struct sound_queue *sq, int num, int size)
+ 		return 0;
+ 	sq->numBufs = num;
+ 	sq->bufSize = size;
+-	sq->buffers = kmalloc (num * sizeof(char *), GFP_KERNEL);
++	sq->buffers = kmalloc(array_size(num, sizeof(char *)), GFP_KERNEL);
+ 	if (!sq->buffers)
  		return -ENOMEM;
- 
-@@ -220,7 +220,7 @@ static void unregister_notification_address(struct snd_dice *dice)
- 	struct fw_device *device = fw_parent_device(dice->unit);
- 	__be64 *buffer;
- 
--	buffer = kmalloc(2 * 8, GFP_KERNEL);
-+	buffer = kmalloc(array_size(2, 8), GFP_KERNEL);
- 	if (buffer == NULL)
- 		return;
- 
-diff --git a/sound/pci/cs46xx/cs46xx_lib.c b/sound/pci/cs46xx/cs46xx_lib.c
-index 0020fd0efc46..314c7bf81429 100644
---- a/sound/pci/cs46xx/cs46xx_lib.c
-+++ b/sound/pci/cs46xx/cs46xx_lib.c
-@@ -460,7 +460,7 @@ static int load_firmware(struct snd_cs46xx *chip,
- 		entry->size = le32_to_cpu(fwdat[fwlen++]);
- 		if (fwlen + entry->size > fwsize)
- 			goto error_inval;
--		entry->data = kmalloc(entry->size * 4, GFP_KERNEL);
-+		entry->data = kmalloc(array_size(entry->size, 4), GFP_KERNEL);
- 		if (!entry->data)
- 			goto error;
- 		memcpy_le32(entry->data, &fwdat[fwlen], entry->size * 4);
-@@ -4036,8 +4036,8 @@ int snd_cs46xx_create(struct snd_card *card,
- 	snd_cs46xx_proc_init(card, chip);
- 
- #ifdef CONFIG_PM_SLEEP
--	chip->saved_regs = kmalloc(sizeof(*chip->saved_regs) *
--				   ARRAY_SIZE(saved_regs), GFP_KERNEL);
-+	chip->saved_regs = kmalloc(array_size(sizeof(*chip->saved_regs), ARRAY_SIZE(saved_regs)),
-+				   GFP_KERNEL);
- 	if (!chip->saved_regs) {
- 		snd_cs46xx_free(chip);
- 		return -ENOMEM;
+ 	for (i = 0; i < num; i++) {
+diff --git a/sound/pci/cs46xx/dsp_spos.c b/sound/pci/cs46xx/dsp_spos.c
+index aa61615288ff..361a48c21b4a 100644
+--- a/sound/pci/cs46xx/dsp_spos.c
++++ b/sound/pci/cs46xx/dsp_spos.c
+@@ -243,7 +243,8 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
+ 	ins->symbol_table.symbols = vmalloc(sizeof(struct dsp_symbol_entry) *
+ 					    DSP_MAX_SYMBOLS);
+ 	ins->code.data = kmalloc(DSP_CODE_BYTE_SIZE, GFP_KERNEL);
+-	ins->modules = kmalloc(sizeof(struct dsp_module_desc) * DSP_MAX_MODULES, GFP_KERNEL);
++	ins->modules = kmalloc(array_size(DSP_MAX_MODULES, sizeof(struct dsp_module_desc)),
++			       GFP_KERNEL);
+ 	if (!ins->symbol_table.symbols || !ins->code.data || !ins->modules) {
+ 		cs46xx_dsp_spos_destroy(chip);
+ 		goto error;
 diff --git a/sound/pci/ctxfi/ctatc.c b/sound/pci/ctxfi/ctatc.c
-index 6fd0e030615d..33b9038adbe9 100644
+index 908658a00377..6fd0e030615d 100644
 --- a/sound/pci/ctxfi/ctatc.c
 +++ b/sound/pci/ctxfi/ctatc.c
-@@ -1397,7 +1397,7 @@ static int atc_get_resources(struct ct_atc *atc)
+@@ -275,7 +275,8 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
+ 
+ 	/* Get AMIXER resource */
+ 	n_amixer = (n_amixer < 2) ? 2 : n_amixer;
+-	apcm->amixers = kzalloc(sizeof(void *)*n_amixer, GFP_KERNEL);
++	apcm->amixers = kzalloc(array_size(n_amixer, sizeof(void *)),
++				GFP_KERNEL);
+ 	if (!apcm->amixers) {
+ 		err = -ENOMEM;
+ 		goto error1;
+@@ -543,18 +544,21 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
+ 	}
+ 
+ 	if (n_srcc) {
+-		apcm->srccs = kzalloc(sizeof(void *)*n_srcc, GFP_KERNEL);
++		apcm->srccs = kzalloc(array_size(n_srcc, sizeof(void *)),
++				      GFP_KERNEL);
+ 		if (!apcm->srccs)
+ 			return -ENOMEM;
+ 	}
+ 	if (n_amixer) {
+-		apcm->amixers = kzalloc(sizeof(void *)*n_amixer, GFP_KERNEL);
++		apcm->amixers = kzalloc(array_size(n_amixer, sizeof(void *)),
++					GFP_KERNEL);
+ 		if (!apcm->amixers) {
+ 			err = -ENOMEM;
+ 			goto error1;
+ 		}
+ 	}
+-	apcm->srcimps = kzalloc(sizeof(void *)*n_srcimp, GFP_KERNEL);
++	apcm->srcimps = kzalloc(array_size(n_srcimp, sizeof(void *)),
++				GFP_KERNEL);
+ 	if (!apcm->srcimps) {
+ 		err = -ENOMEM;
+ 		goto error1;
+@@ -819,7 +823,8 @@ static int spdif_passthru_playback_get_resources(struct ct_atc *atc,
+ 
+ 	/* Get AMIXER resource */
+ 	n_amixer = (n_amixer < 2) ? 2 : n_amixer;
+-	apcm->amixers = kzalloc(sizeof(void *)*n_amixer, GFP_KERNEL);
++	apcm->amixers = kzalloc(array_size(n_amixer, sizeof(void *)),
++				GFP_KERNEL);
+ 	if (!apcm->amixers) {
+ 		err = -ENOMEM;
+ 		goto error1;
+@@ -1378,15 +1383,17 @@ static int atc_get_resources(struct ct_atc *atc)
+ 	num_daios = ((atc->model == CTSB1270) ? 8 : 7);
+ 	num_srcs = ((atc->model == CTSB1270) ? 6 : 4);
+ 
+-	atc->daios = kzalloc(sizeof(void *)*num_daios, GFP_KERNEL);
++	atc->daios = kzalloc(array_size(num_daios, sizeof(void *)),
++			     GFP_KERNEL);
+ 	if (!atc->daios)
+ 		return -ENOMEM;
+ 
+-	atc->srcs = kzalloc(sizeof(void *)*num_srcs, GFP_KERNEL);
++	atc->srcs = kzalloc(array_size(num_srcs, sizeof(void *)), GFP_KERNEL);
+ 	if (!atc->srcs)
+ 		return -ENOMEM;
+ 
+-	atc->srcimps = kzalloc(sizeof(void *)*num_srcs, GFP_KERNEL);
++	atc->srcimps = kzalloc(array_size(num_srcs, sizeof(void *)),
++			       GFP_KERNEL);
  	if (!atc->srcimps)
  		return -ENOMEM;
  
--	atc->pcm = kzalloc(sizeof(void *)*(2*4), GFP_KERNEL);
-+	atc->pcm = kzalloc(array_size(sizeof(void *), (2 * 4)), GFP_KERNEL);
- 	if (!atc->pcm)
- 		return -ENOMEM;
- 
-diff --git a/sound/pci/ctxfi/ctdaio.c b/sound/pci/ctxfi/ctdaio.c
-index 7f089cb433e1..f35a7341e446 100644
---- a/sound/pci/ctxfi/ctdaio.c
-+++ b/sound/pci/ctxfi/ctdaio.c
-@@ -398,7 +398,8 @@ static int dao_rsc_init(struct dao *dao,
- 	if (err)
- 		return err;
- 
--	dao->imappers = kzalloc(sizeof(void *)*desc->msr*2, GFP_KERNEL);
-+	dao->imappers = kzalloc(array3_size(sizeof(void *), desc->msr, 2),
-+				GFP_KERNEL);
- 	if (!dao->imappers) {
- 		err = -ENOMEM;
- 		goto error1;
-diff --git a/sound/pci/ctxfi/ctmixer.c b/sound/pci/ctxfi/ctmixer.c
-index 4f4a2a5dedb8..e47067d05171 100644
---- a/sound/pci/ctxfi/ctmixer.c
-+++ b/sound/pci/ctxfi/ctmixer.c
-@@ -910,13 +910,14 @@ static int ct_mixer_get_mem(struct ct_mixer **rmixer)
- 	if (!mixer)
- 		return -ENOMEM;
- 
--	mixer->amixers = kzalloc(sizeof(void *)*(NUM_CT_AMIXERS*CHN_NUM),
-+	mixer->amixers = kzalloc(array_size(sizeof(void *), (NUM_CT_AMIXERS * CHN_NUM)),
- 				 GFP_KERNEL);
- 	if (!mixer->amixers) {
- 		err = -ENOMEM;
- 		goto error1;
- 	}
--	mixer->sums = kzalloc(sizeof(void *)*(NUM_CT_SUMS*CHN_NUM), GFP_KERNEL);
-+	mixer->sums = kzalloc(array_size(sizeof(void *), (NUM_CT_SUMS * CHN_NUM)),
-+			      GFP_KERNEL);
- 	if (!mixer->sums) {
- 		err = -ENOMEM;
- 		goto error2;
-diff --git a/sound/pci/ctxfi/ctsrc.c b/sound/pci/ctxfi/ctsrc.c
-index bb4c9c3c89ae..4931fb382045 100644
---- a/sound/pci/ctxfi/ctsrc.c
-+++ b/sound/pci/ctxfi/ctsrc.c
-@@ -679,7 +679,7 @@ static int srcimp_rsc_init(struct srcimp *srcimp,
- 		return err;
- 
- 	/* Reserve memory for imapper nodes */
--	srcimp->imappers = kzalloc(sizeof(struct imapper)*desc->msr,
-+	srcimp->imappers = kzalloc(array_size(sizeof(struct imapper), desc->msr),
- 				   GFP_KERNEL);
- 	if (!srcimp->imappers) {
- 		err = -ENOMEM;
-diff --git a/sound/pci/emu10k1/emufx.c b/sound/pci/emu10k1/emufx.c
-index a2b56b188be4..f31971b6fce7 100644
---- a/sound/pci/emu10k1/emufx.c
-+++ b/sound/pci/emu10k1/emufx.c
-@@ -2690,12 +2690,12 @@ int snd_emu10k1_efx_alloc_pm_buffer(struct snd_emu10k1 *emu)
- 	int len;
- 
- 	len = emu->audigy ? 0x200 : 0x100;
--	emu->saved_gpr = kmalloc(len * 4, GFP_KERNEL);
-+	emu->saved_gpr = kmalloc(array_size(len, 4), GFP_KERNEL);
- 	if (! emu->saved_gpr)
- 		return -ENOMEM;
- 	len = emu->audigy ? 0x100 : 0xa0;
--	emu->tram_val_saved = kmalloc(len * 4, GFP_KERNEL);
--	emu->tram_addr_saved = kmalloc(len * 4, GFP_KERNEL);
-+	emu->tram_val_saved = kmalloc(array_size(len, 4), GFP_KERNEL);
-+	emu->tram_addr_saved = kmalloc(array_size(len, 4), GFP_KERNEL);
- 	if (! emu->tram_val_saved || ! emu->tram_addr_saved)
- 		return -ENOMEM;
- 	len = emu->audigy ? 2 * 1024 : 2 * 512;
 diff --git a/sound/pci/hda/hda_codec.c b/sound/pci/hda/hda_codec.c
-index acce4219e234..956071137057 100644
+index 5bc3a7468e17..acce4219e234 100644
 --- a/sound/pci/hda/hda_codec.c
 +++ b/sound/pci/hda/hda_codec.c
-@@ -439,7 +439,8 @@ static int read_widget_caps(struct hda_codec *codec, hda_nid_t fg_node)
- 	int i;
- 	hda_nid_t nid;
- 
--	codec->wcaps = kmalloc(codec->core.num_nodes * 4, GFP_KERNEL);
-+	codec->wcaps = kmalloc(array_size(codec->core.num_nodes, 4),
-+			       GFP_KERNEL);
- 	if (!codec->wcaps)
- 		return -ENOMEM;
- 	nid = codec->core.start_nid;
-diff --git a/sound/soc/codecs/wm8904.c b/sound/soc/codecs/wm8904.c
-index 20fdcae06c6b..ce5f8d4ac767 100644
---- a/sound/soc/codecs/wm8904.c
-+++ b/sound/soc/codecs/wm8904.c
-@@ -2023,8 +2023,8 @@ static void wm8904_handle_pdata(struct snd_soc_component *component)
- 				     wm8904_get_drc_enum, wm8904_put_drc_enum);
- 
- 		/* We need an array of texts for the enum API */
--		wm8904->drc_texts = kmalloc(sizeof(char *)
--					    * pdata->num_drc_cfgs, GFP_KERNEL);
-+		wm8904->drc_texts = kmalloc(array_size(sizeof(char *), pdata->num_drc_cfgs),
-+				            GFP_KERNEL);
- 		if (!wm8904->drc_texts)
- 			return;
- 
-diff --git a/sound/soc/codecs/wm8958-dsp2.c b/sound/soc/codecs/wm8958-dsp2.c
-index 8d495220fa25..df77636f3113 100644
---- a/sound/soc/codecs/wm8958-dsp2.c
-+++ b/sound/soc/codecs/wm8958-dsp2.c
-@@ -932,8 +932,8 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
- 		};
- 
- 		/* We need an array of texts for the enum API */
--		wm8994->mbc_texts = kmalloc(sizeof(char *)
--					    * pdata->num_mbc_cfgs, GFP_KERNEL);
-+		wm8994->mbc_texts = kmalloc(array_size(sizeof(char *), pdata->num_mbc_cfgs),
-+					    GFP_KERNEL);
- 		if (!wm8994->mbc_texts)
- 			return;
- 
-@@ -957,8 +957,8 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
- 		};
- 
- 		/* We need an array of texts for the enum API */
--		wm8994->vss_texts = kmalloc(sizeof(char *)
--					    * pdata->num_vss_cfgs, GFP_KERNEL);
-+		wm8994->vss_texts = kmalloc(array_size(sizeof(char *), pdata->num_vss_cfgs),
-+					    GFP_KERNEL);
- 		if (!wm8994->vss_texts)
- 			return;
- 
-@@ -983,8 +983,8 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
- 		};
- 
- 		/* We need an array of texts for the enum API */
--		wm8994->vss_hpf_texts = kmalloc(sizeof(char *)
--						* pdata->num_vss_hpf_cfgs, GFP_KERNEL);
-+		wm8994->vss_hpf_texts = kmalloc(array_size(sizeof(char *), pdata->num_vss_hpf_cfgs),
-+						GFP_KERNEL);
- 		if (!wm8994->vss_hpf_texts)
- 			return;
- 
-@@ -1010,8 +1010,8 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
- 		};
- 
- 		/* We need an array of texts for the enum API */
--		wm8994->enh_eq_texts = kmalloc(sizeof(char *)
--						* pdata->num_enh_eq_cfgs, GFP_KERNEL);
-+		wm8994->enh_eq_texts = kmalloc(array_size(sizeof(char *), pdata->num_enh_eq_cfgs),
-+					       GFP_KERNEL);
- 		if (!wm8994->enh_eq_texts)
- 			return;
- 
-diff --git a/sound/soc/codecs/wm_adsp.c b/sound/soc/codecs/wm_adsp.c
-index 82b0927e6ed7..9675edabefb9 100644
---- a/sound/soc/codecs/wm_adsp.c
-+++ b/sound/soc/codecs/wm_adsp.c
-@@ -1900,7 +1900,7 @@ static void *wm_adsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
- 		adsp_warn(dsp, "Algorithm list end %x 0x%x != 0xbedead\n",
- 			  pos + len, be32_to_cpu(val));
- 
--	alg = kzalloc(len * 2, GFP_KERNEL | GFP_DMA);
-+	alg = kzalloc(array_size(len, 2), GFP_KERNEL | GFP_DMA);
- 	if (!alg)
- 		return ERR_PTR(-ENOMEM);
- 
-diff --git a/sound/soc/soc-core.c b/sound/soc/soc-core.c
-index bf7ca32ab31f..ae5d7f515697 100644
---- a/sound/soc/soc-core.c
-+++ b/sound/soc/soc-core.c
-@@ -570,9 +570,8 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
- 	if (!rtd->dai_link->ops)
- 		rtd->dai_link->ops = &null_snd_soc_ops;
- 
--	rtd->codec_dais = kzalloc(sizeof(struct snd_soc_dai *) *
--					dai_link->num_codecs,
--					GFP_KERNEL);
-+	rtd->codec_dais = kzalloc(array_size(sizeof(struct snd_soc_dai *), dai_link->num_codecs),
-+				  GFP_KERNEL);
- 	if (!rtd->codec_dais) {
- 		kfree(rtd);
- 		return NULL;
-diff --git a/sound/soc/soc-dapm.c b/sound/soc/soc-dapm.c
-index fadf9896bf2c..1fdbe6aa4b51 100644
---- a/sound/soc/soc-dapm.c
-+++ b/sound/soc/soc-dapm.c
-@@ -3057,9 +3057,8 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
- 			continue;
- 
- 		if (w->num_kcontrols) {
--			w->kcontrols = kzalloc(w->num_kcontrols *
--						sizeof(struct snd_kcontrol *),
--						GFP_KERNEL);
-+			w->kcontrols = kzalloc(array_size(w->num_kcontrols, sizeof(struct snd_kcontrol *)),
-+					       GFP_KERNEL);
- 			if (!w->kcontrols) {
- 				mutex_unlock(&card->dapm_mutex);
- 				return -ENOMEM;
-diff --git a/sound/soc/soc-topology.c b/sound/soc/soc-topology.c
-index fa27d0fca6dc..3e09b4019fe2 100644
---- a/sound/soc/soc-topology.c
-+++ b/sound/soc/soc-topology.c
-@@ -941,7 +941,7 @@ static int soc_tplg_denum_create_texts(struct soc_enum *se,
- 	int i, ret;
- 
- 	se->dobj.control.dtexts =
--		kzalloc(sizeof(char *) * ec->items, GFP_KERNEL);
-+		kzalloc(array_size(sizeof(char *), ec->items), GFP_KERNEL);
- 	if (se->dobj.control.dtexts == NULL)
- 		return -ENOMEM;
- 
-diff --git a/sound/usb/format.c b/sound/usb/format.c
-index ba7c14e20b37..c38a3290d2d8 100644
---- a/sound/usb/format.c
-+++ b/sound/usb/format.c
-@@ -363,7 +363,8 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
- 		goto err_free;
- 	}
- 
--	fp->rate_table = kmalloc(sizeof(int) * fp->nr_rates, GFP_KERNEL);
-+	fp->rate_table = kmalloc(array_size(sizeof(int), fp->nr_rates),
+@@ -158,7 +158,8 @@ static int read_and_add_raw_conns(struct hda_codec *codec, hda_nid_t nid)
+ 	len = snd_hda_get_raw_connections(codec, nid, list, ARRAY_SIZE(list));
+ 	if (len == -ENOSPC) {
+ 		len = snd_hda_get_num_raw_conns(codec, nid);
+-		result = kmalloc(sizeof(hda_nid_t) * len, GFP_KERNEL);
++		result = kmalloc(array_size(len, sizeof(hda_nid_t)),
 +				 GFP_KERNEL);
- 	if (!fp->rate_table) {
- 		ret = -ENOMEM;
- 		goto err_free;
-diff --git a/sound/usb/line6/capture.c b/sound/usb/line6/capture.c
-index 947d6168f24a..69f5cb7eb3cf 100644
---- a/sound/usb/line6/capture.c
-+++ b/sound/usb/line6/capture.c
-@@ -264,8 +264,8 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
- 	struct usb_line6 *line6 = line6pcm->line6;
- 	int i;
+ 		if (!result)
+ 			return -ENOMEM;
+ 		len = snd_hda_get_raw_connections(codec, nid, result, len);
+diff --git a/sound/pci/hda/hda_proc.c b/sound/pci/hda/hda_proc.c
+index 033aa84365b9..db2deb4c07db 100644
+--- a/sound/pci/hda/hda_proc.c
++++ b/sound/pci/hda/hda_proc.c
+@@ -825,7 +825,7 @@ static void print_codec_info(struct snd_info_entry *entry,
+ 		if (wid_caps & AC_WCAP_CONN_LIST) {
+ 			conn_len = snd_hda_get_num_raw_conns(codec, nid);
+ 			if (conn_len > 0) {
+-				conn = kmalloc(sizeof(hda_nid_t) * conn_len,
++				conn = kmalloc(array_size(conn_len, sizeof(hda_nid_t)),
+ 					       GFP_KERNEL);
+ 				if (!conn)
+ 					return;
+diff --git a/sound/pci/hda/patch_ca0132.c b/sound/pci/hda/patch_ca0132.c
+index 768ea8651993..436984eb4ef7 100644
+--- a/sound/pci/hda/patch_ca0132.c
++++ b/sound/pci/hda/patch_ca0132.c
+@@ -4694,7 +4694,8 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
+ 	struct ca0132_spec *spec = codec->spec;
  
--	line6pcm->in.urbs = kzalloc(
--		sizeof(struct urb *) * line6->iso_buffers, GFP_KERNEL);
-+	line6pcm->in.urbs = kzalloc(array_size(sizeof(struct urb *), line6->iso_buffers),
-+				    GFP_KERNEL);
- 	if (line6pcm->in.urbs == NULL)
+ 	spec->chip_init_verbs = ca0132_init_verbs0;
+-	spec->spec_init_verbs = kzalloc(sizeof(struct hda_verb) * NUM_SPEC_VERBS, GFP_KERNEL);
++	spec->spec_init_verbs = kzalloc(array_size(NUM_SPEC_VERBS, sizeof(struct hda_verb)),
++					GFP_KERNEL);
+ 	if (!spec->spec_init_verbs)
  		return -ENOMEM;
  
-diff --git a/sound/usb/line6/pcm.c b/sound/usb/line6/pcm.c
-index b3854f8c0c67..8fd838ba9997 100644
---- a/sound/usb/line6/pcm.c
-+++ b/sound/usb/line6/pcm.c
-@@ -158,8 +158,8 @@ static int line6_buffer_acquire(struct snd_line6_pcm *line6pcm,
- 
- 	/* Invoked multiple times in a row so allocate once only */
- 	if (!test_and_set_bit(type, &pstr->opened) && !pstr->buffer) {
--		pstr->buffer = kmalloc(line6pcm->line6->iso_buffers *
--				       LINE6_ISO_PACKETS * pkt_size, GFP_KERNEL);
-+		pstr->buffer = kmalloc(array3_size(line6pcm->line6->iso_buffers, LINE6_ISO_PACKETS, pkt_size),
-+				       GFP_KERNEL);
- 		if (!pstr->buffer)
+diff --git a/sound/pci/via82xx.c b/sound/pci/via82xx.c
+index 3a1c0b8b4ea2..368e66ad09ed 100644
+--- a/sound/pci/via82xx.c
++++ b/sound/pci/via82xx.c
+@@ -439,7 +439,8 @@ static int build_via_table(struct viadev *dev, struct snd_pcm_substream *substre
  			return -ENOMEM;
  	}
-diff --git a/sound/usb/line6/playback.c b/sound/usb/line6/playback.c
-index 819e9b2d1d6e..b5141f3e70b0 100644
---- a/sound/usb/line6/playback.c
-+++ b/sound/usb/line6/playback.c
-@@ -409,8 +409,8 @@ int line6_create_audio_out_urbs(struct snd_line6_pcm *line6pcm)
- 	struct usb_line6 *line6 = line6pcm->line6;
+ 	if (! dev->idx_table) {
+-		dev->idx_table = kmalloc(sizeof(*dev->idx_table) * VIA_TABLE_SIZE, GFP_KERNEL);
++		dev->idx_table = kmalloc(array_size(VIA_TABLE_SIZE, sizeof(*dev->idx_table)),
++					 GFP_KERNEL);
+ 		if (! dev->idx_table)
+ 			return -ENOMEM;
+ 	}
+diff --git a/sound/pci/via82xx_modem.c b/sound/pci/via82xx_modem.c
+index 8a69221c1b86..fa573cc7612b 100644
+--- a/sound/pci/via82xx_modem.c
++++ b/sound/pci/via82xx_modem.c
+@@ -292,7 +292,8 @@ static int build_via_table(struct viadev *dev, struct snd_pcm_substream *substre
+ 			return -ENOMEM;
+ 	}
+ 	if (! dev->idx_table) {
+-		dev->idx_table = kmalloc(sizeof(*dev->idx_table) * VIA_TABLE_SIZE, GFP_KERNEL);
++		dev->idx_table = kmalloc(array_size(VIA_TABLE_SIZE, sizeof(*dev->idx_table)),
++					 GFP_KERNEL);
+ 		if (! dev->idx_table)
+ 			return -ENOMEM;
+ 	}
+diff --git a/sound/pci/ymfpci/ymfpci_main.c b/sound/pci/ymfpci/ymfpci_main.c
+index 8ca2e41e5827..0baf4975174e 100644
+--- a/sound/pci/ymfpci/ymfpci_main.c
++++ b/sound/pci/ymfpci/ymfpci_main.c
+@@ -2435,7 +2435,7 @@ int snd_ymfpci_create(struct snd_card *card,
+ 		goto free_chip;
+ 
+ #ifdef CONFIG_PM_SLEEP
+-	chip->saved_regs = kmalloc(YDSXGR_NUM_SAVED_REGS * sizeof(u32),
++	chip->saved_regs = kmalloc(array_size(YDSXGR_NUM_SAVED_REGS, sizeof(u32)),
+ 				   GFP_KERNEL);
+ 	if (chip->saved_regs == NULL) {
+ 		err = -ENOMEM;
+diff --git a/sound/soc/intel/common/sst-ipc.c b/sound/soc/intel/common/sst-ipc.c
+index 62f3a8e0ec87..156ce5a7cd54 100644
+--- a/sound/soc/intel/common/sst-ipc.c
++++ b/sound/soc/intel/common/sst-ipc.c
+@@ -121,8 +121,8 @@ static int msg_empty_list_init(struct sst_generic_ipc *ipc)
+ {
  	int i;
  
--	line6pcm->out.urbs = kzalloc(
--		sizeof(struct urb *) * line6->iso_buffers, GFP_KERNEL);
-+	line6pcm->out.urbs = kzalloc(array_size(sizeof(struct urb *), line6->iso_buffers),
-+				     GFP_KERNEL);
- 	if (line6pcm->out.urbs == NULL)
- 		return -ENOMEM;
- 
-diff --git a/sound/usb/mixer.c b/sound/usb/mixer.c
-index 301ad61ed426..5bf0db54304c 100644
---- a/sound/usb/mixer.c
-+++ b/sound/usb/mixer.c
-@@ -2329,7 +2329,8 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
- 		cval->control = (desc->bDescriptorSubtype == UAC2_CLOCK_SELECTOR) ?
- 			UAC2_CX_CLOCK_SELECTOR : UAC2_SU_SELECTOR;
- 
--	namelist = kmalloc(sizeof(char *) * desc->bNrInPins, GFP_KERNEL);
-+	namelist = kmalloc(array_size(sizeof(char *), desc->bNrInPins),
+-	ipc->msg = kzalloc(sizeof(struct ipc_message) *
+-		IPC_EMPTY_LIST_SIZE, GFP_KERNEL);
++	ipc->msg = kzalloc(array_size(IPC_EMPTY_LIST_SIZE, sizeof(struct ipc_message)),
 +			   GFP_KERNEL);
- 	if (!namelist) {
- 		kfree(cval);
+ 	if (ipc->msg == NULL)
  		return -ENOMEM;
+ 
+diff --git a/sound/usb/6fire/pcm.c b/sound/usb/6fire/pcm.c
+index 224a6a5d1c0e..3b45404ca60c 100644
+--- a/sound/usb/6fire/pcm.c
++++ b/sound/usb/6fire/pcm.c
+@@ -591,12 +591,12 @@ static int usb6fire_pcm_buffers_init(struct pcm_runtime *rt)
+ 	int i;
+ 
+ 	for (i = 0; i < PCM_N_URBS; i++) {
+-		rt->out_urbs[i].buffer = kzalloc(PCM_N_PACKETS_PER_URB
+-				* PCM_MAX_PACKET_SIZE, GFP_KERNEL);
++		rt->out_urbs[i].buffer = kzalloc(array_size(PCM_MAX_PACKET_SIZE, PCM_N_PACKETS_PER_URB),
++						 GFP_KERNEL);
+ 		if (!rt->out_urbs[i].buffer)
+ 			return -ENOMEM;
+-		rt->in_urbs[i].buffer = kzalloc(PCM_N_PACKETS_PER_URB
+-				* PCM_MAX_PACKET_SIZE, GFP_KERNEL);
++		rt->in_urbs[i].buffer = kzalloc(array_size(PCM_MAX_PACKET_SIZE, PCM_N_PACKETS_PER_URB),
++						GFP_KERNEL);
+ 		if (!rt->in_urbs[i].buffer)
+ 			return -ENOMEM;
+ 	}
+diff --git a/sound/usb/caiaq/audio.c b/sound/usb/caiaq/audio.c
+index fb1c1eac0b5e..765a9f04f3fa 100644
+--- a/sound/usb/caiaq/audio.c
++++ b/sound/usb/caiaq/audio.c
+@@ -728,7 +728,7 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
+ 		usb_sndisocpipe(usb_dev, ENDPOINT_PLAYBACK) :
+ 		usb_rcvisocpipe(usb_dev, ENDPOINT_CAPTURE);
+ 
+-	urbs = kmalloc(N_URBS * sizeof(*urbs), GFP_KERNEL);
++	urbs = kmalloc(array_size(N_URBS, sizeof(*urbs)), GFP_KERNEL);
+ 	if (!urbs) {
+ 		*ret = -ENOMEM;
+ 		return NULL;
+@@ -742,7 +742,8 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
+ 		}
+ 
+ 		urbs[i]->transfer_buffer =
+-			kmalloc(FRAMES_PER_URB * BYTES_PER_FRAME, GFP_KERNEL);
++			kmalloc(array_size(BYTES_PER_FRAME, FRAMES_PER_URB),
++				GFP_KERNEL);
+ 		if (!urbs[i]->transfer_buffer) {
+ 			*ret = -ENOMEM;
+ 			return urbs;
+@@ -857,8 +858,8 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
+ 				&snd_usb_caiaq_ops);
+ 
+ 	cdev->data_cb_info =
+-		kmalloc(sizeof(struct snd_usb_caiaq_cb_info) * N_URBS,
+-					GFP_KERNEL);
++		kmalloc(array_size(N_URBS, sizeof(struct snd_usb_caiaq_cb_info)),
++			GFP_KERNEL);
+ 
+ 	if (!cdev->data_cb_info)
+ 		return -ENOMEM;
+diff --git a/sound/usb/format.c b/sound/usb/format.c
+index 49e7ec6d2399..ba7c14e20b37 100644
+--- a/sound/usb/format.c
++++ b/sound/usb/format.c
+@@ -188,7 +188,8 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
+ 		 */
+ 		int r, idx;
+ 
+-		fp->rate_table = kmalloc(sizeof(int) * nr_rates, GFP_KERNEL);
++		fp->rate_table = kmalloc(array_size(nr_rates, sizeof(int)),
++					 GFP_KERNEL);
+ 		if (fp->rate_table == NULL)
+ 			return -ENOMEM;
+ 
+diff --git a/sound/usb/pcm.c b/sound/usb/pcm.c
+index 3cbfae6604f9..8e75456bb472 100644
+--- a/sound/usb/pcm.c
++++ b/sound/usb/pcm.c
+@@ -1123,7 +1123,7 @@ static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
+ 		return 0;
+ 
+ 	subs->rate_list.list = rate_list =
+-		kmalloc(sizeof(int) * count, GFP_KERNEL);
++		kmalloc(array_size(count, sizeof(int)), GFP_KERNEL);
+ 	if (!subs->rate_list.list)
+ 		return -ENOMEM;
+ 	subs->rate_list.count = count;
+diff --git a/sound/usb/usx2y/usbusx2y.c b/sound/usb/usx2y/usbusx2y.c
+index 0ddf29267d70..0162f78d854b 100644
+--- a/sound/usb/usx2y/usbusx2y.c
++++ b/sound/usb/usx2y/usbusx2y.c
+@@ -266,7 +266,7 @@ int usX2Y_AsyncSeq04_init(struct usX2Ydev *usX2Y)
+ 	int	err = 0,
+ 		i;
+ 
+-	if (NULL == (usX2Y->AS04.buffer = kmalloc(URB_DataLen_AsyncSeq*URBS_AsyncSeq, GFP_KERNEL))) {
++	if (NULL == (usX2Y->AS04.buffer = kmalloc(array_size(URBS_AsyncSeq, URB_DataLen_AsyncSeq), GFP_KERNEL))) {
+ 		err = -ENOMEM;
+ 	} else
+ 		for (i = 0; i < URBS_AsyncSeq; ++i) {
 diff --git a/sound/usb/usx2y/usbusx2yaudio.c b/sound/usb/usx2y/usbusx2yaudio.c
-index 6b662e0905c6..4067a367165e 100644
+index 345e439aa95b..6b662e0905c6 100644
 --- a/sound/usb/usx2y/usbusx2yaudio.c
 +++ b/sound/usb/usx2y/usbusx2yaudio.c
-@@ -436,7 +436,8 @@ static int usX2Y_urbs_allocate(struct snd_usX2Y_substream *subs)
+@@ -662,7 +662,8 @@ static int usX2Y_rate_set(struct usX2Ydev *usX2Y, int rate)
+ 			err = -ENOMEM;
+ 			goto cleanup;
  		}
- 		if (!is_playback && !(*purb)->transfer_buffer) {
- 			/* allocate a capture buffer per urb */
--			(*purb)->transfer_buffer = kmalloc(subs->maxpacksize * nr_of_packs(), GFP_KERNEL);
-+			(*purb)->transfer_buffer = kmalloc(array_size(subs->maxpacksize, nr_of_packs()),
-+							   GFP_KERNEL);
- 			if (NULL == (*purb)->transfer_buffer) {
- 				usX2Y_urbs_release(subs);
- 				return -ENOMEM;
+-		usbdata = kmalloc(sizeof(int) * NOOF_SETRATE_URBS, GFP_KERNEL);
++		usbdata = kmalloc(array_size(NOOF_SETRATE_URBS, sizeof(int)),
++				  GFP_KERNEL);
+ 		if (NULL == usbdata) {
+ 			err = -ENOMEM;
+ 			goto cleanup;
+diff --git a/tools/virtio/ringtest/ptr_ring.c b/tools/virtio/ringtest/ptr_ring.c
+index 2d566fbd236b..53b699ddbbbd 100644
+--- a/tools/virtio/ringtest/ptr_ring.c
++++ b/tools/virtio/ringtest/ptr_ring.c
+@@ -45,7 +45,7 @@ static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
+ {
+ 	if (size != 0 && n > SIZE_MAX / size)
+ 		return NULL;
+-	return kmalloc(n * size, flags);
++	return kmalloc(array_size(size, n), flags);
+ }
+ 
+ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
+diff --git a/virt/kvm/arm/vgic/vgic-v4.c b/virt/kvm/arm/vgic/vgic-v4.c
+index bc4265154bac..a6387ea2e20d 100644
+--- a/virt/kvm/arm/vgic/vgic-v4.c
++++ b/virt/kvm/arm/vgic/vgic-v4.c
+@@ -126,7 +126,7 @@ int vgic_v4_init(struct kvm *kvm)
+ 
+ 	nr_vcpus = atomic_read(&kvm->online_vcpus);
+ 
+-	dist->its_vm.vpes = kzalloc(sizeof(*dist->its_vm.vpes) * nr_vcpus,
++	dist->its_vm.vpes = kzalloc(array_size(nr_vcpus, sizeof(*dist->its_vm.vpes)),
+ 				    GFP_KERNEL);
+ 	if (!dist->its_vm.vpes)
+ 		return -ENOMEM;
 -- 
 2.17.0
