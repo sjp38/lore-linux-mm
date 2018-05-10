@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F8B66B05E5
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 05:53:25 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id g5-v6so1829436ioc.4
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 02:53:25 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50125.outbound.protection.outlook.com. [40.107.5.125])
-        by mx.google.com with ESMTPS id 7-v6si375411iob.122.2018.05.10.02.53.23
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 185896B05E7
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 05:53:37 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id m8-v6so629234pgq.9
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 02:53:37 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0112.outbound.protection.outlook.com. [104.47.2.112])
+        by mx.google.com with ESMTPS id 1-v6si454831plx.236.2018.05.10.02.53.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 10 May 2018 02:53:24 -0700 (PDT)
-Subject: [PATCH v5 07/13] list_lru: Add memcg argument to
- list_lru_from_kmem()
+        Thu, 10 May 2018 02:53:36 -0700 (PDT)
+Subject: [PATCH v5 08/13] list_lru: Pass dst_memcg argument to
+ memcg_drain_list_lru_node()
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Thu, 10 May 2018 12:53:15 +0300
-Message-ID: <152594599552.22949.582222092861665393.stgit@localhost.localdomain>
+Date: Thu, 10 May 2018 12:53:25 +0300
+Message-ID: <152594600514.22949.13772959733696297685.stgit@localhost.localdomain>
 In-Reply-To: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
 References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -24,75 +24,82 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
 This is just refactoring to allow next patches to have
-memcg pointer in list_lru_from_kmem().
+dst_memcg pointer in memcg_drain_list_lru_node().
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- mm/list_lru.c |   25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ include/linux/list_lru.h |    2 +-
+ mm/list_lru.c            |   11 ++++++-----
+ mm/memcontrol.c          |    2 +-
+ 3 files changed, 8 insertions(+), 7 deletions(-)
 
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index a63b7a4abc6b..a63bad2c981a 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -68,7 +68,7 @@ int __list_lru_init(struct list_lru *lru, bool memcg_aware,
+ #define list_lru_init_memcg(lru)	__list_lru_init((lru), true, NULL)
+ 
+ int memcg_update_all_list_lrus(int num_memcgs);
+-void memcg_drain_all_list_lrus(int src_idx, int dst_idx);
++void memcg_drain_all_list_lrus(int src_idx, struct mem_cgroup *dst_memcg);
+ 
+ /**
+  * list_lru_add: add an element to the lru list's tail
 diff --git a/mm/list_lru.c b/mm/list_lru.c
-index 8dd3f181d86f..0721381b2e3d 100644
+index 0721381b2e3d..46b805073ed0 100644
 --- a/mm/list_lru.c
 +++ b/mm/list_lru.c
-@@ -76,18 +76,24 @@ static __always_inline struct mem_cgroup *mem_cgroup_from_kmem(void *ptr)
+@@ -517,8 +517,9 @@ int memcg_update_all_list_lrus(int new_size)
  }
  
- static inline struct list_lru_one *
--list_lru_from_kmem(struct list_lru_node *nlru, void *ptr)
-+list_lru_from_kmem(struct list_lru_node *nlru, void *ptr,
-+		   struct mem_cgroup **memcg_ptr)
+ static void memcg_drain_list_lru_node(struct list_lru_node *nlru,
+-				      int src_idx, int dst_idx)
++				      int src_idx, struct mem_cgroup *dst_memcg)
  {
--	struct mem_cgroup *memcg;
-+	struct list_lru_one *l = &nlru->lru;
-+	struct mem_cgroup *memcg = NULL;
++	int dst_idx = dst_memcg->kmemcg_id;
+ 	struct list_lru_one *src, *dst;
  
- 	if (!nlru->memcg_lrus)
--		return &nlru->lru;
-+		goto out;
+ 	/*
+@@ -538,7 +539,7 @@ static void memcg_drain_list_lru_node(struct list_lru_node *nlru,
+ }
  
- 	memcg = mem_cgroup_from_kmem(ptr);
- 	if (!memcg)
--		return &nlru->lru;
-+		goto out;
+ static void memcg_drain_list_lru(struct list_lru *lru,
+-				 int src_idx, int dst_idx)
++				 int src_idx, struct mem_cgroup *dst_memcg)
+ {
+ 	int i;
  
--	return list_lru_from_memcg_idx(nlru, memcg_cache_id(memcg));
-+	l = list_lru_from_memcg_idx(nlru, memcg_cache_id(memcg));
-+out:
-+	if (memcg_ptr)
-+		*memcg_ptr = memcg;
-+	return l;
+@@ -546,16 +547,16 @@ static void memcg_drain_list_lru(struct list_lru *lru,
+ 		return;
+ 
+ 	for_each_node(i)
+-		memcg_drain_list_lru_node(&lru->node[i], src_idx, dst_idx);
++		memcg_drain_list_lru_node(&lru->node[i], src_idx, dst_memcg);
+ }
+ 
+-void memcg_drain_all_list_lrus(int src_idx, int dst_idx)
++void memcg_drain_all_list_lrus(int src_idx, struct mem_cgroup *dst_memcg)
+ {
+ 	struct list_lru *lru;
+ 
+ 	mutex_lock(&list_lrus_mutex);
+ 	list_for_each_entry(lru, &list_lrus, list)
+-		memcg_drain_list_lru(lru, src_idx, dst_idx);
++		memcg_drain_list_lru(lru, src_idx, dst_memcg);
+ 	mutex_unlock(&list_lrus_mutex);
  }
  #else
- static inline bool list_lru_memcg_aware(struct list_lru *lru)
-@@ -102,8 +108,11 @@ list_lru_from_memcg_idx(struct list_lru_node *nlru, int idx)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 18e0fdf302a9..df9e7f159369 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3173,7 +3173,7 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
+ 	}
+ 	rcu_read_unlock();
+ 
+-	memcg_drain_all_list_lrus(kmemcg_id, parent->kmemcg_id);
++	memcg_drain_all_list_lrus(kmemcg_id, parent);
+ 
+ 	memcg_free_cache_id(kmemcg_id);
  }
- 
- static inline struct list_lru_one *
--list_lru_from_kmem(struct list_lru_node *nlru, void *ptr)
-+list_lru_from_kmem(struct list_lru_node *nlru, void *ptr,
-+		   struct mem_cgroup **memcg_ptr)
- {
-+	if (memcg_ptr)
-+		*memcg_ptr = NULL;
- 	return &nlru->lru;
- }
- #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
-@@ -116,7 +125,7 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
- 
- 	spin_lock(&nlru->lock);
- 	if (list_empty(item)) {
--		l = list_lru_from_kmem(nlru, item);
-+		l = list_lru_from_kmem(nlru, item, NULL);
- 		list_add_tail(item, &l->list);
- 		l->nr_items++;
- 		nlru->nr_items++;
-@@ -142,7 +151,7 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
- 
- 	spin_lock(&nlru->lock);
- 	if (!list_empty(item)) {
--		l = list_lru_from_kmem(nlru, item);
-+		l = list_lru_from_kmem(nlru, item, NULL);
- 		list_del_init(item);
- 		l->nr_items--;
- 		nlru->nr_items--;
