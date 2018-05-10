@@ -1,58 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7966B0609
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 09:44:46 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id d4-v6so1439121wrn.15
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 06:44:46 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E4676B060B
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 09:47:31 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id t195-v6so1165937wmt.9
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 06:47:31 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id e5-v6si1173853edj.23.2018.05.10.06.44.45
+        by mx.google.com with ESMTPS id e5-v6si1179171edj.23.2018.05.10.06.47.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 10 May 2018 06:44:45 -0700 (PDT)
-Date: Thu, 10 May 2018 09:46:36 -0400
+        Thu, 10 May 2018 06:47:30 -0700 (PDT)
+Date: Thu, 10 May 2018 09:49:21 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 5/7] sched: loadavg: make calc_load_n() public
-Message-ID: <20180510134636.GB19348@cmpxchg.org>
+Subject: Re: [PATCH 6/7] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180510134921.GC19348@cmpxchg.org>
 References: <20180507210135.1823-1-hannes@cmpxchg.org>
- <20180507210135.1823-6-hannes@cmpxchg.org>
- <20180509094906.GI12217@hirez.programming.kicks-ass.net>
+ <20180507210135.1823-7-hannes@cmpxchg.org>
+ <20180509095938.GJ12217@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180509094906.GI12217@hirez.programming.kicks-ass.net>
+In-Reply-To: <20180509095938.GJ12217@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-On Wed, May 09, 2018 at 11:49:06AM +0200, Peter Zijlstra wrote:
-> On Mon, May 07, 2018 at 05:01:33PM -0400, Johannes Weiner wrote:
-> > +static inline unsigned long
-> > +fixed_power_int(unsigned long x, unsigned int frac_bits, unsigned int n)
-> > +{
-> > +	unsigned long result = 1UL << frac_bits;
+On Wed, May 09, 2018 at 11:59:38AM +0200, Peter Zijlstra wrote:
+> On Mon, May 07, 2018 at 05:01:34PM -0400, Johannes Weiner wrote:
+> > diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
+> > new file mode 100644
+> > index 000000000000..b22b0ffc729d
+> > --- /dev/null
+> > +++ b/include/linux/psi_types.h
+> > @@ -0,0 +1,84 @@
+> > +#ifndef _LINUX_PSI_TYPES_H
+> > +#define _LINUX_PSI_TYPES_H
 > > +
-> > +	if (n) {
-> > +		for (;;) {
-> > +			if (n & 1) {
-> > +				result *= x;
-> > +				result += 1UL << (frac_bits - 1);
-> > +				result >>= frac_bits;
-> > +			}
-> > +			n >>= 1;
-> > +			if (!n)
-> > +				break;
-> > +			x *= x;
-> > +			x += 1UL << (frac_bits - 1);
-> > +			x >>= frac_bits;
-> > +		}
-> > +	}
+> > +#include <linux/types.h>
 > > +
-> > +	return result;
-> > +}
+> > +#ifdef CONFIG_PSI
+> > +
+> > +/* Tracked task states */
+> > +enum psi_task_count {
+> > +	NR_RUNNING,
+> > +	NR_IOWAIT,
+> > +	NR_MEMSTALL,
+> > +	NR_PSI_TASK_COUNTS,
+> > +};
+> > +
+> > +/* Task state bitmasks */
+> > +#define TSK_RUNNING	(1 << NR_RUNNING)
+> > +#define TSK_IOWAIT	(1 << NR_IOWAIT)
+> > +#define TSK_MEMSTALL	(1 << NR_MEMSTALL)
+> > +
+> > +/* Resources that workloads could be stalled on */
+> > +enum psi_res {
+> > +	PSI_CPU,
+> > +	PSI_MEM,
+> > +	PSI_IO,
+> > +	NR_PSI_RESOURCES,
+> > +};
+> > +
+> > +/* Pressure states for a group of tasks */
+> > +enum psi_state {
+> > +	PSI_NONE,		/* No stalled tasks */
+> > +	PSI_SOME,		/* Stalled tasks & working tasks */
+> > +	PSI_FULL,		/* Stalled tasks & no working tasks */
+> > +	NR_PSI_STATES,
+> > +};
+> > +
+> > +struct psi_resource {
+> > +	/* Current pressure state for this resource */
+> > +	enum psi_state state;
+> > +
+> > +	/* Start of current state (cpu_clock) */
+> > +	u64 state_start;
+> > +
+> > +	/* Time sampling buckets for pressure states (ns) */
+> > +	u64 times[NR_PSI_STATES - 1];
 > 
-> No real objection; but that does look a wee bit fat for an inline I
-> suppose.
+> Fails to explain why no FULL.
 
-Fair enough, I'll put these back where I found them and make
-calc_load_n() extern instead.
+It's NONE that's excluded. I'll add a comment.
+
+> > +struct psi_group_cpu {
+> > +	/* States of the tasks belonging to this group */
+> > +	unsigned int tasks[NR_PSI_TASK_COUNTS];
+> > +
+> 
+> AFAICT there's a hole here, that would fit the @nonidle member. Which
+> also avoids the later hole generated by it.
+
+Good spot, I'll reshuffle this accordingly.
+
+> > +	/* Per-resource pressure tracking in this group */
+> > +	struct psi_resource res[NR_PSI_RESOURCES];
+> > +
+> > +	/* There are runnable or D-state tasks */
+> > +	bool nonidle;
+> 
+> Mandatory complaint about using _Bool in composites goes here.
+
+int it is.
+
+Thanks
