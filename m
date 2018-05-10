@@ -1,51 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7215B6B05A1
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 19:31:24 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id h32-v6so147417pld.15
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 16:31:24 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id z8-v6si17809856pgc.693.2018.05.09.16.31.23
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 194A66B05A4
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 21:15:22 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id x7-v6so292927wrm.13
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 18:15:22 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a50-v6si4363349edc.429.2018.05.09.18.15.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 May 2018 16:31:23 -0700 (PDT)
-Subject: Re: [RFC PATCH] Add /proc/<pid>/numa_vamaps for numa node information
-References: <1525240686-13335-1-git-send-email-prakash.sangappa@oracle.com>
- <20180502143323.1c723ccb509c3497050a2e0a@linux-foundation.org>
- <2ce01d91-5fba-b1b7-2956-c8cc1853536d@intel.com>
- <33f96879-351f-674a-ca23-43f233f4eb1d@linux.vnet.ibm.com>
- <82d2b35c-272a-ad02-692f-2c109aacdfb6@oracle.com>
- <8569dabb-4930-aa20-6249-72457e2df51e@intel.com>
- <51145ccb-fc0d-0281-9757-fb8a5112ec24@oracle.com>
- <c72fea44-59f3-b106-8311-b5eae2d254e7@intel.com>
- <addeaadc-5ab2-f0c9-2194-dd100ae90f3a@oracle.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <aaca3180-7510-c008-3e12-8bbe92344ef4@intel.com>
-Date: Wed, 9 May 2018 16:31:22 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 09 May 2018 18:15:20 -0700 (PDT)
+Date: Thu, 10 May 2018 01:15:16 +0000
+From: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Subject: Re: [PATCH] mm: provide a fallback for PAGE_KERNEL_RO for
+ architectures
+Message-ID: <20180510011516.GZ27853@wotan.suse.de>
+References: <20180428001526.22475-1-mcgrof@kernel.org>
+ <20180428031810.GA14566@bombadil.infradead.org>
+ <20180509010438.GM27853@wotan.suse.de>
+ <20180509013935.GA8131@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <addeaadc-5ab2-f0c9-2194-dd100ae90f3a@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180509013935.GA8131@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: prakash.sangappa@oracle.com, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, drepper@gmail.com, rientjes@google.com, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>, Tony Luck <tony.luck@intel.com>, arnd@arndb.de, gregkh@linuxfoundation.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org
 
-On 05/07/2018 06:16 PM, prakash.sangappa wrote:
-> It will be /proc/<pid>/numa_vamaps. Yes, the behavior will be
-> different with respect to seeking. Output will still be text and
-> the format will be same.
+On Tue, May 08, 2018 at 06:39:35PM -0700, Matthew Wilcox wrote:
+> On Wed, May 09, 2018 at 01:04:38AM +0000, Luis R. Rodriguez wrote:
+> > On Fri, Apr 27, 2018 at 08:18:10PM -0700, Matthew Wilcox wrote:
+> > > ia64: Add PAGE_KERNEL_RO and PAGE_KERNEL_EXEC
+> > > 
+> > > The rest of the kernel was falling back to simple PAGE_KERNEL pages; using
+> > > PAGE_KERNEL_RO and PAGE_KERNEL_EXEC provide better protection against
+> > > unintended writes.
+> > > 
+> > > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> > 
+> > Nice, should I queue this into my series as well?
 > 
-> I want to get feedback on this approach.
+> A little reluctant to queue it without anyone having tested it.  Heck,
+> I didn't even check it compiled ;-)
+> 
+> We used to just break architectures and let them fix it up for this kind
+> of thing.
 
-I think it would be really great if you can write down a list of the
-things you actually want to accomplish.  Dare I say: you need a
-requirements list.
+History is wonderful.
 
-The numa_vamaps approach continues down the path of an ever-growing list
-of highly-specialized /proc/<pid> files.  I don't think that is
-sustainable, even if it has been our trajectory for many years.
+> That's not really acceptable nowadays, but I don't know how
+> we get arch maintainers to fix up their ports now.
 
-Pagemap wasn't exactly a shining example of us getting new ABIs right,
-but it sounds like something along those is what we need.
+OK then in that case I'll proceed with my patches for now and just
+document they don't have it. Once and folks test the patch we can
+consider it.
+
+  Luis
