@@ -1,69 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 023E46B05B2
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 22:47:41 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id w14-v6so393319wrk.22
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 19:47:40 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n21sor3530314wmc.50.2018.05.09.19.47.39
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 645386B05B4
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 23:53:54 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id c82-v6so1109601itg.1
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 20:53:54 -0700 (PDT)
+Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.11])
+        by mx.google.com with ESMTPS id w5-v6si62523itb.74.2018.05.09.20.53.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 09 May 2018 19:47:39 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 May 2018 20:53:52 -0700 (PDT)
+From: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Subject: RE: [External] [RFC PATCH v1 3/6] mm, zone_type: create ZONE_NVM and
+ fill into GFP_ZONE_TABLE
+Date: Thu, 10 May 2018 03:53:34 +0000
+Message-ID: <HK2PR03MB16847C0C5F1D9DB6FCF09F9692980@HK2PR03MB1684.apcprd03.prod.outlook.com>
+References: <1525746628-114136-1-git-send-email-yehs1@lenovo.com>
+ <1525746628-114136-4-git-send-email-yehs1@lenovo.com>
+ <HK2PR03MB1684653383FFEDAE9B41A548929A0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <ce3a6f37-3b13-0c35-6895-35156c7a290c@infradead.org>
+ <HK2PR03MB16847B78265A033C7310DDCB92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180509114712.GP32366@dhcp22.suse.cz>
+ <HK2PR03MB168425F6D00C30918169C77C92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180509205609.GV32366@dhcp22.suse.cz>
+In-Reply-To: <20180509205609.GV32366@dhcp22.suse.cz>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-References: <152586686544.3048.15776787801312398314.stgit@localhost.localdomain>
- <152586701534.3048.9132875744525159636.stgit@localhost.localdomain> <20180509155511.9bb3de08b33d617559e5fb3a@linux-foundation.org>
-In-Reply-To: <20180509155511.9bb3de08b33d617559e5fb3a@linux-foundation.org>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Thu, 10 May 2018 02:47:27 +0000
-Message-ID: <CALvZod4QNfxkhg1x5NyfWjHe+OmK1kVeU-wepKdmDH46n7Ha0Q@mail.gmail.com>
-Subject: Re: [PATCH v4 01/13] mm: Assign id to every memcg-aware shrinker
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, Stephen Rothwell <sfr@canb.auug.org.au>, Roman Gushchin <guro@fb.com>, mka@chromium.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, chris@chris-wilson.co.uk, longman@redhat.com, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, jbacik@fb.com, linux@roeck-us.net, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Matthew Wilcox <willy@infradead.org>, lirongqing@baidu.com, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Randy Dunlap <rdunlap@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@infradead.org" <willy@infradead.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, Ocean HY1 He <hehy1@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Wed, May 9, 2018 at 3:55 PM Andrew Morton <akpm@linux-foundation.org>
-wrote:
-
-> On Wed, 09 May 2018 14:56:55 +0300 Kirill Tkhai <ktkhai@virtuozzo.com>
-wrote:
-
-> > The patch introduces shrinker::id number, which is used to enumerate
-> > memcg-aware shrinkers. The number start from 0, and the code tries
-> > to maintain it as small as possible.
+>=20
+> On Wed 09-05-18 14:04:21, Huaisheng HS1 Ye wrote:
+> > > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On B=
+ehalf Of
+> Michal Hocko
+> > >
+> > > On Wed 09-05-18 04:22:10, Huaisheng HS1 Ye wrote:
+> [...]
+> > > > Current mm treats all memory regions equally, it divides zones just=
+ by size,
+> like
+> > > 16M for DMA, 4G for DMA32, and others above for Normal.
+> > > > The spanned range of all zones couldn't be overlapped.
+> > >
+> > > No, this is not correct. Zones can overlap.
 > >
-> > This will be used as to represent a memcg-aware shrinkers in memcg
-> > shrinkers map.
+> > Hi Michal,
 > >
-> > ...
-> >
-> > --- a/fs/super.c
-> > +++ b/fs/super.c
-> > @@ -248,6 +248,9 @@ static struct super_block *alloc_super(struct
-file_system_type *type, int flags,
-> >       s->s_time_gran = 1000000000;
-> >       s->cleancache_poolid = CLEANCACHE_NO_POOL;
-> >
-> > +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> > Thanks for pointing it out.
+> > But function zone_sizes_init decides
+> > arch_zone_lowest/highest_possible_pfn's size by max_low_pfn, then
+> > free_area_init_nodes/node are responsible for calculating the spanned
+> > size of zones from memblock memory regions.  So, ZONE_DMA and
+> > ZONE_DMA32 and ZONE_NORMAL have separate address scope. How can they
+> > be overlapped with each other?
+>=20
+> Sorry, I could have been a bit more specific. DMA, DMA32 and Normal
+> zones are exclusive. They are mapped to a specific physical range of
+> memory so they cannot overlap. I was referring to a general property
+> that zones might interleave. Especially zone Normal, Movable and Device.
 
-> It would be more conventional to do this logic in Kconfig - define a
-> new MEMCG_SHRINKER which equals MEMCG && !SLOB.
+Exactly, here ZONE_NVM is a real physical range same as ZONE_DMA, ZONE_DMA3=
+2 and ZONE_Normal. So, it couldn't overlap with other zones.
+Just like you mentioned, ZONE_MOVABLE is virtual zone, which comes ZONE_Nor=
+mal.
+The way of virtual zone is another implementation compared with current pat=
+ch for ZONE_NVM.
+It has advantages but also disadvantages, which need to be clarified and di=
+scussed.
 
-> This ifdef occurs a distressing number of times in the patchset :( I
-> wonder if there's something we can do about that.
-
-> Also, why doesn't it work with slob?  Please describe the issue in the
-> changelogs somewhere.
-
-> It's a pretty big patchset.  I *could* merge it up in the hope that
-> someone is planning do do a review soon.  But is there such a person?
-
-
-Hi Andrew, couple of these patches are being reviewed by Vladimir and I
-plan to review too by next week. I think we can merge them into mm tree for
-more testing and I will also this patch series internally (though I have to
-backport them to our kernel for more extensive testing).
-
-thanks,
-Shakeel
+Sincerely,
+Huaisheng Ye
