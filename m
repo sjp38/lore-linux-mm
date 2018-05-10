@@ -1,59 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BD6F56B05B8
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 01:58:29 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k27-v6so626253wre.23
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 22:58:29 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z15-v6si324479ede.189.2018.05.09.22.58.28
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C90D86B05B9
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 02:07:50 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id s3-v6so633845pfh.0
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 23:07:50 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id b26-v6si44953pff.251.2018.05.09.23.07.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 May 2018 22:58:28 -0700 (PDT)
-Date: Thu, 10 May 2018 07:58:25 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: vmalloc with GFP_NOFS
-Message-ID: <20180510055825.GB32366@dhcp22.suse.cz>
-References: <20180424162712.GL17484@dhcp22.suse.cz>
- <20180424183536.GF30619@thunk.org>
- <20180424192542.GS17484@dhcp22.suse.cz>
- <20180509134222.GU32366@dhcp22.suse.cz>
- <20180509151351.GA4111@magnolia>
- <20180509210447.GX32366@dhcp22.suse.cz>
- <20180509220231.GD25312@magnolia>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 May 2018 23:07:49 -0700 (PDT)
+Date: Thu, 10 May 2018 08:07:33 +0200
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v2 0/2] mm: PAGE_KERNEL_* fallbacks
+Message-ID: <20180510060733.GA23098@kroah.com>
+References: <20180510014447.15989-1-mcgrof@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180509220231.GD25312@magnolia>
+In-Reply-To: <20180510014447.15989-1-mcgrof@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: "Theodore Y. Ts'o" <tytso@mit.edu>, LKML <linux-kernel@vger.kernel.org>, Artem Bityutskiy <dedekind1@gmail.com>, Richard Weinberger <richard@nod.at>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Marek Vasut <marek.vasut@gmail.com>, Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>, Andreas Dilger <adilger.kernel@dilger.ca>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Adrian Hunter <adrian.hunter@intel.com>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mtd@lists.infradead.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, linux-mm@kvack.org
+To: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Cc: arnd@arndb.de, willy@infradead.org, geert@linux-m68k.org, linux-m68k@lists.linux-m68k.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 09-05-18 15:02:31, Darrick J. Wong wrote:
-> On Wed, May 09, 2018 at 11:04:47PM +0200, Michal Hocko wrote:
-> > On Wed 09-05-18 08:13:51, Darrick J. Wong wrote:
-[...]
-> > > > FS resp. IO submitting code paths have to be careful when allocating
-> > > 
-> > > Not sure what 'FS resp. IO' means here -- 'FS and IO' ?
-> > > 
-> > > (Or is this one of those things where this looks like plain English text
-> > > but in reality it's some sort of markup that I'm not so familiar with?)
-> > > 
-> > > Confused because I've seen 'resp.' used as shorthand for
-> > > 'responsible'...
-> > 
-> > Well, I've tried to cover both. Filesystem and IO code paths which
-> > allocate while in sensitive context. IO submission is kinda clear but I
-> > am not sure what a general term for filsystem code paths would be. I
-> > would be greatful for any hints here.
+On Wed, May 09, 2018 at 06:44:45PM -0700, Luis R. Rodriguez wrote:
+> While dusting out the firmware loader closet I spotted a PAGE_KERNEL_*
+> fallback hack. This hurts my eyes, and it should also be blinding
+> others. Turns out we have other PAGE_KERNEL_* fallback hacks in
+> other places.
 > 
-> "Code paths in the filesystem and IO stacks must be careful when
-> allocating memory to prevent recursion deadlocks caused by direct memory
-> reclaim calling back into the FS or IO paths and blocking on already
-> held resources (e.g. locks)." ?
+> This moves them to asm-generic, and keeps track of architectures which
+> need some love or review. At least 0-day was happy with the changes.
+> 
+> Matthew Wilcox did put together a PAGE_KERNEL_RO patch for ia64, that
+> needs review and testing, and if it goes well it should be merged.
+> 
+> Luis R. Rodriguez (2):
+>   mm: provide a fallback for PAGE_KERNEL_RO for architectures
+>   mm: provide a fallback for PAGE_KERNEL_EXEC for architectures
+> 
+>  drivers/base/firmware_loader/fallback.c |  5 ----
+>  include/asm-generic/pgtable.h           | 36 +++++++++++++++++++++++++
+>  mm/nommu.c                              |  4 ---
+>  mm/vmalloc.c                            |  4 ---
+>  4 files changed, 36 insertions(+), 13 deletions(-)
 
-Great, thanks!
--- 
-Michal Hocko
-SUSE Labs
+No list of changes that happened from v1?  :(
