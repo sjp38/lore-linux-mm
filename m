@@ -1,101 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ADF46B0610
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 10:04:46 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p1-v6so1466521wrm.7
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 07:04:46 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id t2-v6si991431edq.113.2018.05.10.07.04.44
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 700CD6B0612
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 10:08:53 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id d4-v6so1488263wrn.15
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 07:08:53 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id i8-v6si1054480edg.49.2018.05.10.07.08.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 May 2018 07:04:44 -0700 (PDT)
-Date: Thu, 10 May 2018 15:04:16 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v3 1/2] mm: introduce memory.min
-Message-ID: <20180510140410.GA11693@castle.DHCP.thefacebook.com>
-References: <20180503114358.7952-1-guro@fb.com>
- <20180510133003.GH5325@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 10 May 2018 07:08:52 -0700 (PDT)
+Date: Thu, 10 May 2018 10:10:42 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 6/7] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180510141042.GD19348@cmpxchg.org>
+References: <20180507210135.1823-1-hannes@cmpxchg.org>
+ <20180507210135.1823-7-hannes@cmpxchg.org>
+ <20180509100455.GK12217@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180510133003.GH5325@dhcp22.suse.cz>
+In-Reply-To: <20180509100455.GK12217@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-On Thu, May 10, 2018 at 03:30:03PM +0200, Michal Hocko wrote:
-> On Thu 03-05-18 12:43:57, Roman Gushchin wrote:
-> > Memory controller implements the memory.low best-effort memory
-> > protection mechanism, which works perfectly in many cases and
-> > allows protecting working sets of important workloads from
-> > sudden reclaim.
-> > 
-> > But its semantics has a significant limitation: it works
-> > only as long as there is a supply of reclaimable memory.
-> > This makes it pretty useless against any sort of slow memory
-> > leaks or memory usage increases. This is especially true
-> > for swapless systems. If swap is enabled, memory soft protection
-> > effectively postpones problems, allowing a leaking application
-> > to fill all swap area, which makes no sense.
-> > The only effective way to guarantee the memory protection
-> > in this case is to invoke the OOM killer.
-> > 
-> > It's possible to handle this case in userspace by reacting
-> > on MEMCG_LOW events; but there is still a place for a fail-safe
-> > in-kernel mechanism to provide stronger guarantees.
-> > 
-> > This patch introduces the memory.min interface for cgroup v2
-> > memory controller. It works very similarly to memory.low
-> > (sharing the same hierarchical behavior), except that it's
-> > not disabled if there is no more reclaimable memory in the system.
+On Wed, May 09, 2018 at 12:04:55PM +0200, Peter Zijlstra wrote:
+> On Mon, May 07, 2018 at 05:01:34PM -0400, Johannes Weiner wrote:
+> > +static void psi_clock(struct work_struct *work)
+> > +{
+> > +	u64 some[NR_PSI_RESOURCES] = { 0, };
+> > +	u64 full[NR_PSI_RESOURCES] = { 0, };
+> > +	unsigned long nonidle_total = 0;
+> > +	unsigned long missed_periods;
+> > +	struct delayed_work *dwork;
+> > +	struct psi_group *group;
+> > +	unsigned long expires;
+> > +	int cpu;
+> > +	int r;
+> > +
+> > +	dwork = to_delayed_work(work);
+> > +	group = container_of(dwork, struct psi_group, clock_work);
+> > +
+> > +	/*
+> > +	 * Calculate the sampling period. The clock might have been
+> > +	 * stopped for a while.
+> > +	 */
+> > +	expires = group->period_expires;
+> > +	missed_periods = (jiffies - expires) / MY_LOAD_FREQ;
+> > +	group->period_expires = expires + ((1 + missed_periods) * MY_LOAD_FREQ);
+> > +
+> > +	/*
+> > +	 * Aggregate the per-cpu state into a global state. Each CPU
+> > +	 * is weighted by its non-idle time in the sampling period.
+> > +	 */
+> > +	for_each_online_cpu(cpu) {
 > 
-> Originally I was pushing for the hard guarantee before we landed with
-> the best effort one. The assumption back then was that properly
-> configured systems shouldn't see problems IIRC.
-
-Personally, I'm also not a big fan of the current memory.low semantics.
-If you remember, my very version of memory guarantee (back to 2013)
-implemented a hard approach: https://lwn.net/Articles/540240/
-
+> Typically when using online CPU state, you also need hotplug notifiers
+> to deal with changes in the online set.
 > 
-> It is not entirely clear to me what is the role of the low limit wrt.
-> leaking application from the above description TBH. I presume you have a
-> process without any low&hard limit which leaks and basically breaks the
-> low limit expectation because of the lack of reclaimable memory and our
-> memcg_low_reclaim fallback.
+> You also typically need something like cpus_read_lock() around an
+> iteration of online CPUs, to avoid the set changing while you're poking
+> at them.
 > 
-> If that is the case then the hard limit should indeed protect the
-> respective memcg from reclaim. But what is the actuall guarantee?
-> We can reclaim that memory by the OOM killer, because there is no
-> protection from killing a memcg under the min limit. So what is the
-> actual semantic?
+> The lack for neither is evident or explained.
 
-If memcg memory usage is under its effective min boundary, its memory
-won't be reclaimed.
+The per-cpu state we access is allocated for each possible CPU, so
+that is safe (and state being all 0 is semantically sound, too). In a
+race with onlining, we might miss some per-cpu samples, but would
+catch them the next time. In a race with offlining, we may never
+consider the final up to 2s state history of the disappearing CPU; we
+could have an offlining callback to flush the state, but I'm not sure
+this would be an actual problem in the real world since the error is
+small (smallest averaging window is 5 sampling periods) and then would
+age out quickly.
 
-Making OOM killer aware of memory guarantees is a separate topic
-(and definitely a good idea to discuss!), but let's agree on
-a simple fact that there are many workloads which prefer
-to be killed, rather than suffer from a too high memory pressure.
+I can certainly add a comment explaining this at least.
 
-> 
-> Also how is an admin supposed to configure those limits? low limit
-> doesn't reall protect in some cases so why should it be used at all?
-> I see how min matches max and low matches high, so there is a nice
-> symmetry but aren't we adding additional complexity to the API?
-> Isn't the real problem that the other guy (leaking application) doesn't
-> have any cap?
-
-My main point is that memory.low requires an userspace agent
-to actually guarantee something. This agent supposed to track
-low memory events and somehow decrease memory pressure,
-if memory.low watermark is reached (stop some workloads, for example).
-This is not always handy, and having strong guarantee makes sense, IMO.
-
-We're experimenting with different setups, and the current approach
-is to set memory.min to the minimal value which guarantees normal
-functioning of a workload, while memory.low can be set to a much higher
-value, which sometimes brings some performance gains.
-
-Thanks!
+> > +		struct psi_group_cpu *groupc = per_cpu_ptr(group->cpus, cpu);
+> > +		unsigned long nonidle;
+> > +
+> > +		nonidle = nsecs_to_jiffies(groupc->nonidle_time);
+> > +		groupc->nonidle_time = 0;
+> > +		nonidle_total += nonidle;
+> > +
+> > +		for (r = 0; r < NR_PSI_RESOURCES; r++) {
+> > +			struct psi_resource *res = &groupc->res[r];
+> > +
+> > +			some[r] += (res->times[0] + res->times[1]) * nonidle;
+> > +			full[r] += res->times[1] * nonidle;
+> > +
+> > +			/* It's racy, but we can tolerate some error */
+> > +			res->times[0] = 0;
+> > +			res->times[1] = 0;
+> > +		}
+> > +	}
