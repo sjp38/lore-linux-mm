@@ -1,90 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 504B76B0645
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 17:50:00 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id d20-v6so1780500pfn.16
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 14:50:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d187-v6sor444870pgc.10.2018.05.10.14.49.58
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DC576B0647
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 18:03:16 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id i130-v6so364078iti.0
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 15:03:16 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id w68-v6si1505802iof.116.2018.05.10.15.03.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 10 May 2018 14:49:58 -0700 (PDT)
-From: Andreas Dilger <adilger@dilger.ca>
-Message-Id: <AE0124C4-46F7-4051-BA24-AC2E3887E8A3@dilger.ca>
-Content-Type: multipart/signed;
- boundary="Apple-Mail=_D589F850-881C-4AD8-A64A-59F465F470ED";
- protocol="application/pgp-signature"; micalg=pgp-sha256
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [PATCH 01/33] block: add a lower-level bio_add_page interface
-Date: Thu, 10 May 2018 15:49:53 -0600
-In-Reply-To: <20180510064013.GA11422@lst.de>
-References: <20180509074830.16196-1-hch@lst.de>
- <20180509074830.16196-2-hch@lst.de>
- <20180509151243.GA1313@bombadil.infradead.org>
- <20180510064013.GA11422@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 10 May 2018 15:03:13 -0700 (PDT)
+Subject: Re: linux-next: Tree for May 10 (mm/ksm.c)
+References: <20180510172842.2619e058@canb.auug.org.au>
+ <e55fad49-6c19-7c43-ef37-eb148bd3d55d@infradead.org>
+ <20180510134825.372f4a7ec17ce3e945640ac2@linux-foundation.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <91e95111-eb0c-205b-722b-18016da93c04@infradead.org>
+Date: Thu, 10 May 2018 15:03:04 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180510134825.372f4a7ec17ce3e945640ac2@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Linux-Next Mailing List <linux-next@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-
---Apple-Mail=_D589F850-881C-4AD8-A64A-59F465F470ED
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain;
-	charset=us-ascii
-
-On May 10, 2018, at 12:40 AM, Christoph Hellwig <hch@lst.de> wrote:
+On 05/10/2018 01:48 PM, Andrew Morton wrote:
+> On Thu, 10 May 2018 09:37:51 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
 > 
-> On Wed, May 09, 2018 at 08:12:43AM -0700, Matthew Wilcox wrote:
->> (page, len, off) is a bit weird to me.  Usually we do (page, off, len).
+>> On 05/10/2018 12:28 AM, Stephen Rothwell wrote:
+>>> Hi all,
+>>>
+>>> Changes since 20180509:
+>>>
+>>
+>> on i386:
+>>
+>> ../mm/ksm.c: In function 'try_to_merge_one_page':
+>> ../mm/ksm.c:1244:4: error: implicit declaration of function 'set_page_stable_node' [-Werror=implicit-function-declaration]
+>>     set_page_stable_node(page, NULL);
 > 
-> That's what I'd usually do, too.  But this odd convention is what
-> bio_add_page uses, so I decided to stick to that instead of having two
-> different conventions in one family of functions.
+> Thanks.
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm-ksm-move-page_stable_node-from-ksmh-to-ksmc-fix
+> 
+> fix SYSFS=n build
+> 
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Cc: Randy Dunlap <rdunlap@infradead.org>
 
-Would it make sense to change the bio_add_page() and bio_add_pc_page()
-to use the more common convention instead of continuing the spread of
-this non-standard calling convention?  This is doubly problematic since
-"off" and "len" are both unsigned int values so it is easy to get them
-mixed up, and just reordering the bio_add_page() arguments would not
-generate any errors.
+Acked-by: Randy Dunlap <rdunlap@infradead.org>
+Reported-by: Randy Dunlap <rdunlap@infradead.org>
+Tested-by: Randy Dunlap <rdunlap@infradead.org>
 
-One option would be to rename this function bio_page_add() so there are
-build errors or first add bio_page_add() and mark bio_add_page()
-deprecated and allow some short time for transition?  There are about
-50 uses under drivers/ and 50 uses under fs/.
+> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/ksm.c |    9 ++++-----
+>  1 file changed, 4 insertions(+), 5 deletions(-)
+> 
+> diff -puN include/linux/ksm.h~mm-ksm-move-page_stable_node-from-ksmh-to-ksmc-fix include/linux/ksm.h
+> diff -puN mm/ksm.c~mm-ksm-move-page_stable_node-from-ksmh-to-ksmc-fix mm/ksm.c
+> --- a/mm/ksm.c~mm-ksm-move-page_stable_node-from-ksmh-to-ksmc-fix
+> +++ a/mm/ksm.c
+> @@ -823,11 +823,6 @@ static int unmerge_ksm_pages(struct vm_a
+>  	return err;
+>  }
+>  
+> -#ifdef CONFIG_SYSFS
+> -/*
+> - * Only called through the sysfs control interface:
+> - */
+> -
+>  static inline struct stable_node *page_stable_node(struct page *page)
+>  {
+>  	return PageKsm(page) ? page_rmapping(page) : NULL;
+> @@ -839,6 +834,10 @@ static inline void set_page_stable_node(
+>  	page->mapping = (void *)((unsigned long)stable_node | PAGE_MAPPING_KSM);
+>  }
+>  
+> +#ifdef CONFIG_SYSFS
+> +/*
+> + * Only called through the sysfs control interface:
+> + */
+>  static int remove_stable_node(struct stable_node *stable_node)
+>  {
+>  	struct page *page;
+> _
 
-Cheers, Andreas
 
-
-
-
-
-
---Apple-Mail=_D589F850-881C-4AD8-A64A-59F465F470ED
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename=signature.asc
-Content-Type: application/pgp-signature;
-	name=signature.asc
-Content-Description: Message signed with OpenPGP
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - http://gpgtools.org
-
-iQIzBAEBCAAdFiEEDb73u6ZejP5ZMprvcqXauRfMH+AFAlr0voIACgkQcqXauRfM
-H+A1mg/+JbxLgylupOU2sRAmpQK8Frg1K/ZSUEJHtt0hueCF83YAD0AhxVXybB71
-RJQ3I+Q4rU0ALUJMyJpQKSw29KJDMwEZ7H59Ao3YwriXSV5f19vG3S0gSj3ROzhL
-ApoiD+Z6CP8m9W/bRFq8r/Oz0WnMOwO7TiIY40Kh7AqebtqUpGqY8rb+j0q/S5ci
-lb9d0HZrwIP2Ba84iATeiZcVuXLk1Lk3EPNpzDcULZ9tmRNVoJJRHnY2pnWufkz2
-a2D8/OizVsei9y9JesLkqfdQszlKBX/MQRpK9wiYgPleGkKZnDoL7uH+QXA2tZ19
-BHU8WmSGN8yjkyaT2loY3NEOiwoZ9BW7SLqKxxKLhFjNHVyOr2Br1M70fzOU+VEC
-kxY3flBuBjhEJoNobTwbAEXMZqwqJFm+2GAH937DefnHeaJ4pRmOOwx3dY/SvLf5
-Z9o3qIEPWSbPik1x8T7ZNOXKxzDKqh/SzcJ6+bzcVZHP7E+lXxBgWiPdrmL8FMC2
-TYruk2BM6XXbauXWb1pTegDVoxEhHK/XNWP4Ft5eZ2Rj3we89MB0I0p1XCxnV145
-awy5o1lclkEowcNe8YXkw4VuBkaJPrIUPxEFIPAp7LHr295gUxvlr83aatIS7fjM
-H5t0eMuTPZzmQ0xEzuVFS23c3KKM18pj5BEOT9c6957OJbU0TgU=
-=gYo5
------END PGP SIGNATURE-----
-
---Apple-Mail=_D589F850-881C-4AD8-A64A-59F465F470ED--
+-- 
+~Randy
