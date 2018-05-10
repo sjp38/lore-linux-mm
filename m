@@ -1,144 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 44B056B05F1
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 05:54:23 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e3-v6so911604pfe.15
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 02:54:23 -0700 (PDT)
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40122.outbound.protection.outlook.com. [40.107.4.122])
-        by mx.google.com with ESMTPS id z9-v6si495586pll.423.2018.05.10.02.54.21
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F8DC6B05F4
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 07:41:52 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id w7-v6so1038934pfd.9
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 04:41:52 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w9-v6si619166plp.389.2018.05.10.04.41.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 10 May 2018 02:54:22 -0700 (PDT)
-Subject: [PATCH v5 13/13] mm: Clear shrinker bit if there are no objects
- related to memcg
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Thu, 10 May 2018 12:54:15 +0300
-Message-ID: <152594605549.22949.16491037134168999424.stgit@localhost.localdomain>
-In-Reply-To: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
-References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 May 2018 04:41:50 -0700 (PDT)
+Date: Thu, 10 May 2018 13:41:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: fix oom_kill event handling
+Message-ID: <20180510114147.GB5325@dhcp22.suse.cz>
+References: <20180508124637.29984-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180508124637.29984-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Roman Gushchin <guro@fb.com>
+Cc: kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-To avoid further unneed calls of do_shrink_slab()
-for shrinkers, which already do not have any charged
-objects in a memcg, their bits have to be cleared.
+On Tue 08-05-18 13:46:37, Roman Gushchin wrote:
+> Commit e27be240df53 ("mm: memcg: make sure memory.events is
+> uptodate when waking pollers") converted most of memcg event
+> counters to per-memcg atomics, which made them less confusing
+> for a user. The "oom_kill" counter remained untouched, so now
+> it behaves differently than other counters (including "oom").
+> This adds nothing but confusion.
+> 
+> Let's fix this by adding the MEMCG_OOM_KILL event, and follow
+> the MEMCG_OOM approach. This also removes a hack from
+> count_memcg_event_mm(), introduced earlier specially for the
+> OOM_KILL counter.
 
-This patch introduces a lockless mechanism to do that
-without races without parallel list lru add. After
-do_shrink_slab() returns SHRINK_EMPTY the first time,
-we clear the bit and call it once again. Then we restore
-the bit, if the new return value is different.
+I agree that the current OOM_KILL is confusing. But do we really need
+another memcg_memory_event_mm helper used for only one counter rather
+than reuse memcg_memory_event. __oom_kill_process doesn't have the memcg
+but nothing should really prevent us from adding the context
+(oom_control) there, no?
 
-Note, that single smp_mb__after_atomic() in shrink_slab_memcg()
-covers two situations:
-
-1)list_lru_add()     shrink_slab_memcg
-    list_add_tail()    for_each_set_bit() <--- read bit
-                         do_shrink_slab() <--- missed list update (no barrier)
-    <MB>                 <MB>
-    set_bit()            do_shrink_slab() <--- seen list update
-
-This situation, when the first do_shrink_slab() sees set bit,
-but it doesn't see list update (i.e., race with the first element
-queueing), is rare. So we don't add <MB> before the first call
-of do_shrink_slab() instead of this to do not slow down generic
-case. Also, it's need the second call as seen in below in (2).
-
-2)list_lru_add()      shrink_slab_memcg()
-    list_add_tail()     ...
-    set_bit()           ...
-  ...                   for_each_set_bit()
-  do_shrink_slab()        do_shrink_slab()
-    clear_bit()           ...
-  ...                     ...
-  list_lru_add()          ...
-    list_add_tail()       clear_bit()
-    <MB>                  <MB>
-    set_bit()             do_shrink_slab()
-
-The barriers guarantees, the second do_shrink_slab()
-in the right side task sees list update if really
-cleared the bit. This case is drawn in the code comment.
-
-[Results/performance of the patchset]
-
-After the whole patchset applied the below test shows signify
-increase of performance:
-
-$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
-$mkdir /sys/fs/cgroup/memory/ct
-$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
-    $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i; echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs; mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file; done
-
-Then, 5 sequential calls of drop caches:
-$time echo 3 > /proc/sys/vm/drop_caches
-
-1)Before:
-0.00user 13.78system 0:13.78elapsed 99%CPU
-0.00user 5.59system 0:05.60elapsed 99%CPU
-0.00user 5.48system 0:05.48elapsed 99%CPU
-0.00user 8.35system 0:08.35elapsed 99%CPU
-0.00user 8.34system 0:08.35elapsed 99%CPU
-
-2)After
-0.00user 1.10system 0:01.10elapsed 99%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-
-The results show the performance increases at least in 548 times.
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- include/linux/memcontrol.h |    2 ++
- mm/vmscan.c                |   19 +++++++++++++++++--
- 2 files changed, 19 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 436691a66500..82c0bf2d0579 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -1283,6 +1283,8 @@ static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int
- 
- 		rcu_read_lock();
- 		map = MEMCG_SHRINKER_MAP(memcg, nid);
-+		/* Pairs with smp mb in shrink_slab() */
-+		smp_mb__before_atomic();
- 		set_bit(nr, map->map);
- 		rcu_read_unlock();
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7b0075612d73..189b163bef4a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -586,8 +586,23 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			continue;
- 
- 		ret = do_shrink_slab(&sc, shrinker, priority);
--		if (ret == SHRINK_EMPTY)
--			ret = 0;
-+		if (ret == SHRINK_EMPTY) {
-+			clear_bit(i, map->map);
-+			/*
-+			 * Pairs with mb in memcg_set_shrinker_bit():
-+			 *
-+			 * list_lru_add()     shrink_slab_memcg()
-+			 *   list_add_tail()    clear_bit()
-+			 *   <MB>               <MB>
-+			 *   set_bit()          do_shrink_slab()
-+			 */
-+			smp_mb__after_atomic();
-+			ret = do_shrink_slab(&sc, shrinker, priority);
-+			if (ret == SHRINK_EMPTY)
-+				ret = 0;
-+			else
-+				memcg_set_shrinker_bit(memcg, nid, i);
-+		}
- 		freed += ret;
- 
- 		if (rwsem_is_contended(&shrinker_rwsem)) {
+[...]
+-- 
+Michal Hocko
+SUSE Labs
