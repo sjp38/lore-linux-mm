@@ -1,58 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AC3FE6B05A8
-	for <linux-mm@kvack.org>; Wed,  9 May 2018 21:24:31 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g1-v6so275245pfh.19
-        for <linux-mm@kvack.org>; Wed, 09 May 2018 18:24:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n6si22621111pfi.360.2018.05.09.18.24.30
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DDD56B05A9
+	for <linux-mm@kvack.org>; Wed,  9 May 2018 21:26:36 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id q15-v6so278468pff.17
+        for <linux-mm@kvack.org>; Wed, 09 May 2018 18:26:36 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w17sor4100906pfa.61.2018.05.09.18.26.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 May 2018 18:24:30 -0700 (PDT)
-Date: Thu, 10 May 2018 01:24:26 +0000
-From: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Subject: Re: [PATCH] mm: provide a fallback for PAGE_KERNEL_RO for
- architectures
-Message-ID: <20180510012426.GA27853@wotan.suse.de>
-References: <20180428001526.22475-1-mcgrof@kernel.org>
- <CAMuHMdUpc6=j62E7Xrcid6tKU5FRUZsiSVK7J=KD09epQ=9xfA@mail.gmail.com>
- <20180502151113.GB27853@wotan.suse.de>
+        (Google Transport Security);
+        Wed, 09 May 2018 18:26:35 -0700 (PDT)
+Subject: Re: [PATCH v2] mm/ksm: ignore STABLE_FLAG of rmap_item->address in
+ rmap_walk_ksm
+References: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
+ <1525403506-6750-1-git-send-email-hejianet@gmail.com>
+ <20180509163101.02f23de1842a822c61fc68ff@linux-foundation.org>
+From: Jia He <hejianet@gmail.com>
+Message-ID: <80070c0b-aecf-0dcf-2b36-fa6110ed8ad5@gmail.com>
+Date: Thu, 10 May 2018 09:26:24 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180502151113.GB27853@wotan.suse.de>
+In-Reply-To: <20180509163101.02f23de1842a822c61fc68ff@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Arnd Bergmann <arnd@arndb.de>, Matthew Wilcox <mawilcox@microsoft.com>, Greg KH <gregkh@linuxfoundation.org>, Linux-Arch <linux-arch@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jia.he@hxt-semitech.com, Hugh Dickins <hughd@google.com>
 
-On Wed, May 02, 2018 at 03:11:13PM +0000, Luis R. Rodriguez wrote:
-> On Wed, May 02, 2018 at 12:08:57PM +0200, Geert Uytterhoeven wrote:
-> > Hi Luis,
-> > 
-> > On Sat, Apr 28, 2018 at 2:15 AM, Luis R. Rodriguez <mcgrof@kernel.org> wrote:
-> > > Some architectures do not define PAGE_KERNEL_RO, best we can do
-> > > for them is to provide a fallback onto PAGE_KERNEL. Remove the
-> > > hack from the firmware loader and move it onto the asm-generic
-> > > header, and document while at it the affected architectures
-> > > which do not have a PAGE_KERNEL_RO:
-> > >
-> > >   o alpha
-> > >   o ia64
-> > >   o m68k
-> > >   o mips
-> > >   o sparc64
-> > >   o sparc
-> > >
-> > > Blessed-by: 0-day
-> > > Signed-off-by: Luis R. Rodriguez <mcgrof@kernel.org>
-> > 
-> > I believe the "best we can do" is to add the missing definitions for the
-> > architectures where the hardware does support it?
-> 
-> True, but we cannot wait for every architecture to implement a feature to then
-> such generics upstream, 
+Hi Andrew
 
-Come to think of it your point was the wording. I changed it to not be as misleading.
 
-  Luis
+On 5/10/2018 7:31 AM, Andrew Morton Wrote:
+> On Fri,  4 May 2018 11:11:46 +0800 Jia He <hejianet@gmail.com> wrote:
+>
+>> In our armv8a server(QDF2400), I noticed lots of WARN_ON caused by PAGE_SIZE
+>> unaligned for rmap_item->address under memory pressure tests(start 20 guests
+>> and run memhog in the host).
+>>
+>> ...
+>>
+>> In rmap_walk_ksm, the rmap_item->address might still have the STABLE_FLAG,
+>> then the start and end in handle_hva_to_gpa might not be PAGE_SIZE aligned.
+>> Thus it will cause exceptions in handle_hva_to_gpa on arm64.
+>>
+>> This patch fixes it by ignoring(not removing) the low bits of address when
+>> doing rmap_walk_ksm.
+>>
+>> Signed-off-by: jia.he@hxt-semitech.com
+> I assumed you wanted this patch to be committed as
+> From:jia.he@hxt-semitech.com rather than From:hejianet@gmail.com, so I
+> made that change.  Please let me know if this was inappropriate.
+Thanks, because there is still some issues in our company's mail server.
+I have to use my gmail mailbox.
+>
+> You can do this yourself by adding an explicit From: line to the very
+> start of the patch's email text.
+>
+> Also, a storm of WARN_ONs is pretty poor behaviour.  Is that the only
+> misbehaviour which this bug causes?  Do you think the fix should be
+> backported into earlier kernels?
+IMO, it should be backported to stable tree, seems that I missed CC to stable 
+tree ;-)
+the stom of WARN_ONs is very easy for me to reproduce.
+More than that, I watched a panic (not reproducible) as follows:
+[35380.805825] page:ffff7fe003742d80 count:-4871 mapcount:-2126053375 
+mapping:A A A A A A A A A  (null) index:0x0
+[35380.815024] flags: 0x1fffc00000000000()
+[35380.818845] raw: 1fffc00000000000 0000000000000000 0000000000000000 
+ffffecf981470000
+[35380.826569] raw: dead000000000100 dead000000000200 ffff8017c001c000 
+0000000000000000
+[35380.834294] page dumped because: nonzero _refcount
+[35380.839069] Modules linked in: vhost_net vhost tap ebtable_filter ebtables 
+ip6table_filter ip6_tables iptable_filter fcoe libfcoe libfc 8021q garp mrp stp 
+llc scsi_transport_fc openvswitch nf_conntrack_ipv6 nf_nat_ipv6 
+nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_defrag_ipv6 nf_nat nf_conntrack 
+vfat fat rpcrdma ib_isert iscsi_target_mod ib_iser libiscsi scsi_transport_iscsi 
+ib_srpt target_core_mod ib_srp scsi_transport_srp ib_ipoib rdma_ucm ib_ucm 
+ib_uverbs ib_umad rdma_cm ib_cm iw_cm mlx5_ib ib_core crc32_ce ipmi_ssif tpm_tis 
+tpm_tis_core sg nfsd auth_rpcgss nfs_acl lockd grace sunrpc dm_multipath 
+ip_tables xfs libcrc32c mlx5_core mlxfw devlink ahci_platform libahci_platform 
+libahci qcom_emac sdhci_acpi sdhci hdma mmc_core hdma_mgmt i2c_qup dm_mirror 
+dm_region_hash dm_log dm_mod
+[35380.908341] CPU: 29 PID: 18323 Comm: qemu-kvm Tainted: G WA A A A A A  
+4.14.15-5.hxt.aarch64 #1
+[35380.917107] Hardware name: <snip for confidential issues>
+[35380.930909] Call trace:
+[35380.933345] [<ffff000008088f00>] dump_backtrace+0x0/0x22c
+[35380.938723] [<ffff000008089150>] show_stack+0x24/0x2c
+[35380.943759] [<ffff00000893c078>] dump_stack+0x8c/0xb0
+[35380.948794] [<ffff00000820ab50>] bad_page+0xf4/0x154
+[35380.953740] [<ffff000008211ce8>] free_pages_check_bad+0x90/0x9c
+[35380.959642] [<ffff00000820c430>] free_pcppages_bulk+0x464/0x518
+[35380.965545] [<ffff00000820db98>] free_hot_cold_page+0x22c/0x300
+[35380.971448] [<ffff0000082176fc>] __put_page+0x54/0x60
+[35380.976484] [<ffff0000080b1164>] unmap_stage2_range+0x170/0x2b4
+[35380.982385] [<ffff0000080b12d8>] kvm_unmap_hva_handler+0x30/0x40
+[35380.988375] [<ffff0000080b0104>] handle_hva_to_gpa+0xb0/0xec
+[35380.994016] [<ffff0000080b2644>] kvm_unmap_hva_range+0x5c/0xd0
+[35380.999833] [<ffff0000080a8054>] 
+kvm_mmu_notifier_invalidate_range_start+0x60/0xb0
+[35381.007387] [<ffff000008271f44>] __mmu_notifier_invalidate_range_start+0x64/0x8c
+[35381.014765] [<ffff0000082547c8>] try_to_unmap_one+0x78c/0x7a4
+[35381.020493] [<ffff000008276d04>] rmap_walk_ksm+0x124/0x1a0
+[35381.025961] [<ffff0000082551b4>] rmap_walk+0x94/0x98
+[35381.030909] [<ffff0000082555e4>] try_to_unmap+0x100/0x124
+[35381.036293] [<ffff00000828243c>] unmap_and_move+0x480/0x6fc
+[35381.041847] [<ffff000008282b6c>] migrate_pages+0x10c/0x288
+[35381.047318] [<ffff00000823c164>] compact_zone+0x238/0x954
+[35381.052697] [<ffff00000823c944>] compact_zone_order+0xc4/0xe8
+[35381.058427] [<ffff00000823d25c>] try_to_compact_pages+0x160/0x294
+[35381.064503] [<ffff00000820f074>] __alloc_pages_direct_compact+0x68/0x194
+[35381.071187] [<ffff000008210138>] __alloc_pages_nodemask+0xc20/0xf7c
+[35381.077437] [<ffff0000082709e4>] alloc_pages_vma+0x1a4/0x1c0
+[35381.083080] [<ffff000008285b68>] do_huge_pmd_anonymous_page+0x128/0x324
+[35381.089677] [<ffff000008248a24>] __handle_mm_fault+0x71c/0x7e8
+[35381.095492] [<ffff000008248be8>] handle_mm_fault+0xf8/0x194
+[35381.101049] [<ffff000008240dcc>] __get_user_pages+0x124/0x34c
+[35381.106777] [<ffff000008241870>] populate_vma_page_range+0x90/0x9c
+[35381.112941] [<ffff000008241940>] __mm_populate+0xc4/0x15c
+[35381.118322] [<ffff00000824b294>] SyS_mlockall+0x100/0x164
+[35381.123705] Exception stack(0xffff800dce5f3ec0 to 0xffff800dce5f4000)
+[35381.130128] 3ec0: 0000000000000003 d6e6024cc9b87e00 0000aaaabe94f000 
+0000000000000000
+[35381.137940] 3ee0: 0000000000000002 0000000000000000 0000000000000000 
+0000aaaacf6fc3c0
+[35381.145753] 3f00: 00000000000000e6 0000aaaacf6fc490 0000ffffeeeab0f0 
+d6e6024cc9b87e00
+[35381.153565] 3f20: 0000000000000000 0000aaaabe81b3c0 0000000000000020 
+00009e53eff806b5
+[35381.161379] 3f40: 0000aaaabe94de48 0000ffffa7c269b0 0000000000000011 
+0000ffffeeeabf68
+[35381.169190] 3f60: 0000aaaaceacfe60 0000aaaabe94f000 0000aaaabe9ba358 
+0000aaaabe7ffb80
+[35381.177003] 3f80: 0000aaaabe9ba000 0000aaaabe959f64 0000000000000000 
+0000aaaabe94f000
+[35381.184815] 3fa0: 0000000000000000 0000ffffeeeabdb0 0000aaaabe5f3bf8 
+0000ffffeeeabdb0
+[35381.192628] 3fc0: 0000ffffa7c269b8 0000000060000000 0000000000000003 
+00000000000000e6
+[35381.200440] 3fe0: 0000000000000000 0000000000000000 0000000000000000 
+0000000000000000
+[35381.208254] [<ffff00000808339c>] __sys_trace_return+0x0/0x4
+[35381.213809] Disabling lock debugging due to kernel taint
+
+I ever injected a fault on purpose in kvm_unmap_hva_range by set 
+size=size-0x200, the call trace is similar
+as above. Thus, I thought the panic is similarly caused by the root cause of WARN_ON
+
+-- 
+Cheers,
+Jia
