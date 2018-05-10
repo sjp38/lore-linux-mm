@@ -1,53 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 957B56B05F9
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 08:02:06 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id s7-v6so731185pgp.15
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 05:02:06 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 92-v6si633368plw.299.2018.05.10.05.02.04
+	by kanga.kvack.org (Postfix) with ESMTP id BF7066B05FC
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 08:13:28 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id z16-v6so740976pgv.16
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 05:13:28 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 127-v6si705133pfe.49.2018.05.10.05.13.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 May 2018 05:02:05 -0700 (PDT)
-Date: Thu, 10 May 2018 14:02:00 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/memory_hotplug: Fix leftover use of struct page
- during hotplug
-Message-ID: <20180510120200.GC5325@dhcp22.suse.cz>
-References: <20180504085311.1240-1-Jonathan.Cameron@huawei.com>
- <20180504160844.GB23560@dhcp22.suse.cz>
- <20180504175051.000009e8@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 May 2018 05:13:27 -0700 (PDT)
+Date: Thu, 10 May 2018 13:12:56 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2] mm: fix oom_kill event handling
+Message-ID: <20180510121251.GA6762@castle.DHCP.thefacebook.com>
+References: <20180508124637.29984-1-guro@fb.com>
+ <20180510114147.GB5325@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20180504175051.000009e8@huawei.com>
+In-Reply-To: <20180510114147.GB5325@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Cc: linux-mm <linux-mm@kvack.org>, linuxarm@huawei.com, Pavel Tatashin <pasha.tatashin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 04-05-18 17:50:51, Jonathan Cameron wrote:
-[...]
-> Exact path to the problem is as follows:
+On Thu, May 10, 2018 at 01:41:47PM +0200, Michal Hocko wrote:
+> On Tue 08-05-18 13:46:37, Roman Gushchin wrote:
+> > Commit e27be240df53 ("mm: memcg: make sure memory.events is
+> > uptodate when waking pollers") converted most of memcg event
+> > counters to per-memcg atomics, which made them less confusing
+> > for a user. The "oom_kill" counter remained untouched, so now
+> > it behaves differently than other counters (including "oom").
+> > This adds nothing but confusion.
+> > 
+> > Let's fix this by adding the MEMCG_OOM_KILL event, and follow
+> > the MEMCG_OOM approach. This also removes a hack from
+> > count_memcg_event_mm(), introduced earlier specially for the
+> > OOM_KILL counter.
 > 
-> mm/memory_hotplug.c : add_memory_resource
-> The node is not online so we enter the
-> if (new_node) twice, on the second such block there is a call to
-> link_mem_sections which calls into
-> drivers/node.c: link_mem_sections which calls
-> drivers/node.c: register_mem_sect_under_node which calls
-> get_nid_for_pfn and keeps trying until the output of that matches
-> the expected node (passed all the way down from add_memory_resource)
+> I agree that the current OOM_KILL is confusing. But do we really need
+> another memcg_memory_event_mm helper used for only one counter rather
+> than reuse memcg_memory_event. __oom_kill_process doesn't have the memcg
+> but nothing should really prevent us from adding the context
+> (oom_control) there, no?
 
-I am sorry but I am still confused. Why don't we create sysfs files from
-__add_pages
-  __add_section
-    hotplug_memory_register
-      register_mem_sect_under_node
+Not sure, that I follow. oom_control has memcg pointer,
+but it's a pointer to a cgroup, where OOM happened.
+In particular, it's NULL for a system-wide OOM.
 
-The whole sysfs mess just deserves to die and be reworked completely.
-Creating different pieces here and there is just a recipe for bugs
-and unreviewable code </rant>
--- 
-Michal Hocko
-SUSE Labs
+And we do send the OOM_KILL event to the cgroup,
+which actually contains the process.
