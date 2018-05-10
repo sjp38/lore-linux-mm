@@ -1,50 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 249506B05F7
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 07:56:21 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x21-v6so1035286pfn.23
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 04:56:21 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id k75-v6si629218pfk.369.2018.05.10.04.56.19
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 957B56B05F9
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 08:02:06 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s7-v6so731185pgp.15
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 05:02:06 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 92-v6si633368plw.299.2018.05.10.05.02.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 May 2018 04:56:20 -0700 (PDT)
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w4ABtxld066173
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 11:56:19 GMT
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2130.oracle.com with ESMTP id 2hv6m4k6yp-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 11:56:19 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id w4ABuIXV022601
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 11:56:18 GMT
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w4ABuIOA021748
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 11:56:18 GMT
-Received: by mail-oi0-f46.google.com with SMTP id c203-v6so1497125oib.7
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 04:56:17 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 May 2018 05:02:05 -0700 (PDT)
+Date: Thu, 10 May 2018 14:02:00 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/memory_hotplug: Fix leftover use of struct page
+ during hotplug
+Message-ID: <20180510120200.GC5325@dhcp22.suse.cz>
+References: <20180504085311.1240-1-Jonathan.Cameron@huawei.com>
+ <20180504160844.GB23560@dhcp22.suse.cz>
+ <20180504175051.000009e8@huawei.com>
 MIME-Version: 1.0
-References: <20180509191713.23794-1-pasha.tatashin@oracle.com> <20180509210920.GZ32366@dhcp22.suse.cz>
-In-Reply-To: <20180509210920.GZ32366@dhcp22.suse.cz>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 10 May 2018 11:55:42 +0000
-Message-ID: <CAGM2reZEK3-sRwCF4Zuyzk789zp1ghA0D4GQYqcHV4npNPPJVA@mail.gmail.com>
-Subject: Re: [PATCH] mm: allow deferred page init for vmemmap only
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180504175051.000009e8@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, tglx@linutronix.de, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, Steven Rostedt <rostedt@goodmis.org>, Fengguang Wu <fengguang.wu@intel.com>, Dennis Zhou <dennisszhou@gmail.com>
+To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Cc: linux-mm <linux-mm@kvack.org>, linuxarm@huawei.com, Pavel Tatashin <pasha.tatashin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 
-> This doesn't really explain why CONFIG_SPARSMEM or DISCONTIG has the
-> problem.
+On Fri 04-05-18 17:50:51, Jonathan Cameron wrote:
+[...]
+> Exact path to the problem is as follows:
+> 
+> mm/memory_hotplug.c : add_memory_resource
+> The node is not online so we enter the
+> if (new_node) twice, on the second such block there is a call to
+> link_mem_sections which calls into
+> drivers/node.c: link_mem_sections which calls
+> drivers/node.c: register_mem_sect_under_node which calls
+> get_nid_for_pfn and keeps trying until the output of that matches
+> the expected node (passed all the way down from add_memory_resource)
 
-Hi Michal,
+I am sorry but I am still confused. Why don't we create sysfs files from
+__add_pages
+  __add_section
+    hotplug_memory_register
+      register_mem_sect_under_node
 
-Thank you for reviewing this patch. I sent out a version two of this patch,
-with expanded explanation of the problem.
-
-Thank you,
-Pavel
+The whole sysfs mess just deserves to die and be reworked completely.
+Creating different pieces here and there is just a recipe for bugs
+and unreviewable code </rant>
+-- 
+Michal Hocko
+SUSE Labs
