@@ -1,107 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E4676B060B
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 09:47:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id t195-v6so1165937wmt.9
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 06:47:31 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id e5-v6si1179171edj.23.2018.05.10.06.47.30
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BBCA6B060D
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 09:54:34 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b25-v6so1185791pfn.10
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 06:54:34 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id r15-v6si741218pgs.292.2018.05.10.06.54.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 10 May 2018 06:47:30 -0700 (PDT)
-Date: Thu, 10 May 2018 09:49:21 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 6/7] psi: pressure stall information for CPU, memory, and
- IO
-Message-ID: <20180510134921.GC19348@cmpxchg.org>
-References: <20180507210135.1823-1-hannes@cmpxchg.org>
- <20180507210135.1823-7-hannes@cmpxchg.org>
- <20180509095938.GJ12217@hirez.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180509095938.GJ12217@hirez.programming.kicks-ass.net>
+        Thu, 10 May 2018 06:54:32 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: [PATCH 9/8] powerpc/pkeys: Drop private VM_PKEY definitions
+Date: Thu, 10 May 2018 23:54:22 +1000
+Message-Id: <20180510135422.6585-1-mpe@ellerman.id.au>
+In-Reply-To: <20180508145948.9492-9-mpe@ellerman.id.au>
+References: <20180508145948.9492-9-mpe@ellerman.id.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
+To: linuxram@us.ibm.com
+Cc: mingo@redhat.com, linuxppc-dev@ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com
 
-On Wed, May 09, 2018 at 11:59:38AM +0200, Peter Zijlstra wrote:
-> On Mon, May 07, 2018 at 05:01:34PM -0400, Johannes Weiner wrote:
-> > diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
-> > new file mode 100644
-> > index 000000000000..b22b0ffc729d
-> > --- /dev/null
-> > +++ b/include/linux/psi_types.h
-> > @@ -0,0 +1,84 @@
-> > +#ifndef _LINUX_PSI_TYPES_H
-> > +#define _LINUX_PSI_TYPES_H
-> > +
-> > +#include <linux/types.h>
-> > +
-> > +#ifdef CONFIG_PSI
-> > +
-> > +/* Tracked task states */
-> > +enum psi_task_count {
-> > +	NR_RUNNING,
-> > +	NR_IOWAIT,
-> > +	NR_MEMSTALL,
-> > +	NR_PSI_TASK_COUNTS,
-> > +};
-> > +
-> > +/* Task state bitmasks */
-> > +#define TSK_RUNNING	(1 << NR_RUNNING)
-> > +#define TSK_IOWAIT	(1 << NR_IOWAIT)
-> > +#define TSK_MEMSTALL	(1 << NR_MEMSTALL)
-> > +
-> > +/* Resources that workloads could be stalled on */
-> > +enum psi_res {
-> > +	PSI_CPU,
-> > +	PSI_MEM,
-> > +	PSI_IO,
-> > +	NR_PSI_RESOURCES,
-> > +};
-> > +
-> > +/* Pressure states for a group of tasks */
-> > +enum psi_state {
-> > +	PSI_NONE,		/* No stalled tasks */
-> > +	PSI_SOME,		/* Stalled tasks & working tasks */
-> > +	PSI_FULL,		/* Stalled tasks & no working tasks */
-> > +	NR_PSI_STATES,
-> > +};
-> > +
-> > +struct psi_resource {
-> > +	/* Current pressure state for this resource */
-> > +	enum psi_state state;
-> > +
-> > +	/* Start of current state (cpu_clock) */
-> > +	u64 state_start;
-> > +
-> > +	/* Time sampling buckets for pressure states (ns) */
-> > +	u64 times[NR_PSI_STATES - 1];
-> 
-> Fails to explain why no FULL.
+Now that we've updated the generic headers to support 5 PKEY bits for
+powerpc we don't need our own #defines in arch code.
 
-It's NONE that's excluded. I'll add a comment.
+Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+---
+ arch/powerpc/include/asm/pkeys.h | 15 ---------------
+ 1 file changed, 15 deletions(-)
 
-> > +struct psi_group_cpu {
-> > +	/* States of the tasks belonging to this group */
-> > +	unsigned int tasks[NR_PSI_TASK_COUNTS];
-> > +
-> 
-> AFAICT there's a hole here, that would fit the @nonidle member. Which
-> also avoids the later hole generated by it.
+One additional patch to finish cleaning things up.
 
-Good spot, I'll reshuffle this accordingly.
+I've added this to my branch.
 
-> > +	/* Per-resource pressure tracking in this group */
-> > +	struct psi_resource res[NR_PSI_RESOURCES];
-> > +
-> > +	/* There are runnable or D-state tasks */
-> > +	bool nonidle;
-> 
-> Mandatory complaint about using _Bool in composites goes here.
+cheers
 
-int it is.
-
-Thanks
+diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
+index 18ef59a9886d..5ba80cffb505 100644
+--- a/arch/powerpc/include/asm/pkeys.h
++++ b/arch/powerpc/include/asm/pkeys.h
+@@ -15,21 +15,6 @@ DECLARE_STATIC_KEY_TRUE(pkey_disabled);
+ extern int pkeys_total; /* total pkeys as per device tree */
+ extern u32 initial_allocation_mask; /* bits set for reserved keys */
+ 
+-/*
+- * Define these here temporarily so we're not dependent on patching linux/mm.h.
+- * Once it's updated we can drop these.
+- */
+-#ifndef VM_PKEY_BIT0
+-# define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
+-# define VM_PKEY_BIT0	VM_HIGH_ARCH_0
+-# define VM_PKEY_BIT1	VM_HIGH_ARCH_1
+-# define VM_PKEY_BIT2	VM_HIGH_ARCH_2
+-# define VM_PKEY_BIT3	VM_HIGH_ARCH_3
+-# define VM_PKEY_BIT4	VM_HIGH_ARCH_4
+-#elif !defined(VM_PKEY_BIT4)
+-# define VM_PKEY_BIT4	VM_HIGH_ARCH_4
+-#endif
+-
+ #define ARCH_VM_PKEY_FLAGS (VM_PKEY_BIT0 | VM_PKEY_BIT1 | VM_PKEY_BIT2 | \
+ 			    VM_PKEY_BIT3 | VM_PKEY_BIT4)
+ 
+-- 
+2.14.1
