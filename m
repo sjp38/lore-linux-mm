@@ -1,101 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 707DD6B061A
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 10:47:59 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u56-v6so1527112wrf.18
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 07:47:59 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id y34-v6si197951eda.16.2018.05.10.07.47.57
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E8546B061B
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 11:08:44 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id r7-v6so2337301ith.5
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 08:08:44 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id h79-v6si773108ioh.43.2018.05.10.08.08.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 10 May 2018 07:47:57 -0700 (PDT)
-Date: Thu, 10 May 2018 10:49:43 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 7/7] psi: cgroup support
-Message-ID: <20180510144943.GH19348@cmpxchg.org>
-References: <20180507210135.1823-1-hannes@cmpxchg.org>
- <20180507210135.1823-8-hannes@cmpxchg.org>
- <20180509110736.GR12217@hirez.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 May 2018 08:08:42 -0700 (PDT)
+Date: Thu, 10 May 2018 08:08:38 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 10/33] iomap: add an iomap-based bmap implementation
+Message-ID: <20180510150838.GE25312@magnolia>
+References: <20180509074830.16196-1-hch@lst.de>
+ <20180509074830.16196-11-hch@lst.de>
+ <20180509164628.GV11261@magnolia>
+ <20180510064250.GD11422@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180509110736.GR12217@hirez.programming.kicks-ass.net>
+In-Reply-To: <20180510064250.GD11422@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 09, 2018 at 01:07:36PM +0200, Peter Zijlstra wrote:
-> On Mon, May 07, 2018 at 05:01:35PM -0400, Johannes Weiner wrote:
-> > --- a/kernel/sched/psi.c
-> > +++ b/kernel/sched/psi.c
-> > @@ -260,6 +260,18 @@ void psi_task_change(struct task_struct *task, u64 now, int clear, int set)
-> >  	task->psi_flags |= set;
-> >  
-> >  	psi_group_update(&psi_system, cpu, now, clear, set);
-> > +
-> > +#ifdef CONFIG_CGROUPS
-> > +       cgroup = task->cgroups->dfl_cgrp;
-> > +       while (cgroup && (parent = cgroup_parent(cgroup))) {
-> > +               struct psi_group *group;
-> > +
-> > +               group = cgroup_psi(cgroup);
-> > +               psi_group_update(group, cpu, now, clear, set);
-> > +
-> > +               cgroup = parent;
-> > +       }
-> > +#endif
-> >  }
+On Thu, May 10, 2018 at 08:42:50AM +0200, Christoph Hellwig wrote:
+> On Wed, May 09, 2018 at 09:46:28AM -0700, Darrick J. Wong wrote:
+> > On Wed, May 09, 2018 at 09:48:07AM +0200, Christoph Hellwig wrote:
+> > > This adds a simple iomap-based implementation of the legacy ->bmap
+> > > interface.  Note that we can't easily add checks for rt or reflink
+> > > files, so these will have to remain in the callers.  This interface
+> > > just needs to die..
+> > 
+> > You /can/ check these...
+> > 
+> > if (iomap->bdev != inode->i_sb->s_bdev)
+> > 	return 0;
+> > if (iomap->flags & IOMAP_F_SHARED)
+> > 	return 0;
 > 
-> TJ fixed needing that for stats at some point, why can't you do the
-> same?
+> The latter only checks for a shared extent, not a file with possibly
+> shared extents.  I'd rather keep the check for a file with possible
+> shared extents.
 
-The stats deltas are all additive, so it's okay to delay flushing them
-up the tree right before somebody is trying to look at them.
+<nod>
 
-With this, though, we are tracking time of an aggregate state composed
-of child tasks, and that state might not be identical for you and all
-your ancestor, so everytime a task state changes we have to evaluate
-and start/stop clocks on every level, because we cannot derive our
-state from the state history of our child groups.
+> > > +static loff_t
+> > > +iomap_bmap_actor(struct inode *inode, loff_t pos, loff_t length,
+> > > +		void *data, struct iomap *iomap)
+> > > +{
+> > > +	sector_t *bno = data;
+> > > +
+> > > +	if (iomap->type == IOMAP_MAPPED)
+> > > +		*bno = (iomap->addr + pos - iomap->offset) >> inode->i_blkbits;
+> > 
+> > Does this need to be careful w.r.t. overflow on systems where sector_t
+> > is a 32-bit unsigned long?
+> > 
+> > Also, ioctl_fibmap() typecasts the returned sector_t to an int, which
+> > also seems broken.  I agree the interface needs to die, but ioctls take
+> > a long time to deprecate.
+> 
+> Not much we can do about the interface.
 
-For example, say you have the following tree:
+Yes, the interface is fubar, but if file /foo maps to block 8589934720
+then do we return the truncated result 128?
 
-              root
-             /
-            A
-          /   \
-         A1   A2
-  running=1   running=1
-
-I.e. There is a a running task in A1 and one in A2.
-
-root, A, A1, and A2 are all PSI_NONE as nothing is stalled.
-
-Now the task in A2 enters a memstall.
-
-              root
-             /
-            A
-          /   \
-         A1   A2
-  running=1   memstall=1
-
->From the perspective of A2, the group is now fully blocked and starts
-recording time in PSI_FULL.
-
->From the perspective of A, it has a working group below it and a
-stalled one, which would make it PSI_SOME, so it starts recording time
-in PSI_SOME.
-
-The root/sytem level likewise has to start the timer on PSI_SOME.
-
-Now the task in A1 enters a memstall, and we have to propagate the
-PSI_FULL state up A1 -> A -> root.
-
-I'm not quite sure how we could make this lazy. Say we hadn't
-propagated the state from A1 and A2 right away, and somebody is asking
-about the averages for A. We could tell that A1 and A2 had been in
-PSI_FULL recently, but we wouldn't know exactly if them being in these
-states fully overlapped (all PSI_FULL), overlapped partially (some
-PSI_FULL and some PSI_SOME), or didn't overlap at all (PSI_SOME).
+--D
