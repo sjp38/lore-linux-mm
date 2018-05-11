@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 693DE6B0687
-	for <linux-mm@kvack.org>; Fri, 11 May 2018 15:08:17 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id k136-v6so3488054oih.4
-        for <linux-mm@kvack.org>; Fri, 11 May 2018 12:08:17 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EEEA26B0688
+	for <linux-mm@kvack.org>; Fri, 11 May 2018 15:08:22 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id u10-v6so3426035oie.8
+        for <linux-mm@kvack.org>; Fri, 11 May 2018 12:08:22 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p22-v6si1281109otg.242.2018.05.11.12.08.16
+        by mx.google.com with ESMTP id z68-v6si1388380otb.328.2018.05.11.12.08.21
         for <linux-mm@kvack.org>;
-        Fri, 11 May 2018 12:08:16 -0700 (PDT)
+        Fri, 11 May 2018 12:08:21 -0700 (PDT)
 From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Subject: [PATCH v2 08/40] iommu/iopf: Handle mm faults
-Date: Fri, 11 May 2018 20:06:09 +0100
-Message-Id: <20180511190641.23008-9-jean-philippe.brucker@arm.com>
+Subject: [PATCH v2 09/40] iommu/sva: Register page fault handler
+Date: Fri, 11 May 2018 20:06:10 +0100
+Message-Id: <20180511190641.23008-10-jean-philippe.brucker@arm.com>
 In-Reply-To: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
 References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,127 +19,154 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org
 Cc: joro@8bytes.org, will.deacon@arm.com, robin.murphy@arm.com, alex.williamson@redhat.com, tn@semihalf.com, liubo95@huawei.com, thunder.leizhen@huawei.com, xieyisheng1@huawei.com, xuzaibo@huawei.com, ilias.apalodimas@linaro.org, jonathan.cameron@huawei.com, liudongdong3@huawei.com, shunyong.yang@hxt-semitech.com, nwatters@codeaurora.org, okaya@codeaurora.org, jcrouse@codeaurora.org, rfranz@cavium.com, dwmw2@infradead.org, jacob.jun.pan@linux.intel.com, yi.l.liu@intel.com, ashok.raj@intel.com, kevin.tian@intel.com, baolu.lu@linux.intel.com, robdclark@gmail.com, christian.koenig@amd.com, bharatku@xilinx.com, rgummal@xilinx.com
 
-When a recoverable page fault is handled by the fault workqueue, find the
-associated mm and call handle_mm_fault.
+Let users call iommu_sva_device_init() with the IOMMU_SVA_FEAT_IOPF flag,
+that enables the I/O Page Fault queue. The IOMMU driver checks is the
+device supports a form of page fault, in which case they add the device to
+a fault queue. If the device doesn't support page faults, the IOMMU driver
+aborts iommu_sva_device_init().
+
+The fault queue must be flushed before any io_mm is freed, to make sure
+that its PASID isn't used in any fault queue, and can be reallocated.
+Add iopf_queue_flush() calls in a few strategic locations.
 
 Signed-off-by: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
 
 ---
-v1->v2: let IOMMU drivers deal with Stop PASID
+v1->v2: new
 ---
- drivers/iommu/io-pgfault.c | 86 +++++++++++++++++++++++++++++++++++++-
- 1 file changed, 84 insertions(+), 2 deletions(-)
+ drivers/iommu/iommu-sva.c | 36 ++++++++++++++++++++++++++++++++----
+ drivers/iommu/iommu.c     |  6 +++---
+ include/linux/iommu.h     |  2 ++
+ 3 files changed, 37 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/iommu/io-pgfault.c b/drivers/iommu/io-pgfault.c
-index 321c00dd3a3d..dd2639e5c03b 100644
---- a/drivers/iommu/io-pgfault.c
-+++ b/drivers/iommu/io-pgfault.c
-@@ -7,6 +7,7 @@
+diff --git a/drivers/iommu/iommu-sva.c b/drivers/iommu/iommu-sva.c
+index 5abe0f0b445c..e98b994c15f1 100644
+--- a/drivers/iommu/iommu-sva.c
++++ b/drivers/iommu/iommu-sva.c
+@@ -441,6 +441,8 @@ static void iommu_notifier_release(struct mmu_notifier *mn, struct mm_struct *mm
+ 			dev_WARN(bond->dev, "possible leak of PASID %u",
+ 				 io_mm->pasid);
  
- #include <linux/iommu.h>
- #include <linux/list.h>
-+#include <linux/sched/mm.h>
- #include <linux/slab.h>
- #include <linux/workqueue.h>
++		iopf_queue_flush_dev(bond->dev);
++
+ 		spin_lock(&iommu_sva_lock);
+ 		next = list_next_entry(bond, mm_head);
  
-@@ -65,8 +66,65 @@ static int iopf_complete(struct device *dev, struct iommu_fault_event *evt,
- static enum page_response_code
- iopf_handle_single(struct iopf_context *fault)
- {
--	/* TODO */
--	return -ENODEV;
-+	int ret;
-+	struct mm_struct *mm;
-+	struct vm_area_struct *vma;
-+	unsigned int access_flags = 0;
-+	unsigned int fault_flags = FAULT_FLAG_REMOTE;
-+	struct iommu_fault_event *evt = &fault->evt;
-+	enum page_response_code status = IOMMU_PAGE_RESP_INVALID;
-+
-+	if (!evt->pasid_valid)
-+		return status;
-+
-+	mm = iommu_sva_find(evt->pasid);
-+	if (!mm)
-+		return status;
-+
-+	down_read(&mm->mmap_sem);
-+
-+	vma = find_extend_vma(mm, evt->addr);
-+	if (!vma)
-+		/* Unmapped area */
-+		goto out_put_mm;
-+
-+	if (evt->prot & IOMMU_FAULT_READ)
-+		access_flags |= VM_READ;
-+
-+	if (evt->prot & IOMMU_FAULT_WRITE) {
-+		access_flags |= VM_WRITE;
-+		fault_flags |= FAULT_FLAG_WRITE;
-+	}
-+
-+	if (evt->prot & IOMMU_FAULT_EXEC) {
-+		access_flags |= VM_EXEC;
-+		fault_flags |= FAULT_FLAG_INSTRUCTION;
-+	}
-+
-+	if (!(evt->prot & IOMMU_FAULT_PRIV))
-+		fault_flags |= FAULT_FLAG_USER;
-+
-+	if (access_flags & ~vma->vm_flags)
-+		/* Access fault */
-+		goto out_put_mm;
-+
-+	ret = handle_mm_fault(vma, evt->addr, fault_flags);
-+	status = ret & VM_FAULT_ERROR ? IOMMU_PAGE_RESP_INVALID :
-+		IOMMU_PAGE_RESP_SUCCESS;
-+
-+out_put_mm:
-+	up_read(&mm->mmap_sem);
-+
-+	/*
-+	 * If the process exits while we're handling the fault on its mm, we
-+	 * can't do mmput(). exit_mmap() would release the MMU notifier, calling
-+	 * iommu_notifier_release(), which has to flush the fault queue that
-+	 * we're executing on... So mmput_async() moves the release of the mm to
-+	 * another thread, if we're the last user.
-+	 */
-+	mmput_async(mm);
-+
-+	return status;
- }
- 
- static void iopf_handle_group(struct work_struct *work)
-@@ -100,6 +158,30 @@ static void iopf_handle_group(struct work_struct *work)
-  * @cookie: struct device, passed to iommu_register_device_fault_handler.
+@@ -518,6 +520,9 @@ static struct mmu_notifier_ops iommu_mmu_notifier = {
+  * description. Setting @max_pasid to a non-zero value smaller than this limit
+  * overrides it.
   *
-  * Add a fault to the device workqueue, to be handled by mm.
++ * If the device should support recoverable I/O Page Faults (e.g. PCI PRI), the
++ * IOMMU_SVA_FEAT_IOPF feature must be requested.
 + *
-+ * This module doesn't handle PCI PASID Stop Marker; IOMMU drivers must discard
-+ * them before reporting faults. A PASID Stop Marker (LRW = 0b100) doesn't
-+ * expect a response. It may be generated when disabling a PASID (issuing a
-+ * PASID stop request) by some PCI devices.
-+ *
-+ * The PASID stop request is triggered by the mm_exit() callback. When the
-+ * callback returns from the device driver, no page request is generated for
-+ * this PASID anymore and outstanding ones have been pushed to the IOMMU (as per
-+ * PCIe 4.0r1.0 - 6.20.1 and 10.4.1.2 - Managing PASID TLP Prefix Usage). Some
-+ * PCI devices will wait for all outstanding page requests to come back with a
-+ * response before completing the PASID stop request. Others do not wait for
-+ * page responses, and instead issue this Stop Marker that tells us when the
-+ * PASID can be reallocated.
-+ *
-+ * It is safe to discard the Stop Marker because it is an optimization.
-+ * a. Page requests, which are posted requests, have been flushed to the IOMMU
-+ *    when mm_exit() returns,
-+ * b. We flush all fault queues after mm_exit() returns and before freeing the
-+ *    PASID.
-+ *
-+ * So even though the Stop Marker might be issued by the device *after* the stop
-+ * request completes, outstanding faults will have been dealt with by the time
-+ * we free the PASID.
+  * If the driver intends to share process address spaces, it should pass a valid
+  * @mm_exit handler. Otherwise @mm_exit can be NULL. After @mm_exit returns, the
+  * device must not issue any more transaction with the PASID given as argument.
+@@ -546,12 +551,21 @@ int iommu_sva_device_init(struct device *dev, unsigned long features,
+ 	if (!domain || !domain->ops->sva_device_init)
+ 		return -ENODEV;
+ 
+-	if (features)
++	if (features & ~IOMMU_SVA_FEAT_IOPF)
+ 		return -EINVAL;
+ 
++	if (features & IOMMU_SVA_FEAT_IOPF) {
++		ret = iommu_register_device_fault_handler(dev, iommu_queue_iopf,
++							  dev);
++		if (ret)
++			return ret;
++	}
++
+ 	param = kzalloc(sizeof(*param), GFP_KERNEL);
+-	if (!param)
+-		return -ENOMEM;
++	if (!param) {
++		ret = -ENOMEM;
++		goto err_remove_handler;
++	}
+ 
+ 	param->features		= features;
+ 	param->max_pasid	= max_pasid;
+@@ -584,6 +598,9 @@ int iommu_sva_device_init(struct device *dev, unsigned long features,
+ err_free_param:
+ 	kfree(param);
+ 
++err_remove_handler:
++	iommu_unregister_device_fault_handler(dev);
++
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(iommu_sva_device_init);
+@@ -593,7 +610,8 @@ EXPORT_SYMBOL_GPL(iommu_sva_device_init);
+  * @dev: the device
+  *
+  * Disable SVA. Device driver should ensure that the device isn't performing any
+- * DMA while this function is running.
++ * DMA while this function is running. In addition all faults should have been
++ * flushed to the IOMMU.
   */
- int iommu_queue_iopf(struct iommu_fault_event *evt, void *cookie)
+ int iommu_sva_device_shutdown(struct device *dev)
  {
+@@ -617,6 +635,8 @@ int iommu_sva_device_shutdown(struct device *dev)
+ 
+ 	kfree(param);
+ 
++	iommu_unregister_device_fault_handler(dev);
++
+ 	return 0;
+ }
+ EXPORT_SYMBOL_GPL(iommu_sva_device_shutdown);
+@@ -694,6 +714,12 @@ int __iommu_sva_unbind_device(struct device *dev, int pasid)
+ 	if (!param || WARN_ON(!domain))
+ 		return -EINVAL;
+ 
++	/*
++	 * Caller stopped the device from issuing PASIDs, now make sure they are
++	 * out of the fault queue.
++	 */
++	iopf_queue_flush_dev(dev);
++
+ 	/* spin_lock_irq matches the one in wait_event_lock_irq */
+ 	spin_lock_irq(&iommu_sva_lock);
+ 	list_for_each_entry(bond, &param->mm_list, dev_head) {
+@@ -721,6 +747,8 @@ void __iommu_sva_unbind_dev_all(struct device *dev)
+ 	struct iommu_sva_param *param;
+ 	struct iommu_bond *bond, *next;
+ 
++	iopf_queue_flush_dev(dev);
++
+ 	/*
+ 	 * io_mm_detach_locked might wait, so we shouldn't call it with the dev
+ 	 * param lock held. It's fine to read sva_param outside the lock because
+diff --git a/drivers/iommu/iommu.c b/drivers/iommu/iommu.c
+index 333801e1519c..13f705df0725 100644
+--- a/drivers/iommu/iommu.c
++++ b/drivers/iommu/iommu.c
+@@ -2278,9 +2278,9 @@ EXPORT_SYMBOL_GPL(iommu_fwspec_add_ids);
+  * iommu_sva_device_init() must be called first, to initialize the required SVA
+  * features. @flags is a subset of these features.
+  *
+- * The caller must pin down using get_user_pages*() all mappings shared with the
+- * device. mlock() isn't sufficient, as it doesn't prevent minor page faults
+- * (e.g. copy-on-write).
++ * If IOMMU_SVA_FEAT_IOPF isn't requested, the caller must pin down using
++ * get_user_pages*() all mappings shared with the device. mlock() isn't
++ * sufficient, as it doesn't prevent minor page faults (e.g. copy-on-write).
+  *
+  * On success, 0 is returned and @pasid contains a valid ID. Otherwise, an error
+  * is returned.
+diff --git a/include/linux/iommu.h b/include/linux/iommu.h
+index fad3a60e1c14..933100678f64 100644
+--- a/include/linux/iommu.h
++++ b/include/linux/iommu.h
+@@ -64,6 +64,8 @@ typedef int (*iommu_fault_handler_t)(struct iommu_domain *,
+ typedef int (*iommu_dev_fault_handler_t)(struct iommu_fault_event *, void *);
+ typedef int (*iommu_mm_exit_handler_t)(struct device *dev, int pasid, void *);
+ 
++#define IOMMU_SVA_FEAT_IOPF		(1 << 0)
++
+ struct iommu_domain_geometry {
+ 	dma_addr_t aperture_start; /* First address that can be mapped    */
+ 	dma_addr_t aperture_end;   /* Last address that can be mapped     */
 -- 
 2.17.0
