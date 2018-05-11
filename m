@@ -1,45 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CCC26B0659
-	for <linux-mm@kvack.org>; Fri, 11 May 2018 02:21:43 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id d4-v6so2955974wrn.15
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 23:21:43 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 58E2A6B065B
+	for <linux-mm@kvack.org>; Fri, 11 May 2018 02:25:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 142-v6so287651wmt.1
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 23:25:19 -0700 (PDT)
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id u48-v6si2202661wrb.109.2018.05.10.23.21.41
+        by mx.google.com with ESMTPS id e76-v6si418223wme.17.2018.05.10.23.25.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 May 2018 23:21:41 -0700 (PDT)
-Date: Fri, 11 May 2018 08:25:27 +0200
+        Thu, 10 May 2018 23:25:18 -0700 (PDT)
+Date: Fri, 11 May 2018 08:29:03 +0200
 From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 10/33] iomap: add an iomap-based bmap implementation
-Message-ID: <20180511062527.GE7962@lst.de>
-References: <20180509074830.16196-1-hch@lst.de> <20180509074830.16196-11-hch@lst.de> <20180509164628.GV11261@magnolia> <20180510064250.GD11422@lst.de> <20180510150838.GE25312@magnolia>
+Subject: Re: [PATCH 01/33] block: add a lower-level bio_add_page interface
+Message-ID: <20180511062903.GA8210@lst.de>
+References: <20180509074830.16196-1-hch@lst.de> <20180509074830.16196-2-hch@lst.de> <20180509151243.GA1313@bombadil.infradead.org> <20180510064013.GA11422@lst.de> <AE0124C4-46F7-4051-BA24-AC2E3887E8A3@dilger.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180510150838.GE25312@magnolia>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AE0124C4-46F7-4051-BA24-AC2E3887E8A3@dilger.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, axboe@kernel.dk
 
-On Thu, May 10, 2018 at 08:08:38AM -0700, Darrick J. Wong wrote:
-> > > > +	sector_t *bno = data;
-> > > > +
-> > > > +	if (iomap->type == IOMAP_MAPPED)
-> > > > +		*bno = (iomap->addr + pos - iomap->offset) >> inode->i_blkbits;
-> > > 
-> > > Does this need to be careful w.r.t. overflow on systems where sector_t
-> > > is a 32-bit unsigned long?
-> > > 
-> > > Also, ioctl_fibmap() typecasts the returned sector_t to an int, which
-> > > also seems broken.  I agree the interface needs to die, but ioctls take
-> > > a long time to deprecate.
-> > 
-> > Not much we can do about the interface.
-> 
-> Yes, the interface is fubar, but if file /foo maps to block 8589934720
-> then do we return the truncated result 128?
+On Thu, May 10, 2018 at 03:49:53PM -0600, Andreas Dilger wrote:
+> Would it make sense to change the bio_add_page() and bio_add_pc_page()
+> to use the more common convention instead of continuing the spread of
+> this non-standard calling convention?  This is doubly problematic since
+> "off" and "len" are both unsigned int values so it is easy to get them
+> mixed up, and just reordering the bio_add_page() arguments would not
+> generate any errors.
 
-Then we'll get a corrupt result.  What do you think we could do here
-eithere in the old or new code?
+We have more than hundred callers.  I don't think we want to create
+so much churn just to clean things up a bit without any meaN?urable
+benefit.  And even if you want to clean it up I'd rather keep it
+away from my iomap/xfs buffered I/O series :)
+
+> One option would be to rename this function bio_page_add() so there are
+> build errors or first add bio_page_add() and mark bio_add_page()
+> deprecated and allow some short time for transition?  There are about
+> 50 uses under drivers/ and 50 uses under fs/.
+
+If you think the churn is worthwhile send a separate series for that.
+My two new functions should have very few callers even by then, so
+feel free to just update them as well.
