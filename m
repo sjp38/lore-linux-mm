@@ -1,316 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 065A66B06D5
-	for <linux-mm@kvack.org>; Fri, 11 May 2018 19:06:59 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id u29-v6so4978575ote.18
-        for <linux-mm@kvack.org>; Fri, 11 May 2018 16:06:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n126-v6sor2136385oib.270.2018.05.11.16.06.56
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1621C6B06D6
+	for <linux-mm@kvack.org>; Fri, 11 May 2018 19:29:03 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id x32-v6so4161335pld.16
+        for <linux-mm@kvack.org>; Fri, 11 May 2018 16:29:03 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id q16-v6si3320017pgc.635.2018.05.11.16.29.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 11 May 2018 16:06:57 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180418193220.4603-1-timofey.titovets@synesis.ru>
- <20180418193220.4603-3-timofey.titovets@synesis.ru> <20180508172606.249583c0@p-imbrenda.boeblingen.de.ibm.com>
-In-Reply-To: <20180508172606.249583c0@p-imbrenda.boeblingen.de.ibm.com>
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Date: Sat, 12 May 2018 02:06:20 +0300
-Message-ID: <CAGqmi75jpOq+PufXb+O3pLwm4esgh8OBHRuTegivwpt2La8hoA@mail.gmail.com>
-Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 May 2018 16:29:01 -0700 (PDT)
+Date: Fri, 11 May 2018 16:28:59 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2018-05-11-16-28 uploaded
+Message-ID: <20180511232859.C0Cju%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: imbrenda@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Sioh Lee <solee@os.korea.ac.kr>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org
+To: broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
 
-=D0=B2=D1=82, 8 =D0=BC=D0=B0=D1=8F 2018 =D0=B3. =D0=B2 18:26, Claudio Imbre=
-nda <imbrenda@linux.vnet.ibm.com>:
+The mm-of-the-moment snapshot 2018-05-11-16-28 has been uploaded to
 
-> On Wed, 18 Apr 2018 22:32:20 +0300
-> Timofey Titovets <nefelim4ag@gmail.com> wrote:
+   http://www.ozlabs.org/~akpm/mmotm/
 
-> > From: Timofey Titovets <nefelim4ag@gmail.com>
-> >
-> > 1. Pickup, Sioh Lee crc32 patch, after some long conversation
-> > 2. Merge with my work on xxhash
-> > 3. Add autoselect code to choice fastest hash helper.
-> >
-> > Base idea are same, replace jhash2 with something faster.
-> >
-> > Perf numbers:
-> > Intel(R) Xeon(R) CPU E5-2420 v2 @ 2.20GHz
-> > ksm: crc32c   hash() 12081 MB/s
-> > ksm: xxh64    hash()  8770 MB/s
-> > ksm: xxh32    hash()  4529 MB/s
-> > ksm: jhash2   hash()  1569 MB/s
-> >
-> > As jhash2 always will be slower (for data size like PAGE_SIZE),
-> > just drop it from choice.
-> >
-> > Add function to autoselect hash algo on boot,
-> > based on hashing speed, like raid6 code does.
-> >
-> > Move init of zero_checksum from init, to first call of fasthash():
-> >   1. KSM Init run on early kernel init,
-> >      run perf testing stuff on main kernel boot thread looks bad to
+mmotm-readme.txt says
 
-> This is my personal opinion, but I think it would be better and more
-> uniform to have it during boot like raid6. It doesn't take too much
-> time, and it allows to see immediately in dmesg what is going on.
+README for mm-of-the-moment:
 
-I don't like such things at boot, that will slowdown boot and add
-useless work in *MOST* cases.
+http://www.ozlabs.org/~akpm/mmotm/
 
-ex. Anyone who use btrfs as rootfs must wait raid6_pq init, for mount.
-Even if they didn't use raid56 functionality.
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-Same for ksm, who use ksm? I think that 90% of users currently
-are servers with KVM's VMs.
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-i.e. i don't think that you use it on your notebook,
-and add 250ms to every bootup, even, if you did not use ksm
-looks as bad idea for me.
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-And as that a mm subsystem, that will lead to *every linux device in the
-world*
-with compiled in ksm, will spend time and energy to ksm init.
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
-> > me. 2. Crypto subsystem not avaliable at that early booting,
-> >      so crc32c even, compiled in, not avaliable
-> >      As crypto and ksm init, run at subsys_initcall() (4) kernel
-> > level of init, all possible consumers will run later at 5+ levels
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
-> have you tried moving ksm to a later stage? before commit
-> a64fb3cd610c8e680 KSM was in fact initialized at level 6. After all, KSM
-> cannot be triggered until userspace starts.
 
-Of course and that works,
-but i didn't have sufficient competence,
-to suggest such changes.
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-> > Output after first try of KSM to hash page:
-> > ksm: crc32c hash() 15218 MB/s
-> > ksm: xxhash hash()  8640 MB/s
-> > ksm: choice crc32c as hash function
-> >
-> > Thanks.
-> >
-> > Changes:
-> >   v1 -> v2:
-> >     - Move xxhash() to xxhash.h/c and separate patches
-> >   v2 -> v3:
-> >     - Move xxhash() xxhash.c -> xxhash.h
-> >     - replace xxhash_t with 'unsigned long'
-> >     - update kerneldoc above xxhash()
-> >   v3 -> v4:
-> >     - Merge xxhash/crc32 patches
-> >     - Replace crc32 with crc32c (crc32 have same as jhash2 speed)
-> >     - Add auto speed test and auto choice of fastest hash function
-> >   v4 -> v5:
-> >     - Pickup missed xxhash patch
-> >     - Update code with compile time choicen xxhash
-> >     - Add more macros to make code more readable
-> >     - As now that only possible use xxhash or crc32c,
-> >       on crc32c allocation error, skip speed test and fallback to
-> > xxhash
-> >     - For workaround too early init problem (crc32c not avaliable),
-> >       move zero_checksum init to first call of fastcall()
-> >     - Don't alloc page for hash testing, use arch zero pages for that
-> >   v5 -> v6:
-> >     - Use libcrc32c instead of CRYPTO API, mainly for
-> >       code/Kconfig deps Simplification
-> >     - Add crc32c_available():
-> >       libcrc32c will BUG_ON on crc32c problems,
-> >       so test crc32c avaliable by crc32c_available()
-> >     - Simplify choice_fastest_hash()
-> >     - Simplify fasthash()
-> >     - struct rmap_item && stable_node have sizeof =3D=3D 64 on x86_64,
-> >       that makes them cache friendly. As we don't suffer from hash
-> > collisions, change hash type from unsigned long back to u32.
-> >     - Fix kbuild robot warning, make all local functions static
-> >
-> > Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
-> > Signed-off-by: leesioh <solee@os.korea.ac.kr>
-> > CC: Andrea Arcangeli <aarcange@redhat.com>
-> > CC: linux-mm@kvack.org
-> > CC: kvm@vger.kernel.org
-> > ---
-> >  mm/Kconfig |  2 ++
-> >  mm/ksm.c   | 93
-> > +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--- 2
-> > files changed, 91 insertions(+), 4 deletions(-)
-> >
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > index 03ff7703d322..b60bee4bb07e 100644
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -305,6 +305,8 @@ config MMU_NOTIFIER
-> >  config KSM
-> >       bool "Enable KSM for page merging"
-> >       depends on MMU
-> > +     select XXHASH
-> > +     select LIBCRC32C
-> >       help
-> >         Enable Kernel Samepage Merging: KSM periodically scans
-> > those areas of an application's address space that an app has advised
-> > may be diff --git a/mm/ksm.c b/mm/ksm.c
-> > index c406f75957ad..2b84407fb918 100644
-> > --- a/mm/ksm.c
-> > +++ b/mm/ksm.c
-> > @@ -25,7 +25,6 @@
-> >  #include <linux/pagemap.h>
-> >  #include <linux/rmap.h>
-> >  #include <linux/spinlock.h>
-> > -#include <linux/jhash.h>
-> >  #include <linux/delay.h>
-> >  #include <linux/kthread.h>
-> >  #include <linux/wait.h>
-> > @@ -41,6 +40,13 @@
-> >  #include <linux/numa.h>
-> >
-> >  #include <asm/tlbflush.h>
-> > +
-> > +/* Support for xxhash and crc32c */
-> > +#include <crypto/hash.h>
-> > +#include <linux/crc32c.h>
-> > +#include <linux/xxhash.h>
-> > +#include <linux/sizes.h>
-> > +
-> >  #include "internal.h"
-> >
-> >  #ifdef CONFIG_NUMA
-> > @@ -284,6 +290,87 @@ static DEFINE_SPINLOCK(ksm_mmlist_lock);
-> >               sizeof(struct __struct), __alignof__(struct
-> > __struct),\ (__flags), NULL)
-> >
-> > +#define TIME_125MS  (HZ >> 3)
-> > +#define PERF_TO_MBS(X) (X*PAGE_SIZE*(1 << 3)/(SZ_1M))
-> > +
-> > +#define HASH_NONE   0
-> > +#define HASH_CRC32C 1
-> > +#define HASH_XXHASH 2
-> > +
-> > +static int fastest_hash =3D HASH_NONE;
-> > +
-> > +static bool __init crc32c_available(void)
-> > +{
-> > +     static struct shash_desc desc;
-> > +
-> > +     desc.tfm =3D crypto_alloc_shash("crc32c", 0, 0);
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
 
-> will this work without the crypto api?
+To develop on top of mmotm git:
 
-I didn't know a way to compile kernel without crypto api,
-To many different sub systems depends on him,
-if i read Kconfig correctly of course.
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
-> > +     desc.flags =3D 0;
-> > +
-> > +     if (IS_ERR(desc.tfm)) {
-> > +             pr_warn("ksm: alloc crc32c shash error %ld\n",
-> > +                     -PTR_ERR(desc.tfm));
-> > +             return false;
-> > +     }
-> > +
-> > +     crypto_free_shash(desc.tfm);
-> > +     return true;
-> > +}
-> > +
-> > +static void __init choice_fastest_hash(void)
+To rebase a branch with older patches to a new mmotm release:
 
-> s/choice/choose/
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
 
-> > +{
-> > +
-> > +     unsigned long je;
-> > +     unsigned long perf_crc32c =3D 0;
-> > +     unsigned long perf_xxhash =3D 0;
-> > +
-> > +     fastest_hash =3D HASH_XXHASH;
-> > +     if (!crc32c_available())
-> > +             goto out;
-> > +
-> > +     preempt_disable();
-> > +     je =3D jiffies + TIME_125MS;
-> > +     while (time_before(jiffies, je)) {
-> > +             crc32c(0, ZERO_PAGE(0), PAGE_SIZE);
-> > +             perf_crc32c++;
-> > +     }
-> > +     preempt_enable();
-> > +
-> > +     preempt_disable();
-> > +     je =3D jiffies + TIME_125MS;
-> > +     while (time_before(jiffies, je)) {
-> > +             xxhash(ZERO_PAGE(0), PAGE_SIZE, 0);
-> > +             perf_xxhash++;
-> > +     }
-> > +     preempt_enable();
-> > +
-> > +     pr_info("ksm: crc32c hash() %5ld MB/s\n",
-> > PERF_TO_MBS(perf_crc32c));
-> > +     pr_info("ksm: xxhash hash() %5ld MB/s\n",
-> > PERF_TO_MBS(perf_xxhash)); +
-> > +     if (perf_crc32c > perf_xxhash)
-> > +             fastest_hash =3D HASH_CRC32C;
-> > +out:
-> > +     if (fastest_hash =3D=3D HASH_CRC32C)
-> > +             pr_info("ksm: choice crc32c as hash function\n");
-> > +     else
-> > +             pr_info("ksm: choice xxhash as hash function\n");
-> > +}
 
-> I wonder if this can be generalized to have a list of possible hash
-> functions, filtered by availability, and then tested for performance,
-> more like the raid6 functions.
 
-IIRC:
-We was talk about that on old version of patch set.
-And we decide what:
-  - in ideal situation, ksm must use only one hash function, always.
-    But, we afraid about that crc32c with hardware acceleration, can be
-missed by some way.
-    So, as appropriate fallback, xxhash added, as general proporse, which
-must work
-    good enough for ksm in most cases.
 
-So adding more complex logic, like raid6_pq have with all of different
-instruction set are overkill.
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
 
-> > +
-> > +static u32 fasthash(const void *input, size_t length)
-> > +{
-> > +again:
-> > +     switch (fastest_hash) {
-> > +     case HASH_CRC32C:
-> > +             return crc32c(0, input, length);
-> > +     case HASH_XXHASH:
-> > +             return xxhash(input, length, 0);
-> > +     default:
-> > +             choice_fastest_hash();
+A git copy of this tree is available at
 
-> same here s/choice/choose/
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
 
-> > +             /* The correct value depends on page size and
-> > endianness */
-> > +             zero_checksum =3D fasthash(ZERO_PAGE(0), PAGE_SIZE);
-> > +             goto again;
-> > +     }
-> > +}
-> > +
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
 
-> so if I understand correctly, the benchmark function will be called
-> only when the function is called for the first time?
 
-yes, that is.
-That a little bit tricky,
-but it's will be called only from KSM thread,
-and only what KSM thread will try do some useful work.
+This mmotm tree contains the following patches against 4.17-rc4:
+(patches marked "*" will be included in linux-next)
 
-So that must not block anything.
-
-Thanks.
-
---=20
-Have a nice day,
-Timofey.
+  origin.patch
+  i-need-old-gcc.patch
+* maintainers-update-email-address-in-maintainers-entries.patch
+* kasan-prohibit-kasanstructleak-combination.patch
+* lib-avoid-soft-lockup-in-test_find_first_bit.patch
+* init-fix-false-positives-in-wx-checking.patch
+* z3fold-fix-reclaim-lock-ups.patch
+* mm-sections-are-not-offlined-during-memory-hotremove.patch
+* mm-dont-show-nr_indirectly_reclaimable-in-proc-vmstat.patch
+* proc-kcore-dont-bounds-check-against-address-0.patch
+* mm-migrate-fix-double-call-of-radix_tree_replace_slot.patch
+* mm-oom-fix-concurrent-munlock-and-oom-reaper-unmap.patch
+* ocfs2-take-inode-cluster-lock-before-moving-reflinked-inode-from-orphan-dir.patch
+* scripts-faddr2line-fix-error-when-addr2line-output-contains-discriminator.patch
+* rbtree-include-rcuh-because-we-use-it.patch
+* memcg-remove-memcg_cgroup-id-from-idr-on-mem_cgroup_css_alloc-failure.patch
+* ocfs2-submit-another-bio-if-current-bio-is-full.patch
+* mm-memory_hotplug-fix-leftover-use-of-struct-page-during-hotplug.patch
+* mm-allow-deferred-page-init-for-vmemmap-only.patch
+* lib-test_bitmapc-fix-bitmap-optimisation-tests-to-report-errors-correctly.patch
+* include-mm-adding-new-inline-function-vmf_error.patch
+* radix-tree-test-suite-fix-mapshift-build-target.patch
+* radix-tree-test-suite-fix-compilation-issue.patch
+* radix-tree-test-suite-add-item_delete_rcu.patch
+* radix-tree-test-suite-multi-order-iteration-race.patch
+* radix-tree-fix-multi-order-iteration-race.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* fs-dax-adding-new-return-type-vm_fault_t.patch
+* prctl-add-pr_et_pdeathsig_proc.patch
+* ocfs2-clean-up-redundant-function-declarations.patch
+* ocfs2-ocfs2_inode_lock_tracker-does-not-distinguish-lock-level.patch
+* ocfs2-eliminate-a-misreported-warning.patch
+* ocfs2-correct-the-comments-position-of-the-structure-ocfs2_dir_block_trailer.patch
+* ocfs2-get-rid-of-ocfs2_is_o2cb_active-function.patch
+* ocfs2-without-quota-support-try-to-avoid-calling-quota-recovery.patch
+* ocfs2-without-quota-support-try-to-avoid-calling-quota-recovery-checkpatch-fixes.patch
+* ocfs2-dont-put-and-assign-null-to-bh-allocated-outside.patch
+* ocfs2-dont-use-iocb-when-eiocbqueued-returns.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* net-9p-detecting-invalid-options-as-much-as-possible.patch
+* fs-9p-detecting-invalid-options-as-much-as-possible.patch
+* dentry-fix-kmemcheck-splat-at-take_dentry_name_snapshot.patch
+* namei-allow-restricted-o_creat-of-fifos-and-regular-files.patch
+* namei-allow-restricted-o_creat-of-fifos-and-regular-files-fix.patch
+  mm.patch
+* slab-__gfp_zero-is-incompatible-with-a-constructor.patch
+* mm-slubc-add-__printf-verification-to-slab_err.patch
+* mm-slub-remove-impertinent-comment.patch
+* mm-introduce-arg_lock-to-protect-arg_startend-and-env_startend-in-mm_struct.patch
+* mm-introduce-arg_lock-to-protect-arg_startend-and-env_startend-in-mm_struct-fix.patch
+* mm-memcontrol-move-swap-charge-handling-into-get_swap_page.patch
+* mm-memcontrol-implement-memoryswapevents.patch
+* zram-correct-flag-name-of-zram_access.patch
+* zram-mark-incompressible-page-as-zram_huge.patch
+* zram-record-accessed-second.patch
+* zram-introduce-zram-memory-tracking.patch
+* zram-introduce-zram-memory-tracking-fix.patch
+* zram-introduce-zram-memory-tracking-update.patch
+* zram-introduce-zram-memory-tracking-update-fix.patch
+* zram-introduce-zram-memory-tracking-update-fix-fix.patch
+* zram-introduce-zram-memory-tracking-update-fix-fix-fix.patch
+* mm-shmem-add-__rcu-annotations-and-properly-deref-radix-entry.patch
+* mm-shmem-update-file-sealing-comments-and-file-checking.patch
+* mm-restructure-memfd-code.patch
+* mm-page_alloc-remove-realsize-in-free_area_init_core.patch
+* mm-introduce-arch_has_pte_special.patch
+* mm-remove-odd-have_pte_special.patch
+* mm-check-for-sigkill-inside-dup_mmap-loop.patch
+* mm-check-for-sigkill-inside-dup_mmap-loop-fix.patch
+* mm-memcg-remote-memcg-charging-for-kmem-allocations.patch
+* fs-fsnotify-account-fsnotify-metadata-to-kmemcg.patch
+* mm-memblock-introduce-phys_addr_max.patch
+* mm-rename-page_counters-count-limit-into-usage-max.patch
+* mm-memorylow-hierarchical-behavior.patch
+* mm-treat-memorylow-value-inclusive.patch
+* mm-docs-describe-memorylow-refinements.patch
+* mm-gup-prevent-pmd-checking-race-in-follow_pmd_mask.patch
+* mm-sparse-check-__highest_present_section_nr-only-for-a-present-section.patch
+* mm-sparse-pass-the-__highest_present_section_nr-1-to-alloc_func.patch
+* mm-vmalloc-clean-up-vunmap-to-avoid-pgtable-ops-twice.patch
+* mm-vmalloc-clean-up-vunmap-to-avoid-pgtable-ops-twice-v3.patch
+* mm-vmalloc-avoid-racy-handling-of-debugobjects-in-vunmap.patch
+* mm-vmalloc-pass-proper-vm_start-into-debugobjects.patch
+* mm-vmalloc-pass-proper-vm_start-into-debugobjects-fix.patch
+* mm-shmem-make-statst_blksize-return-huge-page-size-if-thp-is-on.patch
+* mm-shmem-make-statst_blksize-return-huge-page-size-if-thp-is-on-fix.patch
+* lockdep-fix-fs_reclaim-annotation.patch
+* mm-ksm-remove-unused-page_referenced_ksm-declaration.patch
+* mm-ksm-move-page_stable_node-from-ksmh-to-ksmc.patch
+* mm-ksm-move-page_stable_node-from-ksmh-to-ksmc-fix.patch
+* tmpfs-allow-decoding-a-file-handle-of-an-unlinked-file.patch
+* memcg-writeback-use-memcg-cgwb_list-directly.patch
+* memcg-replace-mm-owner-with-mm-memcg.patch
+* memcg-replace-mm-owner-with-mm-memcg-fix.patch
+* memcg-replace-mm-owner-with-mm-memcg-fix-2.patch
+* mm-memcontrolc-add-mem_cgroup_from_task-as-a-local-helper.patch
+* memcg-mark-memcg1_events-static-const.patch
+* mm-memcontrol-drain-stocks-on-resize-limit.patch
+* mm-memcontrol-drain-memcg-stock-on-force_empty.patch
+* mm-memblock-print-memblock_remove.patch
+* mm-pagemap-hide-swap-entry-for-unprivileged-users.patch
+* mm-move-is_pageblock_removable_nolock-to-mm-memory_hotplugc.patch
+* mm-introduce-memorymin.patch
+* mm-introduce-memorymin-fix.patch
+* mm-ksm-ignore-stable_flag-of-rmap_item-address-in-rmap_walk_ksm.patch
+* mm-vmpressure-use-kstrndup-instead-of-kmallocstrncpy.patch
+* mm-vmpressure-convert-to-use-match_string-helper.patch
+* mm-page_allocc-remove-useless-parameter-of-finalise_ac.patch
+* mm-adding-new-return-type-vm_fault_t.patch
+* mm-sparse-add-a-static-variable-nr_present_sections.patch
+* mm-sparsemem-defer-the-ms-section_mem_map-clearing.patch
+* mm-sparse-add-a-new-parameter-data_unit_size-for-alloc_usemap_and_memmap.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations-v6.patch
+* mm-fix-race-between-swapoff-and-mincore.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock-fix.patch
+* mm-oom-refactor-the-oom_kill_process-function.patch
+* mm-implement-mem_cgroup_scan_tasks-for-the-root-memory-cgroup.patch
+* mm-oom-cgroup-aware-oom-killer.patch
+* mm-oom-cgroup-aware-oom-killer-fix.patch
+* mm-oom-cgroup-aware-oom-killer-fix-2.patch
+* mm-oom-introduce-memoryoom_group.patch
+* mm-oom-introduce-memoryoom_group-fix.patch
+* mm-oom-add-cgroup-v2-mount-option-for-cgroup-aware-oom-killer.patch
+* mm-oom-docs-describe-the-cgroup-aware-oom-killer.patch
+* mm-oom-docs-describe-the-cgroup-aware-oom-killer-fix.patch
+* mm-oom-docs-describe-the-cgroup-aware-oom-killer-fix-2.patch
+* mm-oom-docs-describe-the-cgroup-aware-oom-killer-fix-2-fix.patch
+* mm-oom-cgroup-aware-oom-killer-fix-fix.patch
+* cgroup-list-groupoom-in-cgroup-features.patch
+* mm-add-strictlimit-knob-v2.patch
+* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
+* mm-page_owner-align-with-pageblock_nr_pages.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* mm-kasan-dont-vfree-nonexistent-vm_area.patch
+* proc-more-unsigned-int-in-proc-cmdline.patch
+* proc-somewhat-simpler-code-for-proc-cmdline.patch
+* proc-simpler-iterations-for-proc-cmdline.patch
+* proc-simpler-iterations-for-proc-cmdline-fix.patch
+* proc-deduplicate-proc-cmdline-implementation.patch
+* proc-smaller-rcu-section-in-getattr.patch
+* proc-use-unsigned-int-in-proc_fill_cache.patch
+* proc-skip-branch-in-proc-lookup.patch
+* proc-use-unsigned-int-for-sigqueue-length.patch
+* proc-use-unsigned-int-for-proc-stack.patch
+* proc-test-proc-fd-a-bit-pf_kthread-is-abi.patch
+* locking-hung_task-show-all-hung-tasks-before-panic.patch
+* lib-micro-optimization-for-__bitmap_complement.patch
+* ida-remove-simple_ida_lock.patch
+* ida-remove-simple_ida_lock-fix.patch
+* percpu_ida-use-_irqsave-instead-of-local_irq_save-spin_lock.patch
+* checkpatch-add-a-strict-test-for-structs-with-bool-member-definitions.patch
+* coredump-fix-spam-with-zero-vma-process.patch
+* seq_file-delete-small-value-optimization.patch
+* exofs-avoid-vla-in-structures.patch
+* exofs-avoid-vla-in-structures-v2.patch
+* bfs-add-sanity-check-at-bfs_fill_super.patch
+* kernel-relay-change-return-type-to-vm_fault_t.patch
+* kcov-ensure-irq-code-sees-a-valid-area.patch
+* kcov-prefault-the-kcov_area.patch
+* kcov-prefault-the-kcov_area-fix.patch
+* kcov-prefault-the-kcov_area-fix-fix.patch
+* kcov-prefault-the-kcov_area-fix-fix-fix.patch
+* sched-core-kcov-avoid-kcov_area-during-task-switch.patch
+* arm-port-kcov-to-arm.patch
+* fault-injection-reorder-config-entries.patch
+* ipc-sem-mitigate-semnum-index-against-spectre-v1.patch
+* revert-ipc-shm-fix-shmat-mmap-nil-page-protection.patch
+* ipc-shm-fix-shmat-nil-address-after-round-down-when-remapping.patch
+  linux-next.patch
+  linux-next-rejects.patch
+  linux-next-git-rejects.patch
+* mm-use-octal-not-symbolic-permissions.patch
+* treewide-use-phys_addr_max-to-avoid-type-casting-ullong_max.patch
+* mm-fix-oom_kill-event-handling.patch
+* resource-add-walk_system_ram_res_rev.patch
+* kexec_file-load-kernel-at-top-of-system-ram-if-required.patch
+* fix-read-buffer-overflow-in-delta-ipc.patch
+* sparc64-ng4-memset-32-bits-overflow.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  mutex-subsystem-synchro-test-module.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  slab-leaks3-default-y.patch
+  workaround-for-a-pci-restoring-bug.patch
