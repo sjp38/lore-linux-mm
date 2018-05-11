@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5823F6B06A2
-	for <linux-mm@kvack.org>; Fri, 11 May 2018 15:09:13 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id j75-v6so3497615oib.5
-        for <linux-mm@kvack.org>; Fri, 11 May 2018 12:09:13 -0700 (PDT)
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 109D36B06A4
+	for <linux-mm@kvack.org>; Fri, 11 May 2018 15:09:19 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id d61-v6so4277335otb.21
+        for <linux-mm@kvack.org>; Fri, 11 May 2018 12:09:19 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w90-v6si1338351ota.147.2018.05.11.12.09.12
+        by mx.google.com with ESMTP id u88-v6si1279751otb.285.2018.05.11.12.09.17
         for <linux-mm@kvack.org>;
-        Fri, 11 May 2018 12:09:12 -0700 (PDT)
+        Fri, 11 May 2018 12:09:17 -0700 (PDT)
 From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Subject: [PATCH v2 18/40] iommu/io-pgtable-arm: Factor out ARM LPAE register defines
-Date: Fri, 11 May 2018 20:06:19 +0100
-Message-Id: <20180511190641.23008-19-jean-philippe.brucker@arm.com>
+Subject: [PATCH v2 19/40] iommu: Add generic PASID table library
+Date: Fri, 11 May 2018 20:06:20 +0100
+Message-Id: <20180511190641.23008-20-jean-philippe.brucker@arm.com>
 In-Reply-To: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
 References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,159 +19,277 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org
 Cc: joro@8bytes.org, will.deacon@arm.com, robin.murphy@arm.com, alex.williamson@redhat.com, tn@semihalf.com, liubo95@huawei.com, thunder.leizhen@huawei.com, xieyisheng1@huawei.com, xuzaibo@huawei.com, ilias.apalodimas@linaro.org, jonathan.cameron@huawei.com, liudongdong3@huawei.com, shunyong.yang@hxt-semitech.com, nwatters@codeaurora.org, okaya@codeaurora.org, jcrouse@codeaurora.org, rfranz@cavium.com, dwmw2@infradead.org, jacob.jun.pan@linux.intel.com, yi.l.liu@intel.com, ashok.raj@intel.com, kevin.tian@intel.com, baolu.lu@linux.intel.com, robdclark@gmail.com, christian.koenig@amd.com, bharatku@xilinx.com, rgummal@xilinx.com
 
-For SVA, we'll need to extract CPU page table information and mirror it in
-the substream setup. Move relevant defines to a common header.
+Add a small API within the IOMMU subsystem to handle different formats of
+PASID tables. It uses the same principle as io-pgtable:
 
-Fix TCR_SZ_MASK while we're at it.
+* The IOMMU driver registers a PASID table with some invalidation
+  callbacks.
+* The pasid-table lib allocates a set of tables of the right format, and
+  returns an iommu_pasid_table_ops structure.
+* The IOMMU driver allocates entries and writes them using the provided
+  ops.
+* The pasid-table lib calls the IOMMU driver back for invalidation when
+  necessary.
+* The IOMMU driver unregisters the ops which frees the tables when
+  finished.
+
+An example user will be Arm SMMU in a subsequent patch. Other IOMMU
+drivers (e.g. paravirtualized ones) will be able to use the same PASID
+table code.
 
 Signed-off-by: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
----
- MAINTAINERS                    |  3 +-
- drivers/iommu/io-pgtable-arm.c | 49 +-----------------------------
- drivers/iommu/io-pgtable-arm.h | 54 ++++++++++++++++++++++++++++++++++
- 3 files changed, 56 insertions(+), 50 deletions(-)
- create mode 100644 drivers/iommu/io-pgtable-arm.h
 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index df6e9bb2559a..9b996a94e460 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -1114,8 +1114,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
- S:	Maintained
- F:	drivers/iommu/arm-smmu.c
- F:	drivers/iommu/arm-smmu-v3.c
--F:	drivers/iommu/io-pgtable-arm.c
--F:	drivers/iommu/io-pgtable-arm-v7s.c
-+F:	drivers/iommu/io-pgtable-arm*
+---
+v1->v2: remove free_entry from the ops. The table driver now registers a
+standalone release callback to each entry, because it may be freed after
+the tables.
+---
+ drivers/iommu/Kconfig             |   7 ++
+ drivers/iommu/Makefile            |   1 +
+ drivers/iommu/iommu-pasid-table.c |  51 +++++++++++
+ drivers/iommu/iommu-pasid-table.h | 146 ++++++++++++++++++++++++++++++
+ 4 files changed, 205 insertions(+)
+ create mode 100644 drivers/iommu/iommu-pasid-table.c
+ create mode 100644 drivers/iommu/iommu-pasid-table.h
+
+diff --git a/drivers/iommu/Kconfig b/drivers/iommu/Kconfig
+index 09f13a7c4b60..fae34d6a522d 100644
+--- a/drivers/iommu/Kconfig
++++ b/drivers/iommu/Kconfig
+@@ -60,6 +60,13 @@ config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
  
- ARM SUB-ARCHITECTURES
- L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-diff --git a/drivers/iommu/io-pgtable-arm.c b/drivers/iommu/io-pgtable-arm.c
-index 39c2a056da21..fe851eae9057 100644
---- a/drivers/iommu/io-pgtable-arm.c
-+++ b/drivers/iommu/io-pgtable-arm.c
-@@ -32,6 +32,7 @@
- #include <asm/barrier.h>
+ endmenu
  
- #include "io-pgtable.h"
-+#include "io-pgtable-arm.h"
++menu "Generic PASID table support"
++
++config IOMMU_PASID_TABLE
++	bool
++
++endmenu
++
+ config IOMMU_IOVA
+ 	tristate
  
- #define ARM_LPAE_MAX_ADDR_BITS		52
- #define ARM_LPAE_S2_MAX_CONCAT_PAGES	16
-@@ -121,54 +122,6 @@
- #define ARM_LPAE_PTE_MEMATTR_DEV	(((arm_lpae_iopte)0x1) << 2)
- 
- /* Register bits */
--#define ARM_32_LPAE_TCR_EAE		(1 << 31)
--#define ARM_64_LPAE_S2_TCR_RES1		(1 << 31)
--
--#define ARM_LPAE_TCR_EPD1		(1 << 23)
--
--#define ARM_LPAE_TCR_TG0_4K		(0 << 14)
--#define ARM_LPAE_TCR_TG0_64K		(1 << 14)
--#define ARM_LPAE_TCR_TG0_16K		(2 << 14)
--
--#define ARM_LPAE_TCR_SH0_SHIFT		12
--#define ARM_LPAE_TCR_SH0_MASK		0x3
--#define ARM_LPAE_TCR_SH_NS		0
--#define ARM_LPAE_TCR_SH_OS		2
--#define ARM_LPAE_TCR_SH_IS		3
--
--#define ARM_LPAE_TCR_ORGN0_SHIFT	10
--#define ARM_LPAE_TCR_IRGN0_SHIFT	8
--#define ARM_LPAE_TCR_RGN_MASK		0x3
--#define ARM_LPAE_TCR_RGN_NC		0
--#define ARM_LPAE_TCR_RGN_WBWA		1
--#define ARM_LPAE_TCR_RGN_WT		2
--#define ARM_LPAE_TCR_RGN_WB		3
--
--#define ARM_LPAE_TCR_SL0_SHIFT		6
--#define ARM_LPAE_TCR_SL0_MASK		0x3
--
--#define ARM_LPAE_TCR_T0SZ_SHIFT		0
--#define ARM_LPAE_TCR_SZ_MASK		0xf
--
--#define ARM_LPAE_TCR_PS_SHIFT		16
--#define ARM_LPAE_TCR_PS_MASK		0x7
--
--#define ARM_LPAE_TCR_IPS_SHIFT		32
--#define ARM_LPAE_TCR_IPS_MASK		0x7
--
--#define ARM_LPAE_TCR_PS_32_BIT		0x0ULL
--#define ARM_LPAE_TCR_PS_36_BIT		0x1ULL
--#define ARM_LPAE_TCR_PS_40_BIT		0x2ULL
--#define ARM_LPAE_TCR_PS_42_BIT		0x3ULL
--#define ARM_LPAE_TCR_PS_44_BIT		0x4ULL
--#define ARM_LPAE_TCR_PS_48_BIT		0x5ULL
--#define ARM_LPAE_TCR_PS_52_BIT		0x6ULL
--
--#define ARM_LPAE_MAIR_ATTR_SHIFT(n)	((n) << 3)
--#define ARM_LPAE_MAIR_ATTR_MASK		0xff
--#define ARM_LPAE_MAIR_ATTR_DEVICE	0x04
--#define ARM_LPAE_MAIR_ATTR_NC		0x44
--#define ARM_LPAE_MAIR_ATTR_WBRWA	0xff
- #define ARM_LPAE_MAIR_ATTR_IDX_NC	0
- #define ARM_LPAE_MAIR_ATTR_IDX_CACHE	1
- #define ARM_LPAE_MAIR_ATTR_IDX_DEV	2
-diff --git a/drivers/iommu/io-pgtable-arm.h b/drivers/iommu/io-pgtable-arm.h
+diff --git a/drivers/iommu/Makefile b/drivers/iommu/Makefile
+index 4b744e399a1b..8e335a7f10aa 100644
+--- a/drivers/iommu/Makefile
++++ b/drivers/iommu/Makefile
+@@ -8,6 +8,7 @@ obj-$(CONFIG_IOMMU_PAGE_FAULT) += io-pgfault.o
+ obj-$(CONFIG_IOMMU_IO_PGTABLE) += io-pgtable.o
+ obj-$(CONFIG_IOMMU_IO_PGTABLE_ARMV7S) += io-pgtable-arm-v7s.o
+ obj-$(CONFIG_IOMMU_IO_PGTABLE_LPAE) += io-pgtable-arm.o
++obj-$(CONFIG_IOMMU_PASID_TABLE) += iommu-pasid-table.o
+ obj-$(CONFIG_IOMMU_IOVA) += iova.o
+ obj-$(CONFIG_OF_IOMMU)	+= of_iommu.o
+ obj-$(CONFIG_MSM_IOMMU) += msm_iommu.o
+diff --git a/drivers/iommu/iommu-pasid-table.c b/drivers/iommu/iommu-pasid-table.c
 new file mode 100644
-index 000000000000..e35ba4666214
+index 000000000000..ed62591dcc26
 --- /dev/null
-+++ b/drivers/iommu/io-pgtable-arm.h
-@@ -0,0 +1,54 @@
++++ b/drivers/iommu/iommu-pasid-table.c
+@@ -0,0 +1,51 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * PASID table management for the IOMMU
++ *
++ * Copyright (C) 2018 ARM Ltd.
++ */
++
++#include <linux/kernel.h>
++
++#include "iommu-pasid-table.h"
++
++static const struct iommu_pasid_init_fns *
++pasid_table_init_fns[PASID_TABLE_NUM_FMTS] = {
++};
++
++struct iommu_pasid_table_ops *
++iommu_alloc_pasid_ops(enum iommu_pasid_table_fmt fmt,
++		      struct iommu_pasid_table_cfg *cfg, void *cookie)
++{
++	struct iommu_pasid_table *table;
++	const struct iommu_pasid_init_fns *fns;
++
++	if (fmt >= PASID_TABLE_NUM_FMTS)
++		return NULL;
++
++	fns = pasid_table_init_fns[fmt];
++	if (!fns)
++		return NULL;
++
++	table = fns->alloc(cfg, cookie);
++	if (!table)
++		return NULL;
++
++	table->fmt = fmt;
++	table->cookie = cookie;
++	table->cfg = *cfg;
++
++	return &table->ops;
++}
++
++void iommu_free_pasid_ops(struct iommu_pasid_table_ops *ops)
++{
++	struct iommu_pasid_table *table;
++
++	if (!ops)
++		return;
++
++	table = container_of(ops, struct iommu_pasid_table, ops);
++	iommu_pasid_flush_all(table);
++	pasid_table_init_fns[table->fmt]->free(table);
++}
+diff --git a/drivers/iommu/iommu-pasid-table.h b/drivers/iommu/iommu-pasid-table.h
+new file mode 100644
+index 000000000000..d5bd098fef19
+--- /dev/null
++++ b/drivers/iommu/iommu-pasid-table.h
+@@ -0,0 +1,146 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef __IO_PGTABLE_ARM_H
-+#define __IO_PGTABLE_ARM_H
++/*
++ * PASID table management for the IOMMU
++ *
++ * Copyright (C) 2018 ARM Ltd.
++ */
++#ifndef __IOMMU_PASID_TABLE_H
++#define __IOMMU_PASID_TABLE_H
 +
-+#define ARM_32_LPAE_TCR_EAE		(1 << 31)
-+#define ARM_64_LPAE_S2_TCR_RES1		(1 << 31)
++#include <linux/bug.h>
++#include <linux/types.h>
++#include "io-pgtable.h"
 +
-+#define ARM_LPAE_TCR_EPD1		(1 << 23)
++struct mm_struct;
 +
-+#define ARM_LPAE_TCR_TG0_4K		(0 << 14)
-+#define ARM_LPAE_TCR_TG0_64K		(1 << 14)
-+#define ARM_LPAE_TCR_TG0_16K		(2 << 14)
++enum iommu_pasid_table_fmt {
++	PASID_TABLE_NUM_FMTS,
++};
 +
-+#define ARM_LPAE_TCR_SH0_SHIFT		12
-+#define ARM_LPAE_TCR_SH0_MASK		0x3
-+#define ARM_LPAE_TCR_SH_NS		0
-+#define ARM_LPAE_TCR_SH_OS		2
-+#define ARM_LPAE_TCR_SH_IS		3
++/**
++ * iommu_pasid_entry - Entry of a PASID table
++ *
++ * @tag: architecture-specific data needed to uniquely identify the entry. Most
++ * notably used for TLB invalidation
++ * @release: function that frees the entry and its content. PASID entries may be
++ * freed well after the PASID table ops are released, and may be shared between
++ * different PASID tables, so the release method has to be standalone.
++ */
++struct iommu_pasid_entry {
++	u64 tag;
++	void (*release)(struct iommu_pasid_entry *);
++};
 +
-+#define ARM_LPAE_TCR_ORGN0_SHIFT	10
-+#define ARM_LPAE_TCR_IRGN0_SHIFT	8
-+#define ARM_LPAE_TCR_RGN_MASK		0x3
-+#define ARM_LPAE_TCR_RGN_NC		0
-+#define ARM_LPAE_TCR_RGN_WBWA		1
-+#define ARM_LPAE_TCR_RGN_WT		2
-+#define ARM_LPAE_TCR_RGN_WB		3
++/**
++ * iommu_pasid_table_ops - Operations on a PASID table
++ *
++ * @alloc_shared_entry: allocate an entry for sharing an mm (SVA). Returns the
++ * pointer to a new entry or an error.
++ * @alloc_priv_entry: allocate an entry for map/unmap operations. Returns the
++ * pointer to a new entry or an error.
++ * @set_entry: write PASID table entry
++ * @clear_entry: clear PASID table entry
++ */
++struct iommu_pasid_table_ops {
++	struct iommu_pasid_entry *
++	(*alloc_shared_entry)(struct iommu_pasid_table_ops *ops,
++			      struct mm_struct *mm);
++	struct iommu_pasid_entry *
++	(*alloc_priv_entry)(struct iommu_pasid_table_ops *ops,
++			    enum io_pgtable_fmt fmt,
++			    struct io_pgtable_cfg *cfg);
++	int (*set_entry)(struct iommu_pasid_table_ops *ops, int pasid,
++			 struct iommu_pasid_entry *entry);
++	void (*clear_entry)(struct iommu_pasid_table_ops *ops, int pasid,
++			    struct iommu_pasid_entry *entry);
++};
 +
-+#define ARM_LPAE_TCR_SL0_SHIFT		6
-+#define ARM_LPAE_TCR_SL0_MASK		0x3
++/**
++ * iommu_pasid_sync_ops - Callbacks into the IOMMU driver
++ *
++ * @cfg_flush: flush cached configuration for one entry. For a multi-level PASID
++ * table, 'leaf' tells whether to only flush cached leaf entries or intermediate
++ * levels as well.
++ * @cfg_flush_all: flush cached configuration for all entries of the PASID table
++ * @tlb_flush: flush TLB entries for one entry
++ */
++struct iommu_pasid_sync_ops {
++	void (*cfg_flush)(void *cookie, int pasid, bool leaf);
++	void (*cfg_flush_all)(void *cookie);
++	void (*tlb_flush)(void *cookie, int pasid,
++			  struct iommu_pasid_entry *entry);
++};
 +
-+#define ARM_LPAE_TCR_T0SZ_SHIFT		0
-+#define ARM_LPAE_TCR_SZ_MASK		0x3f
++/**
++ * struct iommu_pasid_table_cfg - Configuration data for a set of PASID tables.
++ *
++ * @iommu_dev device performing the DMA table walks
++ * @order: number of PASID bits, set by IOMMU driver
++ * @flush: TLB management callbacks for this set of tables.
++ *
++ * @base: DMA address of the allocated table, set by the allocator.
++ */
++struct iommu_pasid_table_cfg {
++	struct device				*iommu_dev;
++	size_t					order;
++	const struct iommu_pasid_sync_ops	*sync;
++	dma_addr_t				base;
++};
 +
-+#define ARM_LPAE_TCR_PS_SHIFT		16
-+#define ARM_LPAE_TCR_PS_MASK		0x7
++struct iommu_pasid_table_ops *
++iommu_alloc_pasid_ops(enum iommu_pasid_table_fmt fmt,
++		      struct iommu_pasid_table_cfg *cfg,
++		      void *cookie);
++void iommu_free_pasid_ops(struct iommu_pasid_table_ops *ops);
 +
-+#define ARM_LPAE_TCR_IPS_SHIFT		32
-+#define ARM_LPAE_TCR_IPS_MASK		0x7
++static inline void iommu_free_pasid_entry(struct iommu_pasid_entry *entry)
++{
++	if (WARN_ON(!entry->release))
++		return;
++	entry->release(entry);
++}
 +
-+#define ARM_LPAE_TCR_PS_32_BIT		0x0ULL
-+#define ARM_LPAE_TCR_PS_36_BIT		0x1ULL
-+#define ARM_LPAE_TCR_PS_40_BIT		0x2ULL
-+#define ARM_LPAE_TCR_PS_42_BIT		0x3ULL
-+#define ARM_LPAE_TCR_PS_44_BIT		0x4ULL
-+#define ARM_LPAE_TCR_PS_48_BIT		0x5ULL
-+#define ARM_LPAE_TCR_PS_52_BIT		0x6ULL
++/**
++ * struct iommu_pasid_table - describes a set of PASID tables
++ *
++ * @fmt: The PASID table format.
++ * @cookie: An opaque token provided by the IOMMU driver and passed back to any
++ * callback routine.
++ * @cfg: A copy of the PASID table configuration.
++ * @ops: The PASID table operations in use for this set of page tables.
++ */
++struct iommu_pasid_table {
++	enum iommu_pasid_table_fmt	fmt;
++	void				*cookie;
++	struct iommu_pasid_table_cfg	cfg;
++	struct iommu_pasid_table_ops	ops;
++};
 +
-+#define ARM_LPAE_MAIR_ATTR_SHIFT(n)	((n) << 3)
-+#define ARM_LPAE_MAIR_ATTR_MASK		0xff
-+#define ARM_LPAE_MAIR_ATTR_DEVICE	0x04
-+#define ARM_LPAE_MAIR_ATTR_NC		0x44
-+#define ARM_LPAE_MAIR_ATTR_WBRWA	0xff
++#define iommu_pasid_table_ops_to_table(ops) \
++	container_of((ops), struct iommu_pasid_table, ops)
 +
-+#endif /* __IO_PGTABLE_ARM_H */
++struct iommu_pasid_init_fns {
++	struct iommu_pasid_table *(*alloc)(struct iommu_pasid_table_cfg *cfg,
++					   void *cookie);
++	void (*free)(struct iommu_pasid_table *table);
++};
++
++static inline void iommu_pasid_flush_all(struct iommu_pasid_table *table)
++{
++	table->cfg.sync->cfg_flush_all(table->cookie);
++}
++
++static inline void iommu_pasid_flush(struct iommu_pasid_table *table,
++					 int pasid, bool leaf)
++{
++	table->cfg.sync->cfg_flush(table->cookie, pasid, leaf);
++}
++
++static inline void iommu_pasid_flush_tlbs(struct iommu_pasid_table *table,
++					  int pasid,
++					  struct iommu_pasid_entry *entry)
++{
++	table->cfg.sync->tlb_flush(table->cookie, pasid, entry);
++}
++
++#endif /* __IOMMU_PASID_TABLE_H */
 -- 
 2.17.0
