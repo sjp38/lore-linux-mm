@@ -1,65 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D86876B0663
-	for <linux-mm@kvack.org>; Fri, 11 May 2018 08:36:24 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id n83-v6so1350683itg.2
-        for <linux-mm@kvack.org>; Fri, 11 May 2018 05:36:24 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 78-v6sor1544257ioi.237.2018.05.11.05.36.23
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 41A056B02A8
+	for <linux-mm@kvack.org>; Fri, 11 May 2018 09:26:18 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b64-v6so2944473pfl.13
+        for <linux-mm@kvack.org>; Fri, 11 May 2018 06:26:18 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id x5-v6si2695407pgo.564.2018.05.11.06.26.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 11 May 2018 05:36:23 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 11 May 2018 06:26:16 -0700 (PDT)
+Date: Fri, 11 May 2018 06:26:13 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [External]  Re: [PATCH v1] include/linux/gfp.h: getting rid of
+ GFP_ZONE_TABLE/BAD
+Message-ID: <20180511132613.GA30263@bombadil.infradead.org>
+References: <1525968625-40825-1-git-send-email-yehs1@lenovo.com>
+ <20180510163023.GB30442@bombadil.infradead.org>
+ <HK2PR03MB16843E14AD56B3E546D9F52D929F0@HK2PR03MB1684.apcprd03.prod.outlook.com>
 MIME-Version: 1.0
-In-Reply-To: <20180508151137.zguepljs3pa7xv5g@armageddon.cambridge.arm.com>
-References: <cover.1524077494.git.andreyknvl@google.com> <0db34d04fa16be162336106e3b4a94f3dacc0af4.1524077494.git.andreyknvl@google.com>
- <20180426174714.4jtb72q56w3xonsa@armageddon.cambridge.arm.com>
- <CAAeHK+zY8p9E4FZa7mbdgR=wR0u-RDS552dn=h9fKRC-ArYLdw@mail.gmail.com>
- <20180502153645.fui4ju3scsze3zkq@black.fi.intel.com> <CAAeHK+yTbmZfkeNbqbo+J90zsjsM99rwnYBGfQBxphHMMfgD7A@mail.gmail.com>
- <20180508151137.zguepljs3pa7xv5g@armageddon.cambridge.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 11 May 2018 14:36:22 +0200
-Message-ID: <CAAeHK+yR9=SYEBg-Pvi+x3qSqQSG1u+79pk5vQvOcsp+o=zkxw@mail.gmail.com>
-Subject: Re: [PATCH 4/6] mm, arm64: untag user addresses in mm/gup.c
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <HK2PR03MB16843E14AD56B3E546D9F52D929F0@HK2PR03MB1684.apcprd03.prod.outlook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mark Rutland <mark.rutland@arm.com>, Kate Stewart <kstewart@linuxfoundation.org>, linux-doc@vger.kernel.org, Will Deacon <will.deacon@arm.com>, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, Jacob Bramley <Jacob.Bramley@arm.com>, Jonathan Corbet <corbet@lwn.net>, Dmitry Vyukov <dvyukov@google.com>, Bart Van Assche <bart.vanassche@wdc.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Evgeniy Stepanov <eugenis@google.com>, Kees Cook <keescook@chromium.org>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Lee Smith <Lee.Smith@arm.com>, Dan Williams <dan.j.williams@intel.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Kostya Serebryany <kcc@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, James Morse <james.morse@arm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Philippe Ombredanne <pombredanne@nexb.com>, Andrew Morton <akpm@linux-foundation.org>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@suse.com" <mhocko@suse.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, May 8, 2018 at 5:11 PM, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> On Wed, May 02, 2018 at 07:25:17PM +0200, Andrey Konovalov wrote:
->> On Wed, May 2, 2018 at 5:36 PM, Kirill A. Shutemov
->> <kirill.shutemov@linux.intel.com> wrote:
->> > On Wed, May 02, 2018 at 02:38:42PM +0000, Andrey Konovalov wrote:
->> >> > Does having a tagged address here makes any difference? I couldn't hit a
->> >> > failure with my simple tests (LD_PRELOAD a library that randomly adds
->> >> > tags to pointers returned by malloc).
->> >>
->> >> I think you're right, follow_page_mask is only called from
->> >> __get_user_pages, which already untagged the address. I'll remove
->> >> untagging here.
->> >
->> > It also called from follow_page(). Have you covered all its callers?
->>
->> Oh, missed that, will take a look.
->>
->> Thinking about that, would it make sense to add untagging to find_vma
->> (and others) instead of trying to cover all find_vma callers?
->
-> I don't think adding the untagging to find_vma() is sufficient. In many
-> cases the caller does a subsequent check like 'start < vma->vm_start'
-> (see sys_msync() as an example, there are a few others as well).
+On Fri, May 11, 2018 at 03:24:34AM +0000, Huaisheng HS1 Ye wrote:
+> > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On Behalf Of Matthew
+> > Wilcox
+> > On Fri, May 11, 2018 at 12:10:25AM +0800, Huaisheng Ye wrote:
+> > > -#define __GFP_DMA	((__force gfp_t)___GFP_DMA)
+> > > -#define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
+> > > -#define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
+> > > +#define __GFP_DMA	((__force gfp_t)OPT_ZONE_DMA ^ ZONE_NORMAL)
+> > > +#define __GFP_HIGHMEM	((__force gfp_t)ZONE_MOVABLE ^ ZONE_NORMAL)
+> > > +#define __GFP_DMA32	((__force gfp_t)OPT_ZONE_DMA32 ^ ZONE_NORMAL)
+> > 
+> > No, you've made gfp_zone even more complex than it already is.
+> > If you can't use OPT_ZONE_HIGHMEM here, then this is a waste of time.
+> > 
+> Dear Matthew,
+> 
+> The reason why I don't use OPT_ZONE_HIGHMEM for __GFP_HIGHMEM	 directly is that, for x86_64 platform there is no CONFIG_HIGHMEM, so OPT_ZONE_HIGHMEM shall always be equal to ZONE_NORMAL.
 
-OK.
+Right.  On 64-bit platforms, if somebody asks for HIGHMEM, they should
+get NORMAL pages.
 
-> What I
-> did in my tests was a WARN_ON_ONCE() in find_vma() if the address is
-> tagged.
+> For gfp_zone it is impossible to distinguish the meaning of lowest 3 bits in flags. How can gfp_zone to understand it comes from OPT_ZONE_HIGHMEM or ZONE_NORMAL?
+> And the most pained thing is that, if __GFP_HIGHMEM with movable flag enabled, it means that ZONE_MOVABLE shall be returned.
+> That is different from ZONE_DMA, ZONE_DMA32 and ZONE_NORMAL.
 
-So this is similar to what I did.
+The point of this exercise is to actually encode the zone number in
+the bottom bits of the GFP flags instead of something which has to be
+interpreted into a zone number.  When somebody sets __GFP_MOVABLE, they
+should also be setting ZONE_MOVABLE:
 
-Do you think trying to find "all places where we cast out __user" with
-static analysis as Kirill suggested is something I should pursue? Or
-is this patchset is good as is as the first approximation, since we
-can fix more things where untagging is needed as we discover them one
-by one?
+-#define __GFP_MOVABLE   ((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
++#define __GFP_MOVABLE   ((__force gfp_t)(___GFP_MOVABLE | (ZONE_MOVABLE ^ ZONE_NORMAL)))
+
+One thing that does need to change is:
+
+-#define GFP_HIGHUSER_MOVABLE    (GFP_HIGHUSER | __GFP_MOVABLE)
++#define GFP_HIGHUSER_MOVABLE    (GFP_USER | __GFP_MOVABLE)
+
+otherwise we'll be OR'ing ZONE_MOVABLE and ZONE_HIGHMEM together.
+
+> I was thinking...
+> Whether it is possible to use other judgement condition to decide OPT_ZONE_HIGHMEM or ZONE_MOVABLE shall be returned from gfp_zone.
+> 
+> Sincerely,
+> Huaisheng Ye
+> 
+> 
+> > >  static inline enum zone_type gfp_zone(gfp_t flags)
+> > >  {
+> > >  	enum zone_type z;
+> > > -	int bit = (__force int) (flags & GFP_ZONEMASK);
+> > > +	z = ((__force unsigned int)flags & ___GFP_ZONE_MASK) ^ ZONE_NORMAL;
+> > > +
+> > > +	if (z > OPT_ZONE_HIGHMEM)
+> > > +		z = OPT_ZONE_HIGHMEM +
+> > > +			!!((__force unsigned int)flags & ___GFP_MOVABLE);
+> > >
+> > > -	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
+> > > -					 ((1 << GFP_ZONES_SHIFT) - 1);
+> > > -	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+> > > +	VM_BUG_ON(z > ZONE_MOVABLE);
+> > >  	return z;
+> > >  }
+> 
