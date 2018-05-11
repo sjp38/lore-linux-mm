@@ -1,63 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DDB3E6B064B
-	for <linux-mm@kvack.org>; Thu, 10 May 2018 20:02:36 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id x85-v6so2660798vke.11
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 17:02:36 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z41-v6sor842750uad.290.2018.05.10.17.02.35
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4A86B064D
+	for <linux-mm@kvack.org>; Thu, 10 May 2018 20:47:47 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id t195-v6so75524wmt.9
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 17:47:47 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id t8-v6si2000236wrb.309.2018.05.10.17.47.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 10 May 2018 17:02:35 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 10 May 2018 17:47:45 -0700 (PDT)
+Subject: Re: mmotm 2018-05-10-16-34 uploaded (objtool)
+References: <20180510233519.eYStA%akpm@linux-foundation.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <aa27dcd5-8121-3da9-a6d8-2108a849986e@infradead.org>
+Date: Thu, 10 May 2018 17:47:32 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180509200223.22451-1-keescook@chromium.org>
-References: <20180509200223.22451-1-keescook@chromium.org>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 10 May 2018 17:02:34 -0700
-Message-ID: <CAGXu5j+0WKjetgxxdE4HUi9mDjnWm+taNLnYio1VgpAeCutpJg@mail.gmail.com>
-Subject: Re: [PATCH v2 0/6] Provide saturating helpers for allocation
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180510233519.eYStA%akpm@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>, Matthew Wilcox <mawilcox@microsoft.com>, Matthew Wilcox <willy@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Wed, May 9, 2018 at 1:02 PM, Kees Cook <keescook@chromium.org> wrote:
-> This is a stab at providing three new helpers for allocation size
-> calculation:
->
-> struct_size(), array_size(), and array3_size().
->
-> These are implemented on top of Rasmus's overflow checking functions. The
-> existing allocators are adjusted to use the more efficient overflow
-> checks as well.
->
-> I have left out the 8 tree-wide conversion patches of open-coded
-> multiplications into the new helpers, as those are largely
-> unchanged from v1. Everything can be seen here, though:
-> https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/log/?h=kspp/overflow/array_size
->
-> The question remains for what to do with the *calloc() and *_array*()
-> API. They could be entirely removed in favor of using the new helpers:
->
-> kcalloc(n, size, gfp)        ->  kzalloc(array_size(n, size), gfp)
-> kmalloc_array(n, size, gfp)  ->  kmalloc(array_size(n, size), gfp)
->
-> Changes from v1:
-> - use explicit overflow helpers instead of array_size() helpers.
-> - drop early-checks for SIZE_MAX.
-> - protect devm_kmalloc()-family from addition overflow.
-> - added missing overflow.h includes.
-> - fixed 0-day issues in a few treewide manual conversions
+On 05/10/2018 04:35 PM, akpm@linux-foundation.org wrote:
+> The mm-of-the-moment snapshot 2018-05-10-16-34 has been uploaded to
+> 
+>    http://www.ozlabs.org/~akpm/mmotm/
+> 
+> mmotm-readme.txt says
+> 
+> README for mm-of-the-moment:
+> 
+> http://www.ozlabs.org/~akpm/mmotm/
+> 
+> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> more than once a week.
+> 
+> You will need quilt to apply these patches to the latest Linus release (4.x
+> or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> http://ozlabs.org/~akpm/mmotm/series
+> 
+> The file broken-out.tar.gz contains two datestamp files: .DATE and
+> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+> followed by the base kernel version against which this patch series is to
+> be applied.
+> 
+> This tree is partially included in linux-next.  To see which patches are
+> included in linux-next, consult the `series' file.  Only the patches
+> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+> linux-next.
+> 
+> A git tree which contains the memory management portion of this tree is
+> maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+> by Michal Hocko.  It contains the patches which are between the
+> "#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+> file, http://www.ozlabs.org/~akpm/mmotm/series.
+> 
+> 
+> A full copy of the full kernel tree with the linux-next and mmotm patches
+> already applied is available through git within an hour of the mmotm
+> release.  Individual mmotm releases are tagged.  The master branch always
+> points to the latest release, so it's constantly rebasing.
+> 
+> http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
 
-I've added an allocation overflow addition to lib/test_overflow now,
-so I'll send a v3 soon. Does anyone want to provide an Ack or Reviewed
-for these?
+Hi Josh, Peter:
 
-Also, any thoughts on *calloc() and *_array*() removal?
+Is this something that you already have fixes for?
 
--Kees
 
+on x86_64:
+
+drivers/video/fbdev/omap2/omapfb/dss/dispc.o: warning: objtool: dispc_runtime_suspend()+0xbb8: sibling call from callable instruction with modified stack frame
+drivers/video/fbdev/omap2/omapfb/dss/dispc.o: warning: objtool: dispc_runtime_resume()+0xcc5: sibling call from callable instruction with modified stack frame
+
+
+
+thanks,
 -- 
-Kees Cook
-Pixel Security
+~Randy
