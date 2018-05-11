@@ -1,47 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 58E2A6B065B
-	for <linux-mm@kvack.org>; Fri, 11 May 2018 02:25:19 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 142-v6so287651wmt.1
-        for <linux-mm@kvack.org>; Thu, 10 May 2018 23:25:19 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id e76-v6si418223wme.17.2018.05.10.23.25.18
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CC626B065D
+	for <linux-mm@kvack.org>; Fri, 11 May 2018 02:39:33 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id p12-v6so693418itc.7
+        for <linux-mm@kvack.org>; Thu, 10 May 2018 23:39:33 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id l197-v6si558561itb.15.2018.05.10.23.39.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 May 2018 23:25:18 -0700 (PDT)
-Date: Fri, 11 May 2018 08:29:03 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 01/33] block: add a lower-level bio_add_page interface
-Message-ID: <20180511062903.GA8210@lst.de>
-References: <20180509074830.16196-1-hch@lst.de> <20180509074830.16196-2-hch@lst.de> <20180509151243.GA1313@bombadil.infradead.org> <20180510064013.GA11422@lst.de> <AE0124C4-46F7-4051-BA24-AC2E3887E8A3@dilger.ca>
+        Thu, 10 May 2018 23:39:32 -0700 (PDT)
+Date: Thu, 10 May 2018 23:39:25 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: stop using buffer heads in xfs and iomap
+Message-ID: <20180511063925.GH11261@magnolia>
+References: <20180509074830.16196-1-hch@lst.de>
+ <20180510151303.GW11261@magnolia>
+ <20180511062208.GC7962@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AE0124C4-46F7-4051-BA24-AC2E3887E8A3@dilger.ca>
+In-Reply-To: <20180511062208.GC7962@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Dilger <adilger@dilger.ca>
-Cc: Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, axboe@kernel.dk
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, May 10, 2018 at 03:49:53PM -0600, Andreas Dilger wrote:
-> Would it make sense to change the bio_add_page() and bio_add_pc_page()
-> to use the more common convention instead of continuing the spread of
-> this non-standard calling convention?  This is doubly problematic since
-> "off" and "len" are both unsigned int values so it is easy to get them
-> mixed up, and just reordering the bio_add_page() arguments would not
-> generate any errors.
+On Fri, May 11, 2018 at 08:22:08AM +0200, Christoph Hellwig wrote:
+> On Thu, May 10, 2018 at 08:13:03AM -0700, Darrick J. Wong wrote:
+> > I ran xfstests on this for fun last night but hung in g/095:
+> > 
+> > FSTYP         -- xfs (debug)
+> > PLATFORM      -- Linux/x86_64 submarine-djwong-mtr01 4.17.0-rc4-djw
+> > MKFS_OPTIONS  -- -f -m reflink=1,rmapbt=1, -i sparse=1, -b size=1024, /dev/sdf
+> > MOUNT_OPTIONS -- /dev/sdf /opt
+> > 
+> > FWIW the stock v4 and the 'v5 with everything and 4k blocks' vms
+> > passed, so I guess there's a bug somewhere in the sub-page block size
+> > code paths...
+> 
+> I haven't seen that in my -b size 1024 -m relink test  I'll try your above
+> exact setup, too.  Is this disk or SSD?  How much memory and how many
+> CPUs?
 
-We have more than hundred callers.  I don't think we want to create
-so much churn just to clean things up a bit without any meaN?urable
-benefit.  And even if you want to clean it up I'd rather keep it
-away from my iomap/xfs buffered I/O series :)
+4 CPUs in a VM on a Nehalem-era machine, 2GB RAM, two 2.3GB virtio-scsi
+disks...
 
-> One option would be to rename this function bio_page_add() so there are
-> build errors or first add bio_page_add() and mark bio_add_page()
-> deprecated and allow some short time for transition?  There are about
-> 50 uses under drivers/ and 50 uses under fs/.
+...the VM host itself is a quad-core Nehalem, 24G RAM, atop an ext4 fs
+on spinning rust in a raid1.
 
-If you think the churn is worthwhile send a separate series for that.
-My two new functions should have very few callers even by then, so
-feel free to just update them as well.
+> Btw, I think the series might be worthwhile even if we have to delay
+> the sub-page blocksize support - the blocksize == pagesize code is
+> basically entirely separate and already very useful.  Only the last
+> three patches contain the small blocksize support, without that we'll
+> just continue using buffer heads for that case for now.
+
+<shrug> I'll keep reading, it seemed generally ok until I hit the
+sub-page part and my eyes glazed over. :)
+
+--D
+
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
