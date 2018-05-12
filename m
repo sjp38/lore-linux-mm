@@ -1,82 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0892A6B06D9
-	for <linux-mm@kvack.org>; Fri, 11 May 2018 21:56:45 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id s201-v6so3445952ita.1
-        for <linux-mm@kvack.org>; Fri, 11 May 2018 18:56:45 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id j128-v6si2258021itj.45.2018.05.11.18.56.43
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E65B76B06DB
+	for <linux-mm@kvack.org>; Sat, 12 May 2018 02:15:07 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id s7-v6so3010618pgp.15
+        for <linux-mm@kvack.org>; Fri, 11 May 2018 23:15:07 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u196-v6sor1738993pgc.38.2018.05.11.23.15.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 May 2018 18:56:43 -0700 (PDT)
-Date: Fri, 11 May 2018 18:56:38 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 10/33] iomap: add an iomap-based bmap implementation
-Message-ID: <20180512015638.GX11261@magnolia>
-References: <20180509074830.16196-1-hch@lst.de>
- <20180509074830.16196-11-hch@lst.de>
- <20180509164628.GV11261@magnolia>
- <20180510064250.GD11422@lst.de>
- <20180510150838.GE25312@magnolia>
- <20180511062527.GE7962@lst.de>
+        (Google Transport Security);
+        Fri, 11 May 2018 23:15:06 -0700 (PDT)
+Date: Sat, 12 May 2018 11:47:12 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH v3] mm: Change return type to vm_fault_t
+Message-ID: <20180512061712.GA26660@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180511062527.GE7962@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, mhocko@suse.com, hughd@google.com, dan.j.williams@intel.com, rientjes@google.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@infradead.org
 
-On Fri, May 11, 2018 at 08:25:27AM +0200, Christoph Hellwig wrote:
-> On Thu, May 10, 2018 at 08:08:38AM -0700, Darrick J. Wong wrote:
-> > > > > +	sector_t *bno = data;
-> > > > > +
-> > > > > +	if (iomap->type == IOMAP_MAPPED)
-> > > > > +		*bno = (iomap->addr + pos - iomap->offset) >> inode->i_blkbits;
-> > > > 
-> > > > Does this need to be careful w.r.t. overflow on systems where sector_t
-> > > > is a 32-bit unsigned long?
-> > > > 
-> > > > Also, ioctl_fibmap() typecasts the returned sector_t to an int, which
-> > > > also seems broken.  I agree the interface needs to die, but ioctls take
-> > > > a long time to deprecate.
-> > > 
-> > > Not much we can do about the interface.
-> > 
-> > Yes, the interface is fubar, but if file /foo maps to block 8589934720
-> > then do we return the truncated result 128?
-> 
-> Then we'll get a corrupt result.  What do you think we could do here
-> eithere in the old or new code?
+Use new return type vm_fault_t for fault handler
+in struct vm_operations_struct. For now, this is
+just documenting that the function returns a
+VM_FAULT value rather than an errno.  Once all
+instances are converted, vm_fault_t will become
+a distinct type.
 
-I think the only thing we /can/ do is figure out if we'd be truncating
-the result, dump a warning to the kernel, and return 0, because we don't
-want smartypants FIBMAP callers to be using crap block pointers.
+commit 1c8f422059ae ("mm: change return type to
+vm_fault_t")
 
-Something like this for the bmap implementation...
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+v2: updated the change log
 
-uint64_t mapping = iomap->addr;
+v3: added <linux/mm_types.h> changes
+    into the same patch
 
-#ifdef CONFIG_LBDAF
-if (mapping > ULONG_MAX) {
-	/* Do not truncate results. */
-	return 0;
-}
-#endif
+ include/linux/mm_types.h | 2 +-
+ mm/hugetlb.c             | 2 +-
+ mm/mmap.c                | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
-...and in the bmap ioctl...
-
-sector_t mapping = ...;
-
-if (mapping > INT_MAX) {
-	WARN(1, "would truncate bmap result, go fix your stupid program");
-	return 0;
-}
-
---D
-
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 2161234..11acfdb 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -627,7 +627,7 @@ struct vm_special_mapping {
+ 	 * If non-NULL, then this is called to resolve page faults
+ 	 * on the special mapping.  If used, .pages is not checked.
+ 	 */
+-	int (*fault)(const struct vm_special_mapping *sm,
++	vm_fault_t (*fault)(const struct vm_special_mapping *sm,
+ 		     struct vm_area_struct *vma,
+ 		     struct vm_fault *vmf);
+ 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 2186791..7e00bd3 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3159,7 +3159,7 @@ static unsigned long hugetlb_vm_op_pagesize(struct vm_area_struct *vma)
+  * hugegpage VMA.  do_page_fault() is supposed to trap this, so BUG is we get
+  * this far.
+  */
+-static int hugetlb_vm_op_fault(struct vm_fault *vmf)
++static vm_fault_t hugetlb_vm_op_fault(struct vm_fault *vmf)
+ {
+ 	BUG();
+ 	return 0;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 188f195..bdd4ba9a 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3228,7 +3228,7 @@ void vm_stat_account(struct mm_struct *mm, vm_flags_t flags, long npages)
+ 		mm->data_vm += npages;
+ }
+ 
+-static int special_mapping_fault(struct vm_fault *vmf);
++static vm_fault_t special_mapping_fault(struct vm_fault *vmf);
+ 
+ /*
+  * Having a close hook prevents vma merging regardless of flags.
+@@ -3267,7 +3267,7 @@ static int special_mapping_mremap(struct vm_area_struct *new_vma)
+ 	.fault = special_mapping_fault,
+ };
+ 
+-static int special_mapping_fault(struct vm_fault *vmf)
++static vm_fault_t special_mapping_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+ 	pgoff_t pgoff;
+-- 
+1.9.1
