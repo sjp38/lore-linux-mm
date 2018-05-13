@@ -1,61 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 96B396B0704
-	for <linux-mm@kvack.org>; Sun, 13 May 2018 04:56:35 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id t2-v6so13229097iob.23
-        for <linux-mm@kvack.org>; Sun, 13 May 2018 01:56:35 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0070.hostedemail.com. [216.40.44.70])
-        by mx.google.com with ESMTPS id v194-v6si4523448itb.29.2018.05.13.01.56.34
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B8526B0702
+	for <linux-mm@kvack.org>; Sun, 13 May 2018 05:01:16 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id s8-v6so5072037pgf.0
+        for <linux-mm@kvack.org>; Sun, 13 May 2018 02:01:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t12-v6sor2659327pgp.302.2018.05.13.02.01.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 May 2018 01:56:34 -0700 (PDT)
-Message-ID: <c681ac6df41e37c51fd87ad2b0f7e2f08f6a8f3e.camel@perches.com>
-Subject: Re: [PATCH v3] mm: Change return type to vm_fault_t
-From: Joe Perches <joe@perches.com>
-Date: Sun, 13 May 2018 01:56:30 -0700
-In-Reply-To: <CAPcyv4gYp4_9h1hsQOiHeEUX3TBZCsFWZkzrdcCi+YZ2QOKhxw@mail.gmail.com>
-References: <20180512061712.GA26660@jordon-HP-15-Notebook-PC>
-	 <e194731158f7f89145ed0ae28f46aac5726fc32d.camel@perches.com>
-	 <20180512142451.GB24215@bombadil.infradead.org>
-	 <CAFqt6zb9KzPw0ih3fOs6DNd3RCcy9GYmxZ607_w7obn0Kym7Kw@mail.gmail.com>
-	 <CAPcyv4gYp4_9h1hsQOiHeEUX3TBZCsFWZkzrdcCi+YZ2QOKhxw@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Sun, 13 May 2018 02:01:13 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <000000000000eec34b056c128997@google.com>
+References: <000000000000eec34b056c128997@google.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sun, 13 May 2018 11:00:52 +0200
+Message-ID: <CACT4Y+aRyMWXS0K0bqAVgBOTh=vXEY0dwM91vdSkJ75zgy+k-A@mail.gmail.com>
+Subject: Re: KASAN: use-after-free Read in corrupted
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: syzbot <syzbot+3417712847e7219a60ee@syzkaller.appspotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, hmclauchlan@fb.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Philippe Ombredanne <pombredanne@nexb.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Thomas Gleixner <tglx@linutronix.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-On Sat, 2018-05-12 at 19:51 -0700, Dan Williams wrote:
-> On Sat, May 12, 2018 at 12:14 PM, Souptick Joarder <jrdr.linux@gmail.com> wrote:
-> > > > It'd be nicer to realign the 2nd and 3rd arguments
-> > > > on the subsequent lines.
-> > > > 
-> > > >       vm_fault_t (*fault)(const struct vm_special_mapping *sm,
-> > > >                           struct vm_area_struct *vma,
-> > > >                           struct vm_fault *vmf);
-> > > > 
-> > > It'd be nicer if people didn't try to line up arguments at all and
-> > > just indented by an extra two tabs when they had to break a logical
-> > > line due to the 80-column limit.
-> > 
-> > Matthew, there are two different opinions. Which one to take ?
-> 
-> Unfortunately this is one of those "maintainer's choice" preferences
-> that drives new contributors crazy. Just go with the two tabs like
-> Matthew said and be done.
+On Sun, May 13, 2018 at 10:56 AM, syzbot
+<syzbot+3417712847e7219a60ee@syzkaller.appspotmail.com> wrote:
+> Hello,
+>
+> syzbot found the following crash on:
+>
+> HEAD commit:    427fbe89261d Merge branch 'next' of git://git.kernel.org/p..
+> git tree:       upstream
+> console output: https://syzkaller.appspot.com/x/log.txt?x=148eb017800000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=fcce42b221691ff9
+> dashboard link: https://syzkaller.appspot.com/bug?extid=3417712847e7219a60ee
+> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=1770c477800000
+> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=14ecdbc7800000
+>
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+3417712847e7219a60ee@syzkaller.appspotmail.com
 
-The only reason I mentioned it was the old function name
-was aligned that way with arguments aligned to the open
-parenthesis.
+Tetsuo,
 
-Renaming the function should keep the same alignment style
-and not just rename the function.
+This looks very similar to "KASAN: use-after-free Read in fuse_kill_sb_blk":
+https://groups.google.com/d/msg/syzkaller-bugs/4C4oiBX8vZ0/0NTQRcUYBgAJ
 
--	int (*fault)(const struct vm_special_mapping *sm,
-+	vm_fault_t (*fault)(const struct vm_special_mapping *sm,
- 		     struct vm_area_struct *vma,
- 		     struct vm_fault *vmf);
+which you fixed with "fuse: don't keep dead fuse_conn at fuse_fill_super().":
+https://groups.google.com/d/msg/syzkaller-bugs/4C4oiBX8vZ0/W6pi8NdbBgAJ
 
-Here the previous indent was 2 tabs, 5 spaces
+However, here we have use-after-free in fuse_kill_sb_anon instead of
+use_kill_sb_blk. Do you think your patch will fix this as well?
+
+
+
+> R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+> CPU: 0 PID: 4564 Comm: syz-executor214 Not tainted 4.17.0-rc4+ #44
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> ==================================================================
+> Call Trace:
+> BUG: KASAN: use-after-free in __lock_acquire+0x3888/0x5140
+> kernel/locking/lockdep.c:3310
+> Read of size 8 at addr ffff8801d8d69088 by task syz-executor214/4551
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+>
+>  fail_dump lib/fault-inject.c:51 [inline]
+>  should_fail.cold.4+0xa/0x1a lib/fault-inject.c:149
+>  __should_failslab+0x124/0x180 mm/failslab.c:32
+>  should_failslab+0x9/0x14 mm/slab_common.c:1522
+>  slab_pre_alloc_hook mm/slab.h:423 [inline]
+>  slab_alloc mm/slab.c:3378 [inline]
+>  kmem_cache_alloc+0x2af/0x760 mm/slab.c:3552
+>  __d_alloc+0xc0/0xd30 fs/dcache.c:1638
+>  d_alloc_anon fs/dcache.c:1742 [inline]
+>  d_make_root+0x42/0x90 fs/dcache.c:1934
+>  fuse_fill_super+0x120e/0x1e20 fs/fuse/inode.c:1131
+>  mount_nodev+0x6b/0x110 fs/super.c:1210
+>  fuse_mount+0x2c/0x40 fs/fuse/inode.c:1192
+>  mount_fs+0xae/0x328 fs/super.c:1267
+>  vfs_kern_mount.part.34+0xd4/0x4d0 fs/namespace.c:1037
+>  vfs_kern_mount fs/namespace.c:1027 [inline]
+>  do_new_mount fs/namespace.c:2518 [inline]
+>  do_mount+0x564/0x3070 fs/namespace.c:2848
+>  ksys_mount+0x12d/0x140 fs/namespace.c:3064
+>  __do_sys_mount fs/namespace.c:3078 [inline]
+>  __se_sys_mount fs/namespace.c:3075 [inline]
+>  __x64_sys_mount+0xbe/0x150 fs/namespace.c:3075
+>  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x447cb9
+> RSP: 002b:00007f7a75bca918 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
+> RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 0000000000447cb9
+> RDX: 00000000004b08d6 RSI: 0000000020000340 RDI: 00000000004c7485
+> RBP: 000000000000a001 R08: 00007f7a75bca930 R09: 0000000000000000
+> R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000000
+> R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+> CPU: 1 PID: 4551 Comm: syz-executor214 Not tainted 4.17.0-rc4+ #44
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+> FAULT_INJECTION: forcing a failure.
+> name failslab, interval 1, probability 0, space 0, times 0
+>  print_address_description+0x6c/0x20b mm/kasan/report.c:256
+>  kasan_report_error mm/kasan/report.c:354 [inline]
+>  kasan_report.cold.7+0x242/0x2fe mm/kasan/report.c:412
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+>  __lock_acquire+0x3888/0x5140 kernel/locking/lockdep.c:3310
+>  lock_acquire+0x1dc/0x520 kernel/locking/lockdep.c:3920
+>  down_write+0x87/0x120 kernel/locking/rwsem.c:70
+>  fuse_kill_sb_anon+0x50/0xb0 fs/fuse/inode.c:1200
+>  deactivate_locked_super+0x97/0x100 fs/super.c:316
+>  mount_nodev+0xfa/0x110 fs/super.c:1212
+>  fuse_mount+0x2c/0x40 fs/fuse/inode.c:1192
+>  mount_fs+0xae/0x328 fs/super.c:1267
+>  vfs_kern_mount.part.34+0xd4/0x4d0 fs/namespace.c:1037
+>  vfs_kern_mount fs/namespace.c:1027 [inline]
+>  do_new_mount fs/namespace.c:2518 [inline]
+>  do_mount+0x564/0x3070 fs/namespace.c:2848
+>  ksys_mount+0x12d/0x140 fs/namespace.c:3064
+>  __do_sys_mount fs/namespace.c:3078 [inline]
+>  __se_sys_mount fs/namespace.c:3075 [inline]
+>  __x64_sys_mount+0xbe/0x150 fs/namespace.c:3075
+>  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x447cb9
+> RSP: 002b:00007f7a75bca918 EFLAGS: 00000246 ORIG_RAX: 00000000000000a5
+> RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 0000000000447cb9
+> RDX: 00000000004b08d6 RSI: 0000000020000340 RDI: 00000000004c7485
+> RBP: 000000000000a001 R08: 00007f7a75bca930 R09: 0000000000000000
+> R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000000
+> R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+>
+> CPU: 0 PID: 4580 Comm: syz-executor214 Not tainted 4.17.0-rc4+ #44
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Allocated by task 4551:
+>  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
+> Call Trace:
+>  set_track mm/kasan/kasan.c:460 [inline]
+>  kasan_kmalloc+0xc4/0xe0 mm/kasan/kasan.c:553
+>  kmem_cache_alloc_trace+0x152/0x780 mm/slab.c:3620
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+>  kmalloc include/linux/slab.h:512 [inline]
+>  fuse_fill_super+0xc92/0x1e20 fs/fuse/inode.c:1096
+>  mount_nodev+0x6b/0x110 fs/super.c:1210
+>  fuse_mount+0x2c/0x40 fs/fuse/inode.c:1192
+>  mount_fs+0xae/0x328 fs/super.c:1267
+>  vfs_kern_mount.part.34+0xd4/0x4d0 fs/namespace.c:1037
+>  vfs_kern_mount fs/namespace.c:1027 [inline]
+>  do_new_mount fs/namespace.c:2518 [inline]
+>  do_mount+0x564/0x3070 fs/namespace.c:2848
+>  fail_dump lib/fault-inject.c:51 [inline]
+>  should_fail.cold.4+0xa/0x1a lib/fault-inject.c:149
+>  ksys_mount+0x12d/0x140 fs/namespace.c:3064
+>  __do_sys_mount fs/namespace.c:3078 [inline]
+>  __se_sys_mount fs/namespace.c:3075 [inline]
+>  __x64_sys_mount+0xbe/0x150 fs/namespace.c:3075
+>  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+>
+> Freed by task 8:
+>  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
+>  set_track mm/kasan/kasan.c:460 [inline]
+>  __kasan_slab_free+0x11a/0x170 mm/kasan/kasan.c:521
+>  kasan_slab_free+0xe/0x10 mm/kasan/kasan.c:528
+>  __cache_free mm/slab.c:3498 [inline]
+>  kfree+0xd9/0x260 mm/slab.c:3813
+>  __rcu_reclaim kernel/rcu/rcu.h:173 [inline]
+>  rcu_do_batch kernel/rcu/tree.c:2675 [inline]
+>  invoke_rcu_callbacks kernel/rcu/tree.c:2930 [inline]
+>  __rcu_process_callbacks kernel/rcu/tree.c:2897 [inline]
+>  rcu_process_callbacks+0xa69/0x15f0 kernel/rcu/tree.c:2914
+>  __do_softirq+0x2e0/0xaf5 kernel/softirq.c:285
+>
+> The buggy address belongs to the object at ffff8801d8d68dc0
+>  which belongs to the cache kmalloc-1024 of size 1024
+> The buggy address is located 712 bytes inside of
+>  1024-byte region [ffff8801d8d68dc0, ffff8801d8d691c0)
+> The buggy address belongs to the page:
+> page:ffffea0007635a00 count:1 mapcount:0 mapping:ffff8801d8d68040 index:0x0
+>  compound_mapcount: 0
+> flags: 0x2fffc0000008100(slab|head)
+>  __should_failslab+0x124/0x180 mm/failslab.c:32
+> raw: 02fffc0000008100 ffff8801d8d68040 0000000000000000 0000000100000007
+>  should_failslab+0x9/0x14 mm/slab_common.c:1522
+> raw: ffffea00076407a0 ffffea00076335a0 ffff8801da800ac0 0000000000000000
+>  slab_pre_alloc_hook mm/slab.h:423 [inline]
+>  slab_alloc mm/slab.c:3378 [inline]
+>  kmem_cache_alloc+0x2af/0x760 mm/slab.c:3552
+> page dumped because: kasan: bad access detected
+>
+> Memory state around the buggy address:
+>  ffff8801d8d68f80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>  ffff8801d8d69000: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>>
+>> ffff8801d8d69080: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>
+>  __d_alloc+0xc0/0xd30 fs/dcache.c:1638
+>                       ^
+>  ffff8801d8d69100: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>  ffff8801d8d69180: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
+> ==================================================================
+>
+>
+> ---
+> This bug is generated by a bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for more information about syzbot.
+> syzbot engineers can be reached at syzkaller@googlegroups.com.
+>
+> syzbot will keep track of this bug report.
+> If you forgot to add the Reported-by tag, once the fix for this bug is
+> merged
+> into any tree, please reply to this email with:
+> #syz fix: exact-commit-title
+> If you want to test a patch for this bug, please reply with:
+> #syz test: git://repo/address.git branch
+> and provide the patch inline or as an attachment.
+> To mark this as a duplicate of another syzbot report, please reply with:
+> #syz dup: exact-subject-of-another-report
+> If it's a one-off invalid bug report, please reply with:
+> #syz invalid
+> Note: if the crash happens again, it will cause creation of a new bug
+> report.
+> Note: all commands must start from beginning of the line in the email body.
+>
+> --
+> You received this message because you are subscribed to the Google Groups
+> "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an
+> email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit
+> https://groups.google.com/d/msgid/syzkaller-bugs/000000000000eec34b056c128997%40google.com.
+> For more options, visit https://groups.google.com/d/optout.
