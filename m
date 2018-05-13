@@ -1,83 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DB1E16B06FB
-	for <linux-mm@kvack.org>; Sat, 12 May 2018 23:30:17 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id a14-v6so7960347plt.7
-        for <linux-mm@kvack.org>; Sat, 12 May 2018 20:30:17 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 16E2A6B06FD
+	for <linux-mm@kvack.org>; Sun, 13 May 2018 01:15:15 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id b3-v6so2499816pga.6
+        for <linux-mm@kvack.org>; Sat, 12 May 2018 22:15:15 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h6-v6sor1656906pgv.434.2018.05.12.20.30.16
+        by mx.google.com with SMTPS id e2-v6sor3765466pfm.55.2018.05.12.22.15.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 12 May 2018 20:30:16 -0700 (PDT)
-Date: Sat, 12 May 2018 20:32:20 -0700
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: BUG: workqueue lockup (2)
-Message-ID: <20180513033220.GA654@sol.localdomain>
-References: <94eb2c03c9bc75aff2055f70734c@google.com>
- <001a113f711a528a3f0560b08e76@google.com>
- <20180512215222.GC817@sol.localdomain>
- <201805131106.GFF73973.OOtMVQFSFOJFHL@I-love.SAKURA.ne.jp>
+        Sat, 12 May 2018 22:15:13 -0700 (PDT)
+Date: Sun, 13 May 2018 08:15:09 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v5 01/13] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180513051509.df2tcmbhxn3q2fp7@esperanza>
+References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
+ <152594593798.22949.6730606876057040426.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201805131106.GFF73973.OOtMVQFSFOJFHL@I-love.SAKURA.ne.jp>
+In-Reply-To: <152594593798.22949.6730606876057040426.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: bot+e38be687a2450270a3b593bacb6b5795a7a74edb@syzkaller.appspotmail.com, peter@hurleysoftware.com, dvyukov@google.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-Hi Tetsuo,
+On Thu, May 10, 2018 at 12:52:18PM +0300, Kirill Tkhai wrote:
+> The patch introduces shrinker::id number, which is used to enumerate
+> memcg-aware shrinkers. The number start from 0, and the code tries
+> to maintain it as small as possible.
+> 
+> This will be used as to represent a memcg-aware shrinkers in memcg
+> shrinkers map.
+> 
+> Since all memcg-aware shrinkers are based on list_lru, which is per-memcg
+> in case of !SLOB only, the new functionality will be under MEMCG && !SLOB
+> ifdef (symlinked to CONFIG_MEMCG_SHRINKER).
 
-On Sun, May 13, 2018 at 11:06:17AM +0900, Tetsuo Handa wrote:
-> Eric Biggers wrote:
-> > The bug that this reproducer reproduces was fixed a while ago by commit
-> > 966031f340185e, so I'm marking this bug report fixed by it:
-> > 
-> > #syz fix: n_tty: fix EXTPROC vs ICANON interaction with TIOCINQ (aka FIONREAD)
-> 
-> Nope. Commit 966031f340185edd ("n_tty: fix EXTPROC vs ICANON interaction with
-> TIOCINQ (aka FIONREAD)") is "Wed Dec 20 17:57:06 2017 -0800" but the last
-> occurrence on linux.git (commit 008464a9360e31b1 ("Merge branch 'for-linus' of
-> git://git.kernel.org/pub/scm/linux/kernel/git/jikos/hid")) is only a few days ago
-> ("Wed May 9 10:49:52 2018 -1000").
-> 
-> > 
-> > Note that the error message was not always "BUG: workqueue lockup"; it was also
-> > sometimes like "watchdog: BUG: soft lockup - CPU#5 stuck for 22s!".
-> > 
-> > syzbot still is hitting the "BUG: workqueue lockup" error sometimes, but it must
-> > be for other reasons.  None has a reproducer currently.
-> 
-> The last occurrence on linux.git is considered as a duplicate of
-> 
->   [upstream] INFO: rcu detected stall in n_tty_receive_char_special
->   https://syzkaller.appspot.com/bug?id=3d7481a346958d9469bebbeb0537d5f056bdd6e8
-> 
-> which we already have a reproducer at
-> https://groups.google.com/d/msg/syzkaller-bugs/O4DbPiJZFBY/YCVPocx3AgAJ
-> and debug output is available at
-> https://groups.google.com/d/msg/syzkaller-bugs/O4DbPiJZFBY/TxQ7WS5ZAwAJ .
-> 
-> We are currently waiting for comments from Peter Hurley who added that code.
-> 
+Using MEMCG && !SLOB instead of introducing a new config option was done
+deliberately, see:
 
-Actually I did verify that the C reproducer is fixed by the commit I said, and I
-also simplified the reproducer and turned it into an LTP test
-(http://lists.linux.it/pipermail/ltp/2018-May/008071.html).  Like I said, syzbot
-is still occasionally hitting the same "BUG: workqueue lockup" error, but
-apparently for other reasons.  The one on 008464a9360e31b even looks like it's
-in the TTY layer too, and it very well could be a very similar bug, but based on
-what I observed it's not the same bug that syzbot reproduced on f3b5ad89de16f5d.
-Generally it's best to close syzbot bug reports once the original cause is
-fixed, so that syzbot can continue to report other bugs with the same signature.
-Otherwise they sit on the syzbot dashboard where few people are looking at them.
-Though of course, if you are up to it, you're certainly free to look into any of
-the crashes already there even before a new bug report gets created.
+  http://lkml.kernel.org/r/20151210202244.GA4809@cmpxchg.org
 
-Note also that a "workqueue lockup" can be caused by almost anything in the
-kernel, I think.  This one for example is probably in the sound subsystem:
-https://syzkaller.appspot.com/text?tag=CrashReport&x=1767232b800000
+I guess, this doesn't work well any more, as there are more and more
+parts depending on kmem accounting, like shrinkers. If you really want
+to introduce a new option, I think you should call it CONFIG_MEMCG_KMEM
+and use it consistently throughout the code instead of MEMCG && !SLOB.
+And this should be done in a separate patch.
 
-Thanks!
+> diff --git a/fs/super.c b/fs/super.c
+> index 122c402049a2..16c153d2f4f1 100644
+> --- a/fs/super.c
+> +++ b/fs/super.c
+> @@ -248,6 +248,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
+>  	s->s_time_gran = 1000000000;
+>  	s->cleancache_poolid = CLEANCACHE_NO_POOL;
+>  
+> +#ifdef CONFIG_MEMCG_SHRINKER
+> +	s->s_shrink.id = -1;
+> +#endif
 
-Eric
+No point doing that - you are going to overwrite the id anyway in
+prealloc_shrinker().
+
+>  	s->s_shrink.seeks = DEFAULT_SEEKS;
+>  	s->s_shrink.scan_objects = super_cache_scan;
+>  	s->s_shrink.count_objects = super_cache_count;
+
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 10c8a38c5eef..d691beac1048 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -169,6 +169,47 @@ unsigned long vm_total_pages;
+>  static LIST_HEAD(shrinker_list);
+>  static DECLARE_RWSEM(shrinker_rwsem);
+>  
+> +#ifdef CONFIG_MEMCG_SHRINKER
+> +static DEFINE_IDR(shrinker_idr);
+> +
+> +static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+> +{
+> +	int id, ret;
+> +
+> +	down_write(&shrinker_rwsem);
+> +	ret = id = idr_alloc(&shrinker_idr, shrinker, 0, 0, GFP_KERNEL);
+> +	if (ret < 0)
+> +		goto unlock;
+> +	shrinker->id = id;
+> +	ret = 0;
+> +unlock:
+> +	up_write(&shrinker_rwsem);
+> +	return ret;
+> +}
+> +
+> +static void del_memcg_shrinker(struct shrinker *shrinker)
+
+Nit: IMO unregister_memcg_shrinker() would be a better name as it
+matches unregister_shrinker(), just like prealloc_memcg_shrinker()
+matches prealloc_shrinker().
+
+> +{
+> +	int id = shrinker->id;
+> +
+
+> +	if (id < 0)
+> +		return;
+
+Nit: I think this should be BUG_ON(id >= 0) as this function is only
+called for memcg-aware shrinkers AFAICS.
+
+> +
+> +	down_write(&shrinker_rwsem);
+> +	idr_remove(&shrinker_idr, id);
+> +	up_write(&shrinker_rwsem);
+> +	shrinker->id = -1;
+> +}
