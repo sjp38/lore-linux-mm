@@ -1,97 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AF1D6B06F1
-	for <linux-mm@kvack.org>; Sun, 13 May 2018 07:59:38 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j14-v6so8270593pfn.11
-        for <linux-mm@kvack.org>; Sun, 13 May 2018 04:59:38 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p1-v6sor3841109plb.149.2018.05.13.04.59.37
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A3CA6B06BD
+	for <linux-mm@kvack.org>; Sun, 13 May 2018 10:29:54 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 62-v6so8463440pfw.21
+        for <linux-mm@kvack.org>; Sun, 13 May 2018 07:29:54 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id h16-v6si3679524pli.53.2018.05.13.07.29.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 13 May 2018 04:59:37 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <831EE4E5E37DCC428EB295A351E662494CB14775@shsmsx102.ccr.corp.intel.com>
-References: <201805122003.IkOs6MjS%fengguang.wu@intel.com> <CACT4Y+ZZp_QbtFxBfP5dtdx4yfb5FZOWm54fDg=qQQ7u0J=HzQ@mail.gmail.com>
- <831EE4E5E37DCC428EB295A351E662494CB14775@shsmsx102.ccr.corp.intel.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Sun, 13 May 2018 13:59:16 +0200
-Message-ID: <CACT4Y+aD3LTs-oCFU1-x=beL8+Arw=QTo_wa064WhEeGguTcQg@mail.gmail.com>
-Subject: Re: [kbuild-all] /tmp/ccCNPV4P.s:35: Error: .err encountered
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 13 May 2018 07:29:50 -0700 (PDT)
+Subject: Re: BUG: workqueue lockup (2)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <94eb2c03c9bc75aff2055f70734c@google.com>
+	<001a113f711a528a3f0560b08e76@google.com>
+	<20180512215222.GC817@sol.localdomain>
+	<201805131106.GFF73973.OOtMVQFSFOJFHL@I-love.SAKURA.ne.jp>
+	<20180513033220.GA654@sol.localdomain>
+In-Reply-To: <20180513033220.GA654@sol.localdomain>
+Message-Id: <201805132329.CEB90134.OFFSMHOFtVJQLO@I-love.SAKURA.ne.jp>
+Date: Sun, 13 May 2018 23:29:41 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Philip" <philip.li@intel.com>
-Cc: lkp <lkp@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "kbuild-all@01.org" <kbuild-all@01.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: ebiggers3@gmail.com
+Cc: bot+e38be687a2450270a3b593bacb6b5795a7a74edb@syzkaller.appspotmail.com, peter@hurleysoftware.com, dvyukov@google.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, syzkaller-bugs@googlegroups.com, tglx@linutronix.de
 
-On Sun, May 13, 2018 at 12:45 PM, Li, Philip <philip.li@intel.com> wrote:
->> Subject: Re: [kbuild-all] /tmp/ccCNPV4P.s:35: Error: .err encountered
->>
->> On Sat, May 12, 2018 at 2:26 PM, kbuild test robot <lkp@intel.com> wrote:
->> > bisected to: 05cedaec9b243511f8db62bcd4b1c35c374eba24  arm: port KCOV to
->> arm
->> > commit date: 12 hours ago
->> > config: arm-allmodconfig (attached as .config)
->> > compiler: arm-linux-gnueabi-gcc (Debian 7.2.0-11) 7.2.0
->> > reproduce:
->> >         wget https://raw.githubusercontent.com/intel/lkp-
->> tests/master/sbin/make.cross -O ~/bin/make.cross
->> >         chmod +x ~/bin/make.cross
->> >         git checkout 05cedaec9b243511f8db62bcd4b1c35c374eba24
->> >         # save the attached .config to linux build tree
->> >         make.cross ARCH=arm
->> >
->> > All errors (new ones prefixed by >>):
->> >
->> >    /tmp/ccCNPV4P.s: Assembler messages:
->> >>> /tmp/ccCNPV4P.s:35: Error: .err encountered
->> >    /tmp/ccCNPV4P.s:36: Error: .err encountered
->> >    /tmp/ccCNPV4P.s:37: Error: .err encountered
->>
->>
->> Hi,
->>
->> What git tree contains this commit? I fetched all of:
-> sorry, that we have regression in code which is solved, but it may mess up some data
-> and leads to missing info like no exact tree mentioned here. We will continue fixing things up.
->
-> For the commit itself, the bot caught it from git://git.cmpxchg.org/linux-mmotm.git, which
-> is one you mentioned below. Is it possible the commit is rebased?
->
-> commit 05cedaec9b243511f8db62bcd4b1c35c374eba24
-> Author: Dmitry Vyukov <dvyukov@google.com>
-> Date:   Sat May 12 00:06:09 2018 +0000
->
->     arm: port KCOV to arm
->
->     KCOV is code coverage collection facility used, in particular, by
->     syzkaller system call fuzzer.  There is some interest in using syzkaller
->     on arm devices.  So port KCOV to arm.
+Eric Biggers wrote:
+> Generally it's best to close syzbot bug reports once the original cause is
+> fixed, so that syzbot can continue to report other bugs with the same signature.
 
-Now see it. That's a different tree (mmotm vs mmots).
+That's difficult to judge. Closing as soon as the original cause is fixed allows
+syzbot to try to report different reproducer for different bugs. But at the same time,
+different/similar bugs which were reported in that report (or comments in the discussion
+for that report) will become almost invisible from users (because users unlikely check
+other reports in already fixed bugs).
 
-But I can't reproduce the failure:
+An example is
 
-$ git status
-HEAD detached at 05cedaec9b24
+  general protection fault in kernfs_kill_sb (2)
+  https://syzkaller.appspot.com/bug?id=903af3e08fc7ec60e57d9c9b93b035f4fb038d9a
 
-$ make.cross ARCH=arm -j64
-make CROSS_COMPILE=/opt/gcc-4.9.0-nolibc/arm-unknown-linux-gnueabi/bin/arm-unknown-linux-gnueabi-
-ARCH=arm -j64
-  CHK     include/config/kernel.release
-  CHK     include/generated/uapi/linux/version.h
-  CHK     include/generated/utsrelease.h
-  CHK     scripts/mod/devicetable-offsets.h
-  CHK     include/generated/timeconst.h
-  CHK     include/generated/bounds.h
-  CHK     include/generated/asm-offsets.h
-  CALL    scripts/checksyscalls.sh
-  CHK     include/generated/compile.h
-  CHK     include/generated/at91_pm_data-offsets.h
-  CHK     include/generated/ti-pm-asm-offsets.h
-  CHK     include/generated/ti-emif-asm-offsets.h
-  CHK     kernel/config_data.h
-  CHK     include/generated/uapi/linux/version.h
-  Kernel: arch/arm/boot/Image is ready
-  Building modules, stage 2.
-  Kernel: arch/arm/boot/zImage is ready
-  MODPOST 6609 modules
+where the cause of above report was already pointed out in the discussion for
+the below report.
+
+  general protection fault in kernfs_kill_sb
+  https://syzkaller.appspot.com/bug?id=d7db6ecf34f099248e4ff404cd381a19a4075653
+
+Since the latter is marked as "fixed on May 08 18:30", I worry that quite few
+users would check the relationship.
+
+> Note also that a "workqueue lockup" can be caused by almost anything in the
+> kernel, I think.  This one for example is probably in the sound subsystem:
+> https://syzkaller.appspot.com/text?tag=CrashReport&x=1767232b800000
+> 
+
+Right. Maybe we should not stop the test upon "workqueue lockup" message, for
+it is likely that the cause of lockup is that somebody is busy looping which
+should have been reported shortly as "rcu detected stall".
+
+Of course, there is possibility that "workqueue lockup" is reported because
+cond_resched() was used when explicit schedule_timeout_*() is required, which
+was the reason commit 82607adcf9cdf40f ("workqueue: implement lockup detector")
+was added.
+
+If we stop the test upon "workqueue lockup" message, maybe longer timeout (e.g.
+300 seconds) is better so that rcu stall or hung task messages are reported
+if rcu stall or hung task is occurring.
