@@ -1,917 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B3FBE6B0010
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 04:14:00 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l6-v6so8863386wrn.17
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 01:14:00 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 34-v6si373717edm.296.2018.05.14.01.13.57
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2790D6B000A
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 04:29:23 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id t185-v6so2400422wmt.8
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 01:29:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w77-v6sor3846307wrb.67.2018.05.14.01.29.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 01:13:58 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4E84Jrg097945
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 04:13:56 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2hy63sss2v-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 04:13:56 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 14 May 2018 09:13:54 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH 3/3] docs/vm: transhuge: split userspace bits to admin-guide/mm/transhuge
-Date: Mon, 14 May 2018 11:13:40 +0300
-In-Reply-To: <1526285620-453-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1526285620-453-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1526285620-453-4-git-send-email-rppt@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Mon, 14 May 2018 01:29:21 -0700 (PDT)
+Date: Mon, 14 May 2018 10:29:18 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/13] [v4] x86, pkeys: two protection keys bug fixes
+Message-ID: <20180514082918.GA21574@gmail.com>
+References: <20180509171336.76636D88@viggo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180509171336.76636D88@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: linux-doc <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxram@us.ibm.com, tglx@linutronix.de, dave.hansen@intel.com, mpe@ellerman.id.au, akpm@linux-foundation.org, shuah@kernel.org, shakeelb@google.com
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- Documentation/admin-guide/kernel-parameters.txt |   3 +-
- Documentation/admin-guide/mm/index.rst          |   1 +
- Documentation/admin-guide/mm/transhuge.rst      | 418 ++++++++++++++++++++++++
- Documentation/vm/transhuge.rst                  | 414 +----------------------
- 4 files changed, 423 insertions(+), 413 deletions(-)
- create mode 100644 Documentation/admin-guide/mm/transhuge.rst
 
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 42f3e28..8d24270 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -4313,7 +4313,8 @@
- 			Format: [always|madvise|never]
- 			Can be used to control the default behavior of the system
- 			with respect to transparent hugepages.
--			See Documentation/vm/transhuge.rst for more details.
-+			See Documentation/admin-guide/mm/transhuge.rst
-+			for more details.
+* Dave Hansen <dave.hansen@linux.intel.com> wrote:
+
+> Hi x86 maintainers,
+> 
+> This set has been seen quite a few changes and additions since the
+> last post.  Details below.
+> 
+> Changes from v3:
+>  * Reordered patches following Ingo's recommendations: Introduce
+>    failing selftests first, then the kernel code to fix the test
+>    failure.
+>  * Increase verbosity and accuracy of do_not_expect_pk_fault()
+>    messages.
+>  * Removed abort() use from tests.  Crashing is not nice.
+>  * Remove some dead debugging code, fixing dprint_in_signal.
+>  * Fix deadlocks from using printf() and friends in signal
+>    handlers.
+> 
+> Changes from v2:
+>  * Clarified commit message in patch 1/9 taking some feedback from
+>    Shuah.
+> 
+> Changes from v1:
+>  * Added Fixes: and cc'd stable.  No code changes.
+> 
+> --
+> 
+> This fixes two bugs, and adds selftests to make sure they stay fixed:
+> 
+> 1. pkey 0 was not usable via mprotect_pkey() because it had never
+>    been explicitly allocated.
+> 2. mprotect(PROT_EXEC) memory could sometimes be left with the
+>    implicit exec-only protection key assigned.
+> 
+> I already posted #1 previously.  I'm including them both here because
+> I don't think it's been picked up in case folks want to pull these
+> all in a single bundle.
+> 
+> Dave Hansen (13):
+>       x86/pkeys/selftests: give better unexpected fault error messages
+>       x86/pkeys/selftests: Stop using assert()
+>       x86/pkeys/selftests: remove dead debugging code, fix dprint_in_signal
+>       x86/pkeys/selftests: avoid printf-in-signal deadlocks
+>       x86/pkeys/selftests: Allow faults on unknown keys
+>       x86/pkeys/selftests: Factor out "instruction page"
+>       x86/pkeys/selftests: Add PROT_EXEC test
+>       x86/pkeys/selftests: Fix pkey exhaustion test off-by-one
+>       x86/pkeys: Override pkey when moving away from PROT_EXEC
+>       x86/pkeys/selftests: Fix pointer math
+>       x86/pkeys/selftests: Save off 'prot' for allocations
+>       x86/pkeys/selftests: Add a test for pkey 0
+>       x86/pkeys: Do not special case protection key 0
+> 
+>  arch/x86/include/asm/mmu_context.h            |   2 +-
+>  arch/x86/include/asm/pkeys.h                  |  18 +-
+>  arch/x86/mm/pkeys.c                           |  21 +-
+>  tools/testing/selftests/x86/pkey-helpers.h    |  20 +-
+>  tools/testing/selftests/x86/protection_keys.c | 187 +++++++++++++-----
+>  5 files changed, 173 insertions(+), 75 deletions(-)
+
+So this series is looking good to me in principle, but trying to build it I got 
+warnings and errors - see the build log below.
+
+Note that this is on a box with "Ubuntu 18.04 LTS (Bionic Beaver)".
+
+Thanks,
+
+	Ingo
+
+================>
+
+gcc -m32 -o /home/mingo/tip/tools/testing/selftests/x86/protection_keys_32 -O2 -g -std=gnu99 -pthread -Wall -no-pie -DCAN_BUILD_32 -DCAN_BUILD_64 protection_keys.c -lrt -ldl -lm
+protection_keys.c:232:0: warning: "SEGV_BNDERR" redefined
+ #define SEGV_BNDERR     3  /* failed address bound checks */
  
- 	tsc=		Disable clocksource stability checks for TSC.
- 			Format: <string>
-diff --git a/Documentation/admin-guide/mm/index.rst b/Documentation/admin-guide/mm/index.rst
-index a69aa69..8454be6 100644
---- a/Documentation/admin-guide/mm/index.rst
-+++ b/Documentation/admin-guide/mm/index.rst
-@@ -27,4 +27,5 @@ the Linux memory management.
-    numa_memory_policy
-    pagemap
-    soft-dirty
-+   transhuge
-    userfaultfd
-diff --git a/Documentation/admin-guide/mm/transhuge.rst b/Documentation/admin-guide/mm/transhuge.rst
-new file mode 100644
-index 0000000..7ab93a8
---- /dev/null
-+++ b/Documentation/admin-guide/mm/transhuge.rst
-@@ -0,0 +1,418 @@
-+.. _admin_guide_transhuge:
-+
-+============================
-+Transparent Hugepage Support
-+============================
-+
-+Objective
-+=========
-+
-+Performance critical computing applications dealing with large memory
-+working sets are already running on top of libhugetlbfs and in turn
-+hugetlbfs. Transparent HugePage Support (THP) is an alternative mean of
-+using huge pages for the backing of virtual memory with huge pages
-+that supports the automatic promotion and demotion of page sizes and
-+without the shortcomings of hugetlbfs.
-+
-+Currently THP only works for anonymous memory mappings and tmpfs/shmem.
-+But in the future it can expand to other filesystems.
-+
-+.. note::
-+   in the examples below we presume that the basic page size is 4K and
-+   the huge page size is 2M, although the actual numbers may vary
-+   depending on the CPU architecture.
-+
-+The reason applications are running faster is because of two
-+factors. The first factor is almost completely irrelevant and it's not
-+of significant interest because it'll also have the downside of
-+requiring larger clear-page copy-page in page faults which is a
-+potentially negative effect. The first factor consists in taking a
-+single page fault for each 2M virtual region touched by userland (so
-+reducing the enter/exit kernel frequency by a 512 times factor). This
-+only matters the first time the memory is accessed for the lifetime of
-+a memory mapping. The second long lasting and much more important
-+factor will affect all subsequent accesses to the memory for the whole
-+runtime of the application. The second factor consist of two
-+components:
-+
-+1) the TLB miss will run faster (especially with virtualization using
-+   nested pagetables but almost always also on bare metal without
-+   virtualization)
-+
-+2) a single TLB entry will be mapping a much larger amount of virtual
-+   memory in turn reducing the number of TLB misses. With
-+   virtualization and nested pagetables the TLB can be mapped of
-+   larger size only if both KVM and the Linux guest are using
-+   hugepages but a significant speedup already happens if only one of
-+   the two is using hugepages just because of the fact the TLB miss is
-+   going to run faster.
-+
-+THP can be enabled system wide or restricted to certain tasks or even
-+memory ranges inside task's address space. Unless THP is completely
-+disabled, there is ``khugepaged`` daemon that scans memory and
-+collapses sequences of basic pages into huge pages.
-+
-+The THP behaviour is controlled via :ref:`sysfs <thp_sysfs>`
-+interface and using madivse(2) and prctl(2) system calls.
-+
-+Transparent Hugepage Support maximizes the usefulness of free memory
-+if compared to the reservation approach of hugetlbfs by allowing all
-+unused memory to be used as cache or other movable (or even unmovable
-+entities). It doesn't require reservation to prevent hugepage
-+allocation failures to be noticeable from userland. It allows paging
-+and all other advanced VM features to be available on the
-+hugepages. It requires no modifications for applications to take
-+advantage of it.
-+
-+Applications however can be further optimized to take advantage of
-+this feature, like for example they've been optimized before to avoid
-+a flood of mmap system calls for every malloc(4k). Optimizing userland
-+is by far not mandatory and khugepaged already can take care of long
-+lived page allocations even for hugepage unaware applications that
-+deals with large amounts of memory.
-+
-+In certain cases when hugepages are enabled system wide, application
-+may end up allocating more memory resources. An application may mmap a
-+large region but only touch 1 byte of it, in that case a 2M page might
-+be allocated instead of a 4k page for no good. This is why it's
-+possible to disable hugepages system-wide and to only have them inside
-+MADV_HUGEPAGE madvise regions.
-+
-+Embedded systems should enable hugepages only inside madvise regions
-+to eliminate any risk of wasting any precious byte of memory and to
-+only run faster.
-+
-+Applications that gets a lot of benefit from hugepages and that don't
-+risk to lose memory by using hugepages, should use
-+madvise(MADV_HUGEPAGE) on their critical mmapped regions.
-+
-+.. _thp_sysfs:
-+
-+sysfs
-+=====
-+
-+Global THP controls
-+-------------------
-+
-+Transparent Hugepage Support for anonymous memory can be entirely disabled
-+(mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
-+regions (to avoid the risk of consuming more memory resources) or enabled
-+system wide. This can be achieved with one of::
-+
-+	echo always >/sys/kernel/mm/transparent_hugepage/enabled
-+	echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
-+	echo never >/sys/kernel/mm/transparent_hugepage/enabled
-+
-+It's also possible to limit defrag efforts in the VM to generate
-+anonymous hugepages in case they're not immediately free to madvise
-+regions or to never try to defrag memory and simply fallback to regular
-+pages unless hugepages are immediately available. Clearly if we spend CPU
-+time to defrag memory, we would expect to gain even more by the fact we
-+use hugepages later instead of regular pages. This isn't always
-+guaranteed, but it may be more likely in case the allocation is for a
-+MADV_HUGEPAGE region.
-+
-+::
-+
-+	echo always >/sys/kernel/mm/transparent_hugepage/defrag
-+	echo defer >/sys/kernel/mm/transparent_hugepage/defrag
-+	echo defer+madvise >/sys/kernel/mm/transparent_hugepage/defrag
-+	echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
-+	echo never >/sys/kernel/mm/transparent_hugepage/defrag
-+
-+always
-+	means that an application requesting THP will stall on
-+	allocation failure and directly reclaim pages and compact
-+	memory in an effort to allocate a THP immediately. This may be
-+	desirable for virtual machines that benefit heavily from THP
-+	use and are willing to delay the VM start to utilise them.
-+
-+defer
-+	means that an application will wake kswapd in the background
-+	to reclaim pages and wake kcompactd to compact memory so that
-+	THP is available in the near future. It's the responsibility
-+	of khugepaged to then install the THP pages later.
-+
-+defer+madvise
-+	will enter direct reclaim and compaction like ``always``, but
-+	only for regions that have used madvise(MADV_HUGEPAGE); all
-+	other regions will wake kswapd in the background to reclaim
-+	pages and wake kcompactd to compact memory so that THP is
-+	available in the near future.
-+
-+madvise
-+	will enter direct reclaim like ``always`` but only for regions
-+	that are have used madvise(MADV_HUGEPAGE). This is the default
-+	behaviour.
-+
-+never
-+	should be self-explanatory.
-+
-+By default kernel tries to use huge zero page on read page fault to
-+anonymous mapping. It's possible to disable huge zero page by writing 0
-+or enable it back by writing 1::
-+
-+	echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
-+	echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
-+
-+Some userspace (such as a test program, or an optimized memory allocation
-+library) may want to know the size (in bytes) of a transparent hugepage::
-+
-+	cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
-+
-+khugepaged will be automatically started when
-+transparent_hugepage/enabled is set to "always" or "madvise, and it'll
-+be automatically shutdown if it's set to "never".
-+
-+Khugepaged controls
-+-------------------
-+
-+khugepaged runs usually at low frequency so while one may not want to
-+invoke defrag algorithms synchronously during the page faults, it
-+should be worth invoking defrag at least in khugepaged. However it's
-+also possible to disable defrag in khugepaged by writing 0 or enable
-+defrag in khugepaged by writing 1::
-+
-+	echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
-+	echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
-+
-+You can also control how many pages khugepaged should scan at each
-+pass::
-+
-+	/sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
-+
-+and how many milliseconds to wait in khugepaged between each pass (you
-+can set this to 0 to run khugepaged at 100% utilization of one core)::
-+
-+	/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
-+
-+and how many milliseconds to wait in khugepaged if there's an hugepage
-+allocation failure to throttle the next allocation attempt::
-+
-+	/sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
-+
-+The khugepaged progress can be seen in the number of pages collapsed::
-+
-+	/sys/kernel/mm/transparent_hugepage/khugepaged/pages_collapsed
-+
-+for each pass::
-+
-+	/sys/kernel/mm/transparent_hugepage/khugepaged/full_scans
-+
-+``max_ptes_none`` specifies how many extra small pages (that are
-+not already mapped) can be allocated when collapsing a group
-+of small pages into one large page::
-+
-+	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none
-+
-+A higher value leads to use additional memory for programs.
-+A lower value leads to gain less thp performance. Value of
-+max_ptes_none can waste cpu time very little, you can
-+ignore it.
-+
-+``max_ptes_swap`` specifies how many pages can be brought in from
-+swap when collapsing a group of pages into a transparent huge page::
-+
-+	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_swap
-+
-+A higher value can cause excessive swap IO and waste
-+memory. A lower value can prevent THPs from being
-+collapsed, resulting fewer pages being collapsed into
-+THPs, and lower memory access performance.
-+
-+Boot parameter
-+==============
-+
-+You can change the sysfs boot time defaults of Transparent Hugepage
-+Support by passing the parameter ``transparent_hugepage=always`` or
-+``transparent_hugepage=madvise`` or ``transparent_hugepage=never``
-+to the kernel command line.
-+
-+Hugepages in tmpfs/shmem
-+========================
-+
-+You can control hugepage allocation policy in tmpfs with mount option
-+``huge=``. It can have following values:
-+
-+always
-+    Attempt to allocate huge pages every time we need a new page;
-+
-+never
-+    Do not allocate huge pages;
-+
-+within_size
-+    Only allocate huge page if it will be fully within i_size.
-+    Also respect fadvise()/madvise() hints;
-+
-+advise
-+    Only allocate huge pages if requested with fadvise()/madvise();
-+
-+The default policy is ``never``.
-+
-+``mount -o remount,huge= /mountpoint`` works fine after mount: remounting
-+``huge=never`` will not attempt to break up huge pages at all, just stop more
-+from being allocated.
-+
-+There's also sysfs knob to control hugepage allocation policy for internal
-+shmem mount: /sys/kernel/mm/transparent_hugepage/shmem_enabled. The mount
-+is used for SysV SHM, memfds, shared anonymous mmaps (of /dev/zero or
-+MAP_ANONYMOUS), GPU drivers' DRM objects, Ashmem.
-+
-+In addition to policies listed above, shmem_enabled allows two further
-+values:
-+
-+deny
-+    For use in emergencies, to force the huge option off from
-+    all mounts;
-+force
-+    Force the huge option on for all - very useful for testing;
-+
-+Need of application restart
-+===========================
-+
-+The transparent_hugepage/enabled values and tmpfs mount option only affect
-+future behavior. So to make them effective you need to restart any
-+application that could have been using hugepages. This also applies to the
-+regions registered in khugepaged.
-+
-+Monitoring usage
-+================
-+
-+The number of anonymous transparent huge pages currently used by the
-+system is available by reading the AnonHugePages field in ``/proc/meminfo``.
-+To identify what applications are using anonymous transparent huge pages,
-+it is necessary to read ``/proc/PID/smaps`` and count the AnonHugePages fields
-+for each mapping.
-+
-+The number of file transparent huge pages mapped to userspace is available
-+by reading ShmemPmdMapped and ShmemHugePages fields in ``/proc/meminfo``.
-+To identify what applications are mapping file transparent huge pages, it
-+is necessary to read ``/proc/PID/smaps`` and count the FileHugeMapped fields
-+for each mapping.
-+
-+Note that reading the smaps file is expensive and reading it
-+frequently will incur overhead.
-+
-+There are a number of counters in ``/proc/vmstat`` that may be used to
-+monitor how successfully the system is providing huge pages for use.
-+
-+thp_fault_alloc
-+	is incremented every time a huge page is successfully
-+	allocated to handle a page fault. This applies to both the
-+	first time a page is faulted and for COW faults.
-+
-+thp_collapse_alloc
-+	is incremented by khugepaged when it has found
-+	a range of pages to collapse into one huge page and has
-+	successfully allocated a new huge page to store the data.
-+
-+thp_fault_fallback
-+	is incremented if a page fault fails to allocate
-+	a huge page and instead falls back to using small pages.
-+
-+thp_collapse_alloc_failed
-+	is incremented if khugepaged found a range
-+	of pages that should be collapsed into one huge page but failed
-+	the allocation.
-+
-+thp_file_alloc
-+	is incremented every time a file huge page is successfully
-+	allocated.
-+
-+thp_file_mapped
-+	is incremented every time a file huge page is mapped into
-+	user address space.
-+
-+thp_split_page
-+	is incremented every time a huge page is split into base
-+	pages. This can happen for a variety of reasons but a common
-+	reason is that a huge page is old and is being reclaimed.
-+	This action implies splitting all PMD the page mapped with.
-+
-+thp_split_page_failed
-+	is incremented if kernel fails to split huge
-+	page. This can happen if the page was pinned by somebody.
-+
-+thp_deferred_split_page
-+	is incremented when a huge page is put onto split
-+	queue. This happens when a huge page is partially unmapped and
-+	splitting it would free up some memory. Pages on split queue are
-+	going to be split under memory pressure.
-+
-+thp_split_pmd
-+	is incremented every time a PMD split into table of PTEs.
-+	This can happen, for instance, when application calls mprotect() or
-+	munmap() on part of huge page. It doesn't split huge page, only
-+	page table entry.
-+
-+thp_zero_page_alloc
-+	is incremented every time a huge zero page is
-+	successfully allocated. It includes allocations which where
-+	dropped due race with other allocation. Note, it doesn't count
-+	every map of the huge zero page, only its allocation.
-+
-+thp_zero_page_alloc_failed
-+	is incremented if kernel fails to allocate
-+	huge zero page and falls back to using small pages.
-+
-+thp_swpout
-+	is incremented every time a huge page is swapout in one
-+	piece without splitting.
-+
-+thp_swpout_fallback
-+	is incremented if a huge page has to be split before swapout.
-+	Usually because failed to allocate some continuous swap space
-+	for the huge page.
-+
-+As the system ages, allocating huge pages may be expensive as the
-+system uses memory compaction to copy data around memory to free a
-+huge page for use. There are some counters in ``/proc/vmstat`` to help
-+monitor this overhead.
-+
-+compact_stall
-+	is incremented every time a process stalls to run
-+	memory compaction so that a huge page is free for use.
-+
-+compact_success
-+	is incremented if the system compacted memory and
-+	freed a huge page for use.
-+
-+compact_fail
-+	is incremented if the system tries to compact memory
-+	but failed.
-+
-+compact_pages_moved
-+	is incremented each time a page is moved. If
-+	this value is increasing rapidly, it implies that the system
-+	is copying a lot of data to satisfy the huge page allocation.
-+	It is possible that the cost of copying exceeds any savings
-+	from reduced TLB misses.
-+
-+compact_pagemigrate_failed
-+	is incremented when the underlying mechanism
-+	for moving a page failed.
-+
-+compact_blocks_moved
-+	is incremented each time memory compaction examines
-+	a huge page aligned range of pages.
-+
-+It is possible to establish how long the stalls were using the function
-+tracer to record how long was spent in __alloc_pages_nodemask and
-+using the mm_page_alloc tracepoint to identify which allocations were
-+for huge pages.
-+
-+Optimizing the applications
-+===========================
-+
-+To be guaranteed that the kernel will map a 2M page immediately in any
-+memory region, the mmap region has to be hugepage naturally
-+aligned. posix_memalign() can provide that guarantee.
-+
-+Hugetlbfs
-+=========
-+
-+You can use hugetlbfs on a kernel that has transparent hugepage
-+support enabled just fine as always. No difference can be noted in
-+hugetlbfs other than there will be less overall fragmentation. All
-+usual features belonging to hugetlbfs are preserved and
-+unaffected. libhugetlbfs will also work fine as usual.
-diff --git a/Documentation/vm/transhuge.rst b/Documentation/vm/transhuge.rst
-index 47c7e47..a8cf680 100644
---- a/Documentation/vm/transhuge.rst
-+++ b/Documentation/vm/transhuge.rst
-@@ -4,418 +4,8 @@
- Transparent Hugepage Support
- ============================
+In file included from /usr/include/signal.h:58:0,
+                 from protection_keys.c:33:
+/usr/include/bits/siginfo-consts.h:117:0: note: this is the location of the previous definition
+ #  define SEGV_BNDERR SEGV_BNDERR
  
--Objective
--=========
--
--Performance critical computing applications dealing with large memory
--working sets are already running on top of libhugetlbfs and in turn
--hugetlbfs. Transparent HugePage Support (THP) is an alternative mean of
--using huge pages for the backing of virtual memory with huge pages
--that supports the automatic promotion and demotion of page sizes and
--without the shortcomings of hugetlbfs.
--
--Currently THP only works for anonymous memory mappings and tmpfs/shmem.
--But in the future it can expand to other filesystems.
--
--.. note::
--   in the examples below we presume that the basic page size is 4K and
--   the huge page size is 2M, although the actual numbers may vary
--   depending on the CPU architecture.
--
--The reason applications are running faster is because of two
--factors. The first factor is almost completely irrelevant and it's not
--of significant interest because it'll also have the downside of
--requiring larger clear-page copy-page in page faults which is a
--potentially negative effect. The first factor consists in taking a
--single page fault for each 2M virtual region touched by userland (so
--reducing the enter/exit kernel frequency by a 512 times factor). This
--only matters the first time the memory is accessed for the lifetime of
--a memory mapping. The second long lasting and much more important
--factor will affect all subsequent accesses to the memory for the whole
--runtime of the application. The second factor consist of two
--components:
--
--1) the TLB miss will run faster (especially with virtualization using
--   nested pagetables but almost always also on bare metal without
--   virtualization)
--
--2) a single TLB entry will be mapping a much larger amount of virtual
--   memory in turn reducing the number of TLB misses. With
--   virtualization and nested pagetables the TLB can be mapped of
--   larger size only if both KVM and the Linux guest are using
--   hugepages but a significant speedup already happens if only one of
--   the two is using hugepages just because of the fact the TLB miss is
--   going to run faster.
--
--THP can be enabled system wide or restricted to certain tasks or even
--memory ranges inside task's address space. Unless THP is completely
--disabled, there is ``khugepaged`` daemon that scans memory and
--collapses sequences of basic pages into huge pages.
--
--The THP behaviour is controlled via :ref:`sysfs <thp_sysfs>`
--interface and using madivse(2) and prctl(2) system calls.
--
--Transparent Hugepage Support maximizes the usefulness of free memory
--if compared to the reservation approach of hugetlbfs by allowing all
--unused memory to be used as cache or other movable (or even unmovable
--entities). It doesn't require reservation to prevent hugepage
--allocation failures to be noticeable from userland. It allows paging
--and all other advanced VM features to be available on the
--hugepages. It requires no modifications for applications to take
--advantage of it.
--
--Applications however can be further optimized to take advantage of
--this feature, like for example they've been optimized before to avoid
--a flood of mmap system calls for every malloc(4k). Optimizing userland
--is by far not mandatory and khugepaged already can take care of long
--lived page allocations even for hugepage unaware applications that
--deals with large amounts of memory.
--
--In certain cases when hugepages are enabled system wide, application
--may end up allocating more memory resources. An application may mmap a
--large region but only touch 1 byte of it, in that case a 2M page might
--be allocated instead of a 4k page for no good. This is why it's
--possible to disable hugepages system-wide and to only have them inside
--MADV_HUGEPAGE madvise regions.
--
--Embedded systems should enable hugepages only inside madvise regions
--to eliminate any risk of wasting any precious byte of memory and to
--only run faster.
--
--Applications that gets a lot of benefit from hugepages and that don't
--risk to lose memory by using hugepages, should use
--madvise(MADV_HUGEPAGE) on their critical mmapped regions.
--
--.. _thp_sysfs:
--
--sysfs
--=====
--
--Global THP controls
---------------------
--
--Transparent Hugepage Support for anonymous memory can be entirely disabled
--(mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
--regions (to avoid the risk of consuming more memory resources) or enabled
--system wide. This can be achieved with one of::
--
--	echo always >/sys/kernel/mm/transparent_hugepage/enabled
--	echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
--	echo never >/sys/kernel/mm/transparent_hugepage/enabled
--
--It's also possible to limit defrag efforts in the VM to generate
--anonymous hugepages in case they're not immediately free to madvise
--regions or to never try to defrag memory and simply fallback to regular
--pages unless hugepages are immediately available. Clearly if we spend CPU
--time to defrag memory, we would expect to gain even more by the fact we
--use hugepages later instead of regular pages. This isn't always
--guaranteed, but it may be more likely in case the allocation is for a
--MADV_HUGEPAGE region.
--
--::
--
--	echo always >/sys/kernel/mm/transparent_hugepage/defrag
--	echo defer >/sys/kernel/mm/transparent_hugepage/defrag
--	echo defer+madvise >/sys/kernel/mm/transparent_hugepage/defrag
--	echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
--	echo never >/sys/kernel/mm/transparent_hugepage/defrag
--
--always
--	means that an application requesting THP will stall on
--	allocation failure and directly reclaim pages and compact
--	memory in an effort to allocate a THP immediately. This may be
--	desirable for virtual machines that benefit heavily from THP
--	use and are willing to delay the VM start to utilise them.
--
--defer
--	means that an application will wake kswapd in the background
--	to reclaim pages and wake kcompactd to compact memory so that
--	THP is available in the near future. It's the responsibility
--	of khugepaged to then install the THP pages later.
--
--defer+madvise
--	will enter direct reclaim and compaction like ``always``, but
--	only for regions that have used madvise(MADV_HUGEPAGE); all
--	other regions will wake kswapd in the background to reclaim
--	pages and wake kcompactd to compact memory so that THP is
--	available in the near future.
--
--madvise
--	will enter direct reclaim like ``always`` but only for regions
--	that are have used madvise(MADV_HUGEPAGE). This is the default
--	behaviour.
--
--never
--	should be self-explanatory.
--
--By default kernel tries to use huge zero page on read page fault to
--anonymous mapping. It's possible to disable huge zero page by writing 0
--or enable it back by writing 1::
--
--	echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
--	echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
--
--Some userspace (such as a test program, or an optimized memory allocation
--library) may want to know the size (in bytes) of a transparent hugepage::
--
--	cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
--
--khugepaged will be automatically started when
--transparent_hugepage/enabled is set to "always" or "madvise, and it'll
--be automatically shutdown if it's set to "never".
--
--Khugepaged controls
---------------------
--
--khugepaged runs usually at low frequency so while one may not want to
--invoke defrag algorithms synchronously during the page faults, it
--should be worth invoking defrag at least in khugepaged. However it's
--also possible to disable defrag in khugepaged by writing 0 or enable
--defrag in khugepaged by writing 1::
--
--	echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
--	echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
--
--You can also control how many pages khugepaged should scan at each
--pass::
--
--	/sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
--
--and how many milliseconds to wait in khugepaged between each pass (you
--can set this to 0 to run khugepaged at 100% utilization of one core)::
--
--	/sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
--
--and how many milliseconds to wait in khugepaged if there's an hugepage
--allocation failure to throttle the next allocation attempt::
--
--	/sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
--
--The khugepaged progress can be seen in the number of pages collapsed::
--
--	/sys/kernel/mm/transparent_hugepage/khugepaged/pages_collapsed
--
--for each pass::
--
--	/sys/kernel/mm/transparent_hugepage/khugepaged/full_scans
--
--``max_ptes_none`` specifies how many extra small pages (that are
--not already mapped) can be allocated when collapsing a group
--of small pages into one large page::
--
--	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none
--
--A higher value leads to use additional memory for programs.
--A lower value leads to gain less thp performance. Value of
--max_ptes_none can waste cpu time very little, you can
--ignore it.
--
--``max_ptes_swap`` specifies how many pages can be brought in from
--swap when collapsing a group of pages into a transparent huge page::
--
--	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_swap
--
--A higher value can cause excessive swap IO and waste
--memory. A lower value can prevent THPs from being
--collapsed, resulting fewer pages being collapsed into
--THPs, and lower memory access performance.
--
--Boot parameter
--==============
--
--You can change the sysfs boot time defaults of Transparent Hugepage
--Support by passing the parameter ``transparent_hugepage=always`` or
--``transparent_hugepage=madvise`` or ``transparent_hugepage=never``
--to the kernel command line.
--
--Hugepages in tmpfs/shmem
--========================
--
--You can control hugepage allocation policy in tmpfs with mount option
--``huge=``. It can have following values:
--
--always
--    Attempt to allocate huge pages every time we need a new page;
--
--never
--    Do not allocate huge pages;
--
--within_size
--    Only allocate huge page if it will be fully within i_size.
--    Also respect fadvise()/madvise() hints;
--
--advise
--    Only allocate huge pages if requested with fadvise()/madvise();
--
--The default policy is ``never``.
--
--``mount -o remount,huge= /mountpoint`` works fine after mount: remounting
--``huge=never`` will not attempt to break up huge pages at all, just stop more
--from being allocated.
--
--There's also sysfs knob to control hugepage allocation policy for internal
--shmem mount: /sys/kernel/mm/transparent_hugepage/shmem_enabled. The mount
--is used for SysV SHM, memfds, shared anonymous mmaps (of /dev/zero or
--MAP_ANONYMOUS), GPU drivers' DRM objects, Ashmem.
--
--In addition to policies listed above, shmem_enabled allows two further
--values:
--
--deny
--    For use in emergencies, to force the huge option off from
--    all mounts;
--force
--    Force the huge option on for all - very useful for testing;
--
--Need of application restart
--===========================
--
--The transparent_hugepage/enabled values and tmpfs mount option only affect
--future behavior. So to make them effective you need to restart any
--application that could have been using hugepages. This also applies to the
--regions registered in khugepaged.
--
--Monitoring usage
--================
--
--The number of anonymous transparent huge pages currently used by the
--system is available by reading the AnonHugePages field in ``/proc/meminfo``.
--To identify what applications are using anonymous transparent huge pages,
--it is necessary to read ``/proc/PID/smaps`` and count the AnonHugePages fields
--for each mapping.
--
--The number of file transparent huge pages mapped to userspace is available
--by reading ShmemPmdMapped and ShmemHugePages fields in ``/proc/meminfo``.
--To identify what applications are mapping file transparent huge pages, it
--is necessary to read ``/proc/PID/smaps`` and count the FileHugeMapped fields
--for each mapping.
--
--Note that reading the smaps file is expensive and reading it
--frequently will incur overhead.
--
--There are a number of counters in ``/proc/vmstat`` that may be used to
--monitor how successfully the system is providing huge pages for use.
--
--thp_fault_alloc
--	is incremented every time a huge page is successfully
--	allocated to handle a page fault. This applies to both the
--	first time a page is faulted and for COW faults.
--
--thp_collapse_alloc
--	is incremented by khugepaged when it has found
--	a range of pages to collapse into one huge page and has
--	successfully allocated a new huge page to store the data.
--
--thp_fault_fallback
--	is incremented if a page fault fails to allocate
--	a huge page and instead falls back to using small pages.
--
--thp_collapse_alloc_failed
--	is incremented if khugepaged found a range
--	of pages that should be collapsed into one huge page but failed
--	the allocation.
--
--thp_file_alloc
--	is incremented every time a file huge page is successfully
--	allocated.
--
--thp_file_mapped
--	is incremented every time a file huge page is mapped into
--	user address space.
--
--thp_split_page
--	is incremented every time a huge page is split into base
--	pages. This can happen for a variety of reasons but a common
--	reason is that a huge page is old and is being reclaimed.
--	This action implies splitting all PMD the page mapped with.
--
--thp_split_page_failed
--	is incremented if kernel fails to split huge
--	page. This can happen if the page was pinned by somebody.
--
--thp_deferred_split_page
--	is incremented when a huge page is put onto split
--	queue. This happens when a huge page is partially unmapped and
--	splitting it would free up some memory. Pages on split queue are
--	going to be split under memory pressure.
--
--thp_split_pmd
--	is incremented every time a PMD split into table of PTEs.
--	This can happen, for instance, when application calls mprotect() or
--	munmap() on part of huge page. It doesn't split huge page, only
--	page table entry.
--
--thp_zero_page_alloc
--	is incremented every time a huge zero page is
--	successfully allocated. It includes allocations which where
--	dropped due race with other allocation. Note, it doesn't count
--	every map of the huge zero page, only its allocation.
--
--thp_zero_page_alloc_failed
--	is incremented if kernel fails to allocate
--	huge zero page and falls back to using small pages.
--
--thp_swpout
--	is incremented every time a huge page is swapout in one
--	piece without splitting.
--
--thp_swpout_fallback
--	is incremented if a huge page has to be split before swapout.
--	Usually because failed to allocate some continuous swap space
--	for the huge page.
--
--As the system ages, allocating huge pages may be expensive as the
--system uses memory compaction to copy data around memory to free a
--huge page for use. There are some counters in ``/proc/vmstat`` to help
--monitor this overhead.
--
--compact_stall
--	is incremented every time a process stalls to run
--	memory compaction so that a huge page is free for use.
--
--compact_success
--	is incremented if the system compacted memory and
--	freed a huge page for use.
--
--compact_fail
--	is incremented if the system tries to compact memory
--	but failed.
--
--compact_pages_moved
--	is incremented each time a page is moved. If
--	this value is increasing rapidly, it implies that the system
--	is copying a lot of data to satisfy the huge page allocation.
--	It is possible that the cost of copying exceeds any savings
--	from reduced TLB misses.
--
--compact_pagemigrate_failed
--	is incremented when the underlying mechanism
--	for moving a page failed.
--
--compact_blocks_moved
--	is incremented each time memory compaction examines
--	a huge page aligned range of pages.
--
--It is possible to establish how long the stalls were using the function
--tracer to record how long was spent in __alloc_pages_nodemask and
--using the mm_page_alloc tracepoint to identify which allocations were
--for huge pages.
--
--Optimizing the applications
--===========================
--
--To be guaranteed that the kernel will map a 2M page immediately in any
--memory region, the mmap region has to be hugepage naturally
--aligned. posix_memalign() can provide that guarantee.
--
--Hugetlbfs
--=========
--
--You can use hugetlbfs on a kernel that has transparent hugepage
--support enabled just fine as always. No difference can be noted in
--hugetlbfs other than there will be less overall fragmentation. All
--usual features belonging to hugetlbfs are preserved and
--unaffected. libhugetlbfs will also work fine as usual.
-+This document describes design principles Transparent Hugepage (THP)
-+Support and its interaction with other parts of the memory management.
+protection_keys.c:233:0: warning: "SEGV_PKUERR" redefined
+ #define SEGV_PKUERR     4
  
- Design principles
- =================
--- 
-2.7.4
+In file included from /usr/include/signal.h:58:0,
+                 from protection_keys.c:33:
+/usr/include/bits/siginfo-consts.h:119:0: note: this is the location of the previous definition
+ #  define SEGV_PKUERR SEGV_PKUERR
+ 
+protection_keys.c:387:5: error: conflicting types for a??pkey_geta??
+ u32 pkey_get(int pkey, unsigned long flags)
+     ^~~~~~~~
+In file included from /usr/include/bits/mman-linux.h:115:0,
+                 from /usr/include/bits/mman.h:45,
+                 from /usr/include/sys/mman.h:41,
+                 from protection_keys.c:37:
+/usr/include/bits/mman-shared.h:64:5: note: previous declaration of a??pkey_geta?? was here
+ int pkey_get (int __key) __THROW;
+     ^~~~~~~~
+protection_keys.c:409:5: error: conflicting types for a??pkey_seta??
+ int pkey_set(int pkey, unsigned long rights, unsigned long flags)
+     ^~~~~~~~
+In file included from /usr/include/bits/mman-linux.h:115:0,
+                 from /usr/include/bits/mman.h:45,
+                 from /usr/include/sys/mman.h:41,
+                 from protection_keys.c:37:
+/usr/include/bits/mman-shared.h:60:5: note: previous declaration of a??pkey_seta?? was here
+ int pkey_set (int __key, unsigned int __access_rights) __THROW;
+     ^~~~~~~~
+Makefile:67: recipe for target '/home/mingo/tip/tools/testing/selftests/x86/protection_keys_32' failed
+make: *** [/home/mingo/tip/tools/testing/selftests/x86/protection_keys_32] Error 1
