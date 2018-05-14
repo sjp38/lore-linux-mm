@@ -1,42 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F09C6B0007
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 15:11:15 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id d5-v6so16215855qtg.17
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 12:11:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a40-v6sor8048401qvd.7.2018.05.14.12.11.14
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B5A96B0007
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 15:15:58 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id s17-v6so6638357pgq.23
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 12:15:58 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id u36-v6si8443859pgn.213.2018.05.14.12.15.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 14 May 2018 12:11:14 -0700 (PDT)
-Date: Mon, 14 May 2018 15:11:10 -0400
-From: Kent Overstreet <kent.overstreet@gmail.com>
-Subject: Re: [PATCH 01/10] mempool: Add mempool_init()/mempool_exit()
-Message-ID: <20180514191110.GB8869@kmo-pixel>
-References: <20180509013358.16399-1-kent.overstreet@gmail.com>
- <20180509013358.16399-2-kent.overstreet@gmail.com>
- <f6b03dbb-a9d0-2b5b-c21a-e92572bc343a@kernel.dk>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 14 May 2018 12:15:56 -0700 (PDT)
+Date: Mon, 14 May 2018 12:15:51 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+Message-ID: <20180514191551.GA27939@bombadil.infradead.org>
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f6b03dbb-a9d0-2b5b-c21a-e92572bc343a@kernel.dk>
+In-Reply-To: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Boaz Harrosh <boazh@netapp.com>
+Cc: Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-On Fri, May 11, 2018 at 03:11:45PM -0600, Jens Axboe wrote:
-> On 5/8/18 7:33 PM, Kent Overstreet wrote:
-> > Allows mempools to be embedded in other structs, getting rid of a
-> > pointer indirection from allocation fastpaths.
-> > 
-> > mempool_exit() is safe to call on an uninitialized but zeroed mempool.
+On Mon, May 14, 2018 at 08:28:01PM +0300, Boaz Harrosh wrote:
+> On a call to mmap an mmap provider (like an FS) can put
+> this flag on vma->vm_flags.
 > 
-> Looks fine to me. I'd like to carry it through the block branch, as some
-> of the following cleanups depend on it. Kent, can you post a v2 with
-> the destroy -> exit typo fixed up?
-> 
-> But would be nice to have someone sign off on it...
+> The VM_LOCAL_CPU flag tells the Kernel that the vma will be used
+> from a single-core only, and therefore invalidation (flush_tlb) of
+> PTE(s) need not be a wide CPU scheduling.
 
-Done - it's now up in my git repo:
-http://evilpiepirate.org/git/bcachefs.git bcachefs-block
+I still don't get this.  You're opening the kernel up to being exploited
+by any application which can persuade it to set this flag on a VMA.
+
+> NOTE: This vma (VM_LOCAL_CPU) is never used during a page_fault. It is
+> always used in a synchronous way from a thread pinned to a single core.
+
+It's not a question of how your app is going to use this flag.  It's a
+question about how another app can abuse this flag (or how your app is
+going to be exploited to abuse this flag) to break into the kernel.
