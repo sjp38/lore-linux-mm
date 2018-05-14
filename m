@@ -1,52 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B3EB6B0007
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 13:36:07 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id f11-v6so11728631plj.23
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 10:36:07 -0700 (PDT)
-Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com. [68.232.143.124])
-        by mx.google.com with ESMTPS id x12-v6si7790040pgv.389.2018.05.14.10.36.05
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 123176B0007
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 14:07:23 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id a127-v6so3832544wmh.6
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 11:07:23 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id p202-v6si5689333wmd.227.2018.05.14.11.07.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 10:36:06 -0700 (PDT)
-Subject: Re: [PATCH 0/7] psi: pressure stall information for CPU, memory, and
- IO
-References: <20180507210135.1823-1-hannes@cmpxchg.org>
- <010001635f4e8be9-94e7be7a-e75c-438c-bffb-5b56301c4c55-000000@email.amazonses.com>
-From: Bart Van Assche <bart.vanassche@wdc.com>
-Message-ID: <cb81b9f2-a280-d8a9-c720-247fb9f5fa90@wdc.com>
-Date: Mon, 14 May 2018 10:35:37 -0700
+        Mon, 14 May 2018 11:07:21 -0700 (PDT)
+Date: Mon, 14 May 2018 19:07:10 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH] shmem: don't call put_super() when fill_super() failed.
+Message-ID: <20180514180710.GK30522@ZenIV.linux.org.uk>
+References: <201805140657.w4E6vV4a035377@www262.sakura.ne.jp>
+ <20180514170423.GA252575@gmail.com>
+ <20180514171154.GB252575@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <010001635f4e8be9-94e7be7a-e75c-438c-bffb-5b56301c4c55-000000@email.amazonses.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180514171154.GB252575@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
+To: Eric Biggers <ebiggers3@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, syzbot+d2586fde8fdcead3647f@syzkaller.appspotmail.com, hughd@google.com, syzkaller-bugs@googlegroups.com, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>
 
-On 05/14/18 08:39, Christopher Lameter wrote:
-> On Mon, 7 May 2018, Johannes Weiner wrote:
->> What to make of this number? If CPU utilization is at 100% and CPU
->> pressure is 0, it means the system is perfectly utilized, with one
->> runnable thread per CPU and nobody waiting. At two or more runnable
->> tasks per CPU, the system is 100% overcommitted and the pressure
->> average will indicate as much. From a utilization perspective this is
->> a great state of course: no CPU cycles are being wasted, even when 50%
->> of the threads were to go idle (and most workloads do vary). From the
->> perspective of the individual job it's not great, however, and they
->> might do better with more resources. Depending on what your priority
->> is, an elevated "some" number may or may not require action.
+On Mon, May 14, 2018 at 10:11:54AM -0700, Eric Biggers wrote:
+
+> > I'm not following, since generic_shutdown_super() only calls ->put_super() if
+> > ->s_root is set, which only happens at the end of shmem_fill_super().  Isn't the
+> > real problem that s_shrink is registered too early, causing super_cache_count()
+> > and shmem_unused_huge_count() to potentially run before shmem_fill_super() has
+> > completed?  Or alternatively, the problem is that super_cache_count() doesn't
+> > check for SB_ACTIVE.
+> > 
 > 
-> This looks awfully similar to loadavg. Problem is that loadavg gets
-> screwed up by tasks blocked waiting for I/O. Isnt there some way to fix
-> loadavg instead?
+> Coincidentally, this is already going to be fixed by commit 79f546a696bff259
+> ("fs: don't scan the inode cache before SB_BORN is set") in vfs/for-linus.
 
-The following article explains why it probably made sense in 1993 to 
-include TASK_UNINTERRUPTIBLE in loadavg and also why this no longer 
-makes sense today:
+Exactly.  While we are at it, we could add
 
-http://www.brendangregg.com/blog/2017-08-08/linux-load-averages.html
+static void shmem_kill_super(struct super_block *sb)
+{
+        struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
 
-Bart.
+	kill_litter_super(sb);
+	if (sbinfo) {
+		percpu_counter_destroy(&sbinfo->used_blocks);
+		mpol_put(sbinfo->mpol);
+		kfree(sbinfo);
+	}
+}
+
+use that for ->kill_sb() and to hell with shmem_put_super() *and* its call in
+cleanup path of shmem_fill_super() - these err = -E...; goto failed; in there
+become simply return -E...;
