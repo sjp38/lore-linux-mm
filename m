@@ -1,33 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A85146B0003
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 11:30:29 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id g1-v6so10860005pfh.19
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 08:30:29 -0700 (PDT)
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com. [216.71.154.42])
-        by mx.google.com with ESMTPS id d24-v6si9585135plr.302.2018.05.14.08.30.26
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B6E546B0003
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 11:33:00 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id k14-v6so4966926pgr.18
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 08:33:00 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id t14-v6sor5789595pfa.143.2018.05.14.08.32.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 08:30:27 -0700 (PDT)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
-Subject: Re: [PATCH 5/6] block: use GFP_NOIO instead of __GFP_DIRECT_RECLAIM
-Date: Mon, 14 May 2018 15:30:22 +0000
-Message-ID: <8716105a867b898e4785339de5bef1ab1d1f019c.camel@wdc.com>
-References: <20180509075408.16388-1-hch@lst.de>
-	 <20180509075408.16388-6-hch@lst.de>
-In-Reply-To: <20180509075408.16388-6-hch@lst.de>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <4D7FAD006754824DB632F84F817DC78F@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (Google Transport Security);
+        Mon, 14 May 2018 08:32:57 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change signal semantics
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <008010c1-20a1-c307-25ac-8a69d672d031@redhat.com>
+Date: Mon, 14 May 2018 08:32:54 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <E77C6E12-EF2A-435A-AAD4-1554459606F1@amacapital.net>
+References: <20180502132751.05B9F401F3041@oldenburg.str.redhat.com> <248faadb-e484-806f-1485-c34a72a9ca0b@intel.com> <822a28c9-5405-68c2-11bf-0c282887466d@redhat.com> <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net> <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com> <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com> <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com> <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com> <20180503021058.GA5670@ram.oc3035372033.ibm.com> <CALCETrXRQF08exQVZqtTLOKbC8Ywq5x4EYH_1D7r5v9bdOSwbg@mail.gmail.com> <927c8325-4c98-d7af-b921-6aafcf8fe992@redhat.com> <CALCETrX46wR_MDW=m9SVm=ejQmPAmD3+2oC3iapf75bPhnEAWQ@mail.gmail.com> <314e1a48-db94-9b37-8793-a95a2082c9e2@redhat.com> <CALCETrUGjN8mhOaLqGcau-pPKm9TQW8k05hZrh52prRNdC5yQQ@mail.gmail.com> <008010c1-20a1-c307-25ac-8a69d672d031@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Andy Lutomirski <luto@kernel.org>, linuxram@us.ibm.com, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-T24gV2VkLCAyMDE4LTA1LTA5IGF0IDA5OjU0ICswMjAwLCBDaHJpc3RvcGggSGVsbHdpZyB3cm90
-ZToNCj4gV2UganVzdCBjYW4ndCBkbyBJL08gd2hlbiBkb2luZyBibG9jayBsYXllciByZXF1ZXN0
-cyBhbGxvY2F0aW9ucywNCj4gc28gdXNlIEdGUF9OT0lPIGluc3RlYWQgb2YgdGhlIGV2ZW4gbW9y
-ZSBsaW1pdGVkIF9fR0ZQX0RJUkVDVF9SRUNMQUlNLg0KDQpSZXZpZXdlZC1ieTogQmFydCBWYW4g
-QXNzY2hlIDxiYXJ0LnZhbmFzc2NoZUB3ZGMuY29tPg0KDQoNCg==
+
+
+
+> On May 14, 2018, at 5:01 AM, Florian Weimer <fweimer@redhat.com> wrote:
+>=20
+>> One thing we could do, though: the current initual state on process
+>> creation is all access blocked on all keys.  We could change it so that
+>> half the keys are fully blocked and half are read-only.  Then we could ad=
+d
+>> a PKEY_ALLOC_STRICT or similar that allocates a key with the correct
+>> initial state*and*  does the setsignal thing.  If there are no keys left
+>> with the correct initial state, then it fails.
+>=20
+> The initial PKRU value can currently be configured by the system administr=
+ator.  I fear this approach has too many moving parts to be viable.
+>=20
+>=20
+
+Honestly, I think we should drop that option. I don=E2=80=99t see how we can=
+ expect an administrator to do this usefully.=
