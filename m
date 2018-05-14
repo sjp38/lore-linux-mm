@@ -1,57 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 67B276B000A
-	for <linux-mm@kvack.org>; Sun, 13 May 2018 12:58:01 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id w26-v6so12839752qto.4
-        for <linux-mm@kvack.org>; Sun, 13 May 2018 09:58:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z23-v6sor5602842qka.52.2018.05.13.09.58.00
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 90F4C6B0007
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 01:42:03 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id w1-v6so15817586iod.1
+        for <linux-mm@kvack.org>; Sun, 13 May 2018 22:42:03 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id w3-v6sor4698244ite.118.2018.05.13.22.42.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 13 May 2018 09:58:00 -0700 (PDT)
-Date: Sun, 13 May 2018 19:57:56 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v5 06/13] fs: Propagate shrinker::id to list_lru
-Message-ID: <20180513165756.obsexfkvnyoylq6v@esperanza>
-References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
- <152594598693.22949.2394903594690437296.stgit@localhost.localdomain>
+        Sun, 13 May 2018 22:42:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <152594598693.22949.2394903594690437296.stgit@localhost.localdomain>
+Date: Sun, 13 May 2018 22:42:01 -0700
+Message-ID: <000000000000e677b9056c23f12f@google.com>
+Subject: general protection fault in shmem_unused_huge_count
+From: syzbot <syzbot+d2586fde8fdcead3647f@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-On Thu, May 10, 2018 at 12:53:06PM +0300, Kirill Tkhai wrote:
-> The patch adds list_lru::shrinker_id field, and populates
-> it by registered shrinker id.
-> 
-> This will be used to set correct bit in memcg shrinkers
-> map by lru code in next patches, after there appeared
-> the first related to memcg element in list_lru.
-> 
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> ---
->  fs/super.c               |    4 ++++
->  include/linux/list_lru.h |    3 +++
->  mm/list_lru.c            |    6 ++++++
->  mm/workingset.c          |    3 +++
->  4 files changed, 16 insertions(+)
-> 
-> diff --git a/fs/super.c b/fs/super.c
-> index 2ccacb78f91c..dfa85e725e45 100644
-> --- a/fs/super.c
-> +++ b/fs/super.c
-> @@ -258,6 +258,10 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
->  		goto fail;
->  	if (list_lru_init_memcg(&s->s_inode_lru))
->  		goto fail;
-> +#ifdef CONFIG_MEMCG_SHRINKER
-> +	s->s_dentry_lru.shrinker_id = s->s_shrink.id;
-> +	s->s_inode_lru.shrinker_id = s->s_shrink.id;
-> +#endif
+Hello,
 
-I don't like this. Can't you simply pass struct shrinker to
-list_lru_init_memcg() and let it extract the id?
+syzbot found the following crash on:
+
+HEAD commit:    3eb2ce825ea1 Linux 4.16-rc7
+git tree:       upstream
+console output: https://syzkaller.appspot.com/x/log.txt?x=16bd9d93800000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=8addcf4530d93e53
+dashboard link: https://syzkaller.appspot.com/bug?extid=d2586fde8fdcead3647f
+compiler:       gcc (GCC) 7.1.1 20170620
+
+Unfortunately, I don't have any reproducer for this crash yet.
+
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+d2586fde8fdcead3647f@syzkaller.appspotmail.com
+
+kasan: CONFIG_KASAN_INLINE enabled
+kasan: GPF could be caused by NULL-ptr deref or user memory access
+general protection fault: 0000 [#1] SMP KASAN
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+Modules linked in:
+CPU: 0 PID: 9915 Comm: syz-executor3 Not tainted 4.16.0-rc7+ #3
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+RIP: 0010:__read_once_size include/linux/compiler.h:188 [inline]
+RIP: 0010:shmem_unused_huge_count+0x8e/0x100 mm/shmem.c:561
+RSP: 0018:ffff8801b0e9f460 EFLAGS: 00010206
+RAX: dffffc0000000000 RBX: 1ffff100361d3e8d RCX: ffffffff8195e5e7
+RDX: 0000000000000021 RSI: ffff8801b0e9f778 RDI: 0000000000000108
+RBP: ffff8801b0e9f4e0 R08: 0000000000000000 R09: 1ffff100361d3e76
+R10: ffff8801b0e9f378 R11: 0000000000000001 R12: 0000000000000000
+R13: dffffc0000000000 R14: ffff8801b4c5cdf0 R15: 0000000000000000
+FS:  0000000000d5a940(0000) GS:ffff8801db200000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000d5ac10 CR3: 00000001d8120003 CR4: 00000000001606f0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+Call Trace:
+  super_cache_count+0x96/0x280 fs/super.c:131
+  do_shrink_slab mm/vmscan.c:310 [inline]
+  shrink_slab.part.46+0x30c/0xe80 mm/vmscan.c:475
+  shrink_slab+0x9d/0xb0 mm/vmscan.c:442
+  shrink_node+0x51e/0xf70 mm/vmscan.c:2556
+  shrink_zones mm/vmscan.c:2728 [inline]
+  do_try_to_free_pages+0x383/0x1020 mm/vmscan.c:2790
+  try_to_free_mem_cgroup_pages+0x44d/0xb40 mm/vmscan.c:3079
+  reclaim_high.constprop.64+0x1e2/0x330 mm/memcontrol.c:1862
+  mem_cgroup_handle_over_high+0x8d/0x130 mm/memcontrol.c:1887
+  tracehook_notify_resume include/linux/tracehook.h:193 [inline]
+  exit_to_usermode_loop+0x242/0x2f0 arch/x86/entry/common.c:166
+  prepare_exit_to_usermode arch/x86/entry/common.c:196 [inline]
+  syscall_return_slowpath+0x487/0x550 arch/x86/entry/common.c:265
+  ret_from_fork+0x15/0x50 arch/x86/entry/entry_64.S:399
+RIP: 0033:0x452f5a
+RSP: 002b:00007ffdaa5ef700 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
+RAX: 0000000000000000 RBX: 00007ffdaa5ef700 RCX: 0000000000452f5a
+RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000001200011
+RBP: 00007ffdaa5ef740 R08: 0000000000000001 R09: 0000000000d5a940
+R10: 0000000000d5ac10 R11: 0000000000000246 R12: 0000000000000001
+R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000001380
+Code: c1 e8 03 42 80 3c 28 00 75 6f 4d 8b a4 24 80 06 00 00 48 b8 00 00 00  
+00 00 fc ff df 49 8d bc 24 08 01 00 00 48 89 fa 48 c1 ea 03 <80> 3c 02 00  
+75 5e 48 8d 7d a8 48 ba 00 00 00 00 00 fc ff df 49
+RIP: __read_once_size include/linux/compiler.h:188 [inline] RSP:  
+ffff8801b0e9f460
+RIP: shmem_unused_huge_count+0x8e/0x100 mm/shmem.c:561 RSP: ffff8801b0e9f460
+---[ end trace 8116f40602cb9839 ]---
+
+
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
+
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
+syzbot.
