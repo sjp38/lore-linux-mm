@@ -1,63 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1209E6B0007
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 10:24:15 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e20-v6so10727214pff.14
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 07:24:15 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id bh5-v6si8947040plb.320.2018.05.14.07.24.13
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B34256B000A
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 10:33:07 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p189-v6so10744714pfp.2
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 07:33:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g13-v6si7838299pgn.146.2018.05.14.07.33.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 07:24:13 -0700 (PDT)
-Date: Mon, 14 May 2018 16:23:56 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH v2 0/2] mm: PAGE_KERNEL_* fallbacks
-Message-ID: <20180514142356.GA25793@kroah.com>
-References: <20180510014447.15989-1-mcgrof@kernel.org>
- <20180510060733.GA23098@kroah.com>
- <20180510171520.GD27853@wotan.suse.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 14 May 2018 07:33:06 -0700 (PDT)
+Subject: Re: [PATCH v5 02/17] mm: Split page_type out from _mapcount
+References: <20180504183318.14415-1-willy@infradead.org>
+ <20180504183318.14415-3-willy@infradead.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <fdf71f6e-d3a7-343f-b9af-652dbdb90eeb@suse.cz>
+Date: Mon, 14 May 2018 16:33:01 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180510171520.GD27853@wotan.suse.de>
+In-Reply-To: <20180504183318.14415-3-willy@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Cc: arnd@arndb.de, willy@infradead.org, geert@linux-m68k.org, linux-m68k@lists.linux-m68k.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On Thu, May 10, 2018 at 05:15:20PM +0000, Luis R. Rodriguez wrote:
-> On Thu, May 10, 2018 at 08:07:33AM +0200, Greg KH wrote:
-> > On Wed, May 09, 2018 at 06:44:45PM -0700, Luis R. Rodriguez wrote:
-> > > While dusting out the firmware loader closet I spotted a PAGE_KERNEL_*
-> > > fallback hack. This hurts my eyes, and it should also be blinding
-> > > others. Turns out we have other PAGE_KERNEL_* fallback hacks in
-> > > other places.
-> > > 
-> > > This moves them to asm-generic, and keeps track of architectures which
-> > > need some love or review. At least 0-day was happy with the changes.
-> > > 
-> > > Matthew Wilcox did put together a PAGE_KERNEL_RO patch for ia64, that
-> > > needs review and testing, and if it goes well it should be merged.
-> > > 
-> > > Luis R. Rodriguez (2):
-> > >   mm: provide a fallback for PAGE_KERNEL_RO for architectures
-> > >   mm: provide a fallback for PAGE_KERNEL_EXEC for architectures
-> > > 
-> > >  drivers/base/firmware_loader/fallback.c |  5 ----
-> > >  include/asm-generic/pgtable.h           | 36 +++++++++++++++++++++++++
-> > >  mm/nommu.c                              |  4 ---
-> > >  mm/vmalloc.c                            |  4 ---
-> > >  4 files changed, 36 insertions(+), 13 deletions(-)
-> > 
-> > No list of changes that happened from v1?  :(
+On 05/04/2018 08:33 PM, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> Didn't know you'd want it for such simple patch set, but I'll provide one for v3 and
-> also list the changes in v2.
+> We're already using a union of many fields here, so stop abusing the
+> _mapcount and make page_type its own field.  That implies renaming some
+> of the machinery that creates PageBuddy, PageBalloon and PageKmemcg;
+> bring back the PG_buddy, PG_balloon and PG_kmemcg names.
+> 
+> As suggested by Kirill, make page_type a bitmask.  Because it starts out
+> life as -1 (thanks to sharing the storage with _mapcount), setting a
+> page flag means clearing the appropriate bit.  This gives us space for
+> probably twenty or so extra bits (depending how paranoid we want to be
+> about _mapcount underflow).
+> 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Nothing is "trivial" really, and given the huge rate of patch
-submissions, how is anyone supposed to remember what you did in the last
-one?
-
-thanks,
-
-greg k-h
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
