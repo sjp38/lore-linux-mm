@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 23A8E6B0008
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 12:56:07 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id h32-v6so11732784pld.15
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 09:56:07 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00105.outbound.protection.outlook.com. [40.107.0.105])
-        by mx.google.com with ESMTPS id f8-v6si8161371pgr.139.2018.05.14.09.56.05
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 275456B0007
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 12:57:03 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id c137-v6so14289477ith.3
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 09:57:03 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0138.outbound.protection.outlook.com. [104.47.1.138])
+        by mx.google.com with ESMTPS id 78-v6si6731933ita.124.2018.05.14.09.57.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 14 May 2018 09:56:05 -0700 (PDT)
-Subject: Re: [PATCH v1 03/16] khwasan: add CONFIG_KASAN_GENERIC and
- CONFIG_KASAN_HW
+        Mon, 14 May 2018 09:57:02 -0700 (PDT)
+Subject: Re: [PATCH v1 08/16] khwasan: add tag related helper functions
 References: <cover.1525798753.git.andreyknvl@google.com>
- <b31260f782783e21ca2e2a45f9b05016998bf9ed.1525798753.git.andreyknvl@google.com>
+ <6a2a088b08c6f5e87c32892ec28b139a99d06070.1525798754.git.andreyknvl@google.com>
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <658f02bd-e647-52e6-87cf-5d91f8243b66@virtuozzo.com>
-Date: Mon, 14 May 2018 19:57:06 +0300
+Message-ID: <a7ff4042-1bf6-6464-6f62-ec8783ae0c77@virtuozzo.com>
+Date: Mon, 14 May 2018 19:58:02 +0300
 MIME-Version: 1.0
-In-Reply-To: <b31260f782783e21ca2e2a45f9b05016998bf9ed.1525798753.git.andreyknvl@google.com>
+In-Reply-To: <6a2a088b08c6f5e87c32892ec28b139a99d06070.1525798754.git.andreyknvl@google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -30,54 +29,9 @@ Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, L
 
 On 05/08/2018 08:20 PM, Andrey Konovalov wrote:
 
-> diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
-> index 69552a39951d..47023daf5606 100644
-> --- a/scripts/Makefile.kasan
-> +++ b/scripts/Makefile.kasan
-> @@ -1,5 +1,5 @@
->  # SPDX-License-Identifier: GPL-2.0
-> -ifdef CONFIG_KASAN
-> +ifdef CONFIG_KASAN_GENERIC
->  ifdef CONFIG_KASAN_INLINE
->  	call_threshold := 10000
->  else
-> @@ -45,3 +45,28 @@ endif
->  CFLAGS_KASAN_NOSANITIZE := -fno-builtin
->  
->  endif
-> +
-> +ifdef CONFIG_KASAN_HW
-> +
-> +ifdef CONFIG_KASAN_INLINE
-> +    instrumentation_flags := -mllvm -hwasan-mapping-offset=$(KASAN_SHADOW_OFFSET)
-> +else
-> +    instrumentation_flags := -mllvm -hwasan-instrument-with-calls=1
-> +endif
-> +
-> +CFLAGS_KASAN_MINIMAL := -fsanitize=kernel-hwaddress
-> +
-> +ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
-> +    ifneq ($(CONFIG_COMPILE_TEST),y)
-> +        $(warning Cannot use CONFIG_KASAN_HW: \
-> +            -fsanitize=hwaddress is not supported by compiler)
-> +    endif
-> +else
-> +    CFLAGS_KASAN := $(call cc-option, -fsanitize=kernel-hwaddress \
-> +        -mllvm -hwasan-instrument-stack=0 \
-> +        $(instrumentation_flags))
-> +endif
-
-So this code does the following:
- 1) Warn if compiler doesn't support -fsanitize=kernel-hwaddress
- 2) Compile the kernel with all necessary set of the '-fsanitize=kernel-hwaddress -mllvm -hwasan-*' flags if compiler supports all of them.
- 3) Compile the kernel with empty CFLAGS_KASAN without a warning if compiler supports 'fsanitize=kernel-hwaddress',
-     but doesn't support the rest '-mllvm -hwasan-*' flags.
-
-The last one is just nonsense.
+> +	for_each_possible_cpu(cpu) {
+> +		per_cpu(prng_state, cpu) = get_random_u32();
+> +	}
 
 
-> +
-> +CFLAGS_KASAN_NOSANITIZE := -fno-builtin
-> +
-
-Does it really has to declared twice?
+Use checkpatch please.
