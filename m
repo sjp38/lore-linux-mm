@@ -1,57 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 123176B0007
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 14:07:23 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a127-v6so3832544wmh.6
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 11:07:23 -0700 (PDT)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id p202-v6si5689333wmd.227.2018.05.14.11.07.20
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D9B1F6B0007
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 14:26:38 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id u7-v6so11904092plq.3
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 11:26:38 -0700 (PDT)
+Received: from mx141.netapp.com (mx141.netapp.com. [2620:10a:4005:8000:2306::a])
+        by mx.google.com with ESMTPS id j65-v6si1955147pgc.552.2018.05.14.11.26.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 11:07:21 -0700 (PDT)
-Date: Mon, 14 May 2018 19:07:10 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH] shmem: don't call put_super() when fill_super() failed.
-Message-ID: <20180514180710.GK30522@ZenIV.linux.org.uk>
-References: <201805140657.w4E6vV4a035377@www262.sakura.ne.jp>
- <20180514170423.GA252575@gmail.com>
- <20180514171154.GB252575@gmail.com>
+        Mon, 14 May 2018 11:26:37 -0700 (PDT)
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+From: Boaz Harrosh <boazh@netapp.com>
+Message-ID: <1d5f676f-b5d1-3ad3-c7a5-25b390c0e44e@netapp.com>
+Date: Mon, 14 May 2018 21:26:13 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180514171154.GB252575@gmail.com>
+In-Reply-To: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, syzbot+d2586fde8fdcead3647f@syzkaller.appspotmail.com, hughd@google.com, syzkaller-bugs@googlegroups.com, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>
+To: Boaz Harrosh <boazh@netapp.com>, Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
+ Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-On Mon, May 14, 2018 at 10:11:54AM -0700, Eric Biggers wrote:
-
-> > I'm not following, since generic_shutdown_super() only calls ->put_super() if
-> > ->s_root is set, which only happens at the end of shmem_fill_super().  Isn't the
-> > real problem that s_shrink is registered too early, causing super_cache_count()
-> > and shmem_unused_huge_count() to potentially run before shmem_fill_super() has
-> > completed?  Or alternatively, the problem is that super_cache_count() doesn't
-> > check for SB_ACTIVE.
-> > 
+On 14/05/18 20:28, Boaz Harrosh wrote:
 > 
-> Coincidentally, this is already going to be fixed by commit 79f546a696bff259
-> ("fs: don't scan the inode cache before SB_BORN is set") in vfs/for-linus.
+> On a call to mmap an mmap provider (like an FS) can put
+> this flag on vma->vm_flags.
+> 
+> The VM_LOCAL_CPU flag tells the Kernel that the vma will be used
+> from a single-core only, and therefore invalidation (flush_tlb) of
+> PTE(s) need not be a wide CPU scheduling.
+> 
+> The motivation of this flag is the ZUFS project where we want
+> to optimally map user-application buffers into a user-mode-server
+> execute the operation and efficiently unmap.
+> 
 
-Exactly.  While we are at it, we could add
+I am please pushing for this patch ahead of the push of ZUFS, because
+this is the only patch we need from otherwise an STD Kernel.
 
-static void shmem_kill_super(struct super_block *sb)
-{
-        struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
+We are partnering with Distro(s) to push ZUFS out-of-tree to beta clients
+to try and stabilize such a big project before final submission and
+an ABI / on-disk freeze.
 
-	kill_litter_super(sb);
-	if (sbinfo) {
-		percpu_counter_destroy(&sbinfo->used_blocks);
-		mpol_put(sbinfo->mpol);
-		kfree(sbinfo);
-	}
-}
+By itself this patch has 0 risk and can not break anything.
 
-use that for ->kill_sb() and to hell with shmem_put_super() *and* its call in
-cleanup path of shmem_fill_super() - these err = -E...; goto failed; in there
-become simply return -E...;
+Thanks
+Boaz
+
+> In this project we utilize a per-core server thread so everything
+> is kept local. If we use the regular zap_ptes() API All CPU's
+> are scheduled for the unmap, though in our case we know that we
+> have only used a single core. The regular zap_ptes adds a very big
+> latency on every operation and mostly kills the concurrency of the
+> over all system. Because it imposes a serialization between all cores
+> 
+> Some preliminary measurements on a 40 core machines:
+> 
+> 	unpatched		patched
+> Threads	Op/s	Lat [us]	Op/s	Lat [us]
+> ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> 1	185391	4.9		200799	4.6
+> 2	197993	9.6		314321	5.9
+> 4	310597	12.1		565574	6.6
+> 8	546702	13.8		1113138	6.6
+> 12	641728	17.2		1598451	6.8
+> 18	744750	22.2		1648689	7.8
+> 24	790805	28.3		1702285	8
+> 36	849763	38.9		1783346	13.4
+> 48	792000	44.6		1741873	17.4
+> 
+> We can clearly see that on an unpatched Kernel we do not scale
+> and the threads are interfering with each other. This is because
+> flush-tlb is scheduled on all (other) CPUs.
+> 
+> NOTE: This vma (VM_LOCAL_CPU) is never used during a page_fault. It is
+> always used in a synchronous way from a thread pinned to a single core.
+> 
+> Signed-off-by: Boaz Harrosh <boazh@netapp.com>
+> ---
+>  arch/x86/mm/tlb.c  |  3 ++-
+>  fs/proc/task_mmu.c |  3 +++
+>  include/linux/mm.h |  3 +++
+>  mm/memory.c        | 13 +++++++++++--
+>  4 files changed, 19 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+> index e055d1a..1d398a0 100644
+> --- a/arch/x86/mm/tlb.c
+> +++ b/arch/x86/mm/tlb.c
+> @@ -640,7 +640,8 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+>  		local_irq_enable();
+>  	}
+>  
+> -	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+> +	if (!(vmflag & VM_LOCAL_CPU) &&
+> +	    cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+>  		flush_tlb_others(mm_cpumask(mm), &info);
+>  
+>  	put_cpu();
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index c486ad4..305d6e4 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -680,6 +680,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+>  		[ilog2(VM_PKEY_BIT2)]	= "",
+>  		[ilog2(VM_PKEY_BIT3)]	= "",
+>  #endif
+> +#ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
+> +		[ilog2(VM_LOCAL_CPU)]	= "lc",
+> +#endif
+>  	};
+>  	size_t i;
+>  
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 1ac1f06..3d14107 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -226,6 +226,9 @@ extern unsigned int kobjsize(const void *objp);
+>  #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
+>  #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
+>  #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
+> +#define VM_LOCAL_CPU	BIT(37)		/* FIXME: Needs to move from here */
+> +#else /* ! CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
+> +#define VM_LOCAL_CPU	0		/* FIXME: Needs to move from here */
+>  #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
+>  
+>  #if defined(CONFIG_X86)
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 01f5464..6236f5e 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1788,6 +1788,7 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  	int retval;
+>  	pte_t *pte, entry;
+>  	spinlock_t *ptl;
+> +	bool need_flush = false;
+>  
+>  	retval = -ENOMEM;
+>  	pte = get_locked_pte(mm, addr, &ptl);
+> @@ -1795,7 +1796,12 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  		goto out;
+>  	retval = -EBUSY;
+>  	if (!pte_none(*pte)) {
+> -		if (mkwrite) {
+> +		if ((vma->vm_flags & VM_LOCAL_CPU)) {
+> +			/* VM_LOCAL_CPU is set, A single CPU is allowed to not
+> +			 * go through zap_vma_ptes before changing a pte
+> +			 */
+> +			need_flush = true;
+> +		} else if (mkwrite) {
+>  			/*
+>  			 * For read faults on private mappings the PFN passed
+>  			 * in may not match the PFN we have mapped if the
+> @@ -1807,8 +1813,9 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  				goto out_unlock;
+>  			entry = *pte;
+>  			goto out_mkwrite;
+> -		} else
+> +		} else {
+>  			goto out_unlock;
+> +		}
+>  	}
+>  
+>  	/* Ok, finally just insert the thing.. */
+> @@ -1824,6 +1831,8 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  	}
+>  
+>  	set_pte_at(mm, addr, pte, entry);
+> +	if (need_flush)
+> +		flush_tlb_range(vma, addr, addr + PAGE_SIZE);
+>  	update_mmu_cache(vma, addr, pte); /* XXX: why not for insert_page? */
+>  
+>  	retval = 0;
+> 
