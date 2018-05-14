@@ -1,178 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D9B1F6B0007
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 14:26:38 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id u7-v6so11904092plq.3
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 11:26:38 -0700 (PDT)
-Received: from mx141.netapp.com (mx141.netapp.com. [2620:10a:4005:8000:2306::a])
-        by mx.google.com with ESMTPS id j65-v6si1955147pgc.552.2018.05.14.11.26.37
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9420D6B0007
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 14:53:36 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t185-v6so3175952wmt.8
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 11:53:36 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id r19-v6si465312edo.320.2018.05.14.11.53.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 11:26:37 -0700 (PDT)
-Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
-References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
-From: Boaz Harrosh <boazh@netapp.com>
-Message-ID: <1d5f676f-b5d1-3ad3-c7a5-25b390c0e44e@netapp.com>
-Date: Mon, 14 May 2018 21:26:13 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 14 May 2018 11:53:34 -0700 (PDT)
+Date: Mon, 14 May 2018 14:55:20 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/7] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180514185520.GA7398@cmpxchg.org>
+References: <20180507210135.1823-1-hannes@cmpxchg.org>
+ <010001635f4e8be9-94e7be7a-e75c-438c-bffb-5b56301c4c55-000000@email.amazonses.com>
 MIME-Version: 1.0
-In-Reply-To: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <010001635f4e8be9-94e7be7a-e75c-438c-bffb-5b56301c4c55-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boazh@netapp.com>, Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
- Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-On 14/05/18 20:28, Boaz Harrosh wrote:
+On Mon, May 14, 2018 at 03:39:33PM +0000, Christopher Lameter wrote:
+> On Mon, 7 May 2018, Johannes Weiner wrote:
 > 
-> On a call to mmap an mmap provider (like an FS) can put
-> this flag on vma->vm_flags.
+> > What to make of this number? If CPU utilization is at 100% and CPU
+> > pressure is 0, it means the system is perfectly utilized, with one
+> > runnable thread per CPU and nobody waiting. At two or more runnable
+> > tasks per CPU, the system is 100% overcommitted and the pressure
+> > average will indicate as much. From a utilization perspective this is
+> > a great state of course: no CPU cycles are being wasted, even when 50%
+> > of the threads were to go idle (and most workloads do vary). From the
+> > perspective of the individual job it's not great, however, and they
+> > might do better with more resources. Depending on what your priority
+> > is, an elevated "some" number may or may not require action.
 > 
-> The VM_LOCAL_CPU flag tells the Kernel that the vma will be used
-> from a single-core only, and therefore invalidation (flush_tlb) of
-> PTE(s) need not be a wide CPU scheduling.
-> 
-> The motivation of this flag is the ZUFS project where we want
-> to optimally map user-application buffers into a user-mode-server
-> execute the operation and efficiently unmap.
-> 
+> This looks awfully similar to loadavg. Problem is that loadavg gets
+> screwed up by tasks blocked waiting for I/O. Isnt there some way to fix
+> loadavg instead?
 
-I am please pushing for this patch ahead of the push of ZUFS, because
-this is the only patch we need from otherwise an STD Kernel.
+Counting iowaiting tasks is one thing, but there are a few more things
+that make it hard to use for telling the impact of CPU competition:
 
-We are partnering with Distro(s) to push ZUFS out-of-tree to beta clients
-to try and stabilize such a big project before final submission and
-an ABI / on-disk freeze.
+- It's not normalized to available CPU count. The loadavg in isolation
+  doesn't mean anything, and you have to know the number of CPUs and
+  any CPU bindings / restrictions in effect, which presents at least
+  some difficulty when monitoring a big heterogeneous fleet.
 
-By itself this patch has 0 risk and can not break anything.
+- The way it's sampled makes it impossible to use for latencies. You
+  could be mostly idle but periodically have herds of tasks competing
+  for the CPU for short, low-latency operations. Even if we changed
+  this in the implementation, you're still stuck with the interface
+  that has...
 
-Thanks
-Boaz
+- ...a short-term load window of 1m. This is generally fairly coarse
+  for something that can be loaded and unloaded as abruptly as the CPU
 
-> In this project we utilize a per-core server thread so everything
-> is kept local. If we use the regular zap_ptes() API All CPU's
-> are scheduled for the unmap, though in our case we know that we
-> have only used a single core. The regular zap_ptes adds a very big
-> latency on every operation and mostly kills the concurrency of the
-> over all system. Because it imposes a serialization between all cores
-> 
-> Some preliminary measurements on a 40 core machines:
-> 
-> 	unpatched		patched
-> Threads	Op/s	Lat [us]	Op/s	Lat [us]
-> ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> 1	185391	4.9		200799	4.6
-> 2	197993	9.6		314321	5.9
-> 4	310597	12.1		565574	6.6
-> 8	546702	13.8		1113138	6.6
-> 12	641728	17.2		1598451	6.8
-> 18	744750	22.2		1648689	7.8
-> 24	790805	28.3		1702285	8
-> 36	849763	38.9		1783346	13.4
-> 48	792000	44.6		1741873	17.4
-> 
-> We can clearly see that on an unpatched Kernel we do not scale
-> and the threads are interfering with each other. This is because
-> flush-tlb is scheduled on all (other) CPUs.
-> 
-> NOTE: This vma (VM_LOCAL_CPU) is never used during a page_fault. It is
-> always used in a synchronous way from a thread pinned to a single core.
-> 
-> Signed-off-by: Boaz Harrosh <boazh@netapp.com>
-> ---
->  arch/x86/mm/tlb.c  |  3 ++-
->  fs/proc/task_mmu.c |  3 +++
->  include/linux/mm.h |  3 +++
->  mm/memory.c        | 13 +++++++++++--
->  4 files changed, 19 insertions(+), 3 deletions(-)
-> 
-> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-> index e055d1a..1d398a0 100644
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -640,7 +640,8 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
->  		local_irq_enable();
->  	}
->  
-> -	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
-> +	if (!(vmflag & VM_LOCAL_CPU) &&
-> +	    cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
->  		flush_tlb_others(mm_cpumask(mm), &info);
->  
->  	put_cpu();
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index c486ad4..305d6e4 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -680,6 +680,9 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
->  		[ilog2(VM_PKEY_BIT2)]	= "",
->  		[ilog2(VM_PKEY_BIT3)]	= "",
->  #endif
-> +#ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
-> +		[ilog2(VM_LOCAL_CPU)]	= "lc",
-> +#endif
->  	};
->  	size_t i;
->  
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 1ac1f06..3d14107 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -226,6 +226,9 @@ extern unsigned int kobjsize(const void *objp);
->  #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
->  #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
->  #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
-> +#define VM_LOCAL_CPU	BIT(37)		/* FIXME: Needs to move from here */
-> +#else /* ! CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
-> +#define VM_LOCAL_CPU	0		/* FIXME: Needs to move from here */
->  #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
->  
->  #if defined(CONFIG_X86)
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 01f5464..6236f5e 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1788,6 +1788,7 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  	int retval;
->  	pte_t *pte, entry;
->  	spinlock_t *ptl;
-> +	bool need_flush = false;
->  
->  	retval = -ENOMEM;
->  	pte = get_locked_pte(mm, addr, &ptl);
-> @@ -1795,7 +1796,12 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  		goto out;
->  	retval = -EBUSY;
->  	if (!pte_none(*pte)) {
-> -		if (mkwrite) {
-> +		if ((vma->vm_flags & VM_LOCAL_CPU)) {
-> +			/* VM_LOCAL_CPU is set, A single CPU is allowed to not
-> +			 * go through zap_vma_ptes before changing a pte
-> +			 */
-> +			need_flush = true;
-> +		} else if (mkwrite) {
->  			/*
->  			 * For read faults on private mappings the PFN passed
->  			 * in may not match the PFN we have mapped if the
-> @@ -1807,8 +1813,9 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  				goto out_unlock;
->  			entry = *pte;
->  			goto out_mkwrite;
-> -		} else
-> +		} else {
->  			goto out_unlock;
-> +		}
->  	}
->  
->  	/* Ok, finally just insert the thing.. */
-> @@ -1824,6 +1831,8 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  	}
->  
->  	set_pte_at(mm, addr, pte, entry);
-> +	if (need_flush)
-> +		flush_tlb_range(vma, addr, addr + PAGE_SIZE);
->  	update_mmu_cache(vma, addr, pte); /* XXX: why not for insert_page? */
->  
->  	retval = 0;
-> 
+I'm trying to fix these with a portable way of aggregating multi-cpu
+states, as well as tracking the true time spent in a state instead of
+sampling it. Plus a smaller short-term window of 10s, but that's
+almost irrelevant because I'm exporting the absolute state time clock
+so you can calculate your own averages over any time window you want.
+
+Since I'm using the same model and infrastructure for memory and IO
+load as well, IMO it makes more sense to present them in a coherent
+interface instead of trying to retrofit and change the loadavg file,
+which might not even be possible.
