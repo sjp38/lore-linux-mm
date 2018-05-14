@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E1EC96B0008
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 15:24:56 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id c24-v6so4450075lfh.10
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 12:24:56 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 142-v6sor2266583ljj.43.2018.05.14.12.24.54
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D52C6B0006
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 15:38:14 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id x21-v6so11176268pfn.23
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 12:38:14 -0700 (PDT)
+Received: from mx142.netapp.com (mx142.netapp.com. [2620:10a:4005:8000:2306::b])
+        by mx.google.com with ESMTPS id t19-v6si9313987plo.287.2018.05.14.12.38.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 14 May 2018 12:24:54 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 May 2018 12:38:13 -0700 (PDT)
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+ <20180514191551.GA27939@bombadil.infradead.org>
+From: Boaz Harrosh <boazh@netapp.com>
+Message-ID: <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
+Date: Mon, 14 May 2018 22:37:38 +0300
 MIME-Version: 1.0
-In-Reply-To: <bd9f9811-bec7-5394-30d4-5db833ecf5b4@kernel.dk>
-References: <20180509013358.16399-1-kent.overstreet@gmail.com> <bd9f9811-bec7-5394-30d4-5db833ecf5b4@kernel.dk>
-From: Kent Overstreet <kent.overstreet@gmail.com>
-Date: Mon, 14 May 2018 15:24:53 -0400
-Message-ID: <CAC7rs0vTjxkiM3yUuReO848_i7SOD7ZD4NOHcP9bFoxK706-Bg@mail.gmail.com>
-Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180514191551.GA27939@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-block <linux-block@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
+ Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-Thanks!
+On 14/05/18 22:15, Matthew Wilcox wrote:
+> On Mon, May 14, 2018 at 08:28:01PM +0300, Boaz Harrosh wrote:
+>> On a call to mmap an mmap provider (like an FS) can put
+>> this flag on vma->vm_flags.
+>>
+>> The VM_LOCAL_CPU flag tells the Kernel that the vma will be used
+>> from a single-core only, and therefore invalidation (flush_tlb) of
+>> PTE(s) need not be a wide CPU scheduling.
+> 
+> I still don't get this.  You're opening the kernel up to being exploited
+> by any application which can persuade it to set this flag on a VMA.
+> 
 
-On Mon, May 14, 2018 at 3:24 PM, Jens Axboe <axboe@kernel.dk> wrote:
-> On 5/8/18 7:33 PM, Kent Overstreet wrote:
->>  - Add separately allowed mempools, biosets: bcachefs uses both all over the
->>    place
->>
->>  - Bit of utility code - bio_copy_data_iter(), zero_fill_bio_iter()
->>
->>  - bio_list_copy_data(), the bi_next check - defensiveness because of a bug I
->>    had fun chasing down at one point
->>
->>  - add some exports, because bcachefs does dio its own way
->>  - show whether fua is supported in sysfs, because I don't know of anything that
->>    exports whether the _block layer_ specifically thinks fua is supported.
->
-> Thanks Kent, applied for 4.18 with the update patch 1.
->
-> --
-> Jens Axboe
->
+No No this is not an application accessible flag this can only be set
+by the mmap implementor at ->mmap() time (Say same as VM_VM_MIXEDMAP).
+
+Please see the zuf patches for usage (Again apologise for pushing before
+a user)
+
+The mmap provider has all the facilities to know that this can not be
+abused, not even by a trusted Server.
+
+>> NOTE: This vma (VM_LOCAL_CPU) is never used during a page_fault. It is
+>> always used in a synchronous way from a thread pinned to a single core.
+> 
+> It's not a question of how your app is going to use this flag.  It's a
+> question about how another app can abuse this flag (or how your app is
+> going to be exploited to abuse this flag) to break into the kernel.
+> 
+
+If you look at the zuf user you will see that the faults all return
+SIG_BUS. These can never fault. The server has access to this mapping
+from a single thread pinned to a core.
+
+Again it is not an app visible flag in anyway
+
+Thanks for looking
+Boaz
