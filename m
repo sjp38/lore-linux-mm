@@ -1,65 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D52C6B0006
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 15:38:14 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id x21-v6so11176268pfn.23
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 12:38:14 -0700 (PDT)
-Received: from mx142.netapp.com (mx142.netapp.com. [2620:10a:4005:8000:2306::b])
-        by mx.google.com with ESMTPS id t19-v6si9313987plo.287.2018.05.14.12.38.12
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4004E6B0006
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 16:15:52 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id j33-v6so16421150qtc.18
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 13:15:52 -0700 (PDT)
+Received: from a9-114.smtp-out.amazonses.com (a9-114.smtp-out.amazonses.com. [54.240.9.114])
+        by mx.google.com with ESMTPS id h12-v6si7078478qte.291.2018.05.14.13.15.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 12:38:13 -0700 (PDT)
-Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
-References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
- <20180514191551.GA27939@bombadil.infradead.org>
-From: Boaz Harrosh <boazh@netapp.com>
-Message-ID: <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
-Date: Mon, 14 May 2018 22:37:38 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 14 May 2018 13:15:50 -0700 (PDT)
+Date: Mon, 14 May 2018 20:15:50 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 0/7] psi: pressure stall information for CPU, memory,
+ and IO
+In-Reply-To: <20180514185520.GA7398@cmpxchg.org>
+Message-ID: <01000163604b7e9e-c2729157-aed2-4f5b-bebe-1bf16261ab88-000000@email.amazonses.com>
+References: <20180507210135.1823-1-hannes@cmpxchg.org> <010001635f4e8be9-94e7be7a-e75c-438c-bffb-5b56301c4c55-000000@email.amazonses.com> <20180514185520.GA7398@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20180514191551.GA27939@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
- Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-On 14/05/18 22:15, Matthew Wilcox wrote:
-> On Mon, May 14, 2018 at 08:28:01PM +0300, Boaz Harrosh wrote:
->> On a call to mmap an mmap provider (like an FS) can put
->> this flag on vma->vm_flags.
->>
->> The VM_LOCAL_CPU flag tells the Kernel that the vma will be used
->> from a single-core only, and therefore invalidation (flush_tlb) of
->> PTE(s) need not be a wide CPU scheduling.
-> 
-> I still don't get this.  You're opening the kernel up to being exploited
-> by any application which can persuade it to set this flag on a VMA.
-> 
+On Mon, 14 May 2018, Johannes Weiner wrote:
 
-No No this is not an application accessible flag this can only be set
-by the mmap implementor at ->mmap() time (Say same as VM_VM_MIXEDMAP).
+> Since I'm using the same model and infrastructure for memory and IO
+> load as well, IMO it makes more sense to present them in a coherent
+> interface instead of trying to retrofit and change the loadavg file,
+> which might not even be possible.
 
-Please see the zuf patches for usage (Again apologise for pushing before
-a user)
+Well I keep looking at the loadavg output from numerous tools and then in
+my mind I divide by the number of processors, guess if any of the threads
+would be doing I/O and if I cannot figure that out groan and run "vmstat"
+for awhile to figure that out.
 
-The mmap provider has all the facilities to know that this can not be
-abused, not even by a trusted Server.
-
->> NOTE: This vma (VM_LOCAL_CPU) is never used during a page_fault. It is
->> always used in a synchronous way from a thread pinned to a single core.
-> 
-> It's not a question of how your app is going to use this flag.  It's a
-> question about how another app can abuse this flag (or how your app is
-> going to be exploited to abuse this flag) to break into the kernel.
-> 
-
-If you look at the zuf user you will see that the faults all return
-SIG_BUS. These can never fault. The server has access to this mapping
-from a single thread pinned to a core.
-
-Again it is not an app visible flag in anyway
-
-Thanks for looking
-Boaz
+Lets have some numbers there that make more sense please.
