@@ -1,41 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BA726B0006
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 16:59:36 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id n3-v6so16489462otk.7
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 13:59:36 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id 7-v6si3245314oid.19.2018.05.14.13.59.34
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D4FCD6B0003
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 17:49:05 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id r63-v6so11360420pfl.12
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 14:49:05 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j6-v6si8160557pgp.534.2018.05.14.14.49.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 13:59:34 -0700 (PDT)
-Subject: Re: [PATCH] shmem: don't call put_super() when fill_super() failed.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201805140657.w4E6vV4a035377@www262.sakura.ne.jp>
-	<20180514170423.GA252575@gmail.com>
-	<20180514171154.GB252575@gmail.com>
-In-Reply-To: <20180514171154.GB252575@gmail.com>
-Message-Id: <201805150559.IBC65633.OFQOOJFHSFVMLt@I-love.SAKURA.ne.jp>
-Date: Tue, 15 May 2018 05:59:29 +0900
+        Mon, 14 May 2018 14:49:03 -0700 (PDT)
+Date: Mon, 14 May 2018 14:49:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+Message-Id: <20180514144901.0fe99d240ff8a53047dd512e@linux-foundation.org>
+In-Reply-To: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ebiggers3@gmail.com
-Cc: syzbot+d2586fde8fdcead3647f@syzkaller.appspotmail.com, viro@ZenIV.linux.org.uk, hughd@google.com, syzkaller-bugs@googlegroups.com, linux-mm@kvack.org, dchinner@redhat.com
+To: Boaz Harrosh <boazh@netapp.com>
+Cc: Jeff Moyer <jmoyer@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-Eric Biggers wrote:
-> > I'm not following, since generic_shutdown_super() only calls ->put_super() if
-> > ->s_root is set, which only happens at the end of shmem_fill_super().  Isn't the
-> > real problem that s_shrink is registered too early, causing super_cache_count()
-> > and shmem_unused_huge_count() to potentially run before shmem_fill_super() has
-> > completed?  Or alternatively, the problem is that super_cache_count() doesn't
-> > check for SB_ACTIVE.
-> > 
+On Mon, 14 May 2018 20:28:01 +0300 Boaz Harrosh <boazh@netapp.com> wrote:
+
+> On a call to mmap an mmap provider (like an FS) can put
+> this flag on vma->vm_flags.
 > 
-> Coincidentally, this is already going to be fixed by commit 79f546a696bff259
-> ("fs: don't scan the inode cache before SB_BORN is set") in vfs/for-linus.
+> The VM_LOCAL_CPU flag tells the Kernel that the vma will be used
+> from a single-core only, and therefore invalidation (flush_tlb) of
+> PTE(s) need not be a wide CPU scheduling.
+> 
+> The motivation of this flag is the ZUFS project where we want
+> to optimally map user-application buffers into a user-mode-server
+> execute the operation and efficiently unmap.
+> 
+> In this project we utilize a per-core server thread so everything
+> is kept local. If we use the regular zap_ptes() API All CPU's
+> are scheduled for the unmap, though in our case we know that we
+> have only used a single core. The regular zap_ptes adds a very big
+> latency on every operation and mostly kills the concurrency of the
+> over all system. Because it imposes a serialization between all cores
 
-Indeed. This is use before initialisation bug which will be fixed by commit 79f546a696bff259.
-
-#syz fix: fs: don't scan the inode cache before SB_BORN is set
+I'd have thought that in this situation, only the local CPU's bit is
+set in the vma's mm_cpumask() and the remote invalidations are not
+performed.  Is that a misunderstanding, or is all that stuff not working
+correctly?
