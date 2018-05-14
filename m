@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 296806B0007
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 12:55:22 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id q15-v6so10994922pff.17
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 09:55:22 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0098.outbound.protection.outlook.com. [104.47.0.98])
-        by mx.google.com with ESMTPS id w2-v6si10187100plk.79.2018.05.14.09.55.20
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 23A8E6B0008
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 12:56:07 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id h32-v6so11732784pld.15
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 09:56:07 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00105.outbound.protection.outlook.com. [40.107.0.105])
+        by mx.google.com with ESMTPS id f8-v6si8161371pgr.139.2018.05.14.09.56.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 14 May 2018 09:55:20 -0700 (PDT)
-Subject: Re: [PATCH v1 01/16] khwasan, mm: change kasan hooks signatures
+        Mon, 14 May 2018 09:56:05 -0700 (PDT)
+Subject: Re: [PATCH v1 03/16] khwasan: add CONFIG_KASAN_GENERIC and
+ CONFIG_KASAN_HW
 References: <cover.1525798753.git.andreyknvl@google.com>
- <427db6b29eaf61d77cb485e9e0a393d34741e498.1525798753.git.andreyknvl@google.com>
+ <b31260f782783e21ca2e2a45f9b05016998bf9ed.1525798753.git.andreyknvl@google.com>
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <a5c36c49-ee50-5298-424c-043a591f11e8@virtuozzo.com>
-Date: Mon, 14 May 2018 19:56:20 +0300
+Message-ID: <658f02bd-e647-52e6-87cf-5d91f8243b66@virtuozzo.com>
+Date: Mon, 14 May 2018 19:57:06 +0300
 MIME-Version: 1.0
-In-Reply-To: <427db6b29eaf61d77cb485e9e0a393d34741e498.1525798753.git.andreyknvl@google.com>
+In-Reply-To: <b31260f782783e21ca2e2a45f9b05016998bf9ed.1525798753.git.andreyknvl@google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -29,20 +30,54 @@ Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, L
 
 On 05/08/2018 08:20 PM, Andrey Konovalov wrote:
 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 44aa7847324a..4fcd1442a761 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1351,10 +1351,10 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
->   * Hooks for other subsystems that check memory allocations. In a typical
->   * production configuration these hooks all should produce no code at all.
->   */
-> -static inline void kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
-> +static inline void kmalloc_large_node_hook(void **ptr, size_t size, gfp_t flags)
->  {
-> -	kmemleak_alloc(ptr, size, 1, flags);
-> -	kasan_kmalloc_large(ptr, size, flags);
-> +	kmemleak_alloc(*ptr, size, 1, flags);
-> +	*ptr = kasan_kmalloc_large(*ptr, size, flags);
+> diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
+> index 69552a39951d..47023daf5606 100644
+> --- a/scripts/Makefile.kasan
+> +++ b/scripts/Makefile.kasan
+> @@ -1,5 +1,5 @@
+>  # SPDX-License-Identifier: GPL-2.0
+> -ifdef CONFIG_KASAN
+> +ifdef CONFIG_KASAN_GENERIC
+>  ifdef CONFIG_KASAN_INLINE
+>  	call_threshold := 10000
+>  else
+> @@ -45,3 +45,28 @@ endif
+>  CFLAGS_KASAN_NOSANITIZE := -fno-builtin
+>  
+>  endif
+> +
+> +ifdef CONFIG_KASAN_HW
+> +
+> +ifdef CONFIG_KASAN_INLINE
+> +    instrumentation_flags := -mllvm -hwasan-mapping-offset=$(KASAN_SHADOW_OFFSET)
+> +else
+> +    instrumentation_flags := -mllvm -hwasan-instrument-with-calls=1
+> +endif
+> +
+> +CFLAGS_KASAN_MINIMAL := -fsanitize=kernel-hwaddress
+> +
+> +ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
+> +    ifneq ($(CONFIG_COMPILE_TEST),y)
+> +        $(warning Cannot use CONFIG_KASAN_HW: \
+> +            -fsanitize=hwaddress is not supported by compiler)
+> +    endif
+> +else
+> +    CFLAGS_KASAN := $(call cc-option, -fsanitize=kernel-hwaddress \
+> +        -mllvm -hwasan-instrument-stack=0 \
+> +        $(instrumentation_flags))
+> +endif
 
-Why not 'return ptr' like everywhere else?
+So this code does the following:
+ 1) Warn if compiler doesn't support -fsanitize=kernel-hwaddress
+ 2) Compile the kernel with all necessary set of the '-fsanitize=kernel-hwaddress -mllvm -hwasan-*' flags if compiler supports all of them.
+ 3) Compile the kernel with empty CFLAGS_KASAN without a warning if compiler supports 'fsanitize=kernel-hwaddress',
+     but doesn't support the rest '-mllvm -hwasan-*' flags.
+
+The last one is just nonsense.
+
+
+> +
+> +CFLAGS_KASAN_NOSANITIZE := -fno-builtin
+> +
+
+Does it really has to declared twice?
