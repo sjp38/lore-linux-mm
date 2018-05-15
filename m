@@ -1,77 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 710BF6B02B7
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 12:20:41 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id f10-v6so370171pln.21
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 09:20:41 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z23-v6si342107plo.492.2018.05.15.09.20.38
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 831FB6B02B9
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 12:24:26 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id v12-v6so641371wmc.1
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 09:24:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p12-v6si648741edk.399.2018.05.15.09.24.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 15 May 2018 09:20:39 -0700 (PDT)
-Date: Tue, 15 May 2018 09:20:03 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [External]  Re: [RFC PATCH v1 0/6] use mm to manage NVDIMM
- (pmem) zone
-Message-ID: <20180515162003.GA26489@bombadil.infradead.org>
-References: <1525704627-30114-1-git-send-email-yehs1@lenovo.com>
- <20180507184622.GB12361@bombadil.infradead.org>
- <CAPcyv4hBJN3npXwg3Ur32JSWtKvBUZh7F8W+Exx3BB-uKWwPag@mail.gmail.com>
- <x49a7tbi8r3.fsf@segfault.boston.devel.redhat.com>
- <HK2PR03MB1684659175EB0A11E75E9B61929A0@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180508030959.GB16338@bombadil.infradead.org>
- <HK2PR03MB16841CBB549F40F86BB8D35C92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180510162742.GA30442@bombadil.infradead.org>
- <HK2PR03MB1684B34F9D1DF18A8CDE18F292930@HK2PR03MB1684.apcprd03.prod.outlook.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 15 May 2018 09:24:24 -0700 (PDT)
+Date: Tue, 15 May 2018 16:24:23 +0000
+From: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Subject: Re: Are media drivers abusing of GFP_DMA? - was: Re: [LSF/MM TOPIC
+ NOTES] x86 ZONE_DMA love
+Message-ID: <20180515162422.GG27853@wotan.suse.de>
+References: <20180426215406.GB27853@wotan.suse.de>
+ <20180505130815.53a26955@vento.lan>
+ <3561479.qPIcrWnXEC@avalon>
+ <20180507121916.4eb7f5b2@vento.lan>
+ <547252fc-dc74-93c6-fc77-be1bfb558787@st.com>
+ <20180514073503.3da05fc6@vento.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <HK2PR03MB1684B34F9D1DF18A8CDE18F292930@HK2PR03MB1684.apcprd03.prod.outlook.com>
+In-Reply-To: <20180514073503.3da05fc6@vento.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huaisheng HS1 Ye <yehs1@lenovo.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, NingTing Cheng <chengnt@lenovo.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, Linux MM <linux-mm@kvack.org>, "colyli@suse.de" <colyli@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <alexander.levin@verizon.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Ocean HY1 He <hehy1@lenovo.com>
+To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Cc: Fabien DESSENNE <fabien.dessenne@st.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Jean Christophe TROTIN <jean-christophe.trotin@st.com>, Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>, Sakari Ailus <sakari.ailus@linux.intel.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-On Tue, May 15, 2018 at 04:07:28PM +0000, Huaisheng HS1 Ye wrote:
-> > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On Behalf Of Matthew
-> > Wilcox
-> > No.  In the current situation, the user knows that either the entire
-> > page was written back from the pagecache or none of it was (at least
-> > with a journalling filesystem).  With your proposal, we may have pages
-> > splintered along cacheline boundaries, with a mix of old and new data.
-> > This is completely unacceptable to most customers.
+On Mon, May 14, 2018 at 07:35:03AM -0300, Mauro Carvalho Chehab wrote:
+> Hi Fabien,
 > 
-> Dear Matthew,
+> Em Mon, 14 May 2018 08:00:37 +0000
+> Fabien DESSENNE <fabien.dessenne@st.com> escreveu:
 > 
-> Thanks for your great help, I really didn't consider this case.
-> I want to make it a little bit clearer to me. So, correct me if anything wrong.
-> 
-> Is that to say this mix of old and new data in one page, which only has chance to happen when CPU failed to flush all dirty data from LLC to NVDIMM?
-> But if an interrupt can be reported to CPU, and CPU successfully flush all dirty data from cache lines to NVDIMM within interrupt response function, this mix of old and new data can be avoided.
-
-If you can keep the CPU and the memory (and all the busses between them)
-alive for long enough after the power signal hs been tripped, yes.
-Talk to your hardware designers about what it will take to achieve this
-:-) Be sure to ask about the number of retries which may be necessary
-on the CPU interconnect to flush all data to an NV-DIMM attached to a
-remote CPU.
-
-> Current X86_64 uses N-way set associative cache, and every cache line has 64 bytes.
-> For 4096 bytes page, one page shall be splintered to 64 (4096/64) lines. Is it right?
-
-That's correct.
-
-> > > > Then there's the problem of reconnecting the page cache (which is
-> > > > pointed to by ephemeral data structures like inodes and dentries) to
-> > > > the new inodes.
-> > > Yes, it is not easy.
+> > On 07/05/18 17:19, Mauro Carvalho Chehab wrote:
+> > > Em Mon, 07 May 2018 16:26:08 +0300
+> > > Laurent Pinchart <laurent.pinchart@ideasonboard.com> escreveu:
+> > >  
+> > >> Hi Mauro,
+> > >>
+> > >> On Saturday, 5 May 2018 19:08:15 EEST Mauro Carvalho Chehab wrote:  
+> > >>> There was a recent discussion about the use/abuse of GFP_DMA flag when
+> > >>> allocating memories at LSF/MM 2018 (see Luis notes enclosed).
+> > >>>
+> > >>> The idea seems to be to remove it, using CMA instead. Before doing that,
+> > >>> better to check if what we have on media is are valid use cases for it, or
+> > >>> if it is there just due to some misunderstanding (or because it was
+> > >>> copied from some other code).
+> > >>>
+> > >>> Hans de Goede sent us today a patch stopping abuse at gspca, and I'm
+> > >>> also posting today two other patches meant to stop abuse of it on USB
+> > >>> drivers. Still, there are 4 platform drivers using it:
+> > >>>
+> > >>> 	$ git grep -l -E "GFP_DMA\\b" drivers/media/
+> > >>> 	drivers/media/platform/omap3isp/ispstat.c
+> > >>> 	drivers/media/platform/sti/bdisp/bdisp-hw.c
+> > >>> 	drivers/media/platform/sti/hva/hva-mem.c  
 > > 
-> > Right ... and until we have that ability, there's no point in this patch.
-> We are focusing to realize this ability.
+> > Hi Mauro,
+> > 
+> > The two STI drivers (bdisp-hw.c and hva-mem.c) are only expected to run 
+> > on ARM platforms, not on x86.
+> > Since this thread deals with x86 & DMA trouble, I am not sure that we 
+> > actually have a problem for the sti drivers.
+> > 
+> > There are some other sti drivers that make use of this GFP_DMA flag 
+> > (drivers/gpu/drm/sti/sti_*.c) and it does not seem to be a problem.
+> > 
+> > Nevertheless I can see that the media sti drivers depend on COMPILE_TEST 
+> > (which is not the case for the DRM ones).
+> > Would it be an acceptable solution to remove the COMPILE_TEST dependency?
+> 
+> This has nothing to do with either x86 
 
-But is it the right approach?  So far we have (I think) two parallel
-activities.  The first is for local storage, using DAX to store files
-directly on the pmem.  The second is a physical block cache for network
-filesystems (both NAS and SAN).  You seem to be wanting to supplant the
-second effort, but I think it's much harder to reconnect the logical cache
-(ie the page cache) than it is the physical cache (ie the block cache).
+Actually it does.
+
+> or COMPILE_TEST. The thing is
+> that there's a plan for removing GFP_DMA from the Kernel[1], 
+
+That would not be possible given architectures use GFP_DMA for other
+things and there are plenty of legacy x86 drivers which still need to be
+around. So the focus from mm folks shifted to letting x86 folks map
+GFP_DMA onto the CMA pool. Long term, this is nothing that driver developers
+need to care for, but just knowing internally behind the scenes there is some
+cleaning up being done in terms of architecture.
+
+> as it was
+> originally meant to be used only by old PCs, where the DMA controllers
+> used only  on the bottom 16 MB memory address (24 bits).
+
+This is actually the part that is x86 specific.
+
+Each other architecture may use it for some other definition and it seems
+some architectures use GFP_DMA all over the place. So the topic really should
+be about x86.
+
+> IMHO, it is 
+> very unlikely that any ARM SoC have such limitation.
+
+Right, how the flag is used on other architectures varies, so in fact the
+focus for cleaning up for now should be an x86 effort. Whether or not
+other architectures do something silly with GFP_DMA is beyond the scope
+of what was discussed.
+
+  Luis
