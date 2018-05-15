@@ -1,41 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 514E36B02A9
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 10:18:46 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x21-v6so139107pfn.23
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 07:18:46 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h190-v6si97719pgc.663.2018.05.15.07.18.44
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BDDD16B02AB
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 10:19:41 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id r9-v6so100173pgp.12
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 07:19:41 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id f7-v6si158226pfa.78.2018.05.15.07.19.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 15 May 2018 07:18:44 -0700 (PDT)
-Date: Tue, 15 May 2018 07:18:39 -0700
-From: Matthew Wilcox <willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 May 2018 07:19:40 -0700 (PDT)
 Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
-Message-ID: <20180515141839.GI31599@bombadil.infradead.org>
-References: <20180514191551.GA27939@bombadil.infradead.org>
- <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
- <20180515004137.GA5168@bombadil.infradead.org>
- <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
- <20180515111159.GA31599@bombadil.infradead.org>
- <6999e635-e804-99d0-12fc-c13ff3e9ca58@netapp.com>
- <20180515120355.GE31599@bombadil.infradead.org>
- <afe2c02f-3ecd-5f54-53ab-d45c11a5b4aa@netapp.com>
- <20180515135056.GG31599@bombadil.infradead.org>
- <da89bf77-fcb5-1c0c-f5ce-66e552d9a54d@netapp.com>
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <428e2683-42df-c810-eb5f-0c6841f50836@linux.intel.com>
+Date: Tue, 15 May 2018 07:19:38 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <da89bf77-fcb5-1c0c-f5ce-66e552d9a54d@netapp.com>
+In-Reply-To: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boazh@netapp.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
+To: Boaz Harrosh <boazh@netapp.com>, Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-On Tue, May 15, 2018 at 05:10:57PM +0300, Boaz Harrosh wrote:
-> I'm not a lawyer either but I think I'm doing OK. Because I am doing exactly
-> like FUSE is doing. Only some 15 years later, with modern CPUs in mind. I do not
-> think I am doing anything new here, am I?
+On 05/14/2018 10:28 AM, Boaz Harrosh wrote:
+> The VM_LOCAL_CPU flag tells the Kernel that the vma will be used
+> from a single-core only, and therefore invalidation (flush_tlb) of
+> PTE(s) need not be a wide CPU scheduling.
 
-You should talk to a lawyer.  I'm not giving you legal advice.
-I'm telling you that I think what you're doing is unethical.
+This doesn't work on x86.  We load TLB entries for lots of reasons, even
+if the PTE is never "used".  Is there another architecture you had in
+mind that has more predictable TLB population behavior?
