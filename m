@@ -1,120 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A5F26B026B
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 20:58:52 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id z16-v6so6990124pgv.16
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 17:58:52 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id j10-v6si10761466pfn.87.2018.05.14.17.58.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 17:58:50 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
-Date: Tue, 15 May 2018 08:57:56 +0800
-Message-Id: <20180515005756.28942-1-ying.huang@intel.com>
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 426FC6B026D
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 21:13:16 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 89-v6so1106690plc.1
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 18:13:16 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (lgeamrelo13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id e12-v6si8587289pgn.155.2018.05.14.18.13.13
+        for <linux-mm@kvack.org>;
+        Mon, 14 May 2018 18:13:14 -0700 (PDT)
+Date: Tue, 15 May 2018 10:13:11 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
+Message-ID: <20180515011311.GA32447@js1304-desktop>
+References: <20180420210200.GH10788@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180421144757.GC14610@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180423151545.GU17484@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424034643.GA26636@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804240818530.28016@file01.intranet.prod.int.rdu2.redhat.com>
+ <20180424171651.GC30577@bombadil.infradead.org>
+ <alpine.LRH.2.02.1804241428120.8296@file01.intranet.prod.int.rdu2.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1804241428120.8296@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-From: Huang Ying <ying.huang@intel.com>
+Hello, Mikulas.
 
-This is to take better advantage of huge page clearing
-optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
-when clearing huge page").  Which will clear to access sub-page last
-to avoid the cache lines of to access sub-page to be evicted when
-clearing other sub-pages.  This needs to get the address of the
-sub-page to access, that is, the fault address inside of the huge
-page.  So the hugetlb no page fault handler is changed to pass that
-information.  This will benefit workloads which don't access the begin
-of the huge page after page fault.
+On Tue, Apr 24, 2018 at 02:41:47PM -0400, Mikulas Patocka wrote:
+> 
+> 
+> On Tue, 24 Apr 2018, Matthew Wilcox wrote:
+> 
+> > On Tue, Apr 24, 2018 at 08:29:14AM -0400, Mikulas Patocka wrote:
+> > > 
+> > > 
+> > > On Mon, 23 Apr 2018, Matthew Wilcox wrote:
+> > > 
+> > > > On Mon, Apr 23, 2018 at 08:06:16PM -0400, Mikulas Patocka wrote:
+> > > > > Some bugs (such as buffer overflows) are better detected
+> > > > > with kmalloc code, so we must test the kmalloc path too.
+> > > > 
+> > > > Well now, this brings up another item for the collective TODO list --
+> > > > implement redzone checks for vmalloc.  Unless this is something already
+> > > > taken care of by kasan or similar.
+> > > 
+> > > The kmalloc overflow testing is also not ideal - it rounds the size up to 
+> > > the next slab size and detects buffer overflows only at this boundary.
+> > > 
+> > > Some times ago, I made a "kmalloc guard" patch that places a magic number 
+> > > immediatelly after the requested size - so that it can detect overflows at 
+> > > byte boundary 
+> > > ( https://www.redhat.com/archives/dm-devel/2014-September/msg00018.html )
+> > > 
+> > > That patch found a bug in crypto code:
+> > > ( http://lkml.iu.edu/hypermail/linux/kernel/1409.1/02325.html )
+> > 
+> > Is it still worth doing this, now we have kasan?
+> 
+> The kmalloc guard has much lower overhead than kasan.
 
-With this patch, the throughput increases ~28.1% in vm-scalability
-anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
-system (44 cores, 88 threads).  The test case creates 88 processes,
-each process mmap a big anonymous memory area and writes to it from
-the end to the begin.  For each process, other processes could be seen
-as other workload which generates heavy cache pressure.  At the same
-time, the cache miss rate reduced from ~36.3% to ~25.6%, the
-IPC (instruction per cycle) increased from 0.3 to 0.37, and the time
-spent in user space is reduced ~19.3%
+I skimm at your code and it requires rebuilding the kernel.
+I think that if rebuilding is required as the same with the KASAN,
+using the KASAN is better since it has far better coverage for
+detection the bug.
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andi Kleen <andi.kleen@intel.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Shaohua Li <shli@fb.com>
-Cc: Christopher Lameter <cl@linux.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Punit Agrawal <punit.agrawal@arm.com>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
- mm/hugetlb.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+However, I think that if the redzone can be setup tightly
+without rebuild, it would be worth implementing. I have an idea to
+implement it only for the SLUB. Could I try it? (I'm asking this
+because I'm inspired from the above patch.) :)
+Or do you wanna try it?
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 129088710510..3de6326abf39 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3677,7 +3677,7 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
- 
- static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			   struct address_space *mapping, pgoff_t idx,
--			   unsigned long address, pte_t *ptep, unsigned int flags)
-+			   unsigned long faddress, pte_t *ptep, unsigned int flags)
- {
- 	struct hstate *h = hstate_vma(vma);
- 	int ret = VM_FAULT_SIGBUS;
-@@ -3686,6 +3686,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct page *page;
- 	pte_t new_pte;
- 	spinlock_t *ptl;
-+	unsigned long address = faddress & huge_page_mask(h);
- 
- 	/*
- 	 * Currently, we are forced to kill the process in the event the
-@@ -3749,7 +3750,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 				ret = VM_FAULT_SIGBUS;
- 			goto out;
- 		}
--		clear_huge_page(page, address, pages_per_huge_page(h));
-+		clear_huge_page(page, faddress, pages_per_huge_page(h));
- 		__SetPageUptodate(page);
- 		set_page_huge_active(page);
- 
-@@ -3871,7 +3872,7 @@ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
- #endif
- 
- int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
--			unsigned long address, unsigned int flags)
-+			unsigned long faddress, unsigned int flags)
- {
- 	pte_t *ptep, entry;
- 	spinlock_t *ptl;
-@@ -3883,8 +3884,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct hstate *h = hstate_vma(vma);
- 	struct address_space *mapping;
- 	int need_wait_lock = 0;
--
--	address &= huge_page_mask(h);
-+	unsigned long address = faddress & huge_page_mask(h);
- 
- 	ptep = huge_pte_offset(mm, address, huge_page_size(h));
- 	if (ptep) {
-@@ -3914,7 +3914,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	entry = huge_ptep_get(ptep);
- 	if (huge_pte_none(entry)) {
--		ret = hugetlb_no_page(mm, vma, mapping, idx, address, ptep, flags);
-+		ret = hugetlb_no_page(mm, vma, mapping, idx, faddress, ptep, flags);
- 		goto out_mutex;
- 	}
- 
--- 
-2.16.1
+Thanks.
