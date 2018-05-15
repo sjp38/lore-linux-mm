@@ -1,205 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E72EE6B02B1
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 10:50:15 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id a6-v6so197118pll.22
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 07:50:15 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0102.outbound.protection.outlook.com. [104.47.0.102])
-        by mx.google.com with ESMTPS id bc2-v6si214562plb.43.2018.05.15.07.50.12
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D104E6B02B3
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 12:00:11 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id ay8-v6so333091plb.9
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 09:00:11 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id a4-v6si325536plp.219.2018.05.15.09.00.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 15 May 2018 07:50:13 -0700 (PDT)
-Subject: Re: [PATCH v5 11/13] mm: Iterate only over charged shrinkers during
- memcg shrink_slab()
-References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
- <152594603565.22949.12428911301395699065.stgit@localhost.localdomain>
- <20180515054445.nhe4zigtelkois4p@esperanza>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <5c0dbd12-8100-61a2-34fd-8878c57195a3@virtuozzo.com>
-Date: Tue, 15 May 2018 17:49:59 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 May 2018 09:00:07 -0700 (PDT)
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w4FFtwit169879
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 16:00:04 GMT
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by aserp2120.oracle.com with ESMTP id 2hx29w1456-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 16:00:04 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w4FG02ir020494
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 16:00:03 GMT
+Received: from abhmp0007.oracle.com (abhmp0007.oracle.com [141.146.116.13])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w4FG0200019742
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 16:00:02 GMT
+Received: by mail-ot0-f179.google.com with SMTP id t1-v6so779859oth.8
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 09:00:01 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180515054445.nhe4zigtelkois4p@esperanza>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20180510115356.31164-1-pasha.tatashin@oracle.com>
+ <20180510123039.GF5325@dhcp22.suse.cz> <CAGM2reZbYR96_uv-SB=5eL6tt0OSq9yXhtA-B2TGHbRQtfGU6g@mail.gmail.com>
+ <20180515091036.GC12670@dhcp22.suse.cz> <CAGM2reaQusBA-nmQ5xqH4u-EVxgJCnaHAZs=1AXFOpNWTh7VbQ@mail.gmail.com>
+ <20180515125541.GH12670@dhcp22.suse.cz>
+In-Reply-To: <20180515125541.GH12670@dhcp22.suse.cz>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Tue, 15 May 2018 11:59:25 -0400
+Message-ID: <CAGM2reYGFjG38FW0nEf1gwRMfDyVQ7QCGZ83VewxXgedeT=Zsg@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: allow deferred page init for vmemmap only
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: mhocko@kernel.org
+Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, tglx@linutronix.de, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, Steven Rostedt <rostedt@goodmis.org>, Fengguang Wu <fengguang.wu@intel.com>, Dennis Zhou <dennisszhou@gmail.com>
 
-On 15.05.2018 08:44, Vladimir Davydov wrote:
-> On Thu, May 10, 2018 at 12:53:55PM +0300, Kirill Tkhai wrote:
->> Using the preparations made in previous patches, in case of memcg
->> shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
->> bitmap. To do that, we separate iterations over memcg-aware and
->> !memcg-aware shrinkers, and memcg-aware shrinkers are chosen
->> via for_each_set_bit() from the bitmap. In case of big nodes,
->> having many isolated environments, this gives significant
->> performance growth. See next patches for the details.
->>
->> Note, that the patch does not respect to empty memcg shrinkers,
->> since we never clear the bitmap bits after we set it once.
->> Their shrinkers will be called again, with no shrinked objects
->> as result. This functionality is provided by next patches.
->>
->> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
->> ---
->>  include/linux/memcontrol.h |    1 +
->>  mm/vmscan.c                |   70 ++++++++++++++++++++++++++++++++++++++------
->>  2 files changed, 62 insertions(+), 9 deletions(-)
->>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 82f892e77637..436691a66500 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -760,6 +760,7 @@ void mem_cgroup_split_huge_fixup(struct page *head);
->>  #define MEM_CGROUP_ID_MAX	0
->>  
->>  struct mem_cgroup;
->> +#define root_mem_cgroup NULL
-> 
-> Let's instead export mem_cgroup_is_root(). In case if MEMCG is disabled
-> it will always return false.
-> 
->>  
->>  static inline bool mem_cgroup_disabled(void)
->>  {
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index d8a2870710e0..a2e38e05adb5 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -376,6 +376,7 @@ int prealloc_shrinker(struct shrinker *shrinker)
->>  			goto free_deferred;
->>  	}
->>  
->> +	INIT_LIST_HEAD(&shrinker->list);
-> 
-> IMO this shouldn't be here, see my comment below.
-> 
->>  	return 0;
->>  
->>  free_deferred:
->> @@ -547,6 +548,63 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->>  	return freed;
->>  }
->>  
->> +#ifdef CONFIG_MEMCG_SHRINKER
->> +static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
->> +			struct mem_cgroup *memcg, int priority)
->> +{
->> +	struct memcg_shrinker_map *map;
->> +	unsigned long freed = 0;
->> +	int ret, i;
->> +
->> +	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
->> +		return 0;
->> +
->> +	if (!down_read_trylock(&shrinker_rwsem))
->> +		return 0;
->> +
->> +	/*
->> +	 * 1)Caller passes only alive memcg, so map can't be NULL.
->> +	 * 2)shrinker_rwsem protects from maps expanding.
-> 
->             ^^
-> Nit: space missing here :-)
-> 
->> +	 */
->> +	map = rcu_dereference_protected(MEMCG_SHRINKER_MAP(memcg, nid), true);
->> +	BUG_ON(!map);
->> +
->> +	for_each_set_bit(i, map->map, memcg_shrinker_nr_max) {
->> +		struct shrink_control sc = {
->> +			.gfp_mask = gfp_mask,
->> +			.nid = nid,
->> +			.memcg = memcg,
->> +		};
->> +		struct shrinker *shrinker;
->> +
->> +		shrinker = idr_find(&shrinker_idr, i);
->> +		if (!shrinker) {
->> +			clear_bit(i, map->map);
->> +			continue;
->> +		}
-> 
-> The shrinker must be memcg aware so please add
-> 
->   BUG_ON((shrinker->flags & SHRINKER_MEMCG_AWARE) == 0);
-> 
->> +		if (list_empty(&shrinker->list))
->> +			continue;
-> 
-> I don't like using shrinker->list as an indicator that the shrinker has
-> been initialized. IMO if you do need such a check, you should split
-> shrinker_idr registration in two steps - allocate a slot in 'prealloc'
-> and set the pointer in 'register'. However, can we really encounter an
-> unregistered shrinker here? AFAIU a bit can be set in the shrinker map
-> only after the corresponding shrinker has been initialized, no?
-> 
->> +
->> +		ret = do_shrink_slab(&sc, shrinker, priority);
->> +		freed += ret;
->> +
->> +		if (rwsem_is_contended(&shrinker_rwsem)) {
->> +			freed = freed ? : 1;
->> +			break;
->> +		}
->> +	}
->> +
->> +	up_read(&shrinker_rwsem);
->> +	return freed;
->> +}
->> +#else /* CONFIG_MEMCG_SHRINKER */
->> +static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
->> +			struct mem_cgroup *memcg, int priority)
->> +{
->> +	return 0;
->> +}
->> +#endif /* CONFIG_MEMCG_SHRINKER */
->> +
->>  /**
->>   * shrink_slab - shrink slab caches
->>   * @gfp_mask: allocation context
->> @@ -576,8 +634,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->>  	struct shrinker *shrinker;
->>  	unsigned long freed = 0;
->>  
->> -	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
->> -		return 0;
->> +	if (memcg && memcg != root_mem_cgroup)
-> 
-> if (!mem_cgroup_is_root(memcg))
-> 
->> +		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
->>  
->>  	if (!down_read_trylock(&shrinker_rwsem))
->>  		goto out;
->> @@ -589,13 +647,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->>  			.memcg = memcg,
->>  		};
->>  
->> -		/*
->> -		 * If kernel memory accounting is disabled, we ignore
->> -		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
->> -		 * passing NULL for memcg.
->> -		 */
->> -		if (memcg_kmem_enabled() &&
->> -		    !!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
->> +		if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
->>  			continue;
-> 
-> I want this check gone. It's easy to achieve, actually - just remove the
-> following lines from shrink_node()
-> 
-> 		if (global_reclaim(sc))
-> 			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
-> 				    sc->priority);
+> This will always be a maze as the early boot tends to be. Sad but true.
+> That is why I am not really convinced we should use a large hammer and
+> disallow deferred page initialization just because UP implementation of
+> pcp does something too early. We should instead rule that one odd case.
+> Your patch simply doesn't rule a large class of potential issues. It
+> just rules out a potentially useful feature for an odd case. See my
+> point?
 
-This check is not related to the patchset. Let's don't mix everything
-in the single series of patches, because after your last remarks it will
-grow at least up to 15 patches. This patchset can't be responsible for
-everything.
+Hi Michal,
 
->>  
->>  		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
->>
+OK, I will send an updated patch with disabling deferred pages only whe
+NEED_PER_CPU_KM. Hopefully, we won't see similar issues in other places.
+
+Thank you,
+Pavel
