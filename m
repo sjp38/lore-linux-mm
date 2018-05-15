@@ -1,142 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BFB256B0291
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 09:19:31 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v26-v6so31839pgc.14
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 06:19:31 -0700 (PDT)
-Received: from mx143.netapp.com (mx143.netapp.com. [2620:10a:4005:8000:2306::c])
-        by mx.google.com with ESMTPS id v12-v6si15109pgs.538.2018.05.15.06.19.28
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 35ABA6B0293
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 09:24:35 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id d9-v6so67985plj.4
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 06:24:35 -0700 (PDT)
+Received: from mx142.netapp.com (mx142.netapp.com. [2620:10a:4005:8000:2306::b])
+        by mx.google.com with ESMTPS id s1-v6si61931pfb.39.2018.05.15.06.24.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 May 2018 06:19:28 -0700 (PDT)
+        Tue, 15 May 2018 06:24:32 -0700 (PDT)
 Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
 References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
- <20180514191551.GA27939@bombadil.infradead.org>
- <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
- <20180515004137.GA5168@bombadil.infradead.org>
- <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
- <20180515120750.lro2qbskw5cptc5o@lakrids.cambridge.arm.com>
+ <20180514144901.0fe99d240ff8a53047dd512e@linux-foundation.org>
+ <20180515004406.GB5168@bombadil.infradead.org>
+ <cff721c3-65e8-c1e8-9f6d-c37ce6e56416@netapp.com>
 From: Boaz Harrosh <boazh@netapp.com>
-Message-ID: <a9a3af34-6ea0-5639-e9b9-2aa11825f11b@netapp.com>
-Date: Tue, 15 May 2018 16:19:09 +0300
+Message-ID: <6698c486-56e7-1fc2-567c-69cc446a58be@netapp.com>
+Date: Tue, 15 May 2018 16:24:05 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180515120750.lro2qbskw5cptc5o@lakrids.cambridge.arm.com>
+In-Reply-To: <cff721c3-65e8-c1e8-9f6d-c37ce6e56416@netapp.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mark Rutland <mark.rutland@arm.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jeff Moyer <jmoyer@redhat.com>, "Kirill A.
+ Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
  Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van
  Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-On 15/05/18 15:07, Mark Rutland wrote:
-> On Tue, May 15, 2018 at 01:43:23PM +0300, Boaz Harrosh wrote:
->> On 15/05/18 03:41, Matthew Wilcox wrote:
->>> On Mon, May 14, 2018 at 10:37:38PM +0300, Boaz Harrosh wrote:
->>>> On 14/05/18 22:15, Matthew Wilcox wrote:
->>>>> On Mon, May 14, 2018 at 08:28:01PM +0300, Boaz Harrosh wrote:
->>>>>> On a call to mmap an mmap provider (like an FS) can put
->>>>>> this flag on vma->vm_flags.
->>>>>>
->>>>>> The VM_LOCAL_CPU flag tells the Kernel that the vma will be used
->>>>>> from a single-core only, and therefore invalidation (flush_tlb) of
->>>>>> PTE(s) need not be a wide CPU scheduling.
->>>>>
->>>>> I still don't get this.  You're opening the kernel up to being exploited
->>>>> by any application which can persuade it to set this flag on a VMA.
->>>>>
->>>>
->>>> No No this is not an application accessible flag this can only be set
->>>> by the mmap implementor at ->mmap() time (Say same as VM_VM_MIXEDMAP).
->>>>
->>>> Please see the zuf patches for usage (Again apologise for pushing before
->>>> a user)
->>>>
->>>> The mmap provider has all the facilities to know that this can not be
->>>> abused, not even by a trusted Server.
+On 15/05/18 14:54, Boaz Harrosh wrote:
+> On 15/05/18 03:44, Matthew Wilcox wrote:
+>> On Mon, May 14, 2018 at 02:49:01PM -0700, Andrew Morton wrote:
+>>> On Mon, 14 May 2018 20:28:01 +0300 Boaz Harrosh <boazh@netapp.com> wrote:
+>>>> In this project we utilize a per-core server thread so everything
+>>>> is kept local. If we use the regular zap_ptes() API All CPU's
+>>>> are scheduled for the unmap, though in our case we know that we
+>>>> have only used a single core. The regular zap_ptes adds a very big
+>>>> latency on every operation and mostly kills the concurrency of the
+>>>> over all system. Because it imposes a serialization between all cores
 >>>
->>> I don't think page tables work the way you think they work.
->>>
->>> +               err = vm_insert_pfn_prot(zt->vma, zt_addr, pfn, prot);
->>>
->>> That doesn't just insert it into the local CPU's page table.  Any CPU
->>> which directly accesses or even prefetches that address will also get
->>> the translation into its cache.
->>>
+>>> I'd have thought that in this situation, only the local CPU's bit is
+>>> set in the vma's mm_cpumask() and the remote invalidations are not
+>>> performed.  Is that a misunderstanding, or is all that stuff not working
+>>> correctly?
 >>
->> Yes I know, but that is exactly the point of this flag. I know that this
->> address is only ever accessed from a single core. Because it is an mmap (vma)
->> of an O_TMPFILE-exclusive file created in a core-pinned thread and I allow
->> only that thread any kind of access to this vma. Both the filehandle and the
->> mmaped pointer are kept on the thread stack and have no access from outside.
+>> I think you misunderstand Boaz's architecture.  He has one thread per CPU,
+>> so every bit will be set in the mm's (not vma's) mm_cpumask.
+>>
 > 
-> Even if (in the specific context of your application) software on other
-> cores might not explicitly access this area, that does not prevent
-> allocations into TLBs, and TLB maintenance *cannot* be elided.
+> Hi Andrew, Matthew
 > 
-> Even assuming that software *never* explicitly accesses an address which
-> it has not mapped is insufficient.
+> Yes I have been trying to investigate and trace this for days.
+> Please see the code below:
 > 
-> For example, imagine you have two threads, each pinned to a CPU, and
-> some local_cpu_{mmap,munmap} which uses your new flag:
+>> #define flush_tlb_range(vma, start, end)	\
+>> 		flush_tlb_mm_range(vma->vm_mm, start, end, vma->vm_flags)
 > 
-> 	CPU0				CPU1
-> 	x = local_cpu_mmap(...);
-> 	do_things_with(x);
-> 					// speculatively allocates TLB
-> 					// entries for X.
+> The mm_struct @mm below comes from here vma->vm_mm
 > 
-> 	// only invalidates local TLBs
-> 	local_cpu_munmap(x);
+>> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+>> index e055d1a..1d398a0 100644
+>> --- a/arch/x86/mm/tlb.c
+>> +++ b/arch/x86/mm/tlb.c
+>> @@ -611,39 +611,40 @@ static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
+>>  void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+>>  				unsigned long end, unsigned long vmflag)
+>>  {
+>>  	int cpu;
+>>  
+>>  	struct flush_tlb_info info __aligned(SMP_CACHE_BYTES) = {
+>>  		.mm = mm,
+>>  	};
+>>  
+>>  	cpu = get_cpu();
+>>  
+>>  	/* This is also a barrier that synchronizes with switch_mm(). */
+>>  	info.new_tlb_gen = inc_mm_tlb_gen(mm);
+>>  
+>>  	/* Should we flush just the requested range? */
+>>  	if ((end != TLB_FLUSH_ALL) &&
+>>  	    !(vmflag & VM_HUGETLB) &&
+>>  	    ((end - start) >> PAGE_SHIFT) <= tlb_single_page_flush_ceiling) {
+>>  		info.start = start;
+>>  		info.end = end;
+>>  	} else {
+>>  		info.start = 0UL;
+>>  		info.end = TLB_FLUSH_ALL;
+>>  	}
+>>  
+>>  	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
+>>  		VM_WARN_ON(irqs_disabled());
+>>  		local_irq_disable();
+>>  		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
+>>  		local_irq_enable();
+>>  	}
+>>  
+>> -	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+>> +	if (!(vmflag & VM_LOCAL_CPU) &&
+>> +	    cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+>>  		flush_tlb_others(mm_cpumask(mm), &info);
+>>  
 > 
-> 					// TLB entries for X still live
-> 	
-> 					y = local_cpu_mmap(...);
+> I have been tracing the mm_cpumask(vma->vm_mm) at my driver at
+> different points. At vma creation (file_operations->mmap()), 
+> and before the call to insert_pfn (which calls here).
 > 
-> 					// if y == x, we can hit the
+> At the beginning I was wishful thinking that the mm_cpumask(vma->vm_mm)
+> should have a single bit set just as the affinity of the thread on
+> creation of that thread. But then I saw that at %80 of the times some
+> other random bits are also set.
+> 
+> Yes Random. Always the thread affinity (single) bit was set but
+> then zero one or two more bits were set as well. Never seen more then
+> two though, which baffles me a lot.
+> 
+> If it was like Matthew said .i.e the cpumask of the all process
+> then I would expect all the bits to be set. Because I have a thread
+> on each core. And also I would even expect that all vma->vm_mm
+> or maybe mm_cpumask(vma->vm_mm) to point to the same global object.
+> But it was not so. it was pointing to some thread unique object but
+> still those phantom bits were set all over. (And I am almost sure
+> same vma had those bits change over time)
+> 
+> So I would love some mm guy to explain where are those bits collected?
+> But I do not think this is a Kernel bug because as Matthew showed.
+> that vma above can and is allowed to leak memory addresses to other
+> threads / cores in the same process. So it appears that the Kernel
+> has some correct logic behind its madness.
+> 
+Hi Mark
 
-But this y == x is not possible. The x here is held throughout the
-lifetime  of CPU0-pinned thread. And cannot be allocated later to
-another thread.
+So you see %20 of the times the mm_cpumask(vma->vm_mm) is a single
+bit set. And a natural call to flush_tlb_range will only invalidate
+the local cpu. Are you familiar with this logic?
 
-In fact if that file holding the VMA closes we know the server
-crashed and we cleanly close everything.
-(Including properly zapping all maps)
-
-> 					// stale TLB entry, and access
-> 					// the wrong page
-> 					do_things_with(y);
+> Which brings me to another question. How can I find from
+> within a thread Say at the file_operations->mmap() call that the thread
+> is indeed core-pinned. What mm_cpumask should I inspect?
 > 
 
-So even if the CPU pre fetched that TLB no one in the system will use
-this address until proper close. Where everything is properly flushed.
-
-> Consider that after we free x, the kernel could reuse the page for any
-> purpose (e.g. kernel page tables), so this is a major risk.
-> 
-
-So yes. We never free x. We hold it for the entire duration of the ZT-thread
-(ZThread is that core-pinned thread per-core we are using)
-And each time we map some application buffers into that vma and local_tlb
-invalidate when done.
-
-When x is de-allocated, do to a close or a crash, it is all properly zapped.
-
-> This flag simply is not safe, unless the *entire* mm is only ever
-> accessed from a single CPU. In that case, we don't need the flag anyway,
-> as the mm already has a cpumask.
-> 
-
-Did you please see that other part of the thread, and my answer to Andrew?
-why is the vma->vm_mm cpumask so weird. It is neither all bits set nor
-a single bit set. It is very common (20% of the time) for mm_cpumask(vma->vm_mm)
-to be a single bit set. Exactly in an application where I have a thread-per-core
-Please look at that? (I'll ping you from that email)
-
-> Thanks,
-> Mark.
-> 
+Mark, Peter do you know how I can check the above?
 
 Thanks
 Boaz
+
+>>  	put_cpu();
+>>  }
+> 
+> Thanks
+> Boaz
+> 
