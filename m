@@ -1,136 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A004F6B0005
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 04:27:29 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g7-v6so11526224wrb.19
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 01:27:29 -0700 (PDT)
-Received: from perceval.ideasonboard.com (perceval.ideasonboard.com. [213.167.242.64])
-        by mx.google.com with ESMTPS id a73-v6si9845587wrc.145.2018.05.15.01.27.27
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E1F5A6B0005
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 04:55:14 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id i10-v6so4607925pgo.7
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 01:55:14 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0118.outbound.protection.outlook.com. [104.47.0.118])
+        by mx.google.com with ESMTPS id q70-v6si10958662pfa.272.2018.05.15.01.55.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 15 May 2018 01:27:27 -0700 (PDT)
-From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Subject: Re: Are media drivers abusing of GFP_DMA? - was: Re: [LSF/MM TOPIC NOTES] x86 ZONE_DMA love
-Date: Tue, 15 May 2018 11:27:44 +0300
-Message-ID: <2362912.ePyn3BKvGt@avalon>
-In-Reply-To: <63607d94-b974-2bcd-c15e-fcb9350d8470@st.com>
-References: <20180426215406.GB27853@wotan.suse.de> <20180514073857.7fd69136@vento.lan> <63607d94-b974-2bcd-c15e-fcb9350d8470@st.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 15 May 2018 01:55:12 -0700 (PDT)
+Subject: Re: [PATCH v5 13/13] mm: Clear shrinker bit if there are no objects
+ related to memcg
+References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
+ <152594605549.22949.16491037134168999424.stgit@localhost.localdomain>
+ <20180515055913.alk3pau43e3jps3y@esperanza>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <1e31235c-f4e3-1046-57c8-741de095e616@virtuozzo.com>
+Date: Tue, 15 May 2018 11:55:04 +0300
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+In-Reply-To: <20180515055913.alk3pau43e3jps3y@esperanza>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fabien DESSENNE <fabien.dessenne@st.com>
-Cc: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>, Jean Christophe TROTIN <jean-christophe.trotin@st.com>, Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>, Sakari Ailus <sakari.ailus@linux.intel.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-Hello,
-
-On Tuesday, 15 May 2018 10:30:28 EEST Fabien DESSENNE wrote:
-> On 14/05/18 12:39, Mauro Carvalho Chehab wrote:
-> > Em Mon, 14 May 2018 07:35:03 -0300 Mauro Carvalho Chehab escreveu:
-> >> Em Mon, 14 May 2018 08:00:37 +0000 Fabien DESSENNE escreveu:
-> >>> On 07/05/18 17:19, Mauro Carvalho Chehab wrote:
-> >>>> Em Mon, 07 May 2018 16:26:08 +0300 Laurent Pinchart escreveu:
-> >>>>> On Saturday, 5 May 2018 19:08:15 EEST Mauro Carvalho Chehab wrote:
-> >>>>> 
-> >>>>>> There was a recent discussion about the use/abuse of GFP_DMA flag
-> >>>>>> when allocating memories at LSF/MM 2018 (see Luis notes enclosed).
-> >>>>>>
-> >>>>>> The idea seems to be to remove it, using CMA instead. Before doing
-> >>>>>> that, better to check if what we have on media is are valid use cases
-> >>>>>> for it, or if it is there just due to some misunderstanding (or
-> >>>>>> because it was copied from some other code).
-> >>>>>>
-> >>>>>> Hans de Goede sent us today a patch stopping abuse at gspca, and I'm
-> >>>>>> also posting today two other patches meant to stop abuse of it on
-> >>>>>> USB drivers. Still, there are 4 platform drivers using it:
-> >>>>>>
-> >>>>>> 	$ git grep -l -E "GFP_DMA\\b" drivers/media/
-> >>>>>> 	drivers/media/platform/omap3isp/ispstat.c
-> >>>>>> 	drivers/media/platform/sti/bdisp/bdisp-hw.c
-> >>>>>> 	drivers/media/platform/sti/hva/hva-mem.c
-> >>>
-> >>> The two STI drivers (bdisp-hw.c and hva-mem.c) are only expected to run
-> >>> on ARM platforms, not on x86. Since this thread deals with x86 & DMA
-> >>> trouble, I am not sure that we actually have a problem for the sti
-> >>> drivers.
-> >>>
-> >>> There are some other sti drivers that make use of this GFP_DMA flag
-> >>> (drivers/gpu/drm/sti/sti_*.c) and it does not seem to be a problem.
-> >>>
-> >>> Nevertheless I can see that the media sti drivers depend on COMPILE_TEST
-> >>> (which is not the case for the DRM ones).
-> >>> Would it be an acceptable solution to remove the COMPILE_TEST
-> >>> dependency?
-> >> 
-> >> This has nothing to do with either x86 or COMPILE_TEST. The thing is
-> >> that there's a plan for removing GFP_DMA from the Kernel[1], as it was
-> >> originally meant to be used only by old PCs, where the DMA controllers
-> >> used only  on the bottom 16 MB memory address (24 bits). IMHO, it is
-> >> very unlikely that any ARM SoC have such limitation.
-> >>
-> >> [1] https://lwn.net/Articles/753273/ (article will be freely available
-> >> on May, 17)
-> > 
-> > Btw, you can also read about that at:
-> > 
-> > 	https://lwn.net/Articles/753274/
-> >
-> >> Anyway, before the removal of GFP_DMA happens, I'd like to better
-> >> understand why we're using it at media, and if we can, instead,
-> >> set the DMA bit mask, just like almost all other media drivers
-> >> that require to confine DMA into a certain range do. In the case
-> >> of ARM, this is what we currently have:
-> >>
-> >> drivers/media/platform/exynos-gsc/gsc-core.c:  
-> >> vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
-> >> drivers/media/platform/exynos4-is/fimc-core.c: 
-> >> vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
-> >> drivers/media/platform/exynos4-is/fimc-is.c:   
-> >> vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
-> >> drivers/media/platform/exynos4-is/fimc-lite.c: 
-> >> vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
-> >> drivers/media/platform/mtk-mdp/mtk_mdp_core.c: 
-> >> vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
-> >> drivers/media/platform/omap3isp/isp.c:  ret =
-> >> dma_coerce_mask_and_coherent(isp->dev, DMA_BIT_MASK(32));
-> >> drivers/media/platform/s5p-g2d/g2d.c:  
-> >> vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
-> >> drivers/media/platform/s5p-jpeg/jpeg-core.c:   
-> >> vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
-> >> drivers/media/platform/s5p-mfc/s5p_mfc.c:                               
-> >>        DMA_BIT_MASK(32));
-> >> drivers/media/platform/s5p-mfc/s5p_mfc.c:     
-> >>                                  DMA_BIT_MASK(32));
-> >> drivers/media/platform/s5p-mfc/s5p_mfc.c:      
-> >> vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
+On 15.05.2018 08:59, Vladimir Davydov wrote:
+> On Thu, May 10, 2018 at 12:54:15PM +0300, Kirill Tkhai wrote:
+>> To avoid further unneed calls of do_shrink_slab()
+>> for shrinkers, which already do not have any charged
+>> objects in a memcg, their bits have to be cleared.
+>>
+>> This patch introduces a lockless mechanism to do that
+>> without races without parallel list lru add. After
+>> do_shrink_slab() returns SHRINK_EMPTY the first time,
+>> we clear the bit and call it once again. Then we restore
+>> the bit, if the new return value is different.
+>>
+>> Note, that single smp_mb__after_atomic() in shrink_slab_memcg()
+>> covers two situations:
+>>
+>> 1)list_lru_add()     shrink_slab_memcg
+>>     list_add_tail()    for_each_set_bit() <--- read bit
+>>                          do_shrink_slab() <--- missed list update (no barrier)
+>>     <MB>                 <MB>
+>>     set_bit()            do_shrink_slab() <--- seen list update
+>>
+>> This situation, when the first do_shrink_slab() sees set bit,
+>> but it doesn't see list update (i.e., race with the first element
+>> queueing), is rare. So we don't add <MB> before the first call
+>> of do_shrink_slab() instead of this to do not slow down generic
+>> case. Also, it's need the second call as seen in below in (2).
+>>
+>> 2)list_lru_add()      shrink_slab_memcg()
+>>     list_add_tail()     ...
+>>     set_bit()           ...
+>>   ...                   for_each_set_bit()
+>>   do_shrink_slab()        do_shrink_slab()
+>>     clear_bit()           ...
+>>   ...                     ...
+>>   list_lru_add()          ...
+>>     list_add_tail()       clear_bit()
+>>     <MB>                  <MB>
+>>     set_bit()             do_shrink_slab()
+>>
+>> The barriers guarantees, the second do_shrink_slab()
+>> in the right side task sees list update if really
+>> cleared the bit. This case is drawn in the code comment.
+>>
+>> [Results/performance of the patchset]
+>>
+>> After the whole patchset applied the below test shows signify
+>> increase of performance:
+>>
+>> $echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+>> $mkdir /sys/fs/cgroup/memory/ct
+>> $echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+>>     $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i; echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs; mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file; done
+>>
+>> Then, 5 sequential calls of drop caches:
+>> $time echo 3 > /proc/sys/vm/drop_caches
+>>
+>> 1)Before:
+>> 0.00user 13.78system 0:13.78elapsed 99%CPU
+>> 0.00user 5.59system 0:05.60elapsed 99%CPU
+>> 0.00user 5.48system 0:05.48elapsed 99%CPU
+>> 0.00user 8.35system 0:08.35elapsed 99%CPU
+>> 0.00user 8.34system 0:08.35elapsed 99%CPU
+>>
+>> 2)After
+>> 0.00user 1.10system 0:01.10elapsed 99%CPU
+>> 0.00user 0.00system 0:00.01elapsed 64%CPU
+>> 0.00user 0.01system 0:00.01elapsed 82%CPU
+>> 0.00user 0.00system 0:00.01elapsed 64%CPU
+>> 0.00user 0.01system 0:00.01elapsed 82%CPU
+>>
+>> The results show the performance increases at least in 548 times.
+>>
+>> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+>> ---
+>>  include/linux/memcontrol.h |    2 ++
+>>  mm/vmscan.c                |   19 +++++++++++++++++--
+>>  2 files changed, 19 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index 436691a66500..82c0bf2d0579 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -1283,6 +1283,8 @@ static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int
+>>  
+>>  		rcu_read_lock();
+>>  		map = MEMCG_SHRINKER_MAP(memcg, nid);
+>> +		/* Pairs with smp mb in shrink_slab() */
+>> +		smp_mb__before_atomic();
+>>  		set_bit(nr, map->map);
+>>  		rcu_read_unlock();
+>>  	}
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 7b0075612d73..189b163bef4a 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -586,8 +586,23 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+>>  			continue;
+>>  
+>>  		ret = do_shrink_slab(&sc, shrinker, priority);
+>> -		if (ret == SHRINK_EMPTY)
+>> -			ret = 0;
+>> +		if (ret == SHRINK_EMPTY) {
+>> +			clear_bit(i, map->map);
+>> +			/*
+>> +			 * Pairs with mb in memcg_set_shrinker_bit():
+>> +			 *
+>> +			 * list_lru_add()     shrink_slab_memcg()
+>> +			 *   list_add_tail()    clear_bit()
+>> +			 *   <MB>               <MB>
+>> +			 *   set_bit()          do_shrink_slab()
+>> +			 */
 > 
-> That's clearer now, thank you for the clarification
-> I am about to send patches for the sti drivers (set the DMA bit mask)
+> Please improve the comment so that it isn't just a diagram.
 
-Some drivers call vb2_dma_contig_set_max_seg_size() and some call 
-dma_coerce_mask_and_coherent(). Both are likely needed, the former telling the 
-DMA mapping API about the maximum size of a scatter-gather chunk that the 
-device supports (when using vb2-dma-contig that size should really be the full 
-address space supported by the device as we want DMA-contiguous buffers), and 
-the latter telling the DMA mapping API about the address space that is 
-accessible through DMA (and thus in which address range buffers must be 
-placed).
+Please, say, which comment you want to see here.
 
-I wonder why the omap3isp driver works without a 
-vb2_dma_contig_set_max_seg_size() call. Sakari, any insight ?
-
-> >>>>>> 	drivers/media/spi/cxd2880-spi.c
-> >>>>>>
-> >>>>>> Could you please check if GFP_DMA is really needed there, or if it
-> >>>>>> is just because of some cut-and-paste from some other place?
-> >>>>> 
-> >>>>> I started looking at that for the omap3isp driver but Sakari beat me
-> >>>>> at submitting a patch. GFP_DMA isn't needed for omap3isp.
-> >>>> 
-> >>>> Thank you both for looking into it.
-
--- 
-Regards,
-
-Laurent Pinchart
+>> +			smp_mb__after_atomic();
+>> +			ret = do_shrink_slab(&sc, shrinker, priority);
+>> +			if (ret == SHRINK_EMPTY)
+>> +				ret = 0;
+>> +			else
+>> +				memcg_set_shrinker_bit(memcg, nid, i);
+>> +		}
+>>  		freed += ret;
+>>  
+>>  		if (rwsem_is_contended(&shrinker_rwsem)) {
+>>
