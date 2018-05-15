@@ -1,114 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 07F826B0275
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 07:54:11 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x21-v6so12957261pfn.23
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 04:54:10 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id o1-v6si10644592plk.577.2018.05.15.04.54.09
+	by kanga.kvack.org (Postfix) with ESMTP id 6E1216B0277
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 07:55:00 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id g1-v6so13061928pfh.19
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 04:55:00 -0700 (PDT)
+Received: from mx141.netapp.com (mx141.netapp.com. [2620:10a:4005:8000:2306::a])
+        by mx.google.com with ESMTPS id r19-v6si8786258pgn.373.2018.05.15.04.54.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 15 May 2018 04:54:09 -0700 (PDT)
-Date: Tue, 15 May 2018 04:54:04 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [External]  Re: [PATCH 2/3] include/linux/gfp.h: use unsigned
- int in gfp_zone
-Message-ID: <20180515115404.GD31599@bombadil.infradead.org>
-References: <20180504154004.GB29829@bombadil.infradead.org>
- <HK2PR03MB168459A1C4FB2B7D3E1F6A4A92840@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180506134814.GB7362@bombadil.infradead.org>
- <HK2PR03MB168447008C658172FFDA402992840@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180506185532.GA13604@bombadil.infradead.org>
- <HK2PR03MB1684BF10B3B515BFABD35F8B929B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180507184410.GA12361@bombadil.infradead.org>
- <20180507212500.bdphwfhk55w6vlbb@twin.jikos.cz>
- <20180508002547.GA16338@bombadil.infradead.org>
- <20180509093659.jalprmufpwspya26@twin.jikos.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 May 2018 04:54:59 -0700 (PDT)
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+ <20180514144901.0fe99d240ff8a53047dd512e@linux-foundation.org>
+ <20180515004406.GB5168@bombadil.infradead.org>
+From: Boaz Harrosh <boazh@netapp.com>
+Message-ID: <cff721c3-65e8-c1e8-9f6d-c37ce6e56416@netapp.com>
+Date: Tue, 15 May 2018 14:54:29 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180509093659.jalprmufpwspya26@twin.jikos.cz>
+In-Reply-To: <20180515004406.GB5168@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dsterba@suse.cz, Huaisheng HS1 Ye <yehs1@lenovo.com>, Michal Hocko <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jeff Moyer <jmoyer@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
+ Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-On Wed, May 09, 2018 at 11:36:59AM +0200, David Sterba wrote:
-> On Mon, May 07, 2018 at 05:25:47PM -0700, Matthew Wilcox wrote:
-> > On Mon, May 07, 2018 at 11:25:01PM +0200, David Sterba wrote:
-> > > On Mon, May 07, 2018 at 11:44:10AM -0700, Matthew Wilcox wrote:
-> > > > But something like btrfs should almost certainly be using ~GFP_ZONEMASK.
-> > > 
-> > > Agreed, the direct use of __GFP_DMA32 was added in 3ba7ab220e8918176c6f
-> > > to substitute GFP_NOFS, so the allocation flags are less restrictive but
-> > > still acceptable for allocation from slab.
-> > > 
-> > > The requirement from btrfs is to avoid highmem, the 'must be acceptable
-> > > for slab' requirement is more MM internal and should have been hidden
-> > > under some opaque flag mask. There was no strong need for that at the
-> > > time.
-> > 
-> > The GFP flags encode a multiple of different requirements.  There's
-> > "What can the allocator do to free memory" and "what area of memory
-> > can the allocation come from".  btrfs doesn't actually want to
-> > allocate memory from ZONE_MOVABLE or ZONE_DMA either.  It's probably never
-> > been called with those particular flags set, but in the spirit of
-> > future-proofing btrfs, perhaps a patch like this is in order?
-> > 
-> > ---- >8 ----
-> > 
-> > Subject: btrfs: Allocate extents from ZONE_NORMAL
-> > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > 
-> > If anyone ever passes a GFP_DMA or GFP_MOVABLE allocation flag to
-> > allocate_extent_state, it will try to allocate memory from the wrong zone.
-> > We just want to allocate memory from ZONE_NORMAL, so use GFP_RECLAIM_MASK
-> > to get what we want.
+On 15/05/18 03:44, Matthew Wilcox wrote:
+> On Mon, May 14, 2018 at 02:49:01PM -0700, Andrew Morton wrote:
+>> On Mon, 14 May 2018 20:28:01 +0300 Boaz Harrosh <boazh@netapp.com> wrote:
+>>> In this project we utilize a per-core server thread so everything
+>>> is kept local. If we use the regular zap_ptes() API All CPU's
+>>> are scheduled for the unmap, though in our case we know that we
+>>> have only used a single core. The regular zap_ptes adds a very big
+>>> latency on every operation and mostly kills the concurrency of the
+>>> over all system. Because it imposes a serialization between all cores
+>>
+>> I'd have thought that in this situation, only the local CPU's bit is
+>> set in the vma's mm_cpumask() and the remote invalidations are not
+>> performed.  Is that a misunderstanding, or is all that stuff not working
+>> correctly?
 > 
-> Looks good to me.
+> I think you misunderstand Boaz's architecture.  He has one thread per CPU,
+> so every bit will be set in the mm's (not vma's) mm_cpumask.
 > 
-> > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> > 
-> > diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-> > index e99b329002cf..4e4a67b7b29d 100644
-> > --- a/fs/btrfs/extent_io.c
-> > +++ b/fs/btrfs/extent_io.c
-> > @@ -216,12 +216,7 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
-> >  {
-> >  	struct extent_state *state;
-> >  
-> > -	/*
-> > -	 * The given mask might be not appropriate for the slab allocator,
-> > -	 * drop the unsupported bits
-> > -	 */
-> > -	mask &= ~(__GFP_DMA32|__GFP_HIGHMEM);
-> 
-> I've noticed there's GFP_SLAB_BUG_MASK that's basically open coded here,
-> but this would not filter out the placement flags.
-> 
-> > -	state = kmem_cache_alloc(extent_state_cache, mask);
-> 
-> I'd prefer some comment here, it's not obvious why the mask is used.
 
-Sorry, I dropped the ball on this.  Would you prefer:
+Hi Andrew, Matthew
 
-        /* Allocate from ZONE_NORMAL */
-        state = kmem_cache_alloc(extent_state_cache, mask & GFP_RECLAIM_MASK);
+Yes I have been trying to investigate and trace this for days.
+Please see the code below:
 
-or
+> #define flush_tlb_range(vma, start, end)	\
+> 		flush_tlb_mm_range(vma->vm_mm, start, end, vma->vm_flags)
 
-	/*
-	 * Callers may pass in a mask which indicates they want to allocate
-	 * from a special zone, so clear those bits here rather than forcing
-	 * each caller to do it.  We only want to use their mask to indicate
-	 * what strategies the memory allocator can use to free memory.
-	 */
-        state = kmem_cache_alloc(extent_state_cache, mask & GFP_RECLAIM_MASK);
+The mm_struct @mm below comes from here vma->vm_mm
 
-I tend to lean towards being more terse, but it's not about me, it's
-about whoever reads this code next.
+> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+> index e055d1a..1d398a0 100644
+> --- a/arch/x86/mm/tlb.c
+> +++ b/arch/x86/mm/tlb.c
+> @@ -611,39 +611,40 @@ static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
+>  void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+>  				unsigned long end, unsigned long vmflag)
+>  {
+>  	int cpu;
+>  
+>  	struct flush_tlb_info info __aligned(SMP_CACHE_BYTES) = {
+>  		.mm = mm,
+>  	};
+>  
+>  	cpu = get_cpu();
+>  
+>  	/* This is also a barrier that synchronizes with switch_mm(). */
+>  	info.new_tlb_gen = inc_mm_tlb_gen(mm);
+>  
+>  	/* Should we flush just the requested range? */
+>  	if ((end != TLB_FLUSH_ALL) &&
+>  	    !(vmflag & VM_HUGETLB) &&
+>  	    ((end - start) >> PAGE_SHIFT) <= tlb_single_page_flush_ceiling) {
+>  		info.start = start;
+>  		info.end = end;
+>  	} else {
+>  		info.start = 0UL;
+>  		info.end = TLB_FLUSH_ALL;
+>  	}
+>  
+>  	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
+>  		VM_WARN_ON(irqs_disabled());
+>  		local_irq_disable();
+>  		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
+>  		local_irq_enable();
+>  	}
+>  
+> -	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+> +	if (!(vmflag & VM_LOCAL_CPU) &&
+> +	    cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+>  		flush_tlb_others(mm_cpumask(mm), &info);
+>  
 
-> > +	state = kmem_cache_alloc(extent_state_cache, mask & GFP_RECLAIM_MASK);
-> >  	if (!state)
-> >  		return state;
-> >  	state->state = 0;
-> 
+I have been tracing the mm_cpumask(vma->vm_mm) at my driver at
+different points. At vma creation (file_operations->mmap()), 
+and before the call to insert_pfn (which calls here).
+
+At the beginning I was wishful thinking that the mm_cpumask(vma->vm_mm)
+should have a single bit set just as the affinity of the thread on
+creation of that thread. But then I saw that at %80 of the times some
+other random bits are also set.
+
+Yes Random. Always the thread affinity (single) bit was set but
+then zero one or two more bits were set as well. Never seen more then
+two though, which baffles me a lot.
+
+If it was like Matthew said .i.e the cpumask of the all process
+then I would expect all the bits to be set. Because I have a thread
+on each core. And also I would even expect that all vma->vm_mm
+or maybe mm_cpumask(vma->vm_mm) to point to the same global object.
+But it was not so. it was pointing to some thread unique object but
+still those phantom bits were set all over. (And I am almost sure
+same vma had those bits change over time)
+
+So I would love some mm guy to explain where are those bits collected?
+But I do not think this is a Kernel bug because as Matthew showed.
+that vma above can and is allowed to leak memory addresses to other
+threads / cores in the same process. So it appears that the Kernel
+has some correct logic behind its madness.
+
+Which brings me to another question. How can I find from
+within a thread Say at the file_operations->mmap() call that the thread
+is indeed core-pinned. What mm_cpumask should I inspect?
+
+>  	put_cpu();
+>  }
+
+Thanks
+Boaz
