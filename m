@@ -1,46 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C8CE46B0005
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 05:16:59 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p7-v6so11629493wrj.4
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 02:16:59 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 65B586B0005
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 05:22:42 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y13-v6so11240729wrl.8
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 02:22:42 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b20-v6si3370034ede.52.2018.05.15.02.16.58
+        by mx.google.com with ESMTPS id t2-v6si480446edq.113.2018.05.15.02.22.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 15 May 2018 02:16:58 -0700 (PDT)
-Date: Tue, 15 May 2018 11:16:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
- oom_lock held.
-Message-ID: <20180515091655.GD12670@dhcp22.suse.cz>
-References: <201805122318.HJG81246.MFVFLFJOOQtSHO@I-love.SAKURA.ne.jp>
+        Tue, 15 May 2018 02:22:40 -0700 (PDT)
+Subject: Re: [PATCH v5 11/17] mm: Improve struct page documentation
+References: <20180504183318.14415-1-willy@infradead.org>
+ <20180504183318.14415-12-willy@infradead.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <223e471c-9425-ce62-a39b-daa69d2a0277@suse.cz>
+Date: Tue, 15 May 2018 11:22:39 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201805122318.HJG81246.MFVFLFJOOQtSHO@I-love.SAKURA.ne.jp>
+In-Reply-To: <20180504183318.14415-12-willy@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, guro@fb.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On Sat 12-05-18 23:18:24, Tetsuo Handa wrote:
-[...]
-> @@ -4241,6 +4240,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  	/* Retry as long as the OOM killer is making progress */
->  	if (did_some_progress) {
->  		no_progress_loops = 0;
-> +		/*
-> +		 * This schedule_timeout_*() serves as a guaranteed sleep for
-> +		 * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
-> +		 */
-> +		if (!tsk_is_oom_victim(current))
-> +			schedule_timeout_uninterruptible(1);
->  		goto retry;
+On 05/04/2018 08:33 PM, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> Rewrite the documentation to describe what you can use in struct
+> page rather than what you can't.
+> 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> Reviewed-by: Randy Dunlap <rdunlap@infradead.org>
 
-We already do have that sleep for PF_WQ_WORKER in should_reclaim_retry.
-Why do we need it here as well?
-
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
