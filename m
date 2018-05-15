@@ -1,63 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 972D66B0289
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 08:40:14 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id x2-v6so168541wmc.3
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 05:40:14 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id A631D6B028B
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 08:55:46 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n17-v6so218635wmc.8
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 05:55:46 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k13-v6si228830edl.323.2018.05.15.05.40.11
+        by mx.google.com with ESMTPS id k55-v6si298086edd.138.2018.05.15.05.55.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 15 May 2018 05:40:11 -0700 (PDT)
-Subject: Re: [PATCH v5 13/17] mm: Add hmm_data to struct page
-From: Vlastimil Babka <vbabka@suse.cz>
-References: <20180504183318.14415-1-willy@infradead.org>
- <20180504183318.14415-14-willy@infradead.org>
- <3a804ef2-9196-c946-895c-54dc7cab618b@suse.cz>
-Message-ID: <d539c5a6-776f-e180-73ec-b17ddc98d8ee@suse.cz>
-Date: Tue, 15 May 2018 14:40:08 +0200
+        Tue, 15 May 2018 05:55:44 -0700 (PDT)
+Date: Tue, 15 May 2018 14:55:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: allow deferred page init for vmemmap only
+Message-ID: <20180515125541.GH12670@dhcp22.suse.cz>
+References: <20180510115356.31164-1-pasha.tatashin@oracle.com>
+ <20180510123039.GF5325@dhcp22.suse.cz>
+ <CAGM2reZbYR96_uv-SB=5eL6tt0OSq9yXhtA-B2TGHbRQtfGU6g@mail.gmail.com>
+ <20180515091036.GC12670@dhcp22.suse.cz>
+ <CAGM2reaQusBA-nmQ5xqH4u-EVxgJCnaHAZs=1AXFOpNWTh7VbQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <3a804ef2-9196-c946-895c-54dc7cab618b@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGM2reaQusBA-nmQ5xqH4u-EVxgJCnaHAZs=1AXFOpNWTh7VbQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, tglx@linutronix.de, Linux Memory Management List <linux-mm@kvack.org>, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, Steven Rostedt <rostedt@goodmis.org>, Fengguang Wu <fengguang.wu@intel.com>, Dennis Zhou <dennisszhou@gmail.com>
 
-On 05/15/2018 11:32 AM, Vlastimil Babka wrote:
->> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
->> index 5a519279dcd5..fa05e6ca31ed 100644
->> --- a/include/linux/mm_types.h
->> +++ b/include/linux/mm_types.h
->> @@ -150,11 +150,15 @@ struct page {
->>  		/** @rcu_head: You can use this to free a page by RCU. */
->>  		struct rcu_head rcu_head;
->>  
->> -		/**
->> -		 * @pgmap: For ZONE_DEVICE pages, this points to the hosting
->> -		 * device page map.
->> -		 */
->> -		struct dev_pagemap *pgmap;
->> +		struct {
->> +			/**
->> +			 * @pgmap: For ZONE_DEVICE pages, this points to the
->> +			 * hosting device page map.
->> +			 */
->> +			struct dev_pagemap *pgmap;
->> +			unsigned long hmm_data;
->> +			unsigned long _zd_pad_1;	/* uses mapping */
->> +		};
+On Tue 15-05-18 08:17:27, Pavel Tatashin wrote:
+> Hi Michal,
 > 
-> Maybe move this above rcu_head and make the comments look more like for
-> the other union variants?
+> Thank you for your reply, my comments below:
+> 
+> > You are now disabling a potentially useful feature to SPARSEMEM users
+> > without having any evidence that they do suffer from the issue which is
+> > kinda sad. Especially when the only known offender is a UP pcp allocator
+> > implementation.
+> 
+> True, but what is the use case for having SPARSEMEM without virtual mapping
+> and deferred struct page init together. Is it a common case to have
+> multiple gigabyte of memory and currently NUMA config to benefit from
+> deferred page init and yet not having a memory for virtual mapping of
+> struct pages? Or am I missing some common case here?
 
-With that you can add my acked-by as well, thanks.
+Well, I strongly suspect that this is more a momentum, then a real
+reason to stick with SPARSEMEM_MANUAL. I would really love to reduce the
+number of memory models we have. Getting rid of SPARSEMEM would be a
+good start as VMEMMAP should be much better.
+ 
+> > I will not insist of course but it seems like your fix doesn't really
+> > prevent virt_to_page or other direct page access either.
+> 
+> I am not sure what do you mean, I do not prevent virt_to_page, but that is
+> OK for SPARSEMEM_VMEMMAP case, because we do not need to access "struct
+> page" for this operation, as translation is in page table. Yes, we do not
+> prohibit other struct page accesses before mm_init(), but we now have a
+> feature that checks for uninitialized struct page access, and if those will
+> happen, we will learn about them.
 
-> 
->>  	};
->>  
->>  	union {		/* This union is 4 bytes in size. */
->>
-> 
+This will always be a maze as the early boot tends to be. Sad but true.
+That is why I am not really convinced we should use a large hammer and
+disallow deferred page initialization just because UP implementation of
+pcp does something too early. We should instead rule that one odd case.
+Your patch simply doesn't rule a large class of potential issues. It
+just rules out a potentially useful feature for an odd case. See my
+point?
+-- 
+Michal Hocko
+SUSE Labs
