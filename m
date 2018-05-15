@@ -1,80 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 426FC6B026D
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 21:13:16 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id 89-v6so1106690plc.1
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 18:13:16 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (lgeamrelo13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id e12-v6si8587289pgn.155.2018.05.14.18.13.13
-        for <linux-mm@kvack.org>;
-        Mon, 14 May 2018 18:13:14 -0700 (PDT)
-Date: Tue, 15 May 2018 10:13:11 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3] kvmalloc: always use vmalloc if CONFIG_DEBUG_SG
-Message-ID: <20180515011311.GA32447@js1304-desktop>
-References: <20180420210200.GH10788@bombadil.infradead.org>
- <alpine.LRH.2.02.1804201704580.25408@file01.intranet.prod.int.rdu2.redhat.com>
- <20180421144757.GC14610@bombadil.infradead.org>
- <alpine.LRH.2.02.1804221733520.7995@file01.intranet.prod.int.rdu2.redhat.com>
- <20180423151545.GU17484@dhcp22.suse.cz>
- <alpine.LRH.2.02.1804232003100.2299@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424034643.GA26636@bombadil.infradead.org>
- <alpine.LRH.2.02.1804240818530.28016@file01.intranet.prod.int.rdu2.redhat.com>
- <20180424171651.GC30577@bombadil.infradead.org>
- <alpine.LRH.2.02.1804241428120.8296@file01.intranet.prod.int.rdu2.redhat.com>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 650A86B026F
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 21:14:00 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id f23-v6so10854301wra.20
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 18:14:00 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id h25-v6si6174533wmi.24.2018.05.14.18.13.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 May 2018 18:13:58 -0700 (PDT)
+Date: Tue, 15 May 2018 02:13:55 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH] shmem: don't call put_super() when fill_super() failed.
+Message-ID: <20180515011355.GM30522@ZenIV.linux.org.uk>
+References: <201805150027.w4F0RZ27055056@www262.sakura.ne.jp>
+ <20180515003912.GL30522@ZenIV.linux.org.uk>
+ <201805150052.w4F0qbgv062016@www262.sakura.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1804241428120.8296@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <201805150052.w4F0qbgv062016@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, eric.dumazet@gmail.com, edumazet@google.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, mst@redhat.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, dm-devel@redhat.com, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Eric Biggers <ebiggers3@gmail.com>, syzbot+d2586fde8fdcead3647f@syzkaller.appspotmail.com, hughd@google.com, syzkaller-bugs@googlegroups.com, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>
 
-Hello, Mikulas.
-
-On Tue, Apr 24, 2018 at 02:41:47PM -0400, Mikulas Patocka wrote:
-> 
-> 
-> On Tue, 24 Apr 2018, Matthew Wilcox wrote:
-> 
-> > On Tue, Apr 24, 2018 at 08:29:14AM -0400, Mikulas Patocka wrote:
-> > > 
-> > > 
-> > > On Mon, 23 Apr 2018, Matthew Wilcox wrote:
-> > > 
-> > > > On Mon, Apr 23, 2018 at 08:06:16PM -0400, Mikulas Patocka wrote:
-> > > > > Some bugs (such as buffer overflows) are better detected
-> > > > > with kmalloc code, so we must test the kmalloc path too.
+On Tue, May 15, 2018 at 09:52:37AM +0900, Tetsuo Handa wrote:
+> > On Tue, May 15, 2018 at 09:27:35AM +0900, Tetsuo Handa wrote:
+> > > Eric Biggers wrote:
+> > > > > I'm not following, since generic_shutdown_super() only calls ->put_super() if
+> > > > > ->s_root is set, which only happens at the end of shmem_fill_super().  Isn't the
+> > > > > real problem that s_shrink is registered too early, causing super_cache_count()
+> > > > > and shmem_unused_huge_count() to potentially run before shmem_fill_super() has
+> > > > > completed?  Or alternatively, the problem is that super_cache_count() doesn't
+> > > > > check for SB_ACTIVE.
+> > > > > 
 > > > > 
-> > > > Well now, this brings up another item for the collective TODO list --
-> > > > implement redzone checks for vmalloc.  Unless this is something already
-> > > > taken care of by kasan or similar.
+> > > > Coincidentally, this is already going to be fixed by commit 79f546a696bff259
+> > > > ("fs: don't scan the inode cache before SB_BORN is set") in vfs/for-linus.
+> > > > 
 > > > 
-> > > The kmalloc overflow testing is also not ideal - it rounds the size up to 
-> > > the next slab size and detects buffer overflows only at this boundary.
-> > > 
-> > > Some times ago, I made a "kmalloc guard" patch that places a magic number 
-> > > immediatelly after the requested size - so that it can detect overflows at 
-> > > byte boundary 
-> > > ( https://www.redhat.com/archives/dm-devel/2014-September/msg00018.html )
-> > > 
-> > > That patch found a bug in crypto code:
-> > > ( http://lkml.iu.edu/hypermail/linux/kernel/1409.1/02325.html )
+> > > Just an idea, but if shrinker registration is too early, can't we postpone it
+> > > like below?
 > > 
-> > Is it still worth doing this, now we have kasan?
-> 
-> The kmalloc guard has much lower overhead than kasan.
+> > Wonderful.  And when ->mount() returns you a subtree of the same filesystem again,
+> > that will do what, exactly?
+> > 
+> Can't we detect it via list_empty(&sb->s_shrink.list) test
+> before calling register_shrinker_prepared(&sb->s_shrink) ?
 
-I skimm at your code and it requires rebuilding the kernel.
-I think that if rebuilding is required as the same with the KASAN,
-using the KASAN is better since it has far better coverage for
-detection the bug.
-
-However, I think that if the redzone can be setup tightly
-without rebuild, it would be worth implementing. I have an idea to
-implement it only for the SLUB. Could I try it? (I'm asking this
-because I'm inspired from the above patch.) :)
-Or do you wanna try it?
-
-Thanks.
+What for?  Seriously, what's the benefit of doing that in such a convoluted way?
+Avoiding a trivial check in super_cache_count()?  The same check we normally
+do in places where we are not holding an active reference to superblock and
+want to make sure it's alive, at that...
