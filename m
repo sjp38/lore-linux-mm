@@ -1,263 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4031E6B02A0
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 10:07:40 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id c132-v6so218863qkg.10
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 07:07:40 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u14-v6si122263qvb.224.2018.05.15.07.07.38
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 232DC6B02A3
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 10:11:20 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e16-v6so145609pfn.5
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 07:11:20 -0700 (PDT)
+Received: from mx142.netapp.com (mx142.netapp.com. [2620:10a:4005:8000:2306::b])
+        by mx.google.com with ESMTPS id a64-v6si111615pla.530.2018.05.15.07.11.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 May 2018 07:07:38 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4FE51OC127891
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 10:07:37 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2j010gr3rq-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 10:07:36 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 15 May 2018 15:07:32 +0100
-Subject: Re: [PATCH v10 18/25] mm: provide speculative fault infrastructure
-References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1523975611-15978-19-git-send-email-ldufour@linux.vnet.ibm.com>
- <CAOaiJ-nfC0hBup_XWqp2HNzAcDw8kRsfXM8Vxny3qnE3BG8q6A@mail.gmail.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Tue, 15 May 2018 16:07:20 +0200
+        Tue, 15 May 2018 07:11:19 -0700 (PDT)
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+ <20180514191551.GA27939@bombadil.infradead.org>
+ <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
+ <20180515004137.GA5168@bombadil.infradead.org>
+ <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
+ <20180515111159.GA31599@bombadil.infradead.org>
+ <6999e635-e804-99d0-12fc-c13ff3e9ca58@netapp.com>
+ <20180515120355.GE31599@bombadil.infradead.org>
+ <afe2c02f-3ecd-5f54-53ab-d45c11a5b4aa@netapp.com>
+ <20180515135056.GG31599@bombadil.infradead.org>
+From: Boaz Harrosh <boazh@netapp.com>
+Message-ID: <da89bf77-fcb5-1c0c-f5ce-66e552d9a54d@netapp.com>
+Date: Tue, 15 May 2018 17:10:57 +0300
 MIME-Version: 1.0
-In-Reply-To: <CAOaiJ-nfC0hBup_XWqp2HNzAcDw8kRsfXM8Vxny3qnE3BG8q6A@mail.gmail.com>
+In-Reply-To: <20180515135056.GG31599@bombadil.infradead.org>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <53f82a3c-cb3e-6b70-5a49-d5110059a859@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vinayak menon <vinayakm.list@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Peter Zijlstra <peterz@infradead.org>, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, Balbir Singh <bsingharora@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, Vinayak Menon <vinmenon@codeaurora.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
+ Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van
+ Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-On 15/05/2018 15:09, vinayak menon wrote:
-> On Tue, Apr 17, 2018 at 8:03 PM, Laurent Dufour
-> <ldufour@linux.vnet.ibm.com> wrote:
+On 15/05/18 16:50, Matthew Wilcox wrote:
+> On Tue, May 15, 2018 at 04:29:22PM +0300, Boaz Harrosh wrote:
+>> On 15/05/18 15:03, Matthew Wilcox wrote:
+>>> You're getting dangerously close to admitting that the entire point
+>>> of this exercise is so that you can link non-GPL NetApp code into the
+>>> kernel in clear violation of the GPL.
 >>
->> +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
->> +
->> +#ifndef __HAVE_ARCH_PTE_SPECIAL
->> +/* This is required by vm_normal_page() */
->> +#error "Speculative page fault handler requires __HAVE_ARCH_PTE_SPECIAL"
->> +#endif
->> +
->> +/*
->> + * vm_normal_page() adds some processing which should be done while
->> + * hodling the mmap_sem.
->> + */
->> +int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
->> +                              unsigned int flags)
->> +{
->> +       struct vm_fault vmf = {
->> +               .address = address,
->> +       };
->> +       pgd_t *pgd, pgdval;
->> +       p4d_t *p4d, p4dval;
->> +       pud_t pudval;
->> +       int seq, ret = VM_FAULT_RETRY;
->> +       struct vm_area_struct *vma;
->> +
->> +       /* Clear flags that may lead to release the mmap_sem to retry */
->> +       flags &= ~(FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_KILLABLE);
->> +       flags |= FAULT_FLAG_SPECULATIVE;
->> +
->> +       vma = get_vma(mm, address);
->> +       if (!vma)
->> +               return ret;
->> +
->> +       seq = raw_read_seqcount(&vma->vm_sequence); /* rmb <-> seqlock,vma_rb_erase() */
->> +       if (seq & 1)
->> +               goto out_put;
->> +
->> +       /*
->> +        * Can't call vm_ops service has we don't know what they would do
->> +        * with the VMA.
->> +        * This include huge page from hugetlbfs.
->> +        */
->> +       if (vma->vm_ops)
->> +               goto out_put;
->> +
->> +       /*
->> +        * __anon_vma_prepare() requires the mmap_sem to be held
->> +        * because vm_next and vm_prev must be safe. This can't be guaranteed
->> +        * in the speculative path.
->> +        */
->> +       if (unlikely(!vma->anon_vma))
->> +               goto out_put;
->> +
->> +       vmf.vma_flags = READ_ONCE(vma->vm_flags);
->> +       vmf.vma_page_prot = READ_ONCE(vma->vm_page_prot);
->> +
->> +       /* Can't call userland page fault handler in the speculative path */
->> +       if (unlikely(vmf.vma_flags & VM_UFFD_MISSING))
->> +               goto out_put;
->> +
->> +       if (vmf.vma_flags & VM_GROWSDOWN || vmf.vma_flags & VM_GROWSUP)
->> +               /*
->> +                * This could be detected by the check address against VMA's
->> +                * boundaries but we want to trace it as not supported instead
->> +                * of changed.
->> +                */
->> +               goto out_put;
->> +
->> +       if (address < READ_ONCE(vma->vm_start)
->> +           || READ_ONCE(vma->vm_end) <= address)
->> +               goto out_put;
->> +
->> +       if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
->> +                                      flags & FAULT_FLAG_INSTRUCTION,
->> +                                      flags & FAULT_FLAG_REMOTE)) {
->> +               ret = VM_FAULT_SIGSEGV;
->> +               goto out_put;
->> +       }
->> +
->> +       /* This is one is required to check that the VMA has write access set */
->> +       if (flags & FAULT_FLAG_WRITE) {
->> +               if (unlikely(!(vmf.vma_flags & VM_WRITE))) {
->> +                       ret = VM_FAULT_SIGSEGV;
->> +                       goto out_put;
->> +               }
->> +       } else if (unlikely(!(vmf.vma_flags & (VM_READ|VM_EXEC|VM_WRITE)))) {
->> +               ret = VM_FAULT_SIGSEGV;
->> +               goto out_put;
->> +       }
->> +
->> +       if (IS_ENABLED(CONFIG_NUMA)) {
->> +               struct mempolicy *pol;
->> +
->> +               /*
->> +                * MPOL_INTERLEAVE implies additional checks in
->> +                * mpol_misplaced() which are not compatible with the
->> +                *speculative page fault processing.
->> +                */
->> +               pol = __get_vma_policy(vma, address);
+>> It is not that at all. What I'm trying to do is enable a zero-copy,
+>> synchronous, low latency, low overhead. highly parallel - a new modern
+>> interface with application servers.
 > 
+> ... and fully buzzword compliant.
 > 
-> This gives a compile time error when CONFIG_NUMA is disabled, as there
-> is no definition for
-> __get_vma_policy.
+>> You yourself had such a project that could easily be served out-of-the-box
+>> with zufs, of a device that wanted to sit in user-mode.
+> 
+> For a very different reason.  I think the source code to that project
+> is publically available; the problem is that it's not written in C.
+> 
 
-IS_ENABLED is not workiing as I expected, my mistake.
-I'll rollback to the legacy #ifdef stuff.
+Exactly the point, sir. Many reasons to sit in user-land for example
+for me it is libraries that can not be loaded into Kernel.
 
-Thanks,
-Laurent.
-
-
->> +               if (!pol)
->> +                       pol = get_task_policy(current);
->> +               if (pol && pol->mode == MPOL_INTERLEAVE)
->> +                       goto out_put;
->> +       }
->> +
->> +       /*
->> +        * Do a speculative lookup of the PTE entry.
->> +        */
->> +       local_irq_disable();
->> +       pgd = pgd_offset(mm, address);
->> +       pgdval = READ_ONCE(*pgd);
->> +       if (pgd_none(pgdval) || unlikely(pgd_bad(pgdval)))
->> +               goto out_walk;
->> +
->> +       p4d = p4d_offset(pgd, address);
->> +       p4dval = READ_ONCE(*p4d);
->> +       if (p4d_none(p4dval) || unlikely(p4d_bad(p4dval)))
->> +               goto out_walk;
->> +
->> +       vmf.pud = pud_offset(p4d, address);
->> +       pudval = READ_ONCE(*vmf.pud);
->> +       if (pud_none(pudval) || unlikely(pud_bad(pudval)))
->> +               goto out_walk;
->> +
->> +       /* Huge pages at PUD level are not supported. */
->> +       if (unlikely(pud_trans_huge(pudval)))
->> +               goto out_walk;
->> +
->> +       vmf.pmd = pmd_offset(vmf.pud, address);
->> +       vmf.orig_pmd = READ_ONCE(*vmf.pmd);
->> +       /*
->> +        * pmd_none could mean that a hugepage collapse is in progress
->> +        * in our back as collapse_huge_page() mark it before
->> +        * invalidating the pte (which is done once the IPI is catched
->> +        * by all CPU and we have interrupt disabled).
->> +        * For this reason we cannot handle THP in a speculative way since we
->> +        * can't safely indentify an in progress collapse operation done in our
->> +        * back on that PMD.
->> +        * Regarding the order of the following checks, see comment in
->> +        * pmd_devmap_trans_unstable()
->> +        */
->> +       if (unlikely(pmd_devmap(vmf.orig_pmd) ||
->> +                    pmd_none(vmf.orig_pmd) || pmd_trans_huge(vmf.orig_pmd) ||
->> +                    is_swap_pmd(vmf.orig_pmd)))
->> +               goto out_walk;
->> +
->> +       /*
->> +        * The above does not allocate/instantiate page-tables because doing so
->> +        * would lead to the possibility of instantiating page-tables after
->> +        * free_pgtables() -- and consequently leaking them.
->> +        *
->> +        * The result is that we take at least one !speculative fault per PMD
->> +        * in order to instantiate it.
->> +        */
->> +
->> +       vmf.pte = pte_offset_map(vmf.pmd, address);
->> +       vmf.orig_pte = READ_ONCE(*vmf.pte);
->> +       barrier(); /* See comment in handle_pte_fault() */
->> +       if (pte_none(vmf.orig_pte)) {
->> +               pte_unmap(vmf.pte);
->> +               vmf.pte = NULL;
->> +       }
->> +
->> +       vmf.vma = vma;
->> +       vmf.pgoff = linear_page_index(vma, address);
->> +       vmf.gfp_mask = __get_fault_gfp_mask(vma);
->> +       vmf.sequence = seq;
->> +       vmf.flags = flags;
->> +
->> +       local_irq_enable();
->> +
->> +       /*
->> +        * We need to re-validate the VMA after checking the bounds, otherwise
->> +        * we might have a false positive on the bounds.
->> +        */
->> +       if (read_seqcount_retry(&vma->vm_sequence, seq))
->> +               goto out_put;
->> +
->> +       mem_cgroup_oom_enable();
->> +       ret = handle_pte_fault(&vmf);
->> +       mem_cgroup_oom_disable();
->> +
->> +       put_vma(vma);
->> +
->> +       /*
->> +        * The task may have entered a memcg OOM situation but
->> +        * if the allocation error was handled gracefully (no
->> +        * VM_FAULT_OOM), there is no need to kill anything.
->> +        * Just clean up the OOM state peacefully.
->> +        */
->> +       if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
->> +               mem_cgroup_oom_synchronize(false);
->> +       return ret;
->> +
->> +out_walk:
->> +       local_irq_enable();
->> +out_put:
->> +       put_vma(vma);
->> +       return ret;
->> +}
->> +#endif /* CONFIG_SPECULATIVE_PAGE_FAULT */
->> +
->>  /*
->>   * By the time we get here, we already hold the mm semaphore
->>   *
->> --
->> 2.7.4
+>> Sometimes it is very convenient and needed for Servers to sit in
+>> user-mode. And this interface allows that. And it is not always
+>> a licensing thing. Though yes licensing is also an issue sometimes.
+>> It is the reality we are living in.
 >>
+>> But please indulge me I am curious how the point of signing /sbin/
+>> servers, made you think about GPL licensing issues?
+>>
+>> That said, is your point that as long as user-mode servers are sloooowwww
+>> they are OK to be supported but if they are as fast as the kernel,
+>> (as demonstrated a zufs based FS was faster then xfs-dax on same pmem)
+>> Then it is a GPL violation?
 > 
+> No.  Read what Linus wrote:
+> 
+>    NOTE! This copyright does *not* cover user programs that use kernel
+>  services by normal system calls - this is merely considered normal use
+>  of the kernel, and does *not* fall under the heading of "derived work".
+> 
+> What you're doing is far beyond that exception.  You're developing in
+> concert a userspace and kernel component, and claiming that the GPL does
+> not apply to the userspace component.  I'm not a lawyer, but you're on
+> very thin ice.
+> 
+
+But I am not the first one here am I? Fuse and other interfaces already do
+exactly this long before I did. Actually any Kernel Interface has some user-mode
+component, specifically written for it. And again I am only legally doing exactly as
+FUSE is doing only much faster, and more importantly for me highly parallel on all
+cores. Because from my testing the biggest problem of FUSE for me is that it does not
+scale
+
+I'm not a lawyer either but I think I'm doing OK. Because I am doing exactly
+like FUSE is doing. Only some 15 years later, with modern CPUs in mind. I do not
+think I am doing anything new here, am I?
+
+Thanks
+Boaz
