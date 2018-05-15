@@ -1,135 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 820506B0005
-	for <linux-mm@kvack.org>; Mon, 14 May 2018 23:25:46 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id y7-v6so17606896qtn.3
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 20:25:46 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id f21-v6si1940108qtm.14.2018.05.14.20.25.42
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E1086B000A
+	for <linux-mm@kvack.org>; Mon, 14 May 2018 23:29:15 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id y17-v6so3855891lfj.19
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 20:29:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h84-v6sor2391576lfl.97.2018.05.14.20.29.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 May 2018 20:25:42 -0700 (PDT)
-Subject: Re: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
-References: <20180515005756.28942-1-ying.huang@intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <2f97bdea-d873-19d7-ff55-9a625bdfdd67@oracle.com>
-Date: Mon, 14 May 2018 20:25:23 -0700
+        (Google Transport Security);
+        Mon, 14 May 2018 20:29:13 -0700 (PDT)
+Date: Tue, 15 May 2018 06:29:09 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v5 01/13] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180515032909.kjbhxxg7463nnvwo@esperanza>
+References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
+ <152594593798.22949.6730606876057040426.stgit@localhost.localdomain>
+ <20180513051509.df2tcmbhxn3q2fp7@esperanza>
+ <e4889603-c337-c389-a819-17f8d4fd03ad@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20180515005756.28942-1-ying.huang@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e4889603-c337-c389-a819-17f8d4fd03ad@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On 05/14/2018 05:57 PM, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Mon, May 14, 2018 at 12:03:38PM +0300, Kirill Tkhai wrote:
+> On 13.05.2018 08:15, Vladimir Davydov wrote:
+> > On Thu, May 10, 2018 at 12:52:18PM +0300, Kirill Tkhai wrote:
+> >> The patch introduces shrinker::id number, which is used to enumerate
+> >> memcg-aware shrinkers. The number start from 0, and the code tries
+> >> to maintain it as small as possible.
+> >>
+> >> This will be used as to represent a memcg-aware shrinkers in memcg
+> >> shrinkers map.
+> >>
+> >> Since all memcg-aware shrinkers are based on list_lru, which is per-memcg
+> >> in case of !SLOB only, the new functionality will be under MEMCG && !SLOB
+> >> ifdef (symlinked to CONFIG_MEMCG_SHRINKER).
+> > 
+> > Using MEMCG && !SLOB instead of introducing a new config option was done
+> > deliberately, see:
+> > 
+> >   http://lkml.kernel.org/r/20151210202244.GA4809@cmpxchg.org
+> > 
+> > I guess, this doesn't work well any more, as there are more and more
+> > parts depending on kmem accounting, like shrinkers. If you really want
+> > to introduce a new option, I think you should call it CONFIG_MEMCG_KMEM
+> > and use it consistently throughout the code instead of MEMCG && !SLOB.
+> > And this should be done in a separate patch.
 > 
-> This is to take better advantage of huge page clearing
-> optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
-> when clearing huge page").  Which will clear to access sub-page last
-> to avoid the cache lines of to access sub-page to be evicted when
-> clearing other sub-pages.  This needs to get the address of the
-> sub-page to access, that is, the fault address inside of the huge
-> page.  So the hugetlb no page fault handler is changed to pass that
-> information.  This will benefit workloads which don't access the begin
-> of the huge page after page fault.
+> What do you mean under "consistently throughout the code"? Should I replace
+> all MEMCG && !SLOB with CONFIG_MEMCG_KMEM over existing code?
+
+Yes, otherwise it looks messy - in some places we check !SLOB, in others
+we use CONFIG_MEMCG_SHRINKER (or whatever it will be called).
+
 > 
-> With this patch, the throughput increases ~28.1% in vm-scalability
-> anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
-> system (44 cores, 88 threads).  The test case creates 88 processes,
-> each process mmap a big anonymous memory area and writes to it from
-> the end to the begin.  For each process, other processes could be seen
-> as other workload which generates heavy cache pressure.  At the same
-> time, the cache miss rate reduced from ~36.3% to ~25.6%, the
-> IPC (instruction per cycle) increased from 0.3 to 0.37, and the time
-> spent in user space is reduced ~19.3%
-
-Since this patch only addresses hugetlbfs huge pages, I would suggest
-making that more explicit in the commit message.  Other than that, the
-changes look fine to me.
-
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
--- 
-Mike Kravetz
-
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Andi Kleen <andi.kleen@intel.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Shaohua Li <shli@fb.com>
-> Cc: Christopher Lameter <cl@linux.com>
-> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: Punit Agrawal <punit.agrawal@arm.com>
-> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-> ---
->  mm/hugetlb.c | 12 ++++++------
->  1 file changed, 6 insertions(+), 6 deletions(-)
+> >> diff --git a/fs/super.c b/fs/super.c
+> >> index 122c402049a2..16c153d2f4f1 100644
+> >> --- a/fs/super.c
+> >> +++ b/fs/super.c
+> >> @@ -248,6 +248,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
+> >>  	s->s_time_gran = 1000000000;
+> >>  	s->cleancache_poolid = CLEANCACHE_NO_POOL;
+> >>  
+> >> +#ifdef CONFIG_MEMCG_SHRINKER
+> >> +	s->s_shrink.id = -1;
+> >> +#endif
+> > 
+> > No point doing that - you are going to overwrite the id anyway in
+> > prealloc_shrinker().
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 129088710510..3de6326abf39 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -3677,7 +3677,7 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
->  
->  static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			   struct address_space *mapping, pgoff_t idx,
-> -			   unsigned long address, pte_t *ptep, unsigned int flags)
-> +			   unsigned long faddress, pte_t *ptep, unsigned int flags)
->  {
->  	struct hstate *h = hstate_vma(vma);
->  	int ret = VM_FAULT_SIGBUS;
-> @@ -3686,6 +3686,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	struct page *page;
->  	pte_t new_pte;
->  	spinlock_t *ptl;
-> +	unsigned long address = faddress & huge_page_mask(h);
->  
->  	/*
->  	 * Currently, we are forced to kill the process in the event the
-> @@ -3749,7 +3750,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  				ret = VM_FAULT_SIGBUS;
->  			goto out;
->  		}
-> -		clear_huge_page(page, address, pages_per_huge_page(h));
-> +		clear_huge_page(page, faddress, pages_per_huge_page(h));
->  		__SetPageUptodate(page);
->  		set_page_huge_active(page);
->  
-> @@ -3871,7 +3872,7 @@ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
->  #endif
->  
->  int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> -			unsigned long address, unsigned int flags)
-> +			unsigned long faddress, unsigned int flags)
->  {
->  	pte_t *ptep, entry;
->  	spinlock_t *ptl;
-> @@ -3883,8 +3884,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  	struct hstate *h = hstate_vma(vma);
->  	struct address_space *mapping;
->  	int need_wait_lock = 0;
-> -
-> -	address &= huge_page_mask(h);
-> +	unsigned long address = faddress & huge_page_mask(h);
->  
->  	ptep = huge_pte_offset(mm, address, huge_page_size(h));
->  	if (ptep) {
-> @@ -3914,7 +3914,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  
->  	entry = huge_ptep_get(ptep);
->  	if (huge_pte_none(entry)) {
-> -		ret = hugetlb_no_page(mm, vma, mapping, idx, address, ptep, flags);
-> +		ret = hugetlb_no_page(mm, vma, mapping, idx, faddress, ptep, flags);
->  		goto out_mutex;
->  	}
->  
-> 
+> Not so, this is done deliberately. alloc_super() has the only "fail" label,
+> and it handles all the allocation errors there. The patch just behaves in
+> the same style. It sets "-1" to make destroy_unused_super() able to differ
+> the cases, when shrinker is really initialized, and when it's not.
+> If you don't like this, I can move "s->s_shrink.id = -1;" into
+> prealloc_memcg_shrinker() instead of this.
+
+Yes, please do so that we don't have MEMCG ifdefs in fs code.
+
+Thanks.
