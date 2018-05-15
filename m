@@ -1,87 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B791B6B02BF
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 13:51:56 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id p19-v6so558474plo.14
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 10:51:56 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id t15-v6si515601ply.201.2018.05.15.10.51.54
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BBE9C6B02C2
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 16:03:32 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s17-v6so544187pgq.23
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 13:03:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t125-v6sor454656pgc.259.2018.05.15.13.03.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 May 2018 10:51:54 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v5] mm: don't allow deferred pages with NEED_PER_CPU_KM
-Date: Tue, 15 May 2018 13:51:24 -0400
-Message-Id: <20180515175124.1770-1-pasha.tatashin@oracle.com>
+        (Google Transport Security);
+        Tue, 15 May 2018 13:03:28 -0700 (PDT)
+Date: Tue, 15 May 2018 13:03:26 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
+In-Reply-To: <20180515005756.28942-1-ying.huang@intel.com>
+Message-ID: <alpine.DEB.2.21.1805151303160.5896@chino.kir.corp.google.com>
+References: <20180515005756.28942-1-ying.huang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mhocko@suse.com, linux-mm@kvack.org, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, rostedt@goodmis.org, fengguang.wu@intel.com, dennisszhou@gmail.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-It is unsafe to do virtual to physical translations before mm_init() is
-called if struct page is needed in order to determine the memory section
-number (see SECTION_IN_PAGE_FLAGS). This is because only in mm_init() we
-initialize struct pages for all the allocated memory when deferred struct
-pages are used.
+On Tue, 15 May 2018, Huang, Ying wrote:
 
-My recent fix exposed this problem, because it greatly reduced number of
-pages that are initialized before mm_init(), but the problem existed even
-before my fix, as Fengguang Wu found.
+> From: Huang Ying <ying.huang@intel.com>
+> 
+> This is to take better advantage of huge page clearing
+> optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
+> when clearing huge page").  Which will clear to access sub-page last
+> to avoid the cache lines of to access sub-page to be evicted when
+> clearing other sub-pages.  This needs to get the address of the
+> sub-page to access, that is, the fault address inside of the huge
+> page.  So the hugetlb no page fault handler is changed to pass that
+> information.  This will benefit workloads which don't access the begin
+> of the huge page after page fault.
+> 
+> With this patch, the throughput increases ~28.1% in vm-scalability
+> anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
+> system (44 cores, 88 threads).  The test case creates 88 processes,
+> each process mmap a big anonymous memory area and writes to it from
+> the end to the begin.  For each process, other processes could be seen
+> as other workload which generates heavy cache pressure.  At the same
+> time, the cache miss rate reduced from ~36.3% to ~25.6%, the
+> IPC (instruction per cycle) increased from 0.3 to 0.37, and the time
+> spent in user space is reduced ~19.3%
+> 
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Andi Kleen <andi.kleen@intel.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Shaohua Li <shli@fb.com>
+> Cc: Christopher Lameter <cl@linux.com>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Punit Agrawal <punit.agrawal@arm.com>
+> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-Below is a more detailed explanation of the problem.
-
-We initialize struct pages in four places:
-
-1. Early in boot a small set of struct pages is initialized to fill
-the first section, and lower zones.
-2. During mm_init() we initialize "struct pages" for all the memory
-that is allocated, i.e reserved in memblock.
-3. Using on-demand logic when pages are allocated after mm_init call (when
-memblock is finished)
-4. After smp_init() when the rest free deferred pages are initialized.
-
-The problem occurs if we try to do va to phys translation of a memory
-between steps 1 and 2. Because we have not yet initialized struct pages for
-all the reserved pages, it is inherently unsafe to do va to phys if the
-translation itself requires access of "struct page" as in case of this
-combination: CONFIG_SPARSE && !CONFIG_SPARSE_VMEMMAP
-
-The following path exposes the problem:
-
-start_kernel()
- trap_init()
-  setup_cpu_entry_areas()
-   setup_cpu_entry_area(cpu)
-    get_cpu_gdt_paddr(cpu)
-     per_cpu_ptr_to_phys(addr)
-      pcpu_addr_to_page(addr)
-       virt_to_page(addr)
-        pfn_to_page(__pa(addr) >> PAGE_SHIFT)
-
-We disable this path by not allowing NEED_PER_CPU_KM with deferred struct
-pages feature.
-
-The problems are discussed in these threads:
-http://lkml.kernel.org/r/20180418135300.inazvpxjxowogyge@wfg-t540p.sh.intel.com
-http://lkml.kernel.org/r/20180419013128.iurzouiqxvcnpbvz@wfg-t540p.sh.intel.com
-http://lkml.kernel.org/r/20180426202619.2768-1-pasha.tatashin@oracle.com
-
-Fixes: 3a80a7fa7989 ("mm: meminit: initialise a subset of struct pages if CONFIG_DEFERRED_STRUCT_PAGE_INIT is set")
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
----
- mm/Kconfig | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index d5004d82a1d6..e14c01513bfd 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -636,6 +636,7 @@ config DEFERRED_STRUCT_PAGE_INIT
- 	default n
- 	depends on NO_BOOTMEM
- 	depends on !FLATMEM
-+	depends on !NEED_PER_CPU_KM
- 	help
- 	  Ordinarily all struct pages are initialised during early boot in a
- 	  single thread. On very large machines this can take a considerable
--- 
-2.17.0
+Acked-by: David Rientjes <rientjes@google.com>
