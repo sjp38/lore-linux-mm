@@ -1,108 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 831FB6B02B9
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 12:24:26 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id v12-v6so641371wmc.1
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 09:24:26 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p12-v6si648741edk.399.2018.05.15.09.24.24
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6256C6B02BB
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 12:34:30 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id f10-v6so399606pln.21
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 09:34:30 -0700 (PDT)
+Received: from g2t2353.austin.hpe.com (g2t2353.austin.hpe.com. [15.233.44.26])
+        by mx.google.com with ESMTPS id v16-v6si394492pfn.77.2018.05.15.09.34.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 15 May 2018 09:24:24 -0700 (PDT)
-Date: Tue, 15 May 2018 16:24:23 +0000
-From: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Subject: Re: Are media drivers abusing of GFP_DMA? - was: Re: [LSF/MM TOPIC
- NOTES] x86 ZONE_DMA love
-Message-ID: <20180515162422.GG27853@wotan.suse.de>
-References: <20180426215406.GB27853@wotan.suse.de>
- <20180505130815.53a26955@vento.lan>
- <3561479.qPIcrWnXEC@avalon>
- <20180507121916.4eb7f5b2@vento.lan>
- <547252fc-dc74-93c6-fc77-be1bfb558787@st.com>
- <20180514073503.3da05fc6@vento.lan>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 May 2018 09:34:28 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [PATCH 2/3] x86/mm: add TLB purge to free pmd/pte page interfaces
+Date: Tue, 15 May 2018 16:34:24 +0000
+Message-ID: <1526401993.2693.605.camel@hpe.com>
+References: <20180430175925.2657-1-toshi.kani@hpe.com>
+	 <20180430175925.2657-3-toshi.kani@hpe.com>
+	 <20180515140549.GE18595@8bytes.org>
+In-Reply-To: <20180515140549.GE18595@8bytes.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <680043A3F4C61F41930C5FFC82921F1F@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180514073503.3da05fc6@vento.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
-Cc: Fabien DESSENNE <fabien.dessenne@st.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Jean Christophe TROTIN <jean-christophe.trotin@st.com>, Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>, Sakari Ailus <sakari.ailus@linux.intel.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
+To: "joro@8bytes.org" <joro@8bytes.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Mon, May 14, 2018 at 07:35:03AM -0300, Mauro Carvalho Chehab wrote:
-> Hi Fabien,
-> 
-> Em Mon, 14 May 2018 08:00:37 +0000
-> Fabien DESSENNE <fabien.dessenne@st.com> escreveu:
-> 
-> > On 07/05/18 17:19, Mauro Carvalho Chehab wrote:
-> > > Em Mon, 07 May 2018 16:26:08 +0300
-> > > Laurent Pinchart <laurent.pinchart@ideasonboard.com> escreveu:
-> > >  
-> > >> Hi Mauro,
-> > >>
-> > >> On Saturday, 5 May 2018 19:08:15 EEST Mauro Carvalho Chehab wrote:  
-> > >>> There was a recent discussion about the use/abuse of GFP_DMA flag when
-> > >>> allocating memories at LSF/MM 2018 (see Luis notes enclosed).
-> > >>>
-> > >>> The idea seems to be to remove it, using CMA instead. Before doing that,
-> > >>> better to check if what we have on media is are valid use cases for it, or
-> > >>> if it is there just due to some misunderstanding (or because it was
-> > >>> copied from some other code).
-> > >>>
-> > >>> Hans de Goede sent us today a patch stopping abuse at gspca, and I'm
-> > >>> also posting today two other patches meant to stop abuse of it on USB
-> > >>> drivers. Still, there are 4 platform drivers using it:
-> > >>>
-> > >>> 	$ git grep -l -E "GFP_DMA\\b" drivers/media/
-> > >>> 	drivers/media/platform/omap3isp/ispstat.c
-> > >>> 	drivers/media/platform/sti/bdisp/bdisp-hw.c
-> > >>> 	drivers/media/platform/sti/hva/hva-mem.c  
-> > 
-> > Hi Mauro,
-> > 
-> > The two STI drivers (bdisp-hw.c and hva-mem.c) are only expected to run 
-> > on ARM platforms, not on x86.
-> > Since this thread deals with x86 & DMA trouble, I am not sure that we 
-> > actually have a problem for the sti drivers.
-> > 
-> > There are some other sti drivers that make use of this GFP_DMA flag 
-> > (drivers/gpu/drm/sti/sti_*.c) and it does not seem to be a problem.
-> > 
-> > Nevertheless I can see that the media sti drivers depend on COMPILE_TEST 
-> > (which is not the case for the DRM ones).
-> > Would it be an acceptable solution to remove the COMPILE_TEST dependency?
-> 
-> This has nothing to do with either x86 
-
-Actually it does.
-
-> or COMPILE_TEST. The thing is
-> that there's a plan for removing GFP_DMA from the Kernel[1], 
-
-That would not be possible given architectures use GFP_DMA for other
-things and there are plenty of legacy x86 drivers which still need to be
-around. So the focus from mm folks shifted to letting x86 folks map
-GFP_DMA onto the CMA pool. Long term, this is nothing that driver developers
-need to care for, but just knowing internally behind the scenes there is some
-cleaning up being done in terms of architecture.
-
-> as it was
-> originally meant to be used only by old PCs, where the DMA controllers
-> used only  on the bottom 16 MB memory address (24 bits).
-
-This is actually the part that is x86 specific.
-
-Each other architecture may use it for some other definition and it seems
-some architectures use GFP_DMA all over the place. So the topic really should
-be about x86.
-
-> IMHO, it is 
-> very unlikely that any ARM SoC have such limitation.
-
-Right, how the flag is used on other architectures varies, so in fact the
-focus for cleaning up for now should be an x86 effort. Whether or not
-other architectures do something silly with GFP_DMA is beyond the scope
-of what was discussed.
-
-  Luis
+T24gVHVlLCAyMDE4LTA1LTE1IGF0IDE2OjA1ICswMjAwLCBKb2VyZyBSb2VkZWwgd3JvdGU6DQo+
+IE9uIE1vbiwgQXByIDMwLCAyMDE4IGF0IDExOjU5OjI0QU0gLTA2MDAsIFRvc2hpIEthbmkgd3Jv
+dGU6DQo+ID4gIGludCBwdWRfZnJlZV9wbWRfcGFnZShwdWRfdCAqcHVkLCB1bnNpZ25lZCBsb25n
+IGFkZHIpDQo+ID4gIHsNCj4gPiAtCXBtZF90ICpwbWQ7DQo+ID4gKwlwbWRfdCAqcG1kLCAqcG1k
+X3N2Ow0KPiA+ICsJcHRlX3QgKnB0ZTsNCj4gPiAgCWludCBpOw0KPiA+ICANCj4gPiAgCWlmIChw
+dWRfbm9uZSgqcHVkKSkNCj4gPiAgCQlyZXR1cm4gMTsNCj4gPiAgDQo+ID4gIAlwbWQgPSAocG1k
+X3QgKilwdWRfcGFnZV92YWRkcigqcHVkKTsNCj4gPiArCXBtZF9zdiA9IChwbWRfdCAqKV9fZ2V0
+X2ZyZWVfcGFnZShHRlBfS0VSTkVMKTsNCj4gDQo+IFNvIHlvdSBuZWVkIHRvIGFsbG9jYXRlIGEg
+cGFnZSB0byBmcmVlIGEgcGFnZT8gSXQgaXMgYmV0dGVyIHRvIHB1dCB0aGUNCj4gcGFnZXMgaW50
+byBhIGxpc3Qgd2l0aCBhIGxpc3RfaGVhZCBvbiB0aGUgc3RhY2suDQoNClRoZSBjb2RlIHNob3Vs
+ZCBoYXZlIGNoZWNrZWQgaWYgcG1kX3N2IGlzIE5VTEwuLi4gIEkgd2lsbCB1cGRhdGUgdGhlDQpw
+YXRjaC4NCg0KRm9yIHBlcmZvcm1hbmNlLCBJIGRvIG5vdCB0aGluayB0aGlzIHBhZ2UgYWxsb2Mg
+aXMgYSBwcm9ibGVtLiAgVW5saWtlDQpwbWRfZnJlZV9wdGVfcGFnZSgpLCBwdWRfZnJlZV9wbWRf
+cGFnZSgpIGNvdmVycyBhbiBleHRyZW1lbHkgcmFyZSBjYXNlLiANCiAgU2luY2UgcHVkIHJlcXVp
+cmVzIDFHQi1hbGlnbm1lbnQsIHB1ZCBhbmQgcG1kL3B0ZSBtYXBwaW5ncyBkbyBub3QNCnNoYXJl
+IHRoZSBzYW1lIHJhbmdlcyB3aXRoaW4gdGhlIHZtYWxsb2Mgc3BhY2UuICBJIGhhZCB0byBpbnN0
+cnVtZW50IHRoZQ0Ka2VybmVsIHRvIGZvcmNlIHRoZW0gc2hhcmUgdGhlIHNhbWUgcmFuZ2VzIGlu
+IG9yZGVyIHRvIHRlc3QgdGhpcyBwYXRjaC4NCg0KPiBJIGFtIHN0aWxsIG9uIGZhdm91ciBvZiBq
+dXN0IHJldmVydGluZyB0aGUgYnJva2VuIGNvbW1pdCBhbmQgZG8gYQ0KPiBjb3JyZWN0IGFuZCB3
+b3JraW5nIGZpeCBmb3IgdGhlL2EgbWVyZ2Ugd2luZG93Lg0KDQpJIHdpbGwgcmVvcmRlciB0aGUg
+cGF0Y2ggc2VyaWVzLCBhbmQgY2hhbmdlIHBhdGNoIDMvMyB0byAxLzMgc28gdGhhdCB3ZQ0KY2Fu
+IHRha2UgaXQgZmlyc3QgdG8gZml4IHRoZSBCVUdfT04gb24gUEFFLiAgVGhpcyByZXZlcnQgd2ls
+bCBkaXNhYmxlDQoyTUIgaW9yZW1hcCBvbiBQQUUgaW4gc29tZSBjYXNlcywgYnV0IEkgZG8gbm90
+IHRoaW5rIGl0J3MgaW1wb3J0YW50IG9uDQpQQUUgYW55d2F5Lg0KDQpJIGRvIG5vdCB0aGluayBy
+ZXZlcnQgb24geDg2LzY0IGlzIG5lY2Vzc2FyeSBhbmQgSSBhbSBtb3JlIHdvcnJpZWQgYWJvdXQN
+CmRpc2FibGluZyAyTUIgaW9yZW1hcCBpbiBzb21lIGNhc2VzLCB3aGljaCBjYW4gYmUgc2VlbiBh
+cyBkZWdyYWRhdGlvbi4gDQpQYXRjaCAyLzMgZml4ZXMgYSBwb3NzaWJsZSBwYWdlLWRpcmVjdG9y
+eSBjYWNoZSBpc3N1ZSB0aGF0IEkgY2Fubm90IGhpdA0KZXZlbiB0aG91Z2ggSSBwdXQgaW9yZW1h
+cC9pb3VubWFwIHdpdGggdmFyaW91cyBzaXplcyBpbnRvIGEgdGlnaHQgbG9vcA0KZm9yIGEgZGF5
+Lg0KDQpUaGFua3MsDQotVG9zaGkNCg==
