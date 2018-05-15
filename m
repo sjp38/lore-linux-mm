@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A889E6B000D
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 00:08:38 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id o16-v6so4803659lfk.12
-        for <linux-mm@kvack.org>; Mon, 14 May 2018 21:08:38 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z7-v6sor2272816ljb.84.2018.05.14.21.08.35
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 617056B0006
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 01:19:35 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id l85-v6so12168217pfb.18
+        for <linux-mm@kvack.org>; Mon, 14 May 2018 22:19:35 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id i3-v6si10988011pld.189.2018.05.14.22.19.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 14 May 2018 21:08:35 -0700 (PDT)
-Date: Tue, 15 May 2018 07:08:32 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v5 10/13] mm: Set bit in memcg shrinker bitmap on first
- list_lru item apearance
-Message-ID: <20180515040832.ukmrcdl5czqpldgv@esperanza>
-References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
- <152594602582.22949.2526776640167844592.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 May 2018 22:19:33 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
+References: <20180515005756.28942-1-ying.huang@intel.com>
+	<2f97bdea-d873-19d7-ff55-9a625bdfdd67@oracle.com>
+Date: Tue, 15 May 2018 13:19:29 +0800
+In-Reply-To: <2f97bdea-d873-19d7-ff55-9a625bdfdd67@oracle.com> (Mike Kravetz's
+	message of "Mon, 14 May 2018 20:25:23 -0700")
+Message-ID: <87d0xxzeam.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <152594602582.22949.2526776640167844592.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-On Thu, May 10, 2018 at 12:53:45PM +0300, Kirill Tkhai wrote:
-> Introduce set_shrinker_bit() function to set shrinker-related
-> bit in memcg shrinker bitmap, and set the bit after the first
-> item is added and in case of reparenting destroyed memcg's items.
-> 
-> This will allow next patch to make shrinkers be called only,
-> in case of they have charged objects at the moment, and
-> to improve shrink_slab() performance.
-> 
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> ---
->  include/linux/memcontrol.h |   15 +++++++++++++++
->  mm/list_lru.c              |   22 ++++++++++++++++++++--
->  2 files changed, 35 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index e5e7e0fc7158..82f892e77637 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -1274,6 +1274,21 @@ static inline void memcg_put_cache_ids(void)
->  
->  extern int memcg_shrinker_nr_max;
->  extern int memcg_expand_shrinker_maps(int old_id, int id);
-> +
-> +static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg, int nid, int nr)
+Mike Kravetz <mike.kravetz@oracle.com> writes:
 
-Nit: too long line (> 80 characters)
-Nit: let's rename 'nr' to 'shrinker_id'
+> On 05/14/2018 05:57 PM, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> This is to take better advantage of huge page clearing
+>> optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
+>> when clearing huge page").  Which will clear to access sub-page last
+>> to avoid the cache lines of to access sub-page to be evicted when
+>> clearing other sub-pages.  This needs to get the address of the
+>> sub-page to access, that is, the fault address inside of the huge
+>> page.  So the hugetlb no page fault handler is changed to pass that
+>> information.  This will benefit workloads which don't access the begin
+>> of the huge page after page fault.
+>> 
+>> With this patch, the throughput increases ~28.1% in vm-scalability
+>> anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
+>> system (44 cores, 88 threads).  The test case creates 88 processes,
+>> each process mmap a big anonymous memory area and writes to it from
+>> the end to the begin.  For each process, other processes could be seen
+>> as other workload which generates heavy cache pressure.  At the same
+>> time, the cache miss rate reduced from ~36.3% to ~25.6%, the
+>> IPC (instruction per cycle) increased from 0.3 to 0.37, and the time
+>> spent in user space is reduced ~19.3%
+>
+> Since this patch only addresses hugetlbfs huge pages, I would suggest
+> making that more explicit in the commit message.
 
-> +{
-> +	if (nr >= 0 && memcg && memcg != root_mem_cgroup) {
-> +		struct memcg_shrinker_map *map;
-> +
-> +		rcu_read_lock();
-> +		map = MEMCG_SHRINKER_MAP(memcg, nid);
+Sure.  Will revise it!
 
-Missing rcu_dereference.
+> Other than that, the changes look fine to me.
+>
+>> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>
+> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-> +		set_bit(nr, map->map);
-> +		rcu_read_unlock();
-> +	}
-> +}
-> +#else
-> +static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
-> +					  int node, int id) { }
+Thanks!
 
-Nit: please keep the signature (including argument names) the same as in
-MEMCG-enabled definition, namely 'node' => 'nid', 'id' => 'shrinker_id'.
-
-Thanks.
+Best Regards,
+Huang, Ying
