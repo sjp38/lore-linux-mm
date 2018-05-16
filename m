@@ -1,71 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D1516B030D
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 05:35:59 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 54-v6so84793wrw.1
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 02:35:59 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h6-v6si1671821eda.257.2018.05.16.02.35.57
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5600D6B030F
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 05:53:08 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z7-v6so100448wrg.11
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 02:53:08 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f55-v6sor1727136ede.56.2018.05.16.02.53.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 16 May 2018 02:35:57 -0700 (PDT)
-Subject: Re: [PATCH] mm/page_alloc: use ac->high_zoneidx for classzone_idx
-References: <1525408246-14768-1-git-send-email-iamjoonsoo.kim@lge.com>
- <8b06973c-ef82-17d2-a83d-454368de75e6@suse.cz>
- <20180504103322.2nbadmnehwdxxaso@suse.de>
- <CAAmzW4PKZFbAS6UEYKP2BBAqgk0=yTMuJRMTz--_0YTj-SjKvw@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <aa3452e1-db01-42ae-29eb-b23572e88969@suse.cz>
-Date: Wed, 16 May 2018 11:35:55 +0200
+        (Google Transport Security);
+        Wed, 16 May 2018 02:53:06 -0700 (PDT)
+Date: Wed, 16 May 2018 11:53:03 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH 10/14] vgem: separate errno from VM_FAULT_* values
+Message-ID: <20180516095303.GH3438@phenom.ffwll.local>
+References: <20180516054348.15950-1-hch@lst.de>
+ <20180516054348.15950-11-hch@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4PKZFbAS6UEYKP2BBAqgk0=yTMuJRMTz--_0YTj-SjKvw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180516054348.15950-11-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Ye Xiaolong <xiaolong.ye@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>, Matthew Wilcox <willy@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@lists.orangefs.org, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mtd@lists.infradead.org, dri-devel@lists.freedesktop.org, lustre-devel@lists.lustre.org, linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org
 
-On 05/08/2018 03:00 AM, Joonsoo Kim wrote:
->> classzone predates my involvement with Linux but I would be less concerneed
->> about what the original intent was and instead ensure that classzone index
->> is consistent, sane and potentially renamed while preserving the intent of
->> "reserve pages in lower zones when an allocation request can use higher
->> zones". While historically the critical intent was to preserve Normal and
->> to a lesser extent DMA on 32-bit systems, there still should be some care
->> of DMA32 so we should not lose that.
+On Wed, May 16, 2018 at 07:43:44AM +0200, Christoph Hellwig wrote:
+> And streamline the code in vgem_fault with early returns so that it is
+> a little bit more readable.
 > 
-> Agreed!
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  drivers/gpu/drm/vgem/vgem_drv.c | 51 +++++++++++++++------------------
+>  1 file changed, 23 insertions(+), 28 deletions(-)
 > 
->> With the patch, the allocator looks like it would be fine as just
->> reservations change. I think it's unlikely that CMA usage will result
->> in lowmem starvation.  Compaction becomes a bit weird as classzone index
->> has no special meaning versis highmem and I think it'll be very easy to
->> forget.
+> diff --git a/drivers/gpu/drm/vgem/vgem_drv.c b/drivers/gpu/drm/vgem/vgem_drv.c
+> index 2524ff116f00..a261e0aab83a 100644
+> --- a/drivers/gpu/drm/vgem/vgem_drv.c
+> +++ b/drivers/gpu/drm/vgem/vgem_drv.c
+> @@ -61,12 +61,13 @@ static void vgem_gem_free_object(struct drm_gem_object *obj)
+>  	kfree(vgem_obj);
+>  }
+>  
+> -static int vgem_gem_fault(struct vm_fault *vmf)
+> +static vm_fault_t vgem_gem_fault(struct vm_fault *vmf)
+>  {
+>  	struct vm_area_struct *vma = vmf->vma;
+>  	struct drm_vgem_gem_object *obj = vma->vm_private_data;
+>  	/* We don't use vmf->pgoff since that has the fake offset */
+>  	unsigned long vaddr = vmf->address;
+> +	struct page *page;
+>  	int ret;
+>  	loff_t num_pages;
+>  	pgoff_t page_offset;
+> @@ -85,35 +86,29 @@ static int vgem_gem_fault(struct vm_fault *vmf)
+>  		ret = 0;
+>  	}
+>  	mutex_unlock(&obj->pages_lock);
+> -	if (ret) {
+> -		struct page *page;
+> -
+> -		page = shmem_read_mapping_page(
+> -					file_inode(obj->base.filp)->i_mapping,
+> -					page_offset);
+> -		if (!IS_ERR(page)) {
+> -			vmf->page = page;
+> -			ret = 0;
+> -		} else switch (PTR_ERR(page)) {
+> -			case -ENOSPC:
+> -			case -ENOMEM:
+> -				ret = VM_FAULT_OOM;
+> -				break;
+> -			case -EBUSY:
+> -				ret = VM_FAULT_RETRY;
+> -				break;
+> -			case -EFAULT:
+> -			case -EINVAL:
+> -				ret = VM_FAULT_SIGBUS;
+> -				break;
+> -			default:
+> -				WARN_ON(PTR_ERR(page));
+> -				ret = VM_FAULT_SIGBUS;
+> -				break;
+> -		}
+> +	if (!ret)
+> +		return 0;
+> +
+> +	page = shmem_read_mapping_page(file_inode(obj->base.filp)->i_mapping,
+> +			page_offset);
+> +	if (!IS_ERR(page)) {
+> +		vmf->page = page;
+> +		return 0;
+> +	}
+>  
+> +	switch (PTR_ERR(page)) {
+> +	case -ENOSPC:
+> +	case -ENOMEM:
+> +		return VM_FAULT_OOM;
+> +	case -EBUSY:
+> +		return VM_FAULT_RETRY;
+> +	case -EFAULT:
+> +	case -EINVAL:
+> +		return VM_FAULT_SIGBUS;
+> +	default:
+> +		WARN_ON(PTR_ERR(page));
+> +		return VM_FAULT_SIGBUS;
+>  	}
+> -	return ret;
 
-I don't understand this point, what do you mean about highmem here? I've
-checked and compaction seems to use classzone_idx 1) to pass it to
-watermark checks as part of compaction suitability checks, i.e. the
-usual lowmem protection, and 2) to limit compaction of higher zones in
-kcompactd if the direct compactor can't use them anyway - seems this
-part has currently the same zone imbalance problem as reclaim.
+Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
 
->> Similarly, vmscan can reclaim pages from remote nodes and zones
->> that are higher than the original request. That is not likely to be a
->> problem but it's a change in behaviour and easy to miss.
->>
->> Fundamentally, I find it extremely weird we now have two variables that are
->> essentially the same thing. They should be collapsed into one variable,
->> renamed and documented on what the index means for page allocator,
->> compaction, vmscan and the special casing around CMA.
+Want me to merge this through drm-misc or plan to pick it up yourself?
+-Daniel
+
+>  }
+>  
+>  static const struct vm_operations_struct vgem_gem_vm_ops = {
+> -- 
+> 2.17.0
 > 
-> Agreed!
-> I will update this patch to reflect your comment. If someone have an idea
-> on renaming this variable, please let me know.
 
-Pehaps max_zone_idx? Seems a bit more clear than "high_zoneidx". And I
-have no idea what was actually meant by "class".
-
-> Thanks.
-> 
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
