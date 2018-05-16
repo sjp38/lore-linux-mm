@@ -1,54 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 95B9B6B0340
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 12:45:56 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e3-v6so843890pfe.15
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 09:45:56 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0098.outbound.protection.outlook.com. [104.47.2.98])
-        by mx.google.com with ESMTPS id t7-v6si3169509pfa.170.2018.05.16.09.45.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 16 May 2018 09:45:55 -0700 (PDT)
-Subject: Re: [PATCH] lib/stackdepot.c: use a non-instrumented version of
- memcpy()
-References: <20180516153434.24479-1-glider@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <f8a737c1-8cb9-15e1-2d98-454a4cafc1ed@virtuozzo.com>
-Date: Wed, 16 May 2018 19:47:03 +0300
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 190BF6B0342
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 12:49:13 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id k13-v6so944500oiw.3
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 09:49:13 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f15-v6si1079544otj.28.2018.05.16.09.49.11
+        for <linux-mm@kvack.org>;
+        Wed, 16 May 2018 09:49:11 -0700 (PDT)
+Subject: Re: [PATCH v4 00/12] APEI in_nmi() rework and arm64 SDEI wire-up
+References: <20180516162829.14348-1-james.morse@arm.com>
+From: James Morse <james.morse@arm.com>
+Message-ID: <15bfc50c-c789-bd79-7495-d040a354d306@arm.com>
+Date: Wed, 16 May 2018 17:46:04 +0100
 MIME-Version: 1.0
-In-Reply-To: <20180516153434.24479-1-glider@google.com>
+In-Reply-To: <20180516162829.14348-1-james.morse@arm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, akpm@linux-foundation.org, dvyukov@google.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-acpi@vger.kernel.org
+Cc: kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Tyler Baicar <tbaicar@codeaurora.org>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com
 
-On 05/16/2018 06:34 PM, Alexander Potapenko wrote:
-> stackdepot used to call memcpy(), which compiler tools normally
-> instrument, therefore every lookup used to unnecessarily call instrumented
-> code.  This is somewhat ok in the case of KASAN, but under KMSAN a lot of
-> time was spent in the instrumentation.
-> 
-> (A similar change has been previously committed for memcmp())
-> 
-> Signed-off-by: Alexander Potapenko <glider@google.com>
-> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> ---
->  lib/stackdepot.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/lib/stackdepot.c b/lib/stackdepot.c
-> index e513459a5601..d48c744fa750 100644
-> --- a/lib/stackdepot.c
-> +++ b/lib/stackdepot.c
-> @@ -140,7 +140,7 @@ static struct stack_record *depot_alloc_stack(unsigned long *entries, int size,
->  	stack->handle.slabindex = depot_index;
->  	stack->handle.offset = depot_offset >> STACK_ALLOC_ALIGN;
->  	stack->handle.valid = 1;
-> -	memcpy(stack->entries, entries, size * sizeof(unsigned long));
-> +	__memcpy(stack->entries, entries, size * sizeof(unsigned long));
+On 16/05/18 17:28, James Morse wrote:
+> The aim of this series is to wire arm64's SDEI into APEI.
 
-This has no effect. Since the whole file is not instrumented memcpy automagically replaced with __memcpy.
+... and I missed the 'l' from the beginning of the well know inux-mm@kvack.org
+mailing list. I won't increase the spam by resending, please fix it when
+pointing out my other mistakes!
+
+Thanks,
+
+James
+
+
+> Since v3 the NMI fixmap entries and locks have moved into their own
+> structure. This moves the indirection up from the 'lock', which should
+> be more acceptable to polite society.
+> Changes are noted in each patch.
+> 
+> This touches a few trees, so I'm not sure how best it should be merged.
+> Patches 11 and 12 are reducing a race that is made worse by patch 4, I'd
+> like them to arrive together, even though patch 11 doesn't depend on anything
+> else in the series. A partial merge of this would  be 1-3 and 11.
+
+[...]
+
+> Patch 11 makes the reschedule to memory_failure() run as soon as possible.
+
+[...]
+
+> James Morse (12):
+>   ACPI / APEI: Move the estatus queue code up, and under its own ifdef
+>   ACPI / APEI: Generalise the estatus queue's add/remove and notify code
+>   ACPI / APEI: don't wait to serialise with oops messages when
+>     panic()ing
+>   ACPI / APEI: Switch NOTIFY_SEA to use the estatus queue
+>   KVM: arm/arm64: Add kvm_ras.h to collect kvm specific RAS plumbing
+>   arm64: KVM/mm: Move SEA handling behind a single 'claim' interface
+>   ACPI / APEI: Make the nmi_fixmap_idx per-ghes to allow multiple
+>     in_nmi() users
+>   ACPI / APEI: Split fixmap pages for arm64 NMI-like notifications
+>   firmware: arm_sdei: Add ACPI GHES registration helper
+>   ACPI / APEI: Add support for the SDEI GHES Notification type
+>   mm/memory-failure: increase queued recovery work's priority
+>   arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
+> 
+>  arch/arm/include/asm/kvm_ras.h       |  14 +
+>  arch/arm/include/asm/system_misc.h   |   5 -
+>  arch/arm64/include/asm/acpi.h        |   4 +
+>  arch/arm64/include/asm/daifflags.h   |   1 +
+>  arch/arm64/include/asm/fixmap.h      |   8 +-
+>  arch/arm64/include/asm/kvm_ras.h     |  24 ++
+>  arch/arm64/include/asm/system_misc.h |   2 -
+>  arch/arm64/kernel/acpi.c             |  49 ++++
+>  arch/arm64/mm/fault.c                |  30 +-
+>  drivers/acpi/apei/ghes.c             | 518 ++++++++++++++++++++---------------
+>  drivers/firmware/arm_sdei.c          |  67 +++++
+>  include/acpi/ghes.h                  |  17 ++
+>  include/linux/arm_sdei.h             |   8 +
+>  mm/memory-failure.c                  |  11 +-
+>  virt/kvm/arm/mmu.c                   |   4 +-
+>  15 files changed, 503 insertions(+), 259 deletions(-)
+>  create mode 100644 arch/arm/include/asm/kvm_ras.h
+>  create mode 100644 arch/arm64/include/asm/kvm_ras.h
+> 
