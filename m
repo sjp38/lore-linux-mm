@@ -1,79 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5402A6B0354
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 16:04:54 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id t24-v6so1825664qtn.7
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 13:04:54 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id j4-v6si3417296qke.102.2018.05.16.13.04.48
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 733EE6B02D5
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 16:20:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id l128-v6so791916pga.22
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 13:20:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q1-v6sor2415484plb.62.2018.05.16.13.20.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 May 2018 13:04:48 -0700 (PDT)
-Subject: Re: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
-References: <20180515005756.28942-1-ying.huang@intel.com>
- <20180516091226.GM12670@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <c94f7180-d49b-3a9d-8d9e-002642ee9f3b@oracle.com>
-Date: Wed, 16 May 2018 13:04:31 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180516091226.GM12670@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 16 May 2018 13:20:44 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH] mm: save two stranding bit in gfp_mask
+Date: Wed, 16 May 2018 13:20:23 -0700
+Message-Id: <20180516202023.167627-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
 
-On 05/16/2018 02:12 AM, Michal Hocko wrote:
-> On Tue 15-05-18 08:57:56, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->>
->> This is to take better advantage of huge page clearing
->> optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
->> when clearing huge page").  Which will clear to access sub-page last
->> to avoid the cache lines of to access sub-page to be evicted when
->> clearing other sub-pages.  This needs to get the address of the
->> sub-page to access, that is, the fault address inside of the huge
->> page.  So the hugetlb no page fault handler is changed to pass that
->> information.  This will benefit workloads which don't access the begin
->> of the huge page after page fault.
->>
->> With this patch, the throughput increases ~28.1% in vm-scalability
->> anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
->> system (44 cores, 88 threads).  The test case creates 88 processes,
->> each process mmap a big anonymous memory area and writes to it from
->> the end to the begin.  For each process, other processes could be seen
->> as other workload which generates heavy cache pressure.  At the same
->> time, the cache miss rate reduced from ~36.3% to ~25.6%, the
->> IPC (instruction per cycle) increased from 0.3 to 0.37, and the time
->> spent in user space is reduced ~19.3%
-> 
-> This paragraph is confusing as Mike mentioned already. It would be
-> probably more helpful to see how was the test configured to use hugetlb
-> pages and what is the end benefit.
-> 
-> I do not have any real objection to the implementation so feel free to
-> add
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> I am just wondering what is the usecase driving this. Or is it just a
-> generic optimization that always makes sense to do? Indicating that in
-> the changelog would be helpful as well.
+___GFP_COLD and ___GFP_OTHER_NODE were removed but their bits were
+stranded. Slide existing gfp masks to make those two bits available.
 
-I just noticed that the optimization was not added for 'gigantic' pages.
-Should we consider adding support for gigantic pages as well?  It may be
-that the cache miss cost is insignificant when added to the time required
-to clear a 1GB (for x86) gigantic page.
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+---
+ include/linux/gfp.h | 42 +++++++++++++++++++++---------------------
+ 1 file changed, 21 insertions(+), 21 deletions(-)
 
-One more thing, I'm guessing the copy_huge/gigantic_page() routines would
-see a similar benefit.  Specifically, for copies as a result of a COW.
-Is that another area to consider?
-
-That gets back to Michal's question of a specific use case or generic
-optimization.  Unless code is simple (as in this patch), seems like we should
-hold off on considering additional optimizations unless there is a specific
-use case.
-
-I'm still OK with this change.
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 1a4582b44d32..8edf72d32411 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -16,31 +16,31 @@ struct vm_area_struct;
+  */
+ 
+ /* Plain integer GFP bitmasks. Do not use this directly. */
+-#define ___GFP_DMA		0x01u
+-#define ___GFP_HIGHMEM		0x02u
+-#define ___GFP_DMA32		0x04u
+-#define ___GFP_MOVABLE		0x08u
++#define ___GFP_DMA		0x1u
++#define ___GFP_HIGHMEM		0x2u
++#define ___GFP_DMA32		0x4u
++#define ___GFP_MOVABLE		0x8u
+ #define ___GFP_RECLAIMABLE	0x10u
+ #define ___GFP_HIGH		0x20u
+ #define ___GFP_IO		0x40u
+ #define ___GFP_FS		0x80u
+-#define ___GFP_NOWARN		0x200u
+-#define ___GFP_RETRY_MAYFAIL	0x400u
+-#define ___GFP_NOFAIL		0x800u
+-#define ___GFP_NORETRY		0x1000u
+-#define ___GFP_MEMALLOC		0x2000u
+-#define ___GFP_COMP		0x4000u
+-#define ___GFP_ZERO		0x8000u
+-#define ___GFP_NOMEMALLOC	0x10000u
+-#define ___GFP_HARDWALL		0x20000u
+-#define ___GFP_THISNODE		0x40000u
+-#define ___GFP_ATOMIC		0x80000u
+-#define ___GFP_ACCOUNT		0x100000u
+-#define ___GFP_DIRECT_RECLAIM	0x400000u
+-#define ___GFP_WRITE		0x800000u
+-#define ___GFP_KSWAPD_RECLAIM	0x1000000u
++#define ___GFP_NOWARN		0x100u
++#define ___GFP_RETRY_MAYFAIL	0x200u
++#define ___GFP_NOFAIL		0x400u
++#define ___GFP_NORETRY		0x800u
++#define ___GFP_MEMALLOC		0x1000u
++#define ___GFP_COMP		0x2000u
++#define ___GFP_ZERO		0x4000u
++#define ___GFP_NOMEMALLOC	0x8000u
++#define ___GFP_HARDWALL		0x10000u
++#define ___GFP_THISNODE		0x20000u
++#define ___GFP_ATOMIC		0x40000u
++#define ___GFP_ACCOUNT		0x80000u
++#define ___GFP_DIRECT_RECLAIM	0x100000u
++#define ___GFP_WRITE		0x200000u
++#define ___GFP_KSWAPD_RECLAIM	0x400000u
+ #ifdef CONFIG_LOCKDEP
+-#define ___GFP_NOLOCKDEP	0x2000000u
++#define ___GFP_NOLOCKDEP	0x800000u
+ #else
+ #define ___GFP_NOLOCKDEP	0
+ #endif
+@@ -205,7 +205,7 @@ struct vm_area_struct;
+ #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
+ 
+ /* Room for N __GFP_FOO bits */
+-#define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
++#define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+ 
+ /*
 -- 
-Mike Kravetz
+2.17.0.441.gb46fe60e1d-goog
