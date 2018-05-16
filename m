@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F6E56B02F3
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 01:44:52 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e7-v6so1882960pfi.8
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 22:44:52 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D891C6B02F2
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 01:44:55 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id m4-v6so1318317pgu.5
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 22:44:55 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d132-v6si1488695pgc.253.2018.05.15.22.44.51
+        by mx.google.com with ESMTPS id q28-v6si1908275pfl.317.2018.05.15.22.44.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 15 May 2018 22:44:51 -0700 (PDT)
+        Tue, 15 May 2018 22:44:54 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 09/14] ubifs: separate errno from VM_FAULT_* values
-Date: Wed, 16 May 2018 07:43:43 +0200
-Message-Id: <20180516054348.15950-10-hch@lst.de>
+Subject: [PATCH 10/14] vgem: separate errno from VM_FAULT_* values
+Date: Wed, 16 May 2018 07:43:44 +0200
+Message-Id: <20180516054348.15950-11-hch@lst.de>
 In-Reply-To: <20180516054348.15950-1-hch@lst.de>
 References: <20180516054348.15950-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,42 +20,89 @@ List-ID: <linux-mm.kvack.org>
 To: Souptick Joarder <jrdr.linux@gmail.com>, Matthew Wilcox <willy@infradead.org>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@lists.orangefs.org, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mtd@lists.infradead.org, dri-devel@lists.freedesktop.org, lustre-devel@lists.lustre.org, linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org
 
+And streamline the code in vgem_fault with early returns so that it is
+a little bit more readable.
+
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/ubifs/file.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ drivers/gpu/drm/vgem/vgem_drv.c | 51 +++++++++++++++------------------
+ 1 file changed, 23 insertions(+), 28 deletions(-)
 
-diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
-index 1acb2ff505e6..7c1a2e1c3de5 100644
---- a/fs/ubifs/file.c
-+++ b/fs/ubifs/file.c
-@@ -1513,7 +1513,7 @@ static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
-  * mmap()d file has taken write protection fault and is being made writable.
-  * UBIFS must ensure page is budgeted for.
-  */
--static int ubifs_vm_page_mkwrite(struct vm_fault *vmf)
-+static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
- {
- 	struct page *page = vmf->page;
- 	struct inode *inode = file_inode(vmf->vma->vm_file);
-@@ -1521,6 +1521,7 @@ static int ubifs_vm_page_mkwrite(struct vm_fault *vmf)
- 	struct timespec now = current_time(inode);
- 	struct ubifs_budget_req req = { .new_page = 1 };
- 	int err, update_time;
-+	vm_fault_t ret = 0;
- 
- 	dbg_gen("ino %lu, pg %lu, i_size %lld",	inode->i_ino, page->index,
- 		i_size_read(inode));
-@@ -1601,8 +1602,8 @@ static int ubifs_vm_page_mkwrite(struct vm_fault *vmf)
- 	unlock_page(page);
- 	ubifs_release_budget(c, &req);
- 	if (err)
--		err = VM_FAULT_SIGBUS;
--	return err;
-+		ret = VM_FAULT_SIGBUS;
-+	return ret;
+diff --git a/drivers/gpu/drm/vgem/vgem_drv.c b/drivers/gpu/drm/vgem/vgem_drv.c
+index 2524ff116f00..a261e0aab83a 100644
+--- a/drivers/gpu/drm/vgem/vgem_drv.c
++++ b/drivers/gpu/drm/vgem/vgem_drv.c
+@@ -61,12 +61,13 @@ static void vgem_gem_free_object(struct drm_gem_object *obj)
+ 	kfree(vgem_obj);
  }
  
- static const struct vm_operations_struct ubifs_file_vm_ops = {
+-static int vgem_gem_fault(struct vm_fault *vmf)
++static vm_fault_t vgem_gem_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+ 	struct drm_vgem_gem_object *obj = vma->vm_private_data;
+ 	/* We don't use vmf->pgoff since that has the fake offset */
+ 	unsigned long vaddr = vmf->address;
++	struct page *page;
+ 	int ret;
+ 	loff_t num_pages;
+ 	pgoff_t page_offset;
+@@ -85,35 +86,29 @@ static int vgem_gem_fault(struct vm_fault *vmf)
+ 		ret = 0;
+ 	}
+ 	mutex_unlock(&obj->pages_lock);
+-	if (ret) {
+-		struct page *page;
+-
+-		page = shmem_read_mapping_page(
+-					file_inode(obj->base.filp)->i_mapping,
+-					page_offset);
+-		if (!IS_ERR(page)) {
+-			vmf->page = page;
+-			ret = 0;
+-		} else switch (PTR_ERR(page)) {
+-			case -ENOSPC:
+-			case -ENOMEM:
+-				ret = VM_FAULT_OOM;
+-				break;
+-			case -EBUSY:
+-				ret = VM_FAULT_RETRY;
+-				break;
+-			case -EFAULT:
+-			case -EINVAL:
+-				ret = VM_FAULT_SIGBUS;
+-				break;
+-			default:
+-				WARN_ON(PTR_ERR(page));
+-				ret = VM_FAULT_SIGBUS;
+-				break;
+-		}
++	if (!ret)
++		return 0;
++
++	page = shmem_read_mapping_page(file_inode(obj->base.filp)->i_mapping,
++			page_offset);
++	if (!IS_ERR(page)) {
++		vmf->page = page;
++		return 0;
++	}
+ 
++	switch (PTR_ERR(page)) {
++	case -ENOSPC:
++	case -ENOMEM:
++		return VM_FAULT_OOM;
++	case -EBUSY:
++		return VM_FAULT_RETRY;
++	case -EFAULT:
++	case -EINVAL:
++		return VM_FAULT_SIGBUS;
++	default:
++		WARN_ON(PTR_ERR(page));
++		return VM_FAULT_SIGBUS;
+ 	}
+-	return ret;
+ }
+ 
+ static const struct vm_operations_struct vgem_gem_vm_ops = {
 -- 
 2.17.0
