@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A297D6B032E
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 09:23:00 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id 72-v6so460798pld.19
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 06:23:00 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c8-v6si2683750pfj.138.2018.05.16.06.22.59
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A8CBA6B0330
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 10:05:51 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id f5-v6so324507pgq.19
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 07:05:51 -0700 (PDT)
+Received: from g9t5008.houston.hpe.com (g9t5008.houston.hpe.com. [15.241.48.72])
+        by mx.google.com with ESMTPS id 1-v6si2617943pla.565.2018.05.16.07.05.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 16 May 2018 06:22:59 -0700 (PDT)
-Date: Wed, 16 May 2018 06:22:56 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: vm_fault_t conversion, for real
-Message-ID: <20180516132256.GG20670@bombadil.infradead.org>
-References: <20180516054348.15950-1-hch@lst.de>
- <20180516112347.GB20670@bombadil.infradead.org>
- <20180516130309.GB32454@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 May 2018 07:05:49 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [PATCH v2 1/3] x86/mm: disable ioremap free page handling on
+ x86-PAE
+Date: Wed, 16 May 2018 14:05:45 +0000
+Message-ID: <1526479474.2693.607.camel@hpe.com>
+References: <20180515213931.23885-2-toshi.kani@hpe.com>
+	 <201805161819.uT7J37yy%fengguang.wu@intel.com>
+In-Reply-To: <201805161819.uT7J37yy%fengguang.wu@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <FCB761AEC2EE8D4AB6F7AA19CE1EB99E@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180516130309.GB32454@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@lists.orangefs.org, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mtd@lists.infradead.org, dri-devel@lists.freedesktop.org, lustre-devel@lists.lustre.org, linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org
+To: "lkp@intel.com" <lkp@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "joro@8bytes.org" <joro@8bytes.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "kbuild-all@01.org" <kbuild-all@01.org>, "Hocko, Michal" <MHocko@suse.com>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Wed, May 16, 2018 at 03:03:09PM +0200, Christoph Hellwig wrote:
-> On Wed, May 16, 2018 at 04:23:47AM -0700, Matthew Wilcox wrote:
-> > On Wed, May 16, 2018 at 07:43:34AM +0200, Christoph Hellwig wrote:
-> > > this series tries to actually turn vm_fault_t into a type that can be
-> > > typechecked and checks the fallout instead of sprinkling random
-> > > annotations without context.
-> > 
-> > Yes, why should we have small tasks that newcomers can do when the mighty
-> > Christoph Hellwig can swoop in and take over from them?  Seriously,
-> > can't your talents find a better use than this?
-> 
-> I've spent less time on this than trying to argue to you and Souptick
-> that these changes are only to get ignored and yelled at as an
-> "asshole maintainer".  So yes, I could have done more productive things
-> if you hadn't forced this escalation.
-
-Perhaps you should try being less of an arsehole if you don't want to
-get yelled at?  I don't mind when you're an arsehole towards me, but I
-do mind when you're an arsehole towards newcomers.  How are we supposed
-to attract and retain new maintainers when you're so rude?
+T24gV2VkLCAyMDE4LTA1LTE2IGF0IDE5OjAwICswODAwLCBrYnVpbGQgdGVzdCByb2JvdCB3cm90
+ZToNCj4gSGkgVG9zaGksDQo+IA0KPiBUaGFuayB5b3UgZm9yIHRoZSBwYXRjaCEgWWV0IHNvbWV0
+aGluZyB0byBpbXByb3ZlOg0KPiANCj4gW2F1dG8gYnVpbGQgdGVzdCBFUlJPUiBvbiBhcm02NC9m
+b3ItbmV4dC9jb3JlXQ0KPiBbYWxzbyBidWlsZCB0ZXN0IEVSUk9SIG9uIHY0LjE3LXJjNSBuZXh0
+LTIwMTgwNTE1XQ0KPiBbY2Fubm90IGFwcGx5IHRvIHRpcC94ODYvY29yZV0NCj4gW2lmIHlvdXIg
+cGF0Y2ggaXMgYXBwbGllZCB0byB0aGUgd3JvbmcgZ2l0IHRyZWUsIHBsZWFzZSBkcm9wIHVzIGEg
+bm90ZSB0byBoZWxwIGltcHJvdmUgdGhlIHN5c3RlbV0NCj4gDQo+IHVybDogICAgaHR0cHM6Ly9n
+aXRodWIuY29tLzBkYXktY2kvbGludXgvY29tbWl0cy9Ub3NoaS1LYW5pL2ZpeC1mcmVlLXBtZC1w
+dGUtcGFnZS1oYW5kbGluZ3Mtb24teDg2LzIwMTgwNTE2LTE4MzMxNw0KPiBiYXNlOiAgIGh0dHBz
+Oi8vZ2l0Lmtlcm5lbC5vcmcvcHViL3NjbS9saW51eC9rZXJuZWwvZ2l0L2FybTY0L2xpbnV4Lmdp
+dCBmb3ItbmV4dC9jb3JlDQo+IGNvbmZpZzogaTM4Ni1yYW5kY29uZmlnLXgwMTMtMjAxODE5IChh
+dHRhY2hlZCBhcyAuY29uZmlnKQ0KPiBjb21waWxlcjogZ2NjLTcgKERlYmlhbiA3LjMuMC0xNikg
+Ny4zLjANCj4gcmVwcm9kdWNlOg0KPiAgICAgICAgICMgc2F2ZSB0aGUgYXR0YWNoZWQgLmNvbmZp
+ZyB0byBsaW51eCBidWlsZCB0cmVlDQo+ICAgICAgICAgbWFrZSBBUkNIPWkzODYgDQo+IA0KPiBO
+b3RlOiB0aGUgbGludXgtcmV2aWV3L1Rvc2hpLUthbmkvZml4LWZyZWUtcG1kLXB0ZS1wYWdlLWhh
+bmRsaW5ncy1vbi14ODYvMjAxODA1MTYtMTgzMzE3IEhFQUQgOTM5NDQ0MjJmY2VmOWJmYWRmMjJl
+MzQ1YzFkN2EzNDcyM2NjMzIwMyBidWlsZHMgZmluZS4NCj4gICAgICAgSXQgb25seSBodXJ0cyBi
+aXNlY3RpYmlsaXR5Lg0KPiANCj4gQWxsIGVycm9ycyAobmV3IG9uZXMgcHJlZml4ZWQgYnkgPj4p
+Og0KPiANCj4gPiA+IGFyY2gveDg2L21tL3BndGFibGUuYzo3NTc6NTogZXJyb3I6IGNvbmZsaWN0
+aW5nIHR5cGVzIGZvciAncHVkX2ZyZWVfcG1kX3BhZ2UnDQo+IA0KPiAgICAgaW50IHB1ZF9mcmVl
+X3BtZF9wYWdlKHB1ZF90ICpwdWQsIHVuc2lnbmVkIGxvbmcgYWRkcikNCj4gICAgICAgICBefn5+
+fn5+fn5+fn5+fn5+fg0KDQpUaGFua3MgZm9yIGNhdGNoaW5nIHRoaXMhICBQYXRjaCByZW9yZGVy
+aW5nIGNhdXNlZCB0aGlzLiAgV2lsbCBmaXguDQotVG9zaGkNCg==
