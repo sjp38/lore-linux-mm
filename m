@@ -1,41 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A93766B0329
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 08:59:17 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f63-v6so324101wmi.4
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 05:59:17 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id r63-v6si1950891wmr.125.2018.05.16.05.59.16
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A3D26B032C
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 09:13:09 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id l85-v6so456898pfb.18
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 06:13:09 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c7-v6si2482330plo.47.2018.05.16.06.13.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 May 2018 05:59:16 -0700 (PDT)
-Date: Wed, 16 May 2018 15:03:44 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 14/14] mm: turn on vm_fault_t type checking
-Message-ID: <20180516130344.GC32454@lst.de>
-References: <20180516054348.15950-1-hch@lst.de> <20180516054348.15950-15-hch@lst.de> <20180516112813.GC20670@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 16 May 2018 06:13:08 -0700 (PDT)
+Date: Wed, 16 May 2018 06:13:04 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 10/14] vgem: separate errno from VM_FAULT_* values
+Message-ID: <20180516131304.GF20670@bombadil.infradead.org>
+References: <20180516054348.15950-1-hch@lst.de>
+ <20180516054348.15950-11-hch@lst.de>
+ <20180516095303.GH3438@phenom.ffwll.local>
+ <20180516130159.GA32454@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180516112813.GC20670@bombadil.infradead.org>
+In-Reply-To: <20180516130159.GA32454@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christoph Hellwig <hch@lst.de>, Souptick Joarder <jrdr.linux@gmail.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@lists.orangefs.org, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mtd@lists.infradead.org, dri-devel@lists.freedesktop.org, lustre-devel@lists.lustre.org, linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@lists.orangefs.org, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mtd@lists.infradead.org, dri-devel@lists.freedesktop.org, lustre-devel@lists.lustre.org, linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org
 
-On Wed, May 16, 2018 at 04:28:13AM -0700, Matthew Wilcox wrote:
-> On Wed, May 16, 2018 at 07:43:48AM +0200, Christoph Hellwig wrote:
-> > Switch vm_fault_t to point to an unsigned int with __bN?twise annotations.
-> > This both catches any old ->fault or ->page_mkwrite instance with plain
-> > compiler type checking, as well as finding more intricate problems with
-> > sparse.
+On Wed, May 16, 2018 at 03:01:59PM +0200, Christoph Hellwig wrote:
+> On Wed, May 16, 2018 at 11:53:03AM +0200, Daniel Vetter wrote:
+> > Reviewed-by: Daniel Vetter <daniel.vetter@ffwll.ch>
+> > 
+> > Want me to merge this through drm-misc or plan to pick it up yourself?
 > 
-> Come on, Christoph; you know better than this.  This patch is completely
-> unreviewable.  Split it into one patch per maintainer tree, and in any
-> event, the patch to convert vm_fault_t to an unsigned int should be
-> separated from all the trivial conversions.
+> For now I just want a honest discussion if people really actually
+> want the vm_fault_t change with the whole picture in place.
 
-The whole point is that tiny split patches for mechnical translations
-are totally pointless.  Switching the typedef might be worth splitting
-if people really insist.
+That discussion already happened on the -mm mailing list.  And again
+at LSFMM.  Both times the answer was yes.
