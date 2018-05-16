@@ -1,86 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CC5C6B02DB
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 22:50:05 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id n83-v6so6512789itg.2
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 19:50:05 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g186-v6sor1483841itg.147.2018.05.15.19.50.03
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 831176B02DD
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 22:52:33 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id n26-v6so1094225pgd.2
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 19:52:33 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 3-v6si1559202plu.564.2018.05.15.19.52.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 15 May 2018 19:50:03 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 15 May 2018 19:52:32 -0700 (PDT)
+Date: Tue, 15 May 2018 19:52:18 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [External]  Re: [RFC PATCH v1 0/6] use mm to manage NVDIMM
+ (pmem) zone
+Message-ID: <20180516025218.GA17352@bombadil.infradead.org>
+References: <20180507184622.GB12361@bombadil.infradead.org>
+ <CAPcyv4hBJN3npXwg3Ur32JSWtKvBUZh7F8W+Exx3BB-uKWwPag@mail.gmail.com>
+ <x49a7tbi8r3.fsf@segfault.boston.devel.redhat.com>
+ <HK2PR03MB1684659175EB0A11E75E9B61929A0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180508030959.GB16338@bombadil.infradead.org>
+ <HK2PR03MB16841CBB549F40F86BB8D35C92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180510162742.GA30442@bombadil.infradead.org>
+ <HK2PR03MB1684B34F9D1DF18A8CDE18F292930@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180515162003.GA26489@bombadil.infradead.org>
+ <HK2PR03MB1684F8D2724BB8AF1FCCF02A92920@HK2PR03MB1684.apcprd03.prod.outlook.com>
 MIME-Version: 1.0
-In-Reply-To: <1523975611-15978-24-git-send-email-ldufour@linux.vnet.ibm.com>
-References: <1523975611-15978-1-git-send-email-ldufour@linux.vnet.ibm.com> <1523975611-15978-24-git-send-email-ldufour@linux.vnet.ibm.com>
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Date: Wed, 16 May 2018 10:50:02 +0800
-Message-ID: <CADAEsF-DbqdOWcbzjvOTbrounCQP5pLmAZBKByfG165bu82_pA@mail.gmail.com>
-Subject: Re: [PATCH v10 23/25] mm: add speculative page fault vmstats
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <HK2PR03MB1684F8D2724BB8AF1FCCF02A92920@HK2PR03MB1684.apcprd03.prod.outlook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Peter Zijlstra <peterz@infradead.org>, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, Balbir Singh <bsingharora@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Cc: Jeff Moyer <jmoyer@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, NingTing Cheng <chengnt@lenovo.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, Linux MM <linux-mm@kvack.org>, "colyli@suse.de" <colyli@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <alexander.levin@verizon.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Ocean HY1 He <hehy1@lenovo.com>, Vishal Verma <vishal.l.verma@intel.com>
 
-2018-04-17 22:33 GMT+08:00 Laurent Dufour <ldufour@linux.vnet.ibm.com>:
-> Add speculative_pgfault vmstat counter to count successful speculative page
-> fault handling.
->
-> Also fixing a minor typo in include/linux/vm_event_item.h.
->
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> ---
->  include/linux/vm_event_item.h | 3 +++
->  mm/memory.c                   | 1 +
->  mm/vmstat.c                   | 5 ++++-
->  3 files changed, 8 insertions(+), 1 deletion(-)
->
-> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-> index 5c7f010676a7..a240acc09684 100644
-> --- a/include/linux/vm_event_item.h
-> +++ b/include/linux/vm_event_item.h
-> @@ -111,6 +111,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->                 SWAP_RA,
->                 SWAP_RA_HIT,
->  #endif
-> +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-> +               SPECULATIVE_PGFAULT,
-> +#endif
->                 NR_VM_EVENT_ITEMS
->  };
->
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 425f07e0bf38..1cd5bc000643 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -4508,6 +4508,7 @@ int __handle_speculative_fault(struct mm_struct *mm, unsigned long address,
->          * If there is no need to retry, don't return the vma to the caller.
->          */
->         if (ret != VM_FAULT_RETRY) {
-> +               count_vm_event(SPECULATIVE_PGFAULT);
->                 put_vma(vmf.vma);
->                 *vma = NULL;
->         }
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 536332e988b8..c6b49bfa8139 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1289,7 +1289,10 @@ const char * const vmstat_text[] = {
->         "swap_ra",
->         "swap_ra_hit",
->  #endif
-> -#endif /* CONFIG_VM_EVENTS_COUNTERS */
-> +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-> +       "speculative_pgfault"
+On Wed, May 16, 2018 at 02:05:05AM +0000, Huaisheng HS1 Ye wrote:
+> > From: Matthew Wilcox [mailto:willy@infradead.org]
+> > Sent: Wednesday, May 16, 2018 12:20 AM> 
+> > > > > > Then there's the problem of reconnecting the page cache (which is
+> > > > > > pointed to by ephemeral data structures like inodes and dentries) to
+> > > > > > the new inodes.
+> > > > > Yes, it is not easy.
+> > > >
+> > > > Right ... and until we have that ability, there's no point in this patch.
+> > > We are focusing to realize this ability.
+> > 
+> > But is it the right approach?  So far we have (I think) two parallel
+> > activities.  The first is for local storage, using DAX to store files
+> > directly on the pmem.  The second is a physical block cache for network
+> > filesystems (both NAS and SAN).  You seem to be wanting to supplant the
+> > second effort, but I think it's much harder to reconnect the logical cache
+> > (ie the page cache) than it is the physical cache (ie the block cache).
+> 
+> Dear Matthew,
+> 
+> Thanks for correcting my idea with cache line.
+> But I have questions about that, assuming NVDIMM works with pmem mode, even we
+> used it as physical block cache, like dm-cache, there is potential risk with
+> this cache line issue, because NVDIMMs are bytes-address storage, right?
+> If system crash happens, that means CPU doesn't have opportunity to flush all dirty
+> data from cache lines to NVDIMM, during copying data pointed by bio_vec.bv_page to
+> NVDIMM. 
+> I know there is btt which is used to guarantee sector atomic with block mode,
+> but for pmem mode that will likely cause mix of new and old data in one page
+> of NVDIMM.
+> Correct me if anything wrong.
 
-"speculative_pgfault",
-will be better. :)
+Right, we do have BTT.  I'm not sure how it's being used with the block
+cache ... but the principle is the same; write the new data to a new
+page and then update the metadata to point to the new page.
 
-> +#endif
-> +#endif /* CONFIG_VM_EVENT_COUNTERS */
->  };
->  #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
->
-> --
-> 2.7.4
->
+> Another question, if we used NVDIMMs as physical block cache for network filesystems,
+> Does industry have existing implementation to bypass Page Cache similarly like DAX way,
+> that is to say, directly storing data to NVDIMMs from userspace, rather than copying
+> data from kernel space memory to NVDIMMs.
+
+The important part about DAX is that the kernel gets entirely out of the
+way and userspace takes care of handling flushing and synchronisation.
+I'm not sure how that works with the block cache; for a network
+filesystem, the filesystem needs to be in charge of deciding when and
+how to write the buffered data back to the storage.
+
+Dan, Vishal, perhaps you could jump in here; I'm not really sure where
+this effort has got to.
