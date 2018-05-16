@@ -1,96 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 338E16B02D3
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 20:42:51 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c4-v6so1293171pfg.22
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 17:42:51 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id x25-v6si1353225pfj.347.2018.05.15.17.42.47
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 270AD6B02D7
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 22:05:35 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id c82-v6so6240968itg.1
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 19:05:35 -0700 (PDT)
+Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.8])
+        by mx.google.com with ESMTPS id y99-v6si1428824ita.126.2018.05.15.19.05.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 May 2018 17:42:47 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
-References: <20180515005756.28942-1-ying.huang@intel.com>
-	<20180515103812.aapv4b4hbzno52zl@kshutemo-mobl1>
-Date: Wed, 16 May 2018 08:42:43 +0800
-In-Reply-To: <20180515103812.aapv4b4hbzno52zl@kshutemo-mobl1> (Kirill
-	A. Shutemov's message of "Tue, 15 May 2018 13:38:12 +0300")
-Message-ID: <878t8kzb0c.fsf@yhuang-dev.intel.com>
+        Tue, 15 May 2018 19:05:33 -0700 (PDT)
+From: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Subject: RE: [External]  Re: [RFC PATCH v1 0/6] use mm to manage NVDIMM (pmem)
+ zone
+Date: Wed, 16 May 2018 02:05:05 +0000
+Message-ID: <HK2PR03MB1684F8D2724BB8AF1FCCF02A92920@HK2PR03MB1684.apcprd03.prod.outlook.com>
+References: <1525704627-30114-1-git-send-email-yehs1@lenovo.com>
+ <20180507184622.GB12361@bombadil.infradead.org>
+ <CAPcyv4hBJN3npXwg3Ur32JSWtKvBUZh7F8W+Exx3BB-uKWwPag@mail.gmail.com>
+ <x49a7tbi8r3.fsf@segfault.boston.devel.redhat.com>
+ <HK2PR03MB1684659175EB0A11E75E9B61929A0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180508030959.GB16338@bombadil.infradead.org>
+ <HK2PR03MB16841CBB549F40F86BB8D35C92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180510162742.GA30442@bombadil.infradead.org>
+ <HK2PR03MB1684B34F9D1DF18A8CDE18F292930@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180515162003.GA26489@bombadil.infradead.org>
+In-Reply-To: <20180515162003.GA26489@bombadil.infradead.org>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Jeff Moyer <jmoyer@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, NingTing Cheng <chengnt@lenovo.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel
+ Mailing List <linux-kernel@vger.kernel.org>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, Linux MM <linux-mm@kvack.org>, "colyli@suse.de" <colyli@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <alexander.levin@verizon.com>, Mel
+ Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Ocean HY1 He <hehy1@lenovo.com>
 
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
+> From: Matthew Wilcox [mailto:willy@infradead.org]
+> Sent: Wednesday, May 16, 2018 12:20 AM>=20
+> > > > > Then there's the problem of reconnecting the page cache (which is
+> > > > > pointed to by ephemeral data structures like inodes and dentries)=
+ to
+> > > > > the new inodes.
+> > > > Yes, it is not easy.
+> > >
+> > > Right ... and until we have that ability, there's no point in this pa=
+tch.
+> > We are focusing to realize this ability.
+>=20
+> But is it the right approach?  So far we have (I think) two parallel
+> activities.  The first is for local storage, using DAX to store files
+> directly on the pmem.  The second is a physical block cache for network
+> filesystems (both NAS and SAN).  You seem to be wanting to supplant the
+> second effort, but I think it's much harder to reconnect the logical cach=
+e
+> (ie the page cache) than it is the physical cache (ie the block cache).
 
-> On Tue, May 15, 2018 at 08:57:56AM +0800, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> This is to take better advantage of huge page clearing
->> optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
->> when clearing huge page").  Which will clear to access sub-page last
->> to avoid the cache lines of to access sub-page to be evicted when
->> clearing other sub-pages.  This needs to get the address of the
->> sub-page to access, that is, the fault address inside of the huge
->> page.  So the hugetlb no page fault handler is changed to pass that
->> information.  This will benefit workloads which don't access the begin
->> of the huge page after page fault.
->> 
->> With this patch, the throughput increases ~28.1% in vm-scalability
->> anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
->> system (44 cores, 88 threads).  The test case creates 88 processes,
->> each process mmap a big anonymous memory area and writes to it from
->> the end to the begin.  For each process, other processes could be seen
->> as other workload which generates heavy cache pressure.  At the same
->> time, the cache miss rate reduced from ~36.3% to ~25.6%, the
->> IPC (instruction per cycle) increased from 0.3 to 0.37, and the time
->> spent in user space is reduced ~19.3%
->> 
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->> Cc: Andi Kleen <andi.kleen@intel.com>
->> Cc: Jan Kara <jack@suse.cz>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Matthew Wilcox <mawilcox@microsoft.com>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Shaohua Li <shli@fb.com>
->> Cc: Christopher Lameter <cl@linux.com>
->> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> Cc: Punit Agrawal <punit.agrawal@arm.com>
->> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
->> ---
->>  mm/hugetlb.c | 12 ++++++------
->>  1 file changed, 6 insertions(+), 6 deletions(-)
->> 
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 129088710510..3de6326abf39 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -3677,7 +3677,7 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
->>  
->>  static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->>  			   struct address_space *mapping, pgoff_t idx,
->> -			   unsigned long address, pte_t *ptep, unsigned int flags)
->> +			   unsigned long faddress, pte_t *ptep, unsigned int flags)
->>  {
->>  	struct hstate *h = hstate_vma(vma);
->>  	int ret = VM_FAULT_SIGBUS;
->> @@ -3686,6 +3686,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->>  	struct page *page;
->>  	pte_t new_pte;
->>  	spinlock_t *ptl;
->> +	unsigned long address = faddress & huge_page_mask(h);
->
-> faddress? I would rather keep it address and rename maked out variable to
-> 'haddr'. We use 'haddr' for the cause in other places.
+Dear Matthew,
 
-I found haddr is popular in huge_memory.c but not used in hugetlb.c at
-all.  Is it desirable to start to use "haddr" in hugetlb.c?
+Thanks for correcting my idea with cache line.
+But I have questions about that, assuming NVDIMM works with pmem mode, even=
+ we
+used it as physical block cache, like dm-cache, there is potential risk wit=
+h
+this cache line issue, because NVDIMMs are bytes-address storage, right?
+If system crash happens, that means CPU doesn't have opportunity to flush a=
+ll dirty
+data from cache lines to NVDIMM, during copying data pointed by bio_vec.bv_=
+page to
+NVDIMM.=20
+I know there is btt which is used to guarantee sector atomic with block mod=
+e,
+but for pmem mode that will likely cause mix of new and old data in one pag=
+e
+of NVDIMM.
+Correct me if anything wrong.
 
-Best Regards,
-Huang, Ying
+Another question, if we used NVDIMMs as physical block cache for network fi=
+lesystems,
+Does industry have existing implementation to bypass Page Cache similarly l=
+ike DAX way,
+that is to say, directly storing data to NVDIMMs from userspace, rather tha=
+n copying
+data from kernel space memory to NVDIMMs.
+
+BRs,
+Huaisheng
