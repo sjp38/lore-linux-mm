@@ -1,86 +1,235 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 86D896B02DF
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 00:10:15 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id w10-v6so2495723otj.14
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 21:10:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 22-v6sor1222961otu.132.2018.05.15.21.10.12
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EE0D6B02E1
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 01:06:26 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e20-v6so1813048pff.14
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 22:06:26 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id s24-v6si1679730pfm.257.2018.05.15.22.06.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 15 May 2018 21:10:13 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 May 2018 22:06:20 -0700 (PDT)
+Subject: Re: [PATCH 01/33] block: add a lower-level bio_add_page interface
+References: <20180509074830.16196-1-hch@lst.de>
+ <20180509074830.16196-2-hch@lst.de>
+From: Ritesh Harjani <riteshh@codeaurora.org>
+Message-ID: <37c16316-aa3a-e3df-79d0-9fca37a5996f@codeaurora.org>
+Date: Wed, 16 May 2018 10:36:14 +0530
 MIME-Version: 1.0
-In-Reply-To: <20180516025218.GA17352@bombadil.infradead.org>
-References: <20180507184622.GB12361@bombadil.infradead.org>
- <CAPcyv4hBJN3npXwg3Ur32JSWtKvBUZh7F8W+Exx3BB-uKWwPag@mail.gmail.com>
- <x49a7tbi8r3.fsf@segfault.boston.devel.redhat.com> <HK2PR03MB1684659175EB0A11E75E9B61929A0@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180508030959.GB16338@bombadil.infradead.org> <HK2PR03MB16841CBB549F40F86BB8D35C92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180510162742.GA30442@bombadil.infradead.org> <HK2PR03MB1684B34F9D1DF18A8CDE18F292930@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180515162003.GA26489@bombadil.infradead.org> <HK2PR03MB1684F8D2724BB8AF1FCCF02A92920@HK2PR03MB1684.apcprd03.prod.outlook.com>
- <20180516025218.GA17352@bombadil.infradead.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 15 May 2018 21:10:11 -0700
-Message-ID: <CAPcyv4gMZa0n8SX0UR4No6xMZ0-eRMda4BwCi2df16Jye_yrfg@mail.gmail.com>
-Subject: Re: [External] Re: [RFC PATCH v1 0/6] use mm to manage NVDIMM (pmem) zone
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180509074830.16196-2-hch@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Huaisheng HS1 Ye <yehs1@lenovo.com>, Jeff Moyer <jmoyer@redhat.com>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, NingTing Cheng <chengnt@lenovo.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, Linux MM <linux-mm@kvack.org>, "colyli@suse.de" <colyli@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <alexander.levin@verizon.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Ocean HY1 He <hehy1@lenovo.com>, Vishal Verma <vishal.l.verma@intel.com>
+To: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, May 15, 2018 at 7:52 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Wed, May 16, 2018 at 02:05:05AM +0000, Huaisheng HS1 Ye wrote:
->> > From: Matthew Wilcox [mailto:willy@infradead.org]
->> > Sent: Wednesday, May 16, 2018 12:20 AM>
->> > > > > > Then there's the problem of reconnecting the page cache (which is
->> > > > > > pointed to by ephemeral data structures like inodes and dentries) to
->> > > > > > the new inodes.
->> > > > > Yes, it is not easy.
->> > > >
->> > > > Right ... and until we have that ability, there's no point in this patch.
->> > > We are focusing to realize this ability.
->> >
->> > But is it the right approach?  So far we have (I think) two parallel
->> > activities.  The first is for local storage, using DAX to store files
->> > directly on the pmem.  The second is a physical block cache for network
->> > filesystems (both NAS and SAN).  You seem to be wanting to supplant the
->> > second effort, but I think it's much harder to reconnect the logical cache
->> > (ie the page cache) than it is the physical cache (ie the block cache).
->>
->> Dear Matthew,
->>
->> Thanks for correcting my idea with cache line.
->> But I have questions about that, assuming NVDIMM works with pmem mode, even we
->> used it as physical block cache, like dm-cache, there is potential risk with
->> this cache line issue, because NVDIMMs are bytes-address storage, right?
->> If system crash happens, that means CPU doesn't have opportunity to flush all dirty
->> data from cache lines to NVDIMM, during copying data pointed by bio_vec.bv_page to
->> NVDIMM.
->> I know there is btt which is used to guarantee sector atomic with block mode,
->> but for pmem mode that will likely cause mix of new and old data in one page
->> of NVDIMM.
->> Correct me if anything wrong.
->
-> Right, we do have BTT.  I'm not sure how it's being used with the block
-> cache ... but the principle is the same; write the new data to a new
-> page and then update the metadata to point to the new page.
->
->> Another question, if we used NVDIMMs as physical block cache for network filesystems,
->> Does industry have existing implementation to bypass Page Cache similarly like DAX way,
->> that is to say, directly storing data to NVDIMMs from userspace, rather than copying
->> data from kernel space memory to NVDIMMs.
->
-> The important part about DAX is that the kernel gets entirely out of the
-> way and userspace takes care of handling flushing and synchronisation.
-> I'm not sure how that works with the block cache; for a network
-> filesystem, the filesystem needs to be in charge of deciding when and
-> how to write the buffered data back to the storage.
->
-> Dan, Vishal, perhaps you could jump in here; I'm not really sure where
-> this effort has got to.
 
-Which effort? I think we're saying that there is no such thing as a
-DAX capable block cache and it is not clear one make sense.
 
-We can certainly teach existing block caches some optimizations in the
-presence of pmem, and perhaps that is sufficient.
+On 5/9/2018 1:17 PM, Christoph Hellwig wrote:
+> For the upcoming removal of buffer heads in XFS we need to keep track of
+> the number of outstanding writeback requests per page.  For this we need
+> to know if bio_add_page merged a region with the previous bvec or not.
+> Instead of adding additional arguments this refactors bio_add_page to
+> be implemented using three lower level helpers which users like XFS can
+> use directly if they care about the merge decisions.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>   block/bio.c         | 87 ++++++++++++++++++++++++++++++---------------
+>   include/linux/bio.h |  9 +++++
+>   2 files changed, 67 insertions(+), 29 deletions(-)
+> 
+> diff --git a/block/bio.c b/block/bio.c
+> index 53e0f0a1ed94..6ceba6adbf42 100644
+> --- a/block/bio.c
+> +++ b/block/bio.c
+> @@ -773,7 +773,7 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
+>   			return 0;
+>   	}
+>   
+> -	if (bio->bi_vcnt >= bio->bi_max_vecs)
+> +	if (bio_full(bio))
+>   		return 0;
+>   
+>   	/*
+> @@ -820,6 +820,59 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
+>   }
+>   EXPORT_SYMBOL(bio_add_pc_page);
+>   
+> +/**
+> + * __bio_try_merge_page - try adding data to an existing bvec
+> + * @bio: destination bio
+> + * @page: page to add
+> + * @len: length of the range to add
+> + * @off: offset into @page
+> + *
+> + * Try adding the data described at @page + @offset to the last bvec of @bio.
+> + * Return %true on success or %false on failure.  This can happen frequently
+> + * for file systems with a block size smaller than the page size.
+> + */
+> +bool __bio_try_merge_page(struct bio *bio, struct page *page,
+> +		unsigned int len, unsigned int off)
+> +{
+> +	if (bio->bi_vcnt > 0) {
+> +		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+> +
+> +		if (page == bv->bv_page && off == bv->bv_offset + bv->bv_len) {
+> +			bv->bv_len += len;
+> +			bio->bi_iter.bi_size += len;
+> +			return true;
+> +		}
+> +	}
+> +	return false;
+> +}
+> +EXPORT_SYMBOL_GPL(__bio_try_merge_page);
+> +
+> +/**
+> + * __bio_add_page - add page to a bio in a new segment
+> + * @bio: destination bio
+> + * @page: page to add
+> + * @len: length of the range to add
+> + * @off: offset into @page
+> + *
+> + * Add the data at @page + @offset to @bio as a new bvec.  The caller must
+> + * ensure that @bio has space for another bvec.
+> + */
+> +void __bio_add_page(struct bio *bio, struct page *page,
+> +		unsigned int len, unsigned int off)
+> +{
+> +	struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt];
+> +
+> +	WARN_ON_ONCE(bio_full(bio));
+
+Please correct my understanding here. I am still new at understanding this.
+
+1. if bio_full is true that means no space in bio->bio_io_vec[] no?
+Than how come we are still proceeding ahead with only warning?
+While originally in bio_add_page we used to return after checking
+bio_full. Callers can still call __bio_add_page directly right.
+
+2. Also the bio_io_vec size allocated will only be upto bio->bi_max_vecs 
+right?
+I could not follow up very well with the bvec_alloc function,
+mainly when nr_iovec > inline_vecs. So how and where it is getting sure 
+that we are getting _nr_iovecs_ allocated from the bvec_pool?
+
+hmm.. tricky. Please help me understand this.
+1. So we have defined different slabs of different sizes in bvec_slabs. 
+and when the allocation request of nr_iovecs come
+we try to grab the predefined(in terms of size) slab of bvec_slabs
+and return. In case if that allocation does not succeed from slab,
+we go for mempool_alloc.
+
+2. IF above is correct why don't we set the bio->bi_max_vecs to the size
+of the slab instead of keeeping it to nr_iovecs which user requested?
+(in bio_alloc_bioset)
+
+
+3. Could you please help understand why for cloned bio we still allow
+__bio_add_page to work? why not WARN and return like in original code?
+
+4. Ok, I see that in patch 32 you are first checking bio_full and 
+calling for xfs_chain_bio. But there also I think you are making sure 
+that new ioend->io_bio is the new chained bio which is not full.
+
+Apologies if above doesn't make any sense.
+
+> +
+> +	bv->bv_page = page;
+> +	bv->bv_offset = off;
+> +	bv->bv_len = len;
+> +
+> +	bio->bi_iter.bi_size += len;
+> +	bio->bi_vcnt++;
+> +}
+> +EXPORT_SYMBOL_GPL(__bio_add_page);
+> +
+>   /**
+>    *	bio_add_page	-	attempt to add page to bio
+>    *	@bio: destination bio
+> @@ -833,40 +886,16 @@ EXPORT_SYMBOL(bio_add_pc_page);
+>   int bio_add_page(struct bio *bio, struct page *page,
+>   		 unsigned int len, unsigned int offset)
+>   {
+> -	struct bio_vec *bv;
+> -
+>   	/*
+>   	 * cloned bio must not modify vec list
+>   	 */
+>   	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
+>   		return 0;
+> -
+> -	/*
+> -	 * For filesystems with a blocksize smaller than the pagesize
+> -	 * we will often be called with the same page as last time and
+> -	 * a consecutive offset.  Optimize this special case.
+> -	 */
+> -	if (bio->bi_vcnt > 0) {
+> -		bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+> -
+> -		if (page == bv->bv_page &&
+> -		    offset == bv->bv_offset + bv->bv_len) {
+> -			bv->bv_len += len;
+> -			goto done;
+> -		}
+> +	if (!__bio_try_merge_page(bio, page, len, offset)) {
+> +		if (bio_full(bio))
+> +			return 0;
+> +		__bio_add_page(bio, page, len, offset);
+>   	}
+> -
+> -	if (bio->bi_vcnt >= bio->bi_max_vecs)
+> -		return 0;
+Originally here we were supposed to return and not proceed further.
+Should __bio_add_page not have similar checks to safeguard crossing
+the bio_io_vec[] boundary?
+
+
+> -
+> -	bv		= &bio->bi_io_vec[bio->bi_vcnt];
+> -	bv->bv_page	= page;
+> -	bv->bv_len	= len;
+> -	bv->bv_offset	= offset;
+> -
+> -	bio->bi_vcnt++;
+> -done:
+> -	bio->bi_iter.bi_size += len;
+>   	return len;
+>   }
+>   EXPORT_SYMBOL(bio_add_page);
+> diff --git a/include/linux/bio.h b/include/linux/bio.h
+> index ce547a25e8ae..3e73c8bc25ea 100644
+> --- a/include/linux/bio.h
+> +++ b/include/linux/bio.h
+> @@ -123,6 +123,11 @@ static inline void *bio_data(struct bio *bio)
+>   	return NULL;
+>   }
+>   
+> +static inline bool bio_full(struct bio *bio)
+> +{
+> +	return bio->bi_vcnt >= bio->bi_max_vecs;
+> +}
+> +
+>   /*
+>    * will die
+>    */
+> @@ -470,6 +475,10 @@ void bio_chain(struct bio *, struct bio *);
+>   extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
+>   extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
+>   			   unsigned int, unsigned int);
+> +bool __bio_try_merge_page(struct bio *bio, struct page *page,
+> +		unsigned int len, unsigned int off);
+> +void __bio_add_page(struct bio *bio, struct page *page,
+> +		unsigned int len, unsigned int off);
+>   int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
+>   struct rq_map_data;
+>   extern struct bio *bio_map_user_iov(struct request_queue *,
+> 
+
+-- 
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center, 
+Inc.
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a 
+Linux Foundation Collaborative Project.
