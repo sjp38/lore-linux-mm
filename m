@@ -1,71 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 53F036B0369
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 17:14:55 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j14-v6so1344986pfn.11
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 14:14:55 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E03DD6B036C
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 17:21:50 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id f23-v6so1565753wra.20
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 14:21:50 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j4-v6sor2388914pfn.82.2018.05.16.14.14.54
+        by mx.google.com with SMTPS id 189-v6sor931779wmu.47.2018.05.16.14.21.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 16 May 2018 14:14:54 -0700 (PDT)
+        Wed, 16 May 2018 14:21:49 -0700 (PDT)
+MIME-Version: 1.0
+References: <20180516202023.167627-1-shakeelb@google.com> <90167afa-ecfb-c5ef-3554-ddb7e6ac9728@suse.cz>
+In-Reply-To: <90167afa-ecfb-c5ef-3554-ddb7e6ac9728@suse.cz>
 From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH v2] mm: save two stranding bit in gfp_mask
-Date: Wed, 16 May 2018 14:14:39 -0700
-Message-Id: <20180516211439.177440-1-shakeelb@google.com>
+Date: Wed, 16 May 2018 14:21:35 -0700
+Message-ID: <CALvZod6PebHBeqp_kJ47S_vMYKmHnAP5er4+03O=5XGFiyHfHA@mail.gmail.com>
+Subject: Re: [PATCH] mm: save two stranding bit in gfp_mask
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@techsingularity.net>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-___GFP_COLD and ___GFP_OTHER_NODE were removed but their bits were
-stranded. Fill the gaps by moving the existing gfp masks around.
+On Wed, May 16, 2018 at 1:41 PM Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 05/16/2018 10:20 PM, Shakeel Butt wrote:
+> > ___GFP_COLD and ___GFP_OTHER_NODE were removed but their bits were
+> > stranded. Slide existing gfp masks to make those two bits available.
+> Well, there are already available for hypothetical new flags. Is there
+> anything that benefits from a smaller __GFP_BITS_SHIFT?
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
-Suggested-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
-Changelog since v1:
-- Moved couple of gfp masks instead of sliding all.
-
- include/linux/gfp.h | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 1a4582b44d32..036846fc00a6 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -24,6 +24,7 @@ struct vm_area_struct;
- #define ___GFP_HIGH		0x20u
- #define ___GFP_IO		0x40u
- #define ___GFP_FS		0x80u
-+#define ___GFP_WRITE		0x100u
- #define ___GFP_NOWARN		0x200u
- #define ___GFP_RETRY_MAYFAIL	0x400u
- #define ___GFP_NOFAIL		0x800u
-@@ -36,11 +37,10 @@ struct vm_area_struct;
- #define ___GFP_THISNODE		0x40000u
- #define ___GFP_ATOMIC		0x80000u
- #define ___GFP_ACCOUNT		0x100000u
--#define ___GFP_DIRECT_RECLAIM	0x400000u
--#define ___GFP_WRITE		0x800000u
--#define ___GFP_KSWAPD_RECLAIM	0x1000000u
-+#define ___GFP_DIRECT_RECLAIM	0x200000u
-+#define ___GFP_KSWAPD_RECLAIM	0x400000u
- #ifdef CONFIG_LOCKDEP
--#define ___GFP_NOLOCKDEP	0x2000000u
-+#define ___GFP_NOLOCKDEP	0x800000u
- #else
- #define ___GFP_NOLOCKDEP	0
- #endif
-@@ -205,7 +205,7 @@ struct vm_area_struct;
- #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
- 
- /* Room for N __GFP_FOO bits */
--#define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
-+#define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
- 
- /*
--- 
-2.17.0.441.gb46fe60e1d-goog
+I am prototyping to pass along the type of kmem allocation e.g. page table,
+vmalloc, stack e.t.c. (still very preliminary).
