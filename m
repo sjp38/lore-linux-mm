@@ -1,40 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AEFCD6B0349
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 13:30:17 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id p14-v6so1081088wre.21
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 10:30:17 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 6-v6si2528857wri.310.2018.05.16.10.30.16
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B6456B034B
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 13:56:33 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id bd7-v6so972537plb.20
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 10:56:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x1-v6sor1999073plb.71.2018.05.16.10.56.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 May 2018 10:30:16 -0700 (PDT)
-Date: Wed, 16 May 2018 19:34:45 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 14/14] mm: turn on vm_fault_t type checking
-Message-ID: <20180516173445.GA6088@lst.de>
-References: <20180516054348.15950-1-hch@lst.de> <20180516054348.15950-15-hch@lst.de> <20180516150829.GA4904@magnolia>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180516150829.GA4904@magnolia>
+        (Google Transport Security);
+        Wed, 16 May 2018 10:56:31 -0700 (PDT)
+From: Omar Sandoval <osandov@osandov.com>
+Subject: [PATCH] mm: fix nr_rotate_swap leak in swapon() error case
+Date: Wed, 16 May 2018 10:56:22 -0700
+Message-Id: <b6fe6b879f17fa68eee6cbd876f459f6e5e33495.1526491581.git.osandov@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>, Souptick Joarder <jrdr.linux@gmail.com>, Matthew Wilcox <willy@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@lists.orangefs.org, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mtd@lists.infradead.org, dri-devel@lists.freedesktop.org, lustre-devel@lists.lustre.org, linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, kernel-team@fb.com
 
-On Wed, May 16, 2018 at 08:08:29AM -0700, Darrick J. Wong wrote:
-> Uh, we're changing function signatures /and/ redefinining vm_fault_t?
-> All in the same 90K patch?
-> 
-> I /was/ expecting a series of "convert XXXXX and all callers/users"
-> patches followed by a trivial one to switch the definition, not a giant
-> pile of change.  FWIW I don't mind so much if you make a patch
-> containing a change for some super-common primitive and a hojillion
-> little diff hunks tree-wide, but only one logical change at a time for a
-> big patch, please...
-> 
-> I quite prefer seeing the whole series from start to finish all packaged
-> up in one series, but wow this was overwhelming. :/
+From: Omar Sandoval <osandov@fb.com>
 
-Another vote to split the change of the typedef, ok I get the message..
+If swapon() fails after incrementing nr_rotate_swap, we don't decrement
+it and thus effectively leak it. Make sure we decrement it if we
+incremented it.
+
+Fixes: 81a0298bdfab ("mm, swap: don't use VMA based swap readahead if HDD is used as swap")
+Signed-off-by: Omar Sandoval <osandov@fb.com>
+---
+Based on v4.17-rc5.
+
+ mm/swapfile.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index cc2cf04d9018..78a015fcec3b 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -3112,6 +3112,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	unsigned long *frontswap_map = NULL;
+ 	struct page *page = NULL;
+ 	struct inode *inode = NULL;
++	bool inced_nr_rotate_swap = false;
+ 
+ 	if (swap_flags & ~SWAP_FLAGS_VALID)
+ 		return -EINVAL;
+@@ -3215,8 +3216,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
+ 			cluster_set_null(&cluster->index);
+ 		}
+-	} else
++	} else {
+ 		atomic_inc(&nr_rotate_swap);
++		inced_nr_rotate_swap = true;
++	}
+ 
+ 	error = swap_cgroup_swapon(p->type, maxpages);
+ 	if (error)
+@@ -3307,6 +3310,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+ 	vfree(swap_map);
+ 	kvfree(cluster_info);
+ 	kvfree(frontswap_map);
++	if (inced_nr_rotate_swap)
++		atomic_dec(&nr_rotate_swap);
+ 	if (swap_file) {
+ 		if (inode && S_ISREG(inode->i_mode)) {
+ 			inode_unlock(inode);
+-- 
+2.17.0
