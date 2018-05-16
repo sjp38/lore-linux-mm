@@ -1,40 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AA4B46B0307
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 04:03:19 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x23-v6so2175041pfm.7
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 01:03:19 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id u62-v6si1605920pgc.180.2018.05.16.01.03.18
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 81F9B6B0309
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 04:33:37 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id o143-v6so8357293itg.9
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 01:33:37 -0700 (PDT)
+Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.3])
+        by mx.google.com with ESMTPS id g1-v6si2091158itd.100.2018.05.16.01.33.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 May 2018 01:03:18 -0700 (PDT)
-Date: Wed, 16 May 2018 11:03:12 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
-Message-ID: <20180516080312.rx6owusozklkmypj@black.fi.intel.com>
-References: <20180515005756.28942-1-ying.huang@intel.com>
- <20180515103812.aapv4b4hbzno52zl@kshutemo-mobl1>
- <878t8kzb0c.fsf@yhuang-dev.intel.com>
+        Wed, 16 May 2018 01:33:35 -0700 (PDT)
+From: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Subject: RE: [External] Re: [RFC PATCH v1 0/6] use mm to manage NVDIMM (pmem)
+ zone
+Date: Wed, 16 May 2018 08:33:13 +0000
+Message-ID: <HK2PR03MB1684733BFC9773814A6E522C92920@HK2PR03MB1684.apcprd03.prod.outlook.com>
+References: <1525704627-30114-1-git-send-email-yehs1@lenovo.com>
+ <20180507184622.GB12361@bombadil.infradead.org>
+ <CAPcyv4hBJN3npXwg3Ur32JSWtKvBUZh7F8W+Exx3BB-uKWwPag@mail.gmail.com>
+ <x49a7tbi8r3.fsf@segfault.boston.devel.redhat.com>
+ <HK2PR03MB1684659175EB0A11E75E9B61929A0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180508030959.GB16338@bombadil.infradead.org>
+ <HK2PR03MB16841CBB549F40F86BB8D35C92990@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180510162742.GA30442@bombadil.infradead.org>
+ <HK2PR03MB1684B34F9D1DF18A8CDE18F292930@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180515162003.GA26489@bombadil.infradead.org>
+ <HK2PR03MB1684F8D2724BB8AF1FCCF02A92920@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <CAPcyv4hFzzF-jZd3-3vLNbB6SHD1Z5+wuRqgiuubnztAEzsSJQ@mail.gmail.com>
+In-Reply-To: <CAPcyv4hFzzF-jZd3-3vLNbB6SHD1Z5+wuRqgiuubnztAEzsSJQ@mail.gmail.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <878t8kzb0c.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Michal Hocko <mhocko@suse.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, NingTing Cheng <chengnt@lenovo.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel
+ Mailing List <linux-kernel@vger.kernel.org>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, Linux MM <linux-mm@kvack.org>, "colyli@suse.de" <colyli@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <alexander.levin@verizon.com>, Mel
+ Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Ocean HY1 He <hehy1@lenovo.com>
 
-On Wed, May 16, 2018 at 12:42:43AM +0000, Huang, Ying wrote:
-> >> +	unsigned long address = faddress & huge_page_mask(h);
-> >
-> > faddress? I would rather keep it address and rename maked out variable to
-> > 'haddr'. We use 'haddr' for the cause in other places.
-> 
-> I found haddr is popular in huge_memory.c but not used in hugetlb.c at
-> all.  Is it desirable to start to use "haddr" in hugetlb.c?
-
-Yes, I think so. There's no reason to limit haddr convention to THP.
-
--- 
- Kirill A. Shutemov
+PiBGcm9tOiBEYW4gV2lsbGlhbXMgW21haWx0bzpkYW4uai53aWxsaWFtc0BpbnRlbC5jb21dDQo+
+IFNlbnQ6IFdlZG5lc2RheSwgTWF5IDE2LCAyMDE4IDEwOjQ5IEFNDQo+IE9uIFR1ZSwgTWF5IDE1
+LCAyMDE4IGF0IDc6MDUgUE0sIEh1YWlzaGVuZyBIUzEgWWUgPHllaHMxQGxlbm92by5jb20+IHdy
+b3RlOg0KPiA+PiBGcm9tOiBNYXR0aGV3IFdpbGNveCBbbWFpbHRvOndpbGx5QGluZnJhZGVhZC5v
+cmddDQo+ID4+IFNlbnQ6IFdlZG5lc2RheSwgTWF5IDE2LCAyMDE4IDEyOjIwIEFNPg0KPiA+PiA+
+ID4gPiA+IFRoZW4gdGhlcmUncyB0aGUgcHJvYmxlbSBvZiByZWNvbm5lY3RpbmcgdGhlIHBhZ2Ug
+Y2FjaGUgKHdoaWNoIGlzDQo+ID4+ID4gPiA+ID4gcG9pbnRlZCB0byBieSBlcGhlbWVyYWwgZGF0
+YSBzdHJ1Y3R1cmVzIGxpa2UgaW5vZGVzIGFuZCBkZW50cmllcykgdG8NCj4gPj4gPiA+ID4gPiB0
+aGUgbmV3IGlub2Rlcy4NCj4gPj4gPiA+ID4gWWVzLCBpdCBpcyBub3QgZWFzeS4NCj4gPj4gPiA+
+DQo+ID4+ID4gPiBSaWdodCAuLi4gYW5kIHVudGlsIHdlIGhhdmUgdGhhdCBhYmlsaXR5LCB0aGVy
+ZSdzIG5vIHBvaW50IGluIHRoaXMgcGF0Y2guDQo+ID4+ID4gV2UgYXJlIGZvY3VzaW5nIHRvIHJl
+YWxpemUgdGhpcyBhYmlsaXR5Lg0KPiA+Pg0KPiA+PiBCdXQgaXMgaXQgdGhlIHJpZ2h0IGFwcHJv
+YWNoPyAgU28gZmFyIHdlIGhhdmUgKEkgdGhpbmspIHR3byBwYXJhbGxlbA0KPiA+PiBhY3Rpdml0
+aWVzLiAgVGhlIGZpcnN0IGlzIGZvciBsb2NhbCBzdG9yYWdlLCB1c2luZyBEQVggdG8gc3RvcmUg
+ZmlsZXMNCj4gPj4gZGlyZWN0bHkgb24gdGhlIHBtZW0uICBUaGUgc2Vjb25kIGlzIGEgcGh5c2lj
+YWwgYmxvY2sgY2FjaGUgZm9yIG5ldHdvcmsNCj4gPj4gZmlsZXN5c3RlbXMgKGJvdGggTkFTIGFu
+ZCBTQU4pLiAgWW91IHNlZW0gdG8gYmUgd2FudGluZyB0byBzdXBwbGFudCB0aGUNCj4gPj4gc2Vj
+b25kIGVmZm9ydCwgYnV0IEkgdGhpbmsgaXQncyBtdWNoIGhhcmRlciB0byByZWNvbm5lY3QgdGhl
+IGxvZ2ljYWwgY2FjaGUNCj4gPj4gKGllIHRoZSBwYWdlIGNhY2hlKSB0aGFuIGl0IGlzIHRoZSBw
+aHlzaWNhbCBjYWNoZSAoaWUgdGhlIGJsb2NrIGNhY2hlKS4NCj4gPg0KPiA+IERlYXIgTWF0dGhl
+dywNCj4gPg0KPiA+IFRoYW5rcyBmb3IgY29ycmVjdGluZyBteSBpZGVhIHdpdGggY2FjaGUgbGlu
+ZS4NCj4gPiBCdXQgSSBoYXZlIHF1ZXN0aW9ucyBhYm91dCB0aGF0LCBhc3N1bWluZyBOVkRJTU0g
+d29ya3Mgd2l0aCBwbWVtIG1vZGUsIGV2ZW4gd2UNCj4gPiB1c2VkIGl0IGFzIHBoeXNpY2FsIGJs
+b2NrIGNhY2hlLCBsaWtlIGRtLWNhY2hlLCB0aGVyZSBpcyBwb3RlbnRpYWwgcmlzayB3aXRoDQo+
+ID4gdGhpcyBjYWNoZSBsaW5lIGlzc3VlLCBiZWNhdXNlIE5WRElNTXMgYXJlIGJ5dGVzLWFkZHJl
+c3Mgc3RvcmFnZSwgcmlnaHQ/DQo+IA0KPiBObywgdGhlcmUgaXMgbm8gcmlzayBpZiB0aGUgY2Fj
+aGUgaXMgZGVzaWduZWQgcHJvcGVybHkuIFRoZSBwbWVtDQo+IGRyaXZlciB3aWxsIG5vdCByZXBv
+cnQgdGhhdCB0aGUgSS9PIGlzIGNvbXBsZXRlIHVudGlsIHRoZSBlbnRpcmUNCj4gcGF5bG9hZCBv
+ZiB0aGUgZGF0YSB3cml0ZSBoYXMgbWFkZSBpdCB0byBwZXJzaXN0ZW50IG1lbW9yeS4gVGhlIGNh
+Y2hlDQo+IGRyaXZlciB3aWxsIG5vdCByZXBvcnQgdGhhdCB0aGUgd3JpdGUgc3VjY2VlZGVkIHVu
+dGlsIHRoZSBwbWVtIGRyaXZlcg0KPiBjb21wbGV0ZXMgdGhlIEkvTy4gVGhlcmUgaXMgbm8gcmlz
+ayB0byBsb3NpbmcgcG93ZXIgd2hpbGUgdGhlIHBtZW0NCj4gZHJpdmVyIGlzIG9wZXJhdGluZyBi
+ZWNhdXNlIHRoZSBjYWNoZSB3aWxsIHJlY292ZXIgdG8gaXQncyBsYXN0DQo+IGFja25vd2xlZGdl
+ZCBzdGFibGUgc3RhdGUsIGkuZS4gaXQgd2lsbCByb2xsIGJhY2sgLyB1bmRvIHRoZQ0KPiBpbmNv
+bXBsZXRlIHdyaXRlLg0KPiANCj4gPiBJZiBzeXN0ZW0gY3Jhc2ggaGFwcGVucywgdGhhdCBtZWFu
+cyBDUFUgZG9lc24ndCBoYXZlIG9wcG9ydHVuaXR5IHRvIGZsdXNoIGFsbCBkaXJ0eQ0KPiA+IGRh
+dGEgZnJvbSBjYWNoZSBsaW5lcyB0byBOVkRJTU0sIGR1cmluZyBjb3B5aW5nIGRhdGEgcG9pbnRl
+ZCBieSBiaW9fdmVjLmJ2X3BhZ2UgdG8NCj4gPiBOVkRJTU0uDQo+ID4gSSBrbm93IHRoZXJlIGlz
+IGJ0dCB3aGljaCBpcyB1c2VkIHRvIGd1YXJhbnRlZSBzZWN0b3IgYXRvbWljIHdpdGggYmxvY2sg
+bW9kZSwNCj4gPiBidXQgZm9yIHBtZW0gbW9kZSB0aGF0IHdpbGwgbGlrZWx5IGNhdXNlIG1peCBv
+ZiBuZXcgYW5kIG9sZCBkYXRhIGluIG9uZSBwYWdlDQo+ID4gb2YgTlZESU1NLg0KPiA+IENvcnJl
+Y3QgbWUgaWYgYW55dGhpbmcgd3JvbmcuDQo+IA0KPiBkbS1jYWNoZSBpcyBwZXJmb3JtaW5nIHNp
+bWlsYXIgbWV0YWRhdGEgbWFuYWdlbWVudCBhcyB0aGUgYnR0IGRyaXZlcg0KPiB0byBlbnN1cmUg
+c2FmZSBmb3J3YXJkIHByb2dyZXNzIG9mIHRoZSBjYWNoZSBzdGF0ZSByZWxhdGl2ZSB0byBwb3dl
+cg0KPiBsb3NzIG9yIHN5c3RlbS1jcmFzaC4NCg0KRGVhciBEYW4sDQoNClRoYW5rcyBmb3IgeW91
+ciBpbnRyb2R1Y3Rpb24sIEkndmUgbGVhcm5lZCBhIGxvdCBmcm9tIHlvdXIgY29tbWVudHMuDQpJ
+IHN1cHBvc2UgdGhhdCB0aGVyZSBzaG91bGQgYmUgaW1wbGVtZW50YXRpb25zIHRvIHByb3RlY3Qg
+ZGF0YSBhbmQgbWV0YWRhdGEgYm90aCBpbiBOVkRJTU1zIGZyb20gc3lzdGVtLWNyYXNoIG9yIHBv
+d2VyIGxvc3MuDQpOb3Qgb25seSBkYXRhIGJ1dCBhbHNvIG1ldGFkYXRhIGl0c2VsZiBuZWVkcyB0
+byBiZSBjb3JyZWN0IGFuZCBpbnRlZ3JhdGVkLCBzbyBrZXJuZWwgY291bGQgaGF2ZSBjaGFuY2Ug
+dG8gcmVjb3ZlciBkYXRhIHRvIHRhcmdldCBkZXZpY2UgYWZ0ZXIgcmVib290aW5nLCByaWdodD8N
+Cg0KPiANCj4gPiBBbm90aGVyIHF1ZXN0aW9uLCBpZiB3ZSB1c2VkIE5WRElNTXMgYXMgcGh5c2lj
+YWwgYmxvY2sgY2FjaGUgZm9yIG5ldHdvcmsgZmlsZXN5c3RlbXMsDQo+ID4gRG9lcyBpbmR1c3Ry
+eSBoYXZlIGV4aXN0aW5nIGltcGxlbWVudGF0aW9uIHRvIGJ5cGFzcyBQYWdlIENhY2hlIHNpbWls
+YXJseSBsaWtlIERBWCB3YXksDQo+ID4gdGhhdCBpcyB0byBzYXksIGRpcmVjdGx5IHN0b3Jpbmcg
+ZGF0YSB0byBOVkRJTU1zIGZyb20gdXNlcnNwYWNlLCByYXRoZXIgdGhhbiBjb3B5aW5nDQo+ID4g
+ZGF0YSBmcm9tIGtlcm5lbCBzcGFjZSBtZW1vcnkgdG8gTlZESU1Ncy4NCj4gDQo+IEFueSBjYWNo
+aW5nIHNvbHV0aW9uIHdpdGggYXNzb2NpYXRlZCBtZXRhZGF0YSByZXF1aXJlcyBjb29yZGluYXRp
+b24NCj4gd2l0aCB0aGUga2VybmVsLCBzbyBpdCBpcyBub3QgcG9zc2libGUgZm9yIHRoZSBrZXJu
+ZWwgdG8gc3RheQ0KPiBjb21wbGV0ZWx5IG91dCBvZiB0aGUgd2F5LiBFc3BlY2lhbGx5IHdoZW4g
+d2UncmUgdGFsa2luZyBhYm91dCBhIGNhY2hlDQo+IGluIGZyb250IG9mIHRoZSBuZXR3b3JrIHRo
+ZXJlIGlzIG5vdCBtdWNoIHJvb20gZm9yIERBWCB0byBvZmZlcg0KPiBpbXByb3ZlZCBwZXJmb3Jt
+YW5jZSBiZWNhdXNlIHdlIG5lZWQgdGhlIGtlcm5lbCB0byB0YWtlb3ZlciBvbiBhbGwNCj4gd3Jp
+dGUtcGVyc2lzdCBvcGVyYXRpb25zIHRvIHVwZGF0ZSBjYWNoZSBtZXRhZGF0YS4NCg0KQWdyZWUu
+DQoNCj4gU28sIEknbSBzdGlsbCBzdHJ1Z2dsaW5nIHRvIHNlZSB3aHkgZG0tY2FjaGUgaXMgbm90
+IGEgc3VpdGFibGUNCj4gc29sdXRpb24gZm9yIHRoaXMgY2FzZS4gSXQgc2VlbXMgc3VpdGFibGUg
+aWYgaXQgaXMgdXBkYXRlZCB0byBhbGxvdw0KPiBkaXJlY3QgZG1hLWFjY2VzcyB0byB0aGUgcG1l
+bSBjYWNoZSBwYWdlcyBmcm9tIHRoZSBiYWNraW5nIGRldmljZQ0KPiBzdG9yYWdlIC8gbmV0d29y
+a2luZyBkcml2ZXIuDQoNClNpbmNlcmVseSwNCkh1YWlzaGVuZyBZZQ0KDQo=
