@@ -1,69 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B6456B034B
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 13:56:33 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id bd7-v6so972537plb.20
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 10:56:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x1-v6sor1999073plb.71.2018.05.16.10.56.31
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DCA226B034D
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 14:00:38 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 54-v6so1205015wrw.1
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 11:00:38 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id 4-v6si2435289wmy.193.2018.05.16.11.00.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 16 May 2018 10:56:31 -0700 (PDT)
-From: Omar Sandoval <osandov@osandov.com>
-Subject: [PATCH] mm: fix nr_rotate_swap leak in swapon() error case
-Date: Wed, 16 May 2018 10:56:22 -0700
-Message-Id: <b6fe6b879f17fa68eee6cbd876f459f6e5e33495.1526491581.git.osandov@fb.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 May 2018 11:00:33 -0700 (PDT)
+Date: Wed, 16 May 2018 20:05:03 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 01/33] block: add a lower-level bio_add_page interface
+Message-ID: <20180516180503.GA6627@lst.de>
+References: <20180509074830.16196-1-hch@lst.de> <20180509074830.16196-2-hch@lst.de> <37c16316-aa3a-e3df-79d0-9fca37a5996f@codeaurora.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <37c16316-aa3a-e3df-79d0-9fca37a5996f@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, kernel-team@fb.com
+To: Ritesh Harjani <riteshh@codeaurora.org>
+Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-From: Omar Sandoval <osandov@fb.com>
+On Wed, May 16, 2018 at 10:36:14AM +0530, Ritesh Harjani wrote:
+> 1. if bio_full is true that means no space in bio->bio_io_vec[] no?
+> Than how come we are still proceeding ahead with only warning?
+> While originally in bio_add_page we used to return after checking
+> bio_full. Callers can still call __bio_add_page directly right.
 
-If swapon() fails after incrementing nr_rotate_swap, we don't decrement
-it and thus effectively leak it. Make sure we decrement it if we
-incremented it.
+I you don't know if the bio is full or not don't use __bio_add_page,
+keep using bio_add_page.  The WARN_ON is just a debug tool to catch
+cases where the developer did use it incorrectly.
 
-Fixes: 81a0298bdfab ("mm, swap: don't use VMA based swap readahead if HDD is used as swap")
-Signed-off-by: Omar Sandoval <osandov@fb.com>
----
-Based on v4.17-rc5.
+> 2. IF above is correct why don't we set the bio->bi_max_vecs to the size
+> of the slab instead of keeeping it to nr_iovecs which user requested?
+> (in bio_alloc_bioset)
 
- mm/swapfile.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+Because we limit the user to the number that the user requested.  Not
+that this patch changes anything about that.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index cc2cf04d9018..78a015fcec3b 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3112,6 +3112,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	unsigned long *frontswap_map = NULL;
- 	struct page *page = NULL;
- 	struct inode *inode = NULL;
-+	bool inced_nr_rotate_swap = false;
- 
- 	if (swap_flags & ~SWAP_FLAGS_VALID)
- 		return -EINVAL;
-@@ -3215,8 +3216,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
- 			cluster_set_null(&cluster->index);
- 		}
--	} else
-+	} else {
- 		atomic_inc(&nr_rotate_swap);
-+		inced_nr_rotate_swap = true;
-+	}
- 
- 	error = swap_cgroup_swapon(p->type, maxpages);
- 	if (error)
-@@ -3307,6 +3310,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	vfree(swap_map);
- 	kvfree(cluster_info);
- 	kvfree(frontswap_map);
-+	if (inced_nr_rotate_swap)
-+		atomic_dec(&nr_rotate_swap);
- 	if (swap_file) {
- 		if (inode && S_ISREG(inode->i_mode)) {
- 			inode_unlock(inode);
--- 
-2.17.0
+> 3. Could you please help understand why for cloned bio we still allow
+> __bio_add_page to work? why not WARN and return like in original code?
+
+It doesn't work, and I have now added the WARN_ON to deal with any
+incorrect usage.
+
+>> -	if (bio->bi_vcnt >= bio->bi_max_vecs)
+>> -		return 0;
+> Originally here we were supposed to return and not proceed further.
+> Should __bio_add_page not have similar checks to safeguard crossing
+> the bio_io_vec[] boundary?
+
+No, __bio_add_page is the "I know what I am doing" interface.
