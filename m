@@ -1,140 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 096D46B0360
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 16:46:50 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id a6-v6so826538pgt.15
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 13:46:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b97-v6si3501317plb.135.2018.05.16.13.46.48
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 59ECF6B0362
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 16:52:57 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id i11-v6so1493714wre.16
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 13:52:57 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c29-v6si3366616ede.252.2018.05.16.13.52.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 16 May 2018 13:46:49 -0700 (PDT)
-Date: Wed, 16 May 2018 22:46:44 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: save two stranding bit in gfp_mask
-Message-ID: <20180516204644.GO12670@dhcp22.suse.cz>
-References: <20180516202023.167627-1-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 May 2018 13:52:56 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4GKigwL124187
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 16:52:54 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2j0ubnhqga-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 16:52:54 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Wed, 16 May 2018 21:52:52 +0100
+Date: Wed, 16 May 2018 13:52:44 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
+ signal semantics
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
+ <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
+ <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
+ <20180503021058.GA5670@ram.oc3035372033.ibm.com>
+ <CALCETrXRQF08exQVZqtTLOKbC8Ywq5x4EYH_1D7r5v9bdOSwbg@mail.gmail.com>
+ <927c8325-4c98-d7af-b921-6aafcf8fe992@redhat.com>
+ <CALCETrX46wR_MDW=m9SVm=ejQmPAmD3+2oC3iapf75bPhnEAWQ@mail.gmail.com>
+ <314e1a48-db94-9b37-8793-a95a2082c9e2@redhat.com>
+ <CALCETrUGjN8mhOaLqGcau-pPKm9TQW8k05hZrh52prRNdC5yQQ@mail.gmail.com>
+ <008010c1-20a1-c307-25ac-8a69d672d031@redhat.com>
 MIME-Version: 1.0
+In-Reply-To: <008010c1-20a1-c307-25ac-8a69d672d031@redhat.com>
+Message-Id: <20180516205244.GB5479@ram.oc3035372033.ibm.com>
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
 Content-Disposition: inline
-In-Reply-To: <20180516202023.167627-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Wed 16-05-18 13:20:23, Shakeel Butt wrote:
-> ___GFP_COLD and ___GFP_OTHER_NODE were removed but their bits were
-> stranded. Slide existing gfp masks to make those two bits available.
-
-Could you make the patch a bit smaller smaller? E.g.
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 1a4582b44d32..92c82ac8420f 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -24,6 +24,7 @@ struct vm_area_struct;
- #define ___GFP_HIGH		0x20u
- #define ___GFP_IO		0x40u
- #define ___GFP_FS		0x80u
-+#define ___GFP_WRITE		0x100u
- #define ___GFP_NOWARN		0x200u
- #define ___GFP_RETRY_MAYFAIL	0x400u
- #define ___GFP_NOFAIL		0x800u
-@@ -36,11 +37,10 @@ struct vm_area_struct;
- #define ___GFP_THISNODE		0x40000u
- #define ___GFP_ATOMIC		0x80000u
- #define ___GFP_ACCOUNT		0x100000u
--#define ___GFP_DIRECT_RECLAIM	0x400000u
--#define ___GFP_WRITE		0x800000u
--#define ___GFP_KSWAPD_RECLAIM	0x1000000u
-+#define ___GFP_DIRECT_RECLAIM	0x200000u
-+#define ___GFP_KSWAPD_RECLAIM	0x400000u
- #ifdef CONFIG_LOCKDEP
--#define ___GFP_NOLOCKDEP	0x2000000u
-+#define ___GFP_NOLOCKDEP	0x800000u
- #else
- #define ___GFP_NOLOCKDEP	0
- #endif
-
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-
-Other than that I have no real objections. It is good to see how many
-bits we are using. So
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  include/linux/gfp.h | 42 +++++++++++++++++++++---------------------
->  1 file changed, 21 insertions(+), 21 deletions(-)
+On Mon, May 14, 2018 at 02:01:23PM +0200, Florian Weimer wrote:
+> On 05/09/2018 04:41 PM, Andy Lutomirski wrote:
+> >Hmm.  I can get on board with the idea that fork() / clone() /
+> >pthread_create() are all just special cases of the idea that the thread
+> >that*calls*  them should have the right pkey values, and the latter is
+> >already busted given our inability to asynchronously propagate the new mode
+> >in pkey_alloc().  So let's so PKEY_ALLOC_SETSIGNAL as a starting point.
 > 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 1a4582b44d32..8edf72d32411 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -16,31 +16,31 @@ struct vm_area_struct;
->   */
->  
->  /* Plain integer GFP bitmasks. Do not use this directly. */
-> -#define ___GFP_DMA		0x01u
-> -#define ___GFP_HIGHMEM		0x02u
-> -#define ___GFP_DMA32		0x04u
-> -#define ___GFP_MOVABLE		0x08u
-> +#define ___GFP_DMA		0x1u
-> +#define ___GFP_HIGHMEM		0x2u
-> +#define ___GFP_DMA32		0x4u
-> +#define ___GFP_MOVABLE		0x8u
->  #define ___GFP_RECLAIMABLE	0x10u
->  #define ___GFP_HIGH		0x20u
->  #define ___GFP_IO		0x40u
->  #define ___GFP_FS		0x80u
-> -#define ___GFP_NOWARN		0x200u
-> -#define ___GFP_RETRY_MAYFAIL	0x400u
-> -#define ___GFP_NOFAIL		0x800u
-> -#define ___GFP_NORETRY		0x1000u
-> -#define ___GFP_MEMALLOC		0x2000u
-> -#define ___GFP_COMP		0x4000u
-> -#define ___GFP_ZERO		0x8000u
-> -#define ___GFP_NOMEMALLOC	0x10000u
-> -#define ___GFP_HARDWALL		0x20000u
-> -#define ___GFP_THISNODE		0x40000u
-> -#define ___GFP_ATOMIC		0x80000u
-> -#define ___GFP_ACCOUNT		0x100000u
-> -#define ___GFP_DIRECT_RECLAIM	0x400000u
-> -#define ___GFP_WRITE		0x800000u
-> -#define ___GFP_KSWAPD_RECLAIM	0x1000000u
-> +#define ___GFP_NOWARN		0x100u
-> +#define ___GFP_RETRY_MAYFAIL	0x200u
-> +#define ___GFP_NOFAIL		0x400u
-> +#define ___GFP_NORETRY		0x800u
-> +#define ___GFP_MEMALLOC		0x1000u
-> +#define ___GFP_COMP		0x2000u
-> +#define ___GFP_ZERO		0x4000u
-> +#define ___GFP_NOMEMALLOC	0x8000u
-> +#define ___GFP_HARDWALL		0x10000u
-> +#define ___GFP_THISNODE		0x20000u
-> +#define ___GFP_ATOMIC		0x40000u
-> +#define ___GFP_ACCOUNT		0x80000u
-> +#define ___GFP_DIRECT_RECLAIM	0x100000u
-> +#define ___GFP_WRITE		0x200000u
-> +#define ___GFP_KSWAPD_RECLAIM	0x400000u
->  #ifdef CONFIG_LOCKDEP
-> -#define ___GFP_NOLOCKDEP	0x2000000u
-> +#define ___GFP_NOLOCKDEP	0x800000u
->  #else
->  #define ___GFP_NOLOCKDEP	0
->  #endif
-> @@ -205,7 +205,7 @@ struct vm_area_struct;
->  #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
->  
->  /* Room for N __GFP_FOO bits */
-> -#define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
-> +#define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
->  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
->  
->  /*
-> -- 
-> 2.17.0.441.gb46fe60e1d-goog
+> Ram, any suggestions for implementing this on POWER?
 
--- 
-Michal Hocko
-SUSE Labs
+I suspect the changes will go in 
+restore_user_regs() and save_user_regs().  These are the functions
+that save and restore register state before entry and exit into/from
+a signal handler.
+
+> 
+> >One thing we could do, though: the current initual state on process
+> >creation is all access blocked on all keys.  We could change it so that
+> >half the keys are fully blocked and half are read-only.  Then we could add
+> >a PKEY_ALLOC_STRICT or similar that allocates a key with the correct
+> >initial state*and*  does the setsignal thing.  If there are no keys left
+> >with the correct initial state, then it fails.
+> 
+> The initial PKRU value can currently be configured by the system
+> administrator.  I fear this approach has too many moving parts to be
+> viable.
+
+Sounds like on x86  keys can go active in signal-handler 
+without any explicit allocation request by the application.  This is not
+the case on power. Is that API requirement? Hope not.
+
+RP
