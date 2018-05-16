@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E6886B02F1
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 01:44:48 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id f11-v6so1953266plj.23
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 22:44:48 -0700 (PDT)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 618926B02F2
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 01:44:52 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m4-v6so1318227pgu.5
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 22:44:52 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q4-v6si1546133pgr.549.2018.05.15.22.44.47
+        by mx.google.com with ESMTPS id 4-v6si1880400pfb.204.2018.05.15.22.44.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 15 May 2018 22:44:47 -0700 (PDT)
+        Tue, 15 May 2018 22:44:51 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 07/14] ext4: separate errno from VM_FAULT_* values
-Date: Wed, 16 May 2018 07:43:41 +0200
-Message-Id: <20180516054348.15950-8-hch@lst.de>
+Subject: [PATCH 08/14] ocfs2: separate errno from VM_FAULT_* values
+Date: Wed, 16 May 2018 07:43:42 +0200
+Message-Id: <20180516054348.15950-9-hch@lst.de>
 In-Reply-To: <20180516054348.15950-1-hch@lst.de>
 References: <20180516054348.15950-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -22,115 +22,106 @@ Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/ext4/ext4.h  |  4 ++--
- fs/ext4/inode.c | 30 +++++++++++++++---------------
- 2 files changed, 17 insertions(+), 17 deletions(-)
+ fs/ocfs2/mmap.c | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)
 
-diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index fa52b7dd4542..48592d0edf3e 100644
---- a/fs/ext4/ext4.h
-+++ b/fs/ext4/ext4.h
-@@ -2463,8 +2463,8 @@ extern int ext4_writepage_trans_blocks(struct inode *);
- extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
- extern int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
- 			     loff_t lstart, loff_t lend);
--extern int ext4_page_mkwrite(struct vm_fault *vmf);
--extern int ext4_filemap_fault(struct vm_fault *vmf);
-+extern vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf);
-+extern vm_fault_t ext4_filemap_fault(struct vm_fault *vmf);
- extern qsize_t *ext4_get_reserved_space(struct inode *inode);
- extern int ext4_get_projid(struct inode *inode, kprojid_t *projid);
- extern void ext4_da_update_reserve_space(struct inode *inode,
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 95bc48f5c88b..fe49045a2832 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -6106,27 +6106,27 @@ static int ext4_bh_unmapped(handle_t *handle, struct buffer_head *bh)
- 	return !buffer_mapped(bh);
- }
+diff --git a/fs/ocfs2/mmap.c b/fs/ocfs2/mmap.c
+index fb9a20e3d608..e75c1fc5333e 100644
+--- a/fs/ocfs2/mmap.c
++++ b/fs/ocfs2/mmap.c
+@@ -44,11 +44,11 @@
+ #include "ocfs2_trace.h"
  
--int ext4_page_mkwrite(struct vm_fault *vmf)
-+vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf)
+ 
+-static int ocfs2_fault(struct vm_fault *vmf)
++static vm_fault_t ocfs2_fault(struct vm_fault *vmf)
  {
  	struct vm_area_struct *vma = vmf->vma;
- 	struct page *page = vmf->page;
- 	loff_t size;
- 	unsigned long len;
+ 	sigset_t oldset;
 -	int ret;
 +	vm_fault_t ret;
- 	struct file *file = vma->vm_file;
- 	struct inode *inode = file_inode(file);
- 	struct address_space *mapping = inode->i_mapping;
- 	handle_t *handle;
- 	get_block_t *get_block;
--	int retries = 0;
-+	int retries = 0, err;
  
- 	sb_start_pagefault(inode->i_sb);
- 	file_update_time(vma->vm_file);
- 
- 	down_read(&EXT4_I(inode)->i_mmap_sem);
- 
--	ret = ext4_convert_inline_data(inode);
--	if (ret)
-+	err = ext4_convert_inline_data(inode);
-+	if (err)
- 		goto out_ret;
- 
- 	/* Delalloc case is easy... */
-@@ -6134,9 +6134,9 @@ int ext4_page_mkwrite(struct vm_fault *vmf)
- 	    !ext4_should_journal_data(inode) &&
- 	    !ext4_nonda_switch(inode->i_sb)) {
- 		do {
--			ret = block_page_mkwrite(vma, vmf,
-+			err = block_page_mkwrite(vma, vmf,
- 						   ext4_da_get_block_prep);
--		} while (ret == -ENOSPC &&
-+		} while (err == -ENOSPC &&
- 		       ext4_should_retry_alloc(inode->i_sb, &retries));
- 		goto out_ret;
- 	}
-@@ -6181,8 +6181,8 @@ int ext4_page_mkwrite(struct vm_fault *vmf)
- 		ret = VM_FAULT_SIGBUS;
- 		goto out;
- 	}
--	ret = block_page_mkwrite(vma, vmf, get_block);
--	if (!ret && ext4_should_journal_data(inode)) {
-+	err = block_page_mkwrite(vma, vmf, get_block);
-+	if (!err && ext4_should_journal_data(inode)) {
- 		if (ext4_walk_page_buffers(handle, page_buffers(page), 0,
- 			  PAGE_SIZE, NULL, do_journal_get_write_access)) {
- 			unlock_page(page);
-@@ -6193,24 +6193,24 @@ int ext4_page_mkwrite(struct vm_fault *vmf)
- 		ext4_set_inode_state(inode, EXT4_STATE_JDATA);
- 	}
- 	ext4_journal_stop(handle);
--	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
-+	if (err == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
- 		goto retry_alloc;
- out_ret:
--	ret = block_page_mkwrite_return(ret);
-+	ret = block_page_mkwrite_return(err);
- out:
- 	up_read(&EXT4_I(inode)->i_mmap_sem);
- 	sb_end_pagefault(inode->i_sb);
+ 	ocfs2_block_signals(&oldset);
+ 	ret = filemap_fault(vmf);
+@@ -59,10 +59,10 @@ static int ocfs2_fault(struct vm_fault *vmf)
  	return ret;
  }
  
--int ext4_filemap_fault(struct vm_fault *vmf)
-+vm_fault_t ext4_filemap_fault(struct vm_fault *vmf)
+-static int __ocfs2_page_mkwrite(struct file *file, struct buffer_head *di_bh,
+-				struct page *page)
++static vm_fault_t __ocfs2_page_mkwrite(struct file *file,
++		struct buffer_head *di_bh, struct page *page)
  {
- 	struct inode *inode = file_inode(vmf->vma->vm_file);
--	int err;
-+	vm_fault_t ret;
+-	int ret = VM_FAULT_NOPAGE;
++	vm_fault_t ret = VM_FAULT_NOPAGE;
+ 	struct inode *inode = file_inode(file);
+ 	struct address_space *mapping = inode->i_mapping;
+ 	loff_t pos = page_offset(page);
+@@ -71,6 +71,7 @@ static int __ocfs2_page_mkwrite(struct file *file, struct buffer_head *di_bh,
+ 	struct page *locked_page = NULL;
+ 	void *fsdata;
+ 	loff_t size = i_size_read(inode);
++	int err;
  
- 	down_read(&EXT4_I(inode)->i_mmap_sem);
--	err = filemap_fault(vmf);
-+	ret = filemap_fault(vmf);
- 	up_read(&EXT4_I(inode)->i_mmap_sem);
+ 	last_index = (size - 1) >> PAGE_SHIFT;
  
--	return err;
-+	return ret;
+@@ -105,12 +106,12 @@ static int __ocfs2_page_mkwrite(struct file *file, struct buffer_head *di_bh,
+ 	if (page->index == last_index)
+ 		len = ((size - 1) & ~PAGE_MASK) + 1;
+ 
+-	ret = ocfs2_write_begin_nolock(mapping, pos, len, OCFS2_WRITE_MMAP,
++	err = ocfs2_write_begin_nolock(mapping, pos, len, OCFS2_WRITE_MMAP,
+ 				       &locked_page, &fsdata, di_bh, page);
+-	if (ret) {
+-		if (ret != -ENOSPC)
+-			mlog_errno(ret);
+-		if (ret == -ENOMEM)
++	if (err) {
++		if (err != -ENOSPC)
++			mlog_errno(err);
++		if (err == -ENOMEM)
+ 			ret = VM_FAULT_OOM;
+ 		else
+ 			ret = VM_FAULT_SIGBUS;
+@@ -121,20 +122,21 @@ static int __ocfs2_page_mkwrite(struct file *file, struct buffer_head *di_bh,
+ 		ret = VM_FAULT_NOPAGE;
+ 		goto out;
+ 	}
+-	ret = ocfs2_write_end_nolock(mapping, pos, len, len, fsdata);
+-	BUG_ON(ret != len);
++	err = ocfs2_write_end_nolock(mapping, pos, len, len, fsdata);
++	BUG_ON(err != len);
+ 	ret = VM_FAULT_LOCKED;
+ out:
+ 	return ret;
  }
+ 
+-static int ocfs2_page_mkwrite(struct vm_fault *vmf)
++static vm_fault_t ocfs2_page_mkwrite(struct vm_fault *vmf)
+ {
+ 	struct page *page = vmf->page;
+ 	struct inode *inode = file_inode(vmf->vma->vm_file);
+ 	struct buffer_head *di_bh = NULL;
+ 	sigset_t oldset;
+-	int ret;
++	vm_fault_t ret = 0;
++	int err;
+ 
+ 	sb_start_pagefault(inode->i_sb);
+ 	ocfs2_block_signals(&oldset);
+@@ -144,10 +146,10 @@ static int ocfs2_page_mkwrite(struct vm_fault *vmf)
+ 	 * node. Taking the data lock will also ensure that we don't
+ 	 * attempt page truncation as part of a downconvert.
+ 	 */
+-	ret = ocfs2_inode_lock(inode, &di_bh, 1);
+-	if (ret < 0) {
++	err = ocfs2_inode_lock(inode, &di_bh, 1);
++	if (err < 0) {
+ 		mlog_errno(ret);
+-		if (ret == -ENOMEM)
++		if (err == -ENOMEM)
+ 			ret = VM_FAULT_OOM;
+ 		else
+ 			ret = VM_FAULT_SIGBUS;
 -- 
 2.17.0
