@@ -1,57 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B10166B0370
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 19:33:21 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id v26-v6so946415pgc.14
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 16:33:21 -0700 (PDT)
-Received: from g4t3426.houston.hpe.com (g4t3426.houston.hpe.com. [15.241.140.75])
-        by mx.google.com with ESMTPS id u123-v6si3544569pfu.322.2018.05.16.16.33.20
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D0D766B0373
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 19:33:25 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id n25-v6so2105433otf.13
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 16:33:25 -0700 (PDT)
+Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
+        by mx.google.com with ESMTPS id t2-v6si1345458ott.375.2018.05.16.16.33.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 May 2018 16:33:20 -0700 (PDT)
+        Wed, 16 May 2018 16:33:24 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v3 0/3] fix free pmd/pte page handlings on x86
-Date: Wed, 16 May 2018 17:32:04 -0600
-Message-Id: <20180516233207.1580-1-toshi.kani@hpe.com>
+Subject: [PATCH v3 1/3] x86/mm: disable ioremap free page handling on x86-PAE
+Date: Wed, 16 May 2018 17:32:05 -0600
+Message-Id: <20180516233207.1580-2-toshi.kani@hpe.com>
+In-Reply-To: <20180516233207.1580-1-toshi.kani@hpe.com>
+References: <20180516233207.1580-1-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
-Cc: cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+Cc: cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, Joerg Roedel <joro@8bytes.org>, stable@vger.kernel.org
 
-This series fixes two issues in the x86 ioremap free page handlings
-for pud/pmd mappings.
+ioremap() supports pmd mappings on x86-PAE.  However, kernel's pmd
+tables are not shared among processes on x86-PAE.  Therefore, any
+update to sync'd pmd entries need re-syncing.  Freeing a pte page
+also leads to a vmalloc fault and hits the BUG_ON in vmalloc_sync_one().
 
-Patch 01 fixes BUG_ON on x86-PAE reported by Joerg.  It disables
-the free page handling on x86-PAE.
+Disable free page handling on x86-PAE.  pud_free_pmd_page() and
+pmd_free_pte_page() simply return 0 if a given pud/pmd entry is present.
+This assures that ioremap() does not update sync'd pmd entries at the
+cost of falling back to pte mappings.
 
-Patch 02-03 fixes a possible issue with speculation which can cause
-stale page-directory cache.
- - Patch 02 is from Chintan's v9 01/04 patch [1], which adds a new arg
-   'addr', with my merge change to patch 01.
- - Patch 03 adds a TLB purge (INVLPG) to purge page-structure caches
-   that may be cached by speculation.  See the patch descriptions for
-   more detal.
-
-[1] https://patchwork.kernel.org/patch/10371015/
-
-v3:
- - Fixed a build error in v2.
-
-v2:
- - Reordered patch-set, so that patch 01 can be applied independently.
- - Added a NULL pointer check for the page alloc in patch 03. 
-
+Fixes: 28ee90fe6048 ("x86/mm: implement free pmd/pte page interfaces")
+Reported-by: Joerg Roedel <joro@8bytes.org>
+Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Joerg Roedel <joro@8bytes.org>
+Cc: <stable@vger.kernel.org>
 ---
-Toshi Kani (2):
-  1/3 x86/mm: disable ioremap free page handling on x86-PAE
-  3/3 x86/mm: add TLB purge to free pmd/pte page interfaces
+ arch/x86/mm/pgtable.c |   19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
 
-Chintan Pandya (1):
-  2/3 ioremap: Update pgtable free interfaces with addr
-
----
- arch/arm64/mm/mmu.c           |  4 +--
- arch/x86/mm/pgtable.c         | 59 +++++++++++++++++++++++++++++++++++++------
- include/asm-generic/pgtable.h |  8 +++---
- lib/ioremap.c                 |  4 +--
- 4 files changed, 59 insertions(+), 16 deletions(-)
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index ffc8c13c50e4..3f7180bc5f52 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -715,6 +715,7 @@ int pmd_clear_huge(pmd_t *pmd)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_X86_64
+ /**
+  * pud_free_pmd_page - Clear pud entry and free pmd page.
+  * @pud: Pointer to a PUD.
+@@ -762,4 +763,22 @@ int pmd_free_pte_page(pmd_t *pmd)
+ 
+ 	return 1;
+ }
++
++#else /* !CONFIG_X86_64 */
++
++int pud_free_pmd_page(pud_t *pud)
++{
++	return pud_none(*pud);
++}
++
++/*
++ * Disable free page handling on x86-PAE. This assures that ioremap()
++ * does not update sync'd pmd entries. See vmalloc_sync_one().
++ */
++int pmd_free_pte_page(pmd_t *pmd)
++{
++	return pmd_none(*pmd);
++}
++
++#endif /* CONFIG_X86_64 */
+ #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
