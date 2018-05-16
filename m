@@ -1,127 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 40FA46B02D4
-	for <linux-mm@kvack.org>; Tue, 15 May 2018 17:40:53 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id f6-v6so680216pgs.13
-        for <linux-mm@kvack.org>; Tue, 15 May 2018 14:40:53 -0700 (PDT)
-Received: from g2t2352.austin.hpe.com (g2t2352.austin.hpe.com. [15.233.44.25])
-        by mx.google.com with ESMTPS id d12-v6si833406pgu.288.2018.05.15.14.40.51
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 338E16B02D3
+	for <linux-mm@kvack.org>; Tue, 15 May 2018 20:42:51 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c4-v6so1293171pfg.22
+        for <linux-mm@kvack.org>; Tue, 15 May 2018 17:42:51 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id x25-v6si1353225pfj.347.2018.05.15.17.42.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 May 2018 14:40:52 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v2 3/3] x86/mm: add TLB purge to free pmd/pte page interfaces
-Date: Tue, 15 May 2018 15:39:31 -0600
-Message-Id: <20180515213931.23885-4-toshi.kani@hpe.com>
-In-Reply-To: <20180515213931.23885-1-toshi.kani@hpe.com>
-References: <20180515213931.23885-1-toshi.kani@hpe.com>
+        Tue, 15 May 2018 17:42:47 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
+References: <20180515005756.28942-1-ying.huang@intel.com>
+	<20180515103812.aapv4b4hbzno52zl@kshutemo-mobl1>
+Date: Wed, 16 May 2018 08:42:43 +0800
+In-Reply-To: <20180515103812.aapv4b4hbzno52zl@kshutemo-mobl1> (Kirill
+	A. Shutemov's message of "Tue, 15 May 2018 13:38:12 +0300")
+Message-ID: <878t8kzb0c.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
-Cc: cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, Joerg Roedel <joro@8bytes.org>, stable@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-ioremap() calls pud_free_pmd_page() / pmd_free_pte_page() when it creates
-a pud / pmd map.  The following preconditions are met at their entry.
- - All pte entries for a target pud/pmd address range have been cleared.
- - System-wide TLB purges have been peformed for a target pud/pmd address
-   range.
+"Kirill A. Shutemov" <kirill@shutemov.name> writes:
 
-The preconditions assure that there is no stale TLB entry for the range.
-Speculation may not cache TLB entries since it requires all levels of page
-entries, including ptes, to have P & A-bits set for an associated address.
-However, speculation may cache pud/pmd entries (paging-structure caches)
-when they have P-bit set.
+> On Tue, May 15, 2018 at 08:57:56AM +0800, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> This is to take better advantage of huge page clearing
+>> optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
+>> when clearing huge page").  Which will clear to access sub-page last
+>> to avoid the cache lines of to access sub-page to be evicted when
+>> clearing other sub-pages.  This needs to get the address of the
+>> sub-page to access, that is, the fault address inside of the huge
+>> page.  So the hugetlb no page fault handler is changed to pass that
+>> information.  This will benefit workloads which don't access the begin
+>> of the huge page after page fault.
+>> 
+>> With this patch, the throughput increases ~28.1% in vm-scalability
+>> anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
+>> system (44 cores, 88 threads).  The test case creates 88 processes,
+>> each process mmap a big anonymous memory area and writes to it from
+>> the end to the begin.  For each process, other processes could be seen
+>> as other workload which generates heavy cache pressure.  At the same
+>> time, the cache miss rate reduced from ~36.3% to ~25.6%, the
+>> IPC (instruction per cycle) increased from 0.3 to 0.37, and the time
+>> spent in user space is reduced ~19.3%
+>> 
+>> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>> Cc: Andi Kleen <andi.kleen@intel.com>
+>> Cc: Jan Kara <jack@suse.cz>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+>> Cc: Hugh Dickins <hughd@google.com>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Shaohua Li <shli@fb.com>
+>> Cc: Christopher Lameter <cl@linux.com>
+>> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> Cc: Punit Agrawal <punit.agrawal@arm.com>
+>> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+>> ---
+>>  mm/hugetlb.c | 12 ++++++------
+>>  1 file changed, 6 insertions(+), 6 deletions(-)
+>> 
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 129088710510..3de6326abf39 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -3677,7 +3677,7 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
+>>  
+>>  static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>  			   struct address_space *mapping, pgoff_t idx,
+>> -			   unsigned long address, pte_t *ptep, unsigned int flags)
+>> +			   unsigned long faddress, pte_t *ptep, unsigned int flags)
+>>  {
+>>  	struct hstate *h = hstate_vma(vma);
+>>  	int ret = VM_FAULT_SIGBUS;
+>> @@ -3686,6 +3686,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>  	struct page *page;
+>>  	pte_t new_pte;
+>>  	spinlock_t *ptl;
+>> +	unsigned long address = faddress & huge_page_mask(h);
+>
+> faddress? I would rather keep it address and rename maked out variable to
+> 'haddr'. We use 'haddr' for the cause in other places.
 
-Add a system-wide TLB purge (INVLPG) to a single page after clearing
-pud/pmd entry's P-bit.
+I found haddr is popular in huge_memory.c but not used in hugetlb.c at
+all.  Is it desirable to start to use "haddr" in hugetlb.c?
 
-SDM 4.10.4.1, Operation that Invalidate TLBs and Paging-Structure Caches,
-states that:
-  INVLPG invalidates all paging-structure caches associated with the
-  current PCID regardless of the liner addresses to which they correspond.
-
-Fixes: 28ee90fe6048 ("x86/mm: implement free pmd/pte page interfaces")
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Joerg Roedel <joro@8bytes.org>
-Cc: <stable@vger.kernel.org>
----
- arch/x86/mm/pgtable.c |   34 ++++++++++++++++++++++++++++------
- 1 file changed, 28 insertions(+), 6 deletions(-)
-
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index f60fdf411103..7e96594c7e97 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -721,24 +721,42 @@ int pmd_clear_huge(pmd_t *pmd)
-  * @pud: Pointer to a PUD.
-  * @addr: Virtual address associated with pud.
-  *
-- * Context: The pud range has been unmaped and TLB purged.
-+ * Context: The pud range has been unmapped and TLB purged.
-  * Return: 1 if clearing the entry succeeded. 0 otherwise.
-  */
- int pud_free_pmd_page(pud_t *pud, unsigned long addr)
- {
--	pmd_t *pmd;
-+	pmd_t *pmd, *pmd_sv;
-+	pte_t *pte;
- 	int i;
- 
- 	if (pud_none(*pud))
- 		return 1;
- 
- 	pmd = (pmd_t *)pud_page_vaddr(*pud);
-+	pmd_sv = (pmd_t *)__get_free_page(GFP_KERNEL);
-+	if (!pmd_sv)
-+		return 0;
- 
--	for (i = 0; i < PTRS_PER_PMD; i++)
--		if (!pmd_free_pte_page(&pmd[i], addr + (i * PMD_SIZE)))
--			return 0;
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		pmd_sv[i] = pmd[i];
-+		if (!pmd_none(pmd[i]))
-+			pmd_clear(&pmd[i]);
-+	}
- 
- 	pud_clear(pud);
-+
-+	/* INVLPG to clear all paging-structure caches */
-+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE-1);
-+
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		if (!pmd_none(pmd_sv[i])) {
-+			pte = (pte_t *)pmd_page_vaddr(pmd_sv[i]);
-+			free_page((unsigned long)pte);
-+		}
-+	}
-+
-+	free_page((unsigned long)pmd_sv);
- 	free_page((unsigned long)pmd);
- 
- 	return 1;
-@@ -749,7 +767,7 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
-  * @pmd: Pointer to a PMD.
-  * @addr: Virtual address associated with pmd.
-  *
-- * Context: The pmd range has been unmaped and TLB purged.
-+ * Context: The pmd range has been unmapped and TLB purged.
-  * Return: 1 if clearing the entry succeeded. 0 otherwise.
-  */
- int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
-@@ -761,6 +779,10 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
- 
- 	pte = (pte_t *)pmd_page_vaddr(*pmd);
- 	pmd_clear(pmd);
-+
-+	/* INVLPG to clear all paging-structure caches */
-+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE-1);
-+
- 	free_page((unsigned long)pte);
- 
- 	return 1;
+Best Regards,
+Huang, Ying
