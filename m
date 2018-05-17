@@ -1,78 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A0A106B0522
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 13:53:38 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id r104-v6so4021759ota.19
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 10:53:38 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u3-v6sor3590928oig.143.2018.05.17.10.53.37
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F5FA6B0524
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 13:57:05 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id j33-v6so4491608qtc.18
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 10:57:05 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id w28-v6si4420145qtw.128.2018.05.17.10.57.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 17 May 2018 10:53:37 -0700 (PDT)
-Subject: Re: [PATCH] Revert "mm/cma: manage the memory of the CMA area by
- using the ZONE_MOVABLE"
-References: <20180517125959.8095-1-ville.syrjala@linux.intel.com>
- <20180517132109.GU12670@dhcp22.suse.cz> <20180517133629.GH23723@intel.com>
- <20180517135832.GI23723@intel.com> <20180517164947.GV12670@dhcp22.suse.cz>
- <20180517170816.GW12670@dhcp22.suse.cz>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <ccbe3eda-0880-1d59-2204-6bd4b317a4fe@redhat.com>
-Date: Thu, 17 May 2018 10:53:32 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 May 2018 10:57:04 -0700 (PDT)
+Subject: Re: [PATCH -V2 -mm] mm, hugetlbfs: Pass fault address to no page
+ handler
+References: <20180517083539.9242-1-ying.huang@intel.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <2eba3615-5144-f08d-169a-6cfd417d00b9@oracle.com>
+Date: Thu, 17 May 2018 10:56:45 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180517170816.GW12670@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20180517083539.9242-1-ying.huang@intel.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, =?UTF-8?B?VmlsbGUgU3lyasOkbMOk?= <ville.syrjala@linux.intel.com>
-Cc: "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Tony Lindgren <tony@atomide.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>
 
-On 05/17/2018 10:08 AM, Michal Hocko wrote:
-> On Thu 17-05-18 18:49:47, Michal Hocko wrote:
->> On Thu 17-05-18 16:58:32, Ville SyrjA?lA? wrote:
->>> On Thu, May 17, 2018 at 04:36:29PM +0300, Ville SyrjA?lA? wrote:
->>>> On Thu, May 17, 2018 at 03:21:09PM +0200, Michal Hocko wrote:
->>>>> On Thu 17-05-18 15:59:59, Ville Syrjala wrote:
->>>>>> From: Ville SyrjA?lA? <ville.syrjala@linux.intel.com>
->>>>>>
->>>>>> This reverts commit bad8c6c0b1144694ecb0bc5629ede9b8b578b86e.
->>>>>>
->>>>>> Make x86 with HIGHMEM=y and CMA=y boot again.
->>>>>
->>>>> Is there any bug report with some more details? It is much more
->>>>> preferable to fix the issue rather than to revert the whole thing
->>>>> right away.
->>>>
->>>> The machine I have in front of me right now didn't give me anything.
->>>> Black screen, and netconsole was silent. No serial port on this
->>>> machine unfortunately.
->>>
->>> Booted on another machine with serial:
->>
->> Could you provide your .config please?
->>
->> [...]
->>> [    0.000000] cma: Reserved 4 MiB at 0x0000000037000000
->> [...]
->>> [    0.000000] BUG: Bad page state in process swapper  pfn:377fe
->>> [    0.000000] page:f53effc0 count:0 mapcount:-127 mapping:00000000 index:0x0
->>
->> OK, so this looks the be the source of the problem. -128 would be a
->> buddy page but I do not see anything that would set the counter to -127
->> and the real map count updates shouldn't really happen that early.
->>
->> Maybe CONFIG_DEBUG_VM and CONFIG_DEBUG_HIGHMEM will tell us more.
+On 05/17/2018 01:35 AM, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> Looking closer, I _think_ that the bug is in set_highmem_pages_init->is_highmem
-> and zone_movable_is_highmem might force CMA pages in the zone movable to
-> be initialized as highmem. And that sounds supicious to me. Joonsoo?
+> This is to take better advantage of general huge page clearing
+> optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
+> when clearing huge page") for hugetlbfs.  In the general optimization
+> patch, the sub-page to access will be cleared last to avoid the cache
+> lines of to access sub-page to be evicted when clearing other
+> sub-pages.  This works better if we have the address of the sub-page
+> to access, that is, the fault address inside the huge page.  So the
+> hugetlbfs no page fault handler is changed to pass that information.
+> This will benefit workloads which don't access the begin of the
+> hugetlbfs huge page after the page fault under heavy cache contention
+> for shared last level cache.
+> 
+> The patch is a generic optimization which should benefit quite some
+> workloads, not for a specific use case.  To demonstrate the performance
+> benefit of the patch, we tested it with vm-scalability run on
+> hugetlbfs.
+> 
+> With this patch, the throughput increases ~28.1% in vm-scalability
+> anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
+> system (44 cores, 88 threads).  The test case creates 88 processes,
+> each process mmaps a big anonymous memory area with MAP_HUGETLB and
+> writes to it from the end to the begin.  For each process, other
+> processes could be seen as other workload which generates heavy cache
+> pressure.  At the same time, the cache miss rate reduced from ~36.3%
+> to ~25.6%, the IPC (instruction per cycle) increased from 0.3 to 0.37,
+> and the time spent in user space is reduced ~19.3%.
 > 
 
-For a point of reference, arm with this configuration doesn't hit this bug
-because highmem pages are freed via the memblock interface only instead
-of iterating through each zone. It looks like the x86 highmem code
-assumes only a single highmem zone and/or it's disjoint?
+Agree with Michal that commit message looks better.
 
-Thanks,
-Laura
+I went through updated patch with haddr naming so,
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+still applies.
+-- 
+Mike Kravetz
+
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Andi Kleen <andi.kleen@intel.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Shaohua Li <shli@fb.com>
+> Cc: Christopher Lameter <cl@linux.com>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Punit Agrawal <punit.agrawal@arm.com>
+> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/hugetlb.c | 42 +++++++++++++++++++++---------------------
+>  1 file changed, 21 insertions(+), 21 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 129088710510..4f0682cb9414 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -3686,6 +3686,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	struct page *page;
+>  	pte_t new_pte;
+>  	spinlock_t *ptl;
+> +	unsigned long haddr = address & huge_page_mask(h);
+>  
+>  	/*
+>  	 * Currently, we are forced to kill the process in the event the
+> @@ -3716,7 +3717,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			u32 hash;
+>  			struct vm_fault vmf = {
+>  				.vma = vma,
+> -				.address = address,
+> +				.address = haddr,
+>  				.flags = flags,
+>  				/*
+>  				 * Hard to debug if it ends up being
+> @@ -3733,14 +3734,14 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			 * fault to make calling code simpler.
+>  			 */
+>  			hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping,
+> -							idx, address);
+> +							idx, haddr);
+>  			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
+>  			ret = handle_userfault(&vmf, VM_UFFD_MISSING);
+>  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
+>  			goto out;
+>  		}
+>  
+> -		page = alloc_huge_page(vma, address, 0);
+> +		page = alloc_huge_page(vma, haddr, 0);
+>  		if (IS_ERR(page)) {
+>  			ret = PTR_ERR(page);
+>  			if (ret == -ENOMEM)
+> @@ -3789,12 +3790,12 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	 * the spinlock.
+>  	 */
+>  	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
+> -		if (vma_needs_reservation(h, vma, address) < 0) {
+> +		if (vma_needs_reservation(h, vma, haddr) < 0) {
+>  			ret = VM_FAULT_OOM;
+>  			goto backout_unlocked;
+>  		}
+>  		/* Just decrements count, does not deallocate */
+> -		vma_end_reservation(h, vma, address);
+> +		vma_end_reservation(h, vma, haddr);
+>  	}
+>  
+>  	ptl = huge_pte_lock(h, mm, ptep);
+> @@ -3808,17 +3809,17 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  
+>  	if (anon_rmap) {
+>  		ClearPagePrivate(page);
+> -		hugepage_add_new_anon_rmap(page, vma, address);
+> +		hugepage_add_new_anon_rmap(page, vma, haddr);
+>  	} else
+>  		page_dup_rmap(page, true);
+>  	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
+>  				&& (vma->vm_flags & VM_SHARED)));
+> -	set_huge_pte_at(mm, address, ptep, new_pte);
+> +	set_huge_pte_at(mm, haddr, ptep, new_pte);
+>  
+>  	hugetlb_count_add(pages_per_huge_page(h), mm);
+>  	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
+>  		/* Optimization, do the COW without a second fault */
+> -		ret = hugetlb_cow(mm, vma, address, ptep, page, ptl);
+> +		ret = hugetlb_cow(mm, vma, haddr, ptep, page, ptl);
+>  	}
+>  
+>  	spin_unlock(ptl);
+> @@ -3830,7 +3831,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	spin_unlock(ptl);
+>  backout_unlocked:
+>  	unlock_page(page);
+> -	restore_reserve_on_error(h, vma, address, page);
+> +	restore_reserve_on_error(h, vma, haddr, page);
+>  	put_page(page);
+>  	goto out;
+>  }
+> @@ -3883,10 +3884,9 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	struct hstate *h = hstate_vma(vma);
+>  	struct address_space *mapping;
+>  	int need_wait_lock = 0;
+> +	unsigned long haddr = address & huge_page_mask(h);
+>  
+> -	address &= huge_page_mask(h);
+> -
+> -	ptep = huge_pte_offset(mm, address, huge_page_size(h));
+> +	ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
+>  	if (ptep) {
+>  		entry = huge_ptep_get(ptep);
+>  		if (unlikely(is_hugetlb_entry_migration(entry))) {
+> @@ -3896,20 +3896,20 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			return VM_FAULT_HWPOISON_LARGE |
+>  				VM_FAULT_SET_HINDEX(hstate_index(h));
+>  	} else {
+> -		ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+> +		ptep = huge_pte_alloc(mm, haddr, huge_page_size(h));
+>  		if (!ptep)
+>  			return VM_FAULT_OOM;
+>  	}
+>  
+>  	mapping = vma->vm_file->f_mapping;
+> -	idx = vma_hugecache_offset(h, vma, address);
+> +	idx = vma_hugecache_offset(h, vma, haddr);
+>  
+>  	/*
+>  	 * Serialize hugepage allocation and instantiation, so that we don't
+>  	 * get spurious allocation failures if two CPUs race to instantiate
+>  	 * the same page in the page cache.
+>  	 */
+> -	hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping, idx, address);
+> +	hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping, idx, haddr);
+>  	mutex_lock(&hugetlb_fault_mutex_table[hash]);
+>  
+>  	entry = huge_ptep_get(ptep);
+> @@ -3939,16 +3939,16 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	 * consumed.
+>  	 */
+>  	if ((flags & FAULT_FLAG_WRITE) && !huge_pte_write(entry)) {
+> -		if (vma_needs_reservation(h, vma, address) < 0) {
+> +		if (vma_needs_reservation(h, vma, haddr) < 0) {
+>  			ret = VM_FAULT_OOM;
+>  			goto out_mutex;
+>  		}
+>  		/* Just decrements count, does not deallocate */
+> -		vma_end_reservation(h, vma, address);
+> +		vma_end_reservation(h, vma, haddr);
+>  
+>  		if (!(vma->vm_flags & VM_MAYSHARE))
+>  			pagecache_page = hugetlbfs_pagecache_page(h,
+> -								vma, address);
+> +								vma, haddr);
+>  	}
+>  
+>  	ptl = huge_pte_lock(h, mm, ptep);
+> @@ -3973,16 +3973,16 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  
+>  	if (flags & FAULT_FLAG_WRITE) {
+>  		if (!huge_pte_write(entry)) {
+> -			ret = hugetlb_cow(mm, vma, address, ptep,
+> +			ret = hugetlb_cow(mm, vma, haddr, ptep,
+>  					  pagecache_page, ptl);
+>  			goto out_put_page;
+>  		}
+>  		entry = huge_pte_mkdirty(entry);
+>  	}
+>  	entry = pte_mkyoung(entry);
+> -	if (huge_ptep_set_access_flags(vma, address, ptep, entry,
+> +	if (huge_ptep_set_access_flags(vma, haddr, ptep, entry,
+>  						flags & FAULT_FLAG_WRITE))
+> -		update_mmu_cache(vma, address, ptep);
+> +		update_mmu_cache(vma, haddr, ptep);
+>  out_put_page:
+>  	if (page != pagecache_page)
+>  		unlock_page(page);
+> 
