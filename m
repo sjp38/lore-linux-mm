@@ -1,78 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A7AC26B038B
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 00:49:29 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id u13-v6so1541320lff.0
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 21:49:29 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b4-v6sor1147154lfg.111.2018.05.16.21.49.27
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 80FD06B038D
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 02:11:17 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 74-v6so1673413wme.0
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 23:11:17 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id b26-v6si184849eda.336.2018.05.16.23.11.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 16 May 2018 21:49:27 -0700 (PDT)
-Date: Thu, 17 May 2018 07:49:24 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v5 13/13] mm: Clear shrinker bit if there are no objects
- related to memcg
-Message-ID: <20180517044924.5tq6vbqituvr3nzh@esperanza>
-References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
- <152594605549.22949.16491037134168999424.stgit@localhost.localdomain>
- <20180515055913.alk3pau43e3jps3y@esperanza>
- <1e31235c-f4e3-1046-57c8-741de095e616@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1e31235c-f4e3-1046-57c8-741de095e616@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 May 2018 23:11:16 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4H5iTAv047820
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 02:11:14 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2j0yqyh8v0-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 02:11:14 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 17 May 2018 07:11:12 +0100
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [RFC] hexagon: Drop the unused variable zero_page_mask
+Date: Thu, 17 May 2018 11:41:05 +0530
+Message-Id: <20180517061105.30447-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: rkuo@codeaurora.org, linux@roeck-us.net, vdavydov.dev@gmail.com, akpm@linux-foundation.org, hannes@cmpxchg.org
+Cc: linux-hexagon@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, May 15, 2018 at 11:55:04AM +0300, Kirill Tkhai wrote:
-> >> @@ -586,8 +586,23 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
-> >>  			continue;
-> >>  
-> >>  		ret = do_shrink_slab(&sc, shrinker, priority);
-> >> -		if (ret == SHRINK_EMPTY)
-> >> -			ret = 0;
-> >> +		if (ret == SHRINK_EMPTY) {
-> >> +			clear_bit(i, map->map);
-> >> +			/*
-> >> +			 * Pairs with mb in memcg_set_shrinker_bit():
-> >> +			 *
-> >> +			 * list_lru_add()     shrink_slab_memcg()
-> >> +			 *   list_add_tail()    clear_bit()
-> >> +			 *   <MB>               <MB>
-> >> +			 *   set_bit()          do_shrink_slab()
-> >> +			 */
-> > 
-> > Please improve the comment so that it isn't just a diagram.
-> 
-> Please, say, which comment you want to see here.
+Hexagon arch does not seem to have subscribed to _HAVE_COLOR_ZERO_PAGE
+framework. Hence zero_page_mask variable is not needed.
 
-I want the reader to understand why we need to invoke the shrinker twice
-if it returns SHRINK_EMPTY. The diagram doesn't really help here IMO. So
-I'd write Something like this:
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+I will have to request some one with hexagon system to compile and
+test this patch. Dont have access to hardware.
 
-	ret = do_shrink_slab(&sc, shrinker, priority);
-	if (ret == SHRINK_EMPTY) {
-		clear_bit(i, map->map);
-		/*
-		 * After the shrinker reported that it had no objects to free,
-		 * but before we cleared the corresponding bit in the memcg
-		 * shrinker map, a new object might have been added. To make
-		 * sure, we have the bit set in this case, we invoke the
-		 * shrinker one more time and re-set the bit if it reports that
-		 * it is not empty anymore. The memory barrier here pairs with
-		 * the barrier in memcg_set_shrinker_bit():
-		 *
-		 * list_lru_add()     shrink_slab_memcg()
-		 *   list_add_tail()    clear_bit()
-		 *   <MB>               <MB>
-		 *   set_bit()          do_shrink_slab()
-		 */
-		smp_mb__after_atomic();
-		ret = do_shrink_slab(&sc, shrinker, priority);
-			if (ret == SHRINK_EMPTY)
-				ret = 0;
-			else
-				memcg_set_shrinker_bit(memcg, nid, i);
+ arch/hexagon/include/asm/pgtable.h | 1 -
+ arch/hexagon/mm/init.c             | 3 ---
+ 2 files changed, 4 deletions(-)
+
+diff --git a/arch/hexagon/include/asm/pgtable.h b/arch/hexagon/include/asm/pgtable.h
+index aef02f7ca8aa..65125d0b02dd 100644
+--- a/arch/hexagon/include/asm/pgtable.h
++++ b/arch/hexagon/include/asm/pgtable.h
+@@ -30,7 +30,6 @@
+ 
+ /* A handy thing to have if one has the RAM. Declared in head.S */
+ extern unsigned long empty_zero_page;
+-extern unsigned long zero_page_mask;
+ 
+ /*
+  * The PTE model described here is that of the Hexagon Virtual Machine,
+diff --git a/arch/hexagon/mm/init.c b/arch/hexagon/mm/init.c
+index 192584d5ac2f..1495d45e472d 100644
+--- a/arch/hexagon/mm/init.c
++++ b/arch/hexagon/mm/init.c
+@@ -39,9 +39,6 @@ unsigned long __phys_offset;	/*  physical kernel offset >> 12  */
+ /*  Set as variable to limit PMD copies  */
+ int max_kernel_seg = 0x303;
+ 
+-/*  think this should be (page_size-1) the way it's used...*/
+-unsigned long zero_page_mask;
+-
+ /*  indicate pfn's of high memory  */
+ unsigned long highstart_pfn, highend_pfn;
+ 
+-- 
+2.11.0
