@@ -1,79 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E6966B0386
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 00:18:37 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e7-v6so1951089pfi.8
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 21:18:37 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id f6-v6si1399047pgn.348.2018.05.16.21.18.35
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 72B496B0389
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 00:33:45 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id f133-v6so1148569lfg.11
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 21:33:45 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c9-v6sor1144612lfb.54.2018.05.16.21.33.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 May 2018 21:18:35 -0700 (PDT)
-Subject: Re: [PATCH 01/33] block: add a lower-level bio_add_page interface
-References: <20180509074830.16196-1-hch@lst.de>
- <20180509074830.16196-2-hch@lst.de>
- <37c16316-aa3a-e3df-79d0-9fca37a5996f@codeaurora.org>
- <20180516180503.GA6627@lst.de>
-From: Ritesh Harjani <riteshh@codeaurora.org>
-Message-ID: <c8993a13-1084-454c-4d58-17a9e6d96f8e@codeaurora.org>
-Date: Thu, 17 May 2018 09:48:30 +0530
+        (Google Transport Security);
+        Wed, 16 May 2018 21:33:43 -0700 (PDT)
+Date: Thu, 17 May 2018 07:33:40 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v5 11/13] mm: Iterate only over charged shrinkers during
+ memcg shrink_slab()
+Message-ID: <20180517043340.wmm43ynodqa3zefq@esperanza>
+References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
+ <152594603565.22949.12428911301395699065.stgit@localhost.localdomain>
+ <20180515054445.nhe4zigtelkois4p@esperanza>
+ <fa35589b-0696-e029-4440-d91dc4c9ab2d@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20180516180503.GA6627@lst.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fa35589b-0696-e029-4440-d91dc4c9ab2d@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
+On Tue, May 15, 2018 at 01:12:20PM +0300, Kirill Tkhai wrote:
+> >> +#define root_mem_cgroup NULL
+> > 
+> > Let's instead export mem_cgroup_is_root(). In case if MEMCG is disabled
+> > it will always return false.
+> 
+> export == move to header file
 
+That and adding a stub function in case !MEMCG.
 
-On 5/16/2018 11:35 PM, Christoph Hellwig wrote:
-> On Wed, May 16, 2018 at 10:36:14AM +0530, Ritesh Harjani wrote:
->> 1. if bio_full is true that means no space in bio->bio_io_vec[] no?
->> Than how come we are still proceeding ahead with only warning?
->> While originally in bio_add_page we used to return after checking
->> bio_full. Callers can still call __bio_add_page directly right.
+> >> +static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+> >> +			struct mem_cgroup *memcg, int priority)
+> >> +{
+> >> +	struct memcg_shrinker_map *map;
+> >> +	unsigned long freed = 0;
+> >> +	int ret, i;
+> >> +
+> >> +	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
+> >> +		return 0;
+> >> +
+> >> +	if (!down_read_trylock(&shrinker_rwsem))
+> >> +		return 0;
+> >> +
+> >> +	/*
+> >> +	 * 1)Caller passes only alive memcg, so map can't be NULL.
+> >> +	 * 2)shrinker_rwsem protects from maps expanding.
+> > 
+> >             ^^
+> > Nit: space missing here :-)
 > 
-> I you don't know if the bio is full or not don't use __bio_add_page,
-> keep using bio_add_page.  The WARN_ON is just a debug tool to catch
-> cases where the developer did use it incorrectly.
-> 
->> 2. IF above is correct why don't we set the bio->bi_max_vecs to the size
->> of the slab instead of keeeping it to nr_iovecs which user requested?
->> (in bio_alloc_bioset)
-> 
-> Because we limit the user to the number that the user requested.  Not
-> that this patch changes anything about that.
-> 
->> 3. Could you please help understand why for cloned bio we still allow
->> __bio_add_page to work? why not WARN and return like in original code?
-> 
-> It doesn't work, and I have now added the WARN_ON to deal with any
-> incorrect usage.
-> 
->>> -	if (bio->bi_vcnt >= bio->bi_max_vecs)
->>> -		return 0;
->> Originally here we were supposed to return and not proceed further.
->> Should __bio_add_page not have similar checks to safeguard crossing
->> the bio_io_vec[] boundary?
-> 
-> No, __bio_add_page is the "I know what I am doing" interface.
-> 
+> I don't understand what you mean here. Please, clarify...
 
-Thanks for explaining. I guess I missed reading the comment made on top 
-of function __bio_add_page.
-"The caller must ensure that @bio has space for another bvec"
+This is just a trivial remark regarding comment formatting. They usually
+put a space between the number and the first word in the sentence, i.e.
+between '1)' and 'Caller' in your case.
 
-This discussion helped me understand a bit about bios & bio_vec.
+> 
+> >> +	 */
+> >> +	map = rcu_dereference_protected(MEMCG_SHRINKER_MAP(memcg, nid), true);
+> >> +	BUG_ON(!map);
+> >> +
+> >> +	for_each_set_bit(i, map->map, memcg_shrinker_nr_max) {
+> >> +		struct shrink_control sc = {
+> >> +			.gfp_mask = gfp_mask,
+> >> +			.nid = nid,
+> >> +			.memcg = memcg,
+> >> +		};
+> >> +		struct shrinker *shrinker;
+> >> +
+> >> +		shrinker = idr_find(&shrinker_idr, i);
+> >> +		if (!shrinker) {
+> >> +			clear_bit(i, map->map);
+> >> +			continue;
+> >> +		}
+> >> +		if (list_empty(&shrinker->list))
+> >> +			continue;
+> > 
+> > I don't like using shrinker->list as an indicator that the shrinker has
+> > been initialized. IMO if you do need such a check, you should split
+> > shrinker_idr registration in two steps - allocate a slot in 'prealloc'
+> > and set the pointer in 'register'. However, can we really encounter an
+> > unregistered shrinker here? AFAIU a bit can be set in the shrinker map
+> > only after the corresponding shrinker has been initialized, no?
+> 
+> 1)No, it's not so. Here is a race:
+> cpu#0                        cpu#1                                   cpu#2
+> prealloc_shrinker()
+>                              prealloc_shrinker()
+>                                memcg_expand_shrinker_maps()
+>                                  memcg_expand_one_shrinker_map()
+>                                    memset(&new->map, 0xff);          
+>                                                                      do_shrink_slab() (on uninitialized LRUs)
+> init LRUs
+> register_shrinker_prepared()
+> 
+> So, the check is needed.
 
-Thanks!!
-Ritesh
+OK, I see.
 
+> 
+> 2)Assigning NULL pointer can't be used here, since NULL pointer is already used
+> to clear unregistered shrinkers from the map. See the check right after idr_find().
 
--- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center, 
-Inc.
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a 
-Linux Foundation Collaborative Project.
+But it won't break anything if we clear bit for prealloc-ed, but not yet
+registered shrinkers, will it?
+
+> 
+> list_empty() is used since it's the already existing indicator, which does not
+> require additional member in struct shrinker.
+
+It just looks rather counter-intuitive to me to use shrinker->list to
+differentiate between registered and unregistered shrinkers. May be, I'm
+wrong. If you are sure that this is OK, I'm fine with it, but then
+please add a comment here explaining what this check is needed for.
+
+Thanks.
