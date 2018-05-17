@@ -1,73 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E5D8D6B0512
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 12:57:36 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id x32-v6so3181523pld.16
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 09:57:36 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id u6-v6si5237582plz.461.2018.05.17.09.57.35
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 686DE6B0514
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 13:08:23 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id c56-v6so3498873wrc.5
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 10:08:23 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f15-v6si5159127eds.217.2018.05.17.10.08.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 May 2018 09:57:35 -0700 (PDT)
-Date: Thu, 17 May 2018 10:00:23 -0700
-From: Jacob Pan <jacob.jun.pan@linux.intel.com>
-Subject: Re: [PATCH v2 01/40] iommu: Introduce Shared Virtual Addressing API
-Message-ID: <20180517100023.43585c42@jacob-builder>
-In-Reply-To: <96c1e0f0-0aa7-badf-123e-cbb1b05e645e@arm.com>
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
-	<20180511190641.23008-2-jean-philippe.brucker@arm.com>
-	<20180516134150.34fc8857@jacob-builder>
-	<96c1e0f0-0aa7-badf-123e-cbb1b05e645e@arm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 17 May 2018 10:08:19 -0700 (PDT)
+Date: Thu, 17 May 2018 19:08:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] Revert "mm/cma: manage the memory of the CMA area by
+ using the ZONE_MOVABLE"
+Message-ID: <20180517170816.GW12670@dhcp22.suse.cz>
+References: <20180517125959.8095-1-ville.syrjala@linux.intel.com>
+ <20180517132109.GU12670@dhcp22.suse.cz>
+ <20180517133629.GH23723@intel.com>
+ <20180517135832.GI23723@intel.com>
+ <20180517164947.GV12670@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180517164947.GV12670@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>, jacob.jun.pan@linux.intel.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ville =?iso-8859-1?Q?Syrj=E4l=E4?= <ville.syrjala@linux.intel.com>
+Cc: "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Tony Lindgren <tony@atomide.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 17 May 2018 11:02:02 +0100
-Jean-Philippe Brucker <jean-philippe.brucker@arm.com> wrote:
+On Thu 17-05-18 18:49:47, Michal Hocko wrote:
+> On Thu 17-05-18 16:58:32, Ville Syrjala wrote:
+> > On Thu, May 17, 2018 at 04:36:29PM +0300, Ville Syrjala wrote:
+> > > On Thu, May 17, 2018 at 03:21:09PM +0200, Michal Hocko wrote:
+> > > > On Thu 17-05-18 15:59:59, Ville Syrjala wrote:
+> > > > > From: Ville Syrjala <ville.syrjala@linux.intel.com>
+> > > > > 
+> > > > > This reverts commit bad8c6c0b1144694ecb0bc5629ede9b8b578b86e.
+> > > > > 
+> > > > > Make x86 with HIGHMEM=y and CMA=y boot again.
+> > > > 
+> > > > Is there any bug report with some more details? It is much more
+> > > > preferable to fix the issue rather than to revert the whole thing
+> > > > right away.
+> > > 
+> > > The machine I have in front of me right now didn't give me anything.
+> > > Black screen, and netconsole was silent. No serial port on this
+> > > machine unfortunately.
+> > 
+> > Booted on another machine with serial:
+> 
+> Could you provide your .config please?
+> 
+> [...]
+> > [    0.000000] cma: Reserved 4 MiB at 0x0000000037000000
+> [...]
+> > [    0.000000] BUG: Bad page state in process swapper  pfn:377fe
+> > [    0.000000] page:f53effc0 count:0 mapcount:-127 mapping:00000000 index:0x0
+> 
+> OK, so this looks the be the source of the problem. -128 would be a
+> buddy page but I do not see anything that would set the counter to -127
+> and the real map count updates shouldn't really happen that early.
+> 
+> Maybe CONFIG_DEBUG_VM and CONFIG_DEBUG_HIGHMEM will tell us more.
 
-> Hi Jacob,
-> 
-> Thanks for reviewing this
-> 
-> On 16/05/18 21:41, Jacob Pan wrote:
->  [...]  
-> > seems the min_pasid never gets used. do you really need it?  
-> 
-> Yes, the SMMU sets it to 1 in patch 28/40, because it needs to reserve
-> PASID 0
-> 
->  [...]  
-> > should it be !features?  
-> 
-> This checks if the user sets any unsupported bit in features. No
-> feature is supported right now, but patch 09/40 adds
-> IOMMU_SVA_FEAT_IOPF, and changes this line to "features &
-> ~IOMMU_SVA_FEAT_IOPF"
-> 
-> >> +	mutex_lock(&dev->iommu_param->lock);
-> >> +	param = dev->iommu_param->sva_param;
-> >> +	dev->iommu_param->sva_param = NULL;
-> >> +	mutex_unlock(&dev->iommu_param->lock);
-> >> +	if (!param)
-> >> +		return -ENODEV;
-> >> +
-> >> +	if (domain->ops->sva_device_shutdown)
-> >> +		domain->ops->sva_device_shutdown(dev, param);  
-> > seems a little mismatch here, do you need pass the param. I don't
-> > think there is anything else model specific iommu driver need to do
-> > for the param.  
-> 
-> SMMU doesn't use it, but maybe it would remind other IOMMU driver
-> which features were enabled, so they don't have to keep track of that
-> themselves? I can remove it if it isn't useful
-> 
-If there is a use case, I guess iommu driver can always retrieve the
-param from struct device.
-> Thanks,
-> Jean
-
-[Jacob Pan]
+Looking closer, I _think_ that the bug is in set_highmem_pages_init->is_highmem
+and zone_movable_is_highmem might force CMA pages in the zone movable to
+be initialized as highmem. And that sounds supicious to me. Joonsoo?
+-- 
+Michal Hocko
+SUSE Labs
