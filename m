@@ -1,67 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0516B052E
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 15:46:15 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id x14-v6so2009880pgv.18
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 12:46:15 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b73-v6si5891417pli.305.2018.05.17.12.46.13
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D96C6B0530
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 15:55:26 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id a5-v6so3486403plp.8
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 12:55:26 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id a9-v6si5453418pls.289.2018.05.17.12.55.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 17 May 2018 12:46:13 -0700 (PDT)
-Date: Thu, 17 May 2018 12:46:12 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm/dmapool: localize page allocations
-Message-ID: <20180517194612.GG26718@bombadil.infradead.org>
-References: <1526578581-7658-1-git-send-email-okaya@codeaurora.org>
- <20180517181815.GC26718@bombadil.infradead.org>
- <9844a638-bc4e-46bd-133e-0c82a3e9d6ea@codeaurora.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 May 2018 12:55:22 -0700 (PDT)
+Date: Thu, 17 May 2018 22:55:15 +0300
+From: Ville =?iso-8859-1?Q?Syrj=E4l=E4?= <ville.syrjala@linux.intel.com>
+Subject: Re: [PATCH] Revert "mm/cma: manage the memory of the CMA area by
+ using the ZONE_MOVABLE"
+Message-ID: <20180517195515.GR23723@intel.com>
+References: <20180517125959.8095-1-ville.syrjala@linux.intel.com>
+ <20180517132109.GU12670@dhcp22.suse.cz>
+ <20180517133629.GH23723@intel.com>
+ <20180517135832.GI23723@intel.com>
+ <20180517164947.GV12670@dhcp22.suse.cz>
+ <20180517171335.GN23723@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <9844a638-bc4e-46bd-133e-0c82a3e9d6ea@codeaurora.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180517171335.GN23723@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sinan Kaya <okaya@codeaurora.org>
-Cc: linux-mm@kvack.org, timur@codeaurora.org, linux-arm-msm@vger.kernel.org, linux-arm-kernel@lists.infradead.org, open list <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Tony Lindgren <tony@atomide.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 17, 2018 at 03:37:21PM -0400, Sinan Kaya wrote:
-> On 5/17/2018 2:18 PM, Matthew Wilcox wrote:
-> > On Thu, May 17, 2018 at 01:36:19PM -0400, Sinan Kaya wrote:
-> >> Try to keep the pool closer to the device's NUMA node by changing kmalloc()
-> >> to kmalloc_node() and devres_alloc() to devres_alloc_node().
-> > Have you measured any performance gains by doing this?  The thing is that
-> > these allocations are for the metadata about the page, and the page is
-> > going to be used by CPUs in every node.  So it's not clear to me that
-> > allocating it on the node nearest to the device is going to be any sort
-> > of a win.
+On Thu, May 17, 2018 at 08:13:35PM +0300, Ville Syrjala wrote:
+> On Thu, May 17, 2018 at 06:49:47PM +0200, Michal Hocko wrote:
+> > On Thu 17-05-18 16:58:32, Ville Syrjala wrote:
+> > > On Thu, May 17, 2018 at 04:36:29PM +0300, Ville Syrjala wrote:
+> > > > On Thu, May 17, 2018 at 03:21:09PM +0200, Michal Hocko wrote:
+> > > > > On Thu 17-05-18 15:59:59, Ville Syrjala wrote:
+> > > > > > From: Ville Syrjala <ville.syrjala@linux.intel.com>
+> > > > > > 
+> > > > > > This reverts commit bad8c6c0b1144694ecb0bc5629ede9b8b578b86e.
+> > > > > > 
+> > > > > > Make x86 with HIGHMEM=y and CMA=y boot again.
+> > > > > 
+> > > > > Is there any bug report with some more details? It is much more
+> > > > > preferable to fix the issue rather than to revert the whole thing
+> > > > > right away.
+> > > > 
+> > > > The machine I have in front of me right now didn't give me anything.
+> > > > Black screen, and netconsole was silent. No serial port on this
+> > > > machine unfortunately.
+> > > 
+> > > Booted on another machine with serial:
 > > 
+> > Could you provide your .config please?
 > 
-> It is true that this is metadata but it is one of the things that is most
-> frequently used in spite of its small size.
+> Attached. Not sure there's anything particularly useful in it though
+> since I've now seen this on all the highmem systems I've booted.
 > 
-> I don't think it makes any sense to cross a chip boundary for accessing a
-> pointer location on every single pool allocation. 
 > 
-> Remember that the CPU core that is running this driver is most probably on
-> the same NUMA node as the device itself.
+> BTW I just noticed that the reported memory sizes look pretty crazy:
+> 
+> Memory: 3926480K/3987424K available (5254K kernel code, 561K rwdata,
+> 2156K rodata, 572K init, 9308K bss, 56848K reserved,
+> 4096K cma-reserved, 3078532K highmem)
+> 
+> vs.
+> 
+> Memory: 7001976K/3987424K available (5254K kernel code, 561K rwdata,
+> 2156K rodata, 572K init, 9308K bss, 4291097664K reserved,
+> 4096K cma-reserved, 7005012K highmem)
+> 
+> > 
+> > [...]
+> > > [    0.000000] cma: Reserved 4 MiB at 0x0000000037000000
+> > [...]
+> > > [    0.000000] BUG: Bad page state in process swapper  pfn:377fe
+> > > [    0.000000] page:f53effc0 count:0 mapcount:-127 mapping:00000000 index:0x0
+> > 
+> > OK, so this looks the be the source of the problem. -128 would be a
+> > buddy page but I do not see anything that would set the counter to -127
+> > and the real map count updates shouldn't really happen that early.
+> > 
+> > Maybe CONFIG_DEBUG_VM and CONFIG_DEBUG_HIGHMEM will tell us more.
+> 
+> I'll see about grabbing another log.
 
-Umm ... says who?  If my process is running on NUMA node 5 and I submit
-an I/O, it should be allocating from a pool on node 5, not from a pool
-on whichever node the device is attached to.
+With DEBUG_VM the machine doesn't get far enough to print anything on
+the serial console.
 
-If it actually makes a performance difference, then NVMe should allocate
-one pool per queue, rather than one pool per device like it currently
-does.
+DEBUG_HIGHMEM didn't give me any new output.
 
-> Also, if it was a one time init kind of thing, I'd say "yeah, leave it alone". 
-> DMA pool is used by a wide range of drivers and it is used to allocate
-> fixed size buffers at runtime. 
-
- * DMA Pool allocator
- *
- * Copyright 2001 David Brownell
- * Copyright 2007 Intel Corporation
- *   Author: Matthew Wilcox <willy@linux.intel.com>
-
-I know what it's used for.
+-- 
+Ville Syrjala
+Intel
