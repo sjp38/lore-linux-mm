@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 175826B04EC
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 09:39:57 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id c56-v6so3128332wrc.5
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 06:39:57 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id 67-v6si4819179wrk.312.2018.05.17.06.39.55
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F2C7D6B04EE
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 09:50:45 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p1-v6so3086434wrm.7
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 06:50:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t23-v6si634129edi.108.2018.05.17.06.50.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 May 2018 06:39:56 -0700 (PDT)
-Date: Thu, 17 May 2018 15:39:24 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v3 07/12] ACPI / APEI: Make the nmi_fixmap_idx per-ghes
- to allow multiple in_nmi() users
-Message-ID: <20180517133924.GB27738@pd.tnic>
-References: <20180427153510.5799-1-james.morse@arm.com>
- <20180427153510.5799-8-james.morse@arm.com>
- <20180505122719.GE3708@pd.tnic>
- <1511cfcc-dcd1-b3c5-01c7-6b6b8fb65b05@arm.com>
- <20180516110348.GA17092@pd.tnic>
- <39bde8c5-4dfb-c1b9-02a4-ba467539ea24@codeaurora.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 17 May 2018 06:50:44 -0700 (PDT)
+Subject: Re: [PATCH] Revert "mm/cma: manage the memory of the CMA area by
+ using the ZONE_MOVABLE"
+References: <20180517125959.8095-1-ville.syrjala@linux.intel.com>
+ <20180517132109.GU12670@dhcp22.suse.cz> <20180517133629.GH23723@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6b9ad7af-6c7c-ebd8-1dc5-c34db177fdf7@suse.cz>
+Date: Thu, 17 May 2018 15:50:36 +0200
 MIME-Version: 1.0
+In-Reply-To: <20180517133629.GH23723@intel.com>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <39bde8c5-4dfb-c1b9-02a4-ba467539ea24@codeaurora.org>
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tyler Baicar <tbaicar@codeaurora.org>
-Cc: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <cdall@kernel.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>, Punit Agrawal <punit.agrawal@arm.com>, jonathan.zhang@cavium.com, Thomas Gleixner <tglx@linutronix.de>
+To: =?UTF-8?B?VmlsbGUgU3lyasOkbMOk?= <ville.syrjala@linux.intel.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Tony Lindgren <tony@atomide.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, May 16, 2018 at 11:38:16AM -0400, Tyler Baicar wrote:
-> I haven't seen a deadlock from that, but it looks possible. What if
-> the ghes_proc() call in ghes_probe() is moved before the second switch
-> statement? That way it is before the NMI/IRQ/poll is setup. At quick
-> glance I think that should avoid the deadlock and still provide the
-> functionality that call was added for. I can test that out if you all
-> agree.
+On 05/17/2018 03:36 PM, Ville SyrjA?lA? wrote:
+> On Thu, May 17, 2018 at 03:21:09PM +0200, Michal Hocko wrote:
+>> On Thu 17-05-18 15:59:59, Ville Syrjala wrote:
+>>> From: Ville SyrjA?lA? <ville.syrjala@linux.intel.com>
+>>>
+>>> This reverts commit bad8c6c0b1144694ecb0bc5629ede9b8b578b86e.
+>>>
+>>> Make x86 with HIGHMEM=y and CMA=y boot again.
+>>
+>> Is there any bug report with some more details? It is much more
+>> preferable to fix the issue rather than to revert the whole thing
+>> right away.
+> 
+> The machine I have in front of me right now didn't give me anything.
+> Black screen, and netconsole was silent. No serial port on this
+> machine unfortunately.
 
-Makes sense but please audit it properly before doing the change. That
-code is full of landmines and could use a proper scrubbing first.
-
-Thx.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Could you send the .config and more info about the machine, e.g.
+/proc/zoneinfo with the patch reverted, etc., the usual stuff when
+reporting a bug? Thanks.
