@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A37916B049A
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 06:11:18 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id 65-v6so1194750qkl.11
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 03:11:18 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id d88-v6si5065602qkh.133.2018.05.17.03.11.17
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F3F486B049C
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 06:23:37 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g7-v6so2771467wrb.19
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 03:23:37 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z4-v6si1181939edm.201.2018.05.17.03.23.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 May 2018 03:11:18 -0700 (PDT)
-Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
- signal semantics
-References: <57459C6F-C8BA-4E2D-99BA-64F35C11FC05@amacapital.net>
- <6286ba0a-7e09-b4ec-e31f-bd091f5940ff@redhat.com>
- <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
- <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
- <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
- <20180503021058.GA5670@ram.oc3035372033.ibm.com>
- <CALCETrXRQF08exQVZqtTLOKbC8Ywq5x4EYH_1D7r5v9bdOSwbg@mail.gmail.com>
- <927c8325-4c98-d7af-b921-6aafcf8fe992@redhat.com>
- <CALCETrX46wR_MDW=m9SVm=ejQmPAmD3+2oC3iapf75bPhnEAWQ@mail.gmail.com>
- <314e1a48-db94-9b37-8793-a95a2082c9e2@redhat.com>
- <20180516203534.GA5479@ram.oc3035372033.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <9c7b1c17-5c0e-11aa-0803-a0f503087b37@redhat.com>
-Date: Thu, 17 May 2018 12:11:15 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 17 May 2018 03:23:36 -0700 (PDT)
+Date: Thu, 17 May 2018 12:23:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] Add the memcg print oom info for system oom
+Message-ID: <20180517102330.GS12670@dhcp22.suse.cz>
+References: <1526540428-12178-1-git-send-email-ufo19890607@gmail.com>
+ <20180517071140.GQ12670@dhcp22.suse.cz>
+ <CAHCio2gOLnj4NpkFrxpYVygg6ZeSeuwgp2Lwr6oTHRxHpbmcWw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180516203534.GA5479@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAHCio2gOLnj4NpkFrxpYVygg6ZeSeuwgp2Lwr6oTHRxHpbmcWw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: =?utf-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-On 05/16/2018 10:35 PM, Ram Pai wrote:
-> So let me see if I understand the overall idea.
+On Thu 17-05-18 17:44:43, c|1e??e?(R) wrote:
+> Hi Michal
+> I think the current OOM report is imcomplete. I can get the task which
+> invoked the oom-killer and the task which has been killed by the
+> oom-killer, and memory info when the oom happened. But I cannot infer the
+> certain memcg to which the task killed by oom-killer belongs, because that
+> task has been killed, and the dump_task will print all of the tasks in the
+> system.
+
+I can see how the origin memcg might be useful, but ...
 > 
-> Application can allocate new keys through a new syscall
-> sys_pkey_alloc_1(flags, init_val, sig_init_val)
-> 
-> 'sig_init_val' is the permission-state of the key in signal context.
+> mem_cgroup_print_oom_info will print five lines of content including
+> memcg's name , usage, limit. I don't think five lines of content will cause
+> a big problem. Or it at least prints the memcg's name.
 
-I would keep the existing system call and just add a flag, say 
-PKEY_ALLOC_SETSIGNAL.  If the current thread needs different access 
-rights, it can set those rights just after pkey_alloc returns.  There is 
-no race that matters here, I think.
+this is not 5 lines at all. We dump memcg stats for the whole oom memcg
+subtree. For your patch it would be the whole subtree of the memcg of
+the oom victim. With cgroup v1 this can be quite deep as tasks can
+belong to inter-nodes as well. Would be
 
-Thanks,
-Florian
+		pr_info("Task in ");
+		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
+		pr_cont(" killed as a result of limit of ");
+
+part of that output sufficient for your usecase? You will not get memory
+consumption of the group but is that really so relevant when we are
+killing individual tasks? Please note that there are proposals to make
+the global oom killer memcg aware and select by the memcg size rather
+than pick on random tasks
+(http://lkml.kernel.org/r/20171130152824.1591-1-guro@fb.com). Maybe that
+will be more interesting for your container usecase.
+-- 
+Michal Hocko
+SUSE Labs
