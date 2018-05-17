@@ -1,61 +1,487 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B3BB76B0399
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 03:11:47 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b25-v6so2202320pfn.10
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 00:11:47 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BC9ED6B039B
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 03:57:45 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id v12-v6so1724102wmc.1
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 00:57:45 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m15-v6si3608387pgu.352.2018.05.17.00.11.46
+        by mx.google.com with ESMTPS id q11-v6si242212edj.431.2018.05.17.00.57.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 May 2018 00:11:46 -0700 (PDT)
-Date: Thu, 17 May 2018 09:11:40 +0200
+        Thu, 17 May 2018 00:57:43 -0700 (PDT)
+Date: Thu, 17 May 2018 09:57:40 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Add the memcg print oom info for system oom
-Message-ID: <20180517071140.GQ12670@dhcp22.suse.cz>
-References: <1526540428-12178-1-git-send-email-ufo19890607@gmail.com>
+Subject: Re: [RFC] mm, THP: Map read-only text segments using large THP pages
+Message-ID: <20180517075740.GA31969@dhcp22.suse.cz>
+References: <5BB682E1-DD52-4AA9-83E9-DEF091E0C709@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1526540428-12178-1-git-send-email-ufo19890607@gmail.com>
+In-Reply-To: <5BB682E1-DD52-4AA9-83E9-DEF091E0C709@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ufo19890607 <ufo19890607@gmail.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian <yuzhoujian@didichuxing.com>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org
 
-On Thu 17-05-18 08:00:28, ufo19890607 wrote:
-> From: yuzhoujian <yuzhoujian@didichuxing.com>
-> 
-> The dump_header does not print the memcg's name when the system
-> oom happened. Some users want to locate the certain container
-> which contains the task that has been killed by the oom killer.
-> So I add the mem_cgroup_print_oom_info when system oom events
-> happened.
+[CCing Kirill and fs-devel]
 
-The oom report is quite heavy today. Do we really need the full memcg
-oom report here. Wouldn't it be sufficient to print the memcg the task
-belongs to?
+On Mon 14-05-18 07:12:13, William Kucharski wrote:
+> One of the downsides of THP as currently implemented is that it only supports
+> large page mappings for anonymous pages.
 
-> Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
-> ---
->  mm/oom_kill.c | 1 +
->  1 file changed, 1 insertion(+)
+There is a support for shmem merged already. ext4 was next on the plan
+AFAIR but I haven't seen any patches and Kirill was busy with other
+stuff IIRC.
+
+> I embarked upon this prototype on the theory that it would be advantageous to 
+> be able to map large ranges of read-only text pages using THP as well.
+
+Can the fs really support THP only for read mappings? What if those
+pages are to be shared in a writable mapping as well? In other words
+can this all work without a full THP support for a particular fs?
+
+Keeping the rest of the email for new CC.
+
+> The idea is that the kernel will attempt to allocate and map the range using a 
+> PMD sized THP page upon first fault; if the allocation is successful the page 
+> will be populated (at present using a call to kernel_read()) and the page will 
+> be mapped at the PMD level. If memory allocation fails, the page fault routines 
+> will drop through to the conventional PAGESIZE-oriented routines for mapping 
+> the faulting page.
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 8ba6cb88cf58..244416c9834a 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -433,6 +433,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
->  	if (is_memcg_oom(oc))
->  		mem_cgroup_print_oom_info(oc->memcg, p);
->  	else {
-> +		mem_cgroup_print_oom_info(mem_cgroup_from_task(p), p);
->  		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
->  		if (is_dump_unreclaim_slabs())
->  			dump_unreclaimable_slab();
-> -- 
-> 2.14.1
+> Since this approach will map a PMD size block of the memory map at a time, we 
+> should see a slight uptick in time spent in disk I/O but a substantial drop in 
+> page faults as well as a reduction in iTLB misses as address ranges will be 
+> mapped with the larger page. Analysis of a test program that consists of a very 
+> large text area (483,138,032 bytes in size) that thrashes D$ and I$ shows this 
+> does occur and there is a slight reduction in program execution time.
 > 
+> The text segment as seen from readelf:
+> 
+> LOAD           0x0000000000000000 0x0000000000400000 0x0000000000400000
+>                0x000000001ccc19f0 0x000000001ccc19f0  R E    0x200000
+> 
+> As currently implemented for test purposes, the prototype will only use large 
+> pages to map an executable with a particular filename ("testr"), enabling easy 
+> comparison of the same executable using 4K and 2M (x64) pages on the same 
+> kernel. It is understood that this is just a proof of concept implementation 
+> and much more work regarding enabling the feature and overall system usage of 
+> it would need to be done before it was submitted as a kernel patch. However, I 
+> felt it would be worthy to send it out as an RFC so I can find out whether 
+> there are huge objections from the community to doing this at all, or a better 
+> understanding of the major concerns that must be assuaged before it would even 
+> be considered. I currently hardcode CONFIG_TRANSPARENT_HUGEPAGE to the 
+> equivalent of "always" and bypass some checks for anonymous pages by simply 
+> #ifdefing the code out; obviously I would need to determine the right thing to 
+> do in those cases.
+> 
+> Current comparisons of 4K vs 2M pages as generated by "perf stat -d -d -d -r10" 
+> follow; the 4K pagesize program was named "foo" and the 2M pagesize program 
+> "testr" (as noted above) - please note that these numbers do vary from run to 
+> run, but the orders of magnitude of the differences between the two versions 
+> remain relatively constant:
+> 
+> 4K Pages:
+> =========
+> Performance counter stats for './foo' (10 runs):
+> 
+>     307054.450421      task-clock:u (msec)       #    1.000 CPUs utilized            ( +-  0.21% )
+>                 0      context-switches:u        #    0.000 K/sec
+>                 0      cpu-migrations:u          #    0.000 K/sec
+>             7,728      page-faults:u             #    0.025 K/sec                    ( +-  0.00% )
+> 1,401,295,823,265      cycles:u                  #    4.564 GHz                      ( +-  0.19% )  (30.77%)
+>   562,704,668,718      instructions:u            #    0.40  insn per cycle           ( +-  0.00% )  (38.46%)
+>    20,100,243,102      branches:u                #   65.461 M/sec                    ( +-  0.00% )  (38.46%)
+>         2,628,944      branch-misses:u           #    0.01% of all branches          ( +-  3.32% )  (38.46%)
+>   180,885,880,185      L1-dcache-loads:u         #  589.100 M/sec                    ( +-  0.00% )  (38.46%)
+>    40,374,420,279      L1-dcache-load-misses:u   #   22.32% of all L1-dcache hits    ( +-  0.01% )  (38.46%)
+>       232,184,583      LLC-loads:u               #    0.756 M/sec                    ( +-  1.48% )  (30.77%)
+>        23,990,082      LLC-load-misses:u         #   10.33% of all LL-cache hits     ( +-  1.48% )  (30.77%)
+>   <not supported>      L1-icache-loads:u
+>    74,897,499,234      L1-icache-load-misses:u                                       ( +-  0.00% )  (30.77%)
+>   180,990,026,447      dTLB-loads:u              #  589.440 M/sec                    ( +-  0.00% )  (30.77%)
+>           707,373      dTLB-load-misses:u        #    0.00% of all dTLB cache hits   ( +-  4.62% )  (30.77%)
+>         5,583,675      iTLB-loads:u              #    0.018 M/sec                    ( +-  0.31% )  (30.77%)
+>     1,219,514,499      iTLB-load-misses:u        # 21840.71% of all iTLB cache hits  ( +-  0.01% )  (30.77%)
+>   <not supported>      L1-dcache-prefetches:u
+>   <not supported>      L1-dcache-prefetch-misses:u
+> 
+> 307.093088771 seconds time elapsed                                          ( +-  0.20% )
+> 
+> 2M Pages:
+> =========
+> Performance counter stats for './testr' (10 runs):
+> 
+>     289504.209769      task-clock:u (msec)       #    1.000 CPUs utilized            ( +-  0.19% )
+>                 0      context-switches:u        #    0.000 K/sec
+>                 0      cpu-migrations:u          #    0.000 K/sec
+>               598      page-faults:u             #    0.002 K/sec                    ( +-  0.03% )
+> 1,323,835,488,984      cycles:u                  #    4.573 GHz                      ( +-  0.19% )  (30.77%)
+>   562,658,682,055      instructions:u            #    0.43  insn per cycle           ( +-  0.00% )  (38.46%)
+>    20,099,662,528      branches:u                #   69.428 M/sec                    ( +-  0.00% )  (38.46%)
+>         2,877,086      branch-misses:u           #    0.01% of all branches          ( +-  4.52% )  (38.46%)
+>   180,899,297,017      L1-dcache-loads:u         #  624.859 M/sec                    ( +-  0.00% )  (38.46%)
+>    40,209,140,089      L1-dcache-load-misses:u   #   22.23% of all L1-dcache hits    ( +-  0.00% )  (38.46%)
+>       135,968,232      LLC-loads:u               #    0.470 M/sec                    ( +-  1.56% )  (30.77%)
+>         6,704,890      LLC-load-misses:u         #    4.93% of all LL-cache hits     ( +-  1.92% )  (30.77%)
+>   <not supported>      L1-icache-loads:u
+>    74,955,673,747      L1-icache-load-misses:u                                       ( +-  0.00% )  (30.77%)
+>   180,987,794,366      dTLB-loads:u              #  625.165 M/sec                    ( +-  0.00% )  (30.77%)
+>               835      dTLB-load-misses:u        #    0.00% of all dTLB cache hits   ( +- 14.35% )  (30.77%)
+>         6,386,207      iTLB-loads:u              #    0.022 M/sec                    ( +-  0.42% )  (30.77%)
+>        51,929,869      iTLB-load-misses:u        #  813.16% of all iTLB cache hits   ( +-  1.61% )  (30.77%)
+>   <not supported>      L1-dcache-prefetches:u
+>   <not supported>      L1-dcache-prefetch-misses:u
+> 
+> 289.551551387 seconds time elapsed                                          ( +-  0.20% )
+> 
+> A check of /proc/meminfo with the test program running shows the large mappings:
+> 
+> ShmemPmdMapped:   471040 kB
+> 
+> FAQ:
+> ====
+> Q: What kernel is the prototype based on?
+> A: 4.14.0-rc7
+> 
+> Q: What is the biggest issue you haven't addressed?
+> A: Given this is a prototype, there are many. Aside from the fact that I 
+>    only map large pages for an  executable of a specific name ("testr"), the 
+>    code must be integrated with large page size support in the page cache 
+>    as currently multiple iterations of an executable would each use their 
+>    own individually allocated THP pages and those pages filled with data 
+>    using kernel_read(), which  allows for performance characterization but 
+>    would never be acceptable for a production kernel.
+> 
+>    A good example of the large page support required is the ext4 support
+>    outlined in:
+> 
+>      https://www.mail-archive.com/linux-block@vger.kernel.org/msg04012.html
+> 
+>    There also need to be configuration options to enable this code at all, 
+>    likely only for file systems that support large pages, and more 
+>    reasonable fixes for the assumptions that all large THP pages are 
+>    anonymous assertions in rmap.c (for the prototype I just "#if 0" them out.)
+> 
+> Q: Which processes get their text as large pages?
+> A: At this point with this implementation it's any process with a read-only
+>    text area of the proper size/alignment.
+> 
+>    An attempt is made to align the address for non-MAP_FIXED addresses.
+> 
+>    I do not make any attempt to move mappings that take up a majority of a 
+>    large page to a large page; I only map a large page if the address 
+>    aligns and the map size is larger than or equal to a large page.  
+> 
+> Q: Which architectures has this been tested on?
+> A: At present, only x64.
+> 
+> Q: How about architectures (ARM, for instance) with multiple large page 
+>    sizes that are reasonable for text mappings?
+> A: At present a "large page" is just PMD size; it would be possible with
+>    additional effort to allow for mapping using PUD-sized pages.
+> 
+> Q: What about the use of non-PMD large page sizes (on non-x86 architectures)?
+> A: I haven't looked into that; I don't have an answer as to how to best 
+>    map a page that wasn't sized to be a PMD or PUD.
+> 
+> Signed-off-by: William Kucharski <william.kucharski@oracle.com>
+> 
+> ===============================================================
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index ed113ea..f4ac381 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -146,8 +146,8 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+> 	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
+> 		return -EINVAL;
+> 
+> -	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
+> -	len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
+> +	vma_len = (loff_t)(vma->vm_end - vma->vm_start);	/* length of VMA */
+> +	len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);	/* add vma->vm_pgoff * PAGESIZE */
+> 	/* check for overflow */
+> 	if (len < vma_len)
+> 		return -EINVAL;
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index 87067d2..353bec8 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -80,13 +80,15 @@ extern struct kobj_attribute shmem_enabled_attr;
+> #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+> 
+> #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -#define HPAGE_PMD_SHIFT PMD_SHIFT
+> -#define HPAGE_PMD_SIZE	((1UL) << HPAGE_PMD_SHIFT)
+> -#define HPAGE_PMD_MASK	(~(HPAGE_PMD_SIZE - 1))
+> -
+> -#define HPAGE_PUD_SHIFT PUD_SHIFT
+> -#define HPAGE_PUD_SIZE	((1UL) << HPAGE_PUD_SHIFT)
+> -#define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
+> +#define HPAGE_PMD_SHIFT		PMD_SHIFT
+> +#define HPAGE_PMD_SIZE		((1UL) << HPAGE_PMD_SHIFT)
+> +#define	HPAGE_PMD_OFFSET	(HPAGE_PMD_SIZE - 1)
+> +#define	HPAGE_PMD_MASK		(~(HPAGE_PMD_OFFSET))
+> +
+> +#define HPAGE_PUD_SHIFT		PUD_SHIFT
+> +#define HPAGE_PUD_SIZE		((1UL) << HPAGE_PUD_SHIFT)
+> +#define	HPAGE_PUD_OFFSET	(HPAGE_PUD_SIZE - 1)
+> +#define HPAGE_PUD_MASK		(~(HPAGE_PUD_OFFSET))
+> 
+> extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 1981ed6..7b61c92 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -445,6 +445,14 @@ subsys_initcall(hugepage_init);
+> 
+> static int __init setup_transparent_hugepage(char *str)
+> {
+> +#if 1
+> +	set_bit(TRANSPARENT_HUGEPAGE_FLAG,
+> +		&transparent_hugepage_flags);
+> +	clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
+> +		  &transparent_hugepage_flags);
+> +	printk("THP permanently set ON\n");
+> +	return 1;
+> +#else
+> 	int ret = 0;
+> 	if (!str)
+> 		goto out;
+> @@ -471,6 +479,7 @@ static int __init setup_transparent_hugepage(char *str)
+> 	if (!ret)
+> 		pr_warn("transparent_hugepage= cannot parse, ignored\n");
+> 	return ret;
+> +#endif
+> }
+> __setup("transparent_hugepage=", setup_transparent_hugepage);
+> 
+> @@ -532,8 +541,11 @@ unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
+> 
+> 	if (addr)
+> 		goto out;
+> +
+> +#if 0
+> 	if (!IS_DAX(filp->f_mapping->host) || !IS_ENABLED(CONFIG_FS_DAX_PMD))
+> 		goto out;
+> +#endif
+> 
+> 	addr = __thp_get_unmapped_area(filp, len, off, flags, PMD_SIZE);
+> 	if (addr)
+> diff --git a/mm/memory.c b/mm/memory.c
+> index a728bed..fc352d8 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3506,7 +3506,99 @@ late_initcall(fault_around_debugfs);
+>  * fault_around_pages() value (and therefore to page order).  This way it's
+>  * easier to guarantee that we don't cross page table boundaries.
+>  */
+> -static int do_fault_around(struct vm_fault *vmf)
+> +
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +static
+> +int do_fault_around_thp(struct vm_fault *vmf)
+> +{
+> +        struct file *file = vmf->vma->vm_file;
+> +	unsigned long address = vmf->address;
+> +	pgoff_t start_pgoff = vmf->pgoff;
+> +	pgoff_t end_pgoff;
+> +	int ret = VM_FAULT_FALLBACK;
+> +	int off;
+> +
+> +	/*
+> +	 * vmf->address will be the higher of (fault address & HPAGE_PMD_MASK)
+> +	 * or the start of the VMA.
+> +	 */
+> +	vmf->address = max((address & HPAGE_PMD_MASK), vmf->vma->vm_start);
+> +
+> +	/*
+> +	 * Not a candidate if the start address calculated above isnt properly
+> +	 * aligned
+> +	 */
+> +	if (vmf->address & HPAGE_PMD_OFFSET)
+> +		goto dfa_thp_out;
+> +
+> +	off = ((address - vmf->address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
+> +	start_pgoff -= off;
+> +
+> +	/*
+> +	 *  end_pgoff is either end of page table or end of vma
+> +	 *  or fault_around_pages() from start_pgoff, depending what is
+> +	 *  smallest.
+> +	 */
+> +	end_pgoff = start_pgoff -
+> +		((vmf->address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
+> +		PTRS_PER_PTE - 1;
+> +	end_pgoff = min3(end_pgoff, vma_pages(vmf->vma) + vmf->vma->vm_pgoff - 1,
+> +			start_pgoff + PTRS_PER_PTE - 1);
+> +
+> +	/*
+> +	 * Check to see if we could map this request with a large THP page
+> +	 * instead.
+> +	 */
+> +	if (((strncmp(file->f_path.dentry->d_name.name, "testr", 5) == 0)) &&
+> +		pmd_none(*vmf->pmd) &&
+> +		((end_pgoff - start_pgoff) >=
+> +		((HPAGE_PMD_SIZE >> PAGE_SHIFT) - 1))) {
+> +		struct page *page;
+> +
+> +		page = alloc_pages_vma(vmf->gfp_mask | __GFP_COMP |
+> +			__GFP_NORETRY, HPAGE_PMD_ORDER, vmf->vma,
+> +			vmf->address, numa_node_id(), 1);
+> +
+> +		if ((likely(page)) && (PageTransCompound(page))) {
+> +			ssize_t bytes_read;
+> +			void *pg_vaddr;
+> +
+> +			prep_transhuge_page(page);
+> +			pg_vaddr = page_address(page);
+> +
+> +			if (likely(pg_vaddr)) {
+> +				loff_t loff = (loff_t)
+> +					(start_pgoff << PAGE_SHIFT);
+> +				bytes_read = kernel_read(file, pg_vaddr,
+> +					HPAGE_PMD_SIZE, &loff);
+> +				VM_BUG_ON(bytes_read != HPAGE_PMD_SIZE);
+> +
+> +				smp_wmb(); /* See comment in __pte_alloc() */
+> +				ret = alloc_set_pte(vmf, NULL, page);
+> +
+> +				if (likely(ret == 0)) {
+> +					VM_BUG_ON_PAGE(pmd_none(*vmf->pmd),
+> +						page);
+> +					vmf->page = page;
+> +					ret = VM_FAULT_NOPAGE;
+> +					goto dfa_thp_out;
+> +				}
+> +			}
+> +
+> +			put_page(page);
+> +		}
+> +	}
+> +
+> +dfa_thp_out:
+> +	vmf->address = address;
+> +	VM_BUG_ON(vmf->pte != NULL);
+> +	return ret;
+> +}
+> +#endif	/* CONFIG_TRANSPARENT_HUGEPAGE */
+> +
+> +
+> +static
+> +int do_fault_around(struct vm_fault *vmf)
+> {
+> 	unsigned long address = vmf->address, nr_pages, mask;
+> 	pgoff_t start_pgoff = vmf->pgoff;
+> @@ -3566,6 +3658,21 @@ static int do_read_fault(struct vm_fault *vmf)
+> 	struct vm_area_struct *vma = vmf->vma;
+> 	int ret = 0;
+> 
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +	/*
+> +	 * Check to see if we could map this request with a large THP page
+> +	 * instead.
+> +	 */
+> +	if ((vma_pages(vmf->vma) >= PTRS_PER_PMD) &&
+> +		((strncmp(vmf->vma->vm_file->f_path.dentry->d_name.name,
+> +		"testr", 5)) == 0)) {
+> +			ret = do_fault_around_thp(vmf);
+> +
+> +			if (ret == VM_FAULT_NOPAGE)
+> +				return ret;
+> +	}
+> +#endif	/* CONFIG_TRANSPARENT_HUGEPAGE */
+> +
+> 	/*
+> 	 * Let's call ->map_pages() first and use ->fault() as fallback
+> 	 * if page by the offset is not ready to be mapped (cold cache or
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 680506f..1c281d7 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1327,6 +1327,10 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+> 	struct mm_struct *mm = current->mm;
+> 	int pkey = 0;
+> 
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +	unsigned long thp_maywrite = VM_MAYWRITE;
+> +#endif
+> +
+> 	*populate = 0;
+> 
+> 	if (!len)
+> @@ -1361,7 +1365,32 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+> 	/* Obtain the address to map to. we verify (or select) it and ensure
+> 	 * that it represents a valid section of the address space.
+> 	 */
+> -	addr = get_unmapped_area(file, addr, len, pgoff, flags);
+> +
+> +
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +	/*
+> +	 *
+> +	 * If THP is enabled, and it's a read-only executable that is
+> +	 * MAP_PRIVATE mapped, call the appropriate thp function to perhaps get a
+> +	 * large page aligned virtual address, otherwise use the normal routine.
+> +	 * 
+> +	 * Note the THP routine will return a normal page size aligned start
+> +	 * address in some cases.
+> +	 */
+> +	if ((prot & PROT_READ) && (prot & PROT_EXEC) && (!(prot & PROT_WRITE)) &&
+> +		(len >= HPAGE_PMD_SIZE) && (flags & MAP_PRIVATE) &&
+> +		((!(flags & MAP_FIXED)) || (!(addr & HPAGE_PMD_OFFSET)))) {
+> +			addr = thp_get_unmapped_area(file, addr, len, pgoff,
+> +				flags);
+> +			if (addr && (!(addr & HPAGE_PMD_OFFSET)))
+> +				thp_maywrite = 0;
+> +	} else {
+> +#endif
+> +		addr = get_unmapped_area(file, addr, len, pgoff, flags);
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +	}
+> +#endif
+> +
+> 	if (offset_in_page(addr))
+> 		return addr;
+> 
+> @@ -1376,7 +1405,11 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+> 	 * of the memory object, so we don't do any here.
+> 	 */
+> 	vm_flags |= calc_vm_prot_bits(prot, pkey) | calc_vm_flag_bits(flags) |
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +			mm->def_flags | VM_MAYREAD | thp_maywrite | VM_MAYEXEC;
+> +#else
+> 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+> +#endif
+> 
+> 	if (flags & MAP_LOCKED)
+> 		if (!can_do_mlock())
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index b874c47..4fc24f8 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1184,7 +1184,9 @@ void page_add_file_rmap(struct page *page, bool compound)
+> 		}
+> 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
+> 			goto out;
+> +#if 0
+> 		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+> +#endif
+> 		__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
+> 	} else {
+> 		if (PageTransCompound(page) && page_mapping(page)) {
+> @@ -1224,7 +1226,9 @@ static void page_remove_file_rmap(struct page *page, bool compound)
+> 		}
+> 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
+> 			goto out;
+> +#if 0
+> 		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+> +#endif
+> 		__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
+> 	} else {
+> 		if (!atomic_add_negative(-1, &page->_mapcount))
 
 -- 
 Michal Hocko
