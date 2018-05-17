@@ -1,192 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B55316B0502
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 11:58:51 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id x195-v6so3167392oix.18
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 08:58:51 -0700 (PDT)
-Received: from g9t5008.houston.hpe.com (g9t5008.houston.hpe.com. [15.241.48.72])
-        by mx.google.com with ESMTPS id s8-v6si1893018ota.184.2018.05.17.08.58.49
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 888266B0504
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 12:36:19 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id x14-v6so1906003pgv.18
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 09:36:19 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k193-v6si4283824pgc.520.2018.05.17.09.36.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 May 2018 08:58:50 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v3-UPADATE 2/3] ioremap: Update pgtable free interfaces with addr
-Date: Thu, 17 May 2018 09:57:34 -0600
-Message-Id: <20180517155734.1700-1-toshi.kani@hpe.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 17 May 2018 09:36:17 -0700 (PDT)
+Subject: Re: [PATCH v11 01/26] mm: introduce CONFIG_SPECULATIVE_PAGE_FAULT
+References: <1526555193-7242-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1526555193-7242-2-git-send-email-ldufour@linux.vnet.ibm.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <2cb8256d-5822-d94d-b0e6-c46f21d84852@infradead.org>
+Date: Thu, 17 May 2018 09:36:00 -0700
+MIME-Version: 1.0
+In-Reply-To: <1526555193-7242-2-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, will.deacon@arm.com
-Cc: cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, Joerg Roedel <joro@8bytes.org>, stable@vger.kernel.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, sergey.senozhatsky.work@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Minchan Kim <minchan@kernel.org>, Punit Agrawal <punitagrawal@gmail.com>, vinayak menon <vinayakm.list@gmail.com>, Yang Shi <yang.shi@linux.alibaba.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-From: Chintan Pandya <cpandya@codeaurora.org>
+Hi,
 
-The following kernel panic was observed on ARM64 platform due to a stale
-TLB entry.
+On 05/17/2018 04:06 AM, Laurent Dufour wrote:
+> This configuration variable will be used to build the code needed to
+> handle speculative page fault.
+> 
+> By default it is turned off, and activated depending on architecture
+> support, ARCH_HAS_PTE_SPECIAL, SMP and MMU.
+> 
+> The architecture support is needed since the speculative page fault handler
+> is called from the architecture's page faulting code, and some code has to
+> be added there to handle the speculative handler.
+> 
+> The dependency on ARCH_HAS_PTE_SPECIAL is required because vm_normal_page()
+> does processing that is not compatible with the speculative handling in the
+> case ARCH_HAS_PTE_SPECIAL is not set.
+> 
+> Suggested-by: Thomas Gleixner <tglx@linutronix.de>
+> Suggested-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> ---
+>  mm/Kconfig | 22 ++++++++++++++++++++++
+>  1 file changed, 22 insertions(+)
+> 
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 1d0888c5b97a..a38796276113 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -761,3 +761,25 @@ config GUP_BENCHMARK
+>  
+>  config ARCH_HAS_PTE_SPECIAL
+>  	bool
+> +
+> +config ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+> +       def_bool n
+> +
+> +config SPECULATIVE_PAGE_FAULT
+> +       bool "Speculative page faults"
+> +       default y
+> +       depends on ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+> +       depends on ARCH_HAS_PTE_SPECIAL && MMU && SMP
+> +       help
+> +         Try to handle user space page faults without holding the mmap_sem.
+> +
+> +	 This should allow better concurrency for massively threaded process
 
- 1. ioremap with 4K size, a valid pte page table is set.
- 2. iounmap it, its pte entry is set to 0.
- 3. ioremap the same address with 2M size, update its pmd entry with
-    a new value.
- 4. CPU may hit an exception because the old pmd entry is still in TLB,
-    which leads to a kernel panic.
+	                                                             processes
 
-Commit b6bdb7517c3d ("mm/vmalloc: add interfaces to free unmapped page
-table") has addressed this panic by falling to pte mappings in the above
-case on ARM64.
+> +	 since the page fault handler will not wait for other threads memory
 
-To support pmd mappings in all cases, TLB purge needs to be performed
-in this case on ARM64.
+	                                                      thread's
 
-Add a new arg, 'addr', to pud_free_pmd_page() and pmd_free_pte_page()
-so that TLB purge can be added later in seprate patches.
+> +	 layout change to be done, assuming that this change is done in another
+> +	 part of the process's memory space. This type of page fault is named
+> +	 speculative page fault.
+> +
+> +	 If the speculative page fault fails because of a concurrency is
 
-[toshi@hpe.com: merge changes, rewrite patch description]
-Fixes: 28ee90fe6048 ("x86/mm: implement free pmd/pte page interfaces")
-Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Joerg Roedel <joro@8bytes.org>
-Cc: <stable@vger.kernel.org>
----
-v3-UPDATE - Rewrite patch description
----
- arch/arm64/mm/mmu.c           |    4 ++--
- arch/x86/mm/pgtable.c         |   12 +++++++-----
- include/asm-generic/pgtable.h |    8 ++++----
- lib/ioremap.c                 |    4 ++--
- 4 files changed, 15 insertions(+), 13 deletions(-)
+	                                     because a concurrency is
 
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index 2dbb2c9f1ec1..da98828609a1 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -973,12 +973,12 @@ int pmd_clear_huge(pmd_t *pmdp)
- 	return 1;
- }
- 
--int pud_free_pmd_page(pud_t *pud)
-+int pud_free_pmd_page(pud_t *pud, unsigned long addr)
- {
- 	return pud_none(*pud);
- }
- 
--int pmd_free_pte_page(pmd_t *pmd)
-+int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
- {
- 	return pmd_none(*pmd);
- }
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 3f7180bc5f52..f60fdf411103 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -719,11 +719,12 @@ int pmd_clear_huge(pmd_t *pmd)
- /**
-  * pud_free_pmd_page - Clear pud entry and free pmd page.
-  * @pud: Pointer to a PUD.
-+ * @addr: Virtual address associated with pud.
-  *
-  * Context: The pud range has been unmaped and TLB purged.
-  * Return: 1 if clearing the entry succeeded. 0 otherwise.
-  */
--int pud_free_pmd_page(pud_t *pud)
-+int pud_free_pmd_page(pud_t *pud, unsigned long addr)
- {
- 	pmd_t *pmd;
- 	int i;
-@@ -734,7 +735,7 @@ int pud_free_pmd_page(pud_t *pud)
- 	pmd = (pmd_t *)pud_page_vaddr(*pud);
- 
- 	for (i = 0; i < PTRS_PER_PMD; i++)
--		if (!pmd_free_pte_page(&pmd[i]))
-+		if (!pmd_free_pte_page(&pmd[i], addr + (i * PMD_SIZE)))
- 			return 0;
- 
- 	pud_clear(pud);
-@@ -746,11 +747,12 @@ int pud_free_pmd_page(pud_t *pud)
- /**
-  * pmd_free_pte_page - Clear pmd entry and free pte page.
-  * @pmd: Pointer to a PMD.
-+ * @addr: Virtual address associated with pmd.
-  *
-  * Context: The pmd range has been unmaped and TLB purged.
-  * Return: 1 if clearing the entry succeeded. 0 otherwise.
-  */
--int pmd_free_pte_page(pmd_t *pmd)
-+int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
- {
- 	pte_t *pte;
- 
-@@ -766,7 +768,7 @@ int pmd_free_pte_page(pmd_t *pmd)
- 
- #else /* !CONFIG_X86_64 */
- 
--int pud_free_pmd_page(pud_t *pud)
-+int pud_free_pmd_page(pud_t *pud, unsigned long addr)
- {
- 	return pud_none(*pud);
- }
-@@ -775,7 +777,7 @@ int pud_free_pmd_page(pud_t *pud)
-  * Disable free page handling on x86-PAE. This assures that ioremap()
-  * does not update sync'd pmd entries. See vmalloc_sync_one().
-  */
--int pmd_free_pte_page(pmd_t *pmd)
-+int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
- {
- 	return pmd_none(*pmd);
- }
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index f59639afaa39..b081794ba135 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -1019,8 +1019,8 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
- int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
- int pud_clear_huge(pud_t *pud);
- int pmd_clear_huge(pmd_t *pmd);
--int pud_free_pmd_page(pud_t *pud);
--int pmd_free_pte_page(pmd_t *pmd);
-+int pud_free_pmd_page(pud_t *pud, unsigned long addr);
-+int pmd_free_pte_page(pmd_t *pmd, unsigned long addr);
- #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
- static inline int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
- {
-@@ -1046,11 +1046,11 @@ static inline int pmd_clear_huge(pmd_t *pmd)
- {
- 	return 0;
- }
--static inline int pud_free_pmd_page(pud_t *pud)
-+static inline int pud_free_pmd_page(pud_t *pud, unsigned long addr)
- {
- 	return 0;
- }
--static inline int pmd_free_pte_page(pmd_t *pmd)
-+static inline int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
- {
- 	return 0;
- }
-diff --git a/lib/ioremap.c b/lib/ioremap.c
-index 54e5bbaa3200..517f5853ffed 100644
---- a/lib/ioremap.c
-+++ b/lib/ioremap.c
-@@ -92,7 +92,7 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
- 		if (ioremap_pmd_enabled() &&
- 		    ((next - addr) == PMD_SIZE) &&
- 		    IS_ALIGNED(phys_addr + addr, PMD_SIZE) &&
--		    pmd_free_pte_page(pmd)) {
-+		    pmd_free_pte_page(pmd, addr)) {
- 			if (pmd_set_huge(pmd, phys_addr + addr, prot))
- 				continue;
- 		}
-@@ -119,7 +119,7 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
- 		if (ioremap_pud_enabled() &&
- 		    ((next - addr) == PUD_SIZE) &&
- 		    IS_ALIGNED(phys_addr + addr, PUD_SIZE) &&
--		    pud_free_pmd_page(pud)) {
-+		    pud_free_pmd_page(pud, addr)) {
- 			if (pud_set_huge(pud, phys_addr + addr, prot))
- 				continue;
- 		}
+> +	 detected or because underlying PMD or PTE tables are not yet
+> +	 allocating, it is failing its processing and a classic page fault
+
+	 allocated, the speculative page fault fails and a classic page fault
+
+> +	 is then tried.
+
+
+Also, all of the help text (below the "help" line) should be indented by
+1 tab + 2 spaces (in coding-style.rst).
+
+
+-- 
+~Randy
