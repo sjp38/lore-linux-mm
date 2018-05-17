@@ -1,103 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C81D66B0540
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 16:55:02 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id q16-v6so3567419pls.15
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 13:55:02 -0700 (PDT)
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com. [68.232.141.245])
-        by mx.google.com with ESMTPS id j20-v6si5679742pll.223.2018.05.17.13.55.01
+	by kanga.kvack.org (Postfix) with ESMTP id D70046B0542
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 17:05:56 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id t5-v6so3598754ply.13
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 14:05:56 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id 7-v6si6285437pff.154.2018.05.17.14.05.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 May 2018 13:55:01 -0700 (PDT)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
-Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
-Date: Thu, 17 May 2018 20:54:57 +0000
-Message-ID: <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
-References: <20180509013358.16399-1-kent.overstreet@gmail.com>
-In-Reply-To: <20180509013358.16399-1-kent.overstreet@gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <887FC55360788849A1FEED2D5DF5ECFC@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        Thu, 17 May 2018 14:05:55 -0700 (PDT)
+Subject: Re: [PATCH] mm/dmapool: localize page allocations
+References: <1526578581-7658-1-git-send-email-okaya@codeaurora.org>
+ <20180517181815.GC26718@bombadil.infradead.org>
+ <9844a638-bc4e-46bd-133e-0c82a3e9d6ea@codeaurora.org>
+ <20180517194612.GG26718@bombadil.infradead.org>
+ <d49e594a-c18a-160f-ca4c-91520ff3b293@codeaurora.org>
+ <20180517204103.GJ26718@bombadil.infradead.org>
+From: Sinan Kaya <okaya@codeaurora.org>
+Message-ID: <bbd1c867-7ca8-1364-cedb-39f52bb586d9@codeaurora.org>
+Date: Thu, 17 May 2018 17:05:53 -0400
 MIME-Version: 1.0
+In-Reply-To: <20180517204103.GJ26718@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "kent.overstreet@gmail.com" <kent.overstreet@gmail.com>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, timur@codeaurora.org, linux-arm-msm@vger.kernel.org, linux-arm-kernel@lists.infradead.org, open list <linux-kernel@vger.kernel.org>
 
-T24gVHVlLCAyMDE4LTA1LTA4IGF0IDIxOjMzIC0wNDAwLCBLZW50IE92ZXJzdHJlZXQgd3JvdGU6
-DQo+IFsgLi4uIF0NCg0KSGVsbG8gS2VudCwNCg0KV2l0aCBKZW5zJyBsYXRlc3QgZm9yLW5leHQg
-YnJhbmNoIEkgaGl0IHRoZSBrZXJuZWwgd2FybmluZyBzaG93biBiZWxvdy4gQ2FuDQp5b3UgaGF2
-ZSBhIGxvb2s/DQoNClRoYW5rcywNCg0KQmFydC4NCg0KDQo9PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0NCkJVRzogS0FTQU46
-IHVzZS1hZnRlci1mcmVlIGluIGJpb19hZHZhbmNlKzB4MTEwLzB4MWIwDQpSZWFkIG9mIHNpemUg
-NCBhdCBhZGRyIGZmZmY4ODAxNTZjNWU2ZDAgYnkgdGFzayBrc29mdGlycWQvMTAvNzINCg0KQ1BV
-OiAxMCBQSUQ6IDcyIENvbW06IGtzb2Z0aXJxZC8xMCBUYWludGVkOiBHICAgICAgICBXICAgICAg
-ICAgNC4xNy4wLXJjNC1kYmcrICM1DQpIYXJkd2FyZSBuYW1lOiBRRU1VIFN0YW5kYXJkIFBDIChR
-MzUgKyBJQ0g5LCAyMDA5KSwgQklPUyAxLjAuMC1wcmVidWlsdC5xZW11LXByb2plY3Qub3JnIDA0
-LzAxLzIwMTQNCkNhbGwgVHJhY2U6DQpkdW1wX3N0YWNrKzB4OWEvMHhlYg0KcHJpbnRfYWRkcmVz
-c19kZXNjcmlwdGlvbisweDY1LzB4MjcwDQprYXNhbl9yZXBvcnQrMHgyMzIvMHgzNTANCmJpb19h
-ZHZhbmNlKzB4MTEwLzB4MWIwDQpibGtfdXBkYXRlX3JlcXVlc3QrMHg5ZC8weDVhMA0Kc2NzaV9l
-bmRfcmVxdWVzdCsweDRjLzB4MzAwIFtzY3NpX21vZF0NCnNjc2lfaW9fY29tcGxldGlvbisweDcx
-ZS8weGE0MCBbc2NzaV9tb2RdDQpfX2Jsa19tcV9jb21wbGV0ZV9yZXF1ZXN0KzB4MTQzLzB4MjIw
-DQpzcnBfcmVjdl9kb25lKzB4NDU0LzB4MTEwMCBbaWJfc3JwXQ0KX19pYl9wcm9jZXNzX2NxKzB4
-OWEvMHhmMCBbaWJfY29yZV0NCmliX3BvbGxfaGFuZGxlcisweDJkLzB4OTAgW2liX2NvcmVdDQpp
-cnFfcG9sbF9zb2Z0aXJxKzB4ZTUvMHgxZTANCl9fZG9fc29mdGlycSsweDExMi8weDVmMA0KcnVu
-X2tzb2Z0aXJxZCsweDI5LzB4NTANCnNtcGJvb3RfdGhyZWFkX2ZuKzB4MzBmLzB4NDEwDQprdGhy
-ZWFkKzB4MWIyLzB4MWQwDQpyZXRfZnJvbV9mb3JrKzB4MjQvMHgzMA0KDQpBbGxvY2F0ZWQgYnkg
-dGFzayAxMzU2Og0Ka2FzYW5fa21hbGxvYysweGEwLzB4ZDANCmttZW1fY2FjaGVfYWxsb2MrMHhl
-ZC8weDMyMA0KbWVtcG9vbF9hbGxvYysweGM2LzB4MjEwDQpiaW9fYWxsb2NfYmlvc2V0KzB4MTI4
-LzB4MmQwDQpzdWJtaXRfYmhfd2JjKzB4OTUvMHgyZDANCl9fYmxvY2tfd3JpdGVfZnVsbF9wYWdl
-KzB4MmE2LzB4NWMwDQpfX3dyaXRlcGFnZSsweDM3LzB4ODANCndyaXRlX2NhY2hlX3BhZ2VzKzB4
-MzA1LzB4N2MwDQpnZW5lcmljX3dyaXRlcGFnZXMrMHhiOS8weDExMA0KZG9fd3JpdGVwYWdlcysw
-eDk2LzB4MTgwDQpfX2ZpbGVtYXBfZmRhdGF3cml0ZV9yYW5nZSsweDE2Mi8weDFiMA0KZmlsZV93
-cml0ZV9hbmRfd2FpdF9yYW5nZSsweDRkLzB4YjANCmJsa2Rldl9mc3luYysweDNjLzB4NzANCmRv
-X2ZzeW5jKzB4MzMvMHg2MA0KX194NjRfc3lzX2ZzeW5jKzB4MTgvMHgyMA0KZG9fc3lzY2FsbF82
-NCsweDZkLzB4MjIwDQplbnRyeV9TWVNDQUxMXzY0X2FmdGVyX2h3ZnJhbWUrMHg0OS8weGJlDQoN
-CkZyZWVkIGJ5IHRhc2sgNzI6DQpfX2thc2FuX3NsYWJfZnJlZSsweDEzMC8weDE4MA0Ka21lbV9j
-YWNoZV9mcmVlKzB4Y2QvMHgzODANCmJsa191cGRhdGVfcmVxdWVzdCsweGM0LzB4NWEwDQpibGtf
-dXBkYXRlX3JlcXVlc3QrMHhjNC8weDVhMA0Kc2NzaV9lbmRfcmVxdWVzdCsweDRjLzB4MzAwIFtz
-Y3NpX21vZF0NCnNjc2lfaW9fY29tcGxldGlvbisweDcxZS8weGE0MCBbc2NzaV9tb2RdDQpfX2Js
-a19tcV9jb21wbGV0ZV9yZXF1ZXN0KzB4MTQzLzB4MjIwDQpzcnBfcmVjdl9kb25lKzB4NDU0LzB4
-MTEwMCBbaWJfc3JwXQ0KX19pYl9wcm9jZXNzX2NxKzB4OWEvMHhmMCBbaWJfY29yZV0NCmliX3Bv
-bGxfaGFuZGxlcisweDJkLzB4OTAgW2liX2NvcmVdDQppcnFfcG9sbF9zb2Z0aXJxKzB4ZTUvMHgx
-ZTANCl9fZG9fc29mdGlycSsweDExMi8weDVmMA0KDQpUaGUgYnVnZ3kgYWRkcmVzcyBiZWxvbmdz
-IHRvIHRoZSBvYmplY3QgYXQgZmZmZjg4MDE1NmM1ZTY0MA0Kd2hpY2ggYmVsb25ncyB0byB0aGUg
-Y2FjaGUgYmlvLTAgb2Ygc2l6ZSAyMDANClRoZSBidWdneSBhZGRyZXNzIGlzIGxvY2F0ZWQgMTQ0
-IGJ5dGVzIGluc2lkZSBvZg0KMjAwLWJ5dGUgcmVnaW9uIFtmZmZmODgwMTU2YzVlNjQwLCBmZmZm
-ODgwMTU2YzVlNzA4KQ0KVGhlIGJ1Z2d5IGFkZHJlc3MgYmVsb25ncyB0byB0aGUgcGFnZToNCnBh
-Z2U6ZmZmZmVhMDAwNTViMTc4MCBjb3VudDoxIG1hcGNvdW50OjAgbWFwcGluZzowMDAwMDAwMDAw
-MDAwMDAwIGluZGV4OjB4MCBjb21wb3VuZF9tYXBjb3VudDogMA0KaWJfc3JwdDpzcnB0X3plcm9s
-ZW5ndGhfd3JpdGU6IGliX3NycHQgMTAuMTk2LjE1OS4xNzktMjQ6IHF1ZXVlZCB6ZXJvbGVuZ3Ro
-IHdyaXRlDQpmbGFnczogMHg4MDAwMDAwMDAwMDA4MTAwKHNsYWJ8aGVhZCkNCnJhdzogODAwMDAw
-MDAwMDAwODEwMCAwMDAwMDAwMDAwMDAwMDAwIDAwMDAwMDAwMDAwMDAwMDAgMDAwMDAwMDEwMDE5
-MDAxOQ0KcmF3OiBmZmZmZWEwMDA1NDNhODAwIDAwMDAwMDAyMDAwMDAwMDIgZmZmZjg4MDE1YThm
-M2EwMCAwMDAwMDAwMDAwMDAwMDAwDQppYl9zcnB0OnNycHRfemVyb2xlbmd0aF93cml0ZTogaWJf
-c3JwdCAxMC4xOTYuMTU5LjE3OS0yMjogcXVldWVkIHplcm9sZW5ndGggd3JpdGUNCnBhZ2UgZHVt
-cGVkIGJlY2F1c2U6IGthc2FuOiBiYWQgYWNjZXNzIGRldGVjdGVkDQppYl9zcnB0OnNycHRfemVy
-b2xlbmd0aF93cml0ZTogaWJfc3JwdCAxMC4xOTYuMTU5LjE3OS0yMDogcXVldWVkIHplcm9sZW5n
-dGggd3JpdGUNCg0KTWVtb3J5IHN0YXRlIGFyb3VuZCB0aGUgYnVnZ3kgYWRkcmVzczoNCmliX3Ny
-cHQ6c3JwdF96ZXJvbGVuZ3RoX3dyaXRlOiBpYl9zcnB0IDEwLjE5Ni4xNTkuMTc5LTE4OiBxdWV1
-ZWQgemVyb2xlbmd0aCB3cml0ZQ0KZmZmZjg4MDE1NmM1ZTU4MDogMDAgMDAgMDAgMDAgMDAgMDAg
-MDAgMDAgMDAgZmMgZmMgZmMgZmMgZmMgZmMgZmMNCmliX3NycHQ6c3JwdF96ZXJvbGVuZ3RoX3dy
-aXRlX2RvbmU6IGliX3NycHQgMTAuMTk2LjE1OS4xNzktMjQgd2MtPnN0YXR1cyA1DQpmZmZmODgw
-MTU2YzVlNjAwOiBmYyBmYyBmYyBmYyBmYyBmYyBmYyBmYyBmYiBmYiBmYiBmYiBmYiBmYiBmYiBm
-Yg0KaWJfc3JwdDpzcnB0X3plcm9sZW5ndGhfd3JpdGVfZG9uZTogaWJfc3JwdCAxMC4xOTYuMTU5
-LjE3OS0yMiB3Yy0+c3RhdHVzIDUNCj5mZmZmODgwMTU2YzVlNjgwOiBmYiBmYiBmYiBmYiBmYiBm
-YiBmYiBmYiBmYiBmYiBmYiBmYiBmYiBmYiBmYiBmYg0KaWJfc3JwdDpzcnB0X3plcm9sZW5ndGhf
-d3JpdGVfZG9uZTogaWJfc3JwdCAxMC4xOTYuMTU5LjE3OS0yMCB3Yy0+c3RhdHVzIDUNCiAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIF4NCmZmZmY4ODAxNTZj
-NWU3MDA6IGZiIGZjIGZjIGZjIGZjIGZjIGZjIGZjIGZjIGZjIGZjIGZjIGZjIGZjIGZjIGZjDQpp
-Yl9zcnB0OnNycHRfemVyb2xlbmd0aF93cml0ZV9kb25lOiBpYl9zcnB0IDEwLjE5Ni4xNTkuMTc5
-LTE4IHdjLT5zdGF0dXMgNQ0KZmZmZjg4MDE1NmM1ZTc4MDogZmIgZmIgZmIgZmIgZmIgZmIgZmIg
-ZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmIgZmINCmliX3NycHQ6c3JwdF9yZWxlYXNlX2NoYW5uZWxf
-d29yazogaWJfc3JwdCAxMC4xOTYuMTU5LjE3OS0yNA0KPT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09DQoNCihnZGIpIGxpc3Qg
-KihiaW9fYWR2YW5jZSsweDExMCkNCjB4ZmZmZmZmZmY4MTQ1MDA5MCBpcyBpbiBiaW9fYWR2YW5j
-ZSAoLi9pbmNsdWRlL2xpbnV4L2J2ZWMuaDo4MikuDQo3NyAgICAgICAgICAgICAgICAgICAgICBp
-dGVyLT5iaV9zaXplID0gMDsNCjc4ICAgICAgICAgICAgICAgICAgICAgIHJldHVybiBmYWxzZTsN
-Cjc5ICAgICAgICAgICAgICB9DQo4MA0KODEgICAgICAgICAgICAgIHdoaWxlIChieXRlcykgew0K
-ODIgICAgICAgICAgICAgICAgICAgICAgdW5zaWduZWQgaXRlcl9sZW4gPSBidmVjX2l0ZXJfbGVu
-KGJ2LCAqaXRlcik7DQo4MyAgICAgICAgICAgICAgICAgICAgICB1bnNpZ25lZCBsZW4gPSBtaW4o
-Ynl0ZXMsIGl0ZXJfbGVuKTsNCjg0DQo4NSAgICAgICAgICAgICAgICAgICAgICBieXRlcyAtPSBs
-ZW47DQo4NiAgICAgICAgICAgICAgICAgICAgICBpdGVyLT5iaV9zaXplIC09IGxlbjsNCg0KDQoN
-Cg0KDQoNCg==
+On 5/17/2018 4:41 PM, Matthew Wilcox wrote:
+> Let's try a different example.  I have a four-socket system with one
+> NVMe device with lots of hardware queues.  Each CPU has its own queue
+> assigned to it.  If I allocate all the PRP metadata on the socket with
+> the NVMe device attached to it, I'm sending a lot of coherency traffic
+> in the direction of that socket, in addition to the actual data.  If the
+> PRP lists are allocated randomly on the various sockets, the traffic
+> is heading all over the fabric.  If the PRP lists are allocated on the
+> local socket, the only time those lists move off this node is when the
+> device requests them.
+
+So.., your reasoning is that you actually want to keep the memory as close
+as possible to the CPU rather than the device itself. CPU would do
+frequent updates the buffer until the point where it hands off the buffer
+to the hardware. Device would fetch the memory via coherency when it needs
+to consume the data but this would be a one time penalty.
+
+It sounds logical to me. I was always told that you want to keep buffers
+as close as possible to the device.
+
+Maybe, it makes sense for things that device needs frequent access like
+receive buffers.
+
+If the majority user is CPU, then the buffer needs to be kept closer to
+the CPU. 
+
+dma_alloc_coherent() is generally used for receiver buffer allocation in
+network adapters in general. People allocate a chunk and then create a
+queue that hardware owns for dumping events and data.
+
+Since DMA pool is a generic API, we should maybe request where we want
+to keep the buffers closer to and allocate buffers from the appropriate
+NUMA node based on that.
+
+-- 
+Sinan Kaya
+Qualcomm Datacenter Technologies, Inc. as an affiliate of Qualcomm Technologies, Inc.
+Qualcomm Technologies, Inc. is a member of the Code Aurora Forum, a Linux Foundation Collaborative Project.
