@@ -1,44 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BDD8B6B0518
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 13:20:31 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e20-v6so3072516pff.14
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 10:20:31 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w22-v6si5182525pll.599.2018.05.17.10.20.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A01B06B051A
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 13:21:33 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id z5-v6so3077697pfz.6
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 10:21:33 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n5-v6si4593987pgr.404.2018.05.17.10.21.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 17 May 2018 10:20:29 -0700 (PDT)
-Date: Thu, 17 May 2018 10:19:51 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v11 01/26] mm: introduce CONFIG_SPECULATIVE_PAGE_FAULT
-Message-ID: <20180517171951.GB26718@bombadil.infradead.org>
-References: <1526555193-7242-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1526555193-7242-2-git-send-email-ldufour@linux.vnet.ibm.com>
- <2cb8256d-5822-d94d-b0e6-c46f21d84852@infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 17 May 2018 10:21:32 -0700 (PDT)
+Date: Thu, 17 May 2018 19:21:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] Revert "mm/cma: manage the memory of the CMA area by
+ using the ZONE_MOVABLE"
+Message-ID: <20180517172128.GX12670@dhcp22.suse.cz>
+References: <20180517125959.8095-1-ville.syrjala@linux.intel.com>
+ <20180517132109.GU12670@dhcp22.suse.cz>
+ <20180517133629.GH23723@intel.com>
+ <20180517135832.GI23723@intel.com>
+ <20180517164947.GV12670@dhcp22.suse.cz>
+ <20180517171335.GN23723@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <2cb8256d-5822-d94d-b0e6-c46f21d84852@infradead.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180517171335.GN23723@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, sergey.senozhatsky.work@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Minchan Kim <minchan@kernel.org>, Punit Agrawal <punitagrawal@gmail.com>, vinayak menon <vinayakm.list@gmail.com>, Yang Shi <yang.shi@linux.alibaba.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Ville =?iso-8859-1?Q?Syrj=E4l=E4?= <ville.syrjala@linux.intel.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Tony Lindgren <tony@atomide.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 17, 2018 at 09:36:00AM -0700, Randy Dunlap wrote:
-> > +	 If the speculative page fault fails because of a concurrency is
+On Thu 17-05-18 20:13:35, Ville Syrjala wrote:
+> On Thu, May 17, 2018 at 06:49:47PM +0200, Michal Hocko wrote:
+> > On Thu 17-05-18 16:58:32, Ville Syrjala wrote:
+> > > On Thu, May 17, 2018 at 04:36:29PM +0300, Ville Syrjala wrote:
+> > > > On Thu, May 17, 2018 at 03:21:09PM +0200, Michal Hocko wrote:
+> > > > > On Thu 17-05-18 15:59:59, Ville Syrjala wrote:
+> > > > > > From: Ville Syrjala <ville.syrjala@linux.intel.com>
+> > > > > > 
+> > > > > > This reverts commit bad8c6c0b1144694ecb0bc5629ede9b8b578b86e.
+> > > > > > 
+> > > > > > Make x86 with HIGHMEM=y and CMA=y boot again.
+> > > > > 
+> > > > > Is there any bug report with some more details? It is much more
+> > > > > preferable to fix the issue rather than to revert the whole thing
+> > > > > right away.
+> > > > 
+> > > > The machine I have in front of me right now didn't give me anything.
+> > > > Black screen, and netconsole was silent. No serial port on this
+> > > > machine unfortunately.
+> > > 
+> > > Booted on another machine with serial:
+> > 
+> > Could you provide your .config please?
 > 
-> 	                                     because a concurrency is
+> Attached. Not sure there's anything particularly useful in it though
+> since I've now seen this on all the highmem systems I've booted.
 
-While one can use concurrency as a noun, it sounds archaic to me.  I'd
-rather:
-
-	If the speculative page fault fails because a concurrent modification
-	is detected or because underlying PMD or PTE tables are not yet
-
-> > +	 detected or because underlying PMD or PTE tables are not yet
-> > +	 allocating, it is failing its processing and a classic page fault
+It has CONFIG_HAVE_MEMBLOCK_NODE_MAP so the movable_zone initialization
+depends on quite some crazy movable init code paths. So maybe that is
+the place to look at.
+ 
+ 
+> BTW I just noticed that the reported memory sizes look pretty crazy:
 > 
-> 	 allocated, the speculative page fault fails and a classic page fault
+> Memory: 3926480K/3987424K available (5254K kernel code, 561K rwdata,
+> 2156K rodata, 572K init, 9308K bss, 56848K reserved,
+> 4096K cma-reserved, 3078532K highmem)
 > 
-> > +	 is then tried.
+> vs.
+> 
+> Memory: 7001976K/3987424K available (5254K kernel code, 561K rwdata,
+> 2156K rodata, 572K init, 9308K bss, 4291097664K reserved,
+> 4096K cma-reserved, 7005012K highmem)
+
+This smells like a fallout. Reserved pages clearly underflowed which
+suggested we are initializating more than we should.
+-- 
+Michal Hocko
+SUSE Labs
