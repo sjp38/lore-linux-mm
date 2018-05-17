@@ -1,82 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 31CC96B037C
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 21:40:06 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id d4-v6so1755099plr.17
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 18:40:06 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id b65-v6si3737267plb.162.2018.05.16.18.40.04
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 922126B037F
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 21:41:53 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id s3-v6so1747398pfh.0
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 18:41:53 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id v24-v6si4223961pfj.292.2018.05.16.18.41.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 May 2018 18:40:05 -0700 (PDT)
+        Wed, 16 May 2018 18:41:52 -0700 (PDT)
 From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] mm: fix nr_rotate_swap leak in swapon() error case
-References: <b6fe6b879f17fa68eee6cbd876f459f6e5e33495.1526491581.git.osandov@fb.com>
-Date: Thu, 17 May 2018 09:40:03 +0800
-In-Reply-To: <b6fe6b879f17fa68eee6cbd876f459f6e5e33495.1526491581.git.osandov@fb.com>
-	(Omar Sandoval's message of "Wed, 16 May 2018 10:56:22 -0700")
-Message-ID: <87h8n7xdos.fsf@yhuang-dev.intel.com>
+Subject: Re: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
+References: <20180515005756.28942-1-ying.huang@intel.com>
+	<20180516091226.GM12670@dhcp22.suse.cz>
+Date: Thu, 17 May 2018 09:41:33 +0800
+In-Reply-To: <20180516091226.GM12670@dhcp22.suse.cz> (Michal Hocko's message
+	of "Wed, 16 May 2018 11:12:26 +0200")
+Message-ID: <87d0xvxdma.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Omar Sandoval <osandov@osandov.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-Omar Sandoval <osandov@osandov.com> writes:
+Michal Hocko <mhocko@kernel.org> writes:
 
-> From: Omar Sandoval <osandov@fb.com>
+> On Tue 15-05-18 08:57:56, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> This is to take better advantage of huge page clearing
+>> optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
+>> when clearing huge page").  Which will clear to access sub-page last
+>> to avoid the cache lines of to access sub-page to be evicted when
+>> clearing other sub-pages.  This needs to get the address of the
+>> sub-page to access, that is, the fault address inside of the huge
+>> page.  So the hugetlb no page fault handler is changed to pass that
+>> information.  This will benefit workloads which don't access the begin
+>> of the huge page after page fault.
+>> 
+>> With this patch, the throughput increases ~28.1% in vm-scalability
+>> anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
+>> system (44 cores, 88 threads).  The test case creates 88 processes,
+>> each process mmap a big anonymous memory area and writes to it from
+>> the end to the begin.  For each process, other processes could be seen
+>> as other workload which generates heavy cache pressure.  At the same
+>> time, the cache miss rate reduced from ~36.3% to ~25.6%, the
+>> IPC (instruction per cycle) increased from 0.3 to 0.37, and the time
+>> spent in user space is reduced ~19.3%
 >
-> If swapon() fails after incrementing nr_rotate_swap, we don't decrement
-> it and thus effectively leak it. Make sure we decrement it if we
-> incremented it.
->
-> Fixes: 81a0298bdfab ("mm, swap: don't use VMA based swap readahead if HDD is used as swap")
-> Signed-off-by: Omar Sandoval <osandov@fb.com>
+> This paragraph is confusing as Mike mentioned already. It would be
+> probably more helpful to see how was the test configured to use hugetlb
+> pages and what is the end benefit.
 
-Good catch!  Thanks!
+Sure.  Will revise it.
 
-Reviewed-by: "Huang, Ying" <ying.huang@intel.com>
+> I do not have any real objection to the implementation so feel free to
+> add
+> Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> I am just wondering what is the usecase driving this. Or is it just a
+> generic optimization that always makes sense to do? Indicating that in
+> the changelog would be helpful as well.
+
+I think this is a generic optimization.
 
 Best Regards,
 Huang, Ying
 
-> ---
-> Based on v4.17-rc5.
+> Thanks!
 >
->  mm/swapfile.c | 7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index cc2cf04d9018..78a015fcec3b 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -3112,6 +3112,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  	unsigned long *frontswap_map = NULL;
->  	struct page *page = NULL;
->  	struct inode *inode = NULL;
-> +	bool inced_nr_rotate_swap = false;
->  
->  	if (swap_flags & ~SWAP_FLAGS_VALID)
->  		return -EINVAL;
-> @@ -3215,8 +3216,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
->  			cluster_set_null(&cluster->index);
->  		}
-> -	} else
-> +	} else {
->  		atomic_inc(&nr_rotate_swap);
-> +		inced_nr_rotate_swap = true;
-> +	}
->  
->  	error = swap_cgroup_swapon(p->type, maxpages);
->  	if (error)
-> @@ -3307,6 +3310,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  	vfree(swap_map);
->  	kvfree(cluster_info);
->  	kvfree(frontswap_map);
-> +	if (inced_nr_rotate_swap)
-> +		atomic_dec(&nr_rotate_swap);
->  	if (swap_file) {
->  		if (inode && S_ISREG(inode->i_mode)) {
->  			inode_unlock(inode);
+>> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>> Cc: Andi Kleen <andi.kleen@intel.com>
+>> Cc: Jan Kara <jack@suse.cz>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+>> Cc: Hugh Dickins <hughd@google.com>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Shaohua Li <shli@fb.com>
+>> Cc: Christopher Lameter <cl@linux.com>
+>> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> Cc: Punit Agrawal <punit.agrawal@arm.com>
+>> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+>> ---
+>>  mm/hugetlb.c | 12 ++++++------
+>>  1 file changed, 6 insertions(+), 6 deletions(-)
+>> 
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 129088710510..3de6326abf39 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -3677,7 +3677,7 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
+>>  
+>>  static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>  			   struct address_space *mapping, pgoff_t idx,
+>> -			   unsigned long address, pte_t *ptep, unsigned int flags)
+>> +			   unsigned long faddress, pte_t *ptep, unsigned int flags)
+>>  {
+>>  	struct hstate *h = hstate_vma(vma);
+>>  	int ret = VM_FAULT_SIGBUS;
+>> @@ -3686,6 +3686,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>  	struct page *page;
+>>  	pte_t new_pte;
+>>  	spinlock_t *ptl;
+>> +	unsigned long address = faddress & huge_page_mask(h);
+>>  
+>>  	/*
+>>  	 * Currently, we are forced to kill the process in the event the
+>> @@ -3749,7 +3750,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>  				ret = VM_FAULT_SIGBUS;
+>>  			goto out;
+>>  		}
+>> -		clear_huge_page(page, address, pages_per_huge_page(h));
+>> +		clear_huge_page(page, faddress, pages_per_huge_page(h));
+>>  		__SetPageUptodate(page);
+>>  		set_page_huge_active(page);
+>>  
+>> @@ -3871,7 +3872,7 @@ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+>>  #endif
+>>  
+>>  int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>> -			unsigned long address, unsigned int flags)
+>> +			unsigned long faddress, unsigned int flags)
+>>  {
+>>  	pte_t *ptep, entry;
+>>  	spinlock_t *ptl;
+>> @@ -3883,8 +3884,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>>  	struct hstate *h = hstate_vma(vma);
+>>  	struct address_space *mapping;
+>>  	int need_wait_lock = 0;
+>> -
+>> -	address &= huge_page_mask(h);
+>> +	unsigned long address = faddress & huge_page_mask(h);
+>>  
+>>  	ptep = huge_pte_offset(mm, address, huge_page_size(h));
+>>  	if (ptep) {
+>> @@ -3914,7 +3914,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>>  
+>>  	entry = huge_ptep_get(ptep);
+>>  	if (huge_pte_none(entry)) {
+>> -		ret = hugetlb_no_page(mm, vma, mapping, idx, address, ptep, flags);
+>> +		ret = hugetlb_no_page(mm, vma, mapping, idx, faddress, ptep, flags);
+>>  		goto out_mutex;
+>>  	}
+>>  
+>> -- 
+>> 2.16.1
+>> 
