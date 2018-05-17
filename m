@@ -1,48 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F2C7D6B04EE
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 09:50:45 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p1-v6so3086434wrm.7
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 06:50:45 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t23-v6si634129edi.108.2018.05.17.06.50.44
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CA616B04F0
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 09:51:27 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id b5-v6so2002339lff.3
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 06:51:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y6-v6sor1359805lfe.112.2018.05.17.06.51.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 May 2018 06:50:44 -0700 (PDT)
-Subject: Re: [PATCH] Revert "mm/cma: manage the memory of the CMA area by
- using the ZONE_MOVABLE"
-References: <20180517125959.8095-1-ville.syrjala@linux.intel.com>
- <20180517132109.GU12670@dhcp22.suse.cz> <20180517133629.GH23723@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6b9ad7af-6c7c-ebd8-1dc5-c34db177fdf7@suse.cz>
-Date: Thu, 17 May 2018 15:50:36 +0200
+        (Google Transport Security);
+        Thu, 17 May 2018 06:51:25 -0700 (PDT)
+Date: Thu, 17 May 2018 16:51:21 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v5 11/13] mm: Iterate only over charged shrinkers during
+ memcg shrink_slab()
+Message-ID: <20180517135121.wtaiuj6pqxzodrlr@esperanza>
+References: <152594582808.22949.8353313986092337675.stgit@localhost.localdomain>
+ <152594603565.22949.12428911301395699065.stgit@localhost.localdomain>
+ <20180515054445.nhe4zigtelkois4p@esperanza>
+ <5c0dbd12-8100-61a2-34fd-8878c57195a3@virtuozzo.com>
+ <20180517041634.lgkym6gdctya3oq6@esperanza>
+ <f2dec4fb-6107-5d6c-62b3-8b680895c5c1@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20180517133629.GH23723@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f2dec4fb-6107-5d6c-62b3-8b680895c5c1@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?VmlsbGUgU3lyasOkbMOk?= <ville.syrjala@linux.intel.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Tony Lindgren <tony@atomide.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On 05/17/2018 03:36 PM, Ville SyrjA?lA? wrote:
-> On Thu, May 17, 2018 at 03:21:09PM +0200, Michal Hocko wrote:
->> On Thu 17-05-18 15:59:59, Ville Syrjala wrote:
->>> From: Ville SyrjA?lA? <ville.syrjala@linux.intel.com>
->>>
->>> This reverts commit bad8c6c0b1144694ecb0bc5629ede9b8b578b86e.
->>>
->>> Make x86 with HIGHMEM=y and CMA=y boot again.
->>
->> Is there any bug report with some more details? It is much more
->> preferable to fix the issue rather than to revert the whole thing
->> right away.
+On Thu, May 17, 2018 at 02:49:26PM +0300, Kirill Tkhai wrote:
+> On 17.05.2018 07:16, Vladimir Davydov wrote:
+> > On Tue, May 15, 2018 at 05:49:59PM +0300, Kirill Tkhai wrote:
+> >>>> @@ -589,13 +647,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+> >>>>  			.memcg = memcg,
+> >>>>  		};
+> >>>>  
+> >>>> -		/*
+> >>>> -		 * If kernel memory accounting is disabled, we ignore
+> >>>> -		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
+> >>>> -		 * passing NULL for memcg.
+> >>>> -		 */
+> >>>> -		if (memcg_kmem_enabled() &&
+> >>>> -		    !!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+> >>>> +		if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+> >>>>  			continue;
+> >>>
+> >>> I want this check gone. It's easy to achieve, actually - just remove the
+> >>> following lines from shrink_node()
+> >>>
+> >>> 		if (global_reclaim(sc))
+> >>> 			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
+> >>> 				    sc->priority);
+> >>
+> >> This check is not related to the patchset.
+> > 
+> > Yes, it is. This patch modifies shrink_slab which is used only by
+> > shrink_node. Simplifying shrink_node along the way looks right to me.
 > 
-> The machine I have in front of me right now didn't give me anything.
-> Black screen, and netconsole was silent. No serial port on this
-> machine unfortunately.
+> shrink_slab() is used not only in this place.
 
-Could you send the .config and more info about the machine, e.g.
-/proc/zoneinfo with the patch reverted, etc., the usual stuff when
-reporting a bug? Thanks.
+drop_slab_node() doesn't really count as it is an extract from shrink_node()
+
+> I does not seem a trivial change for me.
+> 
+> >> Let's don't mix everything in the single series of patches, because
+> >> after your last remarks it will grow at least up to 15 patches.
+> > 
+> > Most of which are trivial so I don't see any problem here.
+> > 
+> >> This patchset can't be responsible for everything.
+> > 
+> > I don't understand why you balk at simplifying the code a bit while you
+> > are patching related functions anyway.
+> 
+> Because this function is used in several places, and we have some particulars
+> on root_mem_cgroup initialization, and this function called from these places
+> with different states of root_mem_cgroup. It does not seem trivial fix for me.
+
+Let me do it for you then:
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9b697323a88c..e778569538de 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -486,10 +486,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+  * @nid is passed along to shrinkers with SHRINKER_NUMA_AWARE set,
+  * unaware shrinkers will receive a node id of 0 instead.
+  *
+- * @memcg specifies the memory cgroup to target. If it is not NULL,
+- * only shrinkers with SHRINKER_MEMCG_AWARE set will be called to scan
+- * objects from the memory cgroup specified. Otherwise, only unaware
+- * shrinkers are called.
++ * @memcg specifies the memory cgroup to target. Unaware shrinkers
++ * are called only if it is the root cgroup.
+  *
+  * @priority is sc->priority, we take the number of objects and >> by priority
+  * in order to get the scan target.
+@@ -554,6 +552,7 @@ void drop_slab_node(int nid)
+ 		struct mem_cgroup *memcg = NULL;
+ 
+ 		freed = 0;
++		memcg = mem_cgroup_iter(NULL, NULL, NULL);
+ 		do {
+ 			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
+ 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
+@@ -2557,9 +2556,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
+ 			node_lru_pages += lru_pages;
+ 
+-			if (memcg)
+-				shrink_slab(sc->gfp_mask, pgdat->node_id,
+-					    memcg, sc->priority);
++			shrink_slab(sc->gfp_mask, pgdat->node_id,
++				    memcg, sc->priority);
+ 
+ 			/* Record the group's reclaim efficiency */
+ 			vmpressure(sc->gfp_mask, memcg, false,
+@@ -2583,10 +2581,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			}
+ 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+ 
+-		if (global_reclaim(sc))
+-			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
+-				    sc->priority);
+-
+ 		if (reclaim_state) {
+ 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			reclaim_state->reclaimed_slab = 0;
+
+
+Seems simple enough to fold it into this patch, doesn't it?
