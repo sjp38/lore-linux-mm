@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5384F6B0394
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 02:47:59 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 54-v6so2430682wrw.1
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 23:47:59 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 33-v6si3796709edr.332.2018.05.16.23.47.57
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 042756B0396
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 03:00:40 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id w7-v6so2187009pfd.9
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 00:00:39 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b2-v6sor2554227plz.151.2018.05.17.00.00.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 16 May 2018 23:47:57 -0700 (PDT)
-Date: Thu, 17 May 2018 08:47:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 2/3] ioremap: Update pgtable free interfaces with addr
-Message-ID: <20180517064755.GP12670@dhcp22.suse.cz>
-References: <20180516233207.1580-1-toshi.kani@hpe.com>
- <20180516233207.1580-3-toshi.kani@hpe.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180516233207.1580-3-toshi.kani@hpe.com>
+        (Google Transport Security);
+        Thu, 17 May 2018 00:00:38 -0700 (PDT)
+From: ufo19890607 <ufo19890607@gmail.com>
+Subject: [PATCH] Add the memcg print oom info for system oom
+Date: Thu, 17 May 2018 08:00:28 +0100
+Message-Id: <1526540428-12178-1-git-send-email-ufo19890607@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, cpandya@codeaurora.org, linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, guro@fb.com, yang.s@alibaba-inc.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian <yuzhoujian@didichuxing.com>
 
-On Wed 16-05-18 17:32:06, Kani Toshimitsu wrote:
-> From: Chintan Pandya <cpandya@codeaurora.org>
-> 
-> This patch ("mm/vmalloc: Add interfaces to free unmapped
-> page table") adds following 2 interfaces to free the page
-> table in case we implement huge mapping.
-> 
-> pud_free_pmd_page() and pmd_free_pte_page()
-> 
-> Some architectures (like arm64) needs to do proper TLB
-> maintanance after updating pagetable entry even in map.
-> Why ? Read this,
-> https://patchwork.kernel.org/patch/10134581/
+From: yuzhoujian <yuzhoujian@didichuxing.com>
 
-Please add that information to the changelog.
+The dump_header does not print the memcg's name when the system
+oom happened. Some users want to locate the certain container
+which contains the task that has been killed by the oom killer.
+So I add the mem_cgroup_print_oom_info when system oom events
+happened.
+
+Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
+---
+ mm/oom_kill.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 8ba6cb88cf58..244416c9834a 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -433,6 +433,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+ 	if (is_memcg_oom(oc))
+ 		mem_cgroup_print_oom_info(oc->memcg, p);
+ 	else {
++		mem_cgroup_print_oom_info(mem_cgroup_from_task(p), p);
+ 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+ 		if (is_dump_unreclaim_slabs())
+ 			dump_unreclaimable_slab();
 -- 
-Michal Hocko
-SUSE Labs
+2.14.1
