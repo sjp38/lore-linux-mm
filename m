@@ -1,95 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D96C6B0530
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 15:55:26 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id a5-v6so3486403plp.8
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 12:55:26 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id a9-v6si5453418pls.289.2018.05.17.12.55.22
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D49F6B0532
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 16:05:49 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id bd7-v6so3493147plb.20
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 13:05:49 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id 206-v6si5811908pfw.130.2018.05.17.13.05.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 May 2018 12:55:22 -0700 (PDT)
-Date: Thu, 17 May 2018 22:55:15 +0300
-From: Ville =?iso-8859-1?Q?Syrj=E4l=E4?= <ville.syrjala@linux.intel.com>
-Subject: Re: [PATCH] Revert "mm/cma: manage the memory of the CMA area by
- using the ZONE_MOVABLE"
-Message-ID: <20180517195515.GR23723@intel.com>
-References: <20180517125959.8095-1-ville.syrjala@linux.intel.com>
- <20180517132109.GU12670@dhcp22.suse.cz>
- <20180517133629.GH23723@intel.com>
- <20180517135832.GI23723@intel.com>
- <20180517164947.GV12670@dhcp22.suse.cz>
- <20180517171335.GN23723@intel.com>
+        Thu, 17 May 2018 13:05:48 -0700 (PDT)
+Subject: Re: [PATCH] mm/dmapool: localize page allocations
+References: <1526578581-7658-1-git-send-email-okaya@codeaurora.org>
+ <20180517181815.GC26718@bombadil.infradead.org>
+ <9844a638-bc4e-46bd-133e-0c82a3e9d6ea@codeaurora.org>
+ <20180517194612.GG26718@bombadil.infradead.org>
+From: Sinan Kaya <okaya@codeaurora.org>
+Message-ID: <d49e594a-c18a-160f-ca4c-91520ff3b293@codeaurora.org>
+Date: Thu, 17 May 2018 16:05:45 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180517171335.GN23723@intel.com>
+In-Reply-To: <20180517194612.GG26718@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Tony Lindgren <tony@atomide.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, timur@codeaurora.org, linux-arm-msm@vger.kernel.org, linux-arm-kernel@lists.infradead.org, open list <linux-kernel@vger.kernel.org>
 
-On Thu, May 17, 2018 at 08:13:35PM +0300, Ville Syrjala wrote:
-> On Thu, May 17, 2018 at 06:49:47PM +0200, Michal Hocko wrote:
-> > On Thu 17-05-18 16:58:32, Ville Syrjala wrote:
-> > > On Thu, May 17, 2018 at 04:36:29PM +0300, Ville Syrjala wrote:
-> > > > On Thu, May 17, 2018 at 03:21:09PM +0200, Michal Hocko wrote:
-> > > > > On Thu 17-05-18 15:59:59, Ville Syrjala wrote:
-> > > > > > From: Ville Syrjala <ville.syrjala@linux.intel.com>
-> > > > > > 
-> > > > > > This reverts commit bad8c6c0b1144694ecb0bc5629ede9b8b578b86e.
-> > > > > > 
-> > > > > > Make x86 with HIGHMEM=y and CMA=y boot again.
-> > > > > 
-> > > > > Is there any bug report with some more details? It is much more
-> > > > > preferable to fix the issue rather than to revert the whole thing
-> > > > > right away.
-> > > > 
-> > > > The machine I have in front of me right now didn't give me anything.
-> > > > Black screen, and netconsole was silent. No serial port on this
-> > > > machine unfortunately.
-> > > 
-> > > Booted on another machine with serial:
-> > 
-> > Could you provide your .config please?
-> 
-> Attached. Not sure there's anything particularly useful in it though
-> since I've now seen this on all the highmem systems I've booted.
-> 
-> 
-> BTW I just noticed that the reported memory sizes look pretty crazy:
-> 
-> Memory: 3926480K/3987424K available (5254K kernel code, 561K rwdata,
-> 2156K rodata, 572K init, 9308K bss, 56848K reserved,
-> 4096K cma-reserved, 3078532K highmem)
-> 
-> vs.
-> 
-> Memory: 7001976K/3987424K available (5254K kernel code, 561K rwdata,
-> 2156K rodata, 572K init, 9308K bss, 4291097664K reserved,
-> 4096K cma-reserved, 7005012K highmem)
-> 
-> > 
-> > [...]
-> > > [    0.000000] cma: Reserved 4 MiB at 0x0000000037000000
-> > [...]
-> > > [    0.000000] BUG: Bad page state in process swapper  pfn:377fe
-> > > [    0.000000] page:f53effc0 count:0 mapcount:-127 mapping:00000000 index:0x0
-> > 
-> > OK, so this looks the be the source of the problem. -128 would be a
-> > buddy page but I do not see anything that would set the counter to -127
-> > and the real map count updates shouldn't really happen that early.
-> > 
-> > Maybe CONFIG_DEBUG_VM and CONFIG_DEBUG_HIGHMEM will tell us more.
-> 
-> I'll see about grabbing another log.
+On 5/17/2018 3:46 PM, Matthew Wilcox wrote:
+>> Remember that the CPU core that is running this driver is most probably on
+>> the same NUMA node as the device itself.
+> Umm ... says who?  If my process is running on NUMA node 5 and I submit
+> an I/O, it should be allocating from a pool on node 5, not from a pool
+> on whichever node the device is attached to.
 
-With DEBUG_VM the machine doesn't get far enough to print anything on
-the serial console.
+OK, let's do an exercise. Maybe, I'm missing something in the big picture.
 
-DEBUG_HIGHMEM didn't give me any new output.
+If a user process is running at node 5, it submits some work to the hardware
+via block layer that is eventually invoked by syscall. 
+
+Whatever buffer process is using, it gets copied into the kernel space as
+it is crossing a userspace/kernel space boundary.
+
+Block layer packages a block request with the kernel pointers and makes a
+request to the NVMe driver for consumption.
+
+Last time I checked, dma_alloc_coherent() API uses the locality information
+from the device not from the CPU for allocation.
+
+While the metadata for dma_pool is pointing to the currently running CPU core,
+the DMA buffer itself is created using the device node itself today without
+my patch.
+
+I would think that you actually want to run the process at the same NUMA node
+as the CPU and device itself for performance reasons. Otherwise, performance
+expectations should be low. 
+
+Even if user says please keep my process to a particular NUMA node,
+we keep pointing to the memory on the other node today. 
+
+I don't know what is so special about memory on the default node. IMO, all memory
+allocations used by a driver need to follow the device. 
+
+I wish I could do this in kmalloc(). devm_kmalloc() follows the device as another
+example not CPU.
+
+With these assumptions, even though user said please use the NUMA node from the
+device, we still keep pointing to the default domain for pointers.
+
+Isn't this wrong?
+
+> 
+> If it actually makes a performance difference, then NVMe should allocate
+> one pool per queue, rather than one pool per device like it currently
+> does.
+> 
+>> Also, if it was a one time init kind of thing, I'd say "yeah, leave it alone". 
+>> DMA pool is used by a wide range of drivers and it is used to allocate
+>> fixed size buffers at runtime. 
+>  * DMA Pool allocator
+>  *
+>  * Copyright 2001 David Brownell
+>  * Copyright 2007 Intel Corporation
+>  *   Author: Matthew Wilcox <willy@linux.intel.com>
+> 
+> I know what it's used for.
+> 
+
+cool, good to know.
 
 -- 
-Ville Syrjala
-Intel
+Sinan Kaya
+Qualcomm Datacenter Technologies, Inc. as an affiliate of Qualcomm Technologies, Inc.
+Qualcomm Technologies, Inc. is a member of the Code Aurora Forum, a Linux Foundation Collaborative Project.
