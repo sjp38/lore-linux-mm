@@ -1,51 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 385916B0496
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 06:02:57 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id e95-v6so3091484otb.15
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 03:02:57 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r126-v6si1497929oih.74.2018.05.17.03.02.56
-        for <linux-mm@kvack.org>;
-        Thu, 17 May 2018 03:02:56 -0700 (PDT)
-Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-4-jean-philippe.brucker@arm.com>
- <20180516163117.622693ea@jacob-builder>
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Message-ID: <de478769-9f7a-d40b-a55e-e2c63ad883e8@arm.com>
-Date: Thu, 17 May 2018 11:02:42 +0100
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CF9D6B0498
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 06:09:40 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id t24-v6so3382056qtn.7
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 03:09:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id r47-v6si3937355qtb.46.2018.05.17.03.09.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 May 2018 03:09:39 -0700 (PDT)
+Subject: Re: [PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
+ signal semantics
+References: <CALCETrVrm6yGiv6_z7RqdeB-324RoeMmjpf1EHsrGOh+iKb7+A@mail.gmail.com>
+ <b2df1386-9df9-2db8-0a25-51bf5ff63592@redhat.com>
+ <CALCETrW_Dt-HoG4keFJd8DSD=tvyR+bBCFrBDYdym4GQbfng4A@mail.gmail.com>
+ <20180503021058.GA5670@ram.oc3035372033.ibm.com>
+ <CALCETrXRQF08exQVZqtTLOKbC8Ywq5x4EYH_1D7r5v9bdOSwbg@mail.gmail.com>
+ <927c8325-4c98-d7af-b921-6aafcf8fe992@redhat.com>
+ <CALCETrX46wR_MDW=m9SVm=ejQmPAmD3+2oC3iapf75bPhnEAWQ@mail.gmail.com>
+ <314e1a48-db94-9b37-8793-a95a2082c9e2@redhat.com>
+ <20180516203534.GA5479@ram.oc3035372033.ibm.com>
+ <CALCETrVQs=ix-w9_MLJWikzmBG-e2Fzg61TrZLNVv5R3XFOs=g@mail.gmail.com>
+ <20180516210745.GC5479@ram.oc3035372033.ibm.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <1a46685f-1ca7-d215-455c-c75254959684@redhat.com>
+Date: Thu, 17 May 2018 12:09:36 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180516163117.622693ea@jacob-builder>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20180516210745.GC5479@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jacob Pan <jacob.jun.pan@linux.intel.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>
+To: Ram Pai <linuxram@us.ibm.com>, Andy Lutomirski <luto@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Linux-MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-x86_64@vger.kernel.org, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On 17/05/18 00:31, Jacob Pan wrote:
-> On Fri, 11 May 2018 20:06:04 +0100
-> I am a little confused about domain vs. pasid relationship. If
-> each domain represents a address space, should there be a domain for
-> each pasid?
+On 05/16/2018 11:07 PM, Ram Pai wrote:
 
-I don't think there is a formal definition, but from previous discussion
-the consensus seems to be: domains are a collection of devices that have
-the same virtual address spaces (one or many).
+> what would change the key-permission-values enforced in signal-handler
+> context?  Or can it never be changed, ones set through sys_pkey_alloc()?
 
-Keeping that definition makes things easier, in my opinion. Some time
-ago, I did try to represent PASIDs using "subdomains" (introducing a
-hierarchy of struct iommu_domain), but it required invasive changes in
-the IOMMU subsystem and probably all over the tree.
+The access rights can only be set by pkey_alloc and are unchanged after 
+that (so we do not have to discuss whether the signal handler access 
+rights are per-thread or not).
 
-You do need some kind of "root domain" for each device, so that
-"iommu_get_domain_for_dev()" still makes sense. That root domain doesn't
-have a single address space but a collection of subdomains. If you need
-this anyway, representing a PASID with an iommu_domain doesn't seem
-preferable than using a different structure (io_mm), because they don't
-have anything in common.
+> I suppose key-permission-values change done in non-signal-handler context,
+> will not apply to those in signal-handler context.
+
+Correct, that is the plan.
+
+> Can the signal handler change the key-permission-values from the
+> signal-handler context?
+
+Yes, changes are possible.  The access rights given to pkey_alloc only 
+specify the initial access rights when the signal handler is entered.
+
+We need to decide if we should restore it on exit from the signal 
+handler.  There is also the matter of siglongjmp, which currently does 
+not restore the current thread's access rights.  In general, this might 
+be difficult to implement because of the limited space in jmp_buf.
 
 Thanks,
-Jean
+Florian
