@@ -1,45 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B0BD6B037A
-	for <linux-mm@kvack.org>; Wed, 16 May 2018 21:39:06 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id f5-v6so1070548pgq.19
-        for <linux-mm@kvack.org>; Wed, 16 May 2018 18:39:06 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id i7-v6si3140377pgq.507.2018.05.16.18.39.04
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 31CC96B037C
+	for <linux-mm@kvack.org>; Wed, 16 May 2018 21:40:06 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id d4-v6so1755099plr.17
+        for <linux-mm@kvack.org>; Wed, 16 May 2018 18:40:06 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id b65-v6si3737267plb.162.2018.05.16.18.40.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 May 2018 18:39:04 -0700 (PDT)
+        Wed, 16 May 2018 18:40:05 -0700 (PDT)
 From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm, hugetlb: Pass fault address to no page handler
-References: <20180515005756.28942-1-ying.huang@intel.com>
-	<20180515103812.aapv4b4hbzno52zl@kshutemo-mobl1>
-	<878t8kzb0c.fsf@yhuang-dev.intel.com>
-	<20180516080312.rx6owusozklkmypj@black.fi.intel.com>
-Date: Thu, 17 May 2018 09:39:00 +0800
-In-Reply-To: <20180516080312.rx6owusozklkmypj@black.fi.intel.com> (Kirill
-	A. Shutemov's message of "Wed, 16 May 2018 11:03:12 +0300")
-Message-ID: <87lgcjxdqj.fsf@yhuang-dev.intel.com>
+Subject: Re: [PATCH] mm: fix nr_rotate_swap leak in swapon() error case
+References: <b6fe6b879f17fa68eee6cbd876f459f6e5e33495.1526491581.git.osandov@fb.com>
+Date: Thu, 17 May 2018 09:40:03 +0800
+In-Reply-To: <b6fe6b879f17fa68eee6cbd876f459f6e5e33495.1526491581.git.osandov@fb.com>
+	(Omar Sandoval's message of "Wed, 16 May 2018 10:56:22 -0700")
+Message-ID: <87h8n7xdos.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Omar Sandoval <osandov@osandov.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, kernel-team@fb.com
 
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+Omar Sandoval <osandov@osandov.com> writes:
 
-> On Wed, May 16, 2018 at 12:42:43AM +0000, Huang, Ying wrote:
->> >> +	unsigned long address = faddress & huge_page_mask(h);
->> >
->> > faddress? I would rather keep it address and rename maked out variable to
->> > 'haddr'. We use 'haddr' for the cause in other places.
->> 
->> I found haddr is popular in huge_memory.c but not used in hugetlb.c at
->> all.  Is it desirable to start to use "haddr" in hugetlb.c?
+> From: Omar Sandoval <osandov@fb.com>
 >
-> Yes, I think so. There's no reason to limit haddr convention to THP.
+> If swapon() fails after incrementing nr_rotate_swap, we don't decrement
+> it and thus effectively leak it. Make sure we decrement it if we
+> incremented it.
+>
+> Fixes: 81a0298bdfab ("mm, swap: don't use VMA based swap readahead if HDD is used as swap")
+> Signed-off-by: Omar Sandoval <osandov@fb.com>
 
-OK.  Will do this.
+Good catch!  Thanks!
+
+Reviewed-by: "Huang, Ying" <ying.huang@intel.com>
 
 Best Regards,
 Huang, Ying
+
+> ---
+> Based on v4.17-rc5.
+>
+>  mm/swapfile.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index cc2cf04d9018..78a015fcec3b 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -3112,6 +3112,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+>  	unsigned long *frontswap_map = NULL;
+>  	struct page *page = NULL;
+>  	struct inode *inode = NULL;
+> +	bool inced_nr_rotate_swap = false;
+>  
+>  	if (swap_flags & ~SWAP_FLAGS_VALID)
+>  		return -EINVAL;
+> @@ -3215,8 +3216,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+>  			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
+>  			cluster_set_null(&cluster->index);
+>  		}
+> -	} else
+> +	} else {
+>  		atomic_inc(&nr_rotate_swap);
+> +		inced_nr_rotate_swap = true;
+> +	}
+>  
+>  	error = swap_cgroup_swapon(p->type, maxpages);
+>  	if (error)
+> @@ -3307,6 +3310,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+>  	vfree(swap_map);
+>  	kvfree(cluster_info);
+>  	kvfree(frontswap_map);
+> +	if (inced_nr_rotate_swap)
+> +		atomic_dec(&nr_rotate_swap);
+>  	if (swap_file) {
+>  		if (inode && S_ISREG(inode->i_mode)) {
+>  			inode_unlock(inode);
