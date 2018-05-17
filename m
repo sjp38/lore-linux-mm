@@ -1,253 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 12DAE6B03B5
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 05:15:55 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u20-v6so2666607wru.14
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 02:15:55 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m10-v6si528848edc.243.2018.05.17.02.15.53
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C121C6B03C1
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 05:44:58 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id a5-v6so1756892lfi.8
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 02:44:58 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c13-v6sor1118332ljk.25.2018.05.17.02.44.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 May 2018 02:15:53 -0700 (PDT)
-Date: Thu, 17 May 2018 11:15:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -V2 -mm] mm, hugetlbfs: Pass fault address to no page
- handler
-Message-ID: <20180517091548.GR12670@dhcp22.suse.cz>
-References: <20180517083539.9242-1-ying.huang@intel.com>
+        (Google Transport Security);
+        Thu, 17 May 2018 02:44:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180517083539.9242-1-ying.huang@intel.com>
+References: <1526540428-12178-1-git-send-email-ufo19890607@gmail.com> <20180517071140.GQ12670@dhcp22.suse.cz>
+In-Reply-To: <20180517071140.GQ12670@dhcp22.suse.cz>
+From: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Date: Thu, 17 May 2018 17:44:43 +0800
+Message-ID: <CAHCio2gOLnj4NpkFrxpYVygg6ZeSeuwgp2Lwr6oTHRxHpbmcWw@mail.gmail.com>
+Subject: Re: [PATCH] Add the memcg print oom info for system oom
+Content-Type: multipart/alternative; boundary="000000000000262797056c63b00f"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, David Rientjes <rientjes@google.com>
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-On Thu 17-05-18 16:35:39, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
-> 
-> This is to take better advantage of general huge page clearing
-> optimization (c79b57e462b5d, "mm: hugetlb: clear target sub-page last
-> when clearing huge page") for hugetlbfs.  In the general optimization
-> patch, the sub-page to access will be cleared last to avoid the cache
-> lines of to access sub-page to be evicted when clearing other
-> sub-pages.  This works better if we have the address of the sub-page
-> to access, that is, the fault address inside the huge page.  So the
-> hugetlbfs no page fault handler is changed to pass that information.
-> This will benefit workloads which don't access the begin of the
-> hugetlbfs huge page after the page fault under heavy cache contention
-> for shared last level cache.
-> 
-> The patch is a generic optimization which should benefit quite some
-> workloads, not for a specific use case.  To demonstrate the performance
-> benefit of the patch, we tested it with vm-scalability run on
-> hugetlbfs.
-> 
-> With this patch, the throughput increases ~28.1% in vm-scalability
-> anon-w-seq test case with 88 processes on a 2 socket Xeon E5 2699 v4
-> system (44 cores, 88 threads).  The test case creates 88 processes,
-> each process mmaps a big anonymous memory area with MAP_HUGETLB and
-> writes to it from the end to the begin.  For each process, other
-> processes could be seen as other workload which generates heavy cache
-> pressure.  At the same time, the cache miss rate reduced from ~36.3%
-> to ~25.6%, the IPC (instruction per cycle) increased from 0.3 to 0.37,
-> and the time spent in user space is reduced ~19.3%.
+--000000000000262797056c63b00f
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-OK, this description is much better. Thanks! I would still like to see
-the benefit on more realistic workloads. Those tends to be more towards
-large pre-allocated mappings AFAIK (something like a DB start). Can you
-add those numbers?
+Hi Michal
+I think the current OOM report is imcomplete. I can get the task which
+invoked the oom-killer and the task which has been killed by the
+oom-killer, and memory info when the oom happened. But I cannot infer the
+certain memcg to which the task killed by oom-killer belongs, because that
+task has been killed, and the dump_task will print all of the tasks in the
+system.
 
-Btw. I do not mind the address->haddr change to be more in sync with THP
-but the previous patch was much more easier to review. Now you have to
-go to the code and check there are no unintended leftovers. So it would
-have been better to split that into two patches but I will not insist.
+mem_cgroup_print_oom_info will print five lines of content including
+memcg's name , usage, limit. I don't think five lines of content will cause
+a big problem. Or it at least prints the memcg's name.
 
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Andi Kleen <andi.kleen@intel.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Shaohua Li <shli@fb.com>
-> Cc: Christopher Lameter <cl@linux.com>
-> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: Punit Agrawal <punit.agrawal@arm.com>
-> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/hugetlb.c | 42 +++++++++++++++++++++---------------------
->  1 file changed, 21 insertions(+), 21 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 129088710510..4f0682cb9414 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -3686,6 +3686,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	struct page *page;
->  	pte_t new_pte;
->  	spinlock_t *ptl;
-> +	unsigned long haddr = address & huge_page_mask(h);
->  
->  	/*
->  	 * Currently, we are forced to kill the process in the event the
-> @@ -3716,7 +3717,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			u32 hash;
->  			struct vm_fault vmf = {
->  				.vma = vma,
-> -				.address = address,
-> +				.address = haddr,
->  				.flags = flags,
->  				/*
->  				 * Hard to debug if it ends up being
-> @@ -3733,14 +3734,14 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			 * fault to make calling code simpler.
->  			 */
->  			hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping,
-> -							idx, address);
-> +							idx, haddr);
->  			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
->  			ret = handle_userfault(&vmf, VM_UFFD_MISSING);
->  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
->  			goto out;
->  		}
->  
-> -		page = alloc_huge_page(vma, address, 0);
-> +		page = alloc_huge_page(vma, haddr, 0);
->  		if (IS_ERR(page)) {
->  			ret = PTR_ERR(page);
->  			if (ret == -ENOMEM)
-> @@ -3789,12 +3790,12 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * the spinlock.
->  	 */
->  	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
-> -		if (vma_needs_reservation(h, vma, address) < 0) {
-> +		if (vma_needs_reservation(h, vma, haddr) < 0) {
->  			ret = VM_FAULT_OOM;
->  			goto backout_unlocked;
->  		}
->  		/* Just decrements count, does not deallocate */
-> -		vma_end_reservation(h, vma, address);
-> +		vma_end_reservation(h, vma, haddr);
->  	}
->  
->  	ptl = huge_pte_lock(h, mm, ptep);
-> @@ -3808,17 +3809,17 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  
->  	if (anon_rmap) {
->  		ClearPagePrivate(page);
-> -		hugepage_add_new_anon_rmap(page, vma, address);
-> +		hugepage_add_new_anon_rmap(page, vma, haddr);
->  	} else
->  		page_dup_rmap(page, true);
->  	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
->  				&& (vma->vm_flags & VM_SHARED)));
-> -	set_huge_pte_at(mm, address, ptep, new_pte);
-> +	set_huge_pte_at(mm, haddr, ptep, new_pte);
->  
->  	hugetlb_count_add(pages_per_huge_page(h), mm);
->  	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
->  		/* Optimization, do the COW without a second fault */
-> -		ret = hugetlb_cow(mm, vma, address, ptep, page, ptl);
-> +		ret = hugetlb_cow(mm, vma, haddr, ptep, page, ptl);
->  	}
->  
->  	spin_unlock(ptl);
-> @@ -3830,7 +3831,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	spin_unlock(ptl);
->  backout_unlocked:
->  	unlock_page(page);
-> -	restore_reserve_on_error(h, vma, address, page);
-> +	restore_reserve_on_error(h, vma, haddr, page);
->  	put_page(page);
->  	goto out;
->  }
-> @@ -3883,10 +3884,9 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  	struct hstate *h = hstate_vma(vma);
->  	struct address_space *mapping;
->  	int need_wait_lock = 0;
-> +	unsigned long haddr = address & huge_page_mask(h);
->  
-> -	address &= huge_page_mask(h);
-> -
-> -	ptep = huge_pte_offset(mm, address, huge_page_size(h));
-> +	ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
->  	if (ptep) {
->  		entry = huge_ptep_get(ptep);
->  		if (unlikely(is_hugetlb_entry_migration(entry))) {
-> @@ -3896,20 +3896,20 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  			return VM_FAULT_HWPOISON_LARGE |
->  				VM_FAULT_SET_HINDEX(hstate_index(h));
->  	} else {
-> -		ptep = huge_pte_alloc(mm, address, huge_page_size(h));
-> +		ptep = huge_pte_alloc(mm, haddr, huge_page_size(h));
->  		if (!ptep)
->  			return VM_FAULT_OOM;
->  	}
->  
->  	mapping = vma->vm_file->f_mapping;
-> -	idx = vma_hugecache_offset(h, vma, address);
-> +	idx = vma_hugecache_offset(h, vma, haddr);
->  
->  	/*
->  	 * Serialize hugepage allocation and instantiation, so that we don't
->  	 * get spurious allocation failures if two CPUs race to instantiate
->  	 * the same page in the page cache.
->  	 */
-> -	hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping, idx, address);
-> +	hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping, idx, haddr);
->  	mutex_lock(&hugetlb_fault_mutex_table[hash]);
->  
->  	entry = huge_ptep_get(ptep);
-> @@ -3939,16 +3939,16 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * consumed.
->  	 */
->  	if ((flags & FAULT_FLAG_WRITE) && !huge_pte_write(entry)) {
-> -		if (vma_needs_reservation(h, vma, address) < 0) {
-> +		if (vma_needs_reservation(h, vma, haddr) < 0) {
->  			ret = VM_FAULT_OOM;
->  			goto out_mutex;
->  		}
->  		/* Just decrements count, does not deallocate */
-> -		vma_end_reservation(h, vma, address);
-> +		vma_end_reservation(h, vma, haddr);
->  
->  		if (!(vma->vm_flags & VM_MAYSHARE))
->  			pagecache_page = hugetlbfs_pagecache_page(h,
-> -								vma, address);
-> +								vma, haddr);
->  	}
->  
->  	ptl = huge_pte_lock(h, mm, ptep);
-> @@ -3973,16 +3973,16 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  
->  	if (flags & FAULT_FLAG_WRITE) {
->  		if (!huge_pte_write(entry)) {
-> -			ret = hugetlb_cow(mm, vma, address, ptep,
-> +			ret = hugetlb_cow(mm, vma, haddr, ptep,
->  					  pagecache_page, ptl);
->  			goto out_put_page;
->  		}
->  		entry = huge_pte_mkdirty(entry);
->  	}
->  	entry = pte_mkyoung(entry);
-> -	if (huge_ptep_set_access_flags(vma, address, ptep, entry,
-> +	if (huge_ptep_set_access_flags(vma, haddr, ptep, entry,
->  						flags & FAULT_FLAG_WRITE))
-> -		update_mmu_cache(vma, address, ptep);
-> +		update_mmu_cache(vma, haddr, ptep);
->  out_put_page:
->  	if (page != pagecache_page)
->  		unlock_page(page);
-> -- 
-> 2.16.1
-> 
+Thanks
+Wind
 
--- 
-Michal Hocko
-SUSE Labs
+Michal Hocko <mhocko@kernel.org> =E4=BA=8E2018=E5=B9=B45=E6=9C=8817=E6=97=
+=A5=E5=91=A8=E5=9B=9B =E4=B8=8B=E5=8D=883:11=E5=86=99=E9=81=93=EF=BC=9A
+
+> On Thu 17-05-18 08:00:28, ufo19890607 wrote:
+> > From: yuzhoujian <yuzhoujian@didichuxing.com>
+> >
+> > The dump_header does not print the memcg's name when the system
+> > oom happened. Some users want to locate the certain container
+> > which contains the task that has been killed by the oom killer.
+> > So I add the mem_cgroup_print_oom_info when system oom events
+> > happened.
+>
+> The oom report is quite heavy today. Do we really need the full memcg
+> oom report here. Wouldn't it be sufficient to print the memcg the task
+> belongs to?
+>
+> > Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
+> > ---
+> >  mm/oom_kill.c | 1 +
+> >  1 file changed, 1 insertion(+)
+> >
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 8ba6cb88cf58..244416c9834a 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -433,6 +433,7 @@ static void dump_header(struct oom_control *oc,
+> struct task_struct *p)
+> >       if (is_memcg_oom(oc))
+> >               mem_cgroup_print_oom_info(oc->memcg, p);
+> >       else {
+> > +             mem_cgroup_print_oom_info(mem_cgroup_from_task(p), p);
+> >               show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+> >               if (is_dump_unreclaim_slabs())
+> >                       dump_unreclaimable_slab();
+> > --
+> > 2.14.1
+> >
+>
+> --
+> Michal Hocko
+> SUSE Labs
+>
+
+--000000000000262797056c63b00f
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Hi Michal</div><div>I think the current OOM report is=
+ imcomplete. I can get the task which invoked the oom-killer and the task w=
+hich has been killed by the oom-killer, and memory info when the oom happen=
+ed. But I cannot infer the certain memcg to which the task killed by oom-ki=
+ller belongs, because that task has been killed, and the dump_task will pri=
+nt all of the tasks in the system. <br></div><div><br></div><div>mem_cgroup=
+_print_oom_info will print five lines of content including memcg&#39;s name=
+ , usage, limit. I don&#39;t think five lines of content will cause a big p=
+roblem. Or it at least prints the memcg&#39;s name. <br></div><div><br></di=
+v><div>Thanks</div><div>Wind<br></div></div><br><div class=3D"gmail_quote">=
+<div dir=3D"ltr">Michal Hocko &lt;<a href=3D"mailto:mhocko@kernel.org">mhoc=
+ko@kernel.org</a>&gt; =E4=BA=8E2018=E5=B9=B45=E6=9C=8817=E6=97=A5=E5=91=A8=
+=E5=9B=9B =E4=B8=8B=E5=8D=883:11=E5=86=99=E9=81=93=EF=BC=9A<br></div><block=
+quote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc=
+ solid;padding-left:1ex">On Thu 17-05-18 08:00:28, ufo19890607 wrote:<br>
+&gt; From: yuzhoujian &lt;<a href=3D"mailto:yuzhoujian@didichuxing.com" tar=
+get=3D"_blank">yuzhoujian@didichuxing.com</a>&gt;<br>
+&gt; <br>
+&gt; The dump_header does not print the memcg&#39;s name when the system<br=
+>
+&gt; oom happened. Some users want to locate the certain container<br>
+&gt; which contains the task that has been killed by the oom killer.<br>
+&gt; So I add the mem_cgroup_print_oom_info when system oom events<br>
+&gt; happened.<br>
+<br>
+The oom report is quite heavy today. Do we really need the full memcg<br>
+oom report here. Wouldn&#39;t it be sufficient to print the memcg the task<=
+br>
+belongs to?<br>
+<br>
+&gt; Signed-off-by: yuzhoujian &lt;<a href=3D"mailto:yuzhoujian@didichuxing=
+.com" target=3D"_blank">yuzhoujian@didichuxing.com</a>&gt;<br>
+&gt; ---<br>
+&gt;=C2=A0 mm/oom_kill.c | 1 +<br>
+&gt;=C2=A0 1 file changed, 1 insertion(+)<br>
+&gt; <br>
+&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c<br>
+&gt; index 8ba6cb88cf58..244416c9834a 100644<br>
+&gt; --- a/mm/oom_kill.c<br>
+&gt; +++ b/mm/oom_kill.c<br>
+&gt; @@ -433,6 +433,7 @@ static void dump_header(struct oom_control *oc, st=
+ruct task_struct *p)<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0if (is_memcg_oom(oc))<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mem_cgroup_print=
+_oom_info(oc-&gt;memcg, p);<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0else {<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mem_cgroup_print_oom_=
+info(mem_cgroup_from_task(p), p);<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0show_mem(SHOW_ME=
+M_FILTER_NODES, oc-&gt;nodemask);<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (is_dump_unre=
+claim_slabs())<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0dump_unreclaimable_slab();<br>
+&gt; -- <br>
+&gt; 2.14.1<br>
+&gt; <br>
+<br>
+-- <br>
+Michal Hocko<br>
+SUSE Labs<br>
+</blockquote></div>
+
+--000000000000262797056c63b00f--
