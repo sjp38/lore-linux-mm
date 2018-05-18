@@ -1,147 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 34DF96B05C7
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 05:06:41 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id y127-v6so6361612qka.5
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 02:06:41 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i6-v6sor5272195qvj.65.2018.05.18.02.06.39
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DFF26B05CA
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 05:15:02 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id f23-v6so5044338wra.20
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 02:15:02 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e12-v6si670917edm.391.2018.05.18.02.15.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 18 May 2018 02:06:39 -0700 (PDT)
-Date: Fri, 18 May 2018 05:06:36 -0400
-From: Kent Overstreet <kent.overstreet@gmail.com>
-Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
-Message-ID: <20180518090636.GA14738@kmo-pixel>
-References: <20180509013358.16399-1-kent.overstreet@gmail.com>
- <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 18 May 2018 02:15:01 -0700 (PDT)
+Subject: Re: [PATCH v2 1/4] mm: change type of free_contig_range(nr_pages) to
+ unsigned long
+References: <20180503232935.22539-1-mike.kravetz@oracle.com>
+ <20180503232935.22539-2-mike.kravetz@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <87d74ce0-b135-064d-a589-64235e44c388@suse.cz>
+Date: Fri, 18 May 2018 11:12:54 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
+In-Reply-To: <20180503232935.22539-2-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <Bart.VanAssche@wdc.com>
-Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, May 17, 2018 at 08:54:57PM +0000, Bart Van Assche wrote:
-> On Tue, 2018-05-08 at 21:33 -0400, Kent Overstreet wrote:
-> > [ ... ]
+On 05/04/2018 01:29 AM, Mike Kravetz wrote:
+> free_contig_range() is currently defined as:
+> void free_contig_range(unsigned long pfn, unsigned nr_pages);
+> change to,
+> void free_contig_range(unsigned long pfn, unsigned long nr_pages);
 > 
-> Hello Kent,
+> Some callers are passing a truncated unsigned long today.  It is
+> highly unlikely that these values will overflow an unsigned int.
+> However, this should be changed to an unsigned long to be consistent
+> with other page counts.
 > 
-> With Jens' latest for-next branch I hit the kernel warning shown below. Can
-> you have a look?
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  include/linux/gfp.h | 2 +-
+>  mm/cma.c            | 2 +-
+>  mm/hugetlb.c        | 2 +-
+>  mm/page_alloc.c     | 6 +++---
+>  4 files changed, 6 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 1a4582b44d32..86a0d06463ab 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -572,7 +572,7 @@ static inline bool pm_suspended_storage(void)
+>  /* The below functions must be run on a range from a single zone. */
+>  extern int alloc_contig_range(unsigned long start, unsigned long end,
+>  			      unsigned migratetype, gfp_t gfp_mask);
+> -extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
+> +extern void free_contig_range(unsigned long pfn, unsigned long nr_pages);
+>  #endif
+>  
+>  #ifdef CONFIG_CMA
+> diff --git a/mm/cma.c b/mm/cma.c
+> index aa40e6c7b042..f473fc2b7cbd 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -563,7 +563,7 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
+>  
+>  	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
+>  
+> -	free_contig_range(pfn, count);
+> +	free_contig_range(pfn, (unsigned long)count);
 
-Any hints on how to reproduce it?
+I guess this cast from uint to ulong doesn't need to be explicit? But
+instead, cma_release() signature could be also changed to ulong, because
+some of its callers do pass those?
 
-> Thanks,
-> 
-> Bart.
-> 
-> 
-> ==================================================================
-> BUG: KASAN: use-after-free in bio_advance+0x110/0x1b0
-> Read of size 4 at addr ffff880156c5e6d0 by task ksoftirqd/10/72
-> 
-> CPU: 10 PID: 72 Comm: ksoftirqd/10 Tainted: G        W         4.17.0-rc4-dbg+ #5
-> Hardware name: QEMU Standard PC (Q35 + ICH9, 2009), BIOS 1.0.0-prebuilt.qemu-project.org 04/01/2014
-> Call Trace:
-> dump_stack+0x9a/0xeb
-> print_address_description+0x65/0x270
-> kasan_report+0x232/0x350
-> bio_advance+0x110/0x1b0
-> blk_update_request+0x9d/0x5a0
-> scsi_end_request+0x4c/0x300 [scsi_mod]
-> scsi_io_completion+0x71e/0xa40 [scsi_mod]
-> __blk_mq_complete_request+0x143/0x220
-> srp_recv_done+0x454/0x1100 [ib_srp]
-> __ib_process_cq+0x9a/0xf0 [ib_core]
-> ib_poll_handler+0x2d/0x90 [ib_core]
-> irq_poll_softirq+0xe5/0x1e0
-> __do_softirq+0x112/0x5f0
-> run_ksoftirqd+0x29/0x50
-> smpboot_thread_fn+0x30f/0x410
-> kthread+0x1b2/0x1d0
-> ret_from_fork+0x24/0x30
-> 
-> Allocated by task 1356:
-> kasan_kmalloc+0xa0/0xd0
-> kmem_cache_alloc+0xed/0x320
-> mempool_alloc+0xc6/0x210
-> bio_alloc_bioset+0x128/0x2d0
-> submit_bh_wbc+0x95/0x2d0
-> __block_write_full_page+0x2a6/0x5c0
-> __writepage+0x37/0x80
-> write_cache_pages+0x305/0x7c0
-> generic_writepages+0xb9/0x110
-> do_writepages+0x96/0x180
-> __filemap_fdatawrite_range+0x162/0x1b0
-> file_write_and_wait_range+0x4d/0xb0
-> blkdev_fsync+0x3c/0x70
-> do_fsync+0x33/0x60
-> __x64_sys_fsync+0x18/0x20
-> do_syscall_64+0x6d/0x220
-> entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> 
-> Freed by task 72:
-> __kasan_slab_free+0x130/0x180
-> kmem_cache_free+0xcd/0x380
-> blk_update_request+0xc4/0x5a0
-> blk_update_request+0xc4/0x5a0
-> scsi_end_request+0x4c/0x300 [scsi_mod]
-> scsi_io_completion+0x71e/0xa40 [scsi_mod]
-> __blk_mq_complete_request+0x143/0x220
-> srp_recv_done+0x454/0x1100 [ib_srp]
-> __ib_process_cq+0x9a/0xf0 [ib_core]
-> ib_poll_handler+0x2d/0x90 [ib_core]
-> irq_poll_softirq+0xe5/0x1e0
-> __do_softirq+0x112/0x5f0
-> 
-> The buggy address belongs to the object at ffff880156c5e640
-> which belongs to the cache bio-0 of size 200
-> The buggy address is located 144 bytes inside of
-> 200-byte region [ffff880156c5e640, ffff880156c5e708)
-> The buggy address belongs to the page:
-> page:ffffea00055b1780 count:1 mapcount:0 mapping:0000000000000000 index:0x0 compound_mapcount: 0
-> ib_srpt:srpt_zerolength_write: ib_srpt 10.196.159.179-24: queued zerolength write
-> flags: 0x8000000000008100(slab|head)
-> raw: 8000000000008100 0000000000000000 0000000000000000 0000000100190019
-> raw: ffffea000543a800 0000000200000002 ffff88015a8f3a00 0000000000000000
-> ib_srpt:srpt_zerolength_write: ib_srpt 10.196.159.179-22: queued zerolength write
-> page dumped because: kasan: bad access detected
-> ib_srpt:srpt_zerolength_write: ib_srpt 10.196.159.179-20: queued zerolength write
-> 
-> Memory state around the buggy address:
-> ib_srpt:srpt_zerolength_write: ib_srpt 10.196.159.179-18: queued zerolength write
-> ffff880156c5e580: 00 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc
-> ib_srpt:srpt_zerolength_write_done: ib_srpt 10.196.159.179-24 wc->status 5
-> ffff880156c5e600: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
-> ib_srpt:srpt_zerolength_write_done: ib_srpt 10.196.159.179-22 wc->status 5
-> >ffff880156c5e680: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> ib_srpt:srpt_zerolength_write_done: ib_srpt 10.196.159.179-20 wc->status 5
->                                                 ^
-> ffff880156c5e700: fb fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
-> ib_srpt:srpt_zerolength_write_done: ib_srpt 10.196.159.179-18 wc->status 5
-> ffff880156c5e780: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> ib_srpt:srpt_release_channel_work: ib_srpt 10.196.159.179-24
-> ==================================================================
-> 
-> (gdb) list *(bio_advance+0x110)
-> 0xffffffff81450090 is in bio_advance (./include/linux/bvec.h:82).
-> 77                      iter->bi_size = 0;
-> 78                      return false;
-> 79              }
-> 80
-> 81              while (bytes) {
-> 82                      unsigned iter_len = bvec_iter_len(bv, *iter);
-> 83                      unsigned len = min(bytes, iter_len);
-> 84
-> 85                      bytes -= len;
-> 86                      iter->bi_size -= len;
-> 
-> 
-> 
-> 
-> 
+>  	cma_clear_bitmap(cma, pfn, count);
+>  	trace_cma_release(pfn, pages, count);
+>  
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 218679138255..c81072ce7510 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1055,7 +1055,7 @@ static void destroy_compound_gigantic_page(struct page *page,
+>  
+>  static void free_gigantic_page(struct page *page, unsigned int order)
+>  {
+> -	free_contig_range(page_to_pfn(page), 1 << order);
+> +	free_contig_range(page_to_pfn(page), 1UL << order);
+>  }
+>  
+>  static int __alloc_gigantic_page(unsigned long start_pfn,
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 905db9d7962f..0fd5e8e2456e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7937,9 +7937,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>  	return ret;
+>  }
+>  
+> -void free_contig_range(unsigned long pfn, unsigned nr_pages)
+> +void free_contig_range(unsigned long pfn, unsigned long nr_pages)
+>  {
+> -	unsigned int count = 0;
+> +	unsigned long count = 0;
+>  
+>  	for (; nr_pages--; pfn++) {
+>  		struct page *page = pfn_to_page(pfn);
+> @@ -7947,7 +7947,7 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+>  		count += page_count(page) != 1;
+>  		__free_page(page);
+>  	}
+> -	WARN(count != 0, "%d pages are still in use!\n", count);
+> +	WARN(count != 0, "%ld pages are still in use!\n", count);
+
+Maybe change to %lu while at it?
+BTW, this warning can theoretically produce false positives, because
+page users have to deal with page_count() being incremented by e.g.
+parallel pfn scanners using get_page_unless_zero(). We also don't detect
+refcount leaks in general. Should we remove it or change it to VM_WARN
+if it's still useful for debugging?
+
+>  }
+>  #endif
+>  
 > 
