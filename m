@@ -1,86 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 062AB6B0686
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 16:23:53 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id u13-v6so5854678oif.0
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 13:23:53 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f18-v6sor4663318oig.292.2018.05.18.13.23.51
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 050456B0689
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 16:35:24 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id u7-v6so5740354plq.3
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 13:35:23 -0700 (PDT)
+Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
+        by mx.google.com with ESMTPS id c23-v6si8233677pli.540.2018.05.18.13.35.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 18 May 2018 13:23:51 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 May 2018 13:35:22 -0700 (PDT)
+Subject: Re: dma_sync_*_for_cpu and direction=TO_DEVICE (was Re: [PATCH 02/20]
+ dma-mapping: provide a generic dma-noncoherent implementation)
+References: <20180511075945.16548-1-hch@lst.de>
+ <20180511075945.16548-3-hch@lst.de>
+ <bad125dff49f6e49c895e818c9d1abb346a46e8e.camel@synopsys.com>
+ <5ac5b1e3-9b96-9c7c-4dfe-f65be45ec179@synopsys.com>
+ <20180518175004.GF17671@n2100.armlinux.org.uk>
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Message-ID: <cecfe6bd-ef1f-1e25-bfcf-992d1f828efb@synopsys.com>
+Date: Fri, 18 May 2018 13:35:08 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180518173637.GF15611@ziepe.ca>
-References: <0100016373af827b-e6164b8d-f12e-4938-bf1f-2f85ec830bc0-000000@email.amazonses.com>
- <20180518154945.GC15611@ziepe.ca> <0100016374267882-16b274b1-d6f6-4c13-94bb-8e78a51e9091-000000@email.amazonses.com>
- <20180518173637.GF15611@ziepe.ca>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 18 May 2018 13:23:50 -0700
-Message-ID: <CAPcyv4i_W94iXCyOd8gSSU6kWscncz5KUqnuzZ_RdVW9UT2U3w@mail.gmail.com>
-Subject: Re: [LSFMM] RDMA data corruption potential during FS writeback
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180518175004.GF17671@n2100.armlinux.org.uk>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Christopher Lameter <cl@linux.com>, linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
+To: Russell King - ARM Linux <linux@armlinux.org.uk>
+Cc: Alexey Brodkin <Alexey.Brodkin@synopsys.com>, "hch@lst.de" <hch@lst.de>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, "monstr@monstr.eu" <monstr@monstr.eu>, "deanbo422@gmail.com" <deanbo422@gmail.com>, "linux-c6x-dev@linux-c6x.org" <linux-c6x-dev@linux-c6x.org>, "linux-parisc@vger.kernel.org" <linux-parisc@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, "linux-m68k@lists.linux-m68k.org" <linux-m68k@lists.linux-m68k.org>, "linux-hexagon@vger.kernel.org" <linux-hexagon@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "openrisc@lists.librecores.org" <openrisc@lists.librecores.org>, "green.hu@gmail.com" <green.hu@gmail.com>, "linux-alpha@vger.kernel.org" <linux-alpha@vger.kernel.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "nios2-dev@lists.rocketboards.org" <nios2-dev@lists.rocketboards.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Fri, May 18, 2018 at 10:36 AM, Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> On Fri, May 18, 2018 at 04:47:48PM +0000, Christopher Lameter wrote:
->> On Fri, 18 May 2018, Jason Gunthorpe wrote:
->>
->> > > The solution that was proposed at the meeting was that mmu notifiers can
->> > > remedy that situation by allowing callbacks to the RDMA device to ensure
->> > > that the RDMA device and the filesystem do not do concurrent writeback.
->> >
->> > This keeps coming up, and I understand why it seems appealing from the
->> > MM side, but the reality is that very little RDMA hardware supports
->> > this, and it carries with it a fairly big performance penalty so many
->> > users don't like using it.
->>
->> Ok so we have a latent data corruption issue that is not being addressed.
->>
->> > > But could we do more to prevent issues here? I think what may be useful is
->> > > to not allow the memory registrations of file back writable mappings
->> > > unless the device driver provides mmu callbacks or something like that.
->> >
->> > Why does every proposed solution to this involve crippling RDMA? Are
->> > there really no ideas no ideas to allow the FS side to accommodate
->> > this use case??
->>
->> The newcomer here is RDMA. The FS side is the mainstream use case and has
->> been there since Unix learned to do paging.
+On 05/18/2018 10:50 AM, Russell King - ARM Linux wrote:
+> On Fri, May 18, 2018 at 10:20:02AM -0700, Vineet Gupta wrote:
+>> I never understood the need for this direction. And if memory serves me
+>> right, at that time I was seeing twice the amount of cache flushing !
+> It's necessary.  Take a moment to think carefully about this:
 >
-> Well, it has been this way for 12 years, so it isn't that new.
+> 	dma_map_single(, dir)
 >
-> Honestly it sounds like get_user_pages is just a broken Linux
-> API??
+> 	dma_sync_single_for_cpu(, dir)
 >
-> Nothing can use it to write to pages because the FS could explode -
-> RDMA makes it particularly easy to trigger this due to the longer time
-> windows, but presumably any get_user_pages could generate a race and
-> hit this? Is that right?
+> 	dma_sync_single_for_device(, dir)
 >
-> I am left with the impression that solving it in the FS is too
-> performance costly so FS doesn't want that overheard? Was that also
-> the conclusion?
->
-> Could we take another crack at this during Linux Plumbers? Will the MM
-> parties be there too? I'm sorry I wasn't able to attend LSFMM this
-> year!
+> 	dma_unmap_single(, dir)
 
-Yes, you and hch were missed, and I had to skip the last day due to a
-family emergency.
+As an aside, do these imply a state machine of sorts - does a driver needs to 
+always call map_single first ?
 
-Plumbers sounds good to resync on this topic, but we already have a
-plan, use "break_layouts()" to coordinate a filesystem's need to move
-dax blocks around relative to an active RDMA memory registration. If
-you never punch a hole in the middle of your RDMA registration then
-you never incur any performance penalty. Otherwise the layout break
-notification is just there to tell the application "hey man, talk to
-your friend that punched a hole in the middle of your mapping, but the
-filesystem wants this block back now. Sorry, I'm kicking you out. Ok,
-bye.".
+My original point of contention/confusion is the specific combinations of API and 
+direction, specifically for_cpu(TO_DEV) and for_device(TO_CPU)
 
-In other words, get_user_pages_longterm() is just a short term
-band-aid for RDMA until we can get that infrastructure built. We don't
-need to go down any mmu-notifier rabbit holes.
+Semantically what does dma_sync_single_for_cpu(TO_DEV) even imply for a non dma 
+coherent arch.
+Your tables below have "none" for both, implying it is unlikely to be a real 
+combination (for ARM and ARC atleast).
+
+The other case, actually @dir TO_CPU, independent of for_{cpu, device}A  implies 
+driver intends to touch it after the call, so it would invalidate any stray lines, 
+unconditionally (and not just for speculative prefetch case).
+
+
+> In the case of a DMA-incoherent architecture, the operations done at each
+> stage depend on the direction argument:
+>
+> 	map		for_cpu		for_device	unmap
+> TO_DEV	writeback	none		writeback	none
+> TO_CPU	invalidate	invalidate*	invalidate	invalidate*
+> BIDIR	writeback	invalidate	writeback	invalidate
+>
+> * - only necessary if the CPU speculatively prefetches.
+>
+> The multiple invalidations for the TO_CPU case handles different
+> conditions that can result in data corruption, and for some CPUs, all
+> four are necessary.
+
+Can you please explain in some more detail, TO_CPU row, why invalidate is 
+conditional sometimes.
