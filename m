@@ -1,52 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F2CE96B055C
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 23:07:38 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id e18-v6so2366870pgt.3
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 20:07:38 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f34-v6sor3719507ple.122.2018.05.17.20.07.37
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B187B6B0560
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 23:50:27 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id w201-v6so293918qkb.16
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 20:50:27 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id s1-v6si3549390qvn.119.2018.05.17.20.50.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 17 May 2018 20:07:37 -0700 (PDT)
-From: ufo19890607 <ufo19890607@gmail.com>
-Subject: [PATCH v2] Print the memcg's name when system-wide OOM happened
-Date: Fri, 18 May 2018 04:07:14 +0100
-Message-Id: <1526612834-8898-1-git-send-email-ufo19890607@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 May 2018 20:50:26 -0700 (PDT)
+Subject: Re: mmotm 2018-05-17-16-26 uploaded (autofs)
+References: <20180517232639.sD6Cz%akpm@linux-foundation.org>
+ <19926e1e-6dba-3b9f-fd97-d9eb88bfb7dd@infradead.org>
+From: Ian Kent <raven@themaw.net>
+Message-ID: <49acf718-da2e-73dc-a3bf-c41d7546576e@themaw.net>
+Date: Fri, 18 May 2018 11:50:19 +0800
+MIME-Version: 1.0
+In-Reply-To: <19926e1e-6dba-3b9f-fd97-d9eb88bfb7dd@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, guro@fb.com, yang.s@alibaba-inc.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian <yuzhoujian@didichuxing.com>
+To: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-From: yuzhoujian <yuzhoujian@didichuxing.com>
+On 18/05/18 08:21, Randy Dunlap wrote:
+> On 05/17/2018 04:26 PM, akpm@linux-foundation.org wrote:
+>> The mm-of-the-moment snapshot 2018-05-17-16-26 has been uploaded to
+>>
+>>    http://www.ozlabs.org/~akpm/mmotm/
+>>
+>> mmotm-readme.txt says
+>>
+>> README for mm-of-the-moment:
+>>
+>> http://www.ozlabs.org/~akpm/mmotm/
+>>
+>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+>> more than once a week.
+>>
+>> You will need quilt to apply these patches to the latest Linus release (4.x
+>> or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+>> http://ozlabs.org/~akpm/mmotm/series
+>>
+>> The file broken-out.tar.gz contains two datestamp files: .DATE and
+>> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+>> followed by the base kernel version against which this patch series is to
+>> be applied.
+>>
+>> This tree is partially included in linux-next.  To see which patches are
+>> included in linux-next, consult the `series' file.  Only the patches
+>> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+>> linux-next.
+>>
+>> A git tree which contains the memory management portion of this tree is
+>> maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+>> by Michal Hocko.  It contains the patches which are between the
+>> "#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+>> file, http://www.ozlabs.org/~akpm/mmotm/series.
+>>
+>>
+>> A full copy of the full kernel tree with the linux-next and mmotm patches
+>> already applied is available through git within an hour of the mmotm
+>> release.  Individual mmotm releases are tagged.  The master branch always
+>> points to the latest release, so it's constantly rebasing.
+> 
+> 
+> on x86_64: with (randconfig):
+> CONFIG_AUTOFS_FS=y
+> CONFIG_AUTOFS4_FS=y
 
-The dump_header does not print the memcg's name when the system
-oom happened. So users cannot locate the certain container which
-contains the task that has been killed by the oom killer. System
-oom report will contain the memcg's name after this patch.
+Oh right, I need to make these exclusive.
 
-Changes since v1:
-- replace adding mem_cgroup_print_oom_info with printing the memcg's
-  name only.
+I seem to remember trying to do that along the way, can't remember why
+I didn't do it in the end.
 
-Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
----
- mm/oom_kill.c | 3 +++
- 1 file changed, 3 insertions(+)
+Any suggestions about potential problems when doing it?
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 8ba6cb88cf58..b0abb5930232 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -433,6 +433,9 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
- 	if (is_memcg_oom(oc))
- 		mem_cgroup_print_oom_info(oc->memcg, p);
- 	else {
-+		pr_info("Task in ");
-+		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
-+		pr_cont(" killed as a result of limit of ");
- 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
- 		if (is_dump_unreclaim_slabs())
- 			dump_unreclaimable_slab();
--- 
-2.14.1
+Thanks,
+Ian
