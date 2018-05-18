@@ -1,72 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EC2C06B05C5
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 05:00:57 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z7-v6so4936745wrg.11
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 02:00:57 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 43-v6si832940eds.123.2018.05.18.02.00.56
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 34DF96B05C7
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 05:06:41 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id y127-v6so6361612qka.5
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 02:06:41 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id i6-v6sor5272195qvj.65.2018.05.18.02.06.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 18 May 2018 02:00:56 -0700 (PDT)
-Date: Fri, 18 May 2018 11:00:55 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v10] mm: introduce MEMORY_DEVICE_FS_DAX and
- CONFIG_DEV_PAGEMAP_OPS
-Message-ID: <20180518090055.o2q5wrawk67v6ppr@quack2.suse.cz>
-References: <152658753673.26786.16458605771414761966.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Fri, 18 May 2018 02:06:39 -0700 (PDT)
+Date: Fri, 18 May 2018 05:06:36 -0400
+From: Kent Overstreet <kent.overstreet@gmail.com>
+Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
+Message-ID: <20180518090636.GA14738@kmo-pixel>
+References: <20180509013358.16399-1-kent.overstreet@gmail.com>
+ <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <152658753673.26786.16458605771414761966.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.com>, kbuild test robot <lkp@intel.com>, Thomas Meyer <thomas@m3y3r.de>, Dave Jiang <dave.jiang@intel.com>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Bart Van Assche <Bart.VanAssche@wdc.com>
+Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-On Thu 17-05-18 13:06:54, Dan Williams wrote:
-> In preparation for fixing dax-dma-vs-unmap issues, filesystems need to
-> be able to rely on the fact that they will get wakeups on dev_pagemap
-> page-idle events. Introduce MEMORY_DEVICE_FS_DAX and
-> generic_dax_page_free() as common indicator / infrastructure for dax
-> filesytems to require. With this change there are no users of the
-> MEMORY_DEVICE_HOST designation, so remove it.
+On Thu, May 17, 2018 at 08:54:57PM +0000, Bart Van Assche wrote:
+> On Tue, 2018-05-08 at 21:33 -0400, Kent Overstreet wrote:
+> > [ ... ]
 > 
-> The HMM sub-system extended dev_pagemap to arrange a callback when a
-> dev_pagemap managed page is freed. Since a dev_pagemap page is free /
-> idle when its reference count is 1 it requires an additional branch to
-> check the page-type at put_page() time. Given put_page() is a hot-path
-> we do not want to incur that check if HMM is not in use, so a static
-> branch is used to avoid that overhead when not necessary.
+> Hello Kent,
 > 
-> Now, the FS_DAX implementation wants to reuse this mechanism for
-> receiving dev_pagemap ->page_free() callbacks. Rework the HMM-specific
-> static-key into a generic mechanism that either HMM or FS_DAX code paths
-> can enable.
-> 
-> For ARCH=um builds, and any other arch that lacks ZONE_DEVICE support,
-> care must be taken to compile out the DEV_PAGEMAP_OPS infrastructure.
-> However, we still need to support FS_DAX in the FS_DAX_LIMITED case
-> implemented by the s390/dcssblk driver.
-> 
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Reported-by: kbuild test robot <lkp@intel.com>
-> Reported-by: Thomas Meyer <thomas@m3y3r.de>
-> Reported-by: Dave Jiang <dave.jiang@intel.com>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: "Jerome Glisse" <jglisse@redhat.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> With Jens' latest for-next branch I hit the kernel warning shown below. Can
+> you have a look?
 
-Yeah, it looks simpler than original patches and it looks OK to me. You can
-add:
+Any hints on how to reproduce it?
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> Thanks,
+> 
+> Bart.
+> 
+> 
+> ==================================================================
+> BUG: KASAN: use-after-free in bio_advance+0x110/0x1b0
+> Read of size 4 at addr ffff880156c5e6d0 by task ksoftirqd/10/72
+> 
+> CPU: 10 PID: 72 Comm: ksoftirqd/10 Tainted: G        W         4.17.0-rc4-dbg+ #5
+> Hardware name: QEMU Standard PC (Q35 + ICH9, 2009), BIOS 1.0.0-prebuilt.qemu-project.org 04/01/2014
+> Call Trace:
+> dump_stack+0x9a/0xeb
+> print_address_description+0x65/0x270
+> kasan_report+0x232/0x350
+> bio_advance+0x110/0x1b0
+> blk_update_request+0x9d/0x5a0
+> scsi_end_request+0x4c/0x300 [scsi_mod]
+> scsi_io_completion+0x71e/0xa40 [scsi_mod]
+> __blk_mq_complete_request+0x143/0x220
+> srp_recv_done+0x454/0x1100 [ib_srp]
+> __ib_process_cq+0x9a/0xf0 [ib_core]
+> ib_poll_handler+0x2d/0x90 [ib_core]
+> irq_poll_softirq+0xe5/0x1e0
+> __do_softirq+0x112/0x5f0
+> run_ksoftirqd+0x29/0x50
+> smpboot_thread_fn+0x30f/0x410
+> kthread+0x1b2/0x1d0
+> ret_from_fork+0x24/0x30
+> 
+> Allocated by task 1356:
+> kasan_kmalloc+0xa0/0xd0
+> kmem_cache_alloc+0xed/0x320
+> mempool_alloc+0xc6/0x210
+> bio_alloc_bioset+0x128/0x2d0
+> submit_bh_wbc+0x95/0x2d0
+> __block_write_full_page+0x2a6/0x5c0
+> __writepage+0x37/0x80
+> write_cache_pages+0x305/0x7c0
+> generic_writepages+0xb9/0x110
+> do_writepages+0x96/0x180
+> __filemap_fdatawrite_range+0x162/0x1b0
+> file_write_and_wait_range+0x4d/0xb0
+> blkdev_fsync+0x3c/0x70
+> do_fsync+0x33/0x60
+> __x64_sys_fsync+0x18/0x20
+> do_syscall_64+0x6d/0x220
+> entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> 
+> Freed by task 72:
+> __kasan_slab_free+0x130/0x180
+> kmem_cache_free+0xcd/0x380
+> blk_update_request+0xc4/0x5a0
+> blk_update_request+0xc4/0x5a0
+> scsi_end_request+0x4c/0x300 [scsi_mod]
+> scsi_io_completion+0x71e/0xa40 [scsi_mod]
+> __blk_mq_complete_request+0x143/0x220
+> srp_recv_done+0x454/0x1100 [ib_srp]
+> __ib_process_cq+0x9a/0xf0 [ib_core]
+> ib_poll_handler+0x2d/0x90 [ib_core]
+> irq_poll_softirq+0xe5/0x1e0
+> __do_softirq+0x112/0x5f0
+> 
+> The buggy address belongs to the object at ffff880156c5e640
+> which belongs to the cache bio-0 of size 200
+> The buggy address is located 144 bytes inside of
+> 200-byte region [ffff880156c5e640, ffff880156c5e708)
+> The buggy address belongs to the page:
+> page:ffffea00055b1780 count:1 mapcount:0 mapping:0000000000000000 index:0x0 compound_mapcount: 0
+> ib_srpt:srpt_zerolength_write: ib_srpt 10.196.159.179-24: queued zerolength write
+> flags: 0x8000000000008100(slab|head)
+> raw: 8000000000008100 0000000000000000 0000000000000000 0000000100190019
+> raw: ffffea000543a800 0000000200000002 ffff88015a8f3a00 0000000000000000
+> ib_srpt:srpt_zerolength_write: ib_srpt 10.196.159.179-22: queued zerolength write
+> page dumped because: kasan: bad access detected
+> ib_srpt:srpt_zerolength_write: ib_srpt 10.196.159.179-20: queued zerolength write
+> 
+> Memory state around the buggy address:
+> ib_srpt:srpt_zerolength_write: ib_srpt 10.196.159.179-18: queued zerolength write
+> ffff880156c5e580: 00 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc
+> ib_srpt:srpt_zerolength_write_done: ib_srpt 10.196.159.179-24 wc->status 5
+> ffff880156c5e600: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
+> ib_srpt:srpt_zerolength_write_done: ib_srpt 10.196.159.179-22 wc->status 5
+> >ffff880156c5e680: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> ib_srpt:srpt_zerolength_write_done: ib_srpt 10.196.159.179-20 wc->status 5
+>                                                 ^
+> ffff880156c5e700: fb fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+> ib_srpt:srpt_zerolength_write_done: ib_srpt 10.196.159.179-18 wc->status 5
+> ffff880156c5e780: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> ib_srpt:srpt_release_channel_work: ib_srpt 10.196.159.179-24
+> ==================================================================
+> 
+> (gdb) list *(bio_advance+0x110)
+> 0xffffffff81450090 is in bio_advance (./include/linux/bvec.h:82).
+> 77                      iter->bi_size = 0;
+> 78                      return false;
+> 79              }
+> 80
+> 81              while (bytes) {
+> 82                      unsigned iter_len = bvec_iter_len(bv, *iter);
+> 83                      unsigned len = min(bytes, iter_len);
+> 84
+> 85                      bytes -= len;
+> 86                      iter->bi_size -= len;
+> 
+> 
+> 
+> 
+> 
+> 
