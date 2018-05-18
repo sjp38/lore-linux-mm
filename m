@@ -1,74 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A2F116B05CC
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 05:41:35 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a127-v6so3440200wmh.6
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 02:41:35 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id l13-v6si6516041wrg.412.2018.05.18.02.41.33
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B28EC6B05CE
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 06:14:29 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id f20-v6so4542175ioc.8
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 03:14:29 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id u194-v6si6383039ith.1.2018.05.18.03.14.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 May 2018 02:41:33 -0700 (PDT)
-Date: Fri, 18 May 2018 11:46:16 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v10] mm: introduce MEMORY_DEVICE_FS_DAX and
-	CONFIG_DEV_PAGEMAP_OPS
-Message-ID: <20180518094616.GA25838@lst.de>
-References: <152658753673.26786.16458605771414761966.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
+        Fri, 18 May 2018 03:14:28 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201805122318.HJG81246.MFVFLFJOOQtSHO@I-love.SAKURA.ne.jp>
+	<20180515091655.GD12670@dhcp22.suse.cz>
+In-Reply-To: <20180515091655.GD12670@dhcp22.suse.cz>
+Message-Id: <201805181914.IFF18202.FOJOVSOtLFMFHQ@I-love.SAKURA.ne.jp>
+Date: Fri, 18 May 2018 19:14:12 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <152658753673.26786.16458605771414761966.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.com>, kbuild test robot <lkp@intel.com>, Thomas Meyer <thomas@m3y3r.de>, Dave Jiang <dave.jiang@intel.com>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: rientjes@google.com, guro@fb.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-This looks reasonable to me.  A few more comments below.
+Michal Hocko wrote:
+> On Sat 12-05-18 23:18:24, Tetsuo Handa wrote:
+> [...]
+> > @@ -4241,6 +4240,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+> >  	/* Retry as long as the OOM killer is making progress */
+> >  	if (did_some_progress) {
+> >  		no_progress_loops = 0;
+> > +		/*
+> > +		 * This schedule_timeout_*() serves as a guaranteed sleep for
+> > +		 * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
+> > +		 */
+> > +		if (!tsk_is_oom_victim(current))
+> > +			schedule_timeout_uninterruptible(1);
+> >  		goto retry;
+> 
+> We already do have that sleep for PF_WQ_WORKER in should_reclaim_retry.
+> Why do we need it here as well?
 
-> This patch replaces and consolidates patch 2 [1] and 4 [2] from the v9
-> series [3] for "dax: fix dma vs truncate/hole-punch".
+Because that path depends on __zone_watermark_ok() == true which is not
+guaranteed to be executed.
 
-Can you repost the whole series?  Otherwise things might get a little
-too confusing.
-
->  		WARN_ON(IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API));
-> +		return 0;
->  	} else if (pfn_t_devmap(pfn)) {
-> +		struct dev_pagemap *pgmap;
-
-This should probably become something like:
-
-	bool supported = false;
-
-	...
-
-
-	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED) && pfn_t_special(pfn)) {
-		...
-		supported = true;
-	} else if (pfn_t_devmap(pfn)) {
-		pgmap = get_dev_pagemap(pfn_t_to_pfn(pfn), NULL);
-		if (pgmap && pgmap->type == MEMORY_DEVICE_FS_DAX)
-			supported = true;
-		put_dev_pagemap(pgmap);
-	}
-
-	if (!supported) {
-		pr_debug("VFS (%s): error: dax support not enabled\n",
-			sb->s_id);
-		return -EOPNOTSUPP;
-	}
-	return 0;
-
-> +	select DEV_PAGEMAP_OPS if (ZONE_DEVICE && !FS_DAX_LIMITED)
-
-Btw, what was the reason again we couldn't get rid of FS_DAX_LIMITED?
-
-> +void generic_dax_pagefree(struct page *page, void *data)
-> +{
-> +	wake_up_var(&page->_refcount);
-> +}
-> +EXPORT_SYMBOL_GPL(generic_dax_pagefree);
-
-Why is this here and exported instead of static in drivers/nvdimm/pmem.c?
+I consider that this "goto retry;" is a good location for making a short sleep.
+Current code is so conditional that there are cases which needlessly retry
+without sleeping (e.g. current thread finds an OOM victim at select_bad_process()
+and immediately retries allocation attempt rather than giving the OOM victim
+CPU resource for releasing memory) or needlessly sleep (e.g. current thread
+was selected as an OOM victim but mutex_trylock(&oom_lock) in
+__alloc_pages_may_oom() failed).
