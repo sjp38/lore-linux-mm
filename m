@@ -1,175 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FD8F6B055A
-	for <linux-mm@kvack.org>; Thu, 17 May 2018 23:03:56 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id d4-v6so4142563plr.17
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 20:03:56 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id w11-v6si5257213pgv.329.2018.05.17.20.03.54
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C8106B055D
+	for <linux-mm@kvack.org>; Thu, 17 May 2018 23:04:02 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id g5-v6so3736047ioc.4
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 20:04:02 -0700 (PDT)
+Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.16])
+        by mx.google.com with ESMTPS id i139-v6si5605944ioi.280.2018.05.17.20.04.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 May 2018 20:03:54 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm] mm, huge page: Copy to access sub-page last when copy huge page
-Date: Fri, 18 May 2018 11:03:16 +0800
-Message-Id: <20180518030316.31019-1-ying.huang@intel.com>
+        Thu, 17 May 2018 20:04:00 -0700 (PDT)
+From: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Subject: RE: [External]  Re: [PATCH v1] include/linux/gfp.h: getting rid of
+ GFP_ZONE_TABLE/BAD
+Date: Fri, 18 May 2018 03:03:35 +0000
+Message-ID: <HK2PR03MB1684A5EE7432CAF9763608D992900@HK2PR03MB1684.apcprd03.prod.outlook.com>
+References: <1525968625-40825-1-git-send-email-yehs1@lenovo.com>
+ <20180510163023.GB30442@bombadil.infradead.org>
+ <HK2PR03MB16843E14AD56B3E546D9F52D929F0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180511132613.GA30263@bombadil.infradead.org>
+In-Reply-To: <20180511132613.GA30263@bombadil.infradead.org>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@suse.com" <mhocko@suse.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-From: Huang Ying <ying.huang@intel.com>
+> From: Matthew Wilcox [mailto:willy@infradead.org]
+> Sent: Friday, May 11, 2018 9:26 PM
+> On Fri, May 11, 2018 at 03:24:34AM +0000, Huaisheng HS1 Ye wrote:
+> > > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On B=
+ehalf Of
+> Matthew
+> > > Wilcox
+> > > On Fri, May 11, 2018 at 12:10:25AM +0800, Huaisheng Ye wrote:
+> > > > -#define __GFP_DMA	((__force gfp_t)___GFP_DMA)
+> > > > -#define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
+> > > > -#define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
+> > > > +#define __GFP_DMA	((__force gfp_t)OPT_ZONE_DMA ^ ZONE_NORMAL)
+> > > > +#define __GFP_HIGHMEM	((__force gfp_t)ZONE_MOVABLE ^ ZONE_NORMAL)
+> > > > +#define __GFP_DMA32	((__force gfp_t)OPT_ZONE_DMA32 ^ ZONE_NORMAL)
+> > >
+> > > No, you've made gfp_zone even more complex than it already is.
+> > > If you can't use OPT_ZONE_HIGHMEM here, then this is a waste of time.
+> > >
+> > Dear Matthew,
+> >
+> > The reason why I don't use OPT_ZONE_HIGHMEM for __GFP_HIGHMEM	 directly=
+ is that,
+> for x86_64 platform there is no CONFIG_HIGHMEM, so OPT_ZONE_HIGHMEM shall=
+ always be
+> equal to ZONE_NORMAL.
+>=20
+> Right.  On 64-bit platforms, if somebody asks for HIGHMEM, they should
+> get NORMAL pages.
+>=20
+> > For gfp_zone it is impossible to distinguish the meaning of lowest 3 bi=
+ts in flags.
+> How can gfp_zone to understand it comes from OPT_ZONE_HIGHMEM or ZONE_NOR=
+MAL?
+> > And the most pained thing is that, if __GFP_HIGHMEM with movable flag e=
+nabled, it
+> means that ZONE_MOVABLE shall be returned.
+> > That is different from ZONE_DMA, ZONE_DMA32 and ZONE_NORMAL.
+>=20
+> The point of this exercise is to actually encode the zone number in
+> the bottom bits of the GFP flags instead of something which has to be
+> interpreted into a zone number.  When somebody sets __GFP_MOVABLE, they
+> should also be setting ZONE_MOVABLE:
+>=20
+> -#define __GFP_MOVABLE   ((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE=
+ allowed */
+> +#define __GFP_MOVABLE   ((__force gfp_t)(___GFP_MOVABLE | (ZONE_MOVABLE =
+^ ZONE_NORMAL)))
+>=20
+> One thing that does need to change is:
+>=20
+> -#define GFP_HIGHUSER_MOVABLE    (GFP_HIGHUSER | __GFP_MOVABLE)
+> +#define GFP_HIGHUSER_MOVABLE    (GFP_USER | __GFP_MOVABLE)
+>=20
+> otherwise we'll be OR'ing ZONE_MOVABLE and ZONE_HIGHMEM together.
 
-Huge page helps to reduce TLB miss rate, but it has higher cache
-footprint, sometimes this may cause some issue.  For example, when
-copying huge page on x86_64 platform, the cache footprint is 4M.  But
-on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
-LLC (last level cache).  That is, in average, there are 2.5M LLC for
-each core and 1.25M LLC for each thread.
+Dear Matthew,
 
-If the cache pressure is heavy when copying the huge page, and we copy
-the huge page from the begin to the end, it is possible that the begin
-of huge page is evicted from the cache after we finishing copying the
-end of the huge page.  And it is possible for the application to access
-the begin of the huge page after copying the huge page.
+After thinking it over and over, I am afraid there is something needs to be=
+ discussed here.
+You know current X86_64 config file of kernel doesn't enable CONFIG_HIGHMEM=
+, that is to say from this below,
 
-To help the above situation, in this patch, when we copy a huge page,
-the order to copy sub-pages is changed.  In quite some situation, we
-can get the address that the application will access after we copy the
-huge page, for example, in a page fault handler.  Instead of copying
-the huge page from begin to end, we will copy the sub-pages farthest
-from the the sub-page to access firstly, and copy the sub-page to
-access last.  This will make the sub-page to access most cache-hot and
-sub-pages around it more cache-hot too.  If we cannot know the address
-the application will access, the begin of the huge page is assumed to be
-the the address the application will access.
+#define __GFP_HIGHMEM	((__force gfp_t)OPT_ZONE_HIGHMEM ^ ZONE_NORMAL)
 
-The patch is a generic optimization which should benefit quite some
-workloads, not for a specific use case.  To demonstrate the performance
-benefit of the patch, we tested it with vm-scalability run on
-transparent huge page.
+__GFP_HIGHMEM should equal to 0b0000, same as the value of ZONE_NORMAL gets=
+ encoded.
+If we define __GFP_MOVABLE like this,
 
-With this patch, the throughput increases ~16.6% in vm-scalability
-anon-cow-seq test case with 36 processes on a 2 socket Xeon E5 v3 2699
-system (36 cores, 72 threads).  The test case set
-/sys/kernel/mm/transparent_hugepage/enabled to be always, mmap() a big
-anonymous memory area and populate it, then forked 36 child processes,
-each writes to the anonymous memory area from the begin to the end, so
-cause copy on write.  For each child process, other child processes
-could be seen as other workloads which generate heavy cache pressure.
-At the same time, the IPC (instruction per cycle) increased from 0.63
-to 0.78, and the time spent in user space is reduced ~7.2%.
+#define __GFP_MOVABLE   ((__force gfp_t)(___GFP_MOVABLE | (ZONE_MOVABLE ^ Z=
+ONE_NORMAL)))
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andi Kleen <andi.kleen@intel.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Shaohua Li <shli@fb.com>
-Cc: Christopher Lameter <cl@linux.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
----
- include/linux/mm.h |  3 ++-
- mm/huge_memory.c   |  3 ++-
- mm/memory.c        | 43 +++++++++++++++++++++++++++++++++++++++----
- 3 files changed, 43 insertions(+), 6 deletions(-)
+Just like your introduced before, with this modification when somebody sets=
+ __GFP_MOVABLE, they should also be setting ZONE_MOVABLE.
+That brings us a problem, current mm (GFP_ZONE_TABLE) treats __GFP_MOVABLE =
+as ZONE_NORMAL with movable policy, if without __GFP_HIGHMEM.
+The mm shall allocate a page or pages from migrate movable list of ZONE_NOR=
+MAL's freelist.
+So that conflicts with this modification. And I have checked current kernel=
+, some of function directly set parameter gfp like this.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 3fa3b1356c34..a5fae31988e6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2732,7 +2732,8 @@ extern void clear_huge_page(struct page *page,
- 			    unsigned long addr_hint,
- 			    unsigned int pages_per_huge_page);
- extern void copy_user_huge_page(struct page *dst, struct page *src,
--				unsigned long addr, struct vm_area_struct *vma,
-+				unsigned long addr_hint,
-+				struct vm_area_struct *vma,
- 				unsigned int pages_per_huge_page);
- extern long copy_huge_page_from_user(struct page *dst_page,
- 				const void __user *usr_src,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 323acdd14e6e..7e720e92fcd6 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1331,7 +1331,8 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
- 	if (!page)
- 		clear_huge_page(new_page, vmf->address, HPAGE_PMD_NR);
- 	else
--		copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
-+		copy_user_huge_page(new_page, page, vmf->address,
-+				    vma, HPAGE_PMD_NR);
- 	__SetPageUptodate(new_page);
- 
- 	mmun_start = haddr;
-diff --git a/mm/memory.c b/mm/memory.c
-index 14578158ed20..f8868c94d6ab 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4654,10 +4654,12 @@ static void copy_user_gigantic_page(struct page *dst, struct page *src,
- }
- 
- void copy_user_huge_page(struct page *dst, struct page *src,
--			 unsigned long addr, struct vm_area_struct *vma,
-+			 unsigned long addr_hint, struct vm_area_struct *vma,
- 			 unsigned int pages_per_huge_page)
- {
--	int i;
-+	int i, n, base, l;
-+	unsigned long addr = addr_hint &
-+		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
- 
- 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
- 		copy_user_gigantic_page(dst, src, addr, vma,
-@@ -4665,10 +4667,43 @@ void copy_user_huge_page(struct page *dst, struct page *src,
- 		return;
- 	}
- 
-+	/* Copy sub-page to access last to keep its cache lines hot */
- 	might_sleep();
--	for (i = 0; i < pages_per_huge_page; i++) {
-+	n = (addr_hint - addr) / PAGE_SIZE;
-+	if (2 * n <= pages_per_huge_page) {
-+		/* If sub-page to access in first half of huge page */
-+		base = 0;
-+		l = n;
-+		/* Copy sub-pages at the end of huge page */
-+		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
-+			cond_resched();
-+			copy_user_highpage(dst + i, src + i,
-+					   addr + i * PAGE_SIZE, vma);
-+		}
-+	} else {
-+		/* If sub-page to access in second half of huge page */
-+		base = pages_per_huge_page - 2 * (pages_per_huge_page - n);
-+		l = pages_per_huge_page - n;
-+		/* Copy sub-pages at the begin of huge page */
-+		for (i = 0; i < base; i++) {
-+			cond_resched();
-+			copy_user_highpage(dst + i, src + i,
-+					   addr + i * PAGE_SIZE, vma);
-+		}
-+	}
-+	/*
-+	 * Copy remaining sub-pages in left-right-left-right pattern
-+	 * towards the sub-page to access
-+	 */
-+	for (i = 0; i < l; i++) {
-+		cond_resched();
-+		copy_user_highpage(dst + base + i, src + base + i,
-+				   addr + (base + i) * PAGE_SIZE, vma);
- 		cond_resched();
--		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
-+		copy_user_highpage(dst + base + 2 * l - 1 - i,
-+				   src + base + 2 * l - 1 - i,
-+				   addr + (base + 2 * l - 1 - i) * PAGE_SIZE,
-+				   vma);
- 	}
- }
- 
--- 
-2.16.1
+For example, in fs/ext4/extents.c __read_extent_tree_block,
+	bh =3D sb_getblk_gfp(inode->i_sb, pblk, __GFP_MOVABLE | GFP_NOFS);
+
+for these situations, I think only modify GFP_HIGHUSER_MOVABLE is not enoug=
+h. I am preparing a workaround to solve this in the V2 patch.
+Later I will upload it to email loop.
+
+Sincerely,
+Huaisheng Ye
+
+
+> > I was thinking...
+> > Whether it is possible to use other judgement condition to decide OPT_Z=
+ONE_HIGHMEM
+> or ZONE_MOVABLE shall be returned from gfp_zone.
+> >
+> > Sincerely,
+> > Huaisheng Ye
+> >
+> >
+> > > >  static inline enum zone_type gfp_zone(gfp_t flags)
+> > > >  {
+> > > >  	enum zone_type z;
+> > > > -	int bit =3D (__force int) (flags & GFP_ZONEMASK);
+> > > > +	z =3D ((__force unsigned int)flags & ___GFP_ZONE_MASK) ^ ZONE_NOR=
+MAL;
+> > > > +
+> > > > +	if (z > OPT_ZONE_HIGHMEM)
+> > > > +		z =3D OPT_ZONE_HIGHMEM +
+> > > > +			!!((__force unsigned int)flags & ___GFP_MOVABLE);
+> > > >
+> > > > -	z =3D (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
+> > > > -					 ((1 << GFP_ZONES_SHIFT) - 1);
+> > > > -	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+> > > > +	VM_BUG_ON(z > ZONE_MOVABLE);
+> > > >  	return z;
+> > > >  }
+> >
