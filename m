@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C39C6B0593
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 03:50:21 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id w201-v6so672770qkb.16
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 00:50:21 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E17F6B0595
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 03:50:25 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id y124-v6so6184456qkc.8
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 00:50:25 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m17-v6sor5252250qvo.111.2018.05.18.00.50.20
+        by mx.google.com with SMTPS id m42-v6sor5165885qvg.160.2018.05.18.00.50.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 18 May 2018 00:50:20 -0700 (PDT)
+        Fri, 18 May 2018 00:50:24 -0700 (PDT)
 From: Kent Overstreet <kent.overstreet@gmail.com>
-Subject: [PATCH 09/10] block: Export bio check/set pages_dirty
-Date: Fri, 18 May 2018 03:49:15 -0400
-Message-Id: <20180518074918.13816-18-kent.overstreet@gmail.com>
+Subject: [PATCH 10/10] block: Add sysfs entry for fua support
+Date: Fri, 18 May 2018 03:49:17 -0400
+Message-Id: <20180518074918.13816-20-kent.overstreet@gmail.com>
 In-Reply-To: <20180518074918.13816-1-kent.overstreet@gmail.com>
 References: <20180518074918.13816-1-kent.overstreet@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,28 +22,44 @@ Cc: Kent Overstreet <kent.overstreet@gmail.com>
 
 Signed-off-by: Kent Overstreet <kent.overstreet@gmail.com>
 ---
- block/bio.c | 2 ++
- 1 file changed, 2 insertions(+)
+ block/blk-sysfs.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-diff --git a/block/bio.c b/block/bio.c
-index 5c81391100..6689102f5d 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -1610,6 +1610,7 @@ void bio_set_pages_dirty(struct bio *bio)
- 			set_page_dirty_lock(page);
- 	}
+diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
+index cbea895a55..d6dd7d8198 100644
+--- a/block/blk-sysfs.c
++++ b/block/blk-sysfs.c
+@@ -497,6 +497,11 @@ static ssize_t queue_wc_store(struct request_queue *q, const char *page,
+ 	return count;
  }
-+EXPORT_SYMBOL_GPL(bio_set_pages_dirty);
  
- static void bio_release_pages(struct bio *bio)
++static ssize_t queue_fua_show(struct request_queue *q, char *page)
++{
++	return sprintf(page, "%u\n", test_bit(QUEUE_FLAG_FUA, &q->queue_flags));
++}
++
+ static ssize_t queue_dax_show(struct request_queue *q, char *page)
  {
-@@ -1693,6 +1694,7 @@ void bio_check_pages_dirty(struct bio *bio)
- 		bio_put(bio);
- 	}
- }
-+EXPORT_SYMBOL_GPL(bio_check_pages_dirty);
+ 	return queue_var_show(blk_queue_dax(q), page);
+@@ -665,6 +670,11 @@ static struct queue_sysfs_entry queue_wc_entry = {
+ 	.store = queue_wc_store,
+ };
  
- void generic_start_io_acct(struct request_queue *q, int rw,
- 			   unsigned long sectors, struct hd_struct *part)
++static struct queue_sysfs_entry queue_fua_entry = {
++	.attr = {.name = "fua", .mode = S_IRUGO },
++	.show = queue_fua_show,
++};
++
+ static struct queue_sysfs_entry queue_dax_entry = {
+ 	.attr = {.name = "dax", .mode = S_IRUGO },
+ 	.show = queue_dax_show,
+@@ -714,6 +724,7 @@ static struct attribute *default_attrs[] = {
+ 	&queue_random_entry.attr,
+ 	&queue_poll_entry.attr,
+ 	&queue_wc_entry.attr,
++	&queue_fua_entry.attr,
+ 	&queue_dax_entry.attr,
+ 	&queue_wb_lat_entry.attr,
+ 	&queue_poll_delay_entry.attr,
 -- 
 2.17.0
