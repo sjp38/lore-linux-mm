@@ -1,91 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B5006B0653
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 13:45:01 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k27-v6so5799409wre.23
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 10:45:01 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 50-v6si7579236wrt.327.2018.05.18.10.44.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 May 2018 10:45:00 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4IHhb8u055074
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 13:44:59 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2j22wa9hb1-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 13:44:58 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Fri, 18 May 2018 18:44:57 +0100
-Date: Fri, 18 May 2018 10:44:49 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: pkeys on POWER: Default AMR, UAMOR values
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <36b98132-d87f-9f75-f1a9-feee36ec8ee6@redhat.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5961A6B0655
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 13:46:53 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id e2-v6so5567687oii.20
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 10:46:53 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id s8-v6si2880816ota.184.2018.05.18.10.46.52
+        for <linux-mm@kvack.org>;
+        Fri, 18 May 2018 10:46:52 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH v2 3/7] memcg: use compound_order rather than hpage_nr_pages
+References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
+	<262267fe-d98c-0b25-9013-3dafb52e8679@ascade.co.jp>
+Date: Fri, 18 May 2018 18:46:49 +0100
+In-Reply-To: <262267fe-d98c-0b25-9013-3dafb52e8679@ascade.co.jp> (TSUKADA
+	Koutaro's message of "Fri, 18 May 2018 13:34:26 +0900")
+Message-ID: <87wow0zwja.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <36b98132-d87f-9f75-f1a9-feee36ec8ee6@redhat.com>
-Message-Id: <20180518174448.GE5479@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Disposition: inline
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>
+To: TSUKADA Koutaro <tsukada@ascade.co.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Fri, May 18, 2018 at 03:17:14PM +0200, Florian Weimer wrote:
-> I'm working on adding POWER pkeys support to glibc.  The coding work
-> is done, but I'm faced with some test suite failures.
-> 
-> Unlike the default x86 configuration, on POWER, existing threads
-> have full access to newly allocated keys.
-> 
-> Or, more precisely, in this scenario:
-> 
-> * Thread A launches thread B
-> * Thread B waits
-> * Thread A allocations a protection key with pkey_alloc
-> * Thread A applies the key to a page
-> * Thread A signals thread B
-> * Thread B starts to run and accesses the page
-> 
-> Then at the end, the access will be granted.
-> 
-> I hope it's not too late to change this to denied access.
-> 
-> Furthermore, I think the UAMOR value is wrong as well because it
-> prevents thread B at the end to set the AMR register.  In
-> particular, if I do this
-> 
-> * a?| (as before)
-> * Thread A signals thread B
-> * Thread B sets the access rights for the key to PKEY_DISABLE_ACCESS
-> * Thread B reads the current access rights for the key
-> 
-> then it still gets 0 (all access permitted) because the original
-> UAMOR value inherited from thread A prior to the key allocation
-> masks out the access right update for the newly allocated key.
+Tsukada-san,
 
-Florian, is the behavior on x86 any different? A key allocated in the
-context off one thread is not meaningful in the context of any other
-thread. 
+I am not familiar with memcg so can't comment about whether the patchset
+is the right way to solve the problem outlined in the cover letter but
+had a couple of comments about this patch.
 
-Since thread B was created prior to the creation of the key, and the key
-was created in the context of thread A, thread B neither inherits the
-key nor its permissions. Atleast that is how the semantics are supposed
-to work as per the man page.
+TSUKADA Koutaro <tsukada@ascade.co.jp> writes:
 
-man 7 pkey 
+> The current memcg implementation assumes that the compound page is THP.
+> In order to be able to charge surplus hugepage, we use compound_order.
+>
+> Signed-off-by: TSUKADA Koutaro <tsukada@ascade.co.jp>
 
-" Applications  using  threads  and  protection  keys  should
-be especially careful.  Threads inherit the protection key rights of the
-parent at the time of the clone(2), system call.  Applications should
-either ensure that their own permissions are appropriate for child
-threads at the time when clone(2) is  called,  or ensure that each child
-thread can perform its own initialization of protection key rights."
+Please move this before Patch 1/7. This is to prevent wrong accounting
+of pages to memcg for size != PMD_SIZE.
 
+> ---
+>  memcontrol.c |   10 +++++-----
+>  1 file changed, 5 insertions(+), 5 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 2bd3df3..a8f1ff8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4483,7 +4483,7 @@ static int mem_cgroup_move_account(struct page *page,
+>  				   struct mem_cgroup *to)
+>  {
+>  	unsigned long flags;
+> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
+> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
 
-RP
+Instead of replacing calls to hpage_nr_pages(), is it possible to modify
+it to do the calculation?
+
+Thanks,
+Punit
+
+>  	int ret;
+>  	bool anon;
+>
+> @@ -5417,7 +5417,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+>  			  bool compound)
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
+> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
+>  	int ret = 0;
+>
+>  	if (mem_cgroup_disabled())
+> @@ -5478,7 +5478,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+>  void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
+>  			      bool lrucare, bool compound)
+>  {
+> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
+> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
+>
+>  	VM_BUG_ON_PAGE(!page->mapping, page);
+>  	VM_BUG_ON_PAGE(PageLRU(page) && !lrucare, page);
+> @@ -5522,7 +5522,7 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
+>  void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
+>  		bool compound)
+>  {
+> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
+> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
+>
+>  	if (mem_cgroup_disabled())
+>  		return;
+> @@ -5729,7 +5729,7 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
+>
+>  	/* Force-charge the new page. The old one will be freed soon */
+>  	compound = PageTransHuge(newpage);
+> -	nr_pages = compound ? hpage_nr_pages(newpage) : 1;
+> +	nr_pages = compound ? (1 << compound_order(newpage)) : 1;
+>
+>  	page_counter_charge(&memcg->memory, nr_pages);
+>  	if (do_memsw_account())
