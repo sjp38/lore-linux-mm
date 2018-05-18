@@ -1,66 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A06856B05DC
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 10:35:15 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 70-v6so3425129wmb.2
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 07:35:15 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u17-v6sor2177264wmu.24.2018.05.18.07.35.14
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E0F16B05DE
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 10:37:53 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id 65-v6so4739102qkl.11
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 07:37:53 -0700 (PDT)
+Received: from a9-114.smtp-out.amazonses.com (a9-114.smtp-out.amazonses.com. [54.240.9.114])
+        by mx.google.com with ESMTPS id a7-v6si3381248qvm.21.2018.05.18.07.37.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 18 May 2018 07:35:14 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 18 May 2018 07:37:52 -0700 (PDT)
+Date: Fri, 18 May 2018 14:37:52 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: [LSFMM] RDMA data corruption potential during FS writeback
+Message-ID: <0100016373af827b-e6164b8d-f12e-4938-bf1f-2f85ec830bc0-000000@email.amazonses.com>
 MIME-Version: 1.0
-References: <36b98132-d87f-9f75-f1a9-feee36ec8ee6@redhat.com>
-In-Reply-To: <36b98132-d87f-9f75-f1a9-feee36ec8ee6@redhat.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 18 May 2018 07:35:01 -0700
-Message-ID: <CALCETrXx_gUVQEvWjFNOBHqzVM+VSaMaRAX=11e7L=8BLHEagw@mail.gmail.com>
-Subject: Re: pkeys on POWER: Default AMR, UAMOR values
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Linux-MM <linux-mm@kvack.org>, linuxram@us.ibm.com, Dave Hansen <dave.hansen@intel.com>
+To: linux-rdma@vger.kernel.org
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>
 
-On Fri, May 18, 2018 at 6:17 AM Florian Weimer <fweimer@redhat.com> wrote:
+There was a session at the Linux Filesystem and Memory Management summit
+on issues that are caused by devices using get_user_pages() or elevated
+refcounts to pin pages and then do I/O on them.
 
-> I'm working on adding POWER pkeys support to glibc.  The coding work is
-> done, but I'm faced with some test suite failures.
+See https://lwn.net/Articles/753027/
 
-> Unlike the default x86 configuration, on POWER, existing threads have
-> full access to newly allocated keys.
+Basically filesystems need to mark the pages readonly during writeback.
+Concurrent DMA into the page while it is written by a filesystem can cause
+corrupted data being written to the disk, cause incorrect checksums etc
+etc.
 
-> Or, more precisely, in this scenario:
+The solution that was proposed at the meeting was that mmu notifiers can
+remedy that situation by allowing callbacks to the RDMA device to ensure
+that the RDMA device and the filesystem do not do concurrent writeback.
 
-> * Thread A launches thread B
-> * Thread B waits
-> * Thread A allocations a protection key with pkey_alloc
-> * Thread A applies the key to a page
-> * Thread A signals thread B
-> * Thread B starts to run and accesses the page
+This issue has been around for a long time and so far not caused too much
+grief it seems. Doing I/O to two devices from the same memory location is
+naturally a bit inconsistent in itself.
 
-> Then at the end, the access will be granted.
+But could we do more to prevent issues here? I think what may be useful is
+to not allow the memory registrations of file back writable mappings
+unless the device driver provides mmu callbacks or something like that.
 
-> I hope it's not too late to change this to denied access.
+There is also the longstanding issue of the refcounts that are held over
+long time periods. If we require mmu notifier callbacks then we may as
+well go to on demand paging mode for RDMA memory registrations. This
+avoids increasing the refcounts long term and allows easy access control /
+page removal for memory management.
 
-> Furthermore, I think the UAMOR value is wrong as well because it
-> prevents thread B at the end to set the AMR register.  In particular, if
-> I do this
+There may even be more issues if DAX is being used but the FS writeback
+has the potential of biting anyone at this point it seems.
 
-> * =E2=80=A6 (as before)
-> * Thread A signals thread B
-> * Thread B sets the access rights for the key to PKEY_DISABLE_ACCESS
-> * Thread B reads the current access rights for the key
-
-> then it still gets 0 (all access permitted) because the original UAMOR
-> value inherited from thread A prior to the key allocation masks out the
-> access right update for the newly allocated key.
-
-This type of issue is why I think that a good protection key ISA would not
-have a usermode read-the-whole-register or write-the-whole-register
-operation at all.  It's still not clear to me that there is any good
-kernel-mode solution.  But at least x86 defaults to deny-everything, which
-is more annoying but considerably safer than POWER's behavior.
-
---Andy
+I think we need to put some thought into these issues and we need some
+coordination between the RDMA developers and memory management. RDMA seems
+to be more and more important and thus its likely that issues like this
+will become more important.
