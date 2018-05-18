@@ -1,262 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 232486B05D0
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 06:35:03 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p1-v6so5103101wrm.7
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 03:35:03 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z8-v6si2801399edq.292.2018.05.18.03.35.01
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CDD786B05D2
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 07:30:38 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id e1-v6so3451656pld.23
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 04:30:38 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id d9-v6si7313933pls.334.2018.05.18.04.30.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 18 May 2018 03:35:01 -0700 (PDT)
-Subject: Re: [PATCH v2 2/4] mm: check for proper migrate type during isolation
-References: <20180503232935.22539-1-mike.kravetz@oracle.com>
- <20180503232935.22539-3-mike.kravetz@oracle.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <0a74f688-74fb-b841-4782-f9c96b1b9cfc@suse.cz>
-Date: Fri, 18 May 2018 12:32:51 +0200
-MIME-Version: 1.0
-In-Reply-To: <20180503232935.22539-3-mike.kravetz@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 May 2018 04:30:37 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RESEND] x86/mm: Decouple dynamic __PHYSICAL_MASK from AMD SME
+Date: Fri, 18 May 2018 14:30:28 +0300
+Message-Id: <20180518113028.79825-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 05/04/2018 01:29 AM, Mike Kravetz wrote:
-> The routine start_isolate_page_range and alloc_contig_range have
-> comments saying that migratetype must be either MIGRATE_MOVABLE or
-> MIGRATE_CMA.  However, this is not enforced.
+AMD SME claims one bit from physical address to indicate whether the
+page is encrypted or not. To achieve that we clear out the bit from
+__PHYSICAL_MASK.
 
-Enforced, no. But if the pageblocks really were as such, it used to
-shortcut has_unmovable_pages(). This was wrong and removed in
-d7b236e10ced ("mm: drop migrate type checks from has_unmovable_pages")
-plus 4da2ce250f98 ("mm: distinguish CMA and MOVABLE isolation in
-has_unmovable_pages()").
+The capability to adjust __PHYSICAL_MASK is required beyond AMD SME.
+For instance for upcoming Intel Multi-Key Total Memory Encryption.
 
+Factor it out into a separate feature with own Kconfig handle.
 
-  What is important is
-> that that all pageblocks in the range are of type migratetype.
-                                               the same
-> This is because blocks will be set to migratetype on error.
+It also helps with overhead of AMD SME. It saves more than 3k in .text
+on defconfig + AMD_MEM_ENCRYPT:
 
-Strictly speaking this is true only for the CMA case. For other cases,
-the best thing actually would be to employ the same heuristics as page
-allocation migratetype fallbacks, and count how many pages are free and
-how many appear to be movable, see how steal_suitable_fallback() uses
-the last parameter of move_freepages_block().
+	add/remove: 3/2 grow/shrink: 5/110 up/down: 189/-3753 (-3564)
 
-> Add a boolean argument enforce_migratetype to the routine
-> start_isolate_page_range.  If set, it will check that all pageblocks
-> in the range have the passed migratetype.  Return -EINVAL is pageblock
-                                                            if
-> is wrong type is found in range.
-  of
-> 
-> A boolean is used for enforce_migratetype as there are two primary
-> users.  Contiguous range allocation which wants to enforce migration
-> type checking.  Memory offline (hotplug) which is not concerned about
-> type checking.
+We would need to return to this once we have infrastructure to patch
+constants in code. That's good candidate for it.
 
-This is missing some high-level result. The end change is that CMA is
-now enforcing. So we are making it more robust when it's called on
-non-CMA pageblocks by mistake? (BTW I still do hope we can remove
-MIGRATE_CMA soon after Joonsoo's ZONE_MOVABLE CMA conversion. Combined
-with my suggestion above we could hopefully get rid of the migratetype
-parameter completely instead of enforcing it?). Is this also a
-preparation for introducing find_alloc_contig_pages() which will be
-enforcing? (I guess, and will find out shortly, but it should be stated
-here)
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Tom Lendacky <thomas.lendacky@amd.com>
+---
+ arch/x86/Kconfig                    | 4 ++++
+ arch/x86/boot/compressed/kaslr_64.c | 5 +++++
+ arch/x86/include/asm/page_types.h   | 8 +++++++-
+ arch/x86/mm/mem_encrypt_identity.c  | 3 +++
+ arch/x86/mm/pgtable.c               | 5 +++++
+ 5 files changed, 24 insertions(+), 1 deletion(-)
 
-Thanks,
-Vlastimil
-
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  include/linux/page-isolation.h |  8 +++-----
->  mm/memory_hotplug.c            |  2 +-
->  mm/page_alloc.c                | 17 +++++++++--------
->  mm/page_isolation.c            | 40 ++++++++++++++++++++++++++++++----------
->  4 files changed, 43 insertions(+), 24 deletions(-)
-> 
-> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-> index 4ae347cbc36d..2ab7e5a399ac 100644
-> --- a/include/linux/page-isolation.h
-> +++ b/include/linux/page-isolation.h
-> @@ -38,8 +38,6 @@ int move_freepages_block(struct zone *zone, struct page *page,
->  
->  /*
->   * Changes migrate type in [start_pfn, end_pfn) to be MIGRATE_ISOLATE.
-> - * If specified range includes migrate types other than MOVABLE or CMA,
-> - * this will fail with -EBUSY.
->   *
->   * For isolating all pages in the range finally, the caller have to
->   * free all pages in the range. test_page_isolated() can be used for
-> @@ -47,11 +45,11 @@ int move_freepages_block(struct zone *zone, struct page *page,
->   */
->  int
->  start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-> -			 unsigned migratetype, bool skip_hwpoisoned_pages);
-> +			 unsigned migratetype, bool skip_hwpoisoned_pages,
-> +			 bool enforce_migratetype);
->  
->  /*
-> - * Changes MIGRATE_ISOLATE to MIGRATE_MOVABLE.
-> - * target range is [start_pfn, end_pfn)
-> + * Changes MIGRATE_ISOLATE to migratetype for range [start_pfn, end_pfn)
->   */
->  int
->  undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index f74826cdceea..ebc1c8c330e2 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1601,7 +1601,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
->  
->  	/* set above range as isolated */
->  	ret = start_isolate_page_range(start_pfn, end_pfn,
-> -				       MIGRATE_MOVABLE, true);
-> +				       MIGRATE_MOVABLE, true, false);
->  	if (ret)
->  		return ret;
->  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 0fd5e8e2456e..cb1a5e0be6ee 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7787,9 +7787,10 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
->   * alloc_contig_range() -- tries to allocate given range of pages
->   * @start:	start PFN to allocate
->   * @end:	one-past-the-last PFN to allocate
-> - * @migratetype:	migratetype of the underlaying pageblocks (either
-> - *			#MIGRATE_MOVABLE or #MIGRATE_CMA).  All pageblocks
-> - *			in range must have the same migratetype and it must
-> + * @migratetype:	migratetype of the underlaying pageblocks.  All
-> + *			pageblocks in range must have the same migratetype.
-> + *			migratetype is typically MIGRATE_MOVABLE or
-> + *			MIGRATE_CMA, but this is not a requirement.
->   *			be either of the two.
->   * @gfp_mask:	GFP mask to use during compaction
->   *
-> @@ -7840,15 +7841,15 @@ int alloc_contig_range(unsigned long start, unsigned long end,
->  	 * allocator removing them from the buddy system.  This way
->  	 * page allocator will never consider using them.
->  	 *
-> -	 * This lets us mark the pageblocks back as
-> -	 * MIGRATE_CMA/MIGRATE_MOVABLE so that free pages in the
-> -	 * aligned range but not in the unaligned, original range are
-> -	 * put back to page allocator so that buddy can use them.
-> +	 * This lets us mark the pageblocks back as their original
-> +	 * migrate type so that free pages in the  aligned range but
-> +	 * not in the unaligned, original range are put back to page
-> +	 * allocator so that buddy can use them.
->  	 */
->  
->  	ret = start_isolate_page_range(pfn_max_align_down(start),
->  				       pfn_max_align_up(end), migratetype,
-> -				       false);
-> +				       false, true);
->  	if (ret)
->  		return ret;
->  
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 43e085608846..472191cc1909 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -16,7 +16,8 @@
->  #include <trace/events/page_isolation.h>
->  
->  static int set_migratetype_isolate(struct page *page, int migratetype,
-> -				bool skip_hwpoisoned_pages)
-> +				bool skip_hwpoisoned_pages,
-> +				bool enforce_migratetype)
->  {
->  	struct zone *zone;
->  	unsigned long flags, pfn;
-> @@ -36,6 +37,17 @@ static int set_migratetype_isolate(struct page *page, int migratetype,
->  	if (is_migrate_isolate_page(page))
->  		goto out;
->  
-> +	/*
-> +	 * If requested, check migration type of pageblock and make sure
-> +	 * it matches migratetype
-> +	 */
-> +	if (enforce_migratetype) {
-> +		if (get_pageblock_migratetype(page) != migratetype) {
-> +			ret = -EINVAL;
-> +			goto out;
-> +		}
-> +	}
-> +
->  	pfn = page_to_pfn(page);
->  	arg.start_pfn = pfn;
->  	arg.nr_pages = pageblock_nr_pages;
-> @@ -167,14 +179,16 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
->   * to be MIGRATE_ISOLATE.
->   * @start_pfn: The lower PFN of the range to be isolated.
->   * @end_pfn: The upper PFN of the range to be isolated.
-> - * @migratetype: migrate type to set in error recovery.
-> + * @migratetype: migrate type of all blocks in range.
->   *
->   * Making page-allocation-type to be MIGRATE_ISOLATE means free pages in
->   * the range will never be allocated. Any free pages and pages freed in the
->   * future will not be allocated again.
->   *
->   * start_pfn/end_pfn must be aligned to pageblock_order.
-> - * Return 0 on success and -EBUSY if any part of range cannot be isolated.
-> + * Return 0 on success or error returned by set_migratetype_isolate.  Typical
-> + * errors are -EBUSY if any part of range cannot be isolated or -EINVAL if
-> + * any page block is not of migratetype.
->   *
->   * There is no high level synchronization mechanism that prevents two threads
->   * from trying to isolate overlapping ranges.  If this happens, one thread
-> @@ -185,11 +199,13 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
->   * prevents two threads from simultaneously working on overlapping ranges.
->   */
->  int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-> -			     unsigned migratetype, bool skip_hwpoisoned_pages)
-> +			     unsigned migratetype, bool skip_hwpoisoned_pages,
-> +			     bool enforce_migratetype)
->  {
->  	unsigned long pfn;
->  	unsigned long undo_pfn;
->  	struct page *page;
-> +	int ret = 0;
->  
->  	BUG_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
->  	BUG_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
-> @@ -198,13 +214,17 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->  	     pfn < end_pfn;
->  	     pfn += pageblock_nr_pages) {
->  		page = __first_valid_page(pfn, pageblock_nr_pages);
-> -		if (page &&
-> -		    set_migratetype_isolate(page, migratetype, skip_hwpoisoned_pages)) {
-> -			undo_pfn = pfn;
-> -			goto undo;
-> +		if (page) {
-> +			ret = set_migratetype_isolate(page, migratetype,
-> +							skip_hwpoisoned_pages,
-> +							enforce_migratetype);
-> +			if (ret) {
-> +				undo_pfn = pfn;
-> +				goto undo;
-> +			}
->  		}
->  	}
-> -	return 0;
-> +	return ret;
->  undo:
->  	for (pfn = start_pfn;
->  	     pfn < undo_pfn;
-> @@ -215,7 +235,7 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->  		unset_migratetype_isolate(page, migratetype);
->  	}
->  
-> -	return -EBUSY;
-> +	return ret;
->  }
->  
->  /*
-> 
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index bcdd3e0e2ef5..8e2d0ee0e366 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -333,6 +333,9 @@ config ARCH_SUPPORTS_UPROBES
+ config FIX_EARLYCON_MEM
+ 	def_bool y
+ 
++config DYNAMIC_PHYSICAL_MASK
++	bool
++
+ config PGTABLE_LEVELS
+ 	int
+ 	default 5 if X86_5LEVEL
+@@ -1504,6 +1507,7 @@ config ARCH_HAS_MEM_ENCRYPT
+ config AMD_MEM_ENCRYPT
+ 	bool "AMD Secure Memory Encryption (SME) support"
+ 	depends on X86_64 && CPU_SUP_AMD
++	select DYNAMIC_PHYSICAL_MASK
+ 	---help---
+ 	  Say yes to enable support for the encryption of system memory.
+ 	  This requires an AMD processor that supports Secure Memory
+diff --git a/arch/x86/boot/compressed/kaslr_64.c b/arch/x86/boot/compressed/kaslr_64.c
+index 522d11431433..748456c365f4 100644
+--- a/arch/x86/boot/compressed/kaslr_64.c
++++ b/arch/x86/boot/compressed/kaslr_64.c
+@@ -69,6 +69,8 @@ static struct alloc_pgt_data pgt_data;
+ /* The top level page table entry pointer. */
+ static unsigned long top_level_pgt;
+ 
++phys_addr_t physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
++
+ /*
+  * Mapping information structure passed to kernel_ident_mapping_init().
+  * Due to relocation, pointers must be assigned at run time not build time.
+@@ -81,6 +83,9 @@ void initialize_identity_maps(void)
+ 	/* If running as an SEV guest, the encryption mask is required. */
+ 	set_sev_encryption_mask();
+ 
++	/* Exclude the encryption mask from __PHYSICAL_MASK */
++	physical_mask &= ~sme_me_mask;
++
+ 	/* Init mapping_info with run-time function/buffer pointers. */
+ 	mapping_info.alloc_pgt_page = alloc_pgt_page;
+ 	mapping_info.context = &pgt_data;
+diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
+index 1e53560a84bb..c85e15010f48 100644
+--- a/arch/x86/include/asm/page_types.h
++++ b/arch/x86/include/asm/page_types.h
+@@ -17,7 +17,6 @@
+ #define PUD_PAGE_SIZE		(_AC(1, UL) << PUD_SHIFT)
+ #define PUD_PAGE_MASK		(~(PUD_PAGE_SIZE-1))
+ 
+-#define __PHYSICAL_MASK		((phys_addr_t)(__sme_clr((1ULL << __PHYSICAL_MASK_SHIFT) - 1)))
+ #define __VIRTUAL_MASK		((1UL << __VIRTUAL_MASK_SHIFT) - 1)
+ 
+ /* Cast *PAGE_MASK to a signed type so that it is sign-extended if
+@@ -55,6 +54,13 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
++#ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
++extern phys_addr_t physical_mask;
++#define __PHYSICAL_MASK		physical_mask
++#else
++#define __PHYSICAL_MASK		((phys_addr_t)((1ULL << __PHYSICAL_MASK_SHIFT) - 1))
++#endif
++
+ extern int devmem_is_allowed(unsigned long pagenr);
+ 
+ extern unsigned long max_low_pfn_mapped;
+diff --git a/arch/x86/mm/mem_encrypt_identity.c b/arch/x86/mm/mem_encrypt_identity.c
+index 1b2197d13832..7ae36868aed2 100644
+--- a/arch/x86/mm/mem_encrypt_identity.c
++++ b/arch/x86/mm/mem_encrypt_identity.c
+@@ -527,6 +527,7 @@ void __init sme_enable(struct boot_params *bp)
+ 		/* SEV state cannot be controlled by a command line option */
+ 		sme_me_mask = me_mask;
+ 		sev_enabled = true;
++		physical_mask &= ~sme_me_mask;
+ 		return;
+ 	}
+ 
+@@ -561,4 +562,6 @@ void __init sme_enable(struct boot_params *bp)
+ 		sme_me_mask = 0;
+ 	else
+ 		sme_me_mask = active_by_default ? me_mask : 0;
++
++	physical_mask &= ~sme_me_mask;
+ }
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 34cda7e0551b..0199b94e6b40 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -7,6 +7,11 @@
+ #include <asm/fixmap.h>
+ #include <asm/mtrr.h>
+ 
++#ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
++phys_addr_t physical_mask __ro_after_init = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
++EXPORT_SYMBOL(physical_mask);
++#endif
++
+ #define PGALLOC_GFP (GFP_KERNEL_ACCOUNT | __GFP_ZERO)
+ 
+ #ifdef CONFIG_HIGHPTE
+-- 
+2.17.0
