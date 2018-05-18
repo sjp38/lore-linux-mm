@@ -1,77 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 050456B0689
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 16:35:24 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id u7-v6so5740354plq.3
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 13:35:23 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id c23-v6si8233677pli.540.2018.05.18.13.35.22
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A63CD6B068B
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 17:09:23 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id t24-v6so7871391qtn.7
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 14:09:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 45-v6si612158qvx.28.2018.05.18.14.09.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 May 2018 13:35:22 -0700 (PDT)
-Subject: Re: dma_sync_*_for_cpu and direction=TO_DEVICE (was Re: [PATCH 02/20]
- dma-mapping: provide a generic dma-noncoherent implementation)
-References: <20180511075945.16548-1-hch@lst.de>
- <20180511075945.16548-3-hch@lst.de>
- <bad125dff49f6e49c895e818c9d1abb346a46e8e.camel@synopsys.com>
- <5ac5b1e3-9b96-9c7c-4dfe-f65be45ec179@synopsys.com>
- <20180518175004.GF17671@n2100.armlinux.org.uk>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <cecfe6bd-ef1f-1e25-bfcf-992d1f828efb@synopsys.com>
-Date: Fri, 18 May 2018 13:35:08 -0700
+        Fri, 18 May 2018 14:09:22 -0700 (PDT)
+Subject: Re: pkeys on POWER: Default AMR, UAMOR values
+References: <36b98132-d87f-9f75-f1a9-feee36ec8ee6@redhat.com>
+ <20180518174448.GE5479@ram.oc3035372033.ibm.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <59616677-49c3-c803-963d-c032168de529@redhat.com>
+Date: Fri, 18 May 2018 23:09:20 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180518175004.GF17671@n2100.armlinux.org.uk>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180518174448.GE5479@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@armlinux.org.uk>
-Cc: Alexey Brodkin <Alexey.Brodkin@synopsys.com>, "hch@lst.de" <hch@lst.de>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, "monstr@monstr.eu" <monstr@monstr.eu>, "deanbo422@gmail.com" <deanbo422@gmail.com>, "linux-c6x-dev@linux-c6x.org" <linux-c6x-dev@linux-c6x.org>, "linux-parisc@vger.kernel.org" <linux-parisc@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, "linux-m68k@lists.linux-m68k.org" <linux-m68k@lists.linux-m68k.org>, "linux-hexagon@vger.kernel.org" <linux-hexagon@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "openrisc@lists.librecores.org" <openrisc@lists.librecores.org>, "green.hu@gmail.com" <green.hu@gmail.com>, "linux-alpha@vger.kernel.org" <linux-alpha@vger.kernel.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "nios2-dev@lists.rocketboards.org" <nios2-dev@lists.rocketboards.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>
 
-On 05/18/2018 10:50 AM, Russell King - ARM Linux wrote:
-> On Fri, May 18, 2018 at 10:20:02AM -0700, Vineet Gupta wrote:
->> I never understood the need for this direction. And if memory serves me
->> right, at that time I was seeing twice the amount of cache flushing !
-> It's necessary.  Take a moment to think carefully about this:
->
-> 	dma_map_single(, dir)
->
-> 	dma_sync_single_for_cpu(, dir)
->
-> 	dma_sync_single_for_device(, dir)
->
-> 	dma_unmap_single(, dir)
+On 05/18/2018 07:44 PM, Ram Pai wrote:
+> Florian, is the behavior on x86 any different? A key allocated in the
+> context off one thread is not meaningful in the context of any other
+> thread.
+> 
+> Since thread B was created prior to the creation of the key, and the key
+> was created in the context of thread A, thread B neither inherits the
+> key nor its permissions. Atleast that is how the semantics are supposed
+> to work as per the man page.
+> 
+> man 7 pkey
+> 
+> " Applications  using  threads  and  protection  keys  should
+> be especially careful.  Threads inherit the protection key rights of the
+> parent at the time of the clone(2), system call.  Applications should
+> either ensure that their own permissions are appropriate for child
+> threads at the time when clone(2) is  called,  or ensure that each child
+> thread can perform its own initialization of protection key rights."
 
-As an aside, do these imply a state machine of sorts - does a driver needs to 
-always call map_single first ?
+I reported two separate issues (actually three, but the execve bug is in 
+a separate issue).  The default, and the write restrictions.
 
-My original point of contention/confusion is the specific combinations of API and 
-direction, specifically for_cpu(TO_DEV) and for_device(TO_CPU)
+The default is just a difference to x86 (however, x86 can be booted with 
+init_pkru=0 and behaves the same way, but we're probably going to remove 
+that).
 
-Semantically what does dma_sync_single_for_cpu(TO_DEV) even imply for a non dma 
-coherent arch.
-Your tables below have "none" for both, implying it is unlikely to be a real 
-combination (for ARM and ARC atleast).
+The POWER implementation has the additional wrinkle that threads 
+launched early, before key allocation, can never change access rights 
+because they inherited not just the access rights, but also the access 
+rights access mask.  This is different from x86, where all threads can 
+freely update access rights, and contradicts the behavior in the manpage 
+which says that a??each child thread can perform its own initialization of 
+protection key rightsa??.  It can't do that if it is launched before key 
+allocation, which is not the right behavior IMO.
 
-The other case, actually @dir TO_CPU, independent of for_{cpu, device}A  implies 
-driver intends to touch it after the call, so it would invalidate any stray lines, 
-unconditionally (and not just for speculative prefetch case).
-
-
-> In the case of a DMA-incoherent architecture, the operations done at each
-> stage depend on the direction argument:
->
-> 	map		for_cpu		for_device	unmap
-> TO_DEV	writeback	none		writeback	none
-> TO_CPU	invalidate	invalidate*	invalidate	invalidate*
-> BIDIR	writeback	invalidate	writeback	invalidate
->
-> * - only necessary if the CPU speculatively prefetches.
->
-> The multiple invalidations for the TO_CPU case handles different
-> conditions that can result in data corruption, and for some CPUs, all
-> four are necessary.
-
-Can you please explain in some more detail, TO_CPU row, why invalidate is 
-conditional sometimes.
+Thanks,
+Florian
