@@ -1,108 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DDE516B059C
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 04:41:04 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id t5-v6so4655481ply.13
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 01:41:04 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bd7-v6sor3903971plb.45.2018.05.18.01.41.03
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D67026B059E
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 04:41:49 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id f19-v6so2685086pgv.4
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 01:41:49 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0101.outbound.protection.outlook.com. [104.47.0.101])
+        by mx.google.com with ESMTPS id b63-v6si7037386plb.566.2018.05.18.01.41.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 18 May 2018 01:41:03 -0700 (PDT)
-From: ufo19890607 <ufo19890607@gmail.com>
-Subject: [PATCH v3] Print the memcg's name when system-wide OOM happened
-Date: Fri, 18 May 2018 09:40:51 +0100
-Message-Id: <1526632851-25613-1-git-send-email-ufo19890607@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 18 May 2018 01:41:48 -0700 (PDT)
+Subject: [PATCH v6 00/17] Improve shrink_slab() scalability (old complexity
+ was O(n^2), new is O(n))
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Fri, 18 May 2018 11:41:36 +0300
+Message-ID: <152663268383.5308.8660992135988724014.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, guro@fb.com, yang.s@alibaba-inc.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian <yuzhoujian@didichuxing.com>
+To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-From: yuzhoujian <yuzhoujian@didichuxing.com>
+Hi,
 
-The dump_header does not print the memcg's name when the system
-oom happened. So users cannot locate the certain container which
-contains the task that has been killed by the oom killer.
+this patches solves the problem with slow shrink_slab() occuring
+on the machines having many shrinkers and memory cgroups (i.e.,
+with many containers). The problem is complexity of shrink_slab()
+is O(n^2) and it grows too fast with the growth of containers
+numbers.
 
-System oom report will contain the memcg's name after this patch,
-so users can get the memcg's path from the oom report and check
-that container more quickly.
+Let we have 200 containers, and every container has 10 mounts
+and 10 cgroups. All container tasks are isolated, and they don't
+touch foreign containers mounts.
 
-Changes since v2:
-- add the mem_cgroup_print_memcg_name helper to print the memcg's
-  name which contains the task that will be killed by the oom-killer.
+In case of global reclaim, a task has to iterate all over the memcgs
+and to call all the memcg-aware shrinkers for all of them. This means,
+the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
+and since there are 2000 memcgs, the total calls of do_shrink_slab()
+are 2000 * 2000 = 4000000.
 
-Changes since v1:
-- replace adding mem_cgroup_print_oom_info with printing the memcg's
-  name only.
+4 million calls are not a number operations, which can takes 1 cpu cycle.
+E.g., super_cache_count() accesses at least two lists, and makes arifmetical
+calculations. Even, if there are no charged objects, we do these calculations,
+and replaces cpu caches by read memory. I observed nodes spending almost 100%
+time in kernel, in case of intensive writing and global reclaim. The writer
+consumes pages fast, but it's need to shrink_slab() before the reclaimer
+reached shrink pages function (and frees SWAP_CLUSTER_MAX pages). Even if
+there is no writing, the iterations just waste the time, and slows reclaim down.
 
-Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
+Let's see the small test below:
+
+$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+$mkdir /sys/fs/cgroup/memory/ct
+$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+$for i in `seq 0 4000`;
+	do mkdir /sys/fs/cgroup/memory/ct/$i;
+	echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
+	mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file;
+done
+
+Then, let's see drop caches time (5 sequential calls):
+$time echo 3 > /proc/sys/vm/drop_caches
+
+0.00user 13.78system 0:13.78elapsed 99%CPU
+0.00user 5.59system 0:05.60elapsed 99%CPU
+0.00user 5.48system 0:05.48elapsed 99%CPU
+0.00user 8.35system 0:08.35elapsed 99%CPU
+0.00user 8.34system 0:08.35elapsed 99%CPU
+
+
+Last four calls don't actually shrink something. So, the iterations
+over slab shrinkers take 5.48 seconds. Not so good for scalability.
+
+The patchset solves the problem by making shrink_slab() of O(n)
+complexity. There are following functional actions:
+
+1)Assign id to every registered memcg-aware shrinker.
+2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
+  and set a shrinker-related bit after the first element
+  is added to lru list (also, when removed child memcg
+  elements are reparanted).
+3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
+  and call a shrinker if its bit is set in memcg's shrinker
+  bitmap.
+  (Also, there is a functionality to clear the bit, after
+  last element is shrinked).
+
+This gives signify performance increase. The result after patchset is applied:
+
+$time echo 3 > /proc/sys/vm/drop_caches
+
+0.00user 1.10system 0:01.10elapsed 99%CPU
+0.00user 0.00system 0:00.01elapsed 64%CPU
+0.00user 0.01system 0:00.01elapsed 82%CPU
+0.00user 0.00system 0:00.01elapsed 64%CPU
+0.00user 0.01system 0:00.01elapsed 82%CPU
+
+The results show the performance increases at least in 548 times.
+
+So, the patchset makes shrink_slab() of less complexity and improves
+the performance in such types of load I pointed. This will give a profit
+in case of !global reclaim case, since there also will be less
+do_shrink_slab() calls.
+
+This patchset is made against linux-next.git tree.
+
+v6: Added missed rcu_dereference() to memcg_set_shrinker_bit().
+    Use different functions for allocation and expanding map.
+    Use new memcg_shrinker_map_size variable in memcontrol.c.
+    Refactorings.
+
+v5: Make the optimizing logic under CONFIG_MEMCG_SHRINKER instead of MEMCG && !SLOB
+
+v4: Do not use memcg mem_cgroup_idr for iteration over mem cgroups
+
+v3: Many changes requested in commentaries to v2:
+
+1)rebase on prealloc_shrinker() code base
+2)root_mem_cgroup is made out of memcg maps
+3)rwsem replaced with shrinkers_nr_max_mutex
+4)changes around assignment of shrinker id to list lru
+5)everything renamed
+
+v2: Many changes requested in commentaries to v1:
+
+1)the code mostly moved to mm/memcontrol.c;
+2)using IDR instead of array of shrinkers;
+3)added a possibility to assign list_lru shrinker id
+  at the time of shrinker registering;
+4)reorginized locking and renamed functions and variables.
+
 ---
- include/linux/memcontrol.h |  7 +++++++
- mm/memcontrol.c            | 13 +++++++++++++
- mm/oom_kill.c              |  1 +
- 3 files changed, 21 insertions(+)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index d99b71bc2c66..12ffe4d0a4f8 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -464,6 +464,8 @@ void mem_cgroup_handle_over_high(void);
- 
- unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg);
- 
-+void mem_cgroup_print_memcg_name(struct task_struct *p);
-+
- void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
- 				struct task_struct *p);
- 
-@@ -858,6 +860,11 @@ static inline unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
- 	return 0;
- }
- 
-+static inline void
-+mem_cgroup_print_memcg_name(struct task_struct *p)
-+{
-+}
-+
- static inline void
- mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2bd3df3d101a..15fb5ea9ddc9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1118,6 +1118,19 @@ static const char *const memcg1_stat_names[] = {
- };
- 
- #define K(x) ((x) << (PAGE_SHIFT-10))
-+
-+/**
-+ * mem_cgroup_print_memcg_name: Print the memcg's name which contains the task
-+ * that will be killed by the oom-killer.
-+ * @p: Task that is going to be killed
-+ */
-+void mem_cgroup_print_memcg_name(struct task_struct *p)
-+{
-+	pr_info("Task in ");
-+	pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
-+	pr_cont(" killed as a result of limit of ");
-+}
-+
- /**
-  * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
-  * @memcg: The memory cgroup that went over limit
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 8ba6cb88cf58..73fdfa2311d5 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -433,6 +433,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
- 	if (is_memcg_oom(oc))
- 		mem_cgroup_print_oom_info(oc->memcg, p);
- 	else {
-+		mem_cgroup_print_memcg_name(p);
- 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
- 		if (is_dump_unreclaim_slabs())
- 			dump_unreclaimable_slab();
--- 
-2.14.1
+Kirill Tkhai (16):
+      list_lru: Combine code under the same define
+      mm: Introduce CONFIG_MEMCG_KMEM as combination of CONFIG_MEMCG && !CONFIG_SLOB
+      mm: Assign id to every memcg-aware shrinker
+      memcg: Move up for_each_mem_cgroup{,_tree} defines
+      mm: Assign memcg-aware shrinkers bitmap to memcg
+      mm: Refactoring in workingset_init()
+      fs: Refactoring in alloc_super()
+      fs: Propagate shrinker::id to list_lru
+      list_lru: Add memcg argument to list_lru_from_kmem()
+      list_lru: Pass dst_memcg argument to memcg_drain_list_lru_node()
+      list_lru: Pass lru argument to memcg_drain_list_lru_node()
+      mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
+      mm: Export mem_cgroup_is_root()
+      mm: Iterate only over charged shrinkers during memcg shrink_slab()
+      mm: Add SHRINK_EMPTY shrinker methods return value
+      mm: Clear shrinker bit if there are no objects related to memcg
+
+Vladimir Davydov (1):
+      mm: Generalize shrink_slab() calls in shrink_node()
+
+
+ fs/super.c                 |   11 ++
+ include/linux/list_lru.h   |   18 ++--
+ include/linux/memcontrol.h |   46 +++++++++-
+ include/linux/sched.h      |    2 
+ include/linux/shrinker.h   |   11 ++
+ include/linux/slab.h       |    2 
+ init/Kconfig               |    5 +
+ mm/list_lru.c              |   90 ++++++++++++++------
+ mm/memcontrol.c            |  173 ++++++++++++++++++++++++++++++++------
+ mm/slab.h                  |    6 +
+ mm/slab_common.c           |    8 +-
+ mm/vmscan.c                |  201 +++++++++++++++++++++++++++++++++++++++-----
+ mm/workingset.c            |   11 ++
+ 13 files changed, 479 insertions(+), 105 deletions(-)
+
+--
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
