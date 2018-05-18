@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 37CBF6B0590
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 03:50:15 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id w26-v6so6093606qto.4
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 00:50:15 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A9DC16B0592
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 03:50:19 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id u188-v6so6128113qkc.22
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 00:50:19 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 21-v6sor837492qkk.89.2018.05.18.00.50.14
+        by mx.google.com with SMTPS id q91-v6sor5739260qtd.28.2018.05.18.00.50.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 18 May 2018 00:50:14 -0700 (PDT)
+        Fri, 18 May 2018 00:50:18 -0700 (PDT)
 From: Kent Overstreet <kent.overstreet@gmail.com>
-Subject: [PATCH 07/10] block: Add missing flush_dcache_page() call
-Date: Fri, 18 May 2018 03:49:12 -0400
-Message-Id: <20180518074918.13816-15-kent.overstreet@gmail.com>
+Subject: [PATCH 08/10] block: Add warning for bi_next not NULL in bio_endio()
+Date: Fri, 18 May 2018 03:49:14 -0400
+Message-Id: <20180518074918.13816-17-kent.overstreet@gmail.com>
 In-Reply-To: <20180518074918.13816-1-kent.overstreet@gmail.com>
 References: <20180518074918.13816-1-kent.overstreet@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,26 +20,60 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Ingo Molnar <mingo@kernel.org>
 Cc: Kent Overstreet <kent.overstreet@gmail.com>
 
-Since a bio can point to userspace pages (e.g. direct IO), this is
-generally necessary.
+Recently found a bug where a driver left bi_next not NULL and then
+called bio_endio(), and then the submitter of the bio used
+bio_copy_data() which was treating src and dst as lists of bios.
+
+Fixed that bug by splitting out bio_list_copy_data(), but in case other
+things are depending on bi_next in weird ways, add a warning to help
+avoid more bugs like that in the future.
 
 Signed-off-by: Kent Overstreet <kent.overstreet@gmail.com>
 ---
- block/bio.c | 2 ++
- 1 file changed, 2 insertions(+)
+ block/bio.c      | 3 +++
+ block/blk-core.c | 8 +++++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)
 
 diff --git a/block/bio.c b/block/bio.c
-index c58544d4bc..ce8e259f9a 100644
+index ce8e259f9a..5c81391100 100644
 --- a/block/bio.c
 +++ b/block/bio.c
-@@ -994,6 +994,8 @@ void bio_copy_data_iter(struct bio *dst, struct bvec_iter *dst_iter,
- 		kunmap_atomic(dst_p);
- 		kunmap_atomic(src_p);
+@@ -1775,6 +1775,9 @@ void bio_endio(struct bio *bio)
+ 	if (!bio_integrity_endio(bio))
+ 		return;
  
-+		flush_dcache_page(dst_bv.bv_page);
++	if (WARN_ONCE(bio->bi_next, "driver left bi_next not NULL"))
++		bio->bi_next = NULL;
 +
- 		bio_advance_iter(src, src_iter, bytes);
- 		bio_advance_iter(dst, dst_iter, bytes);
- 	}
+ 	/*
+ 	 * Need to have a real endio function for chained bios, otherwise
+ 	 * various corner cases will break (like stacking block devices that
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 66f24798ef..f3cf79198a 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -204,6 +204,10 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
+ 	bio_advance(bio, nbytes);
+ 
+ 	/* don't actually finish bio if it's part of flush sequence */
++	/*
++	 * XXX this code looks suspicious - it's not consistent with advancing
++	 * req->bio in caller
++	 */
+ 	if (bio->bi_iter.bi_size == 0 && !(rq->rq_flags & RQF_FLUSH_SEQ))
+ 		bio_endio(bio);
+ }
+@@ -2982,8 +2986,10 @@ bool blk_update_request(struct request *req, blk_status_t error,
+ 		struct bio *bio = req->bio;
+ 		unsigned bio_bytes = min(bio->bi_iter.bi_size, nr_bytes);
+ 
+-		if (bio_bytes == bio->bi_iter.bi_size)
++		if (bio_bytes == bio->bi_iter.bi_size) {
+ 			req->bio = bio->bi_next;
++			bio->bi_next = NULL;
++		}
+ 
+ 		/* Completion has already been traced */
+ 		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
 -- 
 2.17.0
