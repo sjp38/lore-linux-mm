@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 134696B0660
+	by kanga.kvack.org (Postfix) with ESMTP id 3D1B06B0661
 	for <linux-mm@kvack.org>; Fri, 18 May 2018 15:45:25 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l85-v6so5249451pfb.18
+Received: by mail-pf0-f197.google.com with SMTP id 62-v6so5270346pfw.21
         for <linux-mm@kvack.org>; Fri, 18 May 2018 12:45:25 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d124-v6si8247408pfc.176.2018.05.18.12.45.23
+        by mx.google.com with ESMTPS id 91-v6si8193208plh.488.2018.05.18.12.45.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Fri, 18 May 2018 12:45:23 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 04/17] mm: Switch s_mem and slab_cache in struct page
-Date: Fri, 18 May 2018 12:45:06 -0700
-Message-Id: <20180518194519.3820-5-willy@infradead.org>
+Subject: [PATCH v6 08/17] mm: Use page->deferred_list
+Date: Fri, 18 May 2018 12:45:10 -0700
+Message-Id: <20180518194519.3820-9-willy@infradead.org>
 In-Reply-To: <20180518194519.3820-1-willy@infradead.org>
 References: <20180518194519.3820-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,51 +22,47 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundatio
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This will allow us to store slub's counters in the same bits as slab's
-s_mem.  slub now needs to set page->mapping to NULL as it frees the page,
-just like slab does.
+Now that we can represent the location of 'deferred_list' in C instead
+of comments, make use of that ability.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-Acked-by: Christoph Lameter <cl@linux.com>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm_types.h | 4 ++--
- mm/slub.c                | 1 +
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ mm/huge_memory.c | 7 ++-----
+ mm/page_alloc.c  | 2 +-
+ 2 files changed, 3 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 41828fb34860..e97a310a6abe 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -83,7 +83,7 @@ struct page {
- 		/* See page-flags.h for the definition of PAGE_MAPPING_FLAGS */
- 		struct address_space *mapping;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a3a1815f8e11..cb0954a6de88 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -483,11 +483,8 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
  
--		void *s_mem;			/* slab first object */
-+		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
- 		atomic_t compound_mapcount;	/* first tail page */
- 		/* page_deferred_list().next	 -- second tail page */
- 	};
-@@ -194,7 +194,7 @@ struct page {
- 		spinlock_t ptl;
- #endif
- #endif
--		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
-+		void *s_mem;			/* slab first object */
- 	};
+ static inline struct list_head *page_deferred_list(struct page *page)
+ {
+-	/*
+-	 * ->lru in the tail pages is occupied by compound_head.
+-	 * Let's use ->mapping + ->index in the second tail page as list_head.
+-	 */
+-	return (struct list_head *)&page[2].mapping;
++	/* ->lru in the tail pages is occupied by compound_head. */
++	return &page[2].deferred_list;
+ }
  
- #ifdef CONFIG_MEMCG
-diff --git a/mm/slub.c b/mm/slub.c
-index e938184ac847..7fc13c46e975 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1690,6 +1690,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 	__ClearPageSlab(page);
- 
- 	page_mapcount_reset(page);
-+	page->mapping = NULL;
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
- 	memcg_uncharge_slab(page, order, s);
+ void prep_transhuge_page(struct page *page)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index da3eb2236ba1..1a0149c4f672 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -933,7 +933,7 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
+ 	case 2:
+ 		/*
+ 		 * the second tail page: ->mapping is
+-		 * page_deferred_list().next -- ignore value.
++		 * deferred_list.next -- ignore value.
+ 		 */
+ 		break;
+ 	default:
 -- 
 2.17.0
