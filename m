@@ -1,25 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 965826B05C2
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 04:58:44 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y9-v6so735749wrg.22
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 01:58:44 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 52B4D6B05C3
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 05:00:06 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b83-v6so2999240wme.7
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 02:00:06 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g16-v6si4711807edg.21.2018.05.18.01.58.43
+        by mx.google.com with ESMTPS id f18-v6si106307edd.11.2018.05.18.02.00.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 18 May 2018 01:58:43 -0700 (PDT)
-Date: Fri, 18 May 2018 10:58:42 +0200
+        Fri, 18 May 2018 02:00:05 -0700 (PDT)
+Date: Fri, 18 May 2018 11:00:04 +0200
 From: Johannes Thumshirn <jthumshirn@suse.de>
-Subject: Re: [PATCH 03/10] block: Add bioset_init()/bioset_exit()
-Message-ID: <20180518085842.j7cqesm3ojvntkh7@linux-x5ow.site>
+Subject: Re: [PATCH 08/10] block: Add warning for bi_next not NULL in
+ bio_endio()
+Message-ID: <20180518090004.i7e5kkrle4mjfqzv@linux-x5ow.site>
 References: <20180518074918.13816-1-kent.overstreet@gmail.com>
- <20180518074918.13816-6-kent.overstreet@gmail.com>
+ <20180518074918.13816-17-kent.overstreet@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180518074918.13816-6-kent.overstreet@gmail.com>
+In-Reply-To: <20180518074918.13816-17-kent.overstreet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kent Overstreet <kent.overstreet@gmail.com>
