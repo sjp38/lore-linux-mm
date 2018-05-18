@@ -1,69 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EA6C56B065A
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 15:40:00 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b83-v6so3783757wme.7
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 12:40:00 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d17-v6sor4208942wrd.34.2018.05.18.12.39.58
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CEB3E6B065F
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 15:45:24 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id o23-v6so5575881pll.12
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 12:45:24 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id u6-v6si8122009pls.462.2018.05.18.12.45.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 18 May 2018 12:39:58 -0700 (PDT)
-MIME-Version: 1.0
-References: <36b98132-d87f-9f75-f1a9-feee36ec8ee6@redhat.com> <20180518174448.GE5479@ram.oc3035372033.ibm.com>
-In-Reply-To: <20180518174448.GE5479@ram.oc3035372033.ibm.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 18 May 2018 12:39:46 -0700
-Message-ID: <CALCETrV_wYPKHna8R2Bu19nsDqF2dJWarLLsyHxbcYD_AgYfPg@mail.gmail.com>
-Subject: Re: pkeys on POWER: Default AMR, UAMOR values
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 18 May 2018 12:45:23 -0700 (PDT)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH v6 03/17] mm: Mark pages in use for page tables
+Date: Fri, 18 May 2018 12:45:05 -0700
+Message-Id: <20180518194519.3820-4-willy@infradead.org>
+In-Reply-To: <20180518194519.3820-1-willy@infradead.org>
+References: <20180518194519.3820-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linuxram@us.ibm.com
-Cc: Florian Weimer <fweimer@redhat.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
+To: linux-mm@kvack.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-On Fri, May 18, 2018 at 10:45 AM Ram Pai <linuxram@us.ibm.com> wrote:
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-> On Fri, May 18, 2018 at 03:17:14PM +0200, Florian Weimer wrote:
-> > I'm working on adding POWER pkeys support to glibc.  The coding work
-> > is done, but I'm faced with some test suite failures.
-> >
-> > Unlike the default x86 configuration, on POWER, existing threads
-> > have full access to newly allocated keys.
-> >
-> > Or, more precisely, in this scenario:
-> >
-> > * Thread A launches thread B
-> > * Thread B waits
-> > * Thread A allocations a protection key with pkey_alloc
-> > * Thread A applies the key to a page
-> > * Thread A signals thread B
-> > * Thread B starts to run and accesses the page
-> >
-> > Then at the end, the access will be granted.
-> >
-> > I hope it's not too late to change this to denied access.
-> >
-> > Furthermore, I think the UAMOR value is wrong as well because it
-> > prevents thread B at the end to set the AMR register.  In
-> > particular, if I do this
-> >
-> > * =E2=80=A6 (as before)
-> > * Thread A signals thread B
-> > * Thread B sets the access rights for the key to PKEY_DISABLE_ACCESS
-> > * Thread B reads the current access rights for the key
-> >
-> > then it still gets 0 (all access permitted) because the original
-> > UAMOR value inherited from thread A prior to the key allocation
-> > masks out the access right update for the newly allocated key.
+Define a new PageTable bit in the page_type and use it to mark pages in
+use as page tables.  This can be helpful when debugging crashdumps or
+analysing memory fragmentation.  Add a KPF flag to report these pages
+to userspace and update page-types.c to interpret that flag.
 
-> Florian, is the behavior on x86 any different? A key allocated in the
-> context off one thread is not meaningful in the context of any other
-> thread.
+Note that only pages currently accounted as NR_PAGETABLES are tracked
+as PageTable; this does not include pgd/p4d/pud/pmd pages.  Those will
+be the subject of a later patch.
 
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ fs/proc/page.c                         | 2 ++
+ include/linux/mm.h                     | 2 ++
+ include/linux/page-flags.h             | 6 ++++++
+ include/uapi/linux/kernel-page-flags.h | 2 +-
+ tools/vm/page-types.c                  | 1 +
+ 5 files changed, 12 insertions(+), 1 deletion(-)
 
-The difference is that x86 starts out with deny-all instead of allow-all.
-The POWER semantics make it very hard for a multithreaded program to
-meaningfully use protection keys to prevent accidental access to important
-memory.
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+index 1491918a33c3..792c78a49174 100644
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -154,6 +154,8 @@ u64 stable_page_flags(struct page *page)
+ 
+ 	if (PageBalloon(page))
+ 		u |= 1 << KPF_BALLOON;
++	if (PageTable(page))
++		u |= 1 << KPF_PGTABLE;
+ 
+ 	if (page_is_idle(page))
+ 		u |= 1 << KPF_IDLE;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index bd6588479d36..d4e9286a6402 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1819,6 +1819,7 @@ static inline bool pgtable_page_ctor(struct page *page)
+ {
+ 	if (!ptlock_init(page))
+ 		return false;
++	__SetPageTable(page);
+ 	inc_zone_page_state(page, NR_PAGETABLE);
+ 	return true;
+ }
+@@ -1826,6 +1827,7 @@ static inline bool pgtable_page_ctor(struct page *page)
+ static inline void pgtable_page_dtor(struct page *page)
+ {
+ 	pte_lock_deinit(page);
++	__ClearPageTable(page);
+ 	dec_zone_page_state(page, NR_PAGETABLE);
+ }
+ 
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 8c25b28a35aa..901943e4754b 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -655,6 +655,7 @@ PAGEFLAG_FALSE(DoubleMap)
+ #define PG_buddy	0x00000080
+ #define PG_balloon	0x00000100
+ #define PG_kmemcg	0x00000200
++#define PG_table	0x00000400
+ 
+ #define PageType(page, flag)						\
+ 	((page->page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
+@@ -693,6 +694,11 @@ PAGE_TYPE_OPS(Balloon, balloon)
+  */
+ PAGE_TYPE_OPS(Kmemcg, kmemcg)
+ 
++/*
++ * Marks pages in use as page tables.
++ */
++PAGE_TYPE_OPS(Table, table)
++
+ extern bool is_free_buddy_page(struct page *page);
+ 
+ __PAGEFLAG(Isolated, isolated, PF_ANY);
+diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
+index fa139841ec18..21b9113c69da 100644
+--- a/include/uapi/linux/kernel-page-flags.h
++++ b/include/uapi/linux/kernel-page-flags.h
+@@ -35,6 +35,6 @@
+ #define KPF_BALLOON		23
+ #define KPF_ZERO_PAGE		24
+ #define KPF_IDLE		25
+-
++#define KPF_PGTABLE		26
+ 
+ #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
+index a8783f48f77f..cce853dca691 100644
+--- a/tools/vm/page-types.c
++++ b/tools/vm/page-types.c
+@@ -131,6 +131,7 @@ static const char * const page_flag_names[] = {
+ 	[KPF_KSM]		= "x:ksm",
+ 	[KPF_THP]		= "t:thp",
+ 	[KPF_BALLOON]		= "o:balloon",
++	[KPF_PGTABLE]		= "g:pgtable",
+ 	[KPF_ZERO_PAGE]		= "z:zero_page",
+ 	[KPF_IDLE]              = "i:idle_page",
+ 
+-- 
+2.17.0
