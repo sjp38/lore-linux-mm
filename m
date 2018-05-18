@@ -1,58 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E0F16B05DE
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 10:37:53 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id 65-v6so4739102qkl.11
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 07:37:53 -0700 (PDT)
-Received: from a9-114.smtp-out.amazonses.com (a9-114.smtp-out.amazonses.com. [54.240.9.114])
-        by mx.google.com with ESMTPS id a7-v6si3381248qvm.21.2018.05.18.07.37.52
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D6306B05E2
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 11:12:43 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id w7-v6so4911871pfd.9
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 08:12:43 -0700 (PDT)
+Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com. [216.71.153.144])
+        by mx.google.com with ESMTPS id h127-v6si8531596pfb.111.2018.05.18.08.12.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 18 May 2018 07:37:52 -0700 (PDT)
-Date: Fri, 18 May 2018 14:37:52 +0000
-From: Christopher Lameter <cl@linux.com>
-Subject: [LSFMM] RDMA data corruption potential during FS writeback
-Message-ID: <0100016373af827b-e6164b8d-f12e-4938-bf1f-2f85ec830bc0-000000@email.amazonses.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 May 2018 08:12:39 -0700 (PDT)
+From: Bart Van Assche <Bart.VanAssche@wdc.com>
+Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
+Date: Fri, 18 May 2018 15:12:27 +0000
+Message-ID: <8f62d8f870c6b66e90d3e7f57acee481acff57f5.camel@wdc.com>
+References: <20180509013358.16399-1-kent.overstreet@gmail.com>
+	 <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
+	 <20180518090636.GA14738@kmo-pixel>
+In-Reply-To: <20180518090636.GA14738@kmo-pixel>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <6C4296218527E847BF86FEDDA17E97C3@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-rdma@vger.kernel.org
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>
+To: "kent.overstreet@gmail.com" <kent.overstreet@gmail.com>
+Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-There was a session at the Linux Filesystem and Memory Management summit
-on issues that are caused by devices using get_user_pages() or elevated
-refcounts to pin pages and then do I/O on them.
-
-See https://lwn.net/Articles/753027/
-
-Basically filesystems need to mark the pages readonly during writeback.
-Concurrent DMA into the page while it is written by a filesystem can cause
-corrupted data being written to the disk, cause incorrect checksums etc
-etc.
-
-The solution that was proposed at the meeting was that mmu notifiers can
-remedy that situation by allowing callbacks to the RDMA device to ensure
-that the RDMA device and the filesystem do not do concurrent writeback.
-
-This issue has been around for a long time and so far not caused too much
-grief it seems. Doing I/O to two devices from the same memory location is
-naturally a bit inconsistent in itself.
-
-But could we do more to prevent issues here? I think what may be useful is
-to not allow the memory registrations of file back writable mappings
-unless the device driver provides mmu callbacks or something like that.
-
-There is also the longstanding issue of the refcounts that are held over
-long time periods. If we require mmu notifier callbacks then we may as
-well go to on demand paging mode for RDMA memory registrations. This
-avoids increasing the refcounts long term and allows easy access control /
-page removal for memory management.
-
-There may even be more issues if DAX is being used but the FS writeback
-has the potential of biting anyone at this point it seems.
-
-I think we need to put some thought into these issues and we need some
-coordination between the RDMA developers and memory management. RDMA seems
-to be more and more important and thus its likely that issues like this
-will become more important.
+T24gRnJpLCAyMDE4LTA1LTE4IGF0IDA1OjA2IC0wNDAwLCBLZW50IE92ZXJzdHJlZXQgd3JvdGU6
+DQo+IE9uIFRodSwgTWF5IDE3LCAyMDE4IGF0IDA4OjU0OjU3UE0gKzAwMDAsIEJhcnQgVmFuIEFz
+c2NoZSB3cm90ZToNCj4gPiBXaXRoIEplbnMnIGxhdGVzdCBmb3ItbmV4dCBicmFuY2ggSSBoaXQg
+dGhlIGtlcm5lbCB3YXJuaW5nIHNob3duIGJlbG93LiBDYW4NCj4gPiB5b3UgaGF2ZSBhIGxvb2s/
+DQo+IA0KPiBBbnkgaGludHMgb24gaG93IHRvIHJlcHJvZHVjZSBpdD8NCg0KU3VyZS4gVGhpcyBp
+cyBob3cgSSB0cmlnZ2VyZWQgaXQ6DQoqIENsb25lIGh0dHBzOi8vZ2l0aHViLmNvbS9idmFuYXNz
+Y2hlL3NycC10ZXN0Lg0KKiBGb2xsb3cgdGhlIGluc3RydWN0aW9ucyBpbiBSRUFETUUubWQuDQoq
+IFJ1biBzcnAtdGVzdC9ydW5fdGVzdHMgLWMgLXIgMTANCg0KVGhhbmtzLA0KDQpCYXJ0Lg0KDQoN
+Cg0KDQo=
