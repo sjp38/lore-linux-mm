@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D1B06B0661
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 850156B0663
 	for <linux-mm@kvack.org>; Fri, 18 May 2018 15:45:25 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 62-v6so5270346pfw.21
+Received: by mail-pf0-f200.google.com with SMTP id x21-v6so5246160pfn.23
         for <linux-mm@kvack.org>; Fri, 18 May 2018 12:45:25 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 91-v6si8193208plh.488.2018.05.18.12.45.23
+        by mx.google.com with ESMTPS id l186-v6si6493605pgd.371.2018.05.18.12.45.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Fri, 18 May 2018 12:45:23 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v6 08/17] mm: Use page->deferred_list
-Date: Fri, 18 May 2018 12:45:10 -0700
-Message-Id: <20180518194519.3820-9-willy@infradead.org>
+Subject: [PATCH v6 01/17] s390: Use _refcount for pgtables
+Date: Fri, 18 May 2018 12:45:03 -0700
+Message-Id: <20180518194519.3820-2-willy@infradead.org>
 In-Reply-To: <20180518194519.3820-1-willy@infradead.org>
 References: <20180518194519.3820-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,47 +22,103 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundatio
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Now that we can represent the location of 'deferred_list' in C instead
-of comments, make use of that ability.
+s390 borrows the storage used for _mapcount in struct page in order to
+account whether the bottom or top half is being used for 2kB page
+tables.  I want to use that for something else, so use the top byte of
+_refcount instead of the bottom byte of _mapcount.  _refcount may
+temporarily be incremented by other CPUs that see a stale pointer to
+this page in the page cache, but each CPU can only increment it by one,
+and there are no systems with 2^24 CPUs today, so they will not change
+the upper byte of _refcount.  We do have to be a little careful not to
+lose any of their writes (as they will subsequently decrement the
+counter).
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 ---
- mm/huge_memory.c | 7 ++-----
- mm/page_alloc.c  | 2 +-
- 2 files changed, 3 insertions(+), 6 deletions(-)
+ arch/s390/mm/pgalloc.c | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index a3a1815f8e11..cb0954a6de88 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -483,11 +483,8 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+diff --git a/arch/s390/mm/pgalloc.c b/arch/s390/mm/pgalloc.c
+index 562f72955956..84bd6329a88d 100644
+--- a/arch/s390/mm/pgalloc.c
++++ b/arch/s390/mm/pgalloc.c
+@@ -190,14 +190,15 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
+ 		if (!list_empty(&mm->context.pgtable_list)) {
+ 			page = list_first_entry(&mm->context.pgtable_list,
+ 						struct page, lru);
+-			mask = atomic_read(&page->_mapcount);
++			mask = atomic_read(&page->_refcount) >> 24;
+ 			mask = (mask | (mask >> 4)) & 3;
+ 			if (mask != 3) {
+ 				table = (unsigned long *) page_to_phys(page);
+ 				bit = mask & 1;		/* =1 -> second 2K */
+ 				if (bit)
+ 					table += PTRS_PER_PTE;
+-				atomic_xor_bits(&page->_mapcount, 1U << bit);
++				atomic_xor_bits(&page->_refcount,
++							1U << (bit + 24));
+ 				list_del(&page->lru);
+ 			}
+ 		}
+@@ -218,12 +219,12 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
+ 	table = (unsigned long *) page_to_phys(page);
+ 	if (mm_alloc_pgste(mm)) {
+ 		/* Return 4K page table with PGSTEs */
+-		atomic_set(&page->_mapcount, 3);
++		atomic_xor_bits(&page->_refcount, 3 << 24);
+ 		memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
+ 		memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
+ 	} else {
+ 		/* Return the first 2K fragment of the page */
+-		atomic_set(&page->_mapcount, 1);
++		atomic_xor_bits(&page->_refcount, 1 << 24);
+ 		memset64((u64 *)table, _PAGE_INVALID, 2 * PTRS_PER_PTE);
+ 		spin_lock_bh(&mm->context.lock);
+ 		list_add(&page->lru, &mm->context.pgtable_list);
+@@ -242,7 +243,8 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
+ 		/* Free 2K page table fragment of a 4K page */
+ 		bit = (__pa(table) & ~PAGE_MASK)/(PTRS_PER_PTE*sizeof(pte_t));
+ 		spin_lock_bh(&mm->context.lock);
+-		mask = atomic_xor_bits(&page->_mapcount, 1U << bit);
++		mask = atomic_xor_bits(&page->_refcount, 1U << (bit + 24));
++		mask >>= 24;
+ 		if (mask & 3)
+ 			list_add(&page->lru, &mm->context.pgtable_list);
+ 		else
+@@ -253,7 +255,6 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
+ 	}
  
- static inline struct list_head *page_deferred_list(struct page *page)
- {
--	/*
--	 * ->lru in the tail pages is occupied by compound_head.
--	 * Let's use ->mapping + ->index in the second tail page as list_head.
--	 */
--	return (struct list_head *)&page[2].mapping;
-+	/* ->lru in the tail pages is occupied by compound_head. */
-+	return &page[2].deferred_list;
+ 	pgtable_page_dtor(page);
+-	atomic_set(&page->_mapcount, -1);
+ 	__free_page(page);
  }
  
- void prep_transhuge_page(struct page *page)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index da3eb2236ba1..1a0149c4f672 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -933,7 +933,7 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
- 	case 2:
- 		/*
- 		 * the second tail page: ->mapping is
--		 * page_deferred_list().next -- ignore value.
-+		 * deferred_list.next -- ignore value.
- 		 */
+@@ -274,7 +275,8 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
+ 	}
+ 	bit = (__pa(table) & ~PAGE_MASK) / (PTRS_PER_PTE*sizeof(pte_t));
+ 	spin_lock_bh(&mm->context.lock);
+-	mask = atomic_xor_bits(&page->_mapcount, 0x11U << bit);
++	mask = atomic_xor_bits(&page->_refcount, 0x11U << (bit + 24));
++	mask >>= 24;
+ 	if (mask & 3)
+ 		list_add_tail(&page->lru, &mm->context.pgtable_list);
+ 	else
+@@ -296,12 +298,13 @@ static void __tlb_remove_table(void *_table)
  		break;
- 	default:
+ 	case 1:		/* lower 2K of a 4K page table */
+ 	case 2:		/* higher 2K of a 4K page table */
+-		if (atomic_xor_bits(&page->_mapcount, mask << 4) != 0)
++		mask = atomic_xor_bits(&page->_refcount, mask << (4 + 24));
++		mask >>= 24;
++		if (mask != 0)
+ 			break;
+ 		/* fallthrough */
+ 	case 3:		/* 4K page table with pgstes */
+ 		pgtable_page_dtor(page);
+-		atomic_set(&page->_mapcount, -1);
+ 		__free_page(page);
+ 		break;
+ 	}
 -- 
 2.17.0
