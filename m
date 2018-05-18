@@ -1,89 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D5F746B0562
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 00:01:07 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id n26-v6so2405996pgd.2
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 21:01:07 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (lgeamrelo11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id e11-v6si5356911pgu.459.2018.05.17.21.01.05
-        for <linux-mm@kvack.org>;
-        Thu, 17 May 2018 21:01:06 -0700 (PDT)
-Date: Fri, 18 May 2018 13:01:04 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] Revert "mm/cma: manage the memory of the CMA area by
- using the ZONE_MOVABLE"
-Message-ID: <20180518040104.GA17433@js1304-desktop>
-References: <20180517125959.8095-1-ville.syrjala@linux.intel.com>
- <20180517132109.GU12670@dhcp22.suse.cz>
- <20180517133629.GH23723@intel.com>
- <20180517135832.GI23723@intel.com>
- <20180517164947.GV12670@dhcp22.suse.cz>
- <20180517170816.GW12670@dhcp22.suse.cz>
- <ccbe3eda-0880-1d59-2204-6bd4b317a4fe@redhat.com>
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A29AF6B0564
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 00:23:40 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id x32-v6so4260926pld.16
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 21:23:40 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id h13-v6si5239174pgq.138.2018.05.17.21.23.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 17 May 2018 21:23:38 -0700 (PDT)
+Subject: Re: mmotm 2018-05-17-16-26 uploaded (autofs)
+References: <20180517232639.sD6Cz%akpm@linux-foundation.org>
+ <19926e1e-6dba-3b9f-fd97-d9eb88bfb7dd@infradead.org>
+ <49acf718-da2e-73dc-a3bf-c41d7546576e@themaw.net>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <9e3dfece-46a0-8ab2-2c7e-3edf956703a8@infradead.org>
+Date: Thu, 17 May 2018 21:23:33 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <ccbe3eda-0880-1d59-2204-6bd4b317a4fe@redhat.com>
+In-Reply-To: <49acf718-da2e-73dc-a3bf-c41d7546576e@themaw.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Ville =?iso-8859-1?Q?Syrj=E4l=E4?= <ville.syrjala@linux.intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Tony Lindgren <tony@atomide.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ian Kent <raven@themaw.net>, akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-On Thu, May 17, 2018 at 10:53:32AM -0700, Laura Abbott wrote:
-> On 05/17/2018 10:08 AM, Michal Hocko wrote:
-> >On Thu 17-05-18 18:49:47, Michal Hocko wrote:
-> >>On Thu 17-05-18 16:58:32, Ville Syrjala wrote:
-> >>>On Thu, May 17, 2018 at 04:36:29PM +0300, Ville Syrjala wrote:
-> >>>>On Thu, May 17, 2018 at 03:21:09PM +0200, Michal Hocko wrote:
-> >>>>>On Thu 17-05-18 15:59:59, Ville Syrjala wrote:
-> >>>>>>From: Ville Syrjala <ville.syrjala@linux.intel.com>
-> >>>>>>
-> >>>>>>This reverts commit bad8c6c0b1144694ecb0bc5629ede9b8b578b86e.
-> >>>>>>
-> >>>>>>Make x86 with HIGHMEM=y and CMA=y boot again.
-> >>>>>
-> >>>>>Is there any bug report with some more details? It is much more
-> >>>>>preferable to fix the issue rather than to revert the whole thing
-> >>>>>right away.
-> >>>>
-> >>>>The machine I have in front of me right now didn't give me anything.
-> >>>>Black screen, and netconsole was silent. No serial port on this
-> >>>>machine unfortunately.
-> >>>
-> >>>Booted on another machine with serial:
-> >>
-> >>Could you provide your .config please?
-> >>
-> >>[...]
-> >>>[    0.000000] cma: Reserved 4 MiB at 0x0000000037000000
-> >>[...]
-> >>>[    0.000000] BUG: Bad page state in process swapper  pfn:377fe
-> >>>[    0.000000] page:f53effc0 count:0 mapcount:-127 mapping:00000000 index:0x0
-> >>
-> >>OK, so this looks the be the source of the problem. -128 would be a
-> >>buddy page but I do not see anything that would set the counter to -127
-> >>and the real map count updates shouldn't really happen that early.
-> >>
-> >>Maybe CONFIG_DEBUG_VM and CONFIG_DEBUG_HIGHMEM will tell us more.
-> >
-> >Looking closer, I _think_ that the bug is in set_highmem_pages_init->is_highmem
-> >and zone_movable_is_highmem might force CMA pages in the zone movable to
-> >be initialized as highmem. And that sounds supicious to me. Joonsoo?
-> >
+On 05/17/2018 08:50 PM, Ian Kent wrote:
+> On 18/05/18 08:21, Randy Dunlap wrote:
+>> On 05/17/2018 04:26 PM, akpm@linux-foundation.org wrote:
+>>> The mm-of-the-moment snapshot 2018-05-17-16-26 has been uploaded to
+>>>
+>>>    http://www.ozlabs.org/~akpm/mmotm/
+>>>
+>>> mmotm-readme.txt says
+>>>
+>>> README for mm-of-the-moment:
+>>>
+>>> http://www.ozlabs.org/~akpm/mmotm/
+>>>
+>>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+>>> more than once a week.
+>>>
+>>> You will need quilt to apply these patches to the latest Linus release (4.x
+>>> or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+>>> http://ozlabs.org/~akpm/mmotm/series
+>>>
+>>> The file broken-out.tar.gz contains two datestamp files: .DATE and
+>>> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+>>> followed by the base kernel version against which this patch series is to
+>>> be applied.
+>>>
+>>> This tree is partially included in linux-next.  To see which patches are
+>>> included in linux-next, consult the `series' file.  Only the patches
+>>> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+>>> linux-next.
+>>>
+>>> A git tree which contains the memory management portion of this tree is
+>>> maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+>>> by Michal Hocko.  It contains the patches which are between the
+>>> "#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+>>> file, http://www.ozlabs.org/~akpm/mmotm/series.
+>>>
+>>>
+>>> A full copy of the full kernel tree with the linux-next and mmotm patches
+>>> already applied is available through git within an hour of the mmotm
+>>> release.  Individual mmotm releases are tagged.  The master branch always
+>>> points to the latest release, so it's constantly rebasing.
+>>
+>>
+>> on x86_64: with (randconfig):
+>> CONFIG_AUTOFS_FS=y
+>> CONFIG_AUTOFS4_FS=y
 > 
-> For a point of reference, arm with this configuration doesn't hit this bug
-> because highmem pages are freed via the memblock interface only instead
-> of iterating through each zone. It looks like the x86 highmem code
-> assumes only a single highmem zone and/or it's disjoint?
+> Oh right, I need to make these exclusive.
+> 
+> I seem to remember trying to do that along the way, can't remember why
+> I didn't do it in the end.
+> 
+> Any suggestions about potential problems when doing it?
 
-Good point! Reason of the crash is that the span of MOVABLE_ZONE is
-extended to whole node span for future CMA initialization, and,
-normal memory is wrongly freed here.
+I think that just using "depends on" for each of them will cause kconfig to
+complain about circular dependencies, so probably using "choice" will be
+needed.  Or (since this is just temporary?) just say "don't do that."
 
-Here goes the fix. Ville, Could you test below patch?
-I re-generated the issue on my side and this patch fixed it.
-
-Thanks.
-
------------->8-------------
+-- 
+~Randy
