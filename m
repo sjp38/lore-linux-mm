@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 390FB6B0619
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 12:49:27 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id p189-v6so5060270pfp.2
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 09:49:27 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 108946B061A
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 12:49:30 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g1-v6so5050574pfh.19
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 09:49:30 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g1-v6si7627834pld.11.2018.05.18.09.49.26
+        by mx.google.com with ESMTPS id b79-v6si7967862pfm.104.2018.05.18.09.49.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 18 May 2018 09:49:26 -0700 (PDT)
+        Fri, 18 May 2018 09:49:28 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 18/34] xfs: use iomap for blocksize == PAGE_SIZE readpage and readpages
-Date: Fri, 18 May 2018 18:48:14 +0200
-Message-Id: <20180518164830.1552-19-hch@lst.de>
+Subject: [PATCH 19/34] xfs: simplify xfs_bmap_punch_delalloc_range
+Date: Fri, 18 May 2018 18:48:15 +0200
+Message-Id: <20180518164830.1552-20-hch@lst.de>
 In-Reply-To: <20180518164830.1552-1-hch@lst.de>
 References: <20180518164830.1552-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,37 +20,121 @@ List-ID: <linux-mm.kvack.org>
 To: linux-xfs@vger.kernel.org
 Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-For file systems with a block size that equals the page size we never do
-partial reads, so we can use the buffer_head-less iomap versions of
-readpage and readpages without conflicting with the buffer_head structures
-create later in write_begin.
+Instead of using xfs_bmapi_read to find delalloc extents and then punch
+them out using xfs_bunmapi, opencode the loop to iterate over the extents
+and call xfs_bmap_del_extent_delay directly.  This both simplifies the
+code and reduces the number of extent tree lookups required.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/xfs/xfs_aops.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ fs/xfs/xfs_bmap_util.c | 78 ++++++++++++++----------------------------
+ 1 file changed, 25 insertions(+), 53 deletions(-)
 
-diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index 56e405572909..c631c457b444 100644
---- a/fs/xfs/xfs_aops.c
-+++ b/fs/xfs/xfs_aops.c
-@@ -1402,6 +1402,8 @@ xfs_vm_readpage(
- 	struct page		*page)
- {
- 	trace_xfs_vm_readpage(page->mapping->host, 1);
-+	if (i_blocksize(page->mapping->host) == PAGE_SIZE)
-+		return iomap_readpage(page, &xfs_iomap_ops);
- 	return mpage_readpage(page, xfs_get_blocks);
+diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
+index 06badcbadeb4..c009bdf9fdce 100644
+--- a/fs/xfs/xfs_bmap_util.c
++++ b/fs/xfs/xfs_bmap_util.c
+@@ -695,12 +695,10 @@ xfs_getbmap(
  }
  
-@@ -1413,6 +1415,8 @@ xfs_vm_readpages(
- 	unsigned		nr_pages)
+ /*
+- * dead simple method of punching delalyed allocation blocks from a range in
+- * the inode. Walks a block at a time so will be slow, but is only executed in
+- * rare error cases so the overhead is not critical. This will always punch out
+- * both the start and end blocks, even if the ranges only partially overlap
+- * them, so it is up to the caller to ensure that partial blocks are not
+- * passed in.
++ * Dead simple method of punching delalyed allocation blocks from a range in
++ * the inode.  This will always punch out both the start and end blocks, even
++ * if the ranges only partially overlap them, so it is up to the caller to
++ * ensure that partial blocks are not passed in.
+  */
+ int
+ xfs_bmap_punch_delalloc_range(
+@@ -708,63 +706,37 @@ xfs_bmap_punch_delalloc_range(
+ 	xfs_fileoff_t		start_fsb,
+ 	xfs_fileoff_t		length)
  {
- 	trace_xfs_vm_readpages(mapping->host, nr_pages);
-+	if (i_blocksize(mapping->host) == PAGE_SIZE)
-+		return iomap_readpages(mapping, pages, nr_pages, &xfs_iomap_ops);
- 	return mpage_readpages(mapping, pages, nr_pages, xfs_get_blocks);
- }
+-	xfs_fileoff_t		remaining = length;
++	struct xfs_ifork	*ifp = &ip->i_df;
++	struct xfs_bmbt_irec	got, del;
++	struct xfs_iext_cursor	icur;
+ 	int			error = 0;
  
+ 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+ 
+-	do {
+-		int		done;
+-		xfs_bmbt_irec_t	imap;
+-		int		nimaps = 1;
+-		xfs_fsblock_t	firstblock;
+-		struct xfs_defer_ops dfops;
++	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
++		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
++		if (error)
++			return error;
++	}
+ 
+-		/*
+-		 * Map the range first and check that it is a delalloc extent
+-		 * before trying to unmap the range. Otherwise we will be
+-		 * trying to remove a real extent (which requires a
+-		 * transaction) or a hole, which is probably a bad idea...
+-		 */
+-		error = xfs_bmapi_read(ip, start_fsb, 1, &imap, &nimaps,
+-				       XFS_BMAPI_ENTIRE);
++	if (!xfs_iext_lookup_extent(ip, ifp, start_fsb, &icur, &got))
++		return 0;
+ 
+-		if (error) {
+-			/* something screwed, just bail */
+-			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+-				xfs_alert(ip->i_mount,
+-			"Failed delalloc mapping lookup ino %lld fsb %lld.",
+-						ip->i_ino, start_fsb);
+-			}
++	do {
++		if (got.br_startoff >= start_fsb + length)
+ 			break;
+-		}
+-		if (!nimaps) {
+-			/* nothing there */
+-			goto next_block;
+-		}
+-		if (imap.br_startblock != DELAYSTARTBLOCK) {
+-			/* been converted, ignore */
+-			goto next_block;
+-		}
+-		WARN_ON(imap.br_blockcount == 0);
++		if (!isnullstartblock(got.br_startblock))
++			continue;
+ 
+-		/*
+-		 * Note: while we initialise the firstblock/dfops pair, they
+-		 * should never be used because blocks should never be
+-		 * allocated or freed for a delalloc extent and hence we need
+-		 * don't cancel or finish them after the xfs_bunmapi() call.
+-		 */
+-		xfs_defer_init(&dfops, &firstblock);
+-		error = xfs_bunmapi(NULL, ip, start_fsb, 1, 0, 1, &firstblock,
+-					&dfops, &done);
++		del = got;
++		xfs_trim_extent(&del, start_fsb, length);
++		error = xfs_bmap_del_extent_delay(ip, XFS_DATA_FORK, &icur,
++				&got, &del);
+ 		if (error)
+ 			break;
+-
+-		ASSERT(!xfs_defer_has_unfinished_work(&dfops));
+-next_block:
+-		start_fsb++;
+-		remaining--;
+-	} while(remaining > 0);
++		if (!xfs_iext_get_extent(ifp, &icur, &got))
++			break;
++	} while (xfs_iext_next_extent(ifp, &icur, &got));
+ 
+ 	return error;
+ }
 -- 
 2.17.0
