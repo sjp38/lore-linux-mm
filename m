@@ -1,77 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 46FE46B0570
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 00:37:47 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id a5-v6so4291145plp.8
-        for <linux-mm@kvack.org>; Thu, 17 May 2018 21:37:47 -0700 (PDT)
-Received: from ns.ascade.co.jp (ext-host0001.ascade.co.jp. [218.224.228.194])
-        by mx.google.com with ESMTP id f2-v6si7286619pli.569.2018.05.17.21.37.46
-        for <linux-mm@kvack.org>;
-        Thu, 17 May 2018 21:37:46 -0700 (PDT)
-Subject: [PATCH v2 5/7] hugetlb: add charge_surplus_hugepages attribute
-References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
-From: TSUKADA Koutaro <tsukada@ascade.co.jp>
-Message-ID: <2e8b5907-36e1-094b-ec87-149e1f0b7f69@ascade.co.jp>
-Date: Fri, 18 May 2018 13:37:37 +0900
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ABA2F6B0572
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 00:38:17 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id t185-v6so2743302wmt.8
+        for <linux-mm@kvack.org>; Thu, 17 May 2018 21:38:17 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id n32-v6si5668903edd.33.2018.05.17.21.38.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 May 2018 21:38:16 -0700 (PDT)
+Subject: Re: mmotm 2018-05-17-16-26 uploaded (autofs)
+References: <20180517232639.sD6Cz%akpm@linux-foundation.org>
+ <19926e1e-6dba-3b9f-fd97-d9eb88bfb7dd@infradead.org>
+ <49acf718-da2e-73dc-a3bf-c41d7546576e@themaw.net>
+ <9e3dfece-46a0-8ab2-2c7e-3edf956703a8@infradead.org>
+From: Ian Kent <raven@themaw.net>
+Message-ID: <6441e45b-6216-a20a-5b1d-6f5663d701dd@themaw.net>
+Date: Fri, 18 May 2018 12:38:09 +0800
 MIME-Version: 1.0
-In-Reply-To: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
+In-Reply-To: <9e3dfece-46a0-8ab2-2c7e-3edf956703a8@infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, tsukada@ascade.co.jp
+To: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au, linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-Add an entry for charge_surplus_hugepages to sysfs.
+On 18/05/18 12:23, Randy Dunlap wrote:
+> On 05/17/2018 08:50 PM, Ian Kent wrote:
+>> On 18/05/18 08:21, Randy Dunlap wrote:
+>>> On 05/17/2018 04:26 PM, akpm@linux-foundation.org wrote:
+>>>> The mm-of-the-moment snapshot 2018-05-17-16-26 has been uploaded to
+>>>>
+>>>>    http://www.ozlabs.org/~akpm/mmotm/
+>>>>
+>>>> mmotm-readme.txt says
+>>>>
+>>>> README for mm-of-the-moment:
+>>>>
+>>>> http://www.ozlabs.org/~akpm/mmotm/
+>>>>
+>>>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+>>>> more than once a week.
+>>>>
+>>>> You will need quilt to apply these patches to the latest Linus release (4.x
+>>>> or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+>>>> http://ozlabs.org/~akpm/mmotm/series
+>>>>
+>>>> The file broken-out.tar.gz contains two datestamp files: .DATE and
+>>>> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+>>>> followed by the base kernel version against which this patch series is to
+>>>> be applied.
+>>>>
+>>>> This tree is partially included in linux-next.  To see which patches are
+>>>> included in linux-next, consult the `series' file.  Only the patches
+>>>> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+>>>> linux-next.
+>>>>
+>>>> A git tree which contains the memory management portion of this tree is
+>>>> maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+>>>> by Michal Hocko.  It contains the patches which are between the
+>>>> "#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+>>>> file, http://www.ozlabs.org/~akpm/mmotm/series.
+>>>>
+>>>>
+>>>> A full copy of the full kernel tree with the linux-next and mmotm patches
+>>>> already applied is available through git within an hour of the mmotm
+>>>> release.  Individual mmotm releases are tagged.  The master branch always
+>>>> points to the latest release, so it's constantly rebasing.
+>>>
+>>>
+>>> on x86_64: with (randconfig):
+>>> CONFIG_AUTOFS_FS=y
+>>> CONFIG_AUTOFS4_FS=y
+>>
+>> Oh right, I need to make these exclusive.
+>>
+>> I seem to remember trying to do that along the way, can't remember why
+>> I didn't do it in the end.
+>>
+>> Any suggestions about potential problems when doing it?
+> 
+> I think that just using "depends on" for each of them will cause kconfig to
+> complain about circular dependencies, so probably using "choice" will be
+> needed.  Or (since this is just temporary?) just say "don't do that."
+> 
 
-Signed-off-by: TSUKADA Koutaro <tsukada@ascade.co.jp>
----
- hugetlb.c |   25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+No doubt that was what happened, unfortunately I forgot to return to it.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 9a9549c..2f9bdbc 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2662,6 +2662,30 @@ static ssize_t surplus_hugepages_show(struct kobject *kobj,
- }
- HSTATE_ATTR_RO(surplus_hugepages);
+Right, a conditional with a message should work .... thanks.
 
-+static ssize_t charge_surplus_hugepages_show(struct kobject *kobj,
-+					struct kobj_attribute *attr, char *buf)
-+{
-+	struct hstate *h = kobj_to_hstate(kobj, NULL);
-+	return sprintf(buf, "%d\n", h->charge_surplus_huge_pages);
-+}
-+
-+static ssize_t charge_surplus_hugepages_store(struct kobject *kobj,
-+		struct kobj_attribute *attr, const char *buf, size_t len)
-+{
-+	int err;
-+	unsigned long input;
-+	struct hstate *h = kobj_to_hstate(kobj, NULL);
-+
-+	err = kstrtoul(buf, 10, &input);
-+	if (err)
-+		return err;
-+
-+	h->charge_surplus_huge_pages = input ? true : false;
-+
-+	return len;
-+}
-+HSTATE_ATTR(charge_surplus_hugepages);
-+
- static struct attribute *hstate_attrs[] = {
- 	&nr_hugepages_attr.attr,
- 	&nr_overcommit_hugepages_attr.attr,
-@@ -2671,6 +2695,7 @@ static ssize_t surplus_hugepages_show(struct kobject *kobj,
- #ifdef CONFIG_NUMA
- 	&nr_hugepages_mempolicy_attr.attr,
- #endif
-+	&charge_surplus_hugepages_attr.attr,
- 	NULL,
- };
-
--- 
-Tsukada
+Ian
