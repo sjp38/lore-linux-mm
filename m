@@ -1,139 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7076A6B0691
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 17:56:09 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 142-v6so3906353wmt.1
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 14:56:09 -0700 (PDT)
-Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id m12-v6si4875430wrh.58.2018.05.18.14.56.07
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A4BB6B0693
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 18:01:35 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id w1-v6so6360798iod.1
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 15:01:35 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id a74-v6si7097506ioj.258.2018.05.18.15.01.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 May 2018 14:56:07 -0700 (PDT)
-Date: Fri, 18 May 2018 22:55:48 +0100
-From: Russell King - ARM Linux <linux@armlinux.org.uk>
-Subject: Re: dma_sync_*_for_cpu and direction=TO_DEVICE (was Re: [PATCH
- 02/20] dma-mapping: provide a generic dma-noncoherent implementation)
-Message-ID: <20180518215548.GH17671@n2100.armlinux.org.uk>
-References: <20180511075945.16548-1-hch@lst.de>
- <20180511075945.16548-3-hch@lst.de>
- <bad125dff49f6e49c895e818c9d1abb346a46e8e.camel@synopsys.com>
- <5ac5b1e3-9b96-9c7c-4dfe-f65be45ec179@synopsys.com>
- <20180518175004.GF17671@n2100.armlinux.org.uk>
- <cecfe6bd-ef1f-1e25-bfcf-992d1f828efb@synopsys.com>
+        Fri, 18 May 2018 15:01:33 -0700 (PDT)
+Subject: Re: [PATCH v2 1/4] mm: change type of free_contig_range(nr_pages) to
+ unsigned long
+References: <20180503232935.22539-1-mike.kravetz@oracle.com>
+ <20180503232935.22539-2-mike.kravetz@oracle.com>
+ <87d74ce0-b135-064d-a589-64235e44c388@suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <87943a21-4465-31bd-ed37-69253879ec47@oracle.com>
+Date: Fri, 18 May 2018 15:01:20 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <cecfe6bd-ef1f-1e25-bfcf-992d1f828efb@synopsys.com>
+In-Reply-To: <87d74ce0-b135-064d-a589-64235e44c388@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: Alexey Brodkin <Alexey.Brodkin@synopsys.com>, "hch@lst.de" <hch@lst.de>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, "monstr@monstr.eu" <monstr@monstr.eu>, "deanbo422@gmail.com" <deanbo422@gmail.com>, "linux-c6x-dev@linux-c6x.org" <linux-c6x-dev@linux-c6x.org>, "linux-parisc@vger.kernel.org" <linux-parisc@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, "linux-m68k@lists.linux-m68k.org" <linux-m68k@lists.linux-m68k.org>, "linux-hexagon@vger.kernel.org" <linux-hexagon@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "openrisc@lists.librecores.org" <openrisc@lists.librecores.org>, "green.hu@gmail.com" <green.hu@gmail.com>, "linux-alpha@vger.kernel.org" <linux-alpha@vger.kernel.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "nios2-dev@lists.rocketboards.org" <nios2-dev@lists.rocketboards.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Fri, May 18, 2018 at 01:35:08PM -0700, Vineet Gupta wrote:
-> On 05/18/2018 10:50 AM, Russell King - ARM Linux wrote:
-> >On Fri, May 18, 2018 at 10:20:02AM -0700, Vineet Gupta wrote:
-> >>I never understood the need for this direction. And if memory serves me
-> >>right, at that time I was seeing twice the amount of cache flushing !
-> >It's necessary.  Take a moment to think carefully about this:
-> >
-> >	dma_map_single(, dir)
-> >
-> >	dma_sync_single_for_cpu(, dir)
-> >
-> >	dma_sync_single_for_device(, dir)
-> >
-> >	dma_unmap_single(, dir)
+On 05/18/2018 02:12 AM, Vlastimil Babka wrote:
+> On 05/04/2018 01:29 AM, Mike Kravetz wrote:
+>> free_contig_range() is currently defined as:
+>> void free_contig_range(unsigned long pfn, unsigned nr_pages);
+>> change to,
+>> void free_contig_range(unsigned long pfn, unsigned long nr_pages);
+>>
+>> Some callers are passing a truncated unsigned long today.  It is
+>> highly unlikely that these values will overflow an unsigned int.
+>> However, this should be changed to an unsigned long to be consistent
+>> with other page counts.
+>>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+>> ---
+>>  include/linux/gfp.h | 2 +-
+>>  mm/cma.c            | 2 +-
+>>  mm/hugetlb.c        | 2 +-
+>>  mm/page_alloc.c     | 6 +++---
+>>  4 files changed, 6 insertions(+), 6 deletions(-)
+>>
+>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+>> index 1a4582b44d32..86a0d06463ab 100644
+>> --- a/include/linux/gfp.h
+>> +++ b/include/linux/gfp.h
+>> @@ -572,7 +572,7 @@ static inline bool pm_suspended_storage(void)
+>>  /* The below functions must be run on a range from a single zone. */
+>>  extern int alloc_contig_range(unsigned long start, unsigned long end,
+>>  			      unsigned migratetype, gfp_t gfp_mask);
+>> -extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
+>> +extern void free_contig_range(unsigned long pfn, unsigned long nr_pages);
+>>  #endif
+>>  
+>>  #ifdef CONFIG_CMA
+>> diff --git a/mm/cma.c b/mm/cma.c
+>> index aa40e6c7b042..f473fc2b7cbd 100644
+>> --- a/mm/cma.c
+>> +++ b/mm/cma.c
+>> @@ -563,7 +563,7 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
+>>  
+>>  	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
+>>  
+>> -	free_contig_range(pfn, count);
+>> +	free_contig_range(pfn, (unsigned long)count);
 > 
-> As an aside, do these imply a state machine of sorts - does a driver needs
-> to always call map_single first ?
+> I guess this cast from uint to ulong doesn't need to be explicit? But
+> instead, cma_release() signature could be also changed to ulong, because
+> some of its callers do pass those?
 
-Kind-of, but some drivers do omit some of the dma_sync_*() calls.
-For example, if a buffer is written to, then mapped with TO_DEVICE,
-and then the CPU wishes to write to it, it's fairly common that a
-driver omits the dma_sync_single_for_cpu() call.  If you think about
-the cases I gave and what cache operations happen, such a scenario
-practically turns out to be safe.
+Correct, that cast is not needed.
 
-> My original point of contention/confusion is the specific combinations of
-> API and direction, specifically for_cpu(TO_DEV) and for_device(TO_CPU)
+I like the idea of changing cma_release() to take ulong.  Until you mentioned
+this, I did not realize that some callers were passing in a truncated ulong.
+As noted in my commit message, this truncation is unlikely to be an issue.
+But, I think we should 'fix' them if we can.
 
-Remember that it is expected that all calls for a mapping use the
-same direction argument while that mapping exists.  In other words,
-if you call dma_map_single(TO_DEVICE) and then use any of the other
-functions, the other functions will also use TO_DEVICE.  The DMA
-direction argument describes the direction of the DMA operation
-being performed on the buffer, not on the individual dma_* operation.
+I'll spin another version with this change.
 
-What isn't expected at arch level is for drivers to do:
-
-	dma_map_single(TO_DEVICE)
-	dma_sync_single_for_cpu(FROM_DEVICE)
-
-or vice versa.
-
-> Semantically what does dma_sync_single_for_cpu(TO_DEV) even imply for a non
-> dma coherent arch.
 > 
-> Your tables below have "none" for both, implying it is unlikely to be a real
-> combination (for ARM and ARC atleast).
-
-Very little for the cases that I've stated (and as I mentioned
-above, some drivers do omit the call in that case.)
-
-> The other case, actually @dir TO_CPU, independent of for_{cpu, device} 
-> implies driver intends to touch it after the call, so it would invalidate
-> any stray lines, unconditionally (and not just for speculative prefetch
-> case).
-
-If you don't have a CPU that speculatively prefetches, and you've
-already had to invalidate the cache lines (to avoid write-backs
-corrupting DMA'd data) then there's no need for the architecture
-to do any work at the for_cpu(TO_CPU) case - the CPU shouldn't
-be touching cache lines that are part of the buffer while it is
-mapped, which means a non-speculating CPU won't pull in any
-cache lines without an explicit access.
-
-Speculating CPUs are different.  The action of the speculation is
-to try and guess what data the program wants to access ahead of
-the program flow.  That causes the CPU to prefetch data into the
-cache.  The point in the program flow that this happens is not
-really determinant to the programmer.  This means that if you try
-to read from the DMA buffer after the DMA operation has complete
-without invalidating the cache between the DMA completing and the
-CPU reading, you have no guarantee that you're reading the data
-that the DMA operation has been written.  The cache may have
-loaded itself with data before the DMA operation completed, and
-the CPU may see that stale data.
-
-The difference between non-speculating CPUs and speculating CPUs
-is that for non-speculating CPUs, caches work according to explicit
-accesses by the program, and the program is stalled while the data
-is fetched from external memory.  Speculating CPUs try to predict
-ahead of time what data the program will require in the future,
-and attempt to load that data into the caches _before_ the program
-requires it - which means that the program suffers fewer stalls.
-
-> >In the case of a DMA-incoherent architecture, the operations done at each
-> >stage depend on the direction argument:
-> >
-> >	map		for_cpu		for_device	unmap
-> >TO_DEV	writeback	none		writeback	none
-> >TO_CPU	invalidate	invalidate*	invalidate	invalidate*
-> >BIDIR	writeback	invalidate	writeback	invalidate
-> >
-> >* - only necessary if the CPU speculatively prefetches.
-> >
-> >The multiple invalidations for the TO_CPU case handles different
-> >conditions that can result in data corruption, and for some CPUs, all
-> >four are necessary.
+>>  	cma_clear_bitmap(cma, pfn, count);
+>>  	trace_cma_release(pfn, pages, count);
+>>  
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 218679138255..c81072ce7510 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -1055,7 +1055,7 @@ static void destroy_compound_gigantic_page(struct page *page,
+>>  
+>>  static void free_gigantic_page(struct page *page, unsigned int order)
+>>  {
+>> -	free_contig_range(page_to_pfn(page), 1 << order);
+>> +	free_contig_range(page_to_pfn(page), 1UL << order);
+>>  }
+>>  
+>>  static int __alloc_gigantic_page(unsigned long start_pfn,
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 905db9d7962f..0fd5e8e2456e 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -7937,9 +7937,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>>  	return ret;
+>>  }
+>>  
+>> -void free_contig_range(unsigned long pfn, unsigned nr_pages)
+>> +void free_contig_range(unsigned long pfn, unsigned long nr_pages)
+>>  {
+>> -	unsigned int count = 0;
+>> +	unsigned long count = 0;
+>>  
+>>  	for (; nr_pages--; pfn++) {
+>>  		struct page *page = pfn_to_page(pfn);
+>> @@ -7947,7 +7947,7 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+>>  		count += page_count(page) != 1;
+>>  		__free_page(page);
+>>  	}
+>> -	WARN(count != 0, "%d pages are still in use!\n", count);
+>> +	WARN(count != 0, "%ld pages are still in use!\n", count);
 > 
-> Can you please explain in some more detail, TO_CPU row, why invalidate is
-> conditional sometimes.
+> Maybe change to %lu while at it?
 
-See above - I hope my explanation above is sufficient.
+Yes
+
+> BTW, this warning can theoretically produce false positives, because
+> page users have to deal with page_count() being incremented by e.g.
+> parallel pfn scanners using get_page_unless_zero(). We also don't detect
+> refcount leaks in general. Should we remove it or change it to VM_WARN
+> if it's still useful for debugging?
+
+Added Marek on Cc: as he is the one who originally added this message (although
+it has been a long time).  I do not know what specific issue he was concerned
+with.  A search found a few bug reports related to this warning.  In these
+cases, it clearly was not a false positive but some other issue.  It 'appears'
+the message helped in those cases.
+
+However, I would hate for a support organization to spend a bunch of time
+doing investigation for a false positive.  At the very least, I think we
+should add a message/comment about the possibility of false positives in the
+code.  I would be inclined to change it to VM_WARN, but it would be good
+to get input from others who might find it useful as it.
 
 -- 
-RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
-According to speedtest.net: 8.21Mbps down 510kbps up
+Mike Kravetz
+
+> 
+>>  }
+>>  #endif
+>>  
+>>
+> 
