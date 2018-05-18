@@ -1,107 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CB5786B0582
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 03:20:33 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id a5-v6so2796362lfi.8
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 00:20:33 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ACDA6B0584
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 03:49:50 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id c132-v6so6179010qkg.10
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 00:49:50 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e30-v6sor1932134lfb.0.2018.05.18.00.20.31
+        by mx.google.com with SMTPS id 50-v6sor4651655qvr.94.2018.05.18.00.49.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 18 May 2018 00:20:31 -0700 (PDT)
-Date: Fri, 18 May 2018 10:20:26 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH] x86/mm: Drop TS_COMPAT on 64-bit exec() syscall
-Message-ID: <20180518072026.GY31735@uranus>
-References: <20180517233510.24996-1-dima@arista.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180517233510.24996-1-dima@arista.com>
+        Fri, 18 May 2018 00:49:49 -0700 (PDT)
+From: Kent Overstreet <kent.overstreet@gmail.com>
+Subject: [PATCH 01/10] mempool: Add mempool_init()/mempool_exit()
+Date: Fri, 18 May 2018 03:48:59 -0400
+Message-Id: <20180518074918.13816-2-kent.overstreet@gmail.com>
+In-Reply-To: <20180518074918.13816-1-kent.overstreet@gmail.com>
+References: <20180518074918.13816-1-kent.overstreet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dima@arista.com>
-Cc: linux-kernel@vger.kernel.org, Alexey Izbyshev <izbyshev@ispras.ru>, Alexander Monakov <amonakov@ispras.ru>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Dmitry Safonov <0x7f454c46@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, x86@kernel.org, stable@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Ingo Molnar <mingo@kernel.org>
+Cc: Kent Overstreet <kent.overstreet@gmail.com>
 
-On Fri, May 18, 2018 at 12:35:10AM +0100, Dmitry Safonov wrote:
-> The x86 mmap() code selects the mmap base for an allocation depending on
-> the bitness of the syscall. For 64bit sycalls it select mm->mmap_base and
-> for 32bit mm->mmap_compat_base.
-> 
-> exec() calls mmap() which in turn uses in_compat_syscall() to check whether
-> the mapping is for a 32bit or a 64bit task. The decision is made on the
-> following criteria:
-> 
->   ia32    child->thread.status & TS_COMPAT
->    x32    child->pt_regs.orig_ax & __X32_SYSCALL_BIT
->   ia64    !ia32 && !x32
-> 
-> __set_personality_x32() was dropping TS_COMPAT flag, but
-> set_personality_64bit() has kept compat syscall flag making
-> in_compat_syscall() return true during the first exec() syscall.
-> 
-> Which in result has user-visible effects, mentioned by Alexey:
-> 1) It breaks ASAN
-> $ gcc -fsanitize=address wrap.c -o wrap-asan
-> $ ./wrap32 ./wrap-asan true
-> ==1217==Shadow memory range interleaves with an existing memory mapping. ASan cannot proceed correctly. ABORTING.
-> ==1217==ASan shadow was supposed to be located in the [0x00007fff7000-0x10007fff7fff] range.
-> ==1217==Process memory map follows:
->         0x000000400000-0x000000401000   /home/izbyshev/test/gcc/asan-exec-from-32bit/wrap-asan
->         0x000000600000-0x000000601000   /home/izbyshev/test/gcc/asan-exec-from-32bit/wrap-asan
->         0x000000601000-0x000000602000   /home/izbyshev/test/gcc/asan-exec-from-32bit/wrap-asan
->         0x0000f7dbd000-0x0000f7de2000   /lib64/ld-2.27.so
->         0x0000f7fe2000-0x0000f7fe3000   /lib64/ld-2.27.so
->         0x0000f7fe3000-0x0000f7fe4000   /lib64/ld-2.27.so
->         0x0000f7fe4000-0x0000f7fe5000
->         0x7fed9abff000-0x7fed9af54000
->         0x7fed9af54000-0x7fed9af6b000   /lib64/libgcc_s.so.1
-> [snip]
-> 
-> 2) It doesn't seem to be great for security if an attacker always knows
-> that ld.so is going to be mapped into the first 4GB in this case
-> (the same thing happens for PIEs as well).
-> 
-> The testcase:
-> $ cat wrap.c
-> 
-> int main(int argc, char *argv[]) {
->   execvp(argv[1], &argv[1]);
->   return 127;
-> }
-> 
-> $ gcc wrap.c -o wrap
-> $ LD_SHOW_AUXV=1 ./wrap ./wrap true |& grep AT_BASE
-> AT_BASE:         0x7f63b8309000
-> AT_BASE:         0x7faec143c000
-> AT_BASE:         0x7fbdb25fa000
-> 
-> $ gcc -m32 wrap.c -o wrap32
-> $ LD_SHOW_AUXV=1 ./wrap32 ./wrap true |& grep AT_BASE
-> AT_BASE:         0xf7eff000
-> AT_BASE:         0xf7cee000
-> AT_BASE:         0x7f8b9774e000
-> 
-> Fixes:
-> commit 1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for 32-bit mmap()")
-> commit ada26481dfe6 ("x86/mm: Make in_compat_syscall() work during exec")
-> 
-> Cc: Borislav Petkov <bp@suse.de>
-> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-> Cc: Dmitry Safonov <0x7f454c46@gmail.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: <linux-mm@kvack.org>
-> Cc: <x86@kernel.org>
-> Cc: <stable@vger.kernel.org> # v4.12+
-> Reported-by: Alexey Izbyshev <izbyshev@ispras.ru>
-> Bisected-by: Alexander Monakov <amonakov@ispras.ru>
-> Investigated-by: Andy Lutomirski <luto@kernel.org>
-> Signed-off-by: Dmitry Safonov <dima@arista.com>
-Reviewed-by: Cyrill Gorcunov <gorcunov@openvz.org>
+Allows mempools to be embedded in other structs, getting rid of a
+pointer indirection from allocation fastpaths.
 
-Thanks a lot! (At first I had to scratch my head for a second
-to realize that the key moment is executing 64 bit application
-from inside of a compat process :-)
+mempool_exit() is safe to call on an uninitialized but zeroed mempool.
+
+Signed-off-by: Kent Overstreet <kent.overstreet@gmail.com>
+---
+ include/linux/mempool.h |  34 +++++++++++++
+ mm/mempool.c            | 108 ++++++++++++++++++++++++++++++----------
+ 2 files changed, 115 insertions(+), 27 deletions(-)
+
+diff --git a/include/linux/mempool.h b/include/linux/mempool.h
+index b51f5c430c..0c964ac107 100644
+--- a/include/linux/mempool.h
++++ b/include/linux/mempool.h
+@@ -25,6 +25,18 @@ typedef struct mempool_s {
+ 	wait_queue_head_t wait;
+ } mempool_t;
+ 
++static inline bool mempool_initialized(mempool_t *pool)
++{
++	return pool->elements != NULL;
++}
++
++void mempool_exit(mempool_t *pool);
++int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
++		      mempool_free_t *free_fn, void *pool_data,
++		      gfp_t gfp_mask, int node_id);
++int mempool_init(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
++		 mempool_free_t *free_fn, void *pool_data);
++
+ extern mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+ 			mempool_free_t *free_fn, void *pool_data);
+ extern mempool_t *mempool_create_node(int min_nr, mempool_alloc_t *alloc_fn,
+@@ -43,6 +55,14 @@ extern void mempool_free(void *element, mempool_t *pool);
+  */
+ void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data);
+ void mempool_free_slab(void *element, void *pool_data);
++
++static inline int
++mempool_init_slab_pool(mempool_t *pool, int min_nr, struct kmem_cache *kc)
++{
++	return mempool_init(pool, min_nr, mempool_alloc_slab,
++			    mempool_free_slab, (void *) kc);
++}
++
+ static inline mempool_t *
+ mempool_create_slab_pool(int min_nr, struct kmem_cache *kc)
+ {
+@@ -56,6 +76,13 @@ mempool_create_slab_pool(int min_nr, struct kmem_cache *kc)
+  */
+ void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data);
+ void mempool_kfree(void *element, void *pool_data);
++
++static inline int mempool_init_kmalloc_pool(mempool_t *pool, int min_nr, size_t size)
++{
++	return mempool_init(pool, min_nr, mempool_kmalloc,
++			    mempool_kfree, (void *) size);
++}
++
+ static inline mempool_t *mempool_create_kmalloc_pool(int min_nr, size_t size)
+ {
+ 	return mempool_create(min_nr, mempool_kmalloc, mempool_kfree,
+@@ -68,6 +95,13 @@ static inline mempool_t *mempool_create_kmalloc_pool(int min_nr, size_t size)
+  */
+ void *mempool_alloc_pages(gfp_t gfp_mask, void *pool_data);
+ void mempool_free_pages(void *element, void *pool_data);
++
++static inline int mempool_init_page_pool(mempool_t *pool, int min_nr, int order)
++{
++	return mempool_init(pool, min_nr, mempool_alloc_pages,
++			    mempool_free_pages, (void *)(long)order);
++}
++
+ static inline mempool_t *mempool_create_page_pool(int min_nr, int order)
+ {
+ 	return mempool_create(min_nr, mempool_alloc_pages, mempool_free_pages,
+diff --git a/mm/mempool.c b/mm/mempool.c
+index 5c9dce3471..df90ace400 100644
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -137,6 +137,28 @@ static void *remove_element(mempool_t *pool, gfp_t flags)
+ 	return element;
+ }
+ 
++/**
++ * mempool_destroy - exit a mempool initialized with mempool_init()
++ * @pool:      pointer to the memory pool which was initialized with
++ *             mempool_init().
++ *
++ * Free all reserved elements in @pool and @pool itself.  This function
++ * only sleeps if the free_fn() function sleeps.
++ *
++ * May be called on a zeroed but uninitialized mempool (i.e. allocated with
++ * kzalloc()).
++ */
++void mempool_exit(mempool_t *pool)
++{
++	while (pool->curr_nr) {
++		void *element = remove_element(pool, GFP_KERNEL);
++		pool->free(element, pool->pool_data);
++	}
++	kfree(pool->elements);
++	pool->elements = NULL;
++}
++EXPORT_SYMBOL(mempool_exit);
++
+ /**
+  * mempool_destroy - deallocate a memory pool
+  * @pool:      pointer to the memory pool which was allocated via
+@@ -150,15 +172,65 @@ void mempool_destroy(mempool_t *pool)
+ 	if (unlikely(!pool))
+ 		return;
+ 
+-	while (pool->curr_nr) {
+-		void *element = remove_element(pool, GFP_KERNEL);
+-		pool->free(element, pool->pool_data);
+-	}
+-	kfree(pool->elements);
++	mempool_exit(pool);
+ 	kfree(pool);
+ }
+ EXPORT_SYMBOL(mempool_destroy);
+ 
++int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
++		      mempool_free_t *free_fn, void *pool_data,
++		      gfp_t gfp_mask, int node_id)
++{
++	spin_lock_init(&pool->lock);
++	pool->min_nr	= min_nr;
++	pool->pool_data = pool_data;
++	pool->alloc	= alloc_fn;
++	pool->free	= free_fn;
++	init_waitqueue_head(&pool->wait);
++
++	pool->elements = kmalloc_array_node(min_nr, sizeof(void *),
++					    gfp_mask, node_id);
++	if (!pool->elements)
++		return -ENOMEM;
++
++	/*
++	 * First pre-allocate the guaranteed number of buffers.
++	 */
++	while (pool->curr_nr < pool->min_nr) {
++		void *element;
++
++		element = pool->alloc(gfp_mask, pool->pool_data);
++		if (unlikely(!element)) {
++			mempool_exit(pool);
++			return -ENOMEM;
++		}
++		add_element(pool, element);
++	}
++
++	return 0;
++}
++EXPORT_SYMBOL(mempool_init_node);
++
++/**
++ * mempool_init - initialize a memory pool
++ * @min_nr:    the minimum number of elements guaranteed to be
++ *             allocated for this pool.
++ * @alloc_fn:  user-defined element-allocation function.
++ * @free_fn:   user-defined element-freeing function.
++ * @pool_data: optional private data available to the user-defined functions.
++ *
++ * Like mempool_create(), but initializes the pool in (i.e. embedded in another
++ * structure).
++ */
++int mempool_init(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
++		 mempool_free_t *free_fn, void *pool_data)
++{
++	return mempool_init_node(pool, min_nr, alloc_fn, free_fn,
++				 pool_data, GFP_KERNEL, NUMA_NO_NODE);
++
++}
++EXPORT_SYMBOL(mempool_init);
++
+ /**
+  * mempool_create - create a memory pool
+  * @min_nr:    the minimum number of elements guaranteed to be
+@@ -186,35 +258,17 @@ mempool_t *mempool_create_node(int min_nr, mempool_alloc_t *alloc_fn,
+ 			       gfp_t gfp_mask, int node_id)
+ {
+ 	mempool_t *pool;
++
+ 	pool = kzalloc_node(sizeof(*pool), gfp_mask, node_id);
+ 	if (!pool)
+ 		return NULL;
+-	pool->elements = kmalloc_array_node(min_nr, sizeof(void *),
+-				      gfp_mask, node_id);
+-	if (!pool->elements) {
++
++	if (mempool_init_node(pool, min_nr, alloc_fn, free_fn, pool_data,
++			      gfp_mask, node_id)) {
+ 		kfree(pool);
+ 		return NULL;
+ 	}
+-	spin_lock_init(&pool->lock);
+-	pool->min_nr = min_nr;
+-	pool->pool_data = pool_data;
+-	init_waitqueue_head(&pool->wait);
+-	pool->alloc = alloc_fn;
+-	pool->free = free_fn;
+ 
+-	/*
+-	 * First pre-allocate the guaranteed number of buffers.
+-	 */
+-	while (pool->curr_nr < pool->min_nr) {
+-		void *element;
+-
+-		element = pool->alloc(gfp_mask, pool->pool_data);
+-		if (unlikely(!element)) {
+-			mempool_destroy(pool);
+-			return NULL;
+-		}
+-		add_element(pool, element);
+-	}
+ 	return pool;
+ }
+ EXPORT_SYMBOL(mempool_create_node);
+-- 
+2.17.0
