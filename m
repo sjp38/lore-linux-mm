@@ -1,64 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A63CD6B068B
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 17:09:23 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id t24-v6so7871391qtn.7
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 14:09:23 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E85C86B068D
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 17:13:34 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id l47-v6so7862588qtk.21
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 14:13:34 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 45-v6si612158qvx.28.2018.05.18.14.09.22
+        by mx.google.com with ESMTPS id t5-v6si4994509qki.361.2018.05.18.14.13.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 May 2018 14:09:22 -0700 (PDT)
+        Fri, 18 May 2018 14:13:34 -0700 (PDT)
 Subject: Re: pkeys on POWER: Default AMR, UAMOR values
 References: <36b98132-d87f-9f75-f1a9-feee36ec8ee6@redhat.com>
  <20180518174448.GE5479@ram.oc3035372033.ibm.com>
+ <CALCETrV_wYPKHna8R2Bu19nsDqF2dJWarLLsyHxbcYD_AgYfPg@mail.gmail.com>
 From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <59616677-49c3-c803-963d-c032168de529@redhat.com>
-Date: Fri, 18 May 2018 23:09:20 +0200
+Message-ID: <27e01118-be5c-5f90-78b2-56bb69d2ab95@redhat.com>
+Date: Fri, 18 May 2018 23:13:30 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180518174448.GE5479@ram.oc3035372033.ibm.com>
+In-Reply-To: <CALCETrV_wYPKHna8R2Bu19nsDqF2dJWarLLsyHxbcYD_AgYfPg@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>
+To: Andy Lutomirski <luto@amacapital.net>, linuxram@us.ibm.com
+Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
 
-On 05/18/2018 07:44 PM, Ram Pai wrote:
-> Florian, is the behavior on x86 any different? A key allocated in the
-> context off one thread is not meaningful in the context of any other
-> thread.
-> 
-> Since thread B was created prior to the creation of the key, and the key
-> was created in the context of thread A, thread B neither inherits the
-> key nor its permissions. Atleast that is how the semantics are supposed
-> to work as per the man page.
-> 
-> man 7 pkey
-> 
-> " Applications  using  threads  and  protection  keys  should
-> be especially careful.  Threads inherit the protection key rights of the
-> parent at the time of the clone(2), system call.  Applications should
-> either ensure that their own permissions are appropriate for child
-> threads at the time when clone(2) is  called,  or ensure that each child
-> thread can perform its own initialization of protection key rights."
+On 05/18/2018 09:39 PM, Andy Lutomirski wrote:
+> The difference is that x86 starts out with deny-all instead of allow-all.
+> The POWER semantics make it very hard for a multithreaded program to
+> meaningfully use protection keys to prevent accidental access to important
+> memory.
 
-I reported two separate issues (actually three, but the execve bug is in 
-a separate issue).  The default, and the write restrictions.
+And you can change access rights for unallocated keys (unallocated at 
+thread start time, allocated later) on x86.  I have extended the 
+misc/tst-pkeys test to verify that, and it passes on x86, but not on 
+POWER, where the access rights are stuck.
 
-The default is just a difference to x86 (however, x86 can be booted with 
-init_pkru=0 and behaves the same way, but we're probably going to remove 
-that).
-
-The POWER implementation has the additional wrinkle that threads 
-launched early, before key allocation, can never change access rights 
-because they inherited not just the access rights, but also the access 
-rights access mask.  This is different from x86, where all threads can 
-freely update access rights, and contradicts the behavior in the manpage 
-which says that a??each child thread can perform its own initialization of 
-protection key rightsa??.  It can't do that if it is launched before key 
-allocation, which is not the right behavior IMO.
+I believe this is due to an incorrect UAMOR setting.
 
 Thanks,
 Florian
