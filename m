@@ -1,70 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D68726B06BF
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 22:34:02 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id q8-v6so6713888ioh.7
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 19:34:02 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b9-v6sor5538323ioe.112.2018.05.18.19.34.02
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 42E916B06C0
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 22:34:15 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id c20-v6so8800278qkm.13
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 19:34:15 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id p1-v6si2084607qkl.18.2018.05.18.19.34.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 18 May 2018 19:34:02 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 May 2018 19:34:14 -0700 (PDT)
+Subject: Re: [LSFMM] RDMA data corruption potential during FS writeback
+References: <0100016373af827b-e6164b8d-f12e-4938-bf1f-2f85ec830bc0-000000@email.amazonses.com>
+ <20180518154945.GC15611@ziepe.ca>
+ <0100016374267882-16b274b1-d6f6-4c13-94bb-8e78a51e9091-000000@email.amazonses.com>
+ <20180518173637.GF15611@ziepe.ca>
+ <CAPcyv4i_W94iXCyOd8gSSU6kWscncz5KUqnuzZ_RdVW9UT2U3w@mail.gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <c8861cbb-5b2e-d6e2-9c89-66c5c92181e6@nvidia.com>
+Date: Fri, 18 May 2018 19:33:41 -0700
 MIME-Version: 1.0
-In-Reply-To: <CAJwJo6YNqEBxbnJURL-+p_3S9rMBmJHNfE+WqwUF5nVkpRZ3nw@mail.gmail.com>
-References: <20180517233510.24996-1-dima@arista.com> <1526600442.28243.39.camel@arista.com>
- <CALCETrUDX=4FHU0e8SZ9Rr_AnAes+5jjzKCrrVmS1mddHQyeVQ@mail.gmail.com>
- <CAJwJo6ZwEZiQYDQqLkfP0+mRgmc+X=H02M=fFZZykWN4A3s-FQ@mail.gmail.com>
- <CALCETrXV1Dnpms2_naBsY=pwFOFtBs4gWVpobHivbzJA=4GR_A@mail.gmail.com>
- <1526696547.13166.6.camel@arista.com> <CAJwJo6YNqEBxbnJURL-+p_3S9rMBmJHNfE+WqwUF5nVkpRZ3nw@mail.gmail.com>
-From: Dmitry Safonov <0x7f454c46@gmail.com>
-Date: Sat, 19 May 2018 03:33:41 +0100
-Message-ID: <CAJwJo6YRw4Lkme5XNjhx-t+n11rtNO5z=0w4c-W5Td6TKmapOg@mail.gmail.com>
-Subject: Re: [PATCH] x86/mm: Drop TS_COMPAT on 64-bit exec() syscall
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAPcyv4i_W94iXCyOd8gSSU6kWscncz5KUqnuzZ_RdVW9UT2U3w@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dima@arista.com>
-Cc: Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, izbyshev@ispras.ru, Alexander Monakov <amonakov@ispras.ru>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Linux-MM <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, stable <stable@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Christopher Lameter <cl@linux.com>, linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
 
-2018-05-19 3:25 GMT+01:00 Dmitry Safonov <0x7f454c46@gmail.com>:
->> Here is the function:
->> 0000000000400842 <call32_from_64>:
->>   400842:       53                      push   %rbx
->>   400843:       55                      push   %rbp
->>   400844:       41 54                   push   %r12
->>   400846:       41 55                   push   %r13
->>   400848:       41 56                   push   %r14
->>   40084a:       41 57                   push   %r15
->>   40084c:       9c                      pushfq
->>   40084d:       48 89 27                mov    %rsp,(%rdi)
->>   400850:       48 89 fc                mov    %rdi,%rsp
->>   400853:       6a 23                   pushq  $0x23
->>   400855:       68 5c 08 40 00          pushq  $0x40085c
->>   40085a:       48 cb                   lretq
->>   40085c:       ff d6                   callq  *%rsi
->>   40085e:       ea                      (bad)
->>   40085f:       65 08 40 00             or     %al,%gs:0x0(%rax)
->>   400863:       33 00                   xor    (%rax),%eax
->>   400865:       48 8b 24 24             mov    (%rsp),%rsp
->>   400869:       9d                      popfq
->>   40086a:       41 5f                   pop    %r15
->>   40086c:       41 5e                   pop    %r14
->>   40086e:       41 5d                   pop    %r13
->>   400870:       41 5c                   pop    %r12
->>   400872:       5d                      pop    %rbp
->>   400873:       5b                      pop    %rbx
->>   400874:       c3                      retq
->>   400875:       66 2e 0f 1f 84 00 00    nopw   %cs:0x0(%rax,%rax,1)
->>   40087c:       00 00 00
->>   40087f:       90                      nop
+On 05/18/2018 01:23 PM, Dan Williams wrote:
+> On Fri, May 18, 2018 at 10:36 AM, Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>> On Fri, May 18, 2018 at 04:47:48PM +0000, Christopher Lameter wrote:
+>>> On Fri, 18 May 2018, Jason Gunthorpe wrote:
+>>>
+---8<---------------------------------
+>>>
+>>> The newcomer here is RDMA. The FS side is the mainstream use case and has
+>>> been there since Unix learned to do paging.
 >>
->> Looks like mov between registers caused it? The hell.
->
-> Oh, it's not 400850, I missloked, but 40085a so lretq might case it.
+>> Well, it has been this way for 12 years, so it isn't that new.
+>>
+>> Honestly it sounds like get_user_pages is just a broken Linux
+>> API??
+>>
+>> Nothing can use it to write to pages because the FS could explode -
+>> RDMA makes it particularly easy to trigger this due to the longer time
+>> windows, but presumably any get_user_pages could generate a race and
+>> hit this? Is that right?
 
-But it's
-002b:00000000417bafe8
-USER_DS and sensible address, still no idea.
++1, and I am now super-interested in this conversation, because
+after tracking down a kernel BUG to this classic mistaken pattern:
 
+    get_user_pages (on file-backed memory from ext4)
+    ...do some DMA
+    set_pages_dirty
+    put_page(s)
+
+...there is (rarely!) a backtrace from ext4, that disavows ownership of
+any such pages. It happens rarely enough that people have come to believe
+that the pattern is OK, from what I can tell. But some new, cutting edge
+systems with zillions of threads and lots of memory are able to expose the
+problem.
+
+Anyway, I've been dividing my time between trying to prove exactly 
+which FS action is disconnecting the page from ext4 in this particular
+bug (even though it's lately becoming well-documented that the design itself
+is not correct), and casting about for the most proper place to fix this. 
+
+Because the obvious "fix" in device driver land is to use a dedicated
+buffer for DMA, and copy to the filesystem buffer, and of course I will
+get *killed* if I propose such a performance-killing approach. But a
+core kernel fix really is starting to sound attractive.
+
+>>
+>> I am left with the impression that solving it in the FS is too
+>> performance costly so FS doesn't want that overheard? Was that also
+>> the conclusion?
+>>
+>> Could we take another crack at this during Linux Plumbers? Will the MM
+>> parties be there too? I'm sorry I wasn't able to attend LSFMM this
+>> year!
+> 
+> Yes, you and hch were missed, and I had to skip the last day due to a
+> family emergency.
+> 
+> Plumbers sounds good to resync on this topic, but we already have a
+> plan, use "break_layouts()" to coordinate a filesystem's need to move
+> dax blocks around relative to an active RDMA memory registration. If
+> you never punch a hole in the middle of your RDMA registration then
+> you never incur any performance penalty. Otherwise the layout break
+> notification is just there to tell the application "hey man, talk to
+> your friend that punched a hole in the middle of your mapping, but the
+> filesystem wants this block back now. Sorry, I'm kicking you out. Ok,
+> bye.".
+> 
+> In other words, get_user_pages_longterm() is just a short term
+> band-aid for RDMA until we can get that infrastructure built. We don't
+> need to go down any mmu-notifier rabbit holes.
+> 
+
+git grep claims that break_layouts is so far an XFS-only feature, though. 
+Were there plans to fix this for all filesystems?
+
+
+thanks,
 -- 
-             Dmitry
+John Hubbard
+NVIDIA
