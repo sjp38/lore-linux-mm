@@ -1,148 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 13DB06B06CF
-	for <linux-mm@kvack.org>; Sat, 19 May 2018 07:11:20 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id l7-v6so4643348qkk.20
-        for <linux-mm@kvack.org>; Sat, 19 May 2018 04:11:20 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id j29-v6si3476728qtc.35.2018.05.19.04.11.18
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C28496B06D1
+	for <linux-mm@kvack.org>; Sat, 19 May 2018 10:31:44 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id a5-v6so6908313plp.8
+        for <linux-mm@kvack.org>; Sat, 19 May 2018 07:31:44 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id e84-v6si9899085pfk.198.2018.05.19.07.31.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 19 May 2018 04:11:18 -0700 (PDT)
-Subject: Re: pkeys on POWER: Access rights not reset on execve
-References: <53828769-23c4-b2e3-cf59-239936819c3e@redhat.com>
- <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <c4e640be-3d82-c955-fc28-568ec13d378a@redhat.com>
-Date: Sat, 19 May 2018 13:11:14 +0200
+        Sat, 19 May 2018 07:31:43 -0700 (PDT)
+Date: Sat, 19 May 2018 22:31:39 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [mmotm:master 149/199] lib/idr.c:583:2: error: implicit
+ declaration of function 'xa_lock_irqsave'; did you mean 'read_lock_irqsave'?
+Message-ID: <20180519143139.2bryoecv4qwbhgtr@wfg-t540p.sh.intel.com>
+References: <201805190415.2D1H4m65%fengguang.wu@intel.com>
+ <20180518151000.93517f28f3338bb39f558a90@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20180518151000.93517f28f3338bb39f558a90@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <lkp@intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>, "Hao, Shun" <shun.hao@intel.com>
 
-On 05/19/2018 03:19 AM, Ram Pai wrote:
-> The issue you may be talking about here is that  --
-> 
-> "when you set the AMR register to 0xffffffffffffffff, it
-> just sets it to 0x0c00000000000000."
-> 
-> To me it looks like, exec/fork are not related to the issue.
-> Or are they also somehow connected to the issue?
-> 
-> 
-> The reason the AMR register does not get set to 0xffffffffffffffff,
-> is because none of those keys; except key 2, are active. So it ignores
-> all other bits and just sets the bits corresponding to key 2.
+Hi Andrew,
 
-Here's a slightly different test:
+On Fri, May 18, 2018 at 03:10:00PM -0700, Andrew Morton wrote:
+>On Sat, 19 May 2018 04:21:17 +0800 kbuild test robot <lkp@intel.com> wrote:
+>
+>> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+>> head:   7400fc6942aefa2e009272d0e118284f110c5088
+>> commit: d5f90621ff2af7f139b01b7bcf8649a91665965e [149/199] lib/idr.c: remove simple_ida_lock
+>> config: x86_64-randconfig-i0-201819 (attached as .config)
+>> compiler: gcc-7 (Debian 7.3.0-16) 7.3.0
+>> reproduce:
+>>         git checkout d5f90621ff2af7f139b01b7bcf8649a91665965e
+>>         # save the attached .config to linux build tree
+>>         make ARCH=x86_64
+>>
+>> Note: the mmotm/master HEAD 7400fc6942aefa2e009272d0e118284f110c5088 builds fine.
+>>       It only hurts bisectibility.
+>>
+>
+>I'm a bit surprised we're seeing this.
+>ida-remove-simple_ida_lock.patch introduces this error, and the very
+>next patch ida-remove-simple_ida_lock-fix.patch fixes it.
+>
+>I'm pretty sure that the robot software is capable of detecting this
+>situation and ignoring the error.  Did that code get broken?
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <err.h>
+Yes sorry, the robot code looks not reliable when testing the follow
+up -fix patches. The check is done when first seeing the error instead
+of before sending out the final report. In the 2 cases, the next patch
+of the error commit could be subtly different.
 
-/* Return the value of the AMR register.  */
-static inline unsigned long int
-pkey_read (void)
-{
-   unsigned long int result;
-   __asm__ volatile ("mfspr %0, 13" : "=r" (result));
-   return result;
-}
-
-/* Overwrite the AMR register with VALUE.  */
-static inline void
-pkey_write (unsigned long int value)
-{
-   __asm__ volatile ("mtspr 13, %0" : : "r" (value));
-}
-
-int
-main (int argc, char **argv)
-{
-   printf ("AMR (PID %d): 0x%016lx\n", (int) getpid (), pkey_read());
-   if (argc > 1 && strcmp (argv[1], "alloc") == 0)
-     {
-       int key = syscall (__NR_pkey_alloc, 0, 0);
-       if (key < 0)
-         err (1, "pkey_alloc");
-       printf ("Allocated key in subprocess (PID %d): %d\n",
-               (int) getpid (), key);
-       return 0;
-     }
-
-   pid_t pid = fork ();
-   if (pid == 0)
-     {
-       printf ("AMR after fork (PID %d): 0x%016lx\n",
-               (int) getpid (), pkey_read());
-       execl ("/proc/self/exe", argv[0], "alloc", NULL);
-       _exit (1);
-     }
-   if (pid < 0)
-     err (1, "fork");
-   int status;
-   if (waitpid (pid, &status, 0) < 0)
-     err (1, "waitpid");
-
-   int key = syscall (__NR_pkey_alloc, 0, 0);
-   if (key < 0)
-     err (1, "pkey_alloc");
-   printf ("Allocated key (PID %d): %d\n", (int) getpid (), key);
-
-   unsigned long int amr = -1;
-   printf ("Setting AMR: 0x%016lx\n", amr);
-   pkey_write (amr);
-   printf ("New AMR value (PID %d): 0x%016lx\n",
-           (int) getpid (), pkey_read());
-   if (argc == 1)
-     {
-       printf ("About to call execl (PID %d) ...\n", (int) getpid ());
-       execl ("/proc/self/exe", argv[0], "execl", NULL);
-       err (1, "exec");
-       return 1;
-     }
-   else
-     return 0;
-}
-
-It produces:
-
-AMR (PID 110163): 0x0000000000000000
-AMR after fork (PID 110164): 0x0000000000000000
-AMR (PID 110164): 0x0000000000000000
-Allocated key in subprocess (PID 110164): 2
-Allocated key (PID 110163): 2
-Setting AMR: 0xffffffffffffffff
-New AMR value (PID 110163): 0x0c00000000000000
-About to call execl (PID 110163) ...
-AMR (PID 110163): 0x0c00000000000000
-AMR after fork (PID 110165): 0x0000000000000000
-AMR (PID 110165): 0x0000000000000000
-Allocated key in subprocess (PID 110165): 2
-Allocated key (PID 110163): 2
-Setting AMR: 0xffffffffffffffff
-New AMR value (PID 110163): 0x0c00000000000000
-
-A few things which are odd stand out (apart the wrong default for AMR 
-and the AMR update restriction covered in the other thread):
-
-* execve does not reset AMR (see after a??About to call execla??)
-* fork resets AMR (see lines with PID 110165))
-* After execve, a key with non-default access rights is allocated
-   (see a??Allocated key (PID 110163): 2a??, second time, after execl)
-
-No matter what you think about the AMR default, I posit that each of 
-those are bugs (although the last one should be fixed by resetting AMR 
-on execve).
+Shun Hao: to be 100% reliable, we'll also need to check the follow up
+-fix patches just before sending out the report.
 
 Thanks,
-Florian
+Fengguang
