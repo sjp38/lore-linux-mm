@@ -1,123 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FFED6B06D5
-	for <linux-mm@kvack.org>; Sat, 19 May 2018 13:25:16 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b31-v6so7185770plb.5
-        for <linux-mm@kvack.org>; Sat, 19 May 2018 10:25:16 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id c24-v6si9877411plo.489.2018.05.19.10.25.14
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B83E6B06D7
+	for <linux-mm@kvack.org>; Sat, 19 May 2018 16:28:01 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id k27-v6so8017228wre.23
+        for <linux-mm@kvack.org>; Sat, 19 May 2018 13:28:01 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a3-v6si9785598wrn.5.2018.05.19.13.27.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 19 May 2018 10:25:14 -0700 (PDT)
-Subject: Re: [PATCH v2 35/40] iommu/arm-smmu-v3: Add support for PCI ATS
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-36-jean-philippe.brucker@arm.com>
-From: Sinan Kaya <okaya@codeaurora.org>
-Message-ID: <922474e8-0aa5-e022-0502-f1e51b0d4859@codeaurora.org>
-Date: Sat, 19 May 2018 13:25:06 -0400
+        Sat, 19 May 2018 13:27:59 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4JKOBvX090105
+	for <linux-mm@kvack.org>; Sat, 19 May 2018 16:27:58 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2j2fx2cafe-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 19 May 2018 16:27:57 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Sat, 19 May 2018 21:27:56 +0100
+Date: Sat, 19 May 2018 13:27:47 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: pkeys on POWER: Access rights not reset on execve
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <53828769-23c4-b2e3-cf59-239936819c3e@redhat.com>
+ <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
+ <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180511190641.23008-36-jean-philippe.brucker@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
+Message-Id: <20180519202747.GK5479@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, linux-arm-kernel@lists.infradead.org, linux-pci@vger.kernel.org, linux-acpi@vger.kernel.org, devicetree@vger.kernel.org, iommu@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org
-Cc: joro@8bytes.org, will.deacon@arm.com, robin.murphy@arm.com, alex.williamson@redhat.com, tn@semihalf.com, liubo95@huawei.com, thunder.leizhen@huawei.com, xieyisheng1@huawei.com, xuzaibo@huawei.com, ilias.apalodimas@linaro.org, jonathan.cameron@huawei.com, liudongdong3@huawei.com, shunyong.yang@hxt-semitech.com, nwatters@codeaurora.org, jcrouse@codeaurora.org, rfranz@cavium.com, dwmw2@infradead.org, jacob.jun.pan@linux.intel.com, yi.l.liu@intel.com, ashok.raj@intel.com, kevin.tian@intel.com, baolu.lu@linux.intel.com, robdclark@gmail.com, christian.koenig@amd.com, bharatku@xilinx.com, rgummal@xilinx.com
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Florian Weimer <fweimer@redhat.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
 
-On 5/11/2018 3:06 PM, Jean-Philippe Brucker wrote:
-> PCIe devices can implement their own TLB, named Address Translation Cache
-> (ATC). Enable Address Translation Service (ATS) for devices that support
-> it and send them invalidation requests whenever we invalidate the IOTLBs.
+On Fri, May 18, 2018 at 06:50:39PM -0700, Andy Lutomirski wrote:
+> On Fri, May 18, 2018 at 6:19 PM Ram Pai <linuxram@us.ibm.com> wrote:
 > 
->   Range calculation
->   -----------------
+> > However the fundamental issue is still the same, as mentioned in the
+> > other thread.
 > 
-> The invalidation packet itself is a bit awkward: range must be naturally
-> aligned, which means that the start address is a multiple of the range
-> size. In addition, the size must be a power of two number of 4k pages. We
-> have a few options to enforce this constraint:
+> > "Should the permissions on a key be allowed to be changed, if the key
+> > is not allocated in the first place?".
 > 
-> (1) Find the smallest naturally aligned region that covers the requested
->     range. This is simple to compute and only takes one ATC_INV, but it
->     will spill on lots of neighbouring ATC entries.
+> > my answer is NO. Lets debate :)
 > 
-> (2) Align the start address to the region size (rounded up to a power of
->     two), and send a second invalidation for the next range of the same
->     size. Still not great, but reduces spilling.
-> 
-> (3) Cover the range exactly with the smallest number of naturally aligned
->     regions. This would be interesting to implement but as for (2),
->     requires multiple ATC_INV.
-> 
-> As I suspect ATC invalidation packets will be a very scarce resource, I'll
-> go with option (1) for now, and only send one big invalidation. We can
-> move to (2), which is both easier to read and more gentle with the ATC,
-> once we've observed on real systems that we can send multiple smaller
-> Invalidation Requests for roughly the same price as a single big one.
-> 
-> Note that with io-pgtable, the unmap function is called for each page, so
-> this doesn't matter. The problem shows up when sharing page tables with
-> the MMU.
-> 
->   Timeout
->   -------
-> 
-> ATC invalidation is allowed to take up to 90 seconds, according to the
-> PCIe spec, so it is possible to hit the SMMU command queue timeout during
-> normal operations.
-> 
-> Some SMMU implementations will raise a CERROR_ATC_INV_SYNC when a CMD_SYNC
-> fails because of an ATC invalidation. Some will just abort the CMD_SYNC.
-> Others might let CMD_SYNC complete and have an asynchronous IMPDEF
-> mechanism to record the error. When we receive a CERROR_ATC_INV_SYNC, we
-> could retry sending all ATC_INV since last successful CMD_SYNC. When a
-> CMD_SYNC fails without CERROR_ATC_INV_SYNC, we could retry sending *all*
-> commands since last successful CMD_SYNC.
-> 
-> We cannot afford to wait 90 seconds in iommu_unmap, let alone MMU
-> notifiers. So we'd have to introduce a more clever system if this timeout
-> becomes a problem, like keeping hold of mappings and invalidating in the
-> background. Implementing safe delayed invalidations is a very complex
-> problem and deserves a series of its own. We'll assess whether more work
-> is needed to properly handle ATC invalidation timeouts once this code runs
-> on real hardware.
-> 
->   Misc
->   ----
-> 
-> I didn't put ATC and TLB invalidations in the same functions for three
-> reasons:
-> 
-> * TLB invalidation by range is batched and committed with a single sync.
->   Batching ATC invalidation is inconvenient, endpoints limit the number of
->   inflight invalidations. We'd have to count the number of invalidations
->   queued and send a sync periodically. In addition, I suspect we always
->   need a sync between TLB and ATC invalidation for the same page.
-> 
-> * Doing ATC invalidation outside tlb_inv_range also allows to send less
->   requests, since TLB invalidations are done per page or block, while ATC
->   invalidations target IOVA ranges.
-> 
-> * TLB invalidation by context is performed when freeing the domain, at
->   which point there isn't any device attached anymore.
-> 
-> Signed-off-by: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+> As a preface, here's my two-minute attempt to understand POWER's behavior:
+> there are two registers, AMR and UAMR.  AMR contains both kernel-relevant
+> state and user-relevant state.  UAMR specifies which bits of AMR are
+> available for user code to directly access.  AMR bits outside UAMR are read
+> as zero and are unaffected by writes.  I'm assuming that the kernel
+> reserves some subset of AMR bits in advance to correspond to allocatable
+> pkeys.
 
 
-Nothing specific about this patch but just a general observation. Last time I
-looked at the code, it seemed to require both ATS and PRI support from a given
-hardware.
+You got it mostly right. Filling in some more details below for
+completeness.
 
-I think you can assume that for ATS 1.1 specification but ATS 1.0 specification
-allows a system to have ATS+PASID without PRI. 
+Yes there is a AMR register which has two bits each corresponding to
+each key.  One bit corresponds to read permission, and the other bit
+corresponds to write permission.  If set, the corresponding permission
+is denied.  Both userspace and kernel can modify the register.
 
-QDF2400 is ATS 1.0 compatible as an example. 
+Yes there is a UAMOR register which has a bit corresponding to each key.
+When a bit in UAMOR register is set, that key's permission can be
+changed by userspace. Only kernel can modify UAMOR register.
 
-Is this an assumption / my misinterpretation?
+for example, if bit 10 is set in UAMOR register, only then key-10's read-write
+permissions can be modified by userspace.
 
+NOTE: the UAMR register you mention above, is actually UAMOR register. 
+
+And finally the kernel reserves some subset of keys, in advance, that
+it wants for itself. It will never give away those keys to userspace
+through sys_pkey_alloc(), and the bits corresponding to those keys will
+be 0 in UAMOR register.
+
+> 
+> Here's my question: given that disallowed AMR bits are read-as-zero, there
+> can always be a thread that is in the middle of a sequence like:
+> 
+> step1 : unsigned long old = amr;
+> step2 : amr |= whatever;
+> step3 : ...  <- thread is here
+> step4 : amr = old;
+> 
+> Now another thread calls pkey_alloc(), so UAMR is asynchronously changed,
+> and the thread will write zero to the relevant AMR bits. 
+
+> If I understand
+> correctly, this means that the decision to mask off unallocated keys via
+> UAMR effectively forces the initial value of newly-allocated keys in other
+> threads in the allocating process to be zero, whatever zero means.
+
+The initial value of the newly allocated key will be whatever the
+init_value is, that is specified in the sys_pkey_alloc().
+
+Remember, the UAMOR and the AMR values are thread specific. If thread T2
+allocates a new key, then that thread will enable the bit in its version
+of the UAMOR register. It will not have any effect on the UAMOR value of
+any other threads's version.
+
+So in the above code snippet, assuming T1 is executing the code, and T2 is
+running parallely, and assume that both threads have the same AMR and
+UAMOR value till the end of step2.  At step 3, when T2 allocates a new
+key,  thread T2's UAMOR will enable the bit corresponding to the
+allocated key and set the corresponding bits in AMR to the init_val
+specified in sys_pkey_alloc(). It has no effect on thread T1's UAMOR or
+AMR register.
+
+> (I
+> didn't get far enough in the POWER docs to figure out what zero means.).
+
+ok.
+
+> So
+> I don't think you're doing anyone any favors by making UAMR dynamic.
+
+depending on the explaination above, do you continue to hold that opinion?
+
+> 
+> IOW both x86 and POWER screwed up the ISA.
 
 -- 
-Sinan Kaya
-Qualcomm Datacenter Technologies, Inc. as an affiliate of Qualcomm Technologies, Inc.
-Qualcomm Technologies, Inc. is a member of the Code Aurora Forum, a Linux Foundation Collaborative Project.
+Ram Pai
