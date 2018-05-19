@@ -1,112 +1,433 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A5D856B06A7
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 21:44:50 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x21-v6so5673434pfn.23
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 18:44:50 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 65-v6si8786974pfo.229.2018.05.18.18.44.49
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 71A186B06A9
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 21:44:56 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id f19-v6so3306968pgv.4
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 18:44:56 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id t17-v6si8110756plo.266.2018.05.18.18.44.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 May 2018 18:44:49 -0700 (PDT)
-Subject: [PATCH v11 0/7] dax: fix dma vs truncate/hole-punch
+        Fri, 18 May 2018 18:44:55 -0700 (PDT)
+Subject: [PATCH v11 1/7] memremap: split devm_memremap_pages() and
+ memremap() infrastructure
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 18 May 2018 18:34:51 -0700
-Message-ID: <152669369110.34337.14271778212195820353.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 18 May 2018 18:34:57 -0700
+Message-ID: <152669369728.34337.5889133592233640241.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <152669369110.34337.14271778212195820353.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <152669369110.34337.14271778212195820353.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Dave Jiang <dave.jiang@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Matthew Wilcox <mawilcox@microsoft.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Heiko Carstens <heiko.carstens@de.ibm.com>, Jan Kara <jack@suse.cz>"Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, kbuild test robot <lkp@intel.com>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jeff Moyer <jmoyer@redhat.com>, Michal Hocko <mhocko@suse.com>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, stable@vger.kernel.org, Thomas Meyer <thomas@m3y3r.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Christoph Hellwig <hch@lst.de>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, david@fromorbit.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Changes since v9 [1] and v10 [2]
+Currently, kernel/memremap.c contains generic code for supporting
+memremap() (CONFIG_HAS_IOMEM) and devm_memremap_pages()
+(CONFIG_ZONE_DEVICE). This causes ongoing build maintenance problems as
+additions to memremap.c, especially for the ZONE_DEVICE case, need to be
+careful about being placed in ifdef guards. Remove the need for these
+ifdef guards by moving the ZONE_DEVICE support functions to their own
+compilation unit.
 
-* Resend the full series with the reworked "mm: introduce
-  MEMORY_DEVICE_FS_DAX and CONFIG_DEV_PAGEMAP_OPS" (Christoph)
-* Move generic_dax_pagefree() into the pmem driver (Christoph)
-* Cleanup __bdev_dax_supported() (Christoph)
-* Cleanup some stale SRCU bits leftover from other iterations (Jan)
-* Cleanup xfs_break_layouts() (Jan)
-
-[1]: https://lists.01.org/pipermail/linux-nvdimm/2018-April/015457.html
-[2]: https://lists.01.org/pipermail/linux-nvdimm/2018-May/015885.html
-
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
-
-Background:
-
-get_user_pages() in the filesystem pins file backed memory pages for
-access by devices performing dma. However, it only pins the memory pages
-not the page-to-file offset association. If a file is truncated the
-pages are mapped out of the file and dma may continue indefinitely into
-a page that is owned by a device driver. This breaks coherency of the
-file vs dma, but the assumption is that if userspace wants the
-file-space truncated it does not matter what data is inbound from the
-device, it is not relevant anymore. The only expectation is that dma can
-safely continue while the filesystem reallocates the block(s).
-
-Problem:
-
-This expectation that dma can safely continue while the filesystem
-changes the block map is broken by dax. With dax the target dma page
-*is* the filesystem block. The model of leaving the page pinned for dma,
-but truncating the file block out of the file, means that the filesytem
-is free to reallocate a block under active dma to another file and now
-the expected data-incoherency situation has turned into active
-data-corruption.
-
-Solution:
-
-Defer all filesystem operations (fallocate(), truncate()) on a dax mode
-file while any page/block in the file is under active dma. This solution
-assumes that dma is transient. Cases where dma operations are known to
-not be transient, like RDMA, have been explicitly disabled via
-commits like 5f1d43de5416 "IB/core: disable memory registration of
-filesystem-dax vmas".
-
-The dax_layout_busy_page() routine is called by filesystems with a lock
-held against mm faults (i_mmap_lock) to find pinned / busy dax pages.
-The process of looking up a busy page invalidates all mappings
-to trigger any subsequent get_user_pages() to block on i_mmap_lock.
-The filesystem continues to call dax_layout_busy_page() until it finally
-returns no more active pages. This approach assumes that the page
-pinning is transient, if that assumption is violated the system would
-have likely hung from the uncompleted I/O.
-
----
-
-Dan Williams (7):
-      memremap: split devm_memremap_pages() and memremap() infrastructure
-      mm: introduce MEMORY_DEVICE_FS_DAX and CONFIG_DEV_PAGEMAP_OPS
-      mm: fix __gup_device_huge vs unmap
-      mm, fs, dax: handle layout changes to pinned dax mappings
-      xfs: prepare xfs_break_layouts() to be called with XFS_MMAPLOCK_EXCL
-      xfs: prepare xfs_break_layouts() for another layout type
-      xfs, dax: introduce xfs_break_dax_layouts()
-
-
- drivers/dax/super.c       |   14 ++-
- drivers/nvdimm/pfn_devs.c |    2 
- drivers/nvdimm/pmem.c     |   25 +++++
- fs/Kconfig                |    1 
- fs/dax.c                  |   97 +++++++++++++++++++++
- fs/xfs/xfs_file.c         |   72 ++++++++++++++--
- fs/xfs/xfs_inode.h        |   16 +++
- fs/xfs/xfs_ioctl.c        |    8 --
- fs/xfs/xfs_iops.c         |   16 ++-
- fs/xfs/xfs_pnfs.c         |   15 ++-
- fs/xfs/xfs_pnfs.h         |    5 +
- include/linux/dax.h       |    7 ++
- include/linux/memremap.h  |   36 ++------
- include/linux/mm.h        |   71 +++++++++++----
- kernel/Makefile           |    3 -
- kernel/iomem.c            |  167 ++++++++++++++++++++++++++++++++++++
- kernel/memremap.c         |  209 ++++++---------------------------------------
- mm/Kconfig                |    5 +
- mm/gup.c                  |   36 ++++++--
- mm/hmm.c                  |   13 ---
- mm/swap.c                 |    3 -
- 21 files changed, 542 insertions(+), 279 deletions(-)
+ kernel/Makefile   |    3 +
+ kernel/iomem.c    |  167 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ kernel/memremap.c |  178 +----------------------------------------------------
+ 3 files changed, 171 insertions(+), 177 deletions(-)
  create mode 100644 kernel/iomem.c
+
+diff --git a/kernel/Makefile b/kernel/Makefile
+index f85ae5dfa474..9b9241361311 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -112,7 +112,8 @@ obj-$(CONFIG_JUMP_LABEL) += jump_label.o
+ obj-$(CONFIG_CONTEXT_TRACKING) += context_tracking.o
+ obj-$(CONFIG_TORTURE_TEST) += torture.o
+ 
+-obj-$(CONFIG_HAS_IOMEM) += memremap.o
++obj-$(CONFIG_HAS_IOMEM) += iomem.o
++obj-$(CONFIG_ZONE_DEVICE) += memremap.o
+ 
+ $(obj)/configs.o: $(obj)/config_data.h
+ 
+diff --git a/kernel/iomem.c b/kernel/iomem.c
+new file mode 100644
+index 000000000000..f7525e14ebc6
+--- /dev/null
++++ b/kernel/iomem.c
+@@ -0,0 +1,167 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#include <linux/device.h>
++#include <linux/types.h>
++#include <linux/io.h>
++#include <linux/mm.h>
++
++#ifndef ioremap_cache
++/* temporary while we convert existing ioremap_cache users to memremap */
++__weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
++{
++	return ioremap(offset, size);
++}
++#endif
++
++#ifndef arch_memremap_wb
++static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
++{
++	return (__force void *)ioremap_cache(offset, size);
++}
++#endif
++
++#ifndef arch_memremap_can_ram_remap
++static bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
++					unsigned long flags)
++{
++	return true;
++}
++#endif
++
++static void *try_ram_remap(resource_size_t offset, size_t size,
++			   unsigned long flags)
++{
++	unsigned long pfn = PHYS_PFN(offset);
++
++	/* In the simple case just return the existing linear address */
++	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)) &&
++	    arch_memremap_can_ram_remap(offset, size, flags))
++		return __va(offset);
++
++	return NULL; /* fallback to arch_memremap_wb */
++}
++
++/**
++ * memremap() - remap an iomem_resource as cacheable memory
++ * @offset: iomem resource start address
++ * @size: size of remap
++ * @flags: any of MEMREMAP_WB, MEMREMAP_WT, MEMREMAP_WC,
++ *		  MEMREMAP_ENC, MEMREMAP_DEC
++ *
++ * memremap() is "ioremap" for cases where it is known that the resource
++ * being mapped does not have i/o side effects and the __iomem
++ * annotation is not applicable. In the case of multiple flags, the different
++ * mapping types will be attempted in the order listed below until one of
++ * them succeeds.
++ *
++ * MEMREMAP_WB - matches the default mapping for System RAM on
++ * the architecture.  This is usually a read-allocate write-back cache.
++ * Morever, if MEMREMAP_WB is specified and the requested remap region is RAM
++ * memremap() will bypass establishing a new mapping and instead return
++ * a pointer into the direct map.
++ *
++ * MEMREMAP_WT - establish a mapping whereby writes either bypass the
++ * cache or are written through to memory and never exist in a
++ * cache-dirty state with respect to program visibility.  Attempts to
++ * map System RAM with this mapping type will fail.
++ *
++ * MEMREMAP_WC - establish a writecombine mapping, whereby writes may
++ * be coalesced together (e.g. in the CPU's write buffers), but is otherwise
++ * uncached. Attempts to map System RAM with this mapping type will fail.
++ */
++void *memremap(resource_size_t offset, size_t size, unsigned long flags)
++{
++	int is_ram = region_intersects(offset, size,
++				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
++	void *addr = NULL;
++
++	if (!flags)
++		return NULL;
++
++	if (is_ram == REGION_MIXED) {
++		WARN_ONCE(1, "memremap attempted on mixed range %pa size: %#lx\n",
++				&offset, (unsigned long) size);
++		return NULL;
++	}
++
++	/* Try all mapping types requested until one returns non-NULL */
++	if (flags & MEMREMAP_WB) {
++		/*
++		 * MEMREMAP_WB is special in that it can be satisifed
++		 * from the direct map.  Some archs depend on the
++		 * capability of memremap() to autodetect cases where
++		 * the requested range is potentially in System RAM.
++		 */
++		if (is_ram == REGION_INTERSECTS)
++			addr = try_ram_remap(offset, size, flags);
++		if (!addr)
++			addr = arch_memremap_wb(offset, size);
++	}
++
++	/*
++	 * If we don't have a mapping yet and other request flags are
++	 * present then we will be attempting to establish a new virtual
++	 * address mapping.  Enforce that this mapping is not aliasing
++	 * System RAM.
++	 */
++	if (!addr && is_ram == REGION_INTERSECTS && flags != MEMREMAP_WB) {
++		WARN_ONCE(1, "memremap attempted on ram %pa size: %#lx\n",
++				&offset, (unsigned long) size);
++		return NULL;
++	}
++
++	if (!addr && (flags & MEMREMAP_WT))
++		addr = ioremap_wt(offset, size);
++
++	if (!addr && (flags & MEMREMAP_WC))
++		addr = ioremap_wc(offset, size);
++
++	return addr;
++}
++EXPORT_SYMBOL(memremap);
++
++void memunmap(void *addr)
++{
++	if (is_vmalloc_addr(addr))
++		iounmap((void __iomem *) addr);
++}
++EXPORT_SYMBOL(memunmap);
++
++static void devm_memremap_release(struct device *dev, void *res)
++{
++	memunmap(*(void **)res);
++}
++
++static int devm_memremap_match(struct device *dev, void *res, void *match_data)
++{
++	return *(void **)res == match_data;
++}
++
++void *devm_memremap(struct device *dev, resource_size_t offset,
++		size_t size, unsigned long flags)
++{
++	void **ptr, *addr;
++
++	ptr = devres_alloc_node(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
++			dev_to_node(dev));
++	if (!ptr)
++		return ERR_PTR(-ENOMEM);
++
++	addr = memremap(offset, size, flags);
++	if (addr) {
++		*ptr = addr;
++		devres_add(dev, ptr);
++	} else {
++		devres_free(ptr);
++		return ERR_PTR(-ENXIO);
++	}
++
++	return addr;
++}
++EXPORT_SYMBOL(devm_memremap);
++
++void devm_memunmap(struct device *dev, void *addr)
++{
++	WARN_ON(devres_release(dev, devm_memremap_release,
++				devm_memremap_match, addr));
++}
++EXPORT_SYMBOL(devm_memunmap);
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 895e6b76b25e..37a9604133f6 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -1,15 +1,5 @@
+-/*
+- * Copyright(c) 2015 Intel Corporation. All rights reserved.
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of version 2 of the GNU General Public License as
+- * published by the Free Software Foundation.
+- *
+- * This program is distributed in the hope that it will be useful, but
+- * WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * General Public License for more details.
+- */
++/* SPDX-License-Identifier: GPL-2.0 */
++/* Copyright(c) 2015 Intel Corporation. All rights reserved. */
+ #include <linux/radix-tree.h>
+ #include <linux/device.h>
+ #include <linux/types.h>
+@@ -20,169 +10,6 @@
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
+ 
+-#ifndef ioremap_cache
+-/* temporary while we convert existing ioremap_cache users to memremap */
+-__weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
+-{
+-	return ioremap(offset, size);
+-}
+-#endif
+-
+-#ifndef arch_memremap_wb
+-static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
+-{
+-	return (__force void *)ioremap_cache(offset, size);
+-}
+-#endif
+-
+-#ifndef arch_memremap_can_ram_remap
+-static bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
+-					unsigned long flags)
+-{
+-	return true;
+-}
+-#endif
+-
+-static void *try_ram_remap(resource_size_t offset, size_t size,
+-			   unsigned long flags)
+-{
+-	unsigned long pfn = PHYS_PFN(offset);
+-
+-	/* In the simple case just return the existing linear address */
+-	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)) &&
+-	    arch_memremap_can_ram_remap(offset, size, flags))
+-		return __va(offset);
+-
+-	return NULL; /* fallback to arch_memremap_wb */
+-}
+-
+-/**
+- * memremap() - remap an iomem_resource as cacheable memory
+- * @offset: iomem resource start address
+- * @size: size of remap
+- * @flags: any of MEMREMAP_WB, MEMREMAP_WT, MEMREMAP_WC,
+- *		  MEMREMAP_ENC, MEMREMAP_DEC
+- *
+- * memremap() is "ioremap" for cases where it is known that the resource
+- * being mapped does not have i/o side effects and the __iomem
+- * annotation is not applicable. In the case of multiple flags, the different
+- * mapping types will be attempted in the order listed below until one of
+- * them succeeds.
+- *
+- * MEMREMAP_WB - matches the default mapping for System RAM on
+- * the architecture.  This is usually a read-allocate write-back cache.
+- * Morever, if MEMREMAP_WB is specified and the requested remap region is RAM
+- * memremap() will bypass establishing a new mapping and instead return
+- * a pointer into the direct map.
+- *
+- * MEMREMAP_WT - establish a mapping whereby writes either bypass the
+- * cache or are written through to memory and never exist in a
+- * cache-dirty state with respect to program visibility.  Attempts to
+- * map System RAM with this mapping type will fail.
+- *
+- * MEMREMAP_WC - establish a writecombine mapping, whereby writes may
+- * be coalesced together (e.g. in the CPU's write buffers), but is otherwise
+- * uncached. Attempts to map System RAM with this mapping type will fail.
+- */
+-void *memremap(resource_size_t offset, size_t size, unsigned long flags)
+-{
+-	int is_ram = region_intersects(offset, size,
+-				       IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+-	void *addr = NULL;
+-
+-	if (!flags)
+-		return NULL;
+-
+-	if (is_ram == REGION_MIXED) {
+-		WARN_ONCE(1, "memremap attempted on mixed range %pa size: %#lx\n",
+-				&offset, (unsigned long) size);
+-		return NULL;
+-	}
+-
+-	/* Try all mapping types requested until one returns non-NULL */
+-	if (flags & MEMREMAP_WB) {
+-		/*
+-		 * MEMREMAP_WB is special in that it can be satisifed
+-		 * from the direct map.  Some archs depend on the
+-		 * capability of memremap() to autodetect cases where
+-		 * the requested range is potentially in System RAM.
+-		 */
+-		if (is_ram == REGION_INTERSECTS)
+-			addr = try_ram_remap(offset, size, flags);
+-		if (!addr)
+-			addr = arch_memremap_wb(offset, size);
+-	}
+-
+-	/*
+-	 * If we don't have a mapping yet and other request flags are
+-	 * present then we will be attempting to establish a new virtual
+-	 * address mapping.  Enforce that this mapping is not aliasing
+-	 * System RAM.
+-	 */
+-	if (!addr && is_ram == REGION_INTERSECTS && flags != MEMREMAP_WB) {
+-		WARN_ONCE(1, "memremap attempted on ram %pa size: %#lx\n",
+-				&offset, (unsigned long) size);
+-		return NULL;
+-	}
+-
+-	if (!addr && (flags & MEMREMAP_WT))
+-		addr = ioremap_wt(offset, size);
+-
+-	if (!addr && (flags & MEMREMAP_WC))
+-		addr = ioremap_wc(offset, size);
+-
+-	return addr;
+-}
+-EXPORT_SYMBOL(memremap);
+-
+-void memunmap(void *addr)
+-{
+-	if (is_vmalloc_addr(addr))
+-		iounmap((void __iomem *) addr);
+-}
+-EXPORT_SYMBOL(memunmap);
+-
+-static void devm_memremap_release(struct device *dev, void *res)
+-{
+-	memunmap(*(void **)res);
+-}
+-
+-static int devm_memremap_match(struct device *dev, void *res, void *match_data)
+-{
+-	return *(void **)res == match_data;
+-}
+-
+-void *devm_memremap(struct device *dev, resource_size_t offset,
+-		size_t size, unsigned long flags)
+-{
+-	void **ptr, *addr;
+-
+-	ptr = devres_alloc_node(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
+-			dev_to_node(dev));
+-	if (!ptr)
+-		return ERR_PTR(-ENOMEM);
+-
+-	addr = memremap(offset, size, flags);
+-	if (addr) {
+-		*ptr = addr;
+-		devres_add(dev, ptr);
+-	} else {
+-		devres_free(ptr);
+-		return ERR_PTR(-ENXIO);
+-	}
+-
+-	return addr;
+-}
+-EXPORT_SYMBOL(devm_memremap);
+-
+-void devm_memunmap(struct device *dev, void *addr)
+-{
+-	WARN_ON(devres_release(dev, devm_memremap_release,
+-				devm_memremap_match, addr));
+-}
+-EXPORT_SYMBOL(devm_memunmap);
+-
+-#ifdef CONFIG_ZONE_DEVICE
+ static DEFINE_MUTEX(pgmap_lock);
+ static RADIX_TREE(pgmap_radix, GFP_KERNEL);
+ #define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
+@@ -473,7 +300,6 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
+ 
+ 	return pgmap;
+ }
+-#endif /* CONFIG_ZONE_DEVICE */
+ 
+ #if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+ void put_zone_device_private_or_public_page(struct page *page)
