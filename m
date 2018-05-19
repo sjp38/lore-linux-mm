@@ -1,143 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8098D6B06B5
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 21:45:28 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id i1-v6so6098634pld.11
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 18:45:28 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id b19-v6si8696723pfh.358.2018.05.18.18.45.26
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 336306B06B7
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 21:50:54 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id l85-v6so5682560pfb.18
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 18:50:54 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 62-v6si8251253pld.133.2018.05.18.18.50.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 May 2018 18:45:27 -0700 (PDT)
-Subject: [PATCH v11 7/7] xfs, dax: introduce xfs_break_dax_layouts()
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 18 May 2018 18:35:29 -0700
-Message-ID: <152669372916.34337.4066620800998291994.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <152669369110.34337.14271778212195820353.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <152669369110.34337.14271778212195820353.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Fri, 18 May 2018 18:50:52 -0700 (PDT)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 33B922085B
+	for <linux-mm@kvack.org>; Sat, 19 May 2018 01:50:52 +0000 (UTC)
+Received: by mail-wm0-f46.google.com with SMTP id f6-v6so16825023wmc.4
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 18:50:52 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+References: <53828769-23c4-b2e3-cf59-239936819c3e@redhat.com> <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
+In-Reply-To: <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Fri, 18 May 2018 18:50:39 -0700
+Message-ID: <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
+Subject: Re: pkeys on POWER: Access rights not reset on execve
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: Dave Chinner <david@fromorbit.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: linuxram@us.ibm.com
+Cc: Florian Weimer <fweimer@redhat.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
 
-xfs_break_dax_layouts(), similar to xfs_break_leased_layouts(), scans
-for busy / pinned dax pages and waits for those pages to go idle before
-any potential extent unmap operation.
+On Fri, May 18, 2018 at 6:19 PM Ram Pai <linuxram@us.ibm.com> wrote:
 
-dax_layout_busy_page() handles synchronizing against new page-busy
-events (get_user_pages). It invalidates all mappings to trigger the
-get_user_pages slow path which will eventually block on the xfs inode
-lock held in XFS_MMAPLOCK_EXCL mode. If dax_layout_busy_page() finds a
-busy page it returns it for xfs to wait for the page-idle event that
-will fire when the page reference count reaches 1 (recall ZONE_DEVICE
-pages are idle at count 1, see generic_dax_pagefree()).
+> However the fundamental issue is still the same, as mentioned in the
+> other thread.
 
-While waiting, the XFS_MMAPLOCK_EXCL lock is dropped in order to not
-deadlock the process that might be trying to elevate the page count of
-more pages before arranging for any of them to go idle. I.e. the typical
-case of submitting I/O is that iov_iter_get_pages() elevates the
-reference count of all pages in the I/O before starting I/O on the first
-page. The process of elevating the reference count of all pages involved
-in an I/O may cause faults that need to take XFS_MMAPLOCK_EXCL.
+> "Should the permissions on a key be allowed to be changed, if the key
+> is not allocated in the first place?".
 
-Although XFS_MMAPLOCK_EXCL is dropped while waiting, XFS_IOLOCK_EXCL is
-held while sleeping. We need this to prevent starvation of the truncate
-path as continuous submission of direct-I/O could starve the truncate
-path indefinitely if the lock is dropped.
+> my answer is NO. Lets debate :)
 
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reported-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@lst.de>
-Acked-by: Darrick J. Wong <darrick.wong@oracle.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- fs/xfs/xfs_file.c |   61 ++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 51 insertions(+), 10 deletions(-)
+As a preface, here's my two-minute attempt to understand POWER's behavior:
+there are two registers, AMR and UAMR.  AMR contains both kernel-relevant
+state and user-relevant state.  UAMR specifies which bits of AMR are
+available for user code to directly access.  AMR bits outside UAMR are read
+as zero and are unaffected by writes.  I'm assuming that the kernel
+reserves some subset of AMR bits in advance to correspond to allocatable
+pkeys.
 
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index 4774c7172ef4..f5695dc314f1 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -718,6 +718,38 @@ xfs_file_write_iter(
- 	return ret;
- }
- 
-+static void
-+xfs_wait_dax_page(
-+	struct inode		*inode,
-+	bool			*did_unlock)
-+{
-+	struct xfs_inode        *ip = XFS_I(inode);
-+
-+	*did_unlock = true;
-+	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
-+	schedule();
-+	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-+}
-+
-+static int
-+xfs_break_dax_layouts(
-+	struct inode		*inode,
-+	uint			iolock,
-+	bool			*did_unlock)
-+{
-+	struct page		*page;
-+
-+	ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
-+
-+	page = dax_layout_busy_page(inode->i_mapping);
-+	if (!page)
-+		return 0;
-+
-+	return ___wait_var_event(&page->_refcount,
-+			atomic_read(&page->_refcount) == 1, TASK_INTERRUPTIBLE,
-+			0, 0, xfs_wait_dax_page(inode, did_unlock));
-+}
-+
- int
- xfs_break_layouts(
- 	struct inode		*inode,
-@@ -725,19 +757,28 @@ xfs_break_layouts(
- 	enum layout_break_reason reason)
- {
- 	bool			retry;
-+	int			error;
- 
- 	ASSERT(xfs_isilocked(XFS_I(inode), XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL));
- 
--	switch (reason) {
--	case BREAK_UNMAP:
--		ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
--		/* fall through */
--	case BREAK_WRITE:
--		return xfs_break_leased_layouts(inode, iolock, &retry);
--	default:
--		WARN_ON_ONCE(1);
--		return -EINVAL;
--	}
-+	do {
-+		retry = false;
-+		switch (reason) {
-+		case BREAK_UNMAP:
-+			error = xfs_break_dax_layouts(inode, *iolock, &retry);
-+			if (error || retry)
-+				break;
-+			/* fall through */
-+		case BREAK_WRITE:
-+			error = xfs_break_leased_layouts(inode, iolock, &retry);
-+			break;
-+		default:
-+			WARN_ON_ONCE(1);
-+			error = -EINVAL;
-+		}
-+	} while (error == 0 && retry);
-+
-+	return error;
- }
- 
- #define	XFS_FALLOC_FL_SUPPORTED						\
+Here's my question: given that disallowed AMR bits are read-as-zero, there
+can always be a thread that is in the middle of a sequence like:
+
+unsigned long old = amr;
+amr |= whatever;
+...  <- thread is here
+amr = old;
+
+Now another thread calls pkey_alloc(), so UAMR is asynchronously changed,
+and the thread will write zero to the relevant AMR bits.  If I understand
+correctly, this means that the decision to mask off unallocated keys via
+UAMR effectively forces the initial value of newly-allocated keys in other
+threads in the allocating process to be zero, whatever zero means.  (I
+didn't get far enough in the POWER docs to figure out what zero means.)  So
+I don't think you're doing anyone any favors by making UAMR dynamic.
+
+IOW both x86 and POWER screwed up the ISA.
