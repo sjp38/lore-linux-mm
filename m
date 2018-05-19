@@ -1,115 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B942F6B06CD
-	for <linux-mm@kvack.org>; Sat, 19 May 2018 01:38:44 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id c8-v6so8866595qkb.21
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 22:38:44 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id a23-v6si3151325qtn.388.2018.05.18.22.38.43
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 13DB06B06CF
+	for <linux-mm@kvack.org>; Sat, 19 May 2018 07:11:20 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id l7-v6so4643348qkk.20
+        for <linux-mm@kvack.org>; Sat, 19 May 2018 04:11:20 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id j29-v6si3476728qtc.35.2018.05.19.04.11.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 May 2018 22:38:43 -0700 (PDT)
-Subject: Re: [LSFMM] RDMA data corruption potential during FS writeback
-References: <0100016373af827b-e6164b8d-f12e-4938-bf1f-2f85ec830bc0-000000@email.amazonses.com>
- <20180518154945.GC15611@ziepe.ca>
- <0100016374267882-16b274b1-d6f6-4c13-94bb-8e78a51e9091-000000@email.amazonses.com>
- <20180518173637.GF15611@ziepe.ca>
- <CAPcyv4i_W94iXCyOd8gSSU6kWscncz5KUqnuzZ_RdVW9UT2U3w@mail.gmail.com>
- <c8861cbb-5b2e-d6e2-9c89-66c5c92181e6@nvidia.com>
- <20180519032400.GA12517@ziepe.ca>
- <CAPcyv4iGmUg108O-s1h6_YxmjQgMcV_pFpciObHh3zJkTOKfKA@mail.gmail.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <3e14e53a-e47b-731a-7dc2-77c34c140260@nvidia.com>
-Date: Fri, 18 May 2018 22:38:29 -0700
+        Sat, 19 May 2018 04:11:18 -0700 (PDT)
+Subject: Re: pkeys on POWER: Access rights not reset on execve
+References: <53828769-23c4-b2e3-cf59-239936819c3e@redhat.com>
+ <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <c4e640be-3d82-c955-fc28-568ec13d378a@redhat.com>
+Date: Sat, 19 May 2018 13:11:14 +0200
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4iGmUg108O-s1h6_YxmjQgMcV_pFpciObHh3zJkTOKfKA@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Christopher Lameter <cl@linux.com>, linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>
 
-On 05/18/2018 08:51 PM, Dan Williams wrote:
-> On Fri, May 18, 2018 at 8:24 PM, Jason Gunthorpe <jgg@ziepe.ca> wrote:
->> On Fri, May 18, 2018 at 07:33:41PM -0700, John Hubbard wrote:
->>> On 05/18/2018 01:23 PM, Dan Williams wrote:
->>>> On Fri, May 18, 2018 at 10:36 AM, Jason Gunthorpe <jgg@ziepe.ca> wrote:
->>>>> On Fri, May 18, 2018 at 04:47:48PM +0000, Christopher Lameter wrote:
->>>>>> On Fri, 18 May 2018, Jason Gunthorpe wrote:
->>>>>>
->>>>>>
->>>>>> The newcomer here is RDMA. The FS side is the mainstream use case and has
->>>>>> been there since Unix learned to do paging.
->>>>>
->>>>> Well, it has been this way for 12 years, so it isn't that new.
->>>>>
->>>>> Honestly it sounds like get_user_pages is just a broken Linux
->>>>> API??
->>>>>
->>>>> Nothing can use it to write to pages because the FS could explode -
->>>>> RDMA makes it particularly easy to trigger this due to the longer time
->>>>> windows, but presumably any get_user_pages could generate a race and
->>>>> hit this? Is that right?
->>>
->>> +1, and I am now super-interested in this conversation, because
->>> after tracking down a kernel BUG to this classic mistaken pattern:
->>>
->>>     get_user_pages (on file-backed memory from ext4)
->>>     ...do some DMA
->>>     set_pages_dirty
->>>     put_page(s)
->>
->> Ummm, RDMA has done essentially that since 2005, since when did it
->> become wrong? Do you have some references? Is there some alternative?
->>
->> See __ib_umem_release
->>
->>> ...there is (rarely!) a backtrace from ext4, that disavows ownership of
->>> any such pages.
->>
->> Yes, I've seen that oops with RDMA, apparently isn't actually that
->> rare if you tweak things just right.
->>
->> I thought it was an obscure ext4 bug :(
->>
->>> Because the obvious "fix" in device driver land is to use a dedicated
->>> buffer for DMA, and copy to the filesystem buffer, and of course I will
->>> get *killed* if I propose such a performance-killing approach. But a
->>> core kernel fix really is starting to sound attractive.
->>
->> Yeah, killed is right. That idea totally cripples RDMA.
->>
->> What is the point of get_user_pages FOLL_WRITE if you can't write to
->> and dirty the pages!?!
->>
+On 05/19/2018 03:19 AM, Ram Pai wrote:
+> The issue you may be talking about here is that  --
 > 
-> You're oversimplifying the problem, here are the details:
+> "when you set the AMR register to 0xffffffffffffffff, it
+> just sets it to 0x0c00000000000000."
 > 
-> https://www.spinics.net/lists/linux-mm/msg142700.html
+> To me it looks like, exec/fork are not related to the issue.
+> Or are they also somehow connected to the issue?
 > 
+> 
+> The reason the AMR register does not get set to 0xffffffffffffffff,
+> is because none of those keys; except key 2, are active. So it ignores
+> all other bits and just sets the bits corresponding to key 2.
 
-Hi Dan,
+Here's a slightly different test:
 
-The thing is, the above still leads to a fairly simple conclusion, which
-is: unless something is changed, then no, you cannot do the standard,
-simple RDMA thing. Because someone can hit the case that Jan Kara describes
-in the link above.
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <err.h>
 
-So I think we're all saying the same thing, right? We need to fix something so
-that this pattern actually works in all cases? 
+/* Return the value of the AMR register.  */
+static inline unsigned long int
+pkey_read (void)
+{
+   unsigned long int result;
+   __asm__ volatile ("mfspr %0, 13" : "=r" (result));
+   return result;
+}
 
-I just want to be sure that this doesn't get characterized as "oh this is 
-just a special case that you might need to avoid". From my view (which at
-the moment is sort of RDMA-centric, for this bug), I don't see a way to 
-avoid the problem, other than avoiding calling get_user_pages on file-backed
-memory--and even *that* is darned difficult.
+/* Overwrite the AMR register with VALUE.  */
+static inline void
+pkey_write (unsigned long int value)
+{
+   __asm__ volatile ("mtspr 13, %0" : : "r" (value));
+}
 
-Please tell me I'm wildly wrong, though--I'd really love to be wildly wrong
-here. :)
+int
+main (int argc, char **argv)
+{
+   printf ("AMR (PID %d): 0x%016lx\n", (int) getpid (), pkey_read());
+   if (argc > 1 && strcmp (argv[1], "alloc") == 0)
+     {
+       int key = syscall (__NR_pkey_alloc, 0, 0);
+       if (key < 0)
+         err (1, "pkey_alloc");
+       printf ("Allocated key in subprocess (PID %d): %d\n",
+               (int) getpid (), key);
+       return 0;
+     }
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+   pid_t pid = fork ();
+   if (pid == 0)
+     {
+       printf ("AMR after fork (PID %d): 0x%016lx\n",
+               (int) getpid (), pkey_read());
+       execl ("/proc/self/exe", argv[0], "alloc", NULL);
+       _exit (1);
+     }
+   if (pid < 0)
+     err (1, "fork");
+   int status;
+   if (waitpid (pid, &status, 0) < 0)
+     err (1, "waitpid");
+
+   int key = syscall (__NR_pkey_alloc, 0, 0);
+   if (key < 0)
+     err (1, "pkey_alloc");
+   printf ("Allocated key (PID %d): %d\n", (int) getpid (), key);
+
+   unsigned long int amr = -1;
+   printf ("Setting AMR: 0x%016lx\n", amr);
+   pkey_write (amr);
+   printf ("New AMR value (PID %d): 0x%016lx\n",
+           (int) getpid (), pkey_read());
+   if (argc == 1)
+     {
+       printf ("About to call execl (PID %d) ...\n", (int) getpid ());
+       execl ("/proc/self/exe", argv[0], "execl", NULL);
+       err (1, "exec");
+       return 1;
+     }
+   else
+     return 0;
+}
+
+It produces:
+
+AMR (PID 110163): 0x0000000000000000
+AMR after fork (PID 110164): 0x0000000000000000
+AMR (PID 110164): 0x0000000000000000
+Allocated key in subprocess (PID 110164): 2
+Allocated key (PID 110163): 2
+Setting AMR: 0xffffffffffffffff
+New AMR value (PID 110163): 0x0c00000000000000
+About to call execl (PID 110163) ...
+AMR (PID 110163): 0x0c00000000000000
+AMR after fork (PID 110165): 0x0000000000000000
+AMR (PID 110165): 0x0000000000000000
+Allocated key in subprocess (PID 110165): 2
+Allocated key (PID 110163): 2
+Setting AMR: 0xffffffffffffffff
+New AMR value (PID 110163): 0x0c00000000000000
+
+A few things which are odd stand out (apart the wrong default for AMR 
+and the AMR update restriction covered in the other thread):
+
+* execve does not reset AMR (see after a??About to call execla??)
+* fork resets AMR (see lines with PID 110165))
+* After execve, a key with non-default access rights is allocated
+   (see a??Allocated key (PID 110163): 2a??, second time, after execl)
+
+No matter what you think about the AMR default, I posit that each of 
+those are bugs (although the last one should be fixed by resetting AMR 
+on execve).
+
+Thanks,
+Florian
