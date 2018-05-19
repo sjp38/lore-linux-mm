@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 494FE6B06AD
-	for <linux-mm@kvack.org>; Fri, 18 May 2018 21:45:07 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id s3-v6so5742934pfh.0
-        for <linux-mm@kvack.org>; Fri, 18 May 2018 18:45:07 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id n11-v6si8167846plp.221.2018.05.18.18.45.05
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F2B96B06AF
+	for <linux-mm@kvack.org>; Fri, 18 May 2018 21:45:12 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e7-v6so5693239pfi.8
+        for <linux-mm@kvack.org>; Fri, 18 May 2018 18:45:12 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id i10-v6si6950366pgv.109.2018.05.18.18.45.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 May 2018 18:45:05 -0700 (PDT)
-Subject: [PATCH v11 3/7] mm: fix __gup_device_huge vs unmap
+        Fri, 18 May 2018 18:45:10 -0700 (PDT)
+Subject: [PATCH v11 4/7] mm, fs,
+ dax: handle layout changes to pinned dax mappings
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 18 May 2018 18:35:08 -0700
-Message-ID: <152669370864.34337.13815113039455146564.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 18 May 2018 18:35:13 -0700
+Message-ID: <152669371377.34337.10697370528066177062.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <152669369110.34337.14271778212195820353.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152669369110.34337.14271778212195820353.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,98 +22,202 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: stable@vger.kernel.org, Jan Kara <jack@suse.cz>Jan Kara <jack@suse.cz>, david@fromorbit.com, hch@lst.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Jeff Moyer <jmoyer@redhat.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <mawilcox@microsoft.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>Christoph Hellwig <hch@lst.de>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-get_user_pages_fast() for device pages is missing the typical validation
-that all page references have been taken while the mapping was valid.
-Without this validation truncate operations can not reliably coordinate
-against new page reference events like O_DIRECT.
+Background:
 
-Cc: <stable@vger.kernel.org>
-Fixes: 3565fce3a659 ("mm, x86: get_user_pages() for dax mappings")
-Reported-by: Jan Kara <jack@suse.cz>
+get_user_pages() in the filesystem pins file backed memory pages for
+access by devices performing dma. However, it only pins the memory pages
+not the page-to-file offset association. If a file is truncated the
+pages are mapped out of the file and dma may continue indefinitely into
+a page that is owned by a device driver. This breaks coherency of the
+file vs dma, but the assumption is that if userspace wants the
+file-space truncated it does not matter what data is inbound from the
+device, it is not relevant anymore. The only expectation is that dma can
+safely continue while the filesystem reallocates the block(s).
+
+Problem:
+
+This expectation that dma can safely continue while the filesystem
+changes the block map is broken by dax. With dax the target dma page
+*is* the filesystem block. The model of leaving the page pinned for dma,
+but truncating the file block out of the file, means that the filesytem
+is free to reallocate a block under active dma to another file and now
+the expected data-incoherency situation has turned into active
+data-corruption.
+
+Solution:
+
+Defer all filesystem operations (fallocate(), truncate()) on a dax mode
+file while any page/block in the file is under active dma. This solution
+assumes that dma is transient. Cases where dma operations are known to
+not be transient, like RDMA, have been explicitly disabled via
+commits like 5f1d43de5416 "IB/core: disable memory registration of
+filesystem-dax vmas".
+
+The dax_layout_busy_page() routine is called by filesystems with a lock
+held against mm faults (i_mmap_lock) to find pinned / busy dax pages.
+The process of looking up a busy page invalidates all mappings
+to trigger any subsequent get_user_pages() to block on i_mmap_lock.
+The filesystem continues to call dax_layout_busy_page() until it finally
+returns no more active pages. This approach assumes that the page
+pinning is transient, if that assumption is violated the system would
+have likely hung from the uncompleted I/O.
+
+Cc: Jeff Moyer <jmoyer@redhat.com>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Reported-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/gup.c |   36 ++++++++++++++++++++++++++----------
- 1 file changed, 26 insertions(+), 10 deletions(-)
+ fs/dax.c            |   97 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/dax.h |    7 ++++
+ 2 files changed, 104 insertions(+)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 76af4cfeaf68..84dd2063ca3d 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1456,32 +1456,48 @@ static int __gup_device_huge(unsigned long pfn, unsigned long addr,
- 	return 1;
+diff --git a/fs/dax.c b/fs/dax.c
+index aaec72ded1b6..e8f61ea690f7 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -351,6 +351,19 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
+ 	}
  }
  
--static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
-+static int __gup_device_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
- 		unsigned long end, struct page **pages, int *nr)
- {
- 	unsigned long fault_pfn;
-+	int nr_start = *nr;
++static struct page *dax_busy_page(void *entry)
++{
++	unsigned long pfn;
 +
-+	fault_pfn = pmd_pfn(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-+	if (!__gup_device_huge(fault_pfn, addr, end, pages, nr))
-+		return 0;
- 
--	fault_pfn = pmd_pfn(pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
--	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
-+	if (unlikely(pmd_val(orig) != pmd_val(*pmdp))) {
-+		undo_dev_pagemap(nr, nr_start, pages);
-+		return 0;
-+	}
-+	return 1;
- }
- 
--static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
-+static int __gup_device_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
- 		unsigned long end, struct page **pages, int *nr)
- {
- 	unsigned long fault_pfn;
-+	int nr_start = *nr;
++	for_each_mapped_pfn(entry, pfn) {
++		struct page *page = pfn_to_page(pfn);
 +
-+	fault_pfn = pud_pfn(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-+	if (!__gup_device_huge(fault_pfn, addr, end, pages, nr))
-+		return 0;
- 
--	fault_pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
--	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
-+	if (unlikely(pud_val(orig) != pud_val(*pudp))) {
-+		undo_dev_pagemap(nr, nr_start, pages);
-+		return 0;
++		if (page_ref_count(page) > 1)
++			return page;
 +	}
-+	return 1;
++	return NULL;
++}
++
+ /*
+  * Find radix tree entry at given index. If it points to an exceptional entry,
+  * return it with the radix tree entry locked. If the radix tree doesn't
+@@ -492,6 +505,90 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
+ 	return entry;
  }
+ 
++/**
++ * dax_layout_busy_page - find first pinned page in @mapping
++ * @mapping: address space to scan for a page with ref count > 1
++ *
++ * DAX requires ZONE_DEVICE mapped pages. These pages are never
++ * 'onlined' to the page allocator so they are considered idle when
++ * page->count == 1. A filesystem uses this interface to determine if
++ * any page in the mapping is busy, i.e. for DMA, or other
++ * get_user_pages() usages.
++ *
++ * It is expected that the filesystem is holding locks to block the
++ * establishment of new mappings in this address_space. I.e. it expects
++ * to be able to run unmap_mapping_range() and subsequently not race
++ * mapping_mapped() becoming true.
++ */
++struct page *dax_layout_busy_page(struct address_space *mapping)
++{
++	pgoff_t	indices[PAGEVEC_SIZE];
++	struct page *page = NULL;
++	struct pagevec pvec;
++	pgoff_t	index, end;
++	unsigned i;
++
++	/*
++	 * In the 'limited' case get_user_pages() for dax is disabled.
++	 */
++	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
++		return NULL;
++
++	if (!dax_mapping(mapping) || !mapping_mapped(mapping))
++		return NULL;
++
++	pagevec_init(&pvec);
++	index = 0;
++	end = -1;
++
++	/*
++	 * If we race get_user_pages_fast() here either we'll see the
++	 * elevated page count in the pagevec_lookup and wait, or
++	 * get_user_pages_fast() will see that the page it took a reference
++	 * against is no longer mapped in the page tables and bail to the
++	 * get_user_pages() slow path.  The slow path is protected by
++	 * pte_lock() and pmd_lock(). New references are not taken without
++	 * holding those locks, and unmap_mapping_range() will not zero the
++	 * pte or pmd without holding the respective lock, so we are
++	 * guaranteed to either see new references or prevent new
++	 * references from being established.
++	 */
++	unmap_mapping_range(mapping, 0, 0, 1);
++
++	while (index < end && pagevec_lookup_entries(&pvec, mapping, index,
++				min(end - index, (pgoff_t)PAGEVEC_SIZE),
++				indices)) {
++		for (i = 0; i < pagevec_count(&pvec); i++) {
++			struct page *pvec_ent = pvec.pages[i];
++			void *entry;
++
++			index = indices[i];
++			if (index >= end)
++				break;
++
++			if (!radix_tree_exceptional_entry(pvec_ent))
++				continue;
++
++			xa_lock_irq(&mapping->i_pages);
++			entry = get_unlocked_mapping_entry(mapping, index, NULL);
++			if (entry)
++				page = dax_busy_page(entry);
++			put_unlocked_mapping_entry(mapping, index, entry);
++			xa_unlock_irq(&mapping->i_pages);
++			if (page)
++				break;
++		}
++		pagevec_remove_exceptionals(&pvec);
++		pagevec_release(&pvec);
++		index++;
++
++		if (page)
++			break;
++	}
++	return page;
++}
++EXPORT_SYMBOL_GPL(dax_layout_busy_page);
++
+ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
+ 					  pgoff_t index, bool trunc)
+ {
+diff --git a/include/linux/dax.h b/include/linux/dax.h
+index f9eb22ad341e..25bab6abb695 100644
+--- a/include/linux/dax.h
++++ b/include/linux/dax.h
+@@ -83,6 +83,8 @@ static inline void fs_put_dax(struct dax_device *dax_dev)
+ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev);
+ int dax_writeback_mapping_range(struct address_space *mapping,
+ 		struct block_device *bdev, struct writeback_control *wbc);
++
++struct page *dax_layout_busy_page(struct address_space *mapping);
  #else
--static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
-+static int __gup_device_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
- 		unsigned long end, struct page **pages, int *nr)
+ static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
  {
- 	BUILD_BUG();
- 	return 0;
+@@ -103,6 +105,11 @@ static inline struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
+ 	return NULL;
  }
  
--static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
-+static int __gup_device_huge_pud(pud_t pud, pud_t *pudp, unsigned long addr,
- 		unsigned long end, struct page **pages, int *nr)
++static inline struct page *dax_layout_busy_page(struct address_space *mapping)
++{
++	return NULL;
++}
++
+ static inline int dax_writeback_mapping_range(struct address_space *mapping,
+ 		struct block_device *bdev, struct writeback_control *wbc)
  {
- 	BUILD_BUG();
-@@ -1499,7 +1515,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
- 		return 0;
- 
- 	if (pmd_devmap(orig))
--		return __gup_device_huge_pmd(orig, addr, end, pages, nr);
-+		return __gup_device_huge_pmd(orig, pmdp, addr, end, pages, nr);
- 
- 	refs = 0;
- 	page = pmd_page(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-@@ -1537,7 +1553,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
- 		return 0;
- 
- 	if (pud_devmap(orig))
--		return __gup_device_huge_pud(orig, addr, end, pages, nr);
-+		return __gup_device_huge_pud(orig, pudp, addr, end, pages, nr);
- 
- 	refs = 0;
- 	page = pud_page(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
