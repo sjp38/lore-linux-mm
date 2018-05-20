@@ -1,93 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BBDA86B06E2
-	for <linux-mm@kvack.org>; Sun, 20 May 2018 02:26:07 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id f19-v6so3285075qkm.23
-        for <linux-mm@kvack.org>; Sat, 19 May 2018 23:26:07 -0700 (PDT)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C9C86B06E7
+	for <linux-mm@kvack.org>; Sun, 20 May 2018 03:08:52 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id b5-v6so4580928lff.3
+        for <linux-mm@kvack.org>; Sun, 20 May 2018 00:08:52 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j25-v6sor8085902qtn.24.2018.05.19.23.26.06
+        by mx.google.com with SMTPS id y3-v6sor1335355lfc.65.2018.05.20.00.08.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 19 May 2018 23:26:06 -0700 (PDT)
+        Sun, 20 May 2018 00:08:50 -0700 (PDT)
+Date: Sun, 20 May 2018 10:08:46 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v6 03/17] mm: Assign id to every memcg-aware shrinker
+Message-ID: <20180520070846.jfgfl23ionghevlw@esperanza>
+References: <152663268383.5308.8660992135988724014.stgit@localhost.localdomain>
+ <152663292827.5308.15476497557507652648.stgit@localhost.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <714E0B73-BE6C-408B-98A6-2A7C82E7BB11@oracle.com>
-References: <5BB682E1-DD52-4AA9-83E9-DEF091E0C709@oracle.com>
- <20180517152333.GA26718@bombadil.infradead.org> <714E0B73-BE6C-408B-98A6-2A7C82E7BB11@oracle.com>
-From: Song Liu <liu.song.a23@gmail.com>
-Date: Sat, 19 May 2018 23:26:06 -0700
-Message-ID: <CAPhsuW5mJYXwExScmRTMuh=dCQ-bufBsisTEmvWJBVbtP8ziyg@mail.gmail.com>
-Subject: Re: [RFC] mm, THP: Map read-only text segments using large THP pages
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <152663292827.5308.15476497557507652648.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On Thu, May 17, 2018 at 10:31 AM, William Kucharski
-<william.kucharski@oracle.com> wrote:
->
->
->> On May 17, 2018, at 9:23 AM, Matthew Wilcox <willy@infradead.org> wrote:
->>
->> I'm certain it is.  The other thing I believe is true that we should be
->> able to share page tables (my motivation is thousands of processes each
->> mapping the same ridiculously-sized file).  I was hoping this prototype
->> would have code that would be stealable for that purpose, but you've
->> gone in a different direction.  Which is fine for a prototype; you've
->> produced useful numbers.
->
-> Definitely, and that's why I mentioned integration with the page cache
-> would be crucial. This prototype allocates pages for each invocation of
-> the executable, which would never fly on a real system.
->
->> I think the first step is to get variable sized pages in the page cache
->> working.  Then the map-around functionality can probably just notice if
->> they're big enough to map with a PMD and make that happen.  I don't immediately
->> see anything from this PoC that can be used, but it at least gives us a
->> good point of comparison for any future work.
->
-> Yes, that's the first step to getting actual usable code designed and
-> working; this prototype was designed just to get something working and
-> to get a first swag at some performance numbers.
->
-> I do think that adding code to map larger pages as a fault_around variant
-> is a good start as the code is already going to potentially map in
-> fault_around_bytes from the file to satisfy the fault. It makes sense
-> to extend that paradigm to be able to tune when large pages might be
-> read in and/or mapped using large pages extant in the page cache.
->
-> Filesystem support becomes more important once writing to large pages
-> is allowed.
->
->> I think that really tells the story.  We almost entirely eliminate
->> dTLB load misses (down to almost 0.1%) and iTLB load misses drop to 4%
->> of what they were.  Does this test represent any kind of real world load,
->> or is it designed to show the best possible improvement?
->
-> It's admittedly designed to thrash the caches pretty hard and doesn't
-> represent any type of actual workload I'm aware of. It basically calls
-> various routines within a huge text area while scribbling to automatic
-> arrays declared at the top of each routine. It wasn't designed as a worst
-> case scenario, but rather as one that would hopefully show some obvious
-> degree of difference when large text pages were supported.
->
-> Thanks for your comments.
->
->     -- Bill
+Hello Kirill,
 
-We (Facebook) have quite a few real workloads that take advantage of
-text on huge
-pages. For some of them, we can see savings close to the number above.
+Generally, all patches in the series look OK to me, but I'm going to do
+some nitpicking before I ack them. See below.
 
-Currently, we "hugify" the text region through some hack in user
-space. We are very
-interested in supporting it natively in the kernel, because the hack
-breaks other
-features.
+On Fri, May 18, 2018 at 11:42:08AM +0300, Kirill Tkhai wrote:
+> The patch introduces shrinker::id number, which is used to enumerate
+> memcg-aware shrinkers. The number start from 0, and the code tries
+> to maintain it as small as possible.
+> 
+> This will be used as to represent a memcg-aware shrinkers in memcg
+> shrinkers map.
+> 
+> Since all memcg-aware shrinkers are based on list_lru, which is per-memcg
+> in case of !CONFIG_MEMCG_KMEM only, the new functionality will be under
+> this config option.
+> 
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> ---
+>  include/linux/shrinker.h |    4 +++
+>  mm/vmscan.c              |   60 ++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 64 insertions(+)
+> 
+> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> index 6794490f25b2..7ca9c18cf130 100644
+> --- a/include/linux/shrinker.h
+> +++ b/include/linux/shrinker.h
+> @@ -66,6 +66,10 @@ struct shrinker {
+>  
+>  	/* These are for internal use */
+>  	struct list_head list;
+> +#ifdef CONFIG_MEMCG_KMEM
+> +	/* ID in shrinker_idr */
+> +	int id;
+> +#endif
+>  	/* objs pending delete, per node */
+>  	atomic_long_t *nr_deferred;
+>  };
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 50055d72f294..3de12a9bdf85 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -169,6 +169,48 @@ unsigned long vm_total_pages;
+>  static LIST_HEAD(shrinker_list);
+>  static DECLARE_RWSEM(shrinker_rwsem);
+>  
+> +#ifdef CONFIG_MEMCG_KMEM
+> +static DEFINE_IDR(shrinker_idr);
+> +
+> +static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+> +{
+> +	int id, ret;
+> +
+> +	shrinker->id = -1;
+> +	down_write(&shrinker_rwsem);
+> +	ret = id = idr_alloc(&shrinker_idr, shrinker, 0, 0, GFP_KERNEL);
+> +	if (ret < 0)
+> +		goto unlock;
+> +	shrinker->id = id;
+> +	ret = 0;
+> +unlock:
+> +	up_write(&shrinker_rwsem);
+> +	return ret;
+> +}
+> +
+> +static void unregister_memcg_shrinker(struct shrinker *shrinker)
+> +{
+> +	int id = shrinker->id;
+> +
+> +	if (id < 0)
+> +		return;
 
-We also tested enabling text on huge pages through shmem, and it does work. The
-downside is that it requires putting the whole file in memory (or at
-least in swap).
-This doesn't work very well for large binaries with GBs of debugging data.
+Nit: Please replace this with BUG_ON(id >= 0) - this function can only
+be called for a memcg-aware shrinker that has been fully initialized
+(prealloc_shrinker() sets nr_deferred after id; unregister_shrinker()
+returns immediately if nr_deferred is NULL).
 
-Song
+> +
+> +	down_write(&shrinker_rwsem);
+> +	idr_remove(&shrinker_idr, id);
+> +	up_write(&shrinker_rwsem);
+
+> +	shrinker->id = -1;
+
+Nit: I'd move this under shrinker_rwsem as you set it with the rwsem
+taken.
+
+> +}
+> +#else /* CONFIG_MEMCG_KMEM */
+> +static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+> +{
+> +	return 0;
+> +}
+> +
+> +static void unregister_memcg_shrinker(struct shrinker *shrinker)
+> +{
+> +}
+> +#endif /* CONFIG_MEMCG_KMEM */
+> +
+>  #ifdef CONFIG_MEMCG
+>  static bool global_reclaim(struct scan_control *sc)
+>  {
+> @@ -306,6 +348,7 @@ unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone
+>  int prealloc_shrinker(struct shrinker *shrinker)
+>  {
+>  	size_t size = sizeof(*shrinker->nr_deferred);
+> +	int ret;
+>  
+>  	if (shrinker->flags & SHRINKER_NUMA_AWARE)
+>  		size *= nr_node_ids;
+> @@ -313,11 +356,26 @@ int prealloc_shrinker(struct shrinker *shrinker)
+>  	shrinker->nr_deferred = kzalloc(size, GFP_KERNEL);
+>  	if (!shrinker->nr_deferred)
+>  		return -ENOMEM;
+> +
+> +	if (shrinker->flags & SHRINKER_MEMCG_AWARE) {
+> +		ret = prealloc_memcg_shrinker(shrinker);
+> +		if (ret)
+> +			goto free_deferred;
+
+Nit: 'ret' is not really needed here.
+
+> +	}
+> +
+>  	return 0;
+> +
+> +free_deferred:
+> +	kfree(shrinker->nr_deferred);
+> +	shrinker->nr_deferred = NULL;
+> +	return -ENOMEM;
+>  }
+>  
+>  void free_prealloced_shrinker(struct shrinker *shrinker)
+>  {
+> +	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
+> +		unregister_memcg_shrinker(shrinker);
+> +
+>  	kfree(shrinker->nr_deferred);
+>  	shrinker->nr_deferred = NULL;
+>  }
+> @@ -347,6 +405,8 @@ void unregister_shrinker(struct shrinker *shrinker)
+>  {
+>  	if (!shrinker->nr_deferred)
+>  		return;
+> +	if (shrinker->flags & SHRINKER_MEMCG_AWARE)
+> +		unregister_memcg_shrinker(shrinker);
+>  	down_write(&shrinker_rwsem);
+>  	list_del(&shrinker->list);
+>  	up_write(&shrinker_rwsem);
+> 
