@@ -1,102 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A0EF56B06E3
-	for <linux-mm@kvack.org>; Sun, 20 May 2018 02:06:35 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q71-v6so262832pgq.17
-        for <linux-mm@kvack.org>; Sat, 19 May 2018 23:06:35 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w12-v6si11179559pfd.113.2018.05.19.23.06.34
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BBDA86B06E2
+	for <linux-mm@kvack.org>; Sun, 20 May 2018 02:26:07 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id f19-v6so3285075qkm.23
+        for <linux-mm@kvack.org>; Sat, 19 May 2018 23:26:07 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j25-v6sor8085902qtn.24.2018.05.19.23.26.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 19 May 2018 23:06:34 -0700 (PDT)
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A698F206B7
-	for <linux-mm@kvack.org>; Sun, 20 May 2018 06:06:33 +0000 (UTC)
-Received: by mail-wm0-f41.google.com with SMTP id a137-v6so8150696wme.1
-        for <linux-mm@kvack.org>; Sat, 19 May 2018 23:06:33 -0700 (PDT)
+        (Google Transport Security);
+        Sat, 19 May 2018 23:26:06 -0700 (PDT)
 MIME-Version: 1.0
-References: <53828769-23c4-b2e3-cf59-239936819c3e@redhat.com>
- <20180519011947.GJ5479@ram.oc3035372033.ibm.com> <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
- <20180519202747.GK5479@ram.oc3035372033.ibm.com> <CALCETrVz9otkOQAxVkz6HtuMwjAeY6mMuLgFK_o0M0kbkUznwg@mail.gmail.com>
- <20180520060425.GL5479@ram.oc3035372033.ibm.com>
-In-Reply-To: <20180520060425.GL5479@ram.oc3035372033.ibm.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Sat, 19 May 2018 23:06:20 -0700
-Message-ID: <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
-Subject: Re: pkeys on POWER: Access rights not reset on execve
+In-Reply-To: <714E0B73-BE6C-408B-98A6-2A7C82E7BB11@oracle.com>
+References: <5BB682E1-DD52-4AA9-83E9-DEF091E0C709@oracle.com>
+ <20180517152333.GA26718@bombadil.infradead.org> <714E0B73-BE6C-408B-98A6-2A7C82E7BB11@oracle.com>
+From: Song Liu <liu.song.a23@gmail.com>
+Date: Sat, 19 May 2018 23:26:06 -0700
+Message-ID: <CAPhsuW5mJYXwExScmRTMuh=dCQ-bufBsisTEmvWJBVbtP8ziyg@mail.gmail.com>
+Subject: Re: [RFC] mm, THP: Map read-only text segments using large THP pages
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linuxram@us.ibm.com
-Cc: Andrew Lutomirski <luto@kernel.org>, Florian Weimer <fweimer@redhat.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-On Sat, May 19, 2018 at 11:04 PM Ram Pai <linuxram@us.ibm.com> wrote:
+On Thu, May 17, 2018 at 10:31 AM, William Kucharski
+<william.kucharski@oracle.com> wrote:
+>
+>
+>> On May 17, 2018, at 9:23 AM, Matthew Wilcox <willy@infradead.org> wrote:
+>>
+>> I'm certain it is.  The other thing I believe is true that we should be
+>> able to share page tables (my motivation is thousands of processes each
+>> mapping the same ridiculously-sized file).  I was hoping this prototype
+>> would have code that would be stealable for that purpose, but you've
+>> gone in a different direction.  Which is fine for a prototype; you've
+>> produced useful numbers.
+>
+> Definitely, and that's why I mentioned integration with the page cache
+> would be crucial. This prototype allocates pages for each invocation of
+> the executable, which would never fly on a real system.
+>
+>> I think the first step is to get variable sized pages in the page cache
+>> working.  Then the map-around functionality can probably just notice if
+>> they're big enough to map with a PMD and make that happen.  I don't immediately
+>> see anything from this PoC that can be used, but it at least gives us a
+>> good point of comparison for any future work.
+>
+> Yes, that's the first step to getting actual usable code designed and
+> working; this prototype was designed just to get something working and
+> to get a first swag at some performance numbers.
+>
+> I do think that adding code to map larger pages as a fault_around variant
+> is a good start as the code is already going to potentially map in
+> fault_around_bytes from the file to satisfy the fault. It makes sense
+> to extend that paradigm to be able to tune when large pages might be
+> read in and/or mapped using large pages extant in the page cache.
+>
+> Filesystem support becomes more important once writing to large pages
+> is allowed.
+>
+>> I think that really tells the story.  We almost entirely eliminate
+>> dTLB load misses (down to almost 0.1%) and iTLB load misses drop to 4%
+>> of what they were.  Does this test represent any kind of real world load,
+>> or is it designed to show the best possible improvement?
+>
+> It's admittedly designed to thrash the caches pretty hard and doesn't
+> represent any type of actual workload I'm aware of. It basically calls
+> various routines within a huge text area while scribbling to automatic
+> arrays declared at the top of each routine. It wasn't designed as a worst
+> case scenario, but rather as one that would hopefully show some obvious
+> degree of difference when large text pages were supported.
+>
+> Thanks for your comments.
+>
+>     -- Bill
 
-> On Sat, May 19, 2018 at 04:47:23PM -0700, Andy Lutomirski wrote: > On
-Sat, May 19, 2018 at 1:28 PM Ram Pai <linuxram@us.ibm.com> wrote:
+We (Facebook) have quite a few real workloads that take advantage of
+text on huge
+pages. For some of them, we can see savings close to the number above.
 
-> ...snip...
-> >
-> > So is it possible for two threads to each call pkey_alloc() and end up
-with
-> > the same key?  If so, it seems entirely broken.
+Currently, we "hugify" the text region through some hack in user
+space. We are very
+interested in supporting it natively in the kernel, because the hack
+breaks other
+features.
 
-> No. Two threads cannot allocate the same key; just like x86.
+We also tested enabling text on huge pages through shmem, and it does work. The
+downside is that it requires putting the whole file in memory (or at
+least in swap).
+This doesn't work very well for large binaries with GBs of debugging data.
 
-> > If not, then how do you
-> > intend for a multithreaded application to usefully allocate a new key?
-> > Regardless, it seems like the current behavior on POWER is very
-difficult
-> > to work with.  Can you give an example of a use case for which POWER's
-> > behavior makes sense?
-> >
-> > For the use cases I've imagined, POWER's behavior does not make sense.
-> >   x86's is not ideal but is still better.  Here are my two example use
-cases:
-> >
-> > 1. A crypto library.  Suppose I'm writing a TLS-terminating server, and
-I
-> > want it to be resistant to Heartbleed-like bugs.  I could store my
-private
-> > keys protected by mprotect_key() and arrange for all threads and signal
-> > handlers to have PKRU/AMR values that prevent any access to the memory.
-> > When an explicit call is made to sign with the key, I would temporarily
-> > change PKRU/AMR to allow access, compute the signature, and change
-PKRU/AMR
-> > back.  On x86 right now, this works nicely.  On POWER, it doesn't,
-because
-> > any thread started before my pkey_alloc() call can access the protected
-> > memory, as can any signal handler.
-> >
-> > 2. A database using mmap() (with persistent memory or otherwise).  It
-would
-> > be nice to be resistant to accidental corruption due to stray writes.  I
-> > would do more or less the same thing as (1), except that I would want
-> > threads that are not actively writing to the database to be able the
-> > protected memory.  On x86, I need to manually convince threads that may
-> > have been started before my pkey_alloc() call as well as signal
-handlers to
-> > update their PKRU values.  On POWER, as in example (1), the error goes
-the
-> > other direction -- if I fail to propagate the AMR bits to all threads,
-> > writes are not blocked.
-
-> I see the problem from an application's point of view, on powerpc.  If
-> the key allocated in one thread is not activated on all threads
-> (existing one and future one), than other threads will not be able
-> to modify the key's permissions. Hence they will not be able to control
-> access/write to pages to which the key is associated.
-
-> As Florian suggested, I should enable the key's bit in the UAMOR value
-> corresponding to existing threads, when a new key is allocated.
-
-> Now, looking at the implementation for x86, I see that sys_mpkey_alloc()
-> makes no attempt to modify anything of any other thread. How
-> does it manage to activate the key on any other thread? Is this
-> magic done by the hardware?
-
-x86 has no equivalent concept to UAMOR.  There are 16 keys no matter what.
-
---Andy
+Song
