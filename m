@@ -1,73 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EDB246B0006
-	for <linux-mm@kvack.org>; Sun, 20 May 2018 19:26:31 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id 7-v6so9002860oin.16
-        for <linux-mm@kvack.org>; Sun, 20 May 2018 16:26:31 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id d36-v6si4945891otd.318.2018.05.20.16.26.30
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A05596B0003
+	for <linux-mm@kvack.org>; Sun, 20 May 2018 19:40:49 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 89-v6so8852449plb.18
+        for <linux-mm@kvack.org>; Sun, 20 May 2018 16:40:49 -0700 (PDT)
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com. [216.71.153.141])
+        by mx.google.com with ESMTPS id f17-v6si1712460pgt.243.2018.05.20.16.40.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 May 2018 16:26:31 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] MAINTAINERS: Change hugetlbfs maintainer and update
- files
-Date: Sun, 20 May 2018 23:23:52 +0000
-Message-ID: <20180520232352.GA7925@hori1.linux.bs1.fc.nec.co.jp>
-References: <20180518225236.19079-1-mike.kravetz@oracle.com>
-In-Reply-To: <20180518225236.19079-1-mike.kravetz@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <D04C778E8AF1AA4A9AF674E22FB7FA72@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Sun, 20 May 2018 16:40:48 -0700 (PDT)
+From: Bart Van Assche <Bart.VanAssche@wdc.com>
+Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
+Date: Sun, 20 May 2018 23:40:45 +0000
+Message-ID: <238bacfbc43245159c1586189a436efbb069306b.camel@wdc.com>
+References: <20180509013358.16399-1-kent.overstreet@gmail.com>
+	 <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
+	 <20180518090636.GA14738@kmo-pixel>
+	 <8f62d8f870c6b66e90d3e7f57acee481acff57f5.camel@wdc.com>
+	 <20180520221733.GA11495@kmo-pixel>
+	 <bb4fd32d0baa6554615a7ec3b45cc2b89424328e.camel@wdc.com>
+	 <20180520223116.GB11495@kmo-pixel>
+	 <b0aa2a8737b2d826fea58dc0bc113ddce50f018a.camel@wdc.com>
+	 <20180520232139.GE11495@kmo-pixel>
+In-Reply-To: <20180520232139.GE11495@kmo-pixel>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <9BBC200AF993E04D9BC9734E2B816F86@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Jan Kara <jack@suse.cz>
+To: "kent.overstreet@gmail.com" <kent.overstreet@gmail.com>
+Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-On Fri, May 18, 2018 at 03:52:36PM -0700, Mike Kravetz wrote:
-> The current hugetlbfs maintainer has not been active for more than
-> a few years.  I have been been active in this area for more than
-> two years and plan to remain active in the foreseeable future.
->=20
-> Also, update the hugetlbfs entry to include linux-mm mail list and
-> additional hugetlbfs related files.  hugetlb.c and hugetlb.h are
-> not 100% hugetlbfs, but a majority of their content is hugetlbfs
-> related.
->=20
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-
-Thank you for taking responsibility on this!
-
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-> ---
->  MAINTAINERS | 8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
->=20
-> diff --git a/MAINTAINERS b/MAINTAINERS
-> index 9051a9ca24a2..c7a5eb074eb1 100644
-> --- a/MAINTAINERS
-> +++ b/MAINTAINERS
-> @@ -6564,9 +6564,15 @@ F:	Documentation/networking/hinic.txt
->  F:	drivers/net/ethernet/huawei/hinic/
-> =20
->  HUGETLB FILESYSTEM
-> -M:	Nadia Yvette Chambers <nyc@holomorphy.com>
-> +M:	Mike Kravetz <mike.kravetz@oracle.com>
-> +L:	linux-mm@kvack.org
->  S:	Maintained
->  F:	fs/hugetlbfs/
-> +F:	mm/hugetlb.c
-> +F:	include/linux/hugetlb.h
-> +F:	Documentation/admin-guide/mm/hugetlbpage.rst
-> +F:	Documentation/vm/hugetlbfs_reserv.rst
-> +F:	Documentation/ABI/testing/sysfs-kernel-mm-hugepages
-> =20
->  HVA ST MEDIA DRIVER
->  M:	Jean-Christophe Trotin <jean-christophe.trotin@st.com>
-> --=20
-> 2.13.6
->=20
-> =
+T24gU3VuLCAyMDE4LTA1LTIwIGF0IDE5OjIxIC0wNDAwLCBLZW50IE92ZXJzdHJlZXQgd3JvdGU6
+DQo+IEkgcmVhbGx5IGhhdmUgYmV0dGVyIHRoaW5ncyB0byBkbyB0aGFuIGRlYnVnIHNvbWVvbmUg
+ZWxzZSdzIHRlc3RzLi4uDQo+IFsgLi4uIF0NCj4gLi4vcnVuX3Rlc3RzOiBsaW5lIDY1OiBjZDog
+L2xpYi9tb2R1bGVzLzQuMTYuMCsva2VybmVsL2Jsb2NrOiBObyBzdWNoIGZpbGUgb3IgZGlyZWN0
+b3J5DQoNCktlcm5lbCB2NC4xNiBpcyB0b28gb2xkIHRvIHJ1biB0aGVzZSB0ZXN0cy4gVGhlIHNy
+cC10ZXN0IHNjcmlwdCBuZWVkcyB0aGUNCmZvbGxvd2luZyBjb21taXQgdGhhdCB3ZW50IHVwc3Ry
+ZWFtIGluIGtlcm5lbCB2NC4xNy1yYzE6DQoNCjYzY2YxYTkwMmM5ZCAoIklCL3NycHQ6IEFkZCBS
+RE1BL0NNIHN1cHBvcnQiKQ0KDQpCYXJ0Lg0KDQoNCg==
