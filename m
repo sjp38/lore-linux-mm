@@ -1,46 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 716B76B0003
-	for <linux-mm@kvack.org>; Sun, 20 May 2018 18:19:18 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id s16-v6so8143597pfm.1
-        for <linux-mm@kvack.org>; Sun, 20 May 2018 15:19:18 -0700 (PDT)
-Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com. [216.71.153.141])
-        by mx.google.com with ESMTPS id j123-v6si9860464pgc.584.2018.05.20.15.19.17
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B271E6B0003
+	for <linux-mm@kvack.org>; Sun, 20 May 2018 18:31:20 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id m22-v6so1404285qkk.22
+        for <linux-mm@kvack.org>; Sun, 20 May 2018 15:31:20 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k56-v6sor8913036qta.138.2018.05.20.15.31.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 May 2018 15:19:17 -0700 (PDT)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
+        (Google Transport Security);
+        Sun, 20 May 2018 15:31:19 -0700 (PDT)
+Date: Sun, 20 May 2018 18:31:16 -0400
+From: Kent Overstreet <kent.overstreet@gmail.com>
 Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
-Date: Sun, 20 May 2018 22:19:13 +0000
-Message-ID: <bb4fd32d0baa6554615a7ec3b45cc2b89424328e.camel@wdc.com>
+Message-ID: <20180520223116.GB11495@kmo-pixel>
 References: <20180509013358.16399-1-kent.overstreet@gmail.com>
-	 <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
-	 <20180518090636.GA14738@kmo-pixel>
-	 <8f62d8f870c6b66e90d3e7f57acee481acff57f5.camel@wdc.com>
-	 <20180520221733.GA11495@kmo-pixel>
-In-Reply-To: <20180520221733.GA11495@kmo-pixel>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <0083DEEA2BC16C4BA75BBB80A2A4FB3A@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+ <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
+ <20180518090636.GA14738@kmo-pixel>
+ <8f62d8f870c6b66e90d3e7f57acee481acff57f5.camel@wdc.com>
+ <20180520221733.GA11495@kmo-pixel>
+ <bb4fd32d0baa6554615a7ec3b45cc2b89424328e.camel@wdc.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <bb4fd32d0baa6554615a7ec3b45cc2b89424328e.camel@wdc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "kent.overstreet@gmail.com" <kent.overstreet@gmail.com>
+To: Bart Van Assche <Bart.VanAssche@wdc.com>
 Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-T24gU3VuLCAyMDE4LTA1LTIwIGF0IDE4OjE3IC0wNDAwLCBLZW50IE92ZXJzdHJlZXQgd3JvdGU6
-DQo+IE9uIEZyaSwgTWF5IDE4LCAyMDE4IGF0IDAzOjEyOjI3UE0gKzAwMDAsIEJhcnQgVmFuIEFz
-c2NoZSB3cm90ZToNCj4gPiBPbiBGcmksIDIwMTgtMDUtMTggYXQgMDU6MDYgLTA0MDAsIEtlbnQg
-T3ZlcnN0cmVldCB3cm90ZToNCj4gPiA+IE9uIFRodSwgTWF5IDE3LCAyMDE4IGF0IDA4OjU0OjU3
-UE0gKzAwMDAsIEJhcnQgVmFuIEFzc2NoZSB3cm90ZToNCj4gPiA+ID4gV2l0aCBKZW5zJyBsYXRl
-c3QgZm9yLW5leHQgYnJhbmNoIEkgaGl0IHRoZSBrZXJuZWwgd2FybmluZyBzaG93biBiZWxvdy4g
-Q2FuDQo+ID4gPiA+IHlvdSBoYXZlIGEgbG9vaz8NCj4gPiA+IA0KPiA+ID4gQW55IGhpbnRzIG9u
-IGhvdyB0byByZXByb2R1Y2UgaXQ/DQo+ID4gDQo+ID4gU3VyZS4gVGhpcyBpcyBob3cgSSB0cmln
-Z2VyZWQgaXQ6DQo+ID4gKiBDbG9uZSBodHRwczovL2dpdGh1Yi5jb20vYnZhbmFzc2NoZS9zcnAt
-dGVzdC4NCj4gPiAqIEZvbGxvdyB0aGUgaW5zdHJ1Y3Rpb25zIGluIFJFQURNRS5tZC4NCj4gPiAq
-IFJ1biBzcnAtdGVzdC9ydW5fdGVzdHMgLWMgLXIgMTANCj4gDQo+IENhbiB5b3UgYmlzZWN0IGl0
-PyBJIGRvbid0IGhhdmUgaW5maW5pYmFuZCBoYXJkd2FyZSBoYW5keS4uLg0KDQpIZWxsbyBLZW50
-LA0KDQpIYXZlIHlvdSBub3RpY2VkIHRoYXQgdGhlIHRlc3QgSSBkZXNjcmliZWQgdXNlcyB0aGUg
-cmRtYV9yeGUgZHJpdmVyIGFuZCBoZW5jZSB0aGF0DQpubyBJbmZpbmlCYW5kIGhhcmR3YXJlIGlz
-IG5lZWRlZCB0byBydW4gdGhhdCB0ZXN0Pw0KDQpUaGFua3MsDQoNCkJhcnQuDQoNCg0K
+On Sun, May 20, 2018 at 10:19:13PM +0000, Bart Van Assche wrote:
+> On Sun, 2018-05-20 at 18:17 -0400, Kent Overstreet wrote:
+> > On Fri, May 18, 2018 at 03:12:27PM +0000, Bart Van Assche wrote:
+> > > On Fri, 2018-05-18 at 05:06 -0400, Kent Overstreet wrote:
+> > > > On Thu, May 17, 2018 at 08:54:57PM +0000, Bart Van Assche wrote:
+> > > > > With Jens' latest for-next branch I hit the kernel warning shown below. Can
+> > > > > you have a look?
+> > > > 
+> > > > Any hints on how to reproduce it?
+> > > 
+> > > Sure. This is how I triggered it:
+> > > * Clone https://github.com/bvanassche/srp-test.
+> > > * Follow the instructions in README.md.
+> > > * Run srp-test/run_tests -c -r 10
+> > 
+> > Can you bisect it? I don't have infiniband hardware handy...
+> 
+> Hello Kent,
+> 
+> Have you noticed that the test I described uses the rdma_rxe driver and hence that
+> no InfiniBand hardware is needed to run that test?
+
+No, I'm not terribly familiar with infiniband stuff....
+
+Do you have some sort of self contained test/qemu recipe? I would really rather
+not have to figure out how to configure multipath, and infiniband, and I'm not
+even sure what else is needed based on that readme...
