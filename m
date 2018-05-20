@@ -1,146 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 183FA6B0006
-	for <linux-mm@kvack.org>; Sun, 20 May 2018 19:21:44 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id u127-v6so13441692qka.9
-        for <linux-mm@kvack.org>; Sun, 20 May 2018 16:21:44 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 50-v6sor7285212qvr.94.2018.05.20.16.21.43
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EDB246B0006
+	for <linux-mm@kvack.org>; Sun, 20 May 2018 19:26:31 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id 7-v6so9002860oin.16
+        for <linux-mm@kvack.org>; Sun, 20 May 2018 16:26:31 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id d36-v6si4945891otd.318.2018.05.20.16.26.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 20 May 2018 16:21:43 -0700 (PDT)
-Date: Sun, 20 May 2018 19:21:39 -0400
-From: Kent Overstreet <kent.overstreet@gmail.com>
-Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
-Message-ID: <20180520232139.GE11495@kmo-pixel>
-References: <20180509013358.16399-1-kent.overstreet@gmail.com>
- <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
- <20180518090636.GA14738@kmo-pixel>
- <8f62d8f870c6b66e90d3e7f57acee481acff57f5.camel@wdc.com>
- <20180520221733.GA11495@kmo-pixel>
- <bb4fd32d0baa6554615a7ec3b45cc2b89424328e.camel@wdc.com>
- <20180520223116.GB11495@kmo-pixel>
- <b0aa2a8737b2d826fea58dc0bc113ddce50f018a.camel@wdc.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 20 May 2018 16:26:31 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] MAINTAINERS: Change hugetlbfs maintainer and update
+ files
+Date: Sun, 20 May 2018 23:23:52 +0000
+Message-ID: <20180520232352.GA7925@hori1.linux.bs1.fc.nec.co.jp>
+References: <20180518225236.19079-1-mike.kravetz@oracle.com>
+In-Reply-To: <20180518225236.19079-1-mike.kravetz@oracle.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <D04C778E8AF1AA4A9AF674E22FB7FA72@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b0aa2a8737b2d826fea58dc0bc113ddce50f018a.camel@wdc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <Bart.VanAssche@wdc.com>
-Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nadia Yvette Chambers <nyc@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Jan Kara <jack@suse.cz>
 
-On Sun, May 20, 2018 at 10:35:29PM +0000, Bart Van Assche wrote:
-> On Sun, 2018-05-20 at 18:31 -0400, Kent Overstreet wrote:
-> > On Sun, May 20, 2018 at 10:19:13PM +0000, Bart Van Assche wrote:
-> > > On Sun, 2018-05-20 at 18:17 -0400, Kent Overstreet wrote:
-> > > > On Fri, May 18, 2018 at 03:12:27PM +0000, Bart Van Assche wrote:
-> > > > > On Fri, 2018-05-18 at 05:06 -0400, Kent Overstreet wrote:
-> > > > > > On Thu, May 17, 2018 at 08:54:57PM +0000, Bart Van Assche wrote:
-> > > > > > > With Jens' latest for-next branch I hit the kernel warning shown below. Can
-> > > > > > > you have a look?
-> > > > > > 
-> > > > > > Any hints on how to reproduce it?
-> > > > > 
-> > > > > Sure. This is how I triggered it:
-> > > > > * Clone https://github.com/bvanassche/srp-test.
-> > > > > * Follow the instructions in README.md.
-> > > > > * Run srp-test/run_tests -c -r 10
-> > > > 
-> > > > Can you bisect it? I don't have infiniband hardware handy...
-> > > 
-> > > Hello Kent,
-> > > 
-> > > Have you noticed that the test I described uses the rdma_rxe driver and hence that
-> > > no InfiniBand hardware is needed to run that test?
-> > 
-> > No, I'm not terribly familiar with infiniband stuff....
-> > 
-> > Do you have some sort of self contained test/qemu recipe? I would really rather
-> > not have to figure out how to configure multipath, and infiniband, and I'm not
-> > even sure what else is needed based on that readme...
-> 
-> Hello Kent,
-> 
-> Please have another look at the srp-test README. The instructions in that document
-> are easy to follow. No multipath nor any InfiniBand knowledge is required. The test
-> even can be run in a virtual machine in case you would be worried about potential
-> impact of the test on the rest of the system.
+On Fri, May 18, 2018 at 03:52:36PM -0700, Mike Kravetz wrote:
+> The current hugetlbfs maintainer has not been active for more than
+> a few years.  I have been been active in this area for more than
+> two years and plan to remain active in the foreseeable future.
+>=20
+> Also, update the hugetlbfs entry to include linux-mm mail list and
+> additional hugetlbfs related files.  hugetlb.c and hugetlb.h are
+> not 100% hugetlbfs, but a majority of their content is hugetlbfs
+> related.
+>=20
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 
+Thank you for taking responsibility on this!
 
-I really have better things to do than debug someone else's tests...
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Restarting multipath-tools (via systemctl): multipath-tools.service.
-multipathd> reconfigure
-ok
-multipathd> make -C discontiguous-io discontiguous-io
-make[1]: Entering directory '/host/home/kent/ktest/tests/srp-test/discontiguous-io'
-make[1]: 'discontiguous-io' is up to date.
-make[1]: Leaving directory '/host/home/kent/ktest/tests/srp-test/discontiguous-io'
-Unloaded the ib_srpt kernel module
-Unloaded the rdma_rxe kernel module
-../run_tests: line 65: cd: /lib/modules/4.16.0+/kernel/block: No such file or directory
-Zero-initializing /dev/ram0 ... done
-Zero-initializing /dev/ram1 ... done
-Unable to load target_core_pscsi
-Unable to load target_core_user
-Configured SRP target driver
-Running test ../tests/01 ...
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/01 failed
-Running test ../tests/02-mq ...
-Test file I/O on top of multipath concurrently with logout and login (10 min; mq)
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/02-mq failed
-Running test ../tests/02-sq ...
-Test file I/O on top of multipath concurrently with logout and login (10 min; sq)
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/02-sq failed
-Running test ../tests/02-sq-on-mq ...
-Test file I/O on top of multipath concurrently with logout and login (10 min; sq-on-mq)
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/02-sq-on-mq failed
-Running test ../tests/03-4M ...
-Test direct I/O with large transfer sizes and cmd_sg_entries=255
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/03-4M failed
-Running test ../tests/03-8M ...
-Test direct I/O with large transfer sizes and cmd_sg_entries=255
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/03-8M failed
-Running test ../tests/04-4M ...
-Test direct I/O with large transfer sizes and cmd_sg_entries=1
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/04-4M failed
-Running test ../tests/04-8M ...
-Test direct I/O with large transfer sizes and cmd_sg_entries=1
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/04-8M failed
-Running test ../tests/05-4M ...
-Test buffered I/O with large transfer sizes and cmd_sg_entries=255
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/05-4M failed
-Running test ../tests/05-8M ...
-Test buffered I/O with large transfer sizes and cmd_sg_entries=255
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/05-8M failed
-Running test ../tests/06 ...
-Test block I/O on top of multipath concurrently with logout and login (10 min)
-Unloaded the ib_srp kernel module
-SRP login failed
-Test ../tests/06 failed
-0 tests succeeded and 11 tests failed
-Unloaded the ib_srpt kernel module
-Unloaded the rdma_rxe kernel module
-
-========= PASSED srp in 18s
+> ---
+>  MAINTAINERS | 8 +++++++-
+>  1 file changed, 7 insertions(+), 1 deletion(-)
+>=20
+> diff --git a/MAINTAINERS b/MAINTAINERS
+> index 9051a9ca24a2..c7a5eb074eb1 100644
+> --- a/MAINTAINERS
+> +++ b/MAINTAINERS
+> @@ -6564,9 +6564,15 @@ F:	Documentation/networking/hinic.txt
+>  F:	drivers/net/ethernet/huawei/hinic/
+> =20
+>  HUGETLB FILESYSTEM
+> -M:	Nadia Yvette Chambers <nyc@holomorphy.com>
+> +M:	Mike Kravetz <mike.kravetz@oracle.com>
+> +L:	linux-mm@kvack.org
+>  S:	Maintained
+>  F:	fs/hugetlbfs/
+> +F:	mm/hugetlb.c
+> +F:	include/linux/hugetlb.h
+> +F:	Documentation/admin-guide/mm/hugetlbpage.rst
+> +F:	Documentation/vm/hugetlbfs_reserv.rst
+> +F:	Documentation/ABI/testing/sysfs-kernel-mm-hugepages
+> =20
+>  HVA ST MEDIA DRIVER
+>  M:	Jean-Christophe Trotin <jean-christophe.trotin@st.com>
+> --=20
+> 2.13.6
+>=20
+> =
