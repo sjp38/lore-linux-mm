@@ -1,123 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AF886B06F3
-	for <linux-mm@kvack.org>; Sun, 20 May 2018 04:08:29 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id a5-v6so4496573lfi.8
-        for <linux-mm@kvack.org>; Sun, 20 May 2018 01:08:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x8-v6sor2530503ljd.45.2018.05.20.01.08.27
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E6F36B064C
+	for <linux-mm@kvack.org>; Sun, 20 May 2018 11:56:25 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id e2-v6so8863863oii.20
+        for <linux-mm@kvack.org>; Sun, 20 May 2018 08:56:25 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p22-v6si4191856otg.242.2018.05.20.08.56.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 20 May 2018 01:08:27 -0700 (PDT)
-Date: Sun, 20 May 2018 11:08:22 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v6 15/17] mm: Generalize shrink_slab() calls in
- shrink_node()
-Message-ID: <20180520080822.hqish62iahbonlht@esperanza>
-References: <152663268383.5308.8660992135988724014.stgit@localhost.localdomain>
- <152663305153.5308.14479673190611499656.stgit@localhost.localdomain>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 20 May 2018 08:56:23 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201805122318.HJG81246.MFVFLFJOOQtSHO@I-love.SAKURA.ne.jp>
+	<20180515091655.GD12670@dhcp22.suse.cz>
+	<201805181914.IFF18202.FOJOVSOtLFMFHQ@I-love.SAKURA.ne.jp>
+	<20180518122045.GG21711@dhcp22.suse.cz>
+In-Reply-To: <20180518122045.GG21711@dhcp22.suse.cz>
+Message-Id: <201805210056.IEC51073.VSFFHFOOQtJMOL@I-love.SAKURA.ne.jp>
+Date: Mon, 21 May 2018 00:56:05 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <152663305153.5308.14479673190611499656.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: mhocko@kernel.org
+Cc: rientjes@google.com, guro@fb.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-On Fri, May 18, 2018 at 11:44:11AM +0300, Kirill Tkhai wrote:
-> From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Michal Hocko wrote:
+> On Fri 18-05-18 19:14:12, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Sat 12-05-18 23:18:24, Tetsuo Handa wrote:
+> > > [...]
+> > > > @@ -4241,6 +4240,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+> > > >  	/* Retry as long as the OOM killer is making progress */
+> > > >  	if (did_some_progress) {
+> > > >  		no_progress_loops = 0;
+> > > > +		/*
+> > > > +		 * This schedule_timeout_*() serves as a guaranteed sleep for
+> > > > +		 * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
+> > > > +		 */
+> > > > +		if (!tsk_is_oom_victim(current))
+> > > > +			schedule_timeout_uninterruptible(1);
+> > > >  		goto retry;
+> > > 
+> > > We already do have that sleep for PF_WQ_WORKER in should_reclaim_retry.
+> > > Why do we need it here as well?
+> > 
+> > Because that path depends on __zone_watermark_ok() == true which is not
+> > guaranteed to be executed.
 > 
-> The patch makes shrink_slab() be called for root_mem_cgroup
-> in the same way as it's called for the rest of cgroups.
-> This simplifies the logic and improves the readability.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-> ktkhai: Description written.
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> ---
->  mm/vmscan.c |   13 +++----------
->  1 file changed, 3 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 2fbf3b476601..f1d23e2df988 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
+> Is there any reason we cannot do the special cased sleep for
+> PF_WQ_WORKER in should_reclaim_retry? The current code is complex enough
+> to make it even more so. If we need a hack for PF_WQ_WORKER case then we
+> definitely want to have a single place to do so.
 
-You forgot to patch the comment to shrink_slab(). Please take a closer
-look at the diff I sent you:
+I don't understand why you are talking about PF_WQ_WORKER case.
 
-@@ -486,10 +486,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-  * @nid is passed along to shrinkers with SHRINKER_NUMA_AWARE set,
-  * unaware shrinkers will receive a node id of 0 instead.
-  *
-- * @memcg specifies the memory cgroup to target. If it is not NULL,
-- * only shrinkers with SHRINKER_MEMCG_AWARE set will be called to scan
-- * objects from the memory cgroup specified. Otherwise, only unaware
-- * shrinkers are called.
-+ * @memcg specifies the memory cgroup to target. Unaware shrinkers
-+ * are called only if it is the root cgroup.
-  *
-  * @priority is sc->priority, we take the number of objects and >> by priority
-  * in order to get the scan target.
+This sleep is not only for PF_WQ_WORKER case but also !PF_KTHREAD case.
+I added this comment because you suggested simply removing any sleep which
+waits for the OOM victim.
 
-> @@ -661,9 +661,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  			.memcg = memcg,
->  		};
-
-If you made !MEMCG version of mem_cgroup_is_root return true, as I
-suggested in reply to patch 13, you could also simplify the memcg
-related check in the beginning of shrink_slab() as in case of
-CONFIG_MEMCG 'memcg' is now guaranteed to be != NULL in this function
-while in case if !CONFIG_MEMCG mem_cgroup_is_root() would always
-return true:
-
-@@ -501,7 +501,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
- 
--	if (memcg && !mem_cgroup_is_root(memcg))
-+	if (!mem_cgroup_is_root(memcg))
- 		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
- 
- 	if (!down_read_trylock(&shrinker_rwsem))
-
->  
-> -		if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
-> -			continue;
-> -
->  		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
->  			sc.nid = 0;
->  
-> @@ -693,6 +690,7 @@ void drop_slab_node(int nid)
->  		struct mem_cgroup *memcg = NULL;
->  
->  		freed = 0;
-> +		memcg = mem_cgroup_iter(NULL, NULL, NULL);
->  		do {
->  			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
->  		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
-> @@ -2712,9 +2710,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
->  			node_lru_pages += lru_pages;
->  
-> -			if (memcg)
-> -				shrink_slab(sc->gfp_mask, pgdat->node_id,
-> -					    memcg, sc->priority);
-> +			shrink_slab(sc->gfp_mask, pgdat->node_id,
-> +				    memcg, sc->priority);
->  
->  			/* Record the group's reclaim efficiency */
->  			vmpressure(sc->gfp_mask, memcg, false,
-> @@ -2738,10 +2735,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  			}
->  		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
->  
-> -		if (global_reclaim(sc))
-> -			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
-> -				    sc->priority);
-> -
->  		if (reclaim_state) {
->  			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
->  			reclaim_state->reclaimed_slab = 0;
-> 
+Making special cased sleep for PF_WQ_WORKER in should_reclaim_retry() cannot
+become a reason to block this patch. You can propose it after this patch is
+applied. This patch is for mitigating lockup problem caused by forever holding
+oom_lock.
