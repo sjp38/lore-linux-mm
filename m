@@ -1,329 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BD726B06E9
-	for <linux-mm@kvack.org>; Sun, 20 May 2018 03:27:07 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id v10-v6so4462989lfe.16
-        for <linux-mm@kvack.org>; Sun, 20 May 2018 00:27:07 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E38676B06ED
+	for <linux-mm@kvack.org>; Sun, 20 May 2018 03:56:03 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id a5-v6so4492022lfi.8
+        for <linux-mm@kvack.org>; Sun, 20 May 2018 00:56:03 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j12-v6sor1070112lfb.107.2018.05.20.00.27.05
+        by mx.google.com with SMTPS id x7-v6sor2419268ljc.49.2018.05.20.00.56.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 20 May 2018 00:27:05 -0700 (PDT)
-Date: Sun, 20 May 2018 10:27:02 +0300
+        Sun, 20 May 2018 00:56:01 -0700 (PDT)
+Date: Sun, 20 May 2018 10:55:58 +0300
 From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v6 05/17] mm: Assign memcg-aware shrinkers bitmap to memcg
-Message-ID: <20180520072702.5ivoc5qxdbcus4td@esperanza>
+Subject: Re: [PATCH v6 12/17] mm: Set bit in memcg shrinker bitmap on first
+ list_lru item apearance
+Message-ID: <20180520075558.6ls4yzrkou63orkb@esperanza>
 References: <152663268383.5308.8660992135988724014.stgit@localhost.localdomain>
- <152663295709.5308.12103481076537943325.stgit@localhost.localdomain>
+ <152663302275.5308.7476660277265020067.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <152663295709.5308.12103481076537943325.stgit@localhost.localdomain>
+In-Reply-To: <152663302275.5308.7476660277265020067.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kirill Tkhai <ktkhai@virtuozzo.com>
 Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On Fri, May 18, 2018 at 11:42:37AM +0300, Kirill Tkhai wrote:
-> Imagine a big node with many cpus, memory cgroups and containers.
-> Let we have 200 containers, every container has 10 mounts,
-> and 10 cgroups. All container tasks don't touch foreign
-> containers mounts. If there is intensive pages write,
-> and global reclaim happens, a writing task has to iterate
-> over all memcgs to shrink slab, before it's able to go
-> to shrink_page_list().
+On Fri, May 18, 2018 at 11:43:42AM +0300, Kirill Tkhai wrote:
+> Introduce set_shrinker_bit() function to set shrinker-related
+> bit in memcg shrinker bitmap, and set the bit after the first
+> item is added and in case of reparenting destroyed memcg's items.
 > 
-> Iteration over all the memcg slabs is very expensive:
-> the task has to visit 200 * 10 = 2000 shrinkers
-> for every memcg, and since there are 2000 memcgs,
-> the total calls are 2000 * 2000 = 4000000.
-> 
-> So, the shrinker makes 4 million do_shrink_slab() calls
-> just to try to isolate SWAP_CLUSTER_MAX pages in one
-> of the actively writing memcg via shrink_page_list().
-> I've observed a node spending almost 100% in kernel,
-> making useless iteration over already shrinked slab.
-> 
-> This patch adds bitmap of memcg-aware shrinkers to memcg.
-> The size of the bitmap depends on bitmap_nr_ids, and during
-> memcg life it's maintained to be enough to fit bitmap_nr_ids
-> shrinkers. Every bit in the map is related to corresponding
-> shrinker id.
-> 
-> Next patches will maintain set bit only for really charged
-> memcg. This will allow shrink_slab() to increase its
-> performance in significant way. See the last patch for
-> the numbers.
+> This will allow next patch to make shrinkers be called only,
+> in case of they have charged objects at the moment, and
+> to improve shrink_slab() performance.
 > 
 > Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 > ---
->  include/linux/memcontrol.h |   14 +++++
->  mm/memcontrol.c            |  120 ++++++++++++++++++++++++++++++++++++++++++++
->  mm/vmscan.c                |   10 ++++
->  3 files changed, 144 insertions(+)
+>  include/linux/memcontrol.h |   14 ++++++++++++++
+>  mm/list_lru.c              |   22 ++++++++++++++++++++--
+>  2 files changed, 34 insertions(+), 2 deletions(-)
 > 
 > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 996469bc2b82..e51c6e953d7a 100644
+> index e51c6e953d7a..7ae1b94becf3 100644
 > --- a/include/linux/memcontrol.h
 > +++ b/include/linux/memcontrol.h
-> @@ -112,6 +112,15 @@ struct lruvec_stat {
->  	long count[NR_VM_NODE_STAT_ITEMS];
->  };
+> @@ -1275,6 +1275,18 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
 >  
-> +/*
-> + * Bitmap of shrinker::id corresponding to memcg-aware shrinkers,
-> + * which have elements charged to this memcg.
-> + */
-> +struct memcg_shrinker_map {
-> +	struct rcu_head rcu;
-> +	unsigned long map[0];
-> +};
+>  extern int memcg_expand_shrinker_maps(int new_id);
+>  
+> +static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
+> +					  int nid, int shrinker_id)
+> +{
+
+> +	if (shrinker_id >= 0 && memcg && memcg != root_mem_cgroup) {
+
+Nit: I'd remove these checks from this function and require the caller
+to check that shrinker_id >= 0 and memcg != NULL or root_mem_cgroup.
+See below how the call sites would look then.
+
+> +		struct memcg_shrinker_map *map;
 > +
->  /*
->   * per-zone information in memory controller.
->   */
-> @@ -125,6 +134,9 @@ struct mem_cgroup_per_node {
->  
->  	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
->  
-> +#ifdef CONFIG_MEMCG_KMEM
-> +	struct memcg_shrinker_map __rcu	*shrinker_map;
-> +#endif
->  	struct rb_node		tree_node;	/* RB tree node */
->  	unsigned long		usage_in_excess;/* Set to the value by which */
->  						/* the soft limit is exceeded*/
-> @@ -1261,6 +1273,8 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
->  	return memcg ? memcg->kmemcg_id : -1;
->  }
->  
-> +extern int memcg_expand_shrinker_maps(int new_id);
-> +
+> +		rcu_read_lock();
+> +		map = rcu_dereference(memcg->nodeinfo[nid]->shrinker_map);
+> +		set_bit(shrinker_id, map->map);
+> +		rcu_read_unlock();
+> +	}
+> +}
 >  #else
 >  #define for_each_memcg_cache_index(_idx)	\
 >  	for (; NULL; )
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 023a1e9c900e..317a72137b95 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -320,6 +320,120 @@ EXPORT_SYMBOL(memcg_kmem_enabled_key);
+> @@ -1297,6 +1309,8 @@ static inline void memcg_put_cache_ids(void)
+>  {
+>  }
 >  
->  struct workqueue_struct *memcg_kmem_cache_wq;
->  
-> +static int memcg_shrinker_map_size;
-> +static DEFINE_MUTEX(memcg_shrinker_map_mutex);
-> +
-> +static void memcg_free_shrinker_map_rcu(struct rcu_head *head)
-> +{
-> +	kvfree(container_of(head, struct memcg_shrinker_map, rcu));
-> +}
-> +
-> +static int memcg_expand_one_shrinker_map(struct mem_cgroup *memcg,
-> +					 int size, int old_size)
-
-Nit: No point in passing old_size here. You can instead use
-memcg_shrinker_map_size directly.
-
-> +{
-> +	struct memcg_shrinker_map *new, *old;
-> +	int nid;
-> +
-> +	lockdep_assert_held(&memcg_shrinker_map_mutex);
-> +
-> +	for_each_node(nid) {
-> +		old = rcu_dereference_protected(
-> +				memcg->nodeinfo[nid]->shrinker_map, true);
-
-Nit: Sometimes you use mem_cgroup_nodeinfo() helper, sometimes you
-access mem_cgorup->nodeinfo directly. Please, be consistent.
-
-> +		/* Not yet online memcg */
-> +		if (!old)
-> +			return 0;
-> +
-> +		new = kvmalloc(sizeof(*new) + size, GFP_KERNEL);
-> +		if (!new)
-> +			return -ENOMEM;
-> +
-> +		/* Set all old bits, clear all new bits */
-> +		memset(new->map, (int)0xff, old_size);
-> +		memset((void *)new->map + old_size, 0, size - old_size);
-> +
-> +		rcu_assign_pointer(memcg->nodeinfo[nid]->shrinker_map, new);
-> +		if (old)
-> +			call_rcu(&old->rcu, memcg_free_shrinker_map_rcu);
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +static void memcg_free_shrinker_maps(struct mem_cgroup *memcg)
-> +{
-> +	struct mem_cgroup_per_node *pn;
-> +	struct memcg_shrinker_map *map;
-> +	int nid;
-> +
-> +	if (mem_cgroup_is_root(memcg))
-> +		return;
-> +
-> +	for_each_node(nid) {
-> +		pn = mem_cgroup_nodeinfo(memcg, nid);
-> +		map = rcu_dereference_protected(pn->shrinker_map, true);
-> +		if (map)
-> +			kvfree(map);
-> +		rcu_assign_pointer(pn->shrinker_map, NULL);
-> +	}
-> +}
-> +
-> +static int memcg_alloc_shrinker_maps(struct mem_cgroup *memcg)
-> +{
-> +	struct memcg_shrinker_map *map;
-> +	int nid, size, ret = 0;
-> +
-> +	if (mem_cgroup_is_root(memcg))
-> +		return 0;
-> +
-> +	mutex_lock(&memcg_shrinker_map_mutex);
-> +	size = memcg_shrinker_map_size;
-> +	for_each_node(nid) {
-> +		map = kvzalloc(sizeof(*map) + size, GFP_KERNEL);
-> +		if (!map) {
-
-> +			memcg_free_shrinker_maps(memcg);
-
-Nit: Please don't call this function under the mutex as it isn't
-necessary. Set 'ret', break the loop, then check 'ret' after releasing
-the mutex, and call memcg_free_shrinker_maps() if it's not 0.
-
-> +			ret = -ENOMEM;
-> +			break;
-> +		}
-> +		rcu_assign_pointer(memcg->nodeinfo[nid]->shrinker_map, map);
-> +	}
-> +	mutex_unlock(&memcg_shrinker_map_mutex);
-> +
-> +	return ret;
-> +}
-> +
-> +int memcg_expand_shrinker_maps(int nr)
-
-Nit: Please pass the new shrinker id to this function, not the max
-number of shrinkers out there - this will look more intuitive. And
-please add a comment to this function. Something like:
-
-  Make sure memcg shrinker maps can store the given shrinker id.
-  Expand the maps if necessary.
-
-> +{
-> +	int size, old_size, ret = 0;
-> +	struct mem_cgroup *memcg;
-> +
-> +	size = DIV_ROUND_UP(nr, BITS_PER_BYTE);
-
-Note, this will turn into DIV_ROUND_UP(id + 1, BITS_PER_BYTE) then.
-
-> +	old_size = memcg_shrinker_map_size;
-
-Nit: old_size won't be needed if you make memcg_expand_one_shrinker_map
-use memcg_shrinker_map_size directly.
-
-> +	if (size <= old_size)
-> +		return 0;
-> +
-> +	mutex_lock(&memcg_shrinker_map_mutex);
-> +	if (!root_mem_cgroup)
-> +		goto unlock;
-> +
-> +	for_each_mem_cgroup(memcg) {
-> +		if (mem_cgroup_is_root(memcg))
-> +			continue;
-> +		ret = memcg_expand_one_shrinker_map(memcg, size, old_size);
-> +		if (ret)
-> +			goto unlock;
-> +	}
-> +unlock:
-> +	if (!ret)
-> +		memcg_shrinker_map_size = size;
-> +	mutex_unlock(&memcg_shrinker_map_mutex);
-> +	return ret;
-> +}
-> +#else /* CONFIG_MEMCG_KMEM */
-> +static int memcg_alloc_shrinker_maps(struct mem_cgroup *memcg)
-> +{
-> +	return 0;
-> +}
-> +static void memcg_free_shrinker_maps(struct mem_cgroup *memcg) { }
+> +static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
+> +					  int nid, int shrinker_id) { }
 >  #endif /* CONFIG_MEMCG_KMEM */
 >  
->  /**
-> @@ -4482,6 +4596,11 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
->  
-> +	if (memcg_alloc_shrinker_maps(memcg)) {
-> +		mem_cgroup_id_remove(memcg);
-> +		return -ENOMEM;
-> +	}
-> +
->  	/* Online state pins memcg ID, memcg ID pins CSS */
->  	atomic_set(&memcg->id.ref, 1);
->  	css_get(css);
-> @@ -4534,6 +4653,7 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
->  	vmpressure_cleanup(&memcg->vmpressure);
->  	cancel_work_sync(&memcg->high_work);
->  	mem_cgroup_remove_from_trees(memcg);
-> +	memcg_free_shrinker_maps(memcg);
->  	memcg_free_kmem(memcg);
->  	mem_cgroup_free(memcg);
+>  #endif /* _LINUX_MEMCONTROL_H */
+> diff --git a/mm/list_lru.c b/mm/list_lru.c
+> index cab8fad7f7e2..7df71ab0de1c 100644
+> --- a/mm/list_lru.c
+> +++ b/mm/list_lru.c
+> @@ -31,6 +31,11 @@ static void list_lru_unregister(struct list_lru *lru)
+>  	mutex_unlock(&list_lrus_mutex);
 >  }
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 3de12a9bdf85..f09ea20d7270 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -171,6 +171,7 @@ static DECLARE_RWSEM(shrinker_rwsem);
 >  
->  #ifdef CONFIG_MEMCG_KMEM
->  static DEFINE_IDR(shrinker_idr);
-
-> +static int memcg_shrinker_nr_max;
-
-Nit: Please rename it to shrinker_id_max and make it store max shrinker
-id, not the max number shrinkers that have ever been allocated. This
-will make it easier to understand IMO.
-
-Also, this variable doesn't belong to this patch as you don't really
-need it to expaned mem cgroup maps. Let's please move it to patch 3
-(the one that introduces shrinker_idr).
-
->  
->  static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+> +static int lru_shrinker_id(struct list_lru *lru)
+> +{
+> +	return lru->shrinker_id;
+> +}
+> +
+>  static inline bool list_lru_memcg_aware(struct list_lru *lru)
 >  {
-> @@ -181,6 +182,15 @@ static int prealloc_memcg_shrinker(struct shrinker *shrinker)
->  	ret = id = idr_alloc(&shrinker_idr, shrinker, 0, 0, GFP_KERNEL);
->  	if (ret < 0)
->  		goto unlock;
-
+>  	/*
+> @@ -94,6 +99,11 @@ static void list_lru_unregister(struct list_lru *lru)
+>  {
+>  }
+>  
+> +static int lru_shrinker_id(struct list_lru *lru)
+> +{
+> +	return -1;
+> +}
 > +
-> +	if (id >= memcg_shrinker_nr_max) {
-> +		if (memcg_expand_shrinker_maps(id + 1)) {
-> +			idr_remove(&shrinker_idr, id);
-> +			goto unlock;
-> +		}
-> +		memcg_shrinker_nr_max = id + 1;
-> +	}
-> +
+>  static inline bool list_lru_memcg_aware(struct list_lru *lru)
+>  {
+>  	return false;
+> @@ -119,13 +129,17 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
+>  {
+>  	int nid = page_to_nid(virt_to_page(item));
+>  	struct list_lru_node *nlru = &lru->node[nid];
+> +	struct mem_cgroup *memcg;
+>  	struct list_lru_one *l;
+>  
+>  	spin_lock(&nlru->lock);
+>  	if (list_empty(item)) {
+> -		l = list_lru_from_kmem(nlru, item, NULL);
+> +		l = list_lru_from_kmem(nlru, item, &memcg);
+>  		list_add_tail(item, &l->list);
+> -		l->nr_items++;
+> +		/* Set shrinker bit if the first element was added */
+> +		if (!l->nr_items++)
+> +			memcg_set_shrinker_bit(memcg, nid,
+> +					       lru_shrinker_id(lru));
 
-Then we'll have here:
+This would turn into
 
-	if (memcg_expaned_shrinker_maps(id)) {
-		idr_remove(shrinker_idr, id);
-		goto unlock;
-	}
+	if (!l->nr_items++ && memcg)
+		memcg_set_shrinker_bit(memcg, nid, lru_shrinker_id(lru));
 
-and from patch 3:
+Note, you don't need to check that lru_shrinker_id(lru) is >= 0 here as
+the fact that memcg != NULL guarantees that. Also, memcg can't be
+root_mem_cgroup here as kmem objects allocated for the root cgroup go
+unaccounted.
 
-	shrinker_id_max = MAX(shrinker_id_max, id);
+>  		nlru->nr_items++;
+>  		spin_unlock(&nlru->lock);
+>  		return true;
+> @@ -520,6 +534,7 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
+>  	struct list_lru_node *nlru = &lru->node[nid];
+>  	int dst_idx = dst_memcg->kmemcg_id;
+>  	struct list_lru_one *src, *dst;
+> +	bool set;
+>  
+>  	/*
+>  	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
+> @@ -531,7 +546,10 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
+>  	dst = list_lru_from_memcg_idx(nlru, dst_idx);
+>  
+>  	list_splice_init(&src->list, &dst->list);
+> +	set = (!dst->nr_items && src->nr_items);
+>  	dst->nr_items += src->nr_items;
+> +	if (set)
+> +		memcg_set_shrinker_bit(dst_memcg, nid, lru_shrinker_id(lru));
 
->  	shrinker->id = id;
->  	ret = 0;
->  unlock:
+This would turn into
+
+	if (set && dst_idx >= 0)
+		memcg_set_shrinker_bit(dst_memcg, nid, lru_shrinker_id(lru));
+
+Again, the shrinker is guaranteed to be memcg aware in this function and
+dst_memcg != NULL.
+
+IMHO such a change would make the code a bit more straightforward.
+
+>  	src->nr_items = 0;
+>  
+>  	spin_unlock_irq(&nlru->lock);
 > 
