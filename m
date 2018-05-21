@@ -1,472 +1,188 @@
 Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: TSUKADA Koutaro <tsukada@ascade.co.jp>
-Subject: [PATCH] memcg, hugetlb: pages allocated for hugetlb's overcommit will
- be charged to memcg
-Message-ID: <ecb737e9-ccec-2d7e-45d9-91884a669b58@ascade.co.jp>
-Date: Wed, 2 May 2018 10:19:44 +0900
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+From: Huaisheng Ye <yehs2007@gmail.com>
+Subject: [RFC PATCH v2 01/12] include/linux/gfp.h: get rid of GFP_ZONE_TABLE/BAD
+Date: Mon, 21 May 2018 23:20:22 +0800
+Message-Id: <1526916033-4877-2-git-send-email-yehs2007@gmail.com>
+In-Reply-To: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, tsukada@ascade.co.jp
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, willy@infradead.org, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, alexander.levin@verizon.com, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>
 List-ID: <linux-mm.kvack.org>
 
-If nr_overcommit_hugepages is assumed to be infinite, allocating pages for
-hugetlb's overcommit from buddy pool is all unlimited even if being limited
-by memcg. The purpose of this patch is that if we allocate the hugetlb page
-from the boddy pool, that means we should charge it to memcg.
+From: Huaisheng Ye <yehs1@lenovo.com>
 
-A straightforward way for user applications to use hugetlb pages is to
-create the pool(nr_hugepages), but root privileges is required. For example,
-assuming the field of HPC, it can be said that giving root privs to general
-users is difficult. Also, the way to the creating pool is that we need to
-estimate exactly how much use hugetlb, and it feels a bit troublesome.
+Replace GFP_ZONE_TABLE and GFP_ZONE_BAD with encoded zone number.
 
-In such a case, using hugetlb's overcommit feature, considered to let the
-user use hugetlb page only with overcommit without creating the any pool.
-However, as mentioned earlier, the page can be allocated limitelessly in
-overcommit in the current implementation. Therefore, by introducing memcg
-charging, I wanted to be able to manage the memory resources used by the
-user application only with memcg's limitation.
+Delete ___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 from GFP bitmasks,
+the bottom three bits of GFP mask is reserved for storing encoded
+zone number.
 
-This patch targets RHELSA(kernel-alt-4.11.0-45.6.1.el7a.src.rpm). The patch
-does the following things.
+The encoding method is XOR. Get zone number from enum zone_type,
+then encode the number with ZONE_NORMAL by XOR operation.
+The goal is to make sure ZONE_NORMAL can be encoded to zero. So,
+the compatibility can be guaranteed, such as GFP_KERNEL and GFP_ATOMIC
+can be used as before.
 
-When allocating the page from buddy at __hugetlb_alloc_buddy_huge_page,
-set the flag of HUGETLB_OVERCOMMIT on that page[1].private. When actually
-use the page which HUGETLB_OVERCOMMIT is set(at hugepage_add_new_anon_rmap
-or huge_add_to_page_cache), it tries to charge to memcg. If the charge is
-successful, add the flag of HUGETLB_OVERCOMMIT_CHARGED on that page[1].
+Reserve __GFP_MOVABLE in bit 3, so that it can continue to be used as
+a flag. Same as before, __GFP_MOVABLE respresents movable migrate type
+for ZONE_DMA, ZONE_DMA32, and ZONE_NORMAL. But when it is enabled with
+__GFP_HIGHMEM, ZONE_MOVABLE shall be returned instead of ZONE_HIGHMEM.
+__GFP_ZONE_MOVABLE is created to realize it.
 
-The page charged to memcg will finally be uncharged at free_huge_page.
+With this patch, just enabling __GFP_MOVABLE and __GFP_HIGHMEM is not
+enough to get ZONE_MOVABLE from gfp_zone. All subsystems should use
+GFP_HIGHUSER_MOVABLE directly to achieve that.
 
-Modification of memcontrol.c is for updating of statistical information
-when the task moves cgroup. The hpage_nr_pages works correctly for thp,
-but it is not suitable for such as hugetlb which uses the contiguous bit
-of aarch64, so need to modify it.
+Decode zone number directly from bottom three bits of flags in gfp_zone.
+The theory of encoding and decoding is,
+        A ^ B ^ B = A
 
-Signed-off-by: TSUKADA Koutaro <tsukada@ascade.co.jp>
+Suggested-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Kate Stewart <kstewart@linuxfoundation.org>
+Cc: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- include/linux/hugetlb.h |   45 ++++++++++++++++++++++
- mm/hugetlb.c            |   80 +++++++++++++++++++++++++++++++++++++++
- mm/memcontrol.c         |   98 ++++++++++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 219 insertions(+), 4 deletions(-)
+ include/linux/gfp.h | 98 ++++++-----------------------------------------------
+ 1 file changed, 11 insertions(+), 87 deletions(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index d67675e..67991cb 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -511,6 +511,51 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
- 	set_huge_pte_at(mm, addr, ptep, pte);
- }
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 1a4582b..ab0fb7f 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -16,9 +16,7 @@
+  */
+ 
+ /* Plain integer GFP bitmasks. Do not use this directly. */
+-#define ___GFP_DMA		0x01u
+-#define ___GFP_HIGHMEM		0x02u
+-#define ___GFP_DMA32		0x04u
++#define ___GFP_ZONE_MASK	0x07u
+ #define ___GFP_MOVABLE		0x08u
+ #define ___GFP_RECLAIMABLE	0x10u
+ #define ___GFP_HIGH		0x20u
+@@ -53,11 +51,15 @@
+  * without the underscores and use them consistently. The definitions here may
+  * be used in bit comparisons.
+  */
+-#define __GFP_DMA	((__force gfp_t)___GFP_DMA)
+-#define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
+-#define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
++#define __GFP_DMA	((__force gfp_t)OPT_ZONE_DMA ^ ZONE_NORMAL)
++#define __GFP_HIGHMEM	((__force gfp_t)OPT_ZONE_HIGHMEM ^ ZONE_NORMAL)
++#define __GFP_DMA32	((__force gfp_t)OPT_ZONE_DMA32 ^ ZONE_NORMAL)
+ #define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+-#define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
++#define GFP_ZONEMASK	((__force gfp_t)___GFP_ZONE_MASK | ___GFP_MOVABLE)
++/* bottom 3 bits of GFP bitmasks are used for zone number encoded*/
++#define __GFP_ZONE_MASK ((__force gfp_t)___GFP_ZONE_MASK)
++#define __GFP_ZONE_MOVABLE	\
++		((__force gfp_t)(ZONE_MOVABLE ^ ZONE_NORMAL) | ___GFP_MOVABLE)
+ 
+ /*
+  * Page mobility and placement hints
+@@ -279,7 +281,7 @@
+ #define GFP_DMA		__GFP_DMA
+ #define GFP_DMA32	__GFP_DMA32
+ #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
+-#define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
++#define GFP_HIGHUSER_MOVABLE	(GFP_USER | __GFP_ZONE_MOVABLE)
+ #define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+ 			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
+ #define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
+@@ -326,87 +328,9 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
+ #define OPT_ZONE_DMA32 ZONE_NORMAL
  #endif
-+
-+#define HUGETLB_OVERCOMMIT		1UL
-+#define HUGETLB_OVERCOMMIT_CHARGED	2UL
-+
-+static inline void add_hugetlb_compound_private(struct page *page,
-+						unsigned long val)
-+{
-+	page[1].private |= val;
-+}
-+
-+static inline unsigned long get_hugetlb_compound_private(struct page *page)
-+{
-+	return page_private(&page[1]);
-+}
-+
-+static inline void add_hugetlb_overcommit(struct page *page)
-+{
-+	add_hugetlb_compound_private(page, HUGETLB_OVERCOMMIT);
-+}
-+
-+static inline void del_hugetlb_overcommit(struct page *page)
-+{
-+	add_hugetlb_compound_private(page, ~(HUGETLB_OVERCOMMIT));
-+}
-+
-+static inline int is_hugetlb_overcommit(struct page *page)
-+{
-+	return (get_hugetlb_compound_private(page) & HUGETLB_OVERCOMMIT);
-+}
-+
-+static inline void add_hugetlb_overcommit_charged(struct page *page)
-+{
-+	add_hugetlb_compound_private(page, HUGETLB_OVERCOMMIT_CHARGED);
-+}
-+
-+static inline void del_hugetlb_overcommit_charged(struct page *page)
-+{
-+	add_hugetlb_compound_private(page, ~(HUGETLB_OVERCOMMIT_CHARGED));
-+}
-+
-+static inline int is_hugetlb_overcommit_charged(struct page *page)
-+{
-+	return (get_hugetlb_compound_private(page) &
-+		HUGETLB_OVERCOMMIT_CHARGED);
-+}
- #else	/* CONFIG_HUGETLB_PAGE */
- struct hstate {};
- #define alloc_huge_page(v, a, r) NULL
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 6191fb9..2cd91d9 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -24,6 +24,7 @@
- #include <linux/swapops.h>
- #include <linux/page-isolation.h>
- #include <linux/jhash.h>
-+#include <linux/memcontrol.h>
-
- #include <asm/page.h>
- #include <asm/pgtable.h>
-@@ -1227,6 +1228,17 @@ static void clear_page_huge_active(struct page *page)
- 	ClearPagePrivate(&page[1]);
+ 
+-/*
+- * GFP_ZONE_TABLE is a word size bitstring that is used for looking up the
+- * zone to use given the lowest 4 bits of gfp_t. Entries are GFP_ZONES_SHIFT
+- * bits long and there are 16 of them to cover all possible combinations of
+- * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM.
+- *
+- * The zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA.
+- * But GFP_MOVABLE is not only a zone specifier but also an allocation
+- * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
+- * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
+- *
+- *       bit       result
+- *       =================
+- *       0x0    => NORMAL
+- *       0x1    => DMA or NORMAL
+- *       0x2    => HIGHMEM or NORMAL
+- *       0x3    => BAD (DMA+HIGHMEM)
+- *       0x4    => DMA32 or DMA or NORMAL
+- *       0x5    => BAD (DMA+DMA32)
+- *       0x6    => BAD (HIGHMEM+DMA32)
+- *       0x7    => BAD (HIGHMEM+DMA32+DMA)
+- *       0x8    => NORMAL (MOVABLE+0)
+- *       0x9    => DMA or NORMAL (MOVABLE+DMA)
+- *       0xa    => MOVABLE (Movable is valid only if HIGHMEM is set too)
+- *       0xb    => BAD (MOVABLE+HIGHMEM+DMA)
+- *       0xc    => DMA32 (MOVABLE+DMA32)
+- *       0xd    => BAD (MOVABLE+DMA32+DMA)
+- *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
+- *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
+- *
+- * GFP_ZONES_SHIFT must be <= 2 on 32 bit platforms.
+- */
+-
+-#if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
+-/* ZONE_DEVICE is not a valid GFP zone specifier */
+-#define GFP_ZONES_SHIFT 2
+-#else
+-#define GFP_ZONES_SHIFT ZONES_SHIFT
+-#endif
+-
+-#if 16 * GFP_ZONES_SHIFT > BITS_PER_LONG
+-#error GFP_ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
+-#endif
+-
+-#define GFP_ZONE_TABLE ( \
+-	(ZONE_NORMAL << 0 * GFP_ZONES_SHIFT)				       \
+-	| (OPT_ZONE_DMA << ___GFP_DMA * GFP_ZONES_SHIFT)		       \
+-	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * GFP_ZONES_SHIFT)	       \
+-	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * GFP_ZONES_SHIFT)		       \
+-	| (ZONE_NORMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)		       \
+-	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * GFP_ZONES_SHIFT)    \
+-	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * GFP_ZONES_SHIFT)\
+-	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * GFP_ZONES_SHIFT)\
+-)
+-
+-/*
+- * GFP_ZONE_BAD is a bitmap for all combinations of __GFP_DMA, __GFP_DMA32
+- * __GFP_HIGHMEM and __GFP_MOVABLE that are not permitted. One flag per
+- * entry starting with bit 0. Bit is set if the combination is not
+- * allowed.
+- */
+-#define GFP_ZONE_BAD ( \
+-	1 << (___GFP_DMA | ___GFP_HIGHMEM)				      \
+-	| 1 << (___GFP_DMA | ___GFP_DMA32)				      \
+-	| 1 << (___GFP_DMA32 | ___GFP_HIGHMEM)				      \
+-	| 1 << (___GFP_DMA | ___GFP_DMA32 | ___GFP_HIGHMEM)		      \
+-	| 1 << (___GFP_MOVABLE | ___GFP_HIGHMEM | ___GFP_DMA)		      \
+-	| 1 << (___GFP_MOVABLE | ___GFP_DMA32 | ___GFP_DMA)		      \
+-	| 1 << (___GFP_MOVABLE | ___GFP_DMA32 | ___GFP_HIGHMEM)		      \
+-	| 1 << (___GFP_MOVABLE | ___GFP_DMA32 | ___GFP_DMA | ___GFP_HIGHMEM)  \
+-)
+-
+ static inline enum zone_type gfp_zone(gfp_t flags)
+ {
+-	enum zone_type z;
+-	int bit = (__force int) (flags & GFP_ZONEMASK);
+-
+-	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
+-					 ((1 << GFP_ZONES_SHIFT) - 1);
+-	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+-	return z;
++	return ((__force unsigned int)flags & __GFP_ZONE_MASK) ^ ZONE_NORMAL;
  }
-
-+static void hugetlb_overcommit_finalize(struct page *page)
-+{
-+	if (is_hugetlb_overcommit_charged(page)) {
-+		del_hugetlb_overcommit_charged(page);
-+		mem_cgroup_uncharge(page);
-+	}
-+	if (is_hugetlb_overcommit(page)) {
-+		del_hugetlb_overcommit(page);
-+	}
-+}
-+
- void free_huge_page(struct page *page)
- {
- 	/*
-@@ -1239,6 +1251,8 @@ void free_huge_page(struct page *page)
- 		(struct hugepage_subpool *)page_private(page);
- 	bool restore_reserve;
-
-+	hugetlb_overcommit_finalize(page);
-+
- 	set_page_private(page, 0);
- 	page->mapping = NULL;
- 	VM_BUG_ON_PAGE(page_count(page), page);
-@@ -1620,6 +1634,13 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h,
- 	spin_unlock(&hugetlb_lock);
-
- 	page = __hugetlb_alloc_buddy_huge_page(h, vma, addr, nid);
-+	if (page) {
-+		/*
-+		 * At this point it is impossible to judge whether it is
-+		 * mapped or just reserved, so only mark it.
-+		 */
-+		add_hugetlb_overcommit(page);
-+	}
-
- 	spin_lock(&hugetlb_lock);
- 	if (page) {
-@@ -3486,6 +3507,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int ret = 0, outside_reserve = 0;
- 	unsigned long mmun_start;	/* For mmu_notifiers */
- 	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mem_cgroup *memcg;
-+	int memcg_charged = 0;
-
- 	pte = huge_ptep_get(ptep);
- 	old_page = pte_page(pte);
-@@ -3552,6 +3575,15 @@ retry_avoidcopy:
- 		goto out_release_old;
- 	}
-
-+	if (unlikely(is_hugetlb_overcommit(new_page))) {
-+		if (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL,
-+						&memcg, true)) {
-+			ret = VM_FAULT_OOM;
-+			goto out_release_all;
-+		}
-+		memcg_charged = 1;
-+	}
-+
- 	/*
- 	 * When the original hugepage is shared one, it does not have
- 	 * anon_vma prepared.
-@@ -3587,12 +3619,18 @@ retry_avoidcopy:
- 				make_huge_pte(vma, new_page, 1));
- 		page_remove_rmap(old_page, true);
- 		hugepage_add_new_anon_rmap(new_page, vma, address);
-+		if (memcg_charged) {
-+			mem_cgroup_commit_charge(new_page, memcg, false, true);
-+			add_hugetlb_overcommit_charged(new_page);
-+		}
- 		/* Make the old page be freed below */
- 		new_page = old_page;
- 	}
- 	spin_unlock(ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- out_release_all:
-+	if (memcg_charged)
-+		mem_cgroup_cancel_charge(new_page, memcg, true);
- 	restore_reserve_on_error(h, vma, address, new_page);
- 	put_page(new_page);
- out_release_old:
-@@ -3641,9 +3679,18 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
- 	struct inode *inode = mapping->host;
- 	struct hstate *h = hstate_inode(inode);
- 	int err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-+	struct mem_cgroup *memcg;
-
- 	if (err)
- 		return err;
-+	if (page && is_hugetlb_overcommit(page)) {
-+		err = mem_cgroup_try_charge(page, current->mm, GFP_KERNEL,
-+					    &memcg, true);
-+		if (err)
-+			return err;
-+		mem_cgroup_commit_charge(page, memcg, false, true);
-+		add_hugetlb_overcommit_charged(page);
-+	}
- 	ClearPagePrivate(page);
-
- 	spin_lock(&inode->i_lock);
-@@ -3663,6 +3710,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct page *page;
- 	pte_t new_pte;
- 	spinlock_t *ptl;
-+	struct mem_cgroup *memcg;
-+	int memcg_charged = 0;
-
- 	/*
- 	 * Currently, we are forced to kill the process in the event the
-@@ -3740,6 +3789,14 @@ retry:
- 			}
- 		} else {
- 			lock_page(page);
-+			if (unlikely(is_hugetlb_overcommit(page))) {
-+				if (mem_cgroup_try_charge(page, mm, GFP_KERNEL,
-+							  &memcg, true)) {
-+					ret = VM_FAULT_OOM;
-+					goto backout_unlocked;
-+				}
-+				memcg_charged = 1;
-+			}
- 			if (unlikely(anon_vma_prepare(vma))) {
- 				ret = VM_FAULT_OOM;
- 				goto backout_unlocked;
-@@ -3786,6 +3843,10 @@ retry:
- 	if (anon_rmap) {
- 		ClearPagePrivate(page);
- 		hugepage_add_new_anon_rmap(page, vma, address);
-+		if (memcg_charged) {
-+			mem_cgroup_commit_charge(page, memcg, false, true);
-+			add_hugetlb_overcommit_charged(page);
-+		}
- 	} else
- 		page_dup_rmap(page, true);
- 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
-@@ -3806,6 +3867,8 @@ out:
- backout:
- 	spin_unlock(ptl);
- backout_unlocked:
-+	if (memcg_charged)
-+		mem_cgroup_cancel_charge(page, memcg, true);
- 	unlock_page(page);
- 	restore_reserve_on_error(h, vma, address, page);
- 	put_page(page);
-@@ -4002,6 +4065,9 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
- 	spinlock_t *ptl;
- 	int ret;
- 	struct page *page;
-+	struct mem_cgroup *memcg;
-+	int memcg_charged = 0;
-+
-
- 	if (!*pagep) {
- 		ret = -ENOMEM;
-@@ -4045,6 +4111,14 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
- 			goto out_release_nounlock;
- 	}
-
-+	if (!vm_shared && is_hugetlb_overcommit(page)) {
-+		ret = -ENOMEM;
-+		if (mem_cgroup_try_charge(page, dst_mm, GFP_KERNEL,
-+						&memcg, true))
-+			goto out_release_nounlock;
-+		memcg_charged = 1;
-+	}
-+
- 	ptl = huge_pte_lockptr(h, dst_mm, dst_pte);
- 	spin_lock(ptl);
-
-@@ -4057,6 +4131,10 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
- 	} else {
- 		ClearPagePrivate(page);
- 		hugepage_add_new_anon_rmap(page, dst_vma, dst_addr);
-+		if (memcg_charged) {
-+			mem_cgroup_commit_charge(page, memcg, false, true);
-+			add_hugetlb_overcommit_charged(page);
-+		}
- 	}
-
- 	_dst_pte = make_huge_pte(dst_vma, page, dst_vma->vm_flags & VM_WRITE);
-@@ -4082,6 +4160,8 @@ out:
- out_release_unlock:
- 	spin_unlock(ptl);
- out_release_nounlock:
-+	if (memcg_charged)
-+		mem_cgroup_cancel_charge(page, memcg, true);
- 	if (vm_shared)
- 		unlock_page(page);
- 	put_page(page);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 02cfcd9..1842693 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4531,7 +4531,7 @@ static int mem_cgroup_move_account(struct page *page,
- 				   struct mem_cgroup *to)
- {
- 	unsigned long flags;
--	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
-+	unsigned int nr_pages = compound ? 1 << compound_order(page) : 1;
- 	int ret;
- 	bool anon;
-
-@@ -4744,12 +4744,64 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
- 	return 0;
- }
-
-+#ifdef CONFIG_HUGETLB_PAGE
-+static enum mc_target_type get_mctgt_type_hugetlb(struct vm_area_struct *vma,
-+			unsigned long addr, pte_t *pte, union mc_target *target)
-+{
-+	struct page *page = NULL;
-+	pte_t entry;
-+	enum mc_target_type ret = MC_TARGET_NONE;
-+
-+	if (!(mc.flags & MOVE_ANON))
-+		return ret;
-+
-+	entry = huge_ptep_get(pte);
-+	if (!pte_present(entry))
-+		return ret;
-+	page = pte_page(entry);
-+	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
-+	if (!is_hugetlb_overcommit_charged(page))
-+		return ret;
-+	if (page->mem_cgroup == mc.from) {
-+		ret = MC_TARGET_PAGE;
-+		if (target) {
-+			get_page(page);
-+			target->page = page;
-+		}
-+	}
-+
-+	return ret;
-+}
-+
-+static int hugetlb_count_precharge_pte_range(pte_t *pte, unsigned long hmask,
-+					unsigned long addr, unsigned long end,
-+					struct mm_walk *walk)
-+{
-+	struct vm_area_struct *vma = walk->vma;
-+	struct mm_struct *mm = walk->mm;
-+	spinlock_t *ptl;
-+	union mc_target target;
-+
-+	ptl = huge_pte_lock(hstate_vma(vma), mm, pte);
-+	if (get_mctgt_type_hugetlb(vma, addr, pte, &target) == MC_TARGET_PAGE) {
-+		mc.precharge += (1 << compound_order(target.page));
-+		put_page(target.page);
-+	}
-+	spin_unlock(ptl);
-+
-+	return 0;
-+}
-+#endif
-+
- static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
- {
- 	unsigned long precharge;
-
- 	struct mm_walk mem_cgroup_count_precharge_walk = {
- 		.pmd_entry = mem_cgroup_count_precharge_pte_range,
-+#ifdef CONFIG_HUGETLB_PAGE
-+		.hugetlb_entry = hugetlb_count_precharge_pte_range,
-+#endif
- 		.mm = mm,
- 	};
- 	down_read(&mm->mmap_sem);
-@@ -5023,10 +5075,48 @@ put:			/* get_mctgt_type() gets the page */
- 	return ret;
- }
-
-+#ifdef CONFIG_HUGETLB_PAGE
-+static int hugetlb_move_charge_pte_range(pte_t *pte, unsigned long hmask,
-+					unsigned long addr, unsigned long end,
-+					struct mm_walk *walk)
-+{
-+	struct vm_area_struct *vma = walk->vma;
-+	struct mm_struct *mm = walk->mm;
-+	spinlock_t *ptl;
-+	enum mc_target_type target_type;
-+	union mc_target target;
-+	struct page *page;
-+	unsigned long nr_pages;
-+
-+	ptl = huge_pte_lock(hstate_vma(vma), mm, pte);
-+	target_type = get_mctgt_type_hugetlb(vma, addr, pte, &target);
-+	if (target_type == MC_TARGET_PAGE) {
-+		page = target.page;
-+		nr_pages = (1 << compound_order(page));
-+		if (mc.precharge < nr_pages) {
-+			put_page(page);
-+			goto unlock;
-+		}
-+		if (!mem_cgroup_move_account(page, true, mc.from, mc.to)) {
-+			mc.precharge -= nr_pages;
-+			mc.moved_charge += nr_pages;
-+		}
-+		put_page(page);
-+	}
-+unlock:
-+	spin_unlock(ptl);
-+
-+	return 0;
-+}
-+#endif
-+
- static void mem_cgroup_move_charge(void)
- {
- 	struct mm_walk mem_cgroup_move_charge_walk = {
- 		.pmd_entry = mem_cgroup_move_charge_pte_range,
-+#ifdef CONFIG_HUGETLB_PAGE
-+		.hugetlb_entry = hugetlb_move_charge_pte_range,
-+#endif
- 		.mm = mc.mm,
- 	};
-
-@@ -5427,7 +5517,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
- 			  bool compound)
- {
- 	struct mem_cgroup *memcg = NULL;
--	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
-+	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
- 	int ret = 0;
-
- 	if (mem_cgroup_disabled())
-@@ -5488,7 +5578,7 @@ out:
- void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
- 			      bool lrucare, bool compound)
- {
--	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
-+	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
-
- 	VM_BUG_ON_PAGE(!page->mapping, page);
- 	VM_BUG_ON_PAGE(PageLRU(page) && !lrucare, page);
-@@ -5532,7 +5622,7 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
- void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
- 		bool compound)
- {
--	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
-+	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
-
- 	if (mem_cgroup_disabled())
- 		return;
+ 
+ /*
 -- 
+1.8.3.1
