@@ -1,52 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D83996B0005
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 10:52:51 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id c6-v6so12374177otk.9
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 07:52:51 -0700 (PDT)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D6C6A6B0007
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 10:53:49 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id 37-v6so12364653otv.2
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 07:53:49 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f2-v6si4604589oia.204.2018.05.21.07.52.51
+        by mx.google.com with ESMTP id t21-v6si5924517otj.43.2018.05.21.07.53.48
         for <linux-mm@kvack.org>;
-        Mon, 21 May 2018 07:52:51 -0700 (PDT)
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Subject: Re: [PATCH v2 35/40] iommu/arm-smmu-v3: Add support for PCI ATS
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-36-jean-philippe.brucker@arm.com>
- <922474e8-0aa5-e022-0502-f1e51b0d4859@codeaurora.org>
-Message-ID: <08f53ea4-bd39-a567-9c79-f4381e5fb461@arm.com>
-Date: Mon, 21 May 2018 15:52:39 +0100
+        Mon, 21 May 2018 07:53:48 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH v2 3/7] memcg: use compound_order rather than hpage_nr_pages
+References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
+	<262267fe-d98c-0b25-9013-3dafb52e8679@ascade.co.jp>
+	<87wow0zwja.fsf@e105922-lin.cambridge.arm.com>
+	<87sh6ozwc4.fsf@e105922-lin.cambridge.arm.com>
+	<2053ac36-74df-b05e-d1ce-36f69dde2a47@ascade.co.jp>
+Date: Mon, 21 May 2018 15:53:46 +0100
+In-Reply-To: <2053ac36-74df-b05e-d1ce-36f69dde2a47@ascade.co.jp> (TSUKADA
+	Koutaro's message of "Mon, 21 May 2018 12:48:22 +0900")
+Message-ID: <87zi0txdol.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <922474e8-0aa5-e022-0502-f1e51b0d4859@codeaurora.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sinan Kaya <okaya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>
+To: TSUKADA Koutaro <tsukada@ascade.co.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-Hi Sinan,
+TSUKADA Koutaro <tsukada@ascade.co.jp> writes:
 
-On 19/05/18 18:25, Sinan Kaya wrote:
-> Nothing specific about this patch but just a general observation. Last time I
-> looked at the code, it seemed to require both ATS and PRI support from a given
-> hardware.
-> 
-> I think you can assume that for ATS 1.1 specification but ATS 1.0 specification
-> allows a system to have ATS+PASID without PRI. 
+> On 2018/05/19 2:51, Punit Agrawal wrote:
+>> Punit Agrawal <punit.agrawal@arm.com> writes:
+>>
+>>> Tsukada-san,
+>>>
+>>> I am not familiar with memcg so can't comment about whether the patchset
+>>> is the right way to solve the problem outlined in the cover letter but
+>>> had a couple of comments about this patch.
+>>>
+>>> TSUKADA Koutaro <tsukada@ascade.co.jp> writes:
+>>>
+>>>> The current memcg implementation assumes that the compound page is THP.
+>>>> In order to be able to charge surplus hugepage, we use compound_order.
+>>>>
+>>>> Signed-off-by: TSUKADA Koutaro <tsukada@ascade.co.jp>
+>>>
+>>> Please move this before Patch 1/7. This is to prevent wrong accounting
+>>> of pages to memcg for size != PMD_SIZE.
+>>
+>> I just noticed that the default state is off so the change isn't enabled
+>> until the sysfs node is exposed in the next patch. Please ignore this
+>> comment.
+>>
+>> One below still applies.
+>>
+>>>
+>>>> ---
+>>>>   memcontrol.c |   10 +++++-----
+>>>>   1 file changed, 5 insertions(+), 5 deletions(-)
+>>>>
+>>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>>>> index 2bd3df3..a8f1ff8 100644
+>>>> --- a/mm/memcontrol.c
+>>>> +++ b/mm/memcontrol.c
+>>>> @@ -4483,7 +4483,7 @@ static int mem_cgroup_move_account(struct page *page,
+>>>>   				   struct mem_cgroup *to)
+>>>>   {
+>>>>   	unsigned long flags;
+>>>> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
+>>>> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
+>>>
+>>> Instead of replacing calls to hpage_nr_pages(), is it possible to modify
+>>> it to do the calculation?
+>
+> Thank you for review my code and please just call me Tsukada.
+>
+> I think it is possible to modify the inside of itself rather than
+> replacing the call to hpage_nr_pages().
+>
+> Inferring from the processing that hpage_nr_pages() desires, I thought
+> that the definition of hpage_nr_pages() could be moved outside the
+> CONFIG_TRANSPARENT_HUGEPAGE. It seems that THP and HugeTLBfs can be
+> handled correctly because compound_order() is judged by seeing whether it
+> is PageHead or not.
+>
+> Also, I would like to use compound_order() inside hpage_nr_pages(), but
+> since huge_mm.h is included before mm.h where compound_order() is defined,
+> move hpage_nr_pages to mm.h.
+>
+> Instead of patch 3/7, are the following patches implementing what you
+> intended?
+>
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index a8a1262..1186ab7 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -204,12 +204,6 @@ static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
+>  	else
+>  		return NULL;
+>  }
+> -static inline int hpage_nr_pages(struct page *page)
+> -{
+> -	if (unlikely(PageTransHuge(page)))
+> -		return HPAGE_PMD_NR;
+> -	return 1;
+> -}
+>
+>  struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+>  		pmd_t *pmd, int flags);
+> @@ -254,8 +248,6 @@ static inline bool thp_migration_supported(void)
+>  #define HPAGE_PUD_MASK ({ BUILD_BUG(); 0; })
+>  #define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
+>
+> -#define hpage_nr_pages(x) 1
+> -
+>  static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
+>  {
+>  	return false;
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 1ac1f06..082f2ee 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -673,6 +673,12 @@ static inline unsigned int compound_order(struct page *page)
+>  	return page[1].compound_order;
+>  }
+>
+> +static inline int hpage_nr_pages(struct page *page)
+> +{
+> +	VM_BUG_ON_PAGE(PageTail(page), page);
+> +	return (1 << compound_order(page));
+> +}
+> +
+>  static inline void set_compound_order(struct page *page, unsigned int order)
+>  {
+>  	page[1].compound_order = order;
 
-As far as I know, the latest ATS spec also states that "device that
-supports ATS need not support PRI". I'm referring to the version
-integrated into PCIe v4.0r1.0, which I think corresponds to ATS 1.1.
-
-> QDF2400 is ATS 1.0 compatible as an example. 
-> 
-> Is this an assumption / my misinterpretation?
-
-In this series you can enable ATS and PASID without PRI. The SMMU
-enables ATS and PASID in add_device() if supported. Then PRI is only
-enabled if users request IOMMU_SVA_FEAT_IOPF in sva_init_device(). If
-the device driver pins all DMA memory, it can use PASID without PRI.
-
-Thanks,
-Jean
+That looks a lot better. Thanks for giving it a go.
