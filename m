@@ -1,84 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 206A66B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 10:38:35 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x23-v6so9318515pfm.7
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 07:38:35 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id o16-v6si9032860pgc.603.2018.05.21.07.38.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 21 May 2018 07:38:33 -0700 (PDT)
-Date: Mon, 21 May 2018 07:38:30 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [LSFMM] RDMA data corruption potential during FS writeback
-Message-ID: <20180521143830.GA25109@bombadil.infradead.org>
-References: <0100016373af827b-e6164b8d-f12e-4938-bf1f-2f85ec830bc0-000000@email.amazonses.com>
- <20180518154945.GC15611@ziepe.ca>
- <0100016374267882-16b274b1-d6f6-4c13-94bb-8e78a51e9091-000000@email.amazonses.com>
- <20180518173637.GF15611@ziepe.ca>
- <CAPcyv4i_W94iXCyOd8gSSU6kWscncz5KUqnuzZ_RdVW9UT2U3w@mail.gmail.com>
- <c8861cbb-5b2e-d6e2-9c89-66c5c92181e6@nvidia.com>
- <20180519032400.GA12517@ziepe.ca>
- <CAPcyv4iGmUg108O-s1h6_YxmjQgMcV_pFpciObHh3zJkTOKfKA@mail.gmail.com>
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B534E6B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 10:43:23 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id n25-v6so12350254otf.13
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 07:43:23 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id y3-v6si5231086otd.128.2018.05.21.07.43.22
+        for <linux-mm@kvack.org>;
+        Mon, 21 May 2018 07:43:22 -0700 (PDT)
+From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Subject: Re: [PATCH v2 02/40] iommu/sva: Bind process address spaces to
+ devices
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-3-jean-philippe.brucker@arm.com>
+ <20180517141058.00001c76@huawei.com>
+Message-ID: <19001b20-93de-6bf5-c72a-783e5d20b1bc@arm.com>
+Date: Mon, 21 May 2018 15:43:11 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4iGmUg108O-s1h6_YxmjQgMcV_pFpciObHh3zJkTOKfKA@mail.gmail.com>
+In-Reply-To: <20180517141058.00001c76@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <jhubbard@nvidia.com>, Christopher Lameter <cl@linux.com>, linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
+To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Cc: kvm@vger.kernel.org, linux-pci@vger.kernel.org, xuzaibo@huawei.com, will.deacon@arm.com, okaya@codeaurora.org, linux-mm@kvack.org, ashok.raj@intel.com, bharatku@xilinx.com, linux-acpi@vger.kernel.org, rfranz@cavium.com, devicetree@vger.kernel.org, rgummal@xilinx.com, linux-arm-kernel@lists.infradead.org, dwmw2@infradead.org, ilias.apalodimas@linaro.org, iommu@lists.linux-foundation.org, christian.koenig@amd.com
 
-On Fri, May 18, 2018 at 08:51:38PM -0700, Dan Williams wrote:
-> >> +1, and I am now super-interested in this conversation, because
-> >> after tracking down a kernel BUG to this classic mistaken pattern:
-> >>
-> >>     get_user_pages (on file-backed memory from ext4)
-> >>     ...do some DMA
-> >>     set_pages_dirty
-> >>     put_page(s)
-> >
-> > Ummm, RDMA has done essentially that since 2005, since when did it
-> > become wrong? Do you have some references? Is there some alternative?
-> >
-> > See __ib_umem_release
-> >
-> >> ...there is (rarely!) a backtrace from ext4, that disavows ownership of
-> >> any such pages.
-> >
-> > Yes, I've seen that oops with RDMA, apparently isn't actually that
-> > rare if you tweak things just right.
-> >
-> > I thought it was an obscure ext4 bug :(
-> >
-> >> Because the obvious "fix" in device driver land is to use a dedicated
-> >> buffer for DMA, and copy to the filesystem buffer, and of course I will
-> >> get *killed* if I propose such a performance-killing approach. But a
-> >> core kernel fix really is starting to sound attractive.
-> >
-> > Yeah, killed is right. That idea totally cripples RDMA.
-> >
-> > What is the point of get_user_pages FOLL_WRITE if you can't write to
-> > and dirty the pages!?!
+On 17/05/18 14:10, Jonathan Cameron wrote:
+> On Fri, 11 May 2018 20:06:03 +0100
+> Jean-Philippe Brucker <jean-philippe.brucker@arm.com> wrote:
 > 
-> You're oversimplifying the problem, here are the details:
+>> Add bind() and unbind() operations to the IOMMU API. Bind() returns a
+>> PASID that drivers can program in hardware, to let their devices access an
+>> mm. This patch only adds skeletons for the device driver API, most of the
+>> implementation is still missing.
+>>
+>> IOMMU groups with more than one device aren't supported for SVA at the
+>> moment. There may be P2P traffic between devices within a group, which
+>> cannot be seen by an IOMMU (note that supporting PASID doesn't add any
+>> form of isolation with regard to P2P). Supporting groups would require
+>> calling bind() for all bound processes every time a device is added to a
+>> group, to perform sanity checks (e.g. ensure that new devices support
+>> PASIDs at least as big as those already allocated in the group).
 > 
-> https://www.spinics.net/lists/linux-mm/msg142700.html
+> Is it worth adding an explicit comment on this reasoning (or a minimal subset
+> of it) at the check for the number of devices in the group?
+> It's well laid out here, but might not be so obvious if someone is reading
+> the code in the future.
 
-Suggestion 1:
+Sure, I'll add something
 
-in get_user_pages_fast(), mark the page as dirty, but don't tag the radix
-tree entry as dirty.  Then vmscan() won't find it when it's looking to
-write out dirty pages.  Only mark it as dirty in the radix tree once we
-call set_page_dirty_lock().
-
-Suggestion 2:
-
-in get_user_pages_fast(), replace the page in the radix tree with a special
-entry that means "page under io".  In set_page_dirty_lock(), replace the
-"page under io" entry with the struct page pointer.
-
-Both of these suggestions have trouble with simultaneous sub-page IOs to the
-same page.  Do we care?  I suspect we might as pages get larger (see also:
-supporting THP pages in the page cache).
+Thanks,
+Jean
