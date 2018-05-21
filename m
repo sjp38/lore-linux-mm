@@ -1,57 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CC8866B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 06:25:28 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id f10-v6so9785307pln.21
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 03:25:28 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b97-v6si14092383plb.135.2018.05.21.03.25.27
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AB27C6B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 07:29:15 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id t24-v6so13996655qtn.7
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 04:29:15 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id b131-v6si6389257qkg.106.2018.05.21.04.29.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 21 May 2018 03:25:27 -0700 (PDT)
-Date: Mon, 21 May 2018 03:25:24 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v11 54/63] dax: Hash on XArray instead of mapping
-Message-ID: <20180521102524.GB20878@bombadil.infradead.org>
-References: <20180414141316.7167-1-willy@infradead.org>
- <20180414141316.7167-55-willy@infradead.org>
- <20180521044756.GD27043@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 May 2018 04:29:14 -0700 (PDT)
+Subject: Re: pkeys on POWER: Access rights not reset on execve
+References: <53828769-23c4-b2e3-cf59-239936819c3e@redhat.com>
+ <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
+ <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
+ <20180519202747.GK5479@ram.oc3035372033.ibm.com>
+ <CALCETrVz9otkOQAxVkz6HtuMwjAeY6mMuLgFK_o0M0kbkUznwg@mail.gmail.com>
+ <20180520060425.GL5479@ram.oc3035372033.ibm.com>
+ <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
+ <20180520191115.GM5479@ram.oc3035372033.ibm.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
+Date: Mon, 21 May 2018 13:29:11 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180521044756.GD27043@linux.intel.com>
+In-Reply-To: <20180520191115.GM5479@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Ram Pai <linuxram@us.ibm.com>, Andy Lutomirski <luto@kernel.org>
+Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
 
-On Sun, May 20, 2018 at 10:47:56PM -0600, Ross Zwisler wrote:
-> On Sat, Apr 14, 2018 at 07:13:07AM -0700, Matthew Wilcox wrote:
-> > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > 
-> > Since the XArray is embedded in the struct address_space, this contains
-> > exactly as much entropy as the address of the mapping.
+On 05/20/2018 09:11 PM, Ram Pai wrote:
+> Florian,
 > 
-> I agree that they both have the same amount of entropy, but what's the
-> benefit?  It doesn't seem like this changes any behavior, fixes any bugs or
-> makes things any simpler?
+> 	Does the following patch fix the problem for you?  Just like x86
+> 	I am enabling all keys in the UAMOR register during
+> 	initialization itself. Hence any key created by any thread at
+> 	any time, will get activated on all threads. So any thread
+> 	can change the permission on that key. Smoke tested it
+> 	with your test program.
 
-This is a preparatory patch for some of the changes later in the series.
-It has no benefit in and of itself; the benefit comes later when we
-switch from dax_wake_mapping_entry() to dax_wake_entry():
+I think this goes in the right direction, but the AMR value after fork 
+is still strange:
 
-static void dax_wake_entry(struct xa_state *xas, bool wake_all)
+AMR (PID 34912): 0x0000000000000000
+AMR after fork (PID 34913): 0x0000000000000000
+AMR (PID 34913): 0x0000000000000000
+Allocated key in subprocess (PID 34913): 2
+Allocated key (PID 34912): 2
+Setting AMR: 0xffffffffffffffff
+New AMR value (PID 34912): 0x0fffffffffffffff
+About to call execl (PID 34912) ...
+AMR (PID 34912): 0x0fffffffffffffff
+AMR after fork (PID 34914): 0x0000000000000003
+AMR (PID 34914): 0x0000000000000003
+Allocated key in subprocess (PID 34914): 2
+Allocated key (PID 34912): 2
+Setting AMR: 0xffffffffffffffff
+New AMR value (PID 34912): 0x0fffffffffffffff
 
-This switch could be left until the end; I can introduce dax_wake_entry()
-without this change:
+I mean this line:
 
-+static void dax_wake_entry(struct xa_state *xas, bool wake_all)
-+{
-+	struct address_space *mapping = container_of(xas->xa,
-+			struct address_space, i_pages);
-+       return dax_wake_mapping_entry_waiter(mapping, xas->xa_index, NULL,
-+			wake_all);
-+}
+AMR after fork (PID 34914): 0x0000000000000003
 
-and then cut everybody over in the final step.
+Shouldn't it be the same as in the parent process?
 
-Or I can just explain in the changelog that it's a preparatory step.
+Thanks,
+Florian
