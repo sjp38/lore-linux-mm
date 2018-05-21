@@ -1,112 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B98D66B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 16:46:17 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id q13-v6so15693703qtk.8
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 13:46:17 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id c40-v6si864576qtk.393.2018.05.21.13.46.14
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 547C06B0006
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 17:11:24 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id q16-v6so10753981pls.15
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 14:11:24 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r9-v6sor6650088pfh.53.2018.05.21.14.11.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 13:46:15 -0700 (PDT)
-Date: Mon, 21 May 2018 13:46:10 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: buffered I/O without buffer heads in xfs and iomap v2
-Message-ID: <20180521204610.GC4507@magnolia>
-References: <20180518164830.1552-1-hch@lst.de>
+        (Google Transport Security);
+        Mon, 21 May 2018 14:11:22 -0700 (PDT)
+Date: Mon, 21 May 2018 14:11:21 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] Add the memcg print oom info for system oom
+In-Reply-To: <20180517102330.GS12670@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1805211405300.41872@chino.kir.corp.google.com>
+References: <1526540428-12178-1-git-send-email-ufo19890607@gmail.com> <20180517071140.GQ12670@dhcp22.suse.cz> <CAHCio2gOLnj4NpkFrxpYVygg6ZeSeuwgp2Lwr6oTHRxHpbmcWw@mail.gmail.com> <20180517102330.GS12670@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180518164830.1552-1-hch@lst.de>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-On Fri, May 18, 2018 at 06:47:56PM +0200, Christoph Hellwig wrote:
-> Hi all,
-> 
-> this series adds support for buffered I/O without buffer heads to
-> the iomap and XFS code.
-> 
-> For now this series only contains support for block size == PAGE_SIZE,
-> with the 4k support split into a separate series.
-> 
-> 
-> A git tree is available at:
-> 
->     git://git.infradead.org/users/hch/xfs.git xfs-iomap-read.2
-> 
-> Gitweb:
-> 
->     http://git.infradead.org/users/hch/xfs.git/shortlog/refs/heads/xfs-iomap-read.2
+On Thu, 17 May 2018, Michal Hocko wrote:
 
-Hmm, so I pulled this and ran my trivial stupid benchmark on for-next.
-It's a stupid VM with a 2G of RAM and a 12GB virtio-scsi disk backed by
-tmpfs:
-
-# mkfs.xfs -f -m rmapbt=0,reflink=1 /dev/sda
-meta-data=/dev/sda               isize=512    agcount=4, agsize=823296
-blks
-         =                       sectsz=512   attr=2, projid32bit=1
-         =                       crc=1        finobt=1, sparse=1,
-rmapbt=1
-         =                       reflink=1
-data     =                       bsize=4096   blocks=3293184, imaxpct=25
-         =                       sunit=0      swidth=0 blks
-naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
-log      =internal log           bsize=4096   blocks=3693, version=2
-         =                       sectsz=512   sunit=0 blks, lazy-count=1
-realtime =none                   extsz=4096   blocks=0, rtextents=0
-# mount /dev/sda /mnt
-# xfs_io -f -c 'pwrite -W -S 0x64 -b 83886080 0 734003200' /mnt/a
-wrote 734003200/734003200 bytes at offset 0
-700 MiB, 9 ops; 0:00:01.06 (655.500 MiB/sec and 8.4279 ops/sec)
-# cp --reflink=always /mnt/a /mnt/b
-# xfs_io -f -c 'pwrite -W -S 0x65 -b 83886080 0 734003200' /mnt/b
-wrote 734003200/734003200 bytes at offset 0
-700 MiB, 9 ops; 0.9620 sec (727.615 MiB/sec and 9.3551 ops/sec)
-
-Then I applied your series (not including the blocksize < pagesize
-series) and saw this big regression:
-
-# mkfs.xfs -f -m rmapbt=0,reflink=1 /dev/sda
-meta-data=/dev/sda               isize=512    agcount=4, agsize=823296
-blks
-         =                       sectsz=512   attr=2, projid32bit=1
-         =                       crc=1        finobt=1, sparse=1,
-rmapbt=1
-         =                       reflink=1
-data     =                       bsize=4096   blocks=3293184, imaxpct=25
-         =                       sunit=0      swidth=0 blks
-naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
-log      =internal log           bsize=4096   blocks=3693, version=2
-         =                       sectsz=512   sunit=0 blks, lazy-count=1
-realtime =none                   extsz=4096   blocks=0, rtextents=0
-# mount /dev/sda /mnt
-# xfs_io -f -c 'pwrite -W -S 0x64 -b 83886080 0 734003200' /mnt/a
-wrote 734003200/734003200 bytes at offset 0
-700 MiB, 9 ops; 0:00:08.04 (87.031 MiB/sec and 1.1190 ops/sec)
-# cp --reflink=always /mnt/a /mnt/b
-# xfs_io -f -c 'pwrite -W -S 0x65 -b 83886080 0 734003200' /mnt/b
-wrote 734003200/734003200 bytes at offset 0
-700 MiB, 9 ops; 0:00:21.61 (32.389 MiB/sec and 0.4164 ops/sec)
-
-I'll see if I can spot the problem while I read through the v2 code...
-
---D
-
+> this is not 5 lines at all. We dump memcg stats for the whole oom memcg
+> subtree. For your patch it would be the whole subtree of the memcg of
+> the oom victim. With cgroup v1 this can be quite deep as tasks can
+> belong to inter-nodes as well. Would be
 > 
-> Changes since v1:
->  - fix the iomap_readpages error handling
->  - use unsigned file offsets in a few places to avoid arithmetic overflows
->  - allocate a iomap_page in iomap_page_mkwrite to fix generic/095
->  - improve a few comments
->  - add more asserts
->  - warn about truncated block numbers from ->bmap
->  - new patch to change the __do_page_cache_readahead return value to
->    unsigned int
->  - remove an incorrectly added empty line
->  - make inline data an explicit iomap type instead of a flag
->  - add a IOMAP_F_BUFFER_HEAD flag to force use of buffers heads for gfs2,
->    and keep the basic buffer head infrastructure around for now.
+> 		pr_info("Task in ");
+> 		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
+> 		pr_cont(" killed as a result of limit of ");
+> 
+> part of that output sufficient for your usecase?
+
+There's no memcg to print as the limit in the above, but it does seem like 
+the single line output is all that is needed in this case.
+
+It might be useful to discuss a single line output that specifies relevant 
+information about the context of the oom kill, the killed thread, and the 
+memcg of that thread, in a way that will be backwards compatible.  The 
+messages in the oom killer have been restructured over time, I don't 
+believe there is a backwards compatible way to search for an oom event in 
+the kernel log.
+
+I've had success with defining a single line output the includes the 
+CONSTRAINT_* of the oom kill, the origin and kill memcgs, the thread name, 
+pid, and uid.  On system oom kills, origin and kill memcgs are left empty.
+
+oom-kill constraint=CONSTRAINT_* origin_memcg=<memcg> kill_memcg=<memcg> task=<comm> pid=<pid> uid=<uid>
+
+Perhaps we should introduce a single line output that will be backwards 
+compatible that includes this information?
