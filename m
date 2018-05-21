@@ -1,137 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D6C6A6B0007
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 10:53:49 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id 37-v6so12364653otv.2
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 07:53:49 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t21-v6si5924517otj.43.2018.05.21.07.53.48
-        for <linux-mm@kvack.org>;
-        Mon, 21 May 2018 07:53:48 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH v2 3/7] memcg: use compound_order rather than hpage_nr_pages
-References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
-	<262267fe-d98c-0b25-9013-3dafb52e8679@ascade.co.jp>
-	<87wow0zwja.fsf@e105922-lin.cambridge.arm.com>
-	<87sh6ozwc4.fsf@e105922-lin.cambridge.arm.com>
-	<2053ac36-74df-b05e-d1ce-36f69dde2a47@ascade.co.jp>
-Date: Mon, 21 May 2018 15:53:46 +0100
-In-Reply-To: <2053ac36-74df-b05e-d1ce-36f69dde2a47@ascade.co.jp> (TSUKADA
-	Koutaro's message of "Mon, 21 May 2018 12:48:22 +0900")
-Message-ID: <87zi0txdol.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E81B6B0006
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 11:11:13 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id a14-v6so10195727plt.7
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 08:11:13 -0700 (PDT)
+Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com. [68.232.143.124])
+        by mx.google.com with ESMTPS id b34-v6si14474262pld.272.2018.05.21.08.11.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 May 2018 08:11:11 -0700 (PDT)
+From: Bart Van Assche <Bart.VanAssche@wdc.com>
+Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
+Date: Mon, 21 May 2018 15:11:08 +0000
+Message-ID: <d3fbfaa667f5ac64c1f230249e3333594cb4a128.camel@wdc.com>
+References: <20180509013358.16399-1-kent.overstreet@gmail.com>
+	 <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
+	 <20180518090636.GA14738@kmo-pixel>
+	 <8f62d8f870c6b66e90d3e7f57acee481acff57f5.camel@wdc.com>
+	 <20180520221733.GA11495@kmo-pixel>
+	 <bb4fd32d0baa6554615a7ec3b45cc2b89424328e.camel@wdc.com>
+	 <20180520223116.GB11495@kmo-pixel>
+	 <b0aa2a8737b2d826fea58dc0bc113ddce50f018a.camel@wdc.com>
+	 <20180520232139.GE11495@kmo-pixel>
+	 <238bacfbc43245159c1586189a436efbb069306b.camel@wdc.com>
+	 <20180520235853.GF11495@kmo-pixel>
+In-Reply-To: <20180520235853.GF11495@kmo-pixel>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <02E95219DA71BB46BA28E21F4B376E38@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: TSUKADA Koutaro <tsukada@ascade.co.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: "kent.overstreet@gmail.com" <kent.overstreet@gmail.com>
+Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-TSUKADA Koutaro <tsukada@ascade.co.jp> writes:
-
-> On 2018/05/19 2:51, Punit Agrawal wrote:
->> Punit Agrawal <punit.agrawal@arm.com> writes:
->>
->>> Tsukada-san,
->>>
->>> I am not familiar with memcg so can't comment about whether the patchset
->>> is the right way to solve the problem outlined in the cover letter but
->>> had a couple of comments about this patch.
->>>
->>> TSUKADA Koutaro <tsukada@ascade.co.jp> writes:
->>>
->>>> The current memcg implementation assumes that the compound page is THP.
->>>> In order to be able to charge surplus hugepage, we use compound_order.
->>>>
->>>> Signed-off-by: TSUKADA Koutaro <tsukada@ascade.co.jp>
->>>
->>> Please move this before Patch 1/7. This is to prevent wrong accounting
->>> of pages to memcg for size != PMD_SIZE.
->>
->> I just noticed that the default state is off so the change isn't enabled
->> until the sysfs node is exposed in the next patch. Please ignore this
->> comment.
->>
->> One below still applies.
->>
->>>
->>>> ---
->>>>   memcontrol.c |   10 +++++-----
->>>>   1 file changed, 5 insertions(+), 5 deletions(-)
->>>>
->>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->>>> index 2bd3df3..a8f1ff8 100644
->>>> --- a/mm/memcontrol.c
->>>> +++ b/mm/memcontrol.c
->>>> @@ -4483,7 +4483,7 @@ static int mem_cgroup_move_account(struct page *page,
->>>>   				   struct mem_cgroup *to)
->>>>   {
->>>>   	unsigned long flags;
->>>> -	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
->>>> +	unsigned int nr_pages = compound ? (1 << compound_order(page)) : 1;
->>>
->>> Instead of replacing calls to hpage_nr_pages(), is it possible to modify
->>> it to do the calculation?
->
-> Thank you for review my code and please just call me Tsukada.
->
-> I think it is possible to modify the inside of itself rather than
-> replacing the call to hpage_nr_pages().
->
-> Inferring from the processing that hpage_nr_pages() desires, I thought
-> that the definition of hpage_nr_pages() could be moved outside the
-> CONFIG_TRANSPARENT_HUGEPAGE. It seems that THP and HugeTLBfs can be
-> handled correctly because compound_order() is judged by seeing whether it
-> is PageHead or not.
->
-> Also, I would like to use compound_order() inside hpage_nr_pages(), but
-> since huge_mm.h is included before mm.h where compound_order() is defined,
-> move hpage_nr_pages to mm.h.
->
-> Instead of patch 3/7, are the following patches implementing what you
-> intended?
->
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index a8a1262..1186ab7 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -204,12 +204,6 @@ static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
->  	else
->  		return NULL;
->  }
-> -static inline int hpage_nr_pages(struct page *page)
-> -{
-> -	if (unlikely(PageTransHuge(page)))
-> -		return HPAGE_PMD_NR;
-> -	return 1;
-> -}
->
->  struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
->  		pmd_t *pmd, int flags);
-> @@ -254,8 +248,6 @@ static inline bool thp_migration_supported(void)
->  #define HPAGE_PUD_MASK ({ BUILD_BUG(); 0; })
->  #define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
->
-> -#define hpage_nr_pages(x) 1
-> -
->  static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
->  {
->  	return false;
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 1ac1f06..082f2ee 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -673,6 +673,12 @@ static inline unsigned int compound_order(struct page *page)
->  	return page[1].compound_order;
->  }
->
-> +static inline int hpage_nr_pages(struct page *page)
-> +{
-> +	VM_BUG_ON_PAGE(PageTail(page), page);
-> +	return (1 << compound_order(page));
-> +}
-> +
->  static inline void set_compound_order(struct page *page, unsigned int order)
->  {
->  	page[1].compound_order = order;
-
-That looks a lot better. Thanks for giving it a go.
+T24gU3VuLCAyMDE4LTA1LTIwIGF0IDE5OjU4IC0wNDAwLCBLZW50IE92ZXJzdHJlZXQgd3JvdGU6
+DQo+IE9uIFN1biwgTWF5IDIwLCAyMDE4IGF0IDExOjQwOjQ1UE0gKzAwMDAsIEJhcnQgVmFuIEFz
+c2NoZSB3cm90ZToNCj4gPiBPbiBTdW4sIDIwMTgtMDUtMjAgYXQgMTk6MjEgLTA0MDAsIEtlbnQg
+T3ZlcnN0cmVldCB3cm90ZToNCj4gPiA+IEkgcmVhbGx5IGhhdmUgYmV0dGVyIHRoaW5ncyB0byBk
+byB0aGFuIGRlYnVnIHNvbWVvbmUgZWxzZSdzIHRlc3RzLi4uDQo+ID4gPiBbIC4uLiBdDQo+ID4g
+PiAuLi9ydW5fdGVzdHM6IGxpbmUgNjU6IGNkOiAvbGliL21vZHVsZXMvNC4xNi4wKy9rZXJuZWwv
+YmxvY2s6IE5vIHN1Y2ggZmlsZSBvciBkaXJlY3RvcnkNCj4gPiANCj4gPiBLZXJuZWwgdjQuMTYg
+aXMgdG9vIG9sZCB0byBydW4gdGhlc2UgdGVzdHMuIFRoZSBzcnAtdGVzdCBzY3JpcHQgbmVlZHMg
+dGhlDQo+ID4gZm9sbG93aW5nIGNvbW1pdCB0aGF0IHdlbnQgdXBzdHJlYW0gaW4ga2VybmVsIHY0
+LjE3LXJjMToNCj4gPiANCj4gPiA2M2NmMWE5MDJjOWQgKCJJQi9zcnB0OiBBZGQgUkRNQS9DTSBz
+dXBwb3J0IikNCj4gDQo+IFNhbWUgb3V0cHV0IG9uIEplbnMnIGZvci1uZXh0IGJyYW5jaC4NCg0K
+T3RoZXJzIGhhdmUgYmVlbiBhYmxlIHRvIHJ1biB0aGUgc3JwLXRlc3Qgc29mdHdhcmUgd2l0aCB0
+aGUgaW5zdHJ1Y3Rpb25zDQpwcm92aWRlZCBlYXJsaWVyIGluIHRoaXMgZS1tYWlsIHRocmVhZC4g
+Q2FuIHlvdSBzaGFyZSB0aGUga2VybmVsIG1lc3NhZ2VzIGZyb20NCmFyb3VuZCB0aGUgdGltZSB0
+aGUgdGVzdCB3YXMgcnVuIChkbWVzZywgL3Zhci9sb2cvbWVzc2FnZXMgb3IgL3Zhci9sb2cvc3lz
+bG9nKT8NCg0KVGhhbmtzLA0KDQpCYXJ0Lg0KDQoNCg0KDQoNCg==
