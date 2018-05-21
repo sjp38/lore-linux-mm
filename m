@@ -1,80 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B95E6B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 08:00:11 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id r9-v6so4320871pgp.12
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 05:00:11 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n13-v6si11039268pgt.564.2018.05.21.05.00.08
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B2EC36B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 09:37:16 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id j11-v6so8387297ywi.6
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 06:37:16 -0700 (PDT)
+Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
+        by mx.google.com with ESMTPS id s129-v6si3395022ywb.183.2018.05.21.06.37.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 21 May 2018 05:00:09 -0700 (PDT)
-Subject: Re: [PATCH v2 0/4] Interface for higher order contiguous allocations
-References: <20180503232935.22539-1-mike.kravetz@oracle.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <8ce9884c-36b0-68ea-45a4-06177c41af4a@suse.cz>
-Date: Mon, 21 May 2018 14:00:04 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 21 May 2018 06:37:15 -0700 (PDT)
+Date: Mon, 21 May 2018 13:37:14 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [LSFMM] RDMA data corruption potential during FS writeback
+In-Reply-To: <20180519032400.GA12517@ziepe.ca>
+Message-ID: <0100016382eb15e3-ce5d246f-1f88-401b-8a19-9a59f9707fe5-000000@email.amazonses.com>
+References: <0100016373af827b-e6164b8d-f12e-4938-bf1f-2f85ec830bc0-000000@email.amazonses.com> <20180518154945.GC15611@ziepe.ca> <0100016374267882-16b274b1-d6f6-4c13-94bb-8e78a51e9091-000000@email.amazonses.com> <20180518173637.GF15611@ziepe.ca>
+ <CAPcyv4i_W94iXCyOd8gSSU6kWscncz5KUqnuzZ_RdVW9UT2U3w@mail.gmail.com> <c8861cbb-5b2e-d6e2-9c89-66c5c92181e6@nvidia.com> <20180519032400.GA12517@ziepe.ca>
 MIME-Version: 1.0
-In-Reply-To: <20180503232935.22539-1-mike.kravetz@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
 
-On 05/04/2018 01:29 AM, Mike Kravetz wrote:
-> Vlastimil and Michal brought up the issue of allocation alignment.  The
-> routine will currently align to 'nr_pages' (which is the requested size
-> argument).  It does this by examining and trying to allocate the first
-> nr_pages aligned/nr_pages sized range.  If this fails, it moves on to the
-> next nr_pages aligned/nr_pages sized range until success or all potential
-> ranges are exhausted.
+On Fri, 18 May 2018, Jason Gunthorpe wrote:
 
-As I've noted in my patch 3/4 review, in fact nr_pages is first rounded
-up to an order, which makes this simpler, but suboptimal. I think we
-could perhaps assume that nr_pages that's a power of two should be
-aligned as such, and other values of nr_pages need no alignment? This
-should fit existing users, and can be extended to explicit alignment
-when such user appears?
+> Ummm, RDMA has done essentially that since 2005, since when did it
+> become wrong? Do you have some references? Is there some alternative?
 
-> If we allow an alignment to be specified, we will
-> need to potentially check all alignment aligned/nr_pages sized ranges.
-> In the worst case where alignment = PAGE_SIZE, this could result in huge
-> increase in the number of ranges to check.
-> To help cut down on the number of ranges to check, we could identify the
-> first page that causes a range allocation failure and start the next
-> range at the next aligned boundary.  I tried this, and we still end up
-> with a huge number of ranges and wasted CPU cycles.
-
-I think the wasted cycle issues is due to the current code structure,
-which is based on the CMA use-case, which assumes that the allocations
-will succeed, because the areas are reserved and may contain only
-movable allocations
-
-find_alloc_contig_pages()
-  __alloc_contig_pages_nodemask()
-    contig_pfn_range_valid()
-      - performs only very basic pfn validity and belongs-to-zone checks
-    alloc_contig_range()
-      start_isolate_page_range()
-       for (pfn per pageblock) - the main cycle
-         set_migratetype_isolate()
-           has_unmovable_pages() - cancel if yes
-           move_freepages_block() - expensive!
-      __alloc_contig_migrate_range()
-etc (not important)
-
-So I think the problem is that in the main cycle we might do a number of
-expensive move_freepages_block() operations, then hit a block where
-has_unmovable_pages() is true, cancel and do more expensive
-undo_isolate_page_range() operations.
-
-If we instead first scanned the range with has_unmovable_pages() and
-only start doing the expensive work when we find a large enough (aligned
-or not depending on caller) range, it should be much faster and there
-should be no algorithmic difference between aligned and non-aligned case.
-
-Thanks,
-Vlastimil
+It was wrong from the start. It became much more evident with widespread
+use of RDMA. The inability to scale processor performance at this point
+but the huge increase in network bandwidth available forces users into
+RDMA solution. Thus they will try to do RDMA to file backed mappings where
+in the past we only used anonymous memory for RDMA.
