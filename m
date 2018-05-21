@@ -1,137 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 061406B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 14:40:47 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id p124-v6so1458527lfp.22
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 11:40:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g18-v6sor3206897ljj.1.2018.05.21.11.40.44
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ECE616B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 14:42:30 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id x32-v6so10459707pld.16
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 11:42:30 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f9-v6si2469522pgn.334.2018.05.21.11.42.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 May 2018 11:40:44 -0700 (PDT)
-Date: Mon, 21 May 2018 21:40:41 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v6 05/17] mm: Assign memcg-aware shrinkers bitmap to memcg
-Message-ID: <20180521184041.5p2zyhzu45eeihmi@esperanza>
-References: <152663268383.5308.8660992135988724014.stgit@localhost.localdomain>
- <152663295709.5308.12103481076537943325.stgit@localhost.localdomain>
- <20180520072702.5ivoc5qxdbcus4td@esperanza>
- <7a5c644d-625e-a01e-a9a7-304eea13d225@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <7a5c644d-625e-a01e-a9a7-304eea13d225@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 May 2018 11:42:29 -0700 (PDT)
+Date: Mon, 21 May 2018 11:42:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: fix race between kmem_cache destroy, create and
+ deactivate
+Message-Id: <20180521114227.233983ac7038a9f4bf5b7066@linux-foundation.org>
+In-Reply-To: <20180521174116.171846-1-shakeelb@google.com>
+References: <20180521174116.171846-1-shakeelb@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, Linux MM <linux-mm@kvack.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, May 21, 2018 at 01:16:40PM +0300, Kirill Tkhai wrote:
-> >> +static int memcg_expand_one_shrinker_map(struct mem_cgroup *memcg,
-> >> +					 int size, int old_size)
-> > 
-> > Nit: No point in passing old_size here. You can instead use
-> > memcg_shrinker_map_size directly.
+On Mon, 21 May 2018 10:41:16 -0700 Shakeel Butt <shakeelb@google.com> wrote:
+
+> The memcg kmem cache creation and deactivation (SLUB only) is
+> asynchronous. If a root kmem cache is destroyed whose memcg cache is in
+> the process of creation or deactivation, the kernel may crash.
 > 
-> This is made for the readability. All the actions with global variable
-> is made in the same function -- memcg_expand_shrinker_maps(), all
-> the actions with local variables are also in the same -- memcg_expand_one_shrinker_map().
-> Accessing memcg_shrinker_map_size in memcg_expand_one_shrinker_map()
-> looks not intuitive and breaks modularity. 
-
-I guess it depends on how you look at it. Anyway, it's nitpicking so I
-won't mind if you leave it as is.
-
-> >> +static int memcg_alloc_shrinker_maps(struct mem_cgroup *memcg)
-> >> +{
-> >> +	struct memcg_shrinker_map *map;
-> >> +	int nid, size, ret = 0;
-> >> +
-> >> +	if (mem_cgroup_is_root(memcg))
-> >> +		return 0;
-> >> +
-> >> +	mutex_lock(&memcg_shrinker_map_mutex);
-> >> +	size = memcg_shrinker_map_size;
-> >> +	for_each_node(nid) {
-> >> +		map = kvzalloc(sizeof(*map) + size, GFP_KERNEL);
-> >> +		if (!map) {
-> > 
-> >> +			memcg_free_shrinker_maps(memcg);
-> > 
-> > Nit: Please don't call this function under the mutex as it isn't
-> > necessary. Set 'ret', break the loop, then check 'ret' after releasing
-> > the mutex, and call memcg_free_shrinker_maps() if it's not 0.
+> Example of one such crash:
+> 	general protection fault: 0000 [#1] SMP PTI
+> 	CPU: 1 PID: 1721 Comm: kworker/14:1 Not tainted 4.17.0-smp
+> 	...
+> 	Workqueue: memcg_kmem_cache kmemcg_deactivate_workfn
+> 	RIP: 0010:has_cpu_slab
+> 	...
+> 	Call Trace:
+> 	? on_each_cpu_cond
+> 	__kmem_cache_shrink
+> 	kmemcg_cache_deact_after_rcu
+> 	kmemcg_deactivate_workfn
+> 	process_one_work
+> 	worker_thread
+> 	kthread
+> 	ret_from_fork+0x35/0x40
 > 
-> No, it must be called under the mutex. See the race with memcg_expand_one_shrinker_map().
-> NULL maps are not expanded, and this is the indicator we use to differ memcg, which is
-> not completely online. If the allocations in memcg_alloc_shrinker_maps() fail at nid == 1,
-> then freeing of nid == 0 can race with expanding.
-
-Ah, I see, you're right.
-
-> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> index 3de12a9bdf85..f09ea20d7270 100644
-> >> --- a/mm/vmscan.c
-> >> +++ b/mm/vmscan.c
-> >> @@ -171,6 +171,7 @@ static DECLARE_RWSEM(shrinker_rwsem);
-> >>  
-> >>  #ifdef CONFIG_MEMCG_KMEM
-> >>  static DEFINE_IDR(shrinker_idr);
-> > 
-> >> +static int memcg_shrinker_nr_max;
-> > 
-> > Nit: Please rename it to shrinker_id_max and make it store max shrinker
-> > id, not the max number shrinkers that have ever been allocated. This
-> > will make it easier to understand IMO.
-> >
-> > Also, this variable doesn't belong to this patch as you don't really
-> > need it to expaned mem cgroup maps. Let's please move it to patch 3
-> > (the one that introduces shrinker_idr).
-> > 
-> >>  
-> >>  static int prealloc_memcg_shrinker(struct shrinker *shrinker)
-> >>  {
-> >> @@ -181,6 +182,15 @@ static int prealloc_memcg_shrinker(struct shrinker *shrinker)
-> >>  	ret = id = idr_alloc(&shrinker_idr, shrinker, 0, 0, GFP_KERNEL);
-> >>  	if (ret < 0)
-> >>  		goto unlock;
-> > 
-> >> +
-> >> +	if (id >= memcg_shrinker_nr_max) {
-> >> +		if (memcg_expand_shrinker_maps(id + 1)) {
-> >> +			idr_remove(&shrinker_idr, id);
-> >> +			goto unlock;
-> >> +		}
-> >> +		memcg_shrinker_nr_max = id + 1;
-> >> +	}
-> >> +
-> > 
-> > Then we'll have here:
-> > 
-> > 	if (memcg_expaned_shrinker_maps(id)) {
-> > 		idr_remove(shrinker_idr, id);
-> > 		goto unlock;
-> > 	}
-> > 
-> > and from patch 3:
-> > 
-> > 	shrinker_id_max = MAX(shrinker_id_max, id);
+> This issue is due to the lack of reference counting for the root
+> kmem_caches. There exist a refcount in kmem_cache but it is actually a
+> count of aliases i.e. number of kmem_caches merged together.
 > 
-> So, shrinker_id_max contains "the max number shrinkers that have ever been allocated" minus 1.
-> The only difference to existing logic is "minus 1", which will be needed to reflect in
-> shrink_slab_memcg()->for_each_set_bit()...
+> This patch make alias count explicit and adds reference counting to the
+> root kmem_caches. The reference of a root kmem cache is elevated on
+> merge and while its memcg kmem_cache is in the process of creation or
+> deactivation.
 > 
-> To have "minus 1" instead of "not to have minus 1" looks a little subjective.
 
-OK, leave 'nr' then, but please consider my other comments:
+The patch seems depressingly complex.
 
- - rename memcg_shrinker_nr_max to shrinker_nr_max so that the variable
-   name is consistent with shrinker_idr
+And a bit underdocumented...
 
- - move shrinker_nr_max to patch 3 as you don't need it for expanding
-   memcg shrinker maps
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -674,6 +674,8 @@ struct memcg_cache_params {
+>  };
+>  
+>  int memcg_update_all_caches(int num_memcgs);
+> +bool kmem_cache_tryget(struct kmem_cache *s);
+> +void kmem_cache_put(struct kmem_cache *s);
+>  
+>  /**
+>   * kmalloc_array - allocate memory for an array.
+> diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+> index d9228e4d0320..4bb22c89a740 100644
+> --- a/include/linux/slab_def.h
+> +++ b/include/linux/slab_def.h
+> @@ -41,7 +41,8 @@ struct kmem_cache {
+>  /* 4) cache creation/removal */
+>  	const char *name;
+>  	struct list_head list;
+> -	int refcount;
+> +	refcount_t refcount;
+> +	int alias_count;
 
- - don't use shrinker_nr_max to check whether we need to expand memcg
-   maps - simply call memcg_expand_shrinker_maps() and let it decide -
-   this will neatly isolate all the logic related to memcg shrinker map
-   allocation in memcontrol.c
+The semantic meaning of these two?  What locking protects alias_count?
+
+>  	int object_size;
+>  	int align;
+>  
+> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+> index 3773e26c08c1..532d4b6f83ed 100644
+> --- a/include/linux/slub_def.h
+> +++ b/include/linux/slub_def.h
+> @@ -97,7 +97,8 @@ struct kmem_cache {
+>  	struct kmem_cache_order_objects max;
+>  	struct kmem_cache_order_objects min;
+>  	gfp_t allocflags;	/* gfp flags to use on each alloc */
+> -	int refcount;		/* Refcount for slab cache destroy */
+> +	refcount_t refcount;	/* Refcount for slab cache destroy */
+> +	int alias_count;	/* Number of root kmem caches merged */
+
+"merged" what with what in what manner?
+
+>  	void (*ctor)(void *);
+>  	unsigned int inuse;		/* Offset to metadata */
+>  	unsigned int align;		/* Alignment */
+>
+> ...
+>
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -25,7 +25,8 @@ struct kmem_cache {
+>  	unsigned int useroffset;/* Usercopy region offset */
+>  	unsigned int usersize;	/* Usercopy region size */
+>  	const char *name;	/* Slab name for sysfs */
+> -	int refcount;		/* Use counter */
+> +	refcount_t refcount;	/* Use counter */
+> +	int alias_count;
+
+Semantic meaning/usage of alias_count?  Locking for it?
+
+>  	void (*ctor)(void *);	/* Called on object slot creation */
+>  	struct list_head list;	/* List of all slab caches on the system */
+>  };
+>
+> ...
+>
+> +bool kmem_cache_tryget(struct kmem_cache *s)
+> +{
+> +	if (is_root_cache(s))
+> +		return refcount_inc_not_zero(&s->refcount);
+> +	return false;
+> +}
+> +
+> +void kmem_cache_put(struct kmem_cache *s)
+> +{
+> +	if (is_root_cache(s) &&
+> +	    refcount_dec_and_test(&s->refcount))
+> +		__kmem_cache_destroy(s, true);
+> +}
+> +
+> +void kmem_cache_put_locked(struct kmem_cache *s)
+> +{
+> +	if (is_root_cache(s) &&
+> +	    refcount_dec_and_test(&s->refcount))
+> +		__kmem_cache_destroy(s, false);
+> +}
+
+Some covering documentation for the above would be useful.  Why do they
+exist, why do they only operate on the root cache? etc.
+
+>
+> ...
+>
