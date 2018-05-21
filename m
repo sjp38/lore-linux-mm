@@ -1,88 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4CF6B0007
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 10:52:23 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id e32-v6so11807334ote.23
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 07:52:23 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D83996B0005
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 10:52:51 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id c6-v6so12374177otk.9
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 07:52:51 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id y125-v6si4660923oig.434.2018.05.21.07.52.21
+        by mx.google.com with ESMTP id f2-v6si4604589oia.204.2018.05.21.07.52.51
         for <linux-mm@kvack.org>;
-        Mon, 21 May 2018 07:52:22 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to charge to memcg
-References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
-Date: Mon, 21 May 2018 15:52:19 +0100
-In-Reply-To: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp> (TSUKADA
-	Koutaro's message of "Fri, 18 May 2018 13:27:27 +0900")
-Message-ID: <871se5ysbg.fsf@e105922-lin.cambridge.arm.com>
+        Mon, 21 May 2018 07:52:51 -0700 (PDT)
+From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Subject: Re: [PATCH v2 35/40] iommu/arm-smmu-v3: Add support for PCI ATS
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-36-jean-philippe.brucker@arm.com>
+ <922474e8-0aa5-e022-0502-f1e51b0d4859@codeaurora.org>
+Message-ID: <08f53ea4-bd39-a567-9c79-f4381e5fb461@arm.com>
+Date: Mon, 21 May 2018 15:52:39 +0100
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <922474e8-0aa5-e022-0502-f1e51b0d4859@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: TSUKADA Koutaro <tsukada@ascade.co.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Sinan Kaya <okaya@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>
 
-Hi Tsukada,
+Hi Sinan,
 
-I was staring at memcg code to better understand your changes and had
-the below thought.
+On 19/05/18 18:25, Sinan Kaya wrote:
+> Nothing specific about this patch but just a general observation. Last time I
+> looked at the code, it seemed to require both ATS and PRI support from a given
+> hardware.
+> 
+> I think you can assume that for ATS 1.1 specification but ATS 1.0 specification
+> allows a system to have ATS+PASID without PRI. 
 
-TSUKADA Koutaro <tsukada@ascade.co.jp> writes:
+As far as I know, the latest ATS spec also states that "device that
+supports ATS need not support PRI". I'm referring to the version
+integrated into PCIe v4.0r1.0, which I think corresponds to ATS 1.1.
 
-[...]
+> QDF2400 is ATS 1.0 compatible as an example. 
+> 
+> Is this an assumption / my misinterpretation?
 
-> In this patch-set, introduce the charge_surplus_huge_pages(boolean) to
-> struct hstate. If it is true, it charges to the memory cgroup to which the
-> task that obtained surplus hugepages belongs. If it is false, do nothing as
-> before, and the default value is false. The charge_surplus_huge_pages can
-> be controlled procfs or sysfs interfaces.
-
-Instead of tying the surplus huge page charging control per-hstate,
-could the control be made per-memcg?
-
-This can be done by introducing a per-memory controller file in sysfs
-(memory.charge_surplus_hugepages?) that indicates whether surplus
-hugepages are to be charged to the controller and forms part of the
-total limit. IIUC, the limit already accounts for page and swap cache
-pages.
-
-This would allow the control to be enabled per-cgroup and also keep the
-userspace control interface in one place.
-
-As said earlier, I'm not familiar with memcg so the above might not be a
-feasible but think it'll lead to a more coherent user
-interface. Hopefully, more knowledgeable folks on the thread can chime
-in.
+In this series you can enable ATS and PASID without PRI. The SMMU
+enables ATS and PASID in add_device() if supported. Then PRI is only
+enabled if users request IOMMU_SVA_FEAT_IOPF in sva_init_device(). If
+the device driver pins all DMA memory, it can use PASID without PRI.
 
 Thanks,
-Punit
-
-> Since THP is very effective in environments with kernel page size of 4KB,
-> such as x86, there is no reason to positively use HugeTLBfs, so I think
-> that there is no situation to enable charge_surplus_huge_pages. However, in
-> some distributions such as arm64, the page size of the kernel is 64KB, and
-> the size of THP is too huge as 512MB, making it difficult to use. HugeTLBfs
-> may support multiple huge page sizes, and in such a special environment
-> there is a desire to use HugeTLBfs.
->
-> The patch set is for 4.17.0-rc3+. I don't know whether patch-set are
-> acceptable or not, so I just done a simple test.
->
-> Thanks,
-> Tsukada
->
-> TSUKADA Koutaro (7):
->   hugetlb: introduce charge_surplus_huge_pages to struct hstate
->   hugetlb: supports migrate charging for surplus hugepages
->   memcg: use compound_order rather than hpage_nr_pages
->   mm, sysctl: make charging surplus hugepages controllable
->   hugetlb: add charge_surplus_hugepages attribute
->   Documentation, hugetlb: describe about charge_surplus_hugepages
->   memcg: supports movement of surplus hugepages statistics
->
->  Documentation/vm/hugetlbpage.txt |    6 +
->  include/linux/hugetlb.h          |    4 +
->  kernel/sysctl.c                  |    7 +
->  mm/hugetlb.c                     |  148 +++++++++++++++++++++++++++++++++++++++
->  mm/memcontrol.c                  |  109 +++++++++++++++++++++++++++-
->  5 files changed, 269 insertions(+), 5 deletions(-)
+Jean
