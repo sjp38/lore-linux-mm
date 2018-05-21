@@ -1,100 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CC0566B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 15:53:08 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id q13-v6so15544156qtk.8
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 12:53:08 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id r8-v6si14735173qkr.151.2018.05.21.12.53.07
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 545886B0006
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 15:53:11 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id 76-v6so12865012ioh.6
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 12:53:11 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id u62-v6si12694624itf.98.2018.05.21.12.53.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 12:53:07 -0700 (PDT)
-Message-ID: <1526932382.7898.25.camel@surriel.com>
-Subject: Re: [PATCH] mm/THP: use hugepage_vma_check() in
- khugepaged_enter_vma_merge()
-From: Rik van Riel <riel@surriel.com>
-Date: Mon, 21 May 2018 15:53:02 -0400
-In-Reply-To: <20180521193853.3089484-1-songliubraving@fb.com>
-References: <20180521193853.3089484-1-songliubraving@fb.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-gFG4TwXSJeSRiOik4kOd"
-Mime-Version: 1.0
+        Mon, 21 May 2018 12:53:10 -0700 (PDT)
+Date: Mon, 21 May 2018 12:53:04 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 05/34] fs: use ->is_partially_uptodate in
+ page_cache_seek_hole_data
+Message-ID: <20180521195304.GA14384@magnolia>
+References: <20180518164830.1552-1-hch@lst.de>
+ <20180518164830.1552-6-hch@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180518164830.1552-6-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Song Liu <songliubraving@fb.com>, linux-mm@kvack.org
-Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
+On Fri, May 18, 2018 at 06:48:01PM +0200, Christoph Hellwig wrote:
+> This way the implementation doesn't depend on buffer_head internals.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  fs/iomap.c | 83 +++++++++++++++++++++++++++---------------------------
+>  1 file changed, 42 insertions(+), 41 deletions(-)
+> 
+> diff --git a/fs/iomap.c b/fs/iomap.c
+> index bef5e91d40bf..0fecd5789d7b 100644
+> --- a/fs/iomap.c
+> +++ b/fs/iomap.c
+> @@ -594,31 +594,54 @@ EXPORT_SYMBOL_GPL(iomap_fiemap);
+>   *
+>   * Returns the offset within the file on success, and -ENOENT otherwise.
 
---=-gFG4TwXSJeSRiOik4kOd
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+This comment is now wrong, since we return the offset via *lastoff and I
+think the return value is whether or not we found what we were looking
+for...?
 
-On Mon, 2018-05-21 at 12:38 -0700, Song Liu wrote:
-
-> This patch fixes these problems by reusing hugepage_vma_check() in
-> khugepaged_enter_vma_merge().
-
-Lets take a look at this in more detail. This effectively
-adds the following conditions to khugepaged_enter_vma_merge:
-- fail if MMF_DISABLE_THP bit is set in mm->flags (good)
-- allow if merging a tmpfs file and THP tmpfs is enabled (good)
-- disallow if is_vma_temporary_stack (good)
-- otherwise, allow if !VM_NO_KHUGEPAGED flag (good)
-
-Looks like this covers all the conditions I can think
-of, and if I missed any, chances are that condition
-should be added to hugepage_vma_check()...
-
-> Signed-off-by: Song Liu <songliubraving@fb.com>
-
-Reviewed-by: Rik van Riel <riel@surriel.com>
-
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> index d7b2a4b..e50c2bd 100644
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -430,18 +430,14 @@ int __khugepaged_enter(struct mm_struct *mm)
->  	return 0;
->  }
-> =20
-> +static bool hugepage_vma_check(struct vm_area_struct *vma);
-> +
->  int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
->  			       unsigned long vm_flags)
+>   */
+> -static loff_t
+> -page_seek_hole_data(struct page *page, loff_t lastoff, int whence)
+> +static bool
+> +page_seek_hole_data(struct inode *inode, struct page *page, loff_t *lastoff,
+> +		int whence)
 >  {
->  	unsigned long hstart, hend;
-> -	if (!vma->anon_vma)
-> -		/*
-> -		 * Not yet faulted in so we will register later in
-> the
-> -		 * page fault if needed.
-> -		 */
-> -		return 0;
-> -	if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
-> -		/* khugepaged not yet working on file or special
-> mappings */
+> -	loff_t offset = page_offset(page);
+> -	struct buffer_head *bh, *head;
+> +	const struct address_space_operations *ops = inode->i_mapping->a_ops;
+> +	unsigned int bsize = i_blocksize(inode), off;
+>  	bool seek_data = whence == SEEK_DATA;
+> +	loff_t poff = page_offset(page);
+>  
+> -	if (lastoff < offset)
+> -		lastoff = offset;
+> -
+> -	bh = head = page_buffers(page);
+> -	do {
+> -		offset += bh->b_size;
+> -		if (lastoff >= offset)
+> -			continue;
+> +	if (WARN_ON_ONCE(*lastoff >= poff + PAGE_SIZE))
+> +		return false;
+>  
+> +	if (*lastoff < poff) {
+>  		/*
+> -		 * Any buffer with valid data in it should have BH_Uptodate set.
+> +		 * Last offset smaller than the start of the page means we found
+> +		 * a hole:
+>  		 */
+> -		if (buffer_uptodate(bh) == seek_data)
+> -			return lastoff;
+> +		if (whence == SEEK_HOLE)
+> +			return true;
+> +		*lastoff = poff;
+> +	}
+>  
+> -		lastoff = offset;
+> -	} while ((bh = bh->b_this_page) != head);
+> -	return -ENOENT;
+> +	/*
+> +	 * Just check the page unless we can and should check block ranges:
+> +	 */
+> +	if (bsize == PAGE_SIZE || !ops->is_partially_uptodate) {
+> +		if (PageUptodate(page) == seek_data)
+> +			return true;
+> +		return false;
+
+return PageUptodate(page) == seek_data; ?
+
+--D
+
+> +	}
 > +
-> +	if (!hugepage_vma_check(vma))
->  		return 0;
->  	hstart =3D (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
->  	hend =3D vma->vm_end & HPAGE_PMD_MASK;
---=20
-All Rights Reversed.
---=-gFG4TwXSJeSRiOik4kOd
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlsDI54ACgkQznnekoTE
-3oMCiwf/eCQXtvuRmecOTXmKDXTdWl4r0FV4dg+yCU2DrxjNF1PP6FzKZa2jKwHd
-MapKKr6jOt3ezevqOmO/Z1/9OHVqmW5cSzxo9iavl/aYB5WtcL8Ks29NIFidYWBu
-Q5vzOldZhEH5X7uZ0NP1dz0zNbAKBfvVKMQze6c6QqV9puk97glyK1mRJBw9Vw45
-kC30OP5XhCT/Nm3pFLJudb/XM3rCCrvFqOrO1/9Lhg0Mh9EwkTzAk5XwDiMq45sv
-GKnjf+gSQzPiLTr3wE6iIOm7OLY6NWWUJVdcfzcMyFYreD9KY3mGveTi2Bj86aVQ
-2QMk3YwhEyOEnbkWx8JoBOKRZwuIGw==
-=H/U/
------END PGP SIGNATURE-----
-
---=-gFG4TwXSJeSRiOik4kOd--
+> +	lock_page(page);
+> +	if (unlikely(page->mapping != inode->i_mapping))
+> +		goto out_unlock_not_found;
+> +
+> +	for (off = 0; off < PAGE_SIZE; off += bsize) {
+> +		if ((*lastoff & ~PAGE_MASK) >= off + bsize)
+> +			continue;
+> +		if (ops->is_partially_uptodate(page, off, bsize) == seek_data) {
+> +			unlock_page(page);
+> +			return true;
+> +		}
+> +		*lastoff = poff + off + bsize;
+> +	}
+> +
+> +out_unlock_not_found:
+> +	unlock_page(page);
+> +	return false;
+>  }
+>  
+>  /*
+> @@ -655,30 +678,8 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
+>  		for (i = 0; i < nr_pages; i++) {
+>  			struct page *page = pvec.pages[i];
+>  
+> -			/*
+> -			 * At this point, the page may be truncated or
+> -			 * invalidated (changing page->mapping to NULL), or
+> -			 * even swizzled back from swapper_space to tmpfs file
+> -			 * mapping.  However, page->index will not change
+> -			 * because we have a reference on the page.
+> -                         *
+> -			 * If current page offset is beyond where we've ended,
+> -			 * we've found a hole.
+> -                         */
+> -			if (whence == SEEK_HOLE &&
+> -			    lastoff < page_offset(page))
+> +			if (page_seek_hole_data(inode, page, &lastoff, whence))
+>  				goto check_range;
+> -
+> -			lock_page(page);
+> -			if (likely(page->mapping == inode->i_mapping) &&
+> -			    page_has_buffers(page)) {
+> -				lastoff = page_seek_hole_data(page, lastoff, whence);
+> -				if (lastoff >= 0) {
+> -					unlock_page(page);
+> -					goto check_range;
+> -				}
+> -			}
+> -			unlock_page(page);
+>  			lastoff = page_offset(page) + PAGE_SIZE;
+>  		}
+>  		pagevec_release(&pvec);
+> -- 
+> 2.17.0
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
