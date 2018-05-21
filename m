@@ -1,57 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FA526B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 18:35:37 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id q8-v6so13173073ioh.7
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 15:35:37 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 102-v6sor7513342ioj.288.2018.05.21.15.35.36
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ABC9E6B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 18:45:12 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id f10-v6so10800104pln.21
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 15:45:12 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id b8-v6si14817158ple.469.2018.05.21.15.45.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 May 2018 15:35:36 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 May 2018 15:45:11 -0700 (PDT)
+Subject: [PATCH 0/5] mm: rework hmm to use devm_memremap_pages
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 21 May 2018 15:35:14 -0700
+Message-ID: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-References: <CAKOZuetOD6MkGPVvYFLj5RXh200FaDyu3sQqZviVRhTFFS3fjA@mail.gmail.com>
- <aacd607f-4a0d-2b0a-d8d9-b57c686d24fc@intel.com> <CAKOZuetDX905PeLt5cs7e_maSeKHrP0DgM1Kr3vvOb-+n=a7Gw@mail.gmail.com>
- <e6bdfa05-fa80-41d1-7b1d-51cf7e4ac9a1@intel.com>
-In-Reply-To: <e6bdfa05-fa80-41d1-7b1d-51cf7e4ac9a1@intel.com>
-From: Daniel Colascione <dancol@google.com>
-Date: Mon, 21 May 2018 15:35:25 -0700
-Message-ID: <CAKOZuev=Pa6FkvxTPbeA1CcYG+oF2JM+JVL5ELHLZ--7wyr++g@mail.gmail.com>
-Subject: Re: Why do we let munmap fail?
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave.hansen@intel.com
-Cc: linux-mm@kvack.org, Tim Murray <timmurray@google.com>, Minchan Kim <minchan@kernel.org>
+To: akpm@linux-foundation.org
+Cc: stable@vger.kernel.org, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, May 21, 2018 at 3:29 PM Dave Hansen <dave.hansen@intel.com> wrote:
+Hi Andrew, please consider this series for 4.18.
 
-> On 05/21/2018 03:20 PM, Daniel Colascione wrote:
-> >> VMAs consume kernel memory and we can't reclaim them.  That's what it
-> >> boils down to.
-> > How is it different from memfd in that respect?
+For maintainability, as ZONE_DEVICE continues to attract new users,
+it is useful to keep all users consolidated on devm_memremap_pages() as
+the interface for create "device pages".
 
-> I don't really know what you mean.
+The devm_memremap_pages() implementation was recently reworked to make
+it more generic for arbitrary users, like the proposed peer-to-peer
+PCI-E enabling. HMM pre-dated this rework and opted to duplicate
+devm_memremap_pages() as hmm_devmem_pages_create().
 
-I should have been more clear. I meant, in general, that processes can
-*already* ask the kernel to allocate memory on behalf of the process, and
-sometimes this memory can't be reclaimed without an OOM kill. (You can swap
-memfd/tmpfs contents, but for simplicity, imagine we're running without a
-pagefile.)
+Rework HMM to be a consumer of devm_memremap_pages() directly and fix up
+the licensing on the exports given the deep dependencies on the mm.
 
-> I know folks use memfd to figure out
-> how much memory pressure we are under.  I guess that would trigger when
-> you consume lots of memory with VMAs.
+Patches based on v4.17-rc6 where there are no upstream consumers of the
+HMM functionality.
 
-I think you're thinking of the VM pressure level special files, not memfd,
-which creates an anonymous tmpfs file.
+---
 
-> VMAs are probably the most similar to things like page tables that are
-> kernel memory that can't be directly reclaimed, but do get freed at
-> OOM-kill-time.  But, VMAs are a bit harder than page tables because
-> freeing a page worth of VMAs does not necessarily free an entire page.
+Dan Williams (5):
+      mm, devm_memremap_pages: mark devm_memremap_pages() EXPORT_SYMBOL_GPL
+      mm, devm_memremap_pages: handle errors allocating final devres action
+      mm, hmm: use devm semantics for hmm_devmem_{add,remove}
+      mm, hmm: replace hmm_devmem_pages_create() with devm_memremap_pages()
+      mm, hmm: mark hmm_devmem_{add,add_resource} EXPORT_SYMBOL_GPL
 
-I don't understand. We can reclaim memory used by VMAs by killing the
-process or processes attached to the address space that owns those VMAs.
-The OOM killer should Just Work. Why do we have to have some special limit
-of VMA count?
+
+ Documentation/vm/hmm.txt |    1 
+ include/linux/hmm.h      |    4 -
+ include/linux/memremap.h |    1 
+ kernel/memremap.c        |   39 +++++-
+ mm/hmm.c                 |  297 +++++++---------------------------------------
+ 5 files changed, 77 insertions(+), 265 deletions(-)
