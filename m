@@ -1,129 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D4EBE6B0005
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 10:51:39 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id 22-v6so10622732oix.13
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 07:51:39 -0700 (PDT)
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B4CF6B0007
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 10:52:23 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id e32-v6so11807334ote.23
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 07:52:23 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e79-v6si4573725oib.370.2018.05.21.07.51.38
+        by mx.google.com with ESMTP id y125-v6si4660923oig.434.2018.05.21.07.52.21
         for <linux-mm@kvack.org>;
-        Mon, 21 May 2018 07:51:38 -0700 (PDT)
-Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-14-jean-philippe.brucker@arm.com>
- <20180517165845.00000cc9@huawei.com>
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Message-ID: <5775e215-9a71-355a-98f5-397f1917b7f7@arm.com>
-Date: Mon, 21 May 2018 15:51:29 +0100
+        Mon, 21 May 2018 07:52:22 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to charge to memcg
+References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
+Date: Mon, 21 May 2018 15:52:19 +0100
+In-Reply-To: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp> (TSUKADA
+	Koutaro's message of "Fri, 18 May 2018 13:27:27 +0900")
+Message-ID: <871se5ysbg.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180517165845.00000cc9@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Cc: kvm@vger.kernel.org, linux-pci@vger.kernel.org, xuzaibo@huawei.com, will.deacon@arm.com, okaya@codeaurora.org, linux-mm@kvack.org, ashok.raj@intel.com, bharatku@xilinx.com, linux-acpi@vger.kernel.org, rfranz@cavium.com, devicetree@vger.kernel.org, rgummal@xilinx.com, linux-arm-kernel@lists.infradead.org, dwmw2@infradead.org, ilias.apalodimas@linaro.org, iommu@lists.linux-foundation.org, christian.koenig@amd.com, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>
+To: TSUKADA Koutaro <tsukada@ascade.co.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On 17/05/18 16:58, Jonathan Cameron wrote:
->> +static int vfio_iommu_bind_group(struct vfio_iommu *iommu,
->> +				 struct vfio_group *group,
->> +				 struct vfio_mm *vfio_mm)
->> +{
->> +	int ret;
->> +	bool enabled_sva = false;
->> +	struct vfio_iommu_sva_bind_data data = {
->> +		.vfio_mm	= vfio_mm,
->> +		.iommu		= iommu,
->> +		.count		= 0,
->> +	};
->> +
->> +	if (!group->sva_enabled) {
->> +		ret = iommu_group_for_each_dev(group->iommu_group, NULL,
->> +					       vfio_iommu_sva_init);
->> +		if (ret)
->> +			return ret;
->> +
->> +		group->sva_enabled = enabled_sva = true;
->> +	}
->> +
->> +	ret = iommu_group_for_each_dev(group->iommu_group, &data,
->> +				       vfio_iommu_sva_bind_dev);
->> +	if (ret && data.count > 1)
-> 
-> Are we safe to run this even if data.count == 1?  I assume that at
-> that point we would always not have an iommu domain associated with the
-> device so the initial check would error out.
+Hi Tsukada,
 
-If data.count == 1, then the first bind didn't succeed. But it's not
-necessarily a domain missing, failure to bind may come from various
-places. If this vfio_mm was already bound to another device then it
-contains a valid PASID and it's safe to call unbind(). Otherwise we call
-it with PASID -1 (VFIO_INVALID_PASID) and that's a bit of a grey area.
--1 is currently invalid everywhere, but in the future someone might
-implement 32 bits of PASIDs, in which case a bond between this dev and
-PASID -1 might exist. But I think it's safe for now, and whoever
-redefines VFIO_INVALID_PASID when such implementation appears will also
-fix this case.
+I was staring at memcg code to better understand your changes and had
+the below thought.
 
-> Just be nice to get rid of the special casing in this error path as then
-> could just do it all under if (ret) and make it visually clearer these
-> are different aspects of the same error path.
+TSUKADA Koutaro <tsukada@ascade.co.jp> writes:
 
 [...]
->>  static long vfio_iommu_type1_ioctl(void *iommu_data,
->>  				   unsigned int cmd, unsigned long arg)
->>  {
->> @@ -1728,6 +2097,44 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
->>  
->>  		return copy_to_user((void __user *)arg, &unmap, minsz) ?
->>  			-EFAULT : 0;
->> +
->> +	} else if (cmd == VFIO_IOMMU_BIND) {
->> +		struct vfio_iommu_type1_bind bind;
->> +
->> +		minsz = offsetofend(struct vfio_iommu_type1_bind, flags);
->> +
->> +		if (copy_from_user(&bind, (void __user *)arg, minsz))
->> +			return -EFAULT;
->> +
->> +		if (bind.argsz < minsz)
->> +			return -EINVAL;
->> +
->> +		switch (bind.flags) {
->> +		case VFIO_IOMMU_BIND_PROCESS:
->> +			return vfio_iommu_type1_bind_process(iommu, (void *)arg,
->> +							     &bind);
-> 
-> Can we combine these two blocks given it is only this case statement that is different?
 
-That would be nicer, though I don't know yet what's needed for vSVA (by
-Yi Liu on Cc), which will add statements to the switches.
+> In this patch-set, introduce the charge_surplus_huge_pages(boolean) to
+> struct hstate. If it is true, it charges to the memory cgroup to which the
+> task that obtained surplus hugepages belongs. If it is false, do nothing as
+> before, and the default value is false. The charge_surplus_huge_pages can
+> be controlled procfs or sysfs interfaces.
+
+Instead of tying the surplus huge page charging control per-hstate,
+could the control be made per-memcg?
+
+This can be done by introducing a per-memory controller file in sysfs
+(memory.charge_surplus_hugepages?) that indicates whether surplus
+hugepages are to be charged to the controller and forms part of the
+total limit. IIUC, the limit already accounts for page and swap cache
+pages.
+
+This would allow the control to be enabled per-cgroup and also keep the
+userspace control interface in one place.
+
+As said earlier, I'm not familiar with memcg so the above might not be a
+feasible but think it'll lead to a more coherent user
+interface. Hopefully, more knowledgeable folks on the thread can chime
+in.
 
 Thanks,
-Jean
+Punit
 
-> 
->> +		default:
->> +			return -EINVAL;
->> +		}
->> +
->> +	} else if (cmd == VFIO_IOMMU_UNBIND) {
->> +		struct vfio_iommu_type1_bind bind;
->> +
->> +		minsz = offsetofend(struct vfio_iommu_type1_bind, flags);
->> +
->> +		if (copy_from_user(&bind, (void __user *)arg, minsz))
->> +			return -EFAULT;
->> +
->> +		if (bind.argsz < minsz)
->> +			return -EINVAL;
->> +
->> +		switch (bind.flags) {
->> +		case VFIO_IOMMU_BIND_PROCESS:
->> +			return vfio_iommu_type1_unbind_process(iommu, (void *)arg,
->> +							       &bind);
->> +		default:
->> +			return -EINVAL;
->> +		}
->>  	}
+> Since THP is very effective in environments with kernel page size of 4KB,
+> such as x86, there is no reason to positively use HugeTLBfs, so I think
+> that there is no situation to enable charge_surplus_huge_pages. However, in
+> some distributions such as arm64, the page size of the kernel is 64KB, and
+> the size of THP is too huge as 512MB, making it difficult to use. HugeTLBfs
+> may support multiple huge page sizes, and in such a special environment
+> there is a desire to use HugeTLBfs.
+>
+> The patch set is for 4.17.0-rc3+. I don't know whether patch-set are
+> acceptable or not, so I just done a simple test.
+>
+> Thanks,
+> Tsukada
+>
+> TSUKADA Koutaro (7):
+>   hugetlb: introduce charge_surplus_huge_pages to struct hstate
+>   hugetlb: supports migrate charging for surplus hugepages
+>   memcg: use compound_order rather than hpage_nr_pages
+>   mm, sysctl: make charging surplus hugepages controllable
+>   hugetlb: add charge_surplus_hugepages attribute
+>   Documentation, hugetlb: describe about charge_surplus_hugepages
+>   memcg: supports movement of surplus hugepages statistics
+>
+>  Documentation/vm/hugetlbpage.txt |    6 +
+>  include/linux/hugetlb.h          |    4 +
+>  kernel/sysctl.c                  |    7 +
+>  mm/hugetlb.c                     |  148 +++++++++++++++++++++++++++++++++++++++
+>  mm/memcontrol.c                  |  109 +++++++++++++++++++++++++++-
+>  5 files changed, 269 insertions(+), 5 deletions(-)
