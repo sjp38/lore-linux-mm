@@ -1,66 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 19A926B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 19:32:13 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id f35-v6so10894184plb.10
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 16:32:13 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id v4-v6si12031526pgn.260.2018.05.21.16.32.11
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3057D6B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 19:34:50 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id q71-v6so1469101pgq.17
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 16:34:50 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z21-v6si14463587pfn.31.2018.05.21.16.34.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 16:32:12 -0700 (PDT)
-Subject: Re: Why do we let munmap fail?
-References: <CAKOZuetOD6MkGPVvYFLj5RXh200FaDyu3sQqZviVRhTFFS3fjA@mail.gmail.com>
- <aacd607f-4a0d-2b0a-d8d9-b57c686d24fc@intel.com>
- <CAKOZuetDX905PeLt5cs7e_maSeKHrP0DgM1Kr3vvOb-+n=a7Gw@mail.gmail.com>
- <e6bdfa05-fa80-41d1-7b1d-51cf7e4ac9a1@intel.com>
- <CAKOZuev=Pa6FkvxTPbeA1CcYG+oF2JM+JVL5ELHLZ--7wyr++g@mail.gmail.com>
- <20eeca79-0813-a921-8b86-4c2a0c98a1a1@intel.com>
- <CAKOZuesoh7svdmdNY9md3N+vWGurigDLZ5_xDjwgU=uYdKkwqg@mail.gmail.com>
- <2e7fb27e-90b4-38d2-8ae1-d575d62c5332@intel.com>
- <CAKOZueu8ckN1b-cYOxPhL5f7Bdq+LLRP20NK3x7Vtw79oUT3pg@mail.gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <20c9acc2-fbaf-f02d-19d7-2498f875e4c0@intel.com>
-Date: Mon, 21 May 2018 16:32:10 -0700
-MIME-Version: 1.0
-In-Reply-To: <CAKOZueu8ckN1b-cYOxPhL5f7Bdq+LLRP20NK3x7Vtw79oUT3pg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+        Mon, 21 May 2018 16:34:49 -0700 (PDT)
+Date: Mon, 21 May 2018 16:34:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] Print the memcg's name when system-wide OOM happened
+Message-Id: <20180521163447.c01c53f0ee9354c02d0d77d3@linux-foundation.org>
+In-Reply-To: <1526632851-25613-1-git-send-email-ufo19890607@gmail.com>
+References: <1526632851-25613-1-git-send-email-ufo19890607@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Colascione <dancol@google.com>
-Cc: linux-mm@kvack.org, Tim Murray <timmurray@google.com>, Minchan Kim <minchan@kernel.org>
+To: ufo19890607 <ufo19890607@gmail.com>
+Cc: mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian <yuzhoujian@didichuxing.com>
 
-On 05/21/2018 04:16 PM, Daniel Colascione wrote:
-> On Mon, May 21, 2018 at 4:02 PM Dave Hansen <dave.hansen@intel.com> wrote:
+On Fri, 18 May 2018 09:40:51 +0100 ufo19890607 <ufo19890607@gmail.com> wrote:
+
+> From: yuzhoujian <yuzhoujian@didichuxing.com>
 > 
->> On 05/21/2018 03:54 PM, Daniel Colascione wrote:
->>>> There are also certainly denial-of-service concerns if you allow
->>>> arbitrary numbers of VMAs.  The rbtree, for instance, is O(log(n)), but
->>>> I 'd be willing to be there are plenty of things that fall over if you
->>>> let the ~65k limit get 10x or 100x larger.
->>> Sure. I'm receptive to the idea of having *some* VMA limit. I just think
->>> it's unacceptable let deallocation routines fail.
->> If you have a resource limit and deallocation consumes resources, you
->> *eventually* have to fail a deallocation.  Right?
-> That's why robust software sets aside at allocation time whatever resources
-> are needed to make forward progress at deallocation time.
+> The dump_header does not print the memcg's name when the system
+> oom happened. So users cannot locate the certain container which
+> contains the task that has been killed by the oom killer.
+> 
+> System oom report will contain the memcg's name after this patch,
+> so users can get the memcg's path from the oom report and check
+> that container more quickly.
+> 
+> ...
+>
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1118,6 +1118,19 @@ static const char *const memcg1_stat_names[] = {
+>  };
+>  
+>  #define K(x) ((x) << (PAGE_SHIFT-10))
+> +
+> +/**
+> + * mem_cgroup_print_memcg_name: Print the memcg's name which contains the task
+> + * that will be killed by the oom-killer.
+> + * @p: Task that is going to be killed
+> + */
+> +void mem_cgroup_print_memcg_name(struct task_struct *p)
+> +{
+> +	pr_info("Task in ");
+> +	pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
+> +	pr_cont(" killed as a result of limit of ");
+> +}
+> +
+>  /**
+>   * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
+>   * @memcg: The memory cgroup that went over limit
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 8ba6cb88cf58..73fdfa2311d5 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -433,6 +433,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+>  	if (is_memcg_oom(oc))
+>  		mem_cgroup_print_oom_info(oc->memcg, p);
+>  	else {
+> +		mem_cgroup_print_memcg_name(p);
+>  		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+>  		if (is_dump_unreclaim_slabs())
+>  			dump_unreclaimable_slab();
 
-I think there's still a potential dead-end here.  "Deallocation" does
-not always free resources.
+I'd expect the output to look rather strange.  "Task in wibble killed
+as a result of limit of " with no newline, followed by the show_mem()
+output.
 
-> That's what I'm trying to propose here, essentially: if we specify
-> the VMA limit in terms of pages and not the number of VMAs, we've
-> effectively "budgeted" for the worst case of VMA splitting, since in
-> the worst case, you end up with one page per VMA.
-Not a bad idea, but it's not really how we allocate VMAs today.  You
-would somehow need per-process (mm?) slabs.  Such a scheme would
-probably, on average, waste half of a page per mm.
+Is this really what you intended?  If so, why?
 
-> Done this way, we still prevent runaway VMA tree growth, but we can also
-> make sure that anyone who's successfully called mmap can successfully call
-> munmap.
-
-I'd be curious how this works out, but I bet you end up reserving a lot
-more resources than people want.
+It would help to include an example dump in the changelog so that
+others can more easily review your intent.
