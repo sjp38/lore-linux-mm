@@ -1,108 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C9DF66B0005
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 14:08:05 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r23-v6so12225608wrc.2
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 11:08:05 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id h7-v6si2596569edj.276.2018.05.21.11.08.03
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DCBD26B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 14:16:50 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id b5-v6so5947469lff.3
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 11:16:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l4-v6sor3020042ljh.21.2018.05.21.11.16.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 11:08:04 -0700 (PDT)
-Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to
- charge to memcg
-References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <240f1b14-ed7d-4983-6c52-be4899d4caa5@oracle.com>
-Date: Mon, 21 May 2018 11:07:33 -0700
+        (Google Transport Security);
+        Mon, 21 May 2018 11:16:49 -0700 (PDT)
+Date: Mon, 21 May 2018 21:16:45 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v6 12/17] mm: Set bit in memcg shrinker bitmap on first
+ list_lru item apearance
+Message-ID: <20180521181645.gmtm3fscygrltrdr@esperanza>
+References: <152663268383.5308.8660992135988724014.stgit@localhost.localdomain>
+ <152663302275.5308.7476660277265020067.stgit@localhost.localdomain>
+ <20180520075558.6ls4yzrkou63orkb@esperanza>
+ <2a0ca70d-12bb-8087-9897-9cb33f676177@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2a0ca70d-12bb-8087-9897-9cb33f676177@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: TSUKADA Koutaro <tsukada@ascade.co.jp>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On 05/17/2018 09:27 PM, TSUKADA Koutaro wrote:
-> Thanks to Mike Kravetz for comment on the previous version patch.
+On Mon, May 21, 2018 at 12:31:34PM +0300, Kirill Tkhai wrote:
+> On 20.05.2018 10:55, Vladimir Davydov wrote:
+> > On Fri, May 18, 2018 at 11:43:42AM +0300, Kirill Tkhai wrote:
+> >> Introduce set_shrinker_bit() function to set shrinker-related
+> >> bit in memcg shrinker bitmap, and set the bit after the first
+> >> item is added and in case of reparenting destroyed memcg's items.
+> >>
+> >> This will allow next patch to make shrinkers be called only,
+> >> in case of they have charged objects at the moment, and
+> >> to improve shrink_slab() performance.
+> >>
+> >> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> >> ---
+> >>  include/linux/memcontrol.h |   14 ++++++++++++++
+> >>  mm/list_lru.c              |   22 ++++++++++++++++++++--
+> >>  2 files changed, 34 insertions(+), 2 deletions(-)
+> >>
+> >> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> >> index e51c6e953d7a..7ae1b94becf3 100644
+> >> --- a/include/linux/memcontrol.h
+> >> +++ b/include/linux/memcontrol.h
+> >> @@ -1275,6 +1275,18 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
+> >>  
+> >>  extern int memcg_expand_shrinker_maps(int new_id);
+> >>  
+> >> +static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
+> >> +					  int nid, int shrinker_id)
+> >> +{
+> > 
+> >> +	if (shrinker_id >= 0 && memcg && memcg != root_mem_cgroup) {
+> > 
+> > Nit: I'd remove these checks from this function and require the caller
+> > to check that shrinker_id >= 0 and memcg != NULL or root_mem_cgroup.
+> > See below how the call sites would look then.
+> > 
+> >> +		struct memcg_shrinker_map *map;
+> >> +
+> >> +		rcu_read_lock();
+> >> +		map = rcu_dereference(memcg->nodeinfo[nid]->shrinker_map);
+> >> +		set_bit(shrinker_id, map->map);
+> >> +		rcu_read_unlock();
+> >> +	}
+> >> +}
+> >>  #else
+> >>  #define for_each_memcg_cache_index(_idx)	\
+> >>  	for (; NULL; )
+> >> @@ -1297,6 +1309,8 @@ static inline void memcg_put_cache_ids(void)
+> >>  {
+> >>  }
+> >>  
+> >> +static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
+> >> +					  int nid, int shrinker_id) { }
+> >>  #endif /* CONFIG_MEMCG_KMEM */
+> >>  
+> >>  #endif /* _LINUX_MEMCONTROL_H */
+> >> diff --git a/mm/list_lru.c b/mm/list_lru.c
+> >> index cab8fad7f7e2..7df71ab0de1c 100644
+> >> --- a/mm/list_lru.c
+> >> +++ b/mm/list_lru.c
+> >> @@ -31,6 +31,11 @@ static void list_lru_unregister(struct list_lru *lru)
+> >>  	mutex_unlock(&list_lrus_mutex);
+> >>  }
+> >>  
+> >> +static int lru_shrinker_id(struct list_lru *lru)
+> >> +{
+> >> +	return lru->shrinker_id;
+> >> +}
+> >> +
+> >>  static inline bool list_lru_memcg_aware(struct list_lru *lru)
+> >>  {
+> >>  	/*
+> >> @@ -94,6 +99,11 @@ static void list_lru_unregister(struct list_lru *lru)
+> >>  {
+> >>  }
+> >>  
+> >> +static int lru_shrinker_id(struct list_lru *lru)
+> >> +{
+> >> +	return -1;
+> >> +}
+> >> +
+> >>  static inline bool list_lru_memcg_aware(struct list_lru *lru)
+> >>  {
+> >>  	return false;
+> >> @@ -119,13 +129,17 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
+> >>  {
+> >>  	int nid = page_to_nid(virt_to_page(item));
+> >>  	struct list_lru_node *nlru = &lru->node[nid];
+> >> +	struct mem_cgroup *memcg;
+> >>  	struct list_lru_one *l;
+> >>  
+> >>  	spin_lock(&nlru->lock);
+> >>  	if (list_empty(item)) {
+> >> -		l = list_lru_from_kmem(nlru, item, NULL);
+> >> +		l = list_lru_from_kmem(nlru, item, &memcg);
+> >>  		list_add_tail(item, &l->list);
+> >> -		l->nr_items++;
+> >> +		/* Set shrinker bit if the first element was added */
+> >> +		if (!l->nr_items++)
+> >> +			memcg_set_shrinker_bit(memcg, nid,
+> >> +					       lru_shrinker_id(lru));
+> > 
+> > This would turn into
+> > 
+> > 	if (!l->nr_items++ && memcg)
+> > 		memcg_set_shrinker_bit(memcg, nid, lru_shrinker_id(lru));
+> > 
+> > Note, you don't need to check that lru_shrinker_id(lru) is >= 0 here as
+> > the fact that memcg != NULL guarantees that. Also, memcg can't be
+> > root_mem_cgroup here as kmem objects allocated for the root cgroup go
+> > unaccounted.
+> > 
+> >>  		nlru->nr_items++;
+> >>  		spin_unlock(&nlru->lock);
+> >>  		return true;
+> >> @@ -520,6 +534,7 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
+> >>  	struct list_lru_node *nlru = &lru->node[nid];
+> >>  	int dst_idx = dst_memcg->kmemcg_id;
+> >>  	struct list_lru_one *src, *dst;
+> >> +	bool set;
+> >>  
+> >>  	/*
+> >>  	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
+> >> @@ -531,7 +546,10 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
+> >>  	dst = list_lru_from_memcg_idx(nlru, dst_idx);
+> >>  
+> >>  	list_splice_init(&src->list, &dst->list);
+> >> +	set = (!dst->nr_items && src->nr_items);
+> >>  	dst->nr_items += src->nr_items;
+> >> +	if (set)
+> >> +		memcg_set_shrinker_bit(dst_memcg, nid, lru_shrinker_id(lru));
+> > 
+> > This would turn into
+> > 
+> > 	if (set && dst_idx >= 0)
+> > 		memcg_set_shrinker_bit(dst_memcg, nid, lru_shrinker_id(lru));
+> > 
+> > Again, the shrinker is guaranteed to be memcg aware in this function and
+> > dst_memcg != NULL.
+> > 
+> > IMHO such a change would make the code a bit more straightforward.
 > 
-> The purpose of this patch-set is to make it possible to control whether or
-> not to charge surplus hugetlb pages obtained by overcommitting to memory
-> cgroup. In the future, I am trying to accomplish limiting the memory usage
-> of applications that use both normal pages and hugetlb pages by the memory
-> cgroup(not use the hugetlb cgroup).
-> 
-> Applications that use shared libraries like libhugetlbfs.so use both normal
-> pages and hugetlb pages, but we do not know how much to use each. Please
-> suppose you want to manage the memory usage of such applications by cgroup
-> How do you set the memory cgroup and hugetlb cgroup limit when you want to
-> limit memory usage to 10GB?
-> 
-> If you set a limit of 10GB for each, the user can use a total of 20GB of
-> memory and can not limit it well. Since it is difficult to estimate the
-> ratio used by user of normal pages and hugetlb pages, setting limits of 2GB
-> to memory cgroup and 8GB to hugetlb cgroup is not very good idea. In such a
-> case, I thought that by using my patch-set, we could manage resources just
-> by setting 10GB as the limit of memory cgoup(there is no limit to hugetlb
-> cgroup).
-> 
-> In this patch-set, introduce the charge_surplus_huge_pages(boolean) to
-> struct hstate. If it is true, it charges to the memory cgroup to which the
-> task that obtained surplus hugepages belongs. If it is false, do nothing as
-> before, and the default value is false. The charge_surplus_huge_pages can
-> be controlled procfs or sysfs interfaces.
-> 
-> Since THP is very effective in environments with kernel page size of 4KB,
-> such as x86, there is no reason to positively use HugeTLBfs, so I think
-> that there is no situation to enable charge_surplus_huge_pages. However, in
-> some distributions such as arm64, the page size of the kernel is 64KB, and
-> the size of THP is too huge as 512MB, making it difficult to use. HugeTLBfs
-> may support multiple huge page sizes, and in such a special environment
-> there is a desire to use HugeTLBfs.
+> IMHO, this makes the code less readable. Using single generic function with
+> generic check is easier, then using two different checks for different places.
+> Next a person, who will modify the logic, does not have to think about particulars
+> of strange checks in list_lru_add() and memcg_drain_list_lru_node(), if he/she
 
-One of the basic questions/concerns I have is accounting for surplus huge
-pages in the default memory resource controller.  The existing huegtlb
-resource controller already takes hugetlbfs huge pages into account,
-including surplus pages.  This series would allow surplus pages to be
-accounted for in the default  memory controller, or the hugetlb controller
-or both.
+I'd prefer them to think through all corner cases before touching this
+code :-)
 
-I understand that current mechanisms do not meet the needs of the above
-use case.  The question is whether this is an appropriate way to approach
-the issue.  My cgroup experience and knowledge is extremely limited, but
-it does not appear that any other resource can be controlled by multiple
-controllers.  Therefore, I am concerned that this may be going against
-basic cgroup design philosophy.
+> does not involved in the change of maps logic. Memory cgroup is already fell
+> into many corner cases, let's do not introduce them in new places.
 
-It would be good to get comments from people more cgroup knowledgeable,
-and especially from those involved in the decision to do separate hugetlb
-control.
-
--- 
-Mike Kravetz
-
-> 
-> The patch set is for 4.17.0-rc3+. I don't know whether patch-set are
-> acceptable or not, so I just done a simple test.
-> 
-> Thanks,
-> Tsukada
-> 
-> TSUKADA Koutaro (7):
->   hugetlb: introduce charge_surplus_huge_pages to struct hstate
->   hugetlb: supports migrate charging for surplus hugepages
->   memcg: use compound_order rather than hpage_nr_pages
->   mm, sysctl: make charging surplus hugepages controllable
->   hugetlb: add charge_surplus_hugepages attribute
->   Documentation, hugetlb: describe about charge_surplus_hugepages
->   memcg: supports movement of surplus hugepages statistics
-> 
->  Documentation/vm/hugetlbpage.txt |    6 +
->  include/linux/hugetlb.h          |    4 +
->  kernel/sysctl.c                  |    7 +
->  mm/hugetlb.c                     |  148 +++++++++++++++++++++++++++++++++++++++
->  mm/memcontrol.c                  |  109 +++++++++++++++++++++++++++-
->  5 files changed, 269 insertions(+), 5 deletions(-)
-> 
+The reason why I'd rather move those checks from memcg_set_shrinker_bit
+to call sites is that now looking at the function code makes me wonder
+why this function has to turn into a no-op if shrinker_id < 0 or memcg
+is NULL, why these corner cases are even possible. To understand that, I
+have to look at all places where this function is called, which are
+located in a different source file. This is rather inconvenient IMO. But
+I guess it's bikesheding so I don't insist.
