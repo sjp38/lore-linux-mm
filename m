@@ -1,70 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AB27C6B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 07:29:15 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id t24-v6so13996655qtn.7
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 04:29:15 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id b131-v6si6389257qkg.106.2018.05.21.04.29.14
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B95E6B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 08:00:11 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id r9-v6so4320871pgp.12
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 05:00:11 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n13-v6si11039268pgt.564.2018.05.21.05.00.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 04:29:14 -0700 (PDT)
-Subject: Re: pkeys on POWER: Access rights not reset on execve
-References: <53828769-23c4-b2e3-cf59-239936819c3e@redhat.com>
- <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
- <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
- <20180519202747.GK5479@ram.oc3035372033.ibm.com>
- <CALCETrVz9otkOQAxVkz6HtuMwjAeY6mMuLgFK_o0M0kbkUznwg@mail.gmail.com>
- <20180520060425.GL5479@ram.oc3035372033.ibm.com>
- <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
- <20180520191115.GM5479@ram.oc3035372033.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
-Date: Mon, 21 May 2018 13:29:11 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 May 2018 05:00:09 -0700 (PDT)
+Subject: Re: [PATCH v2 0/4] Interface for higher order contiguous allocations
+References: <20180503232935.22539-1-mike.kravetz@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8ce9884c-36b0-68ea-45a4-06177c41af4a@suse.cz>
+Date: Mon, 21 May 2018 14:00:04 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180520191115.GM5479@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20180503232935.22539-1-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>, Andy Lutomirski <luto@kernel.org>
-Cc: linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 05/20/2018 09:11 PM, Ram Pai wrote:
-> Florian,
-> 
-> 	Does the following patch fix the problem for you?  Just like x86
-> 	I am enabling all keys in the UAMOR register during
-> 	initialization itself. Hence any key created by any thread at
-> 	any time, will get activated on all threads. So any thread
-> 	can change the permission on that key. Smoke tested it
-> 	with your test program.
+On 05/04/2018 01:29 AM, Mike Kravetz wrote:
+> Vlastimil and Michal brought up the issue of allocation alignment.  The
+> routine will currently align to 'nr_pages' (which is the requested size
+> argument).  It does this by examining and trying to allocate the first
+> nr_pages aligned/nr_pages sized range.  If this fails, it moves on to the
+> next nr_pages aligned/nr_pages sized range until success or all potential
+> ranges are exhausted.
 
-I think this goes in the right direction, but the AMR value after fork 
-is still strange:
+As I've noted in my patch 3/4 review, in fact nr_pages is first rounded
+up to an order, which makes this simpler, but suboptimal. I think we
+could perhaps assume that nr_pages that's a power of two should be
+aligned as such, and other values of nr_pages need no alignment? This
+should fit existing users, and can be extended to explicit alignment
+when such user appears?
 
-AMR (PID 34912): 0x0000000000000000
-AMR after fork (PID 34913): 0x0000000000000000
-AMR (PID 34913): 0x0000000000000000
-Allocated key in subprocess (PID 34913): 2
-Allocated key (PID 34912): 2
-Setting AMR: 0xffffffffffffffff
-New AMR value (PID 34912): 0x0fffffffffffffff
-About to call execl (PID 34912) ...
-AMR (PID 34912): 0x0fffffffffffffff
-AMR after fork (PID 34914): 0x0000000000000003
-AMR (PID 34914): 0x0000000000000003
-Allocated key in subprocess (PID 34914): 2
-Allocated key (PID 34912): 2
-Setting AMR: 0xffffffffffffffff
-New AMR value (PID 34912): 0x0fffffffffffffff
+> If we allow an alignment to be specified, we will
+> need to potentially check all alignment aligned/nr_pages sized ranges.
+> In the worst case where alignment = PAGE_SIZE, this could result in huge
+> increase in the number of ranges to check.
+> To help cut down on the number of ranges to check, we could identify the
+> first page that causes a range allocation failure and start the next
+> range at the next aligned boundary.  I tried this, and we still end up
+> with a huge number of ranges and wasted CPU cycles.
 
-I mean this line:
+I think the wasted cycle issues is due to the current code structure,
+which is based on the CMA use-case, which assumes that the allocations
+will succeed, because the areas are reserved and may contain only
+movable allocations
 
-AMR after fork (PID 34914): 0x0000000000000003
+find_alloc_contig_pages()
+  __alloc_contig_pages_nodemask()
+    contig_pfn_range_valid()
+      - performs only very basic pfn validity and belongs-to-zone checks
+    alloc_contig_range()
+      start_isolate_page_range()
+       for (pfn per pageblock) - the main cycle
+         set_migratetype_isolate()
+           has_unmovable_pages() - cancel if yes
+           move_freepages_block() - expensive!
+      __alloc_contig_migrate_range()
+etc (not important)
 
-Shouldn't it be the same as in the parent process?
+So I think the problem is that in the main cycle we might do a number of
+expensive move_freepages_block() operations, then hit a block where
+has_unmovable_pages() is true, cancel and do more expensive
+undo_isolate_page_range() operations.
+
+If we instead first scanned the range with has_unmovable_pages() and
+only start doing the expensive work when we find a large enough (aligned
+or not depending on caller) range, it should be much faster and there
+should be no algorithmic difference between aligned and non-aligned case.
 
 Thanks,
-Florian
+Vlastimil
