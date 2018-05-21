@@ -1,50 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D85E76B0008
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 19:10:29 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id g92-v6so10877259plg.6
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 16:10:29 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f95-v6si15308216plb.401.2018.05.21.16.10.28
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E68216B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 19:16:23 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id m24-v6so13469598ioh.5
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 16:16:23 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x7-v6sor8690401itf.130.2018.05.21.16.16.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 16:10:29 -0700 (PDT)
-Date: Mon, 21 May 2018 16:10:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/5] mm, devm_memremap_pages: handle errors allocating
- final devres action
-Message-Id: <20180521161026.709d5f2876e44f151da3d179@linux-foundation.org>
-In-Reply-To: <152694212460.5484.13180030631810166467.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<152694212460.5484.13180030631810166467.stgit@dwillia2-desk3.amr.corp.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Mon, 21 May 2018 16:16:23 -0700 (PDT)
+MIME-Version: 1.0
+References: <CAKOZuetOD6MkGPVvYFLj5RXh200FaDyu3sQqZviVRhTFFS3fjA@mail.gmail.com>
+ <aacd607f-4a0d-2b0a-d8d9-b57c686d24fc@intel.com> <CAKOZuetDX905PeLt5cs7e_maSeKHrP0DgM1Kr3vvOb-+n=a7Gw@mail.gmail.com>
+ <e6bdfa05-fa80-41d1-7b1d-51cf7e4ac9a1@intel.com> <CAKOZuev=Pa6FkvxTPbeA1CcYG+oF2JM+JVL5ELHLZ--7wyr++g@mail.gmail.com>
+ <20eeca79-0813-a921-8b86-4c2a0c98a1a1@intel.com> <CAKOZuesoh7svdmdNY9md3N+vWGurigDLZ5_xDjwgU=uYdKkwqg@mail.gmail.com>
+ <2e7fb27e-90b4-38d2-8ae1-d575d62c5332@intel.com>
+In-Reply-To: <2e7fb27e-90b4-38d2-8ae1-d575d62c5332@intel.com>
+From: Daniel Colascione <dancol@google.com>
+Date: Mon, 21 May 2018 16:16:10 -0700
+Message-ID: <CAKOZueu8ckN1b-cYOxPhL5f7Bdq+LLRP20NK3x7Vtw79oUT3pg@mail.gmail.com>
+Subject: Re: Why do we let munmap fail?
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: stable@vger.kernel.org, Christoph Hellwig <hch@lst.de>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: dave.hansen@intel.com
+Cc: linux-mm@kvack.org, Tim Murray <timmurray@google.com>, Minchan Kim <minchan@kernel.org>
 
-On Mon, 21 May 2018 15:35:24 -0700 Dan Williams <dan.j.williams@intel.com> =
-wrote:
+On Mon, May 21, 2018 at 4:02 PM Dave Hansen <dave.hansen@intel.com> wrote:
 
-> The last step before devm_memremap_pages() returns success is to
-> allocate a release action to tear the entire setup down. However, the
-> result from devm_add_action() is not checked.
->=20
-> Checking the error also means that we need to handle the fact that the
-> percpu_ref may not be killed by the time devm_memremap_pages_release()
-> runs. Add a new state flag for this case.
->=20
-> Cc: <stable@vger.kernel.org>
-> Fixes: e8d513483300 ("memremap: change devm_memremap_pages interface...")
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: "J=E9r=F4me Glisse" <jglisse@redhat.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> On 05/21/2018 03:54 PM, Daniel Colascione wrote:
+> >> There are also certainly denial-of-service concerns if you allow
+> >> arbitrary numbers of VMAs.  The rbtree, for instance, is O(log(n)), but
+> >> I 'd be willing to be there are plenty of things that fall over if you
+> >> let the ~65k limit get 10x or 100x larger.
+> > Sure. I'm receptive to the idea of having *some* VMA limit. I just think
+> > it's unacceptable let deallocation routines fail.
 
-Why the cc:stable?  The changelog doesn't describe the end-user-visible
-impact of the bug (it always should, for this reason).
+> If you have a resource limit and deallocation consumes resources, you
+> *eventually* have to fail a deallocation.  Right?
 
-AFAICT we only go wrong when a small GFP_KERNEL allocation fails
-(basically never happens), with undescribed results :(
+That's why robust software sets aside at allocation time whatever resources
+are needed to make forward progress at deallocation time. That's what I'm
+trying to propose here, essentially: if we specify the VMA limit in terms
+of pages and not the number of VMAs, we've effectively "budgeted" for the
+worst case of VMA splitting, since in the worst case, you end up with one
+page per VMA.
+
+Done this way, we still prevent runaway VMA tree growth, but we can also
+make sure that anyone who's successfully called mmap can successfully call
+munmap.
