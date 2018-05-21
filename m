@@ -1,234 +1,357 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8971B6B000D
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 06:16:22 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id f205-v6so5726743qke.10
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 03:16:22 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q36-v6si2333357qtf.211.2018.05.21.03.16.21
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E869A6B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 06:16:51 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id f19-v6so4294986pgv.4
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 03:16:51 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0100.outbound.protection.outlook.com. [104.47.0.100])
+        by mx.google.com with ESMTPS id v23-v6si14368781pfl.233.2018.05.21.03.16.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 03:16:21 -0700 (PDT)
-From: Baoquan He <bhe@redhat.com>
-Subject: [PATCH v4 4/4] mm/sparse: Optimize memmap allocation during sparse_init()
-Date: Mon, 21 May 2018 18:15:55 +0800
-Message-Id: <20180521101555.25610-5-bhe@redhat.com>
-In-Reply-To: <20180521101555.25610-1-bhe@redhat.com>
-References: <20180521101555.25610-1-bhe@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 21 May 2018 03:16:50 -0700 (PDT)
+Subject: Re: [PATCH v6 05/17] mm: Assign memcg-aware shrinkers bitmap to memcg
+References: <152663268383.5308.8660992135988724014.stgit@localhost.localdomain>
+ <152663295709.5308.12103481076537943325.stgit@localhost.localdomain>
+ <20180520072702.5ivoc5qxdbcus4td@esperanza>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <7a5c644d-625e-a01e-a9a7-304eea13d225@virtuozzo.com>
+Date: Mon, 21 May 2018 13:16:40 +0300
+MIME-Version: 1.0
+In-Reply-To: <20180520072702.5ivoc5qxdbcus4td@esperanza>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, dave.hansen@intel.com, pagupta@redhat.com
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Baoquan He <bhe@redhat.com>
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-In sparse_init(), two temporary pointer arrays, usemap_map and map_map
-are allocated with the size of NR_MEM_SECTIONS. They are used to store
-each memory section's usemap and mem map if marked as present. With
-the help of these two arrays, continuous memory chunk is allocated for
-usemap and memmap for memory sections on one node. This avoids too many
-memory fragmentations. Like below diagram, '1' indicates the present
-memory section, '0' means absent one. The number 'n' could be much
-smaller than NR_MEM_SECTIONS on most of systems.
+On 20.05.2018 10:27, Vladimir Davydov wrote:
+> On Fri, May 18, 2018 at 11:42:37AM +0300, Kirill Tkhai wrote:
+>> Imagine a big node with many cpus, memory cgroups and containers.
+>> Let we have 200 containers, every container has 10 mounts,
+>> and 10 cgroups. All container tasks don't touch foreign
+>> containers mounts. If there is intensive pages write,
+>> and global reclaim happens, a writing task has to iterate
+>> over all memcgs to shrink slab, before it's able to go
+>> to shrink_page_list().
+>>
+>> Iteration over all the memcg slabs is very expensive:
+>> the task has to visit 200 * 10 = 2000 shrinkers
+>> for every memcg, and since there are 2000 memcgs,
+>> the total calls are 2000 * 2000 = 4000000.
+>>
+>> So, the shrinker makes 4 million do_shrink_slab() calls
+>> just to try to isolate SWAP_CLUSTER_MAX pages in one
+>> of the actively writing memcg via shrink_page_list().
+>> I've observed a node spending almost 100% in kernel,
+>> making useless iteration over already shrinked slab.
+>>
+>> This patch adds bitmap of memcg-aware shrinkers to memcg.
+>> The size of the bitmap depends on bitmap_nr_ids, and during
+>> memcg life it's maintained to be enough to fit bitmap_nr_ids
+>> shrinkers. Every bit in the map is related to corresponding
+>> shrinker id.
+>>
+>> Next patches will maintain set bit only for really charged
+>> memcg. This will allow shrink_slab() to increase its
+>> performance in significant way. See the last patch for
+>> the numbers.
+>>
+>> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+>> ---
+>>  include/linux/memcontrol.h |   14 +++++
+>>  mm/memcontrol.c            |  120 ++++++++++++++++++++++++++++++++++++++++++++
+>>  mm/vmscan.c                |   10 ++++
+>>  3 files changed, 144 insertions(+)
+>>
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index 996469bc2b82..e51c6e953d7a 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -112,6 +112,15 @@ struct lruvec_stat {
+>>  	long count[NR_VM_NODE_STAT_ITEMS];
+>>  };
+>>  
+>> +/*
+>> + * Bitmap of shrinker::id corresponding to memcg-aware shrinkers,
+>> + * which have elements charged to this memcg.
+>> + */
+>> +struct memcg_shrinker_map {
+>> +	struct rcu_head rcu;
+>> +	unsigned long map[0];
+>> +};
+>> +
+>>  /*
+>>   * per-zone information in memory controller.
+>>   */
+>> @@ -125,6 +134,9 @@ struct mem_cgroup_per_node {
+>>  
+>>  	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
+>>  
+>> +#ifdef CONFIG_MEMCG_KMEM
+>> +	struct memcg_shrinker_map __rcu	*shrinker_map;
+>> +#endif
+>>  	struct rb_node		tree_node;	/* RB tree node */
+>>  	unsigned long		usage_in_excess;/* Set to the value by which */
+>>  						/* the soft limit is exceeded*/
+>> @@ -1261,6 +1273,8 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
+>>  	return memcg ? memcg->kmemcg_id : -1;
+>>  }
+>>  
+>> +extern int memcg_expand_shrinker_maps(int new_id);
+>> +
+>>  #else
+>>  #define for_each_memcg_cache_index(_idx)	\
+>>  	for (; NULL; )
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 023a1e9c900e..317a72137b95 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -320,6 +320,120 @@ EXPORT_SYMBOL(memcg_kmem_enabled_key);
+>>  
+>>  struct workqueue_struct *memcg_kmem_cache_wq;
+>>  
+>> +static int memcg_shrinker_map_size;
+>> +static DEFINE_MUTEX(memcg_shrinker_map_mutex);
+>> +
+>> +static void memcg_free_shrinker_map_rcu(struct rcu_head *head)
+>> +{
+>> +	kvfree(container_of(head, struct memcg_shrinker_map, rcu));
+>> +}
+>> +
+>> +static int memcg_expand_one_shrinker_map(struct mem_cgroup *memcg,
+>> +					 int size, int old_size)
+> 
+> Nit: No point in passing old_size here. You can instead use
+> memcg_shrinker_map_size directly.
 
-|1|1|1|1|0|0|0|0|1|1|0|0|...|1|0||1|0|...|1||0|1|...|0|
--------------------------------------------------------
- 0 1 2 3         4 5         i   i+1     n-1   n
+This is made for the readability. All the actions with global variable
+is made in the same function -- memcg_expand_shrinker_maps(), all
+the actions with local variables are also in the same -- memcg_expand_one_shrinker_map().
+Accessing memcg_shrinker_map_size in memcg_expand_one_shrinker_map()
+looks not intuitive and breaks modularity. 
 
-If fail to populate the page tables to map one section's memmap, its
-->section_mem_map will be cleared finally to indicate that it's not present.
-After use, these two arrays will be released at the end of sparse_init().
+>> +{
+>> +	struct memcg_shrinker_map *new, *old;
+>> +	int nid;
+>> +
+>> +	lockdep_assert_held(&memcg_shrinker_map_mutex);
+>> +
+>> +	for_each_node(nid) {
+>> +		old = rcu_dereference_protected(
+>> +				memcg->nodeinfo[nid]->shrinker_map, true);
+> 
+> Nit: Sometimes you use mem_cgroup_nodeinfo() helper, sometimes you
+> access mem_cgorup->nodeinfo directly. Please, be consistent.
 
-In 4-level paging mode, each array costs 4M which can be ignorable. While
-in 5-level paging, they costs 256M each, 512M altogether. Kdump kernel
-Usually only reserves very few memory, e.g 256M. So, even thouth they are
-temporarily allocated, still not acceptable.
+Ok, will change.
+ 
+>> +		/* Not yet online memcg */
+>> +		if (!old)
+>> +			return 0;
+>> +
+>> +		new = kvmalloc(sizeof(*new) + size, GFP_KERNEL);
+>> +		if (!new)
+>> +			return -ENOMEM;
+>> +
+>> +		/* Set all old bits, clear all new bits */
+>> +		memset(new->map, (int)0xff, old_size);
+>> +		memset((void *)new->map + old_size, 0, size - old_size);
+>> +
+>> +		rcu_assign_pointer(memcg->nodeinfo[nid]->shrinker_map, new);
+>> +		if (old)
+>> +			call_rcu(&old->rcu, memcg_free_shrinker_map_rcu);
+>> +	}
+>> +
+>> +	return 0;
+>> +}
+>> +
+>> +static void memcg_free_shrinker_maps(struct mem_cgroup *memcg)
+>> +{
+>> +	struct mem_cgroup_per_node *pn;
+>> +	struct memcg_shrinker_map *map;
+>> +	int nid;
+>> +
+>> +	if (mem_cgroup_is_root(memcg))
+>> +		return;
+>> +
+>> +	for_each_node(nid) {
+>> +		pn = mem_cgroup_nodeinfo(memcg, nid);
+>> +		map = rcu_dereference_protected(pn->shrinker_map, true);
+>> +		if (map)
+>> +			kvfree(map);
+>> +		rcu_assign_pointer(pn->shrinker_map, NULL);
+>> +	}
+>> +}
+>> +
+>> +static int memcg_alloc_shrinker_maps(struct mem_cgroup *memcg)
+>> +{
+>> +	struct memcg_shrinker_map *map;
+>> +	int nid, size, ret = 0;
+>> +
+>> +	if (mem_cgroup_is_root(memcg))
+>> +		return 0;
+>> +
+>> +	mutex_lock(&memcg_shrinker_map_mutex);
+>> +	size = memcg_shrinker_map_size;
+>> +	for_each_node(nid) {
+>> +		map = kvzalloc(sizeof(*map) + size, GFP_KERNEL);
+>> +		if (!map) {
+> 
+>> +			memcg_free_shrinker_maps(memcg);
+> 
+> Nit: Please don't call this function under the mutex as it isn't
+> necessary. Set 'ret', break the loop, then check 'ret' after releasing
+> the mutex, and call memcg_free_shrinker_maps() if it's not 0.
 
-In fact, there's no need to allocate them with the size of NR_MEM_SECTIONS.
-Since the ->section_mem_map clearing has been deferred to the last, the
-number of present memory sections are kept the same during sparse_init()
-until we finally clear out the memory section's ->section_mem_map if its
-usemap or memmap is not correctly handled. Thus in the middle whenever
-for_each_present_section_nr() loop is taken, the i-th present memory
-section is always the same one.
+No, it must be called under the mutex. See the race with memcg_expand_one_shrinker_map().
+NULL maps are not expanded, and this is the indicator we use to differ memcg, which is
+not completely online. If the allocations in memcg_alloc_shrinker_maps() fail at nid == 1,
+then freeing of nid == 0 can race with expanding.
+ 
+>> +			ret = -ENOMEM;
+>> +			break;
+>> +		}
+>> +		rcu_assign_pointer(memcg->nodeinfo[nid]->shrinker_map, map);
+>> +	}
+>> +	mutex_unlock(&memcg_shrinker_map_mutex);
+>> +
+>> +	return ret;
+>> +}
+>> +
+>> +int memcg_expand_shrinker_maps(int nr)
+> 
+> Nit: Please pass the new shrinker id to this function, not the max
+> number of shrinkers out there - this will look more intuitive. And
+> please add a comment to this function. Something like:
+> 
+>   Make sure memcg shrinker maps can store the given shrinker id.
+>   Expand the maps if necessary.
+> 
+>> +{
+>> +	int size, old_size, ret = 0;
+>> +	struct mem_cgroup *memcg;
+>> +
+>> +	size = DIV_ROUND_UP(nr, BITS_PER_BYTE);
+> 
+> Note, this will turn into DIV_ROUND_UP(id + 1, BITS_PER_BYTE) then.
+> 
+>> +	old_size = memcg_shrinker_map_size;
+> 
+> Nit: old_size won't be needed if you make memcg_expand_one_shrinker_map
+> use memcg_shrinker_map_size directly.
 
-Here only allocate usemap_map and map_map with the size of
-'nr_present_sections'. For the i-th present memory section, install its
-usemap and memmap to usemap_map[i] and mam_map[i] during allocation. Then
-in the last for_each_present_section_nr() loop which clears the failed
-memory section's ->section_mem_map, fetch usemap and memmap from
-usemap_map[] and map_map[] array and set them into mem_section[]
-accordingly.
+This is made deliberately. Please, see above.
 
-Signed-off-by: Baoquan He <bhe@redhat.com>
----
- mm/sparse-vmemmap.c |  5 +++--
- mm/sparse.c         | 43 ++++++++++++++++++++++++++++++++++---------
- 2 files changed, 37 insertions(+), 11 deletions(-)
+>> +	if (size <= old_size)
+>> +		return 0;
+>> +
+>> +	mutex_lock(&memcg_shrinker_map_mutex);
+>> +	if (!root_mem_cgroup)
+>> +		goto unlock;
+>> +
+>> +	for_each_mem_cgroup(memcg) {
+>> +		if (mem_cgroup_is_root(memcg))
+>> +			continue;
+>> +		ret = memcg_expand_one_shrinker_map(memcg, size, old_size);
+>> +		if (ret)
+>> +			goto unlock;
+>> +	}
+>> +unlock:
+>> +	if (!ret)
+>> +		memcg_shrinker_map_size = size;
+>> +	mutex_unlock(&memcg_shrinker_map_mutex);
+>> +	return ret;
+>> +}
+>> +#else /* CONFIG_MEMCG_KMEM */
+>> +static int memcg_alloc_shrinker_maps(struct mem_cgroup *memcg)
+>> +{
+>> +	return 0;
+>> +}
+>> +static void memcg_free_shrinker_maps(struct mem_cgroup *memcg) { }
+>>  #endif /* CONFIG_MEMCG_KMEM */
+>>  
+>>  /**
+>> @@ -4482,6 +4596,11 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
+>>  {
+>>  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+>>  
+>> +	if (memcg_alloc_shrinker_maps(memcg)) {
+>> +		mem_cgroup_id_remove(memcg);
+>> +		return -ENOMEM;
+>> +	}
+>> +
+>>  	/* Online state pins memcg ID, memcg ID pins CSS */
+>>  	atomic_set(&memcg->id.ref, 1);
+>>  	css_get(css);
+>> @@ -4534,6 +4653,7 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
+>>  	vmpressure_cleanup(&memcg->vmpressure);
+>>  	cancel_work_sync(&memcg->high_work);
+>>  	mem_cgroup_remove_from_trees(memcg);
+>> +	memcg_free_shrinker_maps(memcg);
+>>  	memcg_free_kmem(memcg);
+>>  	mem_cgroup_free(memcg);
+>>  }
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 3de12a9bdf85..f09ea20d7270 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -171,6 +171,7 @@ static DECLARE_RWSEM(shrinker_rwsem);
+>>  
+>>  #ifdef CONFIG_MEMCG_KMEM
+>>  static DEFINE_IDR(shrinker_idr);
+> 
+>> +static int memcg_shrinker_nr_max;
+> 
+> Nit: Please rename it to shrinker_id_max and make it store max shrinker
+> id, not the max number shrinkers that have ever been allocated. This
+> will make it easier to understand IMO.
+>
+> Also, this variable doesn't belong to this patch as you don't really
+> need it to expaned mem cgroup maps. Let's please move it to patch 3
+> (the one that introduces shrinker_idr).
+> 
+>>  
+>>  static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+>>  {
+>> @@ -181,6 +182,15 @@ static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+>>  	ret = id = idr_alloc(&shrinker_idr, shrinker, 0, 0, GFP_KERNEL);
+>>  	if (ret < 0)
+>>  		goto unlock;
+> 
+>> +
+>> +	if (id >= memcg_shrinker_nr_max) {
+>> +		if (memcg_expand_shrinker_maps(id + 1)) {
+>> +			idr_remove(&shrinker_idr, id);
+>> +			goto unlock;
+>> +		}
+>> +		memcg_shrinker_nr_max = id + 1;
+>> +	}
+>> +
+> 
+> Then we'll have here:
+> 
+> 	if (memcg_expaned_shrinker_maps(id)) {
+> 		idr_remove(shrinker_idr, id);
+> 		goto unlock;
+> 	}
+> 
+> and from patch 3:
+> 
+> 	shrinker_id_max = MAX(shrinker_id_max, id);
 
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index 640e68f8324b..a98ec2fb6915 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -281,6 +281,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
- 	unsigned long pnum;
- 	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
- 	void *vmemmap_buf_start;
-+	int nr_consumed_maps = 0;
- 
- 	size = ALIGN(size, PMD_SIZE);
- 	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
-@@ -297,8 +298,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
- 		if (!present_section_nr(pnum))
- 			continue;
- 
--		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
--		if (map_map[pnum])
-+		map_map[nr_consumed_maps] = sparse_mem_map_populate(pnum, nodeid, NULL);
-+		if (map_map[nr_consumed_maps++])
- 			continue;
- 		ms = __nr_to_section(pnum);
- 		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 4a58f8809542..94c3d7bf1b6a 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -388,6 +388,7 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
- 	unsigned long pnum;
- 	unsigned long **usemap_map = (unsigned long **)data;
- 	int size = usemap_size();
-+	int nr_consumed_maps = 0;
- 
- 	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nodeid),
- 							  size * usemap_count);
-@@ -399,9 +400,10 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
- 	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
- 		if (!present_section_nr(pnum))
- 			continue;
--		usemap_map[pnum] = usemap;
-+		usemap_map[nr_consumed_maps] = usemap;
- 		usemap += size;
--		check_usemap_section_nr(nodeid, usemap_map[pnum]);
-+		check_usemap_section_nr(nodeid, usemap_map[nr_consumed_maps]);
-+		nr_consumed_maps++;
- 	}
- }
- 
-@@ -426,29 +428,33 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
- 	void *map;
- 	unsigned long pnum;
- 	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
-+	int nr_consumed_maps;
- 
- 	size = PAGE_ALIGN(size);
- 	map = memblock_virt_alloc_try_nid_raw(size * map_count,
- 					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
- 					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
- 	if (map) {
-+		nr_consumed_maps = 0;
- 		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
- 			if (!present_section_nr(pnum))
- 				continue;
--			map_map[pnum] = map;
-+			map_map[nr_consumed_maps] = map;
- 			map += size;
-+			nr_consumed_maps++;
- 		}
- 		return;
- 	}
- 
- 	/* fallback */
-+	nr_consumed_maps = 0;
- 	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
- 		struct mem_section *ms;
- 
- 		if (!present_section_nr(pnum))
- 			continue;
--		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
--		if (map_map[pnum])
-+		map_map[nr_consumed_maps] = sparse_mem_map_populate(pnum, nodeid, NULL);
-+		if (map_map[nr_consumed_maps++])
- 			continue;
- 		ms = __nr_to_section(pnum);
- 		pr_err("%s: sparsemem memory map backing failed some memory will not be available\n",
-@@ -528,6 +534,7 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
- 		/* new start, update count etc*/
- 		nodeid_begin = nodeid;
- 		pnum_begin = pnum;
-+		data += map_count * data_unit_size;
- 		map_count = 1;
- 	}
- 	/* ok, last chunk */
-@@ -546,6 +553,7 @@ void __init sparse_init(void)
- 	unsigned long *usemap;
- 	unsigned long **usemap_map;
- 	int size;
-+	int nr_consumed_maps = 0;
- #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
- 	int size2;
- 	struct page **map_map;
-@@ -568,7 +576,7 @@ void __init sparse_init(void)
- 	 * powerpc need to call sparse_init_one_section right after each
- 	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.
- 	 */
--	size = sizeof(unsigned long *) * NR_MEM_SECTIONS;
-+	size = sizeof(unsigned long *) * nr_present_sections;
- 	usemap_map = memblock_virt_alloc(size, 0);
- 	if (!usemap_map)
- 		panic("can not allocate usemap_map\n");
-@@ -577,7 +585,7 @@ void __init sparse_init(void)
- 				sizeof(usemap_map[0]));
- 
- #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
--	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
-+	size2 = sizeof(struct page *) * nr_present_sections;
- 	map_map = memblock_virt_alloc(size2, 0);
- 	if (!map_map)
- 		panic("can not allocate map_map\n");
-@@ -586,27 +594,44 @@ void __init sparse_init(void)
- 				sizeof(map_map[0]));
- #endif
- 
-+	/* The numner of present sections stored in nr_present_sections
-+	 * are kept the same since mem sections are marked as present in
-+	 * memory_present(). In this for loop, we need check which sections
-+	 * failed to allocate memmap or usemap, then clear its
-+	 * ->section_mem_map accordingly. During this process, we need
-+	 * increase 'alloc_usemap_and_memmap' whether its allocation of
-+	 * memmap or usemap failed or not, so that after we handle the i-th
-+	 * memory section, can get memmap and usemap of (i+1)-th section
-+	 * correctly. */
- 	for_each_present_section_nr(0, pnum) {
- 		struct mem_section *ms;
-+
-+		if (nr_consumed_maps >= nr_present_sections) {
-+			pr_err("nr_consumed_maps goes beyond nr_present_sections\n");
-+			break;
-+		}
- 		ms = __nr_to_section(pnum);
--		usemap = usemap_map[pnum];
-+		usemap = usemap_map[nr_consumed_maps];
- 		if (!usemap) {
- 			ms->section_mem_map = 0;
-+			nr_consumed_maps++;
- 			continue;
- 		}
- 
- #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
--		map = map_map[pnum];
-+		map = map_map[nr_consumed_maps];
- #else
- 		map = sparse_early_mem_map_alloc(pnum);
- #endif
- 		if (!map) {
- 			ms->section_mem_map = 0;
-+			nr_consumed_maps++;
- 			continue;
- 		}
- 
- 		sparse_init_one_section(__nr_to_section(pnum), pnum, map,
- 								usemap);
-+		nr_consumed_maps++;
- 	}
- 
- 	vmemmap_populate_print_last();
--- 
-2.13.6
+So, shrinker_id_max contains "the max number shrinkers that have ever been allocated" minus 1.
+The only difference to existing logic is "minus 1", which will be needed to reflect in
+shrink_slab_memcg()->for_each_set_bit()...
+
+To have "minus 1" instead of "not to have minus 1" looks a little subjective.
+
+> 
+>>  	shrinker->id = id;
+>>  	ret = 0;
+>>  unlock:
+>>
+
+Thanks,
+Kirill
