@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DFC536B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 17:16:14 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id w7-v6so9934483pfd.9
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 14:16:14 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A4E826B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 17:19:23 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id a5-v6so10660626plp.8
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 14:19:23 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id o1-v6si706349pgn.277.2018.05.21.14.16.13
+        by mx.google.com with ESMTPS id 1-v6si15466198pld.450.2018.05.21.14.19.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 14:16:13 -0700 (PDT)
+        Mon, 21 May 2018 14:19:22 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.9 24/87] x86/pkeys: Override pkey when moving away from PROT_EXEC
-Date: Mon, 21 May 2018 23:11:00 +0200
-Message-Id: <20180521210422.554987897@linuxfoundation.org>
-In-Reply-To: <20180521210420.222671977@linuxfoundation.org>
-References: <20180521210420.222671977@linuxfoundation.org>
+Subject: [PATCH 4.14 32/95] x86/pkeys: Override pkey when moving away from PROT_EXEC
+Date: Mon, 21 May 2018 23:11:22 +0200
+Message-Id: <20180521210454.684335787@linuxfoundation.org>
+In-Reply-To: <20180521210447.219380974@linuxfoundation.org>
+References: <20180521210447.219380974@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Shakeel Butt <shakeelb@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellermen <mpe@ellerman.id.au>, Peter Zijlstra <peterz@infradead.org>, Ram Pai <linuxram@us.ibm.com>, Shuah Khan <shuah@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-4.9-stable review patch.  If anyone has any objections, please let me know.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -77,7 +77,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/arch/x86/include/asm/pkeys.h
 +++ b/arch/x86/include/asm/pkeys.h
-@@ -1,6 +1,8 @@
+@@ -2,6 +2,8 @@
  #ifndef _ASM_X86_PKEYS_H
  #define _ASM_X86_PKEYS_H
  
@@ -86,7 +86,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  #define arch_max_pkey() (boot_cpu_has(X86_FEATURE_OSPKE) ? 16 : 1)
  
  extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
-@@ -14,7 +16,7 @@ extern int __execute_only_pkey(struct mm
+@@ -15,7 +17,7 @@ extern int __execute_only_pkey(struct mm
  static inline int execute_only_pkey(struct mm_struct *mm)
  {
  	if (!boot_cpu_has(X86_FEATURE_OSPKE))
@@ -95,7 +95,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  
  	return __execute_only_pkey(mm);
  }
-@@ -55,6 +57,14 @@ bool mm_pkey_is_allocated(struct mm_stru
+@@ -56,6 +58,14 @@ bool mm_pkey_is_allocated(struct mm_stru
  		return false;
  	if (pkey >= arch_max_pkey())
  		return false;
@@ -112,7 +112,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  
 --- a/arch/x86/mm/pkeys.c
 +++ b/arch/x86/mm/pkeys.c
-@@ -95,26 +95,27 @@ int __arch_override_mprotect_pkey(struct
+@@ -94,26 +94,27 @@ int __arch_override_mprotect_pkey(struct
  	 */
  	if (pkey != -1)
  		return pkey;
