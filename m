@@ -1,41 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B56396B0007
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 11:27:44 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e20-v6so9451016pff.14
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 08:27:44 -0700 (PDT)
-Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
-        by mx.google.com with ESMTPS id z21-v6si13771218pfn.31.2018.05.21.08.27.43
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 797C56B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 13:09:18 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z7-v6so11831668wrg.11
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 10:09:18 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e4-v6si4028974edm.25.2018.05.21.10.09.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 08:27:43 -0700 (PDT)
-Date: Mon, 21 May 2018 09:27:41 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH 0/3] docs/vm: transhuge: split userspace bits to
- admin-guide/mm
-Message-ID: <20180521092741.40f2cbd7@lwn.net>
-In-Reply-To: <1526285620-453-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1526285620-453-1-git-send-email-rppt@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 May 2018 10:09:16 -0700 (PDT)
+Date: Mon, 21 May 2018 19:06:32 +0200
+From: David Sterba <dsterba@suse.cz>
+Subject: Re: [External]  Re: [PATCH 2/3] include/linux/gfp.h: use unsigned
+ int in gfp_zone
+Message-ID: <20180521170632.GY6649@suse.cz>
+Reply-To: dsterba@suse.cz
+References: <HK2PR03MB168459A1C4FB2B7D3E1F6A4A92840@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180506134814.GB7362@bombadil.infradead.org>
+ <HK2PR03MB168447008C658172FFDA402992840@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180506185532.GA13604@bombadil.infradead.org>
+ <HK2PR03MB1684BF10B3B515BFABD35F8B929B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180507184410.GA12361@bombadil.infradead.org>
+ <20180507212500.bdphwfhk55w6vlbb@twin.jikos.cz>
+ <20180508002547.GA16338@bombadil.infradead.org>
+ <20180509093659.jalprmufpwspya26@twin.jikos.cz>
+ <20180515115404.GD31599@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180515115404.GD31599@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: linux-doc <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Huaisheng HS1 Ye <yehs1@lenovo.com>, Michal Hocko <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "pasha.tatashin@oracle.com" <pasha.tatashin@oracle.com>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, 14 May 2018 11:13:37 +0300
-Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+On Tue, May 15, 2018 at 04:54:04AM -0700, Matthew Wilcox wrote:
+> > > Subject: btrfs: Allocate extents from ZONE_NORMAL
+> > > From: Matthew Wilcox <mawilcox@microsoft.com>
+> > > 
+> > > If anyone ever passes a GFP_DMA or GFP_MOVABLE allocation flag to
+> > > allocate_extent_state, it will try to allocate memory from the wrong zone.
+> > > We just want to allocate memory from ZONE_NORMAL, so use GFP_RECLAIM_MASK
+> > > to get what we want.
+> > 
+> > Looks good to me.
+> > 
+> > > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> > > 
+> > > diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+> > > index e99b329002cf..4e4a67b7b29d 100644
+> > > --- a/fs/btrfs/extent_io.c
+> > > +++ b/fs/btrfs/extent_io.c
+> > > @@ -216,12 +216,7 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
+> > >  {
+> > >  	struct extent_state *state;
+> > >  
+> > > -	/*
+> > > -	 * The given mask might be not appropriate for the slab allocator,
+> > > -	 * drop the unsupported bits
+> > > -	 */
+> > > -	mask &= ~(__GFP_DMA32|__GFP_HIGHMEM);
+> > 
+> > I've noticed there's GFP_SLAB_BUG_MASK that's basically open coded here,
+> > but this would not filter out the placement flags.
+> > 
+> > > -	state = kmem_cache_alloc(extent_state_cache, mask);
+> > 
+> > I'd prefer some comment here, it's not obvious why the mask is used.
+> 
+> Sorry, I dropped the ball on this.  Would you prefer:
+> 
+>         /* Allocate from ZONE_NORMAL */
+>         state = kmem_cache_alloc(extent_state_cache, mask & GFP_RECLAIM_MASK);
+> 
+> or
+> 
+> 	/*
+> 	 * Callers may pass in a mask which indicates they want to allocate
+> 	 * from a special zone, so clear those bits here rather than forcing
+> 	 * each caller to do it.  We only want to use their mask to indicate
+> 	 * what strategies the memory allocator can use to free memory.
+> 	 */
+>         state = kmem_cache_alloc(extent_state_cache, mask & GFP_RECLAIM_MASK);
+> 
+> I tend to lean towards being more terse, but it's not about me, it's
+> about whoever reads this code next.
 
-> Here are minor updates to transparent hugepage docs. Except from minor
-> formatting and spelling updates, these patches re-arrange the transhuge.rst
-> so that userspace interface description will not be interleaved with the
-> implementation details and it would be possible to split the userspace
-> related bits to Documentation/admin-guide/mm, which is done by the third
-> patch.
-
-Looks good, I've applied the set, after adding a changelog for #3.
-
-Thanks,
-
-jon
+I prefer the latter variant, it's clear that it's some MM stuff. Thanks.
