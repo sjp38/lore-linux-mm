@@ -1,78 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E2E626B0008
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 16:22:00 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e3-v6so9834527pfe.15
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 13:22:00 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w17-v6sor5552367pfa.61.2018.05.21.13.21.59
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B98D66B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 16:46:17 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id q13-v6so15693703qtk.8
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 13:46:17 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id c40-v6si864576qtk.393.2018.05.21.13.46.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 May 2018 13:21:59 -0700 (PDT)
-Date: Tue, 22 May 2018 01:54:10 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Subject: [PATCH] mm: shmem: Adding new return type vm_fault_t
-Message-ID: <20180521202410.GA17912@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 May 2018 13:46:15 -0700 (PDT)
+Date: Mon, 21 May 2018 13:46:10 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: buffered I/O without buffer heads in xfs and iomap v2
+Message-ID: <20180521204610.GC4507@magnolia>
+References: <20180518164830.1552-1-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20180518164830.1552-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com, willy@infradead.org, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-Use new return type vm_fault_t for fault handler. For
-now, this is just documenting that the function returns
-a VM_FAULT value rather than an errno. Once all instances
-are converted, vm_fault_t will become a distinct type.
+On Fri, May 18, 2018 at 06:47:56PM +0200, Christoph Hellwig wrote:
+> Hi all,
+> 
+> this series adds support for buffered I/O without buffer heads to
+> the iomap and XFS code.
+> 
+> For now this series only contains support for block size == PAGE_SIZE,
+> with the 4k support split into a separate series.
+> 
+> 
+> A git tree is available at:
+> 
+>     git://git.infradead.org/users/hch/xfs.git xfs-iomap-read.2
+> 
+> Gitweb:
+> 
+>     http://git.infradead.org/users/hch/xfs.git/shortlog/refs/heads/xfs-iomap-read.2
 
-Ref-> commit 1c8f422059ae ("mm: change return type to
-vm_fault_t")
+Hmm, so I pulled this and ran my trivial stupid benchmark on for-next.
+It's a stupid VM with a 2G of RAM and a 12GB virtio-scsi disk backed by
+tmpfs:
 
-vmf_error() is the newly introduce inline function
-in 4.17-rc6.
+# mkfs.xfs -f -m rmapbt=0,reflink=1 /dev/sda
+meta-data=/dev/sda               isize=512    agcount=4, agsize=823296
+blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1,
+rmapbt=1
+         =                       reflink=1
+data     =                       bsize=4096   blocks=3293184, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=3693, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+# mount /dev/sda /mnt
+# xfs_io -f -c 'pwrite -W -S 0x64 -b 83886080 0 734003200' /mnt/a
+wrote 734003200/734003200 bytes at offset 0
+700 MiB, 9 ops; 0:00:01.06 (655.500 MiB/sec and 8.4279 ops/sec)
+# cp --reflink=always /mnt/a /mnt/b
+# xfs_io -f -c 'pwrite -W -S 0x65 -b 83886080 0 734003200' /mnt/b
+wrote 734003200/734003200 bytes at offset 0
+700 MiB, 9 ops; 0.9620 sec (727.615 MiB/sec and 9.3551 ops/sec)
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- mm/shmem.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+Then I applied your series (not including the blocksize < pagesize
+series) and saw this big regression:
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 9d6c7e5..6207c82 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1931,14 +1931,14 @@ static int synchronous_wake_function(wait_queue_entry_t *wait, unsigned mode, in
- 	return ret;
- }
- 
--static int shmem_fault(struct vm_fault *vmf)
-+static vm_fault_t shmem_fault(struct vm_fault *vmf)
- {
- 	struct vm_area_struct *vma = vmf->vma;
- 	struct inode *inode = file_inode(vma->vm_file);
- 	gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
- 	enum sgp_type sgp;
--	int error;
--	int ret = VM_FAULT_LOCKED;
-+	int err;
-+	vm_fault_t ret = VM_FAULT_LOCKED;
- 
- 	/*
- 	 * Trinity finds that probing a hole which tmpfs is punching can
-@@ -2006,10 +2006,10 @@ static int shmem_fault(struct vm_fault *vmf)
- 	else if (vma->vm_flags & VM_HUGEPAGE)
- 		sgp = SGP_HUGE;
- 
--	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
-+	err = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
- 				  gfp, vma, vmf, &ret);
--	if (error)
--		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
-+	if (err)
-+		return vmf_error(err);
- 	return ret;
- }
- 
--- 
-1.9.1
+# mkfs.xfs -f -m rmapbt=0,reflink=1 /dev/sda
+meta-data=/dev/sda               isize=512    agcount=4, agsize=823296
+blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1,
+rmapbt=1
+         =                       reflink=1
+data     =                       bsize=4096   blocks=3293184, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=3693, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+# mount /dev/sda /mnt
+# xfs_io -f -c 'pwrite -W -S 0x64 -b 83886080 0 734003200' /mnt/a
+wrote 734003200/734003200 bytes at offset 0
+700 MiB, 9 ops; 0:00:08.04 (87.031 MiB/sec and 1.1190 ops/sec)
+# cp --reflink=always /mnt/a /mnt/b
+# xfs_io -f -c 'pwrite -W -S 0x65 -b 83886080 0 734003200' /mnt/b
+wrote 734003200/734003200 bytes at offset 0
+700 MiB, 9 ops; 0:00:21.61 (32.389 MiB/sec and 0.4164 ops/sec)
+
+I'll see if I can spot the problem while I read through the v2 code...
+
+--D
+
+> 
+> Changes since v1:
+>  - fix the iomap_readpages error handling
+>  - use unsigned file offsets in a few places to avoid arithmetic overflows
+>  - allocate a iomap_page in iomap_page_mkwrite to fix generic/095
+>  - improve a few comments
+>  - add more asserts
+>  - warn about truncated block numbers from ->bmap
+>  - new patch to change the __do_page_cache_readahead return value to
+>    unsigned int
+>  - remove an incorrectly added empty line
+>  - make inline data an explicit iomap type instead of a flag
+>  - add a IOMAP_F_BUFFER_HEAD flag to force use of buffers heads for gfs2,
+>    and keep the basic buffer head infrastructure around for now.
