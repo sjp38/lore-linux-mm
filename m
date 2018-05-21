@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 44B396B0007
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 18:45:28 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id s3-v6so10037369pfh.0
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 15:45:28 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id o24-v6si11348838pgv.80.2018.05.21.15.45.26
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D4F346B0008
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 18:45:33 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id b31-v6so10931707plb.5
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 15:45:33 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id h8-v6si15645208pls.502.2018.05.21.15.45.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 15:45:27 -0700 (PDT)
-Subject: [PATCH 3/5] mm, hmm: use devm semantics for hmm_devmem_{add, remove}
+        Mon, 21 May 2018 15:45:32 -0700 (PDT)
+Subject: [PATCH 4/5] mm,
+ hmm: replace hmm_devmem_pages_create() with devm_memremap_pages()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 21 May 2018 15:35:29 -0700
-Message-ID: <152694212973.5484.9009059511258430529.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Mon, 21 May 2018 15:35:34 -0700
+Message-ID: <152694213486.5484.5340142369038375338.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -23,273 +24,299 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: Christoph Hellwig <hch@lst.de>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-devm semantics arrange for resources to be torn down when
-device-driver-probe fails or when device-driver-release completes.
-Similar to devm_memremap_pages() there is no need to support an explicit
-remove operation when the users properly adhere to devm semantics.
+Commit e8d513483300 "memremap: change devm_memremap_pages interface to
+use struct dev_pagemap" refactored devm_memremap_pages() to allow a
+dev_pagemap instance to be supplied. Passing in a dev_pagemap interface
+simplifies the design of pgmap type drivers in that they can rely on
+container_of() to lookup any private data associated with the given
+dev_pagemap instance.
+
+In addition to the cleanups this also gives hmm users multi-order-radix
+improvements that arrived with commit ab1b597ee0e4 "mm,
+devm_memremap_pages: use multi-order radix for ZONE_DEVICE lookups"
 
 Cc: Christoph Hellwig <hch@lst.de>
 Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
 Cc: Logan Gunthorpe <logang@deltatee.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- Documentation/vm/hmm.txt |    1 
- include/linux/hmm.h      |    4 -
- mm/hmm.c                 |  127 +++++++++++-----------------------------------
- 3 files changed, 32 insertions(+), 100 deletions(-)
+ kernel/memremap.c |   29 +++++++-
+ mm/hmm.c          |  194 +++++++----------------------------------------------
+ 2 files changed, 49 insertions(+), 174 deletions(-)
 
-diff --git a/Documentation/vm/hmm.txt b/Documentation/vm/hmm.txt
-index 2d1d6f69e91b..b2f944b87c5e 100644
---- a/Documentation/vm/hmm.txt
-+++ b/Documentation/vm/hmm.txt
-@@ -285,7 +285,6 @@ region needing a struct page. This is offered through a very simple API:
-  struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
-                                    struct device *device,
-                                    unsigned long size);
-- void hmm_devmem_remove(struct hmm_devmem *devmem);
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 30d96be5a965..bece24419d6d 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -395,11 +395,32 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 		goto err_pfn_remap;
  
- The hmm_devmem_ops is where most of the important things are:
- 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 39988924de3a..880f6bb9485c 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -499,8 +499,7 @@ struct hmm_devmem {
-  * enough and allocate struct page for it.
-  *
-  * The device driver can wrap the hmm_devmem struct inside a private device
-- * driver struct. The device driver must call hmm_devmem_remove() before the
-- * device goes away and before freeing the hmm_devmem struct memory.
-+ * driver struct.
-  */
- struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 				  struct device *device,
-@@ -508,7 +507,6 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 					   struct device *device,
- 					   struct resource *res);
--void hmm_devmem_remove(struct hmm_devmem *devmem);
- 
- /*
-  * hmm_devmem_page_set_drvdata - set per-page driver data field
+ 	mem_hotplug_begin();
+-	error = arch_add_memory(nid, align_start, align_size, altmap, false);
+-	if (!error)
+-		move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+-					align_start >> PAGE_SHIFT,
++
++	/*
++	 * For device private memory we call add_pages() as we only need to
++	 * allocate and initialize struct page for the device memory. More-
++	 * over the device memory is un-accessible thus we do not want to
++	 * create a linear mapping for the memory like arch_add_memory()
++	 * would do.
++	 *
++	 * For all other device memory types, which are accessible by
++	 * the CPU, we do want the linear mapping and thus use
++	 * arch_add_memory().
++	 */
++	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
++		error = add_pages(nid, align_start >> PAGE_SHIFT,
++				align_size >> PAGE_SHIFT, NULL, false);
++	} else {
++		struct zone *zone;
++
++		error = arch_add_memory(nid, align_start, align_size, altmap,
++				false);
++		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
++		if (!error)
++			move_pfn_range_to_zone(zone, align_start >> PAGE_SHIFT,
+ 					align_size >> PAGE_SHIFT, altmap);
++	}
++
+ 	mem_hotplug_done();
+ 	if (error)
+ 		goto err_add_memory;
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 486dc394a5a3..8aa9d9fbb87b 100644
+index 8aa9d9fbb87b..a4162406067c 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -993,15 +993,17 @@ static void hmm_devmem_radix_release(struct resource *resource)
- 	mutex_unlock(&hmm_devmem_lock);
+@@ -975,162 +975,6 @@ static void hmm_devmem_free(struct page *page, void *data)
+ 	devmem->ops->free(devmem, page);
  }
  
--static void hmm_devmem_release(struct device *dev, void *data)
-+static void hmm_devmem_release(void *data)
- {
- 	struct hmm_devmem *devmem = data;
-+	struct device *dev = devmem->device;
- 	struct resource *resource = devmem->resource;
-+	struct dev_pagemap *pgmap = &devmem->pagemap;
- 	unsigned long start_pfn, npages;
- 	struct zone *zone;
- 	struct page *page;
- 
--	if (percpu_ref_tryget_live(&devmem->ref)) {
-+	if (pgmap->registered && percpu_ref_tryget_live(&devmem->ref)) {
- 		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
- 		percpu_ref_put(&devmem->ref);
- 	}
-@@ -1129,19 +1131,6 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
- 	return ret;
- }
- 
--static int hmm_devmem_match(struct device *dev, void *data, void *match_data)
--{
--	struct hmm_devmem *devmem = data;
+-static DEFINE_MUTEX(hmm_devmem_lock);
+-static RADIX_TREE(hmm_devmem_radix, GFP_KERNEL);
 -
--	return devmem->resource == match_data;
+-static void hmm_devmem_radix_release(struct resource *resource)
+-{
+-	resource_size_t key, align_start, align_size;
+-
+-	align_start = resource->start & ~(PA_SECTION_SIZE - 1);
+-	align_size = ALIGN(resource_size(resource), PA_SECTION_SIZE);
+-
+-	mutex_lock(&hmm_devmem_lock);
+-	for (key = resource->start;
+-	     key <= resource->end;
+-	     key += PA_SECTION_SIZE)
+-		radix_tree_delete(&hmm_devmem_radix, key >> PA_SECTION_SHIFT);
+-	mutex_unlock(&hmm_devmem_lock);
 -}
 -
--static void hmm_devmem_pages_remove(struct hmm_devmem *devmem)
+-static void hmm_devmem_release(void *data)
 -{
--	devres_release(devmem->device, &hmm_devmem_release,
--		       &hmm_devmem_match, devmem->resource);
+-	struct hmm_devmem *devmem = data;
+-	struct device *dev = devmem->device;
+-	struct resource *resource = devmem->resource;
+-	struct dev_pagemap *pgmap = &devmem->pagemap;
+-	unsigned long start_pfn, npages;
+-	struct zone *zone;
+-	struct page *page;
+-
+-	if (pgmap->registered && percpu_ref_tryget_live(&devmem->ref)) {
+-		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
+-		percpu_ref_put(&devmem->ref);
+-	}
+-
+-	/* pages are dead and unused, undo the arch mapping */
+-	start_pfn = (resource->start & ~(PA_SECTION_SIZE - 1)) >> PAGE_SHIFT;
+-	npages = ALIGN(resource_size(resource), PA_SECTION_SIZE) >> PAGE_SHIFT;
+-
+-	page = pfn_to_page(start_pfn);
+-	zone = page_zone(page);
+-
+-	mem_hotplug_begin();
+-	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
+-		__remove_pages(zone, start_pfn, npages, NULL);
+-	else
+-		arch_remove_memory(start_pfn << PAGE_SHIFT,
+-				   npages << PAGE_SHIFT, NULL);
+-	mem_hotplug_done();
+-
+-	hmm_devmem_radix_release(resource);
+-}
+-
+-static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+-{
+-	resource_size_t key, align_start, align_size, align_end;
+-	struct device *device = devmem->device;
+-	int ret, nid, is_ram;
+-	unsigned long pfn;
+-
+-	align_start = devmem->resource->start & ~(PA_SECTION_SIZE - 1);
+-	align_size = ALIGN(devmem->resource->start +
+-			   resource_size(devmem->resource),
+-			   PA_SECTION_SIZE) - align_start;
+-
+-	is_ram = region_intersects(align_start, align_size,
+-				   IORESOURCE_SYSTEM_RAM,
+-				   IORES_DESC_NONE);
+-	if (is_ram == REGION_MIXED) {
+-		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
+-				__func__, devmem->resource);
+-		return -ENXIO;
+-	}
+-	if (is_ram == REGION_INTERSECTS)
+-		return -ENXIO;
+-
+-	if (devmem->resource->desc == IORES_DESC_DEVICE_PUBLIC_MEMORY)
+-		devmem->pagemap.type = MEMORY_DEVICE_PUBLIC;
+-	else
+-		devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
+-
+-	devmem->pagemap.res = *devmem->resource;
+-	devmem->pagemap.page_fault = hmm_devmem_fault;
+-	devmem->pagemap.page_free = hmm_devmem_free;
+-	devmem->pagemap.dev = devmem->device;
+-	devmem->pagemap.ref = &devmem->ref;
+-	devmem->pagemap.data = devmem;
+-
+-	mutex_lock(&hmm_devmem_lock);
+-	align_end = align_start + align_size - 1;
+-	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
+-		struct hmm_devmem *dup;
+-
+-		dup = radix_tree_lookup(&hmm_devmem_radix,
+-					key >> PA_SECTION_SHIFT);
+-		if (dup) {
+-			dev_err(device, "%s: collides with mapping for %s\n",
+-				__func__, dev_name(dup->device));
+-			mutex_unlock(&hmm_devmem_lock);
+-			ret = -EBUSY;
+-			goto error;
+-		}
+-		ret = radix_tree_insert(&hmm_devmem_radix,
+-					key >> PA_SECTION_SHIFT,
+-					devmem);
+-		if (ret) {
+-			dev_err(device, "%s: failed: %d\n", __func__, ret);
+-			mutex_unlock(&hmm_devmem_lock);
+-			goto error_radix;
+-		}
+-	}
+-	mutex_unlock(&hmm_devmem_lock);
+-
+-	nid = dev_to_node(device);
+-	if (nid < 0)
+-		nid = numa_mem_id();
+-
+-	mem_hotplug_begin();
+-	/*
+-	 * For device private memory we call add_pages() as we only need to
+-	 * allocate and initialize struct page for the device memory. More-
+-	 * over the device memory is un-accessible thus we do not want to
+-	 * create a linear mapping for the memory like arch_add_memory()
+-	 * would do.
+-	 *
+-	 * For device public memory, which is accesible by the CPU, we do
+-	 * want the linear mapping and thus use arch_add_memory().
+-	 */
+-	if (devmem->pagemap.type == MEMORY_DEVICE_PUBLIC)
+-		ret = arch_add_memory(nid, align_start, align_size, NULL,
+-				false);
+-	else
+-		ret = add_pages(nid, align_start >> PAGE_SHIFT,
+-				align_size >> PAGE_SHIFT, NULL, false);
+-	if (ret) {
+-		mem_hotplug_done();
+-		goto error_add_memory;
+-	}
+-	move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+-				align_start >> PAGE_SHIFT,
+-				align_size >> PAGE_SHIFT, NULL);
+-	mem_hotplug_done();
+-
+-	for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {
+-		struct page *page = pfn_to_page(pfn);
+-
+-		page->pgmap = &devmem->pagemap;
+-	}
+-	return 0;
+-
+-error_add_memory:
+-	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
+-error_radix:
+-	hmm_devmem_radix_release(devmem->resource);
+-error:
+-	return ret;
 -}
 -
  /*
   * hmm_devmem_add() - hotplug ZONE_DEVICE memory for device memory
   *
-@@ -1169,8 +1158,7 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+@@ -1154,6 +998,7 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ {
+ 	struct hmm_devmem *devmem;
+ 	resource_size_t addr;
++	void *result;
+ 	int ret;
  
  	static_branch_enable(&device_private_key);
- 
--	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
--				   GFP_KERNEL, dev_to_node(device));
-+	devmem = devm_kzalloc(device, sizeof(*devmem), GFP_KERNEL);
- 	if (!devmem)
- 		return ERR_PTR(-ENOMEM);
- 
-@@ -1184,11 +1172,11 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
- 			      0, GFP_KERNEL);
- 	if (ret)
--		goto error_percpu_ref;
-+		return ERR_PTR(ret);
- 
--	ret = devm_add_action(device, hmm_devmem_ref_exit, &devmem->ref);
-+	ret = devm_add_action_or_reset(device, hmm_devmem_ref_exit, &devmem->ref);
- 	if (ret)
--		goto error_devm_add_action;
-+		return ERR_PTR(ret);
- 
- 	size = ALIGN(size, PA_SECTION_SIZE);
- 	addr = min((unsigned long)iomem_resource.end,
-@@ -1208,16 +1196,12 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 
- 		devmem->resource = devm_request_mem_region(device, addr, size,
- 							   dev_name(device));
--		if (!devmem->resource) {
--			ret = -ENOMEM;
--			goto error_no_resource;
--		}
-+		if (!devmem->resource)
-+			return ERR_PTR(-ENOMEM);
- 		break;
- 	}
--	if (!devmem->resource) {
--		ret = -ERANGE;
--		goto error_no_resource;
--	}
-+	if (!devmem->resource)
-+		return ERR_PTR(-ERANGE);
- 
- 	devmem->resource->desc = IORES_DESC_DEVICE_PRIVATE_MEMORY;
- 	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
-@@ -1226,28 +1210,18 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 
- 	ret = hmm_devmem_pages_create(devmem);
- 	if (ret)
--		goto error_pages;
-+		return ERR_PTR(ret);
- 
--	devres_add(device, devmem);
-+	ret = devm_add_action_or_reset(device, hmm_devmem_release, devmem);
-+	if (ret)
-+		return ERR_PTR(ret);
-+	devmem->pagemap.registered = true;
- 
--	ret = devm_add_action(device, hmm_devmem_ref_kill, &devmem->ref);
--	if (ret) {
--		hmm_devmem_remove(devmem);
-+	ret = devm_add_action_or_reset(device, hmm_devmem_ref_kill, &devmem->ref);
-+	if (ret)
- 		return ERR_PTR(ret);
--	}
- 
- 	return devmem;
--
--error_pages:
--	devm_release_mem_region(device, devmem->resource->start,
--				resource_size(devmem->resource));
--error_no_resource:
--error_devm_add_action:
--	hmm_devmem_ref_kill(&devmem->ref);
--	hmm_devmem_ref_exit(&devmem->ref);
--error_percpu_ref:
--	devres_free(devmem);
--	return ERR_PTR(ret);
- }
- EXPORT_SYMBOL(hmm_devmem_add);
- 
-@@ -1263,8 +1237,7 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 
- 	static_branch_enable(&device_private_key);
- 
--	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
--				   GFP_KERNEL, dev_to_node(device));
-+	devmem = devm_kzalloc(device, sizeof(*devmem), GFP_KERNEL);
- 	if (!devmem)
- 		return ERR_PTR(-ENOMEM);
- 
-@@ -1278,12 +1251,12 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
- 			      0, GFP_KERNEL);
- 	if (ret)
--		goto error_percpu_ref;
-+		return ERR_PTR(ret);
- 
--	ret = devm_add_action(device, hmm_devmem_ref_exit, &devmem->ref);
-+	ret = devm_add_action_or_reset(device, hmm_devmem_ref_exit,
-+			&devmem->ref);
- 	if (ret)
--		goto error_devm_add_action;
--
-+		return ERR_PTR(ret);
- 
- 	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
+@@ -1208,14 +1053,18 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
  	devmem->pfn_last = devmem->pfn_first +
-@@ -1291,60 +1264,22 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+ 			   (resource_size(devmem->resource) >> PAGE_SHIFT);
  
- 	ret = hmm_devmem_pages_create(devmem);
+-	ret = hmm_devmem_pages_create(devmem);
+-	if (ret)
+-		return ERR_PTR(ret);
++	devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
++	devmem->pagemap.res = *devmem->resource;
++	devmem->pagemap.page_fault = hmm_devmem_fault;
++	devmem->pagemap.page_free = hmm_devmem_free;
++	devmem->pagemap.altmap_valid = false;
++	devmem->pagemap.registered = false;
++	devmem->pagemap.ref = &devmem->ref;
++	devmem->pagemap.data = devmem;
+ 
+-	ret = devm_add_action_or_reset(device, hmm_devmem_release, devmem);
+-	if (ret)
+-		return ERR_PTR(ret);
+-	devmem->pagemap.registered = true;
++	result = devm_memremap_pages(devmem->device, &devmem->pagemap);
++	if (IS_ERR(result))
++		return result;
+ 
+ 	ret = devm_add_action_or_reset(device, hmm_devmem_ref_kill, &devmem->ref);
  	if (ret)
--		goto error_devm_add_action;
-+		return ERR_PTR(ret);
+@@ -1230,6 +1079,7 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+ 					   struct resource *res)
+ {
+ 	struct hmm_devmem *devmem;
++	void *result;
+ 	int ret;
  
--	devres_add(device, devmem);
-+	ret = devm_add_action_or_reset(device, hmm_devmem_release, devmem);
-+	if (ret)
-+		return ERR_PTR(ret);
-+	devmem->pagemap.registered = true;
+ 	if (res->desc != IORES_DESC_DEVICE_PUBLIC_MEMORY)
+@@ -1262,14 +1112,18 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+ 	devmem->pfn_last = devmem->pfn_first +
+ 			   (resource_size(devmem->resource) >> PAGE_SHIFT);
  
--	ret = devm_add_action(device, hmm_devmem_ref_kill, &devmem->ref);
--	if (ret) {
--		hmm_devmem_remove(devmem);
-+	ret = devm_add_action_or_reset(device, hmm_devmem_ref_kill, &devmem->ref);
-+	if (ret)
- 		return ERR_PTR(ret);
--	}
+-	ret = hmm_devmem_pages_create(devmem);
+-	if (ret)
+-		return ERR_PTR(ret);
++	devmem->pagemap.type = MEMORY_DEVICE_PUBLIC;
++	devmem->pagemap.res = *devmem->resource;
++	devmem->pagemap.page_fault = hmm_devmem_fault;
++	devmem->pagemap.page_free = hmm_devmem_free;
++	devmem->pagemap.altmap_valid = false;
++	devmem->pagemap.registered = false;
++	devmem->pagemap.ref = &devmem->ref;
++	devmem->pagemap.data = devmem;
  
- 	return devmem;
--
--error_devm_add_action:
--	hmm_devmem_ref_kill(&devmem->ref);
--	hmm_devmem_ref_exit(&devmem->ref);
--error_percpu_ref:
--	devres_free(devmem);
--	return ERR_PTR(ret);
- }
- EXPORT_SYMBOL(hmm_devmem_add_resource);
+-	ret = devm_add_action_or_reset(device, hmm_devmem_release, devmem);
+-	if (ret)
+-		return ERR_PTR(ret);
+-	devmem->pagemap.registered = true;
++	result = devm_memremap_pages(devmem->device, &devmem->pagemap);
++	if (IS_ERR(result))
++		return result;
  
- /*
-- * hmm_devmem_remove() - remove device memory (kill and free ZONE_DEVICE)
-- *
-- * @devmem: hmm_devmem struct use to track and manage the ZONE_DEVICE memory
-- *
-- * This will hot-unplug memory that was hotplugged by hmm_devmem_add on behalf
-- * of the device driver. It will free struct page and remove the resource that
-- * reserved the physical address range for this device memory.
-- */
--void hmm_devmem_remove(struct hmm_devmem *devmem)
--{
--	resource_size_t start, size;
--	struct device *device;
--	bool cdm = false;
--
--	if (!devmem)
--		return;
--
--	device = devmem->device;
--	start = devmem->resource->start;
--	size = resource_size(devmem->resource);
--
--	cdm = devmem->resource->desc == IORES_DESC_DEVICE_PUBLIC_MEMORY;
--	hmm_devmem_ref_kill(&devmem->ref);
--	hmm_devmem_ref_exit(&devmem->ref);
--	hmm_devmem_pages_remove(devmem);
--
--	if (!cdm)
--		devm_release_mem_region(device, start, size);
--}
--EXPORT_SYMBOL(hmm_devmem_remove);
--
--/*
-  * A device driver that wants to handle multiple devices memory through a
-  * single fake device can use hmm_device to do so. This is purely a helper
-  * and it is not needed to make use of any HMM functionality.
+ 	ret = devm_add_action_or_reset(device, hmm_devmem_ref_kill, &devmem->ref);
+ 	if (ret)
