@@ -1,152 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A4E826B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 17:19:23 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id a5-v6so10660626plp.8
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 14:19:23 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 1-v6si15466198pld.450.2018.05.21.14.19.22
+	by kanga.kvack.org (Postfix) with ESMTP id DF7EA6B0005
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 17:19:35 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 89-v6so10802524plc.1
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 14:19:35 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 61-v6sor6047564plc.126.2018.05.21.14.19.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 14:19:22 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 32/95] x86/pkeys: Override pkey when moving away from PROT_EXEC
-Date: Mon, 21 May 2018 23:11:22 +0200
-Message-Id: <20180521210454.684335787@linuxfoundation.org>
-In-Reply-To: <20180521210447.219380974@linuxfoundation.org>
-References: <20180521210447.219380974@linuxfoundation.org>
+        (Google Transport Security);
+        Mon, 21 May 2018 14:19:34 -0700 (PDT)
+Date: Mon, 21 May 2018 14:19:31 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/THP: use hugepage_vma_check() in
+ khugepaged_enter_vma_merge()
+In-Reply-To: <20180521193853.3089484-1-songliubraving@fb.com>
+Message-ID: <alpine.DEB.2.21.1805211419210.41872@chino.kir.corp.google.com>
+References: <20180521193853.3089484-1-songliubraving@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Shakeel Butt <shakeelb@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellermen <mpe@ellerman.id.au>, Peter Zijlstra <peterz@infradead.org>, Ram Pai <linuxram@us.ibm.com>, Shuah Khan <shuah@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Song Liu <songliubraving@fb.com>
+Cc: linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-4.14-stable review patch.  If anyone has any objections, please let me know.
+On Mon, 21 May 2018, Song Liu wrote:
 
-------------------
+> khugepaged_enter_vma_merge() is using a different approach to check
+> whether a vma is valid for khugepaged_enter():
+> 
+>     if (!vma->anon_vma)
+>             /*
+>              * Not yet faulted in so we will register later in the
+>              * page fault if needed.
+>              */
+>             return 0;
+>     if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
+>             /* khugepaged not yet working on file or special mappings */
+>             return 0;
+> 
+> This check has some problems. One of the obvious problems is that
+> it doesn't check shmem_file(), so that vma backed with shmem files
+> will not call khugepaged_enter().
+> 
+> This patch fixes these problems by reusing hugepage_vma_check() in
+> khugepaged_enter_vma_merge().
+> 
+> Signed-off-by: Song Liu <songliubraving@fb.com>
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
-
-commit 0a0b152083cfc44ec1bb599b57b7aab41327f998 upstream.
-
-I got a bug report that the following code (roughly) was
-causing a SIGSEGV:
-
-	mprotect(ptr, size, PROT_EXEC);
-	mprotect(ptr, size, PROT_NONE);
-	mprotect(ptr, size, PROT_READ);
-	*ptr = 100;
-
-The problem is hit when the mprotect(PROT_EXEC)
-is implicitly assigned a protection key to the VMA, and made
-that key ACCESS_DENY|WRITE_DENY.  The PROT_NONE mprotect()
-failed to remove the protection key, and the PROT_NONE->
-PROT_READ left the PTE usable, but the pkey still in place
-and left the memory inaccessible.
-
-To fix this, we ensure that we always "override" the pkee
-at mprotect() if the VMA does not have execute-only
-permissions, but the VMA has the execute-only pkey.
-
-We had a check for PROT_READ/WRITE, but it did not work
-for PROT_NONE.  This entirely removes the PROT_* checks,
-which ensures that PROT_NONE now works.
-
-Reported-by: Shakeel Butt <shakeelb@google.com>
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michael Ellermen <mpe@ellerman.id.au>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Ram Pai <linuxram@us.ibm.com>
-Cc: Shuah Khan <shuah@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Cc: stable@vger.kernel.org
-Fixes: 62b5f7d013f ("mm/core, x86/mm/pkeys: Add execute-only protection keys support")
-Link: http://lkml.kernel.org/r/20180509171351.084C5A71@viggo.jf.intel.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/include/asm/pkeys.h |   12 +++++++++++-
- arch/x86/mm/pkeys.c          |   21 +++++++++++----------
- 2 files changed, 22 insertions(+), 11 deletions(-)
-
---- a/arch/x86/include/asm/pkeys.h
-+++ b/arch/x86/include/asm/pkeys.h
-@@ -2,6 +2,8 @@
- #ifndef _ASM_X86_PKEYS_H
- #define _ASM_X86_PKEYS_H
- 
-+#define ARCH_DEFAULT_PKEY	0
-+
- #define arch_max_pkey() (boot_cpu_has(X86_FEATURE_OSPKE) ? 16 : 1)
- 
- extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
-@@ -15,7 +17,7 @@ extern int __execute_only_pkey(struct mm
- static inline int execute_only_pkey(struct mm_struct *mm)
- {
- 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
--		return 0;
-+		return ARCH_DEFAULT_PKEY;
- 
- 	return __execute_only_pkey(mm);
- }
-@@ -56,6 +58,14 @@ bool mm_pkey_is_allocated(struct mm_stru
- 		return false;
- 	if (pkey >= arch_max_pkey())
- 		return false;
-+	/*
-+	 * The exec-only pkey is set in the allocation map, but
-+	 * is not available to any of the user interfaces like
-+	 * mprotect_pkey().
-+	 */
-+	if (pkey == mm->context.execute_only_pkey)
-+		return false;
-+
- 	return mm_pkey_allocation_map(mm) & (1U << pkey);
- }
- 
---- a/arch/x86/mm/pkeys.c
-+++ b/arch/x86/mm/pkeys.c
-@@ -94,26 +94,27 @@ int __arch_override_mprotect_pkey(struct
- 	 */
- 	if (pkey != -1)
- 		return pkey;
--	/*
--	 * Look for a protection-key-drive execute-only mapping
--	 * which is now being given permissions that are not
--	 * execute-only.  Move it back to the default pkey.
--	 */
--	if (vma_is_pkey_exec_only(vma) &&
--	    (prot & (PROT_READ|PROT_WRITE))) {
--		return 0;
--	}
-+
- 	/*
- 	 * The mapping is execute-only.  Go try to get the
- 	 * execute-only protection key.  If we fail to do that,
- 	 * fall through as if we do not have execute-only
--	 * support.
-+	 * support in this mm.
- 	 */
- 	if (prot == PROT_EXEC) {
- 		pkey = execute_only_pkey(vma->vm_mm);
- 		if (pkey > 0)
- 			return pkey;
-+	} else if (vma_is_pkey_exec_only(vma)) {
-+		/*
-+		 * Protections are *not* PROT_EXEC, but the mapping
-+		 * is using the exec-only pkey.  This mapping was
-+		 * PROT_EXEC and will no longer be.  Move back to
-+		 * the default pkey.
-+		 */
-+		return ARCH_DEFAULT_PKEY;
- 	}
-+
- 	/*
- 	 * This is a vanilla, non-pkey mprotect (or we failed to
- 	 * setup execute-only), inherit the pkey from the VMA we
+Acked-by: David Rientjes <rientjes@google.com>
