@@ -1,55 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 547C06B0006
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 17:11:24 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id q16-v6so10753981pls.15
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 14:11:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r9-v6sor6650088pfh.53.2018.05.21.14.11.22
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E87816B0006
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 17:14:42 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q15-v6so9824815pff.17
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 14:14:42 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id l24-v6si4656255pgo.303.2018.05.21.14.14.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 May 2018 14:11:22 -0700 (PDT)
-Date: Mon, 21 May 2018 14:11:21 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Add the memcg print oom info for system oom
-In-Reply-To: <20180517102330.GS12670@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.21.1805211405300.41872@chino.kir.corp.google.com>
-References: <1526540428-12178-1-git-send-email-ufo19890607@gmail.com> <20180517071140.GQ12670@dhcp22.suse.cz> <CAHCio2gOLnj4NpkFrxpYVygg6ZeSeuwgp2Lwr6oTHRxHpbmcWw@mail.gmail.com> <20180517102330.GS12670@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 May 2018 14:14:41 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.9 25/87] x86/pkeys: Do not special case protection key 0
+Date: Mon, 21 May 2018 23:11:01 +0200
+Message-Id: <20180521210422.659351219@linuxfoundation.org>
+In-Reply-To: <20180521210420.222671977@linuxfoundation.org>
+References: <20180521210420.222671977@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellermen <mpe@ellerman.id.au>, Peter Zijlstra <peterz@infradead.org>, Ram Pai <linuxram@us.ibm.com>, Shuah Khan <shuah@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 17 May 2018, Michal Hocko wrote:
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
-> this is not 5 lines at all. We dump memcg stats for the whole oom memcg
-> subtree. For your patch it would be the whole subtree of the memcg of
-> the oom victim. With cgroup v1 this can be quite deep as tasks can
-> belong to inter-nodes as well. Would be
-> 
-> 		pr_info("Task in ");
-> 		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
-> 		pr_cont(" killed as a result of limit of ");
-> 
-> part of that output sufficient for your usecase?
+------------------
 
-There's no memcg to print as the limit in the above, but it does seem like 
-the single line output is all that is needed in this case.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-It might be useful to discuss a single line output that specifies relevant 
-information about the context of the oom kill, the killed thread, and the 
-memcg of that thread, in a way that will be backwards compatible.  The 
-messages in the oom killer have been restructured over time, I don't 
-believe there is a backwards compatible way to search for an oom event in 
-the kernel log.
+commit 2fa9d1cfaf0e02f8abef0757002bff12dfcfa4e6 upstream.
 
-I've had success with defining a single line output the includes the 
-CONSTRAINT_* of the oom kill, the origin and kill memcgs, the thread name, 
-pid, and uid.  On system oom kills, origin and kill memcgs are left empty.
+mm_pkey_is_allocated() treats pkey 0 as unallocated.  That is
+inconsistent with the manpages, and also inconsistent with
+mm->context.pkey_allocation_map.  Stop special casing it and only
+disallow values that are actually bad (< 0).
 
-oom-kill constraint=CONSTRAINT_* origin_memcg=<memcg> kill_memcg=<memcg> task=<comm> pid=<pid> uid=<uid>
+The end-user visible effect of this is that you can now use
+mprotect_pkey() to set pkey=0.
 
-Perhaps we should introduce a single line output that will be backwards 
-compatible that includes this information?
+This is a bit nicer than what Ram proposed[1] because it is simpler
+and removes special-casing for pkey 0.  On the other hand, it does
+allow applications to pkey_free() pkey-0, but that's just a silly
+thing to do, so we are not going to protect against it.
+
+The scenario that could happen is similar to what happens if you free
+any other pkey that is in use: it might get reallocated later and used
+to protect some other data.  The most likely scenario is that pkey-0
+comes back from pkey_alloc(), an access-disable or write-disable bit
+is set in PKRU for it, and the next stack access will SIGSEGV.  It's
+not horribly different from if you mprotect()'d your stack or heap to
+be unreadable or unwritable, which is generally very foolish, but also
+not explicitly prevented by the kernel.
+
+1. http://lkml.kernel.org/r/1522112702-27853-1-git-send-email-linuxram@us.ibm.com
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>p
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michael Ellermen <mpe@ellerman.id.au>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Ram Pai <linuxram@us.ibm.com>
+Cc: Shuah Khan <shuah@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Cc: stable@vger.kernel.org
+Fixes: 58ab9a088dda ("x86/pkeys: Check against max pkey to avoid overflows")
+Link: http://lkml.kernel.org/r/20180509171358.47FD785E@viggo.jf.intel.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/x86/include/asm/mmu_context.h |    2 +-
+ arch/x86/include/asm/pkeys.h       |    6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -113,7 +113,7 @@ static inline int init_new_context(struc
+ 
+ 	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+ 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
+-		/* pkey 0 is the default and always allocated */
++		/* pkey 0 is the default and allocated implicitly */
+ 		mm->context.pkey_allocation_map = 0x1;
+ 		/* -1 means unallocated or invalid */
+ 		mm->context.execute_only_pkey = -1;
+--- a/arch/x86/include/asm/pkeys.h
++++ b/arch/x86/include/asm/pkeys.h
+@@ -50,10 +50,10 @@ bool mm_pkey_is_allocated(struct mm_stru
+ {
+ 	/*
+ 	 * "Allocated" pkeys are those that have been returned
+-	 * from pkey_alloc().  pkey 0 is special, and never
+-	 * returned from pkey_alloc().
++	 * from pkey_alloc() or pkey 0 which is allocated
++	 * implicitly when the mm is created.
+ 	 */
+-	if (pkey <= 0)
++	if (pkey < 0)
+ 		return false;
+ 	if (pkey >= arch_max_pkey())
+ 		return false;
