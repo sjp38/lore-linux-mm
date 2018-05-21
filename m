@@ -1,35 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BDB16B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 00:47:59 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id s17-v6so3916594pgq.23
-        for <linux-mm@kvack.org>; Sun, 20 May 2018 21:47:59 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id s83-v6si13566744pfg.175.2018.05.20.21.47.58
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C576B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 01:53:58 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id l8-v6so13270171qtb.11
+        for <linux-mm@kvack.org>; Sun, 20 May 2018 22:53:58 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id i6-v6si1755784qvj.65.2018.05.20.22.53.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 May 2018 21:47:58 -0700 (PDT)
-Date: Sun, 20 May 2018 22:47:56 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v11 54/63] dax: Hash on XArray instead of mapping
-Message-ID: <20180521044756.GD27043@linux.intel.com>
-References: <20180414141316.7167-1-willy@infradead.org>
- <20180414141316.7167-55-willy@infradead.org>
+        Sun, 20 May 2018 22:53:57 -0700 (PDT)
+Received: from compute6.internal (compute6.nyi.internal [10.202.2.46])
+	by mailout.nyi.internal (Postfix) with ESMTP id 76C8F22006
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 01:53:56 -0400 (EDT)
+Message-Id: <1526882035.2651626.1378964120.19800D70@webmail.messagingengine.com>
+From: Benjamin Peterson <bp@benjamin.pe>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180414141316.7167-55-willy@infradead.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Date: Sun, 20 May 2018 22:53:55 -0700
+Subject: balance_dirty_pages ratelimiting
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: linux-mm@kvack.org
 
-On Sat, Apr 14, 2018 at 07:13:07AM -0700, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> 
-> Since the XArray is embedded in the struct address_space, this contains
-> exactly as much entropy as the address of the mapping.
+The comment for balance_dirty_pages_ratelimited explains rate limiting is necessary because "On really big machines, get_writeback_state is expensive". This comment is stale, since get_writeback_state has not existed for more than 10 years. I gather, however, that its expense arose from aggregating vmstats over all cpus. These days, global vmstats are simply a memory load. Is there a modern reason for rate limiting balance_dirty_pages?
 
-I agree that they both have the same amount of entropy, but what's the
-benefit?  It doesn't seem like this changes any behavior, fixes any bugs or
-makes things any simpler?
+Thanks,
+Benjamin
