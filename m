@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C2EE6B0010
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 11:21:44 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id q16-v6so10252001pls.15
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 08:21:44 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i196-v6sor1080159pgc.8.2018.05.21.08.21.43
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AC87B6B0007
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 11:25:47 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 3-v6so11940165wry.0
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 08:25:47 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id b79-v6si12944886wrd.260.2018.05.21.08.25.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 May 2018 08:21:43 -0700 (PDT)
-From: Huaisheng Ye <yehs2007@gmail.com>
-Subject: [RFC PATCH v2 12/12] arch/x86/include/asm/page.h: update usage of movableflags
-Date: Mon, 21 May 2018 23:20:33 +0800
-Message-Id: <1526916033-4877-13-git-send-email-yehs2007@gmail.com>
-In-Reply-To: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
-References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 May 2018 08:25:46 -0700 (PDT)
+Date: Mon, 21 May 2018 17:30:55 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [RFC PATCH v2 05/12] include/linux/dma-mapping: update usage
+	of address zone modifiers
+Message-ID: <20180521153055.GA18588@lst.de>
+References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com> <1526916033-4877-6-git-send-email-yehs2007@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1526916033-4877-6-git-send-email-yehs2007@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, willy@infradead.org, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, alexander.levin@verizon.com, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Philippe Ombredanne <pombredanne@nexb.com>
+To: Huaisheng Ye <yehs2007@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mhocko@suse.com, willy@infradead.org, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, alexander.levin@verizon.com, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>
 
-From: Huaisheng Ye <yehs1@lenovo.com>
+On Mon, May 21, 2018 at 11:20:26PM +0800, Huaisheng Ye wrote:
+> From: Huaisheng Ye <yehs1@lenovo.com>
+> 
+> Use __GFP_ZONE_MASK to replace (__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32).
+> 
+> ___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 have been deleted from GFP
+> bitmasks, the bottom three bits of GFP mask is reserved for storing
+> encoded zone number.
+> __GFP_DMA, __GFP_HIGHMEM and __GFP_DMA32 should not be operated with
+>each others by OR.
 
-GFP_HIGHUSER_MOVABLE doesn't equal to GFP_HIGHUSER | __GFP_MOVABLE,
-modify it to adapt patch of getting rid of GFP_ZONE_TABLE/BAD.
-
-Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Kate Stewart <kstewart@linuxfoundation.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: x86@kernel.org <x86@kernel.org>
-Cc: Philippe Ombredanne <pombredanne@nexb.com>
----
- arch/x86/include/asm/page.h | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
-index 7555b48..a47f42d 100644
---- a/arch/x86/include/asm/page.h
-+++ b/arch/x86/include/asm/page.h
-@@ -35,7 +35,8 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
- }
- 
- #define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
--	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
-+	alloc_page_vma((movableflags ? GFP_HIGHUSER_MOVABLE : GFP_HIGHUSER) \
-+	| __GFP_ZERO, vma, vaddr)
- #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
- 
- #ifndef __pa
--- 
-1.8.3.1
+You have to include me for the whole series, otherwise I have absolutely
+no way to properly review your patch.
