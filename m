@@ -1,188 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DCBD26B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 14:16:50 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id b5-v6so5947469lff.3
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 11:16:50 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A766E6B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 14:37:45 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id r63-v6so9585088pfl.12
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 11:37:45 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l4-v6sor3020042ljh.21.2018.05.21.11.16.48
+        by mx.google.com with SMTPS id z16-v6sor2135847pge.189.2018.05.21.11.37.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 21 May 2018 11:16:49 -0700 (PDT)
-Date: Mon, 21 May 2018 21:16:45 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v6 12/17] mm: Set bit in memcg shrinker bitmap on first
- list_lru item apearance
-Message-ID: <20180521181645.gmtm3fscygrltrdr@esperanza>
-References: <152663268383.5308.8660992135988724014.stgit@localhost.localdomain>
- <152663302275.5308.7476660277265020067.stgit@localhost.localdomain>
- <20180520075558.6ls4yzrkou63orkb@esperanza>
- <2a0ca70d-12bb-8087-9897-9cb33f676177@virtuozzo.com>
+        Mon, 21 May 2018 11:37:44 -0700 (PDT)
+Date: Mon, 21 May 2018 11:37:42 -0700
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
+Message-ID: <20180521183742.GC14774@vader>
+References: <20180518090636.GA14738@kmo-pixel>
+ <8f62d8f870c6b66e90d3e7f57acee481acff57f5.camel@wdc.com>
+ <20180520221733.GA11495@kmo-pixel>
+ <bb4fd32d0baa6554615a7ec3b45cc2b89424328e.camel@wdc.com>
+ <20180520223116.GB11495@kmo-pixel>
+ <b0aa2a8737b2d826fea58dc0bc113ddce50f018a.camel@wdc.com>
+ <20180520232139.GE11495@kmo-pixel>
+ <238bacfbc43245159c1586189a436efbb069306b.camel@wdc.com>
+ <20180520235853.GF11495@kmo-pixel>
+ <d3fbfaa667f5ac64c1f230249e3333594cb4a128.camel@wdc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2a0ca70d-12bb-8087-9897-9cb33f676177@virtuozzo.com>
+In-Reply-To: <d3fbfaa667f5ac64c1f230249e3333594cb4a128.camel@wdc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Bart Van Assche <Bart.VanAssche@wdc.com>
+Cc: "kent.overstreet@gmail.com" <kent.overstreet@gmail.com>, "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-On Mon, May 21, 2018 at 12:31:34PM +0300, Kirill Tkhai wrote:
-> On 20.05.2018 10:55, Vladimir Davydov wrote:
-> > On Fri, May 18, 2018 at 11:43:42AM +0300, Kirill Tkhai wrote:
-> >> Introduce set_shrinker_bit() function to set shrinker-related
-> >> bit in memcg shrinker bitmap, and set the bit after the first
-> >> item is added and in case of reparenting destroyed memcg's items.
-> >>
-> >> This will allow next patch to make shrinkers be called only,
-> >> in case of they have charged objects at the moment, and
-> >> to improve shrink_slab() performance.
-> >>
-> >> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> >> ---
-> >>  include/linux/memcontrol.h |   14 ++++++++++++++
-> >>  mm/list_lru.c              |   22 ++++++++++++++++++++--
-> >>  2 files changed, 34 insertions(+), 2 deletions(-)
-> >>
-> >> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> >> index e51c6e953d7a..7ae1b94becf3 100644
-> >> --- a/include/linux/memcontrol.h
-> >> +++ b/include/linux/memcontrol.h
-> >> @@ -1275,6 +1275,18 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
-> >>  
-> >>  extern int memcg_expand_shrinker_maps(int new_id);
-> >>  
-> >> +static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
-> >> +					  int nid, int shrinker_id)
-> >> +{
+On Mon, May 21, 2018 at 03:11:08PM +0000, Bart Van Assche wrote:
+> On Sun, 2018-05-20 at 19:58 -0400, Kent Overstreet wrote:
+> > On Sun, May 20, 2018 at 11:40:45PM +0000, Bart Van Assche wrote:
+> > > On Sun, 2018-05-20 at 19:21 -0400, Kent Overstreet wrote:
+> > > > I really have better things to do than debug someone else's tests...
+> > > > [ ... ]
+> > > > ../run_tests: line 65: cd: /lib/modules/4.16.0+/kernel/block: No such file or directory
+> > > 
+> > > Kernel v4.16 is too old to run these tests. The srp-test script needs the
+> > > following commit that went upstream in kernel v4.17-rc1:
+> > > 
+> > > 63cf1a902c9d ("IB/srpt: Add RDMA/CM support")
 > > 
-> >> +	if (shrinker_id >= 0 && memcg && memcg != root_mem_cgroup) {
-> > 
-> > Nit: I'd remove these checks from this function and require the caller
-> > to check that shrinker_id >= 0 and memcg != NULL or root_mem_cgroup.
-> > See below how the call sites would look then.
-> > 
-> >> +		struct memcg_shrinker_map *map;
-> >> +
-> >> +		rcu_read_lock();
-> >> +		map = rcu_dereference(memcg->nodeinfo[nid]->shrinker_map);
-> >> +		set_bit(shrinker_id, map->map);
-> >> +		rcu_read_unlock();
-> >> +	}
-> >> +}
-> >>  #else
-> >>  #define for_each_memcg_cache_index(_idx)	\
-> >>  	for (; NULL; )
-> >> @@ -1297,6 +1309,8 @@ static inline void memcg_put_cache_ids(void)
-> >>  {
-> >>  }
-> >>  
-> >> +static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
-> >> +					  int nid, int shrinker_id) { }
-> >>  #endif /* CONFIG_MEMCG_KMEM */
-> >>  
-> >>  #endif /* _LINUX_MEMCONTROL_H */
-> >> diff --git a/mm/list_lru.c b/mm/list_lru.c
-> >> index cab8fad7f7e2..7df71ab0de1c 100644
-> >> --- a/mm/list_lru.c
-> >> +++ b/mm/list_lru.c
-> >> @@ -31,6 +31,11 @@ static void list_lru_unregister(struct list_lru *lru)
-> >>  	mutex_unlock(&list_lrus_mutex);
-> >>  }
-> >>  
-> >> +static int lru_shrinker_id(struct list_lru *lru)
-> >> +{
-> >> +	return lru->shrinker_id;
-> >> +}
-> >> +
-> >>  static inline bool list_lru_memcg_aware(struct list_lru *lru)
-> >>  {
-> >>  	/*
-> >> @@ -94,6 +99,11 @@ static void list_lru_unregister(struct list_lru *lru)
-> >>  {
-> >>  }
-> >>  
-> >> +static int lru_shrinker_id(struct list_lru *lru)
-> >> +{
-> >> +	return -1;
-> >> +}
-> >> +
-> >>  static inline bool list_lru_memcg_aware(struct list_lru *lru)
-> >>  {
-> >>  	return false;
-> >> @@ -119,13 +129,17 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
-> >>  {
-> >>  	int nid = page_to_nid(virt_to_page(item));
-> >>  	struct list_lru_node *nlru = &lru->node[nid];
-> >> +	struct mem_cgroup *memcg;
-> >>  	struct list_lru_one *l;
-> >>  
-> >>  	spin_lock(&nlru->lock);
-> >>  	if (list_empty(item)) {
-> >> -		l = list_lru_from_kmem(nlru, item, NULL);
-> >> +		l = list_lru_from_kmem(nlru, item, &memcg);
-> >>  		list_add_tail(item, &l->list);
-> >> -		l->nr_items++;
-> >> +		/* Set shrinker bit if the first element was added */
-> >> +		if (!l->nr_items++)
-> >> +			memcg_set_shrinker_bit(memcg, nid,
-> >> +					       lru_shrinker_id(lru));
-> > 
-> > This would turn into
-> > 
-> > 	if (!l->nr_items++ && memcg)
-> > 		memcg_set_shrinker_bit(memcg, nid, lru_shrinker_id(lru));
-> > 
-> > Note, you don't need to check that lru_shrinker_id(lru) is >= 0 here as
-> > the fact that memcg != NULL guarantees that. Also, memcg can't be
-> > root_mem_cgroup here as kmem objects allocated for the root cgroup go
-> > unaccounted.
-> > 
-> >>  		nlru->nr_items++;
-> >>  		spin_unlock(&nlru->lock);
-> >>  		return true;
-> >> @@ -520,6 +534,7 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
-> >>  	struct list_lru_node *nlru = &lru->node[nid];
-> >>  	int dst_idx = dst_memcg->kmemcg_id;
-> >>  	struct list_lru_one *src, *dst;
-> >> +	bool set;
-> >>  
-> >>  	/*
-> >>  	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
-> >> @@ -531,7 +546,10 @@ static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
-> >>  	dst = list_lru_from_memcg_idx(nlru, dst_idx);
-> >>  
-> >>  	list_splice_init(&src->list, &dst->list);
-> >> +	set = (!dst->nr_items && src->nr_items);
-> >>  	dst->nr_items += src->nr_items;
-> >> +	if (set)
-> >> +		memcg_set_shrinker_bit(dst_memcg, nid, lru_shrinker_id(lru));
-> > 
-> > This would turn into
-> > 
-> > 	if (set && dst_idx >= 0)
-> > 		memcg_set_shrinker_bit(dst_memcg, nid, lru_shrinker_id(lru));
-> > 
-> > Again, the shrinker is guaranteed to be memcg aware in this function and
-> > dst_memcg != NULL.
-> > 
-> > IMHO such a change would make the code a bit more straightforward.
+> > Same output on Jens' for-next branch.
 > 
-> IMHO, this makes the code less readable. Using single generic function with
-> generic check is easier, then using two different checks for different places.
-> Next a person, who will modify the logic, does not have to think about particulars
-> of strange checks in list_lru_add() and memcg_drain_list_lru_node(), if he/she
+> Others have been able to run the srp-test software with the instructions
+> provided earlier in this e-mail thread. Can you share the kernel messages from
+> around the time the test was run (dmesg, /var/log/messages or /var/log/syslog)?
+> 
+> Thanks,
+> 
+> Bart.
 
-I'd prefer them to think through all corner cases before touching this
-code :-)
+Bart,
 
-> does not involved in the change of maps logic. Memory cgroup is already fell
-> into many corner cases, let's do not introduce them in new places.
-
-The reason why I'd rather move those checks from memcg_set_shrinker_bit
-to call sites is that now looking at the function code makes me wonder
-why this function has to turn into a no-op if shrinker_id < 0 or memcg
-is NULL, why these corner cases are even possible. To understand that, I
-have to look at all places where this function is called, which are
-located in a different source file. This is rather inconvenient IMO. But
-I guess it's bikesheding so I don't insist.
+Have you made any progress in porting srp-test to blktests so we don't
+have to have this conversation again?
