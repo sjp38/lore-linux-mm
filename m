@@ -1,153 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 944466B027B
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 06:10:18 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 76-v6so1800254pga.18
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 03:10:18 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0112.outbound.protection.outlook.com. [104.47.1.112])
-        by mx.google.com with ESMTPS id g12-v6si15720163plo.406.2018.05.22.03.10.16
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA53B6B0006
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 06:18:09 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id n21-v6so14395727iob.17
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 03:18:09 -0700 (PDT)
+Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.7])
+        by mx.google.com with ESMTPS id m129-v6si15198376iof.174.2018.05.22.03.18.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 May 2018 03:10:17 -0700 (PDT)
-Subject: [PATCH v7 17/17] mm: Clear shrinker bit if there are no objects
- related to memcg
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 22 May 2018 13:10:10 +0300
-Message-ID: <152698381022.3393.6474755436628067805.stgit@localhost.localdomain>
-In-Reply-To: <152698356466.3393.5351712806709424140.stgit@localhost.localdomain>
-References: <152698356466.3393.5351712806709424140.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 May 2018 03:18:08 -0700 (PDT)
+From: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Subject: RE: [External]  Re: [RFC PATCH v2 02/12] arch/x86/kernel/amd_gart_64:
+ update usage of address zone modifiers
+Date: Tue, 22 May 2018 10:17:50 +0000
+Message-ID: <HK2PR03MB16847D58C0B62ED73DBD1B2392940@HK2PR03MB1684.apcprd03.prod.outlook.com>
+References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+ <1526916033-4877-3-git-send-email-yehs2007@gmail.com>
+ <20180522093806.GA25671@infradead.org>
+In-Reply-To: <20180522093806.GA25671@infradead.org>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@suse.com" <mhocko@suse.com>, "willy@infradead.org" <willy@infradead.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "kstewart@linuxfoundation.org" <kstewart@linuxfoundation.org>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "colyli@suse.de" <colyli@suse.de>, NingTing
+ Cheng <chengnt@lenovo.com>, Ocean HY1 He <hehy1@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Robin Murphy <robin.murphy@arm.com>, Huaisheng Ye <yehs2007@gmail.com>
 
-To avoid further unneed calls of do_shrink_slab()
-for shrinkers, which already do not have any charged
-objects in a memcg, their bits have to be cleared.
+From: owner-linux-mm@kvack.org On Behalf Of Christoph Hellwig
+>=20
+> This code doesn't exist in current mainline.  What kernel version
+> is your patch against?
+>=20
+> On Mon, May 21, 2018 at 11:20:23PM +0800, Huaisheng Ye wrote:
+> > From: Huaisheng Ye <yehs1@lenovo.com>
+> >
+> > Use __GFP_ZONE_MASK to replace (__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32=
+).
+> >
+> > ___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 have been deleted from GFP
+> > bitmasks, the bottom three bits of GFP mask is reserved for storing
+> > encoded zone number.
+> > __GFP_DMA, __GFP_HIGHMEM and __GFP_DMA32 should not be operated by OR.
+>=20
+> If they have already been deleted the identifier should not exist
+> anymore, so either your patch has issues, or at least the description.
 
-This patch introduces a lockless mechanism to do that
-without races without parallel list lru add. After
-do_shrink_slab() returns SHRINK_EMPTY the first time,
-we clear the bit and call it once again. Then we restore
-the bit, if the new return value is different.
+Dear Christoph,
 
-Note, that single smp_mb__after_atomic() in shrink_slab_memcg()
-covers two situations:
+The kernel version of my patches against is Linux 4.16, the most of
+modifications come from include/Linux/gfp.h. I think they should be
+pushed to Linux-mm, so I follow the requirement of maintainers to make
+patches based on mmotm/master.
 
-1)list_lru_add()     shrink_slab_memcg
-    list_add_tail()    for_each_set_bit() <--- read bit
-                         do_shrink_slab() <--- missed list update (no barrier)
-    <MB>                 <MB>
-    set_bit()            do_shrink_slab() <--- seen list update
+I just checked the current mainline, yes,
+(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32) has been deleted, I can
+rebase my patches to mainline, and resend them to mail list.
 
-This situation, when the first do_shrink_slab() sees set bit,
-but it doesn't see list update (i.e., race with the first element
-queueing), is rare. So we don't add <MB> before the first call
-of do_shrink_slab() instead of this to do not slow down generic
-case. Also, it's need the second call as seen in below in (2).
-
-2)list_lru_add()      shrink_slab_memcg()
-    list_add_tail()     ...
-    set_bit()           ...
-  ...                   for_each_set_bit()
-  do_shrink_slab()        do_shrink_slab()
-    clear_bit()           ...
-  ...                     ...
-  list_lru_add()          ...
-    list_add_tail()       clear_bit()
-    <MB>                  <MB>
-    set_bit()             do_shrink_slab()
-
-The barriers guarantees, the second do_shrink_slab()
-in the right side task sees list update if really
-cleared the bit. This case is drawn in the code comment.
-
-[Results/performance of the patchset]
-
-After the whole patchset applied the below test shows signify
-increase of performance:
-
-$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
-$mkdir /sys/fs/cgroup/memory/ct
-$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
-    $for i in `seq 0 4000`; do mkdir /sys/fs/cgroup/memory/ct/$i;
-			    echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
-			    mkdir -p s/$i; mount -t tmpfs $i s/$i;
-			    touch s/$i/file; done
-
-Then, 5 sequential calls of drop caches:
-$time echo 3 > /proc/sys/vm/drop_caches
-
-1)Before:
-0.00user 13.78system 0:13.78elapsed 99%CPU
-0.00user 5.59system 0:05.60elapsed 99%CPU
-0.00user 5.48system 0:05.48elapsed 99%CPU
-0.00user 8.35system 0:08.35elapsed 99%CPU
-0.00user 8.34system 0:08.35elapsed 99%CPU
-
-2)After
-0.00user 1.10system 0:01.10elapsed 99%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-0.00user 0.00system 0:00.01elapsed 64%CPU
-0.00user 0.01system 0:00.01elapsed 82%CPU
-
-The results show the performance increases at least in 548 times.
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- include/linux/memcontrol.h |    2 ++
- mm/vmscan.c                |   25 +++++++++++++++++++++++--
- 2 files changed, 25 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index b3ae1373c99a..c487e4300b48 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -1293,6 +1293,8 @@ static inline void memcg_set_shrinker_bit(struct mem_cgroup *memcg,
- 
- 		rcu_read_lock();
- 		map = rcu_dereference(memcg->nodeinfo[nid]->shrinker_map);
-+		/* Pairs with smp mb in shrink_slab() */
-+		smp_mb__before_atomic();
- 		set_bit(shrinker_id, map->map);
- 		rcu_read_unlock();
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1425907a32dd..dba5f72956c6 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -597,8 +597,29 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
- 			continue;
- 
- 		ret = do_shrink_slab(&sc, shrinker, priority);
--		if (ret == SHRINK_EMPTY)
--			ret = 0;
-+		if (ret == SHRINK_EMPTY) {
-+			clear_bit(i, map->map);
-+			/*
-+			 * After the shrinker reported that it had no objects to free,
-+			 * but before we cleared the corresponding bit in the memcg
-+			 * shrinker map, a new object might have been added. To make
-+			 * sure, we have the bit set in this case, we invoke the
-+			 * shrinker one more time and re-set the bit if it reports that
-+			 * it is not empty anymore. The memory barrier here pairs with
-+			 * the barrier in memcg_set_shrinker_bit():
-+			 *
-+			 * list_lru_add()     shrink_slab_memcg()
-+			 *   list_add_tail()    clear_bit()
-+			 *   <MB>               <MB>
-+			 *   set_bit()          do_shrink_slab()
-+			 */
-+			smp_mb__after_atomic();
-+			ret = do_shrink_slab(&sc, shrinker, priority);
-+			if (ret == SHRINK_EMPTY)
-+				ret = 0;
-+			else
-+				memcg_set_shrinker_bit(memcg, nid, i);
-+		}
- 		freed += ret;
- 
- 		if (rwsem_is_contended(&shrinker_rwsem)) {
+Sincerely,
+Huaisheng Ye
