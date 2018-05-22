@@ -1,86 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9E96B0284
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 08:00:59 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 44-v6so14043628wrt.9
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 05:00:59 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i44-v6si13847294wri.4.2018.05.22.05.00.58
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 664BD6B0286
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 08:13:22 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id y82-v6so8400901wmb.5
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 05:13:22 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v22-v6si3365810eda.271.2018.05.22.05.13.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 05:00:58 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4MBwrui102862
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 08:00:57 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2j4grjnvvs-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 08:00:56 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 22 May 2018 13:00:54 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [FIX PATCH v11 01/26] mm: introduce CONFIG_SPECULATIVE_PAGE_FAULT
-Date: Tue, 22 May 2018 14:00:43 +0200
-In-Reply-To: <b5df0b34-5c7b-6d8c-d29d-bc6fb4e51023@infradead.org>
-References: <b5df0b34-5c7b-6d8c-d29d-bc6fb4e51023@infradead.org>
-Message-Id: <1526990443-30309-1-git-send-email-ldufour@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 22 May 2018 05:13:21 -0700 (PDT)
+Date: Tue, 22 May 2018 14:13:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/THP: use hugepage_vma_check() in
+ khugepaged_enter_vma_merge()
+Message-ID: <20180522121319.GB30663@dhcp22.suse.cz>
+References: <20180521193853.3089484-1-songliubraving@fb.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180521193853.3089484-1-songliubraving@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, sergey.senozhatsky.work@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Minchan Kim <minchan@kernel.org>, Punit Agrawal <punitagrawal@gmail.com>, vinayak menon <vinayakm.list@gmail.com>, Yang Shi <yang.shi@linux.alibaba.com>, Randy Dunlap <rdunlap@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Song Liu <songliubraving@fb.com>
+Cc: linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-This configuration variable will be used to build the code needed to
-handle speculative page fault.
+[CC Kirill]
 
-By default it is turned off, and activated depending on architecture
-support, ARCH_HAS_PTE_SPECIAL, SMP and MMU.
+On Mon 21-05-18 12:38:53, Song Liu wrote:
+> khugepaged_enter_vma_merge() is using a different approach to check
+> whether a vma is valid for khugepaged_enter():
+> 
+>     if (!vma->anon_vma)
+>             /*
+>              * Not yet faulted in so we will register later in the
+>              * page fault if needed.
+>              */
+>             return 0;
+>     if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
+>             /* khugepaged not yet working on file or special mappings */
+>             return 0;
+> 
+> This check has some problems. One of the obvious problems is that
+> it doesn't check shmem_file(), so that vma backed with shmem files
+> will not call khugepaged_enter().
+> 
+> This patch fixes these problems by reusing hugepage_vma_check() in
+> khugepaged_enter_vma_merge().
 
-The architecture support is needed since the speculative page fault handler
-is called from the architecture's page faulting code, and some code has to
-be added there to handle the speculative handler.
+It would be great to be more explicit about what are the actual
+consequences. khugepaged_enter_vma_merge is called from multiple
+context. Some of then do not really care about !anon case (e.g. stack
+expansion). hugepage_madvise is quite convoluted so I am not really sure
+from a quick look (are we simply not going to merge vmas even if we
+could?).
 
-The dependency on ARCH_HAS_PTE_SPECIAL is required because vm_normal_page()
-does processing that is not compatible with the speculative handling in the
-case ARCH_HAS_PTE_SPECIAL is not set.
-
-Suggested-by: Thomas Gleixner <tglx@linutronix.de>
-Suggested-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
----
- mm/Kconfig | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 1d0888c5b97a..d958fd8ce73a 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -761,3 +761,25 @@ config GUP_BENCHMARK
+Have you noticed this by a code inspection or you have seen this
+happening in real workloads (aka, is this worth backporting to stable
+trees)?
  
- config ARCH_HAS_PTE_SPECIAL
- 	bool
-+
-+config ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
-+       def_bool n
-+
-+config SPECULATIVE_PAGE_FAULT
-+	bool "Speculative page faults"
-+	default y
-+	depends on ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
-+	depends on ARCH_HAS_PTE_SPECIAL && MMU && SMP
-+	help
-+	  Try to handle user space page faults without holding the mmap_sem.
-+
-+	  This should allow better concurrency for massively threaded processes
-+	  since the page fault handler will not wait for other thread's memory
-+	  layout change to be done, assuming that this change is done in
-+	  another part of the process's memory space. This type of page fault
-+	  is named speculative page fault.
-+
-+	  If the speculative page fault fails because a concurrent modification
-+	  is detected or because underlying PMD or PTE tables are not yet
-+	  allocated, the speculative page fault fails and a classic page fault
-+	  is then tried.
+> Signed-off-by: Song Liu <songliubraving@fb.com>
+> ---
+>  mm/khugepaged.c | 12 ++++--------
+>  1 file changed, 4 insertions(+), 8 deletions(-)
+> 
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index d7b2a4b..e50c2bd 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -430,18 +430,14 @@ int __khugepaged_enter(struct mm_struct *mm)
+>  	return 0;
+>  }
+>  
+> +static bool hugepage_vma_check(struct vm_area_struct *vma);
+> +
+>  int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+>  			       unsigned long vm_flags)
+>  {
+>  	unsigned long hstart, hend;
+> -	if (!vma->anon_vma)
+> -		/*
+> -		 * Not yet faulted in so we will register later in the
+> -		 * page fault if needed.
+> -		 */
+> -		return 0;
+> -	if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
+> -		/* khugepaged not yet working on file or special mappings */
+> +
+> +	if (!hugepage_vma_check(vma))
+>  		return 0;
+>  	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+>  	hend = vma->vm_end & HPAGE_PMD_MASK;
+> -- 
+> 2.9.5
+
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
