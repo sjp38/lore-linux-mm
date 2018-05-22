@@ -1,142 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 894E06B0003
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 15:44:37 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 3-v6so15411752wry.0
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 12:44:37 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id t55-v6si447727edb.420.2018.05.22.12.44.35
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A6C0C6B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 15:49:52 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id i1-v6so12639117pld.11
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 12:49:52 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y10-v6si13792081pgq.258.2018.05.22.12.49.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 12:44:35 -0700 (PDT)
-Received: from pps.filterd (m0109333.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4MJeMCS013681
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 12:44:33 -0700
-Received: from mail.thefacebook.com ([199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2j4r8788tr-1
-	(version=TLSv1 cipher=ECDHE-RSA-AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 12:44:33 -0700
-From: Song Liu <songliubraving@fb.com>
-Subject: [PATCH v2] mm/THP: use hugepage_vma_check() in khugepaged_enter_vma_merge()
-Date: Tue, 22 May 2018 12:44:30 -0700
-Message-ID: <20180522194430.426688-1-songliubraving@fb.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Tue, 22 May 2018 12:49:51 -0700 (PDT)
+Date: Tue, 22 May 2018 12:49:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v6 17/17] mm: Distinguish VMalloc pages
+Message-Id: <20180522124949.9fca8d1bf88c201f2410de7f@linux-foundation.org>
+In-Reply-To: <20180522175836.GB1237@bombadil.infradead.org>
+References: <20180518194519.3820-1-willy@infradead.org>
+	<20180518194519.3820-18-willy@infradead.org>
+	<74e9bf39-ae17-cc00-8fca-c34b75675d49@virtuozzo.com>
+	<20180522175836.GB1237@bombadil.infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: kernel-team@fb.com, Song Liu <songliubraving@fb.com>, linux-kernel@vger.kernel.org, mhocko@kernel.org, rientjes@google.com, aarcange@redhat.com, kirill@shutemov.name
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>
 
-khugepaged_enter_vma_merge() is using a different approach to check
-whether a vma is valid for khugepaged_enter():
+On Tue, 22 May 2018 10:58:36 -0700 Matthew Wilcox <willy@infradead.org> wrote:
 
-    if (!vma->anon_vma)
-            /*
-             * Not yet faulted in so we will register later in the
-             * page fault if needed.
-             */
-            return 0;
-    if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
-            /* khugepaged not yet working on file or special mappings */
-            return 0;
+> On Tue, May 22, 2018 at 07:10:52PM +0300, Andrey Ryabinin wrote:
+> > On 05/18/2018 10:45 PM, Matthew Wilcox wrote:
+> > > From: Matthew Wilcox <mawilcox@microsoft.com>
+> > > 
+> > > For diagnosing various performance and memory-leak problems, it is helpful
+> > > to be able to distinguish pages which are in use as VMalloc pages.
+> > > Unfortunately, we cannot use the page_type field in struct page, as
+> > > this is in use for mapcount by some drivers which map vmalloced pages
+> > > to userspace.
+> > > 
+> > > Use a special page->mapping value to distinguish VMalloc pages from
+> > > other kinds of pages.  Also record a pointer to the vm_struct and the
+> > > offset within the area in struct page to help reconstruct exactly what
+> > > this page is being used for.
+> > 
+> > This seems useless. page->vm_area and page->vm_offset are never used.
+> > There are no follow up patches which use this new information 'For diagnosing various performance and memory-leak problems',
+> > and no explanation how is it can be used in current form.
+> 
+> Right now, it's by-hand.  tools/vm/page-types.c will tell you which pages
+> are allocated to VMalloc.  Many people use kernel debuggers, crashdumps
+> and similar to examine the kernel's memory.  Leaving these breadcrumbs
+> is helpful, and those fields simply weren't in use before.
 
-This check has some problems. One of the obvious problems is that
-it doesn't check shmem_file(), so that vma backed with shmem files
-will not call khugepaged_enter(). Here is an example of failed madvise():
+I added this to the changelog:
 
-   /* mount /dev/shm with huge=advise:
-    *     mount -o remount,huge=advise /dev/shm */
-   /* create file /dev/shm/huge */
-   #define HUGE_FILE "/dev/shm/huge"
+: No in-kernel code uses the new KPF_VMALLOC.  Like the other KPF_*
+: flags, it is for use by tools/vm/page-types.c.
 
-   fd = open(HUGE_FILE, O_RDONLY);
-   ptr = mmap(NULL, FILE_SIZE, PROT_READ, MAP_PRIVATE, fd, 0);
-   ret = madvise(ptr, FILE_SIZE, MADV_HUGEPAGE);
-
-madvise() will return 0, but this memory region is never put in huge
-page (check from /proc/meminfo: ShmemHugePages).
-
-This patch fixes these problems by reusing hugepage_vma_check() in
-khugepaged_enter_vma_merge().
-
-vma->vm_flags is not yet updated in khugepaged_enter_vma_merge(),
-so we need to pass the new vm_flags to hugepage_vma_check() through
-a separate argument.
-
-Signed-off-by: Song Liu <songliubraving@fb.com>
----
- mm/khugepaged.c | 26 ++++++++++++--------------
- 1 file changed, 12 insertions(+), 14 deletions(-)
-
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index d7b2a4b..9f74e51 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -430,18 +430,15 @@ int __khugepaged_enter(struct mm_struct *mm)
- 	return 0;
- }
- 
-+static bool hugepage_vma_check(struct vm_area_struct *vma,
-+			       unsigned long vm_flags);
-+
- int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
- 			       unsigned long vm_flags)
- {
- 	unsigned long hstart, hend;
--	if (!vma->anon_vma)
--		/*
--		 * Not yet faulted in so we will register later in the
--		 * page fault if needed.
--		 */
--		return 0;
--	if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
--		/* khugepaged not yet working on file or special mappings */
-+
-+	if (!hugepage_vma_check(vma, vm_flags))
- 		return 0;
- 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
- 	hend = vma->vm_end & HPAGE_PMD_MASK;
-@@ -819,10 +816,11 @@ khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
- }
- #endif
- 
--static bool hugepage_vma_check(struct vm_area_struct *vma)
-+static bool hugepage_vma_check(struct vm_area_struct *vma,
-+			       unsigned long vm_flags)
- {
--	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
--	    (vma->vm_flags & VM_NOHUGEPAGE) ||
-+	if ((!(vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
-+	    (vm_flags & VM_NOHUGEPAGE) ||
- 	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
- 		return false;
- 	if (shmem_file(vma->vm_file)) {
-@@ -835,7 +833,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
- 		return false;
- 	if (is_vma_temporary_stack(vma))
- 		return false;
--	return !(vma->vm_flags & VM_NO_KHUGEPAGED);
-+	return !(vm_flags & VM_NO_KHUGEPAGED);
- }
- 
- /*
-@@ -862,7 +860,7 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
- 	hend = vma->vm_end & HPAGE_PMD_MASK;
- 	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
- 		return SCAN_ADDRESS_RANGE;
--	if (!hugepage_vma_check(vma))
-+	if (!hugepage_vma_check(vma, vma->vm_flags))
- 		return SCAN_VMA_CHECK;
- 	return 0;
- }
-@@ -1694,7 +1692,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
- 			progress++;
- 			break;
- 		}
--		if (!hugepage_vma_check(vma)) {
-+		if (!hugepage_vma_check(vma, vma->vm_flags)) {
- skip:
- 			progress++;
- 			continue;
--- 
-2.9.5
+> > Also, this patch breaks code like this:
+> > 	if (mapping = page_mapping(page))
+> > 		// access mapping
+> 
+> Example of broken code, please?  Pages allocated from the page allocator
+> with alloc_page() come with page->mapping == NULL.  This code snippet
+> would not have granted access to vmalloc pages before.
