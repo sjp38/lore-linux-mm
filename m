@@ -1,84 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5791C6B0008
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 09:51:57 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id q13-v6so10484352wrj.15
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 06:51:57 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c34-v6si371107eda.167.2018.05.22.06.51.55
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EE82A6B0006
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:17:13 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id s2-v6so14919460ioa.22
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:17:13 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k82-v6sor8966427iok.239.2018.05.22.07.17.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 22 May 2018 06:51:56 -0700 (PDT)
-Date: Tue, 22 May 2018 15:51:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to
- charge to memcg
-Message-ID: <20180522135148.GA20441@dhcp22.suse.cz>
-References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
+        (Google Transport Security);
+        Tue, 22 May 2018 07:17:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
+In-Reply-To: <a5c36c49-ee50-5298-424c-043a591f11e8@virtuozzo.com>
+References: <cover.1525798753.git.andreyknvl@google.com> <427db6b29eaf61d77cb485e9e0a393d34741e498.1525798753.git.andreyknvl@google.com>
+ <a5c36c49-ee50-5298-424c-043a591f11e8@virtuozzo.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 22 May 2018 16:17:09 +0200
+Message-ID: <CAAeHK+wChunKPn_iC_+qbtH-ek8SCo01mLdY=X-aX9bhPeznAQ@mail.gmail.com>
+Subject: Re: [PATCH v1 01/16] khwasan, mm: change kasan hooks signatures
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: TSUKADA Koutaro <tsukada@ascade.co.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-On Fri 18-05-18 13:27:27, TSUKADA Koutaro wrote:
-> Thanks to Mike Kravetz for comment on the previous version patch.
+On Mon, May 14, 2018 at 6:56 PM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+>
+>
+> On 05/08/2018 08:20 PM, Andrey Konovalov wrote:
+>
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 44aa7847324a..4fcd1442a761 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -1351,10 +1351,10 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
+>>   * Hooks for other subsystems that check memory allocations. In a typical
+>>   * production configuration these hooks all should produce no code at all.
+>>   */
+>> -static inline void kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
+>> +static inline void kmalloc_large_node_hook(void **ptr, size_t size, gfp_t flags)
+>>  {
+>> -     kmemleak_alloc(ptr, size, 1, flags);
+>> -     kasan_kmalloc_large(ptr, size, flags);
+>> +     kmemleak_alloc(*ptr, size, 1, flags);
+>> +     *ptr = kasan_kmalloc_large(*ptr, size, flags);
+>
+> Why not 'return ptr' like everywhere else?
 
-I am sorry that I didn't join the discussion for the previous version
-but time just didn't allow that. So sorry if I am repeating something
-already sorted out.
-
-> The purpose of this patch-set is to make it possible to control whether or
-> not to charge surplus hugetlb pages obtained by overcommitting to memory
-> cgroup. In the future, I am trying to accomplish limiting the memory usage
-> of applications that use both normal pages and hugetlb pages by the memory
-> cgroup(not use the hugetlb cgroup).
-
-There was a deliberate decision to keep hugetlb and "normal" memory
-cgroup controllers separate. Mostly because hugetlb memory is an
-artificial memory subsystem on its own and it doesn't fit into the rest
-of memcg accounted memory very well. I believe we want to keep that
-status quo.
-
-> Applications that use shared libraries like libhugetlbfs.so use both normal
-> pages and hugetlb pages, but we do not know how much to use each. Please
-> suppose you want to manage the memory usage of such applications by cgroup
-> How do you set the memory cgroup and hugetlb cgroup limit when you want to
-> limit memory usage to 10GB?
-
-Well such a usecase requires an explicit configuration already. Either
-by using special wrappers or modifying the code. So I would argue that
-you have quite a good knowlege of the setup. If you need a greater
-flexibility then just do not use hugetlb at all and rely on THP.
-[...]
-
-> In this patch-set, introduce the charge_surplus_huge_pages(boolean) to
-> struct hstate. If it is true, it charges to the memory cgroup to which the
-> task that obtained surplus hugepages belongs. If it is false, do nothing as
-> before, and the default value is false. The charge_surplus_huge_pages can
-> be controlled procfs or sysfs interfaces.
-
-I do not really think this is a good idea. We really do not want to make
-the current hugetlb code more complex than it is already. The current
-hugetlb cgroup controller is simple and works at least somehow. I would
-not add more on top unless there is a _really_ strong usecase behind.
-Please make sure to describe such a usecase in details before we even
-start considering the code.
-
-> Since THP is very effective in environments with kernel page size of 4KB,
-> such as x86, there is no reason to positively use HugeTLBfs, so I think
-> that there is no situation to enable charge_surplus_huge_pages. However, in
-> some distributions such as arm64, the page size of the kernel is 64KB, and
-> the size of THP is too huge as 512MB, making it difficult to use. HugeTLBfs
-> may support multiple huge page sizes, and in such a special environment
-> there is a desire to use HugeTLBfs.
-
-Well, then I would argue that you shouldn't use 64kB pages for your
-setup or allow THP for smaller sizes. Really hugetlb pages are by no
-means a substitute here.
--- 
-Michal Hocko
-SUSE Labs
+Will fix in v2, thanks!
