@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B1AB6B000D
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:50:07 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id bd7-v6so12291436plb.20
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:50:07 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id k7-v6si17061384pls.368.2018.05.22.07.50.06
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C1BE16B000E
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:50:12 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id b36-v6so12330994pli.2
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:50:12 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id p3-v6si16793277pfb.171.2018.05.22.07.50.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 07:50:06 -0700 (PDT)
-Subject: [PATCH 07/11] mm, madvise_inject_error: fix page count leak
+        Tue, 22 May 2018 07:50:11 -0700 (PDT)
+Subject: [PATCH 08/11] x86, memory_failure: introduce {set,
+ clear}_mce_nospec()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 22 May 2018 07:40:09 -0700
-Message-ID: <152700000922.24093.14813242965473482705.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 22 May 2018 07:40:14 -0700
+Message-ID: <152700001435.24093.5286210134341544820.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,90 +22,205 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: stable@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tony.luck@intel.com
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.orgtony.luck@intel.com
 
-The madvise_inject_error() routine uses get_user_pages() to lookup the
-pfn and other information for injected error, but it fails to release
-that pin.
+Currently memory_failure() returns zero if the error was handled. On
+that result mce_unmap_kpfn() is called to zap the page out of the kernel
+linear mapping to prevent speculative fetches of potentially poisoned
+memory. However, in the case of dax mapped devmap pages the page may be
+in active permanent use by the device driver, so it cannot be unmapped
+from the kernel.
 
-The dax-dma-vs-truncate warning catches this failure with the following
-signature:
+Instead of marking the page not present, marking the page UC should
+be sufficient for preventing poison from being pre-fetched into the
+cache. Convert mce_unmap_pfn() to set_mce_nospec() remapping the page as
+UC, to hide it from speculative accesses.
 
- Injecting memory failure for pfn 0x208900 at process virtual address 0x7f3908d00000
- Memory failure: 0x208900: reserved kernel page still referenced by 1 users
- Memory failure: 0x208900: recovery action for reserved kernel page: Failed
- WARNING: CPU: 37 PID: 9566 at fs/dax.c:348 dax_disassociate_entry+0x4e/0x90
- CPU: 37 PID: 9566 Comm: umount Tainted: G        W  OE     4.17.0-rc6+ #1900
- [..]
- RIP: 0010:dax_disassociate_entry+0x4e/0x90
- RSP: 0018:ffffc9000a9b3b30 EFLAGS: 00010002
- RAX: ffffea0008224000 RBX: 0000000000208a00 RCX: 0000000000208900
- RDX: 0000000000000001 RSI: ffff8804058c6160 RDI: 0000000000000008
- RBP: 000000000822000a R08: 0000000000000002 R09: 0000000000208800
- R10: 0000000000000000 R11: 0000000000208801 R12: ffff8804058c6168
- R13: 0000000000000000 R14: 0000000000000002 R15: 0000000000000001
- FS:  00007f4548027fc0(0000) GS:ffff880431d40000(0000) knlGS:0000000000000000
- CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
- CR2: 000056316d5f8988 CR3: 00000004298cc000 CR4: 00000000000406e0
- Call Trace:
-  __dax_invalidate_mapping_entry+0xab/0xe0
-  dax_delete_mapping_entry+0xf/0x20
-  truncate_exceptional_pvec_entries.part.14+0x1d4/0x210
-  truncate_inode_pages_range+0x291/0x920
-  ? kmem_cache_free+0x1f8/0x300
-  ? lock_acquire+0x9f/0x200
-  ? truncate_inode_pages_final+0x31/0x50
-  ext4_evict_inode+0x69/0x740
+Given that that persistent memory errors can be cleared by the driver,
+include a facility to restore the page to cacheable operation,
+clear_mce_nospec().
 
-Cc: <stable@vger.kernel.org>
-Fixes: bd1ce5f91f54 ("HWPOISON: avoid grabbing the page count...")
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: <x86@kernel.org>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: <linux-edac@vger.kernel.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/madvise.c |   11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/set_memory.h         |   29 ++++++++++++++++++++++
+ arch/x86/kernel/cpu/mcheck/mce-internal.h |   15 -----------
+ arch/x86/kernel/cpu/mcheck/mce.c          |   38 ++---------------------------
+ include/linux/set_memory.h                |   14 +++++++++++
+ 4 files changed, 46 insertions(+), 50 deletions(-)
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 4d3c922ea1a1..246fa4d4eee2 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -631,11 +631,13 @@ static int madvise_inject_error(int behavior,
+diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
+index bd090367236c..debc1fee1457 100644
+--- a/arch/x86/include/asm/set_memory.h
++++ b/arch/x86/include/asm/set_memory.h
+@@ -88,4 +88,33 @@ extern int kernel_set_to_readonly;
+ void set_kernel_text_rw(void);
+ void set_kernel_text_ro(void);
  
- 
- 	for (; start < end; start += PAGE_SIZE << order) {
-+		unsigned long pfn;
- 		int ret;
- 
- 		ret = get_user_pages_fast(start, 1, 0, &page);
- 		if (ret != 1)
- 			return ret;
-+		pfn = page_to_pfn(page);
- 
- 		/*
- 		 * When soft offlining hugepages, after migrating the page
-@@ -651,17 +653,20 @@ static int madvise_inject_error(int behavior,
- 
- 		if (behavior == MADV_SOFT_OFFLINE) {
- 			pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
--						page_to_pfn(page), start);
-+					pfn, start);
- 
- 			ret = soft_offline_page(page, MF_COUNT_INCREASED);
-+			put_page(page);
- 			if (ret)
- 				return ret;
- 			continue;
- 		}
-+		put_page(page);
++#ifdef CONFIG_X86_64
++/*
++ * Mark the linear address as UC to disable speculative pre-fetches into
++ * potentially poisoned memory.
++ */
++static inline int set_mce_nospec(unsigned long pfn)
++{
++	int rc;
 +
- 		pr_info("Injecting memory failure for pfn %#lx at process virtual address %#lx\n",
--						page_to_pfn(page), start);
-+				pfn, start);
++	rc = set_memory_uc((unsigned long) __va(PFN_PHYS(pfn)), 1);
++	if (rc)
++		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
++	return rc;
++}
++#define set_mce_nospec set_mce_nospec
++
++/* Restore full speculative operation to the pfn. */
++static inline int clear_mce_nospec(unsigned long pfn)
++{
++	return set_memory_wb((unsigned long) __va(PFN_PHYS(pfn)), 1);
++}
++#define clear_mce_nospec clear_mce_nospec
++#else
++/*
++ * Few people would run a 32-bit kernel on a machine that supports
++ * recoverable errors because they have too much memory to boot 32-bit.
++ */
++#endif
++
+ #endif /* _ASM_X86_SET_MEMORY_H */
+diff --git a/arch/x86/kernel/cpu/mcheck/mce-internal.h b/arch/x86/kernel/cpu/mcheck/mce-internal.h
+index 374d1aa66952..ceb67cd5918f 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce-internal.h
++++ b/arch/x86/kernel/cpu/mcheck/mce-internal.h
+@@ -113,21 +113,6 @@ static inline void mce_register_injector_chain(struct notifier_block *nb)	{ }
+ static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
+ #endif
  
--		ret = memory_failure(page_to_pfn(page), MF_COUNT_INCREASED);
-+		ret = memory_failure(pfn, MF_COUNT_INCREASED);
- 		if (ret)
- 			return ret;
+-#ifndef CONFIG_X86_64
+-/*
+- * On 32-bit systems it would be difficult to safely unmap a poison page
+- * from the kernel 1:1 map because there are no non-canonical addresses that
+- * we can use to refer to the address without risking a speculative access.
+- * However, this isn't much of an issue because:
+- * 1) Few unmappable pages are in the 1:1 map. Most are in HIGHMEM which
+- *    are only mapped into the kernel as needed
+- * 2) Few people would run a 32-bit kernel on a machine that supports
+- *    recoverable errors because they have too much memory to boot 32-bit.
+- */
+-static inline void mce_unmap_kpfn(unsigned long pfn) {}
+-#define mce_unmap_kpfn mce_unmap_kpfn
+-#endif
+-
+ struct mca_config {
+ 	bool dont_log_ce;
+ 	bool cmci_disabled;
+diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+index 42cf2880d0ed..a0fbf0a8b7e6 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce.c
++++ b/arch/x86/kernel/cpu/mcheck/mce.c
+@@ -42,6 +42,7 @@
+ #include <linux/irq_work.h>
+ #include <linux/export.h>
+ #include <linux/jump_label.h>
++#include <linux/set_memory.h>
+ 
+ #include <asm/intel-family.h>
+ #include <asm/processor.h>
+@@ -50,7 +51,6 @@
+ #include <asm/mce.h>
+ #include <asm/msr.h>
+ #include <asm/reboot.h>
+-#include <asm/set_memory.h>
+ 
+ #include "mce-internal.h"
+ 
+@@ -108,10 +108,6 @@ static struct irq_work mce_irq_work;
+ 
+ static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
+ 
+-#ifndef mce_unmap_kpfn
+-static void mce_unmap_kpfn(unsigned long pfn);
+-#endif
+-
+ /*
+  * CPU/chipset specific EDAC code can register a notifier call here to print
+  * MCE errors in a human-readable form.
+@@ -602,7 +598,7 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
+ 	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
+ 		pfn = mce->addr >> PAGE_SHIFT;
+ 		if (!memory_failure(pfn, 0))
+-			mce_unmap_kpfn(pfn);
++			set_mce_nospec(pfn);
  	}
+ 
+ 	return NOTIFY_OK;
+@@ -1070,38 +1066,10 @@ static int do_memory_failure(struct mce *m)
+ 	if (ret)
+ 		pr_err("Memory error not recovered");
+ 	else
+-		mce_unmap_kpfn(m->addr >> PAGE_SHIFT);
++		set_mce_nospec(m->addr >> PAGE_SHIFT);
+ 	return ret;
+ }
+ 
+-#ifndef mce_unmap_kpfn
+-static void mce_unmap_kpfn(unsigned long pfn)
+-{
+-	unsigned long decoy_addr;
+-
+-	/*
+-	 * Unmap this page from the kernel 1:1 mappings to make sure
+-	 * we don't log more errors because of speculative access to
+-	 * the page.
+-	 * We would like to just call:
+-	 *	set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
+-	 * but doing that would radically increase the odds of a
+-	 * speculative access to the poison page because we'd have
+-	 * the virtual address of the kernel 1:1 mapping sitting
+-	 * around in registers.
+-	 * Instead we get tricky.  We create a non-canonical address
+-	 * that looks just like the one we want, but has bit 63 flipped.
+-	 * This relies on set_memory_np() not checking whether we passed
+-	 * a legal address.
+-	 */
+-
+-	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
+-
+-	if (set_memory_np(decoy_addr, 1))
+-		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
+-}
+-#endif
+-
+ /*
+  * The actual machine check handler. This only handles real
+  * exceptions when something got corrupted coming in through int 18.
+diff --git a/include/linux/set_memory.h b/include/linux/set_memory.h
+index da5178216da5..2a986d282a97 100644
+--- a/include/linux/set_memory.h
++++ b/include/linux/set_memory.h
+@@ -17,6 +17,20 @@ static inline int set_memory_x(unsigned long addr,  int numpages) { return 0; }
+ static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
+ #endif
+ 
++#ifndef set_mce_nospec
++static inline int set_mce_nospec(unsigned long pfn)
++{
++	return 0;
++}
++#endif
++
++#ifndef clear_mce_nospec
++static inline int clear_mce_nospec(unsigned long pfn)
++{
++	return 0;
++}
++#endif
++
+ #ifndef CONFIG_ARCH_HAS_MEM_ENCRYPT
+ static inline int set_memory_encrypted(unsigned long addr, int numpages)
+ {
