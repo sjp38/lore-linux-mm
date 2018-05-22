@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 54B4F6B0006
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 12:25:33 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id y127-v6so19946215qka.5
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 09:25:33 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50130.outbound.protection.outlook.com. [40.107.5.130])
-        by mx.google.com with ESMTPS id y26-v6si2701928qvc.249.2018.05.22.09.25.32
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C8C8C6B0008
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 12:25:44 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id z11-v6so5681662pgu.1
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 09:25:44 -0700 (PDT)
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10114.outbound.protection.outlook.com. [40.107.1.114])
+        by mx.google.com with ESMTPS id u69-v6si13207725pgd.467.2018.05.22.09.25.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 May 2018 09:25:32 -0700 (PDT)
-Subject: Re: [PATCH v2 1/2] kasan: free allocated shadow memory on
- MEM_CANCEL_ONLINE
+        Tue, 22 May 2018 09:25:43 -0700 (PDT)
+Subject: Re: [PATCH v2 2/2] kasan: fix memory hotplug during boot
 References: <20180522100756.18478-1-david@redhat.com>
- <20180522100756.18478-2-david@redhat.com>
+ <20180522100756.18478-3-david@redhat.com>
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <6666c564-916d-a145-183c-362e6f72c409@virtuozzo.com>
-Date: Tue, 22 May 2018 19:26:43 +0300
+Message-ID: <f4378c56-acc2-a5cf-724c-76cffee28235@virtuozzo.com>
+Date: Tue, 22 May 2018 19:26:53 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180522100756.18478-2-david@redhat.com>
+In-Reply-To: <20180522100756.18478-3-david@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -29,8 +28,15 @@ Cc: linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Dmitr
 
 
 On 05/22/2018 01:07 PM, David Hildenbrand wrote:
-> We have to free memory again when we cancel onlining, otherwise a later
-> onlining attempt will fail.
+> Using module_init() is wrong. E.g. ACPI adds and onlines memory before
+> our memory notifier gets registered.
+> 
+> This makes sure that ACPI memory detected during boot up will not
+> result in a kernel crash.
+> 
+> Easily reproducable with QEMU, just specify a DIMM when starting up.
+
+         reproducible
 > 
 > Signed-off-by: David Hildenbrand <david@redhat.com>
 > ---
@@ -39,19 +45,18 @@ Fixes: fa69b5989bb0 ("mm/kasan: add support for memory hotplug")
 Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 Cc: <stable@vger.kernel.org>
 
->  mm/kasan/kasan.c | 1 +
->  1 file changed, 1 insertion(+)
+>  mm/kasan/kasan.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
 > diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index 135ce2838c89..53564229674b 100644
+> index 53564229674b..a8b85706e2d6 100644
 > --- a/mm/kasan/kasan.c
 > +++ b/mm/kasan/kasan.c
-> @@ -867,6 +867,7 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
->  		kmemleak_ignore(ret);
->  		return NOTIFY_OK;
->  	}
-> +	case MEM_CANCEL_ONLINE:
->  	case MEM_OFFLINE: {
->  		struct vm_struct *vm;
+> @@ -892,5 +892,5 @@ static int __init kasan_memhotplug_init(void)
+>  	return 0;
+>  }
 >  
+> -module_init(kasan_memhotplug_init);
+> +core_initcall(kasan_memhotplug_init);
+>  #endif
 > 
