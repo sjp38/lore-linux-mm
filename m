@@ -1,125 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8276B027A
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 09:04:52 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e7-v6so11053646pfi.8
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 06:04:52 -0700 (PDT)
-Received: from ns.ascade.co.jp (ext-host0001.ascade.co.jp. [218.224.228.194])
-        by mx.google.com with ESMTP id e1-v6si12954886pgr.167.2018.05.22.06.04.50
-        for <linux-mm@kvack.org>;
-        Tue, 22 May 2018 06:04:50 -0700 (PDT)
-Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to
- charge to memcg
-References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
- <240f1b14-ed7d-4983-6c52-be4899d4caa5@oracle.com>
-From: TSUKADA Koutaro <tsukada@ascade.co.jp>
-Message-ID: <8711fed5-fc35-a11a-3a17-740a9dca1f2a@ascade.co.jp>
-Date: Tue, 22 May 2018 22:04:23 +0900
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 94C976B0006
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 09:28:45 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id t195-v6so9546776wmt.9
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 06:28:45 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id a68-v6si2735189lfl.184.2018.05.22.06.28.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 May 2018 06:28:44 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH 1/2] mm: propagate memory effective protection on setting memory.min/low
+Date: Tue, 22 May 2018 14:25:27 +0100
+Message-ID: <20180522132528.23769-1-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <240f1b14-ed7d-4983-6c52-be4899d4caa5@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 2018/05/22 3:07, Mike Kravetz wrote:
-> On 05/17/2018 09:27 PM, TSUKADA Koutaro wrote:
->> Thanks to Mike Kravetz for comment on the previous version patch.
->>
->> The purpose of this patch-set is to make it possible to control whether or
->> not to charge surplus hugetlb pages obtained by overcommitting to memory
->> cgroup. In the future, I am trying to accomplish limiting the memory usage
->> of applications that use both normal pages and hugetlb pages by the memory
->> cgroup(not use the hugetlb cgroup).
->>
->> Applications that use shared libraries like libhugetlbfs.so use both normal
->> pages and hugetlb pages, but we do not know how much to use each. Please
->> suppose you want to manage the memory usage of such applications by cgroup
->> How do you set the memory cgroup and hugetlb cgroup limit when you want to
->> limit memory usage to 10GB?
->>
->> If you set a limit of 10GB for each, the user can use a total of 20GB of
->> memory and can not limit it well. Since it is difficult to estimate the
->> ratio used by user of normal pages and hugetlb pages, setting limits of 2GB
->> to memory cgroup and 8GB to hugetlb cgroup is not very good idea. In such a
->> case, I thought that by using my patch-set, we could manage resources just
->> by setting 10GB as the limit of memory cgoup(there is no limit to hugetlb
->> cgroup).
->>
->> In this patch-set, introduce the charge_surplus_huge_pages(boolean) to
->> struct hstate. If it is true, it charges to the memory cgroup to which the
->> task that obtained surplus hugepages belongs. If it is false, do nothing as
->> before, and the default value is false. The charge_surplus_huge_pages can
->> be controlled procfs or sysfs interfaces.
->>
->> Since THP is very effective in environments with kernel page size of 4KB,
->> such as x86, there is no reason to positively use HugeTLBfs, so I think
->> that there is no situation to enable charge_surplus_huge_pages. However, in
->> some distributions such as arm64, the page size of the kernel is 64KB, and
->> the size of THP is too huge as 512MB, making it difficult to use. HugeTLBfs
->> may support multiple huge page sizes, and in such a special environment
->> there is a desire to use HugeTLBfs.
-> 
-> One of the basic questions/concerns I have is accounting for surplus huge
-> pages in the default memory resource controller.  The existing huegtlb
-> resource controller already takes hugetlbfs huge pages into account,
-> including surplus pages.  This series would allow surplus pages to be
-> accounted for in the default  memory controller, or the hugetlb controller
-> or both.
-> 
-> I understand that current mechanisms do not meet the needs of the above
-> use case.  The question is whether this is an appropriate way to approach
-> the issue.  My cgroup experience and knowledge is extremely limited, but
-> it does not appear that any other resource can be controlled by multiple
-> controllers.  Therefore, I am concerned that this may be going against
-> basic cgroup design philosophy.
+Explicitly propagate effective memory min/low values down by the tree.
 
-Thank you for your feedback.
-That makes sense, surplus hugepages are charged to both memcg and hugetlb
-cgroup, which may be contrary to cgroup design philosophy.
+If there is the global memory pressure, it's not really necessary.
+Effective memory guarantees will be propagated automatically
+as we traverse memory cgroup tree in the reclaim path.
 
-Based on the above advice, I have considered the following improvements,
-what do you think about?
+But if there is no global memory pressure, effective memory protection
+still matters for local (memcg-scoped) memory pressure.
+So, we have to update effective limits in the subtree,
+if a user changes memory.min and memory.low values.
 
-The 'charge_surplus_hugepages' of v2 patch-set was an option to switch
-"whether to charge memcg in addition to hugetlb cgroup", but it will be
-abolished. Instead, change to "switch only to memcg instead of hugetlb
-cgroup" option. This is called 'surplus_charge_to_memcg'.
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Greg Thelen <gthelen@google.com>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/memcontrol.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
 
-The surplus_charge_to_memcg option is created in per hugetlb cgroup.
-If it is false(default), charge destination cgroup of various page types
-is the same as the current kernel version. If it become true, hugetlb
-cgroup stops accounting for surplus hugepages, and memcg starts accounting
-instead.
-
-A table showing which cgroups are charged:
-
-page types          | current  v2(off)  v2(on)   v3(off)   v3(on)
--------------------------------------------------------------------
-normal + THP        |       m       m       m         m        m
-hugetlb(persistent) |       h       h       h         h        h
-hugetlb(surplus)    |       h       h     m+h         h        m
--------------------------------------------------------------------
-
- v2: charge_surplus_hugepages option
- v3: next version, surplus_charge_to_memcg option
-  m: memory cgroup
-  h: hugetlb cgroup
-
-> 
-> It would be good to get comments from people more cgroup knowledgeable,
-> and especially from those involved in the decision to do separate hugetlb
-> control.
-> 
-
-I stared at the commit log of mm/hugetlb_cgroup.c, but it did not seem to
-have specially considered of surplus hugepages. Later, I will send a mail
-to hugetlb cgroup's committer to ask about surplus hugepages charge
-specifications.
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ab5673dbfc4e..b9cd0bb63759 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5374,7 +5374,7 @@ static int memory_min_show(struct seq_file *m, void *v)
+ static ssize_t memory_min_write(struct kernfs_open_file *of,
+ 				char *buf, size_t nbytes, loff_t off)
+ {
+-	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
++	struct mem_cgroup *iter, *memcg = mem_cgroup_from_css(of_css(of));
+ 	unsigned long min;
+ 	int err;
+ 
+@@ -5385,6 +5385,11 @@ static ssize_t memory_min_write(struct kernfs_open_file *of,
+ 
+ 	page_counter_set_min(&memcg->memory, min);
+ 
++	rcu_read_lock();
++	for_each_mem_cgroup_tree(iter, memcg)
++		mem_cgroup_protected(NULL, iter);
++	rcu_read_unlock();
++
+ 	return nbytes;
+ }
+ 
+@@ -5404,7 +5409,7 @@ static int memory_low_show(struct seq_file *m, void *v)
+ static ssize_t memory_low_write(struct kernfs_open_file *of,
+ 				char *buf, size_t nbytes, loff_t off)
+ {
+-	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
++	struct mem_cgroup *iter, *memcg = mem_cgroup_from_css(of_css(of));
+ 	unsigned long low;
+ 	int err;
+ 
+@@ -5415,6 +5420,11 @@ static ssize_t memory_low_write(struct kernfs_open_file *of,
+ 
+ 	page_counter_set_low(&memcg->memory, low);
+ 
++	rcu_read_lock();
++	for_each_mem_cgroup_tree(iter, memcg)
++		mem_cgroup_protected(NULL, iter);
++	rcu_read_unlock();
++
+ 	return nbytes;
+ }
+ 
 -- 
-Thanks,
-Tsukada
+2.14.3
