@@ -1,58 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F8A6B0003
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 13:51:20 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id d9-v6so12608236plj.4
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 10:51:20 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C3BB96B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 13:58:38 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 89-v6so12421517plb.18
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 10:58:38 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f64-v6si17081131plf.496.2018.05.22.10.51.19
+        by mx.google.com with ESMTPS id 70-v6si17737212pfu.274.2018.05.22.10.58.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 22 May 2018 10:51:19 -0700 (PDT)
-Date: Tue, 22 May 2018 10:51:14 -0700
+        Tue, 22 May 2018 10:58:37 -0700 (PDT)
+Date: Tue, 22 May 2018 10:58:36 -0700
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
-Message-ID: <20180522175114.GA1237@bombadil.infradead.org>
-References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
- <20180514191551.GA27939@bombadil.infradead.org>
- <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
- <20180515004137.GA5168@bombadil.infradead.org>
- <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
- <010001637399f796-3ffe3ed2-2fb1-4d43-84f0-6a65b6320d66-000000@email.amazonses.com>
- <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
- <50cbc27f-0014-0185-048d-25640f744b5b@linux.intel.com>
- <0100016388be5738-df8f9d12-7011-4e4e-ba5b-33973e5da794-000000@email.amazonses.com>
- <c4bb7ea8-16d5-ca31-2a9b-db90841211ba@linux.intel.com>
+Subject: Re: [PATCH v6 17/17] mm: Distinguish VMalloc pages
+Message-ID: <20180522175836.GB1237@bombadil.infradead.org>
+References: <20180518194519.3820-1-willy@infradead.org>
+ <20180518194519.3820-18-willy@infradead.org>
+ <74e9bf39-ae17-cc00-8fca-c34b75675d49@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <c4bb7ea8-16d5-ca31-2a9b-db90841211ba@linux.intel.com>
+In-Reply-To: <74e9bf39-ae17-cc00-8fca-c34b75675d49@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Christopher Lameter <cl@linux.com>, Boaz Harrosh <boazh@netapp.com>, Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
 
-On Tue, May 22, 2018 at 10:03:54AM -0700, Dave Hansen wrote:
-> On 05/22/2018 09:46 AM, Christopher Lameter wrote:
-> > On Tue, 22 May 2018, Dave Hansen wrote:
+On Tue, May 22, 2018 at 07:10:52PM +0300, Andrey Ryabinin wrote:
+> On 05/18/2018 10:45 PM, Matthew Wilcox wrote:
+> > From: Matthew Wilcox <mawilcox@microsoft.com>
 > > 
-> >> On 05/22/2018 09:05 AM, Boaz Harrosh wrote:
-> >>> How can we implement "Private memory"?
-> >> Per-cpu page tables would do it.
-> > We already have that for percpu subsystem. See alloc_percpu()
+> > For diagnosing various performance and memory-leak problems, it is helpful
+> > to be able to distinguish pages which are in use as VMalloc pages.
+> > Unfortunately, we cannot use the page_type field in struct page, as
+> > this is in use for mapcount by some drivers which map vmalloced pages
+> > to userspace.
+> > 
+> > Use a special page->mapping value to distinguish VMalloc pages from
+> > other kinds of pages.  Also record a pointer to the vm_struct and the
+> > offset within the area in struct page to help reconstruct exactly what
+> > this page is being used for.
 > 
-> I actually mean a set of page tables which is only ever installed on a
-> single CPU.  The CPU is architecturally allowed to go load any PTE in
-> the page tables into the TLB any time it feels like.  The only way to
-> keep a PTE from getting into the TLB is not ensure that a CPU never has
-> any access to it, and the only way to do that is to make sure that no
-> set of page tables it ever loads into CR3 have that PTE.
-> 
-> As Peter said, it's possible, but not pretty.
+> This seems useless. page->vm_area and page->vm_offset are never used.
+> There are no follow up patches which use this new information 'For diagnosing various performance and memory-leak problems',
+> and no explanation how is it can be used in current form.
 
-But CR3 is a per-CPU register.  So it'd be *possible* to allocate one
-PGD per CPU (per process).  Have them be identical in all but one of
-the PUD entries.  Then you've reserved 1/512 of your address space for
-per-CPU pages.
+Right now, it's by-hand.  tools/vm/page-types.c will tell you which pages
+are allocated to VMalloc.  Many people use kernel debuggers, crashdumps
+and similar to examine the kernel's memory.  Leaving these breadcrumbs
+is helpful, and those fields simply weren't in use before.
 
-Complicated, ugly, memory-consuming.  But possible.
+> Also, this patch breaks code like this:
+> 	if (mapping = page_mapping(page))
+> 		// access mapping
+
+Example of broken code, please?  Pages allocated from the page allocator
+with alloc_page() come with page->mapping == NULL.  This code snippet
+would not have granted access to vmalloc pages before.
