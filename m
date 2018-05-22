@@ -1,52 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 733076B0006
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 12:09:43 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id g92-v6so12354973plg.6
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 09:09:43 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50094.outbound.protection.outlook.com. [40.107.5.94])
-        by mx.google.com with ESMTPS id q11-v6si13147915pgc.669.2018.05.22.09.09.41
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F7206B0006
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 12:18:16 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id r63-v6so11318376pfl.12
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 09:18:16 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id a98-v6si16631293pla.239.2018.05.22.09.18.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 May 2018 09:09:42 -0700 (PDT)
-Subject: Re: [PATCH v6 17/17] mm: Distinguish VMalloc pages
-References: <20180518194519.3820-1-willy@infradead.org>
- <20180518194519.3820-18-willy@infradead.org>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <74e9bf39-ae17-cc00-8fca-c34b75675d49@virtuozzo.com>
-Date: Tue, 22 May 2018 19:10:52 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 May 2018 09:18:15 -0700 (PDT)
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+ <20180514191551.GA27939@bombadil.infradead.org>
+ <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
+ <20180515004137.GA5168@bombadil.infradead.org>
+ <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
+ <010001637399f796-3ffe3ed2-2fb1-4d43-84f0-6a65b6320d66-000000@email.amazonses.com>
+ <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <50cbc27f-0014-0185-048d-25640f744b5b@linux.intel.com>
+Date: Tue, 22 May 2018 09:18:09 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180518194519.3820-18-willy@infradead.org>
+In-Reply-To: <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: Boaz Harrosh <boazh@netapp.com>, Christopher Lameter <cl@linux.com>, Jeff Moyer <jmoyer@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
+On 05/22/2018 09:05 AM, Boaz Harrosh wrote:
+> How can we implement "Private memory"?
 
-
-On 05/18/2018 10:45 PM, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> 
-> For diagnosing various performance and memory-leak problems, it is helpful
-> to be able to distinguish pages which are in use as VMalloc pages.
-> Unfortunately, we cannot use the page_type field in struct page, as
-> this is in use for mapcount by some drivers which map vmalloced pages
-> to userspace.
-> 
-> Use a special page->mapping value to distinguish VMalloc pages from
-> other kinds of pages.  Also record a pointer to the vm_struct and the
-> offset within the area in struct page to help reconstruct exactly what
-> this page is being used for.
-> 
-
-
-This seems useless. page->vm_area and page->vm_offset are never used.
-There are no follow up patches which use this new information 'For diagnosing various performance and memory-leak problems',
-and no explanation how is it can be used in current form.
-
-Also, this patch breaks code like this:
-	if (mapping = page_mapping(page))
-		// access mapping
+Per-cpu page tables would do it.
