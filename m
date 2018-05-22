@@ -1,55 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8876D6B000E
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 12:42:39 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id r76-v6so414446itc.0
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 09:42:39 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id t124-v6si254401itf.105.2018.05.22.09.42.37
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D4FEF6B000E
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 12:42:57 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id z16-v6so5630575pgv.16
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 09:42:57 -0700 (PDT)
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20118.outbound.protection.outlook.com. [40.107.2.118])
+        by mx.google.com with ESMTPS id m27-v6si16441720pfj.192.2018.05.22.09.42.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 22 May 2018 09:42:37 -0700 (PDT)
-References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152694212460.5484.13180030631810166467.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180521161026.709d5f2876e44f151da3d179@linux-foundation.org>
- <CAPcyv4hMwMefMu3La+hZvN6r+Q6_N5t+eOgGE0bqVou=Cjpfwg@mail.gmail.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <860a8c46-5171-78ac-0255-ee1d21b16ce8@deltatee.com>
-Date: Tue, 22 May 2018 10:42:33 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 22 May 2018 09:42:55 -0700 (PDT)
+Subject: Re: [PATCH] mm/kasan: Don't vfree() nonexistent vm_area.
+References: <12c9e499-9c11-d248-6a3f-14ec8c4e07f1@molgen.mpg.de>
+ <20180201163349.8700-1-aryabinin@virtuozzo.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <4fc394ae-65e8-7c51-112a-81bee0fb8429@virtuozzo.com>
+Date: Tue, 22 May 2018 19:44:06 +0300
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4hMwMefMu3La+hZvN6r+Q6_N5t+eOgGE0bqVou=Cjpfwg@mail.gmail.com>
+In-Reply-To: <20180201163349.8700-1-aryabinin@virtuozzo.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 2/5] mm, devm_memremap_pages: handle errors allocating
- final devres action
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: stable <stable@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-
-Hey Dan,
-
-On 21/05/18 06:07 PM, Dan Williams wrote:
-> Without this change we could fail to register the teardown of
-> devm_memremap_pages(). The likelihood of hitting this failure is tiny
-> as small memory allocations almost always succeed. However, the impact
-> of the failure is large given any future reconfiguration, or
-> disable/enable, of an nvdimm namespace will fail forever as subsequent
-> calls to devm_memremap_pages() will fail to setup the pgmap_radix
-> since there will be stale entries for the physical address range.
-
-Sorry, I don't follow this. The change only seems to prevent a warning
-from occurring in this situation. Won't pgmap_radix_release() still be
-called regardless of whether this patch is applied?
-
-But it looks to me like this patch doesn't quite solve the issue -- at
-least when looking at dax/pmem.c: If devm_add_action_or_reset() fails,
-then dax_pmem_percpu_kill() won't be registered as an action and the
-percpu_ref will never get killed. Thus, dax_pmem_percpu_release() would
-not get called and dax_pmem_percpu_exit() will hang waiting for a
-completion that will never occur. So we probably need to add a kill call
-somewhere on the failing path...
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Menzel <pmenzel+linux-kasan-dev@molgen.mpg.de>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
 
-Logan
+
+On 02/01/2018 07:33 PM, Andrey Ryabinin wrote:
+> KASAN uses different routines to map shadow for hot added memory and memory
+> obtained in boot process. Attempt to offline memory onlined by normal boot
+> process leads to this:
+> 
+>     Trying to vfree() nonexistent vm area (000000005d3b34b9)
+>     WARNING: CPU: 2 PID: 13215 at mm/vmalloc.c:1525 __vunmap+0x147/0x190
+> 
+>     Call Trace:
+>      kasan_mem_notifier+0xad/0xb9
+>      notifier_call_chain+0x166/0x260
+>      __blocking_notifier_call_chain+0xdb/0x140
+>      __offline_pages+0x96a/0xb10
+>      memory_subsys_offline+0x76/0xc0
+>      device_offline+0xb8/0x120
+>      store_mem_state+0xfa/0x120
+>      kernfs_fop_write+0x1d5/0x320
+>      __vfs_write+0xd4/0x530
+>      vfs_write+0x105/0x340
+>      SyS_write+0xb0/0x140
+> 
+> Obviously we can't call vfree() to free memory that wasn't allocated via
+> vmalloc(). Use find_vm_area() to see if we can call vfree().
+> 
+> Unfortunately it's a bit tricky to properly unmap and free shadow allocated
+> during boot, so we'll have to keep it. If memory will come online again
+> that shadow will be reused.
+> 
+> Fixes: fa69b5989bb0 ("mm/kasan: add support for memory hotplug")
+> Reported-by: Paul Menzel <pmenzel+linux-kasan-dev@molgen.mpg.de>
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: <stable@vger.kernel.org>
+> ---
+
+This seems stuck in -mm. Andrew, can we proceed?
