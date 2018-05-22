@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ECA876B000D
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:50:04 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id a6-v6so12183233pll.22
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:50:04 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id i15-v6si17066377pfk.146.2018.05.22.07.50.03
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B1AB6B000D
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:50:07 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id bd7-v6so12291436plb.20
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:50:07 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id k7-v6si17061384pls.368.2018.05.22.07.50.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 07:50:03 -0700 (PDT)
-Subject: [PATCH 06/11] filesystem-dax: perform
- __dax_invalidate_mapping_entry() under the page lock
+        Tue, 22 May 2018 07:50:06 -0700 (PDT)
+Subject: [PATCH 07/11] mm, madvise_inject_error: fix page count leak
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 22 May 2018 07:40:03 -0700
-Message-ID: <152700000355.24093.14726378287214432782.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 22 May 2018 07:40:09 -0700
+Message-ID: <152700000922.24093.14813242965473482705.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,149 +21,90 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tony.luck@intel.com
+Cc: stable@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tony.luck@intel.com
 
-Hold the page lock while invalidating mapping entries to prevent races
-between rmap using the address_space and the filesystem freeing the
-address_space.
+The madvise_inject_error() routine uses get_user_pages() to lookup the
+pfn and other information for injected error, but it fails to release
+that pin.
 
-This is more complicated than the simple description implies because
-dev_pagemap pages that fsdax uses do not have any concept of page size.
-Size information is stored in the radix and can only be safely read
-while holding the xa_lock. Since lock_page() can not be taken while
-holding xa_lock, drop xa_lock and speculatively lock all the associated
-pages. Once all the pages are locked re-take the xa_lock and revalidate
-that the radix entry did not change.
+The dax-dma-vs-truncate warning catches this failure with the following
+signature:
 
-Cc: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+ Injecting memory failure for pfn 0x208900 at process virtual address 0x7f3908d00000
+ Memory failure: 0x208900: reserved kernel page still referenced by 1 users
+ Memory failure: 0x208900: recovery action for reserved kernel page: Failed
+ WARNING: CPU: 37 PID: 9566 at fs/dax.c:348 dax_disassociate_entry+0x4e/0x90
+ CPU: 37 PID: 9566 Comm: umount Tainted: G        W  OE     4.17.0-rc6+ #1900
+ [..]
+ RIP: 0010:dax_disassociate_entry+0x4e/0x90
+ RSP: 0018:ffffc9000a9b3b30 EFLAGS: 00010002
+ RAX: ffffea0008224000 RBX: 0000000000208a00 RCX: 0000000000208900
+ RDX: 0000000000000001 RSI: ffff8804058c6160 RDI: 0000000000000008
+ RBP: 000000000822000a R08: 0000000000000002 R09: 0000000000208800
+ R10: 0000000000000000 R11: 0000000000208801 R12: ffff8804058c6168
+ R13: 0000000000000000 R14: 0000000000000002 R15: 0000000000000001
+ FS:  00007f4548027fc0(0000) GS:ffff880431d40000(0000) knlGS:0000000000000000
+ CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+ CR2: 000056316d5f8988 CR3: 00000004298cc000 CR4: 00000000000406e0
+ Call Trace:
+  __dax_invalidate_mapping_entry+0xab/0xe0
+  dax_delete_mapping_entry+0xf/0x20
+  truncate_exceptional_pvec_entries.part.14+0x1d4/0x210
+  truncate_inode_pages_range+0x291/0x920
+  ? kmem_cache_free+0x1f8/0x300
+  ? lock_acquire+0x9f/0x200
+  ? truncate_inode_pages_final+0x31/0x50
+  ext4_evict_inode+0x69/0x740
+
+Cc: <stable@vger.kernel.org>
+Fixes: bd1ce5f91f54 ("HWPOISON: avoid grabbing the page count...")
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- fs/dax.c |   91 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 85 insertions(+), 6 deletions(-)
+ mm/madvise.c |   11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 2e4682cd7c69..e6d44d336283 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -319,6 +319,13 @@ static unsigned long dax_radix_end_pfn(void *entry)
- 	for (pfn = dax_radix_pfn(entry); \
- 			pfn < dax_radix_end_pfn(entry); pfn++)
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 4d3c922ea1a1..246fa4d4eee2 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -631,11 +631,13 @@ static int madvise_inject_error(int behavior,
  
-+#define for_each_mapped_pfn_reverse(entry, pfn) \
-+	for (pfn = dax_radix_end_pfn(entry) - 1; \
-+			dax_entry_size(entry) \
-+			&& pfn >= dax_radix_pfn(entry); \
-+			pfn--)
-+
-+
- static void dax_associate_entry(void *entry, struct address_space *mapping,
- 		struct vm_area_struct *vma, unsigned long address)
- {
-@@ -497,6 +504,80 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
- 	return entry;
- }
  
-+static bool dax_lock_pages(struct address_space *mapping, pgoff_t index,
-+		void **entry)
-+{
-+	struct radix_tree_root *pages = &mapping->i_pages;
-+	unsigned long pfn;
-+	void *entry2;
-+
-+	xa_lock_irq(pages);
-+	*entry = get_unlocked_mapping_entry(mapping, index, NULL);
-+	if (!*entry || WARN_ON_ONCE(!radix_tree_exceptional_entry(*entry))) {
-+		put_unlocked_mapping_entry(mapping, index, entry);
-+		xa_unlock_irq(pages);
-+		return false;
-+	}
-+
-+	/*
-+	 * In the limited case there are no races to prevent with rmap,
-+	 * because rmap can not perform pfn_to_page().
-+	 */
-+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-+		return true;
-+
-+	/*
-+	 * Now, drop the xa_lock, grab all the page locks then validate
-+	 * that the entry has not changed and return with the xa_lock
-+	 * held.
-+	 */
-+	xa_unlock_irq(pages);
-+
-+	/*
-+	 * Retry until the entry stabilizes or someone else invalidates
-+	 * the entry;
-+	 */
-+	for (;;) {
-+		for_each_mapped_pfn(*entry, pfn)
-+			lock_page(pfn_to_page(pfn));
-+
-+		xa_lock_irq(pages);
-+		entry2 = get_unlocked_mapping_entry(mapping, index, NULL);
-+		if (!entry2 || WARN_ON_ONCE(!radix_tree_exceptional_entry(entry2))
-+				|| entry2 != *entry) {
-+			put_unlocked_mapping_entry(mapping, index, entry2);
-+			xa_unlock_irq(pages);
-+
-+			for_each_mapped_pfn_reverse(*entry, pfn)
-+				unlock_page(pfn_to_page(pfn));
-+
-+			if (!entry2 || !radix_tree_exceptional_entry(entry2))
-+				return false;
-+			*entry = entry2;
-+			continue;
-+		}
-+		break;
-+	}
-+
-+	return true;
-+}
-+
-+static void dax_unlock_pages(struct address_space *mapping, pgoff_t index,
-+		void *entry)
-+{
-+	struct radix_tree_root *pages = &mapping->i_pages;
-+	unsigned long pfn;
-+
-+	put_unlocked_mapping_entry(mapping, index, entry);
-+	xa_unlock_irq(pages);
-+
-+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-+		return;
-+
-+	for_each_mapped_pfn_reverse(entry, pfn)
-+		unlock_page(pfn_to_page(pfn));
-+}
-+
- static int __dax_invalidate_mapping_entry(struct address_space *mapping,
- 					  pgoff_t index, bool trunc)
- {
-@@ -504,10 +585,8 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
- 	void *entry;
- 	struct radix_tree_root *pages = &mapping->i_pages;
+ 	for (; start < end; start += PAGE_SIZE << order) {
++		unsigned long pfn;
+ 		int ret;
  
--	xa_lock_irq(pages);
--	entry = get_unlocked_mapping_entry(mapping, index, NULL);
--	if (!entry || WARN_ON_ONCE(!radix_tree_exceptional_entry(entry)))
--		goto out;
-+	if (!dax_lock_pages(mapping, index, &entry))
-+		return ret;
- 	if (!trunc &&
- 	    (radix_tree_tag_get(pages, index, PAGECACHE_TAG_DIRTY) ||
- 	     radix_tree_tag_get(pages, index, PAGECACHE_TAG_TOWRITE)))
-@@ -517,8 +596,8 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
- 	mapping->nrexceptional--;
- 	ret = 1;
- out:
--	put_unlocked_mapping_entry(mapping, index, entry);
--	xa_unlock_irq(pages);
-+	dax_unlock_pages(mapping, index, entry);
+ 		ret = get_user_pages_fast(start, 1, 0, &page);
+ 		if (ret != 1)
+ 			return ret;
++		pfn = page_to_pfn(page);
+ 
+ 		/*
+ 		 * When soft offlining hugepages, after migrating the page
+@@ -651,17 +653,20 @@ static int madvise_inject_error(int behavior,
+ 
+ 		if (behavior == MADV_SOFT_OFFLINE) {
+ 			pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
+-						page_to_pfn(page), start);
++					pfn, start);
+ 
+ 			ret = soft_offline_page(page, MF_COUNT_INCREASED);
++			put_page(page);
+ 			if (ret)
+ 				return ret;
+ 			continue;
+ 		}
++		put_page(page);
 +
- 	return ret;
- }
- /*
+ 		pr_info("Injecting memory failure for pfn %#lx at process virtual address %#lx\n",
+-						page_to_pfn(page), start);
++				pfn, start);
+ 
+-		ret = memory_failure(page_to_pfn(page), MF_COUNT_INCREASED);
++		ret = memory_failure(pfn, MF_COUNT_INCREASED);
+ 		if (ret)
+ 			return ret;
+ 	}
