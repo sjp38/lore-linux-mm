@@ -1,109 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EBDE46B0003
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 14:37:32 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 70-v6so772189wmb.2
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 11:37:32 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E6C096B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 14:54:11 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id y82-v6so791969wmb.5
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 11:54:11 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a12-v6si951752edm.339.2018.05.22.11.37.30
+        by mx.google.com with ESMTPS id w50-v6si811907edm.249.2018.05.22.11.54.10
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 22 May 2018 11:37:30 -0700 (PDT)
-Date: Tue, 22 May 2018 20:37:28 +0200
+        Tue, 22 May 2018 11:54:10 -0700 (PDT)
+Date: Tue, 22 May 2018 20:54:07 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH v2 00/12] get rid of GFP_ZONE_TABLE/BAD
-Message-ID: <20180522183728.GB20441@dhcp22.suse.cz>
-References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to
+ charge to memcg
+Message-ID: <20180522185407.GC20441@dhcp22.suse.cz>
+References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
+ <240f1b14-ed7d-4983-6c52-be4899d4caa5@oracle.com>
+ <8711fed5-fc35-a11a-3a17-740a9dca1f2a@ascade.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+In-Reply-To: <8711fed5-fc35-a11a-3a17-740a9dca1f2a@ascade.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huaisheng Ye <yehs2007@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, willy@infradead.org, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, alexander.levin@verizon.com, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>
+To: TSUKADA Koutaro <tsukada@ascade.co.jp>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Mon 21-05-18 23:20:21, Huaisheng Ye wrote:
-> From: Huaisheng Ye <yehs1@lenovo.com>
-> 
-> Replace GFP_ZONE_TABLE and GFP_ZONE_BAD with encoded zone number.
-> 
-> Delete ___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 from GFP bitmasks,
-> the bottom three bits of GFP mask is reserved for storing encoded
-> zone number.
-> 
-> The encoding method is XOR. Get zone number from enum zone_type,
-> then encode the number with ZONE_NORMAL by XOR operation.
-> The goal is to make sure ZONE_NORMAL can be encoded to zero. So,
-> the compatibility can be guaranteed, such as GFP_KERNEL and GFP_ATOMIC
-> can be used as before.
-> 
-> Reserve __GFP_MOVABLE in bit 3, so that it can continue to be used as
-> a flag. Same as before, __GFP_MOVABLE respresents movable migrate type
-> for ZONE_DMA, ZONE_DMA32, and ZONE_NORMAL. But when it is enabled with
-> __GFP_HIGHMEM, ZONE_MOVABLE shall be returned instead of ZONE_HIGHMEM.
-> __GFP_ZONE_MOVABLE is created to realize it.
-> 
-> With this patch, just enabling __GFP_MOVABLE and __GFP_HIGHMEM is not
-> enough to get ZONE_MOVABLE from gfp_zone. All callers should use
-> GFP_HIGHUSER_MOVABLE or __GFP_ZONE_MOVABLE directly to achieve that.
-> 
-> Decode zone number directly from bottom three bits of flags in gfp_zone.
-> The theory of encoding and decoding is,
->         A ^ B ^ B = A
+On Tue 22-05-18 22:04:23, TSUKADA Koutaro wrote:
+> On 2018/05/22 3:07, Mike Kravetz wrote:
+> > On 05/17/2018 09:27 PM, TSUKADA Koutaro wrote:
+> >> Thanks to Mike Kravetz for comment on the previous version patch.
+> >>
+> >> The purpose of this patch-set is to make it possible to control whether or
+> >> not to charge surplus hugetlb pages obtained by overcommitting to memory
+> >> cgroup. In the future, I am trying to accomplish limiting the memory usage
+> >> of applications that use both normal pages and hugetlb pages by the memory
+> >> cgroup(not use the hugetlb cgroup).
+> >>
+> >> Applications that use shared libraries like libhugetlbfs.so use both normal
+> >> pages and hugetlb pages, but we do not know how much to use each. Please
+> >> suppose you want to manage the memory usage of such applications by cgroup
+> >> How do you set the memory cgroup and hugetlb cgroup limit when you want to
+> >> limit memory usage to 10GB?
+> >>
+> >> If you set a limit of 10GB for each, the user can use a total of 20GB of
+> >> memory and can not limit it well. Since it is difficult to estimate the
+> >> ratio used by user of normal pages and hugetlb pages, setting limits of 2GB
+> >> to memory cgroup and 8GB to hugetlb cgroup is not very good idea. In such a
+> >> case, I thought that by using my patch-set, we could manage resources just
+> >> by setting 10GB as the limit of memory cgoup(there is no limit to hugetlb
+> >> cgroup).
+> >>
+> >> In this patch-set, introduce the charge_surplus_huge_pages(boolean) to
+> >> struct hstate. If it is true, it charges to the memory cgroup to which the
+> >> task that obtained surplus hugepages belongs. If it is false, do nothing as
+> >> before, and the default value is false. The charge_surplus_huge_pages can
+> >> be controlled procfs or sysfs interfaces.
+> >>
+> >> Since THP is very effective in environments with kernel page size of 4KB,
+> >> such as x86, there is no reason to positively use HugeTLBfs, so I think
+> >> that there is no situation to enable charge_surplus_huge_pages. However, in
+> >> some distributions such as arm64, the page size of the kernel is 64KB, and
+> >> the size of THP is too huge as 512MB, making it difficult to use. HugeTLBfs
+> >> may support multiple huge page sizes, and in such a special environment
+> >> there is a desire to use HugeTLBfs.
+> > 
+> > One of the basic questions/concerns I have is accounting for surplus huge
+> > pages in the default memory resource controller.  The existing huegtlb
+> > resource controller already takes hugetlbfs huge pages into account,
+> > including surplus pages.  This series would allow surplus pages to be
+> > accounted for in the default  memory controller, or the hugetlb controller
+> > or both.
+> > 
+> > I understand that current mechanisms do not meet the needs of the above
+> > use case.  The question is whether this is an appropriate way to approach
+> > the issue.
 
-So why is this any better than the current code. Sure I am not a great
-fan of GFP_ZONE_TABLE because of how it is incomprehensible but this
-doesn't look too much better, yet we are losing a check for incompatible
-gfp flags. The diffstat looks really sound but then you just look and
-see that the large part is the comment that at least explained the gfp
-zone modifiers somehow and the debugging code. So what is the selling
-point?
+I do share your view Mike!
 
-> Changes since v1,
+> > My cgroup experience and knowledge is extremely limited, but
+> > it does not appear that any other resource can be controlled by multiple
+> > controllers.  Therefore, I am concerned that this may be going against
+> > basic cgroup design philosophy.
 > 
-> v2: Add __GFP_ZONE_MOVABLE and modify GFP_HIGHUSER_MOVABLE to help
-> callers to get ZONE_MOVABLE. Add __GFP_ZONE_MASK to mask lowest 3
-> bits of GFP bitmasks.
-> Modify some callers' gfp flag to update usage of address zone
-> modifiers.
-> Modify inline function gfp_zone to get better performance according
-> to Matthew's suggestion.
+> Thank you for your feedback.
+> That makes sense, surplus hugepages are charged to both memcg and hugetlb
+> cgroup, which may be contrary to cgroup design philosophy.
 > 
-> Link: https://marc.info/?l=linux-mm&m=152596791931266&w=2
+> Based on the above advice, I have considered the following improvements,
+> what do you think about?
 > 
-> Huaisheng Ye (12):
->   include/linux/gfp.h: get rid of GFP_ZONE_TABLE/BAD
->   arch/x86/kernel/amd_gart_64: update usage of address zone modifiers
->   arch/x86/kernel/pci-calgary_64: update usage of address zone modifiers
->   drivers/iommu/amd_iommu: update usage of address zone modifiers
->   include/linux/dma-mapping: update usage of address zone modifiers
->   drivers/xen/swiotlb-xen: update usage of address zone modifiers
->   fs/btrfs/extent_io: update usage of address zone modifiers
->   drivers/block/zram/zram_drv: update usage of address zone modifiers
->   mm/vmpressure: update usage of address zone modifiers
->   mm/zsmalloc: update usage of address zone modifiers
->   include/linux/highmem: update usage of movableflags
->   arch/x86/include/asm/page.h: update usage of movableflags
-> 
->  arch/x86/include/asm/page.h      |  3 +-
->  arch/x86/kernel/amd_gart_64.c    |  2 +-
->  arch/x86/kernel/pci-calgary_64.c |  2 +-
->  drivers/block/zram/zram_drv.c    |  6 +--
->  drivers/iommu/amd_iommu.c        |  2 +-
->  drivers/xen/swiotlb-xen.c        |  2 +-
->  fs/btrfs/extent_io.c             |  2 +-
->  include/linux/dma-mapping.h      |  2 +-
->  include/linux/gfp.h              | 98 +++++-----------------------------------
->  include/linux/highmem.h          |  4 +-
->  mm/vmpressure.c                  |  2 +-
->  mm/zsmalloc.c                    |  4 +-
->  12 files changed, 26 insertions(+), 103 deletions(-)
-> 
-> -- 
-> 1.8.3.1
-> 
+> The 'charge_surplus_hugepages' of v2 patch-set was an option to switch
+> "whether to charge memcg in addition to hugetlb cgroup", but it will be
+> abolished. Instead, change to "switch only to memcg instead of hugetlb
+> cgroup" option. This is called 'surplus_charge_to_memcg'.
 
+This all looks so hackish and ad-hoc that I would be tempted to give it
+an outright nack, but let's here more about why do we need this fiddling
+at all. I've asked in other email so I guess I will get an answer there
+but let me just emphasize again that I absolutely detest a possibility
+to put hugetlb pages into the memcg mix. They just do not belong there.
+Try to look at previous discussions why it has been decided to have a
+separate hugetlb pages at all.
+
+I am also quite confused why you keep distinguishing surplus hugetlb
+pages from regular preallocated ones. Being a surplus page is an
+implementation detail that we use for an internal accounting rather than
+something to exhibit to the userspace even more than we do currently.
+Just look at what [sw]hould when you need to adjust accounting - e.g.
+due to the pool resize. Are you going to uncharge those surplus pages
+ffrom memcg to reflect their persistence?
 -- 
 Michal Hocko
 SUSE Labs
