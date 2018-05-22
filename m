@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 94C976B0006
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 09:28:45 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id t195-v6so9546776wmt.9
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 06:28:45 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A621D6B0007
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 09:28:46 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id s3-v6so11231261pfh.0
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 06:28:46 -0700 (PDT)
 Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id a68-v6si2735189lfl.184.2018.05.22.06.28.43
+        by mx.google.com with ESMTPS id u13-v6si15971021plq.161.2018.05.22.06.28.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 06:28:44 -0700 (PDT)
+        Tue, 22 May 2018 06:28:45 -0700 (PDT)
 From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH 1/2] mm: propagate memory effective protection on setting memory.min/low
-Date: Tue, 22 May 2018 14:25:27 +0100
-Message-ID: <20180522132528.23769-1-guro@fb.com>
+Subject: [PATCH 2/2] mm: don't skip memory guarantee calculations
+Date: Tue, 22 May 2018 14:25:28 +0100
+Message-ID: <20180522132528.23769-2-guro@fb.com>
+In-Reply-To: <20180522132528.23769-1-guro@fb.com>
+References: <20180522132528.23769-1-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,16 +22,25 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Explicitly propagate effective memory min/low values down by the tree.
+There are two cases when effective memory guarantee calculation
+is mistakenly skipped:
 
-If there is the global memory pressure, it's not really necessary.
-Effective memory guarantees will be propagated automatically
-as we traverse memory cgroup tree in the reclaim path.
+1) If memcg is a child of the root cgroup, and the root
+cgroup is not root_mem_cgroup (in other words, if the reclaim
+is targeted). Top-level memory cgroups are handled specially
+in mem_cgroup_protected(), because the root memory cgroup doesn't
+have memory guarantee and can't limit its children guarantees.
+So, all effective guarantee calculation is skipped.
+But in case of targeted reclaim things are different:
+cgroups, which parent exceeded its memory limit aren't special.
 
-But if there is no global memory pressure, effective memory protection
-still matters for local (memcg-scoped) memory pressure.
-So, we have to update effective limits in the subtree,
-if a user changes memory.min and memory.low values.
+2) If memcg has no charged memory (memory usage is 0). In this
+case mem_cgroup_protected() always returns MEMCG_PROT_NONE, which
+is correct and prevents to generate fake memory low events for
+empty cgroups. But skipping memory emin/elow calculation is wrong:
+if there is no global memory pressure there might be no good
+chance again, so we can end up with effective guarantees set to 0
+without any reason.
 
 Signed-off-by: Roman Gushchin <guro@fb.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -39,54 +50,48 @@ Cc: Greg Thelen <gthelen@google.com>
 Cc: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/memcontrol.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ mm/memcontrol.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ab5673dbfc4e..b9cd0bb63759 100644
+index b9cd0bb63759..20c4f0a97d4c 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -5374,7 +5374,7 @@ static int memory_min_show(struct seq_file *m, void *v)
- static ssize_t memory_min_write(struct kernfs_open_file *of,
- 				char *buf, size_t nbytes, loff_t off)
- {
--	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-+	struct mem_cgroup *iter, *memcg = mem_cgroup_from_css(of_css(of));
- 	unsigned long min;
- 	int err;
+@@ -5809,20 +5809,15 @@ enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
+ 	if (mem_cgroup_disabled())
+ 		return MEMCG_PROT_NONE;
  
-@@ -5385,6 +5385,11 @@ static ssize_t memory_min_write(struct kernfs_open_file *of,
+-	if (!root)
+-		root = root_mem_cgroup;
+-	if (memcg == root)
++	if (memcg == root_mem_cgroup)
+ 		return MEMCG_PROT_NONE;
  
- 	page_counter_set_min(&memcg->memory, min);
+ 	usage = page_counter_read(&memcg->memory);
+-	if (!usage)
+-		return MEMCG_PROT_NONE;
+-
+ 	emin = memcg->memory.min;
+ 	elow = memcg->memory.low;
  
-+	rcu_read_lock();
-+	for_each_mem_cgroup_tree(iter, memcg)
-+		mem_cgroup_protected(NULL, iter);
-+	rcu_read_unlock();
+ 	parent = parent_mem_cgroup(memcg);
+-	if (parent == root)
++	if (parent == root_mem_cgroup)
+ 		goto exit;
+ 
+ 	parent_emin = READ_ONCE(parent->memory.emin);
+@@ -5857,6 +5852,12 @@ enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
+ 	memcg->memory.emin = emin;
+ 	memcg->memory.elow = elow;
+ 
++	if (root && memcg == root)
++		return MEMCG_PROT_NONE;
 +
- 	return nbytes;
- }
- 
-@@ -5404,7 +5409,7 @@ static int memory_low_show(struct seq_file *m, void *v)
- static ssize_t memory_low_write(struct kernfs_open_file *of,
- 				char *buf, size_t nbytes, loff_t off)
- {
--	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-+	struct mem_cgroup *iter, *memcg = mem_cgroup_from_css(of_css(of));
- 	unsigned long low;
- 	int err;
- 
-@@ -5415,6 +5420,11 @@ static ssize_t memory_low_write(struct kernfs_open_file *of,
- 
- 	page_counter_set_low(&memcg->memory, low);
- 
-+	rcu_read_lock();
-+	for_each_mem_cgroup_tree(iter, memcg)
-+		mem_cgroup_protected(NULL, iter);
-+	rcu_read_unlock();
++	if (!usage)
++		return MEMCG_PROT_NONE;
 +
- 	return nbytes;
- }
- 
+ 	if (usage <= emin)
+ 		return MEMCG_PROT_MIN;
+ 	else if (usage <= elow)
 -- 
 2.14.3
