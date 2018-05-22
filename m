@@ -1,50 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 777936B0005
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 13:03:58 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id q16-v6so12507365pls.15
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 10:03:58 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id b38-v6si16788760plb.541.2018.05.22.10.03.57
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CEE656B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 13:13:48 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id u137-v6so491227itc.4
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 10:13:48 -0700 (PDT)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id b196-v6si14940139ioe.63.2018.05.22.10.13.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 10:03:57 -0700 (PDT)
-Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
-References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
- <20180514191551.GA27939@bombadil.infradead.org>
- <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
- <20180515004137.GA5168@bombadil.infradead.org>
- <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
- <010001637399f796-3ffe3ed2-2fb1-4d43-84f0-6a65b6320d66-000000@email.amazonses.com>
- <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
- <50cbc27f-0014-0185-048d-25640f744b5b@linux.intel.com>
- <0100016388be5738-df8f9d12-7011-4e4e-ba5b-33973e5da794-000000@email.amazonses.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <c4bb7ea8-16d5-ca31-2a9b-db90841211ba@linux.intel.com>
-Date: Tue, 22 May 2018 10:03:54 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 22 May 2018 10:13:47 -0700 (PDT)
+References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152694213486.5484.5340142369038375338.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <45b62e4b-ee9a-a2de-579f-24642bb1fbc7@deltatee.com>
+Date: Tue, 22 May 2018 11:13:41 -0600
 MIME-Version: 1.0
-In-Reply-To: <0100016388be5738-df8f9d12-7011-4e4e-ba5b-33973e5da794-000000@email.amazonses.com>
+In-Reply-To: <152694213486.5484.5340142369038375338.stgit@dwillia2-desk3.amr.corp.intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 4/5] mm, hmm: replace hmm_devmem_pages_create() with
+ devm_memremap_pages()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Boaz Harrosh <boazh@netapp.com>, Jeff Moyer <jmoyer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 05/22/2018 09:46 AM, Christopher Lameter wrote:
-> On Tue, 22 May 2018, Dave Hansen wrote:
-> 
->> On 05/22/2018 09:05 AM, Boaz Harrosh wrote:
->>> How can we implement "Private memory"?
->> Per-cpu page tables would do it.
-> We already have that for percpu subsystem. See alloc_percpu()
 
-I actually mean a set of page tables which is only ever installed on a
-single CPU.  The CPU is architecturally allowed to go load any PTE in
-the page tables into the TLB any time it feels like.  The only way to
-keep a PTE from getting into the TLB is not ensure that a CPU never has
-any access to it, and the only way to do that is to make sure that no
-set of page tables it ever loads into CR3 have that PTE.
 
-As Peter said, it's possible, but not pretty.
+On 21/05/18 04:35 PM, Dan Williams wrote:
+> +	/*
+> +	 * For device private memory we call add_pages() as we only need to
+> +	 * allocate and initialize struct page for the device memory. More-
+> +	 * over the device memory is un-accessible thus we do not want to
+> +	 * create a linear mapping for the memory like arch_add_memory()
+> +	 * would do.
+> +	 *
+> +	 * For all other device memory types, which are accessible by
+> +	 * the CPU, we do want the linear mapping and thus use
+> +	 * arch_add_memory().
+> +	 */
+> +	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
+> +		error = add_pages(nid, align_start >> PAGE_SHIFT,
+> +				align_size >> PAGE_SHIFT, NULL, false);
+> +	} else {
+> +		struct zone *zone;
+> +
+> +		error = arch_add_memory(nid, align_start, align_size, altmap,
+> +				false);
+> +		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
+> +		if (!error)
+> +			move_pfn_range_to_zone(zone, align_start >> PAGE_SHIFT,
+>  					align_size >> PAGE_SHIFT, altmap);
+> +	}
+
+Maybe I missed it in the patch but, don't we need the same thing in
+devm_memremap_pages_release() such that it calls the correct remove
+function? Similar to the replaced hmm code:
+
+> -	mem_hotplug_begin();
+> -	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
+> -		__remove_pages(zone, start_pfn, npages, NULL);
+> -	else
+> -		arch_remove_memory(start_pfn << PAGE_SHIFT,
+> -				   npages << PAGE_SHIFT, NULL);
+> -	mem_hotplug_done();
+> -
+> -	hmm_devmem_radix_release(resource);
+
+Perhaps it should be a separate patch too as it would be easier to see
+outside the big removal of HMM code.
+
+Logan
