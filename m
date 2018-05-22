@@ -1,75 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E658C6B0003
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 02:37:45 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id v12-v6so8821042wmc.1
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 23:37:45 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D6F5F6B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 03:08:01 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z7-v6so13036666wrg.11
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 00:08:01 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m10-v6si1368698edc.243.2018.05.21.23.37.44
+        by mx.google.com with ESMTPS id o61-v6si1252088edb.107.2018.05.22.00.08.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 21 May 2018 23:37:44 -0700 (PDT)
-Date: Tue, 22 May 2018 08:37:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Add the memcg print oom info for system oom
-Message-ID: <20180522063742.GE20020@dhcp22.suse.cz>
-References: <1526540428-12178-1-git-send-email-ufo19890607@gmail.com>
- <20180517071140.GQ12670@dhcp22.suse.cz>
- <CAHCio2gOLnj4NpkFrxpYVygg6ZeSeuwgp2Lwr6oTHRxHpbmcWw@mail.gmail.com>
- <20180517102330.GS12670@dhcp22.suse.cz>
- <alpine.DEB.2.21.1805211405300.41872@chino.kir.corp.google.com>
+        Tue, 22 May 2018 00:08:00 -0700 (PDT)
+Subject: Re: [PATCH v2 2/4] mm: check for proper migrate type during isolation
+References: <20180503232935.22539-1-mike.kravetz@oracle.com>
+ <20180503232935.22539-3-mike.kravetz@oracle.com>
+ <0a74f688-74fb-b841-4782-f9c96b1b9cfc@suse.cz>
+ <f50d6814-8bc6-80cd-c0e5-b2cfa4f9e576@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a9816b88-015e-7e44-cbb8-a7ff04453870@suse.cz>
+Date: Tue, 22 May 2018 09:07:56 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1805211405300.41872@chino.kir.corp.google.com>
+In-Reply-To: <f50d6814-8bc6-80cd-c0e5-b2cfa4f9e576@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: =?utf-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon 21-05-18 14:11:21, David Rientjes wrote:
-> On Thu, 17 May 2018, Michal Hocko wrote:
+On 05/22/2018 01:10 AM, Mike Kravetz wrote:
+> On 05/18/2018 03:32 AM, Vlastimil Babka wrote:
+>> On 05/04/2018 01:29 AM, Mike Kravetz wrote:
+>>> The routine start_isolate_page_range and alloc_contig_range have
+>>> comments saying that migratetype must be either MIGRATE_MOVABLE or
+>>> MIGRATE_CMA.  However, this is not enforced.
+>>
+>> Enforced, no. But if the pageblocks really were as such, it used to
+>> shortcut has_unmovable_pages(). This was wrong and removed in
+>> d7b236e10ced ("mm: drop migrate type checks from has_unmovable_pages")
+>> plus 4da2ce250f98 ("mm: distinguish CMA and MOVABLE isolation in
+>> has_unmovable_pages()").
+>>
+>>
+>>   What is important is
+>>> that that all pageblocks in the range are of type migratetype.
+>>                                                the same
+>>> This is because blocks will be set to migratetype on error.
+>>
+>> Strictly speaking this is true only for the CMA case. For other cases,
+>> the best thing actually would be to employ the same heuristics as page
+>> allocation migratetype fallbacks, and count how many pages are free and
+>> how many appear to be movable, see how steal_suitable_fallback() uses
+>> the last parameter of move_freepages_block().
+>>
+>>> Add a boolean argument enforce_migratetype to the routine
+>>> start_isolate_page_range.  If set, it will check that all pageblocks
+>>> in the range have the passed migratetype.  Return -EINVAL is pageblock
+>>                                                             if
+>>> is wrong type is found in range.
+>>   of
+>>>
+>>> A boolean is used for enforce_migratetype as there are two primary
+>>> users.  Contiguous range allocation which wants to enforce migration
+>>> type checking.  Memory offline (hotplug) which is not concerned about
+>>> type checking.
+>>
+>> This is missing some high-level result. The end change is that CMA is
+>> now enforcing. So we are making it more robust when it's called on
+>> non-CMA pageblocks by mistake? (BTW I still do hope we can remove
+>> MIGRATE_CMA soon after Joonsoo's ZONE_MOVABLE CMA conversion. Combined
+>> with my suggestion above we could hopefully get rid of the migratetype
+>> parameter completely instead of enforcing it?). Is this also a
+>> preparation for introducing find_alloc_contig_pages() which will be
+>> enforcing? (I guess, and will find out shortly, but it should be stated
+>> here)
 > 
-> > this is not 5 lines at all. We dump memcg stats for the whole oom memcg
-> > subtree. For your patch it would be the whole subtree of the memcg of
-> > the oom victim. With cgroup v1 this can be quite deep as tasks can
-> > belong to inter-nodes as well. Would be
-> > 
-> > 		pr_info("Task in ");
-> > 		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
-> > 		pr_cont(" killed as a result of limit of ");
-> > 
-> > part of that output sufficient for your usecase?
+> Thank you for looking at these patches Vlastimil.
 > 
-> There's no memcg to print as the limit in the above, but it does seem like 
-> the single line output is all that is needed in this case.
+> My primary motivation for this patch was the 'error recovery' in
+> start_isolate_page_range.  It takes a range and attempts to set
+> all pageblocks to MIGRATE_ISOLATE.  If it encounters an error after
+> setting some blocks to isolate, it will 'clean up' by setting the
+> migrate type of previously modified blocks to the passed migratetype.
 
-Yeah, that is exactly what I was proposing. I just copy&pasted the whole
-part to make it clear which part of mem_cgroup_print_oom_info I meant.
-Referring to "killed as a reslt of limit of" was misleading. Sorry about
-that.
+Right.
 
-> It might be useful to discuss a single line output that specifies relevant 
-> information about the context of the oom kill, the killed thread, and the 
-> memcg of that thread, in a way that will be backwards compatible.  The 
-> messages in the oom killer have been restructured over time, I don't 
-> believe there is a backwards compatible way to search for an oom event in 
-> the kernel log.
+> So, one possible side effect of an error in start_isolate_page_range
+> is that the migrate type of some pageblocks could be modified.  Thinking
+> about it more now, that may be OK.
 
-Agreed
- 
-> I've had success with defining a single line output the includes the 
-> CONSTRAINT_* of the oom kill, the origin and kill memcgs, the thread name, 
-> pid, and uid.  On system oom kills, origin and kill memcgs are left empty.
-> 
-> oom-kill constraint=CONSTRAINT_* origin_memcg=<memcg> kill_memcg=<memcg> task=<comm> pid=<pid> uid=<uid>
-> 
-> Perhaps we should introduce a single line output that will be backwards 
-> compatible that includes this information?
+It would be definitely OK if the migratetype was changed similarly as
+steal_suitable_fallback() does it, as I've said above.
 
-I do not have a strong preference here. We already print cpuset on its
-own line and we can do the same for the memcg.
+> It just does not seem like the
+> right thing to do, especially with comments saying "migratetype must
+> be either MIGRATE_MOVABLE or MIGRATE_CMA".  I'm fine with leaving the
+> code as is and just cleaning up the comments if you think that may
+> be better.
 
--- 
-Michal Hocko
-SUSE Labs
+That's also possible, especially when the code is restructured as I've
+suggested in the other reply, which should significantly reduce the
+amount of error recoveries.
