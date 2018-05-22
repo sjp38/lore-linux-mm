@@ -1,88 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 80C5D6B0003
-	for <linux-mm@kvack.org>; Mon, 21 May 2018 20:15:19 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id c190-v6so10288281vke.15
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 17:15:19 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id g123-v6si6200810vkh.10.2018.05.21.17.15.18
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 942966B0003
+	for <linux-mm@kvack.org>; Mon, 21 May 2018 20:22:43 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id d20-v6so10075787pfn.16
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 17:22:43 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v66-v6si11994889pgv.344.2018.05.21.17.22.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 17:15:18 -0700 (PDT)
-Subject: Re: [PATCH v2 0/4] Interface for higher order contiguous allocations
-References: <20180503232935.22539-1-mike.kravetz@oracle.com>
- <8ce9884c-36b0-68ea-45a4-06177c41af4a@suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <8c3906cf-ffd3-00fe-b690-2902fc5b4e5a@oracle.com>
-Date: Mon, 21 May 2018 17:15:06 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 21 May 2018 17:22:42 -0700 (PDT)
+Date: Mon, 21 May 2018 17:22:39 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: Why do we let munmap fail?
+Message-ID: <20180522002239.GA4860@bombadil.infradead.org>
+References: <aacd607f-4a0d-2b0a-d8d9-b57c686d24fc@intel.com>
+ <CAKOZuetDX905PeLt5cs7e_maSeKHrP0DgM1Kr3vvOb-+n=a7Gw@mail.gmail.com>
+ <e6bdfa05-fa80-41d1-7b1d-51cf7e4ac9a1@intel.com>
+ <CAKOZuev=Pa6FkvxTPbeA1CcYG+oF2JM+JVL5ELHLZ--7wyr++g@mail.gmail.com>
+ <20eeca79-0813-a921-8b86-4c2a0c98a1a1@intel.com>
+ <CAKOZuesoh7svdmdNY9md3N+vWGurigDLZ5_xDjwgU=uYdKkwqg@mail.gmail.com>
+ <2e7fb27e-90b4-38d2-8ae1-d575d62c5332@intel.com>
+ <CAKOZueu8ckN1b-cYOxPhL5f7Bdq+LLRP20NK3x7Vtw79oUT3pg@mail.gmail.com>
+ <20c9acc2-fbaf-f02d-19d7-2498f875e4c0@intel.com>
+ <CAKOZuesScfm_5=2FYurY3ojdhQtcwPWY+=hayJ5cG7pQU1LP9g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <8ce9884c-36b0-68ea-45a4-06177c41af4a@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKOZuesScfm_5=2FYurY3ojdhQtcwPWY+=hayJ5cG7pQU1LP9g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Reinette Chatre <reinette.chatre@intel.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Daniel Colascione <dancol@google.com>
+Cc: dave.hansen@intel.com, linux-mm@kvack.org, Tim Murray <timmurray@google.com>, Minchan Kim <minchan@kernel.org>
 
-On 05/21/2018 05:00 AM, Vlastimil Babka wrote:
-> On 05/04/2018 01:29 AM, Mike Kravetz wrote:
->> Vlastimil and Michal brought up the issue of allocation alignment.  The
->> routine will currently align to 'nr_pages' (which is the requested size
->> argument).  It does this by examining and trying to allocate the first
->> nr_pages aligned/nr_pages sized range.  If this fails, it moves on to the
->> next nr_pages aligned/nr_pages sized range until success or all potential
->> ranges are exhausted.
+On Mon, May 21, 2018 at 05:00:47PM -0700, Daniel Colascione wrote:
+> On Mon, May 21, 2018 at 4:32 PM Dave Hansen <dave.hansen@intel.com> wrote:
+> > I think there's still a potential dead-end here.  "Deallocation" does
+> > not always free resources.
 > 
-> As I've noted in my patch 3/4 review, in fact nr_pages is first rounded
-> up to an order, which makes this simpler, but suboptimal. I think we
-> could perhaps assume that nr_pages that's a power of two should be
-> aligned as such, and other values of nr_pages need no alignment? This
-> should fit existing users, and can be extended to explicit alignment
-> when such user appears?
+> Sure, but the general principle applies: reserve resources when you *can*
+> fail so that you don't fail where you can't fail.
 
-I'm good with that.  I do believe that minimum alignment will be
-pageblock size alignment (for > MAX_ORDER allocations).
+Umm.  OK.  But you want an mmap of 4TB to succeed, right?  That implies
+preallocating one billion * sizeof(*vma).  That's, what, dozens of
+gigabytes right there?
 
->> If we allow an alignment to be specified, we will
->> need to potentially check all alignment aligned/nr_pages sized ranges.
->> In the worst case where alignment = PAGE_SIZE, this could result in huge
->> increase in the number of ranges to check.
->> To help cut down on the number of ranges to check, we could identify the
->> first page that causes a range allocation failure and start the next
->> range at the next aligned boundary.  I tried this, and we still end up
->> with a huge number of ranges and wasted CPU cycles.
-> 
-> I think the wasted cycle issues is due to the current code structure,
-> which is based on the CMA use-case, which assumes that the allocations
-> will succeed, because the areas are reserved and may contain only
-> movable allocations
-> 
-> find_alloc_contig_pages()
->   __alloc_contig_pages_nodemask()
->     contig_pfn_range_valid()
->       - performs only very basic pfn validity and belongs-to-zone checks
->     alloc_contig_range()
->       start_isolate_page_range()
->        for (pfn per pageblock) - the main cycle
->          set_migratetype_isolate()
->            has_unmovable_pages() - cancel if yes
->            move_freepages_block() - expensive!
->       __alloc_contig_migrate_range()
-> etc (not important)
-> 
-> So I think the problem is that in the main cycle we might do a number of
-> expensive move_freepages_block() operations, then hit a block where
-> has_unmovable_pages() is true, cancel and do more expensive
-> undo_isolate_page_range() operations.
-> 
-> If we instead first scanned the range with has_unmovable_pages() and
-> only start doing the expensive work when we find a large enough (aligned
-> or not depending on caller) range, it should be much faster and there
-> should be no algorithmic difference between aligned and non-aligned case.
+I'm sympathetic to wanting to keep both vma-merging and
+unmap-anything-i-mapped working, but your proposal isn't going to fix it.
 
-Ok, I will give that a try.
-
-Thanks again for looking at these.
--- 
-Mike Kravetz
+You need to handle the attacker writing a program which mmaps 46 bits
+of address space and then munmaps alternate pages.  That program needs
+to be detected and stopped.
