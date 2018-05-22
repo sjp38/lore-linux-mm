@@ -1,63 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C3CD6B0006
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:38:35 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id i200-v6so55886itb.9
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:38:35 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e18-v6sor46363itc.92.2018.05.22.07.38.34
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B2F026B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:49:30 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e16-v6so11337504pfn.5
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:49:30 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id a12-v6si13024616pgw.578.2018.05.22.07.49.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 22 May 2018 07:38:34 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 May 2018 07:49:29 -0700 (PDT)
+Subject: [PATCH 00/11] mm: Teach memory_failure() about ZONE_DEVICE pages
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 22 May 2018 07:39:32 -0700
+Message-ID: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <69a5a7d3-e2ae-1100-f56f-9edfb0c4b3dd@virtuozzo.com>
-References: <cover.1525798753.git.andreyknvl@google.com> <454315e28d8bdd8e507de2e29f718f1fcae17d58.1525798753.git.andreyknvl@google.com>
- <69a5a7d3-e2ae-1100-f56f-9edfb0c4b3dd@virtuozzo.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 22 May 2018 16:38:33 +0200
-Message-ID: <CAAeHK+zJe9PjMOgivsihE3JMD2KwTGj4Hrm+Bq53U3Bghz0c4w@mail.gmail.com>
-Subject: Re: [PATCH v1 02/16] khwasan: move common kasan and khwasan code to common.c
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: linux-nvdimm@lists.01.org
+Cc: linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, stable@vger.kernel.org, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <ak@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.orgtony.luck@intel.com
 
-On Tue, May 15, 2018 at 3:28 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
->
-> On 05/08/2018 08:20 PM, Andrey Konovalov wrote:
->
->> +
->> +void set_track(struct kasan_track *track, gfp_t flags)
->
-> This was -  static inline void set_track(struct kasan_track *track, gfp_t flags)
-> and still used only locally.
->
->> +{
->> +     track->pid = current->pid;
->> +     track->stack = save_stack(flags);
->> +}
->> +
+As it stands, memory_failure() gets thoroughly confused by dev_pagemap
+backed mappings. The recovery code has specific enabling for several
+possible page states and needs new enabling to handle poison in dax
+mappings.
 
-Will fix in v2.
+In order to support reliable reverse mapping of user space addresses add
+new locking in the fsdax implementation to prevent races between
+page-address_space disassociation events and the rmap performed in the
+memory_failure() path. Additionally, since dev_pagemap pages are hidden
+from the page allocator, add a mechanism to determine the size of the
+mapping that encompasses a given poisoned pfn. Lastly, since pmem errors
+can be repaired, change the speculatively accessed poison protection,
+mce_unmap_kpfn(), to be reversible and otherwise allow ongoing access
+from the kernel.
 
->
->
->
->>  /*
->>   * Adaptive redzone policy taken from the userspace AddressSanitizer runtime.
->>   * For larger allocations larger redzones are used.
->>   */
->> -static unsigned int optimal_redzone(unsigned int object_size)
->> +unsigned int optimal_redzone(unsigned int object_size)
->
-> I'd rather move this in common too.
-> For khwasan you could just add:
->         if (IS_ENABLED(CONFIG_KASAN_HW))
->                 return 0;
->
->
+---
 
-Will move in v2.
+Dan Williams (11):
+      device-dax: convert to vmf_insert_mixed and vm_fault_t
+      device-dax: cleanup vm_fault de-reference chains
+      device-dax: enable page_mapping()
+      device-dax: set page->index
+      filesystem-dax: set page->index
+      filesystem-dax: perform __dax_invalidate_mapping_entry() under the page lock
+      mm, madvise_inject_error: fix page count leak
+      x86, memory_failure: introduce {set,clear}_mce_nospec()
+      mm, memory_failure: pass page size to kill_proc()
+      mm, memory_failure: teach memory_failure() about dev_pagemap pages
+      libnvdimm, pmem: restore page attributes when clearing errors
+
+
+ arch/x86/include/asm/set_memory.h         |   29 ++++++
+ arch/x86/kernel/cpu/mcheck/mce-internal.h |   15 ---
+ arch/x86/kernel/cpu/mcheck/mce.c          |   38 +-------
+ drivers/dax/device.c                      |   91 ++++++++++++--------
+ drivers/nvdimm/pmem.c                     |   26 ++++++
+ drivers/nvdimm/pmem.h                     |   13 +++
+ fs/dax.c                                  |  102 ++++++++++++++++++++--
+ include/linux/huge_mm.h                   |    5 +
+ include/linux/set_memory.h                |   14 +++
+ mm/huge_memory.c                          |    4 -
+ mm/madvise.c                              |   11 ++
+ mm/memory-failure.c                       |  133 +++++++++++++++++++++++++++--
+ 12 files changed, 370 insertions(+), 111 deletions(-)
