@@ -1,119 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 731E76B026A
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:50:28 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id e1-v6so10734559pld.23
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:50:28 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id w17-v6si16748124plq.115.2018.05.22.07.50.27
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D364A6B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:52:29 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id n25-v6so14771040otf.13
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:52:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c9-v6si6241165otc.374.2018.05.22.07.52.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 07:50:27 -0700 (PDT)
-Subject: [PATCH 11/11] libnvdimm,
- pmem: restore page attributes when clearing errors
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 22 May 2018 07:40:29 -0700
-Message-ID: <152700002985.24093.13134641532491041554.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Tue, 22 May 2018 07:52:28 -0700 (PDT)
+Date: Tue, 22 May 2018 10:52:27 -0400
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: [PATCH 08/34] mm: split ->readpages calls to avoid
+ non-contiguous pages lists
+Message-ID: <20180522145226.GA25251@bfoster.bfoster>
+References: <20180518164830.1552-1-hch@lst.de>
+ <20180518164830.1552-9-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180518164830.1552-9-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tony.luck@intel.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-Use clear_mce_nospec() to restore WB mode for the kernel linear mapping
-of a pmem page that was marked 'HWPoison'. A page with 'HWPoison' set
-has also been marked UC in PAT (page attribute table) via
-set_mce_nospec() to prevent speculative retrievals of poison.
+On Fri, May 18, 2018 at 06:48:04PM +0200, Christoph Hellwig wrote:
+> That way file systems don't have to go spotting for non-contiguous pages
+> and work around them.  It also kicks off I/O earlier, allowing it to
+> finish earlier and reduce latency.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  mm/readahead.c | 12 +++++++++++-
+>  1 file changed, 11 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/readahead.c b/mm/readahead.c
+> index fa4d4b767130..044ab0c137cc 100644
+> --- a/mm/readahead.c
+> +++ b/mm/readahead.c
+> @@ -177,8 +177,18 @@ unsigned int __do_page_cache_readahead(struct address_space *mapping,
+>  		rcu_read_lock();
+>  		page = radix_tree_lookup(&mapping->i_pages, page_offset);
+>  		rcu_read_unlock();
+> -		if (page && !radix_tree_exceptional_entry(page))
+> +		if (page && !radix_tree_exceptional_entry(page)) {
+> +			/*
+> +			 * Page already present?  Kick off the current batch of
+> +			 * contiguous pages before continuing with the next
+> +			 * batch.
+> +			 */
+> +			if (nr_pages)
+> +				read_pages(mapping, filp, &page_pool, nr_pages,
+> +						gfp_mask);
+> +			nr_pages = 0;
+>  			continue;
+> +		}
 
-The 'HWPoison' flag is only cleared when overwriting an entire page.
+The comment at the top of this function explicitly states that we don't
+submit I/Os before all of the pages are allocated. That probably needs
+an update, at least.
 
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/nvdimm/pmem.c |   26 ++++++++++++++++++++++++++
- drivers/nvdimm/pmem.h |   13 +++++++++++++
- 2 files changed, 39 insertions(+)
+That aside, couldn't this introduce that kind of problematic read/write
+behavior if the mapping was sparsely populated for whatever reason
+(every other page, for example)? Perhaps that's just too unlikely to
+matter.
 
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 9d714926ecf5..04ee1fdee219 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -20,6 +20,7 @@
- #include <linux/hdreg.h>
- #include <linux/init.h>
- #include <linux/platform_device.h>
-+#include <linux/set_memory.h>
- #include <linux/module.h>
- #include <linux/moduleparam.h>
- #include <linux/badblocks.h>
-@@ -51,6 +52,30 @@ static struct nd_region *to_region(struct pmem_device *pmem)
- 	return to_nd_region(to_dev(pmem)->parent);
- }
- 
-+static void hwpoison_clear(struct pmem_device *pmem,
-+		phys_addr_t phys, unsigned int len)
-+{
-+	unsigned long pfn_start, pfn_end, pfn;
-+
-+	/* only pmem in the linear map supports HWPoison */
-+	if (is_vmalloc_addr(pmem->virt_addr))
-+		return;
-+
-+	pfn_start = PHYS_PFN(phys);
-+	pfn_end = pfn_start + PHYS_PFN(len);
-+	for (pfn = pfn_start; pfn < pfn_end; pfn++) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		/*
-+		 * Note, no need to hold a get_dev_pagemap() reference
-+		 * here since we're in the driver I/O path and
-+		 * outstanding I/O requests pin the dev_pagemap.
-+		 */
-+		if (test_and_clear_pmem_poison(page))
-+			clear_mce_nospec(pfn);
-+	}
-+}
-+
- static blk_status_t pmem_clear_poison(struct pmem_device *pmem,
- 		phys_addr_t offset, unsigned int len)
- {
-@@ -65,6 +90,7 @@ static blk_status_t pmem_clear_poison(struct pmem_device *pmem,
- 	if (cleared < len)
- 		rc = BLK_STS_IOERR;
- 	if (cleared > 0 && cleared / 512) {
-+		hwpoison_clear(pmem, pmem->phys_addr + offset, cleared);
- 		cleared /= 512;
- 		dev_dbg(dev, "%#llx clear %ld sector%s\n",
- 				(unsigned long long) sector, cleared,
-diff --git a/drivers/nvdimm/pmem.h b/drivers/nvdimm/pmem.h
-index a64ebc78b5df..59cfe13ea8a8 100644
---- a/drivers/nvdimm/pmem.h
-+++ b/drivers/nvdimm/pmem.h
-@@ -1,6 +1,7 @@
- /* SPDX-License-Identifier: GPL-2.0 */
- #ifndef __NVDIMM_PMEM_H__
- #define __NVDIMM_PMEM_H__
-+#include <linux/page-flags.h>
- #include <linux/badblocks.h>
- #include <linux/types.h>
- #include <linux/pfn_t.h>
-@@ -27,4 +28,16 @@ struct pmem_device {
- 
- long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
- 		long nr_pages, void **kaddr, pfn_t *pfn);
-+
-+#ifdef CONFIG_MEMORY_FAILURE
-+static inline bool test_and_clear_pmem_poison(struct page *page)
-+{
-+	return TestClearPageHWPoison(page);
-+}
-+#else
-+static inline bool test_and_clear_pmem_poison(struct page *page)
-+{
-+	return false;
-+}
-+#endif
- #endif /* __NVDIMM_PMEM_H__ */
+Brian
+
+>  
+>  		page = __page_cache_alloc(gfp_mask);
+>  		if (!page)
+> -- 
+> 2.17.0
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
