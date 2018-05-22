@@ -1,60 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 84A446B0003
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 05:34:24 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id v12-v6so9103623wmc.1
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 02:34:24 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id y17-v6si6373233wrl.91.2018.05.22.02.34.22
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 73BAB6B0006
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 05:38:14 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 89-v6so11895136plc.1
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 02:38:14 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 1-v6si16198292plw.519.2018.05.22.02.38.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 02:34:22 -0700 (PDT)
-Date: Tue, 22 May 2018 11:39:37 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 16/34] iomap: add initial support for writes without
-	buffer heads
-Message-ID: <20180522093937.GA11513@lst.de>
-References: <20180518164830.1552-1-hch@lst.de> <20180518164830.1552-17-hch@lst.de> <20180521232700.GB14384@magnolia> <20180522083103.GA10079@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 22 May 2018 02:38:13 -0700 (PDT)
+Date: Tue, 22 May 2018 02:38:06 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [RFC PATCH v2 02/12] arch/x86/kernel/amd_gart_64: update usage
+ of address zone modifiers
+Message-ID: <20180522093806.GA25671@infradead.org>
+References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+ <1526916033-4877-3-git-send-email-yehs2007@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180522083103.GA10079@lst.de>
+In-Reply-To: <1526916033-4877-3-git-send-email-yehs2007@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Huaisheng Ye <yehs2007@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mhocko@suse.com, willy@infradead.org, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, alexander.levin@verizon.com, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Robin Murphy <robin.murphy@arm.com>
 
-On Tue, May 22, 2018 at 10:31:03AM +0200, Christoph Hellwig wrote:
-> The fix should be as simple as this:
+This code doesn't exist in current mainline.  What kernel version
+is your patch against?
 
-fsx wants some little tweaks:
+On Mon, May 21, 2018 at 11:20:23PM +0800, Huaisheng Ye wrote:
+> From: Huaisheng Ye <yehs1@lenovo.com>
+> 
+> Use __GFP_ZONE_MASK to replace (__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32).
+> 
+> ___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 have been deleted from GFP
+> bitmasks, the bottom three bits of GFP mask is reserved for storing
+> encoded zone number.
+> __GFP_DMA, __GFP_HIGHMEM and __GFP_DMA32 should not be operated by OR.
 
-diff --git a/fs/iomap.c b/fs/iomap.c
-index 357711e50cfa..47676d1b957b 100644
---- a/fs/iomap.c
-+++ b/fs/iomap.c
-@@ -342,19 +342,19 @@ __iomap_write_begin(struct inode *inode, loff_t pos, unsigned len,
- 	loff_t block_end = (pos + len + block_size - 1) & ~(block_size - 1);
- 	unsigned poff = block_start & (PAGE_SIZE - 1);
- 	unsigned plen = min_t(loff_t, PAGE_SIZE - poff, block_end - block_start);
-+	unsigned from = pos & (PAGE_SIZE - 1);
-+	unsigned to = from + len;
- 	int status;
- 
- 	WARN_ON_ONCE(i_blocksize(inode) < PAGE_SIZE);
- 
- 	if (PageUptodate(page))
- 		return 0;
-+	if (from <= poff && to >= poff + plen)
-+		return 0;
- 
- 	if (iomap_block_needs_zeroing(inode, block_start, iomap)) {
--		unsigned from = pos & (PAGE_SIZE - 1), to = from + len;
--		unsigned pend = poff + plen;
--
--		if (poff < from || pend > to)
--			zero_user_segments(page, poff, from, to, pend);
-+		zero_user_segments(page, poff, from, to, poff + plen);
- 	} else {
- 		status = iomap_read_page_sync(inode, block_start, page,
- 				poff, plen, iomap);
+If they have already been deleted the identifier should not exist
+anymore, so either your patch has issues, or at least the description.
