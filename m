@@ -1,72 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 77F106B0003
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 01:34:22 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b25-v6so10501116pfn.10
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 22:34:22 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j5-v6sor6270790pfi.86.2018.05.21.22.34.21
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FB146B0006
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 02:18:56 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id g92-v6so11491642plg.6
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 23:18:56 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s6-v6si11962963pgp.152.2018.05.21.23.18.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 21 May 2018 22:34:21 -0700 (PDT)
-Date: Tue, 22 May 2018 15:34:11 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: Why do we let munmap fail?
-Message-ID: <20180522153411.3b061683@roar.ozlabs.ibm.com>
-In-Reply-To: <CAKOZuesScfm_5=2FYurY3ojdhQtcwPWY+=hayJ5cG7pQU1LP9g@mail.gmail.com>
-References: <CAKOZuetOD6MkGPVvYFLj5RXh200FaDyu3sQqZviVRhTFFS3fjA@mail.gmail.com>
-	<aacd607f-4a0d-2b0a-d8d9-b57c686d24fc@intel.com>
-	<CAKOZuetDX905PeLt5cs7e_maSeKHrP0DgM1Kr3vvOb-+n=a7Gw@mail.gmail.com>
-	<e6bdfa05-fa80-41d1-7b1d-51cf7e4ac9a1@intel.com>
-	<CAKOZuev=Pa6FkvxTPbeA1CcYG+oF2JM+JVL5ELHLZ--7wyr++g@mail.gmail.com>
-	<20eeca79-0813-a921-8b86-4c2a0c98a1a1@intel.com>
-	<CAKOZuesoh7svdmdNY9md3N+vWGurigDLZ5_xDjwgU=uYdKkwqg@mail.gmail.com>
-	<2e7fb27e-90b4-38d2-8ae1-d575d62c5332@intel.com>
-	<CAKOZueu8ckN1b-cYOxPhL5f7Bdq+LLRP20NK3x7Vtw79oUT3pg@mail.gmail.com>
-	<20c9acc2-fbaf-f02d-19d7-2498f875e4c0@intel.com>
-	<CAKOZuesScfm_5=2FYurY3ojdhQtcwPWY+=hayJ5cG7pQU1LP9g@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 May 2018 23:18:54 -0700 (PDT)
+Date: Tue, 22 May 2018 08:18:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
+ oom_lock held.
+Message-ID: <20180522061850.GB20020@dhcp22.suse.cz>
+References: <201805122318.HJG81246.MFVFLFJOOQtSHO@I-love.SAKURA.ne.jp>
+ <20180515091655.GD12670@dhcp22.suse.cz>
+ <201805181914.IFF18202.FOJOVSOtLFMFHQ@I-love.SAKURA.ne.jp>
+ <20180518122045.GG21711@dhcp22.suse.cz>
+ <201805210056.IEC51073.VSFFHFOOQtJMOL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201805210056.IEC51073.VSFFHFOOQtJMOL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Colascione <dancol@google.com>
-Cc: dave.hansen@intel.com, linux-mm@kvack.org, Tim Murray <timmurray@google.com>, Minchan Kim <minchan@kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, guro@fb.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-On Mon, 21 May 2018 17:00:47 -0700
-Daniel Colascione <dancol@google.com> wrote:
-
-> On Mon, May 21, 2018 at 4:32 PM Dave Hansen <dave.hansen@intel.com> wrote:
+On Mon 21-05-18 00:56:05, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Fri 18-05-18 19:14:12, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > On Sat 12-05-18 23:18:24, Tetsuo Handa wrote:
+> > > > [...]
+> > > > > @@ -4241,6 +4240,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+> > > > >  	/* Retry as long as the OOM killer is making progress */
+> > > > >  	if (did_some_progress) {
+> > > > >  		no_progress_loops = 0;
+> > > > > +		/*
+> > > > > +		 * This schedule_timeout_*() serves as a guaranteed sleep for
+> > > > > +		 * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
+> > > > > +		 */
+> > > > > +		if (!tsk_is_oom_victim(current))
+> > > > > +			schedule_timeout_uninterruptible(1);
+> > > > >  		goto retry;
+> > > > 
+> > > > We already do have that sleep for PF_WQ_WORKER in should_reclaim_retry.
+> > > > Why do we need it here as well?
+> > > 
+> > > Because that path depends on __zone_watermark_ok() == true which is not
+> > > guaranteed to be executed.
+> > 
+> > Is there any reason we cannot do the special cased sleep for
+> > PF_WQ_WORKER in should_reclaim_retry? The current code is complex enough
+> > to make it even more so. If we need a hack for PF_WQ_WORKER case then we
+> > definitely want to have a single place to do so.
 > 
-> > On 05/21/2018 04:16 PM, Daniel Colascione wrote:  
-> > > On Mon, May 21, 2018 at 4:02 PM Dave Hansen <dave.hansen@intel.com>  
-> wrote:
-> > >  
-> > >> On 05/21/2018 03:54 PM, Daniel Colascione wrote:  
-> > >>>> There are also certainly denial-of-service concerns if you allow
-> > >>>> arbitrary numbers of VMAs.  The rbtree, for instance, is O(log(n)),  
-> but
-> > >>>> I 'd be willing to be there are plenty of things that fall over if  
-> you
-> > >>>> let the ~65k limit get 10x or 100x larger.  
-> > >>> Sure. I'm receptive to the idea of having *some* VMA limit. I just  
-> think
-> > >>> it's unacceptable let deallocation routines fail.  
-> > >> If you have a resource limit and deallocation consumes resources, you
-> > >> *eventually* have to fail a deallocation.  Right?  
-> > > That's why robust software sets aside at allocation time whatever  
-> resources
-> > > are needed to make forward progress at deallocation time.  
-> 
-> > I think there's still a potential dead-end here.  "Deallocation" does
-> > not always free resources.  
-> 
-> Sure, but the general principle applies: reserve resources when you *can*
-> fail so that you don't fail where you can't fail.
+> I don't understand why you are talking about PF_WQ_WORKER case.
 
-munmap != deallocation, it's a request to change the address mapping.
-A more complex mapping uses more resources. mmap can free resources
-if it transforms your mapping to a simpler one.
+Because that seems to be the reason to have it there as per your
+comment.
 
-Thanks,
-Nick
+> This sleep is not only for PF_WQ_WORKER case but also !PF_KTHREAD case.
+> I added this comment because you suggested simply removing any sleep which
+> waits for the OOM victim.
+
+And now you have made the comment misleading and I suspect it is just
+not really needed as well.
+
+> Making special cased sleep for PF_WQ_WORKER in should_reclaim_retry() cannot
+> become a reason to block this patch. You can propose it after this patch is
+> applied. This patch is for mitigating lockup problem caused by forever holding
+> oom_lock.
+
+You are fiddling with other code paths at the same time so I _do_ care.
+Spilling random code without a proper explanation is just not going to
+fly.
+-- 
+Michal Hocko
+SUSE Labs
