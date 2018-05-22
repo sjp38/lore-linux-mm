@@ -1,67 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EB6B6B0003
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 13:03:16 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id r76-v6so461056itc.0
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 10:03:16 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id w10-v6si308081ita.17.2018.05.22.10.03.15
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 777936B0005
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 13:03:58 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id q16-v6so12507365pls.15
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 10:03:58 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id b38-v6si16788760plb.541.2018.05.22.10.03.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 22 May 2018 10:03:15 -0700 (PDT)
-References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152694212460.5484.13180030631810166467.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180521161026.709d5f2876e44f151da3d179@linux-foundation.org>
- <CAPcyv4hMwMefMu3La+hZvN6r+Q6_N5t+eOgGE0bqVou=Cjpfwg@mail.gmail.com>
- <860a8c46-5171-78ac-0255-ee1d21b16ce8@deltatee.com>
- <CAPcyv4i-MAYLsmT1M4=D_fwMNF98MupDyNBjWNmOzwY5Lzz0Lw@mail.gmail.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <b636aa5e-205b-4d67-09f8-230755de31b6@deltatee.com>
-Date: Tue, 22 May 2018 11:03:13 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 May 2018 10:03:57 -0700 (PDT)
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+ <20180514191551.GA27939@bombadil.infradead.org>
+ <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
+ <20180515004137.GA5168@bombadil.infradead.org>
+ <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
+ <010001637399f796-3ffe3ed2-2fb1-4d43-84f0-6a65b6320d66-000000@email.amazonses.com>
+ <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
+ <50cbc27f-0014-0185-048d-25640f744b5b@linux.intel.com>
+ <0100016388be5738-df8f9d12-7011-4e4e-ba5b-33973e5da794-000000@email.amazonses.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <c4bb7ea8-16d5-ca31-2a9b-db90841211ba@linux.intel.com>
+Date: Tue, 22 May 2018 10:03:54 -0700
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4i-MAYLsmT1M4=D_fwMNF98MupDyNBjWNmOzwY5Lzz0Lw@mail.gmail.com>
+In-Reply-To: <0100016388be5738-df8f9d12-7011-4e4e-ba5b-33973e5da794-000000@email.amazonses.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 2/5] mm, devm_memremap_pages: handle errors allocating
- final devres action
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable <stable@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: Boaz Harrosh <boazh@netapp.com>, Jeff Moyer <jmoyer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-
-
-On 22/05/18 10:56 AM, Dan Williams wrote:
-> On Tue, May 22, 2018 at 9:42 AM, Logan Gunthorpe <logang@deltatee.com> wrote:
->> Hey Dan,
->>
->> On 21/05/18 06:07 PM, Dan Williams wrote:
->>> Without this change we could fail to register the teardown of
->>> devm_memremap_pages(). The likelihood of hitting this failure is tiny
->>> as small memory allocations almost always succeed. However, the impact
->>> of the failure is large given any future reconfiguration, or
->>> disable/enable, of an nvdimm namespace will fail forever as subsequent
->>> calls to devm_memremap_pages() will fail to setup the pgmap_radix
->>> since there will be stale entries for the physical address range.
->>
->> Sorry, I don't follow this. The change only seems to prevent a warning
->> from occurring in this situation. Won't pgmap_radix_release() still be
->> called regardless of whether this patch is applied?
+On 05/22/2018 09:46 AM, Christopher Lameter wrote:
+> On Tue, 22 May 2018, Dave Hansen wrote:
 > 
-> devm_add_action() does not call the release function,
-> devm_add_action_or_reset() does.
+>> On 05/22/2018 09:05 AM, Boaz Harrosh wrote:
+>>> How can we implement "Private memory"?
+>> Per-cpu page tables would do it.
+> We already have that for percpu subsystem. See alloc_percpu()
 
-Oh, yes. Thanks I see that now.
+I actually mean a set of page tables which is only ever installed on a
+single CPU.  The CPU is architecturally allowed to go load any PTE in
+the page tables into the TLB any time it feels like.  The only way to
+keep a PTE from getting into the TLB is not ensure that a CPU never has
+any access to it, and the only way to do that is to make sure that no
+set of page tables it ever loads into CR3 have that PTE.
 
-> Ah, true, good catch!
-> 
-> We should manually kill in the !registered case. I think this means we
-> need to pass in the custom kill routine, because for the pmem driver
-> it's blk_freeze_queue_start().
-
-It may be cleaner to just have the caller call the specific kill
-function if devm_memremap_pages fails... Though, I don't fully
-understand how the nvdimm pmem driver cleans up the percpu counter.
-
-Logan
+As Peter said, it's possible, but not pretty.
