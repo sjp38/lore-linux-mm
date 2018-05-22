@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8331E6B0008
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:49:50 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id u7-v6so12350250plq.3
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:49:50 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id bc11-v6si16081889plb.544.2018.05.22.07.49.49
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CF5176B000A
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 10:49:56 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id x21-v6so11175500pfn.23
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 07:49:56 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id e2-v6si17871248pls.579.2018.05.22.07.49.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 07:49:49 -0700 (PDT)
-Subject: [PATCH 04/11] device-dax: set page->index
+        Tue, 22 May 2018 07:49:55 -0700 (PDT)
+Subject: [PATCH 05/11] filesystem-dax: set page->index
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 22 May 2018 07:39:52 -0700
-Message-ID: <152699999266.24093.18001031234939470569.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 22 May 2018 07:39:57 -0700
+Message-ID: <152699999778.24093.18007971664703285330.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,42 +21,66 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tony.luck@intel.com
+Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tony.luck@intel.com
 
-In support of enabling memory_failure() handling for device-dax
+In support of enabling memory_failure() handling for filesystem-dax
 mappings, set ->index to the pgoff of the page. The rmap implementation
-requires ->index to bound the search through the vma interval tree.
+requires ->index to bound the search through the vma interval tree. The
+index is set and cleared at dax_associate_entry() and
+dax_disassociate_entry() time respectively.
 
-The ->index value is never cleared. There is no possibility for the
-page to become associated with another pgoff while the device is
-enabled. When the device is disabled the 'struct page' array for the
-device is destroyed and ->index is reinitialized to zero.
-
+Cc: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/dax/device.c |    4 ++++
- 1 file changed, 4 insertions(+)
+ fs/dax.c |   11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-index 8e986478d48d..b33e45ee4f70 100644
---- a/drivers/dax/device.c
-+++ b/drivers/dax/device.c
-@@ -418,7 +418,10 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
+diff --git a/fs/dax.c b/fs/dax.c
+index aaec72ded1b6..2e4682cd7c69 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -319,18 +319,22 @@ static unsigned long dax_radix_end_pfn(void *entry)
+ 	for (pfn = dax_radix_pfn(entry); \
+ 			pfn < dax_radix_end_pfn(entry); pfn++)
  
- 	if (rc == VM_FAULT_NOPAGE) {
- 		unsigned long i;
-+		pgoff_t pgoff;
+-static void dax_associate_entry(void *entry, struct address_space *mapping)
++static void dax_associate_entry(void *entry, struct address_space *mapping,
++		struct vm_area_struct *vma, unsigned long address)
+ {
+-	unsigned long pfn;
++	unsigned long size = dax_entry_size(entry), pfn, index;
++	int i = 0;
  
-+		pgoff = linear_page_index(vma, vmf->address
-+				& ~(fault_size - 1));
- 		for (i = 0; i < fault_size / PAGE_SIZE; i++) {
- 			struct page *page;
+ 	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
+ 		return;
  
-@@ -426,6 +429,7 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
- 			if (page->mapping)
- 				continue;
- 			page->mapping = filp->f_mapping;
-+			page->index = pgoff + i;
- 		}
++	index = linear_page_index(vma, address & ~(size - 1));
+ 	for_each_mapped_pfn(entry, pfn) {
+ 		struct page *page = pfn_to_page(pfn);
+ 
+ 		WARN_ON_ONCE(page->mapping);
+ 		page->mapping = mapping;
++		page->index = index + i++;
  	}
- 	dax_read_unlock(id);
+ }
+ 
+@@ -348,6 +352,7 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
+ 		WARN_ON_ONCE(trunc && page_ref_count(page) > 1);
+ 		WARN_ON_ONCE(page->mapping && page->mapping != mapping);
+ 		page->mapping = NULL;
++		page->index = 0;
+ 	}
+ }
+ 
+@@ -604,7 +609,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
+ 	new_entry = dax_radix_locked_entry(pfn, flags);
+ 	if (dax_entry_size(entry) != dax_entry_size(new_entry)) {
+ 		dax_disassociate_entry(entry, mapping, false);
+-		dax_associate_entry(new_entry, mapping);
++		dax_associate_entry(new_entry, mapping, vmf->vma, vmf->address);
+ 	}
+ 
+ 	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry)) {
