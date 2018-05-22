@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C6656B0270
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 17:45:21 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j14-v6so11830421pfn.11
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 14:45:21 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 33-v6si17906398plg.260.2018.05.22.14.45.20
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A91DA6B0272
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 18:02:04 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 76-v6so2334096pga.18
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 15:02:04 -0700 (PDT)
+Received: from esa2.hgst.iphmx.com (esa2.hgst.iphmx.com. [68.232.143.124])
+        by mx.google.com with ESMTPS id j20-v6si17571629pfa.57.2018.05.22.15.02.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 22 May 2018 14:45:20 -0700 (PDT)
-Date: Tue, 22 May 2018 14:45:17 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v6 17/17] mm: Distinguish VMalloc pages
-Message-ID: <20180522214517.GA30913@bombadil.infradead.org>
-References: <20180518194519.3820-1-willy@infradead.org>
- <20180518194519.3820-18-willy@infradead.org>
- <74e9bf39-ae17-cc00-8fca-c34b75675d49@virtuozzo.com>
- <20180522175836.GB1237@bombadil.infradead.org>
- <e8d8fd85-89a2-8e4f-24bf-b930b705bc49@virtuozzo.com>
- <20180522201958.GC1237@bombadil.infradead.org>
- <20180522134838.fe59b6e4a405fa9af9fc0487@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 May 2018 15:02:02 -0700 (PDT)
+From: Bart Van Assche <Bart.VanAssche@wdc.com>
+Subject: Re: [PATCH 00/10] Misc block layer patches for bcachefs
+Date: Tue, 22 May 2018 22:01:54 +0000
+Message-ID: <23d179b9a20859fb9dee1a20d59b9c1e6a72a854.camel@wdc.com>
+References: <20180509013358.16399-1-kent.overstreet@gmail.com>
+	 <a26feed52ec6ed371b3d3b0567e31d1ff4fc31cb.camel@wdc.com>
+	 <20180518090636.GA14738@kmo-pixel>
+	 <8f62d8f870c6b66e90d3e7f57acee481acff57f5.camel@wdc.com>
+	 <20180520221733.GA11495@kmo-pixel>
+In-Reply-To: <20180520221733.GA11495@kmo-pixel>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <DFF06B372E3DAD4AAED8ACBA0E99FAEE@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180522134838.fe59b6e4a405fa9af9fc0487@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: "kent.overstreet@gmail.com" <kent.overstreet@gmail.com>
+Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-On Tue, May 22, 2018 at 01:48:38PM -0700, Andrew Morton wrote:
-> -ENOCOMMENT ;)
-> 
-> --- a/mm/util.c~mm-distinguish-vmalloc-pages-fix-fix
-> +++ a/mm/util.c
-> @@ -512,6 +512,8 @@ struct address_space *page_mapping(struc
->  	mapping = page->mapping;
->  	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
->  		return NULL;
-> +
-> +	/* Don't trip over a vmalloc page's MAPPING_VMalloc cookie */
->  	if ((unsigned long)mapping < PAGE_SIZE)
->  		return NULL;
->  
-> It's a bit sad to put even more stuff into page_mapping() just for
-> page_types diddling.  Is this really justified?  How many people will
-> use it, and get significant benefit from it?
-
-We could leave page->mapping NULL for vmalloc pages.  We just need to
-find a spot where we can put a unique identifier.  The first word of
-the union looks like a string candidate; bit 0 is already reserved for
-PageTail.  The other users are list_head.prev, a struct page *, and
-struct dev_pagemap *, so that should work out OK.
-
-If you want to just drop this patch, I'd be OK with that.  I can always
-submit it to you again next merge window.
+T24gU3VuLCAyMDE4LTA1LTIwIGF0IDE4OjE3IC0wNDAwLCBLZW50IE92ZXJzdHJlZXQgd3JvdGU6
+DQo+IE9uIEZyaSwgTWF5IDE4LCAyMDE4IGF0IDAzOjEyOjI3UE0gKzAwMDAsIEJhcnQgVmFuIEFz
+c2NoZSB3cm90ZToNCj4gPiBPbiBGcmksIDIwMTgtMDUtMTggYXQgMDU6MDYgLTA0MDAsIEtlbnQg
+T3ZlcnN0cmVldCB3cm90ZToNCj4gPiA+IE9uIFRodSwgTWF5IDE3LCAyMDE4IGF0IDA4OjU0OjU3
+UE0gKzAwMDAsIEJhcnQgVmFuIEFzc2NoZSB3cm90ZToNCj4gPiA+ID4gV2l0aCBKZW5zJyBsYXRl
+c3QgZm9yLW5leHQgYnJhbmNoIEkgaGl0IHRoZSBrZXJuZWwgd2FybmluZyBzaG93biBiZWxvdy4g
+Q2FuDQo+ID4gPiA+IHlvdSBoYXZlIGEgbG9vaz8NCj4gPiA+IA0KPiA+ID4gQW55IGhpbnRzIG9u
+IGhvdyB0byByZXByb2R1Y2UgaXQ/DQo+ID4gDQo+ID4gU3VyZS4gVGhpcyBpcyBob3cgSSB0cmln
+Z2VyZWQgaXQ6DQo+ID4gKiBDbG9uZSBodHRwczovL2dpdGh1Yi5jb20vYnZhbmFzc2NoZS9zcnAt
+dGVzdC4NCj4gPiAqIEZvbGxvdyB0aGUgaW5zdHJ1Y3Rpb25zIGluIFJFQURNRS5tZC4NCj4gPiAq
+IFJ1biBzcnAtdGVzdC9ydW5fdGVzdHMgLWMgLXIgMTANCj4gDQo+IENhbiB5b3UgYmlzZWN0IGl0
+PyBJIGRvbid0IGhhdmUgaW5maW5pYmFuZCBoYXJkd2FyZSBoYW5keS4uLg0KDQpIZWxsbyBLZW50
+LA0KDQpUaGUgYmlzZWN0IEkgcmFuIHJlcG9ydGVkIHRoZSBmb2xsb3dpbmcgY29tbWl0IGFzIHRo
+ZSBmaXJzdCBmYXVsdHkgY29tbWl0Og0KDQpibG9jazogQWRkIHdhcm5pbmcgZm9yIGJpX25leHQg
+bm90IE5VTEwgaW4gYmlvX2VuZGlvKCkNCg0KQmFydC4NCg0KDQoNCg0KDQoNCg==
