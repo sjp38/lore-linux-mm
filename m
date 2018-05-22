@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D54C46B000A
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 06:09:54 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id m20-v6so17498891qtm.6
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 03:09:54 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0093.outbound.protection.outlook.com. [104.47.0.93])
-        by mx.google.com with ESMTPS id p21-v6si4056612qta.22.2018.05.22.03.09.53
+	by kanga.kvack.org (Postfix) with ESMTP id DE8896B0276
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 06:09:59 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id n33-v6so17498909qte.23
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 03:09:59 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30119.outbound.protection.outlook.com. [40.107.3.119])
+        by mx.google.com with ESMTPS id i1-v6si6567409qvf.174.2018.05.22.03.09.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 May 2018 03:09:53 -0700 (PDT)
-Subject: [PATCH v7 14/17] mm: Iterate only over charged shrinkers during
- memcg shrink_slab()
+        Tue, 22 May 2018 03:09:59 -0700 (PDT)
+Subject: [PATCH v7 15/17] mm: Generalize shrink_slab() calls in shrink_node()
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 22 May 2018 13:09:43 +0300
-Message-ID: <152698378300.3393.14754283083814172297.stgit@localhost.localdomain>
+Date: Tue, 22 May 2018 13:09:53 +0300
+Message-ID: <152698379298.3393.3040399931339145602.stgit@localhost.localdomain>
 In-Reply-To: <152698356466.3393.5351712806709424140.stgit@localhost.localdomain>
 References: <152698356466.3393.5351712806709424140.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -23,140 +22,83 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, ktkhai@virtuozzo.com, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-Using the preparations made in previous patches, in case of memcg
-shrink, we may avoid shrinkers, which are not set in memcg's shrinkers
-bitmap. To do that, we separate iterations over memcg-aware and
-!memcg-aware shrinkers, and memcg-aware shrinkers are chosen
-via for_each_set_bit() from the bitmap. In case of big nodes,
-having many isolated environments, this gives significant
-performance growth. See next patches for the details.
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Note, that the patch does not respect to empty memcg shrinkers,
-since we never clear the bitmap bits after we set it once.
-Their shrinkers will be called again, with no shrinked objects
-as result. This functionality is provided by next patches.
+The patch makes shrink_slab() be called for root_mem_cgroup
+in the same way as it's called for the rest of cgroups.
+This simplifies the logic and improves the readability.
 
+Signed-off-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+ktkhai: Description written.
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- mm/vmscan.c |   87 +++++++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 78 insertions(+), 9 deletions(-)
+ mm/vmscan.c |   21 ++++++---------------
+ 1 file changed, 6 insertions(+), 15 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d8a1ca350a58..f26ca1e00efb 100644
+index f26ca1e00efb..6dbc659db120 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -367,6 +367,20 @@ int prealloc_shrinker(struct shrinker *shrinker)
- 			goto free_deferred;
- 	}
- 
-+	/*
-+	 * There is a window between prealloc_shrinker()
-+	 * and register_shrinker_prepared(). We don't want
-+	 * to clear bit of a shrinker in such the state
-+	 * in shrink_slab_memcg(), since this will impose
-+	 * restrictions on a code registering a shrinker
-+	 * (they would have to guarantee, their LRU lists
-+	 * are empty till shrinker is completely registered).
-+	 * So, we differ the situation, when 1)a shrinker
-+	 * is semi-registered (id is assigned, but it has
-+	 * not yet linked to shrinker_list) and 2)shrinker
-+	 * is not registered (id is not assigned).
-+	 */
-+	INIT_LIST_HEAD(&shrinker->list);
- 	return 0;
- 
- free_deferred:
-@@ -541,6 +555,67 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	return freed;
- }
- 
-+#ifdef CONFIG_MEMCG_KMEM
-+static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
-+			struct mem_cgroup *memcg, int priority)
-+{
-+	struct memcg_shrinker_map *map;
-+	unsigned long freed = 0;
-+	int ret, i;
-+
-+	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
-+		return 0;
-+
-+	if (!down_read_trylock(&shrinker_rwsem))
-+		return 0;
-+
-+	/*
-+	 * 1) Caller passes only alive memcg, so map can't be NULL.
-+	 * 2) shrinker_rwsem protects from maps expanding.
-+	 */
-+	map = rcu_dereference_protected(memcg->nodeinfo[nid]->shrinker_map,
-+					true);
-+	BUG_ON(!map);
-+
-+	for_each_set_bit(i, map->map, shrinker_nr_max) {
-+		struct shrink_control sc = {
-+			.gfp_mask = gfp_mask,
-+			.nid = nid,
-+			.memcg = memcg,
-+		};
-+		struct shrinker *shrinker;
-+
-+		shrinker = idr_find(&shrinker_idr, i);
-+		if (unlikely(!shrinker)) {
-+			clear_bit(i, map->map);
-+			continue;
-+		}
-+		BUG_ON(!(shrinker->flags & SHRINKER_MEMCG_AWARE));
-+
-+		/* See comment in prealloc_shrinker() */
-+		if (unlikely(list_empty(&shrinker->list)))
-+			continue;
-+
-+		ret = do_shrink_slab(&sc, shrinker, priority);
-+		freed += ret;
-+
-+		if (rwsem_is_contended(&shrinker_rwsem)) {
-+			freed = freed ? : 1;
-+			break;
-+		}
-+	}
-+
-+	up_read(&shrinker_rwsem);
-+	return freed;
-+}
-+#else /* CONFIG_MEMCG_KMEM */
-+static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
-+			struct mem_cgroup *memcg, int priority)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_MEMCG_KMEM */
-+
- /**
-  * shrink_slab - shrink slab caches
-  * @gfp_mask: allocation context
-@@ -570,8 +645,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+@@ -628,10 +628,8 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+  * @nid is passed along to shrinkers with SHRINKER_NUMA_AWARE set,
+  * unaware shrinkers will receive a node id of 0 instead.
+  *
+- * @memcg specifies the memory cgroup to target. If it is not NULL,
+- * only shrinkers with SHRINKER_MEMCG_AWARE set will be called to scan
+- * objects from the memory cgroup specified. Otherwise, only unaware
+- * shrinkers are called.
++ * @memcg specifies the memory cgroup to target. Unaware shrinkers
++ * are called only if it is the root cgroup.
+  *
+  * @priority is sc->priority, we take the number of objects and >> by priority
+  * in order to get the scan target.
+@@ -645,7 +643,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
  	struct shrinker *shrinker;
  	unsigned long freed = 0;
  
--	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
--		return 0;
-+	if (memcg && !mem_cgroup_is_root(memcg))
-+		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
+-	if (memcg && !mem_cgroup_is_root(memcg))
++	if (!mem_cgroup_is_root(memcg))
+ 		return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
  
  	if (!down_read_trylock(&shrinker_rwsem))
- 		goto out;
-@@ -583,13 +658,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+@@ -658,9 +656,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
  			.memcg = memcg,
  		};
  
--		/*
--		 * If kernel memory accounting is disabled, we ignore
--		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
--		 * passing NULL for memcg.
--		 */
--		if (memcg_kmem_enabled() &&
--		    !!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
-+		if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
- 			continue;
- 
+-		if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+-			continue;
+-
  		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+ 			sc.nid = 0;
+ 
+@@ -690,6 +685,7 @@ void drop_slab_node(int nid)
+ 		struct mem_cgroup *memcg = NULL;
+ 
+ 		freed = 0;
++		memcg = mem_cgroup_iter(NULL, NULL, NULL);
+ 		do {
+ 			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
+ 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
+@@ -2709,9 +2705,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
+ 			node_lru_pages += lru_pages;
+ 
+-			if (memcg)
+-				shrink_slab(sc->gfp_mask, pgdat->node_id,
+-					    memcg, sc->priority);
++			shrink_slab(sc->gfp_mask, pgdat->node_id,
++				    memcg, sc->priority);
+ 
+ 			/* Record the group's reclaim efficiency */
+ 			vmpressure(sc->gfp_mask, memcg, false,
+@@ -2735,10 +2730,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			}
+ 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+ 
+-		if (global_reclaim(sc))
+-			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
+-				    sc->priority);
+-
+ 		if (reclaim_state) {
+ 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			reclaim_state->reclaimed_slab = 0;
