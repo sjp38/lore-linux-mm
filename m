@@ -1,58 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 60E6B6B0282
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 07:52:07 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id m15-v6so17702064qti.16
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 04:52:07 -0700 (PDT)
-Received: from mail1.bemta8.messagelabs.com (mail1.bemta8.messagelabs.com. [216.82.243.204])
-        by mx.google.com with ESMTPS id z48-v6si7053820qvg.97.2018.05.22.04.52.06
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CB9E96B0284
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 08:00:59 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 44-v6so14043628wrt.9
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 05:00:59 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id i44-v6si13847294wri.4.2018.05.22.05.00.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 04:52:06 -0700 (PDT)
-From: Huaisheng HS1 Ye <yehs1@lenovo.com>
-Subject: RE: [External]  Re: [RFC PATCH v2 10/12] mm/zsmalloc: update usage of
- address zone modifiers
-Date: Tue, 22 May 2018 11:51:52 +0000
-Message-ID: <HK2PR03MB16844D405C08B595CD682B6592940@HK2PR03MB1684.apcprd03.prod.outlook.com>
-References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
- <1526916033-4877-11-git-send-email-yehs2007@gmail.com>
- <20180522112230.GA5412@bombadil.infradead.org>
-In-Reply-To: <20180522112230.GA5412@bombadil.infradead.org>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Tue, 22 May 2018 05:00:58 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4MBwrui102862
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 08:00:57 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2j4grjnvvs-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 08:00:56 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Tue, 22 May 2018 13:00:54 +0100
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: [FIX PATCH v11 01/26] mm: introduce CONFIG_SPECULATIVE_PAGE_FAULT
+Date: Tue, 22 May 2018 14:00:43 +0200
+In-Reply-To: <b5df0b34-5c7b-6d8c-d29d-bc6fb4e51023@infradead.org>
+References: <b5df0b34-5c7b-6d8c-d29d-bc6fb4e51023@infradead.org>
+Message-Id: <1526990443-30309-1-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@suse.com" <mhocko@suse.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "kstewart@linuxfoundation.org" <kstewart@linuxfoundation.org>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, Ocean HY1 He <hehy1@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Huaisheng Ye <yehs2007@gmail.com>, Christoph Hellwig <hch@lst.de>
+To: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, sergey.senozhatsky.work@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Minchan Kim <minchan@kernel.org>, Punit Agrawal <punitagrawal@gmail.com>, vinayak menon <vinayakm.list@gmail.com>, Yang Shi <yang.shi@linux.alibaba.com>, Randy Dunlap <rdunlap@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-From: owner-linux-mm@kvack.org On Behalf Of Matthew Wilcox
->=20
-> On Mon, May 21, 2018 at 11:20:31PM +0800, Huaisheng Ye wrote:
-> > @@ -343,7 +343,7 @@ static void destroy_cache(struct zs_pool *pool)
-> >  static unsigned long cache_alloc_handle(struct zs_pool *pool, gfp_t gf=
-p)
-> >  {
-> >  	return (unsigned long)kmem_cache_alloc(pool->handle_cachep,
-> > -			gfp & ~(__GFP_HIGHMEM|__GFP_MOVABLE));
-> > +			gfp & ~__GFP_ZONE_MOVABLE);
-> >  }
->=20
-> This should be & ~GFP_ZONEMASK
->=20
-> Actually, we should probably have a function to clear those bits rather
-> than have every driver manipulating the gfp mask like this.  Maybe
->=20
-> #define gfp_normal(gfp)		((gfp) & ~GFP_ZONEMASK)
+This configuration variable will be used to build the code needed to
+handle speculative page fault.
 
-Good idea!
+By default it is turned off, and activated depending on architecture
+support, ARCH_HAS_PTE_SPECIAL, SMP and MMU.
 
->=20
-> 	return (unsigned long)kmem_cache_alloc(pool->handle_cachep,
-> -			gfp & ~(__GFP_HIGHMEM|__GFP_MOVABLE));
-> +			gfp_normal(gfp));
+The architecture support is needed since the speculative page fault handler
+is called from the architecture's page faulting code, and some code has to
+be added there to handle the speculative handler.
 
+The dependency on ARCH_HAS_PTE_SPECIAL is required because vm_normal_page()
+does processing that is not compatible with the speculative handling in the
+case ARCH_HAS_PTE_SPECIAL is not set.
 
-Sincerely,
-Huaisheng Ye
+Suggested-by: Thomas Gleixner <tglx@linutronix.de>
+Suggested-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+---
+ mm/Kconfig | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 1d0888c5b97a..d958fd8ce73a 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -761,3 +761,25 @@ config GUP_BENCHMARK
+ 
+ config ARCH_HAS_PTE_SPECIAL
+ 	bool
++
++config ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
++       def_bool n
++
++config SPECULATIVE_PAGE_FAULT
++	bool "Speculative page faults"
++	default y
++	depends on ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
++	depends on ARCH_HAS_PTE_SPECIAL && MMU && SMP
++	help
++	  Try to handle user space page faults without holding the mmap_sem.
++
++	  This should allow better concurrency for massively threaded processes
++	  since the page fault handler will not wait for other thread's memory
++	  layout change to be done, assuming that this change is done in
++	  another part of the process's memory space. This type of page fault
++	  is named speculative page fault.
++
++	  If the speculative page fault fails because a concurrent modification
++	  is detected or because underlying PMD or PTE tables are not yet
++	  allocated, the speculative page fault fails and a classic page fault
++	  is then tried.
+-- 
+2.7.4
