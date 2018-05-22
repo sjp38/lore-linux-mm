@@ -1,34 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 47DF36B0006
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 05:55:18 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id e4-v6so18441593qtp.15
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 02:55:18 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F3DE46B0007
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 05:55:19 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id t143-v6so9221845qke.18
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 02:55:19 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id y27-v6si1202307qtc.254.2018.05.22.02.55.17
+        by mx.google.com with ESMTPS id h4-v6si638756qva.43.2018.05.22.02.55.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 02:55:17 -0700 (PDT)
+        Tue, 22 May 2018 02:55:19 -0700 (PDT)
 From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1 0/2] kasan: fix memory notifier handling
-Date: Tue, 22 May 2018 11:55:13 +0200
-Message-Id: <20180522095515.2735-1-david@redhat.com>
+Subject: [PATCH v1 1/2] kasan: free allocated shadow memory on MEM_CANCEL_OFFLINE
+Date: Tue, 22 May 2018 11:55:14 +0200
+Message-Id: <20180522095515.2735-2-david@redhat.com>
+In-Reply-To: <20180522095515.2735-1-david@redhat.com>
+References: <20180522095515.2735-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>
+Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, "open list:KASAN" <kasan-dev@googlegroups.com>
 
-If onlining of pages fails, we don't properly free up memory.
-Also, the memory hotplug notifier is not registered early enough, still
-failing on certain setups where memory is detected, added and onlined
-early.
+We have to free memory again when we cancel onlining, otherwise a later
+onlining attempt will fail.
 
-David Hildenbrand (2):
-  kasan: free allocated shadow memory on MEM_CANCEL_OFFLINE
-  kasan: fix memory hotplug during boot
+Signed-off-by: David Hildenbrand <david@redhat.com>
+---
+ mm/kasan/kasan.c | 1 +
+ 1 file changed, 1 insertion(+)
 
- mm/kasan/kasan.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 135ce2838c89..8baefe1a674b 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -867,6 +867,7 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
+ 		kmemleak_ignore(ret);
+ 		return NOTIFY_OK;
+ 	}
++	case MEM_CANCEL_OFFLINE:
+ 	case MEM_OFFLINE: {
+ 		struct vm_struct *vm;
+ 
 -- 
 2.17.0
