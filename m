@@ -1,97 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A621D6B0007
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 09:28:46 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id s3-v6so11231261pfh.0
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 06:28:46 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id u13-v6si15971021plq.161.2018.05.22.06.28.44
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5791C6B0008
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 09:51:57 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id q13-v6so10484352wrj.15
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 06:51:57 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c34-v6si371107eda.167.2018.05.22.06.51.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 06:28:45 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH 2/2] mm: don't skip memory guarantee calculations
-Date: Tue, 22 May 2018 14:25:28 +0100
-Message-ID: <20180522132528.23769-2-guro@fb.com>
-In-Reply-To: <20180522132528.23769-1-guro@fb.com>
-References: <20180522132528.23769-1-guro@fb.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 22 May 2018 06:51:56 -0700 (PDT)
+Date: Tue, 22 May 2018 15:51:48 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to
+ charge to memcg
+Message-ID: <20180522135148.GA20441@dhcp22.suse.cz>
+References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: TSUKADA Koutaro <tsukada@ascade.co.jp>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-There are two cases when effective memory guarantee calculation
-is mistakenly skipped:
+On Fri 18-05-18 13:27:27, TSUKADA Koutaro wrote:
+> Thanks to Mike Kravetz for comment on the previous version patch.
 
-1) If memcg is a child of the root cgroup, and the root
-cgroup is not root_mem_cgroup (in other words, if the reclaim
-is targeted). Top-level memory cgroups are handled specially
-in mem_cgroup_protected(), because the root memory cgroup doesn't
-have memory guarantee and can't limit its children guarantees.
-So, all effective guarantee calculation is skipped.
-But in case of targeted reclaim things are different:
-cgroups, which parent exceeded its memory limit aren't special.
+I am sorry that I didn't join the discussion for the previous version
+but time just didn't allow that. So sorry if I am repeating something
+already sorted out.
 
-2) If memcg has no charged memory (memory usage is 0). In this
-case mem_cgroup_protected() always returns MEMCG_PROT_NONE, which
-is correct and prevents to generate fake memory low events for
-empty cgroups. But skipping memory emin/elow calculation is wrong:
-if there is no global memory pressure there might be no good
-chance again, so we can end up with effective guarantees set to 0
-without any reason.
+> The purpose of this patch-set is to make it possible to control whether or
+> not to charge surplus hugetlb pages obtained by overcommitting to memory
+> cgroup. In the future, I am trying to accomplish limiting the memory usage
+> of applications that use both normal pages and hugetlb pages by the memory
+> cgroup(not use the hugetlb cgroup).
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Greg Thelen <gthelen@google.com>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- mm/memcontrol.c | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+There was a deliberate decision to keep hugetlb and "normal" memory
+cgroup controllers separate. Mostly because hugetlb memory is an
+artificial memory subsystem on its own and it doesn't fit into the rest
+of memcg accounted memory very well. I believe we want to keep that
+status quo.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b9cd0bb63759..20c4f0a97d4c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5809,20 +5809,15 @@ enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
- 	if (mem_cgroup_disabled())
- 		return MEMCG_PROT_NONE;
- 
--	if (!root)
--		root = root_mem_cgroup;
--	if (memcg == root)
-+	if (memcg == root_mem_cgroup)
- 		return MEMCG_PROT_NONE;
- 
- 	usage = page_counter_read(&memcg->memory);
--	if (!usage)
--		return MEMCG_PROT_NONE;
--
- 	emin = memcg->memory.min;
- 	elow = memcg->memory.low;
- 
- 	parent = parent_mem_cgroup(memcg);
--	if (parent == root)
-+	if (parent == root_mem_cgroup)
- 		goto exit;
- 
- 	parent_emin = READ_ONCE(parent->memory.emin);
-@@ -5857,6 +5852,12 @@ enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
- 	memcg->memory.emin = emin;
- 	memcg->memory.elow = elow;
- 
-+	if (root && memcg == root)
-+		return MEMCG_PROT_NONE;
-+
-+	if (!usage)
-+		return MEMCG_PROT_NONE;
-+
- 	if (usage <= emin)
- 		return MEMCG_PROT_MIN;
- 	else if (usage <= elow)
+> Applications that use shared libraries like libhugetlbfs.so use both normal
+> pages and hugetlb pages, but we do not know how much to use each. Please
+> suppose you want to manage the memory usage of such applications by cgroup
+> How do you set the memory cgroup and hugetlb cgroup limit when you want to
+> limit memory usage to 10GB?
+
+Well such a usecase requires an explicit configuration already. Either
+by using special wrappers or modifying the code. So I would argue that
+you have quite a good knowlege of the setup. If you need a greater
+flexibility then just do not use hugetlb at all and rely on THP.
+[...]
+
+> In this patch-set, introduce the charge_surplus_huge_pages(boolean) to
+> struct hstate. If it is true, it charges to the memory cgroup to which the
+> task that obtained surplus hugepages belongs. If it is false, do nothing as
+> before, and the default value is false. The charge_surplus_huge_pages can
+> be controlled procfs or sysfs interfaces.
+
+I do not really think this is a good idea. We really do not want to make
+the current hugetlb code more complex than it is already. The current
+hugetlb cgroup controller is simple and works at least somehow. I would
+not add more on top unless there is a _really_ strong usecase behind.
+Please make sure to describe such a usecase in details before we even
+start considering the code.
+
+> Since THP is very effective in environments with kernel page size of 4KB,
+> such as x86, there is no reason to positively use HugeTLBfs, so I think
+> that there is no situation to enable charge_surplus_huge_pages. However, in
+> some distributions such as arm64, the page size of the kernel is 64KB, and
+> the size of THP is too huge as 512MB, making it difficult to use. HugeTLBfs
+> may support multiple huge page sizes, and in such a special environment
+> there is a desire to use HugeTLBfs.
+
+Well, then I would argue that you shouldn't use 64kB pages for your
+setup or allow THP for smaller sizes. Really hugetlb pages are by no
+means a substitute here.
 -- 
-2.14.3
+Michal Hocko
+SUSE Labs
