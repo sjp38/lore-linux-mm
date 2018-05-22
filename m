@@ -1,40 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E9896B0006
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 02:27:23 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id y82-v6so7827312wmb.5
-        for <linux-mm@kvack.org>; Mon, 21 May 2018 23:27:23 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id w1-v6si4626785wrk.170.2018.05.21.23.27.22
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E658C6B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 02:37:45 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id v12-v6so8821042wmc.1
+        for <linux-mm@kvack.org>; Mon, 21 May 2018 23:37:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m10-v6si1368698edc.243.2018.05.21.23.37.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 May 2018 23:27:22 -0700 (PDT)
-Date: Tue, 22 May 2018 08:32:36 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 5/5] mm, hmm: mark hmm_devmem_{add, add_resource}
-	EXPORT_SYMBOL_GPL
-Message-ID: <20180522063236.GE7925@lst.de>
-References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com> <152694214044.5484.1081005408496303826.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 May 2018 23:37:44 -0700 (PDT)
+Date: Tue, 22 May 2018 08:37:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] Add the memcg print oom info for system oom
+Message-ID: <20180522063742.GE20020@dhcp22.suse.cz>
+References: <1526540428-12178-1-git-send-email-ufo19890607@gmail.com>
+ <20180517071140.GQ12670@dhcp22.suse.cz>
+ <CAHCio2gOLnj4NpkFrxpYVygg6ZeSeuwgp2Lwr6oTHRxHpbmcWw@mail.gmail.com>
+ <20180517102330.GS12670@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1805211405300.41872@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <152694214044.5484.1081005408496303826.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <alpine.DEB.2.21.1805211405300.41872@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: =?utf-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-On Mon, May 21, 2018 at 03:35:40PM -0700, Dan Williams wrote:
-> The routines hmm_devmem_add(), and hmm_devmem_add_resource() are small
-> wrappers around devm_memremap_pages(). The devm_memremap_pages()
-> interface is a subset of the hmm functionality which has more and deeper
-> ties into the kernel memory management implementation. It was an
-> oversight that these symbols were not marked EXPORT_SYMBOL_GPL from the
-> outset due to how they originally copied (and now reuse)
-> devm_memremap_pages().
+On Mon 21-05-18 14:11:21, David Rientjes wrote:
+> On Thu, 17 May 2018, Michal Hocko wrote:
+> 
+> > this is not 5 lines at all. We dump memcg stats for the whole oom memcg
+> > subtree. For your patch it would be the whole subtree of the memcg of
+> > the oom victim. With cgroup v1 this can be quite deep as tasks can
+> > belong to inter-nodes as well. Would be
+> > 
+> > 		pr_info("Task in ");
+> > 		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
+> > 		pr_cont(" killed as a result of limit of ");
+> > 
+> > part of that output sufficient for your usecase?
+> 
+> There's no memcg to print as the limit in the above, but it does seem like 
+> the single line output is all that is needed in this case.
 
-If we end up keeping this code: absolutely.  Then again I think without
-an actual user this should have never been merged, and should be removed
-until one shows up.
+Yeah, that is exactly what I was proposing. I just copy&pasted the whole
+part to make it clear which part of mem_cgroup_print_oom_info I meant.
+Referring to "killed as a reslt of limit of" was misleading. Sorry about
+that.
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+> It might be useful to discuss a single line output that specifies relevant 
+> information about the context of the oom kill, the killed thread, and the 
+> memcg of that thread, in a way that will be backwards compatible.  The 
+> messages in the oom killer have been restructured over time, I don't 
+> believe there is a backwards compatible way to search for an oom event in 
+> the kernel log.
+
+Agreed
+ 
+> I've had success with defining a single line output the includes the 
+> CONSTRAINT_* of the oom kill, the origin and kill memcgs, the thread name, 
+> pid, and uid.  On system oom kills, origin and kill memcgs are left empty.
+> 
+> oom-kill constraint=CONSTRAINT_* origin_memcg=<memcg> kill_memcg=<memcg> task=<comm> pid=<pid> uid=<uid>
+> 
+> Perhaps we should introduce a single line output that will be backwards 
+> compatible that includes this information?
+
+I do not have a strong preference here. We already print cpuset on its
+own line and we can do the same for the memcg.
+
+-- 
+Michal Hocko
+SUSE Labs
