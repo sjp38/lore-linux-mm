@@ -1,74 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CEE656B0003
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 13:13:48 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id u137-v6so491227itc.4
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 10:13:48 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id b196-v6si14940139ioe.63.2018.05.22.10.13.47
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F3C726B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 13:25:14 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id r104-v6so15057184ota.19
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 10:25:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f127-v6sor8485126oia.177.2018.05.22.10.25.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 22 May 2018 10:13:47 -0700 (PDT)
-References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152694213486.5484.5340142369038375338.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <45b62e4b-ee9a-a2de-579f-24642bb1fbc7@deltatee.com>
-Date: Tue, 22 May 2018 11:13:41 -0600
+        (Google Transport Security);
+        Tue, 22 May 2018 10:25:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <152694213486.5484.5340142369038375338.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 4/5] mm, hmm: replace hmm_devmem_pages_create() with
- devm_memremap_pages()
+In-Reply-To: <b636aa5e-205b-4d67-09f8-230755de31b6@deltatee.com>
+References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152694212460.5484.13180030631810166467.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180521161026.709d5f2876e44f151da3d179@linux-foundation.org>
+ <CAPcyv4hMwMefMu3La+hZvN6r+Q6_N5t+eOgGE0bqVou=Cjpfwg@mail.gmail.com>
+ <860a8c46-5171-78ac-0255-ee1d21b16ce8@deltatee.com> <CAPcyv4i-MAYLsmT1M4=D_fwMNF98MupDyNBjWNmOzwY5Lzz0Lw@mail.gmail.com>
+ <b636aa5e-205b-4d67-09f8-230755de31b6@deltatee.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 22 May 2018 10:25:13 -0700
+Message-ID: <CAPcyv4ga3e0WSe4LeGbzpwj2QNU-XMezYDh54TPon6UKbhpP0Q@mail.gmail.com>
+Subject: Re: [PATCH 2/5] mm, devm_memremap_pages: handle errors allocating
+ final devres action
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Logan Gunthorpe <logang@deltatee.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable <stable@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
+On Tue, May 22, 2018 at 10:03 AM, Logan Gunthorpe <logang@deltatee.com> wrote:
+>
+>
+> On 22/05/18 10:56 AM, Dan Williams wrote:
+>> On Tue, May 22, 2018 at 9:42 AM, Logan Gunthorpe <logang@deltatee.com> wrote:
+>>> Hey Dan,
+>>>
+>>> On 21/05/18 06:07 PM, Dan Williams wrote:
+>>>> Without this change we could fail to register the teardown of
+>>>> devm_memremap_pages(). The likelihood of hitting this failure is tiny
+>>>> as small memory allocations almost always succeed. However, the impact
+>>>> of the failure is large given any future reconfiguration, or
+>>>> disable/enable, of an nvdimm namespace will fail forever as subsequent
+>>>> calls to devm_memremap_pages() will fail to setup the pgmap_radix
+>>>> since there will be stale entries for the physical address range.
+>>>
+>>> Sorry, I don't follow this. The change only seems to prevent a warning
+>>> from occurring in this situation. Won't pgmap_radix_release() still be
+>>> called regardless of whether this patch is applied?
+>>
+>> devm_add_action() does not call the release function,
+>> devm_add_action_or_reset() does.
+>
+> Oh, yes. Thanks I see that now.
+>
+>> Ah, true, good catch!
+>>
+>> We should manually kill in the !registered case. I think this means we
+>> need to pass in the custom kill routine, because for the pmem driver
+>> it's blk_freeze_queue_start().
+>
+> It may be cleaner to just have the caller call the specific kill
+> function if devm_memremap_pages fails...
 
+As far as I can see by then it's too late, or we need to expose
+release details to the caller which defeats the purpose of devm
+semantics.
 
-On 21/05/18 04:35 PM, Dan Williams wrote:
-> +	/*
-> +	 * For device private memory we call add_pages() as we only need to
-> +	 * allocate and initialize struct page for the device memory. More-
-> +	 * over the device memory is un-accessible thus we do not want to
-> +	 * create a linear mapping for the memory like arch_add_memory()
-> +	 * would do.
-> +	 *
-> +	 * For all other device memory types, which are accessible by
-> +	 * the CPU, we do want the linear mapping and thus use
-> +	 * arch_add_memory().
-> +	 */
-> +	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
-> +		error = add_pages(nid, align_start >> PAGE_SHIFT,
-> +				align_size >> PAGE_SHIFT, NULL, false);
-> +	} else {
-> +		struct zone *zone;
-> +
-> +		error = arch_add_memory(nid, align_start, align_size, altmap,
-> +				false);
-> +		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
-> +		if (!error)
-> +			move_pfn_range_to_zone(zone, align_start >> PAGE_SHIFT,
->  					align_size >> PAGE_SHIFT, altmap);
-> +	}
+> Though, I don't fully
+> understand how the nvdimm pmem driver cleans up the percpu counter.
 
-Maybe I missed it in the patch but, don't we need the same thing in
-devm_memremap_pages_release() such that it calls the correct remove
-function? Similar to the replaced hmm code:
-
-> -	mem_hotplug_begin();
-> -	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
-> -		__remove_pages(zone, start_pfn, npages, NULL);
-> -	else
-> -		arch_remove_memory(start_pfn << PAGE_SHIFT,
-> -				   npages << PAGE_SHIFT, NULL);
-> -	mem_hotplug_done();
-> -
-> -	hmm_devmem_radix_release(resource);
-
-Perhaps it should be a separate patch too as it would be easier to see
-outside the big removal of HMM code.
-
-Logan
+The dev_pagemap setup for pmem is entirely too subtle and arguably a
+layering violation as it reuses the block layer q_usage_counter
+percpu_ref. We arrange for that counter to be shutdown before the
+blk_cleanup_queue() does the same.
