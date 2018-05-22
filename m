@@ -1,74 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C2F416B026A
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 17:39:47 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id a6-v6so12799404pll.22
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 14:39:47 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a3-v6si16588527pff.43.2018.05.22.14.39.46
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EF2516B026C
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 17:39:58 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e20-v6so11931791pff.14
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 14:39:58 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id u62-v6si13113005pgc.180.2018.05.22.14.39.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 14:39:46 -0700 (PDT)
-Date: Tue, 22 May 2018 14:39:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: fix race between kmem_cache destroy, create and
- deactivate
-Message-Id: <20180522143945.f8a925d15d34615c87fb9c50@linux-foundation.org>
-In-Reply-To: <201805230558.T1nJMRRH%fengguang.wu@intel.com>
-References: <20180521174116.171846-1-shakeelb@google.com>
-	<201805230558.T1nJMRRH%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 22 May 2018 14:39:58 -0700 (PDT)
+Date: Tue, 22 May 2018 15:39:55 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v11 53/63] dax: Rename some functions
+Message-ID: <20180522213955.GB12733@linux.intel.com>
+References: <20180414141316.7167-1-willy@infradead.org>
+ <20180414141316.7167-54-willy@infradead.org>
+ <20180521044236.GC27043@linux.intel.com>
+ <20180521101139.GA20878@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180521101139.GA20878@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: Shakeel Butt <shakeelb@google.com>, kbuild-all@01.org, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, Linux MM <linux-mm@kvack.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Wed, 23 May 2018 05:14:36 +0800 kbuild test robot <lkp@intel.com> wrote:
+On Mon, May 21, 2018 at 03:11:39AM -0700, Matthew Wilcox wrote:
+> On Sun, May 20, 2018 at 10:42:36PM -0600, Ross Zwisler wrote:
 
-> Thank you for the patch! Yet something to improve:
+> > > @@ -1519,15 +1517,14 @@ int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+> > >  }
+> > >  EXPORT_SYMBOL_GPL(dax_iomap_fault);
+> > >  
+> > > -/**
+> > > +/*
+> > 
+> > Let's leave the double ** so that the function is picked up properly by
+> > the documentation system, and so it's consistent with the rest of the
+> > functions.
 > 
-> [auto build test ERROR on mmotm/master]
-> [also build test ERROR on v4.17-rc6 next-20180517]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> 
-> url:    https://github.com/0day-ci/linux/commits/Shakeel-Butt/mm-fix-race-between-kmem_cache-destroy-create-and-deactivate/20180523-041715
-> base:   git://git.cmpxchg.org/linux-mmotm.git master
-> config: i386-randconfig-x009-201820 (attached as .config)
-> compiler: gcc-7 (Debian 7.3.0-16) 7.3.0
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=i386 
-> 
-> All errors (new ones prefixed by >>):
-> 
->    mm/slub.c: In function '__kmem_cache_alias':
-> >> mm/slub.c:4251:4: error: implicit declaration of function 'kmem_cache_put_locked'; did you mean 'kmem_cache_init_late'? [-Werror=implicit-function-declaration]
->        kmem_cache_put_locked(s);
->        ^~~~~~~~~~~~~~~~~~~~~
->        kmem_cache_init_late
->    cc1: some warnings being treated as errors
+> This function is static.  I think it's worth keeping the documentation,
+> but making it part of the exported kernel API documentation is confusing.
 
-Thanks.
+Ah, fair enough.
 
---- a/mm/slab.h~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate-v2-fix
-+++ a/mm/slab.h
-@@ -204,6 +204,8 @@ ssize_t slabinfo_write(struct file *file
- void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
- int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
- 
-+extern void kmem_cache_put_locked(struct kmem_cache *s);
-+
- #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
- 
- /* List of all root caches. */
-@@ -296,7 +298,6 @@ extern void slab_init_memcg_params(struc
- extern void memcg_link_cache(struct kmem_cache *s);
- extern void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
- 				void (*deact_fn)(struct kmem_cache *));
--extern void kmem_cache_put_locked(struct kmem_cache *s);
- #else /* CONFIG_MEMCG && !CONFIG_SLOB */
- 
- /* If !memcg, all caches are root. */
-_
+> By the way, nothing at all in fs/dax.c is picked up by the documentation
+> system today.  We should probably fix that ... did you want to look at it
+> or shall I propose a patch to anchor it somewhere?
+
+If you have time for it that would be awesome.
