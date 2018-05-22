@@ -1,101 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AAA546B0003
-	for <linux-mm@kvack.org>; Tue, 22 May 2018 16:36:00 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id w201-v6so13940029qkb.16
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 13:36:00 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id 66-v6si2878191qva.214.2018.05.22.13.35.59
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DED66B0003
+	for <linux-mm@kvack.org>; Tue, 22 May 2018 16:48:41 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id q16-v6so12844775pls.15
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 13:48:41 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d15-v6si18233767pln.533.2018.05.22.13.48.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 13:35:59 -0700 (PDT)
-Subject: Re: [PATCH v2 3/4] mm: add find_alloc_contig_pages() interface
-References: <20180503232935.22539-1-mike.kravetz@oracle.com>
- <20180503232935.22539-4-mike.kravetz@oracle.com>
- <eaa40ac0-365b-fd27-e096-b171ed28888f@suse.cz>
- <57dfd52c-22a5-5546-f8f3-848f21710cc1@oracle.com>
- <c7972da1-a908-7550-7253-9de9a963174c@intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <652bb498-8393-4738-a987-9bed31786261@oracle.com>
-Date: Tue, 22 May 2018 13:35:49 -0700
-MIME-Version: 1.0
-In-Reply-To: <c7972da1-a908-7550-7253-9de9a963174c@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        Tue, 22 May 2018 13:48:40 -0700 (PDT)
+Date: Tue, 22 May 2018 13:48:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v6 17/17] mm: Distinguish VMalloc pages
+Message-Id: <20180522134838.fe59b6e4a405fa9af9fc0487@linux-foundation.org>
+In-Reply-To: <20180522201958.GC1237@bombadil.infradead.org>
+References: <20180518194519.3820-1-willy@infradead.org>
+	<20180518194519.3820-18-willy@infradead.org>
+	<74e9bf39-ae17-cc00-8fca-c34b75675d49@virtuozzo.com>
+	<20180522175836.GB1237@bombadil.infradead.org>
+	<e8d8fd85-89a2-8e4f-24bf-b930b705bc49@virtuozzo.com>
+	<20180522201958.GC1237@bombadil.infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reinette Chatre <reinette.chatre@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>
 
-On 05/22/2018 09:41 AM, Reinette Chatre wrote:
-> On 5/21/2018 4:48 PM, Mike Kravetz wrote:
->> On 05/21/2018 01:54 AM, Vlastimil Babka wrote:
->>> On 05/04/2018 01:29 AM, Mike Kravetz wrote:
->>>> +/**
->>>> + * find_alloc_contig_pages() -- attempt to find and allocate a contiguous
->>>> + *				range of pages
->>>> + * @nr_pages:	number of pages to find/allocate
->>>> + * @gfp:	gfp mask used to limit search as well as during compaction
->>>> + * @nid:	target node
->>>> + * @nodemask:	mask of other possible nodes
->>>> + *
->>>> + * Pages can be freed with a call to free_contig_pages(), or by manually
->>>> + * calling __free_page() for each page allocated.
->>>> + *
->>>> + * Return: pointer to 'order' pages on success, or NULL if not successful.
->>>> + */
->>>> +struct page *find_alloc_contig_pages(unsigned long nr_pages, gfp_t gfp,
->>>> +					int nid, nodemask_t *nodemask)
->>>> +{
->>>> +	unsigned long i, alloc_order, order_pages;
->>>> +	struct page *pages;
->>>> +
->>>> +	/*
->>>> +	 * Underlying allocators perform page order sized allocations.
->>>> +	 */
->>>> +	alloc_order = get_count_order(nr_pages);
->>>
->>> So if takes arbitrary nr_pages but convert it to order anyway? I think
->>> that's rather suboptimal and wasteful... e.g. a range could be skipped
->>> because some of the pages added by rounding cannot be migrated away.
->>
->> Yes.  My idea with this series was to use existing allocators which are
->> all order based.  Let me think about how to do allocation for arbitrary
->> number of allocations.
->> - For less than MAX_ORDER size we rely on the buddy allocator, so we are
->>   pretty much stuck with order sized allocation.  However, allocations of
->>   this size are not really interesting as you can call existing routines
->>   directly.
->> - For sizes greater than MAX_ORDER, we know that the allocation size will
->>   be at least pageblock sized.  So, the isolate/migrate scheme can still
->>   be used for full pageblocks.  We can then use direct migration for the
->>   remaining pages.  This does complicate things a bit.
->>
->> I'm guessing that most (?all?) allocations will be order based.  The use
->> cases I am aware of (hugetlbfs, Intel Cache Pseudo-Locking, RDMA) are all
->> order based.  However, as commented in previous version taking arbitrary
->> nr_pages makes interface more future proof.
->>
+On Tue, 22 May 2018 13:19:58 -0700 Matthew Wilcox <willy@infradead.org> wrote:
+
+> On Tue, May 22, 2018 at 10:57:34PM +0300, Andrey Ryabinin wrote:
+> > On 05/22/2018 08:58 PM, Matthew Wilcox wrote:
+> > > On Tue, May 22, 2018 at 07:10:52PM +0300, Andrey Ryabinin wrote:
+> > >> On 05/18/2018 10:45 PM, Matthew Wilcox wrote:
+> > >>> From: Matthew Wilcox <mawilcox@microsoft.com>
+> > >>>
+> > >>> For diagnosing various performance and memory-leak problems, it is helpful
+> > >>> to be able to distinguish pages which are in use as VMalloc pages.
+> > >>> Unfortunately, we cannot use the page_type field in struct page, as
+> > >>> this is in use for mapcount by some drivers which map vmalloced pages
+> > >>> to userspace.
+> > >>>
+> > >>> Use a special page->mapping value to distinguish VMalloc pages from
+> > >>> other kinds of pages.  Also record a pointer to the vm_struct and the
+> > >>> offset within the area in struct page to help reconstruct exactly what
+> > >>> this page is being used for.
+> > >>
+> > >> This seems useless. page->vm_area and page->vm_offset are never used.
+> > >> There are no follow up patches which use this new information 'For diagnosing various performance and memory-leak problems',
+> > >> and no explanation how is it can be used in current form.
+> > > 
+> > > Right now, it's by-hand.  tools/vm/page-types.c will tell you which pages
+> > > are allocated to VMalloc.  Many people use kernel debuggers, crashdumps
+> > > and similar to examine the kernel's memory.  Leaving these breadcrumbs
+> > > is helpful, and those fields simply weren't in use before.
+> > > 
+> > >> Also, this patch breaks code like this:
+> > >> 	if (mapping = page_mapping(page))
+> > >> 		// access mapping
+> > > 
+> > > Example of broken code, please?  Pages allocated from the page allocator
+> > > with alloc_page() come with page->mapping == NULL.  This code snippet
+> > > would not have granted access to vmalloc pages before.
+> > > 
+> > 
+> > Some implementation of the flush_dcache_page(), also set_page_dirty() can be called
+> > on userspace-mapped vmalloc pages during unmap - zap_pte_range() -> set_page_dirty()
 > 
-> I noticed this Cache Pseudo-Locking statement and would like to clarify.
-> I have not been following this thread in detail so I would like to
-> apologize first if my comments are out of context.
+> Ah, good catch!  I'm anticipating we'll have other special values for
+> page->mapping in the future. so how about this?
 > 
-> Currently the Cache Pseudo-Locking allocations are order based because I
-> assumed it was required by the allocator. The contiguous regions needed
-> by Cache Pseudo-Locking will not always be order based - instead it is
-> based on the granularity of the cache allocation. One example is a
-> platform with 55MB L3 cache that can be divided into 20 equal portions.
-> To support Cache Pseudo-Locking on this platform we need to be able to
-> allocate contiguous regions at increments of 2816KB (the size of each
-> portion). In support of this example platform regions needed would thus
-> be 2816KB, 5632KB, 8448KB, etc.
+> (no changelog because I assume Andrew will add this as a -fix patch)
 
-Thank you Reinette.  I was not aware of these details.  Yours is the most
-concrete new use case.
+I give the -fix patches a single-line summary in the final rollup.
 
-This certainly makes more of a case for arbitrary sized allocations.
+> diff --git a/mm/util.c b/mm/util.c
+> index 10ca6f1d5c75..be81c9052ef7 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -561,6 +561,8 @@ struct address_space *page_mapping(struct page *page)
+>  	mapping = page->mapping;
+>  	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+>  		return NULL;
+> +	if ((unsigned long)mapping < PAGE_SIZE)
+> +		return NULL;
+>  
+>  	return (void *)((unsigned long)mapping & ~PAGE_MAPPING_FLAGS);
+>  }
 
--- 
-Mike Kravetz
+-ENOCOMMENT ;)
+
+--- a/mm/util.c~mm-distinguish-vmalloc-pages-fix-fix
++++ a/mm/util.c
+@@ -512,6 +512,8 @@ struct address_space *page_mapping(struc
+ 	mapping = page->mapping;
+ 	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+ 		return NULL;
++
++	/* Don't trip over a vmalloc page's MAPPING_VMalloc cookie */
+ 	if ((unsigned long)mapping < PAGE_SIZE)
+ 		return NULL;
+ 
+It's a bit sad to put even more stuff into page_mapping() just for
+page_types diddling.  Is this really justified?  How many people will
+use it, and get significant benefit from it?
