@@ -1,41 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CB0B6B0287
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 11:48:49 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id c82-v6so2880702itg.1
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 08:48:49 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id 5-v6si16737432ioy.96.2018.05.23.08.48.47
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7526A6B0286
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 11:55:15 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id t1-v6so17307883oth.3
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 08:55:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 20-v6sor10041125otf.60.2018.05.23.08.55.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 23 May 2018 08:48:48 -0700 (PDT)
-References: <152705221686.21414.771870778478134768.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152705223910.21414.17294372359464462569.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <40d702a1-1664-6556-ab64-e188f0733675@deltatee.com>
-Date: Wed, 23 May 2018 09:48:42 -0600
+        (Google Transport Security);
+        Wed, 23 May 2018 08:55:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <152705223910.21414.17294372359464462569.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH v2 4/7] mm, devm_memremap_pages: Add MEMORY_DEVICE_PRIVATE
- support
+In-Reply-To: <8f0cae82-130f-8a64-cfbd-fda5fd76bb79@deltatee.com>
+References: <152705221686.21414.771870778478134768.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152705223396.21414.13388289577013917472.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <8f0cae82-130f-8a64-cfbd-fda5fd76bb79@deltatee.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 23 May 2018 08:55:13 -0700
+Message-ID: <CAPcyv4jBq9BDXcidvR10YO_pb0uQNVK_qPZ=x=k9kDRtaB2few@mail.gmail.com>
+Subject: Re: [PATCH v2 3/7] mm, devm_memremap_pages: Fix shutdown handling
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Logan Gunthorpe <logang@deltatee.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable <stable@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
+On Wed, May 23, 2018 at 8:47 AM, Logan Gunthorpe <logang@deltatee.com> wrote:
+>
+>
+> On 22/05/18 11:10 PM, Dan Williams wrote:
+>> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+>> index 7b4899c06f49..b5e894133cf6 100644
+>> --- a/include/linux/memremap.h
+>> +++ b/include/linux/memremap.h
+>> @@ -106,6 +106,7 @@ typedef void (*dev_page_free_t)(struct page *page, void *data);
+>>   * @altmap: pre-allocated/reserved memory for vmemmap allocations
+>>   * @res: physical address range covered by @ref
+>>   * @ref: reference count that pins the devm_memremap_pages() mapping
+>> + * @kill: callback to transition @ref to the dead state
+>>   * @dev: host device of the mapping for debug
+>>   * @data: private data pointer for page_free()
+>>   * @type: memory type: see MEMORY_* in memory_hotplug.h
+>> @@ -117,13 +118,15 @@ struct dev_pagemap {
+>>       bool altmap_valid;
+>>       struct resource res;
+>>       struct percpu_ref *ref;
+>> +     void (*kill)(struct percpu_ref *ref);
+>>       struct device *dev;
+>>       void *data;
+>>       enum memory_type type;
+>>  };
+>>
+>>  #ifdef CONFIG_ZONE_DEVICE
+>> -void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap);
+>> +void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap,
+>> +             void (*kill)(struct percpu_ref *));
+>
+>
+> It seems redundant to me to have the kill pointer both passed in as an
+> argument and passed in as part of pgmap... Why not just expect the user
+> to set it in the *pgmap that's passed in just like we expect ref to be
+> set ahead of time?
 
+I did this for grep-ability. Now you can grep for all
+devm_memremap_pages and see the associated teardown actions,
+everything else in pgmap is data. I'm not opposed to just requiring it
+to be passed in with the pgmap, but I thought removing a step for
+someone trying to grep through the code flow was worth it. Yes, not
+the strongest argument, so if folks feel it adds too much clutter we
+can switch it.
 
-On 22/05/18 11:10 PM, Dan Williams wrote:
-> In preparation for consolidating all ZONE_DEVICE enabling via
-> devm_memremap_pages(), teach it how to handle the constraints of
-> MEMORY_DEVICE_PRIVATE ranges.
-> 
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-> Reported-by: Logan Gunthorpe <logang@deltatee.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> Another thought (that may be too forward looking) is to pass the
+> dev_pagemap struct to the kill function instead of the reference. That
+> way, if some future user wants to do something extra on kill they can
+> use container_of() to get extra context to work with.
 
-Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
+We can cross that bridge if it comes to it, but as it stands being
+able to get the container of the reference count seems to be enough
+for all users.
