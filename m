@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 00E366B026F
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:44:40 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c187-v6so13275810pfa.20
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:44:39 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CB6376B0270
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:44:42 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id b31-v6so14397019plb.5
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:44:42 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d12-v6si19415599plo.551.2018.05.23.07.44.38
+        by mx.google.com with ESMTPS id 34-v6si18648755plc.346.2018.05.23.07.44.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 23 May 2018 07:44:38 -0700 (PDT)
+        Wed, 23 May 2018 07:44:41 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 12/34] iomap: use __bio_add_page in iomap_dio_zero
-Date: Wed, 23 May 2018 16:43:35 +0200
-Message-Id: <20180523144357.18985-13-hch@lst.de>
+Subject: [PATCH 13/34] iomap: add a iomap_sector helper
+Date: Wed, 23 May 2018 16:43:36 +0200
+Message-Id: <20180523144357.18985-14-hch@lst.de>
 In-Reply-To: <20180523144357.18985-1-hch@lst.de>
 References: <20180523144357.18985-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,27 +20,64 @@ List-ID: <linux-mm.kvack.org>
 To: linux-xfs@vger.kernel.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-We don't need any merging logic, and this also replaces a BUG_ON with a
-WARN_ON_ONCE inside __bio_add_page for the impossible overflow condition.
+Factor the repeated calculation of the on-disk sector for a given logical
+block into a littler helper.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/iomap.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ fs/iomap.c | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 
 diff --git a/fs/iomap.c b/fs/iomap.c
-index f52209a2c270..8e28f25f086f 100644
+index 8e28f25f086f..f928df4ab9a9 100644
 --- a/fs/iomap.c
 +++ b/fs/iomap.c
-@@ -949,8 +949,7 @@ iomap_dio_zero(struct iomap_dio *dio, struct iomap *iomap, loff_t pos,
+@@ -97,6 +97,12 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
+ 	return written ? written : ret;
+ }
+ 
++static sector_t
++iomap_sector(struct iomap *iomap, loff_t pos)
++{
++	return (iomap->addr + pos - iomap->offset) >> SECTOR_SHIFT;
++}
++
+ static void
+ iomap_write_failed(struct inode *inode, loff_t pos, unsigned len)
+ {
+@@ -354,11 +360,8 @@ static int iomap_zero(struct inode *inode, loff_t pos, unsigned offset,
+ static int iomap_dax_zero(loff_t pos, unsigned offset, unsigned bytes,
+ 		struct iomap *iomap)
+ {
+-	sector_t sector = (iomap->addr +
+-			   (pos & PAGE_MASK) - iomap->offset) >> 9;
+-
+-	return __dax_zero_page_range(iomap->bdev, iomap->dax_dev, sector,
+-			offset, bytes);
++	return __dax_zero_page_range(iomap->bdev, iomap->dax_dev,
++			iomap_sector(iomap, pos & PAGE_MASK), offset, bytes);
+ }
+ 
+ static loff_t
+@@ -943,8 +946,7 @@ iomap_dio_zero(struct iomap_dio *dio, struct iomap *iomap, loff_t pos,
+ 
+ 	bio = bio_alloc(GFP_KERNEL, 1);
+ 	bio_set_dev(bio, iomap->bdev);
+-	bio->bi_iter.bi_sector =
+-		(iomap->addr + pos - iomap->offset) >> 9;
++	bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
+ 	bio->bi_private = dio;
  	bio->bi_end_io = iomap_dio_bio_end_io;
  
- 	get_page(page);
--	if (bio_add_page(bio, page, len, 0) != len)
--		BUG();
-+	__bio_add_page(bio, page, len, 0);
- 	bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_SYNC | REQ_IDLE);
+@@ -1038,8 +1040,7 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
  
- 	atomic_inc(&dio->ref);
+ 		bio = bio_alloc(GFP_KERNEL, nr_pages);
+ 		bio_set_dev(bio, iomap->bdev);
+-		bio->bi_iter.bi_sector =
+-			(iomap->addr + pos - iomap->offset) >> 9;
++		bio->bi_iter.bi_sector = iomap_sector(iomap, pos);
+ 		bio->bi_write_hint = dio->iocb->ki_hint;
+ 		bio->bi_private = dio;
+ 		bio->bi_end_io = iomap_dio_bio_end_io;
 -- 
 2.17.0
