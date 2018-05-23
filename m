@@ -1,42 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B2FA6B0269
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 09:15:02 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id d5-v6so20900115qtg.17
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 06:15:02 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id m4-v6si9593942qtf.368.2018.05.23.06.15.01
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 78B466B0007
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 09:15:51 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id e15-v6so2448928wmh.6
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 06:15:51 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id a5-v6si4343657eds.122.2018.05.23.06.15.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 06:15:01 -0700 (PDT)
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w4NDBDq9108911
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 13:15:01 GMT
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2130.oracle.com with ESMTP id 2j4nh7bvsm-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 13:15:01 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w4NDF0w2020304
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 13:15:00 GMT
-Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id w4NDExaN016731
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 13:15:00 GMT
-Received: by mail-ot0-f170.google.com with SMTP id l12-v6so25123527oth.6
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 06:14:59 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 23 May 2018 06:15:50 -0700 (PDT)
+Date: Wed, 23 May 2018 09:17:47 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 6/7] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180523131747.GA4086@cmpxchg.org>
+References: <20180507210135.1823-1-hannes@cmpxchg.org>
+ <20180507210135.1823-7-hannes@cmpxchg.org>
+ <87060553-2e09-2e2a-13a2-a91345d6df30@codeaurora.org>
 MIME-Version: 1.0
-References: <20180523125555.30039-1-mhocko@kernel.org> <20180523125555.30039-3-mhocko@kernel.org>
-In-Reply-To: <20180523125555.30039-3-mhocko@kernel.org>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Wed, 23 May 2018 09:14:23 -0400
-Message-ID: <CAGM2reZLSpad28EbrqLLoXHC_F9y=XTF08wQ59iUPaREbq5sgw@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: do not warn on offline nodes unless the specific
- node is explicitly requested
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87060553-2e09-2e2a-13a2-a91345d6df30@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, osalvador@techadventures.net, Vlastimil Babka <vbabka@suse.cz>, arbab@linux.vnet.ibm.com, imammedo@redhat.com, vkuznets@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+On Wed, May 09, 2018 at 04:33:24PM +0530, Vinayak Menon wrote:
+> On 5/8/2018 2:31 AM, Johannes Weiner wrote:
+> > +	/* Kick the stats aggregation worker if it's gone to sleep */
+> > +	if (!delayed_work_pending(&group->clock_work))
+> 
+> This causes a crash when the work is scheduled before system_wq is up. In my case when the first
+> schedule was called from kthreadd. And I had to do this to make it work.
+> if (keventd_up() && !delayed_work_pending(&group->clock_work))
+>
+> > +		schedule_delayed_work(&group->clock_work, MY_LOAD_FREQ);
+
+I was trying to figure out how this is possible, and it didn't make
+sense because we do initialize the system_wq way before kthreadd.
+
+Did you by any chance backport this to a pre-4.10 kernel which does
+not have 3347fa092821 ("workqueue: make workqueue available early
+during boot") yet?
+
+> > +void psi_task_change(struct task_struct *task, u64 now, int clear, int set)
+> > +{
+> > +	struct cgroup *cgroup, *parent;
+> 
+> unused variables
+
+They're used in the next patch, I'll fix that up.
+
+Thanks
