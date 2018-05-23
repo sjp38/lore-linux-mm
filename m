@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B49666B0278
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:45:05 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id j1-v6so1839380pll.7
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:45:05 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FE366B027A
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:45:07 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x21-v6so13086629pfn.23
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:45:07 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c21-v6si1933910plz.190.2018.05.23.07.45.04
+        by mx.google.com with ESMTPS id t12-v6si15157653pgr.690.2018.05.23.07.45.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 23 May 2018 07:45:04 -0700 (PDT)
+        Wed, 23 May 2018 07:45:06 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 19/34] xfs: simplify xfs_bmap_punch_delalloc_range
-Date: Wed, 23 May 2018 16:43:42 +0200
-Message-Id: <20180523144357.18985-20-hch@lst.de>
+Subject: [PATCH 20/34] xfs: simplify xfs_aops_discard_page
+Date: Wed, 23 May 2018 16:43:43 +0200
+Message-Id: <20180523144357.18985-21-hch@lst.de>
 In-Reply-To: <20180523144357.18985-1-hch@lst.de>
 References: <20180523144357.18985-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,121 +20,137 @@ List-ID: <linux-mm.kvack.org>
 To: linux-xfs@vger.kernel.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Instead of using xfs_bmapi_read to find delalloc extents and then punch
-them out using xfs_bunmapi, opencode the loop to iterate over the extents
-and call xfs_bmap_del_extent_delay directly.  This both simplifies the
-code and reduces the number of extent tree lookups required.
+Instead of looking at the buffer heads to see if a block is delalloc just
+call xfs_bmap_punch_delalloc_range on the whole page - this will leave
+any non-delalloc block intact and handle the iteration for us.  As a side
+effect one more place stops caring about buffer heads and we can remove the
+xfs_check_page_type function entirely.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/xfs/xfs_bmap_util.c | 78 ++++++++++++++----------------------------
- 1 file changed, 25 insertions(+), 53 deletions(-)
+ fs/xfs/xfs_aops.c | 85 +++++------------------------------------------
+ 1 file changed, 9 insertions(+), 76 deletions(-)
 
-diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
-index 06badcbadeb4..c009bdf9fdce 100644
---- a/fs/xfs/xfs_bmap_util.c
-+++ b/fs/xfs/xfs_bmap_util.c
-@@ -695,12 +695,10 @@ xfs_getbmap(
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index c631c457b444..f2333e351e07 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -711,49 +711,6 @@ xfs_map_at_offset(
+ 	clear_buffer_unwritten(bh);
  }
  
- /*
-- * dead simple method of punching delalyed allocation blocks from a range in
-- * the inode. Walks a block at a time so will be slow, but is only executed in
-- * rare error cases so the overhead is not critical. This will always punch out
-- * both the start and end blocks, even if the ranges only partially overlap
-- * them, so it is up to the caller to ensure that partial blocks are not
-- * passed in.
-+ * Dead simple method of punching delalyed allocation blocks from a range in
-+ * the inode.  This will always punch out both the start and end blocks, even
-+ * if the ranges only partially overlap them, so it is up to the caller to
-+ * ensure that partial blocks are not passed in.
-  */
- int
- xfs_bmap_punch_delalloc_range(
-@@ -708,63 +706,37 @@ xfs_bmap_punch_delalloc_range(
- 	xfs_fileoff_t		start_fsb,
- 	xfs_fileoff_t		length)
- {
--	xfs_fileoff_t		remaining = length;
-+	struct xfs_ifork	*ifp = &ip->i_df;
-+	struct xfs_bmbt_irec	got, del;
-+	struct xfs_iext_cursor	icur;
- 	int			error = 0;
- 
- 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
- 
+-/*
+- * Test if a given page contains at least one buffer of a given @type.
+- * If @check_all_buffers is true, then we walk all the buffers in the page to
+- * try to find one of the type passed in. If it is not set, then the caller only
+- * needs to check the first buffer on the page for a match.
+- */
+-STATIC bool
+-xfs_check_page_type(
+-	struct page		*page,
+-	unsigned int		type,
+-	bool			check_all_buffers)
+-{
+-	struct buffer_head	*bh;
+-	struct buffer_head	*head;
+-
+-	if (PageWriteback(page))
+-		return false;
+-	if (!page->mapping)
+-		return false;
+-	if (!page_has_buffers(page))
+-		return false;
+-
+-	bh = head = page_buffers(page);
 -	do {
--		int		done;
--		xfs_bmbt_irec_t	imap;
--		int		nimaps = 1;
--		xfs_fsblock_t	firstblock;
--		struct xfs_defer_ops dfops;
-+	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-+		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
-+		if (error)
-+			return error;
-+	}
+-		if (buffer_unwritten(bh)) {
+-			if (type == XFS_IO_UNWRITTEN)
+-				return true;
+-		} else if (buffer_delay(bh)) {
+-			if (type == XFS_IO_DELALLOC)
+-				return true;
+-		} else if (buffer_dirty(bh) && buffer_mapped(bh)) {
+-			if (type == XFS_IO_OVERWRITE)
+-				return true;
+-		}
+-
+-		/* If we are only checking the first buffer, we are done now. */
+-		if (!check_all_buffers)
+-			break;
+-	} while ((bh = bh->b_this_page) != head);
+-
+-	return false;
+-}
+-
+ STATIC void
+ xfs_vm_invalidatepage(
+ 	struct page		*page,
+@@ -785,9 +742,6 @@ xfs_vm_invalidatepage(
+  * transaction. Indeed - if we get ENOSPC errors, we have to be able to do this
+  * truncation without a transaction as there is no space left for block
+  * reservation (typically why we see a ENOSPC in writeback).
+- *
+- * This is not a performance critical path, so for now just do the punching a
+- * buffer head at a time.
+  */
+ STATIC void
+ xfs_aops_discard_page(
+@@ -795,47 +749,26 @@ xfs_aops_discard_page(
+ {
+ 	struct inode		*inode = page->mapping->host;
+ 	struct xfs_inode	*ip = XFS_I(inode);
+-	struct buffer_head	*bh, *head;
++	struct xfs_mount	*mp = ip->i_mount;
+ 	loff_t			offset = page_offset(page);
++	xfs_fileoff_t		start_fsb = XFS_B_TO_FSBT(mp, offset);
++	int			error;
  
--		/*
--		 * Map the range first and check that it is a delalloc extent
--		 * before trying to unmap the range. Otherwise we will be
--		 * trying to remove a real extent (which requires a
--		 * transaction) or a hole, which is probably a bad idea...
--		 */
--		error = xfs_bmapi_read(ip, start_fsb, 1, &imap, &nimaps,
--				       XFS_BMAPI_ENTIRE);
-+	if (!xfs_iext_lookup_extent(ip, ifp, start_fsb, &icur, &got))
-+		return 0;
+-	if (!xfs_check_page_type(page, XFS_IO_DELALLOC, true))
+-		goto out_invalidate;
+-
+-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
++	if (XFS_FORCED_SHUTDOWN(mp))
+ 		goto out_invalidate;
  
+-	xfs_alert(ip->i_mount,
++	xfs_alert(mp,
+ 		"page discard on page "PTR_FMT", inode 0x%llx, offset %llu.",
+ 			page, ip->i_ino, offset);
+ 
+ 	xfs_ilock(ip, XFS_ILOCK_EXCL);
+-	bh = head = page_buffers(page);
+-	do {
+-		int		error;
+-		xfs_fileoff_t	start_fsb;
+-
+-		if (!buffer_delay(bh))
+-			goto next_buffer;
+-
+-		start_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
+-		error = xfs_bmap_punch_delalloc_range(ip, start_fsb, 1);
 -		if (error) {
 -			/* something screwed, just bail */
 -			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 -				xfs_alert(ip->i_mount,
--			"Failed delalloc mapping lookup ino %lld fsb %lld.",
--						ip->i_ino, start_fsb);
+-			"page discard unable to remove delalloc mapping.");
 -			}
-+	do {
-+		if (got.br_startoff >= start_fsb + length)
- 			break;
+-			break;
 -		}
--		if (!nimaps) {
--			/* nothing there */
--			goto next_block;
--		}
--		if (imap.br_startblock != DELAYSTARTBLOCK) {
--			/* been converted, ignore */
--			goto next_block;
--		}
--		WARN_ON(imap.br_blockcount == 0);
-+		if (!isnullstartblock(got.br_startblock))
-+			continue;
- 
--		/*
--		 * Note: while we initialise the firstblock/dfops pair, they
--		 * should never be used because blocks should never be
--		 * allocated or freed for a delalloc extent and hence we need
--		 * don't cancel or finish them after the xfs_bunmapi() call.
--		 */
--		xfs_defer_init(&dfops, &firstblock);
--		error = xfs_bunmapi(NULL, ip, start_fsb, 1, 0, 1, &firstblock,
--					&dfops, &done);
-+		del = got;
-+		xfs_trim_extent(&del, start_fsb, length);
-+		error = xfs_bmap_del_extent_delay(ip, XFS_DATA_FORK, &icur,
-+				&got, &del);
- 		if (error)
- 			break;
+-next_buffer:
+-		offset += i_blocksize(inode);
 -
--		ASSERT(!xfs_defer_has_unfinished_work(&dfops));
--next_block:
--		start_fsb++;
--		remaining--;
--	} while(remaining > 0);
-+		if (!xfs_iext_get_extent(ifp, &icur, &got))
-+			break;
-+	} while (xfs_iext_next_extent(ifp, &icur, &got));
- 
- 	return error;
+-	} while ((bh = bh->b_this_page) != head);
+-
++	error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
++			PAGE_SIZE / i_blocksize(inode));
+ 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
++	if (error && !XFS_FORCED_SHUTDOWN(mp))
++		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
+ out_invalidate:
+ 	xfs_vm_invalidatepage(page, 0, PAGE_SIZE);
+-	return;
  }
+ 
+ static int
 -- 
 2.17.0
