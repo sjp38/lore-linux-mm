@@ -1,76 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D47E6B0006
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 04:17:59 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id bd7-v6so13825377plb.20
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 01:17:59 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w5-v6si18601322pfi.88.2018.05.23.01.17.56
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 May 2018 01:17:56 -0700 (PDT)
-Date: Wed, 23 May 2018 10:17:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: save two stranding bit in gfp_mask
-Message-ID: <20180523081753.GH20441@dhcp22.suse.cz>
-References: <20180516202023.167627-1-shakeelb@google.com>
- <201805231335.RIR9HxYj%fengguang.wu@intel.com>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A499A6B0006
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 04:19:51 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 33-v6so616219wrb.12
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 01:19:51 -0700 (PDT)
+Received: from techadventures.net (techadventures.net. [62.201.165.239])
+        by mx.google.com with ESMTP id b128-v6si1357230wmg.66.2018.05.23.01.19.50
+        for <linux-mm@kvack.org>;
+        Wed, 23 May 2018 01:19:50 -0700 (PDT)
+Date: Wed, 23 May 2018 10:19:50 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [RFC] Checking for error code in __offline_pages
+Message-ID: <20180523081950.GB30518@techadventures.net>
+References: <20180523073547.GA29266@techadventures.net>
+ <20180523075239.GF20441@dhcp22.suse.cz>
+ <20180523081609.GG20441@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201805231335.RIR9HxYj%fengguang.wu@intel.com>
+In-Reply-To: <20180523081609.GG20441@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: Shakeel Butt <shakeelb@google.com>, kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-foundation.org
 
-On Wed 23-05-18 16:08:28, kbuild test robot wrote:
-> Hi Shakeel,
+On Wed, May 23, 2018 at 10:16:09AM +0200, Michal Hocko wrote:
+> On Wed 23-05-18 09:52:39, Michal Hocko wrote:
+> [...]
+> > Yeah, the current code is far from optimal. We
+> > used to have a retry count but that one was removed exactly because of
+> > premature failures. There are three things here
+> > 1) zone_movable should contain any bootmem or otherwise non-migrateable
+> >    pages
+> > 2) start_isolate_page_range should fail when seeing such pages - maybe
+> >    has_unmovable_pages is overly optimistic and it should check all
+> >    pages even in movable zones.
+> > 3) migrate_pages should really tell us whether the failure is temporal
+> >    or permanent. I am not sure we can do that easily though.
 > 
-> Thank you for the patch! Perhaps something to improve:
-> 
-> [auto build test WARNING on mmotm/master]
-> [also build test WARNING on v4.17-rc6]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> 
-> url:    https://github.com/0day-ci/linux/commits/Shakeel-Butt/mm-save-two-stranding-bit-in-gfp_mask/20180518-202316
-> base:   git://git.cmpxchg.org/linux-mmotm.git master
-> 
+> 2) should be the most simple one for now. Could you give it a try? Btw.
+> the exact configuration that led to boothmem pages in zone_movable would
+> be really appreciated:
 
-What is the warning? Btw. this smells like a failure in the script of
-some sort. The patch you are referring doesn't really change any code
-except using different valuues for gfp constants which shouldn't make
-any difference to any code.
+I will try it out and I will paste the config.
 
-> vim +/jl +2585 fs/reiserfs/journal.c
+> --- 
+> From 6aa144a9b1c01255c89a4592221d706ccc4b4eea Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Wed, 23 May 2018 10:04:20 +0200
+> Subject: [PATCH] mm, memory_hotplug: make has_unmovable_pages more robust
 > 
-> ^1da177e Linus Torvalds 2005-04-16  2573  
-> ^1da177e Linus Torvalds 2005-04-16  2574  static struct reiserfs_journal_list *alloc_journal_list(struct super_block *s)
-> ^1da177e Linus Torvalds 2005-04-16  2575  {
-> ^1da177e Linus Torvalds 2005-04-16  2576  	struct reiserfs_journal_list *jl;
-> 8c777cc4 Pekka Enberg   2006-02-01  2577  	jl = kzalloc(sizeof(struct reiserfs_journal_list),
-> 8c777cc4 Pekka Enberg   2006-02-01  2578  		     GFP_NOFS | __GFP_NOFAIL);
-> ^1da177e Linus Torvalds 2005-04-16  2579  	INIT_LIST_HEAD(&jl->j_list);
-> ^1da177e Linus Torvalds 2005-04-16  2580  	INIT_LIST_HEAD(&jl->j_working_list);
-> ^1da177e Linus Torvalds 2005-04-16  2581  	INIT_LIST_HEAD(&jl->j_tail_bh_list);
-> ^1da177e Linus Torvalds 2005-04-16  2582  	INIT_LIST_HEAD(&jl->j_bh_list);
-> 90415dea Jeff Mahoney   2008-07-25  2583  	mutex_init(&jl->j_commit_mutex);
-> ^1da177e Linus Torvalds 2005-04-16  2584  	SB_JOURNAL(s)->j_num_lists++;
-> ^1da177e Linus Torvalds 2005-04-16 @2585  	get_journal_list(jl);
-> ^1da177e Linus Torvalds 2005-04-16  2586  	return jl;
-> ^1da177e Linus Torvalds 2005-04-16  2587  }
-> ^1da177e Linus Torvalds 2005-04-16  2588  
+> Oscar has reported:
+> : Due to an unfortunate setting with movablecore, memblocks containing bootmem
+> : memory (pages marked by get_page_bootmem()) ended up marked in zone_movable.
+> : So while trying to remove that memory, the system failed in do_migrate_range
+> : and __offline_pages never returned.
 > 
-> :::::: The code at line 2585 was first introduced by commit
-> :::::: 1da177e4c3f41524e886b7f1b8a0c1fc7321cac2 Linux-2.6.12-rc2
+> This is because we rely on start_isolate_page_range resp. has_unmovable_pages
+> to do their jobb. The first one isolates the whole range to be offlined
+> so that we do not allocate from it anymore and the later makes sure we
+> are not stumbling over non-migrateable pages.
 > 
-> :::::: TO: Linus Torvalds <torvalds@ppc970.osdl.org>
-> :::::: CC: Linus Torvalds <torvalds@ppc970.osdl.org>
+> has_unmovable_pages is overly optimistic, however. It doesn't check all
+> the pages if we are withing zone_movable because we rely that those
+> pages will be always migrateable. As it turns out we are still not
+> perfect there. While bootmem pages in zonemovable sound like a clear bug
+> which should be fixed let's remove the optimization for now and warn if
+> we encounter unmovable pages in zone_movable in the meantime. That
+> should help for now at least.
 > 
+> Btw. this wasn't a real problem until 72b39cfc4d75 ("mm, memory_hotplug:
+> do not fail offlining too early") because we used to have a small number
+> of retries and then failed. This turned out to be too fragile though.
+> 
+> Reported-by: Oscar Salvador <osalvador@techadventures.net>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+>  mm/page_alloc.c | 16 ++++++++++------
+>  1 file changed, 10 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3c6f4008ea55..b9a45753244d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7629,11 +7629,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  	unsigned long pfn, iter, found;
+>  
+>  	/*
+> -	 * For avoiding noise data, lru_add_drain_all() should be called
+> -	 * If ZONE_MOVABLE, the zone never contains unmovable pages
+> +	 * TODO we could make this much more efficient by not checking every
+> +	 * page in the range if we know all of them are in MOVABLE_ZONE and
+> +	 * that the movable zone guarantees that pages are migratable but
+> +	 * the later is not the case right now unfortunatelly. E.g. movablecore
+> +	 * can still lead to having bootmem allocations in zone_movable.
+>  	 */
+> -	if (zone_idx(zone) == ZONE_MOVABLE)
+> -		return false;
+>  
+>  	/*
+>  	 * CMA allocations (alloc_contig_range) really need to mark isolate
+> @@ -7654,7 +7655,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  		page = pfn_to_page(check);
+>  
+>  		if (PageReserved(page))
+> -			return true;
+> +			goto unmovable;
+>  
+>  		/*
+>  		 * Hugepages are not in LRU lists, but they're movable.
+> @@ -7704,9 +7705,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  		 * page at boot.
+>  		 */
+>  		if (found > count)
+> -			return true;
+> +			goto unmovable;
+>  	}
+>  	return false;
+> +unmovable:
+> +	WARN_ON_ONCE(zone_idx(zone) == ZONE_MOVABLE);
+> +	return true;
+>  }
+>  
+>  #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
+> -- 
+> 2.17.0
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks
+
+Oscar Salvador
