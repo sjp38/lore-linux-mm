@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 670016B0266
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:44:20 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id 89-v6so14152545plb.18
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:44:20 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BB9F86B0269
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:44:22 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id h15-v6so2448536pgv.7
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:44:22 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d12-v6si19415109plo.551.2018.05.23.07.44.19
+        by mx.google.com with ESMTPS id l33-v6si18387183pld.440.2018.05.23.07.44.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 23 May 2018 07:44:19 -0700 (PDT)
+        Wed, 23 May 2018 07:44:21 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 05/34] fs: use ->is_partially_uptodate in page_cache_seek_hole_data
-Date: Wed, 23 May 2018 16:43:28 +0200
-Message-Id: <20180523144357.18985-6-hch@lst.de>
+Subject: [PATCH 06/34] mm: give the 'ret' variable a better name __do_page_cache_readahead
+Date: Wed, 23 May 2018 16:43:29 +0200
+Message-Id: <20180523144357.18985-7-hch@lst.de>
 In-Reply-To: <20180523144357.18985-1-hch@lst.de>
 References: <20180523144357.18985-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,123 +20,50 @@ List-ID: <linux-mm.kvack.org>
 To: linux-xfs@vger.kernel.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-This way the implementation doesn't depend on buffer_head internals.
+It counts the number of pages acted on, so name it nr_pages to make that
+obvious.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/iomap.c | 85 +++++++++++++++++++++++++-----------------------------
- 1 file changed, 39 insertions(+), 46 deletions(-)
+ mm/readahead.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/fs/iomap.c b/fs/iomap.c
-index bef5e91d40bf..0900da23172c 100644
---- a/fs/iomap.c
-+++ b/fs/iomap.c
-@@ -589,36 +589,51 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
- }
- EXPORT_SYMBOL_GPL(iomap_fiemap);
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 539bbb6c1fad..16d0cb1e2616 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -156,7 +156,7 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 	unsigned long end_index;	/* The last page we want to read */
+ 	LIST_HEAD(page_pool);
+ 	int page_idx;
+-	int ret = 0;
++	int nr_pages = 0;
+ 	loff_t isize = i_size_read(inode);
+ 	gfp_t gfp_mask = readahead_gfp_mask(mapping);
  
--/*
-- * Seek for SEEK_DATA / SEEK_HOLE within @page, starting at @lastoff.
-- *
-- * Returns the offset within the file on success, and -ENOENT otherwise.
-- */
--static loff_t
--page_seek_hole_data(struct page *page, loff_t lastoff, int whence)
-+static bool
-+page_seek_hole_data(struct inode *inode, struct page *page, loff_t *lastoff,
-+		int whence)
- {
--	loff_t offset = page_offset(page);
--	struct buffer_head *bh, *head;
-+	const struct address_space_operations *ops = inode->i_mapping->a_ops;
-+	unsigned int bsize = i_blocksize(inode), off;
- 	bool seek_data = whence == SEEK_DATA;
-+	loff_t poff = page_offset(page);
+@@ -187,7 +187,7 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 		list_add(&page->lru, &page_pool);
+ 		if (page_idx == nr_to_read - lookahead_size)
+ 			SetPageReadahead(page);
+-		ret++;
++		nr_pages++;
+ 	}
  
--	if (lastoff < offset)
--		lastoff = offset;
--
--	bh = head = page_buffers(page);
--	do {
--		offset += bh->b_size;
--		if (lastoff >= offset)
--			continue;
-+	if (WARN_ON_ONCE(*lastoff >= poff + PAGE_SIZE))
-+		return false;
- 
-+	if (*lastoff < poff) {
- 		/*
--		 * Any buffer with valid data in it should have BH_Uptodate set.
-+		 * Last offset smaller than the start of the page means we found
-+		 * a hole:
- 		 */
--		if (buffer_uptodate(bh) == seek_data)
--			return lastoff;
-+		if (whence == SEEK_HOLE)
-+			return true;
-+		*lastoff = poff;
-+	}
-+
-+	/*
-+	 * Just check the page unless we can and should check block ranges:
-+	 */
-+	if (bsize == PAGE_SIZE || !ops->is_partially_uptodate)
-+		return PageUptodate(page) == seek_data;
- 
--		lastoff = offset;
--	} while ((bh = bh->b_this_page) != head);
--	return -ENOENT;
-+	lock_page(page);
-+	if (unlikely(page->mapping != inode->i_mapping))
-+		goto out_unlock_not_found;
-+
-+	for (off = 0; off < PAGE_SIZE; off += bsize) {
-+		if ((*lastoff & ~PAGE_MASK) >= off + bsize)
-+			continue;
-+		if (ops->is_partially_uptodate(page, off, bsize) == seek_data) {
-+			unlock_page(page);
-+			return true;
-+		}
-+		*lastoff = poff + off + bsize;
-+	}
-+
-+out_unlock_not_found:
-+	unlock_page(page);
-+	return false;
+ 	/*
+@@ -195,11 +195,11 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 	 * uptodate then the caller will launch readpage again, and
+ 	 * will then handle the error.
+ 	 */
+-	if (ret)
+-		read_pages(mapping, filp, &page_pool, ret, gfp_mask);
++	if (nr_pages)
++		read_pages(mapping, filp, &page_pool, nr_pages, gfp_mask);
+ 	BUG_ON(!list_empty(&page_pool));
+ out:
+-	return ret;
++	return nr_pages;
  }
  
  /*
-@@ -655,30 +670,8 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
- 		for (i = 0; i < nr_pages; i++) {
- 			struct page *page = pvec.pages[i];
- 
--			/*
--			 * At this point, the page may be truncated or
--			 * invalidated (changing page->mapping to NULL), or
--			 * even swizzled back from swapper_space to tmpfs file
--			 * mapping.  However, page->index will not change
--			 * because we have a reference on the page.
--                         *
--			 * If current page offset is beyond where we've ended,
--			 * we've found a hole.
--                         */
--			if (whence == SEEK_HOLE &&
--			    lastoff < page_offset(page))
-+			if (page_seek_hole_data(inode, page, &lastoff, whence))
- 				goto check_range;
--
--			lock_page(page);
--			if (likely(page->mapping == inode->i_mapping) &&
--			    page_has_buffers(page)) {
--				lastoff = page_seek_hole_data(page, lastoff, whence);
--				if (lastoff >= 0) {
--					unlock_page(page);
--					goto check_range;
--				}
--			}
--			unlock_page(page);
- 			lastoff = page_offset(page) + PAGE_SIZE;
- 		}
- 		pagevec_release(&pvec);
 -- 
 2.17.0
