@@ -1,50 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 805136B0006
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 08:55:50 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e20-v6so13133873pff.14
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 05:55:50 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z30-v6si18302749pfg.266.2018.05.23.05.55.49
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 45B136B0008
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 08:56:04 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p7-v6so17529970wrj.4
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 05:56:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y33-v6sor6068507wrd.59.2018.05.23.05.56.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 23 May 2018 05:55:49 -0700 (PDT)
-Date: Wed, 23 May 2018 14:55:42 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/8] md: raid5: use refcount_t for reference counting
- instead atomic_t
-Message-ID: <20180523125542.GT12198@hirez.programming.kicks-ass.net>
-References: <20180509193645.830-1-bigeasy@linutronix.de>
- <20180509193645.830-4-bigeasy@linutronix.de>
- <20180523123615.GY12217@hirez.programming.kicks-ass.net>
- <20180523125007.pbxcxef622cde3jz@linutronix.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180523125007.pbxcxef622cde3jz@linutronix.de>
+        (Google Transport Security);
+        Wed, 23 May 2018 05:56:03 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/2] few memory hotplug fixes
+Date: Wed, 23 May 2018 14:55:53 +0200
+Message-Id: <20180523125555.30039-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, Anna-Maria Gleixner <anna-maria@linutronix.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oscar Salvador <osalvador@techadventures.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, May 23, 2018 at 02:50:07PM +0200, Sebastian Andrzej Siewior wrote:
-> On 2018-05-23 14:36:15 [+0200], Peter Zijlstra wrote:
-> > > Most changes are 1:1 replacements except for
-> > > 	BUG_ON(atomic_inc_return(&sh->count) != 1);
-> > 
-> > That doesn't look right, 'inc_return == 1' implies inc-from-zero, which
-> > is not allowed by refcount.
-> > 
-> > > which has been turned into
-> > >         refcount_inc(&sh->count);
-> > >         BUG_ON(refcount_read(&sh->count) != 1);
-> > 
-> > And that is racy, you can have additional increments in between.
-> 
-> so do we stay with the atomic* API here or do we extend refcount* API?
+[Resending with the mailing lists CCed - sorry for spamming]
 
-Stay with the atomic; I'll look at the rest of these patches, but raid5
-looks like a usage-count, not a reference count.
+Hi Andrew,
+Oscar has reported two issue when playing with the memory hotplug
+[1][2]. The first one seems more serious and patch 1 should address it.
+In short we are overly optimistic about zone movable not containing any
+non-movable pages and after 72b39cfc4d75 ("mm, memory_hotplug: do not
+fail offlining too early") this can lead to a seemingly stuck (still
+interruptible by a signal) memory offline.
 
-I'll probably ack your initial set and parts of this.. but let me get to
-the end of this first.
+Patch 2 fixes an over-eager warning which is not harmful but surely
+annoying.
+
+I know we are late in the release cycle but I guess both would be
+candidates for rc7. They are simple enough and they should be
+"obviously" correct. If you would like more time for them for testing
+then I am perfectly fine postponing to the next merge window of course.
+
+[1] http://lkml.kernel.org/r/20180523073547.GA29266@techadventures.net
+[2] http://lkml.kernel.org/r/20180523080108.GA30350@techadventures.net
+
+Michal Hocko (2):
+      mm, memory_hotplug: make has_unmovable_pages more robust
+      mm: do not warn on offline nodes unless the specific node is explicitly requested
+
+Diffstat
+ include/linux/gfp.h |  2 +-
+ mm/page_alloc.c     | 16 ++++++++++------
+ 2 files changed, 11 insertions(+), 7 deletions(-)
