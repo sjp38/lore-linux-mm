@@ -1,133 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4C36B0266
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:51:49 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id 5-v6so1793996qke.19
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:51:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id w140-v6si9245311qka.381.2018.05.23.07.51.47
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 664CB6B0008
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:56:46 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id r2-v6so1178793wrm.15
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:56:46 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q44-v6si4080469edq.344.2018.05.23.07.56.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 07:51:47 -0700 (PDT)
-Subject: Re: [RFC] Checking for error code in __offline_pages
-References: <20180523073547.GA29266@techadventures.net>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <73c5f634-21d1-8dee-d259-8ea196857d9f@redhat.com>
-Date: Wed, 23 May 2018 16:51:45 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 May 2018 07:56:44 -0700 (PDT)
+Date: Wed, 23 May 2018 16:56:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
+ oom_lock held.
+Message-ID: <20180523145639.GT20441@dhcp22.suse.cz>
+References: <20180518122045.GG21711@dhcp22.suse.cz>
+ <201805210056.IEC51073.VSFFHFOOQtJMOL@I-love.SAKURA.ne.jp>
+ <20180522061850.GB20020@dhcp22.suse.cz>
+ <201805231924.EED86916.FSQJMtHOLVOFOF@I-love.SAKURA.ne.jp>
+ <20180523115726.GP20441@dhcp22.suse.cz>
+ <201805232245.IGI00539.HLtMFOQSJFFOOV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20180523073547.GA29266@techadventures.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201805232245.IGI00539.HLtMFOQSJFFOOV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-foundation.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-On 23.05.2018 09:35, Oscar Salvador wrote:
-> Hi,
+On Wed 23-05-18 22:45:20, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Wed 23-05-18 19:24:48, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > > I don't understand why you are talking about PF_WQ_WORKER case.
+> > > > 
+> > > > Because that seems to be the reason to have it there as per your
+> > > > comment.
+> > > 
+> > > OK. Then, I will fold below change into my patch.
+> > > 
+> > >         if (did_some_progress) {
+> > >                 no_progress_loops = 0;
+> > >  +              /*
+> > > -+               * This schedule_timeout_*() serves as a guaranteed sleep for
+> > > -+               * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
+> > > ++               * Try to give the OOM killer/reaper/victims some time for
+> > > ++               * releasing memory.
+> > >  +               */
+> > >  +              if (!tsk_is_oom_victim(current))
+> > >  +                      schedule_timeout_uninterruptible(1);
+> > 
+> > Do you really need this? You are still fiddling with this path at all? I
+> > see how removing the timeout might be reasonable after recent changes
+> > but why do you insist in adding it outside of the lock.
 > 
-> This is something I spotted while testing offlining memory.
+> Sigh... We can't remove this sleep without further changes. That's why I added
 > 
-> __offline_pages() calls do_migrate_range() to try to migrate a range,
-> but we do not actually check for the error code.
-> This, besides of ignoring underlying failures, can led to a situations
-> where we never break up the loop because we are totally unaware of
-> what is going on.
+>  * This schedule_timeout_*() serves as a guaranteed sleep for
+>  * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
 > 
-> They way I spotted this was when trying to offline all memblocks belonging
-> to a node.
-> Due to an unfortunate setting with movablecore, memblocks containing bootmem
-> memory (pages marked by get_page_bootmem()) ended up marked in zone_movable.
-> So while trying to remove that memory, the system failed in:
-> 
-> do_migrate_range()
-> {
-> ...
-> 	if (PageLRU(page))
-> 		ret = isolate_lru_page(page);
-> 	else
-> 		ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
-> 
-> 	if (!ret)
-> 		// success: do something
-> 	else
-> 		if (page_count(page))
-> 			ret = -EBUSY;
-> ...
-> }
-> 
-> Since the pages from bootmem are not LRU, we call isolate_movable_page()
-> but we fail when checking for __PageMovable().
-> Since the page_count is more than 0 we return -EBUSY, but we do not check this
-> in our caller, so we keep trying to migrate this memory over and over:
-> 
-> repeat:
-> ...
->         pfn = scan_movable_pages(start_pfn, end_pfn);
->         if (pfn) { /* We have movable pages */
->                 ret = do_migrate_range(pfn, end_pfn);
->                 goto repeat;
->         }
-> 
-> But this is not only situation where we can get stuck.
-> For example, if we fail with -ENOMEM in
-> migrate_pages()->unmap_and_move()/unmap_and_move_huge_page(), we will keep trying as well.
-> I think we should really detect these cases and fail with "goto failed_removal".
-> Something like
-> 
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1651,6 +1651,11 @@ static int __ref __offline_pages(unsigned long start_pfn,
->         pfn = scan_movable_pages(start_pfn, end_pfn);
->         if (pfn) { /* We have movable pages */
->                 ret = do_migrate_range(pfn, end_pfn);
-> +               if (ret) {
-> +                       if (ret != -ENOMEM)
-> +                               ret = -EBUSY;
-> +                       goto failed_removal;
-> +               }
->                 goto repeat;
->         }
-> 
-> Now, unless I overlooked something
-> migrate_pages()->unmap_and_move()/unmap_and_move_huge_page() can return:
-> -ENOMEM
-> -EAGAIN
-> -EBUSY
-> -ENOSYS.
-> 
-> I am not sure if we should differentiate betweeen those errors.
-> For example, it is possible that in migrate_pages() we just get -EAGAIN,
-> and we return the number of "retry" we tried without having really failed.
-> Although, since we do 10 passes it might be considered as failed.
-> 
-> And I am not sure either if we want to propagate the error codes, or in case we fail
-> in migrate_pages(), whatever the error was (-ENOMEM, -EBUSY, etc.), we
-> just return -EBUSY.
-> 
-> What do you think?
+> so that we won't by error remove this sleep without further changes.
 
-Hi,
+Look. I am fed up with this discussion. You are fiddling with the code
+and moving hacks around with a lot of hand waving. Rahter than trying to
+look at the underlying problem. Your patch completely ignores PREEMPT as
+I've mentioned in previous versions.
 
-While working on onlining/offlining of 4MB subsections I also stumbled
-over the return value of offline_pages(). It would be nice if the
-interface could actually indicate if an error is permanent or only
-temporary.
+I do admit that the underlying problem is non-trivial to handle and it
+requires a deeper consideration. Fair enough. You can spend that time on
+the matter and come up with something clever. That would be great. But
+moving a sleep around because of some yada yada yada is not a way we
+want to treat this code.
 
-For now I have to live with the assumption, that whenever this function
-is not -EAGAIN or 0, that I simply have to retry later.
-
-David
-
-> 
-> Thanks
-> Oscar Salvador
-> 
-
-
+I would be OK with removing the sleep from the out_of_memory path based
+on your argumentation that we have a _proper_ synchronization with the
+exit path now. That would be a patch that has actually a solid
+background behind. Is it possible that something would wait longer or
+wouldn't preempt etc.? Yes possible but those need to be analyzed and
+thing through properly. See the difference from "we may need it because
+we've always been doing that and there is here and there that might
+happen". This cargo cult way of programming will only grow more and more
+hacks nobody can reason about long term.
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
