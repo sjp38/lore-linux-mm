@@ -1,46 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0650F6B0008
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:24:17 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id v5-v6so22934782qto.13
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 11:24:17 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F35DB6B000A
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:24:18 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id d71-v6so6738772qkg.0
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 11:24:18 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id e129-v6si4614575qka.244.2018.05.23.11.24.16
+        by mx.google.com with ESMTPS id p43-v6si2391380qtg.155.2018.05.23.11.24.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 11:24:16 -0700 (PDT)
+        Wed, 23 May 2018 11:24:18 -0700 (PDT)
 From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH RFCv2 1/4] ACPI: NUMA: export pxm_to_node
-Date: Wed, 23 May 2018 20:24:01 +0200
-Message-Id: <20180523182404.11433-2-david@redhat.com>
+Subject: [PATCH RFCv2 2/4] s390: mm: support removal of memory
+Date: Wed, 23 May 2018 20:24:02 +0200
+Message-Id: <20180523182404.11433-3-david@redhat.com>
 In-Reply-To: <20180523182404.11433-1-david@redhat.com>
 References: <20180523182404.11433-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, linux-acpi@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-s390@vger.kernel.org
 
-Will be needed by paravirtualized memory devices.
+With virtio-mem, we actually want to remove memory again.
 
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Len Brown <lenb@kernel.org>
-Cc: linux-acpi@vger.kernel.org
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-s390@vger.kernel.org
 Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- drivers/acpi/numa.c | 1 +
- 1 file changed, 1 insertion(+)
+ arch/s390/mm/init.c | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
-index 85167603b9c9..7ffee2959350 100644
---- a/drivers/acpi/numa.c
-+++ b/drivers/acpi/numa.c
-@@ -50,6 +50,7 @@ int pxm_to_node(int pxm)
- 		return NUMA_NO_NODE;
- 	return pxm_to_node_map[pxm];
- }
-+EXPORT_SYMBOL(pxm_to_node);
- 
- int node_to_pxm(int node)
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index 3fa3e5323612..7202344d0eae 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -242,12 +242,18 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
  {
+-	/*
+-	 * There is no hardware or firmware interface which could trigger a
+-	 * hot memory remove on s390. So there is nothing that needs to be
+-	 * implemented.
+-	 */
+-	return -EBUSY;
++	const unsigned long start_pfn = start >> PAGE_SHIFT;
++	const unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct page *page = pfn_to_page(start_pfn);
++	struct zone *zone;
++	int ret;
++
++	zone = page_zone(page);
++	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
++	WARN_ON_ONCE(ret);
++	vmem_remove_mapping(start, size);
++
++	return ret;
+ }
+ #endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
 -- 
 2.17.0
