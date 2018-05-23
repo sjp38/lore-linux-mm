@@ -1,64 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7436B000D
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 01:20:52 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e3-v6so12524873pfe.15
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 22:20:52 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id y40-v6si18075361pla.470.2018.05.22.22.20.51
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EC00C6B0003
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 01:58:19 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k18-v6so4444465wrm.6
+        for <linux-mm@kvack.org>; Tue, 22 May 2018 22:58:19 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id p23-v6si942635wmh.109.2018.05.22.22.58.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 22:20:52 -0700 (PDT)
-Subject: [PATCH v2 7/7] mm, hmm: Mark hmm_devmem_{add,
- add_resource} EXPORT_SYMBOL_GPL
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 22 May 2018 22:10:54 -0700
-Message-ID: <152705225448.21414.18197203048027308208.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <152705221686.21414.771870778478134768.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <152705221686.21414.771870778478134768.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Tue, 22 May 2018 22:58:18 -0700 (PDT)
+Date: Wed, 23 May 2018 08:03:40 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 16/34] iomap: add initial support for writes without
+	buffer heads
+Message-ID: <20180523060340.GA13873@lst.de>
+References: <20180518164830.1552-1-hch@lst.de> <20180518164830.1552-17-hch@lst.de> <20180521232700.GB14384@magnolia> <20180522000745.GU23861@dastard> <20180522082454.GB9801@lst.de> <20180522223806.GX23861@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180522223806.GX23861@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@lst.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-The routines hmm_devmem_add(), and hmm_devmem_add_resource() are small
-wrappers around devm_memremap_pages(). The devm_memremap_pages()
-interface is a subset of the hmm functionality which has more and deeper
-ties into the kernel memory management implementation. It was an
-oversight that these symbols were not marked EXPORT_SYMBOL_GPL from the
-outset due to how they originally copied (and now reuse)
-devm_memremap_pages().
+On Wed, May 23, 2018 at 08:38:06AM +1000, Dave Chinner wrote:
+> Ok, I missed that detail as it's in a different patch. It looks like
+> if (pos > EOF) it will zeroed. But in this case I think that pos ==
+> EOF and so it was reading instead. That smells like off-by-one bug
+> to me.
 
-Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-Cc: Logan Gunthorpe <logang@deltatee.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- mm/hmm.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 5723331f6910..25c338d46576 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -1063,7 +1063,7 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 		return result;
- 	return devmem;
- }
--EXPORT_SYMBOL(hmm_devmem_add);
-+EXPORT_SYMBOL_GPL(hmm_devmem_add);
- 
- struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 					   struct device *device,
-@@ -1117,7 +1117,7 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 		return result;
- 	return devmem;
- }
--EXPORT_SYMBOL(hmm_devmem_add_resource);
-+EXPORT_SYMBOL_GPL(hmm_devmem_add_resource);
- 
- /*
-  * A device driver that wants to handle multiple devices memory through a
+This has been fixed in the tree I pushed yesterday already.
