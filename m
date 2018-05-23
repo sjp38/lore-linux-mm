@@ -1,46 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C266F6B0007
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 05:52:26 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id d4-v6so13832571plr.17
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 02:52:26 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n1-v6si18224755pld.188.2018.05.23.02.52.25
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 007F46B0005
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 05:58:22 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id x23-v6so12815463pfm.7
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 02:58:21 -0700 (PDT)
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20114.outbound.protection.outlook.com. [40.107.2.114])
+        by mx.google.com with ESMTPS id u15-v6si19175129pfk.82.2018.05.23.02.58.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 May 2018 02:52:25 -0700 (PDT)
-Date: Wed, 23 May 2018 11:52:20 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v6 17/17] mm: Distinguish VMalloc pages
-Message-ID: <20180523095220.GN20441@dhcp22.suse.cz>
-References: <20180518194519.3820-1-willy@infradead.org>
- <20180518194519.3820-18-willy@infradead.org>
- <74e9bf39-ae17-cc00-8fca-c34b75675d49@virtuozzo.com>
- <20180522175836.GB1237@bombadil.infradead.org>
- <e8d8fd85-89a2-8e4f-24bf-b930b705bc49@virtuozzo.com>
- <20180523063439.GD20441@dhcp22.suse.cz>
- <e76d4238-9cfe-1f0f-0a52-cfaf476380a8@virtuozzo.com>
- <20180523092515.GL20441@dhcp22.suse.cz>
- <c6501d68-2f53-7bfa-6065-785df0c63de2@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 23 May 2018 02:58:20 -0700 (PDT)
+Subject: Re: [PATCH v2 2/2] kasan: fix memory hotplug during boot
+References: <20180522100756.18478-1-david@redhat.com>
+ <20180522100756.18478-3-david@redhat.com>
+ <f4378c56-acc2-a5cf-724c-76cffee28235@virtuozzo.com>
+ <ff21c6e7-cb32-60d8-abd3-dfc6be3d05f7@redhat.com>
+ <09c36096-f8c8-b9e9-0bed-113e494f159a@virtuozzo.com>
+ <20180522140735.71dcd92e7b013629a7f15f91@linux-foundation.org>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <6642e0d8-671c-1c1e-3ae8-99ac34c3b667@virtuozzo.com>
+Date: Wed, 23 May 2018 12:59:32 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c6501d68-2f53-7bfa-6065-785df0c63de2@virtuozzo.com>
+In-Reply-To: <20180522140735.71dcd92e7b013629a7f15f91@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, "open list:KASAN" <kasan-dev@googlegroups.com>
 
-On Wed 23-05-18 12:28:10, Andrey Ryabinin wrote:
-> On 05/23/2018 12:25 PM, Michal Hocko wrote:
-> > OK, so the point seems to be to share large physically contiguous memory
-> > with userspace.
-> > 
+
+
+On 05/23/2018 12:07 AM, Andrew Morton wrote:
+> On Tue, 22 May 2018 22:50:12 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 > 
-> Not physically, but virtually contiguous.
+>>
+>>
+>> On 05/22/2018 07:36 PM, David Hildenbrand wrote:
+>>> On 22.05.2018 18:26, Andrey Ryabinin wrote:
+>>>>
+>>>>
+>>>> On 05/22/2018 01:07 PM, David Hildenbrand wrote:
+>>>>> Using module_init() is wrong. E.g. ACPI adds and onlines memory before
+>>>>> our memory notifier gets registered.
+>>>>>
+>>>>> This makes sure that ACPI memory detected during boot up will not
+>>>>> result in a kernel crash.
+>>>>>
+>>>>> Easily reproducable with QEMU, just specify a DIMM when starting up.
+>>>>
+>>>>          reproducible
+>>>>>
+>>>>> Signed-off-by: David Hildenbrand <david@redhat.com>
+>>>>> ---
+>>>>
+>>>> Fixes: fa69b5989bb0 ("mm/kasan: add support for memory hotplug")
+>>>> Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>>>> Cc: <stable@vger.kernel.org>
+>>>
+>>> Think this even dates back to:
+>>>
+>>> 786a8959912e ("kasan: disable memory hotplug")
+>>>
+>>
+>> Indeed.
+> 
+> Is a backport to -stable justified for either of these patches?
+> 
 
-Ble, you are right! That's what I meant...
-
--- 
-Michal Hocko
-SUSE Labs
+I don't see any reasons to not backport these.
+The first one fixes failure to online memory, why it shouldn't be fixed in -stable?
+The second one is fixes boot crash, it's definitely stable material IMO.
