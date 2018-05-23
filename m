@@ -1,72 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 785806B026C
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:08:02 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e16-v6so13553967pfn.5
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 11:08:02 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id x2-v6si15278353pgp.298.2018.05.23.11.08.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 11:08:01 -0700 (PDT)
-Subject: Re: [PATCH v2 3/4] mm: add find_alloc_contig_pages() interface
-References: <20180503232935.22539-1-mike.kravetz@oracle.com>
- <20180503232935.22539-4-mike.kravetz@oracle.com>
- <eaa40ac0-365b-fd27-e096-b171ed28888f@suse.cz>
- <57dfd52c-22a5-5546-f8f3-848f21710cc1@oracle.com>
- <c7972da1-a908-7550-7253-9de9a963174c@intel.com>
- <01793788-1870-858e-2061-a0e6ef3a3171@suse.cz>
-From: Reinette Chatre <reinette.chatre@intel.com>
-Message-ID: <0db4cd65-8b03-fea5-0a30-512f10241d54@intel.com>
-Date: Wed, 23 May 2018 11:07:59 -0700
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8741D6B026E
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:10:41 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id y49-v6so16786081oti.11
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 11:10:41 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id w20-v6si6385635oie.43.2018.05.23.11.10.40
+        for <linux-mm@kvack.org>;
+        Wed, 23 May 2018 11:10:40 -0700 (PDT)
+Date: Wed, 23 May 2018 19:10:06 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+Message-ID: <20180523181004.txe4x6rx52wtcvjx@lakrids.cambridge.arm.com>
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+ <20180514191551.GA27939@bombadil.infradead.org>
+ <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
+ <20180515004137.GA5168@bombadil.infradead.org>
+ <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
+ <010001637399f796-3ffe3ed2-2fb1-4d43-84f0-6a65b6320d66-000000@email.amazonses.com>
+ <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
 MIME-Version: 1.0
-In-Reply-To: <01793788-1870-858e-2061-a0e6ef3a3171@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Boaz Harrosh <boazh@netapp.com>
+Cc: Christopher Lameter <cl@linux.com>, Jeff Moyer <jmoyer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-Hi Vlastimil,
-
-On 5/23/2018 4:18 AM, Vlastimil Babka wrote:
-> On 05/22/2018 06:41 PM, Reinette Chatre wrote:
->> On 5/21/2018 4:48 PM, Mike Kravetz wrote:
->>> I'm guessing that most (?all?) allocations will be order based.  The use
->>> cases I am aware of (hugetlbfs, Intel Cache Pseudo-Locking, RDMA) are all
->>> order based.  However, as commented in previous version taking arbitrary
->>> nr_pages makes interface more future proof.
->>>
->>
->> I noticed this Cache Pseudo-Locking statement and would like to clarify.
->> I have not been following this thread in detail so I would like to
->> apologize first if my comments are out of context.
->>
->> Currently the Cache Pseudo-Locking allocations are order based because I
->> assumed it was required by the allocator. The contiguous regions needed
->> by Cache Pseudo-Locking will not always be order based - instead it is
->> based on the granularity of the cache allocation. One example is a
->> platform with 55MB L3 cache that can be divided into 20 equal portions.
->> To support Cache Pseudo-Locking on this platform we need to be able to
->> allocate contiguous regions at increments of 2816KB (the size of each
->> portion). In support of this example platform regions needed would thus
->> be 2816KB, 5632KB, 8448KB, etc.
+On Tue, May 22, 2018 at 07:05:48PM +0300, Boaz Harrosh wrote:
+> On 18/05/18 17:14, Christopher Lameter wrote:
+> > On Tue, 15 May 2018, Boaz Harrosh wrote:
+> > 
+> >>> I don't think page tables work the way you think they work.
+> >>>
+> >>> +               err = vm_insert_pfn_prot(zt->vma, zt_addr, pfn, prot);
+> >>>
+> >>> That doesn't just insert it into the local CPU's page table.  Any CPU
+> >>> which directly accesses or even prefetches that address will also get
+> >>> the translation into its cache.
+> >>>
+> >>
+> >> Yes I know, but that is exactly the point of this flag. I know that this
+> >> address is only ever accessed from a single core. Because it is an mmap (vma)
+> >> of an O_TMPFILE-exclusive file created in a core-pinned thread and I allow
+> >> only that thread any kind of access to this vma. Both the filehandle and the
+> >> mmaped pointer are kept on the thread stack and have no access from outside.
+> >>
+> >> So the all point of this flag is the kernel driver telling mm that this
+> >> address is enforced to only be accessed from one core-pinned thread.
+> > 
+> > But there are no provisions for probhiting accesses from other cores?
+> > 
+> > This means that a casual accidental write from a thread executing on
+> > another core can lead to arbitrary memory corruption because the cache
+> > flushing has been bypassed.
 > 
-> Will there be any alignment requirements for these allocations e.g. for
-> minimizing conflict misses?
+> No this is not accurate. A "casual accidental write" will not do any harm.
+> Only a well concerted malicious server can exploit this. A different thread
+> on a different core will need to hit the exact time to read from the exact
+> pointer at the narrow window while the IO is going on. fault-in a TLB at the
+> time of the valid mapping.
 
-Two views on the usage of the allocated memory are: On the user space
-side, the kernel memory is mapped to userspace (using remap_pfn_range())
-and thus need to be page aligned. On the kernel side the memory is
-loaded into the cache and it is here where the requirement originates
-for it to be contiguous. The memory being contiguous reduces the
-likelihood of physical addresses from the allocated memory mapping to
-the same cache line and thus cause cache evictions of memory we are
-trying to load into the cache.
+TLB entries can be allocated at any time, for any reason. Even if a
+program doesn't explicitly read from the exact pointer at that time, it
+doesn't guarantee that a TLB entry won't be allocated.
 
-I hope I answered your question, if not, please let me know which parts
-I missed and I will try again.
+> Then later after the IO has ended and before any
+> of the threads where scheduled out, maliciously write. 
 
-Reinette
+... or, regardless of the application's wishes, the core mm code decides
+it needs to swap this page out (only doing local TLB invalidation), and
+later pages it back in.
+
+Several things can happen, e.g.
+
+* a casual write can corrupt the original page, which is now in use for
+  something else.
+
+* a CPU might re-allocate a TLB entry for that page, finding it
+  conflicts with an existing entry. This is *fatal* on some
+  architectures.
+
+> All the while the App has freed its buffers and the buffer was used
+> for something else.  Please bear in mind that this is only As root, in
+> an /sbin/ executable signed by the Kernel's key.
+
+That isn't enforced by the core API additions, and regardless, root does
+not necessarily imply access to kernel-internal stuff (e.g. if the
+lockdown stuff goes in).
+
+Claiming that root access means we don't need to care about robustness
+is not a good argument.
+
+[...]
+
+> So lets start from the Beginning.
+> 
+> How can we implement "Private memory"?
+
+Use separate processes rather than threads. Each will have a separate
+mm, so the arch can get away with local TLB invalidation.
+
+If you wish to share portions of memory between these processes, we have
+shared memory APIs to do so.
+
+Thanks,
+Mark.
