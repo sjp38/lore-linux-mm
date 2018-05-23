@@ -1,109 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8741D6B026E
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:10:41 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id y49-v6so16786081oti.11
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 11:10:41 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w20-v6si6385635oie.43.2018.05.23.11.10.40
-        for <linux-mm@kvack.org>;
-        Wed, 23 May 2018 11:10:40 -0700 (PDT)
-Date: Wed, 23 May 2018 19:10:06 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
-Message-ID: <20180523181004.txe4x6rx52wtcvjx@lakrids.cambridge.arm.com>
-References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
- <20180514191551.GA27939@bombadil.infradead.org>
- <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
- <20180515004137.GA5168@bombadil.infradead.org>
- <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
- <010001637399f796-3ffe3ed2-2fb1-4d43-84f0-6a65b6320d66-000000@email.amazonses.com>
- <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EE496B0007
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:24:16 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id z10-v6so2919576qto.11
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 11:24:16 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id v24-v6si244675qtp.358.2018.05.23.11.24.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 May 2018 11:24:15 -0700 (PDT)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH RFCv2 0/4] virtio-mem: paravirtualized memory
+Date: Wed, 23 May 2018 20:24:00 +0200
+Message-Id: <20180523182404.11433-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boazh@netapp.com>
-Cc: Christopher Lameter <cl@linux.com>, Jeff Moyer <jmoyer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Cornelia Huck <cohuck@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Halil Pasic <pasic@linux.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Jason Wang <jasowang@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Len Brown <lenb@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Stefan Hajnoczi <stefanha@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, May 22, 2018 at 07:05:48PM +0300, Boaz Harrosh wrote:
-> On 18/05/18 17:14, Christopher Lameter wrote:
-> > On Tue, 15 May 2018, Boaz Harrosh wrote:
-> > 
-> >>> I don't think page tables work the way you think they work.
-> >>>
-> >>> +               err = vm_insert_pfn_prot(zt->vma, zt_addr, pfn, prot);
-> >>>
-> >>> That doesn't just insert it into the local CPU's page table.  Any CPU
-> >>> which directly accesses or even prefetches that address will also get
-> >>> the translation into its cache.
-> >>>
-> >>
-> >> Yes I know, but that is exactly the point of this flag. I know that this
-> >> address is only ever accessed from a single core. Because it is an mmap (vma)
-> >> of an O_TMPFILE-exclusive file created in a core-pinned thread and I allow
-> >> only that thread any kind of access to this vma. Both the filehandle and the
-> >> mmaped pointer are kept on the thread stack and have no access from outside.
-> >>
-> >> So the all point of this flag is the kernel driver telling mm that this
-> >> address is enforced to only be accessed from one core-pinned thread.
-> > 
-> > But there are no provisions for probhiting accesses from other cores?
-> > 
-> > This means that a casual accidental write from a thread executing on
-> > another core can lead to arbitrary memory corruption because the cache
-> > flushing has been bypassed.
-> 
-> No this is not accurate. A "casual accidental write" will not do any harm.
-> Only a well concerted malicious server can exploit this. A different thread
-> on a different core will need to hit the exact time to read from the exact
-> pointer at the narrow window while the IO is going on. fault-in a TLB at the
-> time of the valid mapping.
+This is the Linux driver side of virtio-mem. Compared to the QEMU side,
+it is in a pretty complete and clean state.
 
-TLB entries can be allocated at any time, for any reason. Even if a
-program doesn't explicitly read from the exact pointer at that time, it
-doesn't guarantee that a TLB entry won't be allocated.
+virtio-mem is a paravirtualized mechanism of adding/removing memory to/from
+a VM. We can do this on a 4MB granularity right now. In Linux, all
+memory is added to the ZONE_NORMAL, so unplugging cannot be guaranteed -
+but will be more likely to succeed compared to unplugging 128MB+ chunks.
+We might implement some optimizations in that area in the future that will
+make memory unplug more reliable.
 
-> Then later after the IO has ended and before any
-> of the threads where scheduled out, maliciously write. 
+For now, this is an easy way to give a VM access to more memory and
+eventually to remove some memory again. I am testing it on x86 and
+s390x (under QEMU TCG so far only).
 
-... or, regardless of the application's wishes, the core mm code decides
-it needs to swap this page out (only doing local TLB invalidation), and
-later pages it back in.
+This is the follow up on [1], but the concept, user interface and
+virtio protocol has been heavily changed. I am only including the important
+parts in this cover letter (because otherwise nobody will read it).  Please
+feel free to ask in case there are any questions.
 
-Several things can happen, e.g.
+This series is based on [4] and shows how it is being used. It contains
+further information. Also have a look at the description of patch nr 4 in
+this series.
 
-* a casual write can corrupt the original page, which is now in use for
-  something else.
+This work is the result of the initital idea of Andrea Arcangeli to host
+enforce guest access to memory inflated in virtio-balloon using
+userfaultfd, which turned out to be problematic to implement. That's how
+I came up with virtio-mem.
 
-* a CPU might re-allocate a TLB entry for that page, finding it
-  conflicts with an existing entry. This is *fatal* on some
-  architectures.
+--------------------------------------------------------------------------
+1. High level concept
+--------------------------------------------------------------------------
 
-> All the while the App has freed its buffers and the buffer was used
-> for something else.  Please bear in mind that this is only As root, in
-> an /sbin/ executable signed by the Kernel's key.
+Each virtio-mem device owns a memory region in the physical address space.
+The guest is allowed to plug and online up to 'requested_size' of memory.
+It will not be allowed to plug more than that size. Unplugged memory will
+be protected by configurable mechanisms (e.g. random discard, userfaultfd
+protection, etc.). virtio-mem is designed in a way that a guest may never
+assume to be able to even read unplugged memory. This is a big difference
+to classical balloon drivers.
 
-That isn't enforced by the core API additions, and regardless, root does
-not necessarily imply access to kernel-internal stuff (e.g. if the
-lockdown stuff goes in).
+The usable memory region might grow over time, so not all parts of the
+device memory region might be usable from the start. This is an
+optimization to allow a smarter implementation in the hypervisor (reduce
+size of dirty bitmaps, size of memory regions ...).
 
-Claiming that root access means we don't need to care about robustness
-is not a good argument.
+When the device driver starts up, it will query 'requested_size' and start
+to add memory to the system. This memory is not indicated e.g. via ACPI,
+so unmodified systems will not silently try to use unplugged memory that
+they are not supposed to touch.
 
-[...]
+Updates on the 'requested_size' indicate hypervisor requests to plug or
+unplug memory.
 
-> So lets start from the Beginning.
-> 
-> How can we implement "Private memory"?
+As each virtio-mem device can belong to a NUMA node, we can easily
+plug/unplug memory on a NUMA basis. And of course, we can have several
+independent virtio-mem devices for a VM.
 
-Use separate processes rather than threads. Each will have a separate
-mm, so the arch can get away with local TLB invalidation.
+The idea is *not* to add new virtio-mem devices when hotplugging memory,
+the idea is to resize (grow/shrink) virtio-mem devices.
 
-If you wish to share portions of memory between these processes, we have
-shared memory APIs to do so.
+--------------------------------------------------------------------------
+2. Benefits
+--------------------------------------------------------------------------
 
-Thanks,
-Mark.
+Guest side:
+- Increase memory usable by Linux in 4MB steps (vs. section size like 128MB
+  on x86 or 2GB on e.g. some arm if I'm not mistaking)
+- Remove struct pages once all 4MB chunks of a section are offline (in
+  contrast to all balloon drivers where this never happens)
+- Don't fragment memory, while still being able to unplug smaller chunks
+  than ordinary DIMM sizes.
+- Memory hotplug support for architectures that have no proper interface
+  (e.g. s390x misses the external notification part) or e.g. QEMU/Linux
+  support is complicated to implement.
+- Automatic management of onlining/offlining in the device driver -
+  no manual interaction from an admin/tool necessary.
+
+QEMU side:
+- Resizing (plug/unplug) has a single interface - in contrast to a mixture
+  of ACPI and virtio-balloon. See the example below.
+- Migration works out of the box - no need to specify new DIMMs or new
+  sizes on the migration target. It simply works.
+- We can resize in arbitrary steps and sizes (in contrast to e.g. ACPI,
+  where we have to know upfront in which granularity we later on want to
+  remove memory or even how much memory we eventually want to add to our
+  guest)
+- One interface to rule them (architectures) all :)
+
+--------------------------------------------------------------------------
+3. Reboot handling
+--------------------------------------------------------------------------
+
+After a reboot, all memory is unplugged. This allows the hypervisor
+to see if support for virtio-mem is available in the freshly booted system.
+This way we could charge only for the actually "plugged" memory size. And
+it avoids to sense for plugged memory in the guest.
+
+E.g. on every size change of a virtio-mem device, we can notify management
+layers. So we can track how much memory a VM has plugged.
+
+--------------------------------------------------------------------------
+4. Example
+--------------------------------------------------------------------------
+
+(not including resizable memory regions on the QEMU side yet, so don't
+ focus on that part - it will consume a lot of memory right now for e.g.
+ dirty bitmaps and memory slot tracking data)
+
+Start QEMU with two virtio-mem devices that provide little memory inititally.
+	$ qemu-system-x86_64 -m 4G,maxmem=504G \
+		-smp sockets=2,cores=2 \
+		[...]
+		-object memory-backend-ram,id=mem0,size=256G \
+		-device virtio-mem-pci,id=vm0,memdev=mem0,node=0,size=4160M \
+		-object memory-backend-ram,id=mem1,size=256G \
+		-device virtio-mem-pci,id=vm1,memdev=mem1,node=1,size=3G
+
+Query the configuration ('size' tells us the guest driver is active):
+	(qemu) info memory-devices
+	info memory-devices
+	Memory device [virtio-mem]: "vm0"
+	  phys-addr: 0x140000000
+	  node: 0
+	  requested-size: 4362076160
+	  size: 4362076160
+	  max-size: 274877906944
+	  block-size: 4194304
+	  memdev: /objects/mem0
+	Memory device [virtio-mem]: "vm1"
+	  phys-addr: 0x4140000000
+	  node: 1
+	  requested-size: 3221225472
+	  size: 3221225472
+	  max-size: 274877906944
+	  block-size: 4194304
+	  memdev: /objects/mem1
+
+Change the size of a virtio-mem device:
+	(qemu) memory-device-resize vm0 40960
+	memory-device-resize vm0 40960
+	...
+	(qemu) info memory-devices
+	info memory-devices
+	Memory device [virtio-mem]: "vm0"
+	  phys-addr: 0x140000000
+	  node: 0
+	  requested-size: 42949672960
+	  size: 42949672960
+	  max-size: 274877906944
+	  block-size: 4194304
+	  memdev: /objects/mem0
+	...
+
+Try to unplug memory (KASAN active in the guest - a lot of memory wasted):
+	(qemu) memory-device-resize vm0 1024
+	memory-device-resize vm0 1024
+	...
+	(qemu) info memory-devices
+	info memory-devices
+	Memory device [virtio-mem]: "vm0"
+	  phys-addr: 0x140000000
+	  node: 0
+	  requested-size: 1073741824
+	  size: 6169821184
+	  max-size: 274877906944
+	  block-size: 4194304
+	  memdev: /objects/mem0
+	...
+
+I am sharing for now only the linux driver side. The current code can be
+found at [2]. The QEMU side is still heavily WIP, the current QEMU
+prototype can be found at [3].
+
+
+[1] https://lists.gnu.org/archive/html/qemu-devel/2017-06/msg03870.html
+[2] https://github.com/davidhildenbrand/linux/tree/virtio-mem
+[3] https://github.com/davidhildenbrand/qemu/tree/virtio-mem
+[4] https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1698014.html
+
+David Hildenbrand (4):
+  ACPI: NUMA: export pxm_to_node
+  s390: mm: support removal of memory
+  s390: numa: implement memory_add_physaddr_to_nid()
+  virtio-mem: paravirtualized memory
+
+ arch/s390/mm/init.c             |   18 +-
+ arch/s390/numa/numa.c           |   12 +
+ drivers/acpi/numa.c             |    1 +
+ drivers/virtio/Kconfig          |   15 +
+ drivers/virtio/Makefile         |    1 +
+ drivers/virtio/virtio_mem.c     | 1040 +++++++++++++++++++++++++++++++
+ include/uapi/linux/virtio_ids.h |    1 +
+ include/uapi/linux/virtio_mem.h |  134 ++++
+ 8 files changed, 1216 insertions(+), 6 deletions(-)
+ create mode 100644 drivers/virtio/virtio_mem.c
+ create mode 100644 include/uapi/linux/virtio_mem.h
+
+-- 
+2.17.0
