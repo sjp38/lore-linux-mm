@@ -1,73 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 007F46B0005
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 05:58:22 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x23-v6so12815463pfm.7
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 02:58:21 -0700 (PDT)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20114.outbound.protection.outlook.com. [40.107.2.114])
-        by mx.google.com with ESMTPS id u15-v6si19175129pfk.82.2018.05.23.02.58.20
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C13A6B0005
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 06:25:08 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id n25-v6so16706098otf.13
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 03:25:08 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id c130-v6si6378309oih.282.2018.05.23.03.25.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 23 May 2018 02:58:20 -0700 (PDT)
-Subject: Re: [PATCH v2 2/2] kasan: fix memory hotplug during boot
-References: <20180522100756.18478-1-david@redhat.com>
- <20180522100756.18478-3-david@redhat.com>
- <f4378c56-acc2-a5cf-724c-76cffee28235@virtuozzo.com>
- <ff21c6e7-cb32-60d8-abd3-dfc6be3d05f7@redhat.com>
- <09c36096-f8c8-b9e9-0bed-113e494f159a@virtuozzo.com>
- <20180522140735.71dcd92e7b013629a7f15f91@linux-foundation.org>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <6642e0d8-671c-1c1e-3ae8-99ac34c3b667@virtuozzo.com>
-Date: Wed, 23 May 2018 12:59:32 +0300
-MIME-Version: 1.0
-In-Reply-To: <20180522140735.71dcd92e7b013629a7f15f91@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 May 2018 03:25:06 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20180515091655.GD12670@dhcp22.suse.cz>
+	<201805181914.IFF18202.FOJOVSOtLFMFHQ@I-love.SAKURA.ne.jp>
+	<20180518122045.GG21711@dhcp22.suse.cz>
+	<201805210056.IEC51073.VSFFHFOOQtJMOL@I-love.SAKURA.ne.jp>
+	<20180522061850.GB20020@dhcp22.suse.cz>
+In-Reply-To: <20180522061850.GB20020@dhcp22.suse.cz>
+Message-Id: <201805231924.EED86916.FSQJMtHOLVOFOF@I-love.SAKURA.ne.jp>
+Date: Wed, 23 May 2018 19:24:48 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, "open list:KASAN" <kasan-dev@googlegroups.com>
+To: mhocko@kernel.org, guro@fb.com
+Cc: rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-
-
-On 05/23/2018 12:07 AM, Andrew Morton wrote:
-> On Tue, 22 May 2018 22:50:12 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+Michal Hocko wrote:
+> > I don't understand why you are talking about PF_WQ_WORKER case.
 > 
->>
->>
->> On 05/22/2018 07:36 PM, David Hildenbrand wrote:
->>> On 22.05.2018 18:26, Andrey Ryabinin wrote:
->>>>
->>>>
->>>> On 05/22/2018 01:07 PM, David Hildenbrand wrote:
->>>>> Using module_init() is wrong. E.g. ACPI adds and onlines memory before
->>>>> our memory notifier gets registered.
->>>>>
->>>>> This makes sure that ACPI memory detected during boot up will not
->>>>> result in a kernel crash.
->>>>>
->>>>> Easily reproducable with QEMU, just specify a DIMM when starting up.
->>>>
->>>>          reproducible
->>>>>
->>>>> Signed-off-by: David Hildenbrand <david@redhat.com>
->>>>> ---
->>>>
->>>> Fixes: fa69b5989bb0 ("mm/kasan: add support for memory hotplug")
->>>> Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
->>>> Cc: <stable@vger.kernel.org>
->>>
->>> Think this even dates back to:
->>>
->>> 786a8959912e ("kasan: disable memory hotplug")
->>>
->>
->> Indeed.
-> 
-> Is a backport to -stable justified for either of these patches?
-> 
+> Because that seems to be the reason to have it there as per your
+> comment.
 
-I don't see any reasons to not backport these.
-The first one fixes failure to online memory, why it shouldn't be fixed in -stable?
-The second one is fixes boot crash, it's definitely stable material IMO.
+OK. Then, I will fold below change into my patch.
+
+        if (did_some_progress) {
+                no_progress_loops = 0;
+ +              /*
+-+               * This schedule_timeout_*() serves as a guaranteed sleep for
+-+               * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
+++               * Try to give the OOM killer/reaper/victims some time for
+++               * releasing memory.
+ +               */
+ +              if (!tsk_is_oom_victim(current))
+ +                      schedule_timeout_uninterruptible(1);
+
+But Roman, my patch conflicts with your "mm, oom: cgroup-aware OOM killer" patch
+in linux-next. And it seems to me that your patch contains a bug which leads to
+premature memory allocation failure explained below.
+
+@@ -1029,6 +1050,7 @@ bool out_of_memory(struct oom_control *oc)
+ {
+        unsigned long freed = 0;
+        enum oom_constraint constraint = CONSTRAINT_NONE;
++       bool delay = false; /* if set, delay next allocation attempt */
+
+        if (oom_killer_disabled)
+                return false;
+@@ -1073,27 +1095,39 @@ bool out_of_memory(struct oom_control *oc)
+            current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
+            current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
+                get_task_struct(current);
+-               oc->chosen = current;
++               oc->chosen_task = current;
+                oom_kill_process(oc, "Out of memory (oom_kill_allocating_task)");
+                return true;
+        }
+
++       if (mem_cgroup_select_oom_victim(oc)) {
+
+/* mem_cgroup_select_oom_victim() returns true if select_victim_memcg() made
+   oc->chosen_memcg != NULL.
+   select_victim_memcg() makes oc->chosen_memcg = INFLIGHT_VICTIM if there is
+   inflight memcg. But oc->chosen_task remains NULL because it did not call
+   oom_evaluate_task(), didn't it? (And if it called oom_evaluate_task(),
+   put_task_struct() is missing here.) */
+
++               if (oom_kill_memcg_victim(oc)) {
+
+/* oom_kill_memcg_victim() returns true if oc->chosen_memcg == INFLIGHT_VICTIM. */
+
++                       delay = true;
++                       goto out;
++               }
++       }
++
+        select_bad_process(oc);
+        /* Found nothing?!?! Either we hang forever, or we panic. */
+-       if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
++       if (!oc->chosen_task && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+                dump_header(oc, NULL);
+                panic("Out of memory and no killable processes...\n");
+        }
+-       if (oc->chosen && oc->chosen != (void *)-1UL) {
++       if (oc->chosen_task && oc->chosen_task != (void *)-1UL) {
+                oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+                                 "Memory cgroup out of memory");
+-               /*
+-                * Give the killed process a good chance to exit before trying
+-                * to allocate memory again.
+-                */
+-               schedule_timeout_killable(1);
++               delay = true;
+        }
+-       return !!oc->chosen;
++
++out:
++       /*
++        * Give the killed process a good chance to exit before trying
++        * to allocate memory again.
++        */
++       if (delay)
++               schedule_timeout_killable(1);
++
+
+/* out_of_memory() returns false because oc->chosen_task remains NULL. */
+
++       return !!oc->chosen_task;
+ }
+
+Can we apply my patch prior to your "mm, oom: cgroup-aware OOM killer" patch
+(which eliminates "delay" and "out:" from your patch) so that people can easily
+backport my patch? Or, do you want to apply a fix (which eliminates "delay" and
+"out:" from linux-next) prior to my patch?
