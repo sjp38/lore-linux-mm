@@ -1,67 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 890A36B026C
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 13:16:38 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id t2-v6so693372pgo.0
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 10:16:38 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r9-v6sor8220497pfh.53.2018.05.23.10.16.37
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CC3C6B0266
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 13:30:26 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id r9-v6so6849139pgp.12
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 10:30:26 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id q8-v6si15285215pgp.533.2018.05.23.10.30.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 23 May 2018 10:16:37 -0700 (PDT)
-From: Huaisheng Ye <yehs2007@gmail.com>
-Subject: [RFC PATCH v3 5/9] drivers/block/zram/zram_drv: update usage of zone modifiers
-Date: Thu, 24 May 2018 01:16:29 +0800
-Message-Id: <1527095789-5668-1-git-send-email-yehs2007@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 May 2018 10:30:24 -0700 (PDT)
+Subject: Re: [PATCH] mm: Add new vma flag VM_LOCAL_CPU
+References: <0efb5547-9250-6b6c-fe8e-cf4f44aaa5eb@netapp.com>
+ <20180514191551.GA27939@bombadil.infradead.org>
+ <7ec6fa37-8529-183d-d467-df3642bcbfd2@netapp.com>
+ <20180515004137.GA5168@bombadil.infradead.org>
+ <f3a66d8b-b9dc-b110-08aa-a63f0c309fb2@netapp.com>
+ <010001637399f796-3ffe3ed2-2fb1-4d43-84f0-6a65b6320d66-000000@email.amazonses.com>
+ <5aea6aa0-88cc-be7a-7012-7845499ced2c@netapp.com>
+ <50cbc27f-0014-0185-048d-25640f744b5b@linux.intel.com>
+ <0100016388be5738-df8f9d12-7011-4e4e-ba5b-33973e5da794-000000@email.amazonses.com>
+ <c4bb7ea8-16d5-ca31-2a9b-db90841211ba@linux.intel.com>
+ <20180522175114.GA1237@bombadil.infradead.org>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <5e20be19-28ba-189a-6935-698a012a6665@linux.intel.com>
+Date: Wed, 23 May 2018 10:30:23 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180522175114.GA1237@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, willy@infradead.org, hch@lst.de, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Christoph Hellwig <hch@infradead.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Christopher Lameter <cl@linux.com>, Boaz Harrosh <boazh@netapp.com>, Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Amit Golander <Amit.Golander@netapp.com>
 
-From: Huaisheng Ye <yehs1@lenovo.com>
+On 05/22/2018 10:51 AM, Matthew Wilcox wrote:
+> But CR3 is a per-CPU register.  So it'd be *possible* to allocate one
+> PGD per CPU (per process).  Have them be identical in all but one of
+> the PUD entries.  Then you've reserved 1/512 of your address space for
+> per-CPU pages.
+> 
+> Complicated, ugly, memory-consuming.  But possible.
 
-Use __GFP_ZONE_MOVABLE to replace (__GFP_HIGHMEM | __GFP_MOVABLE).
+Yep, and you'd probably want a cache of them so you don't end up having
+to go rewrite half of the PGD every time you context-switch.  But, on
+the plus side, the logic would be pretty similar if not identical to the
+way that we manage PCIDs.  If your mm was recently active on the CPU,
+you can use a PGD that's already been constructed.  If not, you're stuck
+making a new one.
 
-___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 have been deleted from GFP
-bitmasks, the bottom three bits of GFP mask is reserved for storing
-encoded zone number.
+Andy L. was alto talking about using this kind of mechanism to simplify
+the entry code.  Instead of needing per-cpu areas where we index by the
+CPU number, or by using %GS, we could have per-cpu data or code that has
+a fixed virtual address.
 
-__GFP_ZONE_MOVABLE contains encoded ZONE_MOVABLE and __GFP_MOVABLE flag.
-
-With GFP_ZONE_TABLE, __GFP_HIGHMEM ORing __GFP_MOVABLE means gfp_zone
-should return ZONE_MOVABLE. In order to keep that compatible with
-GFP_ZONE_TABLE, replace (__GFP_HIGHMEM | __GFP_MOVABLE) with
-__GFP_ZONE_MOVABLE.
-
-Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>
----
- drivers/block/zram/zram_drv.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 0f3fadd..1bb5ca8 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -1004,14 +1004,12 @@ static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
- 		handle = zs_malloc(zram->mem_pool, comp_len,
- 				__GFP_KSWAPD_RECLAIM |
- 				__GFP_NOWARN |
--				__GFP_HIGHMEM |
--				__GFP_MOVABLE);
-+				__GFP_ZONE_MOVABLE);
- 	if (!handle) {
- 		zcomp_stream_put(zram->comp);
- 		atomic64_inc(&zram->stats.writestall);
- 		handle = zs_malloc(zram->mem_pool, comp_len,
--				GFP_NOIO | __GFP_HIGHMEM |
--				__GFP_MOVABLE);
-+				GFP_NOIO | __GFP_ZONE_MOVABLE);
- 		if (handle)
- 			goto compress_again;
- 		return -ENOMEM;
--- 
-1.8.3.1
+It'd be a fun project, but it might not ever pan out.
