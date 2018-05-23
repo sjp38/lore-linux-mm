@@ -1,70 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FE316B0003
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 09:51:01 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id v10-v6so16270519oth.16
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 06:51:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 26-v6sor8134942oij.136.2018.05.23.06.51.00
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 23 May 2018 06:51:00 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 15DCF6B0005
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 09:54:05 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y9-v6so12994153wrg.22
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 06:54:05 -0700 (PDT)
+Received: from techadventures.net (techadventures.net. [62.201.165.239])
+        by mx.google.com with ESMTP id z72-v6si1765281wmc.207.2018.05.23.06.54.03
+        for <linux-mm@kvack.org>;
+        Wed, 23 May 2018 06:54:03 -0700 (PDT)
+Date: Wed, 23 May 2018 15:54:03 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [PATCH] mm/memory_hotplug: Fix leftover use of struct page
+ during hotplug
+Message-ID: <20180523135403.GA30762@techadventures.net>
+References: <20180504085311.1240-1-Jonathan.Cameron@huawei.com>
+ <20180504160844.GB23560@dhcp22.suse.cz>
+ <20180504175051.000009e8@huawei.com>
+ <20180510120200.GC5325@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180523093537.duw6jlglcx7fnutw@quack2.suse.cz>
-References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152700000355.24093.14726378287214432782.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180523093537.duw6jlglcx7fnutw@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 23 May 2018 06:50:59 -0700
-Message-ID: <CAPcyv4hbwPFxvfJVot14dtxJyxttChM06bsP+E5mCN4=VjG5BA@mail.gmail.com>
-Subject: Re: [PATCH 06/11] filesystem-dax: perform __dax_invalidate_mapping_entry()
- under the page lock
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180510120200.GC5325@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>, linux-mm <linux-mm@kvack.org>, linuxarm@huawei.com, Pavel Tatashin <pasha.tatashin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, May 23, 2018 at 2:35 AM, Jan Kara <jack@suse.cz> wrote:
-> On Tue 22-05-18 07:40:03, Dan Williams wrote:
->> Hold the page lock while invalidating mapping entries to prevent races
->> between rmap using the address_space and the filesystem freeing the
->> address_space.
->>
->> This is more complicated than the simple description implies because
->> dev_pagemap pages that fsdax uses do not have any concept of page size.
->> Size information is stored in the radix and can only be safely read
->> while holding the xa_lock. Since lock_page() can not be taken while
->> holding xa_lock, drop xa_lock and speculatively lock all the associated
->> pages. Once all the pages are locked re-take the xa_lock and revalidate
->> that the radix entry did not change.
->>
->> Cc: Jan Kara <jack@suse.cz>
->> Cc: Christoph Hellwig <hch@lst.de>
->> Cc: Matthew Wilcox <mawilcox@microsoft.com>
->> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->
-> IMO this is too ugly to live.
+On Thu, May 10, 2018 at 02:02:00PM +0200, Michal Hocko wrote:
+> On Fri 04-05-18 17:50:51, Jonathan Cameron wrote:
+> [...]
+> > Exact path to the problem is as follows:
+> > 
+> > mm/memory_hotplug.c : add_memory_resource
+> > The node is not online so we enter the
+> > if (new_node) twice, on the second such block there is a call to
+> > link_mem_sections which calls into
+> > drivers/node.c: link_mem_sections which calls
+> > drivers/node.c: register_mem_sect_under_node which calls
+> > get_nid_for_pfn and keeps trying until the output of that matches
+> > the expected node (passed all the way down from add_memory_resource)
+> 
+> I am sorry but I am still confused. Why don't we create sysfs files from
+> __add_pages
+>   __add_section
+>     hotplug_memory_register
+>       register_mem_sect_under_node
 
-The same thought crossed my mind...
+IIUC the problem is that at the point we are calling register_mem_sect_under_node(),
+pages are not initialized yet.
 
-> The combination of entry locks in the radix
-> tree and page locks is just too big mess. And from a quick look I don't see
-> a reason why we could not use entry locks to protect rmap code as well -
-> when you have PFN for which you need to walk rmap, you can grab
-> rcu_read_lock(), then you can safely look at page->mapping, grab xa_lock,
-> verify the radix tree points where it should and grab entry lock. I agree
-> it's a bit complicated but for memory failure I think it is fine.
+While walking the pfns in register_mem_sect_under_node(),
+we might check for the node-id of the pfn if check_nid is true.
 
-Ah, I missed this cleverness with rcu relative to keeping the
-page->mapping valid. I'll take a look.
+if (check_nid) {
+	page_nid = get_nid_for_pfn(pfn);
+	if (page_nid < 0)
+		continue;
+	if (page_nid != nid)
+		continue;
+}
 
-> Or we could talk about switching everything to page locks instead of entry
-> locks but that isn't trivial either as we need something to serialized page
-> faults on even before we go into the filesystem and allocate blocks for the
-> fault...
+I think the problem is in:
 
-I'd rather use entry locks everywhere and not depend on the page lock
-for rmap if at all possible. Ideally lock_page is only used for
-typical pages and not these dev_pagemap related structures.
+get_nid_for_pfn()->pfn_to_nid()->page_to_nid()
+
+static inline int page_to_nid(const struct page *page)
+{
+	struct page *p = (struct page *)page;
+
+	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
+}
+
+We access a field of the page, but these are not initialiazed, so it can
+contain anything.
+Because of that we can just get a wrong id, making the loop to not pass the
+below check.
+
+if (check_nid) {
+        page_nid = get_nid_for_pfn(pfn);
+        if (page_nid < 0)
+                continue;
+        if (page_nid != nid)
+                continue;
+}
+
+create_sys_fs ...
+
+and we do not carry on creating the sysfs.
+
+
+Oscar Salvador
