@@ -1,131 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A499A6B0006
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 04:19:51 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 33-v6so616219wrb.12
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 01:19:51 -0700 (PDT)
-Received: from techadventures.net (techadventures.net. [62.201.165.239])
-        by mx.google.com with ESMTP id b128-v6si1357230wmg.66.2018.05.23.01.19.50
-        for <linux-mm@kvack.org>;
-        Wed, 23 May 2018 01:19:50 -0700 (PDT)
-Date: Wed, 23 May 2018 10:19:50 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [RFC] Checking for error code in __offline_pages
-Message-ID: <20180523081950.GB30518@techadventures.net>
-References: <20180523073547.GA29266@techadventures.net>
- <20180523075239.GF20441@dhcp22.suse.cz>
- <20180523081609.GG20441@dhcp22.suse.cz>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C675C6B0006
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 04:26:32 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id r4-v6so3806831pgq.2
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 01:26:32 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id 3-v6si19009042plf.84.2018.05.23.01.26.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 May 2018 01:26:31 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm -V3 00/21] mm, THP, swap: Swapout/swapin THP in one piece
+Date: Wed, 23 May 2018 16:26:04 +0800
+Message-Id: <20180523082625.6897-1-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180523081609.GG20441@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: linux-mm@kvack.org, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>
 
-On Wed, May 23, 2018 at 10:16:09AM +0200, Michal Hocko wrote:
-> On Wed 23-05-18 09:52:39, Michal Hocko wrote:
-> [...]
-> > Yeah, the current code is far from optimal. We
-> > used to have a retry count but that one was removed exactly because of
-> > premature failures. There are three things here
-> > 1) zone_movable should contain any bootmem or otherwise non-migrateable
-> >    pages
-> > 2) start_isolate_page_range should fail when seeing such pages - maybe
-> >    has_unmovable_pages is overly optimistic and it should check all
-> >    pages even in movable zones.
-> > 3) migrate_pages should really tell us whether the failure is temporal
-> >    or permanent. I am not sure we can do that easily though.
-> 
-> 2) should be the most simple one for now. Could you give it a try? Btw.
-> the exact configuration that led to boothmem pages in zone_movable would
-> be really appreciated:
+From: Huang Ying <ying.huang@intel.com>
 
-I will try it out and I will paste the config.
+Hi, Andrew, could you help me to check whether the overall design is
+reasonable?
 
-> --- 
-> From 6aa144a9b1c01255c89a4592221d706ccc4b4eea Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Wed, 23 May 2018 10:04:20 +0200
-> Subject: [PATCH] mm, memory_hotplug: make has_unmovable_pages more robust
-> 
-> Oscar has reported:
-> : Due to an unfortunate setting with movablecore, memblocks containing bootmem
-> : memory (pages marked by get_page_bootmem()) ended up marked in zone_movable.
-> : So while trying to remove that memory, the system failed in do_migrate_range
-> : and __offline_pages never returned.
-> 
-> This is because we rely on start_isolate_page_range resp. has_unmovable_pages
-> to do their jobb. The first one isolates the whole range to be offlined
-> so that we do not allocate from it anymore and the later makes sure we
-> are not stumbling over non-migrateable pages.
-> 
-> has_unmovable_pages is overly optimistic, however. It doesn't check all
-> the pages if we are withing zone_movable because we rely that those
-> pages will be always migrateable. As it turns out we are still not
-> perfect there. While bootmem pages in zonemovable sound like a clear bug
-> which should be fixed let's remove the optimization for now and warn if
-> we encounter unmovable pages in zone_movable in the meantime. That
-> should help for now at least.
-> 
-> Btw. this wasn't a real problem until 72b39cfc4d75 ("mm, memory_hotplug:
-> do not fail offlining too early") because we used to have a small number
-> of retries and then failed. This turned out to be too fragile though.
-> 
-> Reported-by: Oscar Salvador <osalvador@techadventures.net>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/page_alloc.c | 16 ++++++++++------
->  1 file changed, 10 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3c6f4008ea55..b9a45753244d 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7629,11 +7629,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->  	unsigned long pfn, iter, found;
->  
->  	/*
-> -	 * For avoiding noise data, lru_add_drain_all() should be called
-> -	 * If ZONE_MOVABLE, the zone never contains unmovable pages
-> +	 * TODO we could make this much more efficient by not checking every
-> +	 * page in the range if we know all of them are in MOVABLE_ZONE and
-> +	 * that the movable zone guarantees that pages are migratable but
-> +	 * the later is not the case right now unfortunatelly. E.g. movablecore
-> +	 * can still lead to having bootmem allocations in zone_movable.
->  	 */
-> -	if (zone_idx(zone) == ZONE_MOVABLE)
-> -		return false;
->  
->  	/*
->  	 * CMA allocations (alloc_contig_range) really need to mark isolate
-> @@ -7654,7 +7655,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->  		page = pfn_to_page(check);
->  
->  		if (PageReserved(page))
-> -			return true;
-> +			goto unmovable;
->  
->  		/*
->  		 * Hugepages are not in LRU lists, but they're movable.
-> @@ -7704,9 +7705,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->  		 * page at boot.
->  		 */
->  		if (found > count)
-> -			return true;
-> +			goto unmovable;
->  	}
->  	return false;
-> +unmovable:
-> +	WARN_ON_ONCE(zone_idx(zone) == ZONE_MOVABLE);
-> +	return true;
->  }
->  
->  #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
-> -- 
-> 2.17.0
+Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+swap part of the patchset?  Especially [02/21], [03/21], [04/21],
+[05/21], [06/21], [07/21], [08/21], [09/21], [10/21], [11/21],
+[12/21], [20/21].
 
-Thanks
+Hi, Andrea and Kirill, could you help me to review the THP part of the
+patchset?  Especially [01/21], [07/21], [09/21], [11/21], [13/21],
+[15/21], [16/21], [17/21], [18/21], [19/21], [20/21], [21/21].
 
-Oscar Salvador
+Hi, Johannes and Michal, could you help me to review the cgroup part
+of the patchset?  Especially [14/21].
+
+And for all, Any comment is welcome!
+
+This patchset is based on the 2018-05-18 head of mmotm/master.
+
+This is the final step of THP (Transparent Huge Page) swap
+optimization.  After the first and second step, the splitting huge
+page is delayed from almost the first step of swapout to after swapout
+has been finished.  In this step, we avoid splitting THP for swapout
+and swapout/swapin the THP in one piece.
+
+We tested the patchset with vm-scalability benchmark swap-w-seq test
+case, with 16 processes.  The test case forks 16 processes.  Each
+process allocates large anonymous memory range, and writes it from
+begin to end for 8 rounds.  The first round will swapout, while the
+remaining rounds will swapin and swapout.  The test is done on a Xeon
+E5 v3 system, the swap device used is a RAM simulated PMEM (persistent
+memory) device.  The test result is as follow,
+
+            base                  optimized
+---------------- -------------------------- 
+         %stddev     %change         %stddev
+             \          |                \  
+   1417897 A+-  2%    +992.8%   15494673        vm-scalability.throughput
+   1020489 A+-  4%   +1091.2%   12156349        vmstat.swap.si
+   1255093 A+-  3%    +940.3%   13056114        vmstat.swap.so
+   1259769 A+-  7%   +1818.3%   24166779        meminfo.AnonHugePages
+  28021761           -10.7%   25018848 A+-  2%  meminfo.AnonPages
+  64080064 A+-  4%     -95.6%    2787565 A+- 33%  interrupts.CAL:Function_call_interrupts
+     13.91 A+-  5%     -13.8        0.10 A+- 27%  perf-profile.children.cycles-pp.native_queued_spin_lock_slowpath
+
+Where, the score of benchmark (bytes written per second) improved
+992.8%.  The swapout/swapin throughput improved 1008% (from about
+2.17GB/s to 24.04GB/s).  The performance difference is huge.  In base
+kernel, for the first round of writing, the THP is swapout and split,
+so in the remaining rounds, there is only normal page swapin and
+swapout.  While in optimized kernel, the THP is kept after first
+swapout, so THP swapin and swapout is used in the remaining rounds.
+This shows the key benefit to swapout/swapin THP in one piece, the THP
+will be kept instead of being split.  meminfo information verified
+this, in base kernel only 4.5% of anonymous page are THP during the
+test, while in optimized kernel, that is 96.6%.  The TLB flushing IPI
+(represented as interrupts.CAL:Function_call_interrupts) reduced
+95.6%, while cycles for spinlock reduced from 13.9% to 0.1%.  These
+are performance benefit of THP swapout/swapin too.
+
+Below is the description for all steps of THP swap optimization.
+
+Recently, the performance of the storage devices improved so fast that
+we cannot saturate the disk bandwidth with single logical CPU when do
+page swapping even on a high-end server machine.  Because the
+performance of the storage device improved faster than that of single
+logical CPU.  And it seems that the trend will not change in the near
+future.  On the other hand, the THP becomes more and more popular
+because of increased memory size.  So it becomes necessary to optimize
+THP swap performance.
+
+The advantages to swapout/swapin a THP in one piece include:
+
+- Batch various swap operations for the THP.  Many operations need to
+  be done once per THP instead of per normal page, for example,
+  allocating/freeing the swap space, writing/reading the swap space,
+  flushing TLB, page fault, etc.  This will improve the performance of
+  the THP swap greatly.
+
+- The THP swap space read/write will be large sequential IO (2M on
+  x86_64).  It is particularly helpful for the swapin, which are
+  usually 4k random IO.  This will improve the performance of the THP
+  swap too.
+
+- It will help the memory fragmentation, especially when the THP is
+  heavily used by the applications.  The THP order pages will be free
+  up after THP swapout.
+
+- It will improve the THP utilization on the system with the swap
+  turned on.  Because the speed for khugepaged to collapse the normal
+  pages into the THP is quite slow.  After the THP is split during the
+  swapout, it will take quite long time for the normal pages to
+  collapse back into the THP after being swapin.  The high THP
+  utilization helps the efficiency of the page based memory management
+  too.
+
+There are some concerns regarding THP swapin, mainly because possible
+enlarged read/write IO size (for swapout/swapin) may put more overhead
+on the storage device.  To deal with that, the THP swapin is turned on
+only when necessary.  A new sysfs interface:
+/sys/kernel/mm/transparent_hugepage/swapin_enabled is added to
+configure it.  It uses "always/never/madvise" logic, to be turned on
+globally, turned off globally, or turned on only for VMA with
+MADV_HUGEPAGE, etc.
+GE, etc.
+
+Changelog
+---------
+
+v3:
+
+- Rebased on 5/18 HEAD of mmotm/master
+
+- Fixed a build bug, Thanks 0-Day!
+
+v2:
+
+- Fixed several build bugs, Thanks 0-Day!
+
+- Improved documentation as suggested by Randy Dunlap.
+
+- Fixed several bugs in reading huge swap cluster
