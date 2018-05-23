@@ -1,149 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 23FB26B0008
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 12:17:35 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id h70-v6so14331873oib.21
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 09:17:35 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b131-v6si6291859oia.317.2018.05.23.09.17.13
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 218F26B0003
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 12:38:06 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id g92-v6so14416322plg.6
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 09:38:06 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r39-v6sor9053837pld.66.2018.05.23.09.38.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 09:17:13 -0700 (PDT)
-Date: Wed, 23 May 2018 12:17:11 -0400
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [PATCH 19/34] xfs: simplify xfs_bmap_punch_delalloc_range
-Message-ID: <20180523161710.GA33498@bfoster.bfoster>
-References: <20180523144357.18985-1-hch@lst.de>
- <20180523144357.18985-20-hch@lst.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180523144357.18985-20-hch@lst.de>
+        (Google Transport Security);
+        Wed, 23 May 2018 09:38:04 -0700 (PDT)
+From: Huaisheng Ye <yehs2007@gmail.com>
+Subject: [RFC PATCH v3 0/9] get rid of GFP_ZONE_TABLE/BAD
+Date: Thu, 24 May 2018 00:37:35 +0800
+Message-Id: <1527093455-3899-1-git-send-email-yehs2007@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, willy@infradead.org, hch@lst.de, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>
 
-On Wed, May 23, 2018 at 04:43:42PM +0200, Christoph Hellwig wrote:
-> Instead of using xfs_bmapi_read to find delalloc extents and then punch
-> them out using xfs_bunmapi, opencode the loop to iterate over the extents
-> and call xfs_bmap_del_extent_delay directly.  This both simplifies the
-> code and reduces the number of extent tree lookups required.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  fs/xfs/xfs_bmap_util.c | 78 ++++++++++++++----------------------------
->  1 file changed, 25 insertions(+), 53 deletions(-)
-> 
-> diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
-> index 06badcbadeb4..c009bdf9fdce 100644
-> --- a/fs/xfs/xfs_bmap_util.c
-> +++ b/fs/xfs/xfs_bmap_util.c
+From: Huaisheng Ye <yehs1@lenovo.com>
+
+Changes since v2: [2]
+* According to Christoph's suggestion, rebase patches to current
+  mainline from v4.16.
+
+* Follow the advice of Matthew, create macros like GFP_NORMAL and
+  GFP_NORMAL_UNMOVABLE to clear bottom 3 and 4 bits of GFP bitmask.
+
+* Delete some patches because of kernel updating.
+
+[2]: https://marc.info/?l=linux-mm&m=152691610014027&w=2
+
+Tested by Lenovo Thinksystem server.
+
+Initmem setup node 0 [mem 0x0000000000001000-0x000000043fffffff]
+[    0.000000] On node 0 totalpages: 4111666
+[    0.000000]   DMA zone: 64 pages used for memmap
+[    0.000000]   DMA zone: 23 pages reserved
+[    0.000000]   DMA zone: 3999 pages, LIFO batch:0
+[    0.000000] mminit::memmap_init Initialising map node 0 zone 0 pfns 1 -> 4096 
+[    0.000000]   DMA32 zone: 10935 pages used for memmap
+[    0.000000]   DMA32 zone: 699795 pages, LIFO batch:31
+[    0.000000] mminit::memmap_init Initialising map node 0 zone 1 pfns 4096 -> 1048576
+[    0.000000]   Normal zone: 53248 pages used for memmap
+[    0.000000]   Normal zone: 3407872 pages, LIFO batch:31
+[    0.000000] mminit::memmap_init Initialising map node 0 zone 2 pfns 1048576 -> 4456448
+[    0.000000] mminit::memmap_init Initialising map node 0 zone 3 pfns 1 -> 4456448
+[    0.000000] Initmem setup node 1 [mem 0x0000002380000000-0x000000277fffffff]
+[    0.000000] On node 1 totalpages: 4194304
+[    0.000000]   Normal zone: 65536 pages used for memmap
+[    0.000000]   Normal zone: 4194304 pages, LIFO batch:31
+[    0.000000] mminit::memmap_init Initialising map node 1 zone 2 pfns 37224448 -> 41418752
+[    0.000000] mminit::memmap_init Initialising map node 1 zone 3 pfns 37224448 -> 41418752
 ...
-> @@ -708,63 +706,37 @@ xfs_bmap_punch_delalloc_range(
->  	xfs_fileoff_t		start_fsb,
->  	xfs_fileoff_t		length)
->  {
-> -	xfs_fileoff_t		remaining = length;
-> +	struct xfs_ifork	*ifp = &ip->i_df;
-> +	struct xfs_bmbt_irec	got, del;
-> +	struct xfs_iext_cursor	icur;
->  	int			error = 0;
->  
->  	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
->  
-> -	do {
-> -		int		done;
-> -		xfs_bmbt_irec_t	imap;
-> -		int		nimaps = 1;
-> -		xfs_fsblock_t	firstblock;
-> -		struct xfs_defer_ops dfops;
-> +	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-> +		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
-> +		if (error)
-> +			return error;
-> +	}
->  
-> -		/*
-> -		 * Map the range first and check that it is a delalloc extent
-> -		 * before trying to unmap the range. Otherwise we will be
-> -		 * trying to remove a real extent (which requires a
-> -		 * transaction) or a hole, which is probably a bad idea...
-> -		 */
-> -		error = xfs_bmapi_read(ip, start_fsb, 1, &imap, &nimaps,
-> -				       XFS_BMAPI_ENTIRE);
-> +	if (!xfs_iext_lookup_extent(ip, ifp, start_fsb, &icur, &got))
-> +		return 0;
->  
-> -		if (error) {
-> -			/* something screwed, just bail */
-> -			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-> -				xfs_alert(ip->i_mount,
-> -			"Failed delalloc mapping lookup ino %lld fsb %lld.",
-> -						ip->i_ino, start_fsb);
-> -			}
-> +	do {
-> +		if (got.br_startoff >= start_fsb + length)
->  			break;
-> -		}
-> -		if (!nimaps) {
-> -			/* nothing there */
-> -			goto next_block;
-> -		}
-> -		if (imap.br_startblock != DELAYSTARTBLOCK) {
-> -			/* been converted, ignore */
-> -			goto next_block;
-> -		}
-> -		WARN_ON(imap.br_blockcount == 0);
-> +		if (!isnullstartblock(got.br_startblock))
-> +			continue;
->  
-> -		/*
-> -		 * Note: while we initialise the firstblock/dfops pair, they
-> -		 * should never be used because blocks should never be
-> -		 * allocated or freed for a delalloc extent and hence we need
-> -		 * don't cancel or finish them after the xfs_bunmapi() call.
-> -		 */
-> -		xfs_defer_init(&dfops, &firstblock);
-> -		error = xfs_bunmapi(NULL, ip, start_fsb, 1, 0, 1, &firstblock,
-> -					&dfops, &done);
-> +		del = got;
-> +		xfs_trim_extent(&del, start_fsb, length);
-> +		error = xfs_bmap_del_extent_delay(ip, XFS_DATA_FORK, &icur,
-> +				&got, &del);
->  		if (error)
->  			break;
-> -
-> -		ASSERT(!xfs_defer_has_unfinished_work(&dfops));
-> -next_block:
-> -		start_fsb++;
-> -		remaining--;
-> -	} while(remaining > 0);
-> +		if (!xfs_iext_get_extent(ifp, &icur, &got))
-> +			break;
+[    0.000000] mminit::zonelist general 0:DMA = 0:DMA
+[    0.000000] mminit::zonelist general 0:DMA32 = 0:DMA32 0:DMA
+[    0.000000] mminit::zonelist general 0:Normal = 0:Normal 0:DMA32 0:DMA 1:Normal
+[    0.000000] mminit::zonelist thisnode 0:DMA = 0:DMA
+[    0.000000] mminit::zonelist thisnode 0:DMA32 = 0:DMA32 0:DMA
+[    0.000000] mminit::zonelist thisnode 0:Normal = 0:Normal 0:DMA32 0:DMA
+[    0.000000] mminit::zonelist general 1:Normal = 1:Normal 0:Normal 0:DMA32 0:DMA
+[    0.000000] mminit::zonelist thisnode 1:Normal = 1:Normal
+[    0.000000] Built 2 zonelists, mobility grouping on.  Total pages: 8176164
+[    0.000000] Policy zone: Normal
+[    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-4.17.0-rc6-gfp09+ 
+root=/dev/mapper/fedora-root ro rd.lvm.lv=fedora/root rd.lvm.lv=fedora/swap debug 
+LANG=en_US.UTF-8 mminit_loglevel=4 console=tty0 console=ttyS0,115200n8 memblock=debug
+earlyprintk=serial,0x3f8,115200
 
-Mostly looks Ok, but I'm not following what this get_extent() call is
-for..? It also doesn't look like it would always do the right thing with
-sub-page blocks. Consider a page with a couple discontig delalloc blocks
-that happen to be the first extents in the file. The first
-xfs_bmap_del_extent_delay() would do:
+---
 
-	xfs_iext_remove(ip, icur, state);
-	xfs_iext_prev(ifp, icur);
+Replace GFP_ZONE_TABLE and GFP_ZONE_BAD with encoded zone number.
 
-... which I think sets cur->pos to -1, causes the get_extent() to fail
-and thus fails to remove the subsequent delalloc blocks. Hm?
+Delete ___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 from GFP bitmasks,
+the bottom three bits of GFP mask is reserved for storing encoded
+zone number.
 
-Brian
+The encoding method is XOR. Get zone number from enum zone_type,
+then encode the number with ZONE_NORMAL by XOR operation.
+The goal is to make sure ZONE_NORMAL can be encoded to zero. So,
+the compatibility can be guaranteed, such as GFP_KERNEL and GFP_ATOMIC
+can be used as before.
 
-> +	} while (xfs_iext_next_extent(ifp, &icur, &got));
->  
->  	return error;
->  }
-> -- 
-> 2.17.0
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Reserve __GFP_MOVABLE in bit 3, so that it can continue to be used as
+a flag. Same as before, __GFP_MOVABLE respresents movable migrate type
+for ZONE_DMA, ZONE_DMA32, and ZONE_NORMAL. But when it is enabled with
+__GFP_HIGHMEM, ZONE_MOVABLE shall be returned instead of ZONE_HIGHMEM.
+__GFP_ZONE_MOVABLE is created to realize it.
+
+With this patch, just enabling __GFP_MOVABLE and __GFP_HIGHMEM is not
+enough to get ZONE_MOVABLE from gfp_zone. All callers should use
+GFP_HIGHUSER_MOVABLE or __GFP_ZONE_MOVABLE directly to achieve that.
+
+Decode zone number directly from bottom three bits of flags in gfp_zone.
+The theory of encoding and decoding is,
+        A ^ B ^ B = A
+
+Changes since v1:[1]
+
+* Create __GFP_ZONE_MOVABLE and modify GFP_HIGHUSER_MOVABLE to help
+  callers to get ZONE_MOVABLE. Try to create __GFP_ZONE_MASK to mask
+  lowest 3 bits of GFP bitmasks.
+
+* Modify some callers' gfp flag to update usage of address zone
+  modifiers.
+
+* Modify inline function gfp_zone to get better performance according
+  to Matthew's suggestion.
+
+[1]: https://marc.info/?l=linux-mm&m=152596791931266&w=2
+
+---
+
+Huaisheng Ye (9):
+  include/linux/gfp.h: get rid of GFP_ZONE_TABLE/BAD
+  include/linux/dma-mapping: update usage of zone modifiers
+  drivers/xen/swiotlb-xen: update usage of zone modifiers
+  fs/btrfs/extent_io: update usage of zone modifiers
+  drivers/block/zram/zram_drv: update usage of zone modifiers
+  mm/vmpressure: update usage of zone modifiers
+  mm/zsmalloc: update usage of zone modifiers
+  include/linux/highmem.h: update usage of movableflags
+  arch/x86/include/asm/page.h: update usage of movableflags
+
+ arch/x86/include/asm/page.h   |   3 +-
+ drivers/block/zram/zram_drv.c |   6 +--
+ drivers/xen/swiotlb-xen.c     |   2 +-
+ fs/btrfs/extent_io.c          |   2 +-
+ include/linux/dma-mapping.h   |   2 +-
+ include/linux/gfp.h           | 107 ++++++++----------------------------------
+ include/linux/highmem.h       |   4 +-
+ mm/vmpressure.c               |   2 +-
+ mm/zsmalloc.c                 |   4 +-
+ 9 files changed, 32 insertions(+), 100 deletions(-)
+
+-- 
+1.8.3.1
