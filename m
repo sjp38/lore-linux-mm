@@ -1,172 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CCCEC6B0006
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 02:51:52 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 31-v6so391345plf.19
-        for <linux-mm@kvack.org>; Tue, 22 May 2018 23:51:52 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id n4-v6si14388572pgn.691.2018.05.22.23.51.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 May 2018 23:51:51 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 10/11] mm, memory_failure: teach memory_failure() about
- dev_pagemap pages
-Date: Wed, 23 May 2018 06:48:15 +0000
-Message-ID: <20180523064815.GA2929@hori1.linux.bs1.fc.nec.co.jp>
-References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152700002461.24093.13281217260996107277.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <152700002461.24093.13281217260996107277.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <EC2CB84D22F40945B741CC87416E5ACA@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D2B16B0003
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 03:35:49 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id f21-v6so1826440wmh.5
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 00:35:49 -0700 (PDT)
+Received: from techadventures.net (techadventures.net. [62.201.165.239])
+        by mx.google.com with ESMTP id q184-v6si1054106wma.222.2018.05.23.00.35.47
+        for <linux-mm@kvack.org>;
+        Wed, 23 May 2018 00:35:47 -0700 (PDT)
+Date: Wed, 23 May 2018 09:35:47 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: [RFC] Checking for error code in __offline_pages
+Message-ID: <20180523073547.GA29266@techadventures.net>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "tony.luck@intel.com" <tony.luck@intel.com>
+To: linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-foundation.org
 
-T24gVHVlLCBNYXkgMjIsIDIwMTggYXQgMDc6NDA6MjRBTSAtMDcwMCwgRGFuIFdpbGxpYW1zIHdy
-b3RlOg0KPiAgICAgbWNlOiBVbmNvcnJlY3RlZCBoYXJkd2FyZSBtZW1vcnkgZXJyb3IgaW4gdXNl
-ci1hY2Nlc3MgYXQgYWYzNDIxNDIwMA0KPiAgICAgezF9W0hhcmR3YXJlIEVycm9yXTogSXQgaGFz
-IGJlZW4gY29ycmVjdGVkIGJ5IGgvdyBhbmQgcmVxdWlyZXMgbm8gZnVydGhlciBhY3Rpb24NCj4g
-ICAgIG1jZTogW0hhcmR3YXJlIEVycm9yXTogTWFjaGluZSBjaGVjayBldmVudHMgbG9nZ2VkDQo+
-ICAgICB7MX1bSGFyZHdhcmUgRXJyb3JdOiBldmVudCBzZXZlcml0eTogY29ycmVjdGVkDQo+ICAg
-ICBNZW1vcnkgZmFpbHVyZTogMHhhZjM0MjE0OiByZXNlcnZlZCBrZXJuZWwgcGFnZSBzdGlsbCBy
-ZWZlcmVuY2VkIGJ5IDEgdXNlcnMNCj4gICAgIFsuLl0NCj4gICAgIE1lbW9yeSBmYWlsdXJlOiAw
-eGFmMzQyMTQ6IHJlY292ZXJ5IGFjdGlvbiBmb3IgcmVzZXJ2ZWQga2VybmVsIHBhZ2U6IEZhaWxl
-ZA0KPiAgICAgbWNlOiBNZW1vcnkgZXJyb3Igbm90IHJlY292ZXJlZA0KPiANCj4gSW4gY29udHJh
-c3QgdG8gdHlwaWNhbCBtZW1vcnksIGRldl9wYWdlbWFwIHBhZ2VzIG1heSBiZSBkYXggbWFwcGVk
-LiBXaXRoDQo+IGRheCB0aGVyZSBpcyBubyBwb3NzaWJpbGl0eSB0byBtYXAgaW4gYW5vdGhlciBw
-YWdlIGR5bmFtaWNhbGx5IHNpbmNlIGRheA0KPiBlc3RhYmxpc2hlcyAxOjEgcGh5c2ljYWwgYWRk
-cmVzcyB0byBmaWxlIG9mZnNldCBhc3NvY2lhdGlvbnMuIEFsc28NCj4gZGV2X3BhZ2VtYXAgcGFn
-ZXMgYXNzb2NpYXRlZCB3aXRoIE5WRElNTSAvIHBlcnNpc3RlbnQgbWVtb3J5IGRldmljZXMgY2Fu
-DQo+IGludGVybmFsIHJlbWFwL3JlcGFpciBhZGRyZXNzZXMgd2l0aCBwb2lzb24uIFdoaWxlIG1l
-bW9yeV9mYWlsdXJlKCkNCj4gYXNzdW1lcyB0aGF0IGl0IGNhbiBkaXNjYXJkIHR5cGljYWwgcG9p
-c29uZWQgcGFnZXMgYW5kIGtlZXAgdGhlbQ0KPiB1bm1hcHBlZCBpbmRlZmluaXRlbHksIGRldl9w
-YWdlbWFwIHBhZ2VzIG1heSBiZSByZXR1cm5lZCB0byBzZXJ2aWNlDQo+IGFmdGVyIHRoZSBlcnJv
-ciBpcyBjbGVhcmVkLg0KPiANCj4gVGVhY2ggbWVtb3J5X2ZhaWx1cmUoKSB0byBkZXRlY3QgYW5k
-IGhhbmRsZSBNRU1PUllfREVWSUNFX0hPU1QNCj4gZGV2X3BhZ2VtYXAgcGFnZXMgdGhhdCBoYXZl
-IHBvaXNvbiBjb25zdW1lZCBieSB1c2Vyc3BhY2UuIE1hcmsgdGhlDQo+IG1lbW9yeSBhcyBVQyBp
-bnN0ZWFkIG9mIHVubWFwcGluZyBpdCBjb21wbGV0ZWx5IHRvIGFsbG93IG9uZ29pbmcgYWNjZXNz
-DQo+IHZpYSB0aGUgZGV2aWNlIGRyaXZlciAobmRfcG1lbSkuIExhdGVyLCBuZF9wbWVtIHdpbGwg
-Z3JvdyBzdXBwb3J0IGZvcg0KPiBtYXJraW5nIHRoZSBwYWdlIGJhY2sgdG8gV0Igd2hlbiB0aGUg
-ZXJyb3IgaXMgY2xlYXJlZC4NCj4gDQo+IENjOiBKYW4gS2FyYSA8amFja0BzdXNlLmN6Pg0KPiBD
-YzogQ2hyaXN0b3BoIEhlbGx3aWcgPGhjaEBsc3QuZGU+DQo+IENjOiBKw6lyw7RtZSBHbGlzc2Ug
-PGpnbGlzc2VAcmVkaGF0LmNvbT4NCj4gQ2M6IE1hdHRoZXcgV2lsY294IDxtYXdpbGNveEBtaWNy
-b3NvZnQuY29tPg0KPiBDYzogTmFveWEgSG9yaWd1Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMu
-Y29tPg0KPiBDYzogUm9zcyBad2lzbGVyIDxyb3NzLnp3aXNsZXJAbGludXguaW50ZWwuY29tPg0K
-PiBTaWduZWQtb2ZmLWJ5OiBEYW4gV2lsbGlhbXMgPGRhbi5qLndpbGxpYW1zQGludGVsLmNvbT4N
-Cj4gLS0tDQo+ICBtbS9tZW1vcnktZmFpbHVyZS5jIHwgIDExNyArKysrKysrKysrKysrKysrKysr
-KysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysNCj4gIDEgZmlsZSBjaGFuZ2VkLCAxMTcg
-aW5zZXJ0aW9ucygrKQ0KPiANCj4gZGlmZiAtLWdpdCBhL21tL21lbW9yeS1mYWlsdXJlLmMgYi9t
-bS9tZW1vcnktZmFpbHVyZS5jDQo+IGluZGV4IDQyYTE5M2VlMTRkMy4uZjk1MDM2Zjk5YTc5IDEw
-MDY0NA0KPiAtLS0gYS9tbS9tZW1vcnktZmFpbHVyZS5jDQo+ICsrKyBiL21tL21lbW9yeS1mYWls
-dXJlLmMNCj4gQEAgLTU1LDYgKzU1LDcgQEANCj4gICNpbmNsdWRlIDxsaW51eC9odWdldGxiLmg+
-DQo+ICAjaW5jbHVkZSA8bGludXgvbWVtb3J5X2hvdHBsdWcuaD4NCj4gICNpbmNsdWRlIDxsaW51
-eC9tbV9pbmxpbmUuaD4NCj4gKyNpbmNsdWRlIDxsaW51eC9tZW1yZW1hcC5oPg0KPiAgI2luY2x1
-ZGUgPGxpbnV4L2tmaWZvLmg+DQo+ICAjaW5jbHVkZSA8bGludXgvcmF0ZWxpbWl0Lmg+DQo+ICAj
-aW5jbHVkZSAiaW50ZXJuYWwuaCINCj4gQEAgLTExMTIsNiArMTExMywxMTcgQEAgc3RhdGljIGlu
-dCBtZW1vcnlfZmFpbHVyZV9odWdldGxiKHVuc2lnbmVkIGxvbmcgcGZuLCBpbnQgZmxhZ3MpDQo+
-ICAJcmV0dXJuIHJlczsNCj4gIH0NCj4gIA0KPiArc3RhdGljIHVuc2lnbmVkIGxvbmcgZGF4X21h
-cHBpbmdfc2l6ZShzdHJ1Y3QgcGFnZSAqcGFnZSkNCj4gK3sNCj4gKwlzdHJ1Y3QgYWRkcmVzc19z
-cGFjZSAqbWFwcGluZyA9IHBhZ2UtPm1hcHBpbmc7DQo+ICsJcGdvZmZfdCBwZ29mZiA9IHBhZ2Vf
-dG9fcGdvZmYocGFnZSk7DQo+ICsJc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWE7DQo+ICsJdW5z
-aWduZWQgbG9uZyBzaXplID0gMDsNCj4gKw0KPiArCWlfbW1hcF9sb2NrX3JlYWQobWFwcGluZyk7
-DQo+ICsJdm1hX2ludGVydmFsX3RyZWVfZm9yZWFjaCh2bWEsICZtYXBwaW5nLT5pX21tYXAsIHBn
-b2ZmLCBwZ29mZikgew0KPiArCQl1bnNpZ25lZCBsb25nIGFkZHJlc3MgPSB2bWFfYWRkcmVzcyhw
-YWdlLCB2bWEpOw0KPiArCQlwZ2RfdCAqcGdkOw0KPiArCQlwNGRfdCAqcDRkOw0KPiArCQlwdWRf
-dCAqcHVkOw0KPiArCQlwbWRfdCAqcG1kOw0KPiArCQlwdGVfdCAqcHRlOw0KPiArDQo+ICsJCXBn
-ZCA9IHBnZF9vZmZzZXQodm1hLT52bV9tbSwgYWRkcmVzcyk7DQo+ICsJCWlmICghcGdkX3ByZXNl
-bnQoKnBnZCkpDQo+ICsJCQljb250aW51ZTsNCj4gKwkJcDRkID0gcDRkX29mZnNldChwZ2QsIGFk
-ZHJlc3MpOw0KPiArCQlpZiAoIXA0ZF9wcmVzZW50KCpwNGQpKQ0KPiArCQkJY29udGludWU7DQo+
-ICsJCXB1ZCA9IHB1ZF9vZmZzZXQocDRkLCBhZGRyZXNzKTsNCj4gKwkJaWYgKCFwdWRfcHJlc2Vu
-dCgqcHVkKSkNCj4gKwkJCWNvbnRpbnVlOw0KPiArCQlpZiAocHVkX2Rldm1hcCgqcHVkKSkgew0K
-PiArCQkJc2l6ZSA9IFBVRF9TSVpFOw0KPiArCQkJYnJlYWs7DQo+ICsJCX0NCj4gKwkJcG1kID0g
-cG1kX29mZnNldChwdWQsIGFkZHJlc3MpOw0KPiArCQlpZiAoIXBtZF9wcmVzZW50KCpwbWQpKQ0K
-PiArCQkJY29udGludWU7DQo+ICsJCWlmIChwbWRfZGV2bWFwKCpwbWQpKSB7DQo+ICsJCQlzaXpl
-ID0gUE1EX1NJWkU7DQo+ICsJCQlicmVhazsNCj4gKwkJfQ0KPiArCQlwdGUgPSBwdGVfb2Zmc2V0
-X21hcChwbWQsIGFkZHJlc3MpOw0KPiArCQlpZiAoIXB0ZV9wcmVzZW50KCpwdGUpKQ0KPiArCQkJ
-Y29udGludWU7DQo+ICsJCWlmIChwdGVfZGV2bWFwKCpwdGUpKSB7DQo+ICsJCQlzaXplID0gUEFH
-RV9TSVpFOw0KPiArCQkJYnJlYWs7DQo+ICsJCX0NCj4gKwl9DQo+ICsJaV9tbWFwX3VubG9ja19y
-ZWFkKG1hcHBpbmcpOw0KPiArCXJldHVybiBzaXplOw0KPiArfQ0KPiArDQo+ICtzdGF0aWMgaW50
-IG1lbW9yeV9mYWlsdXJlX2Rldl9wYWdlbWFwKHVuc2lnbmVkIGxvbmcgcGZuLCBpbnQgZmxhZ3Ms
-DQo+ICsJCXN0cnVjdCBkZXZfcGFnZW1hcCAqcGdtYXApDQo+ICt7DQo+ICsJc3RydWN0IHBhZ2Ug
-KnBhZ2UgPSBwZm5fdG9fcGFnZShwZm4pOw0KPiArCWNvbnN0IGJvb2wgdW5tYXBfc3VjY2VzcyA9
-IHRydWU7DQo+ICsJdW5zaWduZWQgbG9uZyBzaXplOw0KPiArCUxJU1RfSEVBRCh0b2tpbGwpOw0K
-PiArCWludCByYyA9IC1FQlVTWTsNCj4gKwlsb2ZmX3Qgc3RhcnQ7DQo+ICsNCj4gKwlsb2NrX3Bh
-Z2UocGFnZSk7DQo+ICsJaWYgKGh3cG9pc29uX2ZpbHRlcihwYWdlKSkgew0KPiArCQlyYyA9IDA7
-DQo+ICsJCWdvdG8gb3V0Ow0KPiArCX0NCj4gKw0KPiArCXN3aXRjaCAocGdtYXAtPnR5cGUpIHsN
-Cj4gKwljYXNlIE1FTU9SWV9ERVZJQ0VfUFJJVkFURToNCj4gKwljYXNlIE1FTU9SWV9ERVZJQ0Vf
-UFVCTElDOg0KPiArCQkvKg0KPiArCQkgKiBUT0RPOiBIYW5kbGUgSE1NIHBhZ2VzIHdoaWNoIG1h
-eSBuZWVkIGNvb3JkaW5hdGlvbg0KPiArCQkgKiB3aXRoIGRldmljZS1zaWRlIG1lbW9yeS4NCj4g
-KwkJICovDQo+ICsJCWdvdG8gb3V0Ow0KPiArCWRlZmF1bHQ6DQo+ICsJCWlmICghcGFnZS0+bWFw
-cGluZykNCj4gKwkJCWdvdG8gb3V0Ow0KPiArCQlicmVhazsNCj4gKwl9DQo+ICsNCj4gKwkvKg0K
-PiArCSAqIElmIHRoZSBwYWdlIGlzIG5vdCBtYXBwZWQgaW4gdXNlcnNwYWNlIHRoZW4gcmVwb3J0
-IGl0IGFzDQo+ICsJICogdW5oYW5kbGVkLg0KPiArCSAqLw0KPiArCXNpemUgPSBkYXhfbWFwcGlu
-Z19zaXplKHBhZ2UpOw0KPiArCWlmICghc2l6ZSkgew0KPiArCQlwcl9lcnIoIk1lbW9yeSBmYWls
-dXJlOiAlI2x4OiBmYWlsZWQgdG8gdW5tYXAgcGFnZVxuIiwgcGZuKTsNCj4gKwkJZ290byBvdXQ7
-DQo+ICsJfQ0KPiArDQo+ICsJU2V0UGFnZUhXUG9pc29uKHBhZ2UpOw0KPiArDQo+ICsJLyoNCj4g
-KwkgKiBVbmxpa2UgU3lzdGVtLVJBTSB0aGVyZSBpcyBubyBwb3NzaWJpbGl0eSB0byBzd2FwIGlu
-IGENCj4gKwkgKiBkaWZmZXJlbnQgcGh5c2ljYWwgcGFnZSBhdCBhIGdpdmVuIHZpcnR1YWwgYWRk
-cmVzcywgc28gYWxsDQo+ICsJICogdXNlcnNwYWNlIGNvbnN1bXB0aW9uIG9mIFpPTkVfREVWSUNF
-IG1lbW9yeSBuZWNlc3NpdGF0ZXMNCj4gKwkgKiBTSUdCVVMgKGkuZS4gTUZfTVVTVF9LSUxMKQ0K
-PiArCSAqLw0KPiArCWZsYWdzIHw9IE1GX0FDVElPTl9SRVFVSVJFRCB8IE1GX01VU1RfS0lMTDsN
-Cj4gKwljb2xsZWN0X3Byb2NzKHBhZ2UsICZ0b2tpbGwsIGZsYWdzICYgTUZfQUNUSU9OX1JFUVVJ
-UkVEKTsNCj4gKw0KPiArCXN0YXJ0ID0gKHBhZ2UtPmluZGV4IDw8IFBBR0VfU0hJRlQpICYgfihz
-aXplIC0gMSk7DQo+ICsJdW5tYXBfbWFwcGluZ19yYW5nZShwYWdlLT5tYXBwaW5nLCBzdGFydCwg
-c3RhcnQgKyBzaXplLCAwKTsNCj4gKw0KPiArCWtpbGxfcHJvY3MoJnRva2lsbCwgZmxhZ3MgJiBN
-Rl9NVVNUX0tJTEwsICF1bm1hcF9zdWNjZXNzLCBpbG9nMihzaXplKSwNCj4gKwkJCXBmbiwgZmxh
-Z3MpOw0KPiArCXJjID0gMDsNCj4gK291dDoNCj4gKwl1bmxvY2tfcGFnZShwYWdlKTsNCg0KSSB3
-cm90ZSBhcyBiZWxvdyBpbiByZXBseSB0byA3LzExDQoNCj4gPiBAQCAtNjUxLDE3ICs2NTMsMjAg
-QEAgc3RhdGljIGludCBtYWR2aXNlX2luamVjdF9lcnJvcihpbnQgYmVoYXZpb3IsDQo+ID4gIA0K
-PiA+ICAgICAgICAgICAgICAgaWYgKGJlaGF2aW9yID09IE1BRFZfU09GVF9PRkZMSU5FKSB7DQo+
-ID4gICAgICAgICAgICAgICAgICAgICAgIHByX2luZm8oIlNvZnQgb2ZmbGluaW5nIHBmbiAlI2x4
-IGF0IHByb2Nlc3MgdmlydHVhbCBhZGRyZXNzICUjbHhcbiIsDQo+ID4gLSAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHBhZ2VfdG9fcGZuKHBhZ2UpLCBzdGFydCk7
-DQo+ID4gKyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBwZm4sIHN0YXJ0KTsN
-Cj4gPiAgDQo+ID4gICAgICAgICAgICAgICAgICAgICAgIHJldCA9IHNvZnRfb2ZmbGluZV9wYWdl
-KHBhZ2UsIE1GX0NPVU5UX0lOQ1JFQVNFRCk7DQo+ID4gKyAgICAgICAgICAgICAgICAgICAgIHB1
-dF9wYWdlKHBhZ2UpOw0KPiA+ICAgICAgICAgICAgICAgICAgICAgICBpZiAocmV0KQ0KPiA+ICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiByZXQ7DQo+ID4gICAgICAgICAgICAg
-ICAgICAgICAgIGNvbnRpbnVlOw0KPiA+ICAgICAgICAgICAgICAgfQ0KPiA+ICsgICAgICAgICAg
-ICAgcHV0X3BhZ2UocGFnZSk7DQo+IA0KPiBXZSBrZWVwIHRoZSBwYWdlIGNvdW50IHBpbm5lZCBh
-ZnRlciB0aGUgaXNvbGF0aW9uIG9mIHRoZSBlcnJvciBwYWdlDQo+IGluIG9yZGVyIHRvIG1ha2Ug
-c3VyZSB0aGF0IHRoZSBlcnJvciBwYWdlIGlzIGRpc2FibGVkIGFuZCBuZXZlciByZXVzZWQuDQo+
-IFRoaXMgc2VlbXMgbm90IGV4cGxpY2l0IGVub3VnaCwgc28gc29tZSBjb21tZW50IHNob3VsZCBi
-ZSBoZWxwZnVsLg0KDQouLi4gYnV0IGl0IHdhcyBsYWNrIG9mIHdvcmRzLCBzb3JyeS4gTW9yZSBw
-cmVjaXNlbHksIGEgcmVmY291bnQgaW5jcmVtZW50ZWQNCmJlZm9yZSBjYWxsaW5nIG1lbW9yeV9m
-YWlsdXJlKCkgaXMga2VwdCBvbmx5IHdoZW4gdGhlIGVycm9yIHBhZ2UgaXMgaW4tdXNlDQphcyBh
-IG5vcm1hbCBscnUgcGFnZSB3aGVuIGFuIGVycm9yIGhhcHBlbnMgb24gaXQgYW5kIGl0J3Mgc3Vj
-Y2Vzc2Z1bGx5IGhhbmRsZWQuDQpUaGUgcmVhc29uIG9mIHRoaXMgYmVoYXZpb3IgKGFsb25nIHdp
-dGggYXZvaWRpbmcgdGhlIHJpc2sgb2YgdW5leHBlY3RlZCByZXVzaW5nKQ0KaXMgdG8gbWFrZSBz
-dXJlIHRoYXQgdW5wb2lzb24gKGNhbmNlbGxpbmcgbWVjaGFuaXNtIG9mIGh3cG9pc29uKSBjYW4g
-dHJpZ2dlcg0KcGFnZSBmcmVlaW5nIGNvZGUgKF9fcHV0X3BhZ2UoKSBmb3Igbm9ybWFsIHBhZ2Vz
-KS4NCkJ1dCBJIHRoaW5rIHRoYXQgdGhpcyB0cmlja3kgYmVoYXZpb3IgY29tZXMgZnJvbSBoaXN0
-b3JpY2FsIHJlYXNvbiBhbmQNCndlIGNhbiBnbyB3aXRob3V0IGl0LCBzbyBJIGRvbid0IHRoaW5r
-IHlvdSBoYXZlIHRvIGluaGVyaXQgaXQgZm9yIG5ldyBjb2RlLg0KDQooQWx0aG91Z2ggSSdtIG5v
-dCBmYW1pbGlhciB3aXRoIGRheCwpIGlmIGRldl9wYWdlbWFwIHBhZ2UgaGFzIGEgZGlmZmVyZW50
-DQpsaWZlY3ljbGUgZnJvbSBvbmUgb2Ygbm9ybWFsIHBhZ2VzIGFuZCBpdCBoYXMgaXRzIG93biBt
-ZWNoYW5pc20gb2YgY2FuY2VsbGluZw0KbWVtb3J5IGVycm9yLCB0aGVuIHlvdSBjYW4gc2ltcGx5
-IHJlbGVhc2UgdGhlIHBhZ2UgcmVmY291bnQgYXQgdGhlIGVuZCBvZg0KbWVtb3J5X2ZhaWx1cmVf
-ZGV2X3BhZ2VtYXAoKS4NCg0KDQpJIGhhdmUgYW5vdGhlciBjb21tZW50IGFib3V0IHBhZ2UgcmVm
-Y291bnQuIG1lbW9yeV9mYWlsdXJlKCkgaXMgc29tZXRpbWVzDQpjYWxsZWQgd2l0aCBwaW5uaW5n
-IGFuZCBzb21ldGltZXMgY2FsbGVkIHdpdGhvdXQgcGlubmluZywgd2hpY2ggaXMgaW5kaWNhdGVk
-DQpieSBNRl9DT1VOVF9JTkNSRUFTRUQgZmxhZy4gV2hlbiBNRl9DT1VOVF9JTkNSRUFTRUQgaXMg
-bm90IHNldCwNCm1lbW9yeV9mYWlsdXJlKCkgdHJpZXMgdG8gdGFrZSBpdCBieSBpdHNlbGYuDQpT
-byB5b3UgbWlnaHQgbmVlZCBzb21lIGFkanVzdG1lbnQgZm9yIG5vbi1NRl9DT1VOVF9JTkNSRUFT
-RUQgY2FzZS4NCg0KVGhhbmtzLA0KTmFveWEgSG9yaWd1Y2hpDQoNCj4gKwlwdXRfZGV2X3BhZ2Vt
-YXAocGdtYXApOw0KPiArCXJldHVybiByYzsNCj4gK30NCj4gKw0KPiAgLyoqDQo+ICAgKiBtZW1v
-cnlfZmFpbHVyZSAtIEhhbmRsZSBtZW1vcnkgZmFpbHVyZSBvZiBhIHBhZ2UuDQo+ICAgKiBAcGZu
-OiBQYWdlIE51bWJlciBvZiB0aGUgY29ycnVwdGVkIHBhZ2UNCj4gQEAgLTExMzQsNiArMTI0Niw3
-IEBAIGludCBtZW1vcnlfZmFpbHVyZSh1bnNpZ25lZCBsb25nIHBmbiwgaW50IGZsYWdzKQ0KPiAg
-CXN0cnVjdCBwYWdlICpwOw0KPiAgCXN0cnVjdCBwYWdlICpocGFnZTsNCj4gIAlzdHJ1Y3QgcGFn
-ZSAqb3JpZ19oZWFkOw0KPiArCXN0cnVjdCBkZXZfcGFnZW1hcCAqcGdtYXA7DQo+ICAJaW50IHJl
-czsNCj4gIAl1bnNpZ25lZCBsb25nIHBhZ2VfZmxhZ3M7DQo+ICANCj4gQEAgLTExNDYsNiArMTI1
-OSwxMCBAQCBpbnQgbWVtb3J5X2ZhaWx1cmUodW5zaWduZWQgbG9uZyBwZm4sIGludCBmbGFncykN
-Cj4gIAkJcmV0dXJuIC1FTlhJTzsNCj4gIAl9DQo+ICANCj4gKwlwZ21hcCA9IGdldF9kZXZfcGFn
-ZW1hcChwZm4sIE5VTEwpOw0KPiArCWlmIChwZ21hcCkNCj4gKwkJcmV0dXJuIG1lbW9yeV9mYWls
-dXJlX2Rldl9wYWdlbWFwKHBmbiwgZmxhZ3MsIHBnbWFwKTsNCj4gKw0KPiAgCXAgPSBwZm5fdG9f
-cGFnZShwZm4pOw0KPiAgCWlmIChQYWdlSHVnZShwKSkNCj4gIAkJcmV0dXJuIG1lbW9yeV9mYWls
-dXJlX2h1Z2V0bGIocGZuLCBmbGFncyk7DQo+IA0KPiA=
+Hi,
+
+This is something I spotted while testing offlining memory.
+
+__offline_pages() calls do_migrate_range() to try to migrate a range,
+but we do not actually check for the error code.
+This, besides of ignoring underlying failures, can led to a situations
+where we never break up the loop because we are totally unaware of
+what is going on.
+
+They way I spotted this was when trying to offline all memblocks belonging
+to a node.
+Due to an unfortunate setting with movablecore, memblocks containing bootmem
+memory (pages marked by get_page_bootmem()) ended up marked in zone_movable.
+So while trying to remove that memory, the system failed in:
+
+do_migrate_range()
+{
+...
+	if (PageLRU(page))
+		ret = isolate_lru_page(page);
+	else
+		ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
+
+	if (!ret)
+		// success: do something
+	else
+		if (page_count(page))
+			ret = -EBUSY;
+...
+}
+
+Since the pages from bootmem are not LRU, we call isolate_movable_page()
+but we fail when checking for __PageMovable().
+Since the page_count is more than 0 we return -EBUSY, but we do not check this
+in our caller, so we keep trying to migrate this memory over and over:
+
+repeat:
+...
+        pfn = scan_movable_pages(start_pfn, end_pfn);
+        if (pfn) { /* We have movable pages */
+                ret = do_migrate_range(pfn, end_pfn);
+                goto repeat;
+        }
+
+But this is not only situation where we can get stuck.
+For example, if we fail with -ENOMEM in
+migrate_pages()->unmap_and_move()/unmap_and_move_huge_page(), we will keep trying as well.
+I think we should really detect these cases and fail with "goto failed_removal".
+Something like
+
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1651,6 +1651,11 @@ static int __ref __offline_pages(unsigned long start_pfn,
+        pfn = scan_movable_pages(start_pfn, end_pfn);
+        if (pfn) { /* We have movable pages */
+                ret = do_migrate_range(pfn, end_pfn);
++               if (ret) {
++                       if (ret != -ENOMEM)
++                               ret = -EBUSY;
++                       goto failed_removal;
++               }
+                goto repeat;
+        }
+
+Now, unless I overlooked something
+migrate_pages()->unmap_and_move()/unmap_and_move_huge_page() can return:
+-ENOMEM
+-EAGAIN
+-EBUSY
+-ENOSYS.
+
+I am not sure if we should differentiate betweeen those errors.
+For example, it is possible that in migrate_pages() we just get -EAGAIN,
+and we return the number of "retry" we tried without having really failed.
+Although, since we do 10 passes it might be considered as failed.
+
+And I am not sure either if we want to propagate the error codes, or in case we fail
+in migrate_pages(), whatever the error was (-ENOMEM, -EBUSY, etc.), we
+just return -EBUSY.
+
+What do you think?
+
+Thanks
+Oscar Salvador
