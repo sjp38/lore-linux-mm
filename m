@@ -1,85 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E8646B0272
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 05:03:13 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p7-v6so16988372wrj.4
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 02:03:13 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 92-v6si2086978edy.384.2018.05.23.02.03.12
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 954936B0003
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 05:12:58 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id o97-v6so11093160qkh.14
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 02:12:58 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0136.outbound.protection.outlook.com. [104.47.0.136])
+        by mx.google.com with ESMTPS id o35-v6si2773614qte.336.2018.05.23.02.12.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 May 2018 02:03:12 -0700 (PDT)
-Date: Wed, 23 May 2018 11:03:11 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 03/11] device-dax: enable page_mapping()
-Message-ID: <20180523090311.ozyfigjbhy4npkkl@quack2.suse.cz>
-References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152699998750.24093.5270058390086110946.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 23 May 2018 02:12:57 -0700 (PDT)
+Subject: Re: [PATCH v6 17/17] mm: Distinguish VMalloc pages
+References: <20180518194519.3820-1-willy@infradead.org>
+ <20180518194519.3820-18-willy@infradead.org>
+ <74e9bf39-ae17-cc00-8fca-c34b75675d49@virtuozzo.com>
+ <20180522175836.GB1237@bombadil.infradead.org>
+ <e8d8fd85-89a2-8e4f-24bf-b930b705bc49@virtuozzo.com>
+ <20180523063439.GD20441@dhcp22.suse.cz>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <e76d4238-9cfe-1f0f-0a52-cfaf476380a8@virtuozzo.com>
+Date: Wed, 23 May 2018 12:14:10 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <152699998750.24093.5270058390086110946.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20180523063439.GD20441@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tony.luck@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On Tue 22-05-18 07:39:47, Dan Williams wrote:
-> In support of enabling memory_failure() handling for device-dax
-> mappings, set the ->mapping association of pages backing device-dax
-> mappings. The rmap implementation requires page_mapping() to return the
-> address_space hosting the vmas that map the page.
+
+
+On 05/23/2018 09:34 AM, Michal Hocko wrote:
+> On Tue 22-05-18 22:57:34, Andrey Ryabinin wrote:
+>>
+>>
+>> On 05/22/2018 08:58 PM, Matthew Wilcox wrote:
+>>> On Tue, May 22, 2018 at 07:10:52PM +0300, Andrey Ryabinin wrote:
+>>>> On 05/18/2018 10:45 PM, Matthew Wilcox wrote:
+>>>>> From: Matthew Wilcox <mawilcox@microsoft.com>
+>>>>>
+>>>>> For diagnosing various performance and memory-leak problems, it is helpful
+>>>>> to be able to distinguish pages which are in use as VMalloc pages.
+>>>>> Unfortunately, we cannot use the page_type field in struct page, as
+>>>>> this is in use for mapcount by some drivers which map vmalloced pages
+>>>>> to userspace.
+>>>>>
+>>>>> Use a special page->mapping value to distinguish VMalloc pages from
+>>>>> other kinds of pages.  Also record a pointer to the vm_struct and the
+>>>>> offset within the area in struct page to help reconstruct exactly what
+>>>>> this page is being used for.
+>>>>
+>>>> This seems useless. page->vm_area and page->vm_offset are never used.
+>>>> There are no follow up patches which use this new information 'For diagnosing various performance and memory-leak problems',
+>>>> and no explanation how is it can be used in current form.
+>>>
+>>> Right now, it's by-hand.  tools/vm/page-types.c will tell you which pages
+>>> are allocated to VMalloc.  Many people use kernel debuggers, crashdumps
+>>> and similar to examine the kernel's memory.  Leaving these breadcrumbs
+>>> is helpful, and those fields simply weren't in use before.
+>>>
+>>>> Also, this patch breaks code like this:
+>>>> 	if (mapping = page_mapping(page))
+>>>> 		// access mapping
+>>>
+>>> Example of broken code, please?  Pages allocated from the page allocator
+>>> with alloc_page() come with page->mapping == NULL.  This code snippet
+>>> would not have granted access to vmalloc pages before.
+>>>
+>>
+>> Some implementation of the flush_dcache_page(), also set_page_dirty() can be called
+>> on userspace-mapped vmalloc pages during unmap - zap_pte_range() -> set_page_dirty()
 > 
-> The ->mapping pointer is never cleared. There is no possibility for the
-> page to become associated with another address_space while the device is
-> enabled. When the device is disabled the 'struct page' array for the
-> device is destroyed / later reinitialized to zero.
+> Do you have any specific example?
+
+git grep -e remap_vmalloc_range -e vmalloc_user
+
+But that's not all, vmalloc*() + vmalloc_to_page() + vm_insert_page() are another candidates.
+
+> Why would anybody map vmalloc pages to the userspace?
+
+To have shared memory between usespace and the kernel.
+
+> flush_dcache_page on a vmalloc page sounds quite
+> unexpected to me as well.
 > 
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-...
-> @@ -402,17 +401,33 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
->  	id = dax_read_lock();
->  	switch (pe_size) {
->  	case PE_SIZE_PTE:
-> -		rc = __dev_dax_pte_fault(dev_dax, vmf);
-> +		fault_size = PAGE_SIZE;
-> +		rc = __dev_dax_pte_fault(dev_dax, vmf, &pfn);
->  		break;
->  	case PE_SIZE_PMD:
-> -		rc = __dev_dax_pmd_fault(dev_dax, vmf);
-> +		fault_size = PMD_SIZE;
-> +		rc = __dev_dax_pmd_fault(dev_dax, vmf, &pfn);
->  		break;
->  	case PE_SIZE_PUD:
-> -		rc = __dev_dax_pud_fault(dev_dax, vmf);
-> +		fault_size = PUD_SIZE;
-> +		rc = __dev_dax_pud_fault(dev_dax, vmf, &pfn);
->  		break;
->  	default:
->  		rc = VM_FAULT_SIGBUS;
->  	}
-> +
-> +	if (rc == VM_FAULT_NOPAGE) {
-> +		unsigned long i;
-> +
-> +		for (i = 0; i < fault_size / PAGE_SIZE; i++) {
-> +			struct page *page;
-> +
-> +			page = pfn_to_page(pfn_t_to_pfn(pfn) + i);
-> +			if (page->mapping)
-> +				continue;
-> +			page->mapping = filp->f_mapping;
-> +		}
-> +	}
->  	dax_read_unlock(id);
 
-Careful here. Page fault can return VM_FAULT_NOPAGE even if we raced with
-somebody modifying the PTE or if we installed a zero page. With shared DAX
-mappings (and device dax does not allow anything else if I'm right) this
-does not matter as given file offset is guaranteed to always map to the
-same page but I think it deserves a comment.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+remap_vmalloc_range()->vm_insret_page()->insert_page()->flush_dcache_page()
