@@ -1,97 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C6436B0007
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 05:26:59 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u10-v6so6446805pgp.8
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 02:26:59 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0135.outbound.protection.outlook.com. [104.47.1.135])
-        by mx.google.com with ESMTPS id h67-v6si18829020pfk.15.2018.05.23.02.26.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 23 May 2018 02:26:58 -0700 (PDT)
-Subject: Re: [PATCH v6 17/17] mm: Distinguish VMalloc pages
-References: <20180518194519.3820-1-willy@infradead.org>
- <20180518194519.3820-18-willy@infradead.org>
- <74e9bf39-ae17-cc00-8fca-c34b75675d49@virtuozzo.com>
- <20180522175836.GB1237@bombadil.infradead.org>
- <e8d8fd85-89a2-8e4f-24bf-b930b705bc49@virtuozzo.com>
- <20180523063439.GD20441@dhcp22.suse.cz>
- <e76d4238-9cfe-1f0f-0a52-cfaf476380a8@virtuozzo.com>
- <20180523092515.GL20441@dhcp22.suse.cz>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <c6501d68-2f53-7bfa-6065-785df0c63de2@virtuozzo.com>
-Date: Wed, 23 May 2018 12:28:10 +0300
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 877B56B0008
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 05:28:04 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d82-v6so2088097wmd.4
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 02:28:04 -0700 (PDT)
+Received: from techadventures.net (techadventures.net. [62.201.165.239])
+        by mx.google.com with ESMTP id v16-v6si16548846wrv.356.2018.05.23.02.28.03
+        for <linux-mm@kvack.org>;
+        Wed, 23 May 2018 02:28:03 -0700 (PDT)
+Date: Wed, 23 May 2018 11:28:02 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [RFC] Checking for error code in __offline_pages
+Message-ID: <20180523092802.GB31306@techadventures.net>
+References: <20180523073547.GA29266@techadventures.net>
+ <20180523075239.GF20441@dhcp22.suse.cz>
+ <20180523081609.GG20441@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180523092515.GL20441@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180523081609.GG20441@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Lai Jiangshan <jiangshanlai@gmail.com>, Pekka Enberg <penberg@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-foundation.org
 
-
-
-On 05/23/2018 12:25 PM, Michal Hocko wrote:
-> On Wed 23-05-18 12:14:10, Andrey Ryabinin wrote:
->>
->>
->> On 05/23/2018 09:34 AM, Michal Hocko wrote:
->>> On Tue 22-05-18 22:57:34, Andrey Ryabinin wrote:
->>>>
->>>>
->>>> On 05/22/2018 08:58 PM, Matthew Wilcox wrote:
->>>>> On Tue, May 22, 2018 at 07:10:52PM +0300, Andrey Ryabinin wrote:
->>>>>> On 05/18/2018 10:45 PM, Matthew Wilcox wrote:
->>>>>>> From: Matthew Wilcox <mawilcox@microsoft.com>
->>>>>>>
->>>>>>> For diagnosing various performance and memory-leak problems, it is helpful
->>>>>>> to be able to distinguish pages which are in use as VMalloc pages.
->>>>>>> Unfortunately, we cannot use the page_type field in struct page, as
->>>>>>> this is in use for mapcount by some drivers which map vmalloced pages
->>>>>>> to userspace.
->>>>>>>
->>>>>>> Use a special page->mapping value to distinguish VMalloc pages from
->>>>>>> other kinds of pages.  Also record a pointer to the vm_struct and the
->>>>>>> offset within the area in struct page to help reconstruct exactly what
->>>>>>> this page is being used for.
->>>>>>
->>>>>> This seems useless. page->vm_area and page->vm_offset are never used.
->>>>>> There are no follow up patches which use this new information 'For diagnosing various performance and memory-leak problems',
->>>>>> and no explanation how is it can be used in current form.
->>>>>
->>>>> Right now, it's by-hand.  tools/vm/page-types.c will tell you which pages
->>>>> are allocated to VMalloc.  Many people use kernel debuggers, crashdumps
->>>>> and similar to examine the kernel's memory.  Leaving these breadcrumbs
->>>>> is helpful, and those fields simply weren't in use before.
->>>>>
->>>>>> Also, this patch breaks code like this:
->>>>>> 	if (mapping = page_mapping(page))
->>>>>> 		// access mapping
->>>>>
->>>>> Example of broken code, please?  Pages allocated from the page allocator
->>>>> with alloc_page() come with page->mapping == NULL.  This code snippet
->>>>> would not have granted access to vmalloc pages before.
->>>>>
->>>>
->>>> Some implementation of the flush_dcache_page(), also set_page_dirty() can be called
->>>> on userspace-mapped vmalloc pages during unmap - zap_pte_range() -> set_page_dirty()
->>>
->>> Do you have any specific example?
->>
->> git grep -e remap_vmalloc_range -e vmalloc_user
->>
->> But that's not all, vmalloc*() + vmalloc_to_page() + vm_insert_page() are another candidates.
+On Wed, May 23, 2018 at 10:16:09AM +0200, Michal Hocko wrote:
+> On Wed 23-05-18 09:52:39, Michal Hocko wrote:
+> [...]
+> > Yeah, the current code is far from optimal. We
+> > used to have a retry count but that one was removed exactly because of
+> > premature failures. There are three things here
+> > 1) zone_movable should contain any bootmem or otherwise non-migrateable
+> >    pages
+> > 2) start_isolate_page_range should fail when seeing such pages - maybe
+> >    has_unmovable_pages is overly optimistic and it should check all
+> >    pages even in movable zones.
+> > 3) migrate_pages should really tell us whether the failure is temporal
+> >    or permanent. I am not sure we can do that easily though.
 > 
-> Thanks for the pointer. I was not aware of remap_vmalloc_range.
->>
->>> Why would anybody map vmalloc pages to the userspace?
->>
->> To have shared memory between usespace and the kernel.
+> 2) should be the most simple one for now. Could you give it a try? Btw.
+> the exact configuration that led to boothmem pages in zone_movable would
+> be really appreciated:
+> --- 
+> From 6aa144a9b1c01255c89a4592221d706ccc4b4eea Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Wed, 23 May 2018 10:04:20 +0200
+> Subject: [PATCH] mm, memory_hotplug: make has_unmovable_pages more robust
 > 
-> OK, so the point seems to be to share large physically contiguous memory
-> with userspace.
+> Oscar has reported:
+> : Due to an unfortunate setting with movablecore, memblocks containing bootmem
+> : memory (pages marked by get_page_bootmem()) ended up marked in zone_movable.
+> : So while trying to remove that memory, the system failed in do_migrate_range
+> : and __offline_pages never returned.
 > 
+> This is because we rely on start_isolate_page_range resp. has_unmovable_pages
+> to do their jobb. The first one isolates the whole range to be offlined
+> so that we do not allocate from it anymore and the later makes sure we
+> are not stumbling over non-migrateable pages.
+> 
+> has_unmovable_pages is overly optimistic, however. It doesn't check all
+> the pages if we are withing zone_movable because we rely that those
+> pages will be always migrateable. As it turns out we are still not
+> perfect there. While bootmem pages in zonemovable sound like a clear bug
+> which should be fixed let's remove the optimization for now and warn if
+> we encounter unmovable pages in zone_movable in the meantime. That
+> should help for now at least.
+> 
+> Btw. this wasn't a real problem until 72b39cfc4d75 ("mm, memory_hotplug:
+> do not fail offlining too early") because we used to have a small number
+> of retries and then failed. This turned out to be too fragile though.
+> 
+> Reported-by: Oscar Salvador <osalvador@techadventures.net>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/page_alloc.c | 16 ++++++++++------
+>  1 file changed, 10 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3c6f4008ea55..b9a45753244d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7629,11 +7629,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  	unsigned long pfn, iter, found;
+>  
+>  	/*
+> -	 * For avoiding noise data, lru_add_drain_all() should be called
+> -	 * If ZONE_MOVABLE, the zone never contains unmovable pages
+> +	 * TODO we could make this much more efficient by not checking every
+> +	 * page in the range if we know all of them are in MOVABLE_ZONE and
+> +	 * that the movable zone guarantees that pages are migratable but
+> +	 * the later is not the case right now unfortunatelly. E.g. movablecore
+> +	 * can still lead to having bootmem allocations in zone_movable.
+>  	 */
+> -	if (zone_idx(zone) == ZONE_MOVABLE)
+> -		return false;
+>  
+>  	/*
+>  	 * CMA allocations (alloc_contig_range) really need to mark isolate
+> @@ -7654,7 +7655,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  		page = pfn_to_page(check);
+>  
+>  		if (PageReserved(page))
+> -			return true;
+> +			goto unmovable;
+>  
+>  		/*
+>  		 * Hugepages are not in LRU lists, but they're movable.
+> @@ -7704,9 +7705,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  		 * page at boot.
+>  		 */
+>  		if (found > count)
+> -			return true;
+> +			goto unmovable;
+>  	}
+>  	return false;
+> +unmovable:
+> +	WARN_ON_ONCE(zone_idx(zone) == ZONE_MOVABLE);
+> +	return true;
+>  }
+>  
+>  #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
+> -- 
+> 2.17.0
 
-Not physically, but virtually contiguous.
+Tested-by: Oscar Salvador <osalvador@techadventures.net>
+
+thanks!
+Oscar Salvador
