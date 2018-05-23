@@ -1,123 +1,377 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 078F56B000A
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 11:12:08 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id w201-v6so16067305qkb.16
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 08:12:08 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ED2326B02A9
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 11:12:10 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id b62-v6so16530664qkj.6
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 08:12:10 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id s29-v6si4830711qth.44.2018.05.23.08.12.06
+        by mx.google.com with ESMTPS id n24-v6si9607qkh.129.2018.05.23.08.12.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 08:12:06 -0700 (PDT)
+        Wed, 23 May 2018 08:12:09 -0700 (PDT)
 From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by device driver
-Date: Wed, 23 May 2018 17:11:41 +0200
-Message-Id: <20180523151151.6730-1-david@redhat.com>
+Subject: [PATCH v1 01/10] mm: introduce and use PageOffline()
+Date: Wed, 23 May 2018 17:11:42 +0200
+Message-Id: <20180523151151.6730-2-david@redhat.com>
+In-Reply-To: <20180523151151.6730-1-david@redhat.com>
+References: <20180523151151.6730-1-david@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Huang Ying <ying.huang@intel.com>, Miles Chen <miles.chen@mediatek.com>, Vlastimil Babka <vbabka@suse.cz>, Reza Arbab <arbab@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-This is now the !RFC version. I did some additional tests and inspected
-all memory notifiers. At least page_ext and kasan need fixes.
+offline_pages() theoretically works on sub-section sizes. Problem is that
+we have no way to know which pages are actually offline. So right now,
+offline_pages() will always mark the whole section as offline.
 
-==========
+In addition, in virtualized environments, we might soon have pages that are
+logically offline and shall no longer be read or written - e.g. because
+we offline a subsection and told our hypervisor to remove it. We need a way
+(e.g. for kdump) to flag these pages (like PG_hwpoison), otherwise kdump
+will happily access all memory and crash the system when accessing
+memory that is not meant to be accessed.
 
-I am right now working on a paravirtualized memory device ("virtio-mem").
-These devices control a memory region and the amount of memory available
-via it. Memory will not be indicated/added/onlined via ACPI and friends,
-the device driver is responsible for it.
+Marking pages as offline will also later to give kdump that information
+and to mark a section as offline once all pages are offline. It is save
+to use mapcount as all pages are logically removed from the system
+(offline_pages()).
 
-When the device driver starts up, it will add and online the requested
-amount of memory from its assigned physical memory region. On request, it
-can add (online) either more memory or try to remove (offline) memory. As
-it will be a virtio module, we also want to be able to have it as a loadable
-kernel module.
+This e.g. allows us to add/remove memory to Linux in a VM in 4MB chunks
 
-Such a device can be thought of like a "resizable DIMM" or a "huge
-number of 4MB DIMMS" that can be automatically managed.
+Please note that we can't use PG_reserved for this. PG_reserved does not
+imply that
+- a page should not be dumped
+- a page is offline and we should mark the section offline
 
-As we want to be able to add/remove small chunks of memory to a VM without
-fragmenting guest memory ("it's not what the guest pays for" and "what if
-the hypervisor wants to use huge pages"), it looks like we can do that
-under Linux in a 4MB granularity by using online_pages()/offline_pages()
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Philippe Ombredanne <pombredanne@nexb.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Huang Ying <ying.huang@intel.com>
+Cc: Miles Chen <miles.chen@mediatek.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: David Hildenbrand <david@redhat.com>
+---
+ drivers/base/node.c        |  1 -
+ include/linux/memory.h     |  1 -
+ include/linux/mm.h         | 10 ++++++++++
+ include/linux/page-flags.h |  9 +++++++++
+ mm/memory_hotplug.c        | 32 +++++++++++++++++++++++---------
+ mm/page_alloc.c            | 32 ++++++++++++++++++--------------
+ mm/sparse.c                | 25 ++++++++++++++++++++++++-
+ 7 files changed, 84 insertions(+), 26 deletions(-)
 
-We add a segment and online only 4MB blocks of it on demand. So the other
-memory might not be accessible. For kdump and onlining/offlining code, we
-have to mark pages as offline before a new segment is visible to the system
-(e.g. as these pages might not be backed by real memory in the hypervisor).
-
-This is not a balloon driver. Main differences:
-- We can add more memory to a VM without having to use mixture of
-  technologies - e.g. ACPI for plugging, balloon for unplugging (in contrast
-  to virtio-balloon).
-- The device is responsible for its own memory only - will not inflate on
-  any system memory. (in contrast to all balloons)
-- Works on a coarser granularity (e.g. 4MB because that's what we can
-  online/offline in Linux). We are not using the buddy allocator when
-  unplugging but really search for chunks of memory we can offline. We
-  actually can support arbitrary block sizes. (in contrast to all balloons)
-- That's why we don't fragment guest memory.
-- A device can belong to exactly one NUMA node. This way we can online/
-  offline memory in a fine granularity NUMA aware. Even if the guest does
-  not even know how to spell NUMA. (in contrast to all balloons)
-- Architectures that don't have proper memory hotplug interfaces (e.g. s390x)
-  get memory hotplug support. I have a prototype for s390x.
-- Once all 4MB chunks of a memory block are offline, we can remove the
-  memory block and therefore the struct pages. (in contrast to all balloons)
-
-This essentially allows us to add/remove 4MB chunks to/from a VM. Especially
-without caring about the future when adding memory ("If I add a 128GB DIMM
-I can only unplug 128GB again") or running into limits ("If I want my VM to
-grow to 4TB, I have to plug at least 16GB per DIMM").
-
-Future work:
- - Performance improvements
- - Be smarter about which blocks to offline first (e.g. free ones)
- - Automatically manage assignemnt to NORMAL/MOVABLE zone to make
-   unplug more likely to succeed.
-
-I will post the next prototype of virtio-mem shortly. This time for real :)
-
-==========
-
-RFCv2 -> v1:
-- "mm: introduce and use PageOffline()"
--- fix set_page_address() handling for WANT_PAGE_VIRTUAL
-- Include "mm/page_ext.c: support online/offline of memory < section size"
-- Include "kasan: prepare for online/offline of different start/size"
-- Include "mm/memory_hotplug: onlining pages can only fail due to notifiers"
-
-
-David Hildenbrand (10):
-  mm: introduce and use PageOffline()
-  mm/page_ext.c: support online/offline of memory < section size
-  kasan: prepare for online/offline of different start/size
-  kdump: include PAGE_OFFLINE_MAPCOUNT_VALUE in VMCOREINFO
-  mm/memory_hotplug: limit offline_pages() to sizes we can actually
-    handle
-  mm/memory_hotplug: onlining pages can only fail due to notifiers
-  mm/memory_hotplug: print only with DEBUG_VM in online/offline_pages()
-  mm/memory_hotplug: allow to control onlining/offlining of memory by a
-    driver
-  mm/memory_hotplug: teach offline_pages() to not try forever
-  mm/memory_hotplug: allow online/offline memory by a kernel module
-
- arch/powerpc/platforms/powernv/memtrace.c |   2 +-
- drivers/base/memory.c                     |  25 +--
- drivers/base/node.c                       |   1 -
- drivers/xen/balloon.c                     |   2 +-
- include/linux/memory.h                    |   2 +-
- include/linux/memory_hotplug.h            |  20 ++-
- include/linux/mm.h                        |  10 ++
- include/linux/page-flags.h                |   9 ++
- kernel/crash_core.c                       |   1 +
- mm/kasan/kasan.c                          | 107 ++++++++-----
- mm/memory_hotplug.c                       | 180 +++++++++++++++++-----
- mm/page_alloc.c                           |  32 ++--
- mm/page_ext.c                             |   9 +-
- mm/sparse.c                               |  25 ++-
- 14 files changed, 315 insertions(+), 110 deletions(-)
-
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 7a3a580821e0..58a889b2b2f4 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -408,7 +408,6 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid,
+ 	if (!mem_blk)
+ 		return -EFAULT;
+ 
+-	mem_blk->nid = nid;
+ 	if (!node_online(nid))
+ 		return 0;
+ 
+diff --git a/include/linux/memory.h b/include/linux/memory.h
+index 31ca3e28b0eb..9f8cd856ca1e 100644
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -33,7 +33,6 @@ struct memory_block {
+ 	void *hw;			/* optional pointer to fw/hw data */
+ 	int (*phys_callback)(struct memory_block *);
+ 	struct device dev;
+-	int nid;			/* NID for this memory block */
+ };
+ 
+ int arch_get_memory_phys_device(unsigned long start_pfn);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index c6fa9a255dbf..197c251be775 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1111,7 +1111,15 @@ static inline void set_page_address(struct page *page, void *address)
+ {
+ 	page->virtual = address;
+ }
++static void set_page_virtual(struct page *page, and enum zone_type zone)
++{
++	/* The shift won't overflow because ZONE_NORMAL is below 4G. */
++	if (!is_highmem_idx(zone))
++		set_page_address(page, __va(pfn << PAGE_SHIFT));
++}
+ #define page_address_init()  do { } while(0)
++#else
++#define set_page_virtual(page, zone)  do { } while(0)
+ #endif
+ 
+ #if defined(HASHED_PAGE_VIRTUAL)
+@@ -2063,6 +2071,8 @@ extern unsigned long find_min_pfn_with_active_regions(void);
+ extern void free_bootmem_with_active_regions(int nid,
+ 						unsigned long max_low_pfn);
+ extern void sparse_memory_present_with_active_regions(int nid);
++extern void __meminit init_single_page(struct page *page, unsigned long pfn,
++				       unsigned long zone, int nid);
+ 
+ #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index e34a27727b9a..07ec6e48073b 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -686,6 +686,15 @@ PAGE_MAPCOUNT_OPS(Balloon, BALLOON)
+ #define PAGE_KMEMCG_MAPCOUNT_VALUE		(-512)
+ PAGE_MAPCOUNT_OPS(Kmemcg, KMEMCG)
+ 
++/*
++ * PageOffline() indicates that a page is offline (either never online via
++ * online_pages() or offlined via offline_pages()). Nobody in the system
++ * should have a reference to these pages. In virtual environments,
++ * the backing storage might already have been removed. Don't touch!
++ */
++#define PAGE_OFFLINE_MAPCOUNT_VALUE		(-1024)
++PAGE_MAPCOUNT_OPS(Offline, OFFLINE)
++
+ extern bool is_free_buddy_page(struct page *page);
+ 
+ __PAGEFLAG(Isolated, isolated, PF_ANY);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index f74826cdceea..7f7bd2acb55b 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -250,6 +250,7 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
+ 		struct vmem_altmap *altmap, bool want_memblock)
+ {
+ 	int ret;
++	int i;
+ 
+ 	if (pfn_valid(phys_start_pfn))
+ 		return -EEXIST;
+@@ -258,6 +259,25 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
+ 	if (ret < 0)
+ 		return ret;
+ 
++	/*
++	 * Mark all the pages in the section as offline before creating the
++	 * memblock and onlining any sub-sections (and therefore marking the
++	 * whole section as online). Mark them reserved so nobody will stumble
++	 * over a half inititalized state.
++	 */
++	for (i = 0; i < PAGES_PER_SECTION; i++) {
++		unsigned long pfn = phys_start_pfn + i;
++		struct page *page;
++		if (!pfn_valid(pfn))
++			continue;
++		page = pfn_to_page(pfn);
++
++		/* dummy zone, the actual one will be set when onlining pages */
++		init_single_page(page, pfn, ZONE_NORMAL, nid);
++		SetPageReserved(page);
++		__SetPageOffline(page);
++	}
++
+ 	if (!want_memblock)
+ 		return 0;
+ 
+@@ -651,6 +671,7 @@ EXPORT_SYMBOL_GPL(__online_page_increment_counters);
+ 
+ void __online_page_free(struct page *page)
+ {
++	__ClearPageOffline(page);
+ 	__free_reserved_page(page);
+ }
+ EXPORT_SYMBOL_GPL(__online_page_free);
+@@ -891,15 +912,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	int nid;
+ 	int ret;
+ 	struct memory_notify arg;
+-	struct memory_block *mem;
+-
+-	/*
+-	 * We can't use pfn_to_nid() because nid might be stored in struct page
+-	 * which is not yet initialized. Instead, we find nid from memory block.
+-	 */
+-	mem = find_memory_block(__pfn_to_section(pfn));
+-	nid = mem->nid;
+ 
++	nid = pfn_to_nid(pfn);
+ 	/* associate pfn range with the zone */
+ 	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
+ 
+@@ -1426,7 +1440,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ }
+ 
+ /*
+- * remove from free_area[] and mark all as Reserved.
++ * remove from free_area[] and mark all as Reserved and Offline.
+  */
+ static int
+ offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 905db9d7962f..cd75686ff1d7 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1171,7 +1171,7 @@ static void free_one_page(struct zone *zone,
+ 	spin_unlock(&zone->lock);
+ }
+ 
+-static void __meminit __init_single_page(struct page *page, unsigned long pfn,
++void __meminit init_single_page(struct page *page, unsigned long pfn,
+ 				unsigned long zone, int nid)
+ {
+ 	mm_zero_struct_page(page);
+@@ -1181,11 +1181,7 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+ 	page_cpupid_reset_last(page);
+ 
+ 	INIT_LIST_HEAD(&page->lru);
+-#ifdef WANT_PAGE_VIRTUAL
+-	/* The shift won't overflow because ZONE_NORMAL is below 4G. */
+-	if (!is_highmem_idx(zone))
+-		set_page_address(page, __va(pfn << PAGE_SHIFT));
+-#endif
++	set_page_virtual(page, zone);
+ }
+ 
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+@@ -1206,7 +1202,7 @@ static void __meminit init_reserved_page(unsigned long pfn)
+ 		if (pfn >= zone->zone_start_pfn && pfn < zone_end_pfn(zone))
+ 			break;
+ 	}
+-	__init_single_page(pfn_to_page(pfn), pfn, zid, nid);
++	init_single_page(pfn_to_page(pfn), pfn, zid, nid);
+ }
+ #else
+ static inline void init_reserved_page(unsigned long pfn)
+@@ -1523,7 +1519,7 @@ static unsigned long  __init deferred_init_pages(int nid, int zid,
+ 		} else {
+ 			page++;
+ 		}
+-		__init_single_page(page, pfn, zid, nid);
++		init_single_page(page, pfn, zid, nid);
+ 		nr_pages++;
+ 	}
+ 	return (nr_pages);
+@@ -5514,9 +5510,13 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 
+ not_early:
+ 		page = pfn_to_page(pfn);
+-		__init_single_page(page, pfn, zone, nid);
+-		if (context == MEMMAP_HOTPLUG)
+-			SetPageReserved(page);
++		if (context == MEMMAP_HOTPLUG) {
++			/* everything but the zone was inititalized */
++			set_page_zone(page, zone);
++			set_page_virtual(page, zone);
++		}
++		else
++			init_single_page(page, pfn, zone, nid);
+ 
+ 		/*
+ 		 * Mark the block movable so that blocks are reserved for
+@@ -6404,7 +6404,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ #ifdef CONFIG_HAVE_MEMBLOCK
+ /*
+  * Only struct pages that are backed by physical memory are zeroed and
+- * initialized by going through __init_single_page(). But, there are some
++ * initialized by going through init_single_page(). But, there are some
+  * struct pages which are reserved in memblock allocator and their fields
+  * may be accessed (for example page_to_pfn() on some configuration accesses
+  * flags). We must explicitly zero those struct pages.
+@@ -8005,7 +8005,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 			break;
+ 	if (pfn == end_pfn)
+ 		return;
+-	offline_mem_sections(pfn, end_pfn);
+ 	zone = page_zone(pfn_to_page(pfn));
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	pfn = start_pfn;
+@@ -8022,11 +8021,13 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		if (unlikely(!PageBuddy(page) && PageHWPoison(page))) {
+ 			pfn++;
+ 			SetPageReserved(page);
++			__SetPageOffline(page);
+ 			continue;
+ 		}
+ 
+ 		BUG_ON(page_count(page));
+ 		BUG_ON(!PageBuddy(page));
++		BUG_ON(PageOffline(page));
+ 		order = page_order(page);
+ #ifdef CONFIG_DEBUG_VM
+ 		pr_info("remove from free list %lx %d %lx\n",
+@@ -8035,11 +8036,14 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		list_del(&page->lru);
+ 		rmv_page_order(page);
+ 		zone->free_area[order].nr_free--;
+-		for (i = 0; i < (1 << order); i++)
++		for (i = 0; i < (1 << order); i++) {
+ 			SetPageReserved((page+i));
++			__SetPageOffline(page + i);
++		}
+ 		pfn += (1 << order);
+ 	}
+ 	spin_unlock_irqrestore(&zone->lock, flags);
++	offline_mem_sections(start_pfn, end_pfn);
+ }
+ #endif
+ 
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 73dc2fcc0eab..645d8a4e41a0 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -623,7 +623,24 @@ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-/* Mark all memory sections within the pfn range as online */
++static bool all_pages_in_section_offline(unsigned long section_nr)
++{
++	unsigned long pfn = section_nr_to_pfn(section_nr);
++	struct page *page;
++	int i;
++
++	for (i = 0; i < PAGES_PER_SECTION; i++, pfn++) {
++		if (!pfn_valid(pfn))
++			continue;
++
++		page = pfn_to_page(pfn);
++		if (!PageOffline(page))
++			return false;
++	}
++	return true;
++}
++
++/* Try to mark all memory sections within the pfn range as offline */
+ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ {
+ 	unsigned long pfn;
+@@ -639,6 +656,12 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ 		if (WARN_ON(!valid_section_nr(section_nr)))
+ 			continue;
+ 
++		/* if we don't cover whole sections, check all pages */
++		if ((section_nr_to_pfn(section_nr) != start_pfn ||
++		     start_pfn + PAGES_PER_SECTION >= end_pfn) &&
++		    !all_pages_in_section_offline(section_nr))
++			continue;
++
+ 		ms = __nr_to_section(section_nr);
+ 		ms->section_mem_map &= ~SECTION_IS_ONLINE;
+ 	}
 -- 
 2.17.0
