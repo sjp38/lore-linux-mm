@@ -1,242 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 870A76B0005
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 11:12:29 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id z1-v6so6218357qki.10
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 08:12:29 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B14F96B0007
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 11:12:31 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id o97-v6so11912363qkh.14
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 08:12:31 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id m89-v6si715864qva.63.2018.05.23.08.12.27
+        by mx.google.com with ESMTPS id q1-v6si10280279qti.323.2018.05.23.08.12.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 08:12:27 -0700 (PDT)
+        Wed, 23 May 2018 08:12:30 -0700 (PDT)
 From: David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1 08/10] mm/memory_hotplug: allow to control onlining/offlining of memory by a driver
-Date: Wed, 23 May 2018 17:11:49 +0200
-Message-Id: <20180523151151.6730-9-david@redhat.com>
+Subject: [PATCH v1 09/10] mm/memory_hotplug: teach offline_pages() to not try forever
+Date: Wed, 23 May 2018 17:11:50 +0200
+Message-Id: <20180523151151.6730-10-david@redhat.com>
 In-Reply-To: <20180523151151.6730-1-david@redhat.com>
 References: <20180523151151.6730-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rashmica Gupta <rashmica.g@gmail.com>, Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>
 
-Some devices (esp. paravirtualized) might want to control
-- when to online/offline a memory block
-- how to online memory (MOVABLE/NORMAL)
-- in which granularity to online/offline memory
+It can easily happen that we get stuck forever trying to offline pages -
+e.g. on persistent errors.
 
-So let's add a new flag "driver_managed" and disallow to change the
-state by user space. Device onlining/offlining will still work, however
-the memory will not be actually onlined/offlined. That has to be handled
-by the device driver that owns the memory.
+Let's add a way to change this behavior and fail fast.
 
-Please note that we have to create user visible memory blocks after all
-since this is required to trigger the right udevs events in order to
-reload kexec/kdump. Also, it allows to see what is going on in the
-system (e.g. which memory blocks are still around).
+This is interesting if offline_pages() is called from a driver and we
+just want to find some block to offline.
 
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Rashmica Gupta <rashmica.g@gmail.com>
+Cc: Balbir Singh <bsingharora@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Dan Williams <dan.j.williams@intel.com>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
 Cc: Reza Arbab <arbab@linux.vnet.ibm.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- drivers/base/memory.c          | 22 ++++++++++++++--------
- drivers/xen/balloon.c          |  2 +-
- include/linux/memory.h         |  1 +
- include/linux/memory_hotplug.h |  4 +++-
- mm/memory_hotplug.c            | 34 ++++++++++++++++++++++++++++++++--
- 5 files changed, 51 insertions(+), 12 deletions(-)
+ arch/powerpc/platforms/powernv/memtrace.c |  2 +-
+ drivers/base/memory.c                     |  2 +-
+ include/linux/memory_hotplug.h            |  8 ++++----
+ mm/memory_hotplug.c                       | 14 ++++++++++----
+ 4 files changed, 16 insertions(+), 10 deletions(-)
 
+diff --git a/arch/powerpc/platforms/powernv/memtrace.c b/arch/powerpc/platforms/powernv/memtrace.c
+index fc222a0c2ac4..8ce71f7e1558 100644
+--- a/arch/powerpc/platforms/powernv/memtrace.c
++++ b/arch/powerpc/platforms/powernv/memtrace.c
+@@ -110,7 +110,7 @@ static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
+ 	walk_memory_range(start_pfn, end_pfn, (void *)MEM_GOING_OFFLINE,
+ 			  change_memblock_state);
+ 
+-	if (offline_pages(start_pfn, nr_pages)) {
++	if (offline_pages(start_pfn, nr_pages, true)) {
+ 		walk_memory_range(start_pfn, end_pfn, (void *)MEM_ONLINE,
+ 				  change_memblock_state);
+ 		return false;
 diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index bffe8616bd55..3b8616551561 100644
+index 3b8616551561..c785e4c01b23 100644
 --- a/drivers/base/memory.c
 +++ b/drivers/base/memory.c
-@@ -231,27 +231,28 @@ static bool pages_correctly_probed(unsigned long start_pfn)
-  * Must already be protected by mem_hotplug_begin().
-  */
- static int
--memory_block_action(unsigned long phys_index, unsigned long action, int online_type)
-+memory_block_action(struct memory_block *mem, unsigned long action)
- {
--	unsigned long start_pfn;
-+	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
- 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
--	int ret;
-+	int ret = 0;
- 
--	start_pfn = section_nr_to_pfn(phys_index);
-+	if (mem->driver_managed)
-+		return 0;
- 
- 	switch (action) {
- 	case MEM_ONLINE:
- 		if (!pages_correctly_probed(start_pfn))
- 			return -EBUSY;
- 
--		ret = online_pages(start_pfn, nr_pages, online_type);
-+		ret = online_pages(start_pfn, nr_pages, mem->online_type);
+@@ -248,7 +248,7 @@ memory_block_action(struct memory_block *mem, unsigned long action)
+ 		ret = online_pages(start_pfn, nr_pages, mem->online_type);
  		break;
  	case MEM_OFFLINE:
- 		ret = offline_pages(start_pfn, nr_pages);
+-		ret = offline_pages(start_pfn, nr_pages);
++		ret = offline_pages(start_pfn, nr_pages, true);
  		break;
  	default:
  		WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
--		     "%ld\n", __func__, phys_index, action, action);
-+		     "%ld\n", __func__, mem->start_section_nr, action, action);
- 		ret = -EINVAL;
- 	}
- 
-@@ -269,8 +270,7 @@ static int memory_block_change_state(struct memory_block *mem,
- 	if (to_state == MEM_OFFLINE)
- 		mem->state = MEM_GOING_OFFLINE;
- 
--	ret = memory_block_action(mem->start_section_nr, to_state,
--				mem->online_type);
-+	ret = memory_block_action(mem, to_state);
- 
- 	mem->state = ret ? from_state_req : to_state;
- 
-@@ -350,6 +350,11 @@ store_mem_state(struct device *dev,
- 	 */
- 	mem_hotplug_begin();
- 
-+	if (mem->driver_managed) {
-+		ret = -EINVAL;
-+		goto out;
-+	}
-+
- 	switch (online_type) {
- 	case MMOP_ONLINE_KERNEL:
- 	case MMOP_ONLINE_MOVABLE:
-@@ -364,6 +369,7 @@ store_mem_state(struct device *dev,
- 		ret = -EINVAL; /* should never happen */
- 	}
- 
-+out:
- 	mem_hotplug_done();
- err:
- 	unlock_device_hotplug();
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 065f0b607373..89981d573c06 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -401,7 +401,7 @@ static enum bp_state reserve_additional_memory(void)
- 	 * callers drop the mutex before trying again.
- 	 */
- 	mutex_unlock(&balloon_mutex);
--	rc = add_memory_resource(nid, resource, memhp_auto_online);
-+	rc = add_memory_resource(nid, resource, memhp_auto_online, false);
- 	mutex_lock(&balloon_mutex);
- 
- 	if (rc) {
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index 9f8cd856ca1e..018c5e5ecde1 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -29,6 +29,7 @@ struct memory_block {
- 	unsigned long state;		/* serialized by the dev->lock */
- 	int section_count;		/* serialized by mem_sysfs_mutex */
- 	int online_type;		/* for passing data to online routine */
-+	bool driver_managed;		/* driver handles online/offline */
- 	int phys_device;		/* to which fru does this belong? */
- 	void *hw;			/* optional pointer to fw/hw data */
- 	int (*phys_callback)(struct memory_block *);
 diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index d71829d54360..497e28f5b000 100644
+index 497e28f5b000..ae53017b54df 100644
 --- a/include/linux/memory_hotplug.h
 +++ b/include/linux/memory_hotplug.h
-@@ -326,7 +326,9 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
- extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
- extern int add_memory(int nid, u64 start, u64 size);
--extern int add_memory_resource(int nid, struct resource *resource, bool online);
-+extern int add_memory_driver_managed(int nid, u64 start, u64 size);
-+extern int add_memory_resource(int nid, struct resource *resource, bool online,
-+			       bool driver_managed);
- extern int arch_add_memory(int nid, u64 start, u64 size,
+@@ -303,7 +303,8 @@ static inline void pgdat_resize_init(struct pglist_data *pgdat) {}
+ 
+ extern bool is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
+ extern void try_offline_node(int nid);
+-extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
++extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages,
++			 bool retry_forever);
+ extern void remove_memory(int nid, u64 start, u64 size);
+ 
+ #else
+@@ -315,7 +316,8 @@ static inline bool is_mem_section_removable(unsigned long pfn,
+ 
+ static inline void try_offline_node(int nid) {}
+ 
+-static inline int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
++static inline int offline_pages(unsigned long start_pfn, unsigned long nr_pages,
++				bool retry_forever)
+ {
+ 	return -EINVAL;
+ }
+@@ -333,9 +335,7 @@ extern int arch_add_memory(int nid, u64 start, u64 size,
  		struct vmem_altmap *altmap, bool want_memblock);
  extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+ 		unsigned long nr_pages, struct vmem_altmap *altmap);
+-extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+-extern void remove_memory(int nid, u64 start, u64 size);
+ extern int sparse_add_one_section(struct pglist_data *pgdat,
+ 		unsigned long start_pfn, struct vmem_altmap *altmap);
+ extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 27f7c27f57ac..1610e214bfc8 100644
+index 1610e214bfc8..3a5845a33910 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1124,8 +1124,15 @@ static int online_memory_block(struct memory_block *mem, void *arg)
- 	return device_online(&mem->dev);
+@@ -1633,8 +1633,8 @@ static void node_states_clear_node(int node, struct memory_notify *arg)
+ 		node_clear_state(node, N_MEMORY);
  }
  
-+static int mark_memory_block_driver_managed(struct memory_block *mem, void *arg)
-+{
-+	mem->driver_managed = true;
-+	return 0;
-+}
-+
- /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
--int __ref add_memory_resource(int nid, struct resource *res, bool online)
-+int __ref add_memory_resource(int nid, struct resource *res, bool online,
-+			      bool driver_managed)
+-static int __ref __offline_pages(unsigned long start_pfn,
+-		  unsigned long end_pfn)
++static int __ref __offline_pages(unsigned long start_pfn, unsigned long end_pfn,
++				 bool retry_forever)
  {
- 	u64 start, size;
- 	pg_data_t *pgdat = NULL;
-@@ -1133,6 +1140,9 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 	bool new_node;
- 	int ret;
+ 	unsigned long pfn, nr_pages;
+ 	long offlined_pages;
+@@ -1686,6 +1686,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	pfn = scan_movable_pages(start_pfn, end_pfn);
+ 	if (pfn) { /* We have movable pages */
+ 		ret = do_migrate_range(pfn, end_pfn);
++		if (ret && !retry_forever) {
++			ret = -EBUSY;
++			goto failed_removal;
++		}
+ 		goto repeat;
+ 	}
  
-+	if (online && driver_managed)
-+		return -EINVAL;
-+
- 	start = res->start;
- 	size = resource_size(res);
- 
-@@ -1204,6 +1214,9 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 	if (online)
- 		walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
- 				  NULL, online_memory_block);
-+	else if (driver_managed)
-+		walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
-+				  NULL, mark_memory_block_driver_managed);
- 
- 	goto out;
- 
-@@ -1228,13 +1241,30 @@ int __ref add_memory(int nid, u64 start, u64 size)
- 	if (IS_ERR(res))
- 		return PTR_ERR(res);
- 
--	ret = add_memory_resource(nid, res, memhp_auto_online);
-+	ret = add_memory_resource(nid, res, memhp_auto_online, false);
- 	if (ret < 0)
- 		release_memory_resource(res);
- 	return ret;
+@@ -1752,6 +1756,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+  * offline_pages - offline pages in a given range (that are currently online)
+  * @start_pfn: start pfn of the memory range
+  * @nr_pages: the number of pages
++ * @retry_forever: weather to retry (possibly) forever
+  *
+  * This function tries to offline the given pages. The alignment/size that
+  * can be used is given by offline_nr_pages.
+@@ -1764,9 +1769,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
+  *
+  * Must be protected by mem_hotplug_begin() or a device_lock
+  */
+-int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
++int offline_pages(unsigned long start_pfn, unsigned long nr_pages,
++		  bool retry_forever)
+ {
+-	return __offline_pages(start_pfn, start_pfn + nr_pages);
++	return __offline_pages(start_pfn, start_pfn + nr_pages, retry_forever);
  }
- EXPORT_SYMBOL_GPL(add_memory);
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
  
-+int __ref add_memory_driver_managed(int nid, u64 start, u64 size)
-+{
-+	struct resource *res;
-+	int ret;
-+
-+	res = register_memory_resource(start, size);
-+	if (IS_ERR(res))
-+		return PTR_ERR(res);
-+
-+	ret = add_memory_resource(nid, res, false, true);
-+	if (ret < 0)
-+		release_memory_resource(res);
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(add_memory_driver_managed);
-+
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- /*
-  * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
 -- 
 2.17.0
