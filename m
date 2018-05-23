@@ -1,87 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 664CB6B0008
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:56:46 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r2-v6so1178793wrm.15
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:56:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q44-v6si4080469edq.344.2018.05.23.07.56.44
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 078F56B000A
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 11:12:08 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id w201-v6so16067305qkb.16
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 08:12:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id s29-v6si4830711qth.44.2018.05.23.08.12.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 May 2018 07:56:44 -0700 (PDT)
-Date: Wed, 23 May 2018 16:56:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
- oom_lock held.
-Message-ID: <20180523145639.GT20441@dhcp22.suse.cz>
-References: <20180518122045.GG21711@dhcp22.suse.cz>
- <201805210056.IEC51073.VSFFHFOOQtJMOL@I-love.SAKURA.ne.jp>
- <20180522061850.GB20020@dhcp22.suse.cz>
- <201805231924.EED86916.FSQJMtHOLVOFOF@I-love.SAKURA.ne.jp>
- <20180523115726.GP20441@dhcp22.suse.cz>
- <201805232245.IGI00539.HLtMFOQSJFFOOV@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201805232245.IGI00539.HLtMFOQSJFFOOV@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 May 2018 08:12:06 -0700 (PDT)
+From: David Hildenbrand <david@redhat.com>
+Subject: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by device driver
+Date: Wed, 23 May 2018 17:11:41 +0200
+Message-Id: <20180523151151.6730-1-david@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed 23-05-18 22:45:20, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Wed 23-05-18 19:24:48, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > > I don't understand why you are talking about PF_WQ_WORKER case.
-> > > > 
-> > > > Because that seems to be the reason to have it there as per your
-> > > > comment.
-> > > 
-> > > OK. Then, I will fold below change into my patch.
-> > > 
-> > >         if (did_some_progress) {
-> > >                 no_progress_loops = 0;
-> > >  +              /*
-> > > -+               * This schedule_timeout_*() serves as a guaranteed sleep for
-> > > -+               * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
-> > > ++               * Try to give the OOM killer/reaper/victims some time for
-> > > ++               * releasing memory.
-> > >  +               */
-> > >  +              if (!tsk_is_oom_victim(current))
-> > >  +                      schedule_timeout_uninterruptible(1);
-> > 
-> > Do you really need this? You are still fiddling with this path at all? I
-> > see how removing the timeout might be reasonable after recent changes
-> > but why do you insist in adding it outside of the lock.
-> 
-> Sigh... We can't remove this sleep without further changes. That's why I added
-> 
->  * This schedule_timeout_*() serves as a guaranteed sleep for
->  * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
-> 
-> so that we won't by error remove this sleep without further changes.
+This is now the !RFC version. I did some additional tests and inspected
+all memory notifiers. At least page_ext and kasan need fixes.
 
-Look. I am fed up with this discussion. You are fiddling with the code
-and moving hacks around with a lot of hand waving. Rahter than trying to
-look at the underlying problem. Your patch completely ignores PREEMPT as
-I've mentioned in previous versions.
+==========
 
-I do admit that the underlying problem is non-trivial to handle and it
-requires a deeper consideration. Fair enough. You can spend that time on
-the matter and come up with something clever. That would be great. But
-moving a sleep around because of some yada yada yada is not a way we
-want to treat this code.
+I am right now working on a paravirtualized memory device ("virtio-mem").
+These devices control a memory region and the amount of memory available
+via it. Memory will not be indicated/added/onlined via ACPI and friends,
+the device driver is responsible for it.
 
-I would be OK with removing the sleep from the out_of_memory path based
-on your argumentation that we have a _proper_ synchronization with the
-exit path now. That would be a patch that has actually a solid
-background behind. Is it possible that something would wait longer or
-wouldn't preempt etc.? Yes possible but those need to be analyzed and
-thing through properly. See the difference from "we may need it because
-we've always been doing that and there is here and there that might
-happen". This cargo cult way of programming will only grow more and more
-hacks nobody can reason about long term.
+When the device driver starts up, it will add and online the requested
+amount of memory from its assigned physical memory region. On request, it
+can add (online) either more memory or try to remove (offline) memory. As
+it will be a virtio module, we also want to be able to have it as a loadable
+kernel module.
+
+Such a device can be thought of like a "resizable DIMM" or a "huge
+number of 4MB DIMMS" that can be automatically managed.
+
+As we want to be able to add/remove small chunks of memory to a VM without
+fragmenting guest memory ("it's not what the guest pays for" and "what if
+the hypervisor wants to use huge pages"), it looks like we can do that
+under Linux in a 4MB granularity by using online_pages()/offline_pages()
+
+We add a segment and online only 4MB blocks of it on demand. So the other
+memory might not be accessible. For kdump and onlining/offlining code, we
+have to mark pages as offline before a new segment is visible to the system
+(e.g. as these pages might not be backed by real memory in the hypervisor).
+
+This is not a balloon driver. Main differences:
+- We can add more memory to a VM without having to use mixture of
+  technologies - e.g. ACPI for plugging, balloon for unplugging (in contrast
+  to virtio-balloon).
+- The device is responsible for its own memory only - will not inflate on
+  any system memory. (in contrast to all balloons)
+- Works on a coarser granularity (e.g. 4MB because that's what we can
+  online/offline in Linux). We are not using the buddy allocator when
+  unplugging but really search for chunks of memory we can offline. We
+  actually can support arbitrary block sizes. (in contrast to all balloons)
+- That's why we don't fragment guest memory.
+- A device can belong to exactly one NUMA node. This way we can online/
+  offline memory in a fine granularity NUMA aware. Even if the guest does
+  not even know how to spell NUMA. (in contrast to all balloons)
+- Architectures that don't have proper memory hotplug interfaces (e.g. s390x)
+  get memory hotplug support. I have a prototype for s390x.
+- Once all 4MB chunks of a memory block are offline, we can remove the
+  memory block and therefore the struct pages. (in contrast to all balloons)
+
+This essentially allows us to add/remove 4MB chunks to/from a VM. Especially
+without caring about the future when adding memory ("If I add a 128GB DIMM
+I can only unplug 128GB again") or running into limits ("If I want my VM to
+grow to 4TB, I have to plug at least 16GB per DIMM").
+
+Future work:
+ - Performance improvements
+ - Be smarter about which blocks to offline first (e.g. free ones)
+ - Automatically manage assignemnt to NORMAL/MOVABLE zone to make
+   unplug more likely to succeed.
+
+I will post the next prototype of virtio-mem shortly. This time for real :)
+
+==========
+
+RFCv2 -> v1:
+- "mm: introduce and use PageOffline()"
+-- fix set_page_address() handling for WANT_PAGE_VIRTUAL
+- Include "mm/page_ext.c: support online/offline of memory < section size"
+- Include "kasan: prepare for online/offline of different start/size"
+- Include "mm/memory_hotplug: onlining pages can only fail due to notifiers"
+
+
+David Hildenbrand (10):
+  mm: introduce and use PageOffline()
+  mm/page_ext.c: support online/offline of memory < section size
+  kasan: prepare for online/offline of different start/size
+  kdump: include PAGE_OFFLINE_MAPCOUNT_VALUE in VMCOREINFO
+  mm/memory_hotplug: limit offline_pages() to sizes we can actually
+    handle
+  mm/memory_hotplug: onlining pages can only fail due to notifiers
+  mm/memory_hotplug: print only with DEBUG_VM in online/offline_pages()
+  mm/memory_hotplug: allow to control onlining/offlining of memory by a
+    driver
+  mm/memory_hotplug: teach offline_pages() to not try forever
+  mm/memory_hotplug: allow online/offline memory by a kernel module
+
+ arch/powerpc/platforms/powernv/memtrace.c |   2 +-
+ drivers/base/memory.c                     |  25 +--
+ drivers/base/node.c                       |   1 -
+ drivers/xen/balloon.c                     |   2 +-
+ include/linux/memory.h                    |   2 +-
+ include/linux/memory_hotplug.h            |  20 ++-
+ include/linux/mm.h                        |  10 ++
+ include/linux/page-flags.h                |   9 ++
+ kernel/crash_core.c                       |   1 +
+ mm/kasan/kasan.c                          | 107 ++++++++-----
+ mm/memory_hotplug.c                       | 180 +++++++++++++++++-----
+ mm/page_alloc.c                           |  32 ++--
+ mm/page_ext.c                             |   9 +-
+ mm/sparse.c                               |  25 ++-
+ 14 files changed, 315 insertions(+), 110 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.17.0
