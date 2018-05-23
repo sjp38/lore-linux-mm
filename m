@@ -1,92 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 15DCF6B0005
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 09:54:05 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y9-v6so12994153wrg.22
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 06:54:05 -0700 (PDT)
-Received: from techadventures.net (techadventures.net. [62.201.165.239])
-        by mx.google.com with ESMTP id z72-v6si1765281wmc.207.2018.05.23.06.54.03
-        for <linux-mm@kvack.org>;
-        Wed, 23 May 2018 06:54:03 -0700 (PDT)
-Date: Wed, 23 May 2018 15:54:03 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH] mm/memory_hotplug: Fix leftover use of struct page
- during hotplug
-Message-ID: <20180523135403.GA30762@techadventures.net>
-References: <20180504085311.1240-1-Jonathan.Cameron@huawei.com>
- <20180504160844.GB23560@dhcp22.suse.cz>
- <20180504175051.000009e8@huawei.com>
- <20180510120200.GC5325@dhcp22.suse.cz>
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E0466B0003
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 10:06:09 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id f10-v6so14172397pln.21
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 07:06:09 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k2-v6si18885531plt.374.2018.05.23.07.06.07
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 May 2018 07:06:08 -0700 (PDT)
+Date: Wed, 23 May 2018 16:06:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm: do not warn on offline nodes unless the specific
+ node is explicitly requested
+Message-ID: <20180523140601.GQ20441@dhcp22.suse.cz>
+References: <20180523125555.30039-1-mhocko@kernel.org>
+ <20180523125555.30039-3-mhocko@kernel.org>
+ <11e26a4e-552e-b1dc-316e-ce3e92973556@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180510120200.GC5325@dhcp22.suse.cz>
+In-Reply-To: <11e26a4e-552e-b1dc-316e-ce3e92973556@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>, linux-mm <linux-mm@kvack.org>, linuxarm@huawei.com, Pavel Tatashin <pasha.tatashin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <osalvador@techadventures.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Thu, May 10, 2018 at 02:02:00PM +0200, Michal Hocko wrote:
-> On Fri 04-05-18 17:50:51, Jonathan Cameron wrote:
-> [...]
-> > Exact path to the problem is as follows:
+On Wed 23-05-18 19:15:51, Anshuman Khandual wrote:
+> On 05/23/2018 06:25 PM, Michal Hocko wrote:
+> > when adding memory to a node that is currently offline.
 > > 
-> > mm/memory_hotplug.c : add_memory_resource
-> > The node is not online so we enter the
-> > if (new_node) twice, on the second such block there is a call to
-> > link_mem_sections which calls into
-> > drivers/node.c: link_mem_sections which calls
-> > drivers/node.c: register_mem_sect_under_node which calls
-> > get_nid_for_pfn and keeps trying until the output of that matches
-> > the expected node (passed all the way down from add_memory_resource)
+> > The VM_WARN_ON is just too loud without a good reason. In this
+> > particular case we are doing
+> > 	alloc_pages_node(node, GFP_KERNEL|__GFP_RETRY_MAYFAIL|__GFP_NOWARN, order)
+> > 
+> > so we do not insist on allocating from the given node (it is more a
+> > hint) so we can fall back to any other populated node and moreover we
+> > explicitly ask to not warn for the allocation failure.
+> > 
+> > Soften the warning only to cases when somebody asks for the given node
+> > explicitly by __GFP_THISNODE.
 > 
-> I am sorry but I am still confused. Why don't we create sysfs files from
-> __add_pages
->   __add_section
->     hotplug_memory_register
->       register_mem_sect_under_node
+> node hint passed here eventually goes into __alloc_pages_nodemask()
+> function which then picks up the applicable zonelist irrespective of
+> the GFP flag __GFP_THISNODE.
 
-IIUC the problem is that at the point we are calling register_mem_sect_under_node(),
-pages are not initialized yet.
+__GFP_THISNODE should enforce the given node without any fallbacks
+unless something has changed recently.
 
-While walking the pfns in register_mem_sect_under_node(),
-we might check for the node-id of the pfn if check_nid is true.
+> Though we can go into zones of other
+> nodes if the present node (whose zonelist got picked up) does not
+> have any memory in it's zones. So warning here might not be without
+> any reason.
 
-if (check_nid) {
-	page_nid = get_nid_for_pfn(pfn);
-	if (page_nid < 0)
-		continue;
-	if (page_nid != nid)
-		continue;
-}
-
-I think the problem is in:
-
-get_nid_for_pfn()->pfn_to_nid()->page_to_nid()
-
-static inline int page_to_nid(const struct page *page)
-{
-	struct page *p = (struct page *)page;
-
-	return (PF_POISONED_CHECK(p)->flags >> NODES_PGSHIFT) & NODES_MASK;
-}
-
-We access a field of the page, but these are not initialiazed, so it can
-contain anything.
-Because of that we can just get a wrong id, making the loop to not pass the
-below check.
-
-if (check_nid) {
-        page_nid = get_nid_for_pfn(pfn);
-        if (page_nid < 0)
-                continue;
-        if (page_nid != nid)
-                continue;
-}
-
-create_sys_fs ...
-
-and we do not carry on creating the sysfs.
-
-
-Oscar Salvador
+I am not sure I follow. Are you suggesting a different VM_WARN_ON?
+-- 
+Michal Hocko
+SUSE Labs
