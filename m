@@ -1,74 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 218F26B0003
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 12:38:06 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id g92-v6so14416322plg.6
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 09:38:06 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 297AC6B0005
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 12:38:32 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id w7-v6so13455138pfd.9
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 09:38:32 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r39-v6sor9053837pld.66.2018.05.23.09.38.04
+        by mx.google.com with SMTPS id s9-v6sor8278087plr.104.2018.05.23.09.38.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 23 May 2018 09:38:04 -0700 (PDT)
+        Wed, 23 May 2018 09:38:30 -0700 (PDT)
 From: Huaisheng Ye <yehs2007@gmail.com>
-Subject: [RFC PATCH v3 0/9] get rid of GFP_ZONE_TABLE/BAD
-Date: Thu, 24 May 2018 00:37:35 +0800
-Message-Id: <1527093455-3899-1-git-send-email-yehs2007@gmail.com>
+Subject: [RFC PATCH v3 1/9] include/linux/gfp.h: get rid of GFP_ZONE_TABLE/BAD
+Date: Thu, 24 May 2018 00:38:22 +0800
+Message-Id: <1527093502-3950-1-git-send-email-yehs2007@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, willy@infradead.org, hch@lst.de, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>
+Cc: mhocko@suse.com, willy@infradead.org, hch@lst.de, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Christoph Hellwig <hch@infradead.org>
 
 From: Huaisheng Ye <yehs1@lenovo.com>
-
-Changes since v2: [2]
-* According to Christoph's suggestion, rebase patches to current
-  mainline from v4.16.
-
-* Follow the advice of Matthew, create macros like GFP_NORMAL and
-  GFP_NORMAL_UNMOVABLE to clear bottom 3 and 4 bits of GFP bitmask.
-
-* Delete some patches because of kernel updating.
-
-[2]: https://marc.info/?l=linux-mm&m=152691610014027&w=2
-
-Tested by Lenovo Thinksystem server.
-
-Initmem setup node 0 [mem 0x0000000000001000-0x000000043fffffff]
-[    0.000000] On node 0 totalpages: 4111666
-[    0.000000]   DMA zone: 64 pages used for memmap
-[    0.000000]   DMA zone: 23 pages reserved
-[    0.000000]   DMA zone: 3999 pages, LIFO batch:0
-[    0.000000] mminit::memmap_init Initialising map node 0 zone 0 pfns 1 -> 4096 
-[    0.000000]   DMA32 zone: 10935 pages used for memmap
-[    0.000000]   DMA32 zone: 699795 pages, LIFO batch:31
-[    0.000000] mminit::memmap_init Initialising map node 0 zone 1 pfns 4096 -> 1048576
-[    0.000000]   Normal zone: 53248 pages used for memmap
-[    0.000000]   Normal zone: 3407872 pages, LIFO batch:31
-[    0.000000] mminit::memmap_init Initialising map node 0 zone 2 pfns 1048576 -> 4456448
-[    0.000000] mminit::memmap_init Initialising map node 0 zone 3 pfns 1 -> 4456448
-[    0.000000] Initmem setup node 1 [mem 0x0000002380000000-0x000000277fffffff]
-[    0.000000] On node 1 totalpages: 4194304
-[    0.000000]   Normal zone: 65536 pages used for memmap
-[    0.000000]   Normal zone: 4194304 pages, LIFO batch:31
-[    0.000000] mminit::memmap_init Initialising map node 1 zone 2 pfns 37224448 -> 41418752
-[    0.000000] mminit::memmap_init Initialising map node 1 zone 3 pfns 37224448 -> 41418752
-...
-[    0.000000] mminit::zonelist general 0:DMA = 0:DMA
-[    0.000000] mminit::zonelist general 0:DMA32 = 0:DMA32 0:DMA
-[    0.000000] mminit::zonelist general 0:Normal = 0:Normal 0:DMA32 0:DMA 1:Normal
-[    0.000000] mminit::zonelist thisnode 0:DMA = 0:DMA
-[    0.000000] mminit::zonelist thisnode 0:DMA32 = 0:DMA32 0:DMA
-[    0.000000] mminit::zonelist thisnode 0:Normal = 0:Normal 0:DMA32 0:DMA
-[    0.000000] mminit::zonelist general 1:Normal = 1:Normal 0:Normal 0:DMA32 0:DMA
-[    0.000000] mminit::zonelist thisnode 1:Normal = 1:Normal
-[    0.000000] Built 2 zonelists, mobility grouping on.  Total pages: 8176164
-[    0.000000] Policy zone: Normal
-[    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-4.17.0-rc6-gfp09+ 
-root=/dev/mapper/fedora-root ro rd.lvm.lv=fedora/root rd.lvm.lv=fedora/swap debug 
-LANG=en_US.UTF-8 mminit_loglevel=4 console=tty0 console=ttyS0,115200n8 memblock=debug
-earlyprintk=serial,0x3f8,115200
-
----
 
 Replace GFP_ZONE_TABLE and GFP_ZONE_BAD with encoded zone number.
 
@@ -89,50 +39,178 @@ __GFP_HIGHMEM, ZONE_MOVABLE shall be returned instead of ZONE_HIGHMEM.
 __GFP_ZONE_MOVABLE is created to realize it.
 
 With this patch, just enabling __GFP_MOVABLE and __GFP_HIGHMEM is not
-enough to get ZONE_MOVABLE from gfp_zone. All callers should use
-GFP_HIGHUSER_MOVABLE or __GFP_ZONE_MOVABLE directly to achieve that.
+enough to get ZONE_MOVABLE from gfp_zone. All subsystems should use
+GFP_HIGHUSER_MOVABLE directly to achieve that.
 
 Decode zone number directly from bottom three bits of flags in gfp_zone.
 The theory of encoding and decoding is,
-        A ^ B ^ B = A
+	A ^ B ^ B = A
 
-Changes since v1:[1]
-
-* Create __GFP_ZONE_MOVABLE and modify GFP_HIGHUSER_MOVABLE to help
-  callers to get ZONE_MOVABLE. Try to create __GFP_ZONE_MASK to mask
-  lowest 3 bits of GFP bitmasks.
-
-* Modify some callers' gfp flag to update usage of address zone
-  modifiers.
-
-* Modify inline function gfp_zone to get better performance according
-  to Matthew's suggestion.
-
-[1]: https://marc.info/?l=linux-mm&m=152596791931266&w=2
-
+Suggested-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Kate Stewart <kstewart@linuxfoundation.org>
+Cc: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>
 ---
+ include/linux/gfp.h | 107 ++++++++++------------------------------------------
+ 1 file changed, 20 insertions(+), 87 deletions(-)
 
-Huaisheng Ye (9):
-  include/linux/gfp.h: get rid of GFP_ZONE_TABLE/BAD
-  include/linux/dma-mapping: update usage of zone modifiers
-  drivers/xen/swiotlb-xen: update usage of zone modifiers
-  fs/btrfs/extent_io: update usage of zone modifiers
-  drivers/block/zram/zram_drv: update usage of zone modifiers
-  mm/vmpressure: update usage of zone modifiers
-  mm/zsmalloc: update usage of zone modifiers
-  include/linux/highmem.h: update usage of movableflags
-  arch/x86/include/asm/page.h: update usage of movableflags
-
- arch/x86/include/asm/page.h   |   3 +-
- drivers/block/zram/zram_drv.c |   6 +--
- drivers/xen/swiotlb-xen.c     |   2 +-
- fs/btrfs/extent_io.c          |   2 +-
- include/linux/dma-mapping.h   |   2 +-
- include/linux/gfp.h           | 107 ++++++++----------------------------------
- include/linux/highmem.h       |   4 +-
- mm/vmpressure.c               |   2 +-
- mm/zsmalloc.c                 |   4 +-
- 9 files changed, 32 insertions(+), 100 deletions(-)
-
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 1a4582b..f76ccd76 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -16,9 +16,7 @@
+  */
+ 
+ /* Plain integer GFP bitmasks. Do not use this directly. */
+-#define ___GFP_DMA		0x01u
+-#define ___GFP_HIGHMEM		0x02u
+-#define ___GFP_DMA32		0x04u
++#define ___GFP_ZONE_MASK	0x07u
+ #define ___GFP_MOVABLE		0x08u
+ #define ___GFP_RECLAIMABLE	0x10u
+ #define ___GFP_HIGH		0x20u
+@@ -53,11 +51,15 @@
+  * without the underscores and use them consistently. The definitions here may
+  * be used in bit comparisons.
+  */
+-#define __GFP_DMA	((__force gfp_t)___GFP_DMA)
+-#define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
+-#define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
++#define __GFP_DMA	((__force gfp_t)OPT_ZONE_DMA ^ ZONE_NORMAL)
++#define __GFP_HIGHMEM	((__force gfp_t)OPT_ZONE_HIGHMEM ^ ZONE_NORMAL)
++#define __GFP_DMA32	((__force gfp_t)OPT_ZONE_DMA32 ^ ZONE_NORMAL)
+ #define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+-#define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
++#define GFP_ZONEMASK	((__force gfp_t)___GFP_ZONE_MASK | ___GFP_MOVABLE)
++/* bottom 3 bits of GFP bitmasks are used for zone number encoded*/
++#define __GFP_ZONE_MASK ((__force gfp_t)___GFP_ZONE_MASK)
++#define __GFP_ZONE_MOVABLE	\
++		((__force gfp_t)(ZONE_MOVABLE ^ ZONE_NORMAL) | ___GFP_MOVABLE)
+ 
+ /*
+  * Page mobility and placement hints
+@@ -268,6 +270,13 @@
+  *   available and will not wake kswapd/kcompactd on failure. The _LIGHT
+  *   version does not attempt reclaim/compaction at all and is by default used
+  *   in page fault path, while the non-light is used by khugepaged.
++ *
++ * GFP_NORMAL() is used to clear bottom 3 bits of GFP bitmask. Actually it
++ *   returns encoded ZONE_NORMAL bits.
++ *
++ * GFP_NORMAL_UNMOVABLE() is similar to GFP_NORMAL, but it clear bottom 4 bits
++ *   of GFP bitmask. Excepting the encoded ZONE_NORMAL bits, it clears MOVABLE
++ *   flags as well.
+  */
+ #define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
+ #define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+@@ -279,10 +288,12 @@
+ #define GFP_DMA		__GFP_DMA
+ #define GFP_DMA32	__GFP_DMA32
+ #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
+-#define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
++#define GFP_HIGHUSER_MOVABLE	(GFP_USER | __GFP_ZONE_MOVABLE)
+ #define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+ 			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
+ #define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
++#define GFP_NORMAL(gfp)	((gfp) & ~__GFP_ZONE_MASK)
++#define GFP_NORMAL_UNMOVABLE(gfp) ((gfp) & ~GFP_ZONEMASK)
+ 
+ /* Convert GFP flags to their corresponding migrate type */
+ #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
+@@ -326,87 +337,9 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
+ #define OPT_ZONE_DMA32 ZONE_NORMAL
+ #endif
+ 
+-/*
+- * GFP_ZONE_TABLE is a word size bitstring that is used for looking up the
+- * zone to use given the lowest 4 bits of gfp_t. Entries are GFP_ZONES_SHIFT
+- * bits long and there are 16 of them to cover all possible combinations of
+- * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM.
+- *
+- * The zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA.
+- * But GFP_MOVABLE is not only a zone specifier but also an allocation
+- * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
+- * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
+- *
+- *       bit       result
+- *       =================
+- *       0x0    => NORMAL
+- *       0x1    => DMA or NORMAL
+- *       0x2    => HIGHMEM or NORMAL
+- *       0x3    => BAD (DMA+HIGHMEM)
+- *       0x4    => DMA32 or DMA or NORMAL
+- *       0x5    => BAD (DMA+DMA32)
+- *       0x6    => BAD (HIGHMEM+DMA32)
+- *       0x7    => BAD (HIGHMEM+DMA32+DMA)
+- *       0x8    => NORMAL (MOVABLE+0)
+- *       0x9    => DMA or NORMAL (MOVABLE+DMA)
+- *       0xa    => MOVABLE (Movable is valid only if HIGHMEM is set too)
+- *       0xb    => BAD (MOVABLE+HIGHMEM+DMA)
+- *       0xc    => DMA32 (MOVABLE+DMA32)
+- *       0xd    => BAD (MOVABLE+DMA32+DMA)
+- *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
+- *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
+- *
+- * GFP_ZONES_SHIFT must be <= 2 on 32 bit platforms.
+- */
+-
+-#if defined(CONFIG_ZONE_DEVICE) && (MAX_NR_ZONES-1) <= 4
+-/* ZONE_DEVICE is not a valid GFP zone specifier */
+-#define GFP_ZONES_SHIFT 2
+-#else
+-#define GFP_ZONES_SHIFT ZONES_SHIFT
+-#endif
+-
+-#if 16 * GFP_ZONES_SHIFT > BITS_PER_LONG
+-#error GFP_ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
+-#endif
+-
+-#define GFP_ZONE_TABLE ( \
+-	(ZONE_NORMAL << 0 * GFP_ZONES_SHIFT)				       \
+-	| (OPT_ZONE_DMA << ___GFP_DMA * GFP_ZONES_SHIFT)		       \
+-	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * GFP_ZONES_SHIFT)	       \
+-	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * GFP_ZONES_SHIFT)		       \
+-	| (ZONE_NORMAL << ___GFP_MOVABLE * GFP_ZONES_SHIFT)		       \
+-	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * GFP_ZONES_SHIFT)    \
+-	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * GFP_ZONES_SHIFT)\
+-	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * GFP_ZONES_SHIFT)\
+-)
+-
+-/*
+- * GFP_ZONE_BAD is a bitmap for all combinations of __GFP_DMA, __GFP_DMA32
+- * __GFP_HIGHMEM and __GFP_MOVABLE that are not permitted. One flag per
+- * entry starting with bit 0. Bit is set if the combination is not
+- * allowed.
+- */
+-#define GFP_ZONE_BAD ( \
+-	1 << (___GFP_DMA | ___GFP_HIGHMEM)				      \
+-	| 1 << (___GFP_DMA | ___GFP_DMA32)				      \
+-	| 1 << (___GFP_DMA32 | ___GFP_HIGHMEM)				      \
+-	| 1 << (___GFP_DMA | ___GFP_DMA32 | ___GFP_HIGHMEM)		      \
+-	| 1 << (___GFP_MOVABLE | ___GFP_HIGHMEM | ___GFP_DMA)		      \
+-	| 1 << (___GFP_MOVABLE | ___GFP_DMA32 | ___GFP_DMA)		      \
+-	| 1 << (___GFP_MOVABLE | ___GFP_DMA32 | ___GFP_HIGHMEM)		      \
+-	| 1 << (___GFP_MOVABLE | ___GFP_DMA32 | ___GFP_DMA | ___GFP_HIGHMEM)  \
+-)
+-
+ static inline enum zone_type gfp_zone(gfp_t flags)
+ {
+-	enum zone_type z;
+-	int bit = (__force int) (flags & GFP_ZONEMASK);
+-
+-	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
+-					 ((1 << GFP_ZONES_SHIFT) - 1);
+-	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+-	return z;
++	return ((__force unsigned int)flags & __GFP_ZONE_MASK) ^ ZONE_NORMAL;
+ }
+ 
+ /*
 -- 
 1.8.3.1
