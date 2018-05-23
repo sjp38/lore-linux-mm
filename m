@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C1796B000C
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 08:56:06 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id n17-v6so2285725wmc.8
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 05:56:06 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0A3AE6B000E
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 08:56:09 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e1-v6so2332365wma.3
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 05:56:08 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z11-v6sor6792424wre.74.2018.05.23.05.56.04
+        by mx.google.com with SMTPS id v18-v6sor4281449wrv.48.2018.05.23.05.56.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 23 May 2018 05:56:04 -0700 (PDT)
+        Wed, 23 May 2018 05:56:07 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/2] mm, memory_hotplug: make has_unmovable_pages more robust
-Date: Wed, 23 May 2018 14:55:54 +0200
-Message-Id: <20180523125555.30039-2-mhocko@kernel.org>
+Subject: [PATCH 2/2] mm: do not warn on offline nodes unless the specific node is explicitly requested
+Date: Wed, 23 May 2018 14:55:55 +0200
+Message-Id: <20180523125555.30039-3-mhocko@kernel.org>
 In-Reply-To: <20180523125555.30039-1-mhocko@kernel.org>
 References: <20180523125555.30039-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,139 +22,79 @@ Cc: Oscar Salvador <osalvador@techadventures.net>, Vlastimil Babka <vbabka@suse.
 
 From: Michal Hocko <mhocko@suse.com>
 
-Oscar has reported:
-: Due to an unfortunate setting with movablecore, memblocks containing bootmem
-: memory (pages marked by get_page_bootmem()) ended up marked in zone_movable.
-: So while trying to remove that memory, the system failed in do_migrate_range
-: and __offline_pages never returned.
-:
-: This can be reproduced by running
-: qemu-system-x86_64 -m 6G,slots=8,maxmem=8G -numa node,mem=4096M -numa node,mem=2048M
-: and movablecore=4G kernel command line
-:
-: linux kernel: BIOS-provided physical RAM map:
-: linux kernel: BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
-: linux kernel: BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
-: linux kernel: BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
-: linux kernel: BIOS-e820: [mem 0x0000000000100000-0x00000000bffdffff] usable
-: linux kernel: BIOS-e820: [mem 0x00000000bffe0000-0x00000000bfffffff] reserved
-: linux kernel: BIOS-e820: [mem 0x00000000feffc000-0x00000000feffffff] reserved
-: linux kernel: BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
-: linux kernel: BIOS-e820: [mem 0x0000000100000000-0x00000001bfffffff] usable
-: linux kernel: NX (Execute Disable) protection: active
-: linux kernel: SMBIOS 2.8 present.
-: linux kernel: DMI: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.0.0-prebuilt.qemu-project.org
-: linux kernel: Hypervisor detected: KVM
-: linux kernel: e820: update [mem 0x00000000-0x00000fff] usable ==> reserved
-: linux kernel: e820: remove [mem 0x000a0000-0x000fffff] usable
-: linux kernel: last_pfn = 0x1c0000 max_arch_pfn = 0x400000000
-:
-: linux kernel: SRAT: PXM 0 -> APIC 0x00 -> Node 0
-: linux kernel: SRAT: PXM 1 -> APIC 0x01 -> Node 1
-: linux kernel: ACPI: SRAT: Node 0 PXM 0 [mem 0x00000000-0x0009ffff]
-: linux kernel: ACPI: SRAT: Node 0 PXM 0 [mem 0x00100000-0xbfffffff]
-: linux kernel: ACPI: SRAT: Node 0 PXM 0 [mem 0x100000000-0x13fffffff]
-: linux kernel: ACPI: SRAT: Node 1 PXM 1 [mem 0x140000000-0x1bfffffff]
-: linux kernel: ACPI: SRAT: Node 0 PXM 0 [mem 0x1c0000000-0x43fffffff] hotplug
-: linux kernel: NUMA: Node 0 [mem 0x00000000-0x0009ffff] + [mem 0x00100000-0xbfffffff] -> [mem 0x0
-: linux kernel: NUMA: Node 0 [mem 0x00000000-0xbfffffff] + [mem 0x100000000-0x13fffffff] -> [mem 0
-: linux kernel: NODE_DATA(0) allocated [mem 0x13ffd6000-0x13fffffff]
-: linux kernel: NODE_DATA(1) allocated [mem 0x1bffd3000-0x1bfffcfff]
-:
-: zoneinfo shows that the zone movable is placed into both numa nodes:
-: Node 0, zone  Movable
-:   pages free     160140
-:         min      1823
-:         low      2278
-:         high     2733
-:         spanned  262144
-:         present  262144
-:         managed  245670
-: Node 1, zone  Movable
-:   pages free     448427
-:         min      3827
-:         low      4783
-:         high     5739
-:         spanned  524288
-:         present  524288
-:         managed  515766
+Oscar has noticed that we splat
+linux kernel: WARNING: CPU: 0 PID: 64 at ./include/linux/gfp.h:467 vmemmap_alloc_block+0x4e/0xc9
+[...]
+linux kernel: CPU: 0 PID: 64 Comm: kworker/u4:1 Tainted: G        W   E     4.17.0-rc5-next-20180517-1-default+ #66
+linux kernel: Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.0.0-prebuilt.qemu-project.org 04/01/2014
+linux kernel: Workqueue: kacpi_hotplug acpi_hotplug_work_fn
+linux kernel: RIP: 0010:vmemmap_alloc_block+0x4e/0xc9
+linux kernel: Code: fb ff 8d 69 01 75 07 65 8b 1d 9d cb 93 7e 81 fb ff 03 00 00 76 02 0f 0b 48 63 c3 48 0f a3 05 c8 b1 b4 00 0f 92 c0 84 c0 75 02 <0f> 0b 31 c9 89 da 89 ee bf c0 06 40 01 e8 0f d1 ad ff 48 85 c0 74
+linux kernel: RSP: 0018:ffffc90000d03bf0 EFLAGS: 00010246
+linux kernel: RAX: 0000000000000000 RBX: 0000000000000001 RCX: 0000000000000008
+linux kernel: RDX: 0000000000000000 RSI: 0000000000000001 RDI: 00000000000001ff
+linux kernel: RBP: 0000000000000009 R08: 0000000000000001 R09: ffffc90000d03ae8
+linux kernel: R10: 0000000000000001 R11: 0000000000000000 R12: ffffea0006000000
+linux kernel: R13: ffffea0005e00000 R14: ffffea0006000000 R15: 0000000000000001
+linux kernel: FS:  0000000000000000(0000) GS:ffff88013fc00000(0000) knlGS:0000000000000000
+linux kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+linux kernel: CR2: 00007fa92a698018 CR3: 00000001184ce000 CR4: 00000000000006f0
+linux kernel: DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+linux kernel: DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+linux kernel: Call Trace:
+linux kernel:  vmemmap_populate+0xf2/0x2ae
+linux kernel:  sparse_mem_map_populate+0x28/0x35
+linux kernel:  sparse_add_one_section+0x4c/0x187
+linux kernel:  __add_pages+0xe7/0x1a0
+linux kernel:  add_pages+0x16/0x70
+linux kernel:  add_memory_resource+0xa3/0x1d0
+linux kernel:  add_memory+0xe4/0x110
+linux kernel:  acpi_memory_device_add+0x134/0x2e0
+linux kernel:  acpi_bus_attach+0xd9/0x190
+linux kernel:  acpi_bus_scan+0x37/0x70
+linux kernel:  acpi_device_hotplug+0x389/0x4e0
+linux kernel:  acpi_hotplug_work_fn+0x1a/0x30
+linux kernel:  process_one_work+0x146/0x340
+linux kernel:  worker_thread+0x47/0x3e0
+linux kernel:  kthread+0xf5/0x130
+linux kernel:  ? max_active_store+0x60/0x60
+linux kernel:  ? kthread_bind+0x10/0x10
+linux kernel:  ret_from_fork+0x35/0x40
+linux kernel: ---[ end trace 2e2241f4e2f2f018 ]---
+====
 
-Note how only Node 0 has a hutplugable memory region which would rule
-it out from the early memblock allocations (most likely memmap). Node1
-will surely contain memmaps on the same node and those would prevent
-offlining to succeed. So this is arguably a configuration issue.
-Although one could argue that we should be more clever and rule early
-allocations from the zone movable. This would be correct but probably
-not worth the effort considering what a hack movablecore is.
+when adding memory to a node that is currently offline.
 
-Anyway, We could do better for those cases though. We rely on
-start_isolate_page_range resp. has_unmovable_pages to do their job. The
-first one isolates the whole range to be offlined so that we do not
-allocate from it anymore and the later makes sure we are not stumbling
-over non-migrateable pages.
+The VM_WARN_ON is just too loud without a good reason. In this
+particular case we are doing
+	alloc_pages_node(node, GFP_KERNEL|__GFP_RETRY_MAYFAIL|__GFP_NOWARN, order)
 
-has_unmovable_pages is overly optimistic, however. It doesn't check all
-the pages if we are withing zone_movable because we rely that those
-pages will be always migrateable. As it turns out we are still not
-perfect there. While bootmem pages in zonemovable sound like a clear bug
-which should be fixed let's remove the optimization for now and warn if
-we encounter unmovable pages in zone_movable in the meantime. That
-should help for now at least.
+so we do not insist on allocating from the given node (it is more a
+hint) so we can fall back to any other populated node and moreover we
+explicitly ask to not warn for the allocation failure.
 
-Btw. this wasn't a real problem until 72b39cfc4d75 ("mm, memory_hotplug:
-do not fail offlining too early") because we used to have a small number
-of retries and then failed. This turned out to be too fragile though.
+Soften the warning only to cases when somebody asks for the given node
+explicitly by __GFP_THISNODE.
 
 Reported-by: Oscar Salvador <osalvador@techadventures.net>
 Tested-by: Oscar Salvador <osalvador@techadventures.net>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/page_alloc.c | 16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ include/linux/gfp.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3c6f4008ea55..b9a45753244d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7629,11 +7629,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 	unsigned long pfn, iter, found;
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 036846fc00a6..7f860ea29ec6 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -464,7 +464,7 @@ static inline struct page *
+ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+ {
+ 	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
+-	VM_WARN_ON(!node_online(nid));
++	VM_WARN_ON((gfp_mask & __GFP_THISNODE) && !node_online(nid));
  
- 	/*
--	 * For avoiding noise data, lru_add_drain_all() should be called
--	 * If ZONE_MOVABLE, the zone never contains unmovable pages
-+	 * TODO we could make this much more efficient by not checking every
-+	 * page in the range if we know all of them are in MOVABLE_ZONE and
-+	 * that the movable zone guarantees that pages are migratable but
-+	 * the later is not the case right now unfortunatelly. E.g. movablecore
-+	 * can still lead to having bootmem allocations in zone_movable.
- 	 */
--	if (zone_idx(zone) == ZONE_MOVABLE)
--		return false;
- 
- 	/*
- 	 * CMA allocations (alloc_contig_range) really need to mark isolate
-@@ -7654,7 +7655,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 		page = pfn_to_page(check);
- 
- 		if (PageReserved(page))
--			return true;
-+			goto unmovable;
- 
- 		/*
- 		 * Hugepages are not in LRU lists, but they're movable.
-@@ -7704,9 +7705,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 		 * page at boot.
- 		 */
- 		if (found > count)
--			return true;
-+			goto unmovable;
- 	}
- 	return false;
-+unmovable:
-+	WARN_ON_ONCE(zone_idx(zone) == ZONE_MOVABLE);
-+	return true;
+ 	return __alloc_pages(gfp_mask, order, nid);
  }
- 
- #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
 -- 
 2.17.0
