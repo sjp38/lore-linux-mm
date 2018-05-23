@@ -1,72 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B7E886B0007
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:50:27 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id x18-v6so8341852wrl.21
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 11:50:27 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i18-v6si2252132wmh.82.2018.05.23.11.50.25
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E2F36B0008
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:50:46 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id m5-v6so876834ywc.11
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 11:50:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 2-v6sor1558916ybm.141.2018.05.23.11.50.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 11:50:26 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4NIhqO1100295
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:50:24 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2j5bnqe08k-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 14:50:24 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 23 May 2018 19:50:22 +0100
-Date: Wed, 23 May 2018 20:50:17 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH v10] mm: introduce MEMORY_DEVICE_FS_DAX and
- CONFIG_DEV_PAGEMAP_OPS
-In-Reply-To: <20180522062806.GD7816@lst.de>
-References: <152658753673.26786.16458605771414761966.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20180518094616.GA25838@lst.de>
-	<CAPcyv4iO1yss0sfBzHVDy3qja_wc+JT2Zi1zwtApDckTeuG2wQ@mail.gmail.com>
-	<20180521090410.7ygosxzjfhceqrq4@quack2.suse.cz>
-	<20180522062806.GD7816@lst.de>
+        (Google Transport Security);
+        Wed, 23 May 2018 11:50:45 -0700 (PDT)
+Date: Wed, 23 May 2018 11:50:41 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCH REPOST] mm: memcg: allow lowering memory.swap.max below the
+ current usage
+Message-ID: <20180523185041.GR1718769@devbig577.frc2.facebook.com>
 MIME-Version: 1.0
-Message-Id: <20180523205017.0f2bc83e@thinkpad>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm <linux-nvdimm@lists.01.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.com>, kbuild test robot <lkp@intel.com>, Thomas Meyer <thomas@m3y3r.de>, Dave Jiang <dave.jiang@intel.com>, =?UTF-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, kernel-team@fb.com, Michal Hocko <mhocko@kernel.org>, Shaohua Li <shli@fb.com>, Rik van Riel <riel@surriel.com>, cgroups@vger.kernel.org
 
-On Tue, 22 May 2018 08:28:06 +0200
-Christoph Hellwig <hch@lst.de> wrote:
+Currently an attempt to set swap.max into a value lower than the
+actual swap usage fails, which causes configuration problems as
+there's no way of lowering the configuration below the current usage
+short of turning off swap entirely.  This makes swap.max difficult to
+use and allows delegatees to lock the delegator out of reducing swap
+allocation.
 
-> On Mon, May 21, 2018 at 11:04:10AM +0200, Jan Kara wrote:
-> > We definitely do have customers using "execute in place" on s390x from
-> > dcssblk. I've got about two bug reports for it when customers were updating
-> > from old kernels using original XIP to kernels using DAX. So we need to
-> > keep that working.  
-> 
-> That is all good an fine, but I think time has come where s390 needs
-> to migrate to provide the pmem API so that we can get rid of these
-> special cases.  Especially given that the old XIP/legacy DAX has all
-> kinds of known bugs at this point in time.
+This patch updates swap_max_write() so that the limit can be lowered
+below the current usage.  It doesn't implement active reclaiming of
+swap entries for the following reasons.
 
-I haven't yet looked at this patch series, but I can feel that this
-FS_DAX_LIMITED workaround is beginning to cause some headaches, apart
-from being quite ugly of course.
+* mem_cgroup_swap_full() already tells the swap machinary to
+  aggressively reclaim swap entries if the usage is above 50% of
+  limit, so simply lowering the limit automatically triggers gradual
+  reclaim.
 
-Just to make sure I still understand the basic problem, which I thought
-was missing struct pages for the dcssblk memory, what exactly do you
-mean with "provide the pmem API", is there more to do?
+* Forcing back swapped out pages is likely to heavily impact the
+  workload and mess up the working set.  Given that swap usually is a
+  lot less valuable and less scarce, letting the existing usage
+  dissipate over time through the above gradual reclaim and as they're
+  falted back in is likely the better behavior.
 
-I do have a prototype patch lying around that adds struct pages, but
-didn't yet have time to fully test/complete it. Of course we initially
-introduced XIP as a mechanism to reduce memory consumption, and that
-is probably the use case for the remaining customer(s). Adding struct
-pages would somehow reduce that benefit, but as long as we can still
-"execute in place", I guess it will be OK.
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Acked-by: Roman Gushchin <guro@fb.com>
+Acked-by: Rik van Riel <riel@surriel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Shaohua Li <shli@fb.com>
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org
+---
+Hello, Andrew.
 
-Regards,
-Gerald
+This was buried in the thread discussing Roman's original patch.  The
+consensus seems to be that this simple approach is what we wanna do at
+least for now.  Can you please pick it up?
+
+Thanks.
+
+ Documentation/cgroup-v2.txt |    5 +++++
+ mm/memcontrol.c             |    6 +-----
+ 2 files changed, 6 insertions(+), 5 deletions(-)
+
+--- a/Documentation/cgroup-v2.txt
++++ b/Documentation/cgroup-v2.txt
+@@ -1199,6 +1199,11 @@ PAGE_SIZE multiple when read back.
+ 	Swap usage hard limit.  If a cgroup's swap usage reaches this
+ 	limit, anonymous memory of the cgroup will not be swapped out.
+ 
++	When reduced under the current usage, the existing swap
++	entries are reclaimed gradually and the swap usage may stay
++	higher than the limit for an extended period of time.  This
++	reduces the impact on the workload and memory management.
++
+ 
+ Usage Guidelines
+ ~~~~~~~~~~~~~~~~
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -6144,11 +6144,7 @@ static ssize_t swap_max_write(struct ker
+ 	if (err)
+ 		return err;
+ 
+-	mutex_lock(&memcg_limit_mutex);
+-	err = page_counter_limit(&memcg->swap, max);
+-	mutex_unlock(&memcg_limit_mutex);
+-	if (err)
+-		return err;
++	xchg(&memcg->swap.limit, max);
+ 
+ 	return nbytes;
+ }
