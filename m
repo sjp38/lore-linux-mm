@@ -1,47 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CAB66B0285
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 04:43:47 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id r2-v6so286429wrm.15
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 01:43:47 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 7E8646B0272
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 05:03:13 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p7-v6so16988372wrj.4
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 02:03:13 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l46-v6si252488edd.291.2018.05.23.01.43.45
+        by mx.google.com with ESMTPS id 92-v6si2086978edy.384.2018.05.23.02.03.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 May 2018 01:43:46 -0700 (PDT)
-Date: Wed, 23 May 2018 10:43:42 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [RFC] trace when adding memory to an offline nod
-Message-ID: <20180523084342.GK20441@dhcp22.suse.cz>
-References: <20180523080108.GA30350@techadventures.net>
- <20180523083756.GJ20441@dhcp22.suse.cz>
+        Wed, 23 May 2018 02:03:12 -0700 (PDT)
+Date: Wed, 23 May 2018 11:03:11 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 03/11] device-dax: enable page_mapping()
+Message-ID: <20180523090311.ozyfigjbhy4npkkl@quack2.suse.cz>
+References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152699998750.24093.5270058390086110946.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180523083756.GJ20441@dhcp22.suse.cz>
+In-Reply-To: <152699998750.24093.5270058390086110946.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: linux-mm@kvack.org, vbabka@suse.cz, pasha.tatashin@oracle.com, dan.j.williams@intel.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, tony.luck@intel.com
 
-On Wed 23-05-18 10:37:56, Michal Hocko wrote:
-> On Wed 23-05-18 10:01:08, Oscar Salvador wrote:
-> > Hi guys,
-> > 
-> > while testing memhotplug, I spotted the following trace:
-> > 
-> > =====
-> > linux kernel: WARNING: CPU: 0 PID: 64 at ./include/linux/gfp.h:467 vmemmap_alloc_block+0x4e/0xc9
+On Tue 22-05-18 07:39:47, Dan Williams wrote:
+> In support of enabling memory_failure() handling for device-dax
+> mappings, set the ->mapping association of pages backing device-dax
+> mappings. The rmap implementation requires page_mapping() to return the
+> address_space hosting the vmas that map the page.
 > 
-> This warning is too loud and not really helpful. We are doing
-> 		gfp_t gfp_mask = GFP_KERNEL|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
+> The ->mapping pointer is never cleared. There is no possibility for the
+> page to become associated with another address_space while the device is
+> enabled. When the device is disabled the 'struct page' array for the
+> device is destroyed / later reinitialized to zero.
 > 
-> 		page = alloc_pages_node(node, gfp_mask, order);
-> 
-> so we do not really insist on the allocation succeeding on the requested
-> node (it is more a hint which node is the best one but we can fallback
-> to any other node). Moreover we do explicitly do not care about
-> allocation warnings by __GFP_NOWARN. So maybe we want to soften the
-> warning like this?
-> 
-The patch with the full changelog
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+...
+> @@ -402,17 +401,33 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
+>  	id = dax_read_lock();
+>  	switch (pe_size) {
+>  	case PE_SIZE_PTE:
+> -		rc = __dev_dax_pte_fault(dev_dax, vmf);
+> +		fault_size = PAGE_SIZE;
+> +		rc = __dev_dax_pte_fault(dev_dax, vmf, &pfn);
+>  		break;
+>  	case PE_SIZE_PMD:
+> -		rc = __dev_dax_pmd_fault(dev_dax, vmf);
+> +		fault_size = PMD_SIZE;
+> +		rc = __dev_dax_pmd_fault(dev_dax, vmf, &pfn);
+>  		break;
+>  	case PE_SIZE_PUD:
+> -		rc = __dev_dax_pud_fault(dev_dax, vmf);
+> +		fault_size = PUD_SIZE;
+> +		rc = __dev_dax_pud_fault(dev_dax, vmf, &pfn);
+>  		break;
+>  	default:
+>  		rc = VM_FAULT_SIGBUS;
+>  	}
+> +
+> +	if (rc == VM_FAULT_NOPAGE) {
+> +		unsigned long i;
+> +
+> +		for (i = 0; i < fault_size / PAGE_SIZE; i++) {
+> +			struct page *page;
+> +
+> +			page = pfn_to_page(pfn_t_to_pfn(pfn) + i);
+> +			if (page->mapping)
+> +				continue;
+> +			page->mapping = filp->f_mapping;
+> +		}
+> +	}
+>  	dax_read_unlock(id);
+
+Careful here. Page fault can return VM_FAULT_NOPAGE even if we raced with
+somebody modifying the PTE or if we installed a zero page. With shared DAX
+mappings (and device dax does not allow anything else if I'm right) this
+does not matter as given file offset is guaranteed to always map to the
+same page but I think it deserves a comment.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
