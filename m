@@ -1,109 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C2FF6B0006
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 09:46:19 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id c23-v6so14726517oic.2
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 06:46:19 -0700 (PDT)
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FE316B0003
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 09:51:01 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id v10-v6so16270519oth.16
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 06:51:01 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 10-v6sor10173824otr.322.2018.05.23.06.46.18
+        by mx.google.com with SMTPS id 26-v6sor8134942oij.136.2018.05.23.06.51.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 23 May 2018 06:46:18 -0700 (PDT)
+        Wed, 23 May 2018 06:51:00 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180418193220.4603-1-timofey.titovets@synesis.ru>
- <20180418193220.4603-3-timofey.titovets@synesis.ru> <20180522202242.otvdunkl75yfhkt4@xakep.localdomain>
-In-Reply-To: <20180522202242.otvdunkl75yfhkt4@xakep.localdomain>
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Date: Wed, 23 May 2018 16:45:41 +0300
-Message-ID: <CAGqmi76gJV=ZDX5=Y3toF2tPiJs8T=PiUJFQg5nq9O5yztx80Q@mail.gmail.com>
-Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
+In-Reply-To: <20180523093537.duw6jlglcx7fnutw@quack2.suse.cz>
+References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152700000355.24093.14726378287214432782.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180523093537.duw6jlglcx7fnutw@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 23 May 2018 06:50:59 -0700
+Message-ID: <CAPcyv4hbwPFxvfJVot14dtxJyxttChM06bsP+E5mCN4=VjG5BA@mail.gmail.com>
+Subject: Re: [PATCH 06/11] filesystem-dax: perform __dax_invalidate_mapping_entry()
+ under the page lock
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: pasha.tatashin@oracle.com
-Cc: linux-mm@kvack.org, Sioh Lee <solee@os.korea.ac.kr>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>
 
-=D0=B2=D1=82, 22 =D0=BC=D0=B0=D1=8F 2018 =D0=B3. =D0=B2 23:22, Pavel Tatash=
-in <pasha.tatashin@oracle.com>:
+On Wed, May 23, 2018 at 2:35 AM, Jan Kara <jack@suse.cz> wrote:
+> On Tue 22-05-18 07:40:03, Dan Williams wrote:
+>> Hold the page lock while invalidating mapping entries to prevent races
+>> between rmap using the address_space and the filesystem freeing the
+>> address_space.
+>>
+>> This is more complicated than the simple description implies because
+>> dev_pagemap pages that fsdax uses do not have any concept of page size.
+>> Size information is stored in the radix and can only be safely read
+>> while holding the xa_lock. Since lock_page() can not be taken while
+>> holding xa_lock, drop xa_lock and speculatively lock all the associated
+>> pages. Once all the pages are locked re-take the xa_lock and revalidate
+>> that the radix entry did not change.
+>>
+>> Cc: Jan Kara <jack@suse.cz>
+>> Cc: Christoph Hellwig <hch@lst.de>
+>> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+>> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>
+> IMO this is too ugly to live.
 
-> Hi Timofey,
+The same thought crossed my mind...
 
-> >
-> > Perf numbers:
-> > Intel(R) Xeon(R) CPU E5-2420 v2 @ 2.20GHz
-> > ksm: crc32c   hash() 12081 MB/s
-> > ksm: xxh64    hash()  8770 MB/s
-> > ksm: xxh32    hash()  4529 MB/s
-> > ksm: jhash2   hash()  1569 MB/s
+> The combination of entry locks in the radix
+> tree and page locks is just too big mess. And from a quick look I don't see
+> a reason why we could not use entry locks to protect rmap code as well -
+> when you have PFN for which you need to walk rmap, you can grab
+> rcu_read_lock(), then you can safely look at page->mapping, grab xa_lock,
+> verify the radix tree points where it should and grab entry lock. I agree
+> it's a bit complicated but for memory failure I think it is fine.
 
-> That is a very nice improvement over jhash2!
+Ah, I missed this cleverness with rcu relative to keeping the
+page->mapping valid. I'll take a look.
 
-> > Add function to autoselect hash algo on boot,
-> > based on hashing speed, like raid6 code does.
+> Or we could talk about switching everything to page locks instead of entry
+> locks but that isn't trivial either as we need something to serialized page
+> faults on even before we go into the filesystem and allocate blocks for the
+> fault...
 
-> Are you aware of hardware where crc32c is slower compared to xxhash?
-> Perhaps always use crc32c when available?
-
-crc32c will always be available, because of Kconfig.
-But if crc32c doesn't have HW acceleration, it will be slower.
-
-For talk about range of HW, i must have that HW,
-so i can't say that *all* supported HW, have crc32c with acceleration.
-
-> > +
-> > +static u32 fasthash(const void *input, size_t length)
-> > +{
-> > +again:
-> > +     switch (fastest_hash) {
-> > +     case HASH_CRC32C:
-> > +             return crc32c(0, input, length);
-> > +     case HASH_XXHASH:
-> > +             return xxhash(input, length, 0);
-
-> You are loosing half of 64-bit word in xxh64 case? Is this acceptable? Ma=
-y
-> be do one more xor: in 64-bit case in xxhash() do: (v >> 32) | (u32)v ?
-
-AFAIK, that lead to make hash function worse.
-Even, in ksm hash used only for check if page has changed since last scan,
-so that doesn't matter really (IMHO).
-
-> > +     default:
-> > +             choice_fastest_hash();
-> > +             /* The correct value depends on page size and endianness
-*/
-> > +             zero_checksum =3D fasthash(ZERO_PAGE(0), PAGE_SIZE);
-> > +             goto again;
-> > +     }
-> > +}
-
-> choice_fastest_hash() does not belong to fasthash(). We are loosing leaf
-> function optimizations if you keep it in this hot-path. Also, fastest_has=
-h
-> should really be a static branch in order to avoid extra load and
-conditional
-> branch.
-
-I don't think what that will give any noticeable performance benefit.
-In compare to hash computation and memcmp in RB.
-
-In theory, that can be replaced with self written jump table, to *avoid*
-run time overhead.
-AFAIK at 5 entries, gcc convert switch to jump table itself.
-
-> I think, crc32c should simply be used when it is available, and use xxhas=
-h
-> otherwise, the decision should be made in ksm_init()
-
-I already said, in above conversation, why i think do that at ksm_init() is
-a bad idea.
-
-> Thank you,
-> Pavel
-
-Thanks.
-
---=20
-Have a nice day,
-Timofey.
+I'd rather use entry locks everywhere and not depend on the page lock
+for rmap if at all possible. Ideally lock_page is only used for
+typical pages and not these dev_pagemap related structures.
