@@ -1,56 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 668676B0003
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 07:18:14 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id c56-v6so17246692wrc.5
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 04:18:14 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CAE606B0006
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 07:39:02 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id e1-v6so12503364pld.23
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 04:39:02 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 46-v6si1712131edu.103.2018.05.23.04.18.12
+        by mx.google.com with ESMTPS id r1-v6si18554405plo.414.2018.05.23.04.39.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 May 2018 04:18:12 -0700 (PDT)
-Subject: Re: [PATCH v2 3/4] mm: add find_alloc_contig_pages() interface
-References: <20180503232935.22539-1-mike.kravetz@oracle.com>
- <20180503232935.22539-4-mike.kravetz@oracle.com>
- <eaa40ac0-365b-fd27-e096-b171ed28888f@suse.cz>
- <57dfd52c-22a5-5546-f8f3-848f21710cc1@oracle.com>
- <c7972da1-a908-7550-7253-9de9a963174c@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <01793788-1870-858e-2061-a0e6ef3a3171@suse.cz>
-Date: Wed, 23 May 2018 13:18:10 +0200
+        Wed, 23 May 2018 04:39:01 -0700 (PDT)
+Date: Wed, 23 May 2018 13:38:57 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [RFC] Checking for error code in __offline_pages
+Message-ID: <20180523113857.GO20441@dhcp22.suse.cz>
+References: <20180523073547.GA29266@techadventures.net>
+ <20180523075239.GF20441@dhcp22.suse.cz>
+ <20180523081609.GG20441@dhcp22.suse.cz>
+ <20180523102642.GA27700@techadventures.net>
 MIME-Version: 1.0
-In-Reply-To: <c7972da1-a908-7550-7253-9de9a963174c@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180523102642.GA27700@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reinette Chatre <reinette.chatre@intel.com>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Oscar Salvador <osalvador@techadventures.net>
+Cc: linux-mm@kvack.org, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-foundation.org
 
-On 05/22/2018 06:41 PM, Reinette Chatre wrote:
-> On 5/21/2018 4:48 PM, Mike Kravetz wrote:
->> I'm guessing that most (?all?) allocations will be order based.  The use
->> cases I am aware of (hugetlbfs, Intel Cache Pseudo-Locking, RDMA) are all
->> order based.  However, as commented in previous version taking arbitrary
->> nr_pages makes interface more future proof.
->>
+On Wed 23-05-18 12:26:43, Oscar Salvador wrote:
+> On Wed, May 23, 2018 at 10:16:09AM +0200, Michal Hocko wrote:
+> > On Wed 23-05-18 09:52:39, Michal Hocko wrote:
+> > [...]
+> > > Yeah, the current code is far from optimal. We
+> > > used to have a retry count but that one was removed exactly because of
+> > > premature failures. There are three things here
+> > > 1) zone_movable should contain any bootmem or otherwise non-migrateable
+> > >    pages
+> > > 2) start_isolate_page_range should fail when seeing such pages - maybe
+> > >    has_unmovable_pages is overly optimistic and it should check all
+> > >    pages even in movable zones.
+> > > 3) migrate_pages should really tell us whether the failure is temporal
+> > >    or permanent. I am not sure we can do that easily though.
+> > 
+> > 2) should be the most simple one for now. Could you give it a try? Btw.
+> > the exact configuration that led to boothmem pages in zone_movable would
+> > be really appreciated:
+>  
+> Here is some information:
 > 
-> I noticed this Cache Pseudo-Locking statement and would like to clarify.
-> I have not been following this thread in detail so I would like to
-> apologize first if my comments are out of context.
+> ** Qemu cmdline:
 > 
-> Currently the Cache Pseudo-Locking allocations are order based because I
-> assumed it was required by the allocator. The contiguous regions needed
-> by Cache Pseudo-Locking will not always be order based - instead it is
-> based on the granularity of the cache allocation. One example is a
-> platform with 55MB L3 cache that can be divided into 20 equal portions.
-> To support Cache Pseudo-Locking on this platform we need to be able to
-> allocate contiguous regions at increments of 2816KB (the size of each
-> portion). In support of this example platform regions needed would thus
-> be 2816KB, 5632KB, 8448KB, etc.
+> # qemu-system-x86_64 -enable-kvm -smp 2  -monitor pty -m 6G,slots=8,maxmem=8G -numa node,mem=4096M -numa node,mem=2048M ...
+> # Option movablecore=4G (cmdline)
+> 
+> ** e820 map and some numa information:
+> 
+> linux kernel: BIOS-provided physical RAM map:
+> linux kernel: BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
+> linux kernel: BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+> linux kernel: BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+> linux kernel: BIOS-e820: [mem 0x0000000000100000-0x00000000bffdffff] usable
+> linux kernel: BIOS-e820: [mem 0x00000000bffe0000-0x00000000bfffffff] reserved
+> linux kernel: BIOS-e820: [mem 0x00000000feffc000-0x00000000feffffff] reserved
+> linux kernel: BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+> linux kernel: BIOS-e820: [mem 0x0000000100000000-0x00000001bfffffff] usable
+> linux kernel: NX (Execute Disable) protection: active
+> linux kernel: SMBIOS 2.8 present.
+> linux kernel: DMI: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.0.0-prebuilt.qemu-project.org 
+> linux kernel: Hypervisor detected: KVM
+> linux kernel: e820: update [mem 0x00000000-0x00000fff] usable ==> reserved
+> linux kernel: e820: remove [mem 0x000a0000-0x000fffff] usable
+> linux kernel: last_pfn = 0x1c0000 max_arch_pfn = 0x400000000
+> 
+> linux kernel: SRAT: PXM 0 -> APIC 0x00 -> Node 0
+> linux kernel: SRAT: PXM 1 -> APIC 0x01 -> Node 1
+> linux kernel: ACPI: SRAT: Node 0 PXM 0 [mem 0x00000000-0x0009ffff]
+> linux kernel: ACPI: SRAT: Node 0 PXM 0 [mem 0x00100000-0xbfffffff]
+> linux kernel: ACPI: SRAT: Node 0 PXM 0 [mem 0x100000000-0x13fffffff]
+> linux kernel: ACPI: SRAT: Node 1 PXM 1 [mem 0x140000000-0x1bfffffff]
+> linux kernel: ACPI: SRAT: Node 0 PXM 0 [mem 0x1c0000000-0x43fffffff] hotplug
+> linux kernel: NUMA: Node 0 [mem 0x00000000-0x0009ffff] + [mem 0x00100000-0xbfffffff] -> [mem 0x0
+> linux kernel: NUMA: Node 0 [mem 0x00000000-0xbfffffff] + [mem 0x100000000-0x13fffffff] -> [mem 0
+> linux kernel: NODE_DATA(0) allocated [mem 0x13ffd6000-0x13fffffff]
+> linux kernel: NODE_DATA(1) allocated [mem 0x1bffd3000-0x1bfffcfff]
 
-Will there be any alignment requirements for these allocations e.g. for
-minimizing conflict misses?
+Could you also paste
+"Zone ranges:"
+and the follow up messages?
 
-Vlastimil
+>From the zoneinfo it seems the movable zone got placed to both nodes.
+And only Node0 is marked as hotplugable so early allocations can be
+placed to Node1.
+ 
+> ** /proc/zoneinfo
+[...]
+> Node 0, zone  Movable
+>   pages free     160140
+>         min      1823
+>         low      2278
+>         high     2733
+>         spanned  262144
+>         present  262144
+>         managed  245670
+
+it seems that 1G went to Node0
+
+> Node 1, zone  Movable
+[...]
+>   pages free     448427
+>         min      3827
+>         low      4783
+>         high     5739
+>         spanned  524288
+>         present  524288
+>         managed  515766
+
+and the rest to Node1. Guessing from spanned-managed it seems that used
+memory is for memmaps (struct page arrays).
+-- 
+Michal Hocko
+SUSE Labs
