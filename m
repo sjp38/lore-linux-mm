@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A70A6B0275
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 19:00:36 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id bd7-v6so1826135plb.20
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 16:00:36 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r39-v6sor10343706pld.66.2018.05.24.16.00.35
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A5AD6B0277
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 19:25:58 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id s7-v6so1662913ybo.4
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 16:25:58 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id v198-v6si5763283ywc.36.2018.05.24.16.25.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 24 May 2018 16:00:35 -0700 (PDT)
-Date: Thu, 24 May 2018 16:00:23 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] proc: fix smaps and meminfo alignment
-Message-ID: <alpine.LSU.2.11.1805241554210.1326@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 24 May 2018 16:25:56 -0700 (PDT)
+Date: Thu, 24 May 2018 19:25:53 -0400
+From: "Theodore Y. Ts'o" <tytso@mit.edu>
+Subject: Re: [PATCH] doc: document scope NOFS, NOIO APIs
+Message-ID: <20180524232553.GI7712@thunk.org>
+References: <20180424183536.GF30619@thunk.org>
+ <20180524114341.1101-1-mhocko@kernel.org>
+ <20180524221715.GY10363@dastard>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180524221715.GY10363@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrei Vagin <avagin@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, David Sterba <dsterba@suse.cz>
 
-The 4.17-rc /proc/meminfo and /proc/<pid>/smaps look ugly: single-digit
-numbers (commonly 0) are misaligned. Remove seq_put_decimal_ull_width()'s
-leftover optimization for single digits: it's wrong now that num_to_str()
-takes care of the width.
+On Fri, May 25, 2018 at 08:17:15AM +1000, Dave Chinner wrote:
+> On Thu, May 24, 2018 at 01:43:41PM +0200, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Although the api is documented in the source code Ted has pointed out
+> > that there is no mention in the core-api Documentation and there are
+> > people looking there to find answers how to use a specific API.
+> > 
+> > Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+> > Cc: David Sterba <dsterba@suse.cz>
+> > Requested-by: "Theodore Y. Ts'o" <tytso@mit.edu>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> Yay, Documentation! :)
 
-Fixes: d1be35cb6f96 ("proc: add seq_put_decimal_ull_width to speed up /proc/pid/smaps")
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
+Indeed, many thanks!!!
 
- fs/seq_file.c |    5 -----
- 1 file changed, 5 deletions(-)
-
---- 4.17-rc6/fs/seq_file.c	2018-04-15 21:45:06.740885410 -0700
-+++ linux/fs/seq_file.c	2018-05-24 14:41:21.508491794 -0700
-@@ -709,11 +709,6 @@ void seq_put_decimal_ull_width(struct se
- 	if (m->count + width >= m->size)
- 		goto overflow;
- 
--	if (num < 10) {
--		m->buf[m->count++] = num + '0';
--		return;
--	}
--
- 	len = num_to_str(m->buf + m->count, m->size - m->count, num, width);
- 	if (!len)
- 		goto overflow;
+					- Ted
