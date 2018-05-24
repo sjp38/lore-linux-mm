@@ -1,173 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 318DB6B026D
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 17:25:18 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id w198-v6so2131420vkd.14
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 14:25:18 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id z65-v6si833032vkg.76.2018.05.24.14.25.16
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 570F86B026F
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 17:42:35 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id x8-v6so2289808uaj.2
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 14:42:35 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id w187-v6si7930823vkd.334.2018.05.24.14.42.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 14:25:17 -0700 (PDT)
-Subject: Re: [PATCH -V2 -mm 2/4] mm, huge page: Copy target sub-page last when
- copy huge page
+        Thu, 24 May 2018 14:42:33 -0700 (PDT)
+Subject: Re: [PATCH -V2 -mm 3/4] mm, hugetlbfs: Rename address to haddr in
+ hugetlb_cow()
 References: <20180524005851.4079-1-ying.huang@intel.com>
- <20180524005851.4079-3-ying.huang@intel.com>
+ <20180524005851.4079-4-ying.huang@intel.com>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <bc8d72c1-b3c5-d9b2-f617-e7036628054a@oracle.com>
-Date: Thu, 24 May 2018 14:25:03 -0700
+Message-ID: <4e569170-9f4e-eb12-d10d-fe9b7fcdfc9d@oracle.com>
+Date: Thu, 24 May 2018 14:42:13 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180524005851.4079-3-ying.huang@intel.com>
+In-Reply-To: <20180524005851.4079-4-ying.huang@intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>
 
 On 05/23/2018 05:58 PM, Huang, Ying wrote:
 > From: Huang Ying <ying.huang@intel.com>
 > 
-> Huge page helps to reduce TLB miss rate, but it has higher cache
-> footprint, sometimes this may cause some issue.  For example, when
-> copying huge page on x86_64 platform, the cache footprint is 4M.  But
-> on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
-> LLC (last level cache).  That is, in average, there are 2.5M LLC for
-> each core and 1.25M LLC for each thread.
+> To take better advantage of general huge page copying optimization,
+> the target subpage address will be passed to hugetlb_cow(), then
+> copy_user_huge_page().  So we will use both target subpage address and
+> huge page size aligned address in hugetlb_cow().  To distinguish
+> between them, "haddr" is used for huge page size aligned address to be
+> consistent with Transparent Huge Page naming convention.
 > 
-> If the cache contention is heavy when copying the huge page, and we
-> copy the huge page from the begin to the end, it is possible that the
-> begin of huge page is evicted from the cache after we finishing
-> copying the end of the huge page.  And it is possible for the
-> application to access the begin of the huge page after copying the
-> huge page.
+> Now, only huge page size aligned address is used in hugetlb_cow(), so
+> the "address" is renamed to "haddr" in hugetlb_cow() in this patch.
+> Next patch will use target subpage address in hugetlb_cow() too.
 > 
-> In commit c79b57e462b5d ("mm: hugetlb: clear target sub-page last when
-> clearing huge page"), to keep the cache lines of the target subpage
-> hot, the order to clear the subpages in the huge page in
-> clear_huge_page() is changed to clearing the subpage which is furthest
-> from the target subpage firstly, and the target subpage last.  The
-> similar order changing helps huge page copying too.  That is
-> implemented in this patch.  Because we have put the order algorithm
-> into a separate function, the implementation is quite simple.
-> 
-> The patch is a generic optimization which should benefit quite some
-> workloads, not for a specific use case.  To demonstrate the performance
-> benefit of the patch, we tested it with vm-scalability run on
-> transparent huge page.
-> 
-> With this patch, the throughput increases ~16.6% in vm-scalability
-> anon-cow-seq test case with 36 processes on a 2 socket Xeon E5 v3 2699
-> system (36 cores, 72 threads).  The test case set
-> /sys/kernel/mm/transparent_hugepage/enabled to be always, mmap() a big
-> anonymous memory area and populate it, then forked 36 child processes,
-> each writes to the anonymous memory area from the begin to the end, so
-> cause copy on write.  For each child process, other child processes
-> could be seen as other workloads which generate heavy cache pressure.
-> At the same time, the IPC (instruction per cycle) increased from 0.63
-> to 0.78, and the time spent in user space is reduced ~7.2%.
+> The patch is just code cleanup without any functionality changes.
 > 
 > Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Suggested-by: Michal Hocko <mhocko@suse.com>
 
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
--- 
-Mike Kravetz
+I believe Kirill may have been the one who suggested using haddr to be
+consistent with usage in huge_memory.c.
 
-> Cc: Andi Kleen <andi.kleen@intel.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Rientjes <rientjes@google.com>
 > Cc: Andrea Arcangeli <aarcange@redhat.com>
 > Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Andi Kleen <andi.kleen@intel.com>
+> Cc: Jan Kara <jack@suse.cz>
 > Cc: Matthew Wilcox <mawilcox@microsoft.com>
 > Cc: Hugh Dickins <hughd@google.com>
 > Cc: Minchan Kim <minchan@kernel.org>
 > Cc: Shaohua Li <shli@fb.com>
 > Cc: Christopher Lameter <cl@linux.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Punit Agrawal <punit.agrawal@arm.com>
+> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 > ---
->  include/linux/mm.h |  3 ++-
->  mm/huge_memory.c   |  3 ++-
->  mm/memory.c        | 30 +++++++++++++++++++++++-------
->  3 files changed, 27 insertions(+), 9 deletions(-)
+>  mm/hugetlb.c | 26 ++++++++++++--------------
+>  1 file changed, 12 insertions(+), 14 deletions(-)
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 7cdd8b7f62e5..d227aadaa964 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2734,7 +2734,8 @@ extern void clear_huge_page(struct page *page,
->  			    unsigned long addr_hint,
->  			    unsigned int pages_per_huge_page);
->  extern void copy_user_huge_page(struct page *dst, struct page *src,
-> -				unsigned long addr, struct vm_area_struct *vma,
-> +				unsigned long addr_hint,
-> +				struct vm_area_struct *vma,
->  				unsigned int pages_per_huge_page);
->  extern long copy_huge_page_from_user(struct page *dst_page,
->  				const void __user *usr_src,
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index e9177363fe2e..1b7fd9bda1dc 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1328,7 +1328,8 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
->  	if (!page)
->  		clear_huge_page(new_page, vmf->address, HPAGE_PMD_NR);
->  	else
-> -		copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
-> +		copy_user_huge_page(new_page, page, vmf->address,
-> +				    vma, HPAGE_PMD_NR);
->  	__SetPageUptodate(new_page);
->  
->  	mmun_start = haddr;
-> diff --git a/mm/memory.c b/mm/memory.c
-> index b9f573a81bbd..5d432f833d19 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -4675,11 +4675,31 @@ static void copy_user_gigantic_page(struct page *dst, struct page *src,
->  	}
->  }
->  
-> +struct copy_subpage_arg {
-> +	struct page *dst;
-> +	struct page *src;
-> +	struct vm_area_struct *vma;
-> +};
-> +
-> +static void copy_subpage(unsigned long addr, int idx, void *arg)
-> +{
-> +	struct copy_subpage_arg *copy_arg = arg;
-> +
-> +	copy_user_highpage(copy_arg->dst + idx, copy_arg->src + idx,
-> +			   addr, copy_arg->vma);
-> +}
-> +
->  void copy_user_huge_page(struct page *dst, struct page *src,
-> -			 unsigned long addr, struct vm_area_struct *vma,
-> +			 unsigned long addr_hint, struct vm_area_struct *vma,
->  			 unsigned int pages_per_huge_page)
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 696befffe6f7..ad3bec2ed269 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -3500,7 +3500,7 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
+>   * Keep the pte_same checks anyway to make transition from the mutex easier.
+>   */
+>  static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+> -		       unsigned long address, pte_t *ptep,
+> +		       unsigned long haddr, pte_t *ptep,
+>  		       struct page *pagecache_page, spinlock_t *ptl)
 >  {
-> -	int i;
-> +	unsigned long addr = addr_hint &
-> +		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
-> +	struct copy_subpage_arg arg = {
-> +		.dst = dst,
-> +		.src = src,
-> +		.vma = vma,
-> +	};
->  
->  	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
->  		copy_user_gigantic_page(dst, src, addr, vma,
-> @@ -4687,11 +4707,7 @@ void copy_user_huge_page(struct page *dst, struct page *src,
->  		return;
+>  	pte_t pte;
+> @@ -3518,7 +3518,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	 * and just make the page writable */
+>  	if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
+>  		page_move_anon_rmap(old_page, vma);
+> -		set_huge_ptep_writable(vma, address, ptep);
+> +		set_huge_ptep_writable(vma, haddr, ptep);
+>  		return 0;
 >  	}
 >  
-> -	might_sleep();
-> -	for (i = 0; i < pages_per_huge_page; i++) {
-> -		cond_resched();
-> -		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
-> -	}
-> +	process_huge_page(addr_hint, pages_per_huge_page, copy_subpage, &arg);
->  }
+> @@ -3542,7 +3542,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	 * be acquired again before returning to the caller, as expected.
+>  	 */
+>  	spin_unlock(ptl);
+> -	new_page = alloc_huge_page(vma, address, outside_reserve);
+> +	new_page = alloc_huge_page(vma, haddr, outside_reserve);
 >  
->  long copy_huge_page_from_user(struct page *dst_page,
+>  	if (IS_ERR(new_page)) {
+>  		/*
+> @@ -3555,11 +3555,10 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		if (outside_reserve) {
+>  			put_page(old_page);
+>  			BUG_ON(huge_pte_none(pte));
+> -			unmap_ref_private(mm, vma, old_page, address);
+> +			unmap_ref_private(mm, vma, old_page, haddr);
+>  			BUG_ON(huge_pte_none(pte));
+>  			spin_lock(ptl);
+> -			ptep = huge_pte_offset(mm, address & huge_page_mask(h),
+> -					       huge_page_size(h));
+> +			ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
+
+Ha!  The name change points out an obviously unnecessary conversion in
+the existing code.  Yes, hugetlb_cow is always passed a hpage aligned
+address today.
+
+>  			if (likely(ptep &&
+>  				   pte_same(huge_ptep_get(ptep), pte)))
+>  				goto retry_avoidcopy;
+> @@ -3584,12 +3583,12 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		goto out_release_all;
+>  	}
+>  
+> -	copy_user_huge_page(new_page, old_page, address, vma,
+> +	copy_user_huge_page(new_page, old_page, haddr, vma,
+>  			    pages_per_huge_page(h));
+>  	__SetPageUptodate(new_page);
+>  	set_page_huge_active(new_page);
+>  
+> -	mmun_start = address & huge_page_mask(h);
+> +	mmun_start = haddr;
+
+And another one.
+
+>  	mmun_end = mmun_start + huge_page_size(h);
+>  	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+>  
+> @@ -3598,25 +3597,24 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	 * before the page tables are altered
+>  	 */
+>  	spin_lock(ptl);
+> -	ptep = huge_pte_offset(mm, address & huge_page_mask(h),
+> -			       huge_page_size(h));
+> +	ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
+
+And yet another.
+
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+-- 
+Mike Kravetz
+
+>  	if (likely(ptep && pte_same(huge_ptep_get(ptep), pte))) {
+>  		ClearPagePrivate(new_page);
+>  
+>  		/* Break COW */
+> -		huge_ptep_clear_flush(vma, address, ptep);
+> +		huge_ptep_clear_flush(vma, haddr, ptep);
+>  		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
+> -		set_huge_pte_at(mm, address, ptep,
+> +		set_huge_pte_at(mm, haddr, ptep,
+>  				make_huge_pte(vma, new_page, 1));
+>  		page_remove_rmap(old_page, true);
+> -		hugepage_add_new_anon_rmap(new_page, vma, address);
+> +		hugepage_add_new_anon_rmap(new_page, vma, haddr);
+>  		/* Make the old page be freed below */
+>  		new_page = old_page;
+>  	}
+>  	spin_unlock(ptl);
+>  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+>  out_release_all:
+> -	restore_reserve_on_error(h, vma, address, new_page);
+> +	restore_reserve_on_error(h, vma, haddr, new_page);
+>  	put_page(new_page);
+>  out_release_old:
+>  	put_page(old_page);
 > 
