@@ -1,125 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 083F06B0003
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 14:14:01 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id m10-v6so1411559otb.5
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 11:14:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p23-v6si7793071ota.167.2018.05.24.11.13.59
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E1CC6B0005
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 14:41:21 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id j8-v6so1640012wrh.18
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 11:41:21 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id 65-v6si9099612wrk.84.2018.05.24.11.41.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 11:13:59 -0700 (PDT)
-Date: Thu, 24 May 2018 14:13:56 -0400
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [PATCH 22/34] xfs: make xfs_writepage_map extent map centric
-Message-ID: <20180524181356.GA89391@bfoster.bfoster>
-References: <20180523144357.18985-1-hch@lst.de>
- <20180523144357.18985-23-hch@lst.de>
- <20180524145935.GA84959@bfoster.bfoster>
- <20180524165350.GA22675@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 24 May 2018 11:41:20 -0700 (PDT)
+Subject: Re: [RFC PATCH 0/5] kmalloc-reclaimable caches
+References: <20180524110011.1940-1-vbabka@suse.cz>
+ <20180524114350.GA10323@bombadil.infradead.org>
+ <0944e1ed-60fe-36ce-ea06-936b3f595d5f@infradead.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <cfb7c8df-2a6a-bf84-8a30-df97c58c9c47@infradead.org>
+Date: Thu, 24 May 2018 11:40:59 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180524165350.GA22675@lst.de>
+In-Reply-To: <0944e1ed-60fe-36ce-ea06-936b3f595d5f@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>
+To: Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Vijayanand Jitta <vjitta@codeaurora.org>
 
-On Thu, May 24, 2018 at 06:53:50PM +0200, Christoph Hellwig wrote:
-> > > +		if (!wpc->imap_valid || wpc->io_type == XFS_IO_HOLE) {
-> > > +			/*
-> > > +			 * set_page_dirty dirties all buffers in a page, independent
-> > > +			 * of their state.  The dirty state however is entirely
-> > > +			 * meaningless for holes (!mapped && uptodate), so check we did
-> > > +			 * have a buffer covering a hole here and continue.
-> > > +			 */
-> > 
-> > The comment above doesn't make much sense given that we don't check for
-> > anything here and just continue the loop.
+On 05/24/2018 09:18 AM, Randy Dunlap wrote:
+> On 05/24/2018 04:43 AM, Matthew Wilcox wrote:
+>> On Thu, May 24, 2018 at 01:00:06PM +0200, Vlastimil Babka wrote:
+>>> Now for the issues a.k.a. why RFC:
+>>>
+>>> - I haven't find any other obvious users for reclaimable kmalloc (yet)
+>>
+>> Is that a problem?  This sounds like it's enough to solve Facebook's
+>> problem.
+>>
+>>> - the name of caches kmalloc-reclaimable-X is rather long
+>>
+>> Yes; Christoph and I were talking about restricting slab names to 16 bytes
+>> just to make /proc/slabinfo easier to read.  How about
+>>
+>> kmalloc-rec-128k
+>> 1234567890123456
+>>
+>> Just makes it ;-)
+>>
+>> Of course, somebody needs to do the work to use k/M instead of 4194304.
+>> We also need to bikeshed about when to switch; should it be:
+>>
+>> kmalloc-rec-512
+>> kmalloc-rec-1024
+>> kmalloc-rec-2048
+>> kmalloc-rec-4096
+>> kmalloc-rec-8192
+>> kmalloc-rec-16k
+>>
+>> or should it be
+>>
+>> kmalloc-rec-512
+>> kmalloc-rec-1k
+>> kmalloc-rec-2k
+>> kmalloc-rec-4k
+>> kmalloc-rec-8k
+>> kmalloc-rec-16k
+>>
+>> I slightly favour the latter as it'll be easier to implement.  Something like
 > 
-> It gets removed in the last patch of the original series when we
-> kill buffer heads.  But I can fold the removal into this patch as well.
+> Yes, agree, start using the suffix early.
+> 
+>>
+>> 	static const char suffixes[3] = ' kM';
+>> 	int idx = 0;
+>>
+>> 	while (size > 1024) {
+
+I would use   (size >= 1024)
+so that 1M is printed instead of 1024K.
+
+>> 		size /= 1024;
+>> 		idx++;
+>> 	}
+>>
+>> 	sprintf("%d%c", size, suffices[idx]);
+> 
+> 	                      suffixes
+>>
+>> --
+> 
 > 
 
-Ah, I was thinking this patch added that comment when it actually mostly
-moves it (it does tweak it a bit). Eh, no big deal either way.
 
-> > That aside, the concern I had with this patch when it was last posted is
-> > that it indirectly dropped the error/consistency check between page
-> > state and extent state provided by the XFS_BMAPI_DELALLOC flag. What was
-> > historically an accounting/reservation issue was turned into something
-> > like this by XFS_BMAPI_DELALLOC:
-> > 
-> > # xfs_io -c "pwrite 0 4k" -c fsync /mnt/file
-> > wrote 4096/4096 bytes at offset 0
-> > 4 KiB, 1 ops; 0.0041 sec (974.184 KiB/sec and 243.5460 ops/sec)
-> > fsync: Input/output error
-> 
-> What is that issue that gets you an I/O error on a 4k write?  That
-> is what is missing in the above reproducer?
-> 
-
-Sorry... I should have mentioned this is a simulated error and not
-something that actually occurs right now. You can manufacture it easy
-enough using the drop_writes error tag and comment out the pagecache
-truncate code in xfs_file_iomap_end_delalloc().
-
-> > As of this patch, that same error condition now behaves something like
-> > this:
-> > 
-> > [root@localhost ~]# xfs_io -c "pwrite 0 4k" -c fsync /mnt/file
-> > wrote 4096/4096 bytes at offset 0
-> > 4 KiB, 1 ops; 0.0029 sec (1.325 MiB/sec and 339.2130 ops/sec)
-> > [root@localhost ~]# ls -al /mnt/file
-> > -rw-r--r--. 1 root root 4096 May 24 08:27 /mnt/file
-> > [root@localhost ~]# umount  /mnt ; mount /dev/test/scratch /mnt/
-> > [root@localhost ~]# ls -al /mnt/file
-> > -rw-r--r--. 1 root root 0 May 24 08:27 /mnt/file
-> > 
-> > So our behavior has changed from forced block allocation (violating
-> > reservation) and writing the data, to instead return an error, and now
-> > to silently skip the page.
-> 
-> We should never, ever allocate space that we didn't have a delalloc
-> reservation for in writepage/writepages.  But I agree that we should
-> record and error.  I have to admit I'm lost on where we did record
-> the error and why we don't do that now.  I'd be happy to fix it.
-> 
-
-Right, the error behavior came from the XFS_BMAPI_DELALLOC flag that was
-passed from xfs_iomap_write_allocate(). It caused xfs_bmapi_write() to
-detect that we were in a hole and return an error in the !COW_FORK case
-since we were expecting to do delalloc conversion from writeback.
-
-Note that I'm not saying there's a vector to reproduce this problem in
-the current code that I'm aware of. I'm just saying it's happened in the
-past due to bugs and I'd like to preserve some kind of basic sanity
-check (as an error or assert) if we have enough state available to do
-so.
-
-> > I suppose there are situations (i.e., races
-> > with truncate) where a hole is valid and the correct behavior is to skip
-> > the page, and this is admittedly an error condition that "should never
-> > happen," but can we at least add an assert somewhere in this series that
-> > ensures if uptodate data maps over a hole that the associated block
-> > offset is beyond EOF (or something of that nature)?
-> 
-> We can have plenty of holes in dirty pages.  However we should never
-> allocate blocks for them.  Fortunately we stop even looking at anything
-> but the extent tree for block status by the end of this series for 4k
-> file systems, and with the next series even for small block sizes, so
-> that whole mismatch is a thing of the past now.
-
-Ok, so I guess writeback can see uptodate blocks over a hole if some
-other block in that page is dirty. Perhaps we could make sure that a
-dirty page has at least one block that maps to an actual extent or
-otherwise the page has been truncated..?
-
-I guess having another dirty block bitmap similar to
-iomap_page->uptodate could be required to tell for sure whether a
-particular block should definitely have a block on-disk or not. It may
-not be worth doing that just for additional error checks, but I still
-have to look into the last few patches to grok all the iomap_page stuff.
-
-Brian
+-- 
+~Randy
