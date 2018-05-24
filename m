@@ -1,49 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A0B66B026D
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 23:18:14 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id n25-v6so143627otf.13
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 20:18:14 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r18-v6sor10827095ote.155.2018.05.23.20.18.11
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BE62E6B026E
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 23:22:26 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id f63-v6so293453wmi.4
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 20:22:26 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m7-v6si3554558edm.35.2018.05.23.20.22.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 23 May 2018 20:18:11 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 May 2018 20:22:25 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4O3JPIu116432
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 23:22:24 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2j5gbvj8tm-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 23:22:23 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 24 May 2018 04:22:22 +0100
+Subject: Re: [PATCH 2/2] mm: do not warn on offline nodes unless the specific
+ node is explicitly requested
+References: <20180523125555.30039-1-mhocko@kernel.org>
+ <20180523125555.30039-3-mhocko@kernel.org>
+ <11e26a4e-552e-b1dc-316e-ce3e92973556@linux.vnet.ibm.com>
+ <20180523140601.GQ20441@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 24 May 2018 08:52:14 +0530
 MIME-Version: 1.0
-In-Reply-To: <20180524001026.GA3527@redhat.com>
-References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180524001026.GA3527@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 23 May 2018 20:18:11 -0700
-Message-ID: <CAPcyv4hVERZoqWrCxwOkmM075OP_ada7FiYsQgokijuWyC1MbA@mail.gmail.com>
-Subject: Re: [PATCH 0/5] mm: rework hmm to use devm_memremap_pages
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180523140601.GQ20441@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <094afec3-5682-f99d-81bb-230319c78d5d@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, stable <stable@vger.kernel.org>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <osalvador@techadventures.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, May 23, 2018 at 5:10 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> On Mon, May 21, 2018 at 03:35:14PM -0700, Dan Williams wrote:
->> Hi Andrew, please consider this series for 4.18.
+On 05/23/2018 07:36 PM, Michal Hocko wrote:
+> On Wed 23-05-18 19:15:51, Anshuman Khandual wrote:
+>> On 05/23/2018 06:25 PM, Michal Hocko wrote:
+>>> when adding memory to a node that is currently offline.
+>>>
+>>> The VM_WARN_ON is just too loud without a good reason. In this
+>>> particular case we are doing
+>>> 	alloc_pages_node(node, GFP_KERNEL|__GFP_RETRY_MAYFAIL|__GFP_NOWARN, order)
+>>>
+>>> so we do not insist on allocating from the given node (it is more a
+>>> hint) so we can fall back to any other populated node and moreover we
+>>> explicitly ask to not warn for the allocation failure.
+>>>
+>>> Soften the warning only to cases when somebody asks for the given node
+>>> explicitly by __GFP_THISNODE.
 >>
->> For maintainability, as ZONE_DEVICE continues to attract new users,
->> it is useful to keep all users consolidated on devm_memremap_pages() as
->> the interface for create "device pages".
->>
->> The devm_memremap_pages() implementation was recently reworked to make
->> it more generic for arbitrary users, like the proposed peer-to-peer
->> PCI-E enabling. HMM pre-dated this rework and opted to duplicate
->> devm_memremap_pages() as hmm_devmem_pages_create().
->>
->> Rework HMM to be a consumer of devm_memremap_pages() directly and fix up
->> the licensing on the exports given the deep dependencies on the mm.
->
-> I am on PTO right now so i won't be able to quickly review it all
-> but forcing GPL export is problematic for me now. I rather have
-> device driver using "sane" common helpers than creating their own
-> crazy thing.
+>> node hint passed here eventually goes into __alloc_pages_nodemask()
+>> function which then picks up the applicable zonelist irrespective of
+>> the GFP flag __GFP_THISNODE.
+> 
+> __GFP_THISNODE should enforce the given node without any fallbacks
+> unless something has changed recently.
 
-Sane drivers that need this level of deep integration with Linux
-memory management need to be upstream. Otherwise, HMM is an
-unprecedented departure from the norms of Linux kernel development.
+Right. I was just saying requiring given preferred node to be online
+whose zonelist (hence allocation zone fallback order) is getting picked
+up during allocation and warning when that is not online still makes
+sense. We should only hide the warning if the allocation request has
+__GFP_NOWARN.
+
+> 
+>> Though we can go into zones of other
+>> nodes if the present node (whose zonelist got picked up) does not
+>> have any memory in it's zones. So warning here might not be without
+>> any reason.
+> 
+> I am not sure I follow. Are you suggesting a different VM_WARN_ON?
+
+I am just suggesting this instead.
+
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 036846fc00a6..7f860ea29ec6 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -464,7 +464,7 @@ static inline struct page *
+ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+ {
+ 	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
+-	VM_WARN_ON(!node_online(nid));
++	VM_WARN_ON(!(gfp_mask & __GFP_NOWARN) && !node_online(nid));
+ 
+ 	return __alloc_pages(gfp_mask, order, nid);
+ }
