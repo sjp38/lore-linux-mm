@@ -1,75 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D1226B0272
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 01:19:26 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id w7-v6so301295pfd.9
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 22:19:26 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v5-v6si19212015pfe.63.2018.05.23.22.19.23
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C4FC76B0005
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 01:59:20 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id q185-v6so385430qke.7
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 22:59:20 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id g188-v6si2692529qkf.38.2018.05.23.22.59.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 23 May 2018 22:19:24 -0700 (PDT)
-Date: Wed, 23 May 2018 22:19:19 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH v2 00/12] get rid of GFP_ZONE_TABLE/BAD
-Message-ID: <20180524051919.GA9819@bombadil.infradead.org>
-References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
- <20180522183728.GB20441@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 May 2018 22:59:19 -0700 (PDT)
+Subject: Re: [PATCH v1 10/10] mm/memory_hotplug: allow online/offline memory
+ by a kernel module
+References: <20180523151151.6730-1-david@redhat.com>
+ <20180523151151.6730-11-david@redhat.com>
+ <20180523195119.GA20852@infradead.org>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <73b34d6e-9726-e0a5-0418-65ef13f87198@redhat.com>
+Date: Thu, 24 May 2018 07:59:15 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180522183728.GB20441@dhcp22.suse.cz>
+In-Reply-To: <20180523195119.GA20852@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Huaisheng Ye <yehs2007@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, alexander.levin@verizon.com, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, May 22, 2018 at 08:37:28PM +0200, Michal Hocko wrote:
-> So why is this any better than the current code. Sure I am not a great
-> fan of GFP_ZONE_TABLE because of how it is incomprehensible but this
-> doesn't look too much better, yet we are losing a check for incompatible
-> gfp flags. The diffstat looks really sound but then you just look and
-> see that the large part is the comment that at least explained the gfp
-> zone modifiers somehow and the debugging code. So what is the selling
-> point?
+On 23.05.2018 21:51, Christoph Hellwig wrote:
+> On Wed, May 23, 2018 at 05:11:51PM +0200, David Hildenbrand wrote:
+>> Kernel modules that want to control how/when memory is onlined/offlined
+>> need a proper interface to these functions. Also, for adding memory
+>> properly, memory_block_size_bytes is required.
+> 
+> Which module?  Please send it along with the enabling code.
 
-I have a plan, but it's not exactly fully-formed yet.
+Hi,
 
-One of the big problems we have today is that we have a lot of users
-who have constraints on the physical memory they want to allocate,
-but we have very limited abilities to provide them with what they're
-asking for.  The various different ZONEs have different meanings on
-different architectures and are generally a mess.
+as indicated in the cover letter, it is called "virtio-mem".
+I sent it yesterday as a separate series (RFC).
 
-If we had eight ZONEs, we could offer:
+Cover letter: https://lkml.org/lkml/2018/5/23/800
+Relevant patch: https://lkml.org/lkml/2018/5/23/803
 
-ZONE_16M	// 24 bit
-ZONE_256M	// 28 bit
-ZONE_LOWMEM	// CONFIG_32BIT only
-ZONE_4G		// 32 bit
-ZONE_64G	// 36 bit
-ZONE_1T		// 40 bit
-ZONE_ALL	// everything larger
-ZONE_MOVABLE	// movable allocations; no physical address guarantees
+> 
+>> --- a/drivers/base/memory.c
+>> +++ b/drivers/base/memory.c
+>> @@ -88,6 +88,7 @@ unsigned long __weak memory_block_size_bytes(void)
+>>  {
+>>  	return MIN_MEMORY_BLOCK_SIZE;
+>>  }
+>> +EXPORT_SYMBOL(memory_block_size_bytes);
+> 
+>> +EXPORT_SYMBOL(mem_hotplug_begin);
+> 
+>> +EXPORT_SYMBOL(mem_hotplug_done);
+> 
+> EXPORT_SYMBOL_GPL for any deep down VM internals, please.
+> 
 
-#ifdef CONFIG_64BIT
-#define ZONE_NORMAL	ZONE_ALL
-#else
-#define ZONE_NORMAL	ZONE_LOWMEM
-#endif
+I continued using what was being used for symbols in this file. If there
+are not other opinions, I'll switch to EXPORT_SYMBOL_GPL. Thanks!
 
-This would cover most driver DMA mask allocations; we could tweak the
-offered zones based on analysis of what people need.
+-- 
 
-#define GFP_HIGHUSER		(GFP_USER | ZONE_ALL)
-#define GFP_HIGHUSER_MOVABLE	(GFP_USER | ZONE_MOVABLE)
+Thanks,
 
-One other thing I want to see is that fallback from zones happens from
-highest to lowest normally (ie if you fail to allocate in 1T, then you
-try to allocate from 64G), but movable allocations hapen from lowest
-to highest.  So ZONE_16M ends up full of page cache pages which are
-readily evictable for the rare occasions when we need to allocate memory
-below 16MB.
-
-I'm sure there are lots of good reasons why this won't work, which is
-why I've been hesitant to propose it before now.
+David / dhildenb
