@@ -1,61 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F1076B0008
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 11:22:35 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id t1-v6so1133163oth.3
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 08:22:35 -0700 (PDT)
-Received: from sender-pp-092.zoho.com (sender-pp-092.zoho.com. [135.84.80.237])
-        by mx.google.com with ESMTPS id c186-v6si7136297oia.171.2018.05.24.08.22.30
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 40D4E6B0007
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 11:29:47 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y16-v6so1727262wrp.19
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 08:29:47 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h15-v6si1762474edr.264.2018.05.24.08.29.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 08:22:31 -0700 (PDT)
-From: Huaisheng Ye <yehs2007@zoho.com>
-Subject: [RFC PATCH v3 6/9] mm/vmpressure: update usage of zone modifiers
-Date: Thu, 24 May 2018 23:20:53 +0800
-Message-Id: <20180524152053.1248-1-yehs2007@zoho.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 24 May 2018 08:29:45 -0700 (PDT)
+Date: Thu, 24 May 2018 17:29:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH v2 00/12] get rid of GFP_ZONE_TABLE/BAD
+Message-ID: <20180524152943.GA11881@dhcp22.suse.cz>
+References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+ <20180522183728.GB20441@dhcp22.suse.cz>
+ <20180524051919.GA9819@bombadil.infradead.org>
+ <20180524122323.GH20441@dhcp22.suse.cz>
+ <20180524151818.GA21245@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180524151818.GA21245@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, willy@infradead.org, hch@lst.de, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>, zhongjiang <zhongjiang@huawei.com>, Minchan Kim <minchan@kernel.org>, Dan Carpenter <dan.carpenter@oracle.com>, David Rientjes <rientjes@google.com>, Christoph Hellwig <hch@infradead.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Huaisheng Ye <yehs2007@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, alexander.levin@verizon.com, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>
 
-From: Huaisheng Ye <yehs1@lenovo.com>
+On Thu 24-05-18 08:18:18, Matthew Wilcox wrote:
+> On Thu, May 24, 2018 at 02:23:23PM +0200, Michal Hocko wrote:
+> > > If we had eight ZONEs, we could offer:
+> > 
+> > No, please no more zones. What we have is quite a maint. burden on its
+> > own. Ideally we should only have lowmem, highmem and special/device
+> > zones for directly kernel accessible memory, the one that the kernel
+> > cannot or must not use and completely special memory managed out of
+> > the page allocator. All the remaining constrains should better be
+> > implemented on top.
+> 
+> I believe you when you say that they're a maintenance pain.  Is that
+> maintenance pain because they're so specialised?
 
-Use __GFP_ZONE_MOVABLE to replace (__GFP_HIGHMEM | __GFP_MOVABLE).
+Well, it used to be LRU balancing which is gone with the node reclaim
+but that brings new challenges. Now as you say their meaning is not
+really clear to users and that leads to bugs left and right.
 
-___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 have been deleted from GFP
-bitmasks, the bottom three bits of GFP mask is reserved for storing
-encoded zone number.
+> ie if we had more,
+> could we solve our pain by making them more generic?
 
-__GFP_ZONE_MOVABLE contains encoded ZONE_MOVABLE and __GFP_MOVABLE flag.
+Well, if you have more you will consume more bits in the struct pages,
+right?
 
-With GFP_ZONE_TABLE, __GFP_HIGHMEM ORing __GFP_MOVABLE means gfp_zone
-should return ZONE_MOVABLE. In order to keep that compatible with
-GFP_ZONE_TABLE, replace (__GFP_HIGHMEM | __GFP_MOVABLE) with
-__GFP_ZONE_MOVABLE.
+[...]
 
-Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: zhongjiang <zhongjiang@huawei.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Christoph Hellwig <hch@infradead.org>
----
- mm/vmpressure.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> > But those already do have aproper API, IIUC. So do we really need to
+> > make our GFP_*/Zone API more complicated than it already is?
+> 
+> I don't want to change the driver API (setting the DMA mask, etc),
+> but we don't actually have a good API to the page allocator for the
+> implementation of dma_alloc_foo() to request pages.  More or less,
+> architectures do:
+> 
+> 	if (mask < 4GB)
+> 		alloc_page(GFP_DMA)
+> 	else if (mask < 64EB)
+> 		alloc_page(GFP_DMA32)
+> 	else
+> 		alloc_page(GFP_HIGHMEM)
+> 
+> it more-or-less sucks that the devices with 28-bit DMA limits are forced
+> to allocate from the low 16MB when they're perfectly capable of using the
+> low 256MB.
 
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 85350ce..30a40e2 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -256,7 +256,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
- 	 * Indirect reclaim (kswapd) sets sc->gfp_mask to GFP_KERNEL, so
- 	 * we account it too.
- 	 */
--	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
-+	if (!(gfp & (__GFP_ZONE_MOVABLE | __GFP_IO | __GFP_FS)))
- 		return;
- 
- 	/*
+Do we actually care all that much about those? If yes then we should
+probably follow the ZONE_DMA (x86) path and use a CMA region for them.
+I mean most devices should be good with very limited addressability or
+below 4G, no?
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
