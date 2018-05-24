@@ -1,126 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C751C6B000D
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 16:55:10 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id q4-v6so1664955ote.6
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 13:55:10 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b48-v6sor10630005otj.310.2018.05.24.13.55.09
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F0E36B000E
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 16:56:01 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id p126-v6so2256185qkd.1
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 13:56:01 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id b196-v6si838963qka.255.2018.05.24.13.56.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 24 May 2018 13:55:09 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 May 2018 13:56:00 -0700 (PDT)
+Subject: Re: [PATCH -V2 -mm 1/4] mm, clear_huge_page: Move order algorithm
+ into a separate function
+References: <20180524005851.4079-1-ying.huang@intel.com>
+ <20180524005851.4079-2-ying.huang@intel.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <4569310c-ae07-2353-8276-f9cba3011ea5@oracle.com>
+Date: Thu, 24 May 2018 13:55:48 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180523041954.GA16285@hori1.linux.bs1.fc.nec.co.jp>
-References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152700000922.24093.14813242965473482705.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180523041954.GA16285@hori1.linux.bs1.fc.nec.co.jp>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 24 May 2018 13:55:04 -0700
-Message-ID: <CAPcyv4hL5+ZfHjnYYtoioB5AK5Ukpg99d6eYWTKSeJc6uHxkyg@mail.gmail.com>
-Subject: Re: [PATCH 07/11] mm, madvise_inject_error: fix page count leak
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180524005851.4079-2-ying.huang@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, "hch@lst.de" <hch@lst.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "tony.luck@intel.com" <tony.luck@intel.com>
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>
 
-On Tue, May 22, 2018 at 9:19 PM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
-> On Tue, May 22, 2018 at 07:40:09AM -0700, Dan Williams wrote:
->> The madvise_inject_error() routine uses get_user_pages() to lookup the
->> pfn and other information for injected error, but it fails to release
->> that pin.
->>
->> The dax-dma-vs-truncate warning catches this failure with the following
->> signature:
->>
->>  Injecting memory failure for pfn 0x208900 at process virtual address 0x7f3908d00000
->>  Memory failure: 0x208900: reserved kernel page still referenced by 1 users
->>  Memory failure: 0x208900: recovery action for reserved kernel page: Failed
->>  WARNING: CPU: 37 PID: 9566 at fs/dax.c:348 dax_disassociate_entry+0x4e/0x90
->>  CPU: 37 PID: 9566 Comm: umount Tainted: G        W  OE     4.17.0-rc6+ #1900
->>  [..]
->>  RIP: 0010:dax_disassociate_entry+0x4e/0x90
->>  RSP: 0018:ffffc9000a9b3b30 EFLAGS: 00010002
->>  RAX: ffffea0008224000 RBX: 0000000000208a00 RCX: 0000000000208900
->>  RDX: 0000000000000001 RSI: ffff8804058c6160 RDI: 0000000000000008
->>  RBP: 000000000822000a R08: 0000000000000002 R09: 0000000000208800
->>  R10: 0000000000000000 R11: 0000000000208801 R12: ffff8804058c6168
->>  R13: 0000000000000000 R14: 0000000000000002 R15: 0000000000000001
->>  FS:  00007f4548027fc0(0000) GS:ffff880431d40000(0000) knlGS:0000000000000000
->>  CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->>  CR2: 000056316d5f8988 CR3: 00000004298cc000 CR4: 00000000000406e0
->>  Call Trace:
->>   __dax_invalidate_mapping_entry+0xab/0xe0
->>   dax_delete_mapping_entry+0xf/0x20
->>   truncate_exceptional_pvec_entries.part.14+0x1d4/0x210
->>   truncate_inode_pages_range+0x291/0x920
->>   ? kmem_cache_free+0x1f8/0x300
->>   ? lock_acquire+0x9f/0x200
->>   ? truncate_inode_pages_final+0x31/0x50
->>   ext4_evict_inode+0x69/0x740
->>
->> Cc: <stable@vger.kernel.org>
->> Fixes: bd1ce5f91f54 ("HWPOISON: avoid grabbing the page count...")
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Andi Kleen <ak@linux.intel.com>
->> Cc: Wu Fengguang <fengguang.wu@intel.com>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->> ---
->>  mm/madvise.c |   11 ++++++++---
->>  1 file changed, 8 insertions(+), 3 deletions(-)
->>
->> diff --git a/mm/madvise.c b/mm/madvise.c
->> index 4d3c922ea1a1..246fa4d4eee2 100644
->> --- a/mm/madvise.c
->> +++ b/mm/madvise.c
->> @@ -631,11 +631,13 @@ static int madvise_inject_error(int behavior,
->>
->>
->>       for (; start < end; start += PAGE_SIZE << order) {
->> +             unsigned long pfn;
->>               int ret;
->>
->>               ret = get_user_pages_fast(start, 1, 0, &page);
->>               if (ret != 1)
->>                       return ret;
->> +             pfn = page_to_pfn(page);
->>
->>               /*
->>                * When soft offlining hugepages, after migrating the page
->> @@ -651,17 +653,20 @@ static int madvise_inject_error(int behavior,
->>
->>               if (behavior == MADV_SOFT_OFFLINE) {
->>                       pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
->> -                                             page_to_pfn(page), start);
->> +                                     pfn, start);
->>
->>                       ret = soft_offline_page(page, MF_COUNT_INCREASED);
->> +                     put_page(page);
->>                       if (ret)
->>                               return ret;
->>                       continue;
->>               }
->> +             put_page(page);
->
-> We keep the page count pinned after the isolation of the error page
-> in order to make sure that the error page is disabled and never reused.
-> This seems not explicit enough, so some comment should be helpful.
+On 05/23/2018 05:58 PM, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+> 
+> In commit c79b57e462b5d ("mm: hugetlb: clear target sub-page last when
+> clearing huge page"), to keep the cache lines of the target subpage
+> hot, the order to clear the subpages in the huge page in
+> clear_huge_page() is changed to clearing the subpage which is furthest
+> from the target subpage firstly, and the target subpage last.  This
+> optimization could be applied to copying huge page too with the same
+> order algorithm.  To avoid code duplication and reduce maintenance
+> overhead, in this patch, the order algorithm is moved out of
+> clear_huge_page() into a separate function: process_huge_page().  So
+> that we can use it for copying huge page too.
+> 
+> This will change the direct calls to clear_user_highpage() into the
+> indirect calls.  But with the proper inline support of the compilers,
+> the indirect call will be optimized to be the direct call.  Our tests
+> show no performance change with the patch.
+> 
+> This patch is a code cleanup without functionality change.
+> 
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-As far as I can see this extra reference count to keep the page from
-being should be taken internal to memory_failure(), not assumed from
-the inject error path. I might be overlooking something, but I do not
-see who is responsible for taking this extra reference in the case
-where memory_failure() is called by the machine check code rather than
-madvise_inject_error()?
+Thanks for doing this.
 
->
-> BTW, looking at the kernel message like "Memory failure: 0x208900:
-> reserved kernel page still referenced by 1 users", memory_failure()
-> considers dav_pagemap pages as "reserved kernel pages" (MF_MSG_KERNEL).
-> If memory error handler recovers a dav_pagemap page in its special way,
-> we can define a new action_page_types entry like MF_MSG_DAX.
-> Reporting like "Memory failure: 0xXXXXX: recovery action for dax page:
-> Failed" might be helpful for end user's perspective.
+The extra level of indirection does make this a bit more difficult to
+read.  However, I believe this is offset by the reuse of the algorithm
+in subsequent copy_huge_page support.
 
-Sounds good, I'll take a look at this.
+> Cc: Andi Kleen <andi.kleen@intel.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Shaohua Li <shli@fb.com>
+> Cc: Christopher Lameter <cl@linux.com>
+> ---
+>  mm/memory.c | 90 ++++++++++++++++++++++++++++++++++++++-----------------------
+>  1 file changed, 56 insertions(+), 34 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 14578158ed20..b9f573a81bbd 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -4569,71 +4569,93 @@ EXPORT_SYMBOL(__might_fault);
+>  #endif
+>  
+>  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
+> -static void clear_gigantic_page(struct page *page,
+> -				unsigned long addr,
+> -				unsigned int pages_per_huge_page)
+> -{
+> -	int i;
+> -	struct page *p = page;
+> -
+> -	might_sleep();
+> -	for (i = 0; i < pages_per_huge_page;
+> -	     i++, p = mem_map_next(p, page, i)) {
+> -		cond_resched();
+> -		clear_user_highpage(p, addr + i * PAGE_SIZE);
+> -	}
+> -}
+> -void clear_huge_page(struct page *page,
+> -		     unsigned long addr_hint, unsigned int pages_per_huge_page)
+> +/*
+> + * Process all subpages of the specified huge page with the specified
+> + * operation.  The target subpage will be processed last to keep its
+> + * cache lines hot.
+> + */
+> +static inline void process_huge_page(
+> +	unsigned long addr_hint, unsigned int pages_per_huge_page,
+> +	void (*process_subpage)(unsigned long addr, int idx, void *arg),
+> +	void *arg)
+
+There could be a bit more information in the comment about the function.
+But it is not a requirement, unless patch needs to be redone for some
+other reason.
+
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+-- 
+Mike Kravetz
+
+>  {
+>  	int i, n, base, l;
+>  	unsigned long addr = addr_hint &
+>  		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
+>  
+> -	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
+> -		clear_gigantic_page(page, addr, pages_per_huge_page);
+> -		return;
+> -	}
+> -
+> -	/* Clear sub-page to access last to keep its cache lines hot */
+> +	/* Process target subpage last to keep its cache lines hot */
+>  	might_sleep();
+>  	n = (addr_hint - addr) / PAGE_SIZE;
+>  	if (2 * n <= pages_per_huge_page) {
+> -		/* If sub-page to access in first half of huge page */
+> +		/* If target subpage in first half of huge page */
+>  		base = 0;
+>  		l = n;
+> -		/* Clear sub-pages at the end of huge page */
+> +		/* Process subpages at the end of huge page */
+>  		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
+>  			cond_resched();
+> -			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+> +			process_subpage(addr + i * PAGE_SIZE, i, arg);
+>  		}
+>  	} else {
+> -		/* If sub-page to access in second half of huge page */
+> +		/* If target subpage in second half of huge page */
+>  		base = pages_per_huge_page - 2 * (pages_per_huge_page - n);
+>  		l = pages_per_huge_page - n;
+> -		/* Clear sub-pages at the begin of huge page */
+> +		/* Process subpages at the begin of huge page */
+>  		for (i = 0; i < base; i++) {
+>  			cond_resched();
+> -			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+> +			process_subpage(addr + i * PAGE_SIZE, i, arg);
+>  		}
+>  	}
+>  	/*
+> -	 * Clear remaining sub-pages in left-right-left-right pattern
+> -	 * towards the sub-page to access
+> +	 * Process remaining subpages in left-right-left-right pattern
+> +	 * towards the target subpage
+>  	 */
+>  	for (i = 0; i < l; i++) {
+>  		int left_idx = base + i;
+>  		int right_idx = base + 2 * l - 1 - i;
+>  
+>  		cond_resched();
+> -		clear_user_highpage(page + left_idx,
+> -				    addr + left_idx * PAGE_SIZE);
+> +		process_subpage(addr + left_idx * PAGE_SIZE, left_idx, arg);
+>  		cond_resched();
+> -		clear_user_highpage(page + right_idx,
+> -				    addr + right_idx * PAGE_SIZE);
+> +		process_subpage(addr + right_idx * PAGE_SIZE, right_idx, arg);
+>  	}
+>  }
+>  
+> +static void clear_gigantic_page(struct page *page,
+> +				unsigned long addr,
+> +				unsigned int pages_per_huge_page)
+> +{
+> +	int i;
+> +	struct page *p = page;
+> +
+> +	might_sleep();
+> +	for (i = 0; i < pages_per_huge_page;
+> +	     i++, p = mem_map_next(p, page, i)) {
+> +		cond_resched();
+> +		clear_user_highpage(p, addr + i * PAGE_SIZE);
+> +	}
+> +}
+> +
+> +static void clear_subpage(unsigned long addr, int idx, void *arg)
+> +{
+> +	struct page *page = arg;
+> +
+> +	clear_user_highpage(page + idx, addr);
+> +}
+> +
+> +void clear_huge_page(struct page *page,
+> +		     unsigned long addr_hint, unsigned int pages_per_huge_page)
+> +{
+> +	unsigned long addr = addr_hint &
+> +		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
+> +
+> +	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
+> +		clear_gigantic_page(page, addr, pages_per_huge_page);
+> +		return;
+> +	}
+> +
+> +	process_huge_page(addr_hint, pages_per_huge_page, clear_subpage, page);
+> +}
+> +
+>  static void copy_user_gigantic_page(struct page *dst, struct page *src,
+>  				    unsigned long addr,
+>  				    struct vm_area_struct *vma,
+> 
