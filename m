@@ -1,214 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F0E36B000E
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 16:56:01 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id p126-v6so2256185qkd.1
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 13:56:01 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id b196-v6si838963qka.255.2018.05.24.13.56.00
+	by kanga.kvack.org (Postfix) with ESMTP id 160006B0269
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 17:07:39 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id i64-v6so2263432qkh.14
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 14:07:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id y9-v6si6490049qvj.136.2018.05.24.14.07.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 13:56:00 -0700 (PDT)
-Subject: Re: [PATCH -V2 -mm 1/4] mm, clear_huge_page: Move order algorithm
- into a separate function
-References: <20180524005851.4079-1-ying.huang@intel.com>
- <20180524005851.4079-2-ying.huang@intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <4569310c-ae07-2353-8276-f9cba3011ea5@oracle.com>
-Date: Thu, 24 May 2018 13:55:48 -0700
+        Thu, 24 May 2018 14:07:37 -0700 (PDT)
+Subject: Re: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by
+ device driver
+References: <20180523151151.6730-1-david@redhat.com>
+ <20180524075327.GU20441@dhcp22.suse.cz>
+ <14d79dad-ad47-f090-2ec0-c5daf87ac529@redhat.com>
+ <20180524093121.GZ20441@dhcp22.suse.cz>
+ <c0b8bbd5-6c01-f550-ae13-ef80b2255ea6@redhat.com>
+ <20180524120341.GF20441@dhcp22.suse.cz>
+ <1a03ac4e-9185-ce8e-a672-c747c3e40ff2@redhat.com>
+ <20180524142241.GJ20441@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <819e45c5-6ae3-1dff-3f1d-c0411b6e2e1d@redhat.com>
+Date: Thu, 24 May 2018 23:07:23 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180524005851.4079-2-ying.huang@intel.com>
+In-Reply-To: <20180524142241.GJ20441@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
 
-On 05/23/2018 05:58 PM, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On 24.05.2018 16:22, Michal Hocko wrote:
+> I will go over the rest of the email later I just wanted to make this
+> point clear because I suspect we are talking past each other.
+
+It sounds like we are now talking about how to solve the problem. I like
+that :)
+
 > 
-> In commit c79b57e462b5d ("mm: hugetlb: clear target sub-page last when
-> clearing huge page"), to keep the cache lines of the target subpage
-> hot, the order to clear the subpages in the huge page in
-> clear_huge_page() is changed to clearing the subpage which is furthest
-> from the target subpage firstly, and the target subpage last.  This
-> optimization could be applied to copying huge page too with the same
-> order algorithm.  To avoid code duplication and reduce maintenance
-> overhead, in this patch, the order algorithm is moved out of
-> clear_huge_page() into a separate function: process_huge_page().  So
-> that we can use it for copying huge page too.
+> On Thu 24-05-18 16:04:38, David Hildenbrand wrote:
+> [...]
+>> The point I was making is: I cannot allocate 8MB/128MB using the buddy
+>> allocator. All I want to do is manage the memory a virtio-mem device
+>> provides as flexible as possible.
 > 
-> This will change the direct calls to clear_user_highpage() into the
-> indirect calls.  But with the proper inline support of the compilers,
-> the indirect call will be optimized to be the direct call.  Our tests
-> show no performance change with the patch.
+> I didn't mean to use the page allocator to isolate pages from it. We do
+> have other means. Have a look at the page isolation framework and have a
+> look how the current memory hotplug (ab)uses it. In short you mark the
+> desired physical memory range as isolated (nobody can allocate from it)
+> and then simply remove it from the page allocator. And you are done with
+> it. Your particular range is gone, nobody will ever use it. If you mark
+> those struct pages reserved then pfn walkers should already ignore them.
+> If you keep those pages with ref count 0 then even hotplug should work
+> seemlessly (I would have to double check).
 > 
-> This patch is a code cleanup without functionality change.
+> So all I am arguing is that whatever your driver wants to do can be
+> handled without touching the hotplug code much. You would still need
+> to add new ranges in the mem section units and manage on top of that.
+> You need to do that anyway to keep track of what parts are in use or
+> offlined anyway right? Now the mem sections. You have to do that anyway
+> for memmaps. Our sparse memory model simply works in those units. Even
+> if you make a part of that range unavailable then the section will still
+> be there.
 > 
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
-
-Thanks for doing this.
-
-The extra level of indirection does make this a bit more difficult to
-read.  However, I believe this is offset by the reuse of the algorithm
-in subsequent copy_huge_page support.
-
-> Cc: Andi Kleen <andi.kleen@intel.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Shaohua Li <shli@fb.com>
-> Cc: Christopher Lameter <cl@linux.com>
-> ---
->  mm/memory.c | 90 ++++++++++++++++++++++++++++++++++++++-----------------------
->  1 file changed, 56 insertions(+), 34 deletions(-)
+> Do I make at least some sense or I am completely missing your point?
 > 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 14578158ed20..b9f573a81bbd 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -4569,71 +4569,93 @@ EXPORT_SYMBOL(__might_fault);
->  #endif
->  
->  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
-> -static void clear_gigantic_page(struct page *page,
-> -				unsigned long addr,
-> -				unsigned int pages_per_huge_page)
-> -{
-> -	int i;
-> -	struct page *p = page;
-> -
-> -	might_sleep();
-> -	for (i = 0; i < pages_per_huge_page;
-> -	     i++, p = mem_map_next(p, page, i)) {
-> -		cond_resched();
-> -		clear_user_highpage(p, addr + i * PAGE_SIZE);
-> -	}
-> -}
-> -void clear_huge_page(struct page *page,
-> -		     unsigned long addr_hint, unsigned int pages_per_huge_page)
-> +/*
-> + * Process all subpages of the specified huge page with the specified
-> + * operation.  The target subpage will be processed last to keep its
-> + * cache lines hot.
-> + */
-> +static inline void process_huge_page(
-> +	unsigned long addr_hint, unsigned int pages_per_huge_page,
-> +	void (*process_subpage)(unsigned long addr, int idx, void *arg),
-> +	void *arg)
 
-There could be a bit more information in the comment about the function.
-But it is not a requirement, unless patch needs to be redone for some
-other reason.
+I think we're heading somewhere. I understand that you want to separate
+this "semi" offline part from the general offlining code. If so, we
+should definitely enforce segment alignment for online_pages/offline_pages.
 
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+Importantly, what I need is:
+
+1. Indicate and prepare memory sections to be used for adding memory
+   chunks (right now add_memory())
+2. Make memory chunks of a section available to the system (right now
+   online_pages())
+3. Remove memory chunks of a section from the system (right now
+   offline_pages())
+4. Remove memory sections from the system (right now remove_memory())
+5. Hinder dumping tools from reading memory chunks that are logically
+   offline (right now PageOffline())
+6. For 3. find removable memory chunks in a certain memory range with a
+   variable size.
+
+In an ideal world, 2. would never fail (in contrast to online_pages()
+right now). This might make some further developments I have in mind
+easier :) So if we can come up with an approach that can guarantee that,
+extra points.
+
+So what I think you are talking about is the following.
+
+For 1. Use add_memory() followed by online_pages(). Don't actually
+       online the pages, keep them reserved (like XEN balloon). Fixup
+       stats.
+For 2. Expose reserved pages to Buddy allocator. Clear reserved bit.
+       Fixup stats. This can never fail. (yay)
+For 3. Isolate pages, try to move everything away (basically but not
+       comletely offlining code). Set reserved flag. Fixup flags.
+For 4. offline_pages() followed by remove_memory().
+       -> Q: How to distinguish reserved offline from other reserved
+             pages? offline_pages() has to be able to deal with that
+For 5. I don't think we can use reserved flag here.
+       -> Q: What else to use?
+For 6. Scan for movable ranges. The use
+
+
+"You need to do that anyway to keep track of what parts are in use or
+ offlined anyway right?"
+
+I would manually track which chunks of a section is logically offline (I
+do that right now already).
+
+Is that what you had in mind? If not, where does your idea differ.
+How could we solve 4/5. Of course, PageOffline() is again an option.
+
+Thanks!
+
 -- 
-Mike Kravetz
 
->  {
->  	int i, n, base, l;
->  	unsigned long addr = addr_hint &
->  		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
->  
-> -	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-> -		clear_gigantic_page(page, addr, pages_per_huge_page);
-> -		return;
-> -	}
-> -
-> -	/* Clear sub-page to access last to keep its cache lines hot */
-> +	/* Process target subpage last to keep its cache lines hot */
->  	might_sleep();
->  	n = (addr_hint - addr) / PAGE_SIZE;
->  	if (2 * n <= pages_per_huge_page) {
-> -		/* If sub-page to access in first half of huge page */
-> +		/* If target subpage in first half of huge page */
->  		base = 0;
->  		l = n;
-> -		/* Clear sub-pages at the end of huge page */
-> +		/* Process subpages at the end of huge page */
->  		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
->  			cond_resched();
-> -			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-> +			process_subpage(addr + i * PAGE_SIZE, i, arg);
->  		}
->  	} else {
-> -		/* If sub-page to access in second half of huge page */
-> +		/* If target subpage in second half of huge page */
->  		base = pages_per_huge_page - 2 * (pages_per_huge_page - n);
->  		l = pages_per_huge_page - n;
-> -		/* Clear sub-pages at the begin of huge page */
-> +		/* Process subpages at the begin of huge page */
->  		for (i = 0; i < base; i++) {
->  			cond_resched();
-> -			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-> +			process_subpage(addr + i * PAGE_SIZE, i, arg);
->  		}
->  	}
->  	/*
-> -	 * Clear remaining sub-pages in left-right-left-right pattern
-> -	 * towards the sub-page to access
-> +	 * Process remaining subpages in left-right-left-right pattern
-> +	 * towards the target subpage
->  	 */
->  	for (i = 0; i < l; i++) {
->  		int left_idx = base + i;
->  		int right_idx = base + 2 * l - 1 - i;
->  
->  		cond_resched();
-> -		clear_user_highpage(page + left_idx,
-> -				    addr + left_idx * PAGE_SIZE);
-> +		process_subpage(addr + left_idx * PAGE_SIZE, left_idx, arg);
->  		cond_resched();
-> -		clear_user_highpage(page + right_idx,
-> -				    addr + right_idx * PAGE_SIZE);
-> +		process_subpage(addr + right_idx * PAGE_SIZE, right_idx, arg);
->  	}
->  }
->  
-> +static void clear_gigantic_page(struct page *page,
-> +				unsigned long addr,
-> +				unsigned int pages_per_huge_page)
-> +{
-> +	int i;
-> +	struct page *p = page;
-> +
-> +	might_sleep();
-> +	for (i = 0; i < pages_per_huge_page;
-> +	     i++, p = mem_map_next(p, page, i)) {
-> +		cond_resched();
-> +		clear_user_highpage(p, addr + i * PAGE_SIZE);
-> +	}
-> +}
-> +
-> +static void clear_subpage(unsigned long addr, int idx, void *arg)
-> +{
-> +	struct page *page = arg;
-> +
-> +	clear_user_highpage(page + idx, addr);
-> +}
-> +
-> +void clear_huge_page(struct page *page,
-> +		     unsigned long addr_hint, unsigned int pages_per_huge_page)
-> +{
-> +	unsigned long addr = addr_hint &
-> +		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
-> +
-> +	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-> +		clear_gigantic_page(page, addr, pages_per_huge_page);
-> +		return;
-> +	}
-> +
-> +	process_huge_page(addr_hint, pages_per_huge_page, clear_subpage, page);
-> +}
-> +
->  static void copy_user_gigantic_page(struct page *dst, struct page *src,
->  				    unsigned long addr,
->  				    struct vm_area_struct *vma,
-> 
+Thanks,
+
+David / dhildenb
