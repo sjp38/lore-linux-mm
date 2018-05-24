@@ -1,96 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CABB6B0005
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 04:00:14 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f188-v6so629821wme.2
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 01:00:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w23-v6si4250188edr.80.2018.05.24.01.00.13
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E34396B0005
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 04:02:02 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id g67-v6so486155otb.10
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 01:02:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l12-v6sor9832038otd.316.2018.05.24.01.01.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 May 2018 01:00:13 -0700 (PDT)
-Date: Thu, 24 May 2018 10:00:11 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: do not warn on offline nodes unless the specific
- node is explicitly requested
-Message-ID: <20180524080011.GV20441@dhcp22.suse.cz>
-References: <20180523125555.30039-1-mhocko@kernel.org>
- <20180523125555.30039-3-mhocko@kernel.org>
- <11e26a4e-552e-b1dc-316e-ce3e92973556@linux.vnet.ibm.com>
- <20180523140601.GQ20441@dhcp22.suse.cz>
- <094afec3-5682-f99d-81bb-230319c78d5d@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Thu, 24 May 2018 01:01:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <094afec3-5682-f99d-81bb-230319c78d5d@linux.vnet.ibm.com>
+References: <20180418193220.4603-1-timofey.titovets@synesis.ru>
+ <20180418193220.4603-3-timofey.titovets@synesis.ru> <20180522202242.otvdunkl75yfhkt4@xakep.localdomain>
+ <CAGqmi76gJV=ZDX5=Y3toF2tPiJs8T=PiUJFQg5nq9O5yztx80Q@mail.gmail.com> <CAGM2reaZ2YoxFhEDtcXi=hMFoGFi8+SROOn+_SRMwnx3cW15kw@mail.gmail.com>
+In-Reply-To: <CAGM2reaZ2YoxFhEDtcXi=hMFoGFi8+SROOn+_SRMwnx3cW15kw@mail.gmail.com>
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Date: Thu, 24 May 2018 11:01:20 +0300
+Message-ID: <CAGqmi76-qK9q_OTvyqpb-9k_m0CLMt3o860uaN5LL8nBkf5RTg@mail.gmail.com>
+Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <osalvador@techadventures.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: pasha.tatashin@oracle.com
+Cc: linux-mm@kvack.org, Sioh Lee <solee@os.korea.ac.kr>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org
 
-On Thu 24-05-18 08:52:14, Anshuman Khandual wrote:
-> On 05/23/2018 07:36 PM, Michal Hocko wrote:
-> > On Wed 23-05-18 19:15:51, Anshuman Khandual wrote:
-> >> On 05/23/2018 06:25 PM, Michal Hocko wrote:
-> >>> when adding memory to a node that is currently offline.
-> >>>
-> >>> The VM_WARN_ON is just too loud without a good reason. In this
-> >>> particular case we are doing
-> >>> 	alloc_pages_node(node, GFP_KERNEL|__GFP_RETRY_MAYFAIL|__GFP_NOWARN, order)
-> >>>
-> >>> so we do not insist on allocating from the given node (it is more a
-> >>> hint) so we can fall back to any other populated node and moreover we
-> >>> explicitly ask to not warn for the allocation failure.
-> >>>
-> >>> Soften the warning only to cases when somebody asks for the given node
-> >>> explicitly by __GFP_THISNODE.
-> >>
-> >> node hint passed here eventually goes into __alloc_pages_nodemask()
-> >> function which then picks up the applicable zonelist irrespective of
-> >> the GFP flag __GFP_THISNODE.
-> > 
-> > __GFP_THISNODE should enforce the given node without any fallbacks
-> > unless something has changed recently.
-> 
-> Right. I was just saying requiring given preferred node to be online
-> whose zonelist (hence allocation zone fallback order) is getting picked
-> up during allocation and warning when that is not online still makes
-> sense.
+=D1=81=D1=80, 23 =D0=BC=D0=B0=D1=8F 2018 =D0=B3. =D0=B2 17:24, Pavel Tatash=
+in <pasha.tatashin@oracle.com>:
 
-Why? We have a fallback and that is expected to be used. How does
-offline differ from depleted node from the semantical point of view?
+> Hi Timofey,
 
-> We should only hide the warning if the allocation request has
-> __GFP_NOWARN.
-> 
-> > 
-> >> Though we can go into zones of other
-> >> nodes if the present node (whose zonelist got picked up) does not
-> >> have any memory in it's zones. So warning here might not be without
-> >> any reason.
-> > 
-> > I am not sure I follow. Are you suggesting a different VM_WARN_ON?
-> 
-> I am just suggesting this instead.
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 036846fc00a6..7f860ea29ec6 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -464,7 +464,7 @@ static inline struct page *
->  __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
->  {
->  	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-> -	VM_WARN_ON(!node_online(nid));
-> +	VM_WARN_ON(!(gfp_mask & __GFP_NOWARN) && !node_online(nid));
->  
->  	return __alloc_pages(gfp_mask, order, nid);
->  }
+> > crc32c will always be available, because of Kconfig.
+> > But if crc32c doesn't have HW acceleration, it will be slower.
 
-I have considered that but I fail to see why should we warn about
-regular GFP_KERNEL allocations as mentioned above. Just consider an
-allocation for the preffered node. Do you want to warn just because that
-node went offline?
--- 
-Michal Hocko
-SUSE Labs
+> > For talk about range of HW, i must have that HW,
+> > so i can't say that *all* supported HW, have crc32c with acceleration.
+
+> How about always defaulting to crc32c when HW acceleration is present
+> without doing timings?
+IIRC, yes, shash api can return 'cra_priority'.
+
+> Do you have performance numbers of crc32c without acceleration?
+Yes, https://lkml.org/lkml/2017/12/30/222
+
+The experimental results (the experimental value is the average of the
+measured values)
+crc32c_intel: 1084.10ns
+crc32c (no hardware acceleration): 7012.51ns
+xxhash32: 2227.75ns
+xxhash64: 1413.16ns
+jhash2: 5128.30ns
+
+> > > You are loosing half of 64-bit word in xxh64 case? Is this acceptable=
+?
+> May
+> > > be do one more xor: in 64-bit case in xxhash() do: (v >> 32) | (u32)v
+?
+
+> > AFAIK, that lead to make hash function worse.
+> > Even, in ksm hash used only for check if page has changed since last
+scan,
+> > so that doesn't matter really (IMHO).
+
+> I understand that losing half of the hash result might be acceptable in
+> this case, but I am not really sure how XOirng one more time can possibly
+> make hash function worse, could you please elaborate?
+
+IIRC, because of xor are symmetric
+i.e. shift:
+0b01011010 >> 4 =3D 0b0101
+and xor:
+0b0101 ^ 0b1010 =3D 0b1111
+Xor will decrease randomness/entropy and will lead to hash collisions.
+
+> > > choice_fastest_hash() does not belong to fasthash(). We are loosing
+leaf
+> > > function optimizations if you keep it in this hot-path. Also,
+> fastest_hash
+> > > should really be a static branch in order to avoid extra load and
+> > conditional
+> > > branch.
+
+> > I don't think what that will give any noticeable performance benefit.
+> > In compare to hash computation and memcmp in RB.
+
+> You are right, it is small compared to hash and memcmp, but still I think
+> it makes sense to use static branch, after all the value will never chang=
+e
+> during runtime after the first time it is set.
+
+
+> > In theory, that can be replaced with self written jump table, to *avoid=
+*
+> > run time overhead.
+> > AFAIK at 5 entries, gcc convert switch to jump table itself.
+
+> > > I think, crc32c should simply be used when it is available, and use
+> xxhash
+> > > otherwise, the decision should be made in ksm_init()
+
+> > I already said, in above conversation, why i think do that at ksm_init(=
+)
+> is
+> > a bad idea.
+
+> It really feels wrong to keep  choice_fastest_hash() in fasthash(), it is
+> done only once and really belongs to the init function, like ksm_init().
+As
+
+That possible to move decision from lazy load, to ksm_thread,
+that will allow us to start bench and not slowdown boot.
+
+But for that to works, ksm must start later, after init of crypto.
+
+> I understand, you think it is a bad idea to keep it in ksm_init() because
+> it slows down boot by 0.25s, which I agree with your is substantial. But,
+I
+> really do not think that we should spend those 0.25s at all deciding what
+> hash function is optimal, and instead default to one or another during
+boot
+> based on hardware we are booting on. If crc32c without hw acceleration is
+> no worse than jhash2, maybe we should simply switch to  crc32c?
+
+crc32c with no hw, are slower in compare to jhash2 on x86, so i think on
+other arches result will be same.
+
+> Thank you,
+> Pavel
+
+Thanks.
+
+--
+Have a nice day,
+Timofey.
