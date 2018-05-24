@@ -1,93 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6568E6B0007
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 12:40:16 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id u127-v6so1662997qka.9
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 09:40:16 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0092.outbound.protection.outlook.com. [104.47.1.92])
-        by mx.google.com with ESMTPS id f5-v6si5051763qtd.130.2018.05.24.09.40.14
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 43C9A6B0007
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 12:48:19 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id i2-v6so1036339wrm.5
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 09:48:19 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id u72-v6si1970386wmd.49.2018.05.24.09.48.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 24 May 2018 09:40:15 -0700 (PDT)
-Subject: Re: [PATCH] userfaultfd: prevent non-cooperative events vs
- mcopy_atomic races
-References: <1527061324-19949-1-git-send-email-rppt@linux.vnet.ibm.com>
- <0e1ce040-1beb-fd96-683c-1b18eb635fd6@virtuozzo.com>
- <20180524115613.GA16908@rapoport-lnx>
-From: Pavel Emelyanov <xemul@virtuozzo.com>
-Message-ID: <e42a383f-491a-b42a-347c-effe4b86b982@virtuozzo.com>
-Date: Thu, 24 May 2018 19:40:07 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 May 2018 09:48:17 -0700 (PDT)
+Date: Thu, 24 May 2018 18:53:50 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 22/34] xfs: make xfs_writepage_map extent map centric
+Message-ID: <20180524165350.GA22675@lst.de>
+References: <20180523144357.18985-1-hch@lst.de> <20180523144357.18985-23-hch@lst.de> <20180524145935.GA84959@bfoster.bfoster>
 MIME-Version: 1.0
-In-Reply-To: <20180524115613.GA16908@rapoport-lnx>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180524145935.GA84959@bfoster.bfoster>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Andrei Vagin <avagin@virtuozzo.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>
 
-On 05/24/2018 02:56 PM, Mike Rapoport wrote:
-> On Thu, May 24, 2018 at 02:24:37PM +0300, Pavel Emelyanov wrote:
->> On 05/23/2018 10:42 AM, Mike Rapoport wrote:
->>> If a process monitored with userfaultfd changes it's memory mappings or
->>> forks() at the same time as uffd monitor fills the process memory with
->>> UFFDIO_COPY, the actual creation of page table entries and copying of the
->>> data in mcopy_atomic may happen either before of after the memory mapping
->>> modifications and there is no way for the uffd monitor to maintain
->>> consistent view of the process memory layout.
->>>
->>> For instance, let's consider fork() running in parallel with
->>> userfaultfd_copy():
->>>
->>> process        		         |	uffd monitor
->>> ---------------------------------+------------------------------
->>> fork()        		         | userfaultfd_copy()
->>> ...        		         | ...
->>>     dup_mmap()        	         |     down_read(mmap_sem)
->>>     down_write(mmap_sem)         |     /* create PTEs, copy data */
->>>         dup_uffd()               |     up_read(mmap_sem)
->>>         copy_page_range()        |
->>>         up_write(mmap_sem)       |
->>>         dup_uffd_complete()      |
->>>             /* notify monitor */ |
->>>
->>> If the userfaultfd_copy() takes the mmap_sem first, the new page(s) will be
->>> present by the time copy_page_range() is called and they will appear in the
->>> child's memory mappings. However, if the fork() is the first to take the
->>> mmap_sem, the new pages won't be mapped in the child's address space.
->>
->> But in this case child should get an entry, that emits a message to uffd when step upon!
->> And uffd will just userfaultfd_copy() it again. No?
->  
-> There will be a message, indeed. But there is no way for monitor to tell
-> whether the pages it copied are present or not in the child.
-
-If there's a message, then they are not present, that's for sure :)
-
-> Since the monitor cannot assume that the process will access all its memory
-> it has to copy some pages "in the background". A simple monitor may look
-> like:
+> > +		if (!wpc->imap_valid || wpc->io_type == XFS_IO_HOLE) {
+> > +			/*
+> > +			 * set_page_dirty dirties all buffers in a page, independent
+> > +			 * of their state.  The dirty state however is entirely
+> > +			 * meaningless for holes (!mapped && uptodate), so check we did
+> > +			 * have a buffer covering a hole here and continue.
+> > +			 */
 > 
-> 	for (;;) {
-> 		wait_for_uffd_events(timeout);
-> 		handle_uffd_events();
-> 		uffd_copy(some not faulted pages);
-> 	}
+> The comment above doesn't make much sense given that we don't check for
+> anything here and just continue the loop.
+
+It gets removed in the last patch of the original series when we
+kill buffer heads.  But I can fold the removal into this patch as well.
+
+> That aside, the concern I had with this patch when it was last posted is
+> that it indirectly dropped the error/consistency check between page
+> state and extent state provided by the XFS_BMAPI_DELALLOC flag. What was
+> historically an accounting/reservation issue was turned into something
+> like this by XFS_BMAPI_DELALLOC:
 > 
-> Then, if the "background" uffd_copy() races with fork, the pages we've
-> copied may be already present in parent's mappings before the call to
-> copy_page_range() and may be not.
+> # xfs_io -c "pwrite 0 4k" -c fsync /mnt/file
+> wrote 4096/4096 bytes at offset 0
+> 4 KiB, 1 ops; 0.0041 sec (974.184 KiB/sec and 243.5460 ops/sec)
+> fsync: Input/output error
+
+What is that issue that gets you an I/O error on a 4k write?  That
+is what is missing in the above reproducer?
+
+> As of this patch, that same error condition now behaves something like
+> this:
 > 
-> If the pages were not present, uffd_copy'ing them again to the child's
-> memory would be ok.
+> [root@localhost ~]# xfs_io -c "pwrite 0 4k" -c fsync /mnt/file
+> wrote 4096/4096 bytes at offset 0
+> 4 KiB, 1 ops; 0.0029 sec (1.325 MiB/sec and 339.2130 ops/sec)
+> [root@localhost ~]# ls -al /mnt/file
+> -rw-r--r--. 1 root root 4096 May 24 08:27 /mnt/file
+> [root@localhost ~]# umount  /mnt ; mount /dev/test/scratch /mnt/
+> [root@localhost ~]# ls -al /mnt/file
+> -rw-r--r--. 1 root root 0 May 24 08:27 /mnt/file
+> 
+> So our behavior has changed from forced block allocation (violating
+> reservation) and writing the data, to instead return an error, and now
+> to silently skip the page.
 
-Yes.
+We should never, ever allocate space that we didn't have a delalloc
+reservation for in writepage/writepages.  But I agree that we should
+record and error.  I have to admit I'm lost on where we did record
+the error and why we don't do that now.  I'd be happy to fix it.
 
-> But if uffd_copy() was first to catch mmap_sem, and we would uffd_copy them
-> again, child process will get memory corruption.
+> I suppose there are situations (i.e., races
+> with truncate) where a hole is valid and the correct behavior is to skip
+> the page, and this is admittedly an error condition that "should never
+> happen," but can we at least add an assert somewhere in this series that
+> ensures if uptodate data maps over a hole that the associated block
+> offset is beyond EOF (or something of that nature)?
 
-You mean the background uffd_copy()? But doesn't it race even with regular PF handling,
-not only the fork? How do we handle this race?
-
--- Pavel
+We can have plenty of holes in dirty pages.  However we should never
+allocate blocks for them.  Fortunately we stop even looking at anything
+but the extent tree for block status by the end of this series for 4k
+file systems, and with the next series even for small block sizes, so
+that whole mismatch is a thing of the past now.
