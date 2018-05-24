@@ -1,175 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 570F86B026F
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 17:42:35 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id x8-v6so2289808uaj.2
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 14:42:35 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id w187-v6si7930823vkd.334.2018.05.24.14.42.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 14:42:33 -0700 (PDT)
-Subject: Re: [PATCH -V2 -mm 3/4] mm, hugetlbfs: Rename address to haddr in
- hugetlb_cow()
-References: <20180524005851.4079-1-ying.huang@intel.com>
- <20180524005851.4079-4-ying.huang@intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <4e569170-9f4e-eb12-d10d-fe9b7fcdfc9d@oracle.com>
-Date: Thu, 24 May 2018 14:42:13 -0700
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 44E0E6B0271
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 18:17:21 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id x21-v6so1668746pfn.23
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 15:17:21 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id f6-v6si17844454pgc.262.2018.05.24.15.17.17
+        for <linux-mm@kvack.org>;
+        Thu, 24 May 2018 15:17:19 -0700 (PDT)
+Date: Fri, 25 May 2018 08:17:15 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] doc: document scope NOFS, NOIO APIs
+Message-ID: <20180524221715.GY10363@dastard>
+References: <20180424183536.GF30619@thunk.org>
+ <20180524114341.1101-1-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20180524005851.4079-4-ying.huang@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180524114341.1101-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Punit Agrawal <punit.agrawal@arm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Jonathan Corbet <corbet@lwn.net>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, David Sterba <dsterba@suse.cz>
 
-On 05/23/2018 05:58 PM, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Thu, May 24, 2018 at 01:43:41PM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> To take better advantage of general huge page copying optimization,
-> the target subpage address will be passed to hugetlb_cow(), then
-> copy_user_huge_page().  So we will use both target subpage address and
-> huge page size aligned address in hugetlb_cow().  To distinguish
-> between them, "haddr" is used for huge page size aligned address to be
-> consistent with Transparent Huge Page naming convention.
+> Although the api is documented in the source code Ted has pointed out
+> that there is no mention in the core-api Documentation and there are
+> people looking there to find answers how to use a specific API.
 > 
-> Now, only huge page size aligned address is used in hugetlb_cow(), so
-> the "address" is renamed to "haddr" in hugetlb_cow() in this patch.
-> Next patch will use target subpage address in hugetlb_cow() too.
-> 
-> The patch is just code cleanup without any functionality changes.
-> 
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
-> Suggested-by: Michal Hocko <mhocko@suse.com>
+> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+> Cc: David Sterba <dsterba@suse.cz>
+> Requested-by: "Theodore Y. Ts'o" <tytso@mit.edu>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-I believe Kirill may have been the one who suggested using haddr to be
-consistent with usage in huge_memory.c.
+Yay, Documentation! :)
 
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Andi Kleen <andi.kleen@intel.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Shaohua Li <shli@fb.com>
-> Cc: Christopher Lameter <cl@linux.com>
-> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: Punit Agrawal <punit.agrawal@arm.com>
-> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 > ---
->  mm/hugetlb.c | 26 ++++++++++++--------------
->  1 file changed, 12 insertions(+), 14 deletions(-)
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 696befffe6f7..ad3bec2ed269 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -3500,7 +3500,7 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
->   * Keep the pte_same checks anyway to make transition from the mutex easier.
->   */
->  static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
-> -		       unsigned long address, pte_t *ptep,
-> +		       unsigned long haddr, pte_t *ptep,
->  		       struct page *pagecache_page, spinlock_t *ptl)
->  {
->  	pte_t pte;
-> @@ -3518,7 +3518,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * and just make the page writable */
->  	if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
->  		page_move_anon_rmap(old_page, vma);
-> -		set_huge_ptep_writable(vma, address, ptep);
-> +		set_huge_ptep_writable(vma, haddr, ptep);
->  		return 0;
->  	}
->  
-> @@ -3542,7 +3542,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * be acquired again before returning to the caller, as expected.
->  	 */
->  	spin_unlock(ptl);
-> -	new_page = alloc_huge_page(vma, address, outside_reserve);
-> +	new_page = alloc_huge_page(vma, haddr, outside_reserve);
->  
->  	if (IS_ERR(new_page)) {
->  		/*
-> @@ -3555,11 +3555,10 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  		if (outside_reserve) {
->  			put_page(old_page);
->  			BUG_ON(huge_pte_none(pte));
-> -			unmap_ref_private(mm, vma, old_page, address);
-> +			unmap_ref_private(mm, vma, old_page, haddr);
->  			BUG_ON(huge_pte_none(pte));
->  			spin_lock(ptl);
-> -			ptep = huge_pte_offset(mm, address & huge_page_mask(h),
-> -					       huge_page_size(h));
-> +			ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
+> Hi Johnatan,
+> Ted has proposed this at LSFMM and then we discussed that briefly on the
+> mailing list [1]. I received some useful feedback from Darrick and Dave
+> which has been (hopefully) integrated. Then the thing fall off my radar
+> rediscovering it now when doing some cleanup. Could you take the patch
+> please?
+> 
+> [1] http://lkml.kernel.org/r/20180424183536.GF30619@thunk.org
+>  .../core-api/gfp_mask-from-fs-io.rst          | 55 +++++++++++++++++++
+>  1 file changed, 55 insertions(+)
+>  create mode 100644 Documentation/core-api/gfp_mask-from-fs-io.rst
+> 
+> diff --git a/Documentation/core-api/gfp_mask-from-fs-io.rst b/Documentation/core-api/gfp_mask-from-fs-io.rst
+> new file mode 100644
+> index 000000000000..e8b2678e959b
+> --- /dev/null
+> +++ b/Documentation/core-api/gfp_mask-from-fs-io.rst
+> @@ -0,0 +1,55 @@
+> +=================================
+> +GFP masks used from FS/IO context
+> +=================================
+> +
+> +:Date: Mapy, 2018
+> +:Author: Michal Hocko <mhocko@kernel.org>
+> +
+> +Introduction
+> +============
+> +
+> +Code paths in the filesystem and IO stacks must be careful when
+> +allocating memory to prevent recursion deadlocks caused by direct
+> +memory reclaim calling back into the FS or IO paths and blocking on
+> +already held resources (e.g. locks - most commonly those used for the
+> +transaction context).
+> +
+> +The traditional way to avoid this deadlock problem is to clear __GFP_FS
+> +resp. __GFP_IO (note the later implies clearing the first as well) in
+> +the gfp mask when calling an allocator. GFP_NOFS resp. GFP_NOIO can be
+> +used as shortcut. It turned out though that above approach has led to
+> +abuses when the restricted gfp mask is used "just in case" without a
+> +deeper consideration which leads to problems because an excessive use
+> +of GFP_NOFS/GFP_NOIO can lead to memory over-reclaim or other memory
+> +reclaim issues.
+> +
+> +New API
+> +========
+> +
+> +Since 4.12 we do have a generic scope API for both NOFS and NOIO context
+> +``memalloc_nofs_save``, ``memalloc_nofs_restore`` resp. ``memalloc_noio_save``,
+> +``memalloc_noio_restore`` which allow to mark a scope to be a critical
+> +section from the memory reclaim recursion into FS/IO POV. Any allocation
+> +from that scope will inherently drop __GFP_FS resp. __GFP_IO from the given
+> +mask so no memory allocation can recurse back in the FS/IO.
+> +
+> +FS/IO code then simply calls the appropriate save function right at the
+> +layer where a lock taken from the reclaim context (e.g. shrinker) and
+> +the corresponding restore function when the lock is released. All that
+> +ideally along with an explanation what is the reclaim context for easier
+> +maintenance.
 
-Ha!  The name change points out an obviously unnecessary conversion in
-the existing code.  Yes, hugetlb_cow is always passed a hpage aligned
-address today.
+This paragraph doesn't make much sense to me. I think you're trying
+to say that we should call the appropriate save function "before
+locks are taken that a reclaim context (e.g a shrinker) might
+require access to."
 
->  			if (likely(ptep &&
->  				   pte_same(huge_ptep_get(ptep), pte)))
->  				goto retry_avoidcopy;
-> @@ -3584,12 +3583,12 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  		goto out_release_all;
->  	}
->  
-> -	copy_user_huge_page(new_page, old_page, address, vma,
-> +	copy_user_huge_page(new_page, old_page, haddr, vma,
->  			    pages_per_huge_page(h));
->  	__SetPageUptodate(new_page);
->  	set_page_huge_active(new_page);
->  
-> -	mmun_start = address & huge_page_mask(h);
-> +	mmun_start = haddr;
+I think it's also worth making a note about recursive/nested
+save/restore stacking, because it's not clear from this description
+that this is allowed and will work as long as inner save/restore
+calls are fully nested inside outer save/restore contexts.
 
-And another one.
+Cheers,
 
->  	mmun_end = mmun_start + huge_page_size(h);
->  	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
->  
-> @@ -3598,25 +3597,24 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * before the page tables are altered
->  	 */
->  	spin_lock(ptl);
-> -	ptep = huge_pte_offset(mm, address & huge_page_mask(h),
-> -			       huge_page_size(h));
-> +	ptep = huge_pte_offset(mm, haddr, huge_page_size(h));
-
-And yet another.
-
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+Dave.
 -- 
-Mike Kravetz
-
->  	if (likely(ptep && pte_same(huge_ptep_get(ptep), pte))) {
->  		ClearPagePrivate(new_page);
->  
->  		/* Break COW */
-> -		huge_ptep_clear_flush(vma, address, ptep);
-> +		huge_ptep_clear_flush(vma, haddr, ptep);
->  		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
-> -		set_huge_pte_at(mm, address, ptep,
-> +		set_huge_pte_at(mm, haddr, ptep,
->  				make_huge_pte(vma, new_page, 1));
->  		page_remove_rmap(old_page, true);
-> -		hugepage_add_new_anon_rmap(new_page, vma, address);
-> +		hugepage_add_new_anon_rmap(new_page, vma, haddr);
->  		/* Make the old page be freed below */
->  		new_page = old_page;
->  	}
->  	spin_unlock(ptl);
->  	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
->  out_release_all:
-> -	restore_reserve_on_error(h, vma, address, new_page);
-> +	restore_reserve_on_error(h, vma, haddr, new_page);
->  	put_page(new_page);
->  out_release_old:
->  	put_page(old_page);
-> 
+Dave Chinner
+david@fromorbit.com
