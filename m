@@ -1,43 +1,294 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CF3C16B026A
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 07:50:47 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id e1-v6so1006444wma.3
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 04:50:47 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d7-v6sor3200729wrq.34.2018.05.24.04.50.46
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 60D4D6B026C
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 07:56:28 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id i11-v6so1161576wre.16
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 04:56:28 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f14-v6si7160108edk.459.2018.05.24.04.56.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 24 May 2018 04:50:46 -0700 (PDT)
-Date: Thu, 24 May 2018 14:50:39 +0300
-From: Ilias Apalodimas <ilias.apalodimas@linaro.org>
-Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
-Message-ID: <20180524115039.GA10260@apalos>
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-4-jean-philippe.brucker@arm.com>
- <20180516163117.622693ea@jacob-builder>
- <de478769-9f7a-d40b-a55e-e2c63ad883e8@arm.com>
- <20180522094334.71f0e36b@jacob-builder>
- <f73b4a0e-669e-8483-88d7-1b2c8a2b9934@arm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 May 2018 04:56:26 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4OBsej6076908
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 07:56:24 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2j5sq2s0fq-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 07:56:24 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 24 May 2018 12:56:21 +0100
+Date: Thu, 24 May 2018 14:56:14 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH] userfaultfd: prevent non-cooperative events vs
+ mcopy_atomic races
+References: <1527061324-19949-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <0e1ce040-1beb-fd96-683c-1b18eb635fd6@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f73b4a0e-669e-8483-88d7-1b2c8a2b9934@arm.com>
+In-Reply-To: <0e1ce040-1beb-fd96-683c-1b18eb635fd6@virtuozzo.com>
+Message-Id: <20180524115613.GA16908@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Cc: Jacob Pan <jacob.jun.pan@linux.intel.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>
+To: Pavel Emelyanov <xemul@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Andrei Vagin <avagin@virtuozzo.com>
 
-> Interesting, I hadn't thought about this use-case before. At first I
-> thought you were talking about mdev devices assigned to VMs, but I think
-> you're referring to mdevs assigned to userspace drivers instead? Out of
-> curiosity, is it only theoretical or does someone actually need this?
+On Thu, May 24, 2018 at 02:24:37PM +0300, Pavel Emelyanov wrote:
+> On 05/23/2018 10:42 AM, Mike Rapoport wrote:
+> > If a process monitored with userfaultfd changes it's memory mappings or
+> > forks() at the same time as uffd monitor fills the process memory with
+> > UFFDIO_COPY, the actual creation of page table entries and copying of the
+> > data in mcopy_atomic may happen either before of after the memory mapping
+> > modifications and there is no way for the uffd monitor to maintain
+> > consistent view of the process memory layout.
+> > 
+> > For instance, let's consider fork() running in parallel with
+> > userfaultfd_copy():
+> > 
+> > process        		         |	uffd monitor
+> > ---------------------------------+------------------------------
+> > fork()        		         | userfaultfd_copy()
+> > ...        		         | ...
+> >     dup_mmap()        	         |     down_read(mmap_sem)
+> >     down_write(mmap_sem)         |     /* create PTEs, copy data */
+> >         dup_uffd()               |     up_read(mmap_sem)
+> >         copy_page_range()        |
+> >         up_write(mmap_sem)       |
+> >         dup_uffd_complete()      |
+> >             /* notify monitor */ |
+> > 
+> > If the userfaultfd_copy() takes the mmap_sem first, the new page(s) will be
+> > present by the time copy_page_range() is called and they will appear in the
+> > child's memory mappings. However, if the fork() is the first to take the
+> > mmap_sem, the new pages won't be mapped in the child's address space.
+> 
+> But in this case child should get an entry, that emits a message to uffd when step upon!
+> And uffd will just userfaultfd_copy() it again. No?
+ 
+There will be a message, indeed. But there is no way for monitor to tell
+whether the pages it copied are present or not in the child.
 
-There has been some non upstreamed efforts to have mdev and produce userspace
-drivers. Huawei is using it on what they call "wrapdrive" for crypto devices and
-we did a proof of concept for ethernet interfaces. At the time we choose not to
-involve the IOMMU for the reason you mentioned, but having it there would be
-good.
+Since the monitor cannot assume that the process will access all its memory
+it has to copy some pages "in the background". A simple monitor may look
+like:
 
-Thanks
-Ilias
+	for (;;) {
+		wait_for_uffd_events(timeout);
+		handle_uffd_events();
+		uffd_copy(some not faulted pages);
+	}
+
+Then, if the "background" uffd_copy() races with fork, the pages we've
+copied may be already present in parent's mappings before the call to
+copy_page_range() and may be not.
+
+If the pages were not present, uffd_copy'ing them again to the child's
+memory would be ok.
+
+But if uffd_copy() was first to catch mmap_sem, and we would uffd_copy them
+again, child process will get memory corruption.
+
+> -- Pavel
+> 
+> > Since userfaultfd monitor has no way to determine what was the order, let's
+> > disallow userfaultfd_copy in parallel with the non-cooperative events. In
+> > such case we return -EAGAIN and the uffd monitor can understand that
+> > userfaultfd_copy() clashed with a non-cooperative event and take an
+> > appropriate action.
+> > 
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> > Cc: Pavel Emelyanov <xemul@virtuozzo.com>
+> > Cc: Andrei Vagin <avagin@virtuozzo.com>
+> > ---
+> >  fs/userfaultfd.c              | 22 ++++++++++++++++++++--
+> >  include/linux/userfaultfd_k.h |  6 ++++--
+> >  mm/userfaultfd.c              | 22 +++++++++++++++++-----
+> >  3 files changed, 41 insertions(+), 9 deletions(-)
+> > 
+> > diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> > index cec550c8468f..123bf7d516fc 100644
+> > --- a/fs/userfaultfd.c
+> > +++ b/fs/userfaultfd.c
+> > @@ -62,6 +62,8 @@ struct userfaultfd_ctx {
+> >  	enum userfaultfd_state state;
+> >  	/* released */
+> >  	bool released;
+> > +	/* memory mappings are changing because of non-cooperative event */
+> > +	bool mmap_changing;
+> >  	/* mm with one ore more vmas attached to this userfaultfd_ctx */
+> >  	struct mm_struct *mm;
+> >  };
+> > @@ -641,6 +643,7 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
+> >  	 * already released.
+> >  	 */
+> >  out:
+> > +	WRITE_ONCE(ctx->mmap_changing, false);
+> >  	userfaultfd_ctx_put(ctx);
+> >  }
+> >  
+> > @@ -686,10 +689,12 @@ int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)
+> >  		ctx->state = UFFD_STATE_RUNNING;
+> >  		ctx->features = octx->features;
+> >  		ctx->released = false;
+> > +		ctx->mmap_changing = false;
+> >  		ctx->mm = vma->vm_mm;
+> >  		mmgrab(ctx->mm);
+> >  
+> >  		userfaultfd_ctx_get(octx);
+> > +		WRITE_ONCE(octx->mmap_changing, true);
+> >  		fctx->orig = octx;
+> >  		fctx->new = ctx;
+> >  		list_add_tail(&fctx->list, fcs);
+> > @@ -732,6 +737,7 @@ void mremap_userfaultfd_prep(struct vm_area_struct *vma,
+> >  	if (ctx && (ctx->features & UFFD_FEATURE_EVENT_REMAP)) {
+> >  		vm_ctx->ctx = ctx;
+> >  		userfaultfd_ctx_get(ctx);
+> > +		WRITE_ONCE(ctx->mmap_changing, true);
+> >  	}
+> >  }
+> >  
+> > @@ -772,6 +778,7 @@ bool userfaultfd_remove(struct vm_area_struct *vma,
+> >  		return true;
+> >  
+> >  	userfaultfd_ctx_get(ctx);
+> > +	WRITE_ONCE(ctx->mmap_changing, true);
+> >  	up_read(&mm->mmap_sem);
+> >  
+> >  	msg_init(&ewq.msg);
+> > @@ -815,6 +822,7 @@ int userfaultfd_unmap_prep(struct vm_area_struct *vma,
+> >  			return -ENOMEM;
+> >  
+> >  		userfaultfd_ctx_get(ctx);
+> > +		WRITE_ONCE(ctx->mmap_changing, true);
+> >  		unmap_ctx->ctx = ctx;
+> >  		unmap_ctx->start = start;
+> >  		unmap_ctx->end = end;
+> > @@ -1653,6 +1661,10 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
+> >  
+> >  	user_uffdio_copy = (struct uffdio_copy __user *) arg;
+> >  
+> > +	ret = -EAGAIN;
+> > +	if (READ_ONCE(ctx->mmap_changing))
+> > +		goto out;
+> > +
+> >  	ret = -EFAULT;
+> >  	if (copy_from_user(&uffdio_copy, user_uffdio_copy,
+> >  			   /* don't copy "copy" last field */
+> > @@ -1674,7 +1686,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
+> >  		goto out;
+> >  	if (mmget_not_zero(ctx->mm)) {
+> >  		ret = mcopy_atomic(ctx->mm, uffdio_copy.dst, uffdio_copy.src,
+> > -				   uffdio_copy.len);
+> > +				   uffdio_copy.len, &ctx->mmap_changing);
+> >  		mmput(ctx->mm);
+> >  	} else {
+> >  		return -ESRCH;
+> > @@ -1705,6 +1717,10 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+> >  
+> >  	user_uffdio_zeropage = (struct uffdio_zeropage __user *) arg;
+> >  
+> > +	ret = -EAGAIN;
+> > +	if (READ_ONCE(ctx->mmap_changing))
+> > +		goto out;
+> > +
+> >  	ret = -EFAULT;
+> >  	if (copy_from_user(&uffdio_zeropage, user_uffdio_zeropage,
+> >  			   /* don't copy "zeropage" last field */
+> > @@ -1721,7 +1737,8 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+> >  
+> >  	if (mmget_not_zero(ctx->mm)) {
+> >  		ret = mfill_zeropage(ctx->mm, uffdio_zeropage.range.start,
+> > -				     uffdio_zeropage.range.len);
+> > +				     uffdio_zeropage.range.len,
+> > +				     &ctx->mmap_changing);
+> >  		mmput(ctx->mm);
+> >  	} else {
+> >  		return -ESRCH;
+> > @@ -1900,6 +1917,7 @@ SYSCALL_DEFINE1(userfaultfd, int, flags)
+> >  	ctx->features = 0;
+> >  	ctx->state = UFFD_STATE_WAIT_API;
+> >  	ctx->released = false;
+> > +	ctx->mmap_changing = false;
+> >  	ctx->mm = current->mm;
+> >  	/* prevent the mm struct to be freed */
+> >  	mmgrab(ctx->mm);
+> > diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+> > index f2f3b68ba910..e091f0a11b11 100644
+> > --- a/include/linux/userfaultfd_k.h
+> > +++ b/include/linux/userfaultfd_k.h
+> > @@ -31,10 +31,12 @@
+> >  extern int handle_userfault(struct vm_fault *vmf, unsigned long reason);
+> >  
+> >  extern ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
+> > -			    unsigned long src_start, unsigned long len);
+> > +			    unsigned long src_start, unsigned long len,
+> > +			    bool *mmap_changing);
+> >  extern ssize_t mfill_zeropage(struct mm_struct *dst_mm,
+> >  			      unsigned long dst_start,
+> > -			      unsigned long len);
+> > +			      unsigned long len,
+> > +			      bool *mmap_changing);
+> >  
+> >  /* mm helpers */
+> >  static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
+> > diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> > index 39791b81ede7..5029f241908f 100644
+> > --- a/mm/userfaultfd.c
+> > +++ b/mm/userfaultfd.c
+> > @@ -404,7 +404,8 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+> >  					      unsigned long dst_start,
+> >  					      unsigned long src_start,
+> >  					      unsigned long len,
+> > -					      bool zeropage)
+> > +					      bool zeropage,
+> > +					      bool *mmap_changing)
+> >  {
+> >  	struct vm_area_struct *dst_vma;
+> >  	ssize_t err;
+> > @@ -431,6 +432,15 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+> >  	down_read(&dst_mm->mmap_sem);
+> >  
+> >  	/*
+> > +	 * If memory mappings are changing because of non-cooperative
+> > +	 * operation (e.g. mremap) running in parallel, bail out and
+> > +	 * request the user to retry later
+> > +	 */
+> > +	err = -EAGAIN;
+> > +	if (mmap_changing && READ_ONCE(*mmap_changing))
+> > +		goto out_unlock;
+> > +
+> > +	/*
+> >  	 * Make sure the vma is not shared, that the dst range is
+> >  	 * both valid and fully within a single existing vma.
+> >  	 */
+> > @@ -563,13 +573,15 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+> >  }
+> >  
+> >  ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
+> > -		     unsigned long src_start, unsigned long len)
+> > +		     unsigned long src_start, unsigned long len,
+> > +		     bool *mmap_changing)
+> >  {
+> > -	return __mcopy_atomic(dst_mm, dst_start, src_start, len, false);
+> > +	return __mcopy_atomic(dst_mm, dst_start, src_start, len, false,
+> > +			      mmap_changing);
+> >  }
+> >  
+> >  ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
+> > -		       unsigned long len)
+> > +		       unsigned long len, bool *mmap_changing)
+> >  {
+> > -	return __mcopy_atomic(dst_mm, start, 0, len, true);
+> > +	return __mcopy_atomic(dst_mm, start, 0, len, true, mmap_changing);
+> >  }
+> > 
+> 
+
+-- 
+Sincerely yours,
+Mike.
