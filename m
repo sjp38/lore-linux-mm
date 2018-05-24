@@ -1,142 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 087006B000A
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 16:52:42 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id e1-v6so1627593pld.23
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 13:52:41 -0700 (PDT)
-Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
-        by mx.google.com with ESMTPS id t4-v6si22000620plb.313.2018.05.24.13.52.40
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C751C6B000D
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 16:55:10 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id q4-v6so1664955ote.6
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 13:55:10 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b48-v6sor10630005otj.310.2018.05.24.13.55.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 13:52:40 -0700 (PDT)
-Date: Thu, 24 May 2018 14:52:02 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH] doc: document scope NOFS, NOIO APIs
-Message-ID: <20180524145202.7d5a55c3@lwn.net>
-In-Reply-To: <20180524114341.1101-1-mhocko@kernel.org>
-References: <20180424183536.GF30619@thunk.org>
-	<20180524114341.1101-1-mhocko@kernel.org>
+        (Google Transport Security);
+        Thu, 24 May 2018 13:55:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180523041954.GA16285@hori1.linux.bs1.fc.nec.co.jp>
+References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152700000922.24093.14813242965473482705.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180523041954.GA16285@hori1.linux.bs1.fc.nec.co.jp>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 24 May 2018 13:55:04 -0700
+Message-ID: <CAPcyv4hL5+ZfHjnYYtoioB5AK5Ukpg99d6eYWTKSeJc6uHxkyg@mail.gmail.com>
+Subject: Re: [PATCH 07/11] mm, madvise_inject_error: fix page count leak
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, David Sterba <dsterba@suse.cz>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Andi Kleen <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, "hch@lst.de" <hch@lst.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "tony.luck@intel.com" <tony.luck@intel.com>
 
-On Thu, 24 May 2018 13:43:41 +0200
-Michal Hocko <mhocko@kernel.org> wrote:
+On Tue, May 22, 2018 at 9:19 PM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> On Tue, May 22, 2018 at 07:40:09AM -0700, Dan Williams wrote:
+>> The madvise_inject_error() routine uses get_user_pages() to lookup the
+>> pfn and other information for injected error, but it fails to release
+>> that pin.
+>>
+>> The dax-dma-vs-truncate warning catches this failure with the following
+>> signature:
+>>
+>>  Injecting memory failure for pfn 0x208900 at process virtual address 0x7f3908d00000
+>>  Memory failure: 0x208900: reserved kernel page still referenced by 1 users
+>>  Memory failure: 0x208900: recovery action for reserved kernel page: Failed
+>>  WARNING: CPU: 37 PID: 9566 at fs/dax.c:348 dax_disassociate_entry+0x4e/0x90
+>>  CPU: 37 PID: 9566 Comm: umount Tainted: G        W  OE     4.17.0-rc6+ #1900
+>>  [..]
+>>  RIP: 0010:dax_disassociate_entry+0x4e/0x90
+>>  RSP: 0018:ffffc9000a9b3b30 EFLAGS: 00010002
+>>  RAX: ffffea0008224000 RBX: 0000000000208a00 RCX: 0000000000208900
+>>  RDX: 0000000000000001 RSI: ffff8804058c6160 RDI: 0000000000000008
+>>  RBP: 000000000822000a R08: 0000000000000002 R09: 0000000000208800
+>>  R10: 0000000000000000 R11: 0000000000208801 R12: ffff8804058c6168
+>>  R13: 0000000000000000 R14: 0000000000000002 R15: 0000000000000001
+>>  FS:  00007f4548027fc0(0000) GS:ffff880431d40000(0000) knlGS:0000000000000000
+>>  CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>  CR2: 000056316d5f8988 CR3: 00000004298cc000 CR4: 00000000000406e0
+>>  Call Trace:
+>>   __dax_invalidate_mapping_entry+0xab/0xe0
+>>   dax_delete_mapping_entry+0xf/0x20
+>>   truncate_exceptional_pvec_entries.part.14+0x1d4/0x210
+>>   truncate_inode_pages_range+0x291/0x920
+>>   ? kmem_cache_free+0x1f8/0x300
+>>   ? lock_acquire+0x9f/0x200
+>>   ? truncate_inode_pages_final+0x31/0x50
+>>   ext4_evict_inode+0x69/0x740
+>>
+>> Cc: <stable@vger.kernel.org>
+>> Fixes: bd1ce5f91f54 ("HWPOISON: avoid grabbing the page count...")
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: Andi Kleen <ak@linux.intel.com>
+>> Cc: Wu Fengguang <fengguang.wu@intel.com>
+>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>> ---
+>>  mm/madvise.c |   11 ++++++++---
+>>  1 file changed, 8 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/mm/madvise.c b/mm/madvise.c
+>> index 4d3c922ea1a1..246fa4d4eee2 100644
+>> --- a/mm/madvise.c
+>> +++ b/mm/madvise.c
+>> @@ -631,11 +631,13 @@ static int madvise_inject_error(int behavior,
+>>
+>>
+>>       for (; start < end; start += PAGE_SIZE << order) {
+>> +             unsigned long pfn;
+>>               int ret;
+>>
+>>               ret = get_user_pages_fast(start, 1, 0, &page);
+>>               if (ret != 1)
+>>                       return ret;
+>> +             pfn = page_to_pfn(page);
+>>
+>>               /*
+>>                * When soft offlining hugepages, after migrating the page
+>> @@ -651,17 +653,20 @@ static int madvise_inject_error(int behavior,
+>>
+>>               if (behavior == MADV_SOFT_OFFLINE) {
+>>                       pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
+>> -                                             page_to_pfn(page), start);
+>> +                                     pfn, start);
+>>
+>>                       ret = soft_offline_page(page, MF_COUNT_INCREASED);
+>> +                     put_page(page);
+>>                       if (ret)
+>>                               return ret;
+>>                       continue;
+>>               }
+>> +             put_page(page);
+>
+> We keep the page count pinned after the isolation of the error page
+> in order to make sure that the error page is disabled and never reused.
+> This seems not explicit enough, so some comment should be helpful.
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Although the api is documented in the source code Ted has pointed out
-> that there is no mention in the core-api Documentation and there are
-> people looking there to find answers how to use a specific API.
-> 
-> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
-> Cc: David Sterba <dsterba@suse.cz>
-> Requested-by: "Theodore Y. Ts'o" <tytso@mit.edu>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> 
-> Hi Johnatan,
-> Ted has proposed this at LSFMM and then we discussed that briefly on the
-> mailing list [1]. I received some useful feedback from Darrick and Dave
-> which has been (hopefully) integrated. Then the thing fall off my radar
-> rediscovering it now when doing some cleanup. Could you take the patch
-> please?
-> 
-> [1] http://lkml.kernel.org/r/20180424183536.GF30619@thunk.org
->  .../core-api/gfp_mask-from-fs-io.rst          | 55 +++++++++++++++++++
->  1 file changed, 55 insertions(+)
->  create mode 100644 Documentation/core-api/gfp_mask-from-fs-io.rst
+As far as I can see this extra reference count to keep the page from
+being should be taken internal to memory_failure(), not assumed from
+the inject error path. I might be overlooking something, but I do not
+see who is responsible for taking this extra reference in the case
+where memory_failure() is called by the machine check code rather than
+madvise_inject_error()?
 
-So you create the rst file, but don't add it in index.rst; that means it
-won't be a part of the docs build and Sphinx will complain.
+>
+> BTW, looking at the kernel message like "Memory failure: 0x208900:
+> reserved kernel page still referenced by 1 users", memory_failure()
+> considers dav_pagemap pages as "reserved kernel pages" (MF_MSG_KERNEL).
+> If memory error handler recovers a dav_pagemap page in its special way,
+> we can define a new action_page_types entry like MF_MSG_DAX.
+> Reporting like "Memory failure: 0xXXXXX: recovery action for dax page:
+> Failed" might be helpful for end user's perspective.
 
-> diff --git a/Documentation/core-api/gfp_mask-from-fs-io.rst b/Documentation/core-api/gfp_mask-from-fs-io.rst
-> new file mode 100644
-> index 000000000000..e8b2678e959b
-> --- /dev/null
-> +++ b/Documentation/core-api/gfp_mask-from-fs-io.rst
-> @@ -0,0 +1,55 @@
-> +=================================
-> +GFP masks used from FS/IO context
-> +=================================
-> +
-> +:Date: Mapy, 2018
-
-Ah...the wonderful month of Mapy....:)
-
-> +:Author: Michal Hocko <mhocko@kernel.org>
-> +
-> +Introduction
-> +============
-> +
-> +Code paths in the filesystem and IO stacks must be careful when
-> +allocating memory to prevent recursion deadlocks caused by direct
-> +memory reclaim calling back into the FS or IO paths and blocking on
-> +already held resources (e.g. locks - most commonly those used for the
-> +transaction context).
-> +
-> +The traditional way to avoid this deadlock problem is to clear __GFP_FS
-> +resp. __GFP_IO (note the later implies clearing the first as well) in
-
-"resp." is indeed a bit terse.  Even spelled out as "respectively", though,
-I'm not sure what the word is intended to mean here.  Did you mean "or"?
-
-> +the gfp mask when calling an allocator. GFP_NOFS resp. GFP_NOIO can be
-
-Here too.
-
-> +used as shortcut. It turned out though that above approach has led to
-> +abuses when the restricted gfp mask is used "just in case" without a
-> +deeper consideration which leads to problems because an excessive use
-> +of GFP_NOFS/GFP_NOIO can lead to memory over-reclaim or other memory
-> +reclaim issues.
-> +
-> +New API
-> +========
-> +
-> +Since 4.12 we do have a generic scope API for both NOFS and NOIO context
-> +``memalloc_nofs_save``, ``memalloc_nofs_restore`` resp. ``memalloc_noio_save``,
-> +``memalloc_noio_restore`` which allow to mark a scope to be a critical
-> +section from the memory reclaim recursion into FS/IO POV. Any allocation
-
-"from a filesystem or I/O point of view" ?
-
-> +from that scope will inherently drop __GFP_FS resp. __GFP_IO from the given
-> +mask so no memory allocation can recurse back in the FS/IO.
-
-Wouldn't it be nice if those functions had kerneldoc comments that could be
-pulled in here! :)
-
-> +FS/IO code then simply calls the appropriate save function right at the
-> +layer where a lock taken from the reclaim context (e.g. shrinker) and
-
-where a lock *is* taken ?
-
-> +the corresponding restore function when the lock is released. All that
-> +ideally along with an explanation what is the reclaim context for easier
-> +maintenance.
-> +
-> +What about __vmalloc(GFP_NOFS)
-> +==============================
-> +
-> +vmalloc doesn't support GFP_NOFS semantic because there are hardcoded
-> +GFP_KERNEL allocations deep inside the allocator which are quite non-trivial
-> +to fix up. That means that calling ``vmalloc`` with GFP_NOFS/GFP_NOIO is
-> +almost always a bug. The good news is that the NOFS/NOIO semantic can be
-> +achieved by the scope api.
-
-Agree with others on "API"
-
-> +In the ideal world, upper layers should already mark dangerous contexts
-> +and so no special care is required and vmalloc should be called without
-> +any problems. Sometimes if the context is not really clear or there are
-> +layering violations then the recommended way around that is to wrap ``vmalloc``
-> +by the scope API with a comment explaining the problem.
-
-Thanks,
-
-jon
+Sounds good, I'll take a look at this.
