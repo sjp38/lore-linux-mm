@@ -1,67 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 540FC6B0007
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 20:10:36 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id e8-v6so23640135qtj.0
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 17:10:36 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q11-v6si841531qtq.38.2018.05.23.17.10.34
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8686F6B000A
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 21:00:29 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e7-v6so13903705pfi.8
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 18:00:29 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id 203-v6si19885295pfz.160.2018.05.23.18.00.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 17:10:34 -0700 (PDT)
-Date: Wed, 23 May 2018 20:10:27 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 0/5] mm: rework hmm to use devm_memremap_pages
-Message-ID: <20180524001026.GA3527@redhat.com>
-References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Wed, 23 May 2018 18:00:28 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -V2 -mm 0/4] mm, huge page: Copy target sub-page last when copy huge page
+Date: Thu, 24 May 2018 08:58:47 +0800
+Message-Id: <20180524005851.4079-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, stable@vger.kernel.org, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, Christopher Lameter <cl@linux.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Mon, May 21, 2018 at 03:35:14PM -0700, Dan Williams wrote:
-> Hi Andrew, please consider this series for 4.18.
-> 
-> For maintainability, as ZONE_DEVICE continues to attract new users,
-> it is useful to keep all users consolidated on devm_memremap_pages() as
-> the interface for create "device pages".
-> 
-> The devm_memremap_pages() implementation was recently reworked to make
-> it more generic for arbitrary users, like the proposed peer-to-peer
-> PCI-E enabling. HMM pre-dated this rework and opted to duplicate
-> devm_memremap_pages() as hmm_devmem_pages_create().
-> 
-> Rework HMM to be a consumer of devm_memremap_pages() directly and fix up
-> the licensing on the exports given the deep dependencies on the mm.
+From: Huang Ying <ying.huang@intel.com>
 
-I am on PTO right now so i won't be able to quickly review it all
-but forcing GPL export is problematic for me now. I rather have
-device driver using "sane" common helpers than creating their own
-crazy thing.
+Huge page helps to reduce TLB miss rate, but it has higher cache
+footprint, sometimes this may cause some issue.  For example, when
+copying huge page on x86_64 platform, the cache footprint is 4M.  But
+on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
+LLC (last level cache).  That is, in average, there are 2.5M LLC for
+each core and 1.25M LLC for each thread.
 
-Back in couple weeks i will review this some more.
+If the cache contention is heavy when copying the huge page, and we
+copy the huge page from the begin to the end, it is possible that the
+begin of huge page is evicted from the cache after we finishing
+copying the end of the huge page.  And it is possible for the
+application to access the begin of the huge page after copying the
+huge page.
 
-> 
-> Patches based on v4.17-rc6 where there are no upstream consumers of the
-> HMM functionality.
-> 
-> ---
-> 
-> Dan Williams (5):
->       mm, devm_memremap_pages: mark devm_memremap_pages() EXPORT_SYMBOL_GPL
->       mm, devm_memremap_pages: handle errors allocating final devres action
->       mm, hmm: use devm semantics for hmm_devmem_{add,remove}
->       mm, hmm: replace hmm_devmem_pages_create() with devm_memremap_pages()
->       mm, hmm: mark hmm_devmem_{add,add_resource} EXPORT_SYMBOL_GPL
-> 
-> 
->  Documentation/vm/hmm.txt |    1 
->  include/linux/hmm.h      |    4 -
->  include/linux/memremap.h |    1 
->  kernel/memremap.c        |   39 +++++-
->  mm/hmm.c                 |  297 +++++++---------------------------------------
->  5 files changed, 77 insertions(+), 265 deletions(-)
+In commit c79b57e462b5d ("mm: hugetlb: clear target sub-page last when
+clearing huge page"), to keep the cache lines of the target subpage
+hot, the order to clear the subpages in the huge page in
+clear_huge_page() is changed to clearing the subpage which is furthest
+from the target subpage firstly, and the target subpage last.  The
+similar order changing helps huge page copying too.  That is
+implemented in this patchset.
+
+The patchset is a generic optimization which should benefit quite some
+workloads, not for a specific use case.  To demonstrate the
+performance benefit of the patchset, we have tested it with
+vm-scalability run on transparent huge page.
+
+With this patchset, the throughput increases ~16.6% in vm-scalability
+anon-cow-seq test case with 36 processes on a 2 socket Xeon E5 v3 2699
+system (36 cores, 72 threads).  The test case set
+/sys/kernel/mm/transparent_hugepage/enabled to be always, mmap() a big
+anonymous memory area and populate it, then forked 36 child processes,
+each writes to the anonymous memory area from the begin to the end, so
+cause copy on write.  For each child process, other child processes
+could be seen as other workloads which generate heavy cache pressure.
+At the same time, the IPC (instruction per cycle) increased from 0.63
+to 0.78, and the time spent in user space is reduced ~7.2%.
+
+Changelog:
+
+V2:
+
+- As suggested by Mike Kravetz, put subpage order algorithm into a
+  separate patch to avoid code duplication and reduce maintenance
+  overhead.
+
+- Add hugetlbfs support
+
+Best Regards,
+Huang, Ying
