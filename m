@@ -1,70 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EADAB6B0006
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 05:04:46 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id b62-v6so682499qkj.6
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 02:04:46 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BE666B000A
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 05:14:44 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id n33-v6so651918qte.23
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 02:14:44 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id c24-v6si9735616qtg.360.2018.05.24.02.04.45
+        by mx.google.com with ESMTPS id l28-v6si7819063qta.188.2018.05.24.02.14.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 02:04:45 -0700 (PDT)
-Subject: Re: [PATCH RFCv2 1/4] ACPI: NUMA: export pxm_to_node
-References: <20180523182404.11433-1-david@redhat.com>
- <20180523182404.11433-2-david@redhat.com>
- <CAJZ5v0jar8TqC5MGRPcAVZfM3LmmoSV3fT3Sgok=r6D9cDG0+w@mail.gmail.com>
- <5342a59c-4ca1-2cf5-a1d4-07a6d6f03587@redhat.com>
- <CAJZ5v0grgYRi24oyFP0xcjip5Z5apLE5ozn8znahdtkqKvD_MA@mail.gmail.com>
- <9cf4c5f3-f1ee-67c2-967e-07aa568685c4@redhat.com>
- <CAJZ5v0ionYbXse8++6c80FXajVKYLSYD7hC5RntygKJ9+PQpYg@mail.gmail.com>
+        Thu, 24 May 2018 02:14:43 -0700 (PDT)
+Subject: Re: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by
+ device driver
+References: <20180523151151.6730-1-david@redhat.com>
+ <20180524075327.GU20441@dhcp22.suse.cz>
+ <14d79dad-ad47-f090-2ec0-c5daf87ac529@redhat.com>
+ <20180524085610.GA5467@dhcp-128-65.nay.redhat.com>
 From: David Hildenbrand <david@redhat.com>
-Message-ID: <173eaf59-0f48-c1d0-2317-840dcb932ba7@redhat.com>
-Date: Thu, 24 May 2018 11:04:43 +0200
+Message-ID: <e70de03e-6965-749a-6c3c-ecf6dcb60c71@redhat.com>
+Date: Thu, 24 May 2018 11:14:33 +0200
 MIME-Version: 1.0
-In-Reply-To: <CAJZ5v0ionYbXse8++6c80FXajVKYLSYD7hC5RntygKJ9+PQpYg@mail.gmail.com>
+In-Reply-To: <20180524085610.GA5467@dhcp-128-65.nay.redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>
+To: Dave Young <dyoung@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
 
-On 24.05.2018 11:01, Rafael J. Wysocki wrote:
-> On Thu, May 24, 2018 at 10:54 AM, David Hildenbrand <david@redhat.com> wrote:
->> On 24.05.2018 10:47, Rafael J. Wysocki wrote:
->>> On Thu, May 24, 2018 at 10:33 AM, David Hildenbrand <david@redhat.com> wrote:
->>>> On 24.05.2018 10:12, Rafael J. Wysocki wrote:
->>>>> On Wed, May 23, 2018 at 8:24 PM, David Hildenbrand <david@redhat.com> wrote:
->>>>>> Will be needed by paravirtualized memory devices.
->>>>>
->>>>> That's a little information.
->>>>>
->>>>> It would be good to see the entire series at least.
->>>>
->>>> It's part of this series (guess you only received the cover letter and
->>>> this patch). Here a link to the patch using it:
->>>>
->>>> https://lkml.org/lkml/2018/5/23/803
+On 24.05.2018 10:56, Dave Young wrote:
+> Hi,
+> 
+> [snip]
 >>>
->>> OK, thanks!
+>>>> For kdump and onlining/offlining code, we
+>>>> have to mark pages as offline before a new segment is visible to the system
+>>>> (e.g. as these pages might not be backed by real memory in the hypervisor).
 >>>
->>> It looks like you have a reason to use it in there, but please note
->>> that CONFIG_ACPI_NUMA depends on CONFIG_NUMA, so you don't need to use
->>> the latter directly in the #ifdef.  Also wouldn't IS_ENABLED() work
->>> there?
+>>> Please expand on the kdump part. That is really confusing because
+>>> hotplug should simply not depend on kdump at all. Moreover why don't you
+>>> simply mark those pages reserved and pull them out from the page
+>>> allocator?
 >>
->> Thanks for the tip on CONFIG_ACPI_NUMA. Wouldn't IS_ENABLED() require to
->> have a dummy implementation of pxm_to_node() in case drivers/acpi/numa.c
->> is not compiled?
+>> 1. "hotplug should simply not depend on kdump at all"
+>>
+>> In theory yes. In the current state we already have to trigger kdump to
+>> reload whenever we add/remove a memory block.
+>>
+>>
+>> 2. kdump part
+>>
+>> Whenever we offline a page and tell the hypervisor about it ("unplug"),
+>> we should not assume that we can read that page again. Now, if dumping
+>> tools assume they can read all memory that is offline, we are in trouble.
+>>
+>> It is the same thing as we already have with Pg_hwpoison. Just a
+>> different meaning - "don't touch this page, it is offline" compared to
+>> "don't touch this page, hw is broken".
 > 
-> Yes, it would.
+> Does that means in case an offline no kdump reload as mentioned in 1)?
 > 
-> But since you want export it, you can very well add one, can't you?
-> I'd even say that it would be prudent to do so.
+> If we have the offline event and reload kdump, I assume the memory state
+> is refreshed so kdump will not read the memory offlined, am I missing
+> something?
+
+If a whole section is offline: yes. (ACPI hotplug)
+
+If pages are online but broken ("logically offline" - hwpoison): no
+
+If single pages are logically offline: no. (Balloon inflation - let's
+call it unplug as that's what some people refer to)
+
+If only subsections (4MB chunks) are offline: no.
+
+Exporting memory ranges in a smaller granularity to kdump than section
+size would a) be heavily complicated b) introduce a lot of overhead for
+this tracking data c) make us retrigger kdump way too often.
+
+So simply marking pages offline in the struct pages and telling kdump
+about it is the straight forward thing to do. And it is fairly easy to
+add and implement as we have the exact same thing in place for hwpoison.
+
+> 
+>>
+>> Balloon drivers solve this problem by always allowing to read unplugged
+>> memory. In virtio-mem, this cannot and should even not be guaranteed.
+>>
+> 
+> Hmm, that sounds a bug..
+
+I can give you a simple example why reading such unplugged (or balloon
+inflated) memory is problematic: Huge page backed guests.
+
+There is no zero page for huge pages. So if we allow the guest to read
+that memory any time, we cannot guarantee that we actually consume less
+memory in the hypervisor. This is absolutely to be avoided.
+
+Existing balloon drivers don't support huge page backed guests. (well
+you can inflate, but the hypervisor cannot madvise() 4k on a huge page,
+resulting in no action being performed). This scenario is to be
+supported with virtio-mem.
+
+
+So yes, this is actually a bug in e.g. virtio-balloon implementations:
+
+With "VIRTIO_BALLOON_F_MUST_TELL_HOST" we have to tell the hypervisor
+before we access a page again. kdump cannot do this and does not care,
+so this page is silently accessed and dumped. One of the main problems
+why extending virtio-balloon hypervisor implementations to support
+host-enforced R/W protection is impossible.
+
+> 
+>> And what we have to do to make this work is actually pretty simple: Just
+>> like Pg_hwpoison, track per page if it is online and provide this
+>> information to kdump.
+>>
+>>
+> 
+> Thanks
+> Dave
 > 
 
-Sure, can do that :)
 
 -- 
 
