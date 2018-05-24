@@ -1,95 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 474906B000D
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 11:04:35 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id k13-v6so996180oiw.3
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 08:04:35 -0700 (PDT)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DF156B0266
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 11:04:53 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id c6-v6so1093757otk.9
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 08:04:53 -0700 (PDT)
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h18-v6si7490795otj.19.2018.05.24.08.04.33
+        by mx.google.com with ESMTP id y32-v6si7149187ota.409.2018.05.24.08.04.51
         for <linux-mm@kvack.org>;
-        Thu, 24 May 2018 08:04:33 -0700 (PDT)
-Subject: Re: [PATCH v2 13/40] vfio: Add support for Shared Virtual Addressing
+        Thu, 24 May 2018 08:04:52 -0700 (PDT)
+Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
 References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-14-jean-philippe.brucker@arm.com>
- <5B0536A3.1000304@huawei.com> <cd13f60d-b282-3804-4ca7-2d34476c597f@arm.com>
- <5B06B17C.1090809@huawei.com>
+ <20180511190641.23008-4-jean-philippe.brucker@arm.com>
+ <20180516163117.622693ea@jacob-builder>
+ <de478769-9f7a-d40b-a55e-e2c63ad883e8@arm.com>
+ <20180522094334.71f0e36b@jacob-builder>
+ <f73b4a0e-669e-8483-88d7-1b2c8a2b9934@arm.com>
+ <20180524115039.GA10260@apalos>
 From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Message-ID: <205c1729-8026-3efe-c363-d37d7150d622@arm.com>
-Date: Thu, 24 May 2018 16:04:23 +0100
+Message-ID: <19e82a74-429a-3f86-119e-32b12082d0ff@arm.com>
+Date: Thu, 24 May 2018 16:04:39 +0100
 MIME-Version: 1.0
-In-Reply-To: <5B06B17C.1090809@huawei.com>
+In-Reply-To: <20180524115039.GA10260@apalos>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xu Zaibo <xuzaibo@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "liguozhu@hisilicon.com" <liguozhu@hisilicon.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "rfranz@cavium.com" <rfranz@cavium.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "christian.koenig@amd.com" <christian.koenig@amd.com>
+To: Ilias Apalodimas <ilias.apalodimas@linaro.org>
+Cc: "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "tn@semihalf.com" <tn@semihalf.com>, "joro@8bytes.org" <joro@8bytes.org>, "robdclark@gmail.com" <robdclark@gmail.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "rfranz@cavium.com" <rfranz@cavium.com>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "kevin.tian@intel.com" <kevin.tian@intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "liubo95@huawei.com" <liubo95@huawei.com>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, Robin Murphy <Robin.Murphy@arm.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>
 
-On 24/05/18 13:35, Xu Zaibo wrote:
->> Right, sva_init() must be called once for any device that intends to use
->> bind(). For the second process though, group->sva_enabled will be true
->> so we won't call sva_init() again, only bind().
+On 24/05/18 12:50, Ilias Apalodimas wrote:
+>> Interesting, I hadn't thought about this use-case before. At first I
+>> thought you were talking about mdev devices assigned to VMs, but I think
+>> you're referring to mdevs assigned to userspace drivers instead? Out of
+>> curiosity, is it only theoretical or does someone actually need this?
 > 
-> Well, while I create mediated devices based on one parent device to support multiple
-> processes(a new process will create a new 'vfio_group' for the corresponding mediated device,
-> and 'sva_enabled' cannot work any more), in fact, *sva_init and *sva_shutdown are basically
-> working on parent device, so, as a result, I just only need sva initiation and shutdown on the
-> parent device only once. So I change the two as following:
-> 
-> @@ -551,8 +565,18 @@ int iommu_sva_device_init(struct device *dev, unsigned long features,
->       if (features & ~IOMMU_SVA_FEAT_IOPF)
->          return -EINVAL;
-> 
-> +    /* If already exists, do nothing  */
-> +    mutex_lock(&dev->iommu_param->lock);
-> +    if (dev->iommu_param->sva_param) {
-> +        mutex_unlock(&dev->iommu_param->lock);
-> +        return 0;
-> +    }
-> +    mutex_unlock(&dev->iommu_param->lock);
-> 
->      if (features & IOMMU_SVA_FEAT_IOPF) {
->          ret = iommu_register_device_fault_handler(dev, iommu_queue_iopf,
-> 
-> 
-> @@ -621,6 +646,14 @@ int iommu_sva_device_shutdown(struct device *dev)
->      if (!domain)
->          return -ENODEV;
-> 
-> +    /* If any other process is working on the device, shut down does nothing. */
-> +    mutex_lock(&dev->iommu_param->lock);
-> +    if (!list_empty(&dev->iommu_param->sva_param->mm_list)) {
-> +        mutex_unlock(&dev->iommu_param->lock);
-> +        return 0;
-> +    }
-> +    mutex_unlock(&dev->iommu_param->lock);
+> There has been some non upstreamed efforts to have mdev and produce userspace
+> drivers. Huawei is using it on what they call "wrapdrive" for crypto devices and
+> we did a proof of concept for ethernet interfaces. At the time we choose not to
+> involve the IOMMU for the reason you mentioned, but having it there would be
+> good.
 
-I don't think iommu-sva.c is the best place for this, it's probably
-better to implement an intermediate layer (the mediating driver), that
-calls iommu_sva_device_init() and iommu_sva_device_shutdown() once. Then
-vfio-pci would still call these functions itself, but for mdev the
-mediating driver keeps a refcount of groups, and calls device_shutdown()
-only when freeing the last mdev.
-
-A device driver (non mdev in this example) expects to be able to free
-all its resources after sva_device_shutdown() returns. Imagine the
-mm_list isn't empty (mm_exit() is running late), and instead of waiting
-in unbind_dev_all() below, we return 0 immediately. Then the calling
-driver frees its resources, and the mm_exit callback along with private
-data passed to bind() disappear. If a mm_exit() is still running in
-parallel, then it will try to access freed data and corrupt memory. So
-in this function if mm_list isn't empty, the only thing we can do is wait.
+I'm guessing there were good reasons to do it that way but I wonder, is
+it not simpler to just have the kernel driver create a /dev/foo, with a
+standard ioctl/mmap/poll interface? Here VFIO adds a layer of
+indirection, and since the mediating driver has to implement these
+operations already, what is gained?
 
 Thanks,
 Jean
-
-> +
->      __iommu_sva_unbind_dev_all(dev);
-> 
->      mutex_lock(&dev->iommu_param->lock);
-> 
-> I add the above two checkings in both *sva_init and *sva_shutdown, it is working now,
-> but i don't know if it will cause any new problems. What's more, i doubt if it is
-> reasonable to check this to avoid repeating operation in VFIO, maybe it is better to check
-> in IOMMU. :)
