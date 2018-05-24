@@ -1,82 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 654046B0005
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 13:45:39 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id x186-v6so1823494qkb.0
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 10:45:39 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id u186-v6si9403472qkd.319.2018.05.24.10.45.38
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 083F06B0003
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 14:14:01 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id m10-v6so1411559otb.5
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 11:14:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p23-v6si7793071ota.167.2018.05.24.11.13.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 10:45:38 -0700 (PDT)
-Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to
- charge to memcg
-References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
- <20180522135148.GA20441@dhcp22.suse.cz>
- <af1a3050-7365-428a-dfb1-2f3da37dc9ff@ascade.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <4078bc2d-4aaf-cd1b-0145-5915e382852f@oracle.com>
-Date: Thu, 24 May 2018 10:45:08 -0700
+        Thu, 24 May 2018 11:13:59 -0700 (PDT)
+Date: Thu, 24 May 2018 14:13:56 -0400
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: [PATCH 22/34] xfs: make xfs_writepage_map extent map centric
+Message-ID: <20180524181356.GA89391@bfoster.bfoster>
+References: <20180523144357.18985-1-hch@lst.de>
+ <20180523144357.18985-23-hch@lst.de>
+ <20180524145935.GA84959@bfoster.bfoster>
+ <20180524165350.GA22675@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <af1a3050-7365-428a-dfb1-2f3da37dc9ff@ascade.co.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180524165350.GA22675@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: TSUKADA Koutaro <tsukada@ascade.co.jp>, Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>
 
-On 05/23/2018 09:26 PM, TSUKADA Koutaro wrote:
+On Thu, May 24, 2018 at 06:53:50PM +0200, Christoph Hellwig wrote:
+> > > +		if (!wpc->imap_valid || wpc->io_type == XFS_IO_HOLE) {
+> > > +			/*
+> > > +			 * set_page_dirty dirties all buffers in a page, independent
+> > > +			 * of their state.  The dirty state however is entirely
+> > > +			 * meaningless for holes (!mapped && uptodate), so check we did
+> > > +			 * have a buffer covering a hole here and continue.
+> > > +			 */
+> > 
+> > The comment above doesn't make much sense given that we don't check for
+> > anything here and just continue the loop.
 > 
-> I do not know if it is really a strong use case, but I will explain my
-> motive in detail. English is not my native language, so please pardon
-> my poor English.
+> It gets removed in the last patch of the original series when we
+> kill buffer heads.  But I can fold the removal into this patch as well.
 > 
-> I am one of the developers for software that managing the resource used
-> from user job at HPC-Cluster with Linux. The resource is memory mainly.
-> The HPC-Cluster may be shared by multiple people and used. Therefore, the
-> memory used by each user must be strictly controlled, otherwise the
-> user's job will runaway, not only will it hamper the other users, it will
-> crash the entire system in OOM.
-> 
-> Some users of HPC are very nervous about performance. Jobs are executed
-> while synchronizing with MPI communication using multiple compute nodes.
-> Since CPU wait time will occur when synchronizing, they want to minimize
-> the variation in execution time at each node to reduce waiting times as
-> much as possible. We call this variation a noise.
-> 
-> THP does not guarantee to use the Huge Page, but may use the normal page.
 
-Note.  You do not want to use THP because "THP does not guarantee".
+Ah, I was thinking this patch added that comment when it actually mostly
+moves it (it does tweak it a bit). Eh, no big deal either way.
 
-> This mechanism is one cause of variation(noise).
+> > That aside, the concern I had with this patch when it was last posted is
+> > that it indirectly dropped the error/consistency check between page
+> > state and extent state provided by the XFS_BMAPI_DELALLOC flag. What was
+> > historically an accounting/reservation issue was turned into something
+> > like this by XFS_BMAPI_DELALLOC:
+> > 
+> > # xfs_io -c "pwrite 0 4k" -c fsync /mnt/file
+> > wrote 4096/4096 bytes at offset 0
+> > 4 KiB, 1 ops; 0.0041 sec (974.184 KiB/sec and 243.5460 ops/sec)
+> > fsync: Input/output error
 > 
-> The users who know this mechanism will be hesitant to use THP. However,
-> the users also know the benefits of the Huge Page's TLB hit rate
-> performance, and the Huge Page seems to be attractive. It seems natural
-> that these users are interested in HugeTLBfs, I do not know at all
-> whether it is the right approach or not.
+> What is that issue that gets you an I/O error on a 4k write?  That
+> is what is missing in the above reproducer?
 > 
-> At the very least, our HPC system is pursuing high versatility and we
-> have to consider whether we can provide it if users want to use HugeTLBfs.
-> 
-> In order to use HugeTLBfs we need to create a persistent pool, but in
-> our use case sharing nodes, it would be impossible to create, delete or
-> resize the pool.
-> 
-> One of the answers I have reached is to use HugeTLBfs by overcommitting
-> without creating a pool(this is the surplus hugepage).
 
-Using hugetlbfs overcommit also does not provide a guarantee.  Without
-doing much research, I would say the failure rate for obtaining a huge
-page via THP and hugetlbfs overcommit is about the same.  The most
-difficult issue in both cases will be obtaining a "huge page" number of
-pages from the buddy allocator.
+Sorry... I should have mentioned this is a simulated error and not
+something that actually occurs right now. You can manufacture it easy
+enough using the drop_writes error tag and comment out the pagecache
+truncate code in xfs_file_iomap_end_delalloc().
 
-I really do not think hugetlbfs overcommit will provide any benefit over
-THP for your use case.  Also, new user space code is required to "fall back"
-to normal pages in the case of hugetlbfs page allocation failure.  This
-is not needed in the THP case.
--- 
-Mike Kravetz
+> > As of this patch, that same error condition now behaves something like
+> > this:
+> > 
+> > [root@localhost ~]# xfs_io -c "pwrite 0 4k" -c fsync /mnt/file
+> > wrote 4096/4096 bytes at offset 0
+> > 4 KiB, 1 ops; 0.0029 sec (1.325 MiB/sec and 339.2130 ops/sec)
+> > [root@localhost ~]# ls -al /mnt/file
+> > -rw-r--r--. 1 root root 4096 May 24 08:27 /mnt/file
+> > [root@localhost ~]# umount  /mnt ; mount /dev/test/scratch /mnt/
+> > [root@localhost ~]# ls -al /mnt/file
+> > -rw-r--r--. 1 root root 0 May 24 08:27 /mnt/file
+> > 
+> > So our behavior has changed from forced block allocation (violating
+> > reservation) and writing the data, to instead return an error, and now
+> > to silently skip the page.
+> 
+> We should never, ever allocate space that we didn't have a delalloc
+> reservation for in writepage/writepages.  But I agree that we should
+> record and error.  I have to admit I'm lost on where we did record
+> the error and why we don't do that now.  I'd be happy to fix it.
+> 
+
+Right, the error behavior came from the XFS_BMAPI_DELALLOC flag that was
+passed from xfs_iomap_write_allocate(). It caused xfs_bmapi_write() to
+detect that we were in a hole and return an error in the !COW_FORK case
+since we were expecting to do delalloc conversion from writeback.
+
+Note that I'm not saying there's a vector to reproduce this problem in
+the current code that I'm aware of. I'm just saying it's happened in the
+past due to bugs and I'd like to preserve some kind of basic sanity
+check (as an error or assert) if we have enough state available to do
+so.
+
+> > I suppose there are situations (i.e., races
+> > with truncate) where a hole is valid and the correct behavior is to skip
+> > the page, and this is admittedly an error condition that "should never
+> > happen," but can we at least add an assert somewhere in this series that
+> > ensures if uptodate data maps over a hole that the associated block
+> > offset is beyond EOF (or something of that nature)?
+> 
+> We can have plenty of holes in dirty pages.  However we should never
+> allocate blocks for them.  Fortunately we stop even looking at anything
+> but the extent tree for block status by the end of this series for 4k
+> file systems, and with the next series even for small block sizes, so
+> that whole mismatch is a thing of the past now.
+
+Ok, so I guess writeback can see uptodate blocks over a hole if some
+other block in that page is dirty. Perhaps we could make sure that a
+dirty page has at least one block that maps to an actual extent or
+otherwise the page has been truncated..?
+
+I guess having another dirty block bitmap similar to
+iomap_page->uptodate could be required to tell for sure whether a
+particular block should definitely have a block on-disk or not. It may
+not be worth doing that just for additional error checks, but I still
+have to look into the last few patches to grok all the iomap_page stuff.
+
+Brian
