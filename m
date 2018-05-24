@@ -1,99 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E7D296B000A
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 11:18:21 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id x32-v6so1158044pld.16
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 08:18:21 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id p4-v6si2239960pli.573.2018.05.24.08.18.20
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F1076B0008
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 11:22:35 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id t1-v6so1133163oth.3
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 08:22:35 -0700 (PDT)
+Received: from sender-pp-092.zoho.com (sender-pp-092.zoho.com. [135.84.80.237])
+        by mx.google.com with ESMTPS id c186-v6si7136297oia.171.2018.05.24.08.22.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 24 May 2018 08:18:20 -0700 (PDT)
-Date: Thu, 24 May 2018 08:18:18 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH v2 00/12] get rid of GFP_ZONE_TABLE/BAD
-Message-ID: <20180524151818.GA21245@bombadil.infradead.org>
-References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
- <20180522183728.GB20441@dhcp22.suse.cz>
- <20180524051919.GA9819@bombadil.infradead.org>
- <20180524122323.GH20441@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180524122323.GH20441@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 May 2018 08:22:31 -0700 (PDT)
+From: Huaisheng Ye <yehs2007@zoho.com>
+Subject: [RFC PATCH v3 6/9] mm/vmpressure: update usage of zone modifiers
+Date: Thu, 24 May 2018 23:20:53 +0800
+Message-Id: <20180524152053.1248-1-yehs2007@zoho.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Huaisheng Ye <yehs2007@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, alexander.levin@verizon.com, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, willy@infradead.org, hch@lst.de, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>, zhongjiang <zhongjiang@huawei.com>, Minchan Kim <minchan@kernel.org>, Dan Carpenter <dan.carpenter@oracle.com>, David Rientjes <rientjes@google.com>, Christoph Hellwig <hch@infradead.org>
 
-On Thu, May 24, 2018 at 02:23:23PM +0200, Michal Hocko wrote:
-> > If we had eight ZONEs, we could offer:
-> 
-> No, please no more zones. What we have is quite a maint. burden on its
-> own. Ideally we should only have lowmem, highmem and special/device
-> zones for directly kernel accessible memory, the one that the kernel
-> cannot or must not use and completely special memory managed out of
-> the page allocator. All the remaining constrains should better be
-> implemented on top.
+From: Huaisheng Ye <yehs1@lenovo.com>
 
-I believe you when you say that they're a maintenance pain.  Is that
-maintenance pain because they're so specialised?  ie if we had more,
-could we solve our pain by making them more generic?
+Use __GFP_ZONE_MOVABLE to replace (__GFP_HIGHMEM | __GFP_MOVABLE).
 
-> > ZONE_16M	// 24 bit
-> > ZONE_256M	// 28 bit
-> > ZONE_LOWMEM	// CONFIG_32BIT only
-> > ZONE_4G		// 32 bit
-> > ZONE_64G	// 36 bit
-> > ZONE_1T		// 40 bit
-> > ZONE_ALL	// everything larger
-> > ZONE_MOVABLE	// movable allocations; no physical address guarantees
-> > 
-> > #ifdef CONFIG_64BIT
-> > #define ZONE_NORMAL	ZONE_ALL
-> > #else
-> > #define ZONE_NORMAL	ZONE_LOWMEM
-> > #endif
-> > 
-> > This would cover most driver DMA mask allocations; we could tweak the
-> > offered zones based on analysis of what people need.
-> 
-> But those already do have aproper API, IIUC. So do we really need to
-> make our GFP_*/Zone API more complicated than it already is?
+___GFP_DMA, ___GFP_HIGHMEM and ___GFP_DMA32 have been deleted from GFP
+bitmasks, the bottom three bits of GFP mask is reserved for storing
+encoded zone number.
 
-I don't want to change the driver API (setting the DMA mask, etc),
-but we don't actually have a good API to the page allocator for the
-implementation of dma_alloc_foo() to request pages.  More or less,
-architectures do:
+__GFP_ZONE_MOVABLE contains encoded ZONE_MOVABLE and __GFP_MOVABLE flag.
 
-	if (mask < 4GB)
-		alloc_page(GFP_DMA)
-	else if (mask < 64EB)
-		alloc_page(GFP_DMA32)
-	else
-		alloc_page(GFP_HIGHMEM)
+With GFP_ZONE_TABLE, __GFP_HIGHMEM ORing __GFP_MOVABLE means gfp_zone
+should return ZONE_MOVABLE. In order to keep that compatible with
+GFP_ZONE_TABLE, replace (__GFP_HIGHMEM | __GFP_MOVABLE) with
+__GFP_ZONE_MOVABLE.
 
-it more-or-less sucks that the devices with 28-bit DMA limits are forced
-to allocate from the low 16MB when they're perfectly capable of using the
-low 256MB.  Sure, my proposal doesn't help 27 or 26 bit DMA mask devices,
-but those are pretty rare.
+Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: zhongjiang <zhongjiang@huawei.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Christoph Hellwig <hch@infradead.org>
+---
+ mm/vmpressure.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-I'm sure you don't need reminding what a mess vmalloc_32 is, and the
-implementation of saa7146_vmalloc_build_pgtable() just hurts.
-
-> > #define GFP_HIGHUSER		(GFP_USER | ZONE_ALL)
-> > #define GFP_HIGHUSER_MOVABLE	(GFP_USER | ZONE_MOVABLE)
-> > 
-> > One other thing I want to see is that fallback from zones happens from
-> > highest to lowest normally (ie if you fail to allocate in 1T, then you
-> > try to allocate from 64G), but movable allocations hapen from lowest
-> > to highest.  So ZONE_16M ends up full of page cache pages which are
-> > readily evictable for the rare occasions when we need to allocate memory
-> > below 16MB.
-> > 
-> > I'm sure there are lots of good reasons why this won't work, which is
-> > why I've been hesitant to propose it before now.
-> 
-> I am worried you are playing with a can of worms...
-
-Yes.  Me too.
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 85350ce..30a40e2 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -256,7 +256,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
+ 	 * Indirect reclaim (kswapd) sets sc->gfp_mask to GFP_KERNEL, so
+ 	 * we account it too.
+ 	 */
+-	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
++	if (!(gfp & (__GFP_ZONE_MOVABLE | __GFP_IO | __GFP_FS)))
+ 		return;
+ 
+ 	/*
+-- 
+1.8.3.1
