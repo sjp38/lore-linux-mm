@@ -1,127 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BFF3F6B0005
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 12:37:27 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id v2-v6so1628831wmc.0
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 09:37:27 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id x6-v6si19102010wrg.127.2018.05.24.09.37.26
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6568E6B0007
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 12:40:16 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id u127-v6so1662997qka.9
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 09:40:16 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0092.outbound.protection.outlook.com. [104.47.1.92])
+        by mx.google.com with ESMTPS id f5-v6si5051763qtd.130.2018.05.24.09.40.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 24 May 2018 09:37:26 -0700 (PDT)
-Subject: Re: [PATCH] doc: document scope NOFS, NOIO APIs
-References: <20180424183536.GF30619@thunk.org>
- <20180524114341.1101-1-mhocko@kernel.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <6c9df175-df6c-2531-b90c-318e4fff72bb@infradead.org>
-Date: Thu, 24 May 2018 09:37:18 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 24 May 2018 09:40:15 -0700 (PDT)
+Subject: Re: [PATCH] userfaultfd: prevent non-cooperative events vs
+ mcopy_atomic races
+References: <1527061324-19949-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <0e1ce040-1beb-fd96-683c-1b18eb635fd6@virtuozzo.com>
+ <20180524115613.GA16908@rapoport-lnx>
+From: Pavel Emelyanov <xemul@virtuozzo.com>
+Message-ID: <e42a383f-491a-b42a-347c-effe4b86b982@virtuozzo.com>
+Date: Thu, 24 May 2018 19:40:07 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180524114341.1101-1-mhocko@kernel.org>
+In-Reply-To: <20180524115613.GA16908@rapoport-lnx>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, David Sterba <dsterba@suse.cz>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Andrei Vagin <avagin@virtuozzo.com>
 
-On 05/24/2018 04:43 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On 05/24/2018 02:56 PM, Mike Rapoport wrote:
+> On Thu, May 24, 2018 at 02:24:37PM +0300, Pavel Emelyanov wrote:
+>> On 05/23/2018 10:42 AM, Mike Rapoport wrote:
+>>> If a process monitored with userfaultfd changes it's memory mappings or
+>>> forks() at the same time as uffd monitor fills the process memory with
+>>> UFFDIO_COPY, the actual creation of page table entries and copying of the
+>>> data in mcopy_atomic may happen either before of after the memory mapping
+>>> modifications and there is no way for the uffd monitor to maintain
+>>> consistent view of the process memory layout.
+>>>
+>>> For instance, let's consider fork() running in parallel with
+>>> userfaultfd_copy():
+>>>
+>>> process        		         |	uffd monitor
+>>> ---------------------------------+------------------------------
+>>> fork()        		         | userfaultfd_copy()
+>>> ...        		         | ...
+>>>     dup_mmap()        	         |     down_read(mmap_sem)
+>>>     down_write(mmap_sem)         |     /* create PTEs, copy data */
+>>>         dup_uffd()               |     up_read(mmap_sem)
+>>>         copy_page_range()        |
+>>>         up_write(mmap_sem)       |
+>>>         dup_uffd_complete()      |
+>>>             /* notify monitor */ |
+>>>
+>>> If the userfaultfd_copy() takes the mmap_sem first, the new page(s) will be
+>>> present by the time copy_page_range() is called and they will appear in the
+>>> child's memory mappings. However, if the fork() is the first to take the
+>>> mmap_sem, the new pages won't be mapped in the child's address space.
+>>
+>> But in this case child should get an entry, that emits a message to uffd when step upon!
+>> And uffd will just userfaultfd_copy() it again. No?
+>  
+> There will be a message, indeed. But there is no way for monitor to tell
+> whether the pages it copied are present or not in the child.
+
+If there's a message, then they are not present, that's for sure :)
+
+> Since the monitor cannot assume that the process will access all its memory
+> it has to copy some pages "in the background". A simple monitor may look
+> like:
 > 
-> Although the api is documented in the source code Ted has pointed out
-> that there is no mention in the core-api Documentation and there are
-> people looking there to find answers how to use a specific API.
+> 	for (;;) {
+> 		wait_for_uffd_events(timeout);
+> 		handle_uffd_events();
+> 		uffd_copy(some not faulted pages);
+> 	}
 > 
-> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
-> Cc: David Sterba <dsterba@suse.cz>
-> Requested-by: "Theodore Y. Ts'o" <tytso@mit.edu>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
+> Then, if the "background" uffd_copy() races with fork, the pages we've
+> copied may be already present in parent's mappings before the call to
+> copy_page_range() and may be not.
 > 
-> Hi Johnatan,
-> Ted has proposed this at LSFMM and then we discussed that briefly on the
-> mailing list [1]. I received some useful feedback from Darrick and Dave
-> which has been (hopefully) integrated. Then the thing fall off my radar
-> rediscovering it now when doing some cleanup. Could you take the patch
-> please?
-> 
-> [1] http://lkml.kernel.org/r/20180424183536.GF30619@thunk.org
->  .../core-api/gfp_mask-from-fs-io.rst          | 55 +++++++++++++++++++
->  1 file changed, 55 insertions(+)
->  create mode 100644 Documentation/core-api/gfp_mask-from-fs-io.rst
-> 
-> diff --git a/Documentation/core-api/gfp_mask-from-fs-io.rst b/Documentation/core-api/gfp_mask-from-fs-io.rst
-> new file mode 100644
-> index 000000000000..e8b2678e959b
-> --- /dev/null
-> +++ b/Documentation/core-api/gfp_mask-from-fs-io.rst
-> @@ -0,0 +1,55 @@
-> +=================================
-> +GFP masks used from FS/IO context
-> +=================================
-> +
-> +:Date: Mapy, 2018
-> +:Author: Michal Hocko <mhocko@kernel.org>
-> +
-> +Introduction
-> +============
-> +
-> +Code paths in the filesystem and IO stacks must be careful when
-> +allocating memory to prevent recursion deadlocks caused by direct
-> +memory reclaim calling back into the FS or IO paths and blocking on
-> +already held resources (e.g. locks - most commonly those used for the
-> +transaction context).
-> +
-> +The traditional way to avoid this deadlock problem is to clear __GFP_FS
-> +resp. __GFP_IO (note the later implies clearing the first as well) in
+> If the pages were not present, uffd_copy'ing them again to the child's
+> memory would be ok.
 
-                            latter
+Yes.
 
-> +the gfp mask when calling an allocator. GFP_NOFS resp. GFP_NOIO can be
-> +used as shortcut. It turned out though that above approach has led to
-> +abuses when the restricted gfp mask is used "just in case" without a
-> +deeper consideration which leads to problems because an excessive use
-> +of GFP_NOFS/GFP_NOIO can lead to memory over-reclaim or other memory
-> +reclaim issues.
-> +
-> +New API
-> +========
-> +
-> +Since 4.12 we do have a generic scope API for both NOFS and NOIO context
-> +``memalloc_nofs_save``, ``memalloc_nofs_restore`` resp. ``memalloc_noio_save``,
-> +``memalloc_noio_restore`` which allow to mark a scope to be a critical
-> +section from the memory reclaim recursion into FS/IO POV. Any allocation
+> But if uffd_copy() was first to catch mmap_sem, and we would uffd_copy them
+> again, child process will get memory corruption.
 
-s/POV/point of view/ or whatever it is.
+You mean the background uffd_copy()? But doesn't it race even with regular PF handling,
+not only the fork? How do we handle this race?
 
-> +from that scope will inherently drop __GFP_FS resp. __GFP_IO from the given
-> +mask so no memory allocation can recurse back in the FS/IO.
-> +
-> +FS/IO code then simply calls the appropriate save function right at the
-> +layer where a lock taken from the reclaim context (e.g. shrinker) and
-> +the corresponding restore function when the lock is released. All that
-> +ideally along with an explanation what is the reclaim context for easier
-> +maintenance.
-> +
-> +What about __vmalloc(GFP_NOFS)
-> +==============================
-> +
-> +vmalloc doesn't support GFP_NOFS semantic because there are hardcoded
-> +GFP_KERNEL allocations deep inside the allocator which are quite non-trivial
-> +to fix up. That means that calling ``vmalloc`` with GFP_NOFS/GFP_NOIO is
-> +almost always a bug. The good news is that the NOFS/NOIO semantic can be
-> +achieved by the scope api.
-
-I would prefer s/api/API/ throughout.
-
-> +
-> +In the ideal world, upper layers should already mark dangerous contexts
-> +and so no special care is required and vmalloc should be called without
-> +any problems. Sometimes if the context is not really clear or there are
-> +layering violations then the recommended way around that is to wrap ``vmalloc``
-> +by the scope API with a comment explaining the problem.
-> 
-
-
--- 
-~Randy
+-- Pavel
