@@ -1,60 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F15AB6B0005
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 06:56:06 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id t195-v6so906228wmt.9
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 03:56:06 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id j12-v6si1199922eda.453.2018.05.24.03.56.05
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D9D376B000E
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 07:00:24 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e15-v6so920994wmh.6
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 04:00:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q27-v6si5453335edq.244.2018.05.24.04.00.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 24 May 2018 03:56:05 -0700 (PDT)
-Date: Thu, 24 May 2018 06:58:07 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH REPOST] mm: memcg: allow lowering memory.swap.max below
- the current usage
-Message-ID: <20180524105807.GA1362@cmpxchg.org>
-References: <20180523185041.GR1718769@devbig577.frc2.facebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180523185041.GR1718769@devbig577.frc2.facebook.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 24 May 2018 04:00:23 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [RFC PATCH 2/5] mm, slab: allocate off-slab freelists as reclaimable when appropriate
+Date: Thu, 24 May 2018 13:00:08 +0200
+Message-Id: <20180524110011.1940-3-vbabka@suse.cz>
+In-Reply-To: <20180524110011.1940-1-vbabka@suse.cz>
+References: <20180524110011.1940-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Michal Hocko <mhocko@kernel.org>, Shaohua Li <shli@fb.com>, Rik van Riel <riel@surriel.com>, cgroups@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Vijayanand Jitta <vjitta@codeaurora.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, May 23, 2018 at 11:50:41AM -0700, Tejun Heo wrote:
-> Currently an attempt to set swap.max into a value lower than the
-> actual swap usage fails, which causes configuration problems as
-> there's no way of lowering the configuration below the current usage
-> short of turning off swap entirely.  This makes swap.max difficult to
-> use and allows delegatees to lock the delegator out of reducing swap
-> allocation.
-> 
-> This patch updates swap_max_write() so that the limit can be lowered
-> below the current usage.  It doesn't implement active reclaiming of
-> swap entries for the following reasons.
-> 
-> * mem_cgroup_swap_full() already tells the swap machinary to
->   aggressively reclaim swap entries if the usage is above 50% of
->   limit, so simply lowering the limit automatically triggers gradual
->   reclaim.
-> 
-> * Forcing back swapped out pages is likely to heavily impact the
->   workload and mess up the working set.  Given that swap usually is a
->   lot less valuable and less scarce, letting the existing usage
->   dissipate over time through the above gradual reclaim and as they're
->   falted back in is likely the better behavior.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Acked-by: Roman Gushchin <guro@fb.com>
-> Acked-by: Rik van Riel <riel@surriel.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Shaohua Li <shli@fb.com>
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: cgroups@vger.kernel.org
+In SLAB, OFF_SLAB caches allocate management structures (currently just the
+freelist) from kmalloc caches when placement in a slab page together with
+objects would lead to suboptimal memory usage. For SLAB_RECLAIM_ACCOUNT caches,
+we can allocate the freelists from the newly introduced reclaimable kmalloc
+caches, because shrinking the OFF_SLAB cache will in general result to freeing
+of the freelists as well. This should improve accounting and anti-fragmentation
+a bit.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/slab.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 8d7e1f06127b..4dd7d73a1972 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2142,8 +2142,13 @@ int __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
+ #endif
+ 
+ 	if (OFF_SLAB(cachep)) {
++		/*
++		 * If this cache is reclaimable, allocate also freelists from
++		 * a reclaimable kmalloc cache.
++		 */
+ 		cachep->freelist_cache =
+-			kmalloc_slab(cachep->freelist_size, 0u);
++			kmalloc_slab(cachep->freelist_size,
++				     cachep->allocflags & __GFP_RECLAIMABLE);
+ 	}
+ 
+ 	err = setup_cpu_cache(cachep, gfp);
+-- 
+2.17.0
