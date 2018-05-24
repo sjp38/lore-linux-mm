@@ -1,61 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 21DE56B0007
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 12:26:15 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id y62-v6so1626725qkb.15
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 09:26:15 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id s37-v6si1741477qts.199.2018.05.24.09.26.14
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BFF3F6B0005
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 12:37:27 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id v2-v6so1628831wmc.0
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 09:37:27 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id x6-v6si19102010wrg.127.2018.05.24.09.37.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 09:26:14 -0700 (PDT)
-Date: Thu, 24 May 2018 18:26:08 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v3 6/9] trace_uprobe: Support SDT markers having
- reference count (semaphore)
-Message-ID: <20180524162608.GA27082@redhat.com>
-References: <20180417043244.7501-1-ravi.bangoria@linux.vnet.ibm.com>
- <20180417043244.7501-7-ravi.bangoria@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 24 May 2018 09:37:26 -0700 (PDT)
+Subject: Re: [PATCH] doc: document scope NOFS, NOIO APIs
+References: <20180424183536.GF30619@thunk.org>
+ <20180524114341.1101-1-mhocko@kernel.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <6c9df175-df6c-2531-b90c-318e4fff72bb@infradead.org>
+Date: Thu, 24 May 2018 09:37:18 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180417043244.7501-7-ravi.bangoria@linux.vnet.ibm.com>
+In-Reply-To: <20180524114341.1101-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ravi Bangoria <ravi.bangoria@linux.vnet.ibm.com>
-Cc: mhiramat@kernel.org, peterz@infradead.org, srikar@linux.vnet.ibm.com, rostedt@goodmis.org, acme@kernel.org, ananth@linux.vnet.ibm.com, akpm@linux-foundation.org, alexander.shishkin@linux.intel.com, alexis.berlemont@gmail.com, corbet@lwn.net, dan.j.williams@intel.com, jolsa@redhat.com, kan.liang@intel.com, kjlx@templeofstupid.com, kstewart@linuxfoundation.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, milian.wolff@kdab.com, mingo@redhat.com, namhyung@kernel.org, naveen.n.rao@linux.vnet.ibm.com, pc@us.ibm.com, tglx@linutronix.de, yao.jin@linux.intel.com, fengguang.wu@intel.com, jglisse@redhat.com, Ravi Bangoria <ravi.bangoria@linux.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, David Sterba <dsterba@suse.cz>
 
-Hi Ravi,
-
-sorry for delay!
-
-I am trying to recall what this code should do ;) At first glance, I do
-not see any serious problem in this version... except it doesn't apply
-to Linus's tree. just one question for now.
-
-On 04/17, Ravi Bangoria wrote:
->
-> @@ -941,6 +1091,9 @@ typedef bool (*filter_func_t)(struct uprobe_consumer *self,
->  	if (ret)
->  		goto err_buffer;
->  
-> +	if (tu->ref_ctr_offset)
-> +		sdt_increment_ref_ctr(tu);
+On 05/24/2018 04:43 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Although the api is documented in the source code Ted has pointed out
+> that there is no mention in the core-api Documentation and there are
+> people looking there to find answers how to use a specific API.
+> 
+> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+> Cc: David Sterba <dsterba@suse.cz>
+> Requested-by: "Theodore Y. Ts'o" <tytso@mit.edu>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+> 
+> Hi Johnatan,
+> Ted has proposed this at LSFMM and then we discussed that briefly on the
+> mailing list [1]. I received some useful feedback from Darrick and Dave
+> which has been (hopefully) integrated. Then the thing fall off my radar
+> rediscovering it now when doing some cleanup. Could you take the patch
+> please?
+> 
+> [1] http://lkml.kernel.org/r/20180424183536.GF30619@thunk.org
+>  .../core-api/gfp_mask-from-fs-io.rst          | 55 +++++++++++++++++++
+>  1 file changed, 55 insertions(+)
+>  create mode 100644 Documentation/core-api/gfp_mask-from-fs-io.rst
+> 
+> diff --git a/Documentation/core-api/gfp_mask-from-fs-io.rst b/Documentation/core-api/gfp_mask-from-fs-io.rst
+> new file mode 100644
+> index 000000000000..e8b2678e959b
+> --- /dev/null
+> +++ b/Documentation/core-api/gfp_mask-from-fs-io.rst
+> @@ -0,0 +1,55 @@
+> +=================================
+> +GFP masks used from FS/IO context
+> +=================================
 > +
-
-iiuc, this is probe_event_enable()...
-
-Looks racy, but afaics the race with uprobe_mmap() will be closed by the next
-change. However, it seems that probe_event_disable() can race with trace_uprobe_mmap()
-too and the next 7/9 patch won't help,
-
-> +	if (tu->ref_ctr_offset)
-> +		sdt_decrement_ref_ctr(tu);
+> +:Date: Mapy, 2018
+> +:Author: Michal Hocko <mhocko@kernel.org>
 > +
->  	uprobe_unregister(tu->inode, tu->offset, &tu->consumer);
->  	tu->tp.flags &= file ? ~TP_FLAG_TRACE : ~TP_FLAG_PROFILE;
+> +Introduction
+> +============
+> +
+> +Code paths in the filesystem and IO stacks must be careful when
+> +allocating memory to prevent recursion deadlocks caused by direct
+> +memory reclaim calling back into the FS or IO paths and blocking on
+> +already held resources (e.g. locks - most commonly those used for the
+> +transaction context).
+> +
+> +The traditional way to avoid this deadlock problem is to clear __GFP_FS
+> +resp. __GFP_IO (note the later implies clearing the first as well) in
 
-so what if trace_uprobe_mmap() comes right after uprobe_unregister() ?
-Note that trace_probe_is_enabled() is T until we update tp.flags.
+                            latter
 
-Oleg.
+> +the gfp mask when calling an allocator. GFP_NOFS resp. GFP_NOIO can be
+> +used as shortcut. It turned out though that above approach has led to
+> +abuses when the restricted gfp mask is used "just in case" without a
+> +deeper consideration which leads to problems because an excessive use
+> +of GFP_NOFS/GFP_NOIO can lead to memory over-reclaim or other memory
+> +reclaim issues.
+> +
+> +New API
+> +========
+> +
+> +Since 4.12 we do have a generic scope API for both NOFS and NOIO context
+> +``memalloc_nofs_save``, ``memalloc_nofs_restore`` resp. ``memalloc_noio_save``,
+> +``memalloc_noio_restore`` which allow to mark a scope to be a critical
+> +section from the memory reclaim recursion into FS/IO POV. Any allocation
+
+s/POV/point of view/ or whatever it is.
+
+> +from that scope will inherently drop __GFP_FS resp. __GFP_IO from the given
+> +mask so no memory allocation can recurse back in the FS/IO.
+> +
+> +FS/IO code then simply calls the appropriate save function right at the
+> +layer where a lock taken from the reclaim context (e.g. shrinker) and
+> +the corresponding restore function when the lock is released. All that
+> +ideally along with an explanation what is the reclaim context for easier
+> +maintenance.
+> +
+> +What about __vmalloc(GFP_NOFS)
+> +==============================
+> +
+> +vmalloc doesn't support GFP_NOFS semantic because there are hardcoded
+> +GFP_KERNEL allocations deep inside the allocator which are quite non-trivial
+> +to fix up. That means that calling ``vmalloc`` with GFP_NOFS/GFP_NOIO is
+> +almost always a bug. The good news is that the NOFS/NOIO semantic can be
+> +achieved by the scope api.
+
+I would prefer s/api/API/ throughout.
+
+> +
+> +In the ideal world, upper layers should already mark dangerous contexts
+> +and so no special care is required and vmalloc should be called without
+> +any problems. Sometimes if the context is not really clear or there are
+> +layering violations then the recommended way around that is to wrap ``vmalloc``
+> +by the scope API with a comment explaining the problem.
+> 
+
+
+-- 
+~Randy
