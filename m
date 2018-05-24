@@ -1,77 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 643766B0003
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 16:36:42 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id q13-v6so2106383qtk.8
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 13:36:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 8-v6si16312846qto.347.2018.05.24.13.36.39
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BEDBB6B0006
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 16:38:08 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id t2-v6so970665pgo.0
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 13:38:08 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f69-v6si22247044plb.503.2018.05.24.13.38.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 13:36:40 -0700 (PDT)
-Subject: Re: [PATCH v1 09/10] mm/memory_hotplug: teach offline_pages() to not
- try forever
-References: <20180523151151.6730-1-david@redhat.com>
- <20180523151151.6730-10-david@redhat.com>
- <20180524143953.GK20441@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <18a119a8-1b2c-a2cc-7ba1-d0a3c244d381@redhat.com>
-Date: Thu, 24 May 2018 22:36:34 +0200
-MIME-Version: 1.0
-In-Reply-To: <20180524143953.GK20441@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Thu, 24 May 2018 13:38:07 -0700 (PDT)
+Date: Thu, 24 May 2018 13:38:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm/ksm: ignore STABLE_FLAG of rmap_item->address in
+ rmap_walk_ksm
+Message-Id: <20180524133805.6e9bfd4bf48de065ce1d7611@linux-foundation.org>
+In-Reply-To: <6c417ab1-a808-72ea-9618-3d76ec203684@arm.com>
+References: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
+	<1525403506-6750-1-git-send-email-hejianet@gmail.com>
+	<20180509163101.02f23de1842a822c61fc68ff@linux-foundation.org>
+	<2cd6b39b-1496-bbd5-9e31-5e3dcb31feda@arm.com>
+	<6c417ab1-a808-72ea-9618-3d76ec203684@arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rashmica Gupta <rashmica.g@gmail.com>, Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Suzuki K Poulose <Suzuki.Poulose@arm.com>
+Cc: Jia He <hejianet@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jia.he@hxt-semitech.com, Hugh Dickins <hughd@google.com>
 
-On 24.05.2018 16:39, Michal Hocko wrote:
-> [I didn't really go through other patch but this one caught my eyes just
->  because of the similar request proposed yesterday]
-> 
-> On Wed 23-05-18 17:11:50, David Hildenbrand wrote:
-> [...]
->> @@ -1686,6 +1686,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
->>  	pfn = scan_movable_pages(start_pfn, end_pfn);
->>  	if (pfn) { /* We have movable pages */
->>  		ret = do_migrate_range(pfn, end_pfn);
->> +		if (ret && !retry_forever) {
->> +			ret = -EBUSY;
->> +			goto failed_removal;
->> +		}
->>  		goto repeat;
->>  	}
->>  
-> 
-> Btw. this will not work in practice. Even a single temporary pin on a page
-> will fail way too easily. If you really need to control this then make
-> it a retry counter with default -1UL.
+On Thu, 24 May 2018 09:44:16 +0100 Suzuki K Poulose <Suzuki.Poulose@arm.com=
+> wrote:
 
-Interestingly, this will work for the one specific use case that I am
-using this interface for right now.
+> On 14/05/18 10:45, Suzuki K Poulose wrote:
+> > On 10/05/18 00:31, Andrew Morton wrote:
+> >> On Fri,=A0 4 May 2018 11:11:46 +0800 Jia He <hejianet@gmail.com> wrote:
+> >>
+> >>> In our armv8a server(QDF2400), I noticed lots of WARN_ON caused by PA=
+GE_SIZE
+> >>> unaligned for rmap_item->address under memory pressure tests(start 20=
+ guests
+> >>> and run memhog in the host).
+> >>>
+> >>> ...
+> >>>
+> >>> In rmap_walk_ksm, the rmap_item->address might still have the STABLE_=
+FLAG,
+> >>> then the start and end in handle_hva_to_gpa might not be PAGE_SIZE al=
+igned.
+> >>> Thus it will cause exceptions in handle_hva_to_gpa on arm64.
+> >>>
+> >>> This patch fixes it by ignoring(not removing) the low bits of address=
+ when
+> >>> doing rmap_walk_ksm.
+> >>>
+> >>> Signed-off-by: jia.he@hxt-semitech.com
+> >>
+> >> I assumed you wanted this patch to be committed as
+> >> From:jia.he@hxt-semitech.com rather than From:hejianet@gmail.com, so I
+> >> made that change.=A0 Please let me know if this was inappropriate.
+> >>
+> >> You can do this yourself by adding an explicit From: line to the very
+> >> start of the patch's email text.
+> >>
+> >> Also, a storm of WARN_ONs is pretty poor behaviour.=A0 Is that the only
+> >> misbehaviour which this bug causes?=A0 Do you think the fix should be
+> >> backported into earlier kernels?
+> >>
+>=20
+>=20
+> Jia, Andrew,
+>=20
+> What is the status of this patch ?
+>=20
 
-The reason is that I don't want to offline a specific chunk, I want to
-find some chunks to offline (in contrast to e.g. DIMMs where you rely
-try to offline a very specific one).
+I have it scheduled for 4.18-rc1, with a cc:stable for backporting.
 
-If I get a failure on that chunk (e.g. temporary pin) I will retry the
-next chunk. At one point, I will eventually retry this chunk and then it
-succeeds.
+I'd normally put such a fix into 4.17-rcX but I'd like to give Hugh
+time to review it and to generally give it a bit more time for review
+and test.
 
-> 
-> We really do need a better error reporting from do_migrate_range and
-> distinguish transient from permanent failures. In general we shouldn't
-> even get here for pages which are not migrateable...
-
-I totally agree, I also want to know if an error is permanent or
-transient - and I want the posibility to "fail fast" (e.g. -EAGAIN)
-instead of looping forever.
-
-
--- 
-
-Thanks,
-
-David / dhildenb
+Have you tested it yourself?
