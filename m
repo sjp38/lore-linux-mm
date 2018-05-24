@@ -1,294 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 60D4D6B026C
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 07:56:28 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id i11-v6so1161576wre.16
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 04:56:28 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f14-v6si7160108edk.459.2018.05.24.04.56.26
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A885F6B0006
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 08:03:49 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id m1-v6so1199075wrn.14
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 05:03:49 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o61-v6si1314075edb.107.2018.05.24.05.03.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 04:56:26 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4OBsej6076908
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 07:56:24 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2j5sq2s0fq-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 07:56:24 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 24 May 2018 12:56:21 +0100
-Date: Thu, 24 May 2018 14:56:14 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] userfaultfd: prevent non-cooperative events vs
- mcopy_atomic races
-References: <1527061324-19949-1-git-send-email-rppt@linux.vnet.ibm.com>
- <0e1ce040-1beb-fd96-683c-1b18eb635fd6@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 24 May 2018 05:03:46 -0700 (PDT)
+Date: Thu, 24 May 2018 14:03:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by
+ device driver
+Message-ID: <20180524120341.GF20441@dhcp22.suse.cz>
+References: <20180523151151.6730-1-david@redhat.com>
+ <20180524075327.GU20441@dhcp22.suse.cz>
+ <14d79dad-ad47-f090-2ec0-c5daf87ac529@redhat.com>
+ <20180524093121.GZ20441@dhcp22.suse.cz>
+ <c0b8bbd5-6c01-f550-ae13-ef80b2255ea6@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0e1ce040-1beb-fd96-683c-1b18eb635fd6@virtuozzo.com>
-Message-Id: <20180524115613.GA16908@rapoport-lnx>
+In-Reply-To: <c0b8bbd5-6c01-f550-ae13-ef80b2255ea6@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Andrei Vagin <avagin@virtuozzo.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, May 24, 2018 at 02:24:37PM +0300, Pavel Emelyanov wrote:
-> On 05/23/2018 10:42 AM, Mike Rapoport wrote:
-> > If a process monitored with userfaultfd changes it's memory mappings or
-> > forks() at the same time as uffd monitor fills the process memory with
-> > UFFDIO_COPY, the actual creation of page table entries and copying of the
-> > data in mcopy_atomic may happen either before of after the memory mapping
-> > modifications and there is no way for the uffd monitor to maintain
-> > consistent view of the process memory layout.
+On Thu 24-05-18 12:45:50, David Hildenbrand wrote:
+> On 24.05.2018 11:31, Michal Hocko wrote:
+> > On Thu 24-05-18 10:31:30, David Hildenbrand wrote:
+[...]
+> >> Allowing to unplug such small chunks is actually the interesting thing.
 > > 
-> > For instance, let's consider fork() running in parallel with
-> > userfaultfd_copy():
+> > Not really. The vmemmap will stay behind and so you are still wasting
+> > memory. Well, unless you want to have small ptes for the hotplug memory
+> > which is just too suboptimal
 > > 
-> > process        		         |	uffd monitor
-> > ---------------------------------+------------------------------
-> > fork()        		         | userfaultfd_copy()
-> > ...        		         | ...
-> >     dup_mmap()        	         |     down_read(mmap_sem)
-> >     down_write(mmap_sem)         |     /* create PTEs, copy data */
-> >         dup_uffd()               |     up_read(mmap_sem)
-> >         copy_page_range()        |
-> >         up_write(mmap_sem)       |
-> >         dup_uffd_complete()      |
-> >             /* notify monitor */ |
+> >> Try unplugging a 128MB DIMM. With ZONE_NORMAL: pretty much impossible.
+> >> With ZONE_MOVABLE: maybe possible.
 > > 
-> > If the userfaultfd_copy() takes the mmap_sem first, the new page(s) will be
-> > present by the time copy_page_range() is called and they will appear in the
-> > child's memory mappings. However, if the fork() is the first to take the
-> > mmap_sem, the new pages won't be mapped in the child's address space.
+> > It should be always possible. We have some players who pin pages for
+> > arbitrary amount of time even from zone movable but we should focus on
+> > fixing them or come with a way to handle that. Zone movable is about
+> > movable memory pretty much by definition.
 > 
-> But in this case child should get an entry, that emits a message to uffd when step upon!
-> And uffd will just userfaultfd_copy() it again. No?
+> You exactly describe what has been the case for way too long. But this
+> is only the tip of the ice berg. Simply adding all memory to
+> ZONE_MOVABLE is not going to work (we create an imbalance - e.g. page
+> tables have to go into ZONE_NORMAL. this imbalance will have to be
+> managed later on). That's why I am rather thinking about said assignment
+> to different zones in the future. For now using ZONE_NORMAL is the
+> easiest approach.
+
+Well, I think it would be fair to say that memory hotplug is not really
+suitable for balancing memory between guests. Exactly because of the
+offline part. If you want to have a reliable offline you just screw
+yourself to the highmem land problems. This is the primary reason why I
+really detest any balooning like solutions based on the memory hotplug.
+I can see the case for adding memory to increase the initial guests
+sizes but that can be achieved with what we have currently without any
+additional complexity in the generic code. So you really have to have
+some seriously convincing arguments in hands. So far I haven't heard
+any, to be honest. This is just yet another thing that can be achieved
+with what other ballooning solutions are doing. I might be wrong because
+this is not really my area and I might underestimate some nuances but
+as already said, you have to be really convincing...
+
+> >> Try to find one 4MB chunk of a
+> >> "128MB" DIMM that can be unplugged: With ZONE_NORMAL
+> >> maybe possible. With ZONE_MOVABLE: likely possible.
+> >>
+> >> But let's not go into the discussion of ZONE_MOVABLE vs. ZONE_NORMAL, I
+> >> plan to work on that in the future.
+> >>
+> >> Think about it that way: A compromise between section based memory
+> >> hotplug and page based ballooning.
+> >>
+> >>
+> >> 2. memory hotplug and 128MB size
+> >>
+> >> Interesting point. One thing to note is that "The whole memory hotplug
+> >> is centered around memory sections and those are 128MB in size" is
+> >> simply the current state how it is implemented in Linux, nothing more.
+> > 
+> > Yes, and we do care about that because the whole memory hotplug is a
+> > bunch of hacks duct taped together to address very specific usecases.
+> > It took me one year to put it into a state that my eyes do not bleed
+> > anytime I have to look there. There are still way too many problems to
+> > address. I certainly do not want to add more complication. Quite
+> > contrary, the whole code cries for cleanups and sanity.
+> 
+> And I highly appreciate your effort. But look at the details: I am even
+> cleaning up online_pages() and offline_pages(). And this is not the end
+> of my contributions :) This is one step into that direction. It
+> showcases what is easily possible right now. With existing interfaces.
+
+If you can bring some cleanups then great. I would suggest pulling those
+out and post separately.
  
-There will be a message, indeed. But there is no way for monitor to tell
-whether the pages it copied are present or not in the child.
-
-Since the monitor cannot assume that the process will access all its memory
-it has to copy some pages "in the background". A simple monitor may look
-like:
-
-	for (;;) {
-		wait_for_uffd_events(timeout);
-		handle_uffd_events();
-		uffd_copy(some not faulted pages);
-	}
-
-Then, if the "background" uffd_copy() races with fork, the pages we've
-copied may be already present in parent's mappings before the call to
-copy_page_range() and may be not.
-
-If the pages were not present, uffd_copy'ing them again to the child's
-memory would be ok.
-
-But if uffd_copy() was first to catch mmap_sem, and we would uffd_copy them
-again, child process will get memory corruption.
-
-> -- Pavel
+> >> I want to avoid what balloon drivers do: rip out random pages,
+> >> fragmenting guest memory until we eventually trigger the OOM killer. So
+> >> instead, using 4MB chunks produces no fragmentation. And if I can't find
+> >> such a chunk anymore: bad luck. At least I won't be risking stability of
+> >> my guest.
+> >>
+> >> Does that answer your question?
+> > 
+> > So you basically pull out those pages from the page allocator and mark
+> > them offline (reserved what ever)? Why do you need any integration to
+> > the hotplug code base then? You should be perfectly fine to work on
+> > top and only teach that hotplug code to recognize your pages are being
+> > free when somebody decides to offline the whole section. I can think of
+> > a callback that would allow that.
+> > 
+> > But then you are, well a balloon driver, aren't you?
 > 
-> > Since userfaultfd monitor has no way to determine what was the order, let's
-> > disallow userfaultfd_copy in parallel with the non-cooperative events. In
-> > such case we return -EAGAIN and the uffd monitor can understand that
-> > userfaultfd_copy() clashed with a non-cooperative event and take an
-> > appropriate action.
-> > 
-> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> > Cc: Pavel Emelyanov <xemul@virtuozzo.com>
-> > Cc: Andrei Vagin <avagin@virtuozzo.com>
-> > ---
-> >  fs/userfaultfd.c              | 22 ++++++++++++++++++++--
-> >  include/linux/userfaultfd_k.h |  6 ++++--
-> >  mm/userfaultfd.c              | 22 +++++++++++++++++-----
-> >  3 files changed, 41 insertions(+), 9 deletions(-)
-> > 
-> > diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> > index cec550c8468f..123bf7d516fc 100644
-> > --- a/fs/userfaultfd.c
-> > +++ b/fs/userfaultfd.c
-> > @@ -62,6 +62,8 @@ struct userfaultfd_ctx {
-> >  	enum userfaultfd_state state;
-> >  	/* released */
-> >  	bool released;
-> > +	/* memory mappings are changing because of non-cooperative event */
-> > +	bool mmap_changing;
-> >  	/* mm with one ore more vmas attached to this userfaultfd_ctx */
-> >  	struct mm_struct *mm;
-> >  };
-> > @@ -641,6 +643,7 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
-> >  	 * already released.
-> >  	 */
-> >  out:
-> > +	WRITE_ONCE(ctx->mmap_changing, false);
-> >  	userfaultfd_ctx_put(ctx);
-> >  }
-> >  
-> > @@ -686,10 +689,12 @@ int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)
-> >  		ctx->state = UFFD_STATE_RUNNING;
-> >  		ctx->features = octx->features;
-> >  		ctx->released = false;
-> > +		ctx->mmap_changing = false;
-> >  		ctx->mm = vma->vm_mm;
-> >  		mmgrab(ctx->mm);
-> >  
-> >  		userfaultfd_ctx_get(octx);
-> > +		WRITE_ONCE(octx->mmap_changing, true);
-> >  		fctx->orig = octx;
-> >  		fctx->new = ctx;
-> >  		list_add_tail(&fctx->list, fcs);
-> > @@ -732,6 +737,7 @@ void mremap_userfaultfd_prep(struct vm_area_struct *vma,
-> >  	if (ctx && (ctx->features & UFFD_FEATURE_EVENT_REMAP)) {
-> >  		vm_ctx->ctx = ctx;
-> >  		userfaultfd_ctx_get(ctx);
-> > +		WRITE_ONCE(ctx->mmap_changing, true);
-> >  	}
-> >  }
-> >  
-> > @@ -772,6 +778,7 @@ bool userfaultfd_remove(struct vm_area_struct *vma,
-> >  		return true;
-> >  
-> >  	userfaultfd_ctx_get(ctx);
-> > +	WRITE_ONCE(ctx->mmap_changing, true);
-> >  	up_read(&mm->mmap_sem);
-> >  
-> >  	msg_init(&ewq.msg);
-> > @@ -815,6 +822,7 @@ int userfaultfd_unmap_prep(struct vm_area_struct *vma,
-> >  			return -ENOMEM;
-> >  
-> >  		userfaultfd_ctx_get(ctx);
-> > +		WRITE_ONCE(ctx->mmap_changing, true);
-> >  		unmap_ctx->ctx = ctx;
-> >  		unmap_ctx->start = start;
-> >  		unmap_ctx->end = end;
-> > @@ -1653,6 +1661,10 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
-> >  
-> >  	user_uffdio_copy = (struct uffdio_copy __user *) arg;
-> >  
-> > +	ret = -EAGAIN;
-> > +	if (READ_ONCE(ctx->mmap_changing))
-> > +		goto out;
-> > +
-> >  	ret = -EFAULT;
-> >  	if (copy_from_user(&uffdio_copy, user_uffdio_copy,
-> >  			   /* don't copy "copy" last field */
-> > @@ -1674,7 +1686,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
-> >  		goto out;
-> >  	if (mmget_not_zero(ctx->mm)) {
-> >  		ret = mcopy_atomic(ctx->mm, uffdio_copy.dst, uffdio_copy.src,
-> > -				   uffdio_copy.len);
-> > +				   uffdio_copy.len, &ctx->mmap_changing);
-> >  		mmput(ctx->mm);
-> >  	} else {
-> >  		return -ESRCH;
-> > @@ -1705,6 +1717,10 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
-> >  
-> >  	user_uffdio_zeropage = (struct uffdio_zeropage __user *) arg;
-> >  
-> > +	ret = -EAGAIN;
-> > +	if (READ_ONCE(ctx->mmap_changing))
-> > +		goto out;
-> > +
-> >  	ret = -EFAULT;
-> >  	if (copy_from_user(&uffdio_zeropage, user_uffdio_zeropage,
-> >  			   /* don't copy "zeropage" last field */
-> > @@ -1721,7 +1737,8 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
-> >  
-> >  	if (mmget_not_zero(ctx->mm)) {
-> >  		ret = mfill_zeropage(ctx->mm, uffdio_zeropage.range.start,
-> > -				     uffdio_zeropage.range.len);
-> > +				     uffdio_zeropage.range.len,
-> > +				     &ctx->mmap_changing);
-> >  		mmput(ctx->mm);
-> >  	} else {
-> >  		return -ESRCH;
-> > @@ -1900,6 +1917,7 @@ SYSCALL_DEFINE1(userfaultfd, int, flags)
-> >  	ctx->features = 0;
-> >  	ctx->state = UFFD_STATE_WAIT_API;
-> >  	ctx->released = false;
-> > +	ctx->mmap_changing = false;
-> >  	ctx->mm = current->mm;
-> >  	/* prevent the mm struct to be freed */
-> >  	mmgrab(ctx->mm);
-> > diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
-> > index f2f3b68ba910..e091f0a11b11 100644
-> > --- a/include/linux/userfaultfd_k.h
-> > +++ b/include/linux/userfaultfd_k.h
-> > @@ -31,10 +31,12 @@
-> >  extern int handle_userfault(struct vm_fault *vmf, unsigned long reason);
-> >  
-> >  extern ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
-> > -			    unsigned long src_start, unsigned long len);
-> > +			    unsigned long src_start, unsigned long len,
-> > +			    bool *mmap_changing);
-> >  extern ssize_t mfill_zeropage(struct mm_struct *dst_mm,
-> >  			      unsigned long dst_start,
-> > -			      unsigned long len);
-> > +			      unsigned long len,
-> > +			      bool *mmap_changing);
-> >  
-> >  /* mm helpers */
-> >  static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
-> > diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-> > index 39791b81ede7..5029f241908f 100644
-> > --- a/mm/userfaultfd.c
-> > +++ b/mm/userfaultfd.c
-> > @@ -404,7 +404,8 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
-> >  					      unsigned long dst_start,
-> >  					      unsigned long src_start,
-> >  					      unsigned long len,
-> > -					      bool zeropage)
-> > +					      bool zeropage,
-> > +					      bool *mmap_changing)
-> >  {
-> >  	struct vm_area_struct *dst_vma;
-> >  	ssize_t err;
-> > @@ -431,6 +432,15 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
-> >  	down_read(&dst_mm->mmap_sem);
-> >  
-> >  	/*
-> > +	 * If memory mappings are changing because of non-cooperative
-> > +	 * operation (e.g. mremap) running in parallel, bail out and
-> > +	 * request the user to retry later
-> > +	 */
-> > +	err = -EAGAIN;
-> > +	if (mmap_changing && READ_ONCE(*mmap_changing))
-> > +		goto out_unlock;
-> > +
-> > +	/*
-> >  	 * Make sure the vma is not shared, that the dst range is
-> >  	 * both valid and fully within a single existing vma.
-> >  	 */
-> > @@ -563,13 +573,15 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
-> >  }
-> >  
-> >  ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
-> > -		     unsigned long src_start, unsigned long len)
-> > +		     unsigned long src_start, unsigned long len,
-> > +		     bool *mmap_changing)
-> >  {
-> > -	return __mcopy_atomic(dst_mm, dst_start, src_start, len, false);
-> > +	return __mcopy_atomic(dst_mm, dst_start, src_start, len, false,
-> > +			      mmap_changing);
-> >  }
-> >  
-> >  ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
-> > -		       unsigned long len)
-> > +		       unsigned long len, bool *mmap_changing)
-> >  {
-> > -	return __mcopy_atomic(dst_mm, start, 0, len, true);
-> > +	return __mcopy_atomic(dst_mm, start, 0, len, true, mmap_changing);
-> >  }
-> > 
+> Pointing you at: [1]
 > 
+> I *cannot* use the page allocator. Using it would be a potential addon
+> (for special cases!) in the future. I really scan for removable chunks
+> in the memory region a certain virtio-mem device owns. Why can't I do it:
+> 
+> 1. I have to allocate memory in certain physical address range (the
+> range that belongs to a virtio-mem device). Well, we could write an
+> allocator.
 
+Not really. Why cannot you simply mimic what the hotplug already does?
+Scan a pfn range and isolate/migrate it? We can abstract such
+functionality to be better usable.
+
+> 2. I might have to deal with chunks that are bigger than MAX_ORDER - 1.
+> Say my virito-mem device has a block size of 8MB and I only can allocate
+> 4MB. I'm out of luck then.
+
+Confused again. So you are managing 4M chunks in 8M units?
+
+> So, no, virtio-mem is not a balloon driver :)
+[...]
+> >> 1. "hotplug should simply not depend on kdump at all"
+> >>
+> >> In theory yes. In the current state we already have to trigger kdump to
+> >> reload whenever we add/remove a memory block.
+> > 
+> > More details please.
+> 
+> I just had another look at the whole complexity of
+> makedumfile/kdump/uevents and I'll follow up with a detailed description.
+> 
+> kdump.service is definitely reloaded when setting a memory block
+> online/offline (not when adding/removing as I wrongly claimed before).
+> 
+> I'll follow up with a more detailed description and all the pointers.
+
+Please make sure to describe what is the architecture then. I have no
+idea what kdump.servise is supposed to do for example.
+
+> >> 2. kdump part
+> >>
+> >> Whenever we offline a page and tell the hypervisor about it ("unplug"),
+> >> we should not assume that we can read that page again. Now, if dumping
+> >> tools assume they can read all memory that is offline, we are in trouble.
+> > 
+> > Sure. Just make those pages reserved. Nobody should touch those IIRC.
+> 
+> I think I answered that question already (see [1]) in another thread: We
+> have certain buffers that are marked reserved. Reserved does not imply
+> don't dump. all dump tools I am aware of will dump reserved pages. I
+> cannot use reserved to mark sections offline once all pages are offline.
+
+Then fix those dump tools. They shouldn't have any business touching
+reserved memory, should they? That memory can be in an arbitrary state.
+ 
+> And I don't think the current approach of using a mapcount value is the
+> problematic part. This is straight forward now.
+
+The thing is that struct page space is extremely scarce. Anytime you
+take a bit or there somebody else will have to scratch his head much
+harder in the future. So if we can go with the existing infrastructure
+then it should be preferable. And we do have "this page is mine do not
+even think about touching it" - PageReserved.
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
