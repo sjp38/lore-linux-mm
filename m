@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 27EC96B000D
-	for <linux-mm@kvack.org>; Wed, 23 May 2018 21:00:32 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id d4-v6so15058393plr.17
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 18:00:32 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 571956B0266
+	for <linux-mm@kvack.org>; Wed, 23 May 2018 21:00:34 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id l85-v6so13883846pfb.18
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 18:00:34 -0700 (PDT)
 Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id 203-v6si19885295pfz.160.2018.05.23.18.00.30
+        by mx.google.com with ESMTPS id 203-v6si19885295pfz.160.2018.05.23.18.00.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 May 2018 18:00:30 -0700 (PDT)
+        Wed, 23 May 2018 18:00:33 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -V2 -mm 1/4] mm, clear_huge_page: Move order algorithm into a separate function
-Date: Thu, 24 May 2018 08:58:48 +0800
-Message-Id: <20180524005851.4079-2-ying.huang@intel.com>
+Subject: [PATCH -V2 -mm 2/4] mm, huge page: Copy target sub-page last when copy huge page
+Date: Thu, 24 May 2018 08:58:49 +0800
+Message-Id: <20180524005851.4079-3-ying.huang@intel.com>
 In-Reply-To: <20180524005851.4079-1-ying.huang@intel.com>
 References: <20180524005851.4079-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,26 +22,46 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@int
 
 From: Huang Ying <ying.huang@intel.com>
 
+Huge page helps to reduce TLB miss rate, but it has higher cache
+footprint, sometimes this may cause some issue.  For example, when
+copying huge page on x86_64 platform, the cache footprint is 4M.  But
+on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
+LLC (last level cache).  That is, in average, there are 2.5M LLC for
+each core and 1.25M LLC for each thread.
+
+If the cache contention is heavy when copying the huge page, and we
+copy the huge page from the begin to the end, it is possible that the
+begin of huge page is evicted from the cache after we finishing
+copying the end of the huge page.  And it is possible for the
+application to access the begin of the huge page after copying the
+huge page.
+
 In commit c79b57e462b5d ("mm: hugetlb: clear target sub-page last when
 clearing huge page"), to keep the cache lines of the target subpage
 hot, the order to clear the subpages in the huge page in
 clear_huge_page() is changed to clearing the subpage which is furthest
-from the target subpage firstly, and the target subpage last.  This
-optimization could be applied to copying huge page too with the same
-order algorithm.  To avoid code duplication and reduce maintenance
-overhead, in this patch, the order algorithm is moved out of
-clear_huge_page() into a separate function: process_huge_page().  So
-that we can use it for copying huge page too.
+from the target subpage firstly, and the target subpage last.  The
+similar order changing helps huge page copying too.  That is
+implemented in this patch.  Because we have put the order algorithm
+into a separate function, the implementation is quite simple.
 
-This will change the direct calls to clear_user_highpage() into the
-indirect calls.  But with the proper inline support of the compilers,
-the indirect call will be optimized to be the direct call.  Our tests
-show no performance change with the patch.
+The patch is a generic optimization which should benefit quite some
+workloads, not for a specific use case.  To demonstrate the performance
+benefit of the patch, we tested it with vm-scalability run on
+transparent huge page.
 
-This patch is a code cleanup without functionality change.
+With this patch, the throughput increases ~16.6% in vm-scalability
+anon-cow-seq test case with 36 processes on a 2 socket Xeon E5 v3 2699
+system (36 cores, 72 threads).  The test case set
+/sys/kernel/mm/transparent_hugepage/enabled to be always, mmap() a big
+anonymous memory area and populate it, then forked 36 child processes,
+each writes to the anonymous memory area from the begin to the end, so
+cause copy on write.  For each child process, other child processes
+could be seen as other workloads which generate heavy cache pressure.
+At the same time, the IPC (instruction per cycle) increased from 0.63
+to 0.78, and the time spent in user space is reduced ~7.2%.
 
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
 Cc: Andi Kleen <andi.kleen@intel.com>
 Cc: Jan Kara <jack@suse.cz>
 Cc: Michal Hocko <mhocko@suse.com>
@@ -52,141 +72,91 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Shaohua Li <shli@fb.com>
 Cc: Christopher Lameter <cl@linux.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/memory.c | 90 ++++++++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 56 insertions(+), 34 deletions(-)
+ include/linux/mm.h |  3 ++-
+ mm/huge_memory.c   |  3 ++-
+ mm/memory.c        | 30 +++++++++++++++++++++++-------
+ 3 files changed, 27 insertions(+), 9 deletions(-)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7cdd8b7f62e5..d227aadaa964 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2734,7 +2734,8 @@ extern void clear_huge_page(struct page *page,
+ 			    unsigned long addr_hint,
+ 			    unsigned int pages_per_huge_page);
+ extern void copy_user_huge_page(struct page *dst, struct page *src,
+-				unsigned long addr, struct vm_area_struct *vma,
++				unsigned long addr_hint,
++				struct vm_area_struct *vma,
+ 				unsigned int pages_per_huge_page);
+ extern long copy_huge_page_from_user(struct page *dst_page,
+ 				const void __user *usr_src,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index e9177363fe2e..1b7fd9bda1dc 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1328,7 +1328,8 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ 	if (!page)
+ 		clear_huge_page(new_page, vmf->address, HPAGE_PMD_NR);
+ 	else
+-		copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
++		copy_user_huge_page(new_page, page, vmf->address,
++				    vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
+ 
+ 	mmun_start = haddr;
 diff --git a/mm/memory.c b/mm/memory.c
-index 14578158ed20..b9f573a81bbd 100644
+index b9f573a81bbd..5d432f833d19 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -4569,71 +4569,93 @@ EXPORT_SYMBOL(__might_fault);
- #endif
- 
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
--static void clear_gigantic_page(struct page *page,
--				unsigned long addr,
--				unsigned int pages_per_huge_page)
--{
--	int i;
--	struct page *p = page;
--
--	might_sleep();
--	for (i = 0; i < pages_per_huge_page;
--	     i++, p = mem_map_next(p, page, i)) {
--		cond_resched();
--		clear_user_highpage(p, addr + i * PAGE_SIZE);
--	}
--}
--void clear_huge_page(struct page *page,
--		     unsigned long addr_hint, unsigned int pages_per_huge_page)
-+/*
-+ * Process all subpages of the specified huge page with the specified
-+ * operation.  The target subpage will be processed last to keep its
-+ * cache lines hot.
-+ */
-+static inline void process_huge_page(
-+	unsigned long addr_hint, unsigned int pages_per_huge_page,
-+	void (*process_subpage)(unsigned long addr, int idx, void *arg),
-+	void *arg)
- {
- 	int i, n, base, l;
- 	unsigned long addr = addr_hint &
- 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
- 
--	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
--		clear_gigantic_page(page, addr, pages_per_huge_page);
--		return;
--	}
--
--	/* Clear sub-page to access last to keep its cache lines hot */
-+	/* Process target subpage last to keep its cache lines hot */
- 	might_sleep();
- 	n = (addr_hint - addr) / PAGE_SIZE;
- 	if (2 * n <= pages_per_huge_page) {
--		/* If sub-page to access in first half of huge page */
-+		/* If target subpage in first half of huge page */
- 		base = 0;
- 		l = n;
--		/* Clear sub-pages at the end of huge page */
-+		/* Process subpages at the end of huge page */
- 		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
- 			cond_resched();
--			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-+			process_subpage(addr + i * PAGE_SIZE, i, arg);
- 		}
- 	} else {
--		/* If sub-page to access in second half of huge page */
-+		/* If target subpage in second half of huge page */
- 		base = pages_per_huge_page - 2 * (pages_per_huge_page - n);
- 		l = pages_per_huge_page - n;
--		/* Clear sub-pages at the begin of huge page */
-+		/* Process subpages at the begin of huge page */
- 		for (i = 0; i < base; i++) {
- 			cond_resched();
--			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-+			process_subpage(addr + i * PAGE_SIZE, i, arg);
- 		}
- 	}
- 	/*
--	 * Clear remaining sub-pages in left-right-left-right pattern
--	 * towards the sub-page to access
-+	 * Process remaining subpages in left-right-left-right pattern
-+	 * towards the target subpage
- 	 */
- 	for (i = 0; i < l; i++) {
- 		int left_idx = base + i;
- 		int right_idx = base + 2 * l - 1 - i;
- 
- 		cond_resched();
--		clear_user_highpage(page + left_idx,
--				    addr + left_idx * PAGE_SIZE);
-+		process_subpage(addr + left_idx * PAGE_SIZE, left_idx, arg);
- 		cond_resched();
--		clear_user_highpage(page + right_idx,
--				    addr + right_idx * PAGE_SIZE);
-+		process_subpage(addr + right_idx * PAGE_SIZE, right_idx, arg);
+@@ -4675,11 +4675,31 @@ static void copy_user_gigantic_page(struct page *dst, struct page *src,
  	}
  }
  
-+static void clear_gigantic_page(struct page *page,
-+				unsigned long addr,
-+				unsigned int pages_per_huge_page)
-+{
-+	int i;
-+	struct page *p = page;
++struct copy_subpage_arg {
++	struct page *dst;
++	struct page *src;
++	struct vm_area_struct *vma;
++};
 +
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page;
-+	     i++, p = mem_map_next(p, page, i)) {
-+		cond_resched();
-+		clear_user_highpage(p, addr + i * PAGE_SIZE);
-+	}
++static void copy_subpage(unsigned long addr, int idx, void *arg)
++{
++	struct copy_subpage_arg *copy_arg = arg;
++
++	copy_user_highpage(copy_arg->dst + idx, copy_arg->src + idx,
++			   addr, copy_arg->vma);
 +}
 +
-+static void clear_subpage(unsigned long addr, int idx, void *arg)
-+{
-+	struct page *page = arg;
-+
-+	clear_user_highpage(page + idx, addr);
-+}
-+
-+void clear_huge_page(struct page *page,
-+		     unsigned long addr_hint, unsigned int pages_per_huge_page)
-+{
+ void copy_user_huge_page(struct page *dst, struct page *src,
+-			 unsigned long addr, struct vm_area_struct *vma,
++			 unsigned long addr_hint, struct vm_area_struct *vma,
+ 			 unsigned int pages_per_huge_page)
+ {
+-	int i;
 +	unsigned long addr = addr_hint &
 +		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
-+
-+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
-+		clear_gigantic_page(page, addr, pages_per_huge_page);
-+		return;
-+	}
-+
-+	process_huge_page(addr_hint, pages_per_huge_page, clear_subpage, page);
-+}
-+
- static void copy_user_gigantic_page(struct page *dst, struct page *src,
- 				    unsigned long addr,
- 				    struct vm_area_struct *vma,
++	struct copy_subpage_arg arg = {
++		.dst = dst,
++		.src = src,
++		.vma = vma,
++	};
+ 
+ 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
+ 		copy_user_gigantic_page(dst, src, addr, vma,
+@@ -4687,11 +4707,7 @@ void copy_user_huge_page(struct page *dst, struct page *src,
+ 		return;
+ 	}
+ 
+-	might_sleep();
+-	for (i = 0; i < pages_per_huge_page; i++) {
+-		cond_resched();
+-		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
+-	}
++	process_huge_page(addr_hint, pages_per_huge_page, copy_subpage, &arg);
+ }
+ 
+ long copy_huge_page_from_user(struct page *dst_page,
 -- 
 2.16.1
