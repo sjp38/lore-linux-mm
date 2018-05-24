@@ -1,94 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 76F286B000A
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 04:20:50 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id z16-v6so362392pgv.16
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 01:20:50 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B9686B0005
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 04:27:34 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id t15-v6so728670wrm.3
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 01:27:33 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g12-v6si21132001pfm.258.2018.05.24.01.20.48
+        by mx.google.com with ESMTPS id i20-v6si6689158edg.354.2018.05.24.01.27.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 May 2018 01:20:48 -0700 (PDT)
-Date: Thu, 24 May 2018 10:20:44 +0200
+        Thu, 24 May 2018 01:27:32 -0700 (PDT)
+Date: Thu, 24 May 2018 10:27:29 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to
  charge to memcg
-Message-ID: <20180524082044.GW20441@dhcp22.suse.cz>
+Message-ID: <20180524082729.GX20441@dhcp22.suse.cz>
 References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
- <240f1b14-ed7d-4983-6c52-be4899d4caa5@oracle.com>
- <8711fed5-fc35-a11a-3a17-740a9dca1f2a@ascade.co.jp>
- <20180522185407.GC20441@dhcp22.suse.cz>
- <455b1a07-d7e3-102b-65e7-3892947b7675@ascade.co.jp>
+ <20180522135148.GA20441@dhcp22.suse.cz>
+ <af1a3050-7365-428a-dfb1-2f3da37dc9ff@ascade.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <455b1a07-d7e3-102b-65e7-3892947b7675@ascade.co.jp>
+In-Reply-To: <af1a3050-7365-428a-dfb1-2f3da37dc9ff@ascade.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: TSUKADA Koutaro <tsukada@ascade.co.jp>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Thu 24-05-18 13:39:59, TSUKADA Koutaro wrote:
-> On 2018/05/23 3:54, Michal Hocko wrote:
+On Thu 24-05-18 13:26:12, TSUKADA Koutaro wrote:
 [...]
-> > I am also quite confused why you keep distinguishing surplus hugetlb
-> > pages from regular preallocated ones. Being a surplus page is an
-> > implementation detail that we use for an internal accounting rather than
-> > something to exhibit to the userspace even more than we do currently.
+> I do not know if it is really a strong use case, but I will explain my
+> motive in detail. English is not my native language, so please pardon
+> my poor English.
 > 
-> I apologize for having confused.
+> I am one of the developers for software that managing the resource used
+> from user job at HPC-Cluster with Linux. The resource is memory mainly.
+> The HPC-Cluster may be shared by multiple people and used. Therefore, the
+> memory used by each user must be strictly controlled, otherwise the
+> user's job will runaway, not only will it hamper the other users, it will
+> crash the entire system in OOM.
 > 
-> The hugetlb pages obtained from the pool do not waste the buddy pool.
+> Some users of HPC are very nervous about performance. Jobs are executed
+> while synchronizing with MPI communication using multiple compute nodes.
+> Since CPU wait time will occur when synchronizing, they want to minimize
+> the variation in execution time at each node to reduce waiting times as
+> much as possible. We call this variation a noise.
+> 
+> THP does not guarantee to use the Huge Page, but may use the normal page.
+> This mechanism is one cause of variation(noise).
+> 
+> The users who know this mechanism will be hesitant to use THP. However,
+> the users also know the benefits of the Huge Page's TLB hit rate
+> performance, and the Huge Page seems to be attractive. It seems natural
+> that these users are interested in HugeTLBfs, I do not know at all
+> whether it is the right approach or not.
 
-Because they have already allocated from the buddy allocator so the end
-result is very same.
-
-> On
-> the other hand, surplus hugetlb pages waste the buddy pool. Due to this
-> difference in property, I thought it could be distinguished.
-
-But this is simply not correct. Surplus pages are fluid. If you increase
-the hugetlb size they will become regular persistent hugetlb pages.
+Sure, asking for guarantee makes hugetlb pages attractive. But nothing
+is really for free, especially any resource _guarantee_, and you have to
+pay an additional configuration price usually.
  
-> Although my memcg knowledge is extremely limited, memcg is accounting for
-> various kinds of pages obtained from the buddy pool by the task belonging
-> to it. I would like to argue that surplus hugepage has specificity in
-> terms of obtaining from the buddy pool, and that it is specially permitted
-> charge requirements for memcg.
-
-Not really. Memcg accounts primarily for reclaimable memory. We do
-account for some non-reclaimable slabs but the life time should be at
-least bound to a process life time. Otherwise the memcg oom killer
-behavior is not guaranteed to unclutter the situation. Hugetlb pages are
-simply persistent. Well, to be completely honest tmpfs pages have a
-similar problem but lacking the swap space for them is kinda
-configuration bug.
-
-> It seems very strange that charge hugetlb page to memcg, but essentially
-> it only charges the usage of the compound page obtained from the buddy pool,
-> and even if that page is used as hugetlb page after that, memcg is not
-> interested in that.
-
-Ohh, it is very much interested. The primary goal of memcg is to enforce
-the limit. How are you going to do that in an absence of the reclaimable
-memory? And quite a lot of it because hugetlb pages usually consume a
-lot of memory.
-
-> I will completely apologize if my way of thinking is wrong. It would be
-> greatly appreciated if you could mention why we can not charge surplus
-> hugepages to memcg.
+> At the very least, our HPC system is pursuing high versatility and we
+> have to consider whether we can provide it if users want to use HugeTLBfs.
 > 
-> > Just look at what [sw]hould when you need to adjust accounting - e.g.
-> > due to the pool resize. Are you going to uncharge those surplus pages
-> > ffrom memcg to reflect their persistence?
-> > 
-> 
-> I could not understand the intention of this question, sorry. When resize
-> the pool, I think that the number of surplus hugepages in use does not
-> change. Could you explain what you were concerned about?
+> In order to use HugeTLBfs we need to create a persistent pool, but in
+> our use case sharing nodes, it would be impossible to create, delete or
+> resize the pool.
 
-It does change when ou change the hugetlb pool size, migrate pages
-between per-numa pools (have a look at adjust_pool_surplus).
+Why? I can see this would be quite a PITA but not really impossible.
+
+> One of the answers I have reached is to use HugeTLBfs by overcommitting
+> without creating a pool(this is the surplus hugepage).
+> 
+> Surplus hugepages is hugetlb page, but I think at least that consuming
+> buddy pool is a decisive difference from hugetlb page of persistent pool.
+> If nr_overcommit_hugepages is assumed to be infinite, allocating pages for
+> surplus hugepages from buddy pool is all unlimited even if being limited
+> by memcg.
+
+Not really, you can specify how much you can overcommit hugetlb pages.
+
+> In extreme cases, overcommitment will allow users to exhaust
+> the entire memory of the system. Of course, this can be prevented by the
+> hugetlb cgroup, but even if we set the limit for memcg and hugetlb cgroup
+> respectively, as I asked in the first mail(set limit to 10GB), the
+> control will not work.
 -- 
 Michal Hocko
 SUSE Labs
