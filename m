@@ -1,136 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D38C86B0271
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 00:26:32 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p189-v6so240207pfp.2
-        for <linux-mm@kvack.org>; Wed, 23 May 2018 21:26:32 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A13246B0272
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 00:40:19 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id d20-v6so239082pfn.16
+        for <linux-mm@kvack.org>; Wed, 23 May 2018 21:40:19 -0700 (PDT)
 Received: from ns.ascade.co.jp (ext-host0001.ascade.co.jp. [218.224.228.194])
-        by mx.google.com with ESMTP id b7-v6si14937362pgn.583.2018.05.23.21.26.30
+        by mx.google.com with ESMTP id t23-v6si21756130plo.508.2018.05.23.21.40.17
         for <linux-mm@kvack.org>;
-        Wed, 23 May 2018 21:26:30 -0700 (PDT)
+        Wed, 23 May 2018 21:40:18 -0700 (PDT)
 Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to
  charge to memcg
 References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
- <20180522135148.GA20441@dhcp22.suse.cz>
+ <240f1b14-ed7d-4983-6c52-be4899d4caa5@oracle.com>
+ <8711fed5-fc35-a11a-3a17-740a9dca1f2a@ascade.co.jp>
+ <20180522185407.GC20441@dhcp22.suse.cz>
 From: TSUKADA Koutaro <tsukada@ascade.co.jp>
-Message-ID: <af1a3050-7365-428a-dfb1-2f3da37dc9ff@ascade.co.jp>
-Date: Thu, 24 May 2018 13:26:12 +0900
+Message-ID: <455b1a07-d7e3-102b-65e7-3892947b7675@ascade.co.jp>
+Date: Thu, 24 May 2018 13:39:59 +0900
 MIME-Version: 1.0
-In-Reply-To: <20180522135148.GA20441@dhcp22.suse.cz>
+In-Reply-To: <20180522185407.GC20441@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On 2018/05/22 22:51, Michal Hocko wrote:
-> On Fri 18-05-18 13:27:27, TSUKADA Koutaro wrote:
->> The purpose of this patch-set is to make it possible to control whether or
->> not to charge surplus hugetlb pages obtained by overcommitting to memory
->> cgroup. In the future, I am trying to accomplish limiting the memory usage
->> of applications that use both normal pages and hugetlb pages by the memory
->> cgroup(not use the hugetlb cgroup).
+On 2018/05/23 3:54, Michal Hocko wrote:
+> On Tue 22-05-18 22:04:23, TSUKADA Koutaro wrote:
+>> On 2018/05/22 3:07, Mike Kravetz wrote:
+>>> On 05/17/2018 09:27 PM, TSUKADA Koutaro wrote:
+>>>> Thanks to Mike Kravetz for comment on the previous version patch.
+>>>>
+>>>> The purpose of this patch-set is to make it possible to control whether or
+>>>> not to charge surplus hugetlb pages obtained by overcommitting to memory
+>>>> cgroup. In the future, I am trying to accomplish limiting the memory usage
+>>>> of applications that use both normal pages and hugetlb pages by the memory
+>>>> cgroup(not use the hugetlb cgroup).
+>>>>
+>>>> Applications that use shared libraries like libhugetlbfs.so use both normal
+>>>> pages and hugetlb pages, but we do not know how much to use each. Please
+>>>> suppose you want to manage the memory usage of such applications by cgroup
+>>>> How do you set the memory cgroup and hugetlb cgroup limit when you want to
+>>>> limit memory usage to 10GB?
+>>>>
+>>>> If you set a limit of 10GB for each, the user can use a total of 20GB of
+>>>> memory and can not limit it well. Since it is difficult to estimate the
+>>>> ratio used by user of normal pages and hugetlb pages, setting limits of 2GB
+>>>> to memory cgroup and 8GB to hugetlb cgroup is not very good idea. In such a
+>>>> case, I thought that by using my patch-set, we could manage resources just
+>>>> by setting 10GB as the limit of memory cgoup(there is no limit to hugetlb
+>>>> cgroup).
+>>>>
+>>>> In this patch-set, introduce the charge_surplus_huge_pages(boolean) to
+>>>> struct hstate. If it is true, it charges to the memory cgroup to which the
+>>>> task that obtained surplus hugepages belongs. If it is false, do nothing as
+>>>> before, and the default value is false. The charge_surplus_huge_pages can
+>>>> be controlled procfs or sysfs interfaces.
+>>>>
+>>>> Since THP is very effective in environments with kernel page size of 4KB,
+>>>> such as x86, there is no reason to positively use HugeTLBfs, so I think
+>>>> that there is no situation to enable charge_surplus_huge_pages. However, in
+>>>> some distributions such as arm64, the page size of the kernel is 64KB, and
+>>>> the size of THP is too huge as 512MB, making it difficult to use. HugeTLBfs
+>>>> may support multiple huge page sizes, and in such a special environment
+>>>> there is a desire to use HugeTLBfs.
+>>>
+>>> One of the basic questions/concerns I have is accounting for surplus huge
+>>> pages in the default memory resource controller.  The existing huegtlb
+>>> resource controller already takes hugetlbfs huge pages into account,
+>>> including surplus pages.  This series would allow surplus pages to be
+>>> accounted for in the default  memory controller, or the hugetlb controller
+>>> or both.
+>>>
+>>> I understand that current mechanisms do not meet the needs of the above
+>>> use case.  The question is whether this is an appropriate way to approach
+>>> the issue.
 > 
-> There was a deliberate decision to keep hugetlb and "normal" memory
-> cgroup controllers separate. Mostly because hugetlb memory is an
-> artificial memory subsystem on its own and it doesn't fit into the rest
-> of memcg accounted memory very well. I believe we want to keep that
-> status quo.
+> I do share your view Mike!
 > 
->> Applications that use shared libraries like libhugetlbfs.so use both normal
->> pages and hugetlb pages, but we do not know how much to use each. Please
->> suppose you want to manage the memory usage of such applications by cgroup
->> How do you set the memory cgroup and hugetlb cgroup limit when you want to
->> limit memory usage to 10GB?
+>>> My cgroup experience and knowledge is extremely limited, but
+>>> it does not appear that any other resource can be controlled by multiple
+>>> controllers.  Therefore, I am concerned that this may be going against
+>>> basic cgroup design philosophy.
+>>
+>> Thank you for your feedback.
+>> That makes sense, surplus hugepages are charged to both memcg and hugetlb
+>> cgroup, which may be contrary to cgroup design philosophy.
+>>
+>> Based on the above advice, I have considered the following improvements,
+>> what do you think about?
+>>
+>> The 'charge_surplus_hugepages' of v2 patch-set was an option to switch
+>> "whether to charge memcg in addition to hugetlb cgroup", but it will be
+>> abolished. Instead, change to "switch only to memcg instead of hugetlb
+>> cgroup" option. This is called 'surplus_charge_to_memcg'.
 > 
-> Well such a usecase requires an explicit configuration already. Either
-> by using special wrappers or modifying the code. So I would argue that
-> you have quite a good knowlege of the setup. If you need a greater
-> flexibility then just do not use hugetlb at all and rely on THP.
-> [...]
+> This all looks so hackish and ad-hoc that I would be tempted to give it
+> an outright nack, but let's here more about why do we need this fiddling
+> at all. I've asked in other email so I guess I will get an answer there
+> but let me just emphasize again that I absolutely detest a possibility
+> to put hugetlb pages into the memcg mix. They just do not belong there.
+> Try to look at previous discussions why it has been decided to have a
+> separate hugetlb pages at all.
 > 
->> In this patch-set, introduce the charge_surplus_huge_pages(boolean) to
->> struct hstate. If it is true, it charges to the memory cgroup to which the
->> task that obtained surplus hugepages belongs. If it is false, do nothing as
->> before, and the default value is false. The charge_surplus_huge_pages can
->> be controlled procfs or sysfs interfaces.
-> 
-> I do not really think this is a good idea. We really do not want to make
-> the current hugetlb code more complex than it is already. The current
-> hugetlb cgroup controller is simple and works at least somehow. I would
-> not add more on top unless there is a _really_ strong usecase behind.
-> Please make sure to describe such a usecase in details before we even
-> start considering the code.
+> I am also quite confused why you keep distinguishing surplus hugetlb
+> pages from regular preallocated ones. Being a surplus page is an
+> implementation detail that we use for an internal accounting rather than
+> something to exhibit to the userspace even more than we do currently.
 
-Thank you for your time.
+I apologize for having confused.
 
-I do not know if it is really a strong use case, but I will explain my
-motive in detail. English is not my native language, so please pardon
-my poor English.
+The hugetlb pages obtained from the pool do not waste the buddy pool. On
+the other hand, surplus hugetlb pages waste the buddy pool. Due to this
+difference in property, I thought it could be distinguished.
 
-I am one of the developers for software that managing the resource used
-from user job at HPC-Cluster with Linux. The resource is memory mainly.
-The HPC-Cluster may be shared by multiple people and used. Therefore, the
-memory used by each user must be strictly controlled, otherwise the
-user's job will runaway, not only will it hamper the other users, it will
-crash the entire system in OOM.
+Although my memcg knowledge is extremely limited, memcg is accounting for
+various kinds of pages obtained from the buddy pool by the task belonging
+to it. I would like to argue that surplus hugepage has specificity in
+terms of obtaining from the buddy pool, and that it is specially permitted
+charge requirements for memcg.
 
-Some users of HPC are very nervous about performance. Jobs are executed
-while synchronizing with MPI communication using multiple compute nodes.
-Since CPU wait time will occur when synchronizing, they want to minimize
-the variation in execution time at each node to reduce waiting times as
-much as possible. We call this variation a noise.
+It seems very strange that charge hugetlb page to memcg, but essentially
+it only charges the usage of the compound page obtained from the buddy pool,
+and even if that page is used as hugetlb page after that, memcg is not
+interested in that.
 
-THP does not guarantee to use the Huge Page, but may use the normal page.
-This mechanism is one cause of variation(noise).
+I will completely apologize if my way of thinking is wrong. It would be
+greatly appreciated if you could mention why we can not charge surplus
+hugepages to memcg.
 
-The users who know this mechanism will be hesitant to use THP. However,
-the users also know the benefits of the Huge Page's TLB hit rate
-performance, and the Huge Page seems to be attractive. It seems natural
-that these users are interested in HugeTLBfs, I do not know at all
-whether it is the right approach or not.
-
-At the very least, our HPC system is pursuing high versatility and we
-have to consider whether we can provide it if users want to use HugeTLBfs.
-
-In order to use HugeTLBfs we need to create a persistent pool, but in
-our use case sharing nodes, it would be impossible to create, delete or
-resize the pool.
-
-One of the answers I have reached is to use HugeTLBfs by overcommitting
-without creating a pool(this is the surplus hugepage).
-
-Surplus hugepages is hugetlb page, but I think at least that consuming
-buddy pool is a decisive difference from hugetlb page of persistent pool.
-If nr_overcommit_hugepages is assumed to be infinite, allocating pages for
-surplus hugepages from buddy pool is all unlimited even if being limited
-by memcg. In extreme cases, overcommitment will allow users to exhaust
-the entire memory of the system. Of course, this can be prevented by the
-hugetlb cgroup, but even if we set the limit for memcg and hugetlb cgroup
-respectively, as I asked in the first mail(set limit to 10GB), the
-control will not work.
-
-I thought I could charge surplus hugepages to memcg, but maybe I did not
-have enough knowledge about memcg. I would like to reply to another mail
-for details.
-
->> Since THP is very effective in environments with kernel page size of 4KB,
->> such as x86, there is no reason to positively use HugeTLBfs, so I think
->> that there is no situation to enable charge_surplus_huge_pages. However, in
->> some distributions such as arm64, the page size of the kernel is 64KB, and
->> the size of THP is too huge as 512MB, making it difficult to use. HugeTLBfs
->> may support multiple huge page sizes, and in such a special environment
->> there is a desire to use HugeTLBfs.
-> 
-> Well, then I would argue that you shouldn't use 64kB pages for your
-> setup or allow THP for smaller sizes. Really hugetlb pages are by no
-> means a substitute here.
+> Just look at what [sw]hould when you need to adjust accounting - e.g.
+> due to the pool resize. Are you going to uncharge those surplus pages
+> ffrom memcg to reflect their persistence?
 > 
 
-Actually, I am opposed to the 64KB page, but the proposal to change the
-page size is expected to be dismissed as a problem.
+I could not understand the intention of this question, sorry. When resize
+the pool, I think that the number of surplus hugepages in use does not
+change. Could you explain what you were concerned about?
 
 -- 
 Thanks,
