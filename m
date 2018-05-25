@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F8A46B000C
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 10:40:49 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 44-v6so4401801wrt.9
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 07:40:49 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E23C6B000D
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 10:40:51 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z7-v6so4326812wrg.11
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 07:40:51 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m28-v6sor2209697wmi.51.2018.05.25.07.40.47
+        by mx.google.com with SMTPS id r65-v6sor2188068wmf.11.2018.05.25.07.40.50
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 25 May 2018 07:40:47 -0700 (PDT)
+        Fri, 25 May 2018 07:40:50 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 04/16] khwasan, arm64: adjust shadow size for CONFIG_KASAN_HW
-Date: Fri, 25 May 2018 16:40:20 +0200
-Message-Id: <e7bb61346c71364ce8c201f9062ea79673fd3531.1527259068.git.andreyknvl@google.com>
+Subject: [PATCH v2 05/16] khwasan: initialize shadow to 0xff
+Date: Fri, 25 May 2018 16:40:21 +0200
+Message-Id: <727e82c4aab2391df254c0752fa4eec308e70653.1527259068.git.andreyknvl@google.com>
 In-Reply-To: <cover.1527259068.git.andreyknvl@google.com>
 References: <cover.1527259068.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,55 +20,107 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
 Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
 
-KWHASAN uses 1 shadow byte for 16 bytes of kernel memory, so it requires
-1/16th of the kernel virtual address space for the shadow memory.
-
-This commit sets KASAN_SHADOW_SCALE_SHIFT to 4 when KHWASAN is enabled.
+A KHWASAN shadow memory cell contains a memory tag, that corresponds to
+the tag in the top byte of the pointer, that points to that memory. The
+native top byte value of kernel pointers is 0xff, so with KHWASAN we
+need to initialize shadow memory to 0xff. This commit does that.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/Makefile             |  2 +-
- arch/arm64/include/asm/memory.h | 13 +++++++++----
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ arch/arm64/mm/kasan_init.c | 16 ++++++++++++++--
+ include/linux/kasan.h      |  8 ++++++++
+ mm/kasan/common.c          |  3 ++-
+ 3 files changed, 24 insertions(+), 3 deletions(-)
 
-diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 87f7d2f9f17c..99c9649c57b1 100644
---- a/arch/arm64/Makefile
-+++ b/arch/arm64/Makefile
-@@ -99,7 +99,7 @@ endif
- # KASAN_SHADOW_OFFSET = VA_START + (1 << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
- #				 - (1 << (64 - KASAN_SHADOW_SCALE_SHIFT))
- # in 32-bit arithmetic
--KASAN_SHADOW_SCALE_SHIFT := 3
-+KASAN_SHADOW_SCALE_SHIFT := $(if $(CONFIG_KASAN_HW), 4, 3)
- KASAN_SHADOW_OFFSET := $(shell printf "0x%08x00000000\n" $$(( \
- 	(0xffffffff & (-1 << ($(CONFIG_ARM64_VA_BITS) - 32))) \
- 	+ (1 << ($(CONFIG_ARM64_VA_BITS) - 32 - $(KASAN_SHADOW_SCALE_SHIFT))) \
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index 49d99214f43c..6d084431b7f7 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -74,12 +74,17 @@
- #define KERNEL_END        _end
+diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+index 12145874c02b..7a31e8ccbad2 100644
+--- a/arch/arm64/mm/kasan_init.c
++++ b/arch/arm64/mm/kasan_init.c
+@@ -44,6 +44,15 @@ static phys_addr_t __init kasan_alloc_zeroed_page(int node)
+ 	return __pa(p);
+ }
  
- /*
-- * KASAN requires 1/8th of the kernel virtual address space for the shadow
-- * region. KASAN can bloat the stack significantly, so double the (minimum)
-- * stack size when KASAN is in use.
-+ * KASAN and KHWASAN require 1/8th and 1/16th of the kernel virtual address
-+ * space for the shadow region respectively. They can bloat the stack
-+ * significantly, so double the (minimum) stack size when they are in use.
-  */
--#ifdef CONFIG_KASAN
-+#ifdef CONFIG_KASAN_GENERIC
- #define KASAN_SHADOW_SCALE_SHIFT 3
-+#endif
++static phys_addr_t __init kasan_alloc_raw_page(int node)
++{
++	void *p = memblock_virt_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
++						  __pa(MAX_DMA_ADDRESS),
++						  MEMBLOCK_ALLOC_ACCESSIBLE,
++						  node);
++	return __pa(p);
++}
++
+ static pte_t *__init kasan_pte_offset(pmd_t *pmdp, unsigned long addr, int node,
+ 				      bool early)
+ {
+@@ -89,7 +98,9 @@ static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
+ 
+ 	do {
+ 		phys_addr_t page_phys = early ? __pa_symbol(kasan_zero_page)
+-					      : kasan_alloc_zeroed_page(node);
++					      : kasan_alloc_raw_page(node);
++		if (!early)
++			memset(__va(page_phys), KASAN_SHADOW_INIT, PAGE_SIZE);
+ 		next = addr + PAGE_SIZE;
+ 		set_pte(ptep, pfn_pte(__phys_to_pfn(page_phys), PAGE_KERNEL));
+ 	} while (ptep++, addr = next, addr != end && pte_none(READ_ONCE(*ptep)));
+@@ -139,6 +150,7 @@ asmlinkage void __init kasan_early_init(void)
+ 		KASAN_SHADOW_END - (1UL << (64 - KASAN_SHADOW_SCALE_SHIFT)));
+ 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PGDIR_SIZE));
+ 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
++
+ 	kasan_pgd_populate(KASAN_SHADOW_START, KASAN_SHADOW_END, NUMA_NO_NODE,
+ 			   true);
+ }
+@@ -235,7 +247,7 @@ void __init kasan_init(void)
+ 		set_pte(&kasan_zero_pte[i],
+ 			pfn_pte(sym_to_pfn(kasan_zero_page), PAGE_KERNEL_RO));
+ 
+-	memset(kasan_zero_page, 0, PAGE_SIZE);
++	memset(kasan_zero_page, KASAN_SHADOW_INIT, PAGE_SIZE);
+ 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
+ 
+ 	/* At this point kasan is fully initialized. Enable error messages */
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index 6608aa9b35ac..336385baf926 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -139,6 +139,8 @@ static inline size_t kasan_metadata_size(struct kmem_cache *cache) { return 0; }
+ 
+ #ifdef CONFIG_KASAN_GENERIC
+ 
++#define KASAN_SHADOW_INIT 0
++
+ void kasan_cache_shrink(struct kmem_cache *cache);
+ void kasan_cache_shutdown(struct kmem_cache *cache);
+ 
+@@ -149,4 +151,10 @@ static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
+ 
+ #endif /* CONFIG_KASAN_GENERIC */
+ 
 +#ifdef CONFIG_KASAN_HW
-+#define KASAN_SHADOW_SCALE_SHIFT 4
-+#endif
-+#ifdef CONFIG_KASAN
- #define KASAN_SHADOW_SIZE	(UL(1) << (VA_BITS - KASAN_SHADOW_SCALE_SHIFT))
- #define KASAN_THREAD_SHIFT	1
- #else
++
++#define KASAN_SHADOW_INIT 0xFF
++
++#endif /* CONFIG_KASAN_HW */
++
+ #endif /* LINUX_KASAN_H */
+diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+index 99a569e18ec7..3d7277cc1f5b 100644
+--- a/mm/kasan/common.c
++++ b/mm/kasan/common.c
+@@ -473,11 +473,12 @@ int kasan_module_alloc(void *addr, size_t size)
+ 
+ 	ret = __vmalloc_node_range(shadow_size, 1, shadow_start,
+ 			shadow_start + shadow_size,
+-			GFP_KERNEL | __GFP_ZERO,
++			GFP_KERNEL,
+ 			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
+ 			__builtin_return_address(0));
+ 
+ 	if (ret) {
++		__memset(ret, KASAN_SHADOW_INIT, shadow_size);
+ 		find_vm_area(addr)->flags |= VM_KASAN;
+ 		kmemleak_ignore(ret);
+ 		return 0;
 -- 
 2.17.0.921.gf22659ad46-goog
