@@ -1,116 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 87E536B02D1
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 00:50:29 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 44-v6so3187156wrt.9
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 21:50:29 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 90-v6si14308094wrf.365.2018.05.24.21.50.27
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6052E6B02D3
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 00:53:11 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id c73-v6so3115642qke.2
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 21:53:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p187-v6sor13511495qkb.125.2018.05.24.21.53.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 21:50:27 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w4P4hgkc027023
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 00:50:26 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2j6abctrbg-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 00:50:26 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 25 May 2018 05:50:24 +0100
-Subject: Re: [PATCH 2/2] mm: do not warn on offline nodes unless the specific
- node is explicitly requested
-References: <20180523125555.30039-1-mhocko@kernel.org>
- <20180523125555.30039-3-mhocko@kernel.org>
- <11e26a4e-552e-b1dc-316e-ce3e92973556@linux.vnet.ibm.com>
- <20180523140601.GQ20441@dhcp22.suse.cz>
- <094afec3-5682-f99d-81bb-230319c78d5d@linux.vnet.ibm.com>
- <20180524080011.GV20441@dhcp22.suse.cz>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Fri, 25 May 2018 10:20:16 +0530
+        (Google Transport Security);
+        Thu, 24 May 2018 21:53:10 -0700 (PDT)
+Date: Fri, 25 May 2018 00:53:06 -0400
+From: Kent Overstreet <kent.overstreet@gmail.com>
+Subject: Re: [RESEND PATCH V5 00/33] block: support multipage bvec
+Message-ID: <20180525045306.GB8740@kmo-pixel>
+References: <20180525034621.31147-1-ming.lei@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180524080011.GV20441@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <c4bf7d88-5051-ba78-f6f9-ea90f6c8137e@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180525034621.31147-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <osalvador@techadventures.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pasha.tatashin@oracle.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@fb.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>
 
-On 05/24/2018 01:30 PM, Michal Hocko wrote:
-> On Thu 24-05-18 08:52:14, Anshuman Khandual wrote:
->> On 05/23/2018 07:36 PM, Michal Hocko wrote:
->>> On Wed 23-05-18 19:15:51, Anshuman Khandual wrote:
->>>> On 05/23/2018 06:25 PM, Michal Hocko wrote:
->>>>> when adding memory to a node that is currently offline.
->>>>>
->>>>> The VM_WARN_ON is just too loud without a good reason. In this
->>>>> particular case we are doing
->>>>> 	alloc_pages_node(node, GFP_KERNEL|__GFP_RETRY_MAYFAIL|__GFP_NOWARN, order)
->>>>>
->>>>> so we do not insist on allocating from the given node (it is more a
->>>>> hint) so we can fall back to any other populated node and moreover we
->>>>> explicitly ask to not warn for the allocation failure.
->>>>>
->>>>> Soften the warning only to cases when somebody asks for the given node
->>>>> explicitly by __GFP_THISNODE.
->>>>
->>>> node hint passed here eventually goes into __alloc_pages_nodemask()
->>>> function which then picks up the applicable zonelist irrespective of
->>>> the GFP flag __GFP_THISNODE.
->>>
->>> __GFP_THISNODE should enforce the given node without any fallbacks
->>> unless something has changed recently.
->>
->> Right. I was just saying requiring given preferred node to be online
->> whose zonelist (hence allocation zone fallback order) is getting picked
->> up during allocation and warning when that is not online still makes
->> sense.
+On Fri, May 25, 2018 at 11:45:48AM +0800, Ming Lei wrote:
+> Hi,
 > 
-> Why? We have a fallback and that is expected to be used. How does
-> offline differ from depleted node from the semantical point of view?
+> This patchset brings multipage bvec into block layer:
 
-Hmm, right. I agree. Offlined and depleted nodes are same from memory
-allocation semantics point of view. It will proceed picking up next
-available zones on the zonelist in the fallback order exactly in the
-same fashion either way.
+patch series looks sane to me. goddamn that's a lot of renaming.
 
-> 
->> We should only hide the warning if the allocation request has
->> __GFP_NOWARN.
->>
->>>
->>>> Though we can go into zones of other
->>>> nodes if the present node (whose zonelist got picked up) does not
->>>> have any memory in it's zones. So warning here might not be without
->>>> any reason.
->>>
->>> I am not sure I follow. Are you suggesting a different VM_WARN_ON?
->>
->> I am just suggesting this instead.
->>
->> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->> index 036846fc00a6..7f860ea29ec6 100644
->> --- a/include/linux/gfp.h
->> +++ b/include/linux/gfp.h
->> @@ -464,7 +464,7 @@ static inline struct page *
->>  __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
->>  {
->>  	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
->> -	VM_WARN_ON(!node_online(nid));
->> +	VM_WARN_ON(!(gfp_mask & __GFP_NOWARN) && !node_online(nid));
->>  
->>  	return __alloc_pages(gfp_mask, order, nid);
->>  }
-> 
-> I have considered that but I fail to see why should we warn about
-> regular GFP_KERNEL allocations as mentioned above. Just consider an
-> allocation for the preffered node. Do you want to warn just because that
-> node went offline?
+Things are going to get interesting when we start sticking compound pages in the
+page cache, there'll be some interesting questions of semantics to deal with
+then but I think getting this will only help w.r.t. plumbing that through and
+not dealing with 4k pages unnecessarily - but I think even if we were to decide
+that merging in bio_add_page() is not the way to go when the upper layers are
+passing compound pages around already, this patch series helps because
+regardless at some point everything under generic_make_request() is going to
+have to deal with segments that are more than one page, and this patch series
+makes that happen. So incremental progress.
 
-As you have mentioned before, the semantics is similar when the node is
-offlined compared to when its depleted. Right. I tend to agree with your
-approach of not warning in such situations.
+Jens, any objections to getting this in?
