@@ -1,96 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C31986B027D
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 21:17:06 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id j33-v6so2571008qtc.18
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 18:17:06 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id c135-v6si2947830qkg.11.2018.05.24.18.17.04
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 480566B027F
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 21:18:07 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id c82-v6so3037642itg.1
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 18:18:07 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id e31-v6si21210577ioi.41.2018.05.24.18.18.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 18:17:05 -0700 (PDT)
-Date: Thu, 24 May 2018 21:16:57 -0400
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
-Message-ID: <20180525011657.4qxrosmm3xjzo24w@xakep.localdomain>
-References: <20180418193220.4603-1-timofey.titovets@synesis.ru>
- <20180418193220.4603-3-timofey.titovets@synesis.ru>
- <20180522202242.otvdunkl75yfhkt4@xakep.localdomain>
- <CAGqmi76gJV=ZDX5=Y3toF2tPiJs8T=PiUJFQg5nq9O5yztx80Q@mail.gmail.com>
- <CAGM2reaZ2YoxFhEDtcXi=hMFoGFi8+SROOn+_SRMwnx3cW15kw@mail.gmail.com>
- <CAGqmi76-qK9q_OTvyqpb-9k_m0CLMt3o860uaN5LL8nBkf5RTg@mail.gmail.com>
+        Thu, 24 May 2018 18:18:05 -0700 (PDT)
+Message-Id: <201805250117.w4P1HgdG039943@www262.sakura.ne.jp>
+Subject: Re: [PATCH] mm,oom: Don't call =?ISO-2022-JP?B?c2NoZWR1bGVfdGltZW91dF9r?=
+ =?ISO-2022-JP?B?aWxsYWJsZSgpIHdpdGggb29tX2xvY2sgaGVsZC4=?=
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGqmi76-qK9q_OTvyqpb-9k_m0CLMt3o860uaN5LL8nBkf5RTg@mail.gmail.com>
+Date: Fri, 25 May 2018 10:17:42 +0900
+References: <201805241951.IFF48475.FMOSOJFQHLVtFO@I-love.SAKURA.ne.jp> <20180524115017.GE20441@dhcp22.suse.cz>
+In-Reply-To: <20180524115017.GE20441@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <nefelim4ag@gmail.com>
-Cc: linux-mm@kvack.org, Sioh Lee <solee@os.korea.ac.kr>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-Hi Timofey,
-
-> > Do you have performance numbers of crc32c without acceleration?
-> Yes, https://lkml.org/lkml/2017/12/30/222
+Michal Hocko wrote:
+> On Thu 24-05-18 19:51:24, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > Look. I am fed up with this discussion. You are fiddling with the code
+> > > and moving hacks around with a lot of hand waving. Rahter than trying to
+> > > look at the underlying problem. Your patch completely ignores PREEMPT as
+> > > I've mentioned in previous versions.
+> > 
+> > I'm not ignoring PREEMPT. To fix this OOM lockup problem properly, as much
+> > efforts as fixing Spectre/Meltdown problems will be required. This patch is
+> > a mitigation for regression introduced by fixing CVE-2018-1000200. Nothing
+> > is good with deferring this patch.
+> > 
+> > > I would be OK with removing the sleep from the out_of_memory path based
+> > > on your argumentation that we have a _proper_ synchronization with the
+> > > exit path now.
+> > 
+> > Such attempt should be made in a separate patch.
+> > 
+> > You suggested removing this sleep from my patch without realizing that
+> > we need explicit schedule_timeout_*() for PF_WQ_WORKER threads.
 > 
-> The experimental results (the experimental value is the average of the
-> measured values)
-> crc32c_intel: 1084.10ns
-> crc32c (no hardware acceleration): 7012.51ns
-> xxhash32: 2227.75ns
-> xxhash64: 1413.16ns
-> jhash2: 5128.30ns
+> And that sleep is in should_reclaim_retry. If that is not sufficient it
+> should be addressed rather than spilling more of that crud all over the
+> place.
 
-Excellent, thank you for this data.
+Then, please show me (by writing a patch yourself) how to tell whether
+we should sleep there. What I can come up is shown below.
 
-> > I understand that losing half of the hash result might be acceptable in
-> > this case, but I am not really sure how XOirng one more time can possibly
-> > make hash function worse, could you please elaborate?
-> 
-> IIRC, because of xor are symmetric
-> i.e. shift:
-> 0b01011010 >> 4 = 0b0101
-> and xor:
-> 0b0101 ^ 0b1010 = 0b1111
-> Xor will decrease randomness/entropy and will lead to hash collisions.
+-@@ -4241,6 +4240,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+-       /* Retry as long as the OOM killer is making progress */
+-       if (did_some_progress) {
+-               no_progress_loops = 0;
+-+              /*
+-+               * This schedule_timeout_*() serves as a guaranteed sleep for
+-+               * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
+-+               */
+-+              if (!tsk_is_oom_victim(current))
+-+                      schedule_timeout_uninterruptible(1);
+-               goto retry;
+-       }
++@@ -3927,6 +3926,14 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
++               (*no_progress_loops)++;
 
-Makes perfect sense. Yes, XORing two random numbers reduces entropy.
++       /*
+++       * We do a short sleep here if the OOM killer/reaper/victims are
+++       * holding oom_lock, in order to try to give them some CPU resources
+++       * for releasing memory.
+++       */
+++      if (mutex_is_locked(&oom_lock) && !tsk_is_oom_victim(current))
+++              schedule_timeout_uninterruptible(1);
+++
+++      /*
++        * Make sure we converge to OOM if we cannot make any progress
++        * several times in the row.
++        */
 
-> That possible to move decision from lazy load, to ksm_thread,
-> that will allow us to start bench and not slowdown boot.
-> 
-> But for that to works, ksm must start later, after init of crypto.
+As far as I know, whether a domain which the current thread belongs to is
+already OOM is not known as of should_reclaim_retry(). Therefore, sleeping
+there can become a pointless delay if the domain which the current thread
+belongs to and the domain which the owner of oom_lock (it can be a random
+thread inside out_of_memory() or exit_mmap()) belongs to differs.
 
-After studying this dependency some more I agree, it is OK to choose hash
-function where it is, but I still disagree that we must measure the
-performance at runtime.
-
-> crc32c with no hw, are slower in compare to jhash2 on x86, so i think on
-> other arches result will be same.
-
-Agreed.
-
-Below, is your patch updated with my suggested changes.
-
-1. Removes dependency on crc32c, use it only when it is available.
-2. Do not spend time measuring the performance, choose only if there is HW
-optimized implementation of crc32c is available.
-3. Replace the logic with static branches.
-4. Fix a couple minor bugs: 
-   fastest_hash_setup() and crc32c_available() were marked as __init
-   functions. Thus could be unmapped by the time they are run for the
-   first time. I think section mismatch would catch those
-   Removed dead code:  "desc.flags = 0", and also replaced desc with sash.
-   Removed unnecessary local global "static struct shash_desc desc" this
-   removes it from data page.
-   Fixed few spelling errors, and other minor changes to pass
-   ./scripts/checkpatch.pl
-
-The patch is untested, but should work. Please let me know if you agree
-with the changes. If so, you can test and resubmit the series.
-
-Thank you,
-Pavel
-
-Patch:
-==========================================================================
+But you insist sleeping there means that you don't care about such
+pointless delay?
