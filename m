@@ -1,71 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AFF156B0006
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 08:44:31 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id q24-v6so4278929iob.0
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 05:44:31 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x73-v6sor3438547ite.134.2018.05.25.05.44.30
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D7FF16B0006
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 09:09:19 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id t15-v6so4212148wrm.3
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 06:09:19 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 35-v6si2149528edi.14.2018.05.25.06.09.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 25 May 2018 05:44:30 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <0043ffdf-4a75-d41c-966e-073eac3dc557@virtuozzo.com>
-References: <cover.1525798753.git.andreyknvl@google.com> <52d2542323262ede3510754bb07cbc1ed8c347b0.1525798754.git.andreyknvl@google.com>
- <0043ffdf-4a75-d41c-966e-073eac3dc557@virtuozzo.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 25 May 2018 14:44:28 +0200
-Message-ID: <CAAeHK+xzYgtJNTs=z24uyuBWoLFyMAOZn9NuRFeHDgCTMse1AA@mail.gmail.com>
-Subject: Re: [PATCH v1 15/16] khwasan, mm, arm64: tag non slab memory
- allocated via pagealloc
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 25 May 2018 06:09:18 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH] mm, page_alloc: do not break __GFP_THISNODE by zonelist reset
+Date: Fri, 25 May 2018 15:08:53 +0200
+Message-Id: <20180525130853.13915-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org
 
-On Tue, May 15, 2018 at 4:06 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
-> You could avoid 'if (!PageSlab())' check by adding page_kasan_tag_reset() into kasan_poison_slab().
+In __alloc_pages_slowpath() we reset zonelist and preferred_zoneref for
+allocations that can ignore memory policies. The zonelist is obtained from
+current CPU's node. This is a problem for __GFP_THISNODE allocations that want
+to allocate on a different node, e.g. because the allocating thread has been
+migrated to a different CPU.
 
->> @@ -526,6 +526,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
->>       }
->>
->>       trace_cma_alloc(pfn, page, count, align);
->> +     page_kasan_tag_reset(page);
->
->
-> Why? Comment needed.
+This has been observed to break SLAB in our 4.4-based kernel, because there it
+relies on __GFP_THISNODE working as intended. If a slab page is put on wrong
+node's list, then further list manipulations may corrupt the list because
+page_to_nid() is used to determine which node's list_lock should be locked and
+thus we may take a wrong lock and race.
 
-> diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-> index b8e0a8215021..f9f2181164a2 100644
-> --- a/mm/kasan/common.c
-> +++ b/mm/kasan/common.c
-> @@ -207,18 +207,11 @@ void kasan_unpoison_stack_above_sp_to(const void *watermark)
->
->  void kasan_alloc_pages(struct page *page, unsigned int order)
->  {
-> -#ifdef CONFIG_KASAN_GENERIC
-> -       if (likely(!PageHighMem(page)))
-> -               kasan_unpoison_shadow(page_address(page), PAGE_SIZE << order);
-> -#else
-> -       if (!PageSlab(page)) {
-> -               u8 tag = random_tag();
-> +       if (unlikely(PageHighMem(page)))
-> +               return;
->
-> -               kasan_poison_shadow(page_address(page), PAGE_SIZE << order,
-> -                                       tag);
-> -               page_kasan_tag_set(page, tag);
-> -       }
-> -#endif
-> +       page_kasan_tag_set(page, random_tag());
-> +       kasan_unpoison_shadow(page_address(page), PAGE_SIZE << order);
->  }
->
->  void kasan_free_pages(struct page *page, unsigned int order)
+Current SLAB implementation seems to be immune by luck thanks to commit
+511e3a058812 ("mm/slab: make cache_grow() handle the page allocated on
+arbitrary node") but there may be others assuming that __GFP_THISNODE works as
+promised.
 
-> As already said before no changes needed in kasan_kmalloc_large. kasan_alloc_pages() alredy did tag_set().
+We can fix it by simply removing the zonelist reset completely. There is
+actually no reason to reset it, because memory policies and cpusets don't
+affect the zonelist choice in the first place. This was different when commit
+183f6371aac2 ("mm: ignore mempolicies when using ALLOC_NO_WATERMARK")
+introduced the code, as mempolicies provided their own restricted zonelists.
 
-Will fix all in v2, thanks!
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Fixes: 183f6371aac2 ("mm: ignore mempolicies when using ALLOC_NO_WATERMARK")
+Cc: <stable@vger.kernel.org>
+---
+Hi,
+
+we might consider this for 4.17 although I don't know if there's anything
+currently broken. Stable backports should be more important, but will have to
+be reviewed carefully, as the code went through many changes.
+BTW I think that also the ac->preferred_zoneref reset is currently useless if
+we don't also reset ac->nodemask from a mempolicy to NULL first (which we
+probably should for the OOM victims etc?), but I would leave that for a
+separate patch.
+
+Vlastimil
+
+ mm/page_alloc.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 905db9d7962f..be0f0b5d3935 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4165,7 +4165,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 * orientated.
+ 	 */
+ 	if (!(alloc_flags & ALLOC_CPUSET) || reserve_flags) {
+-		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+ 		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+ 					ac->high_zoneidx, ac->nodemask);
+ 	}
+-- 
+2.17.0
