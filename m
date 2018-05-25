@@ -1,71 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BFF606B0007
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 15:48:50 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e16-v6so3477533pfn.5
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 12:48:50 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l7-v6si14239205pgq.121.2018.05.25.12.48.49
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 290BF6B0008
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 15:48:57 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p189-v6so3484496pfp.2
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 12:48:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f82-v6sor9200275pfd.122.2018.05.25.12.48.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 May 2018 12:48:49 -0700 (PDT)
-Date: Fri, 25 May 2018 12:48:48 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 174/217] inode.c:(.text+0x170): multiple
- definition of `autofs_new_ino'
-Message-Id: <20180525124848.258056ff105877205962fdb5@linux-foundation.org>
-In-Reply-To: <1527227658.2695.5.camel@themaw.net>
-References: <201805251046.ncc27YbY%fengguang.wu@intel.com>
-	<1527227658.2695.5.camel@themaw.net>
-Mime-Version: 1.0
+        (Google Transport Security);
+        Fri, 25 May 2018 12:48:56 -0700 (PDT)
+Date: Fri, 25 May 2018 12:48:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v5] Refactor part of the oom report in dump_header
+In-Reply-To: <1527213613-7922-1-git-send-email-ufo19890607@gmail.com>
+Message-ID: <alpine.DEB.2.21.1805251245210.158701@chino.kir.corp.google.com>
+References: <1527213613-7922-1-git-send-email-ufo19890607@gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ian Kent <raven@themaw.net>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: ufo19890607 <ufo19890607@gmail.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian <yuzhoujian@didichuxing.com>
 
-On Fri, 25 May 2018 13:54:18 +0800 Ian Kent <raven@themaw.net> wrote:
+On Fri, 25 May 2018, ufo19890607 wrote:
 
-> On Fri, 2018-05-25 at 10:19 +0800, kbuild test robot wrote:
+> From: yuzhoujian <yuzhoujian@didichuxing.com>
 > 
-> Andrew,
+> The dump_header does not print the memcg's name when the system
+> oom happened, so users cannot locate the certain container which
+> contains the task that has been killed by the oom killer.
 > 
-> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> > head:   0b018d19da6c907a81867c5743aad0b7e0a225ab
-> > commit: 17a2d85727768517003e45933a7118a48fe36f34 [174/217] autofs: create
-> > autofs Kconfig and Makefile
-> > config: i386-allyesconfig (attached as .config)
-> > compiler: gcc-7 (Debian 7.3.0-16) 7.3.0
-> > reproduce:
-> >         git checkout 17a2d85727768517003e45933a7118a48fe36f34
-> >         # save the attached .config to linux build tree
-> >         make ARCH=i386 
-> > 
-> > Note: the mmotm/master HEAD 0b018d19da6c907a81867c5743aad0b7e0a225ab builds
-> > fine.
-> >       It only hurts bisectibility.
+> I follow the advices of David Rientjes and Michal Hocko, and refactor
+> part of the oom report in a backwards compatible way. After this patch,
+> users can get the memcg's path from the oom report and check the certain
+> container more quickly.
 > 
-> Looks like my ordering is wrong.
-> 
-> Moving:
-> autofs - create autofs Kconfig and Makefile
-> 
-> three patches down to below:
-> autofs - delete fs/autofs4 source files
-> 
-> can be done without problem and should preserve bisectibility.
 
-I did that.
+I like the direction you are taking.  A couple notes:
 
-autofs4-merge-auto_fsh-and-auto_fs4h.patch
-autofs4-use-autofs-instead-of-autofs4-everywhere.patch
-autofs-copy-autofs4-to-autofs.patch
-autofs-update-fs-autofs4-kconfig.patch
-autofs-update-fs-autofs4-kconfig-fix.patch
-autofs-update-fs-autofs4-makefile.patch
-autofs-delete-fs-autofs4-source-files.patch
-autofs-create-autofs-kconfig-and-makefile.patch
-autofs-rename-autofs-documentation-files.patch
-autofs-use-autofs-instead-of-autofs4-in-documentation.patch
-autofs-update-maintainers-entry-for-autofs.patch
+ - you may find it easier to declare an array of const char * for each
+   constraint:
+
+	static const char * const oom_constraint_text[] = {
+		[CONSTRAINT_NONE] = "CONSTRAINT_NONE",
+		[CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
+		[CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
+		[CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
+	};
+
+ - we need to eliminate all the usage of pr_cont() because otherwise we
+   can still get interleaving in the kernel log (the single line output
+   should always be a complete single line that can be parsed by
+   userspace).
+
+ - to generate a single line output, I think you need a call to a
+   function in mm/memcontrol.c when is_memcg_oom(oc) is true and
+   otherwise a function in mm/oom_kill.c when false.   
