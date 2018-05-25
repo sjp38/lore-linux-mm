@@ -1,47 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF18E6B000A
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 11:59:43 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id y62-v6so4363553qkb.15
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 08:59:43 -0700 (PDT)
-Received: from a9-99.smtp-out.amazonses.com (a9-99.smtp-out.amazonses.com. [54.240.9.99])
-        by mx.google.com with ESMTPS id a12-v6si1243224qtm.274.2018.05.25.08.59.42
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 591826B0005
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 12:16:33 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id i200-v6so4754672itb.9
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 09:16:33 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id i130-v6si6481254iof.0.2018.05.25.09.16.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 25 May 2018 08:59:43 -0700 (PDT)
-Date: Fri, 25 May 2018 15:59:42 +0000
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 4/5] mm: rename and change semantics of
- nr_indirectly_reclaimable_bytes
-In-Reply-To: <20180524110011.1940-5-vbabka@suse.cz>
-Message-ID: <010001639806f32c-c18e739a-feac-4c6d-bce0-61c410579310-000000@email.amazonses.com>
-References: <20180524110011.1940-1-vbabka@suse.cz> <20180524110011.1940-5-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 25 May 2018 09:16:30 -0700 (PDT)
+Subject: Re: [RESEND PATCH V5 33/33] block: document usage of bio iterator
+ helpers
+References: <20180525034621.31147-1-ming.lei@redhat.com>
+ <20180525034621.31147-34-ming.lei@redhat.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <00b2a0e5-431c-1fc3-7cc8-602148c56457@infradead.org>
+Date: Fri, 25 May 2018 09:16:10 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20180525034621.31147-34-ming.lei@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Vijayanand Jitta <vjitta@codeaurora.org>
+To: Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>
+Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>
 
-On Thu, 24 May 2018, Vlastimil Babka wrote:
+On 05/24/2018 08:46 PM, Ming Lei wrote:
+> Now multipage bvec is supported, and some helpers may return page by
+> page, and some may return segment by segment, this patch documents the
+> usage for helping us use them correctly.
+> 
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> ---
+>  Documentation/block/biovecs.txt | 32 ++++++++++++++++++++++++++++++++
+>  1 file changed, 32 insertions(+)
+> 
+> diff --git a/Documentation/block/biovecs.txt b/Documentation/block/biovecs.txt
+> index b4d238b8d9fc..32a6643caeca 100644
+> --- a/Documentation/block/biovecs.txt
+> +++ b/Documentation/block/biovecs.txt
+> @@ -117,3 +117,35 @@ Other implications:
+>     size limitations and the limitations of the underlying devices. Thus
+>     there's no need to define ->merge_bvec_fn() callbacks for individual block
+>     drivers.
+> +
+> +Usage of helpers:
+> +=================
+> +
+> +* The following helpers which name has suffix of "_all" can only be used on
 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 32699b2dc52a..4343948f33e5 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -180,7 +180,7 @@ enum node_stat_item {
->  	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
->  	NR_DIRTIED,		/* page dirtyings since bootup */
->  	NR_WRITTEN,		/* page writings since bootup */
-> -	NR_INDIRECTLY_RECLAIMABLE_BYTES, /* measured in bytes */
-> +	NR_RECLAIMABLE,         /* all reclaimable pages, including slab */
->  	NR_VM_NODE_STAT_ITEMS
+   * The following helpers, whose names have the suffix "_all", can only be used on
 
-We already have NR_SLAB_RECLAIMABLE and NR_RECLAIMABLE now counts what
-NR_SLAB_RECLAIMABLE counts plus something else. THis means updating
-two counters in parallel.
+> +non-BIO_CLONED bio, and ususally they are used by filesystem code, and driver
 
-Could keep the existing counter and just account
-for those non slab things you mentioned? Avoid counting twice and may
-provide unique insides into those non slab reclaimable objects. I'd like
-to see this.
+                           usually
+
+> +shouldn't use them becasue bio may have been splitted before they got to the
+
+                      because                   split
+
+> +driver:
+> +
+> +	bio_for_each_segment_all()
+> +	bio_for_each_page_all()
+> +	bio_pages_all()
+> +	bio_first_bvec_all()
+> +	bio_first_page_all()
+> +	bio_last_bvec_all()
+> +	segment_for_each_page_all()
+> +
+> +* The following helpers iterate bio page by page, and the local variable of
+> +'struct bio_vec' or the reference records single page io vector during the
+> +itearation:
+
+   iteration:
+
+> +
+> +	bio_for_each_page()
+> +	bio_for_each_page_all()
+> +	segment_for_each_page_all()
+> +
+> +* The following helpers iterate bio segment by segment, and each segment may
+> +include multiple physically contiguous pages, and the local variable of
+> +'struct bio_vec' or the reference records multi page io vector during the
+> +itearation:
+
+   iteration:
+
+> +
+> +	bio_for_each_segment()
+> +	bio_for_each_segment_all()
+> 
+
+
+-- 
+~Randy
