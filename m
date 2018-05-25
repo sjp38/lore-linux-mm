@@ -1,48 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 09C666B026B
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 13:21:30 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 3-v6so4900164wry.0
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 10:21:29 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B85C6B0003
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 14:55:09 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x21-v6so3358200pfn.23
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 11:55:09 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z133-v6sor2138405wmg.13.2018.05.25.10.21.28
+        by mx.google.com with SMTPS id q1-v6sor10346859plr.28.2018.05.25.11.55.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 25 May 2018 10:21:28 -0700 (PDT)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v3 6/6] arm64: update Documentation/arm64/tagged-pointers.txt
-Date: Fri, 25 May 2018 19:21:16 +0200
-Message-Id: <e5c51f30f639adeacd4168d925048329b4d6fd32.1527268727.git.andreyknvl@google.com>
-In-Reply-To: <cover.1527268727.git.andreyknvl@google.com>
-References: <cover.1527268727.git.andreyknvl@google.com>
+        Fri, 25 May 2018 11:55:08 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH] memcg: force charge kmem counter too
+Date: Fri, 25 May 2018 11:55:01 -0700
+Message-Id: <20180525185501.82098-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrey Konovalov <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
 
-Add a note that work on passing tagged user pointers to the kernel via
-syscalls has started, but might not be complete yet.
+Based on several conditions the kernel can decide to force charge an
+allocation for a memcg i.e. overcharge memcg->memory and memcg->memsw
+counters. Do the same for memcg->kmem counter too. In cgroup-v1, this
+bug can cause a __GFP_NOFAIL kmem allocation fail if an explicit limit
+on kmem counter is set and reached.
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
 ---
- Documentation/arm64/tagged-pointers.txt | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ mm/memcontrol.c | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/arm64/tagged-pointers.txt b/Documentation/arm64/tagged-pointers.txt
-index a25a99e82bb1..361481283f00 100644
---- a/Documentation/arm64/tagged-pointers.txt
-+++ b/Documentation/arm64/tagged-pointers.txt
-@@ -35,8 +35,9 @@ Using non-zero address tags in any of these locations may result in an
- error code being returned, a (fatal) signal being raised, or other modes
- of failure.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ab5673dbfc4e..0a88f824c550 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1893,6 +1893,18 @@ void mem_cgroup_handle_over_high(void)
+ 	current->memcg_nr_pages_over_high = 0;
+ }
  
--For these reasons, passing non-zero address tags to the kernel via
--system calls is forbidden, and using a non-zero address tag for sp is
-+Some initial work for supporting non-zero address tags passed to the
-+kernel via system calls has been done, but the kernel doesn't provide
-+any guarantees at this point. Using a non-zero address tag for sp is
- strongly discouraged.
++/*
++ * Based on try_charge() force charge conditions.
++ */
++static inline bool should_force_charge(gfp_t gfp_mask)
++{
++	return (unlikely(tsk_is_oom_victim(current) ||
++			 fatal_signal_pending(current) ||
++			 current->flags & PF_EXITING ||
++			 current->flags & PF_MEMALLOC ||
++			 gfp_mask & __GFP_NOFAIL));
++}
++
+ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 		      unsigned int nr_pages)
+ {
+@@ -2008,6 +2020,8 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	 * The allocation either can't fail or will lead to more memory
+ 	 * being freed very soon.  Allow memory usage go over the limit
+ 	 * temporarily by force charging it.
++	 *
++	 * NOTE: Please keep the should_force_charge() conditions in sync.
+ 	 */
+ 	page_counter_charge(&memcg->memory, nr_pages);
+ 	if (do_memsw_account())
+@@ -2331,8 +2345,11 @@ int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
  
- Programs maintaining a frame pointer and frame records that use non-zero
+ 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+ 	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
+-		cancel_charge(memcg, nr_pages);
+-		return -ENOMEM;
++		if (!should_force_charge(gfp)) {
++			cancel_charge(memcg, nr_pages);
++			return -ENOMEM;
++		}
++		page_counter_charge(&memcg->kmem, nr_pages);
+ 	}
+ 
+ 	page->mem_cgroup = memcg;
 -- 
 2.17.0.921.gf22659ad46-goog
