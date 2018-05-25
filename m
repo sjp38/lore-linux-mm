@@ -1,91 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 480566B027F
-	for <linux-mm@kvack.org>; Thu, 24 May 2018 21:18:07 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id c82-v6so3037642itg.1
-        for <linux-mm@kvack.org>; Thu, 24 May 2018 18:18:07 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id e31-v6si21210577ioi.41.2018.05.24.18.18.05
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 May 2018 18:18:05 -0700 (PDT)
-Message-Id: <201805250117.w4P1HgdG039943@www262.sakura.ne.jp>
-Subject: Re: [PATCH] mm,oom: Don't call =?ISO-2022-JP?B?c2NoZWR1bGVfdGltZW91dF9r?=
- =?ISO-2022-JP?B?aWxsYWJsZSgpIHdpdGggb29tX2xvY2sgaGVsZC4=?=
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A21AF6B0281
+	for <linux-mm@kvack.org>; Thu, 24 May 2018 21:52:15 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id s21-v6so2075175plq.4
+        for <linux-mm@kvack.org>; Thu, 24 May 2018 18:52:15 -0700 (PDT)
+Received: from ns.ascade.co.jp (ext-host0001.ascade.co.jp. [218.224.228.194])
+        by mx.google.com with ESMTP id q200-v6si5985178pgq.682.2018.05.24.18.52.10
+        for <linux-mm@kvack.org>;
+        Thu, 24 May 2018 18:52:11 -0700 (PDT)
+Subject: Re: [PATCH v2 0/7] mm: pages for hugetlb's overcommit may be able to
+ charge to memcg
+References: <e863529b-7ce5-4fbe-8cff-581b5789a5f9@ascade.co.jp>
+ <240f1b14-ed7d-4983-6c52-be4899d4caa5@oracle.com>
+ <8711fed5-fc35-a11a-3a17-740a9dca1f2a@ascade.co.jp>
+ <20180522185407.GC20441@dhcp22.suse.cz>
+ <455b1a07-d7e3-102b-65e7-3892947b7675@ascade.co.jp>
+ <20180524082044.GW20441@dhcp22.suse.cz>
+ <b2afbff6-b59f-7105-3808-64d41bd4a3a8@ascade.co.jp>
+ <20180524132414.GI20441@dhcp22.suse.cz>
+From: TSUKADA Koutaro <tsukada@ascade.co.jp>
+Message-ID: <504b1ca0-9030-29be-4657-9cc18575eacb@ascade.co.jp>
+Date: Fri, 25 May 2018 10:51:50 +0900
 MIME-Version: 1.0
-Date: Fri, 25 May 2018 10:17:42 +0900
-References: <201805241951.IFF48475.FMOSOJFQHLVtFO@I-love.SAKURA.ne.jp> <20180524115017.GE20441@dhcp22.suse.cz>
-In-Reply-To: <20180524115017.GE20441@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-2022-JP"
+In-Reply-To: <20180524132414.GI20441@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jonathan Corbet <corbet@lwn.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Marc-Andre Lureau <marcandre.lureau@redhat.com>, Punit Agrawal <punit.agrawal@arm.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-Michal Hocko wrote:
-> On Thu 24-05-18 19:51:24, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > Look. I am fed up with this discussion. You are fiddling with the code
-> > > and moving hacks around with a lot of hand waving. Rahter than trying to
-> > > look at the underlying problem. Your patch completely ignores PREEMPT as
-> > > I've mentioned in previous versions.
-> > 
-> > I'm not ignoring PREEMPT. To fix this OOM lockup problem properly, as much
-> > efforts as fixing Spectre/Meltdown problems will be required. This patch is
-> > a mitigation for regression introduced by fixing CVE-2018-1000200. Nothing
-> > is good with deferring this patch.
-> > 
-> > > I would be OK with removing the sleep from the out_of_memory path based
-> > > on your argumentation that we have a _proper_ synchronization with the
-> > > exit path now.
-> > 
-> > Such attempt should be made in a separate patch.
-> > 
-> > You suggested removing this sleep from my patch without realizing that
-> > we need explicit schedule_timeout_*() for PF_WQ_WORKER threads.
+On 2018/05/24 22:24, Michal Hocko wrote
+[...]> I do not see anything like that. adjust_pool_surplus is simply and
+> accounting thing. At least the last time I've checked. Maybe your
+> patchset handles that?
+
+As you said, my patch did not consider handling when manipulating the
+pool. And even if that handling is done well, it will not be a valid
+reason to charge surplus hugepage to memcg.
+
+[...]
+>> Absolutely you are saying the right thing, but, for example, can mlock(2)ed
+>> pages be swapped out by reclaim?(What is the difference between mlock(2)ed
+>> pages and hugetlb page?)
 > 
-> And that sleep is in should_reclaim_retry. If that is not sufficient it
-> should be addressed rather than spilling more of that crud all over the
-> place.
+> No mlocked pages cannot be reclaimed and that is why we restrict them to
+> a relatively small amount.
 
-Then, please show me (by writing a patch yourself) how to tell whether
-we should sleep there. What I can come up is shown below.
+I understood the concept of memcg.
 
--@@ -4241,6 +4240,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
--       /* Retry as long as the OOM killer is making progress */
--       if (did_some_progress) {
--               no_progress_loops = 0;
--+              /*
--+               * This schedule_timeout_*() serves as a guaranteed sleep for
--+               * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
--+               */
--+              if (!tsk_is_oom_victim(current))
--+                      schedule_timeout_uninterruptible(1);
--               goto retry;
--       }
-+@@ -3927,6 +3926,14 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
-+               (*no_progress_loops)++;
+[...]
+> Fatal? Not sure. It simply tries to add an alien memory to the memcg
+> concept so I would pressume an unexpected behavior (e.g. not being able
+> to reclaim memcg or, over reclaim, trashing etc.).
 
-+       /*
-++       * We do a short sleep here if the OOM killer/reaper/victims are
-++       * holding oom_lock, in order to try to give them some CPU resources
-++       * for releasing memory.
-++       */
-++      if (mutex_is_locked(&oom_lock) && !tsk_is_oom_victim(current))
-++              schedule_timeout_uninterruptible(1);
-++
-++      /*
-+        * Make sure we converge to OOM if we cannot make any progress
-+        * several times in the row.
-+        */
+As you said, it must be an alien. Thanks to the interaction up to here,
+I understood that my solution is inappropriate. I will look for another
+way.
 
-As far as I know, whether a domain which the current thread belongs to is
-already OOM is not known as of should_reclaim_retry(). Therefore, sleeping
-there can become a pointless delay if the domain which the current thread
-belongs to and the domain which the owner of oom_lock (it can be a random
-thread inside out_of_memory() or exit_mmap()) belongs to differs.
+Thank you for your kind explanation.
 
-But you insist sleeping there means that you don't care about such
-pointless delay?
+-- 
+Thanks,
+Tsukada
