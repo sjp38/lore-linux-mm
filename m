@@ -1,90 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AA996B0008
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 15:44:30 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id z1-v6so3482348pfh.3
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 12:44:30 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t193-v6sor7128407pgc.248.2018.05.25.12.44.29
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BFF606B0007
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 15:48:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e16-v6so3477533pfn.5
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 12:48:50 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id l7-v6si14239205pgq.121.2018.05.25.12.48.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 25 May 2018 12:44:29 -0700 (PDT)
-Date: Fri, 25 May 2018 12:44:27 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [rfc patch] mm, oom: fix unnecessary killing of additional
- processes
-In-Reply-To: <201805250019.w4P0J3Dl018566@www262.sakura.ne.jp>
-Message-ID: <alpine.DEB.2.21.1805251237110.158701@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1805241422070.182300@chino.kir.corp.google.com> <201805250019.w4P0J3Dl018566@www262.sakura.ne.jp>
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 May 2018 12:48:49 -0700 (PDT)
+Date: Fri, 25 May 2018 12:48:48 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 174/217] inode.c:(.text+0x170): multiple
+ definition of `autofs_new_ino'
+Message-Id: <20180525124848.258056ff105877205962fdb5@linux-foundation.org>
+In-Reply-To: <1527227658.2695.5.camel@themaw.net>
+References: <201805251046.ncc27YbY%fengguang.wu@intel.com>
+	<1527227658.2695.5.camel@themaw.net>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ian Kent <raven@themaw.net>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, 25 May 2018, Tetsuo Handa wrote:
+On Fri, 25 May 2018 13:54:18 +0800 Ian Kent <raven@themaw.net> wrote:
 
-> > The oom reaper ensures forward progress by setting MMF_OOM_SKIP itself if
-> > it cannot reap an mm.  This can happen for a variety of reasons,
-> > including:
-> > 
-> >  - the inability to grab mm->mmap_sem in a sufficient amount of time,
-> > 
-> >  - when the mm has blockable mmu notifiers that could cause the oom reaper
-> >    to stall indefinitely,
-> > 
-> > but we can also add a third when the oom reaper can "reap" an mm but doing
-> > so is unlikely to free any amount of memory:
-> > 
-> >  - when the mm's memory is fully mlocked.
+> On Fri, 2018-05-25 at 10:19 +0800, kbuild test robot wrote:
 > 
->    - when the mm's memory is fully mlocked (needs privilege) or
->      fully shared (does not need privilege)
+> Andrew,
 > 
-
-Good point, that is another way that unnecessary oom killing can occur 
-because the oom reaper sets MMF_OOM_SKIP far too early.  I can make the 
-change to the commit message.
-
-Also, I noticed in my patch that oom_reap_task() should be doing 
-list_add_tail() rather than list_add() to enqueue the mm for reaping 
-again.
-
-> > This is the same issue where the exit path sets MMF_OOM_SKIP before
-> > unmapping memory and additional processes can be chosen unnecessarily
-> > because the oom killer is racing with exit_mmap().
+> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> > head:   0b018d19da6c907a81867c5743aad0b7e0a225ab
+> > commit: 17a2d85727768517003e45933a7118a48fe36f34 [174/217] autofs: create
+> > autofs Kconfig and Makefile
+> > config: i386-allyesconfig (attached as .config)
+> > compiler: gcc-7 (Debian 7.3.0-16) 7.3.0
+> > reproduce:
+> >         git checkout 17a2d85727768517003e45933a7118a48fe36f34
+> >         # save the attached .config to linux build tree
+> >         make ARCH=i386 
 > > 
-> > We can't simply defer setting MMF_OOM_SKIP, however, because if there is
-> > a true oom livelock in progress, it never gets set and no additional
-> > killing is possible.
-> > 
-> > To fix this, this patch introduces a per-mm reaping timeout, initially set
-> > at 10s.  It requires that the oom reaper's list becomes a properly linked
-> > list so that other mm's may be reaped while waiting for an mm's timeout to
-> > expire.
+> > Note: the mmotm/master HEAD 0b018d19da6c907a81867c5743aad0b7e0a225ab builds
+> > fine.
+> >       It only hurts bisectibility.
 > 
-> I already proposed more simpler one at https://patchwork.kernel.org/patch/9877991/ .
+> Looks like my ordering is wrong.
 > 
+> Moving:
+> autofs - create autofs Kconfig and Makefile
+> 
+> three patches down to below:
+> autofs - delete fs/autofs4 source files
+> 
+> can be done without problem and should preserve bisectibility.
 
-It's a similar idea, and I'm glad that we agree that some kind of per-mm 
-delay is required to avoid this problem.  I think yours is simpler, but 
-consider the other two changes in my patch:
+I did that.
 
- - in the normal exit path, absent any timeout for the mm, we only set
-   MMF_OOM_SKIP after free_pgtables() when it is known we will not free
-   any additional memory, which can also cause unnecessary oom killing
-   because the oom killer races with free_pgtables(), and
-
- - the oom reaper now operates over all concurrent victims instead of
-   repeatedly trying to take mm->mmap_sem of the first victim, sleeping
-   many times, retrying, giving up, and moving on the next victim.
-   Allowing the oom reaper to iterate through all victims can allow
-   memory freeing such that an allocator may be able to drop mm->mmap_sem.
-
-In fact, with my patch, I don't know of any condition where we kill 
-additional processes unnecessarily *unless* the victim cannot be oom 
-reaped or complete memory freeing in the exit path within 10 seconds.  
-Given how rare oom livelock appears in practice, I think the 10 seconds is 
-justified because right now it is _trivial_ to oom kill many victims 
-completely unnecessarily.
+autofs4-merge-auto_fsh-and-auto_fs4h.patch
+autofs4-use-autofs-instead-of-autofs4-everywhere.patch
+autofs-copy-autofs4-to-autofs.patch
+autofs-update-fs-autofs4-kconfig.patch
+autofs-update-fs-autofs4-kconfig-fix.patch
+autofs-update-fs-autofs4-makefile.patch
+autofs-delete-fs-autofs4-source-files.patch
+autofs-create-autofs-kconfig-and-makefile.patch
+autofs-rename-autofs-documentation-files.patch
+autofs-use-autofs-instead-of-autofs4-in-documentation.patch
+autofs-update-maintainers-entry-for-autofs.patch
