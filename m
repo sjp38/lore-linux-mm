@@ -1,396 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B0CB6B0007
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 10:08:28 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 89-v6so3149572plc.1
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 07:08:28 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0047.outbound.protection.outlook.com. [104.47.32.47])
-        by mx.google.com with ESMTPS id u8-v6si23421963plh.22.2018.05.25.07.08.24
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7272B6B0005
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 10:40:46 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b83-v6so3557712wme.7
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 07:40:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c184-v6sor2420580wmh.52.2018.05.25.07.40.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 May 2018 07:08:25 -0700 (PDT)
-From: Bharat Kumar Gogada <bharatku@xilinx.com>
-Subject: RE: [PATCH v2 39/40] iommu/arm-smmu-v3: Add support for PRI
-Date: Fri, 25 May 2018 14:08:11 +0000
-Message-ID: <BLUPR0201MB150513BBAA161355DE9B3A48A5690@BLUPR0201MB1505.namprd02.prod.outlook.com>
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-40-jean-philippe.brucker@arm.com>
-In-Reply-To: <20180511190641.23008-40-jean-philippe.brucker@arm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Fri, 25 May 2018 07:40:37 -0700 (PDT)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH v2 00/16] khwasan: kernel hardware assisted address sanitizer
+Date: Fri, 25 May 2018 16:40:16 +0200
+Message-Id: <cover.1527259068.git.andreyknvl@google.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "joro@8bytes.org" <joro@8bytes.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, Ravikiran Gummaluri <rgummal@xilinx.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
 
->=20
-> For PCI devices that support it, enable the PRI capability and handle PRI=
- Page
-> Requests with the generic fault handler. It is enabled on demand by
-> iommu_sva_device_init().
->=20
-> Signed-off-by: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
->=20
-> ---
-> v1->v2:
-> * Terminate the page request and disable PRI if no handler is registered
-> * Enable and disable PRI in sva_device_init/shutdown, instead of
->   add/remove_device
-> ---
->  drivers/iommu/arm-smmu-v3.c | 192 +++++++++++++++++++++++++++-------
-> --
->  1 file changed, 145 insertions(+), 47 deletions(-)
->=20
-> diff --git a/drivers/iommu/arm-smmu-v3.c b/drivers/iommu/arm-smmu-v3.c
-> index 6cb69ace371b..0edbb8d19579 100644
-> --- a/drivers/iommu/arm-smmu-v3.c
-> +++ b/drivers/iommu/arm-smmu-v3.c
-> @@ -248,6 +248,7 @@
->  #define STRTAB_STE_1_S1COR		GENMASK_ULL(5, 4)
->  #define STRTAB_STE_1_S1CSH		GENMASK_ULL(7, 6)
->=20
-> +#define STRTAB_STE_1_PPAR		(1UL << 18)
->  #define STRTAB_STE_1_S1STALLD		(1UL << 27)
->=20
->  #define STRTAB_STE_1_EATS		GENMASK_ULL(29, 28)
-> @@ -309,6 +310,9 @@
->  #define CMDQ_PRI_0_SID			GENMASK_ULL(63, 32)
->  #define CMDQ_PRI_1_GRPID		GENMASK_ULL(8, 0)
->  #define CMDQ_PRI_1_RESP			GENMASK_ULL(13, 12)
-> +#define CMDQ_PRI_1_RESP_FAILURE
-> 	FIELD_PREP(CMDQ_PRI_1_RESP, 0UL)
-> +#define CMDQ_PRI_1_RESP_INVALID
-> 	FIELD_PREP(CMDQ_PRI_1_RESP, 1UL)
-> +#define CMDQ_PRI_1_RESP_SUCCESS
-> 	FIELD_PREP(CMDQ_PRI_1_RESP, 2UL)
->=20
->  #define CMDQ_RESUME_0_SID		GENMASK_ULL(63, 32)
->  #define CMDQ_RESUME_0_ACTION_RETRY	(1UL << 12)
-> @@ -383,12 +387,6 @@ module_param_named(disable_ats_check,
-> disable_ats_check, bool, S_IRUGO);
-> MODULE_PARM_DESC(disable_ats_check,
->  	"By default, the SMMU checks whether each incoming transaction
-> marked as translated is allowed by the stream configuration. This option
-> disables the check.");
->=20
-> -enum pri_resp {
-> -	PRI_RESP_DENY =3D 0,
-> -	PRI_RESP_FAIL =3D 1,
-> -	PRI_RESP_SUCC =3D 2,
-> -};
-> -
->  enum arm_smmu_msi_index {
->  	EVTQ_MSI_INDEX,
->  	GERROR_MSI_INDEX,
-> @@ -471,7 +469,7 @@ struct arm_smmu_cmdq_ent {
->  			u32			sid;
->  			u32			ssid;
->  			u16			grpid;
-> -			enum pri_resp		resp;
-> +			enum page_response_code	resp;
->  		} pri;
->=20
->  		#define CMDQ_OP_RESUME		0x44
-> @@ -556,6 +554,7 @@ struct arm_smmu_strtab_ent {
->  	struct arm_smmu_s2_cfg		*s2_cfg;
->=20
->  	bool				can_stall;
-> +	bool				prg_resp_needs_ssid;
->  };
->=20
->  struct arm_smmu_strtab_cfg {
-> @@ -907,14 +906,18 @@ static int arm_smmu_cmdq_build_cmd(u64 *cmd,
-> struct arm_smmu_cmdq_ent *ent)
->  		cmd[0] |=3D FIELD_PREP(CMDQ_PRI_0_SID, ent->pri.sid);
->  		cmd[1] |=3D FIELD_PREP(CMDQ_PRI_1_GRPID, ent->pri.grpid);
->  		switch (ent->pri.resp) {
-> -		case PRI_RESP_DENY:
-> -		case PRI_RESP_FAIL:
-> -		case PRI_RESP_SUCC:
-> +		case IOMMU_PAGE_RESP_FAILURE:
-> +			cmd[1] |=3D CMDQ_PRI_1_RESP_FAILURE;
-> +			break;
-> +		case IOMMU_PAGE_RESP_INVALID:
-> +			cmd[1] |=3D CMDQ_PRI_1_RESP_INVALID;
-> +			break;
-> +		case IOMMU_PAGE_RESP_SUCCESS:
-> +			cmd[1] |=3D CMDQ_PRI_1_RESP_SUCCESS;
->  			break;
->  		default:
->  			return -EINVAL;
->  		}
-> -		cmd[1] |=3D FIELD_PREP(CMDQ_PRI_1_RESP, ent->pri.resp);
->  		break;
->  	case CMDQ_OP_RESUME:
->  		cmd[0] |=3D FIELD_PREP(CMDQ_RESUME_0_SID, ent-
-> >resume.sid); @@ -1114,8 +1117,15 @@ static int
-> arm_smmu_page_response(struct device *dev,
->  		cmd.resume.sid		=3D sid;
->  		cmd.resume.stag		=3D resp->page_req_group_id;
->  		cmd.resume.resp		=3D resp->resp_code;
-> +	} else if (master->can_fault) {
-> +		cmd.opcode		=3D CMDQ_OP_PRI_RESP;
-> +		cmd.substream_valid	=3D resp->pasid_present &&
-> +					  master->ste.prg_resp_needs_ssid;
-> +		cmd.pri.sid		=3D sid;
-> +		cmd.pri.ssid		=3D resp->pasid;
-> +		cmd.pri.grpid		=3D resp->page_req_group_id;
-> +		cmd.pri.resp		=3D resp->resp_code;
->  	} else {
-> -		/* TODO: put PRI response here */
->  		return -ENODEV;
->  	}
->=20
-> @@ -1236,6 +1246,9 @@ static void arm_smmu_write_strtab_ent(struct
-> arm_smmu_device *smmu, u32 sid,
->  			 FIELD_PREP(STRTAB_STE_1_S1CSH,
-> ARM_SMMU_SH_ISH) |
->  			 FIELD_PREP(STRTAB_STE_1_STRW, strw));
->=20
-> +		if (ste->prg_resp_needs_ssid)
-> +			dst[1] |=3D STRTAB_STE_1_PPAR;
-> +
->  		if (smmu->features & ARM_SMMU_FEAT_STALLS &&
->  		   !(smmu->features & ARM_SMMU_FEAT_STALL_FORCE) &&
->  		   !ste->can_stall)
-> @@ -1471,39 +1484,54 @@ static irqreturn_t arm_smmu_evtq_thread(int
-> irq, void *dev)
->=20
->  static void arm_smmu_handle_ppr(struct arm_smmu_device *smmu, u64
-> *evt)  {
-> -	u32 sid, ssid;
-> -	u16 grpid;
-> -	bool ssv, last;
-> -
-> -	sid =3D FIELD_GET(PRIQ_0_SID, evt[0]);
-> -	ssv =3D FIELD_GET(PRIQ_0_SSID_V, evt[0]);
-> -	ssid =3D ssv ? FIELD_GET(PRIQ_0_SSID, evt[0]) : 0;
-> -	last =3D FIELD_GET(PRIQ_0_PRG_LAST, evt[0]);
-> -	grpid =3D FIELD_GET(PRIQ_1_PRG_IDX, evt[1]);
-> -
-> -	dev_info(smmu->dev, "unexpected PRI request received:\n");
-> -	dev_info(smmu->dev,
-> -		 "\tsid 0x%08x.0x%05x: [%u%s] %sprivileged %s%s%s access
-> at iova 0x%016llx\n",
-> -		 sid, ssid, grpid, last ? "L" : "",
-> -		 evt[0] & PRIQ_0_PERM_PRIV ? "" : "un",
-> -		 evt[0] & PRIQ_0_PERM_READ ? "R" : "",
-> -		 evt[0] & PRIQ_0_PERM_WRITE ? "W" : "",
-> -		 evt[0] & PRIQ_0_PERM_EXEC ? "X" : "",
-> -		 evt[1] & PRIQ_1_ADDR_MASK);
-> -
-> -	if (last) {
-> -		struct arm_smmu_cmdq_ent cmd =3D {
-> -			.opcode			=3D
-> CMDQ_OP_PRI_RESP,
-> -			.substream_valid	=3D ssv,
-> -			.pri			=3D {
-> -				.sid	=3D sid,
-> -				.ssid	=3D ssid,
-> -				.grpid	=3D grpid,
-> -				.resp	=3D PRI_RESP_DENY,
-> -			},
-> +	u32 sid =3D FIELD_PREP(PRIQ_0_SID, evt[0]);
-> +
-> +	struct arm_smmu_master_data *master;
-> +	struct iommu_fault_event fault =3D {
-> +		.type			=3D IOMMU_FAULT_PAGE_REQ,
-> +		.last_req		=3D FIELD_GET(PRIQ_0_PRG_LAST,
-> evt[0]),
-> +		.pasid_valid		=3D FIELD_GET(PRIQ_0_SSID_V, evt[0]),
-> +		.pasid			=3D FIELD_GET(PRIQ_0_SSID, evt[0]),
-> +		.page_req_group_id	=3D FIELD_GET(PRIQ_1_PRG_IDX,
-> evt[1]),
-> +		.addr			=3D evt[1] & PRIQ_1_ADDR_MASK,
-> +	};
-> +
-> +	if (evt[0] & PRIQ_0_PERM_READ)
-> +		fault.prot |=3D IOMMU_FAULT_READ;
-> +	if (evt[0] & PRIQ_0_PERM_WRITE)
-> +		fault.prot |=3D IOMMU_FAULT_WRITE;
-> +	if (evt[0] & PRIQ_0_PERM_EXEC)
-> +		fault.prot |=3D IOMMU_FAULT_EXEC;
-> +	if (evt[0] & PRIQ_0_PERM_PRIV)
-> +		fault.prot |=3D IOMMU_FAULT_PRIV;
-> +
-> +	/* Discard Stop PASID marker, it isn't used */
-> +	if (!(fault.prot & (IOMMU_FAULT_READ|IOMMU_FAULT_WRITE)) &&
-> +	    fault.last_req)
-> +		return;
-> +
-> +	master =3D arm_smmu_find_master(smmu, sid);
-> +	if (WARN_ON(!master))
-> +		return;
-> +
-> +	if (iommu_report_device_fault(master->dev, &fault)) {
-> +		/*
-> +		 * No handler registered, so subsequent faults won't produce
-> +		 * better results. Try to disable PRI.
-> +		 */
-> +		struct page_response_msg page_response =3D {
-> +			.addr			=3D fault.addr,
-> +			.pasid			=3D fault.pasid,
-> +			.pasid_present		=3D fault.pasid_valid,
-> +			.page_req_group_id	=3D fault.page_req_group_id,
-> +			.resp_code		=3D
-> IOMMU_PAGE_RESP_FAILURE,
->  		};
->=20
-> -		arm_smmu_cmdq_issue_cmd(smmu, &cmd);
-> +		dev_warn(master->dev,
-> +			 "PPR 0x%x:0x%llx 0x%x: nobody cared, disabling
-> PRI\n",
-> +			 fault.pasid_valid ? fault.pasid : 0, fault.addr,
-> +			 fault.prot);
-> +		arm_smmu_page_response(master->dev, &page_response);
->  	}
->  }
->=20
-> @@ -1529,6 +1557,11 @@ static irqreturn_t arm_smmu_priq_thread(int irq,
-> void *dev)
->  		}
->=20
->  		if (queue_sync_prod(q) =3D=3D -EOVERFLOW)
-> +			/*
-> +			 * TODO: flush pending faults, since the SMMU might
-> have
-> +			 * auto-responded to the Last request of a pending
-> +			 * group
-> +			 */
->  			dev_err(smmu->dev, "PRIQ overflow detected --
-> requests lost\n");
->  	} while (!queue_empty(q));
->=20
-> @@ -1577,7 +1610,8 @@ static int arm_smmu_flush_queues(void *cookie,
-> struct device *dev)
->  		master =3D dev->iommu_fwspec->iommu_priv;
->  		if (master->ste.can_stall)
->  			arm_smmu_flush_queue(smmu, &smmu->evtq.q,
-> "evtq");
-> -		/* TODO: add support for PRI */
-> +		else if (master->can_fault)
-> +			arm_smmu_flush_queue(smmu, &smmu->priq.q,
-> "priq");
->  		return 0;
->  	}
->=20
-> @@ -2301,6 +2335,59 @@ arm_smmu_iova_to_phys(struct iommu_domain
-> *domain, dma_addr_t iova)
->  	return ops->iova_to_phys(ops, iova);
->  }
->=20
-> +static int arm_smmu_enable_pri(struct arm_smmu_master_data *master) {
-> +	int ret, pos;
-> +	struct pci_dev *pdev;
-> +	/*
-> +	 * TODO: find a good inflight PPR number. We should divide the PRI
-> queue
-> +	 * by the number of PRI-capable devices, but it's impossible to know
-> +	 * about current and future (hotplugged) devices. So we're at risk of
-> +	 * dropping PPRs (and leaking pending requests in the FQ).
-> +	 */
-> +	size_t max_inflight_pprs =3D 16;
-> +	struct arm_smmu_device *smmu =3D master->smmu;
-> +
-> +	if (!(smmu->features & ARM_SMMU_FEAT_PRI) ||
-> !dev_is_pci(master->dev))
-> +		return -ENOSYS;
-> +
-> +	pdev =3D to_pci_dev(master->dev);
-> +
-> +	ret =3D pci_reset_pri(pdev);
-> +	if (ret)
-> +		return ret;
-> +
-> +	ret =3D pci_enable_pri(pdev, max_inflight_pprs);
-> +	if (ret) {
-> +		dev_err(master->dev, "cannot enable PRI: %d\n", ret);
-> +		return ret;
-> +	}
-> +
-> +	master->can_fault =3D true;
-> +	master->ste.prg_resp_needs_ssid =3D
-> pci_prg_resp_requires_prefix(pdev);
+This patchset adds a new mode to KASAN [1], which is called KHWASAN
+(Kernel HardWare assisted Address SANitizer). There's still some work to
+do and there are a few TODOs in the code, so I'm publishing this as an RFC
+to collect some initial feedback.
 
-Any reason why this is not cleared in arm_smmu_disable_pri ?
+The plan is to implement HWASan [2] for the kernel with the incentive,
+that it's going to have comparable to KASAN performance, but in the same
+time consume much less memory, trading that off for somewhat imprecise
+bug detection and being supported only for arm64.
 
-> +
-> +	dev_dbg(master->dev, "enabled PRI\n");
-> +
-> +	return 0;
-> +}
-> +
-> +static void arm_smmu_disable_pri(struct arm_smmu_master_data
-> *master) {
-> +	struct pci_dev *pdev;
-> +
-> +	if (!dev_is_pci(master->dev))
-> +		return;
-> +
-> +	pdev =3D to_pci_dev(master->dev);
-> +
-> +	if (!pdev->pri_enabled)
-> +		return;
-> +
-> +	pci_disable_pri(pdev);
-> +	dev_dbg(master->dev, "disabled PRI\n");
-> +	master->can_fault =3D false;
-> +}
-> +
->  static int arm_smmu_sva_init(struct device *dev, struct iommu_sva_param
-> *param)  {
->  	int ret;
-> @@ -2314,11 +2401,15 @@ static int arm_smmu_sva_init(struct device
-> *dev, struct iommu_sva_param *param)
->  		return -EINVAL;
->=20
->  	if (param->features & IOMMU_SVA_FEAT_IOPF) {
-> -		if (!master->can_fault)
-> -			return -EINVAL;
-> +		arm_smmu_enable_pri(master);
-> +		if (!master->can_fault) {
-> +			ret =3D -ENODEV;
-> +			goto err_disable_pri;
-> +		}
-> +
->  		ret =3D iopf_queue_add_device(master->smmu->iopf_queue,
-> dev);
->  		if (ret)
-> -			return ret;
-> +			goto err_disable_pri;
->  	}
->=20
->  	if (!param->max_pasid)
-> @@ -2329,11 +2420,17 @@ static int arm_smmu_sva_init(struct device
-> *dev, struct iommu_sva_param *param)
->  	param->max_pasid =3D min(param->max_pasid, (1U << master-
-> >ssid_bits) - 1);
->=20
->  	return 0;
-> +
-> +err_disable_pri:
-> +	arm_smmu_disable_pri(master);
-> +
-> +	return ret;
->  }
->=20
->  static void arm_smmu_sva_shutdown(struct device *dev,
->  				  struct iommu_sva_param *param)
->  {
-> +	arm_smmu_disable_pri(dev->iommu_fwspec->iommu_priv);
->  	iopf_queue_remove_device(dev);
->  }
->=20
-> @@ -2671,6 +2768,7 @@ static void arm_smmu_remove_device(struct
-> device *dev)
->  	iommu_group_remove_device(dev);
->  	arm_smmu_remove_master(smmu, master);
->  	iommu_device_unlink(&smmu->iommu, dev);
-> +	arm_smmu_disable_pri(master);
->  	arm_smmu_disable_ats(master);
->  	kfree(master);
->  	iommu_fwspec_free(dev);
-> --
-> 2.17.0
+The overall idea of the approach used by KHWASAN is the following:
+
+1. By using the Top Byte Ignore arm64 CPU feature, we can store pointer
+   tags in the top byte of each kernel pointer.
+
+2. Using shadow memory, we can store memory tags for each chunk of kernel
+   memory.
+
+3. On each memory allocation, we can generate a random tag, embed it into
+   the returned pointer and set the memory tags that correspond to this
+   chunk of memory to the same value.
+
+4. By using compiler instrumentation, before each memory access we can add
+   a check that the pointer tag matches the tag of the memory that is being
+   accessed.
+
+5. On a tag mismatch we report an error.
+
+[1] https://www.kernel.org/doc/html/latest/dev-tools/kasan.html
+
+[2] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
+
+
+====== Technical details
+
+KHWASAN is implemented in a very similar way to KASAN. This patchset
+essentially does the following:
+
+1. TCR_TBI1 is set to enable Top Byte Ignore.
+
+2. Shadow memory is used (with a different scale, 1:16, so each shadow
+   byte corresponds to 16 bytes of kernel memory) to store memory tags.
+
+3. All slab objects are aligned to shadow scale, which is 16 bytes.
+
+4. All pointers returned from the slab allocator are tagged with a random
+   tag and the corresponding shadow memory is poisoned with the same value.
+
+5. Compiler instrumentation is used to insert tag checks. Either by
+   calling callbacks or by inlining them (CONFIG_KASAN_OUTLINE and
+   CONFIG_KASAN_INLINE flags are reused).
+
+6. When a tag mismatch is detected in callback instrumentation mode
+   KHWASAN simply prints a bug report. In case of inline instrumentation,
+   clang inserts a brk instruction, and KHWASAN has it's own brk handler,
+   which reports the bug.
+
+7. The memory in between slab objects is marked with a reserved tag, and
+   acts as a redzone.
+
+8. When a slab object is freed it's marked with a reserved tag.
+
+Bug detection is imprecise for two reasons:
+
+1. We won't catch some small out-of-bounds accesses, that fall into the
+   same shadow cell, as the last byte of a slab object.
+
+2. We only have 1 byte to store tags, which means we have a 1/256
+   probability of a tag match for an incorrect access (actually even
+   slightly less due to reserved tag values).
+
+Despite that there's a particular type of bugs that KHWASAN can detect
+compared to KASAN: use-after-free after the object has been allocated by
+someone else.
+
+
+====== Benchmarks
+
+The following numbers were collected on Odroid C2 board. Both KASAN and
+KHWASAN were used in inline instrumentation mode.
+
+Boot time [1]:
+* ~1.7 sec for clean kernel
+* ~5.0 sec for KASAN
+* ~5.0 sec for KHWASAN
+
+Slab memory usage after boot [2]:
+* ~40 kb for clean kernel
+* ~105 kb + 1/8th shadow ~= 118 kb for KASAN
+* ~47 kb + 1/16th shadow ~= 50 kb for KHWASAN
+
+Network performance [3]:
+* 8.33 Gbits/sec for clean kernel
+* 3.17 Gbits/sec for KASAN
+* 2.85 Gbits/sec for KHWASAN
+
+Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
+
+[1] Time before the ext4 driver is initialized.
+[2] Measured as `cat /proc/meminfo | grep Slab`.
+[3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
+
+
+====== Some notes
+
+A few notes:
+
+1. The patchset can be found here:
+   https://github.com/xairy/kasan-prototype/tree/khwasan
+
+2. Building requires a recent LLVM version (r330044 or later).
+
+3. Stack instrumentation is not supported yet and will be added later.
+
+
+====== Changes
+
+Changes in v2:
+- Changed kmalloc_large_node_hook to return tagged pointer instead of
+  using an output argument.
+- Fix checking whether -fsanitize=hwaddress is supported by the compiler.
+- Removed duplication of -fno-builtin for KASAN and KHWASAN.
+- Removed {} block for one line for_each_possible_cpu loop.
+- Made set_track() static inline as it is used only in common.c.
+- Moved optimal_redzone() to common.c.
+- Fixed using tagged pointer for shadow calculation in
+  kasan_unpoison_shadow().
+- Restored setting cache->align in kasan_cache_create(), which was
+  accidentally lost.
+- Simplified __kasan_slab_free(), kasan_alloc_pages() and kasan_kmalloc().
+- Removed tagging from kasan_kmalloc_large().
+- Added page_kasan_tag_reset() to kasan_poison_slab() and removed
+  !PageSlab() check from page_to_virt.
+- Reset pointer tag in _virt_addr_is_linear.
+- Set page tag for each page when multiple pages are allocated or freed.
+- Added a comment as to why we ignore cma allocated pages.
+
+Changes in v1:
+- Rebased onto 4.17-rc4.
+- Updated benchmarking stats.
+- Documented compiler version requirements, memory usage and slowdown.
+- Dropped kvm patches, as clang + arm64 + kvm is completely broken [1].
+
+Changes in RFC v3:
+- Renamed CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS to
+  CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW respectively.
+- Switch to -fsanitize=kernel-hwaddress instead of -fsanitize=hwaddress.
+- Removed unnecessary excessive shadow initialization.
+- Removed khwasan_enabled flag (ita??s not needed since KHWASAN is
+  initialized before any slab caches are used).
+- Split out kasan_report.c and khwasan_report.c from report.c.
+- Moved more common KASAN and KHWASAN functions to common.c.
+- Added tagging to pagealloc.
+- Rebased onto 4.17-rc1.
+- Temporarily dropped patch that adds kvm support (arm64 + kvm + clang
+  combo is broken right now [1]).
+
+Changes in RFC v2:
+- Removed explicit casts to u8 * for kasan_mem_to_shadow() calls.
+- Introduced KASAN_TCR_FLAGS for setting the TCR_TBI1 flag.
+- Added a comment regarding the non-atomic RMW sequence in
+  khwasan_random_tag().
+- Made all tag related functions accept const void *.
+- Untagged pointers in __kimg_to_phys, which is used by virt_to_phys.
+- Untagged pointers in show_ptr in fault handling logic.
+- Untagged pointers passed to KVM.
+- Added two reserved tag values: 0xFF and 0xFE.
+- Used the reserved tag 0xFF to disable validity checking (to resolve the
+  issue with pointer tag being lost after page_address + kmap usage).
+- Used the reserved tag 0xFE to mark redzones and freed objects.
+- Added mnemonics for esr manipulation in KHWASAN brk handler.
+- Added a comment about the -recover flag.
+- Some minor cleanups and fixes.
+- Rebased onto 3215b9d5 (4.16-rc6+).
+- Tested on real hardware (Odroid C2 board).
+- Added better benchmarks.
+
+[1] https://lkml.org/lkml/2018/4/19/775
+
+Andrey Konovalov (16):
+  khwasan, mm: change kasan hooks signatures
+  khwasan: move common kasan and khwasan code to common.c
+  khwasan: add CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW
+  khwasan, arm64: adjust shadow size for CONFIG_KASAN_HW
+  khwasan: initialize shadow to 0xff
+  khwasan, arm64: untag virt address in __kimg_to_phys and
+    _virt_addr_is_linear
+  khwasan, arm64: fix up fault handling logic
+  khwasan: add tag related helper functions
+  khwasan, arm64: enable top byte ignore for the kernel
+  khwasan, mm: perform untagged pointers comparison in krealloc
+  khwasan: split out kasan_report.c from report.c
+  khwasan: add bug reporting routines
+  khwasan: add hooks implementation
+  khwasan, arm64: add brk handler for inline instrumentation
+  khwasan, mm, arm64: tag non slab memory allocated via pagealloc
+  khwasan: update kasan documentation
+
+ Documentation/dev-tools/kasan.rst      | 213 +++++----
+ arch/arm64/Kconfig                     |   1 +
+ arch/arm64/Makefile                    |   2 +-
+ arch/arm64/include/asm/brk-imm.h       |   2 +
+ arch/arm64/include/asm/memory.h        |  41 +-
+ arch/arm64/include/asm/pgtable-hwdef.h |   1 +
+ arch/arm64/kernel/traps.c              |  69 ++-
+ arch/arm64/mm/fault.c                  |   3 +
+ arch/arm64/mm/kasan_init.c             |  18 +-
+ arch/arm64/mm/proc.S                   |   8 +-
+ include/linux/compiler-clang.h         |   5 +-
+ include/linux/compiler-gcc.h           |   4 +
+ include/linux/compiler.h               |   3 +-
+ include/linux/kasan.h                  |  84 +++-
+ include/linux/mm.h                     |  29 ++
+ include/linux/page-flags-layout.h      |  10 +
+ lib/Kconfig.kasan                      |  76 +++-
+ mm/cma.c                               |  11 +
+ mm/kasan/Makefile                      |   9 +-
+ mm/kasan/common.c                      | 598 +++++++++++++++++++++++++
+ mm/kasan/kasan.c                       | 503 +--------------------
+ mm/kasan/kasan.h                       |  85 +++-
+ mm/kasan/kasan_report.c                | 155 +++++++
+ mm/kasan/khwasan.c                     | 162 +++++++
+ mm/kasan/khwasan_report.c              |  60 +++
+ mm/kasan/report.c                      | 271 +++--------
+ mm/page_alloc.c                        |   1 +
+ mm/slab.c                              |  12 +-
+ mm/slab.h                              |   2 +-
+ mm/slab_common.c                       |   6 +-
+ mm/slub.c                              |  17 +-
+ scripts/Makefile.kasan                 |  27 +-
+ 32 files changed, 1630 insertions(+), 858 deletions(-)
+ create mode 100644 mm/kasan/common.c
+ create mode 100644 mm/kasan/kasan_report.c
+ create mode 100644 mm/kasan/khwasan.c
+ create mode 100644 mm/kasan/khwasan_report.c
+
+-- 
+2.17.0.921.gf22659ad46-goog
