@@ -1,301 +1,235 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C8C4D6B0270
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 10:41:17 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id v2-v6so3573782wmc.0
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 07:41:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i2-v6sor1928063wrh.13.2018.05.25.07.41.15
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 02E596B0008
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 11:08:55 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id t143-v6so4120664qke.18
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 08:08:54 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id d132-v6si797081qka.364.2018.05.25.08.08.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 25 May 2018 07:41:15 -0700 (PDT)
-From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 16/16] khwasan: update kasan documentation
-Date: Fri, 25 May 2018 16:40:32 +0200
-Message-Id: <9bd3f0a658bf7094990581543e0420e5ad5755d8.1527259068.git.andreyknvl@google.com>
-In-Reply-To: <cover.1527259068.git.andreyknvl@google.com>
-References: <cover.1527259068.git.andreyknvl@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 May 2018 08:08:50 -0700 (PDT)
+Subject: Re: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by
+ device driver
+References: <20180523151151.6730-1-david@redhat.com>
+ <20180524075327.GU20441@dhcp22.suse.cz>
+ <14d79dad-ad47-f090-2ec0-c5daf87ac529@redhat.com>
+ <20180524093121.GZ20441@dhcp22.suse.cz>
+ <c0b8bbd5-6c01-f550-ae13-ef80b2255ea6@redhat.com>
+ <20180524120341.GF20441@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <216ca71b-9880-f013-878b-ae39e865b94b@redhat.com>
+Date: Fri, 25 May 2018 17:08:37 +0200
+MIME-Version: 1.0
+In-Reply-To: <20180524120341.GF20441@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, kexec@lists.infradead.org
 
-This patch updates KASAN documentation to reflect the addition of KHWASAN.
+>> So, no, virtio-mem is not a balloon driver :)
+> [...]
+>>>> 1. "hotplug should simply not depend on kdump at all"
+>>>>
+>>>> In theory yes. In the current state we already have to trigger kdump to
+>>>> reload whenever we add/remove a memory block.
+>>>
+>>> More details please.
+>>
+>> I just had another look at the whole complexity of
+>> makedumfile/kdump/uevents and I'll follow up with a detailed description.
+>>
+>> kdump.service is definitely reloaded when setting a memory block
+>> online/offline (not when adding/removing as I wrongly claimed before).
+>>
+>> I'll follow up with a more detailed description and all the pointers.
+> 
+> Please make sure to describe what is the architecture then. I have no
+> idea what kdump.servise is supposed to do for example.
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- Documentation/dev-tools/kasan.rst | 213 +++++++++++++++++-------------
- 1 file changed, 123 insertions(+), 90 deletions(-)
+Giving a high level description, going into applicable details:
 
-diff --git a/Documentation/dev-tools/kasan.rst b/Documentation/dev-tools/kasan.rst
-index f7a18f274357..b77e877353d4 100644
---- a/Documentation/dev-tools/kasan.rst
-+++ b/Documentation/dev-tools/kasan.rst
-@@ -8,11 +8,19 @@ KernelAddressSANitizer (KASAN) is a dynamic memory error detector. It provides
- a fast and comprehensive solution for finding use-after-free and out-of-bounds
- bugs.
- 
--KASAN uses compile-time instrumentation for checking every memory access,
--therefore you will need a GCC version 4.9.2 or later. GCC 5.0 or later is
--required for detection of out-of-bounds accesses to stack or global variables.
-+KASAN has two modes: classic KASAN (a classic version, similar to user space
-+ASan) and KHWASAN (a version based on memory tagging, similar to user space
-+HWASan).
- 
--Currently KASAN is supported only for the x86_64 and arm64 architectures.
-+KASAN uses compile-time instrumentation to insert validity checks before every
-+memory access, and therefore requires a compiler version that supports that.
-+For classic KASAN you need GCC version 4.9.2 or later. GCC 5.0 or later is
-+required for detection of out-of-bounds accesses on stack and global variables.
-+KHWASAN in turns is only supported in clang and requires revision 330044 or
-+later.
-+
-+Currently classic KASAN is supported for the x86_64, arm64 and xtensa
-+architectures, and KHWASAN is supported only for arm64.
- 
- Usage
- -----
-@@ -21,12 +29,14 @@ To enable KASAN configure kernel with::
- 
- 	  CONFIG_KASAN = y
- 
--and choose between CONFIG_KASAN_OUTLINE and CONFIG_KASAN_INLINE. Outline and
--inline are compiler instrumentation types. The former produces smaller binary
--the latter is 1.1 - 2 times faster. Inline instrumentation requires a GCC
-+and choose between CONFIG_KASAN_GENERIC (to enable classic KASAN) and
-+CONFIG_KASAN_HW (to enabled KHWASAN). You also need to choose choose between
-+CONFIG_KASAN_OUTLINE and CONFIG_KASAN_INLINE. Outline and inline are compiler
-+instrumentation types. The former produces smaller binary the latter is
-+1.1 - 2 times faster. For classic KASAN inline instrumentation requires GCC
- version 5.0 or later.
- 
--KASAN works with both SLUB and SLAB memory allocators.
-+Both KASAN modes work with both SLUB and SLAB memory allocators.
- For better bug detection and nicer reporting, enable CONFIG_STACKTRACE.
- 
- To disable instrumentation for specific files or directories, add a line
-@@ -43,85 +53,80 @@ similar to the following to the respective kernel Makefile:
- Error reports
- ~~~~~~~~~~~~~
- 
--A typical out of bounds access report looks like this::
-+A typical out-of-bounds access classic KASAN report looks like this::
- 
-     ==================================================================
--    BUG: AddressSanitizer: out of bounds access in kmalloc_oob_right+0x65/0x75 [test_kasan] at addr ffff8800693bc5d3
--    Write of size 1 by task modprobe/1689
--    =============================================================================
--    BUG kmalloc-128 (Not tainted): kasan error
--    -----------------------------------------------------------------------------
--
--    Disabling lock debugging due to kernel taint
--    INFO: Allocated in kmalloc_oob_right+0x3d/0x75 [test_kasan] age=0 cpu=0 pid=1689
--     __slab_alloc+0x4b4/0x4f0
--     kmem_cache_alloc_trace+0x10b/0x190
--     kmalloc_oob_right+0x3d/0x75 [test_kasan]
--     init_module+0x9/0x47 [test_kasan]
--     do_one_initcall+0x99/0x200
--     load_module+0x2cb3/0x3b20
--     SyS_finit_module+0x76/0x80
--     system_call_fastpath+0x12/0x17
--    INFO: Slab 0xffffea0001a4ef00 objects=17 used=7 fp=0xffff8800693bd728 flags=0x100000000004080
--    INFO: Object 0xffff8800693bc558 @offset=1368 fp=0xffff8800693bc720
--
--    Bytes b4 ffff8800693bc548: 00 00 00 00 00 00 00 00 5a 5a 5a 5a 5a 5a 5a 5a  ........ZZZZZZZZ
--    Object ffff8800693bc558: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
--    Object ffff8800693bc568: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
--    Object ffff8800693bc578: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
--    Object ffff8800693bc588: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
--    Object ffff8800693bc598: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
--    Object ffff8800693bc5a8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
--    Object ffff8800693bc5b8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
--    Object ffff8800693bc5c8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5  kkkkkkkkkkkkkkk.
--    Redzone ffff8800693bc5d8: cc cc cc cc cc cc cc cc                          ........
--    Padding ffff8800693bc718: 5a 5a 5a 5a 5a 5a 5a 5a                          ZZZZZZZZ
--    CPU: 0 PID: 1689 Comm: modprobe Tainted: G    B          3.18.0-rc1-mm1+ #98
--    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.7.5-0-ge51488c-20140602_164612-nilsson.home.kraxel.org 04/01/2014
--     ffff8800693bc000 0000000000000000 ffff8800693bc558 ffff88006923bb78
--     ffffffff81cc68ae 00000000000000f3 ffff88006d407600 ffff88006923bba8
--     ffffffff811fd848 ffff88006d407600 ffffea0001a4ef00 ffff8800693bc558
-+    BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [test_kasan]
-+    Write of size 1 at addr ffff8800696f3d3b by task insmod/2734
-+    
-+    CPU: 0 PID: 2734 Comm: insmod Not tainted 4.15.0+ #98
-+    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
-     Call Trace:
--     [<ffffffff81cc68ae>] dump_stack+0x46/0x58
--     [<ffffffff811fd848>] print_trailer+0xf8/0x160
--     [<ffffffffa00026a7>] ? kmem_cache_oob+0xc3/0xc3 [test_kasan]
--     [<ffffffff811ff0f5>] object_err+0x35/0x40
--     [<ffffffffa0002065>] ? kmalloc_oob_right+0x65/0x75 [test_kasan]
--     [<ffffffff8120b9fa>] kasan_report_error+0x38a/0x3f0
--     [<ffffffff8120a79f>] ? kasan_poison_shadow+0x2f/0x40
--     [<ffffffff8120b344>] ? kasan_unpoison_shadow+0x14/0x40
--     [<ffffffff8120a79f>] ? kasan_poison_shadow+0x2f/0x40
--     [<ffffffffa00026a7>] ? kmem_cache_oob+0xc3/0xc3 [test_kasan]
--     [<ffffffff8120a995>] __asan_store1+0x75/0xb0
--     [<ffffffffa0002601>] ? kmem_cache_oob+0x1d/0xc3 [test_kasan]
--     [<ffffffffa0002065>] ? kmalloc_oob_right+0x65/0x75 [test_kasan]
--     [<ffffffffa0002065>] kmalloc_oob_right+0x65/0x75 [test_kasan]
--     [<ffffffffa00026b0>] init_module+0x9/0x47 [test_kasan]
--     [<ffffffff810002d9>] do_one_initcall+0x99/0x200
--     [<ffffffff811e4e5c>] ? __vunmap+0xec/0x160
--     [<ffffffff81114f63>] load_module+0x2cb3/0x3b20
--     [<ffffffff8110fd70>] ? m_show+0x240/0x240
--     [<ffffffff81115f06>] SyS_finit_module+0x76/0x80
--     [<ffffffff81cd3129>] system_call_fastpath+0x12/0x17
-+     __dump_stack lib/dump_stack.c:17
-+     dump_stack+0x83/0xbc lib/dump_stack.c:53
-+     print_address_description+0x73/0x280 mm/kasan/report.c:254
-+     kasan_report_error mm/kasan/report.c:352
-+     kasan_report+0x10e/0x220 mm/kasan/report.c:410
-+     __asan_report_store1_noabort+0x17/0x20 mm/kasan/report.c:505
-+     kmalloc_oob_right+0xa8/0xbc [test_kasan] lib/test_kasan.c:42
-+     kmalloc_tests_init+0x16/0x769 [test_kasan]
-+     do_one_initcall+0x9e/0x240 init/main.c:832
-+     do_init_module+0x1b6/0x542 kernel/module.c:3462
-+     load_module+0x6042/0x9030 kernel/module.c:3786
-+     SYSC_init_module+0x18f/0x1c0 kernel/module.c:3858
-+     SyS_init_module+0x9/0x10 kernel/module.c:3841
-+     do_syscall_64+0x198/0x480 arch/x86/entry/common.c:287
-+     entry_SYSCALL_64_after_hwframe+0x21/0x86 arch/x86/entry/entry_64.S:251
-+    RIP: 0033:0x7fdd79df99da
-+    RSP: 002b:00007fff2229bdf8 EFLAGS: 00000202 ORIG_RAX: 00000000000000af
-+    RAX: ffffffffffffffda RBX: 000055c408121190 RCX: 00007fdd79df99da
-+    RDX: 00007fdd7a0b8f88 RSI: 0000000000055670 RDI: 00007fdd7a47e000
-+    RBP: 000055c4081200b0 R08: 0000000000000003 R09: 0000000000000000
-+    R10: 00007fdd79df5d0a R11: 0000000000000202 R12: 00007fdd7a0b8f88
-+    R13: 000055c408120090 R14: 0000000000000000 R15: 0000000000000000
-+    
-+    Allocated by task 2734:
-+     save_stack+0x43/0xd0 mm/kasan/common.c:176
-+     set_track+0x20/0x30 mm/kasan/common.c:188
-+     kasan_kmalloc+0x9a/0xc0 mm/kasan/kasan.c:372
-+     kmem_cache_alloc_trace+0xcd/0x1a0 mm/slub.c:2761
-+     kmalloc ./include/linux/slab.h:512
-+     kmalloc_oob_right+0x56/0xbc [test_kasan] lib/test_kasan.c:36
-+     kmalloc_tests_init+0x16/0x769 [test_kasan]
-+     do_one_initcall+0x9e/0x240 init/main.c:832
-+     do_init_module+0x1b6/0x542 kernel/module.c:3462
-+     load_module+0x6042/0x9030 kernel/module.c:3786
-+     SYSC_init_module+0x18f/0x1c0 kernel/module.c:3858
-+     SyS_init_module+0x9/0x10 kernel/module.c:3841
-+     do_syscall_64+0x198/0x480 arch/x86/entry/common.c:287
-+     entry_SYSCALL_64_after_hwframe+0x21/0x86 arch/x86/entry/entry_64.S:251
-+    
-+    The buggy address belongs to the object at ffff8800696f3cc0
-+     which belongs to the cache kmalloc-128 of size 128
-+    The buggy address is located 123 bytes inside of
-+     128-byte region [ffff8800696f3cc0, ffff8800696f3d40)
-+    The buggy address belongs to the page:
-+    page:ffffea0001a5bcc0 count:1 mapcount:0 mapping:          (null) index:0x0
-+    flags: 0x100000000000100(slab)
-+    raw: 0100000000000100 0000000000000000 0000000000000000 0000000180150015
-+    raw: ffffea0001a8ce40 0000000300000003 ffff88006d001640 0000000000000000
-+    page dumped because: kasan: bad access detected
-+    
-     Memory state around the buggy address:
--     ffff8800693bc300: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
--     ffff8800693bc380: fc fc 00 00 00 00 00 00 00 00 00 00 00 00 00 fc
--     ffff8800693bc400: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
--     ffff8800693bc480: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
--     ffff8800693bc500: fc fc fc fc fc fc fc fc fc fc fc 00 00 00 00 00
--    >ffff8800693bc580: 00 00 00 00 00 00 00 00 00 00 03 fc fc fc fc fc
--                                                 ^
--     ffff8800693bc600: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
--     ffff8800693bc680: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
--     ffff8800693bc700: fc fc fc fc fb fb fb fb fb fb fb fb fb fb fb fb
--     ffff8800693bc780: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
--     ffff8800693bc800: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-+     ffff8800696f3c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 fc
-+     ffff8800696f3c80: fc fc fc fc fc fc fc fc 00 00 00 00 00 00 00 00
-+    >ffff8800696f3d00: 00 00 00 00 00 00 00 03 fc fc fc fc fc fc fc fc
-+                                            ^
-+     ffff8800696f3d80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 fc fc
-+     ffff8800696f3e00: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
-     ==================================================================
- 
--The header of the report discribe what kind of bug happened and what kind of
--access caused it. It's followed by the description of the accessed slub object
--(see 'SLUB Debug output' section in Documentation/vm/slub.txt for details) and
--the description of the accessed memory page.
-+The header of the report provides a short summary of what kind of bug happened
-+and what kind of access caused it. It's followed by a stack trace of the bad
-+access, a stack trace of where the accessed memory was allocated (in case bad
-+access happens on a slab object), and a stack trace of where the object was
-+freed (in case of a use-after-free bug report). Next comes a description of
-+the accessed slab object and information about the accessed memory page.
- 
- In the last section the report shows memory state around the accessed address.
- Reading this part requires some understanding of how KASAN works.
-@@ -138,18 +143,24 @@ inaccessible memory like redzones or freed memory (see mm/kasan/kasan.h).
- In the report above the arrows point to the shadow byte 03, which means that
- the accessed address is partially accessible.
- 
-+For KHWASAN this last report section shows the memory tags around the accessed
-+address (see Implementation details section).
-+
- 
- Implementation details
- ----------------------
- 
-+Classic KASAN
-+~~~~~~~~~~~~~
-+
- From a high level, our approach to memory error detection is similar to that
- of kmemcheck: use shadow memory to record whether each byte of memory is safe
--to access, and use compile-time instrumentation to check shadow memory on each
--memory access.
-+to access, and use compile-time instrumentation to insert checks of shadow
-+memory on each memory access.
- 
--AddressSanitizer dedicates 1/8 of kernel memory to its shadow memory
--(e.g. 16TB to cover 128TB on x86_64) and uses direct mapping with a scale and
--offset to translate a memory address to its corresponding shadow address.
-+Classic KASAN dedicates 1/8th of kernel memory to its shadow memory (e.g. 16TB
-+to cover 128TB on x86_64) and uses direct mapping with a scale and offset to
-+translate a memory address to its corresponding shadow address.
- 
- Here is the function which translates an address to its corresponding shadow
- address::
-@@ -162,12 +173,34 @@ address::
- 
- where ``KASAN_SHADOW_SCALE_SHIFT = 3``.
- 
--Compile-time instrumentation used for checking memory accesses. Compiler inserts
--function calls (__asan_load*(addr), __asan_store*(addr)) before each memory
--access of size 1, 2, 4, 8 or 16. These functions check whether memory access is
--valid or not by checking corresponding shadow memory.
-+Compile-time instrumentation is used to insert memory accesses checks. Compiler
-+inserts function calls (__asan_load*(addr), __asan_store*(addr)) before each
-+memory access of size 1, 2, 4, 8 or 16. These functions check whether memory
-+access is valid or not by checking corresponding shadow memory.
- 
- GCC 5.0 has possibility to perform inline instrumentation. Instead of making
- function calls GCC directly inserts the code to check the shadow memory.
- This option significantly enlarges kernel but it gives x1.1-x2 performance
- boost over outline instrumented kernel.
-+
-+KHWASAN
-+~~~~~~~
-+
-+KHWASAN uses the Top Byte Ignore (TBI) feature of modern arm64 CPUs to store
-+a pointer tag in the top byte of kernel pointers. KHWASAN also uses shadow
-+memory to store memory tags associated with each 16-byte memory cell (therefore
-+it dedicates 1/16th of the kernel memory for shadow memory).
-+
-+On each memory allocation KHWASAN generates a random tag, tags allocated memory
-+with this tag, and embeds this tag into the returned pointer. KHWASAN uses
-+compile-time instrumentation to insert checks before each memory access. These
-+checks make sure that tag of the memory that is being accessed is equal to tag
-+of the pointer that is used to access this memory. In case of a tag mismatch
-+KHWASAN prints a bug report.
-+
-+KHWASAN also has two instrumentation modes (outline, that emits callbacks to
-+check memory accesses; and inline, that performs the shadow memory checks
-+inline). With outline instrumentation mode, a bug report is simply printed
-+from the function that performs the access check. With inline instrumentation
-+a brk instruction is emitted by the compiler, and a dedicated brk handler is
-+used to print KHWASAN reports.
+
+Dump tools always generate the dump file from /proc/vmcore inside the
+kexec environment. This is a vmcore dump in ELF format, with required
+and optional headers and notes.
+
+
+1. Core collectors
+
+The tool that writes /proc/vmcore into a file is called "core collector".
+
+"This allows you to specify the command to copy the vmcore. You could
+use the dump filtering program makedumpfile, the default one, to
+retrieve your core, which on some arches can drastically reduce core
+file size." [1]
+
+E.g. under RHEL, the only supported core collector is in fact
+makedumpfile [2][3], which is e.g. able to exclude e.g. hwpoison pages,
+which could result otherwise in a crash if you simply copy /proc/vmcore
+into a file on harddisk.
+
+
+2. vmcoreinfo
+
+/proc/vmcore can optionally contain a vmcoreinfo, that exposes some
+magic variables necessary to e.g. find and interpret segments but also
+struct pages. This is generated in "kernel/crash_core.c" in the crashed
+linux kernel.
+
+...
+VMCOREINFO_SYMBOL_ARRAY(mem_section);
+VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
+...
+VMCOREINFO_NUMBER(PG_hwpoison);
+...
+VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
+...
+
+If not available, it is e.g. tried to extract relevant
+symbols/variables/pointers from vmlinux (similar like e.g. GDB).
+
+
+3. PM_LOAD / Memory holes
+
+Each vmcore contains "PM_LOAD" sections. These sections define which
+physical memory areas are available in the vmcore (and to which virtual
+addresses they translate). Generated e.g. in "kernel/kexec_file.c" - and
+in some other places "git grep Elf64_Phdr".
+
+This information is generated in the crashed kernel.
+
+arch/x86/kernel/crash.c:
+ walk_system_ram_res() is effectively used to generate PM_LOAD segments
+
+arch/s390/kernel/crash_dump.c:
+ for_each_mem_range() is effectively used to generate PM_LOAD
+ information
+
+At this point, I don't see how offline sections are treated. I assume
+they are always also included. So PT_LOAD will include all memory, no
+matter if online or offline.
+
+
+4. Reloading kexec/kdump.service
+
+The important thing is that the vmcore *excluding* the actual memory has
+to be prepared by the *old* kernel. The kexec kernel will allow to
+- Read the prepared vmcore (contained in kexec kernel)
+- Read the memory
+
+So dump tools only have the vmcore (esp. PT_LOAD) to figure out which
+physical memory was available in the *old* system. The kexec kernel
+neither reads or interprets segments/struct pages from the old kernel
+(and there would be no way to really do it). All it does is allow to
+read old memory as defined in the prepared vmcore. If that memory is not
+accessible or broken (hwpoison), we will crash the system.
+
+So what does this imply? vmcore (including PT_LOAD sections) has to be
+regenerated every time memory is added/removed from the system.
+Otherwise the data contained in the prepared vmcore is stale. As far as
+I understand this cannot be done by the actual kernel when
+adding/removing memory but has to be done by user space.
+
+The same is e.g. also true when hot(un)plugging CPUs.
+
+This is done by reloading kexec, resulting in a regeneration of the
+vmcore. UDEV events are used to reload kdump.service and therefore
+regenerate. This events are triggered when onlining/offlining a memory
+block.
+
+...
+SUBSYSTEM=="memory", ACTION=="online", PROGRAM="/bin/systemctl
+try-restart kdump.service"
+SUBSYSTEM=="memory", ACTION=="offline", PROGRAM="/bin/systemctl
+try-restart kdump.service"
+...
+
+For "online", this is the right thing to do.
+
+I am right now not 100% if that is the right thing to do for "offline".
+I guess we should regenerate actually after "remove" events, but I
+didn't follow the details. Otherwise it could happen that the vmcore is
+regenerated before the actual removal of memory blocks. So the
+applicable memory blocks would still be included as PT_LOAD in the
+vmcore. If we then remove the actual DIMM then, trying to dump the
+vmcore will result in reading invalid memory. But maybe I am missing
+something there.
+
+
+5. Access to vmcore / memory in the kexec environment
+
+fs/proc/vmcore.c: contains the code for parsing vmcore in the kexec
+kernel, prepared by the crashed kernel. The kexec kernel provides read
+access to /proc/vmcore on this basis.
+
+All PT_LOAD sections will be converted and stored in "vmcore_list".
+
+When reading the vmcore, this list will be used to actually provide
+access to the original crash memory (__read_vmcore()).
+
+So only memory that was originally in vmcore PT_LOAD will be allowed to
+be red.
+
+read_from_oldmem() will perform the actual read. At that point we have
+no control over old page flags or segments. Just a straight memory read.
+
+There is special handling for e.g. XEN in there: pfn_is_ram() can be
+used to hinder reading inflated memory. (register_oldmem_pfn_is_ram)
+
+However reusing that for virtio-mem with multiple devices and queues and
+such might not be possible. It is the last resort :)
+
+
+6. makedumpfile
+
+makedumpfile can exclude free (buddy) pages, hwpoison pages and some
+more. It will *not* exclude reserved pages or balloon (e.g.
+virtio-balloon) inflated pages. So it will read inflated pages and if
+they are zero, save a compressed zero page. However it will (read)
+access that memory.
+
+makedumpfile was adapted to the new SECTION_IS_ONLINE bit (to mask the
+right section address), offline sections will *not* be excluded. So also
+all memory in offline sections will be accessed and dumped - unless
+pages don't fall into PT_LOAD sections ("memory hole"), in this case
+they are not accessed.
+
+
+7. Further information
+
+Some more details can be found in "Documentation/kdump/kdump.txt".
+
+
+"All of the necessary information about the system kernel's core image
+is encoded in the ELF format, and stored in a reserved area of memory
+before a crash. The physical address of the start of the ELF header is
+passed to the dump-capture kernel through the elfcorehdr= boot
+parameter."
+-> I am pretty sure this is why the kexec reload from user space is
+   necessary
+
+"For s390x there are two kdump modes: If a ELF header is specified with
+ the elfcorehdr= kernel parameter, it is used by the kdump kernel as it
+ is done on all other architectures. If no elfcorehdr= kernel parameter
+ is specified, the s390x kdump kernel dynamically creates the header.
+ The second mode has the advantage that for CPU and memory hotplug,
+ kdump has not to be reloaded with kexec_load()."
+
+
+Any experts, please jump in :)
+
+
+
+[1] https://www.systutorials.com/docs/linux/man/5-kdump/
+[2] https://sourceforge.net/projects/makedumpfile/
+[3] git://git.code.sf.net/p/makedumpfile/code
+
 -- 
-2.17.0.921.gf22659ad46-goog
+
+Thanks,
+
+David / dhildenb
