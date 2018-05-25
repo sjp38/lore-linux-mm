@@ -1,106 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C6BED6B0003
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 06:57:45 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id u137-v6so4222236itc.4
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 03:57:45 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id g187-v6si6465167itd.128.2018.05.25.03.57.43
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 244D66B0003
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 07:35:37 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id b5-v6so2760574otf.8
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 04:35:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x2-v6si8052932oia.191.2018.05.25.04.35.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 May 2018 03:57:44 -0700 (PDT)
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201805241951.IFF48475.FMOSOJFQHLVtFO@I-love.SAKURA.ne.jp>
-	<20180524115017.GE20441@dhcp22.suse.cz>
-	<201805250117.w4P1HgdG039943@www262.sakura.ne.jp>
-	<20180525083118.GI11881@dhcp22.suse.cz>
-In-Reply-To: <20180525083118.GI11881@dhcp22.suse.cz>
-Message-Id: <201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp>
-Date: Fri, 25 May 2018 19:57:32 +0900
-Mime-Version: 1.0
+        Fri, 25 May 2018 04:35:35 -0700 (PDT)
+Date: Fri, 25 May 2018 07:35:33 -0400
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: [PATCH 22/34] xfs: make xfs_writepage_map extent map centric
+Message-ID: <20180525113532.GA92036@bfoster.bfoster>
+References: <20180523144357.18985-1-hch@lst.de>
+ <20180523144357.18985-23-hch@lst.de>
+ <20180524145935.GA84959@bfoster.bfoster>
+ <20180524165350.GA22675@lst.de>
+ <20180524181356.GA89391@bfoster.bfoster>
+ <20180525061900.GA16409@lst.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180525061900.GA16409@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>
 
-Michal Hocko wrote:
-> On Fri 25-05-18 10:17:42, Tetsuo Handa wrote:
-> > Then, please show me (by writing a patch yourself) how to tell whether
-> > we should sleep there. What I can come up is shown below.
-> > 
-> > -@@ -4241,6 +4240,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
-> > -       /* Retry as long as the OOM killer is making progress */
-> > -       if (did_some_progress) {
-> > -               no_progress_loops = 0;
-> > -+              /*
-> > -+               * This schedule_timeout_*() serves as a guaranteed sleep for
-> > -+               * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
-> > -+               */
-> > -+              if (!tsk_is_oom_victim(current))
-> > -+                      schedule_timeout_uninterruptible(1);
-> > -               goto retry;
-> > -       }
-> > +@@ -3927,6 +3926,14 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
-> > +               (*no_progress_loops)++;
-> > 
-> > +       /*
-> > ++       * We do a short sleep here if the OOM killer/reaper/victims are
-> > ++       * holding oom_lock, in order to try to give them some CPU resources
-> > ++       * for releasing memory.
-> > ++       */
-> > ++      if (mutex_is_locked(&oom_lock) && !tsk_is_oom_victim(current))
-> > ++              schedule_timeout_uninterruptible(1);
-> > ++
-> > ++      /*
-> > +        * Make sure we converge to OOM if we cannot make any progress
-> > +        * several times in the row.
-> > +        */
-> > 
-> > As far as I know, whether a domain which the current thread belongs to is
-> > already OOM is not known as of should_reclaim_retry(). Therefore, sleeping
-> > there can become a pointless delay if the domain which the current thread
-> > belongs to and the domain which the owner of oom_lock (it can be a random
-> > thread inside out_of_memory() or exit_mmap()) belongs to differs.
-> > 
-> > But you insist sleeping there means that you don't care about such
-> > pointless delay?
+On Fri, May 25, 2018 at 08:19:00AM +0200, Christoph Hellwig wrote:
+> On Thu, May 24, 2018 at 02:13:56PM -0400, Brian Foster wrote:
+> > Ok, so I guess writeback can see uptodate blocks over a hole if some
+> > other block in that page is dirty.
 > 
-> What is wrong with the folliwing? should_reclaim_retry should be a
-> natural reschedule point. PF_WQ_WORKER is a special case which needs a
-> stronger rescheduling policy. Doing that unconditionally seems more
-> straightforward than depending on a zone being a good candidate for a
-> further reclaim.
+> Yes.
+> 
+> > Perhaps we could make sure that a
+> > dirty page has at least one block that maps to an actual extent or
+> > otherwise the page has been truncated..?
+> 
+> We have the following comment near the end of xfs_writepage_map:
+> 
 
-Where is schedule_timeout_uninterruptible(1) for !PF_KTHREAD threads?
-My concern is that cond_resched() might be a too short sleep to give
-enough CPU resources to the owner of the oom_lock.
+That comment is what I'm basing on...
 
-#ifndef CONFIG_PREEMPT
-extern int _cond_resched(void);
-#else
-static inline int _cond_resched(void) { return 0; }
-#endif
+> 	/*
+> 	 * We can end up here with no error and nothing to write if we
+> 	 * race with a partial page truncate on a sub-page block sized
+> 	 * filesystem. In that case we need to mark the page clean.
+> 	 */
+> 
 
-#ifndef CONFIG_PREEMPT
-int __sched _cond_resched(void)
-{
-	if (should_resched(0)) {
-		preempt_schedule_common();
-		return 1;
-	}
-	rcu_all_qs();
-	return 0;
-}
-EXPORT_SYMBOL(_cond_resched);
-#endif
+So we can correctly end up with nothing to write on a dirty page, but it
+presumes a race with truncate. So suppose we end up with a dirty page,
+at least one uptodate block, count is zero (i.e., due to holes) and
+i_size is beyond the page. Would that not be completely bogus? If bogus,
+I think that would at least detect the dumb example I posted earlier.
 
-#define cond_resched() ({                       \
-        ___might_sleep(__FILE__, __LINE__, 0);  \
-        _cond_resched();                        \
-})
+Brian
 
-How do you prove that cond_resched() is an appropriate replacement for
-schedule_timeout_killable(1) in out_of_memory() and
-schedule_timeout_uninterruptible(1) in __alloc_pages_may_oom() ?
+> And I'm pretty sure I managed to hit that case easily in xfstests,
+> as my initial handling of it was wrong.  So I don't think we can
+> even check for that.
+> 
+> > I guess having another dirty block bitmap similar to
+> > iomap_page->uptodate could be required to tell for sure whether a
+> > particular block should definitely have a block on-disk or not. It may
+> > not be worth doing that just for additional error checks, but I still
+> > have to look into the last few patches to grok all the iomap_page stuff.
+> 
+> I don't think it's worth it.  The sub-page dirty tracking has been one
+> of the issues with the buffer head code that caused a lot of problems,
+> and that we want to get rid of.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
