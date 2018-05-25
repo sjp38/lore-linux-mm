@@ -1,278 +1,345 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C6766B0006
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 12:35:42 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id o189-v6so4803631itc.8
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 09:35:42 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y191-v6sor11133352iod.36.2018.05.25.09.35.40
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DA2066B0005
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 13:17:11 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id k136-v6so3009071oih.4
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 10:17:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y196-v6si8271126oia.163.2018.05.25.10.17.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 25 May 2018 09:35:40 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 May 2018 10:17:05 -0700 (PDT)
+Date: Fri, 25 May 2018 13:17:02 -0400
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: [PATCH 1/2] iomap: add support for sub-pagesize buffered I/O
+ without buffer heads
+Message-ID: <20180525171701.GA92502@bfoster.bfoster>
+References: <20180523144646.19159-1-hch@lst.de>
+ <20180523144646.19159-2-hch@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <cover.1527259068.git.andreyknvl@google.com>
-References: <cover.1527259068.git.andreyknvl@google.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 25 May 2018 18:35:35 +0200
-Message-ID: <CAAeHK+x3+Y3qZrV=9Xui=Fexma6kq8j=MfPiZuyqJ6r0M=u+Dg@mail.gmail.com>
-Subject: Re: [PATCH v2 00/16] khwasan: kernel hardware assisted address sanitizer
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180523144646.19159-2-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>, Chintan Pandya <cpandya@codeaurora.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, May 25, 2018 at 4:40 PM, Andrey Konovalov <andreyknvl@google.com> w=
-rote:
-> This patchset adds a new mode to KASAN [1], which is called KHWASAN
-> (Kernel HardWare assisted Address SANitizer). There's still some work to
-> do and there are a few TODOs in the code, so I'm publishing this as an RF=
-C
-> to collect some initial feedback.
+On Wed, May 23, 2018 at 04:46:45PM +0200, Christoph Hellwig wrote:
+> After already supporting a simple implementation of buffered writes for
+> the blocksize == PAGE_SIZE case in the last commit this adds full support
+> even for smaller block sizes.   There are three bits of per-block
+> information in the buffer_head structure that really matter for the iomap
+> read and write path:
+> 
+>  - uptodate status (BH_uptodate)
+>  - marked as currently under read I/O (BH_Async_Read)
+>  - marked as currently under write I/O (BH_Async_Write)
+> 
+> Instead of having new per-block structures this now adds a per-page
+> structure called struct iomap_page to track this information in a slightly
+> different form:
+> 
+>  - a bitmap for the per-block uptodate status.  For worst case of a 64k
+>    page size system this bitmap needs to contain 128 bits.  For the
+>    typical 4k page size case it only needs 8 bits, although we still
+>    need a full unsigned long due to the way the atomic bitmap API works.
+>  - two atomic_t counters are used to track the outstanding read and write
+>    counts
+> 
+> There is quite a bit of boilerplate code as the buffered I/O path uses
+> various helper methods, but the actual code is very straight forward.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  fs/iomap.c            | 247 +++++++++++++++++++++++++++++++++++++++---
+>  include/linux/iomap.h |  31 ++++++
+>  2 files changed, 260 insertions(+), 18 deletions(-)
+> 
+> diff --git a/fs/iomap.c b/fs/iomap.c
+> index debb859a8a14..ea746e0287f9 100644
+> --- a/fs/iomap.c
+> +++ b/fs/iomap.c
+...
+> @@ -104,6 +105,107 @@ iomap_sector(struct iomap *iomap, loff_t pos)
+>  	return (iomap->addr + pos - iomap->offset) >> SECTOR_SHIFT;
+>  }
+>  
+> +static struct iomap_page *
+> +iomap_page_create(struct inode *inode, struct page *page)
+> +{
+> +	struct iomap_page *iop = to_iomap_page(page);
+> +
+> +	if (iop || i_blocksize(inode) == PAGE_SIZE)
+> +		return iop;
+> +
+> +	iop = kmalloc(sizeof(*iop), GFP_NOFS | __GFP_NOFAIL);
+> +	atomic_set(&iop->read_count, 0);
+> +	atomic_set(&iop->write_count, 0);
+> +	bitmap_zero(iop->uptodate, PAGE_SIZE / SECTOR_SIZE);
+> +	set_page_private(page, (unsigned long)iop);
+> +	SetPagePrivate(page);
 
-Nevermind this part about TODOs, forgot to edit that after going from RFC t=
-o v1.
+The buffer head implementation does a get/put page when the private
+state is set. I'm not quite sure why that is tbh, but do you know
+whether we need that here or not?
 
->
-> The plan is to implement HWASan [2] for the kernel with the incentive,
-> that it's going to have comparable to KASAN performance, but in the same
-> time consume much less memory, trading that off for somewhat imprecise
-> bug detection and being supported only for arm64.
->
-> The overall idea of the approach used by KHWASAN is the following:
->
-> 1. By using the Top Byte Ignore arm64 CPU feature, we can store pointer
->    tags in the top byte of each kernel pointer.
->
-> 2. Using shadow memory, we can store memory tags for each chunk of kernel
->    memory.
->
-> 3. On each memory allocation, we can generate a random tag, embed it into
->    the returned pointer and set the memory tags that correspond to this
->    chunk of memory to the same value.
->
-> 4. By using compiler instrumentation, before each memory access we can ad=
-d
->    a check that the pointer tag matches the tag of the memory that is bei=
-ng
->    accessed.
->
-> 5. On a tag mismatch we report an error.
->
-> [1] https://www.kernel.org/doc/html/latest/dev-tools/kasan.html
->
-> [2] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.htm=
-l
->
->
-> =3D=3D=3D=3D=3D=3D Technical details
->
-> KHWASAN is implemented in a very similar way to KASAN. This patchset
-> essentially does the following:
->
-> 1. TCR_TBI1 is set to enable Top Byte Ignore.
->
-> 2. Shadow memory is used (with a different scale, 1:16, so each shadow
->    byte corresponds to 16 bytes of kernel memory) to store memory tags.
->
-> 3. All slab objects are aligned to shadow scale, which is 16 bytes.
->
-> 4. All pointers returned from the slab allocator are tagged with a random
->    tag and the corresponding shadow memory is poisoned with the same valu=
-e.
->
-> 5. Compiler instrumentation is used to insert tag checks. Either by
->    calling callbacks or by inlining them (CONFIG_KASAN_OUTLINE and
->    CONFIG_KASAN_INLINE flags are reused).
->
-> 6. When a tag mismatch is detected in callback instrumentation mode
->    KHWASAN simply prints a bug report. In case of inline instrumentation,
->    clang inserts a brk instruction, and KHWASAN has it's own brk handler,
->    which reports the bug.
->
-> 7. The memory in between slab objects is marked with a reserved tag, and
->    acts as a redzone.
->
-> 8. When a slab object is freed it's marked with a reserved tag.
->
-> Bug detection is imprecise for two reasons:
->
-> 1. We won't catch some small out-of-bounds accesses, that fall into the
->    same shadow cell, as the last byte of a slab object.
->
-> 2. We only have 1 byte to store tags, which means we have a 1/256
->    probability of a tag match for an incorrect access (actually even
->    slightly less due to reserved tag values).
->
-> Despite that there's a particular type of bugs that KHWASAN can detect
-> compared to KASAN: use-after-free after the object has been allocated by
-> someone else.
->
->
-> =3D=3D=3D=3D=3D=3D Benchmarks
->
-> The following numbers were collected on Odroid C2 board. Both KASAN and
-> KHWASAN were used in inline instrumentation mode.
->
-> Boot time [1]:
-> * ~1.7 sec for clean kernel
-> * ~5.0 sec for KASAN
-> * ~5.0 sec for KHWASAN
->
-> Slab memory usage after boot [2]:
-> * ~40 kb for clean kernel
-> * ~105 kb + 1/8th shadow ~=3D 118 kb for KASAN
-> * ~47 kb + 1/16th shadow ~=3D 50 kb for KHWASAN
->
-> Network performance [3]:
-> * 8.33 Gbits/sec for clean kernel
-> * 3.17 Gbits/sec for KASAN
-> * 2.85 Gbits/sec for KHWASAN
->
-> Note, that KHWASAN (compared to KASAN) doesn't require quarantine.
->
-> [1] Time before the ext4 driver is initialized.
-> [2] Measured as `cat /proc/meminfo | grep Slab`.
-> [3] Measured as `iperf -s & iperf -c 127.0.0.1 -t 30`.
->
->
-> =3D=3D=3D=3D=3D=3D Some notes
->
-> A few notes:
->
-> 1. The patchset can be found here:
->    https://github.com/xairy/kasan-prototype/tree/khwasan
->
-> 2. Building requires a recent LLVM version (r330044 or later).
->
-> 3. Stack instrumentation is not supported yet and will be added later.
->
->
-> =3D=3D=3D=3D=3D=3D Changes
->
-> Changes in v2:
-> - Changed kmalloc_large_node_hook to return tagged pointer instead of
->   using an output argument.
-> - Fix checking whether -fsanitize=3Dhwaddress is supported by the compile=
-r.
-> - Removed duplication of -fno-builtin for KASAN and KHWASAN.
-> - Removed {} block for one line for_each_possible_cpu loop.
-> - Made set_track() static inline as it is used only in common.c.
-> - Moved optimal_redzone() to common.c.
-> - Fixed using tagged pointer for shadow calculation in
->   kasan_unpoison_shadow().
-> - Restored setting cache->align in kasan_cache_create(), which was
->   accidentally lost.
-> - Simplified __kasan_slab_free(), kasan_alloc_pages() and kasan_kmalloc()=
-.
-> - Removed tagging from kasan_kmalloc_large().
-> - Added page_kasan_tag_reset() to kasan_poison_slab() and removed
->   !PageSlab() check from page_to_virt.
-> - Reset pointer tag in _virt_addr_is_linear.
-> - Set page tag for each page when multiple pages are allocated or freed.
-> - Added a comment as to why we ignore cma allocated pages.
->
-> Changes in v1:
-> - Rebased onto 4.17-rc4.
-> - Updated benchmarking stats.
-> - Documented compiler version requirements, memory usage and slowdown.
-> - Dropped kvm patches, as clang + arm64 + kvm is completely broken [1].
->
-> Changes in RFC v3:
-> - Renamed CONFIG_KASAN_CLASSIC and CONFIG_KASAN_TAGS to
->   CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW respectively.
-> - Switch to -fsanitize=3Dkernel-hwaddress instead of -fsanitize=3Dhwaddre=
-ss.
-> - Removed unnecessary excessive shadow initialization.
-> - Removed khwasan_enabled flag (it=E2=80=99s not needed since KHWASAN is
->   initialized before any slab caches are used).
-> - Split out kasan_report.c and khwasan_report.c from report.c.
-> - Moved more common KASAN and KHWASAN functions to common.c.
-> - Added tagging to pagealloc.
-> - Rebased onto 4.17-rc1.
-> - Temporarily dropped patch that adds kvm support (arm64 + kvm + clang
->   combo is broken right now [1]).
->
-> Changes in RFC v2:
-> - Removed explicit casts to u8 * for kasan_mem_to_shadow() calls.
-> - Introduced KASAN_TCR_FLAGS for setting the TCR_TBI1 flag.
-> - Added a comment regarding the non-atomic RMW sequence in
->   khwasan_random_tag().
-> - Made all tag related functions accept const void *.
-> - Untagged pointers in __kimg_to_phys, which is used by virt_to_phys.
-> - Untagged pointers in show_ptr in fault handling logic.
-> - Untagged pointers passed to KVM.
-> - Added two reserved tag values: 0xFF and 0xFE.
-> - Used the reserved tag 0xFF to disable validity checking (to resolve the
->   issue with pointer tag being lost after page_address + kmap usage).
-> - Used the reserved tag 0xFE to mark redzones and freed objects.
-> - Added mnemonics for esr manipulation in KHWASAN brk handler.
-> - Added a comment about the -recover flag.
-> - Some minor cleanups and fixes.
-> - Rebased onto 3215b9d5 (4.16-rc6+).
-> - Tested on real hardware (Odroid C2 board).
-> - Added better benchmarks.
->
-> [1] https://lkml.org/lkml/2018/4/19/775
->
-> Andrey Konovalov (16):
->   khwasan, mm: change kasan hooks signatures
->   khwasan: move common kasan and khwasan code to common.c
->   khwasan: add CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW
->   khwasan, arm64: adjust shadow size for CONFIG_KASAN_HW
->   khwasan: initialize shadow to 0xff
->   khwasan, arm64: untag virt address in __kimg_to_phys and
->     _virt_addr_is_linear
->   khwasan, arm64: fix up fault handling logic
->   khwasan: add tag related helper functions
->   khwasan, arm64: enable top byte ignore for the kernel
->   khwasan, mm: perform untagged pointers comparison in krealloc
->   khwasan: split out kasan_report.c from report.c
->   khwasan: add bug reporting routines
->   khwasan: add hooks implementation
->   khwasan, arm64: add brk handler for inline instrumentation
->   khwasan, mm, arm64: tag non slab memory allocated via pagealloc
->   khwasan: update kasan documentation
->
->  Documentation/dev-tools/kasan.rst      | 213 +++++----
->  arch/arm64/Kconfig                     |   1 +
->  arch/arm64/Makefile                    |   2 +-
->  arch/arm64/include/asm/brk-imm.h       |   2 +
->  arch/arm64/include/asm/memory.h        |  41 +-
->  arch/arm64/include/asm/pgtable-hwdef.h |   1 +
->  arch/arm64/kernel/traps.c              |  69 ++-
->  arch/arm64/mm/fault.c                  |   3 +
->  arch/arm64/mm/kasan_init.c             |  18 +-
->  arch/arm64/mm/proc.S                   |   8 +-
->  include/linux/compiler-clang.h         |   5 +-
->  include/linux/compiler-gcc.h           |   4 +
->  include/linux/compiler.h               |   3 +-
->  include/linux/kasan.h                  |  84 +++-
->  include/linux/mm.h                     |  29 ++
->  include/linux/page-flags-layout.h      |  10 +
->  lib/Kconfig.kasan                      |  76 +++-
->  mm/cma.c                               |  11 +
->  mm/kasan/Makefile                      |   9 +-
->  mm/kasan/common.c                      | 598 +++++++++++++++++++++++++
->  mm/kasan/kasan.c                       | 503 +--------------------
->  mm/kasan/kasan.h                       |  85 +++-
->  mm/kasan/kasan_report.c                | 155 +++++++
->  mm/kasan/khwasan.c                     | 162 +++++++
->  mm/kasan/khwasan_report.c              |  60 +++
->  mm/kasan/report.c                      | 271 +++--------
->  mm/page_alloc.c                        |   1 +
->  mm/slab.c                              |  12 +-
->  mm/slab.h                              |   2 +-
->  mm/slab_common.c                       |   6 +-
->  mm/slub.c                              |  17 +-
->  scripts/Makefile.kasan                 |  27 +-
->  32 files changed, 1630 insertions(+), 858 deletions(-)
->  create mode 100644 mm/kasan/common.c
->  create mode 100644 mm/kasan/kasan_report.c
->  create mode 100644 mm/kasan/khwasan.c
->  create mode 100644 mm/kasan/khwasan_report.c
->
+> +	return iop;
+> +}
+> +
+...
+> @@ -142,18 +244,19 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+>  {
+>  	struct iomap_readpage_ctx *ctx = data;
+>  	struct page *page = ctx->cur_page;
+> -	unsigned poff = pos & (PAGE_SIZE - 1);
+> -	unsigned plen = min_t(loff_t, PAGE_SIZE - poff, length);
+> +	struct iomap_page *iop = iomap_page_create(inode, page);
+>  	bool is_contig = false;
+> +	loff_t orig_pos = pos;
+> +	unsigned poff, plen;
+>  	sector_t sector;
+>  
+> -	/* we don't support blocksize < PAGE_SIZE quite yet: */
+> -	WARN_ON_ONCE(pos != page_offset(page));
+> -	WARN_ON_ONCE(plen != PAGE_SIZE);
+> +	iomap_adjust_read_range(inode, iop, &pos, length, &poff, &plen);
+> +	if (plen == 0)
+> +		goto done;
+>  
+>  	if (iomap->type != IOMAP_MAPPED || pos >= i_size_read(inode)) {
+>  		zero_user(page, poff, plen);
+> -		SetPageUptodate(page);
+> +		iomap_set_range_uptodate(page, poff, plen);
+>  		goto done;
+>  	}
+>  
+> @@ -169,6 +272,14 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+>  		is_contig = true;
+>  	}
+>  
+> +	/*
+> +	 * If we start a new segment we need to increase the read count, and we
+> +	 * need to do so before submitting any previous full bio to make sure
+> +	 * that we don't prematurely unlock the page.
+> +	 */
+> +	if (iop)
+> +		atomic_inc(&iop->read_count);
+> +
+>  	if (!ctx->bio || !is_contig || bio_full(ctx->bio)) {
+>  		if (ctx->bio)
+>  			submit_bio(ctx->bio);
+> @@ -177,7 +288,7 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+>  
+>  	__bio_add_page(ctx->bio, page, plen, poff);
+>  done:
+> -	return plen;
+> +	return pos - orig_pos + plen;
+
+A brief comment here (or above the adjust_read_range() call) to explain
+the final length calculation would be helpful. E.g., it looks like
+leading uptodate blocks are part of the read while trailing uptodate
+blocks can be truncated by the above call.
+
+>  }
+>  
+>  int
+> @@ -188,8 +299,6 @@ iomap_readpage(struct page *page, const struct iomap_ops *ops)
+>  	unsigned poff;
+>  	loff_t ret;
+>  
+> -	WARN_ON_ONCE(page_has_buffers(page));
+> -
+>  	for (poff = 0; poff < PAGE_SIZE; poff += ret) {
+>  		ret = iomap_apply(inode, page_offset(page) + poff,
+>  				PAGE_SIZE - poff, 0, ops, &ctx,
+> @@ -295,6 +404,92 @@ iomap_readpages(struct address_space *mapping, struct list_head *pages,
+>  }
+>  EXPORT_SYMBOL_GPL(iomap_readpages);
+>  
+> +int
+> +iomap_is_partially_uptodate(struct page *page, unsigned long from,
+> +		unsigned long count)
+> +{
+> +	struct iomap_page *iop = to_iomap_page(page);
+> +	struct inode *inode = page->mapping->host;
+> +	unsigned first = from >> inode->i_blkbits;
+> +	unsigned last = (from + count - 1) >> inode->i_blkbits;
+> +	unsigned i;
+> +
+
+block_is_partially_uptodate() has this check:
+
+        if (from < blocksize && to > PAGE_SIZE - blocksize)
+                return 0;
+
+... which looks like it checks that the range is actually partial wrt to
+block size. The only callers check the page first, but I'm still not
+sure why it returns 0 in that case. Any idea?
+
+> +	if (iop) {
+> +		for (i = first; i <= last; i++)
+> +			if (!test_bit(i, iop->uptodate))
+> +				return 0;
+> +		return 1;
+> +	}
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL_GPL(iomap_is_partially_uptodate);
+> +
+...
+> +
+> +void
+> +iomap_invalidatepage(struct page *page, unsigned int offset, unsigned int len)
+> +{
+> +	/*
+> +	 * If we are invalidating the entire page, clear the dirty state from it
+> +	 * and release it to avoid unnecessary buildup of the LRU.
+> +	 */
+> +	if (offset == 0 && len == PAGE_SIZE) {
+> +		cancel_dirty_page(page);
+> +		iomap_releasepage(page, GFP_NOIO);
+
+Seems like this should probably be calling ->releasepage().
+
+> +	}
+> +}
+> +EXPORT_SYMBOL_GPL(iomap_invalidatepage);
+> +
+...
+> @@ -333,6 +529,7 @@ static int
+>  __iomap_write_begin(struct inode *inode, loff_t pos, unsigned len,
+>  		struct page *page, struct iomap *iomap)
+>  {
+> +	struct iomap_page *iop = iomap_page_create(inode, page);
+>  	loff_t block_size = i_blocksize(inode);
+>  	loff_t block_start = pos & ~(block_size - 1);
+>  	loff_t block_end = (pos + len + block_size - 1) & ~(block_size - 1);
+> @@ -340,15 +537,29 @@ __iomap_write_begin(struct inode *inode, loff_t pos, unsigned len,
+>  	unsigned plen = min_t(loff_t, PAGE_SIZE - poff, block_end - block_start);
+
+poff/plen are now initialized here and in iomap_adjust_read_range().
+Perhaps drop this one so the semantic of these being set by the latter
+is a bit more clear?
+
+>  	unsigned from = pos & (PAGE_SIZE - 1);
+>  	unsigned to = from + len;
+> -
+> -	WARN_ON_ONCE(i_blocksize(inode) < PAGE_SIZE);
+> +	int status;
+>  
+>  	if (PageUptodate(page))
+>  		return 0;
+> -	if (from <= poff && to >= poff + plen)
+> -		return 0;
+> -	return iomap_read_page_sync(inode, block_start, page,
+> -			poff, plen, from, to, iomap);
+> +
+> +	do {
+> +		iomap_adjust_read_range(inode, iop, &block_start,
+> +				block_end - block_start, &poff, &plen);
+> +		if (plen == 0)
+> +			break;
+> +
+> +		if ((from > poff && from < poff + plen) ||
+> +		    (to > poff && to < poff + plen)) {
+> +			status = iomap_read_page_sync(inode, block_start, page,
+> +					poff, plen, from, to, iomap);
+> +			if (status)
+> +				return status;
+> +		}
+> +
+> +		block_start += plen;
+> +	} while (poff + plen < PAGE_SIZE);
+
+Something like while (block_start < block_end) would seem a bit more
+clear here as well.
+
+Brian
+
+> +
+> +	return 0;
+>  }
+>  
+>  static int
+> @@ -429,7 +640,7 @@ __iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
+>  	if (unlikely(copied < len && !PageUptodate(page))) {
+>  		copied = 0;
+>  	} else {
+> -		SetPageUptodate(page);
+> +		iomap_set_range_uptodate(page, pos & (PAGE_SIZE - 1), len);
+>  		iomap_set_page_dirty(page);
+>  	}
+>  	return __generic_write_end(inode, pos, copied, page);
+> @@ -741,7 +952,7 @@ iomap_page_mkwrite_actor(struct inode *inode, loff_t pos, loff_t length,
+>  		block_commit_write(page, 0, length);
+>  	} else {
+>  		WARN_ON_ONCE(!PageUptodate(page));
+> -		WARN_ON_ONCE(i_blocksize(inode) < PAGE_SIZE);
+> +		iomap_page_create(inode, page);
+>  	}
+>  
+>  	return length;
+> diff --git a/include/linux/iomap.h b/include/linux/iomap.h
+> index 4d3d9d0cd69f..7f8787a1bbce 100644
+> --- a/include/linux/iomap.h
+> +++ b/include/linux/iomap.h
+> @@ -2,6 +2,9 @@
+>  #ifndef LINUX_IOMAP_H
+>  #define LINUX_IOMAP_H 1
+>  
+> +#include <linux/atomic.h>
+> +#include <linux/bitmap.h>
+> +#include <linux/mm.h>
+>  #include <linux/types.h>
+>  
+>  struct address_space;
+> @@ -88,12 +91,40 @@ struct iomap_ops {
+>  			ssize_t written, unsigned flags, struct iomap *iomap);
+>  };
+>  
+> +/*
+> + * Structure allocate for each page when block size < PAGE_SIZE to track
+> + * sub-page uptodate status and I/O completions.
+> + */
+> +struct iomap_page {
+> +	atomic_t		read_count;
+> +	atomic_t		write_count;
+> +	DECLARE_BITMAP(uptodate, PAGE_SIZE / 512);
+> +};
+> +
+> +static inline struct iomap_page *to_iomap_page(struct page *page)
+> +{
+> +	if (page_has_private(page))
+> +		return (struct iomap_page *)page_private(page);
+> +	return NULL;
+> +}
+> +
+>  ssize_t iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *from,
+>  		const struct iomap_ops *ops);
+>  int iomap_readpage(struct page *page, const struct iomap_ops *ops);
+>  int iomap_readpages(struct address_space *mapping, struct list_head *pages,
+>  		unsigned nr_pages, const struct iomap_ops *ops);
+>  int iomap_set_page_dirty(struct page *page);
+> +int iomap_is_partially_uptodate(struct page *page, unsigned long from,
+> +		unsigned long count);
+> +int iomap_releasepage(struct page *page, gfp_t gfp_mask);
+> +void iomap_invalidatepage(struct page *page, unsigned int offset,
+> +		unsigned int len);
+> +#ifdef CONFIG_MIGRATION
+> +int iomap_migrate_page(struct address_space *mapping, struct page *newpage,
+> +		struct page *page, enum migrate_mode mode);
+> +#else
+> +#define iomap_migrate_page NULL
+> +#endif
+>  int iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
+>  		const struct iomap_ops *ops);
+>  int iomap_zero_range(struct inode *inode, loff_t pos, loff_t len,
+> -- 
+> 2.17.0
+> 
 > --
-> 2.17.0.921.gf22659ad46-goog
->
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
