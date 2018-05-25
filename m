@@ -1,42 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DC6866B0008
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 07:46:36 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id j75-v6so2498766oib.5
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 04:46:36 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id e195-v6si295876oig.91.2018.05.25.04.46.34
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F4696B0003
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 08:00:49 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id f35-v6so2927214plb.10
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 05:00:49 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v1-v6si1857798pfc.273.2018.05.25.05.00.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 May 2018 04:46:35 -0700 (PDT)
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20180524115017.GE20441@dhcp22.suse.cz>
-	<201805250117.w4P1HgdG039943@www262.sakura.ne.jp>
-	<20180525083118.GI11881@dhcp22.suse.cz>
-	<201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp>
-	<20180525114213.GJ11881@dhcp22.suse.cz>
-In-Reply-To: <20180525114213.GJ11881@dhcp22.suse.cz>
-Message-Id: <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
-Date: Fri, 25 May 2018 20:46:21 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 25 May 2018 05:00:47 -0700 (PDT)
+Date: Fri, 25 May 2018 05:00:44 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH v2 00/12] get rid of GFP_ZONE_TABLE/BAD
+Message-ID: <20180525120044.GA4649@bombadil.infradead.org>
+References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+ <20180522183728.GB20441@dhcp22.suse.cz>
+ <20180524051919.GA9819@bombadil.infradead.org>
+ <20180524122323.GH20441@dhcp22.suse.cz>
+ <20180524151818.GA21245@bombadil.infradead.org>
+ <20180524152943.GA11881@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180524152943.GA11881@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Huaisheng Ye <yehs2007@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, vbabka@suse.cz, mgorman@techsingularity.net, kstewart@linuxfoundation.org, alexander.levin@verizon.com, gregkh@linuxfoundation.org, colyli@suse.de, chengnt@lenovo.com, hehy1@lenovo.com, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, linux-btrfs@vger.kernel.org, Huaisheng Ye <yehs1@lenovo.com>
 
-Michal Hocko wrote:
-> On Fri 25-05-18 19:57:32, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > What is wrong with the folliwing? should_reclaim_retry should be a
-> > > natural reschedule point. PF_WQ_WORKER is a special case which needs a
-> > > stronger rescheduling policy. Doing that unconditionally seems more
-> > > straightforward than depending on a zone being a good candidate for a
-> > > further reclaim.
-> > 
-> > Where is schedule_timeout_uninterruptible(1) for !PF_KTHREAD threads?
+On Thu, May 24, 2018 at 05:29:43PM +0200, Michal Hocko wrote:
+> > ie if we had more,
+> > could we solve our pain by making them more generic?
 > 
-> Re-read what I've said.
+> Well, if you have more you will consume more bits in the struct pages,
+> right?
 
-Please show me as a complete patch. Then, I will test your patch.
+Not necessarily ... the zone number is stored in the struct page
+currently, so either two or three bits are used right now.  In my
+proposal, one can infer the zone of a page from its PFN, except for
+ZONE_MOVABLE.  So we could trim down to just one bit per struct page
+for 32-bit machines while using 3 bits on 64-bit machines, where there
+is plenty of space.
+
+> > it more-or-less sucks that the devices with 28-bit DMA limits are forced
+> > to allocate from the low 16MB when they're perfectly capable of using the
+> > low 256MB.
+> 
+> Do we actually care all that much about those? If yes then we should
+> probably follow the ZONE_DMA (x86) path and use a CMA region for them.
+> I mean most devices should be good with very limited addressability or
+> below 4G, no?
+
+Sure.  One other thing I meant to mention was the media devices
+(TV capture cards and so on) which want a vmalloc_32() allocation.
+On 32-bit machines right now, we allocate from LOWMEM, when we really
+should be allocating from the 1GB-4GB region.  32-bit machines generally
+don't have a ZONE_DMA32 today.
