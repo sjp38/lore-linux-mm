@@ -1,51 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A29B6B0007
-	for <linux-mm@kvack.org>; Sat, 26 May 2018 13:31:09 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id c8-v6so5675501uae.5
-        for <linux-mm@kvack.org>; Sat, 26 May 2018 10:31:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e26-v6sor13050465uab.221.2018.05.26.10.31.08
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A33B16B0003
+	for <linux-mm@kvack.org>; Sat, 26 May 2018 13:42:03 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id e10-v6so6985969itf.7
+        for <linux-mm@kvack.org>; Sat, 26 May 2018 10:42:03 -0700 (PDT)
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id h131-v6sor4728870itc.132.2018.05.26.10.42.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 26 May 2018 10:31:08 -0700 (PDT)
+        Sat, 26 May 2018 10:42:02 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180526154819.GA14016@avx2>
-References: <1527346246-1334-1-git-send-email-s.mesoraca16@gmail.com> <20180526154819.GA14016@avx2>
-From: Salvatore Mesoraca <s.mesoraca16@gmail.com>
-Date: Sat, 26 May 2018 19:30:47 +0200
-Message-ID: <CAJHCu1LgSUJdiZEfParCH7aLERWM1bgwC7e8wQKgmkNE01_4KA@mail.gmail.com>
-Subject: Re: [PATCH] proc: prevent a task from writing on its own /proc/*/mem
-Content-Type: text/plain; charset="UTF-8"
+Date: Sat, 26 May 2018 10:42:02 -0700
+Message-ID: <000000000000f1e2b9056d1f663c@google.com>
+Subject: WARNING: bad usercopy in __kvm_write_guest_page
+From: syzbot <syzbot+083f3b88782aa3a46bdb@syzkaller.appspotmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Kernel Hardening <kernel-hardening@lists.openwall.com>, linux-security-module@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Akinobu Mita <akinobu.mita@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, Davidlohr Bueso <dave@stgolabs.net>, Kees Cook <keescook@chromium.org>
+To: keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller-bugs@googlegroups.com
 
-2018-05-26 17:48 GMT+02:00 Alexey Dobriyan <adobriyan@gmail.com>:
-> On Sat, May 26, 2018 at 04:50:46PM +0200, Salvatore Mesoraca wrote:
->> Prevent a task from opening, in "write" mode, any /proc/*/mem
->> file that operates on the task's mm.
->> /proc/*/mem is mainly a debugging means and, as such, it shouldn't
->> be used by the inspected process itself.
->> Current implementation always allow a task to access its own
->> /proc/*/mem file.
->> A process can use it to overwrite read-only memory, making
->> pointless the use of security_file_mprotect() or other ways to
->> enforce RO memory.
->
-> You can do it in security_ptrace_access_check()
+Hello,
 
-No, because that hook is skipped when mm == current->mm:
-https://elixir.bootlin.com/linux/v4.17-rc6/source/kernel/fork.c#L1111
+syzbot found the following crash on:
 
-> or security_file_open()
+HEAD commit:    73fcb1a370c7 Merge branch 'akpm' (patches from Andrew)
+git tree:       upstream
+console output: https://syzkaller.appspot.com/x/log.txt?x=15b3a827800000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=f3b4e30da84ec1ed
+dashboard link: https://syzkaller.appspot.com/bug?extid=083f3b88782aa3a46bdb
+compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=1027dbcf800000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=159eff97800000
 
-This is true, but it looks a bit overkill to me, especially since many of
-the macros/functions used to handle proc's files won't be in scope
-for an external LSM.
-Is there any particular reason why you prefer it done via LSM?
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+083f3b88782aa3a46bdb@syzkaller.appspotmail.com
 
-Thank you,
+random: sshd: uninitialized urandom read (32 bytes read)
+random: sshd: uninitialized urandom read (32 bytes read)
+random: sshd: uninitialized urandom read (32 bytes read)
+------------[ cut here ]------------
+Bad or missing usercopy whitelist? Kernel memory exposure attempt detected  
+from SLAB object 'kvm_vcpu' (offset 23192, size 8)!
+WARNING: CPU: 0 PID: 4554 at mm/usercopy.c:81 usercopy_warn+0xf5/0x120  
+mm/usercopy.c:76
+Kernel panic - not syncing: panic_on_warn set ...
 
-Salvatore
+CPU: 0 PID: 4554 Comm: syz-executor726 Not tainted 4.17.0-rc5+ #58
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+  panic+0x22f/0x4de kernel/panic.c:184
+  __warn.cold.8+0x163/0x1b3 kernel/panic.c:536
+  report_bug+0x252/0x2d0 lib/bug.c:186
+  fixup_bug arch/x86/kernel/traps.c:178 [inline]
+  do_error_trap+0x1de/0x490 arch/x86/kernel/traps.c:296
+  do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
+  invalid_op+0x14/0x20 arch/x86/entry/entry_64.S:992
+RIP: 0010:usercopy_warn+0xf5/0x120 mm/usercopy.c:76
+RSP: 0018:ffff8801ad54f0b0 EFLAGS: 00010286
+RAX: 000000000000007e RBX: ffffffff889d52f0 RCX: ffffffff8160aa5d
+RDX: 0000000000000000 RSI: ffffffff8160f711 RDI: ffff8801ad54ec10
+RBP: ffff8801ad54f110 R08: ffff8801d96c8680 R09: 0000000000000006
+R10: ffff8801d96c8680 R11: 0000000000000000 R12: ffffffff87d2fa60
+R13: ffffffff87c19ec0 R14: 0000000000000000 R15: 0000000000000008
+  __check_heap_object+0x89/0xb5 mm/slab.c:4440
+  check_heap_object mm/usercopy.c:236 [inline]
+  __check_object_size+0x4c7/0x5d9 mm/usercopy.c:259
+  check_object_size include/linux/thread_info.h:108 [inline]
+  __copy_to_user include/linux/uaccess.h:104 [inline]
+  __kvm_write_guest_page+0x90/0x140  
+arch/x86/kvm/../../../virt/kvm/kvm_main.c:1828
+  kvm_vcpu_write_guest_page arch/x86/kvm/../../../virt/kvm/kvm_main.c:1849  
+[inline]
+  kvm_vcpu_write_guest+0x65/0xe0  
+arch/x86/kvm/../../../virt/kvm/kvm_main.c:1883
+  kvm_write_guest_virt_system+0x8a/0x190 arch/x86/kvm/x86.c:4843
+  handle_vmptrst+0x1d2/0x260 arch/x86/kvm/vmx.c:8196
+  vmx_handle_exit+0x2c0/0x17b0 arch/x86/kvm/vmx.c:9234
+  vcpu_enter_guest+0x13af/0x6060 arch/x86/kvm/x86.c:7503
+  vcpu_run arch/x86/kvm/x86.c:7565 [inline]
+  kvm_arch_vcpu_ioctl_run+0x33e/0x1690 arch/x86/kvm/x86.c:7742
+  kvm_vcpu_ioctl+0x79d/0x12e0 arch/x86/kvm/../../../virt/kvm/kvm_main.c:2560
+  vfs_ioctl fs/ioctl.c:46 [inline]
+  file_ioctl fs/ioctl.c:500 [inline]
+  do_vfs_ioctl+0x1cf/0x16a0 fs/ioctl.c:684
+  ksys_ioctl+0xa9/0xd0 fs/ioctl.c:701
+  __do_sys_ioctl fs/ioctl.c:708 [inline]
+  __se_sys_ioctl fs/ioctl.c:706 [inline]
+  __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:706
+  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+RIP: 0033:0x443039
+RSP: 002b:00007ffc272242b8 EFLAGS: 00000286 ORIG_RAX: 0000000000000010
+RAX: ffffffffffffffda RBX: 00000000004002c8 RCX: 0000000000443039
+RDX: 0000000000000000 RSI: 000000000000ae80 RDI: 0000000000000005
+RBP: 00000000006cd018 R08: 0000000020000580 R09: 0000000020000580
+R10: 0000000000000000 R11: 0000000000000286 R12: 0000000000404080
+R13: 0000000000404110 R14: 0000000000000000 R15: 0000000000000000
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+Kernel Offset: disabled
+Rebooting in 86400 seconds..
+
+
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
+
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
+syzbot.
+syzbot can test patches for this bug, for details see:
+https://goo.gl/tpsmEJ#testing-patches
