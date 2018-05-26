@@ -1,92 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5521F6B0003
-	for <linux-mm@kvack.org>; Sat, 26 May 2018 14:51:50 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id q3-v6so6767056wrm.8
-        for <linux-mm@kvack.org>; Sat, 26 May 2018 11:51:50 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D64B96B0003
+	for <linux-mm@kvack.org>; Sat, 26 May 2018 14:58:41 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f188-v6so5460632wme.2
+        for <linux-mm@kvack.org>; Sat, 26 May 2018 11:58:41 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s74-v6sor4374450lfg.109.2018.05.26.11.51.47
+        by mx.google.com with SMTPS id q22-v6sor4484804lfg.31.2018.05.26.11.58.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 26 May 2018 11:51:48 -0700 (PDT)
-Date: Sat, 26 May 2018 21:51:44 +0300
+        Sat, 26 May 2018 11:58:40 -0700 (PDT)
+Date: Sat, 26 May 2018 21:58:37 +0300
 From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH] memcg: force charge kmem counter too
-Message-ID: <20180526185144.xvh7ejlyelzvqwdb@esperanza>
-References: <20180525185501.82098-1-shakeelb@google.com>
+Subject: Re: [PATCH v2] mm: fix race between kmem_cache destroy, create and
+ deactivate
+Message-ID: <20180526185837.k5ztrillokpi65qj@esperanza>
+References: <20180522201336.196994-1-shakeelb@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180525185501.82098-1-shakeelb@google.com>
+In-Reply-To: <20180522201336.196994-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Linux MM <linux-mm@kvack.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, May 25, 2018 at 11:55:01AM -0700, Shakeel Butt wrote:
-> Based on several conditions the kernel can decide to force charge an
-> allocation for a memcg i.e. overcharge memcg->memory and memcg->memsw
-> counters. Do the same for memcg->kmem counter too. In cgroup-v1, this
-> bug can cause a __GFP_NOFAIL kmem allocation fail if an explicit limit
-> on kmem counter is set and reached.
-
-memory.kmem.limit is broken and unlikely to ever be fixed as this knob
-was deprecated in cgroup-v2. The fact that hitting the limit doesn't
-trigger reclaim can result in unexpected behavior from user's pov, like
-getting ENOMEM while listing a directory. Bypassing the limit for NOFAIL
-allocations isn't going to fix those problem. So I'd suggest to avoid
-setting memory.kmem.limit instead of trying to fix it or, even better,
-switch to cgroup-v2.
-
+On Tue, May 22, 2018 at 01:13:36PM -0700, Shakeel Butt wrote:
+> The memcg kmem cache creation and deactivation (SLUB only) is
+> asynchronous. If a root kmem cache is destroyed whose memcg cache is in
+> the process of creation or deactivation, the kernel may crash.
 > 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> ---
->  mm/memcontrol.c | 21 +++++++++++++++++++--
->  1 file changed, 19 insertions(+), 2 deletions(-)
+> Example of one such crash:
+> 	general protection fault: 0000 [#1] SMP PTI
+> 	CPU: 1 PID: 1721 Comm: kworker/14:1 Not tainted 4.17.0-smp
+> 	...
+> 	Workqueue: memcg_kmem_cache kmemcg_deactivate_workfn
+> 	RIP: 0010:has_cpu_slab
+> 	...
+> 	Call Trace:
+> 	? on_each_cpu_cond
+> 	__kmem_cache_shrink
+> 	kmemcg_cache_deact_after_rcu
+> 	kmemcg_deactivate_workfn
+> 	process_one_work
+> 	worker_thread
+> 	kthread
+> 	ret_from_fork+0x35/0x40
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ab5673dbfc4e..0a88f824c550 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1893,6 +1893,18 @@ void mem_cgroup_handle_over_high(void)
->  	current->memcg_nr_pages_over_high = 0;
->  }
->  
-> +/*
-> + * Based on try_charge() force charge conditions.
-> + */
-> +static inline bool should_force_charge(gfp_t gfp_mask)
-> +{
-> +	return (unlikely(tsk_is_oom_victim(current) ||
-> +			 fatal_signal_pending(current) ||
-> +			 current->flags & PF_EXITING ||
-> +			 current->flags & PF_MEMALLOC ||
-> +			 gfp_mask & __GFP_NOFAIL));
-> +}
-> +
->  static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  		      unsigned int nr_pages)
->  {
-> @@ -2008,6 +2020,8 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	 * The allocation either can't fail or will lead to more memory
->  	 * being freed very soon.  Allow memory usage go over the limit
->  	 * temporarily by force charging it.
-> +	 *
-> +	 * NOTE: Please keep the should_force_charge() conditions in sync.
->  	 */
->  	page_counter_charge(&memcg->memory, nr_pages);
->  	if (do_memsw_account())
-> @@ -2331,8 +2345,11 @@ int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
->  
->  	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
->  	    !page_counter_try_charge(&memcg->kmem, nr_pages, &counter)) {
-> -		cancel_charge(memcg, nr_pages);
-> -		return -ENOMEM;
-> +		if (!should_force_charge(gfp)) {
-> +			cancel_charge(memcg, nr_pages);
-> +			return -ENOMEM;
-> +		}
-> +		page_counter_charge(&memcg->kmem, nr_pages);
->  	}
->  
->  	page->mem_cgroup = memcg;
+> This issue is due to the lack of real reference counting for the root
+> kmem_caches. Currently kmem_cache does have a field named refcount which
+> has been used for multiple purposes i.e. shared count, reference count
+> and noshare flag. Due to its conflated nature, it can not be used for
+> reference counting by other subsystems.
+> 
+> This patch decoupled the reference counting from shared count and
+> noshare flag. The new field 'shared_count' represents the shared count
+> and noshare flag while 'refcount' is converted into a real reference
+> counter.
+> 
+> The reference counting is only implemented for root kmem_caches for
+> simplicity. The reference of a root kmem_cache is elevated on sharing or
+> while its memcg kmem_cache creation or deactivation request is in the
+> fly and thus it is made sure that the root kmem_cache is not destroyed
+> in the middle. As the reference of kmem_cache is elevated on sharing,
+> the 'shared_count' does not need any locking protection as at worst it
+> can be out-dated for a small window which is tolerable.
+
+I wonder if we could fix this problem without introducing reference
+counting for kmem caches (which seems a bit of an overkill to me TBO),
+e.g. by flushing memcg_kmem_cache_wq before root cache destruction?
