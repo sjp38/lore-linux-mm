@@ -1,65 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 58A506B0003
-	for <linux-mm@kvack.org>; Sat, 26 May 2018 10:37:30 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id g6-v6so4807906plq.9
-        for <linux-mm@kvack.org>; Sat, 26 May 2018 07:37:30 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id h12-v6si28300506plt.494.2018.05.26.07.37.27
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 33B2C6B0007
+	for <linux-mm@kvack.org>; Sat, 26 May 2018 10:51:07 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 44-v6so6555185wrt.9
+        for <linux-mm@kvack.org>; Sat, 26 May 2018 07:51:07 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u1-v6sor13546638edp.37.2018.05.26.07.51.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 May 2018 07:37:27 -0700 (PDT)
-From: "Li, Philip" <philip.li@intel.com>
-Subject: RE: [kbuild-all] [linux-next:master 5885/8111] /tmp/cc3gKKeM.s:35:
- Error: .err encountered
-Date: Sat, 26 May 2018 14:37:23 +0000
-Message-ID: <831EE4E5E37DCC428EB295A351E662494CB5166D@shsmsx102.ccr.corp.intel.com>
-References: <201805210314.e6bdStHL%fengguang.wu@intel.com>
- <CACT4Y+bR+ywj_OtGDYiCp+PZ4MfdqfrXg5XQwN36uRnNCEHEZg@mail.gmail.com>
-In-Reply-To: <CACT4Y+bR+ywj_OtGDYiCp+PZ4MfdqfrXg5XQwN36uRnNCEHEZg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (Google Transport Security);
+        Sat, 26 May 2018 07:51:05 -0700 (PDT)
+From: Salvatore Mesoraca <s.mesoraca16@gmail.com>
+Subject: [PATCH] proc: prevent a task from writing on its own /proc/*/mem
+Date: Sat, 26 May 2018 16:50:46 +0200
+Message-Id: <1527346246-1334-1-git-send-email-s.mesoraca16@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, lkp <lkp@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "kbuild-all@01.org" <kbuild-all@01.org>
+To: kernel-hardening@lists.openwall.com
+Cc: linux-security-module@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Salvatore Mesoraca <s.mesoraca16@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, Akinobu Mita <akinobu.mita@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, Davidlohr Bueso <dave@stgolabs.net>, Kees Cook <keescook@chromium.org>
 
-> Subject: Re: [kbuild-all] [linux-next:master 5885/8111] /tmp/cc3gKKeM.s:3=
-5:
-> Error: .err encountered
->=20
-> On Sun, May 20, 2018 at 9:15 PM, kbuild test robot <lkp@intel.com> wrote:
-> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next=
-.git master
-> > head:   fbbe3b8c2c9c5f84caf668703c26154cb4fbb9d1
-> > commit: 3b67022379d3d0c6a5cc5152f6b46eeea635a194 [5885/8111] arm: port
-> KCOV to arm
-> > config: arm-allmodconfig (attached as .config)
-> > compiler: arm-linux-gnueabi-gcc (Debian 7.2.0-11) 7.2.0
-> > reproduce:
-> >         wget https://raw.githubusercontent.com/intel/lkp-
-> tests/master/sbin/make.cross -O ~/bin/make.cross
-> >         chmod +x ~/bin/make.cross
-> >         git checkout 3b67022379d3d0c6a5cc5152f6b46eeea635a194
-> >         # save the attached .config to linux build tree
-> >         make.cross ARCH=3Darm
-> >
-> > All errors (new ones prefixed by >>):
-> >
-> >    /tmp/cc3gKKeM.s: Assembler messages:
-> >>> /tmp/cc3gKKeM.s:35: Error: .err encountered
-> >    /tmp/cc3gKKeM.s:36: Error: .err encountered
-> >    /tmp/cc3gKKeM.s:37: Error: .err encountered
->=20
-> I've tried to reproduce this following the instructions, but I failed,
-thanks for input, we will follow up this to see whether there's issue
-in bot side.
+Prevent a task from opening, in "write" mode, any /proc/*/mem
+file that operates on the task's mm.
+/proc/*/mem is mainly a debugging means and, as such, it shouldn't
+be used by the inspected process itself.
+Current implementation always allow a task to access its own
+/proc/*/mem file.
+A process can use it to overwrite read-only memory, making
+pointless the use of security_file_mprotect() or other ways to
+enforce RO memory.
 
-> build succeeds for me:
-> https://www.spinics.net/lists/linux-mm/msg152336.html
-> _______________________________________________
-> kbuild-all mailing list
-> kbuild-all@lists.01.org
-> https://lists.01.org/mailman/listinfo/kbuild-all
+Signed-off-by: Salvatore Mesoraca <s.mesoraca16@gmail.com>
+---
+ fs/proc/base.c       | 25 ++++++++++++++++++-------
+ fs/proc/internal.h   |  3 ++-
+ fs/proc/task_mmu.c   |  4 ++--
+ fs/proc/task_nommu.c |  2 +-
+ 4 files changed, 23 insertions(+), 11 deletions(-)
+
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 1a76d75..01ecfec 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -762,8 +762,9 @@ static int proc_single_open(struct inode *inode, struct file *filp)
+ 	.release	= single_release,
+ };
+ 
+-
+-struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
++struct mm_struct *proc_mem_open(struct inode *inode,
++				unsigned int mode,
++				fmode_t f_mode)
+ {
+ 	struct task_struct *task = get_proc_task(inode);
+ 	struct mm_struct *mm = ERR_PTR(-ESRCH);
+@@ -773,10 +774,20 @@ struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
+ 		put_task_struct(task);
+ 
+ 		if (!IS_ERR_OR_NULL(mm)) {
+-			/* ensure this mm_struct can't be freed */
+-			mmgrab(mm);
+-			/* but do not pin its memory */
+-			mmput(mm);
++			/*
++			 * Prevent this interface from being used as a mean
++			 * to bypass memory restrictions, including those
++			 * imposed by LSMs.
++			 */
++			if (mm == current->mm &&
++			    f_mode & FMODE_WRITE)
++				mm = ERR_PTR(-EACCES);
++			else {
++				/* ensure this mm_struct can't be freed */
++				mmgrab(mm);
++				/* but do not pin its memory */
++				mmput(mm);
++			}
+ 		}
+ 	}
+ 
+@@ -785,7 +796,7 @@ struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
+ 
+ static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
+ {
+-	struct mm_struct *mm = proc_mem_open(inode, mode);
++	struct mm_struct *mm = proc_mem_open(inode, mode, file->f_mode);
+ 
+ 	if (IS_ERR(mm))
+ 		return PTR_ERR(mm);
+diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+index 0f1692e..8d38cc7 100644
+--- a/fs/proc/internal.h
++++ b/fs/proc/internal.h
+@@ -275,7 +275,8 @@ struct proc_maps_private {
+ #endif
+ } __randomize_layout;
+ 
+-struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode);
++struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode,
++				fmode_t f_mode);
+ 
+ extern const struct file_operations proc_pid_maps_operations;
+ extern const struct file_operations proc_tid_maps_operations;
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index c486ad4..efb6535 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -227,7 +227,7 @@ static int proc_maps_open(struct inode *inode, struct file *file,
+ 		return -ENOMEM;
+ 
+ 	priv->inode = inode;
+-	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
++	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ, file->f_mode);
+ 	if (IS_ERR(priv->mm)) {
+ 		int err = PTR_ERR(priv->mm);
+ 
+@@ -1534,7 +1534,7 @@ static int pagemap_open(struct inode *inode, struct file *file)
+ {
+ 	struct mm_struct *mm;
+ 
+-	mm = proc_mem_open(inode, PTRACE_MODE_READ);
++	mm = proc_mem_open(inode, PTRACE_MODE_READ, file->f_mode);
+ 	if (IS_ERR(mm))
+ 		return PTR_ERR(mm);
+ 	file->private_data = mm;
+diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
+index 5b62f57..dc38516 100644
+--- a/fs/proc/task_nommu.c
++++ b/fs/proc/task_nommu.c
+@@ -280,7 +280,7 @@ static int maps_open(struct inode *inode, struct file *file,
+ 		return -ENOMEM;
+ 
+ 	priv->inode = inode;
+-	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
++	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ, file->f_mode);
+ 	if (IS_ERR(priv->mm)) {
+ 		int err = PTR_ERR(priv->mm);
+ 
+-- 
+1.9.1
