@@ -1,216 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA3206B0003
-	for <linux-mm@kvack.org>; Fri, 25 May 2018 20:29:33 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id s2-v6so5574494ioa.22
-        for <linux-mm@kvack.org>; Fri, 25 May 2018 17:29:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f65-v6sor4227677itg.87.2018.05.25.17.29.32
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 635FE6B0007
+	for <linux-mm@kvack.org>; Fri, 25 May 2018 20:32:53 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 89-v6so3983387plc.1
+        for <linux-mm@kvack.org>; Fri, 25 May 2018 17:32:53 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id r10-v6si18805168pgv.499.2018.05.25.17.32.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 25 May 2018 17:29:32 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 May 2018 17:32:51 -0700 (PDT)
+Date: Fri, 25 May 2018 17:35:44 -0700
+From: Jacob Pan <jacob.jun.pan@linux.intel.com>
+Subject: Re: [PATCH v2 07/40] iommu: Add a page fault handler
+Message-ID: <20180525173544.05638510@jacob-builder>
+In-Reply-To: <bdf9f221-ab97-2168-d072-b7f6a0dba840@arm.com>
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+	<20180511190641.23008-8-jean-philippe.brucker@arm.com>
+	<20180518110434.150a0e64@jacob-builder>
+	<8a640794-a6f3-fa01-82a9-06479a6f779a@arm.com>
+	<20180522163521.413e60c6@jacob-builder>
+	<bdf9f221-ab97-2168-d072-b7f6a0dba840@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20180507210135.1823-1-hannes@cmpxchg.org>
-References: <20180507210135.1823-1-hannes@cmpxchg.org>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Fri, 25 May 2018 17:29:30 -0700
-Message-ID: <CAJuCfpF4q+1aSg4WQn_p-1-zEDhh-iqST6dc1DkxnDofSPBKGw@mail.gmail.com>
-Subject: Re: [PATCH 0/7] psi: pressure stall information for CPU, memory, and IO
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
+To: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Cc: "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "rgummal@xilinx.com" <rgummal@xilinx.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "christian.koenig@amd.com" <christian.koenig@amd.com>, jacob.jun.pan@linux.intel.com
 
-Hi Johannes,
-I tried your previous memdelay patches before this new set was posted
-and results were promising for predicting when Android system is close
-to OOM. I'm definitely going to try this one after I backport it to
-4.9.
+On Thu, 24 May 2018 12:44:38 +0100
+Jean-Philippe Brucker <jean-philippe.brucker@arm.com> wrote:
 
-On Mon, May 7, 2018 at 2:01 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> Hi,
->
-> I previously submitted a version of this patch set called "memdelay",
-> which translated delays from reclaim, swap-in, thrashing page cache
-> into a pressure percentage of lost walltime. I've since extended this
-> code to aggregate all delay states tracked by delayacct in order to
-> have generalized pressure/overcommit levels for CPU, memory, and IO.
->
-> There was feedback from Peter on the previous version that I have
-> incorporated as much as possible and as it still applies to this code:
->
->         - got rid of the extra lock in the sched callbacks; all task
->           state changes we care about serialize through rq->lock
->
->         - got rid of ktime_get() inside the sched callbacks and
->           switched time measuring to rq_clock()
->
->         - got rid of all divisions inside the sched callbacks,
->           tracking everything natively in ns now
->
-> I also moved this stuff into existing sched/stat.h callbacks, so it
-> doesn't get in the way in sched/core.c, and of course moved the whole
-> thing behind CONFIG_PSI since not everyone is going to want it.
+> On 23/05/18 00:35, Jacob Pan wrote:
+> >>>> +			/* Insert *before* the last fault */
+> >>>> +			list_move(&fault->head, &group->faults);
+> >>>> +	}
+> >>>> +    
+> >>> If you already sorted the group list with last fault at the end,
+> >>> why do you need a separate entry to track the last fault?    
+> >>
+> >> Not sure I understand your question, sorry. Do you mean why the
+> >> iopf_group.last_fault? Just to avoid one more kzalloc.
+> >>  
+> > kind of :) what i thought was that why can't the last_fault
+> > naturally be the last entry in your group fault list? then there is
+> > no need for special treatment in terms of allocation of the last
+> > fault. just my preference.  
+> 
+> But we need a kzalloc for the last fault anyway, so I thought I'd just
+> piggy-back on the group allocation. And if I don't add the last fault
+> at the end of group->faults, then it's iopf_handle_group that requires
+> special treatment. I'm still not sure I understood your question
+> though, could you send me a patch that does it?
+> 
+> >>>> +
+> >>>> +	queue->flush(queue->flush_arg, dev);
+> >>>> +
+> >>>> +	/*
+> >>>> +	 * No need to clear the partial list. All PRGs
+> >>>> containing the PASID that
+> >>>> +	 * needs to be decommissioned are whole (the device
+> >>>> driver made sure of
+> >>>> +	 * it before this function was called). They have been
+> >>>> submitted to the
+> >>>> +	 * queue by the above flush().
+> >>>> +	 */    
+> >>> So you are saying device driver need to make sure LPIG PRQ is
+> >>> submitted in the flush call above such that partial list is
+> >>> cleared?    
+> >>
+> >> Not exactly, it's the IOMMU driver that makes sure all LPIG in its
+> >> queues are submitted by the above flush call. In more details the
+> >> flow is:
+> >>
+> >> * Either device driver calls unbind()/sva_device_shutdown(), or the
+> >> process exits.
+> >> * If the device driver called, then it already told the device to
+> >> stop using the PASID. Otherwise we use the mm_exit() callback to
+> >> tell the device driver to stop using the PASID.
+Sorry I still need more clarification. For the PASID termination
+initiated by vfio unbind, I don't see device driver given a chance to
+stop PASID. Seems just call __iommu_sva_unbind_device() which already
+assume device stopped issuing DMA with the PASID.
+So it is the vfio unbind caller responsible for doing driver callback
+to stop DMA on a given PASID?
 
-Would it make sense to split CONFIG_PSI into CONFIG_PSI_CPU,
-CONFIG_PSI_MEM and CONFIG_PSI_IO since one might need only specific
-subset of this feature?
+> >> * In either case, when receiving a stop request from the driver,
+> >> the device sends the LPIGs to the IOMMU queue.
+> >> * Then, the flush call above ensures that the IOMMU reports the
+> >> LPIG with iommu_report_device_fault.
+> >> * While submitting all LPIGs for this PASID to the work queue,
+> >> ipof_queue_fault also picked up all partial faults, so the partial
+> >> list is clean.
+> >>
+> >> Maybe I should improve this comment?
+> >>  
+> > thanks for explaining. LPIG submission is done by device
+> > asynchronously w.r.t. driver stopping/decommission PASID.  
+> 
+> Hmm, it should really be synchronous, otherwise there is no way to
+> know when the PASID can be decommissioned. We need a guarantee such
+> as the one in 6.20.1 of the PCIe spec, "Managing PASID TLP Prefix
+> Usage":
+> 
+> "When the stop request mechanism indicates completion, the Function
+> has:
+> * Completed all Non-Posted Requests associated with this PASID.
+> * Flushed to the host all Posted Requests addressing host memory in
+> all TCs that were used by the PASID."
+> 
+> That's in combination with "The function shall [...] finish
+> transmitting any multi-page Page Request Messages for this PASID
+> (i.e. send the Page Request Message with the L bit Set)." from the
+> ATS spec.
+> 
+I am not contesting on the device side, what I meant was from the
+host IOMMU driver perspective, LPIG is received via IOMMU host queue,
+therefore asynchronous. Not sure about ARM, but on VT-d LPIG submission
+could meet queue full condition. So per VT-d spec, iommu will generate a
+successful auto response to the device. At this point, assume we
+already stopped the given PASID on the device, there might not be
+another LPIG sent for the device. Therefore, you could have a partial
+list. I think we can just drop the requests in the partial list for
+that PASID until the PASID gets re-allocated.
 
->
-> Real-world applications
->
-> Since the last posting, we've begun using the data collected by this
-> code quite extensively at Facebook, and with several success stories.
->
-> First we used it on systems that frequently locked up in low memory
-> situations. The reason this happens is that the OOM killer is
-> triggered by reclaim not being able to make forward progress, but with
-> fast flash devices there is *always* some clean and uptodate cache to
-> reclaim; the OOM killer never kicks in, even as tasks wait 80-90% of
-> the time faulting executables. There is no situation where this ever
-> makes sense in practice. We wrote a <100 line POC python script to
-> monitor memory pressure and kill stuff manually, way before such
-> pathological thrashing.
->
-> We've since extended the python script into a more generic oomd that
-> we use all over the place, not just to avoid livelocks but also to
-> guarantee latency and throughput SLAs, since they're usually violated
-> way before the kernel OOM killer would ever kick in.
->
-> We also use the memory pressure info for loadshedding. Our batch job
-> infrastructure used to refuse new requests on heuristics based on RSS
-> and other existing VM metrics in an attempt to avoid OOM kills and
-> maximize utilization. Since it was still plagued by frequent OOM
-> kills, we switched it to shed load on psi memory pressure, which has
-> turned out to be a much better bellwether, and we managed to reduce
-> OOM kills drastically. Reducing the rate of OOM outages from the
-> worker pool raised its aggregate productivity, and we were able to
-> switch that service to smaller machines.
->
-> Lastly, we use cgroups to isolate a machine's main workload from
-> maintenance crap like package upgrades, logging, configuration, as
-> well as to prevent multiple workloads on a machine from stepping on
-> each others' toes. We were not able to do this properly without the
-> pressure metrics; we would see latency or bandwidth drops, but it
-> would often be hard to impossible to rootcause it post-mortem. We now
-> log and graph the pressure metrics for all containers in our fleet and
-> can trivially link service drops to resource pressure after the fact.
->
-> How do you use this?
->
-> A kernel with CONFIG_PSI=y will create a /proc/pressure directory with
-> 3 files: cpu, memory, and io. If using cgroup2, cgroups will also have
-> cpu.pressure, memory.pressure and io.pressure files, which simply
-> calculate pressure at the cgroup level instead of system-wide.
->
-> The cpu file contains one line:
->
->         some avg10=2.04 avg60=0.75 avg300=0.40 total=157656722
->
-> The averages give the percentage of walltime in which some tasks are
-> delayed on the runqueue while another task has the CPU. They're recent
-> averages over 10s, 1m, 5m windows, so you can tell short term trends
-> from long term ones, similarly to the load average.
->
-> What to make of this number? If CPU utilization is at 100% and CPU
-> pressure is 0, it means the system is perfectly utilized, with one
-> runnable thread per CPU and nobody waiting. At two or more runnable
-> tasks per CPU, the system is 100% overcommitted and the pressure
-> average will indicate as much. From a utilization perspective this is
-> a great state of course: no CPU cycles are being wasted, even when 50%
-> of the threads were to go idle (and most workloads do vary). From the
-> perspective of the individual job it's not great, however, and they
-> might do better with more resources. Depending on what your priority
-> is, an elevated "some" number may or may not require action.
->
-> The memory file contains two lines:
->
-> some avg10=70.24 avg60=68.52 avg300=69.91 total=3559632828
-> full avg10=57.59 avg60=58.06 avg300=60.38 total=3300487258
->
-> The some line is the same as for cpu: the time in which at least one
-> task is stalled on the resource.
->
-> The full line, however, indicates time in which *nobody* is using the
-> CPU productively due to pressure: all non-idle tasks could be waiting
-> on thrashing cache simultaneously. It can also happen when a single
-> reclaimer occupies the CPU, since nothing else can make forward
-> progress during that time. CPU cycles are being wasted. Significant
-> time spent in there is a good trigger for killing, moving jobs to
-> other machines, or dropping incoming requests, since neither the jobs
-> nor the machine overall is making too much headway.
->
-> The total= value gives the absolute stall time in microseconds. This
-> allows detecting latency spikes that might be too short to sway the
-> running averages. It also allows custom time averaging in case the
-> 10s/1m/5m windows aren't adequate for the usecase (or are too coarse
-> with future hardware).
->
 
-Any reasons these specific windows were chosen (empirical
-data/historical reasons)? I'm worried that with the smallest window
-being 10s the signal might be too inert to detect fast memory pressure
-buildup before OOM kill happens. I'll have to experiment with that
-first, however if you have some insights into this already please
-share them.
-
-> The io file is similar to memory. However, unlike CPU and memory, the
-> block layer doesn't have a concept of hardware contention. We cannot
-> know if the IO a task is waiting on is being performed by the device
-> or whether the device is busy with or slowed down other requests. As a
-> result, we can tell how many CPU cycles go to waste due to IO delays,
-> but we can not identify the competition factor in those delays.
->
-> These patches are against v4.17-rc4.
->
->  Documentation/accounting/psi.txt                |  73 ++++
->  Documentation/cgroup-v2.txt                     |  18 +
->  arch/powerpc/platforms/cell/cpufreq_spudemand.c |   2 +-
->  arch/powerpc/platforms/cell/spufs/sched.c       |   9 +-
->  arch/s390/appldata/appldata_os.c                |   4 -
->  drivers/cpuidle/governors/menu.c                |   4 -
->  fs/proc/loadavg.c                               |   3 -
->  include/linux/cgroup-defs.h                     |   4 +
->  include/linux/cgroup.h                          |  15 +
->  include/linux/delayacct.h                       |  23 +
->  include/linux/mmzone.h                          |   1 +
->  include/linux/page-flags.h                      |   5 +-
->  include/linux/psi.h                             |  52 +++
->  include/linux/psi_types.h                       |  84 ++++
->  include/linux/sched.h                           |  10 +
->  include/linux/sched/loadavg.h                   |  90 +++-
->  include/linux/sched/stat.h                      |  10 +-
->  include/linux/swap.h                            |   2 +-
->  include/trace/events/mmflags.h                  |   1 +
->  include/uapi/linux/taskstats.h                  |   6 +-
->  init/Kconfig                                    |  20 +
->  kernel/cgroup/cgroup.c                          |  45 +-
->  kernel/debug/kdb/kdb_main.c                     |   7 +-
->  kernel/delayacct.c                              |  15 +
->  kernel/fork.c                                   |   4 +
->  kernel/sched/Makefile                           |   1 +
->  kernel/sched/core.c                             |   3 +
->  kernel/sched/loadavg.c                          |  84 ----
->  kernel/sched/psi.c                              | 499 ++++++++++++++++++++++
->  kernel/sched/sched.h                            | 166 +++----
->  kernel/sched/stats.h                            |  91 +++-
->  mm/compaction.c                                 |   5 +
->  mm/filemap.c                                    |  27 +-
->  mm/huge_memory.c                                |   1 +
->  mm/memcontrol.c                                 |   2 +
->  mm/migrate.c                                    |   2 +
->  mm/page_alloc.c                                 |  10 +
->  mm/swap_state.c                                 |   1 +
->  mm/vmscan.c                                     |  14 +
->  mm/vmstat.c                                     |   1 +
->  mm/workingset.c                                 | 113 +++--
->  tools/accounting/getdelays.c                    |   8 +-
->  42 files changed, 1279 insertions(+), 256 deletions(-)
->
->
->
->
+> (If I remember correctly a PRI Page Request is a Posted Request.) Only
+> after this stop request completes can the driver call unbind(), or
+> return from exit_mm(). Then we know that if there was a LPIG for that
+> PASID, it is in the IOMMU's PRI queue (or already completed) once we
+> call flush().
+> 
+agreed.
+> > so if we were to use this
+> > flow on vt-d, which does not stall page request queue, then we
+> > should use the iommu model specific flush() callback to ensure LPIG
+> > is received? There could be queue full condition and retry. I am
+> > just trying to understand how and where we can make sure LPIG is
+> > received and all groups are whole.  
+> 
+> For SMMU in patch 30, the flush() callback waits until the PRI queue
+> is empty or, when the PRI thread is running in parallel, until the
+> thread has done a full circle (handled as many faults as the queue
+> size). It's really unpleasant to implement because the flush()
+> callback takes a lock to inspect the hardware state, but I don't
+> think we have a choice.
+> 
+yes, vt-d has similar situation in page request queue. one option is to
+track queue head (SW update) to make sure one complete cycle when queue
+tail(HW update) crosses. Or we(suggested by Ashok Raj) can take a
+snapshot of the entire queue and process (drops PRQs belong to the
+terminated PASID) without holding the queue.
 
 Thanks,
-Suren.
+
+Jacob
