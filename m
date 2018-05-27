@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 77C766B0006
-	for <linux-mm@kvack.org>; Sun, 27 May 2018 12:21:51 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id c3-v6so4928139plz.7
-        for <linux-mm@kvack.org>; Sun, 27 May 2018 09:21:51 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B1C026B0003
+	for <linux-mm@kvack.org>; Sun, 27 May 2018 12:33:21 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id t17-v6so4824320ply.13
+        for <linux-mm@kvack.org>; Sun, 27 May 2018 09:33:21 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 31-v6si15373312plj.216.2018.05.27.09.21.50
+        by mx.google.com with ESMTPS id c10-v6si9167847plz.190.2018.05.27.09.33.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 May 2018 09:21:50 -0700 (PDT)
-Subject: Patch "x86/pgtable: Don't set huge PUD/PMD on non-leaf entries" has been added to the 4.9-stable tree
+        Sun, 27 May 2018 09:33:20 -0700 (PDT)
+Subject: Patch "x86/pgtable: Don't set huge PUD/PMD on non-leaf entries" has been added to the 4.4-stable tree
 From: <gregkh@linuxfoundation.org>
-Date: Sun, 27 May 2018 17:59:57 +0200
-Message-ID: <1527436797198115@kroah.com>
+Date: Sun, 27 May 2018 18:07:15 +0200
+Message-ID: <15274372351962@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
@@ -26,18 +26,18 @@ This is a note to let you know that I've just added the patch titled
 
     x86/pgtable: Don't set huge PUD/PMD on non-leaf entries
 
-to the 4.9-stable tree which can be found at:
+to the 4.4-stable tree which can be found at:
     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
      x86-pgtable-don-t-set-huge-pud-pmd-on-non-leaf-entries.patch
-and it can be found in the queue-4.9 subdirectory.
+and it can be found in the queue-4.4 subdirectory.
 
 If you, or anyone else, feels it should not be added to the stable tree,
 please let <stable@vger.kernel.org> know about it.
 
 
->From foo@baz Sun May 27 17:33:38 CEST 2018
+>From foo@baz Sun May 27 17:52:22 CEST 2018
 From: Joerg Roedel <joro@8bytes.org>
 Date: Wed, 11 Apr 2018 17:24:38 +0200
 Subject: x86/pgtable: Don't set huge PUD/PMD on non-leaf entries
@@ -113,7 +113,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  #include <asm/pgalloc.h>
  #include <asm/pgtable.h>
  #include <asm/tlb.h>
-@@ -577,6 +578,10 @@ int pud_set_huge(pud_t *pud, phys_addr_t
+@@ -600,6 +601,10 @@ int pud_set_huge(pud_t *pud, phys_addr_t
  	    (mtrr != MTRR_TYPE_WRBACK))
  		return 0;
  
@@ -124,7 +124,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  	prot = pgprot_4k_2_large(prot);
  
  	set_pte((pte_t *)pud, pfn_pte(
-@@ -605,6 +610,10 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t
+@@ -628,6 +633,10 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t
  		return 0;
  	}
  
@@ -139,5 +139,5 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 Patches currently in stable-queue which might be from joro@8bytes.org are
 
-queue-4.9/x86-apic-set-up-through-local-apic-mode-on-the-boot-cpu-if-noapic-specified.patch
-queue-4.9/x86-pgtable-don-t-set-huge-pud-pmd-on-non-leaf-entries.patch
+queue-4.4/x86-apic-set-up-through-local-apic-mode-on-the-boot-cpu-if-noapic-specified.patch
+queue-4.4/x86-pgtable-don-t-set-huge-pud-pmd-on-non-leaf-entries.patch
