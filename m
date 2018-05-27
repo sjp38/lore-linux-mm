@@ -1,143 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B1C026B0003
-	for <linux-mm@kvack.org>; Sun, 27 May 2018 12:33:21 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id t17-v6so4824320ply.13
-        for <linux-mm@kvack.org>; Sun, 27 May 2018 09:33:21 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c10-v6si9167847plz.190.2018.05.27.09.33.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 May 2018 09:33:20 -0700 (PDT)
-Subject: Patch "x86/pgtable: Don't set huge PUD/PMD on non-leaf entries" has been added to the 4.4-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Sun, 27 May 2018 18:07:15 +0200
-Message-ID: <15274372351962@kroah.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A8D116B0003
+	for <linux-mm@kvack.org>; Sun, 27 May 2018 19:48:58 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id h15-v6so2418514pgv.7
+        for <linux-mm@kvack.org>; Sun, 27 May 2018 16:48:58 -0700 (PDT)
+Received: from ipmail03.adl6.internode.on.net (ipmail03.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id g27-v6si15453177pgn.529.2018.05.27.16.48.56
+        for <linux-mm@kvack.org>;
+        Sun, 27 May 2018 16:48:57 -0700 (PDT)
+Date: Mon, 28 May 2018 09:48:54 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] doc: document scope NOFS, NOIO APIs
+Message-ID: <20180527234854.GF23861@dastard>
+References: <20180424183536.GF30619@thunk.org>
+ <20180524114341.1101-1-mhocko@kernel.org>
+ <20180524221715.GY10363@dastard>
+ <20180525081624.GH11881@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180525081624.GH11881@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20180411152437.GC15462@8bytes.org, David.Laight@aculab.com, aarcange@redhat.com, alexander.levin@microsoft.com, aliguori@amazon.com, boris.ostrovsky@oracle.com, bp@alien8.de, brgerst@gmail.com, daniel.gruss@iaik.tugraz.at, dave.hansen@intel.com, dhgutteridge@sympatico.ca, dvlasenk@redhat.com, eduval@amazon.com, gregkh@linuxfoundation.org, hughd@google.com, jgross@suse.com, jkosina@suse.cz, joro@8bytes.org, jpoimboe@redhat.com, jroedel@suse.de, keescook@google.com, linux-mm@kvack.org, llong@redhat.com, luto@kernel.org, mingo@kernel.org, pavel@ucw.cz, peterz@infradead.org, tglx@linutronix.de, torvalds@linux-foundation.org, will.deacon@arm.com
-Cc: stable-commits@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Jonathan Corbet <corbet@lwn.net>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, "Darrick J. Wong" <darrick.wong@oracle.com>, David Sterba <dsterba@suse.cz>
 
+On Fri, May 25, 2018 at 10:16:24AM +0200, Michal Hocko wrote:
+> On Fri 25-05-18 08:17:15, Dave Chinner wrote:
+> > On Thu, May 24, 2018 at 01:43:41PM +0200, Michal Hocko wrote:
+> [...]
+> > > +FS/IO code then simply calls the appropriate save function right at the
+> > > +layer where a lock taken from the reclaim context (e.g. shrinker) and
+> > > +the corresponding restore function when the lock is released. All that
+> > > +ideally along with an explanation what is the reclaim context for easier
+> > > +maintenance.
+> > 
+> > This paragraph doesn't make much sense to me. I think you're trying
+> > to say that we should call the appropriate save function "before
+> > locks are taken that a reclaim context (e.g a shrinker) might
+> > require access to."
+> > 
+> > I think it's also worth making a note about recursive/nested
+> > save/restore stacking, because it's not clear from this description
+> > that this is allowed and will work as long as inner save/restore
+> > calls are fully nested inside outer save/restore contexts.
+> 
+> Any better?
+> 
+> -FS/IO code then simply calls the appropriate save function right at the
+> -layer where a lock taken from the reclaim context (e.g. shrinker) and
+> -the corresponding restore function when the lock is released. All that
+> -ideally along with an explanation what is the reclaim context for easier
+> -maintenance.
+> +FS/IO code then simply calls the appropriate save function before any
+> +lock shared with the reclaim context is taken.  The corresponding
+> +restore function when the lock is released. All that ideally along with
+> +an explanation what is the reclaim context for easier maintenance.
+> +
+> +Please note that the proper pairing of save/restore function allows nesting
+> +so memalloc_noio_save is safe to be called from an existing NOIO or NOFS scope.
 
-This is a note to let you know that I've just added the patch titled
+It's better, but the talk of this being necessary for locking makes
+me cringe. XFS doesn't do it for locking reasons - it does it
+largely for preventing transaction context nesting, which has all
+sorts of problems that cause hangs (e.g. log space reservations
+can't be filled) that aren't directly locking related.
 
-    x86/pgtable: Don't set huge PUD/PMD on non-leaf entries
+i.e we should be talking about using these functions around contexts
+where recursion back into the filesystem through reclaim is
+problematic, not that "holding locks" is problematic. Locks can be
+used as an example of a problematic context, but locks are not the
+only recursion issue that require GFP_NOFS allocation contexts to
+avoid.
 
-to the 4.4-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+Cheers,
 
-The filename of the patch is:
-     x86-pgtable-don-t-set-huge-pud-pmd-on-non-leaf-entries.patch
-and it can be found in the queue-4.4 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
->From foo@baz Sun May 27 17:52:22 CEST 2018
-From: Joerg Roedel <joro@8bytes.org>
-Date: Wed, 11 Apr 2018 17:24:38 +0200
-Subject: x86/pgtable: Don't set huge PUD/PMD on non-leaf entries
-
-From: Joerg Roedel <joro@8bytes.org>
-
-[ Upstream commit e3e288121408c3abeed5af60b87b95c847143845 ]
-
-The pmd_set_huge() and pud_set_huge() functions are used from
-the generic ioremap() code to establish large mappings where this
-is possible.
-
-But the generic ioremap() code does not check whether the
-PMD/PUD entries are already populated with a non-leaf entry,
-so that any page-table pages these entries point to will be
-lost.
-
-Further, on x86-32 with SHARED_KERNEL_PMD=0, this causes a
-BUG_ON() in vmalloc_sync_one() when PMD entries are synced
-from swapper_pg_dir to the current page-table. This happens
-because the PMD entry from swapper_pg_dir was promoted to a
-huge-page entry while the current PGD still contains the
-non-leaf entry. Because both entries are present and point
-to a different page, the BUG_ON() triggers.
-
-This was actually triggered with pti-x32 enabled in a KVM
-virtual machine by the graphics driver.
-
-A real and better fix for that would be to improve the
-page-table handling in the generic ioremap() code. But that is
-out-of-scope for this patch-set and left for later work.
-
-Reported-by: David H. Gutteridge <dhgutteridge@sympatico.ca>
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: Jiri Kosina <jkosina@suse.cz>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Waiman Long <llong@redhat.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180411152437.GC15462@8bytes.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/mm/pgtable.c |    9 +++++++++
- 1 file changed, 9 insertions(+)
-
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -1,5 +1,6 @@
- #include <linux/mm.h>
- #include <linux/gfp.h>
-+#include <linux/hugetlb.h>
- #include <asm/pgalloc.h>
- #include <asm/pgtable.h>
- #include <asm/tlb.h>
-@@ -600,6 +601,10 @@ int pud_set_huge(pud_t *pud, phys_addr_t
- 	    (mtrr != MTRR_TYPE_WRBACK))
- 		return 0;
- 
-+	/* Bail out if we are we on a populated non-leaf entry: */
-+	if (pud_present(*pud) && !pud_huge(*pud))
-+		return 0;
-+
- 	prot = pgprot_4k_2_large(prot);
- 
- 	set_pte((pte_t *)pud, pfn_pte(
-@@ -628,6 +633,10 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t
- 		return 0;
- 	}
- 
-+	/* Bail out if we are we on a populated non-leaf entry: */
-+	if (pmd_present(*pmd) && !pmd_huge(*pmd))
-+		return 0;
-+
- 	prot = pgprot_4k_2_large(prot);
- 
- 	set_pte((pte_t *)pmd, pfn_pte(
-
-
-Patches currently in stable-queue which might be from joro@8bytes.org are
-
-queue-4.4/x86-apic-set-up-through-local-apic-mode-on-the-boot-cpu-if-noapic-specified.patch
-queue-4.4/x86-pgtable-don-t-set-huge-pud-pmd-on-non-leaf-entries.patch
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
