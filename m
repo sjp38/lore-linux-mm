@@ -1,172 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BD2606B0003
-	for <linux-mm@kvack.org>; Sat, 26 May 2018 20:31:58 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id t14-v6so5949804ual.11
-        for <linux-mm@kvack.org>; Sat, 26 May 2018 17:31:58 -0700 (PDT)
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D75326B0007
+	for <linux-mm@kvack.org>; Sat, 26 May 2018 20:58:34 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id v37-v6so3938603uag.6
+        for <linux-mm@kvack.org>; Sat, 26 May 2018 17:58:34 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a127-v6sor2082276vka.139.2018.05.26.17.31.57
+        by mx.google.com with SMTPS id s200-v6sor3041420vks.51.2018.05.26.17.58.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 26 May 2018 17:31:57 -0700 (PDT)
+        Sat, 26 May 2018 17:58:33 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1527346246-1334-1-git-send-email-s.mesoraca16@gmail.com>
-References: <1527346246-1334-1-git-send-email-s.mesoraca16@gmail.com>
+In-Reply-To: <000000000000f1e2b9056d1f663c@google.com>
+References: <000000000000f1e2b9056d1f663c@google.com>
 From: Kees Cook <keescook@chromium.org>
-Date: Sat, 26 May 2018 17:31:56 -0700
-Message-ID: <CAGXu5j+PHzDwnJxJwMJ=WuhacDn_vJWe9xZx+Kbsh28vxOGRiA@mail.gmail.com>
-Subject: Re: [PATCH] proc: prevent a task from writing on its own /proc/*/mem
+Date: Sat, 26 May 2018 17:58:32 -0700
+Message-ID: <CAGXu5j+DR2ZFyxUdJuY1wGchwmN=XD0s3c1N6ZipEYuBWzkyxg@mail.gmail.com>
+Subject: Re: WARNING: bad usercopy in __kvm_write_guest_page
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Salvatore Mesoraca <s.mesoraca16@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Jann Horn <jannh@google.com>
-Cc: Kernel Hardening <kernel-hardening@lists.openwall.com>, linux-security-module <linux-security-module@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, Akinobu Mita <akinobu.mita@gmail.com>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, Davidlohr Bueso <dave@stgolabs.net>
+To: syzbot <syzbot+083f3b88782aa3a46bdb@syzkaller.appspotmail.com>, Paolo Bonzini <pbonzini@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, syzkaller-bugs@googlegroups.com
 
-On Sat, May 26, 2018 at 7:50 AM, Salvatore Mesoraca
-<s.mesoraca16@gmail.com> wrote:
-> Prevent a task from opening, in "write" mode, any /proc/*/mem
-> file that operates on the task's mm.
-> /proc/*/mem is mainly a debugging means and, as such, it shouldn't
-> be used by the inspected process itself.
-> Current implementation always allow a task to access its own
-> /proc/*/mem file.
-> A process can use it to overwrite read-only memory, making
-> pointless the use of security_file_mprotect() or other ways to
-> enforce RO memory.
+On Sat, May 26, 2018 at 10:42 AM, syzbot
+<syzbot+083f3b88782aa3a46bdb@syzkaller.appspotmail.com> wrote:
+> Hello,
+>
+> syzbot found the following crash on:
+>
+> HEAD commit:    73fcb1a370c7 Merge branch 'akpm' (patches from Andrew)
+> git tree:       upstream
+> console output: https://syzkaller.appspot.com/x/log.txt?x=15b3a827800000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=f3b4e30da84ec1ed
+> dashboard link: https://syzkaller.appspot.com/bug?extid=083f3b88782aa3a46bdb
+> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> syzkaller repro:https://syzkaller.appspot.com/x/repro.syz?x=1027dbcf800000
+> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=159eff97800000
+>
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+083f3b88782aa3a46bdb@syzkaller.appspotmail.com
+>
+> random: sshd: uninitialized urandom read (32 bytes read)
+> random: sshd: uninitialized urandom read (32 bytes read)
+> random: sshd: uninitialized urandom read (32 bytes read)
+> ------------[ cut here ]------------
+> Bad or missing usercopy whitelist? Kernel memory exposure attempt detected
+> from SLAB object 'kvm_vcpu' (offset 23192, size 8)!
 
-I went through some old threads from 2012 when e268337dfe26 was
-introduced, and later when things got looked at during DirtyCOW. There
-was discussion about removing FOLL_FORCE (in order to block writes on
-a read-only memory region). But that was much more general, touched
-ptrace, etc. I think this patch would be okay, since it's specific to
-the proc "self" mem interface, not remote processes (via ptrace). This
-patch would also have blocked the /proc/self/mem path to DirtyCOW
-(though not ptrace), so that would be nice if we have similar issues
-in the future. So, as long as this doesn't break anything, I'm for it
-in general. I've CCed Linus and Jann too, since they've stared at this
-a lot too. :P
+Looks like something else besides the "arch" field is being copied
+in/out of struct kvm_vcpu? (Also, whoa, 22K struct?) Oh, in looking, I
+assume it's something in struct vcpu_vmx ?
 
-Note that you're re-checking the mm-check-for-self in mm_access().
-That's used in /proc and for process_vm_write(). Ptrace (and
-mm_access()) uses ptrace_may_access() for stuff (which has a similar
-check to bypass LSMs), so I'd be curious what would happen if this
-logic was plumbed into mm_access() instead of into proc_mem_open().
-(Does anything open /proc/$pid files for writing? Does anything using
-process_vm_write() on itself?)
+(i.e. this is not fixed by 46515736f8687 ("kvm: whitelist struct
+kvm_vcpu_arch").)
+
+Looks like this is:
+
+        if (kvm_write_guest_virt_system(&vcpu->arch.emulate_ctxt, vmcs_gva,
+                                 (void *)&to_vmx(vcpu)->nested.current_vmptr,
+                                 sizeof(u64), &e)) {
+
+... this is a fixed size, but it looks like it gets down to the
+copy_*_user() as a variable so automatically whitelisting is
+happening. :(
 
 -Kees
 
+> WARNING: CPU: 0 PID: 4554 at mm/usercopy.c:81 usercopy_warn+0xf5/0x120
+> mm/usercopy.c:76
+> Kernel panic - not syncing: panic_on_warn set ...
 >
-> Signed-off-by: Salvatore Mesoraca <s.mesoraca16@gmail.com>
+> CPU: 0 PID: 4554 Comm: syz-executor726 Not tainted 4.17.0-rc5+ #58
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0x1b9/0x294 lib/dump_stack.c:113
+>  panic+0x22f/0x4de kernel/panic.c:184
+>  __warn.cold.8+0x163/0x1b3 kernel/panic.c:536
+>  report_bug+0x252/0x2d0 lib/bug.c:186
+>  fixup_bug arch/x86/kernel/traps.c:178 [inline]
+>  do_error_trap+0x1de/0x490 arch/x86/kernel/traps.c:296
+>  do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:315
+>  invalid_op+0x14/0x20 arch/x86/entry/entry_64.S:992
+> RIP: 0010:usercopy_warn+0xf5/0x120 mm/usercopy.c:76
+> RSP: 0018:ffff8801ad54f0b0 EFLAGS: 00010286
+> RAX: 000000000000007e RBX: ffffffff889d52f0 RCX: ffffffff8160aa5d
+> RDX: 0000000000000000 RSI: ffffffff8160f711 RDI: ffff8801ad54ec10
+> RBP: ffff8801ad54f110 R08: ffff8801d96c8680 R09: 0000000000000006
+> R10: ffff8801d96c8680 R11: 0000000000000000 R12: ffffffff87d2fa60
+> R13: ffffffff87c19ec0 R14: 0000000000000000 R15: 0000000000000008
+>  __check_heap_object+0x89/0xb5 mm/slab.c:4440
+>  check_heap_object mm/usercopy.c:236 [inline]
+>  __check_object_size+0x4c7/0x5d9 mm/usercopy.c:259
+>  check_object_size include/linux/thread_info.h:108 [inline]
+>  __copy_to_user include/linux/uaccess.h:104 [inline]
+>  __kvm_write_guest_page+0x90/0x140
+> arch/x86/kvm/../../../virt/kvm/kvm_main.c:1828
+>  kvm_vcpu_write_guest_page arch/x86/kvm/../../../virt/kvm/kvm_main.c:1849
+> [inline]
+>  kvm_vcpu_write_guest+0x65/0xe0
+> arch/x86/kvm/../../../virt/kvm/kvm_main.c:1883
+>  kvm_write_guest_virt_system+0x8a/0x190 arch/x86/kvm/x86.c:4843
+>  handle_vmptrst+0x1d2/0x260 arch/x86/kvm/vmx.c:8196
+>  vmx_handle_exit+0x2c0/0x17b0 arch/x86/kvm/vmx.c:9234
+>  vcpu_enter_guest+0x13af/0x6060 arch/x86/kvm/x86.c:7503
+>  vcpu_run arch/x86/kvm/x86.c:7565 [inline]
+>  kvm_arch_vcpu_ioctl_run+0x33e/0x1690 arch/x86/kvm/x86.c:7742
+>  kvm_vcpu_ioctl+0x79d/0x12e0 arch/x86/kvm/../../../virt/kvm/kvm_main.c:2560
+>  vfs_ioctl fs/ioctl.c:46 [inline]
+>  file_ioctl fs/ioctl.c:500 [inline]
+>  do_vfs_ioctl+0x1cf/0x16a0 fs/ioctl.c:684
+>  ksys_ioctl+0xa9/0xd0 fs/ioctl.c:701
+>  __do_sys_ioctl fs/ioctl.c:708 [inline]
+>  __se_sys_ioctl fs/ioctl.c:706 [inline]
+>  __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:706
+>  do_syscall_64+0x1b1/0x800 arch/x86/entry/common.c:287
+>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x443039
+> RSP: 002b:00007ffc272242b8 EFLAGS: 00000286 ORIG_RAX: 0000000000000010
+> RAX: ffffffffffffffda RBX: 00000000004002c8 RCX: 0000000000443039
+> RDX: 0000000000000000 RSI: 000000000000ae80 RDI: 0000000000000005
+> RBP: 00000000006cd018 R08: 0000000020000580 R09: 0000000020000580
+> R10: 0000000000000000 R11: 0000000000000286 R12: 0000000000404080
+> R13: 0000000000404110 R14: 0000000000000000 R15: 0000000000000000
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Kernel Offset: disabled
+> Rebooting in 86400 seconds..
+>
+>
 > ---
->  fs/proc/base.c       | 25 ++++++++++++++++++-------
->  fs/proc/internal.h   |  3 ++-
->  fs/proc/task_mmu.c   |  4 ++--
->  fs/proc/task_nommu.c |  2 +-
->  4 files changed, 23 insertions(+), 11 deletions(-)
+> This bug is generated by a bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for more information about syzbot.
+> syzbot engineers can be reached at syzkaller@googlegroups.com.
 >
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index 1a76d75..01ecfec 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -762,8 +762,9 @@ static int proc_single_open(struct inode *inode, struct file *filp)
->         .release        = single_release,
->  };
->
-> -
-> -struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
-> +struct mm_struct *proc_mem_open(struct inode *inode,
-> +                               unsigned int mode,
-> +                               fmode_t f_mode)
->  {
->         struct task_struct *task = get_proc_task(inode);
->         struct mm_struct *mm = ERR_PTR(-ESRCH);
-> @@ -773,10 +774,20 @@ struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
->                 put_task_struct(task);
->
->                 if (!IS_ERR_OR_NULL(mm)) {
-> -                       /* ensure this mm_struct can't be freed */
-> -                       mmgrab(mm);
-> -                       /* but do not pin its memory */
-> -                       mmput(mm);
-> +                       /*
-> +                        * Prevent this interface from being used as a mean
-> +                        * to bypass memory restrictions, including those
-> +                        * imposed by LSMs.
-> +                        */
-> +                       if (mm == current->mm &&
-> +                           f_mode & FMODE_WRITE)
-> +                               mm = ERR_PTR(-EACCES);
-> +                       else {
-> +                               /* ensure this mm_struct can't be freed */
-> +                               mmgrab(mm);
-> +                               /* but do not pin its memory */
-> +                               mmput(mm);
-> +                       }
->                 }
->         }
->
-> @@ -785,7 +796,7 @@ struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
->
->  static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
->  {
-> -       struct mm_struct *mm = proc_mem_open(inode, mode);
-> +       struct mm_struct *mm = proc_mem_open(inode, mode, file->f_mode);
->
->         if (IS_ERR(mm))
->                 return PTR_ERR(mm);
-> diff --git a/fs/proc/internal.h b/fs/proc/internal.h
-> index 0f1692e..8d38cc7 100644
-> --- a/fs/proc/internal.h
-> +++ b/fs/proc/internal.h
-> @@ -275,7 +275,8 @@ struct proc_maps_private {
->  #endif
->  } __randomize_layout;
->
-> -struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode);
-> +struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode,
-> +                               fmode_t f_mode);
->
->  extern const struct file_operations proc_pid_maps_operations;
->  extern const struct file_operations proc_tid_maps_operations;
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index c486ad4..efb6535 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -227,7 +227,7 @@ static int proc_maps_open(struct inode *inode, struct file *file,
->                 return -ENOMEM;
->
->         priv->inode = inode;
-> -       priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
-> +       priv->mm = proc_mem_open(inode, PTRACE_MODE_READ, file->f_mode);
->         if (IS_ERR(priv->mm)) {
->                 int err = PTR_ERR(priv->mm);
->
-> @@ -1534,7 +1534,7 @@ static int pagemap_open(struct inode *inode, struct file *file)
->  {
->         struct mm_struct *mm;
->
-> -       mm = proc_mem_open(inode, PTRACE_MODE_READ);
-> +       mm = proc_mem_open(inode, PTRACE_MODE_READ, file->f_mode);
->         if (IS_ERR(mm))
->                 return PTR_ERR(mm);
->         file->private_data = mm;
-> diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
-> index 5b62f57..dc38516 100644
-> --- a/fs/proc/task_nommu.c
-> +++ b/fs/proc/task_nommu.c
-> @@ -280,7 +280,7 @@ static int maps_open(struct inode *inode, struct file *file,
->                 return -ENOMEM;
->
->         priv->inode = inode;
-> -       priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
-> +       priv->mm = proc_mem_open(inode, PTRACE_MODE_READ, file->f_mode);
->         if (IS_ERR(priv->mm)) {
->                 int err = PTR_ERR(priv->mm);
->
-> --
-> 1.9.1
->
+> syzbot will keep track of this bug report. See:
+> https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
+> syzbot.
+> syzbot can test patches for this bug, for details see:
+> https://goo.gl/tpsmEJ#testing-patches
 
 
 
