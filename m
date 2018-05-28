@@ -1,121 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7491A6B0003
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 12:10:54 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 6-v6so11429403itl.6
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 09:10:54 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id t18-v6si363402ioc.103.2018.05.28.09.10.53
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BC76F6B0003
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 12:13:50 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x23-v6so7594357pfm.7
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 09:13:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 5-v6si30248346pfd.73.2018.05.28.09.13.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 28 May 2018 09:10:53 -0700 (PDT)
-Subject: Re: [PATCH] doc: document scope NOFS, NOIO APIs
-References: <20180424183536.GF30619@thunk.org>
- <20180524114341.1101-1-mhocko@kernel.org> <20180524221715.GY10363@dastard>
- <20180525081624.GH11881@dhcp22.suse.cz> <20180527124721.GA4522@rapoport-lnx>
- <20180528092138.GI1517@dhcp22.suse.cz>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <d2f6c4c1-856a-d233-8610-67a868b856f9@infradead.org>
-Date: Mon, 28 May 2018 09:10:43 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 May 2018 09:13:49 -0700 (PDT)
+Date: Mon, 28 May 2018 15:37:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [External]  Re: [RFC PATCH v2 00/12] get rid of
+ GFP_ZONE_TABLE/BAD
+Message-ID: <20180528133733.GF27180@dhcp22.suse.cz>
+References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+ <20180522183728.GB20441@dhcp22.suse.cz>
+ <HK2PR03MB16847646E90A10E2D48CEA8E926B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180524121853.GG20441@dhcp22.suse.cz>
+ <HK2PR03MB1684ED6EC6859A88A196DC0C92690@HK2PR03MB1684.apcprd03.prod.outlook.com>
 MIME-Version: 1.0
-In-Reply-To: <20180528092138.GI1517@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <HK2PR03MB1684ED6EC6859A88A196DC0C92690@HK2PR03MB1684.apcprd03.prod.outlook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Dave Chinner <david@fromorbit.com>, Jonathan Corbet <corbet@lwn.net>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, "Darrick J. Wong" <darrick.wong@oracle.com>, David Sterba <dsterba@suse.cz>
+To: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@infradead.org" <willy@infradead.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "kstewart@linuxfoundation.org" <kstewart@linuxfoundation.org>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, Ocean HY1 He <hehy1@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
 
-On 05/28/2018 02:21 AM, Michal Hocko wrote:
-> On Sun 27-05-18 15:47:22, Mike Rapoport wrote:
->> On Fri, May 25, 2018 at 10:16:24AM +0200, Michal Hocko wrote:
->>> On Fri 25-05-18 08:17:15, Dave Chinner wrote:
->>>> On Thu, May 24, 2018 at 01:43:41PM +0200, Michal Hocko wrote:
->>> [...]
->>>>> +FS/IO code then simply calls the appropriate save function right at the
->>>>> +layer where a lock taken from the reclaim context (e.g. shrinker) and
->>>>> +the corresponding restore function when the lock is released. All that
->>>>> +ideally along with an explanation what is the reclaim context for easier
->>>>> +maintenance.
->>>>
->>>> This paragraph doesn't make much sense to me. I think you're trying
->>>> to say that we should call the appropriate save function "before
->>>> locks are taken that a reclaim context (e.g a shrinker) might
->>>> require access to."
->>>>
->>>> I think it's also worth making a note about recursive/nested
->>>> save/restore stacking, because it's not clear from this description
->>>> that this is allowed and will work as long as inner save/restore
->>>> calls are fully nested inside outer save/restore contexts.
->>>
->>> Any better?
->>>
->>> -FS/IO code then simply calls the appropriate save function right at the
->>> -layer where a lock taken from the reclaim context (e.g. shrinker) and
->>> -the corresponding restore function when the lock is released. All that
->>> -ideally along with an explanation what is the reclaim context for easier
->>> -maintenance.
->>> +FS/IO code then simply calls the appropriate save function before any
->>> +lock shared with the reclaim context is taken.  The corresponding
->>> +restore function when the lock is released. All that ideally along with
->>
->> Maybe: "The corresponding restore function is called when the lock is
->> released"
+On Fri 25-05-18 09:43:09, Huaisheng HS1 Ye wrote:
+> From: Michal Hocko [mailto:mhocko@kernel.org]
+> Sent: Thursday, May 24, 2018 8:19 PM> 
+> > > Let me try to reply your questions.
+> > > Exactly, GFP_ZONE_TABLE is too complicated. I think there are two advantages
+> > > from the series of patches.
+> > >
+> > > 1. XOR operation is simple and efficient, GFP_ZONE_TABLE/BAD need to do twice
+> > > shift operations, the first is for getting a zone_type and the second is for
+> > > checking the to be returned type is a correct or not. But with these patch XOR
+> > > operation just needs to use once. Because the bottom 3 bits of GFP bitmask have
+> > > been used to represent the encoded zone number, we can say there is no bad zone
+> > > number if all callers could use it without buggy way. Of course, the returned
+> > > zone type in gfp_zone needs to be no more than ZONE_MOVABLE.
+> > 
+> > But you are losing the ability to check for wrong usage. And it seems
+> > that the sad reality is that the existing code do screw up.
 > 
-> This will get rewritten some more based on comments from Dave
->  
->>> +an explanation what is the reclaim context for easier maintenance.
->>> +
->>> +Please note that the proper pairing of save/restore function allows nesting
->>> +so memalloc_noio_save is safe to be called from an existing NOIO or NOFS scope.
->>  
->> so it is safe to call memalloc_noio_save from an existing NOIO or NOFS
->> scope
+> In my opinion, originally there shouldn't be such many wrong
+> combinations of these bottom 3 bits. For any user, whether or
+> driver and fs, they should make a decision that which zone is they
+> preferred. Matthew's idea is great, because with it the user must
+> offer an unambiguous flag to gfp zone bits.
+
+Well, I would argue that those shouldn't really care about any zones at
+all. All they should carea bout is whether they really need a low mem
+zone (aka directly accessible to the kernel), highmem or they are the
+allocation is generally movable. Mixing zones into the picture just
+makes the whole thing more complicated and error prone.
+[...]
+> > That being said. I am not saying that I am in love with GFP_ZONE_TABLE.
+> > It always makes my head explode when I look there but it seems to work
+> > with the current code and it is optimized for it. If you want to change
+> > this then you should make sure you describe reasons _why_ this is an
+> > improvement. And I would argue that "we can have more zones" is a
+> > relevant one.
 > 
-> Here is what I have right now on top
+> Yes, GFP_ZONE_TABLE is too complicated. The patches have 4 advantages as below.
 > 
-> diff --git a/Documentation/core-api/gfp_mask-from-fs-io.rst b/Documentation/core-api/gfp_mask-from-fs-io.rst
-> index c0ec212d6773..0cff411693ab 100644
-> --- a/Documentation/core-api/gfp_mask-from-fs-io.rst
-> +++ b/Documentation/core-api/gfp_mask-from-fs-io.rst
-> @@ -34,12 +34,15 @@ scope will inherently drop __GFP_FS respectively __GFP_IO from the given
->  mask so no memory allocation can recurse back in the FS/IO.
->  
->  FS/IO code then simply calls the appropriate save function before any
-> -lock shared with the reclaim context is taken.  The corresponding
-> -restore function when the lock is released. All that ideally along with
-> -an explanation what is the reclaim context for easier maintenance.
-> -
-> -Please note that the proper pairing of save/restore function allows nesting
-> -so memalloc_noio_save is safe to be called from an existing NOIO or NOFS scope.
-> +critical section wrt. the reclaim is started - e.g. lock shared with the
-
-Please spell out "with respect to".
-
-> +reclaim context or when a transaction context nesting would be possible
-> +via reclaim. The corresponding restore function when the critical
-
-"The corresponding restore ... ends."  << That is not a complete sentence.
-It's missing something.
-
-> +section ends. All that ideally along with an explanation what is
-> +the reclaim context for easier maintenance.
-> +
-> +Please note that the proper pairing of save/restore function allows
-> +nesting so it is safe to call ``memalloc_noio_save`` respectively
-> +``memalloc_noio_restore`` from an existing NOIO or NOFS scope.
-
-Please note that the proper pairing of save/restore functions allows
-nesting so it is safe to call ``memalloc_noio_save`` or
-``memalloc_noio_restore`` respectively from an existing NOIO or NOFS scope.
-
-
->  
->  What about __vmalloc(GFP_NOFS)
->  ==============================
+> * The address zone modifiers have new operation method, that is, user should decide which zone is preferred at first, then give the encoded zone number to bottom 3 bits in GFP mask. That is much direct and clear than before.
 > 
+> * No bad zone combination, because user should choose just one address zone modifier always.
+> * Better performance and efficiency, current gfp_zone has to take shifting operation twice for GFP_ZONE_TABLE and GFP_ZONE_BAD. With these patches, gfp_zone() just needs one XOR.
+> * Up to 8 zones can be used. At least it isn't a disadvantage, right?
 
-
+This should be a part of the changelog. Please note that you should
+provide some number if you claim performance benefits. The complexity
+will always be subjective.
 -- 
-~Randy
+Michal Hocko
+SUSE Labs
