@@ -1,54 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D74AB6B0003
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 17:06:00 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id f6-v6so3193876pgs.13
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 14:06:00 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id o12-v6si30865018plg.463.2018.05.28.14.05.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 May 2018 14:05:59 -0700 (PDT)
-Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <CA+7wUswp_Sr=hHqi1bwRZ3FE2wY5ozZWZ8Z1BgrFnSAmijUKjA@mail.gmail.com>
-	<20180528083451.GE1517@dhcp22.suse.cz>
-	<f054219d-6daa-68b1-0c60-0acd9ad8c5ab@i-love.sakura.ne.jp>
-	<20180528132410.GD27180@dhcp22.suse.cz>
-In-Reply-To: <20180528132410.GD27180@dhcp22.suse.cz>
-Message-Id: <201805290605.DGF87549.LOVFMFJQSOHtFO@I-love.SAKURA.ne.jp>
-Date: Tue, 29 May 2018 06:05:45 +0900
-Mime-Version: 1.0
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 458116B0003
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 18:33:37 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id s3-v6so8032719pfh.0
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 15:33:37 -0700 (PDT)
+Received: from ipmail03.adl2.internode.on.net (ipmail03.adl2.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id h10-v6si21435459pgq.131.2018.05.28.15.33.34
+        for <linux-mm@kvack.org>;
+        Mon, 28 May 2018 15:33:36 -0700 (PDT)
+Date: Tue, 29 May 2018 08:32:05 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] doc: document scope NOFS, NOIO APIs
+Message-ID: <20180528223205.GG23861@dastard>
+References: <20180424183536.GF30619@thunk.org>
+ <20180524114341.1101-1-mhocko@kernel.org>
+ <20180524221715.GY10363@dastard>
+ <20180525081624.GH11881@dhcp22.suse.cz>
+ <20180527234854.GF23861@dastard>
+ <20180528091923.GH1517@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180528091923.GH1517@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: malat@debian.org, dvyukov@google.com, linux-mm@kvack.org, catalin.marinas@arm.com, chuhu@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Jonathan Corbet <corbet@lwn.net>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, "Darrick J. Wong" <darrick.wong@oracle.com>, David Sterba <dsterba@suse.cz>
 
-Michal Hocko wrote:
-> I've found the previous report [1] finally. Adding Chunyu Hu to the CC
-> list. The report which triggered this one is [2]
+On Mon, May 28, 2018 at 11:19:23AM +0200, Michal Hocko wrote:
+> On Mon 28-05-18 09:48:54, Dave Chinner wrote:
+> > On Fri, May 25, 2018 at 10:16:24AM +0200, Michal Hocko wrote:
+> > > On Fri 25-05-18 08:17:15, Dave Chinner wrote:
+> > > > On Thu, May 24, 2018 at 01:43:41PM +0200, Michal Hocko wrote:
+> > > [...]
+> > > > > +FS/IO code then simply calls the appropriate save function right at the
+> > > > > +layer where a lock taken from the reclaim context (e.g. shrinker) and
+> > > > > +the corresponding restore function when the lock is released. All that
+> > > > > +ideally along with an explanation what is the reclaim context for easier
+> > > > > +maintenance.
+> > > > 
+> > > > This paragraph doesn't make much sense to me. I think you're trying
+> > > > to say that we should call the appropriate save function "before
+> > > > locks are taken that a reclaim context (e.g a shrinker) might
+> > > > require access to."
+> > > > 
+> > > > I think it's also worth making a note about recursive/nested
+> > > > save/restore stacking, because it's not clear from this description
+> > > > that this is allowed and will work as long as inner save/restore
+> > > > calls are fully nested inside outer save/restore contexts.
+> > > 
+> > > Any better?
+> > > 
+> > > -FS/IO code then simply calls the appropriate save function right at the
+> > > -layer where a lock taken from the reclaim context (e.g. shrinker) and
+> > > -the corresponding restore function when the lock is released. All that
+> > > -ideally along with an explanation what is the reclaim context for easier
+> > > -maintenance.
+> > > +FS/IO code then simply calls the appropriate save function before any
+> > > +lock shared with the reclaim context is taken.  The corresponding
+> > > +restore function when the lock is released. All that ideally along with
+> > > +an explanation what is the reclaim context for easier maintenance.
+> > > +
+> > > +Please note that the proper pairing of save/restore function allows nesting
+> > > +so memalloc_noio_save is safe to be called from an existing NOIO or NOFS scope.
+> > 
+> > It's better, but the talk of this being necessary for locking makes
+> > me cringe. XFS doesn't do it for locking reasons - it does it
+> > largely for preventing transaction context nesting, which has all
+> > sorts of problems that cause hangs (e.g. log space reservations
+> > can't be filled) that aren't directly locking related.
 > 
-> [1] http://lkml.kernel.org/r/1524243513-29118-1-git-send-email-chuhu@redhat.com
-> [2] http://lkml.kernel.org/r/CA+7wUswp_Sr=hHqi1bwRZ3FE2wY5ozZWZ8Z1BgrFnSAmijUKjA@mail.gmail.com
+> Yeah, I wanted to not mention locks as much as possible.
+>  
+> > i.e we should be talking about using these functions around contexts
+> > where recursion back into the filesystem through reclaim is
+> > problematic, not that "holding locks" is problematic. Locks can be
+> > used as an example of a problematic context, but locks are not the
+> > only recursion issue that require GFP_NOFS allocation contexts to
+> > avoid.
 > 
-> I am not really familiar with the kmemleak code but the expectation that
-> you can make a forward progress in an unknown allocation context seems
-> broken to me. Why kmemleak cannot pre-allocate a pool of object_cache
-> and refill it from a reasonably strong contexts (e.g. in a sleepable
-> context)?
+> agreed. Do you have any suggestion how to add a more abstract wording
+> that would not make head spinning?
+> 
+> I've tried the following. Any better?
+> 
+> diff --git a/Documentation/core-api/gfp_mask-from-fs-io.rst b/Documentation/core-api/gfp_mask-from-fs-io.rst
+> index c0ec212d6773..adac362b2875 100644
+> --- a/Documentation/core-api/gfp_mask-from-fs-io.rst
+> +++ b/Documentation/core-api/gfp_mask-from-fs-io.rst
+> @@ -34,9 +34,11 @@ scope will inherently drop __GFP_FS respectively __GFP_IO from the given
+>  mask so no memory allocation can recurse back in the FS/IO.
+>  
+>  FS/IO code then simply calls the appropriate save function before any
+> -lock shared with the reclaim context is taken.  The corresponding
+> -restore function when the lock is released. All that ideally along with
+> -an explanation what is the reclaim context for easier maintenance.
+> +critical section wrt. the reclaim is started - e.g. lock shared with the
+> +reclaim context or when a transaction context nesting would be possible
+> +via reclaim. The corresponding restore function when the critical
 
-Or, we can undo the original allocation if the kmemleak allocation failed?
+.... restore function should be called when ...
 
-kmalloc(size, gfp) {
-  ptr = do_kmalloc(size, gfp);
-  if (ptr) {
-    object = do_kmalloc(size, gfp_kmemleak_mask(gfp));
-    if (!object) {
-      kfree(ptr);
-      return NULL;
-    }
-    // Store information of ptr into object.
-  }
-  return ptr;
-}
+But otherwise I think this is much better.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
