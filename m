@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B9B286B0005
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 06:21:11 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x21-v6so7130638pfn.23
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 03:21:11 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DC37B6B0005
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 06:36:32 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id l85-v6so7158187pfb.18
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 03:36:32 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i62-v6si30081296pfg.218.2018.05.28.03.21.10
+        by mx.google.com with ESMTPS id g10-v6si25139407plq.523.2018.05.28.03.36.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 May 2018 03:21:10 -0700 (PDT)
+        Mon, 28 May 2018 03:36:31 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 159/268] x86/pgtable: Dont set huge PUD/PMD on non-leaf entries
-Date: Mon, 28 May 2018 12:02:13 +0200
-Message-Id: <20180528100220.420763245@linuxfoundation.org>
-In-Reply-To: <20180528100202.045206534@linuxfoundation.org>
-References: <20180528100202.045206534@linuxfoundation.org>
+Subject: [PATCH 4.9 230/329] x86/pgtable: Dont set huge PUD/PMD on non-leaf entries
+Date: Mon, 28 May 2018 12:02:39 +0200
+Message-Id: <20180528100301.251026410@linuxfoundation.org>
+In-Reply-To: <20180528100241.796630982@linuxfoundation.org>
+References: <20180528100241.796630982@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "David H. Gutteridge" <dhgutteridge@sympatico.ca>, Joerg Roedel <jroedel@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, Jiri Kosina <jkosina@suse.cz>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Waiman Long <llong@redhat.com>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -97,7 +97,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  #include <asm/pgalloc.h>
  #include <asm/pgtable.h>
  #include <asm/tlb.h>
-@@ -600,6 +601,10 @@ int pud_set_huge(pud_t *pud, phys_addr_t
+@@ -577,6 +578,10 @@ int pud_set_huge(pud_t *pud, phys_addr_t
  	    (mtrr != MTRR_TYPE_WRBACK))
  		return 0;
  
@@ -108,7 +108,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  	prot = pgprot_4k_2_large(prot);
  
  	set_pte((pte_t *)pud, pfn_pte(
-@@ -628,6 +633,10 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t
+@@ -605,6 +610,10 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t
  		return 0;
  	}
  
