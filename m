@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 55F086B0005
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 03:53:02 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id h81-v6so4144503wmf.6
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 00:53:02 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C4436B0006
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 03:53:16 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w8-v6so9848189wrn.10
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 00:53:16 -0700 (PDT)
 Received: from techadventures.net (techadventures.net. [62.201.165.239])
-        by mx.google.com with ESMTP id u18-v6si25657986wra.387.2018.05.28.00.53.01
+        by mx.google.com with ESMTP id y25-v6si6281013wrd.203.2018.05.28.00.53.14
         for <linux-mm@kvack.org>;
-        Mon, 28 May 2018 00:53:01 -0700 (PDT)
+        Mon, 28 May 2018 00:53:14 -0700 (PDT)
 From: osalvador@techadventures.net
-Subject: [RFC PATCH 1/3] mm/memory_hotplug: Make add_memory_resource use __try_online_node
-Date: Mon, 28 May 2018 09:52:35 +0200
-Message-Id: <20180528075237.18105-2-osalvador@techadventures.net>
+Subject: [RFC PATCH 3/3] mm/memory_hotplug: Get rid of link_mem_sections
+Date: Mon, 28 May 2018 09:52:37 +0200
+Message-Id: <20180528075237.18105-4-osalvador@techadventures.net>
 In-Reply-To: <20180528075237.18105-1-osalvador@techadventures.net>
 References: <20180528075237.18105-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -21,149 +21,169 @@ Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-found
 
 From: Oscar Salvador <osalvador@suse.de>
 
-add_memory_resource() contains code to allocate a new node in case
-it is necessary.
-try_online_node has most of the code to do this, so make use of that
-and remove duplicate code.
+link_mem_sections() and walk_memory_range() share most of the code,
+so we can use walk_memory_range() with a callback to register_mem_sect_under_node()
+instead of using link_mem_sections().
 
-This introduces __try_online_node, which is called by add_memory_resource
-and try_online_node.
-__try_online_node has two new parameters, start_addr of the node,
-and if the node should be onlined and registered right away.
-This is always wanted if we are calling from do_cpu_up(), but not
-when we are calling from memhotplug code.
-Nothing changes from the point of view of the users of try_online_node,
-since try_online_node passes start_addr=0 and online_node=true to
-__try_online_node.
+To control whether the node id must be check, two new functions has been added:
+
+register_mem_sect_under_node_nocheck_node()
+and
+register_mem_sect_under_node_check_node()
+
+They both call register_mem_sect_under_node_check() with
+the parameter check_nid set to true or false.
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
 ---
- mm/memory_hotplug.c | 61 +++++++++++++++++++++++++++++------------------------
- 1 file changed, 34 insertions(+), 27 deletions(-)
+ drivers/base/node.c  | 47 ++++++++++-------------------------------------
+ include/linux/node.h | 21 +++++++++------------
+ mm/memory_hotplug.c  |  8 ++++----
+ 3 files changed, 23 insertions(+), 53 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 7deb49f69e27..29a5fc89bdb1 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1034,8 +1034,10 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 	return pgdat;
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index a5e821d09656..248c712e8de5 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -398,6 +398,16 @@ static int __ref get_nid_for_pfn(unsigned long pfn)
+ 	return pfn_to_nid(pfn);
  }
  
--static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
-+static void rollback_node_hotadd(int nid)
- {
-+	pg_data_t *pgdat = NODE_DATA(nid);
-+
- 	arch_refresh_nodedata(nid, NULL);
- 	free_percpu(pgdat->per_cpu_nodestats);
- 	arch_free_nodedata(pgdat);
-@@ -1046,28 +1048,43 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
- /**
-  * try_online_node - online a node if offlined
-  * @nid: the node ID
-- *
-+ * @start: start addr of the node
-+ * @set_node_online: Whether we want to online the node
-  * called by cpu_up() to online a node without onlined memory.
-  */
--int try_online_node(int nid)
-+static int __try_online_node(int nid, u64 start, bool set_node_online)
- {
--	pg_data_t	*pgdat;
--	int	ret;
-+	pg_data_t *pgdat;
-+	int ret = 1;
- 
- 	if (node_online(nid))
- 		return 0;
- 
--	mem_hotplug_begin();
--	pgdat = hotadd_new_pgdat(nid, 0);
-+	pgdat = hotadd_new_pgdat(nid, start);
- 	if (!pgdat) {
- 		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
- 		ret = -ENOMEM;
- 		goto out;
- 	}
--	node_set_online(nid);
--	ret = register_one_node(nid);
--	BUG_ON(ret);
-+
-+	if (set_node_online) {
-+		node_set_online(nid);
-+		ret = register_one_node(nid);
-+		BUG_ON(ret);
-+	}
- out:
-+	return ret;
++int register_mem_sect_under_node_check_node(struct memory_block *mem_blk, void *nid)
++{
++	return register_mem_sect_under_node (mem_blk, *(int *)nid, true);
 +}
 +
-+/*
-+ * Users of this function always want to online/register the node
-+ */
-+int try_online_node(int nid)
++int register_mem_sect_under_node_nocheck_node(struct memory_block *mem_blk, void *nid)
 +{
-+	int ret;
++	return register_mem_sect_under_node (mem_blk, *(int *)nid, false);
++}
 +
-+	mem_hotplug_begin();
-+	ret =  __try_online_node (nid, 0, true);
- 	mem_hotplug_done();
- 	return ret;
+ /* register memory section under specified node if it spans that node */
+ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid,
+ 				 bool check_nid)
+@@ -490,43 +500,6 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 	return 0;
  }
-@@ -1099,8 +1116,6 @@ static int online_memory_block(struct memory_block *mem, void *arg)
- int __ref add_memory_resource(int nid, struct resource *res, bool online)
- {
+ 
+-int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages,
+-		      bool check_nid)
+-{
+-	unsigned long end_pfn = start_pfn + nr_pages;
+-	unsigned long pfn;
+-	struct memory_block *mem_blk = NULL;
+-	int err = 0;
+-
+-	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+-		unsigned long section_nr = pfn_to_section_nr(pfn);
+-		struct mem_section *mem_sect;
+-		int ret;
+-
+-		if (!present_section_nr(section_nr))
+-			continue;
+-		mem_sect = __nr_to_section(section_nr);
+-
+-		/* same memblock ? */
+-		if (mem_blk)
+-			if ((section_nr >= mem_blk->start_section_nr) &&
+-			    (section_nr <= mem_blk->end_section_nr))
+-				continue;
+-
+-		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
+-
+-		ret = register_mem_sect_under_node(mem_blk, nid, check_nid);
+-		if (!err)
+-			err = ret;
+-
+-		/* discard ref obtained in find_memory_block() */
+-	}
+-
+-	if (mem_blk)
+-		kobject_put(&mem_blk->dev.kobj);
+-	return err;
+-}
+-
+ #ifdef CONFIG_HUGETLBFS
+ /*
+  * Handle per node hstate attribute [un]registration on transistions
+diff --git a/include/linux/node.h b/include/linux/node.h
+index 6d336e38d155..1158bea9be52 100644
+--- a/include/linux/node.h
++++ b/include/linux/node.h
+@@ -31,19 +31,11 @@ struct memory_block;
+ extern struct node *node_devices[];
+ typedef  void (*node_registration_func_t)(struct node *);
+ 
+-#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_NUMA)
+-extern int link_mem_sections(int nid, unsigned long start_pfn,
+-			     unsigned long nr_pages, bool check_nid);
+-#else
+-static inline int link_mem_sections(int nid, unsigned long start_pfn,
+-				    unsigned long nr_pages, bool check_nid)
+-{
+-	return 0;
+-}
+-#endif
+-
+ extern void unregister_node(struct node *node);
+ #ifdef CONFIG_NUMA
++#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE)
++extern int register_mem_sect_under_node_check_node(struct memory_block *mem_blk, void *nid);
++#endif
+ /* Core of the node registration - only memory hotplug should use this */
+ extern int __register_one_node(int nid);
+ 
+@@ -54,12 +46,17 @@ static inline int register_one_node(int nid)
+ 
+ 	if (node_online(nid)) {
+ 		struct pglist_data *pgdat = NODE_DATA(nid);
++		unsigned long start = pgdat->node_start_pfn;
++		unsigned long size = pgdat->node_spanned_pages;
+ 
+ 		error = __register_one_node(nid);
+ 		if (error)
+ 			return error;
+ 		/* link memory sections under this node */
+-		error = link_mem_sections(nid, pgdat->node_start_pfn, pgdat->node_spanned_pages, true);
++#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE)
++		error = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
++					(void *)&nid, register_mem_sect_under_node_check_node);
++#endif
+ 	}
+ 
+ 	return error;
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index f84ef96175ab..ac21dc506b84 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -40,6 +40,8 @@
+ 
+ #include "internal.h"
+ 
++extern int register_mem_sect_under_node_nocheck_node(struct memory_block *mem_blk, void *nid);
++
+ /*
+  * online_page_callback contains pointer to current page onlining function.
+  * Initially it is generic_online_page(). If it is required it could be
+@@ -1118,7 +1120,6 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
  	u64 start, size;
--	pg_data_t *pgdat = NULL;
--	bool new_pgdat;
  	bool new_node;
  	int ret;
+-	unsigned long start_pfn, nr_pages;
  
-@@ -1111,11 +1126,6 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ 	start = res->start;
+ 	size = resource_size(res);
+@@ -1157,9 +1158,8 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ 	}
+ 
+ 	/* link memory sections under this node.*/
+-	start_pfn = start >> PAGE_SHIFT;
+-	nr_pages = size >> PAGE_SHIFT;
+-	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
++	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
++				(void *)&nid, register_mem_sect_under_node_nocheck_node);
  	if (ret)
- 		return ret;
+ 		goto register_fail;
  
--	{	/* Stupid hack to suppress address-never-null warning */
--		void *p = NODE_DATA(nid);
--		new_pgdat = !p;
--	}
--
- 	mem_hotplug_begin();
- 
- 	/*
-@@ -1126,17 +1136,14 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 	 */
- 	memblock_add_node(start, size, nid);
- 
--	new_node = !node_online(nid);
--	if (new_node) {
--		pgdat = hotadd_new_pgdat(nid, start);
--		ret = -ENOMEM;
--		if (!pgdat)
--			goto error;
--	}
-+	ret = __try_online_node (nid, start, false);
-+	new_node = !!(ret > 0);
-+	if (ret < 0)
-+		goto error;
-+
- 
- 	/* call arch's memory hotadd */
- 	ret = arch_add_memory(nid, start, size, NULL, true);
--
- 	if (ret < 0)
- 		goto error;
- 
-@@ -1180,8 +1187,8 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 
- error:
- 	/* rollback pgdat allocation and others */
--	if (new_pgdat && pgdat)
--		rollback_node_hotadd(nid, pgdat);
-+	if (new_node)
-+		rollback_node_hotadd(nid);
- 	memblock_remove(start, size);
- 
- out:
 -- 
 2.13.6
