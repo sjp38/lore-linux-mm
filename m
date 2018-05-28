@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A169F6B0270
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 11:54:19 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id z5-v6so7565104pfz.6
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 08:54:19 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DCD86B0005
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 11:54:25 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c187-v6so7585434pfa.20
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 08:54:25 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u2-v6si23599568pgv.246.2018.05.28.08.54.18
+        by mx.google.com with ESMTPS id t19-v6si29589869plo.287.2018.05.28.08.54.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 May 2018 08:54:18 -0700 (PDT)
-Subject: Re: [RFC PATCH 0/5] kmalloc-reclaimable caches
-References: <20180524110011.1940-1-vbabka@suse.cz>
- <20180524153225.GA7329@cmpxchg.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <fcdcf7be-afd1-9747-d97e-51cd071d3f5c@suse.cz>
-Date: Mon, 28 May 2018 10:15:46 +0200
+        Mon, 28 May 2018 08:54:24 -0700 (PDT)
+Date: Mon, 28 May 2018 11:11:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memcg: force charge kmem counter too
+Message-ID: <20180528091110.GG1517@dhcp22.suse.cz>
+References: <20180525185501.82098-1-shakeelb@google.com>
+ <20180526185144.xvh7ejlyelzvqwdb@esperanza>
+ <CALvZod5yTxcuB_Aao-a0ChNEnwyBJk9UPvEQ80s9tZFBQ0cxpw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180524153225.GA7329@cmpxchg.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod5yTxcuB_Aao-a0ChNEnwyBJk9UPvEQ80s9tZFBQ0cxpw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Vijayanand Jitta <vjitta@codeaurora.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 05/24/2018 05:32 PM, Johannes Weiner wrote:
-> On Thu, May 24, 2018 at 01:00:06PM +0200, Vlastimil Babka wrote:
->> - the vmstat/meminfo counter name is rather general and might suggest it also
->>   includes reclaimable page caches, which it doesn't
->>
->> Suggestions welcome for all three points. For the last one, we might also keep
->> the counter separate from nr_slab_reclaimable, not superset. I did a superset
->> as IIRC somebody suggested that in the older threads or at LSF.
+On Sat 26-05-18 15:37:05, Shakeel Butt wrote:
+> On Sat, May 26, 2018 at 11:51 AM, Vladimir Davydov
+> <vdavydov.dev@gmail.com> wrote:
+> > On Fri, May 25, 2018 at 11:55:01AM -0700, Shakeel Butt wrote:
+> >> Based on several conditions the kernel can decide to force charge an
+> >> allocation for a memcg i.e. overcharge memcg->memory and memcg->memsw
+> >> counters. Do the same for memcg->kmem counter too. In cgroup-v1, this
+> >> bug can cause a __GFP_NOFAIL kmem allocation fail if an explicit limit
+> >> on kmem counter is set and reached.
+> >
+> > memory.kmem.limit is broken and unlikely to ever be fixed as this knob
+> > was deprecated in cgroup-v2. The fact that hitting the limit doesn't
+> > trigger reclaim can result in unexpected behavior from user's pov, like
+> > getting ENOMEM while listing a directory. Bypassing the limit for NOFAIL
+> > allocations isn't going to fix those problem.
 > 
-> Yeah, the "reclaimable" name is too generic. How about KReclaimable?
+> I understand that fixing NOFAIL will not fix all other issues but it
+> still is better than current situation. IMHO we should keep fixing
+> kmem bit by bit.
 > 
-> The counter being a superset sounds good to me. We use this info for
-> both load balancing and manual debugging. For load balancing code it's
-> nice not having to worry about finding all the counters that hold
-> reclaimable memory depending on kernel version; it's always simply
-> user cache + user anon + kernel reclaimable. And for debugging, we can
-> always add more specific subset counters later on if we need them.
+> One crazy idea is to just break it completely by force charging all the time.
 
-Hm, Christoph in his reply to patch 4/5 expressed a different opinion.
-It's true that updating two counters has extra overhead, especially if
-there are two separate critical sections:
+What is the limit good for then? Accounting?
 
-mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, nr_pages);
-mod_node_page_state(page_pgdat(page), NR_RECLAIMABLE, nr_pages);
-
-The first disables irq for CONFIG_MEMCG or defers to
-mod_node_page_state() otherwise.
-mod_node_page_state() is different depending on CONFIG_SMP and
-CONFIG_HAVE_CMPXCHG_LOCAL.
-
-I don't see an easy way to make this optimal? Different counter would be
-indeed simpler. /proc/vmstat would then print separate counters, but we
-could have both separate and summary counter in /proc/meminfo. Would
-that be enough?
+-- 
+Michal Hocko
+SUSE Labs
