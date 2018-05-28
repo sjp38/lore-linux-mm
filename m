@@ -1,143 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 521546B000A
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 04:29:12 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id a21-v6so10322656qtp.19
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 01:29:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id z60-v6si7284779qvz.49.2018.05.28.01.29.11
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E8706B000A
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 04:44:37 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id bd7-v6so7288391plb.20
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 01:44:37 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0124.outbound.protection.outlook.com. [104.47.2.124])
+        by mx.google.com with ESMTPS id u19-v6si17953509pgv.79.2018.05.28.01.44.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 May 2018 01:29:11 -0700 (PDT)
-Date: Mon, 28 May 2018 16:28:46 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by
- device driver
-Message-ID: <20180528082846.GA7884@dhcp-128-65.nay.redhat.com>
-References: <20180523151151.6730-1-david@redhat.com>
- <20180524075327.GU20441@dhcp22.suse.cz>
- <14d79dad-ad47-f090-2ec0-c5daf87ac529@redhat.com>
- <20180524085610.GA5467@dhcp-128-65.nay.redhat.com>
- <e70de03e-6965-749a-6c3c-ecf6dcb60c71@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 28 May 2018 01:44:35 -0700 (PDT)
+Subject: Re: [PATCH v7 00/17] Improve shrink_slab() scalability (old
+ complexity was O(n^2), new is O(n))
+References: <152698356466.3393.5351712806709424140.stgit@localhost.localdomain>
+ <20180526171533.ucg27d2tnbvzt4oz@esperanza>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <b69c6ef2-f519-6834-ea92-9b609f583fdc@virtuozzo.com>
+Date: Mon, 28 May 2018 11:44:20 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e70de03e-6965-749a-6c3c-ecf6dcb60c71@redhat.com>
+In-Reply-To: <20180526171533.ucg27d2tnbvzt4oz@esperanza>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-On 05/24/18 at 11:14am, David Hildenbrand wrote:
-> On 24.05.2018 10:56, Dave Young wrote:
-> > Hi,
-> > 
-> > [snip]
-> >>>
-> >>>> For kdump and onlining/offlining code, we
-> >>>> have to mark pages as offline before a new segment is visible to the system
-> >>>> (e.g. as these pages might not be backed by real memory in the hypervisor).
-> >>>
-> >>> Please expand on the kdump part. That is really confusing because
-> >>> hotplug should simply not depend on kdump at all. Moreover why don't you
-> >>> simply mark those pages reserved and pull them out from the page
-> >>> allocator?
-> >>
-> >> 1. "hotplug should simply not depend on kdump at all"
-> >>
-> >> In theory yes. In the current state we already have to trigger kdump to
-> >> reload whenever we add/remove a memory block.
-> >>
-> >>
-> >> 2. kdump part
-> >>
-> >> Whenever we offline a page and tell the hypervisor about it ("unplug"),
-> >> we should not assume that we can read that page again. Now, if dumping
-> >> tools assume they can read all memory that is offline, we are in trouble.
-> >>
-> >> It is the same thing as we already have with Pg_hwpoison. Just a
-> >> different meaning - "don't touch this page, it is offline" compared to
-> >> "don't touch this page, hw is broken".
-> > 
-> > Does that means in case an offline no kdump reload as mentioned in 1)?
-> > 
-> > If we have the offline event and reload kdump, I assume the memory state
-> > is refreshed so kdump will not read the memory offlined, am I missing
-> > something?
+On 26.05.2018 20:15, Vladimir Davydov wrote:
+> Hello Kirill,
 > 
-> If a whole section is offline: yes. (ACPI hotplug)
+> The whole patch set looks good to me now.
 > 
-> If pages are online but broken ("logically offline" - hwpoison): no
-> 
-> If single pages are logically offline: no. (Balloon inflation - let's
-> call it unplug as that's what some people refer to)
-> 
-> If only subsections (4MB chunks) are offline: no.
-> 
-> Exporting memory ranges in a smaller granularity to kdump than section
-> size would a) be heavily complicated b) introduce a lot of overhead for
-> this tracking data c) make us retrigger kdump way too often.
-> 
-> So simply marking pages offline in the struct pages and telling kdump
-> about it is the straight forward thing to do. And it is fairly easy to
-> add and implement as we have the exact same thing in place for hwpoison.
+> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Ok, it is clear enough.   If case fine grained page offline is is like
-a hwpoison page so a userspace patch for makedumpfile is needes to
-exclude them when copying vmcore.
+Thanks for the review, Vova!
+
+Kirill
 
 > 
-> > 
-> >>
-> >> Balloon drivers solve this problem by always allowing to read unplugged
-> >> memory. In virtio-mem, this cannot and should even not be guaranteed.
-> >>
-> > 
-> > Hmm, that sounds a bug..
-> 
-> I can give you a simple example why reading such unplugged (or balloon
-> inflated) memory is problematic: Huge page backed guests.
-> 
-> There is no zero page for huge pages. So if we allow the guest to read
-> that memory any time, we cannot guarantee that we actually consume less
-> memory in the hypervisor. This is absolutely to be avoided.
-> 
-> Existing balloon drivers don't support huge page backed guests. (well
-> you can inflate, but the hypervisor cannot madvise() 4k on a huge page,
-> resulting in no action being performed). This scenario is to be
-> supported with virtio-mem.
-> 
-> 
-> So yes, this is actually a bug in e.g. virtio-balloon implementations:
-> 
-> With "VIRTIO_BALLOON_F_MUST_TELL_HOST" we have to tell the hypervisor
-> before we access a page again. kdump cannot do this and does not care,
-> so this page is silently accessed and dumped. One of the main problems
-> why extending virtio-balloon hypervisor implementations to support
-> host-enforced R/W protection is impossible.
-
-I'm not sure I got all virt related background, but still thank you
-for the detailed explanation.  This is the first time I heard about
-this, nobody complained before :(
-
-> 
-> > 
-> >> And what we have to do to make this work is actually pretty simple: Just
-> >> like Pg_hwpoison, track per page if it is online and provide this
-> >> information to kdump.
-> >>
-> >>
-> > 
-> > Thanks
-> > Dave
-> > 
-> 
-> 
-> -- 
-> 
-> Thanks,
-> 
-> David / dhildenb
-
-Thanks
-Dave
+> On Tue, May 22, 2018 at 01:07:10PM +0300, Kirill Tkhai wrote:
+>> Hi,
+>>
+>> this patches solves the problem with slow shrink_slab() occuring
+>> on the machines having many shrinkers and memory cgroups (i.e.,
+>> with many containers). The problem is complexity of shrink_slab()
+>> is O(n^2) and it grows too fast with the growth of containers
+>> numbers.
+>>
+>> Let we have 200 containers, and every container has 10 mounts
+>> and 10 cgroups. All container tasks are isolated, and they don't
+>> touch foreign containers mounts.
+>>
+>> In case of global reclaim, a task has to iterate all over the memcgs
+>> and to call all the memcg-aware shrinkers for all of them. This means,
+>> the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
+>> and since there are 2000 memcgs, the total calls of do_shrink_slab()
+>> are 2000 * 2000 = 4000000.
+>>
+>> 4 million calls are not a number operations, which can takes 1 cpu cycle.
+>> E.g., super_cache_count() accesses at least two lists, and makes arifmetical
+>> calculations. Even, if there are no charged objects, we do these calculations,
+>> and replaces cpu caches by read memory. I observed nodes spending almost 100%
+>> time in kernel, in case of intensive writing and global reclaim. The writer
+>> consumes pages fast, but it's need to shrink_slab() before the reclaimer
+>> reached shrink pages function (and frees SWAP_CLUSTER_MAX pages). Even if
+>> there is no writing, the iterations just waste the time, and slows reclaim down.
+>>
+>> Let's see the small test below:
+>>
+>> $echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+>> $mkdir /sys/fs/cgroup/memory/ct
+>> $echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+>> $for i in `seq 0 4000`;
+>> 	do mkdir /sys/fs/cgroup/memory/ct/$i;
+>> 	echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
+>> 	mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file;
+>> done
+>>
+>> Then, let's see drop caches time (5 sequential calls):
+>> $time echo 3 > /proc/sys/vm/drop_caches
+>>
+>> 0.00user 13.78system 0:13.78elapsed 99%CPU
+>> 0.00user 5.59system 0:05.60elapsed 99%CPU
+>> 0.00user 5.48system 0:05.48elapsed 99%CPU
+>> 0.00user 8.35system 0:08.35elapsed 99%CPU
+>> 0.00user 8.34system 0:08.35elapsed 99%CPU
+>>
+>>
+>> Last four calls don't actually shrink something. So, the iterations
+>> over slab shrinkers take 5.48 seconds. Not so good for scalability.
+>>
+>> The patchset solves the problem by making shrink_slab() of O(n)
+>> complexity. There are following functional actions:
+>>
+>> 1)Assign id to every registered memcg-aware shrinker.
+>> 2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
+>>   and set a shrinker-related bit after the first element
+>>   is added to lru list (also, when removed child memcg
+>>   elements are reparanted).
+>> 3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
+>>   and call a shrinker if its bit is set in memcg's shrinker
+>>   bitmap.
+>>   (Also, there is a functionality to clear the bit, after
+>>   last element is shrinked).
+>>
+>> This gives signify performance increase. The result after patchset is applied:
+>>
+>> $time echo 3 > /proc/sys/vm/drop_caches
+>>
+>> 0.00user 1.10system 0:01.10elapsed 99%CPU
+>> 0.00user 0.00system 0:00.01elapsed 64%CPU
+>> 0.00user 0.01system 0:00.01elapsed 82%CPU
+>> 0.00user 0.00system 0:00.01elapsed 64%CPU
+>> 0.00user 0.01system 0:00.01elapsed 82%CPU
+>>
+>> The results show the performance increases at least in 548 times.
+>>
+>> So, the patchset makes shrink_slab() of less complexity and improves
+>> the performance in such types of load I pointed. This will give a profit
+>> in case of !global reclaim case, since there also will be less
+>> do_shrink_slab() calls.
+>>
+>> This patchset is made against linux-next.git tree.
+>>
+>> v7: Refactorings and readability improvements.
+>>
+>> v6: Added missed rcu_dereference() to memcg_set_shrinker_bit().
+>>     Use different functions for allocation and expanding map.
+>>     Use new memcg_shrinker_map_size variable in memcontrol.c.
+>>     Refactorings.
+>>
+>> v5: Make the optimizing logic under CONFIG_MEMCG_SHRINKER instead of MEMCG && !SLOB
+>>
+>> v4: Do not use memcg mem_cgroup_idr for iteration over mem cgroups
+>>
+>> v3: Many changes requested in commentaries to v2:
+>>
+>> 1)rebase on prealloc_shrinker() code base
+>> 2)root_mem_cgroup is made out of memcg maps
+>> 3)rwsem replaced with shrinkers_nr_max_mutex
+>> 4)changes around assignment of shrinker id to list lru
+>> 5)everything renamed
+>>
+>> v2: Many changes requested in commentaries to v1:
+>>
+>> 1)the code mostly moved to mm/memcontrol.c;
+>> 2)using IDR instead of array of shrinkers;
+>> 3)added a possibility to assign list_lru shrinker id
+>>   at the time of shrinker registering;
+>> 4)reorginized locking and renamed functions and variables.
+>>
+>> ---
+>>
+>> Kirill Tkhai (16):
+>>       list_lru: Combine code under the same define
+>>       mm: Introduce CONFIG_MEMCG_KMEM as combination of CONFIG_MEMCG && !CONFIG_SLOB
+>>       mm: Assign id to every memcg-aware shrinker
+>>       memcg: Move up for_each_mem_cgroup{,_tree} defines
+>>       mm: Assign memcg-aware shrinkers bitmap to memcg
+>>       mm: Refactoring in workingset_init()
+>>       fs: Refactoring in alloc_super()
+>>       fs: Propagate shrinker::id to list_lru
+>>       list_lru: Add memcg argument to list_lru_from_kmem()
+>>       list_lru: Pass dst_memcg argument to memcg_drain_list_lru_node()
+>>       list_lru: Pass lru argument to memcg_drain_list_lru_node()
+>>       mm: Export mem_cgroup_is_root()
+>>       mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
+>>       mm: Iterate only over charged shrinkers during memcg shrink_slab()
+>>       mm: Add SHRINK_EMPTY shrinker methods return value
+>>       mm: Clear shrinker bit if there are no objects related to memcg
+>>
+>> Vladimir Davydov (1):
+>>       mm: Generalize shrink_slab() calls in shrink_node()
+>>
+>>
+>>  fs/super.c                 |   11 ++
+>>  include/linux/list_lru.h   |   18 ++--
+>>  include/linux/memcontrol.h |   46 +++++++++-
+>>  include/linux/sched.h      |    2 
+>>  include/linux/shrinker.h   |   11 ++
+>>  include/linux/slab.h       |    2 
+>>  init/Kconfig               |    5 +
+>>  mm/list_lru.c              |   90 ++++++++++++++-----
+>>  mm/memcontrol.c            |  173 +++++++++++++++++++++++++++++++------
+>>  mm/slab.h                  |    6 +
+>>  mm/slab_common.c           |    8 +-
+>>  mm/vmscan.c                |  204 +++++++++++++++++++++++++++++++++++++++-----
+>>  mm/workingset.c            |   11 ++
+>>  13 files changed, 478 insertions(+), 109 deletions(-)
+>>
+>> --
+>> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
