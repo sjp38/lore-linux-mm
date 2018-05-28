@@ -1,193 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E8706B000A
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 04:44:37 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id bd7-v6so7288391plb.20
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 01:44:37 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0124.outbound.protection.outlook.com. [104.47.2.124])
-        by mx.google.com with ESMTPS id u19-v6si17953509pgv.79.2018.05.28.01.44.35
+	by kanga.kvack.org (Postfix) with ESMTP id DFA246B000C
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 04:47:17 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id b36-v6so7309796pli.2
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 01:47:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l67-v6si29838382pfg.326.2018.05.28.01.47.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 28 May 2018 01:44:35 -0700 (PDT)
-Subject: Re: [PATCH v7 00/17] Improve shrink_slab() scalability (old
- complexity was O(n^2), new is O(n))
-References: <152698356466.3393.5351712806709424140.stgit@localhost.localdomain>
- <20180526171533.ucg27d2tnbvzt4oz@esperanza>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <b69c6ef2-f519-6834-ea92-9b609f583fdc@virtuozzo.com>
-Date: Mon, 28 May 2018 11:44:20 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 May 2018 01:47:16 -0700 (PDT)
+Date: Mon, 28 May 2018 10:34:51 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: WARNING: CPU: 0 PID: 21 at ../mm/page_alloc.c:4258
+ __alloc_pages_nodemask+0xa88/0xfec
+Message-ID: <20180528083451.GE1517@dhcp22.suse.cz>
+References: <CA+7wUswp_Sr=hHqi1bwRZ3FE2wY5ozZWZ8Z1BgrFnSAmijUKjA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180526171533.ucg27d2tnbvzt4oz@esperanza>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+7wUswp_Sr=hHqi1bwRZ3FE2wY5ozZWZ8Z1BgrFnSAmijUKjA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: akpm@linux-foundation.org, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
+To: Mathieu Malaterre <malat@debian.org>
+Cc: linux-mm@kvack.org
 
-On 26.05.2018 20:15, Vladimir Davydov wrote:
-> Hello Kirill,
+On Sat 26-05-18 09:14:35, Mathieu Malaterre wrote:
+> Hi Michal,
 > 
-> The whole patch set looks good to me now.
+> For the last couple of days, I am seeing the following appearing in
+> dmesg (*). I am a happy kmemleak user on an oldish Mac Mini G4
+> (ppc32), it has been working great. What does this new warning checks:
 > 
-> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+>     /*
+>      * All existing users of the __GFP_NOFAIL are blockable, so warn
+>      * of any new users that actually require GFP_NOWAIT
+>      */
+>     if (WARN_ON_ONCE(!can_direct_reclaim))
+>       goto fail;
 
-Thanks for the review, Vova!
+Interesting. Where does this path get GFP_NOFAIL from? I am looking at
+the current upstream code and 
+get_swap_bio(GFP_NOIO)
+  bio_alloc(gfp_mask)
+    bio_alloc_bioset(gfp_mask)
+      mempool_alloc(gfp_msk & ~__GFP_DIRECT_RECLAIM)
 
-Kirill
-
+mempool_alloc does play some tricks with the gfp_mask but it doesn't add
+GFP_NOFAIL AFAICS.
+ 
+> Thanks,
 > 
-> On Tue, May 22, 2018 at 01:07:10PM +0300, Kirill Tkhai wrote:
->> Hi,
->>
->> this patches solves the problem with slow shrink_slab() occuring
->> on the machines having many shrinkers and memory cgroups (i.e.,
->> with many containers). The problem is complexity of shrink_slab()
->> is O(n^2) and it grows too fast with the growth of containers
->> numbers.
->>
->> Let we have 200 containers, and every container has 10 mounts
->> and 10 cgroups. All container tasks are isolated, and they don't
->> touch foreign containers mounts.
->>
->> In case of global reclaim, a task has to iterate all over the memcgs
->> and to call all the memcg-aware shrinkers for all of them. This means,
->> the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
->> and since there are 2000 memcgs, the total calls of do_shrink_slab()
->> are 2000 * 2000 = 4000000.
->>
->> 4 million calls are not a number operations, which can takes 1 cpu cycle.
->> E.g., super_cache_count() accesses at least two lists, and makes arifmetical
->> calculations. Even, if there are no charged objects, we do these calculations,
->> and replaces cpu caches by read memory. I observed nodes spending almost 100%
->> time in kernel, in case of intensive writing and global reclaim. The writer
->> consumes pages fast, but it's need to shrink_slab() before the reclaimer
->> reached shrink pages function (and frees SWAP_CLUSTER_MAX pages). Even if
->> there is no writing, the iterations just waste the time, and slows reclaim down.
->>
->> Let's see the small test below:
->>
->> $echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
->> $mkdir /sys/fs/cgroup/memory/ct
->> $echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
->> $for i in `seq 0 4000`;
->> 	do mkdir /sys/fs/cgroup/memory/ct/$i;
->> 	echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
->> 	mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file;
->> done
->>
->> Then, let's see drop caches time (5 sequential calls):
->> $time echo 3 > /proc/sys/vm/drop_caches
->>
->> 0.00user 13.78system 0:13.78elapsed 99%CPU
->> 0.00user 5.59system 0:05.60elapsed 99%CPU
->> 0.00user 5.48system 0:05.48elapsed 99%CPU
->> 0.00user 8.35system 0:08.35elapsed 99%CPU
->> 0.00user 8.34system 0:08.35elapsed 99%CPU
->>
->>
->> Last four calls don't actually shrink something. So, the iterations
->> over slab shrinkers take 5.48 seconds. Not so good for scalability.
->>
->> The patchset solves the problem by making shrink_slab() of O(n)
->> complexity. There are following functional actions:
->>
->> 1)Assign id to every registered memcg-aware shrinker.
->> 2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
->>   and set a shrinker-related bit after the first element
->>   is added to lru list (also, when removed child memcg
->>   elements are reparanted).
->> 3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
->>   and call a shrinker if its bit is set in memcg's shrinker
->>   bitmap.
->>   (Also, there is a functionality to clear the bit, after
->>   last element is shrinked).
->>
->> This gives signify performance increase. The result after patchset is applied:
->>
->> $time echo 3 > /proc/sys/vm/drop_caches
->>
->> 0.00user 1.10system 0:01.10elapsed 99%CPU
->> 0.00user 0.00system 0:00.01elapsed 64%CPU
->> 0.00user 0.01system 0:00.01elapsed 82%CPU
->> 0.00user 0.00system 0:00.01elapsed 64%CPU
->> 0.00user 0.01system 0:00.01elapsed 82%CPU
->>
->> The results show the performance increases at least in 548 times.
->>
->> So, the patchset makes shrink_slab() of less complexity and improves
->> the performance in such types of load I pointed. This will give a profit
->> in case of !global reclaim case, since there also will be less
->> do_shrink_slab() calls.
->>
->> This patchset is made against linux-next.git tree.
->>
->> v7: Refactorings and readability improvements.
->>
->> v6: Added missed rcu_dereference() to memcg_set_shrinker_bit().
->>     Use different functions for allocation and expanding map.
->>     Use new memcg_shrinker_map_size variable in memcontrol.c.
->>     Refactorings.
->>
->> v5: Make the optimizing logic under CONFIG_MEMCG_SHRINKER instead of MEMCG && !SLOB
->>
->> v4: Do not use memcg mem_cgroup_idr for iteration over mem cgroups
->>
->> v3: Many changes requested in commentaries to v2:
->>
->> 1)rebase on prealloc_shrinker() code base
->> 2)root_mem_cgroup is made out of memcg maps
->> 3)rwsem replaced with shrinkers_nr_max_mutex
->> 4)changes around assignment of shrinker id to list lru
->> 5)everything renamed
->>
->> v2: Many changes requested in commentaries to v1:
->>
->> 1)the code mostly moved to mm/memcontrol.c;
->> 2)using IDR instead of array of shrinkers;
->> 3)added a possibility to assign list_lru shrinker id
->>   at the time of shrinker registering;
->> 4)reorginized locking and renamed functions and variables.
->>
->> ---
->>
->> Kirill Tkhai (16):
->>       list_lru: Combine code under the same define
->>       mm: Introduce CONFIG_MEMCG_KMEM as combination of CONFIG_MEMCG && !CONFIG_SLOB
->>       mm: Assign id to every memcg-aware shrinker
->>       memcg: Move up for_each_mem_cgroup{,_tree} defines
->>       mm: Assign memcg-aware shrinkers bitmap to memcg
->>       mm: Refactoring in workingset_init()
->>       fs: Refactoring in alloc_super()
->>       fs: Propagate shrinker::id to list_lru
->>       list_lru: Add memcg argument to list_lru_from_kmem()
->>       list_lru: Pass dst_memcg argument to memcg_drain_list_lru_node()
->>       list_lru: Pass lru argument to memcg_drain_list_lru_node()
->>       mm: Export mem_cgroup_is_root()
->>       mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
->>       mm: Iterate only over charged shrinkers during memcg shrink_slab()
->>       mm: Add SHRINK_EMPTY shrinker methods return value
->>       mm: Clear shrinker bit if there are no objects related to memcg
->>
->> Vladimir Davydov (1):
->>       mm: Generalize shrink_slab() calls in shrink_node()
->>
->>
->>  fs/super.c                 |   11 ++
->>  include/linux/list_lru.h   |   18 ++--
->>  include/linux/memcontrol.h |   46 +++++++++-
->>  include/linux/sched.h      |    2 
->>  include/linux/shrinker.h   |   11 ++
->>  include/linux/slab.h       |    2 
->>  init/Kconfig               |    5 +
->>  mm/list_lru.c              |   90 ++++++++++++++-----
->>  mm/memcontrol.c            |  173 +++++++++++++++++++++++++++++++------
->>  mm/slab.h                  |    6 +
->>  mm/slab_common.c           |    8 +-
->>  mm/vmscan.c                |  204 +++++++++++++++++++++++++++++++++++++++-----
->>  mm/workingset.c            |   11 ++
->>  13 files changed, 478 insertions(+), 109 deletions(-)
->>
->> --
->> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> (*)
+> [  269.038911] WARNING: CPU: 0 PID: 21 at ../mm/page_alloc.c:4258
+> __alloc_pages_nodemask+0xa88/0xfec
+[...]
+> [  269.039118] NIP [c020e8f8] __alloc_pages_nodemask+0xa88/0xfec
+> [  269.039124] LR [c020e2e0] __alloc_pages_nodemask+0x470/0xfec
+> [  269.039128] Call Trace:
+> [  269.039136] [dde3b750] [c020e2e0]  __alloc_pages_nodemask+0x470/0xfec (unreliable)
+> [  269.039146] [dde3b820] [c0288c14] new_slab+0x53c/0x970
+> [  269.039155] [dde3b880] [c028b61c] ___slab_alloc.constprop.23+0x28c/0x468
+> [  269.039163] [dde3b920] [c028c754] kmem_cache_alloc+0x290/0x3dc
+> [  269.039177] [dde3b990] [c02a6030] create_object+0x50/0x3d0
+> [  269.039185] [dde3b9e0] [c028c7a8] kmem_cache_alloc+0x2e4/0x3dc
+> [  269.039193] [dde3ba50] [c0200f88] mempool_alloc+0x7c/0x164
+> [  269.039205] [dde3bab0] [c03e33c0] bio_alloc_bioset+0x130/0x298
+> [  269.039216] [dde3baf0] [c0278694] get_swap_bio+0x34/0xe8
+> [  269.039223] [dde3bb30] [c0278fb4] __swap_writepage+0x22c/0x644
+> [  269.039237] [dde3bbb0] [c022528c] pageout.isra.13+0x238/0x52c
+> [  269.039246] [dde3bc10] [c02288a0] shrink_page_list+0x9d4/0x1768
+> [  269.039254] [dde3bcb0] [c022a264] shrink_inactive_list+0x2c4/0xa34
+> [  269.039262] [dde3bd40] [c022b454] shrink_node_memcg+0x344/0xe34
+> [  269.039270] [dde3bde0] [c022c068] shrink_node+0x124/0x73c
+> [  269.039277] [dde3be50] [c022d78c] kswapd+0x318/0xb2c
+> [  269.039291] [dde3bf10] [c008e264] kthread+0x138/0x1f0
+> [  269.039300] [dde3bf40] [c001b2e4] ret_from_kernel_thread+0x5c/0x64
+> [  269.039304] Instruction dump:
+> [  269.039311] 7f44d378 7fa3eb78 4802bd95 4bfff9f4 485d7309 4bfff998 7f03c378 7fc5f378
+> [  269.039326] 7f44d378 4802bd79 7c781b78 4bfffd48 <0fe00000> 8081002c 3ca0c08b 7fe6fb78
+> [  269.039343] ---[ end trace c255e24f03e28d77 ]---
+> [  269.039351] kmemleak: Cannot allocate a kmemleak_object structure
+> [  269.039373] kmemleak: Kernel memory leak detector disabled
+> [  269.039412] kmemleak: Automatic memory scanning thread ended
+
+-- 
+Michal Hocko
+SUSE Labs
