@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F10FD6B0007
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 04:13:53 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id t195-v6so8067021wmt.9
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 01:13:53 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C557F6B0005
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 04:16:14 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id x18-v6so9847826wrl.21
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 01:16:14 -0700 (PDT)
 Received: from techadventures.net (techadventures.net. [62.201.165.239])
-        by mx.google.com with ESMTP id i17-v6si9586260wmc.190.2018.05.28.01.13.52
+        by mx.google.com with ESMTP id l7-v6si264109edq.20.2018.05.28.01.16.13
         for <linux-mm@kvack.org>;
-        Mon, 28 May 2018 01:13:52 -0700 (PDT)
-Date: Mon, 28 May 2018 10:13:52 +0200
+        Mon, 28 May 2018 01:16:13 -0700 (PDT)
+Date: Mon, 28 May 2018 10:16:13 +0200
 From: osalvador@techadventures.net
-Subject: [RFC PATCH 0/3] Small cleanup for hotplugmem
-Message-ID: <20180528081352.GA14293@techadventures.net>
+Subject: [RFC PATCH 2/3] mm/memory_hotplug: Call register_mem_sect_under_node
+Message-ID: <20180528081613.GA14413@techadventures.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -22,39 +22,116 @@ Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-found
 
 From: Oscar Salvador <osalvador@suse.de>
 
-Hi guys,
+When hotpluging memory, it is possible that two calls are being made
+to register_mem_sect_under_node().
+One comes from __add_section()->hotplug_memory_register()
+and the other from add_memory_resource()->link_mem_sections() if
+we had to register a new node.
 
-I wanted to give it a chance a do a small cleanup in the hotplug memory code.
-A lot more could be done, but I wanted to start somewhere.
-I tried to unify/remove duplicated code.
+In case we had to register a new node, hotplug_memory_register()
+will only handle/allocate the memory_block's since
+register_mem_sect_under_node() will return right away because the
+node it is not online yet.
 
-Here I have just done three things
+I think it is better if we leave hotplug_memory_register() to
+handle/allocate only memory_block's and make link_mem_sections()
+to call register_mem_sect_under_node().
 
-1) add_memory_resource() had code to allocate a node in case it was offline.
-   Since try_online_node already does that, I just made add_memory_resource() to
-   use that function.
-   This is better explained in patch 1/3.
-
-2) register_mem_sect_under_node() will be called only from link_mem_sections
-
-3) Get rid of link_mem_sections() in favour of walk_memory_range with a callback to
-   register_mem_sect_under_node()
-
-I am posting this as a RFC because I could not see that these patches break anything,
-but expert eyes might see something that I am missing here.
-
-Oscar Salvador (3):
-  mm/memory_hotplug: Make add_memory_resource use __try_online_node
-  mm/memory_hotplug: Call register_mem_sect_under_node
-  mm/memory_hotplug: Get rid of link_mem_sections
-
- drivers/base/memory.c |   2 -
- drivers/base/node.c   |  47 +++++------------------
- include/linux/node.h  |  21 +++++------
- mm/memory_hotplug.c   | 101 ++++++++++++++++++++++++++------------------------
- 4 files changed, 71 insertions(+), 100 deletions(-)
+So this patch removes the call to register_mem_sect_under_node()
+from hotplug_memory_register(), and moves the call to link_mem_sections()
+out of the condition, so it will always be called.
+In this way we only have one place where the memory sections
+are registered.
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
+---
+ drivers/base/memory.c |  2 --
+ mm/memory_hotplug.c   | 40 ++++++++++++++++++----------------------
+ 2 files changed, 18 insertions(+), 24 deletions(-)
 
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index f5e560188a18..c8a1cb0b6136 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -736,8 +736,6 @@ int hotplug_memory_register(int nid, struct mem_section *section)
+ 		mem->section_count++;
+ 	}
+ 
+-	if (mem->section_count == sections_per_block)
+-		ret = register_mem_sect_under_node(mem, nid, false);
+ out:
+ 	mutex_unlock(&mem_sysfs_mutex);
+ 	return ret;
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 29a5fc89bdb1..f84ef96175ab 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1118,6 +1118,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ 	u64 start, size;
+ 	bool new_node;
+ 	int ret;
++	unsigned long start_pfn, nr_pages;
+ 
+ 	start = res->start;
+ 	size = resource_size(res);
+@@ -1147,34 +1148,21 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ 	if (ret < 0)
+ 		goto error;
+ 
+-	/* we online node here. we can't roll back from here. */
+-	node_set_online(nid);
+-
+ 	if (new_node) {
+-		unsigned long start_pfn = start >> PAGE_SHIFT;
+-		unsigned long nr_pages = size >> PAGE_SHIFT;
+-
++		/* we online node here. we can't roll back from here. */
++		node_set_online(nid);
+ 		ret = __register_one_node(nid);
+ 		if (ret)
+ 			goto register_fail;
+-
+-		/*
+-		 * link memory sections under this node. This is already
+-		 * done when creatig memory section in register_new_memory
+-		 * but that depends to have the node registered so offline
+-		 * nodes have to go through register_node.
+-		 * TODO clean up this mess.
+-		 */
+-		ret = link_mem_sections(nid, start_pfn, nr_pages, false);
+-register_fail:
+-		/*
+-		 * If sysfs file of new node can't create, cpu on the node
+-		 * can't be hot-added. There is no rollback way now.
+-		 * So, check by BUG_ON() to catch it reluctantly..
+-		 */
+-		BUG_ON(ret);
+ 	}
+ 
++	/* link memory sections under this node.*/
++	start_pfn = start >> PAGE_SHIFT;
++	nr_pages = size >> PAGE_SHIFT;
++	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
++	if (ret)
++		goto register_fail;
++
+ 	/* create new memmap entry */
+ 	firmware_map_add_hotplug(start, start + size, "System RAM");
+ 
+@@ -1185,6 +1173,14 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ 
+ 	goto out;
+ 
++register_fail:
++	/*
++	 * If sysfs file of new node can't create, cpu on the node
++	 * can't be hot-added. There is no rollback way now.
++	 * So, check by BUG_ON() to catch it reluctantly..
++	 */
++	BUG_ON(ret);
++
+ error:
+ 	/* rollback pgdat allocation and others */
+ 	if (new_node)
 -- 
 2.13.6
