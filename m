@@ -1,57 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E38A6B0005
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 13:23:11 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id n18-v6so10726887wrm.7
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 10:23:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 3-v6sor15025668wry.4.2018.05.28.10.23.09
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CCE6E6B0005
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 14:04:09 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z69-v6so10969700wrb.20
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 11:04:09 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id l187-v6si11382888wma.69.2018.05.28.11.04.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 28 May 2018 10:23:09 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 May 2018 11:04:08 -0700 (PDT)
+From: Song Liu <songliubraving@fb.com>
+Subject: Re: [PATCH v2] mm/THP: use hugepage_vma_check() in
+ khugepaged_enter_vma_merge()
+Date: Mon, 28 May 2018 18:04:00 +0000
+Message-ID: <8F62086E-03E5-4A65-99F3-E4ABB4FFFC70@fb.com>
+References: <20180522194430.426688-1-songliubraving@fb.com>
+ <20180528105724.okg6c7i72r3v3jno@kshutemo-mobl1>
+In-Reply-To: <20180528105724.okg6c7i72r3v3jno@kshutemo-mobl1>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <8DD54734F576FF429948A0393436350D@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20180528091110.GG1517@dhcp22.suse.cz>
-References: <20180525185501.82098-1-shakeelb@google.com> <20180526185144.xvh7ejlyelzvqwdb@esperanza>
- <CALvZod5yTxcuB_Aao-a0ChNEnwyBJk9UPvEQ80s9tZFBQ0cxpw@mail.gmail.com> <20180528091110.GG1517@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Mon, 28 May 2018 10:23:07 -0700
-Message-ID: <CALvZod6x5iRmcJ6pYKS+jwJd855jnwmVcPK9tnKbuJ9Hfppa-A@mail.gmail.com>
-Subject: Re: [PATCH] memcg: force charge kmem counter too
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Kernel Team <Kernel-team@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>
 
-On Mon, May 28, 2018 at 2:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Sat 26-05-18 15:37:05, Shakeel Butt wrote:
->> On Sat, May 26, 2018 at 11:51 AM, Vladimir Davydov
->> <vdavydov.dev@gmail.com> wrote:
->> > On Fri, May 25, 2018 at 11:55:01AM -0700, Shakeel Butt wrote:
->> >> Based on several conditions the kernel can decide to force charge an
->> >> allocation for a memcg i.e. overcharge memcg->memory and memcg->memsw
->> >> counters. Do the same for memcg->kmem counter too. In cgroup-v1, this
->> >> bug can cause a __GFP_NOFAIL kmem allocation fail if an explicit limit
->> >> on kmem counter is set and reached.
->> >
->> > memory.kmem.limit is broken and unlikely to ever be fixed as this knob
->> > was deprecated in cgroup-v2. The fact that hitting the limit doesn't
->> > trigger reclaim can result in unexpected behavior from user's pov, like
->> > getting ENOMEM while listing a directory. Bypassing the limit for NOFAIL
->> > allocations isn't going to fix those problem.
->>
->> I understand that fixing NOFAIL will not fix all other issues but it
->> still is better than current situation. IMHO we should keep fixing
->> kmem bit by bit.
->>
->> One crazy idea is to just break it completely by force charging all the time.
->
-> What is the limit good for then? Accounting?
->
 
-Unlike tcpmem, the kmem accounting is enabled by default. No need to
-set the limit to enable accounting.
 
-I think my crazy idea was just wrong and without much thought. Though
-is there a precedence where the broken feature is not fixed because an
-alternative is available?
+> On May 28, 2018, at 3:57 AM, Kirill A. Shutemov <kirill@shutemov.name> wr=
+ote:
+>=20
+> On Tue, May 22, 2018 at 12:44:30PM -0700, Song Liu wrote:
+>> khugepaged_enter_vma_merge() is using a different approach to check
+>> whether a vma is valid for khugepaged_enter():
+>>=20
+>>    if (!vma->anon_vma)
+>>            /*
+>>             * Not yet faulted in so we will register later in the
+>>             * page fault if needed.
+>>             */
+>>            return 0;
+>>    if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
+>>            /* khugepaged not yet working on file or special mappings */
+>>            return 0;
+>>=20
+>> This check has some problems. One of the obvious problems is that
+>> it doesn't check shmem_file(), so that vma backed with shmem files
+>> will not call khugepaged_enter(). Here is an example of failed madvise()=
+:
+>>=20
+>>   /* mount /dev/shm with huge=3Dadvise:
+>>    *     mount -o remount,huge=3Dadvise /dev/shm */
+>>   /* create file /dev/shm/huge */
+>>   #define HUGE_FILE "/dev/shm/huge"
+>>=20
+>>   fd =3D open(HUGE_FILE, O_RDONLY);
+>>   ptr =3D mmap(NULL, FILE_SIZE, PROT_READ, MAP_PRIVATE, fd, 0);
+>>   ret =3D madvise(ptr, FILE_SIZE, MADV_HUGEPAGE);
+>>=20
+>> madvise() will return 0, but this memory region is never put in huge
+>> page (check from /proc/meminfo: ShmemHugePages).
+>>=20
+>> This patch fixes these problems by reusing hugepage_vma_check() in
+>> khugepaged_enter_vma_merge().
+>>=20
+>> vma->vm_flags is not yet updated in khugepaged_enter_vma_merge(),
+>> so we need to pass the new vm_flags to hugepage_vma_check() through
+>> a separate argument.
+>>=20
+>> Signed-off-by: Song Liu <songliubraving@fb.com>
+>> ---
+>> mm/khugepaged.c | 26 ++++++++++++--------------
+>> 1 file changed, 12 insertions(+), 14 deletions(-)
+>>=20
+>> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+>> index d7b2a4b..9f74e51 100644
+>> --- a/mm/khugepaged.c
+>> +++ b/mm/khugepaged.c
+>> @@ -430,18 +430,15 @@ int __khugepaged_enter(struct mm_struct *mm)
+>> 	return 0;
+>> }
+>>=20
+>> +static bool hugepage_vma_check(struct vm_area_struct *vma,
+>> +			       unsigned long vm_flags);
+>> +
+>=20
+> The patch looks good to me.
+>=20
+> But can we move hugepage_vma_check() here to avoid forward declaration of
+> the function?
+
+Thanks for the feedback! I will send v3 with this change.=20
+
+Song
