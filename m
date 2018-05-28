@@ -1,51 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 084F96B0269
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 616B06B026A
 	for <linux-mm@kvack.org>; Mon, 28 May 2018 11:54:00 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b31-v6so7808572plb.5
+Received: by mail-pf0-f200.google.com with SMTP id b25-v6so7566874pfn.10
         for <linux-mm@kvack.org>; Mon, 28 May 2018 08:54:00 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b70-v6si30780109pfe.265.2018.05.28.08.53.58
+        by mx.google.com with ESMTPS id o23-v6si8776511pfi.302.2018.05.28.08.53.59
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 May 2018 08:53:58 -0700 (PDT)
-Date: Mon, 28 May 2018 14:43:13 +0200
+        Mon, 28 May 2018 08:53:59 -0700 (PDT)
+Date: Mon, 28 May 2018 11:03:29 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
- oom_lock held.
-Message-ID: <20180528124313.GC27180@dhcp22.suse.cz>
-References: <20180524115017.GE20441@dhcp22.suse.cz>
- <201805250117.w4P1HgdG039943@www262.sakura.ne.jp>
- <20180525083118.GI11881@dhcp22.suse.cz>
- <201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp>
- <20180525114213.GJ11881@dhcp22.suse.cz>
- <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
+Subject: Re: [patch] mm, hugetlb_cgroup: suppress SIGBUS when hugetlb_cgroup
+ charge fails
+Message-ID: <20180528090329.GF1517@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1805251316090.167008@chino.kir.corp.google.com>
+ <20180525134459.5c6f8e06f55307f72b95a901@linux-foundation.org>
+ <alpine.DEB.2.21.1805251356570.7798@chino.kir.corp.google.com>
+ <20180525140940.976ca667f3c6ff83238c3620@linux-foundation.org>
+ <alpine.DEB.2.21.1805251505110.50062@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
+In-Reply-To: <alpine.DEB.2.21.1805251505110.50062@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 25-05-18 20:46:21, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Fri 25-05-18 19:57:32, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > What is wrong with the folliwing? should_reclaim_retry should be a
-> > > > natural reschedule point. PF_WQ_WORKER is a special case which needs a
-> > > > stronger rescheduling policy. Doing that unconditionally seems more
-> > > > straightforward than depending on a zone being a good candidate for a
-> > > > further reclaim.
-> > > 
-> > > Where is schedule_timeout_uninterruptible(1) for !PF_KTHREAD threads?
-> > 
-> > Re-read what I've said.
-> 
-> Please show me as a complete patch. Then, I will test your patch.
+On Fri 25-05-18 15:18:11, David Rientjes wrote:
+[...]
+> Let's see what Mike and Aneesh say, because they may object to using 
+> VM_FAULT_OOM because there's no way to guarantee that we'll come under the 
+> limit of hugetlb_cgroup as a result of the oom.  My assumption is that we 
+> use VM_FAULT_SIGBUS since oom killing will not guarantee that the 
+> allocation can succeed.
 
-So how about we start as simple as the following? If we _really_ need to
-touch should_reclaim_retry then it should be done in a separate patch
-with some numbers/tracing data backing that story.
----
+Yes. And the lack of hugetlb awareness in the oom killer is another
+reason. There is absolutely no reason to kill a task when somebody
+misconfigured the hugetlb pool.
+
+> But now a process can get a SIGBUS if its hugetlb 
+> pages are not allocatable or its under a limit imposed by hugetlb_cgroup 
+> that it's not aware of.  Faulting hugetlb pages is certainly risky 
+> business these days...
+
+It's always been and I am afraid it will always be unless somebody
+simply reimplements the current code to be NUMA aware for example (it is
+just too easy to drain a per NODE reserves...).
+
+> Perhaps the optimal solution for reaching hugetlb_cgroup limits is to 
+> induce an oom kill from within the hugetlb_cgroup itself?  Otherwise the 
+> unlucky process to fault their hugetlb pages last gets SIGBUS.
+
+Hmm, so you expect that the killed task would simply return pages to the
+pool? Wouldn't that require to have a hugetlb cgroup OOM killer that
+would only care about hugetlb reservations of tasks? Is that worth all
+the effort and the additional code?
+-- 
+Michal Hocko
+SUSE Labs
