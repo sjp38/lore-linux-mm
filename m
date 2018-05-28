@@ -1,81 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A8D116B0003
-	for <linux-mm@kvack.org>; Sun, 27 May 2018 19:48:58 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id h15-v6so2418514pgv.7
-        for <linux-mm@kvack.org>; Sun, 27 May 2018 16:48:58 -0700 (PDT)
-Received: from ipmail03.adl6.internode.on.net (ipmail03.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id g27-v6si15453177pgn.529.2018.05.27.16.48.56
-        for <linux-mm@kvack.org>;
-        Sun, 27 May 2018 16:48:57 -0700 (PDT)
-Date: Mon, 28 May 2018 09:48:54 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] doc: document scope NOFS, NOIO APIs
-Message-ID: <20180527234854.GF23861@dastard>
-References: <20180424183536.GF30619@thunk.org>
- <20180524114341.1101-1-mhocko@kernel.org>
- <20180524221715.GY10363@dastard>
- <20180525081624.GH11881@dhcp22.suse.cz>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 211C36B0005
+	for <linux-mm@kvack.org>; Sun, 27 May 2018 21:45:02 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id c137-v6so10051107ith.3
+        for <linux-mm@kvack.org>; Sun, 27 May 2018 18:45:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k17-v6sor12813497iob.227.2018.05.27.18.45.00
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 27 May 2018 18:45:00 -0700 (PDT)
+Subject: Re: [RESEND PATCH V5 00/33] block: support multipage bvec
+References: <20180525034621.31147-1-ming.lei@redhat.com>
+ <20180525045306.GB8740@kmo-pixel>
+ <8aa4276d-c0bc-3266-aa53-bf08a2e5ab5c@kernel.dk>
+ <20180527072332.GA18240@ming.t460p>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <cc266632-497c-6849-e291-4f042c8d987a@kernel.dk>
+Date: Sun, 27 May 2018 19:44:52 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180525081624.GH11881@dhcp22.suse.cz>
+In-Reply-To: <20180527072332.GA18240@ming.t460p>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Jonathan Corbet <corbet@lwn.net>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, "Darrick J. Wong" <darrick.wong@oracle.com>, David Sterba <dsterba@suse.cz>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Kent Overstreet <kent.overstreet@gmail.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>
 
-On Fri, May 25, 2018 at 10:16:24AM +0200, Michal Hocko wrote:
-> On Fri 25-05-18 08:17:15, Dave Chinner wrote:
-> > On Thu, May 24, 2018 at 01:43:41PM +0200, Michal Hocko wrote:
-> [...]
-> > > +FS/IO code then simply calls the appropriate save function right at the
-> > > +layer where a lock taken from the reclaim context (e.g. shrinker) and
-> > > +the corresponding restore function when the lock is released. All that
-> > > +ideally along with an explanation what is the reclaim context for easier
-> > > +maintenance.
-> > 
-> > This paragraph doesn't make much sense to me. I think you're trying
-> > to say that we should call the appropriate save function "before
-> > locks are taken that a reclaim context (e.g a shrinker) might
-> > require access to."
-> > 
-> > I think it's also worth making a note about recursive/nested
-> > save/restore stacking, because it's not clear from this description
-> > that this is allowed and will work as long as inner save/restore
-> > calls are fully nested inside outer save/restore contexts.
+On 5/27/18 1:23 AM, Ming Lei wrote:
+> On Fri, May 25, 2018 at 10:30:46AM -0600, Jens Axboe wrote:
+>> On 5/24/18 10:53 PM, Kent Overstreet wrote:
+>>> On Fri, May 25, 2018 at 11:45:48AM +0800, Ming Lei wrote:
+>>>> Hi,
+>>>>
+>>>> This patchset brings multipage bvec into block layer:
+>>>
+>>> patch series looks sane to me. goddamn that's a lot of renaming.
+>>
+>> Indeed... I actually objected to some of the segment -> page
+>> renaming, but it's still in there. The foo2() temporary functions
+>> also concern me, we all know there's nothing more permanent than a
+>> temporary fixup.
 > 
-> Any better?
+> Jens, I remember I explained the renaming story to you in lsfmm a bit:
 > 
-> -FS/IO code then simply calls the appropriate save function right at the
-> -layer where a lock taken from the reclaim context (e.g. shrinker) and
-> -the corresponding restore function when the lock is released. All that
-> -ideally along with an explanation what is the reclaim context for easier
-> -maintenance.
-> +FS/IO code then simply calls the appropriate save function before any
-> +lock shared with the reclaim context is taken.  The corresponding
-> +restore function when the lock is released. All that ideally along with
-> +an explanation what is the reclaim context for easier maintenance.
-> +
-> +Please note that the proper pairing of save/restore function allows nesting
-> +so memalloc_noio_save is safe to be called from an existing NOIO or NOFS scope.
+> 1) the current naming of segment is actually wrong, since every segment
+> only stores one single-page vector
+> 
+> 2) the most important part is that once multipage bvec is introduced,
+> if the old _segment naming is still kept, it can be very confusing,
+> especially no good name is left for the helpers of dealing with real
+> segment.
 
-It's better, but the talk of this being necessary for locking makes
-me cringe. XFS doesn't do it for locking reasons - it does it
-largely for preventing transaction context nesting, which has all
-sorts of problems that cause hangs (e.g. log space reservations
-can't be filled) that aren't directly locking related.
+Yes, we discussed exactly this, which is why I'm surprised you went
+ahead with the same approach. I told you I don't like tree wide renames,
+if they can be avoided. I'd rather suffer some pain wrt page vs segments
+naming, and then later do a rename (if it bothers us) once the dust has
+settled on the interesting part of the changes.
 
-i.e we should be talking about using these functions around contexts
-where recursion back into the filesystem through reclaim is
-problematic, not that "holding locks" is problematic. Locks can be
-used as an example of a problematic context, but locks are not the
-only recursion issue that require GFP_NOFS allocation contexts to
-avoid.
+I'm very well away of our current naming and what it signifies.  With
+#1, you are really splitting hairs, imho. Find a decent name for
+multiple segment. Chunk?
 
-Cheers,
+> For the foo2() temporary change, that is only for avoiding tree-wide
+> change in one single tree, with this way, we can change sub-system one
+> by one, but if you think it is good to do tree-wide conversion in one
+> patch, I am fine to do it in next version.
 
-Dave.
+It's still a painful middle step.
+
+>>> Things are going to get interesting when we start sticking compound
+>>> pages in the page cache, there'll be some interesting questions of
+>>> semantics to deal with then but I think getting this will only help
+>>> w.r.t. plumbing that through and not dealing with 4k pages
+>>> unnecessarily - but I think even if we were to decide that merging
+>>> in bio_add_page() is not the way to go when the upper layers are
+>>> passing compound pages around already, this patch series helps
+>>> because regardless at some point everything under
+>>> generic_make_request() is going to have to deal with segments that
+>>> are more than one page, and this patch series makes that happen. So
+>>> incremental progress.
+>>>
+>>> Jens, any objections to getting this in?
+>>
+>> I like most of it, but I'd much rather get this way earlier in the
+>> series.  We're basically just one week away from the merge window, it
+>> needs more simmer and testing time than that. On top of that, it
+>> hasn't received much review yet.
+>>
+>> So as far as I'm concerned, we can kick off the 4.19 block branch
+>> with iterated versions of this patchset.
+> 
+> OK, I will post out again once v4.19 is started.
+
+Sounds good.
+
 -- 
-Dave Chinner
-david@fromorbit.com
+Jens Axboe
