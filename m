@@ -1,87 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 15DD26B000C
-	for <linux-mm@kvack.org>; Mon, 28 May 2018 06:57:23 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id d20-v6so7211448pfn.16
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 03:57:23 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d11-v6si30533678pfh.131.2018.05.28.03.57.21
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 621C86B000D
+	for <linux-mm@kvack.org>; Mon, 28 May 2018 06:57:30 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 44-v6so10296394wrt.9
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 03:57:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f2-v6sor440700lfe.45.2018.05.28.03.57.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 May 2018 03:57:22 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 323/496] x86/mm: Do not forbid _PAGE_RW before init for __ro_after_init
-Date: Mon, 28 May 2018 12:01:48 +0200
-Message-Id: <20180528100333.440482048@linuxfoundation.org>
-In-Reply-To: <20180528100319.498712256@linuxfoundation.org>
-References: <20180528100319.498712256@linuxfoundation.org>
+        (Google Transport Security);
+        Mon, 28 May 2018 03:57:28 -0700 (PDT)
+Date: Mon, 28 May 2018 13:57:24 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2] mm/THP: use hugepage_vma_check() in
+ khugepaged_enter_vma_merge()
+Message-ID: <20180528105724.okg6c7i72r3v3jno@kshutemo-mobl1>
+References: <20180522194430.426688-1-songliubraving@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180522194430.426688-1-songliubraving@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Kees Cook <keescook@chromium.org>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>, Borislav Petkov <bp@alien8.de>, Dan Williams <dan.j.williams@intel.com>, David Woodhouse <dwmw2@infradead.org>, Hugh Dickins <hughd@google.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nadav Amit <namit@vmware.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
+To: Song Liu <songliubraving@fb.com>
+Cc: linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, rientjes@google.com, aarcange@redhat.com
 
-4.14-stable review patch.  If anyone has any objections, please let me know.
+On Tue, May 22, 2018 at 12:44:30PM -0700, Song Liu wrote:
+> khugepaged_enter_vma_merge() is using a different approach to check
+> whether a vma is valid for khugepaged_enter():
+> 
+>     if (!vma->anon_vma)
+>             /*
+>              * Not yet faulted in so we will register later in the
+>              * page fault if needed.
+>              */
+>             return 0;
+>     if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
+>             /* khugepaged not yet working on file or special mappings */
+>             return 0;
+> 
+> This check has some problems. One of the obvious problems is that
+> it doesn't check shmem_file(), so that vma backed with shmem files
+> will not call khugepaged_enter(). Here is an example of failed madvise():
+> 
+>    /* mount /dev/shm with huge=advise:
+>     *     mount -o remount,huge=advise /dev/shm */
+>    /* create file /dev/shm/huge */
+>    #define HUGE_FILE "/dev/shm/huge"
+> 
+>    fd = open(HUGE_FILE, O_RDONLY);
+>    ptr = mmap(NULL, FILE_SIZE, PROT_READ, MAP_PRIVATE, fd, 0);
+>    ret = madvise(ptr, FILE_SIZE, MADV_HUGEPAGE);
+> 
+> madvise() will return 0, but this memory region is never put in huge
+> page (check from /proc/meminfo: ShmemHugePages).
+> 
+> This patch fixes these problems by reusing hugepage_vma_check() in
+> khugepaged_enter_vma_merge().
+> 
+> vma->vm_flags is not yet updated in khugepaged_enter_vma_merge(),
+> so we need to pass the new vm_flags to hugepage_vma_check() through
+> a separate argument.
+> 
+> Signed-off-by: Song Liu <songliubraving@fb.com>
+> ---
+>  mm/khugepaged.c | 26 ++++++++++++--------------
+>  1 file changed, 12 insertions(+), 14 deletions(-)
+> 
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index d7b2a4b..9f74e51 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -430,18 +430,15 @@ int __khugepaged_enter(struct mm_struct *mm)
+>  	return 0;
+>  }
+>  
+> +static bool hugepage_vma_check(struct vm_area_struct *vma,
+> +			       unsigned long vm_flags);
+> +
 
-------------------
+The patch looks good to me.
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+But can we move hugepage_vma_check() here to avoid forward declaration of
+the function?
 
-[ Upstream commit 639d6aafe437a7464399d2a77d006049053df06f ]
-
-__ro_after_init data gets stuck in the .rodata section.  That's normally
-fine because the kernel itself manages the R/W properties.
-
-But, if we run __change_page_attr() on an area which is __ro_after_init,
-the .rodata checks will trigger and force the area to be immediately
-read-only, even if it is early-ish in boot.  This caused problems when
-trying to clear the _PAGE_GLOBAL bit for these area in the PTI code:
-it cleared _PAGE_GLOBAL like I asked, but also took it up on itself
-to clear _PAGE_RW.  The kernel then oopses the next time it wrote to
-a __ro_after_init data structure.
-
-To fix this, add the kernel_set_to_readonly check, just like we have
-for kernel text, just a few lines below in this function.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Acked-by: Kees Cook <keescook@chromium.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Arjan van de Ven <arjan@linux.intel.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: David Woodhouse <dwmw2@infradead.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nadav Amit <namit@vmware.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180406205514.8D898241@viggo.jf.intel.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/mm/pageattr.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -298,9 +298,11 @@ static inline pgprot_t static_protection
- 
- 	/*
- 	 * The .rodata section needs to be read-only. Using the pfn
--	 * catches all aliases.
-+	 * catches all aliases.  This also includes __ro_after_init,
-+	 * so do not enforce until kernel_set_to_readonly is true.
- 	 */
--	if (within(pfn, __pa_symbol(__start_rodata) >> PAGE_SHIFT,
-+	if (kernel_set_to_readonly &&
-+	    within(pfn, __pa_symbol(__start_rodata) >> PAGE_SHIFT,
- 		   __pa_symbol(__end_rodata) >> PAGE_SHIFT))
- 		pgprot_val(forbidden) |= _PAGE_RW;
- 
+-- 
+ Kirill A. Shutemov
