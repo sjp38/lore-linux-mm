@@ -1,51 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B9E66B0005
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 06:22:20 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id w7-v6so8908686pfd.9
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 03:22:20 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id j6-v6si25996337pgc.509.2018.05.29.03.22.18
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8088D6B000A
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 06:27:48 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id e32-v6so9356272ote.23
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 03:27:48 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id i9-v6si3349437otb.204.2018.05.29.03.27.47
         for <linux-mm@kvack.org>;
-        Tue, 29 May 2018 03:22:19 -0700 (PDT)
-Date: Tue, 29 May 2018 20:22:15 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2] doc: document scope NOFS, NOIO APIs
-Message-ID: <20180529102215.GL23861@dastard>
-References: <20180524114341.1101-1-mhocko@kernel.org>
- <20180529082644.26192-1-mhocko@kernel.org>
+        Tue, 29 May 2018 03:27:47 -0700 (PDT)
+Subject: Re: [PATCH v2 39/40] iommu/arm-smmu-v3: Add support for PRI
+References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
+ <20180511190641.23008-40-jean-philippe.brucker@arm.com>
+ <BLUPR0201MB150513BBAA161355DE9B3A48A5690@BLUPR0201MB1505.namprd02.prod.outlook.com>
+From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+Message-ID: <4e36ddb0-f1c3-f434-d330-be2dc9b88bb8@arm.com>
+Date: Tue, 29 May 2018 11:27:33 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180529082644.26192-1-mhocko@kernel.org>
+In-Reply-To: <BLUPR0201MB150513BBAA161355DE9B3A48A5690@BLUPR0201MB1505.namprd02.prod.outlook.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Jonathan Corbet <corbet@lwn.net>, Randy Dunlap <rdunlap@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: Bharat Kumar Gogada <bharatku@xilinx.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, Ravikiran Gummaluri <rgummal@xilinx.com>
 
-On Tue, May 29, 2018 at 10:26:44AM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On 25/05/18 15:08, Bharat Kumar Gogada wrote:
+>> +	master->can_fault = true;
+>> +	master->ste.prg_resp_needs_ssid =
+>> pci_prg_resp_requires_prefix(pdev);
 > 
-> Although the api is documented in the source code Ted has pointed out
-> that there is no mention in the core-api Documentation and there are
-> people looking there to find answers how to use a specific API.
-> 
-> Changes since v1
-> - add kerneldoc for the api - suggested by Johnatan
-> - review feedback from Dave and Johnatan
-> - feedback from Dave about more general critical context rather than
->   locking
-> - feedback from Mike
-> - typo fixed - Randy, Dave
-> 
-> Requested-by: "Theodore Y. Ts'o" <tytso@mit.edu>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> Any reason why this is not cleared in arm_smmu_disable_pri ?
 
-We could bikeshed forever about the exact wording, but it covers
-everything I think needs to be documented.
+Actually, setting it here is wrong. Since we now call enable_pri()
+lazily, prg_resp_needs_ssid isn't initialized when writing the STE. That
+bit is read by the SMMU when the PRIQ is full and it needs to
+auto-respond. Fortunately the PRI doesn't need to be enabled in order to
+read this bit, so we can move pci_prg_resp_requires_prefix() to
+add_device() and clear the bit in remove_device(). Thanks for catching this.
 
-Reviewed-by: Dave Chinner <dchinner@redhat.com>
-
--- 
-Dave Chinner
-david@fromorbit.com
+Jean
