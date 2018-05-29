@@ -1,42 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8088D6B000A
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 06:27:48 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id e32-v6so9356272ote.23
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 03:27:48 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i9-v6si3349437otb.204.2018.05.29.03.27.47
-        for <linux-mm@kvack.org>;
-        Tue, 29 May 2018 03:27:47 -0700 (PDT)
-Subject: Re: [PATCH v2 39/40] iommu/arm-smmu-v3: Add support for PRI
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-40-jean-philippe.brucker@arm.com>
- <BLUPR0201MB150513BBAA161355DE9B3A48A5690@BLUPR0201MB1505.namprd02.prod.outlook.com>
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Message-ID: <4e36ddb0-f1c3-f434-d330-be2dc9b88bb8@arm.com>
-Date: Tue, 29 May 2018 11:27:33 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id D8D7F6B0003
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 07:26:34 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id y49-v6so9423277oti.11
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 04:26:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y5-v6si12768465otb.442.2018.05.29.04.26.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 May 2018 04:26:33 -0700 (PDT)
+Date: Tue, 29 May 2018 07:26:31 -0400
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: [PATCH 22/34] xfs: make xfs_writepage_map extent map centric
+Message-ID: <20180529112630.GA107328@bfoster.bfoster>
+References: <20180523144357.18985-1-hch@lst.de>
+ <20180523144357.18985-23-hch@lst.de>
+ <20180524145935.GA84959@bfoster.bfoster>
+ <20180524165350.GA22675@lst.de>
+ <20180524181356.GA89391@bfoster.bfoster>
+ <20180525061900.GA16409@lst.de>
+ <20180525113532.GA92036@bfoster.bfoster>
+ <20180528071543.GA5428@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <BLUPR0201MB150513BBAA161355DE9B3A48A5690@BLUPR0201MB1505.namprd02.prod.outlook.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180528071543.GA5428@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bharat Kumar Gogada <bharatku@xilinx.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, Ravikiran Gummaluri <rgummal@xilinx.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>
 
-On 25/05/18 15:08, Bharat Kumar Gogada wrote:
->> +	master->can_fault = true;
->> +	master->ste.prg_resp_needs_ssid =
->> pci_prg_resp_requires_prefix(pdev);
+On Mon, May 28, 2018 at 09:15:43AM +0200, Christoph Hellwig wrote:
+> On Fri, May 25, 2018 at 07:35:33AM -0400, Brian Foster wrote:
+> > That comment is what I'm basing on...
+> > 
+> > > 	/*
+> > > 	 * We can end up here with no error and nothing to write if we
+> > > 	 * race with a partial page truncate on a sub-page block sized
+> > > 	 * filesystem. In that case we need to mark the page clean.
+> > > 	 */
+> > > 
+> > 
+> > So we can correctly end up with nothing to write on a dirty page, but it
+> > presumes a race with truncate. So suppose we end up with a dirty page,
+> >
+> > at least one uptodate block, count is zero (i.e., due to holes) and
+> > i_size is beyond the page. Would that not be completely bogus? If bogus,
+> > I think that would at least detect the dumb example I posted earlier.
 > 
-> Any reason why this is not cleared in arm_smmu_disable_pri ?
+> The trivial file_offset >= i_size_read assert explodes pretty soon
+> in generic/091, and already does so with the existing mainline code.
+> 
 
-Actually, setting it here is wrong. Since we now call enable_pri()
-lazily, prg_resp_needs_ssid isn't initialized when writing the STE. That
-bit is read by the SMMU when the PRIQ is full and it needs to
-auto-respond. Fortunately the PRI doesn't need to be enabled in order to
-read this bit, so we can move pci_prg_resp_requires_prefix() to
-add_device() and clear the bit in remove_device(). Thanks for catching this.
+What exactly is the trivial check? Can you show the code please?
 
-Jean
+Brian
+
+> I'd rather not open another can of worms right now..
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
