@@ -1,69 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E4ED6B0003
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 11:38:04 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z5-v6so9224230pfz.6
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 08:38:04 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id d77-v6si3156862pfb.262.2018.05.29.08.38.02
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3326F6B0003
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 11:48:24 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e7-v6so9209517pfi.8
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 08:48:24 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id j6-v6si26430902pgc.509.2018.05.29.08.48.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 May 2018 08:38:03 -0700 (PDT)
-From: "Li, Philip" <philip.li@intel.com>
-Subject: RE: [kbuild-all] [linux-stable-rc:linux-4.14.y 3879/4798]
- kernel//time/posix-timers.c:1231:1: note: in expansion of macro
- 'COMPAT_SYSCALL_DEFINE4'
-Date: Tue, 29 May 2018 15:37:59 +0000
-Message-ID: <831EE4E5E37DCC428EB295A351E662494CB98CE2@shsmsx102.ccr.corp.intel.com>
-References: <201805292323.ZKQwkUJy%fengguang.wu@intel.com>
- <20180529153252.GB521@tigerII.localdomain>
-In-Reply-To: <20180529153252.GB521@tigerII.localdomain>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 29 May 2018 08:48:22 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
+ oom_lock held.
+References: <20180515091655.GD12670@dhcp22.suse.cz>
+ <201805181914.IFF18202.FOJOVSOtLFMFHQ@I-love.SAKURA.ne.jp>
+ <20180518122045.GG21711@dhcp22.suse.cz>
+ <201805210056.IEC51073.VSFFHFOOQtJMOL@I-love.SAKURA.ne.jp>
+ <20180522061850.GB20020@dhcp22.suse.cz>
+ <201805231924.EED86916.FSQJMtHOLVOFOF@I-love.SAKURA.ne.jp>
+ <20180529071736.GI27180@dhcp22.suse.cz>
+ <20180529081639.GM27180@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <40a5a42f-6812-b4ee-a72e-7f01dc9de464@i-love.sakura.ne.jp>
+Date: Tue, 29 May 2018 23:33:13 +0900
 MIME-Version: 1.0
+In-Reply-To: <20180529081639.GM27180@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, lkp <lkp@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "kbuild-all@01.org" <kbuild-all@01.org>, Greg
- Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Michal Hocko <mhocko@kernel.org>, guro@fb.com
+Cc: rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-> Subject: Re: [kbuild-all] [linux-stable-rc:linux-4.14.y 3879/4798] kernel=
-//time/posix-
-> timers.c:1231:1: note: in expansion of macro 'COMPAT_SYSCALL_DEFINE4'
->=20
-> On (05/29/18 23:23), kbuild test robot wrote:
-> > Hi Sergey,
-> >
-> > First bad commit (maybe !=3D root cause):
-> >
-> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-st=
-able-rc.git
-> linux-4.14.y
-> > head:   9fcb9d72e8a3a813caae6e2fac43a73603d75abd
-> > commit: 8e99c881e497e7f7528f693c563e204ae888a846 [3879/4798]
-> tools/lib/subcmd/pager.c: do not alias select() params
-> > config: x86_64-acpi-redef (attached as .config)
-> > compiler: gcc-8 (Debian 8.1.0-3) 8.1.0
-> > reproduce:
-> >         git checkout 8e99c881e497e7f7528f693c563e204ae888a846
-> >         # save the attached .config to linux build tree
-> >         make ARCH=3Dx86_64
->=20
-> Hello,
->=20
-> The commit in question is for a user space tool. I don't think it has
-> anything to do with the __SYSCALL_DEFINEx macro.
-thanks for info, we also got similar "false" warning in other report, for n=
-ow, I will
-roll back to gcc-7.3, and do more check for 8.1.
+On 2018/05/29 17:16, Michal Hocko wrote:
+> With the full changelog. This can be either folded into the respective
+> patch or applied on top.
+> 
+>>From 0bd619e7a68337c97bdaed288e813e96a14ba339 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Tue, 29 May 2018 10:09:33 +0200
+> Subject: [PATCH] mm, memcg, oom: fix pre-mature allocation failures
+> 
+> Tetsuo has noticed that "mm, oom: cgroup-aware OOM killer" can lead to a
+> pre-mature allocation failure if the cgroup aware oom killer is enabled
+> and select_victim_memcg doesn't pick up any memcg to kill because there
+> is a memcg already being killed. oc->chosen_memcg will become INFLIGHT_VICTIM
+> and oom_kill_memcg_victim will bail out early. oc->chosen_task will
+> stay NULL, however, and out_of_memory will therefore return false which
+> forces __alloc_pages_may_oom to not set did_some_progress and the page
+> allocator backs out and fails the allocation.
+> U
+> Fix this by checking both chosen_task and chosen_memcg in out_of_memory
+> and return false only when _both_ are NULL.
 
->=20
-> Seems that you have switched to gcc-8.1, which has aliasing warning ON
-> by default.
->=20
-> 	-ss
-> _______________________________________________
-> kbuild-all mailing list
-> kbuild-all@lists.01.org
-> https://lists.01.org/mailman/listinfo/kbuild-all
+I don't like this patch. It is not easy to understand and is fragile to
+future changes. Currently the only case !!oc->chosen can become false is that
+there was no eligible tasks when SysRq-f was requested or memcg OOM occurred.
+
+	/* Found nothing?!?! Either we hang forever, or we panic. */
+	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+
+With this patch applied, what happens if
+mem_cgroup_select_oom_victim(oc) && oom_kill_memcg_victim(oc) forgot to set
+oc->chosen_memcg to NULL and called select_bad_process(oc) and reached
+
+        /* Found nothing?!?! Either we hang forever, or we panic. */
+        if (!oc->chosen_task && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+
+but did not trigger panic() because of is_sysrq_oom(oc) || is_memcg_oom(oc)
+and reached the last "!!(oc->chosen_task | oc->chosen_memcg)" line?
+It will by error return "true" when no eligible tasks found...
+
+Don't make return conditions complicated.
+The appropriate fix is to kill "delay" and "goto out;" now! My patch does it!!
