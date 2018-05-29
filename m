@@ -1,230 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 385BC6B0003
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 00:01:49 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id f207-v6so6874449qke.22
-        for <linux-mm@kvack.org>; Mon, 28 May 2018 21:01:49 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id w36-v6si13788030qtb.19.2018.05.28.21.01.47
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 846436B0003
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 02:49:25 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 89-v6so8802550plb.18
+        for <linux-mm@kvack.org>; Mon, 28 May 2018 23:49:25 -0700 (PDT)
+Received: from prv1-mh.provo.novell.com (prv1-mh.provo.novell.com. [137.65.248.33])
+        by mx.google.com with ESMTPS id y13-v6si24078377pge.290.2018.05.28.23.49.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 May 2018 21:01:47 -0700 (PDT)
-Message-ID: <1527566501.2723.22.camel@themaw.net>
-Subject: Re: [PATCH] mm-kasan-dont-vfree-nonexistent-vm_area-fix
-From: Ian Kent <raven@themaw.net>
-Date: Tue, 29 May 2018 12:01:41 +0800
-In-Reply-To: <1527482351.2693.12.camel@themaw.net>
-References: <dabee6ab-3a7a-51cd-3b86-5468718e0390@virtuozzo.com>
-	 <201805261122.HdUpobQm%fengguang.wu@intel.com>
-	 <20180525204804.3a655370ef4b41e0d96e03f3@linux-foundation.org>
-	 <1527480795.2693.4.camel@themaw.net> <1527482351.2693.12.camel@themaw.net>
-Content-Type: text/plain; charset="UTF-8"
+        Mon, 28 May 2018 23:49:24 -0700 (PDT)
+Message-Id: <5B0CF7EF02000078001C677A@prv1-mh.provo.novell.com>
+Date: Tue, 29 May 2018 00:49:19 -0600
+From: "Jan Beulich" <JBeulich@suse.com>
+Subject: Re: [llvmlinux] clang fails on linux-next since commit
+ 8bf705d13039
+References: <alpine.DEB.2.20.1803171208370.21003@alpaca>
+ <CACT4Y+aLqY6wUfRMto_CZxPRSyvPKxK8ucvAmAY-aR_gq8fOAg@mail.gmail.com>
+ <20180319172902.GB37438@google.com>
+ <99fbbbe3-df05-446b-9ce0-55787ea038f3@googlegroups.com>
+ <CACT4Y+YLj_oNkD7UH-MS3StQG1NBp-gDQ=goKrC9RNET216G-Q@mail.gmail.com>
+ <CA+icZUWpg8dAtsBMzhKRt+6fyPdmHqw+Uq28ACr6byYtb42Mtg@mail.gmail.com>
+ <CACT4Y+bvN+Fcm6K_UtsL4rqfWtqUimUNpBS4OnviEfbVvPvqHg@mail.gmail.com>
+ <CA+icZUVtK+Z_TLSevtheKSBp+WcfP2s+gbZ1meV1e+yKccQJdA@mail.gmail.com>
+In-Reply-To: <CA+icZUVtK+Z_TLSevtheKSBp+WcfP2s+gbZ1meV1e+yKccQJdA@mail.gmail.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Paul Menzel <pmenzel+linux-kasan-dev@molgen.mpg.de>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
+To: sedat.dilek@gmail.com
+Cc: Matthias Kaehlcke <mka@chromium.org>, Dmitry Vyukov <dvyukov@google.com>, Greg Hackmann <ghackmann@google.com>, Luis Lozano <llozano@google.com>, Michael Davidson <md@google.com>, Nick Desaulniers <ndesaulniers@google.com>, Paul Lawrence <paullawrence@google.com>, Sami Tolvanen <samitolvanen@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, llvmlinux@lists.linuxfoundation.org, sil2review@lists.osadl.org
 
-On Mon, 2018-05-28 at 12:39 +0800, Ian Kent wrote:
-> On Mon, 2018-05-28 at 12:13 +0800, Ian Kent wrote:
-> > On Fri, 2018-05-25 at 20:48 -0700, Andrew Morton wrote:
-> > > On Sat, 26 May 2018 11:31:35 +0800 kbuild test robot <lkp@intel.com>
-> > > wrote:
-> > > 
-> > > > Hi Andrey,
-> > > > 
-> > > > I love your patch! Yet something to improve:
-> > > > 
-> > > > [auto build test ERROR on mmotm/master]
-> > > > [cannot apply to v4.17-rc6]
-> > > > [if your patch is applied to the wrong git tree, please drop us a note
-> > > > to
-> > > > help improve the system]
-> > > > 
-> > > > url:    https://github.com/0day-ci/linux/commits/Andrey-Ryabinin/mm-kasa
-> > > > n-
-> > > > do
-> > > > nt-vfree-nonexistent-vm_area-fix/20180526-093255
-> > > > base:   git://git.cmpxchg.org/linux-mmotm.git master
-> > > > config: sparc-allyesconfig (attached as .config)
-> > > > compiler: sparc64-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
-> > > > reproduce:
-> > > >         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sb
-> > > > in
-> > > > /m
-> > > > ake.cross -O ~/bin/make.cross
-> > > >         chmod +x ~/bin/make.cross
-> > > >         # save the attached .config to linux build tree
-> > > >         make.cross ARCH=sparc 
-> > > > 
-> > > > All errors (new ones prefixed by >>):
-> > > > 
-> > > >    fs/autofs/inode.o: In function `autofs_new_ino':
-> > > >    inode.c:(.text+0x220): multiple definition of `autofs_new_ino'
-> > > >    fs/autofs/inode.o:inode.c:(.text+0x220): first defined here
-> > > >    fs/autofs/inode.o: In function `autofs_clean_ino':
-> > > >    inode.c:(.text+0x280): multiple definition of `autofs_clean_ino'
-> > > >    fs/autofs/inode.o:inode.c:(.text+0x280): first defined here
-> > > 
-> > > There's bot breakage here - clearly that patch didn't cause this error.
-> > > 
-> > > Ian, this autofs glitch may still not be fixed.
-> > 
-> > Yes, autofs-make-autofs4-Kconfig-depend-on-AUTOFS_FS.patch should have
-> > fixed that.
-> > 
-> > I tied a bunch of .config combinations and I was unable to find any that
-> > lead to both CONFIG_AUTOFS_FS and CONFIG_AUTOFS4_FS being defined.
-> 
-> Oh, autofs-make-autofs4-Kconfig-depend-on-AUTOFS_FS.patch was sent as
-> a follow up patch which means it's still possible to have both
-> CONFIG_AUTOFS_FS and CONFIG_AUTOFS4_FS set between 
-> autofs-create-autofs-Kconfig-and-Makefile.patch and the above patch.
-> 
-> Perhaps all that's needed is to fold the follow up patch into
-> autofs-create-autofs-Kconfig-and-Makefile.patch to close that
-> possibility.
-> 
-> I'll check that can be done without problem.
+>>> On 28.05.18 at 18:05, <sedat.dilek@gmail.com> wrote:
+> On Mon, Mar 19, 2018 at 6:29 PM, Matthias Kaehlcke <mka@chromium.org> =
+wrote:
+>> El Mon, Mar 19, 2018 at 09:43:25AM +0300 Dmitry Vyukov ha dit:
+>>
+>>> On Sat, Mar 17, 2018 at 2:13 PM, Lukas Bulwahn <lukas.bulwahn@gmail.com=
+> wrote:
+>>> > Hi Dmitry, hi Ingo,
+>>> >
+>>> > since commit 8bf705d13039 ("locking/atomic/x86: Switch atomic.h to =
+use atomic-instrumented.h")
+>>> > on linux-next (tested and bisected from tag next-20180316), =
+compiling the
+>>> > kernel with clang fails with:
+>>> >
+>>> > In file included from arch/x86/entry/vdso/vdso32/vclock_gettime.c:33:=
 
-I've had a look and I can't see any reason for this other than
-CONFIG_AUTOFS_FS and CONFIG_AUTOFS4_FS both being set which isn't
-ok because the file system name is the same for both.
+>>> > In file included from arch/x86/entry/vdso/vdso32/../vclock_gettime.c:=
+15:
+>>> > In file included from ./arch/x86/include/asm/vgtod.h:6:
+>>> > In file included from ./include/linux/clocksource.h:13:
+>>> > In file included from ./include/linux/timex.h:56:
+>>> > In file included from ./include/uapi/linux/timex.h:56:
+>>> > In file included from ./include/linux/time.h:6:
+>>> > In file included from ./include/linux/seqlock.h:36:
+>>> > In file included from ./include/linux/spinlock.h:51:
+>>> > In file included from ./include/linux/preempt.h:81:
+>>> > In file included from ./arch/x86/include/asm/preempt.h:7:
+>>> > In file included from ./include/linux/thread_info.h:38:
+>>> > In file included from ./arch/x86/include/asm/thread_info.h:53:
+>>> > In file included from ./arch/x86/include/asm/cpufeature.h:5:
+>>> > In file included from ./arch/x86/include/asm/processor.h:21:
+>>> > In file included from ./arch/x86/include/asm/msr.h:67:
+>>> > In file included from ./arch/x86/include/asm/atomic.h:279:
+>>> > ./include/asm-generic/atomic-instrumented.h:295:10: error: invalid =
+output size for constraint '=3Da'
+>>> >                 return arch_cmpxchg((u64 *)ptr, (u64)old, (u64)new);
+>>> >                        ^
+>>> > ./arch/x86/include/asm/cmpxchg.h:149:2: note: expanded from macro =
+'arch_cmpxchg'
+>>> >         __cmpxchg(ptr, old, new, sizeof(*(ptr)))
+>>> >         ^
+>>> > ./arch/x86/include/asm/cmpxchg.h:134:2: note: expanded from macro =
+'__cmpxchg'
+>>> >         __raw_cmpxchg((ptr), (old), (new), (size), LOCK_PREFIX)
+>>> >         ^
+>>> > ./arch/x86/include/asm/cmpxchg.h:95:17: note: expanded from macro =
+'__raw_cmpxchg'
+>>> >                              : "=3Da" (__ret), "+m" (*__ptr)         =
+     \
+>>> >                                      ^
+>>> >
+>>> > (... and some more similar and closely related errors)
+>>>
+>>>
+>>> Thanks for reporting, Lukas.
+>>>
+>>> +more people who are more aware of the current state of clang for =
+kernel.
+>>>
+>>> Are there are known issues in '=3Da' constraint handling between gcc =
+and
+>>> clang? Is there a recommended way to resolve them?
+>>>
+>>> Also, Lukas what's your version of clang? Potentially there are some
+>>> fixes for kernel in the very latest versions of clang.
+>>
+>> My impression is that the problem only occurs in code built for
+>> 32-bit (like arch/x86/entry/vdso/vdso32/*), where the use of a 64-bit
+>> address with a '=3Da' constraint is indeed invalid. I think the 'root
+>> cause' is that clang parses unreachable code before it discards it:
+>>
+>> static __always_inline unsigned long
+>> cmpxchg_local_size(volatile void *ptr, unsigned long old, unsigned long =
+new,
+>>                    int size)
+>> {
+>>         ...
+>>         switch (size) {
+>>         ...
+>>         case 8:
+>>                 BUILD_BUG_ON(sizeof(unsigned long) !=3D 8);
+>>                 return arch_cmpxchg_local((u64 *)ptr, (u64)old, =
+(u64)new);
+>>         }
+>>         ...
+>> }
+>>
+>> For 32-bit builds size is 4 and the code in the 'offending' branch is
+>> unreachable, however clang still parses it.
+>>
+>> d135b8b5060e ("arm64: uaccess: suppress spurious clang warning") fixes
+>> a similar issue.
+>>
+>=20
+> [ CC Jan Beulich ]
+>=20
+> Hi Jan,
+>=20
+> can you look at this issue [1] as you have fixed the percpu issue [2]
+> with [3] on the Linux-kernel side?
 
-I have seen build system configs that have both of these set even
-though the "autofs" module was removed years ago so that's probably
-still present in some site build systems.
+I don't see the connection between the two problems. The missing suffixes
+were a latent problem with future improved assembler behavior. The issue
+here is completely different. Short of the clang folks being able to point
+out a suitable compiler level workaround, did anyone consider replacing =
+the
+expressions with the casts to u64 by invocations of arch_cmpxchg64() /
+arch_cmpxchg64_local()? Later code in asm-generic/atomic-instrumented.h
+suggests these symbols are required to be defined anyway.
 
-I see you've added the follow up patch I mentioned above as
-"autofs-update-fs-autofs4-kconfig-fix.patch"
-with title
-"autofs - make autofs4 Kconfig depend on AUTOFS_FS"
+The only other option I see is to break out the __X86_CASE_Q cases into
+separate macros (evaluating to nothing or BUILD_BUG_ON(1) for 32-bit).
+The definition of __X86_CASE_Q for 32-bit is bogus anyway - the
+comment saying "sizeof will never return -1" is meaningless, because for
+the comparison with the expression in switch() the constant from the case
+label is converted to the type of that expression (i.e. size_t) anyway, =
+i.e.
+the value compared against is (size_t)-1, which is a value the compiler
+can't prove that it won't be returned by sizeof() (despite that being
+extremely unlikely).
 
-Folding this patch into the patch
-"autofs-create-autofs-kconfig-and-makefile.patch"
-with title
-"autofs: create autofs Kconfig and Makefile"
+Jan
 
-I'm unable to reproduce the breakage which leads me to think
-the problem must be due to .config having both the CONFIG_AUTOFS*
-entries defined to something other than n (which certainly does
-produce the breakage if the follow up patch is not present, so
-the result is not bisectable until the follow up patch is added).
-
-Also, I don't think there is a need to update the description of
-"autofs: create autofs Kconfig and Makefile"
-because the patch that is folded into it adds a NOTE to the
-fs/autofs4/Kconfig help that essentially re-states what is in
-the description.
-
-If this continues to happen I'll need more information about
-applied patches and kernel config used to work out what's going
-on.
-
-For completeness here's the resulting patch after folding in the
-follow up patch above:
-
-autofs - create autofs Kconfig and Makefile
-
-From: Ian Kent <raven@themaw.net>
-
-Create Makefile and Kconfig for autofs module.
-
-Signed-off-by: Ian Kent <raven@themaw.net>
----
- fs/Kconfig         |    1 +
- fs/Makefile        |    1 +
- fs/autofs/Kconfig  |   20 ++++++++++++++++++++
- fs/autofs/Makefile |    7 +++++++
- fs/autofs4/Kconfig |    8 ++++++++
- 5 files changed, 37 insertions(+)
- create mode 100644 fs/autofs/Kconfig
- create mode 100644 fs/autofs/Makefile
-
-diff --git a/fs/Kconfig b/fs/Kconfig
-index bc821a86d965..e712e62afe59 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -108,6 +108,7 @@ source "fs/notify/Kconfig"
- 
- source "fs/quota/Kconfig"
- 
-+source "fs/autofs/Kconfig"
- source "fs/autofs4/Kconfig"
- source "fs/fuse/Kconfig"
- source "fs/overlayfs/Kconfig"
-diff --git a/fs/Makefile b/fs/Makefile
-index c9375fd2c8c4..2e005525cc19 100644
---- a/fs/Makefile
-+++ b/fs/Makefile
-@@ -102,6 +102,7 @@ obj-$(CONFIG_AFFS_FS)		+= affs/
- obj-$(CONFIG_ROMFS_FS)		+= romfs/
- obj-$(CONFIG_QNX4FS_FS)		+= qnx4/
- obj-$(CONFIG_QNX6FS_FS)		+= qnx6/
-+obj-$(CONFIG_AUTOFS_FS)		+= autofs/
- obj-$(CONFIG_AUTOFS4_FS)	+= autofs4/
- obj-$(CONFIG_ADFS_FS)		+= adfs/
- obj-$(CONFIG_FUSE_FS)		+= fuse/
-diff --git a/fs/autofs/Kconfig b/fs/autofs/Kconfig
-new file mode 100644
-index 000000000000..6a2064eb3b27
---- /dev/null
-+++ b/fs/autofs/Kconfig
-@@ -0,0 +1,20 @@
-+config AUTOFS_FS
-+	tristate "Kernel automounter support (supports v3, v4 and v5)"
-+	default n
-+	help
-+	   The automounter is a tool to automatically mount remote file systems
-+	   on demand. This implementation is partially kernel-based to reduce
-+	   overhead in the already-mounted case; this is unlike the BSD
-+	   automounter (amd), which is a pure user space daemon.
-+
-+	   To use the automounter you need the user-space tools from
-+	   <https://www.kernel.org/pub/linux/daemons/autofs/>; you also want
-+	   to answer Y to "NFS file system support", below.
-+
-+	   To compile this support as a module, choose M here: the module will be
-+	   called autofs.
-+
-+	   If you are not a part of a fairly large, distributed network or
-+	   don't have a laptop which needs to dynamically reconfigure to the
-+	   local network, you probably do not need an automounter, and can say
-+	   N here.
-diff --git a/fs/autofs/Makefile b/fs/autofs/Makefile
-new file mode 100644
-index 000000000000..43fedde15c26
---- /dev/null
-+++ b/fs/autofs/Makefile
-@@ -0,0 +1,7 @@
-+#
-+# Makefile for the linux autofs-filesystem routines.
-+#
-+
-+obj-$(CONFIG_AUTOFS_FS) += autofs.o
-+
-+autofs-objs := init.o inode.o root.o symlink.o waitq.o expire.o dev-ioctl.o
-diff --git a/fs/autofs4/Kconfig b/fs/autofs4/Kconfig
-index 53bc592a250d..2c2fdf989f90 100644
---- a/fs/autofs4/Kconfig
-+++ b/fs/autofs4/Kconfig
-@@ -1,6 +1,7 @@
- config AUTOFS4_FS
- 	tristate "Kernel automounter version 4 support (also supports v3 and v5)"
- 	default n
-+	depends on AUTOFS_FS = n
- 	help
- 	  The automounter is a tool to automatically mount remote file systems
- 	  on demand. This implementation is partially kernel-based to reduce
-@@ -30,3 +31,10 @@ config AUTOFS4_FS
- 	  - any "alias autofs autofs4" will need to be removed.
- 
- 	  Please configure AUTOFS_FS instead of AUTOFS4_FS from now on.
-+
-+	  NOTE: Since the modules autofs and autofs4 use the same file system
-+		type name of "autofs" only one can be built. The "depends"
-+		above will result in AUTOFS4_FS not appearing in .config for
-+		any setting of AUTOFS_FS other than n and AUTOFS4_FS will
-+		appear under the AUTOFS_FS entry otherwise which is intended
-+		to draw attention to the module rename change.
+> This problem still occurs with Linux v4.17-rc7 and reverting
+> x86/asm-goto support (clang-7 does not support it).
+>=20
+> Before this gets fixed on the clang-side, do you see a possibility to
+> fix this on the kernel-side?
+>=20
+> Clang fails like this as reported above and see [4] as mentioned by
+> Matthias before.
+>=20
+> ./arch/x86/include/asm/cpufeature.h:150:2: warning: "Compiler lacks
+> ASM_GOTO support. Add -D __BPF_TRACING__ to your compiler arguments"
+> [-W#warnings]
+> #warning "Compiler lacks ASM_GOTO support. Add -D __BPF_TRACING__ to
+> your compiler arguments"
+>  ^
+> In file included from arch/x86/entry/vdso/vdso32/vclock_gettime.c:31:
+> In file included from arch/x86/entry/vdso/vdso32/../vclock_gettime.c:15:
+> In file included from ./arch/x86/include/asm/vgtod.h:6:
+> In file included from ./include/linux/clocksource.h:13:
+> In file included from ./include/linux/timex.h:56:
+> In file included from ./include/uapi/linux/timex.h:56:
+> In file included from ./include/linux/time.h:6:
+> In file included from ./include/linux/seqlock.h:36:
+> In file included from ./include/linux/spinlock.h:51:
+> In file included from ./include/linux/preempt.h:81:
+> In file included from ./arch/x86/include/asm/preempt.h:7:
+> In file included from ./include/linux/thread_info.h:38:
+> In file included from ./arch/x86/include/asm/thread_info.h:53:
+> In file included from ./arch/x86/include/asm/cpufeature.h:5:
+> In file included from ./arch/x86/include/asm/processor.h:21:
+> In file included from ./arch/x86/include/asm/msr.h:67:
+> In file included from ./arch/x86/include/asm/atomic.h:283:
+> ./include/asm-generic/atomic-instrumented.h:365:10: error: invalid
+> output size for constraint '=3Da'
+>                 return arch_cmpxchg((u64 *)ptr, (u64)old, (u64)new);
+>                        ^
+> ./arch/x86/include/asm/cmpxchg.h:149:2: note: expanded from macro=20
+> 'arch_cmpxchg'
+>         __cmpxchg(ptr, old, new, sizeof(*(ptr)))
+>         ^
+> ./arch/x86/include/asm/cmpxchg.h:134:2: note: expanded from macro=20
+> '__cmpxchg'
+>         __raw_cmpxchg((ptr), (old), (new), (size), LOCK_PREFIX)
+>         ^
+> ./arch/x86/include/asm/cmpxchg.h:95:17: note: expanded from macro
+> '__raw_cmpxchg'
+>                              : "=3Da" (__ret), "+m" (*__ptr)             =
+ \
+>                                      ^
+>=20
+> Thanks in advance.
+>=20
+> Regards,
+> - Sedat -
+>=20
+> [1] https://bugs.llvm.org/show_bug.cgi?id=3D33587=20
+> [2] https://bugs.llvm.org/show_bug.cgi?id=3D33587#c18=20
+> [3] https://git.kernel.org/linus/22636f8c9511245cb3c8412039f1dd95afb3aa59=
+=20
+> [4]=20
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/i=
+nclu=20
+> de/asm-generic/atomic-instrumented.h#n365
