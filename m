@@ -1,74 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B08706B0003
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 13:28:19 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id f5-v6so4177730pgq.19
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 10:28:19 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m64-v6si33067758pfm.0.2018.05.29.10.28.18
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 687976B0003
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 13:35:37 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x21-v6so9328914pfn.23
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 10:35:37 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c11-v6si31718335pls.76.2018.05.29.10.35.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 May 2018 10:28:18 -0700 (PDT)
-Date: Tue, 29 May 2018 19:28:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
- oom_lock held.
-Message-ID: <20180529172815.GY27180@dhcp22.suse.cz>
-References: <20180515091655.GD12670@dhcp22.suse.cz>
- <201805181914.IFF18202.FOJOVSOtLFMFHQ@I-love.SAKURA.ne.jp>
- <20180518122045.GG21711@dhcp22.suse.cz>
- <201805210056.IEC51073.VSFFHFOOQtJMOL@I-love.SAKURA.ne.jp>
- <20180522061850.GB20020@dhcp22.suse.cz>
- <201805231924.EED86916.FSQJMtHOLVOFOF@I-love.SAKURA.ne.jp>
- <20180529071736.GI27180@dhcp22.suse.cz>
- <20180529081639.GM27180@dhcp22.suse.cz>
- <40a5a42f-6812-b4ee-a72e-7f01dc9de464@i-love.sakura.ne.jp>
- <20180529171833.GX27180@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 May 2018 10:35:36 -0700 (PDT)
+Date: Tue, 29 May 2018 10:34:45 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: Change return type to vm_fault_t
+Message-ID: <20180529173445.GD15148@bombadil.infradead.org>
+References: <20180529143126.GA19698@jordon-HP-15-Notebook-PC>
+ <20180529145055.GA15148@bombadil.infradead.org>
+ <CAFqt6zaxt=wXjvKV0qA+OwU1iUyoBdW2cJSLFqXupVWRpKdqEA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180529171833.GX27180@dhcp22.suse.cz>
+In-Reply-To: <CAFqt6zaxt=wXjvKV0qA+OwU1iUyoBdW2cJSLFqXupVWRpKdqEA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, zi.yan@cs.rutgers.edu, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Greg KH <gregkh@linuxfoundation.org>, Mark Rutland <mark.rutland@arm.com>, riel@redhat.com, pasha.tatashin@oracle.com, jschoenh@amazon.de, Kate Stewart <kstewart@linuxfoundation.org>, David Rientjes <rientjes@google.com>, tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, yang.s@alibaba-inc.com, Minchan Kim <minchan@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
 
-On Tue 29-05-18 19:18:33, Michal Hocko wrote:
-> On Tue 29-05-18 23:33:13, Tetsuo Handa wrote:
-> > On 2018/05/29 17:16, Michal Hocko wrote:
-> > > With the full changelog. This can be either folded into the respective
-> > > patch or applied on top.
-> > > 
-> > >>From 0bd619e7a68337c97bdaed288e813e96a14ba339 Mon Sep 17 00:00:00 2001
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > Date: Tue, 29 May 2018 10:09:33 +0200
-> > > Subject: [PATCH] mm, memcg, oom: fix pre-mature allocation failures
-> > > 
-> > > Tetsuo has noticed that "mm, oom: cgroup-aware OOM killer" can lead to a
-> > > pre-mature allocation failure if the cgroup aware oom killer is enabled
-> > > and select_victim_memcg doesn't pick up any memcg to kill because there
-> > > is a memcg already being killed. oc->chosen_memcg will become INFLIGHT_VICTIM
-> > > and oom_kill_memcg_victim will bail out early. oc->chosen_task will
-> > > stay NULL, however, and out_of_memory will therefore return false which
-> > > forces __alloc_pages_may_oom to not set did_some_progress and the page
-> > > allocator backs out and fails the allocation.
-> > > U
-> > > Fix this by checking both chosen_task and chosen_memcg in out_of_memory
-> > > and return false only when _both_ are NULL.
-> > 
-> > I don't like this patch. It is not easy to understand and is fragile to
-> > future changes. Currently the only case !!oc->chosen can become false is that
-> > there was no eligible tasks when SysRq-f was requested or memcg OOM occurred.
+On Tue, May 29, 2018 at 09:25:05PM +0530, Souptick Joarder wrote:
+> On Tue, May 29, 2018 at 8:20 PM, Matthew Wilcox <willy@infradead.org> wrote:
+> > On Tue, May 29, 2018 at 08:01:26PM +0530, Souptick Joarder wrote:
+> >> Use new return type vm_fault_t for fault handler. For
+> >> now, this is just documenting that the function returns
+> >> a VM_FAULT value rather than an errno. Once all instances
+> >> are converted, vm_fault_t will become a distinct type.
+> >
+> > I don't believe you've checked this with sparse.
+> >
+> >> @@ -802,7 +802,8 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
+> >>                    bool *unlocked)
+> >>  {
+> >>       struct vm_area_struct *vma;
+> >> -     int ret, major = 0;
+> >> +     int major = 0;
+> >> +     vm_fault_t ret;
+> >>
+> >>       if (unlocked)
+> >>               fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+> >
+> > ...
+> >         major |= ret & VM_FAULT_MAJOR;
+> >
+> > That should be throwing a warning.
 > 
-> Well, the current contract is not easy unfortunatelly. We have two
-> different modes of operation. We are either killing whole cgroups or a
-> task from a cgroup. In any case, the contract says that if we have any
-> killable entity then at least one of chosen* is set to INFLIGHT_VICTIM.
-> Other than that one of them has to be !NULL or we have no eligible
-> killable entity. The return value reflects all these cases.
+> Sorry, but I verified again and didn't see similar warnings.
+> 
+> steps followed -
+> 
+> apply the patch
+> make c=2 -j4 ( build for x86_64)
+> looking for warnings in files because of this patch.
+> 
+> The only error I am seeing "error: undefined identifier '__COUNTER__' "
+> which is pointing to BUG(). There are few warnings but those are not
+> related to this patch.
+> 
+> In my test tree the final patch to create new vm_fault_t type is
+> already applied.
+> 
+> Do you want me to verify in some other way ?
 
-Btw. if your concern is the readability then we can add a helper and
-decsribe all the above in the comment.
--- 
-Michal Hocko
-SUSE Labs
+I see:
+
+mm/gup.c:817:15: warning: invalid assignment: |=
+mm/gup.c:817:15:    left side has type int
+mm/gup.c:817:15:    right side has type restricted vm_fault_t
+
+are you building with 'c=2' or 'C=2'?
