@@ -1,89 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 95B936B0003
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 17:15:22 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id i200-v6so13642814itb.9
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 14:15:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b185-v6sor7828687itb.40.2018.05.29.14.15.21
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D0F2F6B0007
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 17:17:28 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id z140-v6so14495792qka.12
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 14:17:28 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z5-v6sor20984243qkc.128.2018.05.29.14.17.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 29 May 2018 14:15:21 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180524095752.17770-1-liwang@redhat.com>
-References: <20180524095752.17770-1-liwang@redhat.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 29 May 2018 17:14:39 -0400
-Message-ID: <CALZtONA4y+7vzUr2xPa8ZbwCczjJV9EMCOXaCsE94DdfGbrmtA@mail.gmail.com>
-Subject: Re: [PATCH RFC] zswap: reject to compress/store page if
- zswap_max_pool_percent is 0
-Content-Type: text/plain; charset="UTF-8"
+        Tue, 29 May 2018 14:17:27 -0700 (PDT)
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: [PATCH 00/13] Introdue io.latency io controller for cgroups
+Date: Tue, 29 May 2018 17:17:11 -0400
+Message-Id: <20180529211724.4531-1-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjenning@redhat.com>, Huang Ying <huang.ying.caritas@gmail.com>, Yu Zhao <yuzhao@google.com>
+To: axboe@kernel.dk, kernel-team@fb.com, linux-block@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, linux-fsdevel@vger.kernel.org
 
-On Thu, May 24, 2018 at 5:57 AM, Li Wang <liwang@redhat.com> wrote:
-> The '/sys/../zswap/stored_pages:' keep raising in zswap test with
-> "zswap.max_pool_percent=0" parameter. But theoretically, it should
-> not compress or store pages any more since there is no space for
-> compressed pool.
->
-> Reproduce steps:
->
->   1. Boot kernel with "zswap.enabled=1 zswap.max_pool_percent=17"
->   2. Set the max_pool_percent to 0
->       # echo 0 > /sys/module/zswap/parameters/max_pool_percent
->      Confirm this parameter works fine
->       # cat /sys/kernel/debug/zswap/pool_total_size
->       0
->   3. Do memory stress test to see if some pages have been compressed
->       # stress --vm 1 --vm-bytes $mem_available"M" --timeout 60s
->      Watching the 'stored_pages' numbers increasing or not
->
-> The root cause is:
->
->   When the zswap_max_pool_percent is set to 0 via kernel parameter, the zswap_is_full()
->   will always return true to shrink the pool size by zswap_shrink(). If the pool size
->   has been shrinked a little success, zswap will do compress/store pages again. Then we
->   get fails on that as above.
+This series adds a latency based io controller for cgroups.  It is based on the
+same concept as the writeback throttling code, which is watching the overall
+total latency of IO's in a given window and then adjusting the queue depth of
+the group accordingly.  This is meant to be a workload protection controller, so
+whoever has the lowest latency target gets the preferential treatment with no
+thought to fairness or proportionality.  It is meant to be work conserving, so
+as long as nobody is missing their latency targets the disk is fair game.
 
-special casing 0% doesn't make a lot of sense to me, and I'm not
-entirely sure what exactly you are trying to fix here.
+We have been testing this in production for several months now to get the
+behavior right and we are finally at the point that it is working well in all of
+our test cases.  With this patch we protect our main workload (the web server)
+and isolate out the system services (chef/yum/etc).  This works well in the
+normal case, smoothing out weird request per second (RPS) dips that we would see
+when one of the system services would run and compete for IO resources.  This
+also works incredibly well in the runaway task case.
 
-however, zswap does currently do a zswap_is_full() check, and then if
-it's able to reclaim a page happily proceeds to store another page,
-without re-checking zswap_is_full().  If you're trying to fix that,
-then I would ack a patch that adds a second zswap_is_full() check
-after zswap_shrink() to make sure it's now under the max_pool_percent
-(or somehow otherwise fixes that behavior).
+The runaway task usecase is where we have some task that slowly eats up all of
+the memory on the system (think a memory leak).  Previously this sort of
+workload would push the box into a swapping/oom death spiral that was only
+recovered by rebooting the box.  With this patchset and proper configuration of
+the memory.low and io.latency controllers we're able to survive this test with a
+at most 20% dip in RPS.
 
->
-> Signed-off-by: Li Wang <liwang@redhat.com>
-> Cc: Seth Jennings <sjenning@redhat.com>
-> Cc: Dan Streetman <ddstreet@ieee.org>
-> Cc: Huang Ying <huang.ying.caritas@gmail.com>
-> Cc: Yu Zhao <yuzhao@google.com>
-> ---
->  mm/zswap.c | 5 +++++
->  1 file changed, 5 insertions(+)
->
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index 61a5c41..2b537bb 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -1007,6 +1007,11 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->         u8 *src, *dst;
->         struct zswap_header zhdr = { .swpentry = swp_entry(type, offset) };
->
-> +       if (!zswap_max_pool_percent) {
-> +               ret = -ENOMEM;
-> +               goto reject;
-> +       }
-> +
->         /* THP isn't supported */
->         if (PageTransHuge(page)) {
->                 ret = -EINVAL;
-> --
-> 2.9.5
->
+There are a lot of extra patches in here to set everything up.  The following
+are just infrastructure that should be relatively uncontroversial
+
+[PATCH 01/13] block: add bi_blkg to the bio for cgroups
+[PATCH 02/13] block: introduce bio_issue_as_root_blkg
+[PATCH 03/13] blk-cgroup: allow controllers to output their own stats
+
+The following simply allow us to tag swap IO and assign the appropriate cgroup
+to the bio's so we can do the appropriate accounting inside the io controller
+
+[PATCH 04/13] blk: introduce REQ_SWAP
+[PATCH 05/13] swap,blkcg: issue swap io with the appropriate context
+
+This is so that we can induce delays.  The io controller mostly throttles based
+on queue depth, however for cases like REQ_SWAP/REQ_META where we cannot
+throttle without inducing a priority inversion we have a mechanism to "back
+charge" groups for this IO by inducing an artificial delay at user space return
+time.
+
+[PATCH 06/13] blkcg: add generic throttling mechanism
+[PATCH 07/13] memcontrol: schedule throttling if we are congested
+
+This is more moving things around and refactoring, Jens you may want to pay
+close attention to this to make sure I didn't break anything.
+
+[PATCH 08/13] blk-stat: export helpers for modifying blk_rq_stat
+[PATCH 09/13] blk-rq-qos: refactor out common elements of blk-wbt
+[PATCH 10/13] block: remove external dependency on wbt_flags
+[PATCH 11/13] rq-qos: introduce dio_bio callback
+
+And this is the meat of the controller and it's documentation.
+
+[PATCH 12/13] block: introduce blk-iolatency io controller
+[PATCH 13/13] Documentation: add a doc for blk-iolatency
+
+Jens, I'm sending this through your tree since it's mostly block related,
+however there are the two mm related patches, so if somebody from mm could weigh
+in on how we want to handle those that would be great.  Thanks,
+
+Josef
