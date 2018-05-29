@@ -1,69 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D7566B0003
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 16:26:35 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id c6-v6so10557220otk.9
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 13:26:35 -0700 (PDT)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 95B936B0003
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 17:15:22 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id i200-v6so13642814itb.9
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 14:15:22 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y18-v6sor17274973oti.215.2018.05.29.13.26.34
+        by mx.google.com with SMTPS id b185-v6sor7828687itb.40.2018.05.29.14.15.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 29 May 2018 13:26:34 -0700 (PDT)
+        Tue, 29 May 2018 14:15:21 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180523205017.0f2bc83e@thinkpad>
-References: <152658753673.26786.16458605771414761966.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180518094616.GA25838@lst.de> <CAPcyv4iO1yss0sfBzHVDy3qja_wc+JT2Zi1zwtApDckTeuG2wQ@mail.gmail.com>
- <20180521090410.7ygosxzjfhceqrq4@quack2.suse.cz> <20180522062806.GD7816@lst.de>
- <20180523205017.0f2bc83e@thinkpad>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 29 May 2018 13:26:33 -0700
-Message-ID: <CAPcyv4gRvG=yT==SPgF940F7v9FqGqG-dQ8Vjcm0LPch86i1RA@mail.gmail.com>
-Subject: Re: [PATCH v10] mm: introduce MEMORY_DEVICE_FS_DAX and CONFIG_DEV_PAGEMAP_OPS
+In-Reply-To: <20180524095752.17770-1-liwang@redhat.com>
+References: <20180524095752.17770-1-liwang@redhat.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Tue, 29 May 2018 17:14:39 -0400
+Message-ID: <CALZtONA4y+7vzUr2xPa8ZbwCczjJV9EMCOXaCsE94DdfGbrmtA@mail.gmail.com>
+Subject: Re: [PATCH RFC] zswap: reject to compress/store page if
+ zswap_max_pool_percent is 0
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Christoph Hellwig <hch@lst.de>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.com>, kbuild test robot <lkp@intel.com>, Thomas Meyer <thomas@m3y3r.de>, Dave Jiang <dave.jiang@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Li Wang <liwang@redhat.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjenning@redhat.com>, Huang Ying <huang.ying.caritas@gmail.com>, Yu Zhao <yuzhao@google.com>
 
-On Wed, May 23, 2018 at 11:50 AM, Gerald Schaefer
-<gerald.schaefer@de.ibm.com> wrote:
-> On Tue, 22 May 2018 08:28:06 +0200
-> Christoph Hellwig <hch@lst.de> wrote:
+On Thu, May 24, 2018 at 5:57 AM, Li Wang <liwang@redhat.com> wrote:
+> The '/sys/../zswap/stored_pages:' keep raising in zswap test with
+> "zswap.max_pool_percent=0" parameter. But theoretically, it should
+> not compress or store pages any more since there is no space for
+> compressed pool.
 >
->> On Mon, May 21, 2018 at 11:04:10AM +0200, Jan Kara wrote:
->> > We definitely do have customers using "execute in place" on s390x from
->> > dcssblk. I've got about two bug reports for it when customers were updating
->> > from old kernels using original XIP to kernels using DAX. So we need to
->> > keep that working.
->>
->> That is all good an fine, but I think time has come where s390 needs
->> to migrate to provide the pmem API so that we can get rid of these
->> special cases.  Especially given that the old XIP/legacy DAX has all
->> kinds of known bugs at this point in time.
+> Reproduce steps:
 >
-> I haven't yet looked at this patch series, but I can feel that this
-> FS_DAX_LIMITED workaround is beginning to cause some headaches, apart
-> from being quite ugly of course.
+>   1. Boot kernel with "zswap.enabled=1 zswap.max_pool_percent=17"
+>   2. Set the max_pool_percent to 0
+>       # echo 0 > /sys/module/zswap/parameters/max_pool_percent
+>      Confirm this parameter works fine
+>       # cat /sys/kernel/debug/zswap/pool_total_size
+>       0
+>   3. Do memory stress test to see if some pages have been compressed
+>       # stress --vm 1 --vm-bytes $mem_available"M" --timeout 60s
+>      Watching the 'stored_pages' numbers increasing or not
 >
-> Just to make sure I still understand the basic problem, which I thought
-> was missing struct pages for the dcssblk memory, what exactly do you
-> mean with "provide the pmem API", is there more to do?
+> The root cause is:
+>
+>   When the zswap_max_pool_percent is set to 0 via kernel parameter, the zswap_is_full()
+>   will always return true to shrink the pool size by zswap_shrink(). If the pool size
+>   has been shrinked a little success, zswap will do compress/store pages again. Then we
+>   get fails on that as above.
 
-No, just 'struct page' is needed.
+special casing 0% doesn't make a lot of sense to me, and I'm not
+entirely sure what exactly you are trying to fix here.
 
-What used to be the pmem API is now pushed down into to dax_operations
-provided by the device driver. dcssblk is free to just redirect to the
-generic implementations for copy_from_iter() and copy_to_iter(), and
-be done. I.e. we've removed the "pmem API" requirement.
+however, zswap does currently do a zswap_is_full() check, and then if
+it's able to reclaim a page happily proceeds to store another page,
+without re-checking zswap_is_full().  If you're trying to fix that,
+then I would ack a patch that adds a second zswap_is_full() check
+after zswap_shrink() to make sure it's now under the max_pool_percent
+(or somehow otherwise fixes that behavior).
 
-> I do have a prototype patch lying around that adds struct pages, but
-> didn't yet have time to fully test/complete it. Of course we initially
-> introduced XIP as a mechanism to reduce memory consumption, and that
-> is probably the use case for the remaining customer(s). Adding struct
-> pages would somehow reduce that benefit, but as long as we can still
-> "execute in place", I guess it will be OK.
-
-The pmem driver has the option to allocate the 'struct page' map out
-of pmem directly. If the overhead of having the map in System RAM is
-too high it could borrow the same approach, but that adds another
-degree of configuration complexity freedom.
+>
+> Signed-off-by: Li Wang <liwang@redhat.com>
+> Cc: Seth Jennings <sjenning@redhat.com>
+> Cc: Dan Streetman <ddstreet@ieee.org>
+> Cc: Huang Ying <huang.ying.caritas@gmail.com>
+> Cc: Yu Zhao <yuzhao@google.com>
+> ---
+>  mm/zswap.c | 5 +++++
+>  1 file changed, 5 insertions(+)
+>
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index 61a5c41..2b537bb 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -1007,6 +1007,11 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>         u8 *src, *dst;
+>         struct zswap_header zhdr = { .swpentry = swp_entry(type, offset) };
+>
+> +       if (!zswap_max_pool_percent) {
+> +               ret = -ENOMEM;
+> +               goto reject;
+> +       }
+> +
+>         /* THP isn't supported */
+>         if (PageTransHuge(page)) {
+>                 ret = -EINVAL;
+> --
+> 2.9.5
+>
