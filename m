@@ -1,121 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7811E6B026E
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 17:17:48 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id f2-v6so726528qkm.10
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 14:17:48 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k43-v6sor4125802qvk.17.2018.05.29.14.17.47
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E9F76B0007
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 18:07:16 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id l17-v6so8386098wrm.3
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 15:07:16 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id n18-v6si11884357wrb.79.2018.05.29.15.07.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 May 2018 14:17:47 -0700 (PDT)
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH 13/13] Documentation: add a doc for blk-iolatency
-Date: Tue, 29 May 2018 17:17:24 -0400
-Message-Id: <20180529211724.4531-14-josef@toxicpanda.com>
-In-Reply-To: <20180529211724.4531-1-josef@toxicpanda.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 May 2018 15:07:14 -0700 (PDT)
+Subject: Re: [PATCH 12/13] block: introduce blk-iolatency io controller
 References: <20180529211724.4531-1-josef@toxicpanda.com>
+ <20180529211724.4531-13-josef@toxicpanda.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <99a187c9-668b-d27c-3d71-bc799b853791@infradead.org>
+Date: Tue, 29 May 2018 15:07:01 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180529211724.4531-13-josef@toxicpanda.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk, kernel-team@fb.com, linux-block@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, linux-fsdevel@vger.kernel.org
+To: Josef Bacik <josef@toxicpanda.com>, axboe@kernel.dk, kernel-team@fb.com, linux-block@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, linux-fsdevel@vger.kernel.org
 Cc: Josef Bacik <jbacik@fb.com>
 
-From: Josef Bacik <jbacik@fb.com>
+On 05/29/2018 02:17 PM, Josef Bacik wrote:
+> From: Josef Bacik <jbacik@fb.com>
+> 
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
+> ---
+>  block/Kconfig             |  12 +
+>  block/Makefile            |   1 +
+>  block/blk-iolatency.c     | 844 ++++++++++++++++++++++++++++++++++++++++++++++
+>  block/blk-sysfs.c         |   2 +
+>  block/blk.h               |   6 +
+>  include/linux/blk_types.h |   2 -
+>  6 files changed, 865 insertions(+), 2 deletions(-)
+>  create mode 100644 block/blk-iolatency.c
+> 
+> diff --git a/block/Kconfig b/block/Kconfig
+> index 28ec55752b68..a4e800f57688 100644
+> --- a/block/Kconfig
+> +++ b/block/Kconfig
+> @@ -149,6 +149,18 @@ config BLK_WBT
+>  	dynamically on an algorithm loosely based on CoDel, factoring in
+>  	the realtime performance of the disk.
+>  
+> +config BLK_CGROUP_IOLATENCY
+> +	bool "Enable support for latency based cgroup io protection"
 
-A basic documentation to describe the interface, statistics, and
-behavior of io.latency.
+	                                              IO protection"
 
-Signed-off-by: Josef Bacik <jbacik@fb.com>
----
- Documentation/blk-iolatency.txt | 80 +++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 80 insertions(+)
- create mode 100644 Documentation/blk-iolatency.txt
+There are currently no occurrences of "io" (standalone) in block/Kconfig
+and it would be a bad precedent to add one, so please use that shift key. :)
 
-diff --git a/Documentation/blk-iolatency.txt b/Documentation/blk-iolatency.txt
-new file mode 100644
-index 000000000000..9dd86f4f64b6
---- /dev/null
-+++ b/Documentation/blk-iolatency.txt
-@@ -0,0 +1,80 @@
-+Block IO Latency Controller
-+
-+Overview
-+========
-+
-+This is a cgroup v2 controller for IO workload protection.  You provide a group
-+with a latency target, and if the average latency exceeds that target the
-+controller will throttle any peers that have a lower latency target than the
-+protected workload.
-+
-+Interface
-+=========
-+
-+- io.latency.  This takes a similar format as the other controllers
-+
-+	"MAJOR:MINOR target=<target time in microseconds"
-+
-+- io.stat.  If the controller is enabled you will see extra stats in io.stat in
-+  addition to the normal ones
-+
-+	- depth=<integer>.  This is the current queue depth for the group.
-+	- delay=<time in microseconds>. This is the current delay per task that
-+	  does IO in this group.
-+	- use_delay=<integer>.  This is how deep into the delay we currently
-+	  are, the larger this number is the longer it'll take us to get back to
-+	  queue depth > 1.
-+	- total_lat_avg=<time in microseconds>.  The running average IO latency
-+	  for this group.  Running average is generally flawed, but will give an
-+	  admistrator a general idea of the overall latency they can expect for
-+	  their workload on the given disk.
-+
-+HOWTO
-+=====
-+
-+The limits are only applied at the peer level in the heirarchy.  This means that
-+in the diagram below, only groups A, B, and C will influence eachother, and
-+groups D and F will influence eachother.  Group G will influence nobody.
-+
-+			[root]
-+		/	   |		\
-+		A	   B		C
-+	       /  \        |
-+	      D    F	   G
-+
-+
-+So the ideal way to configure this is to set io.latency in groups A, B, and C.
-+Generally you do not want to set a value lower than the latency your device
-+supports.  Experiment to find the value that works best for your workload, start
-+at higher than the expected latency for your device and watch the total_lat_avg
-+value in io.stat for your workload group to get an idea of the latency you see
-+during normal operation.  Use this value as a basis for your real setting,
-+setting at 10-15% higher than the value in io.stat.  Experimentation is key here
-+because total_lat_avg is a running total, so is the "statistics" portion of
-+"lies, damned lies, and statistics."
-+
-+How Throttling Works
-+====================
-+
-+io.latency is work conserving, so as long as everybody is meeting their latency
-+target the controller doesn't do anything.  Once a group starts missing it's
-+target it begins throttling any peer group that has a higher target than itself.
-+This throttling takes 2 forms
-+
-+- Queue depth throttling.  This is the number of outstanding IO's a group is
-+  allowed to have.  We will clamp down relatively quickly, starting at no limit
-+  and going all the way down to 1 IO at a time.
-+
-+- Artificial delay induction.  There are certain types of IO that cannot be
-+  throttled without possibly adversely affecting higher priority groups.  This
-+  includes swapping and metadata IO.  These types of IO are allowed to occur
-+  normally, however they are "charged" to the originating group.  If the
-+  originating group is being throttled you will see the use_delay and delay
-+  fields in io.stat increase.  The delay value is how many microseconds that are
-+  being added to any process that runs in this group.  Because this number can
-+  grow quite large if there is a lot of swapping or metadata IO occuring we
-+  limit the individual delay events to 1 second at a time.
-+
-+Once the victimized group starts meeting it's latency target again it will start
-+unthrottling any peer groups that were throttled previous.  If the victimized
-+group simply stops doing IO the global counter will unthrottle appropriately.
+> +	depends on BLK_CGROUP=y
+> +	default n
+> +	---help---
+> +	Enabling this option enables the .latency interface for io throttling.
+> +	The io controller will attempt to maintain average io latencies below
+> +	the configured latency target, throttling anybody with a higher latency
+> +	target than the victimized group.
+> +
+> +	Note, this is an experimental interface and could be changed someday.
+> +
+>  config BLK_WBT_SQ
+>  	bool "Single queue writeback throttling"
+>  	default n
+
 -- 
-2.14.3
+~Randy
