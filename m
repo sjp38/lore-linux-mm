@@ -1,77 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 687976B0003
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 13:35:37 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x21-v6so9328914pfn.23
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 10:35:37 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c11-v6si31718335pls.76.2018.05.29.10.35.36
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E496A6B0003
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 13:56:04 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n9-v6so9613985wmh.6
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 10:56:04 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id f1-v6si2429245edr.169.2018.05.29.10.56.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 May 2018 10:35:36 -0700 (PDT)
-Date: Tue, 29 May 2018 10:34:45 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: Change return type to vm_fault_t
-Message-ID: <20180529173445.GD15148@bombadil.infradead.org>
-References: <20180529143126.GA19698@jordon-HP-15-Notebook-PC>
- <20180529145055.GA15148@bombadil.infradead.org>
- <CAFqt6zaxt=wXjvKV0qA+OwU1iUyoBdW2cJSLFqXupVWRpKdqEA@mail.gmail.com>
+        Tue, 29 May 2018 10:56:03 -0700 (PDT)
+Date: Tue, 29 May 2018 13:58:06 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 0/5] kmalloc-reclaimable caches
+Message-ID: <20180529175806.GA28689@cmpxchg.org>
+References: <20180524110011.1940-1-vbabka@suse.cz>
+ <20180524153225.GA7329@cmpxchg.org>
+ <fcdcf7be-afd1-9747-d97e-51cd071d3f5c@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFqt6zaxt=wXjvKV0qA+OwU1iUyoBdW2cJSLFqXupVWRpKdqEA@mail.gmail.com>
+In-Reply-To: <fcdcf7be-afd1-9747-d97e-51cd071d3f5c@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, zi.yan@cs.rutgers.edu, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Greg KH <gregkh@linuxfoundation.org>, Mark Rutland <mark.rutland@arm.com>, riel@redhat.com, pasha.tatashin@oracle.com, jschoenh@amazon.de, Kate Stewart <kstewart@linuxfoundation.org>, David Rientjes <rientjes@google.com>, tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, yang.s@alibaba-inc.com, Minchan Kim <minchan@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Vijayanand Jitta <vjitta@codeaurora.org>
 
-On Tue, May 29, 2018 at 09:25:05PM +0530, Souptick Joarder wrote:
-> On Tue, May 29, 2018 at 8:20 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> > On Tue, May 29, 2018 at 08:01:26PM +0530, Souptick Joarder wrote:
-> >> Use new return type vm_fault_t for fault handler. For
-> >> now, this is just documenting that the function returns
-> >> a VM_FAULT value rather than an errno. Once all instances
-> >> are converted, vm_fault_t will become a distinct type.
-> >
-> > I don't believe you've checked this with sparse.
-> >
-> >> @@ -802,7 +802,8 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
-> >>                    bool *unlocked)
-> >>  {
-> >>       struct vm_area_struct *vma;
-> >> -     int ret, major = 0;
-> >> +     int major = 0;
-> >> +     vm_fault_t ret;
+On Mon, May 28, 2018 at 10:15:46AM +0200, Vlastimil Babka wrote:
+> On 05/24/2018 05:32 PM, Johannes Weiner wrote:
+> > On Thu, May 24, 2018 at 01:00:06PM +0200, Vlastimil Babka wrote:
+> >> - the vmstat/meminfo counter name is rather general and might suggest it also
+> >>   includes reclaimable page caches, which it doesn't
 > >>
-> >>       if (unlocked)
-> >>               fault_flags |= FAULT_FLAG_ALLOW_RETRY;
-> >
-> > ...
-> >         major |= ret & VM_FAULT_MAJOR;
-> >
-> > That should be throwing a warning.
+> >> Suggestions welcome for all three points. For the last one, we might also keep
+> >> the counter separate from nr_slab_reclaimable, not superset. I did a superset
+> >> as IIRC somebody suggested that in the older threads or at LSF.
+> > 
+> > Yeah, the "reclaimable" name is too generic. How about KReclaimable?
+> > 
+> > The counter being a superset sounds good to me. We use this info for
+> > both load balancing and manual debugging. For load balancing code it's
+> > nice not having to worry about finding all the counters that hold
+> > reclaimable memory depending on kernel version; it's always simply
+> > user cache + user anon + kernel reclaimable. And for debugging, we can
+> > always add more specific subset counters later on if we need them.
 > 
-> Sorry, but I verified again and didn't see similar warnings.
+> Hm, Christoph in his reply to patch 4/5 expressed a different opinion.
+> It's true that updating two counters has extra overhead, especially if
+> there are two separate critical sections:
 > 
-> steps followed -
+> mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, nr_pages);
+> mod_node_page_state(page_pgdat(page), NR_RECLAIMABLE, nr_pages);
 > 
-> apply the patch
-> make c=2 -j4 ( build for x86_64)
-> looking for warnings in files because of this patch.
+> The first disables irq for CONFIG_MEMCG or defers to
+> mod_node_page_state() otherwise.
+> mod_node_page_state() is different depending on CONFIG_SMP and
+> CONFIG_HAVE_CMPXCHG_LOCAL.
 > 
-> The only error I am seeing "error: undefined identifier '__COUNTER__' "
-> which is pointing to BUG(). There are few warnings but those are not
-> related to this patch.
-> 
-> In my test tree the final patch to create new vm_fault_t type is
-> already applied.
-> 
-> Do you want me to verify in some other way ?
+> I don't see an easy way to make this optimal? Different counter would be
+> indeed simpler. /proc/vmstat would then print separate counters, but we
+> could have both separate and summary counter in /proc/meminfo. Would
+> that be enough?
 
-I see:
-
-mm/gup.c:817:15: warning: invalid assignment: |=
-mm/gup.c:817:15:    left side has type int
-mm/gup.c:817:15:    right side has type restricted vm_fault_t
-
-are you building with 'c=2' or 'C=2'?
+Yeah, that works just as well.
