@@ -1,342 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C91816B0010
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 17:17:37 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id q13-v6so14262809qtk.8
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 14:17:37 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EB04F6B0266
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 17:17:38 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id s133-v6so6955173qke.21
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 14:17:38 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a2-v6sor21770404qtd.74.2018.05.29.14.17.36
+        by mx.google.com with SMTPS id f31-v6sor21317475qta.8.2018.05.29.14.17.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 29 May 2018 14:17:36 -0700 (PDT)
+        Tue, 29 May 2018 14:17:37 -0700 (PDT)
 From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH 06/13] blkcg: add generic throttling mechanism
-Date: Tue, 29 May 2018 17:17:17 -0400
-Message-Id: <20180529211724.4531-7-josef@toxicpanda.com>
+Subject: [PATCH 07/13] memcontrol: schedule throttling if we are congested
+Date: Tue, 29 May 2018 17:17:18 -0400
+Message-Id: <20180529211724.4531-8-josef@toxicpanda.com>
 In-Reply-To: <20180529211724.4531-1-josef@toxicpanda.com>
 References: <20180529211724.4531-1-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk, kernel-team@fb.com, linux-block@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, tj@kernel.org, linux-fsdevel@vger.kernel.org
-Cc: Josef Bacik <jbacik@fb.com>
 
-From: Josef Bacik <jbacik@fb.com>
+From: Tejun Heo <tj@kernel.org>
 
-Since IO can be issued from literally anywhere it's almost impossible to
-do throttling without having some sort of adverse effect somewhere else
-in the system because of locking or other dependencies.  The best way to
-solve this is to do the throttling when we know we aren't holding any
-other kernel resources.  Do this by tracking throttling in a per-blkg
-basis, and if we require throttling flag the task that it needs to check
-before it returns to user space and possibly sleep there.
+Memory allocations can induce swapping via kswapd or direct reclaim.  If
+we are having IO done for us by kswapd and don't actually go into direct
+reclaim we may never get scheduled for throttling.  So instead check to
+see if our cgroup is congested, and if so schedule the throttling.
+Before we return to user space the throttling stuff will only throttle
+if we actually required it.
 
-This is to address the case where a process is doing work that is
-generating IO that can't be throttled, whether that is directly with a
-lot of REQ_META IO, or indirectly by allocating so much memory that it
-is swamping the disk with REQ_SWAP.  We can't use task_add_work as we
-don't want to induce a memory allocation in the IO path, so simply
-saving the request queue in the task and flagging it to do the
-notify_resume thing achieves the same result without the overhead of a
-memory allocation.
-
-Signed-off-by: Josef Bacik <jbacik@fb.com>
+Signed-off-by: Tejun Heo <tj@kernel.org>
 ---
- block/blk-cgroup.c          | 135 ++++++++++++++++++++++++++++++++++++++++++++
- include/linux/blk-cgroup.h  |  49 ++++++++++++++++
- include/linux/cgroup-defs.h |   3 +
- include/linux/sched.h       |   5 ++
- include/linux/tracehook.h   |   2 +
- 5 files changed, 194 insertions(+)
+ include/linux/memcontrol.h | 13 +++++++++++++
+ mm/huge_memory.c           |  6 +++---
+ mm/memcontrol.c            | 24 ++++++++++++++++++++++++
+ mm/memory.c                | 11 ++++++-----
+ mm/shmem.c                 | 10 +++++-----
+ 5 files changed, 51 insertions(+), 13 deletions(-)
 
-diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
-index 9e767e4a852d..5249059d0cff 100644
---- a/block/blk-cgroup.c
-+++ b/block/blk-cgroup.c
-@@ -27,6 +27,7 @@
- #include <linux/atomic.h>
- #include <linux/ctype.h>
- #include <linux/blk-cgroup.h>
-+#include <linux/tracehook.h>
- #include "blk.h"
- 
- #define MAX_KEY_LEN 100
-@@ -1334,6 +1335,13 @@ static void blkcg_bind(struct cgroup_subsys_state *root_css)
- 	mutex_unlock(&blkcg_pol_mutex);
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index d99b71bc2c66..4d2e7f35f2dc 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -290,6 +290,9 @@ bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg);
+ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+ 			  gfp_t gfp_mask, struct mem_cgroup **memcgp,
+ 			  bool compound);
++int mem_cgroup_try_charge_delay(struct page *page, struct mm_struct *mm,
++			  gfp_t gfp_mask, struct mem_cgroup **memcgp,
++			  bool compound);
+ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
+ 			      bool lrucare, bool compound);
+ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
+@@ -745,6 +748,16 @@ static inline int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+ 	return 0;
  }
  
-+static void blkcg_exit(struct task_struct *tsk)
++static inline int mem_cgroup_try_charge_delay(struct page *page,
++					      struct mm_struct *mm,
++					      gfp_t gfp_mask,
++					      struct mem_cgroup **memcgp,
++					      bool compound)
 +{
-+	if (tsk->throttle_queue)
-+		blk_put_queue(tsk->throttle_queue);
-+	tsk->throttle_queue = NULL;
++	*memcgp = NULL;
++	return 0;
 +}
 +
- struct cgroup_subsys io_cgrp_subsys = {
- 	.css_alloc = blkcg_css_alloc,
- 	.css_offline = blkcg_css_offline,
-@@ -1343,6 +1351,7 @@ struct cgroup_subsys io_cgrp_subsys = {
- 	.dfl_cftypes = blkcg_files,
- 	.legacy_cftypes = blkcg_legacy_files,
- 	.legacy_name = "blkio",
-+	.exit = blkcg_exit,
- #ifdef CONFIG_MEMCG
- 	/*
- 	 * This ensures that, if available, memcg is automatically enabled
-@@ -1593,3 +1602,129 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
- 	mutex_unlock(&blkcg_pol_register_mutex);
- }
- EXPORT_SYMBOL_GPL(blkcg_policy_unregister);
-+
-+static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
-+{
-+	u64 old = atomic64_read(&blkg->delay_start);
-+
-+	if (old + NSEC_PER_SEC <= now &&
-+	    atomic64_cmpxchg(&blkg->delay_start, old, now) == old) {
-+		u64 cur = atomic64_read(&blkg->delay_nsec);
-+		u64 sub = min_t(u64, blkg->last_delay, now - old);
-+		int cur_use = atomic_read(&blkg->use_delay);
-+
-+		if (cur_use < blkg->last_use)
-+			sub = max_t(u64, sub, blkg->last_delay >> 1);
-+
-+		/* This shouldn't happen, but handle it anyway. */
-+		if (unlikely(cur < sub)) {
-+			atomic64_set(&blkg->delay_nsec, 0);
-+			blkg->last_delay = 0;
-+		} else {
-+			atomic64_sub(sub, &blkg->delay_nsec);
-+			blkg->last_delay = cur - sub;
-+		}
-+		blkg->last_use = cur_use;
-+	}
-+}
-+
-+static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
-+{
-+	u64 now = ktime_to_ns(ktime_get());
-+	u64 exp;
-+	u64 delay_nsec = 0;
-+	int tok;
-+
-+	while (blkg->parent) {
-+		if (atomic_read(&blkg->use_delay)) {
-+			blkcg_scale_delay(blkg, now);
-+			delay_nsec = max_t(u64, delay_nsec,
-+					   atomic64_read(&blkg->delay_nsec));
-+		}
-+		blkg = blkg->parent;
-+	}
-+
-+	if (!delay_nsec)
-+		return;
-+
-+	/* Let's not sleep for all eternity if we've amassed a huge delay. */
-+	delay_nsec = min_t(u64, delay_nsec, NSEC_PER_SEC);
-+
-+	/*
-+	 * TODO: the use_memdelay flag is going to be for the upcoming psi stuff
-+	 * that hasn't landed upstream yet.  Once that stuff is in place we need
-+	 * to do a psi_memstall_enter/leave if memdelay is set.
-+	 */
-+
-+	exp = ktime_add_ns(now, delay_nsec);
-+	tok = io_schedule_prepare();
-+	do {
-+		__set_current_state(TASK_KILLABLE);
-+		if (!schedule_hrtimeout(&exp, HRTIMER_MODE_ABS))
-+			break;
-+	} while (!fatal_signal_pending(current));
-+	io_schedule_finish(tok);
-+}
-+
-+void blkcg_maybe_throttle_current(void)
-+{
-+	struct request_queue *q = current->throttle_queue;
-+	struct cgroup_subsys_state *css;
-+	struct blkcg *blkcg;
-+	struct blkcg_gq *blkg;
-+	bool use_memdelay = current->use_memdelay;
-+
-+	if (!q)
-+		return;
-+
-+	current->throttle_queue = NULL;
-+	current->use_memdelay = false;
-+
-+	rcu_read_lock();
-+	css = kthread_blkcg();
-+	if (css)
-+		blkcg = css_to_blkcg(css);
-+	else
-+		blkcg = css_to_blkcg(task_css(current, io_cgrp_id));
-+
-+	if (!blkcg)
-+		goto out;
-+	blkg = blkg_lookup(blkcg, q);
-+	if (!blkg)
-+		goto out;
-+	blkg_get(blkg);
-+	rcu_read_unlock();
-+	blk_put_queue(q);
-+
-+	blkcg_maybe_throttle_blkg(blkg, use_memdelay);
-+	blkg_put(blkg);
-+	return;
-+out:
-+	rcu_read_unlock();
-+	blk_put_queue(q);
-+}
-+EXPORT_SYMBOL_GPL(blkcg_maybe_throttle_current);
-+
-+void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay)
-+{
-+	if (unlikely(current->flags & PF_KTHREAD))
-+		return;
-+
-+	if (!blk_get_queue(q))
-+		return;
-+
-+	if (current->throttle_queue)
-+		blk_put_queue(current->throttle_queue);
-+	current->throttle_queue = q;
-+	if (use_memdelay)
-+		current->use_memdelay = use_memdelay;
-+	set_notify_resume(current);
-+}
-+EXPORT_SYMBOL_GPL(blkcg_schedule_throttle);
-+
-+void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta)
-+{
-+	blkcg_scale_delay(blkg, now);
-+	atomic64_add(delta, &blkg->delay_nsec);
-+}
-+EXPORT_SYMBOL_GPL(blkcg_add_delay);
-diff --git a/include/linux/blk-cgroup.h b/include/linux/blk-cgroup.h
-index a8f9ba8f33a4..fd73e2b4ea5f 100644
---- a/include/linux/blk-cgroup.h
-+++ b/include/linux/blk-cgroup.h
-@@ -136,6 +136,12 @@ struct blkcg_gq {
- 	struct blkg_policy_data		*pd[BLKCG_MAX_POLS];
+ static inline void mem_cgroup_commit_charge(struct page *page,
+ 					    struct mem_cgroup *memcg,
+ 					    bool lrucare, bool compound)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a3a1815f8e11..9812ddad9961 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -555,7 +555,7 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
  
- 	struct rcu_head			rcu_head;
-+
-+	atomic_t			use_delay;
-+	atomic64_t			delay_nsec;
-+	atomic64_t			delay_start;
-+	u64				last_delay;
-+	int				last_use;
- };
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
  
- typedef struct blkcg_policy_data *(blkcg_pol_alloc_cpd_fn)(gfp_t gfp);
-@@ -734,6 +740,45 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
- 	return !throtl;
+-	if (mem_cgroup_try_charge(page, vma->vm_mm, gfp, &memcg, true)) {
++	if (mem_cgroup_try_charge_delay(page, vma->vm_mm, gfp, &memcg, true)) {
+ 		put_page(page);
+ 		count_vm_event(THP_FAULT_FALLBACK);
+ 		return VM_FAULT_FALLBACK;
+@@ -1145,7 +1145,7 @@ static int do_huge_pmd_wp_page_fallback(struct vm_fault *vmf, pmd_t orig_pmd,
+ 		pages[i] = alloc_page_vma_node(GFP_HIGHUSER_MOVABLE, vma,
+ 					       vmf->address, page_to_nid(page));
+ 		if (unlikely(!pages[i] ||
+-			     mem_cgroup_try_charge(pages[i], vma->vm_mm,
++			     mem_cgroup_try_charge_delay(pages[i], vma->vm_mm,
+ 				     GFP_KERNEL, &memcg, false))) {
+ 			if (pages[i])
+ 				put_page(pages[i]);
+@@ -1315,7 +1315,7 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ 		goto out;
+ 	}
+ 
+-	if (unlikely(mem_cgroup_try_charge(new_page, vma->vm_mm,
++	if (unlikely(mem_cgroup_try_charge_delay(new_page, vma->vm_mm,
+ 					huge_gfp, &memcg, true))) {
+ 		put_page(new_page);
+ 		split_huge_pmd(vma, vmf->pmd, vmf->address);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2bd3df3d101a..81f61b66d27a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5458,6 +5458,30 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+ 	return ret;
  }
  
-+static inline void blkcg_use_delay(struct blkcg_gq *blkg)
++int mem_cgroup_try_charge_delay(struct page *page, struct mm_struct *mm,
++			  gfp_t gfp_mask, struct mem_cgroup **memcgp,
++			  bool compound)
 +{
-+	if (atomic_inc_and_test(&blkg->use_delay))
-+		atomic_inc(&blkg->blkcg->css.cgroup->congestion_count);
-+}
++	struct mem_cgroup *memcg;
++	struct block_device *bdev;
++	int ret;
 +
-+static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
-+{
-+	int old = atomic_read(&blkg->use_delay);
++	ret = mem_cgroup_try_charge(page, mm, gfp_mask, memcgp, compound);
++	memcg = *memcgp;
 +
-+	if (old == 0)
-+		return 0;
++	if (!(gfp_mask & __GFP_IO) || !memcg)
++		return ret;
++#if defined(CONFIG_BLOCK) && defined(CONFIG_SWAP)
++	if (atomic_read(&memcg->css.cgroup->congestion_count) &&
++	    has_usable_swap()) {
++		map_swap_page(page, &bdev);
 +
-+	while (old) {
-+		int cur = atomic_cmpxchg(&blkg->use_delay, old, old - 1);
-+		if (cur == old)
-+			break;
-+		cur = old;
++		blkcg_schedule_throttle(bdev_get_queue(bdev), true);
 +	}
-+
-+	if (old == 0)
-+		return 0;
-+	if (old == 1)
-+		atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
-+	return 1;
-+}
-+
-+static inline void blkcg_clear_delay(struct blkcg_gq *blkg)
-+{
-+	int old = atomic_read(&blkg->use_delay);
-+	if (!old)
-+		return;
-+	if (atomic_cmpxchg(&blkg->use_delay, old, 0) == old)
-+		atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
-+}
-+
-+void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta);
-+void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay);
-+void blkcg_maybe_throttle_current(void);
- #else	/* CONFIG_BLK_CGROUP */
- 
- struct blkcg {
-@@ -753,8 +798,12 @@ struct blkcg_policy {
- 
- #define blkcg_root_css	((struct cgroup_subsys_state *)ERR_PTR(-EINVAL))
- 
-+static inline void blkcg_maybe_throttle_current(void) { }
-+
- #ifdef CONFIG_BLOCK
- 
-+static inline void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay) { }
-+
- static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, void *key) { return NULL; }
- static inline int blkcg_init_queue(struct request_queue *q) { return 0; }
- static inline void blkcg_drain_queue(struct request_queue *q) { }
-diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
-index dc5b70449dc6..b3ab17d53f3d 100644
---- a/include/linux/cgroup-defs.h
-+++ b/include/linux/cgroup-defs.h
-@@ -427,6 +427,9 @@ struct cgroup {
- 	/* used to store eBPF programs */
- 	struct cgroup_bpf bpf;
- 
-+	/* If there is block congestion on this cgroup. */
-+	atomic_t congestion_count;
-+
- 	/* ids of the ancestors at each level including self */
- 	int ancestor_ids[];
- };
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index b3d697f3b573..b672ead16518 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1099,6 +1099,11 @@ struct task_struct {
- 	unsigned int			memcg_nr_pages_over_high;
- #endif
- 
-+#ifdef CONFIG_BLK_CGROUP
-+	struct request_queue		*throttle_queue;
-+	bool				use_memdelay;
 +#endif
++	return ret;
++}
 +
- #ifdef CONFIG_UPROBES
- 	struct uprobe_task		*utask;
- #endif
-diff --git a/include/linux/tracehook.h b/include/linux/tracehook.h
-index 26c152122a42..4e24930306b9 100644
---- a/include/linux/tracehook.h
-+++ b/include/linux/tracehook.h
-@@ -51,6 +51,7 @@
- #include <linux/security.h>
- #include <linux/task_work.h>
- #include <linux/memcontrol.h>
-+#include <linux/blk-cgroup.h>
- struct linux_binprm;
+ /**
+  * mem_cgroup_commit_charge - commit a page charge
+  * @page: page to charge
+diff --git a/mm/memory.c b/mm/memory.c
+index 01f5464e0fd2..d0eea6d33b18 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2494,7 +2494,7 @@ static int wp_page_copy(struct vm_fault *vmf)
+ 		cow_user_page(new_page, old_page, vmf->address, vma);
+ 	}
  
- /*
-@@ -191,6 +192,7 @@ static inline void tracehook_notify_resume(struct pt_regs *regs)
- 		task_work_run();
+-	if (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL, &memcg, false))
++	if (mem_cgroup_try_charge_delay(new_page, mm, GFP_KERNEL, &memcg, false))
+ 		goto oom_free_new;
  
- 	mem_cgroup_handle_over_high();
-+	blkcg_maybe_throttle_current();
- }
+ 	__SetPageUptodate(new_page);
+@@ -2994,8 +2994,8 @@ int do_swap_page(struct vm_fault *vmf)
+ 		goto out_page;
+ 	}
  
- #endif	/* <linux/tracehook.h> */
+-	if (mem_cgroup_try_charge(page, vma->vm_mm, GFP_KERNEL,
+-				&memcg, false)) {
++	if (mem_cgroup_try_charge_delay(page, vma->vm_mm, GFP_KERNEL,
++					&memcg, false)) {
+ 		ret = VM_FAULT_OOM;
+ 		goto out_page;
+ 	}
+@@ -3156,7 +3156,8 @@ static int do_anonymous_page(struct vm_fault *vmf)
+ 	if (!page)
+ 		goto oom;
+ 
+-	if (mem_cgroup_try_charge(page, vma->vm_mm, GFP_KERNEL, &memcg, false))
++	if (mem_cgroup_try_charge_delay(page, vma->vm_mm, GFP_KERNEL, &memcg,
++					false))
+ 		goto oom_free_page;
+ 
+ 	/*
+@@ -3652,7 +3653,7 @@ static int do_cow_fault(struct vm_fault *vmf)
+ 	if (!vmf->cow_page)
+ 		return VM_FAULT_OOM;
+ 
+-	if (mem_cgroup_try_charge(vmf->cow_page, vma->vm_mm, GFP_KERNEL,
++	if (mem_cgroup_try_charge_delay(vmf->cow_page, vma->vm_mm, GFP_KERNEL,
+ 				&vmf->memcg, false)) {
+ 		put_page(vmf->cow_page);
+ 		return VM_FAULT_OOM;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 9d6c7e595415..a96af5690864 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1219,8 +1219,8 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
+ 	 * the shmem_swaplist_mutex which might hold up shmem_writepage().
+ 	 * Charged back to the user (not to caller) when swap account is used.
+ 	 */
+-	error = mem_cgroup_try_charge(page, current->mm, GFP_KERNEL, &memcg,
+-			false);
++	error = mem_cgroup_try_charge_delay(page, current->mm, GFP_KERNEL,
++					    &memcg, false);
+ 	if (error)
+ 		goto out;
+ 	/* No radix_tree_preload: swap entry keeps a place for page in tree */
+@@ -1697,7 +1697,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 				goto failed;
+ 		}
+ 
+-		error = mem_cgroup_try_charge(page, charge_mm, gfp, &memcg,
++		error = mem_cgroup_try_charge_delay(page, charge_mm, gfp, &memcg,
+ 				false);
+ 		if (!error) {
+ 			error = shmem_add_to_page_cache(page, mapping, index,
+@@ -1803,7 +1803,7 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, inode,
+ 		if (sgp == SGP_WRITE)
+ 			__SetPageReferenced(page);
+ 
+-		error = mem_cgroup_try_charge(page, charge_mm, gfp, &memcg,
++		error = mem_cgroup_try_charge_delay(page, charge_mm, gfp, &memcg,
+ 				PageTransHuge(page));
+ 		if (error)
+ 			goto unacct;
+@@ -2276,7 +2276,7 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
+ 	__SetPageSwapBacked(page);
+ 	__SetPageUptodate(page);
+ 
+-	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
++	ret = mem_cgroup_try_charge_delay(page, dst_mm, gfp, &memcg, false);
+ 	if (ret)
+ 		goto out_release;
+ 
 -- 
 2.14.3
