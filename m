@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E496A6B0003
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 13:56:04 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id n9-v6so9613985wmh.6
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 10:56:04 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A9A856B0003
+	for <linux-mm@kvack.org>; Tue, 29 May 2018 14:14:13 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e1-v6so11073759wma.3
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 11:14:13 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id f1-v6si2429245edr.169.2018.05.29.10.56.03
+        by mx.google.com with ESMTPS id b15-v6si503659edh.432.2018.05.29.11.14.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 May 2018 10:56:03 -0700 (PDT)
-Date: Tue, 29 May 2018 13:58:06 -0400
+        Tue, 29 May 2018 11:14:12 -0700 (PDT)
+Date: Tue, 29 May 2018 14:16:16 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 0/5] kmalloc-reclaimable caches
-Message-ID: <20180529175806.GA28689@cmpxchg.org>
-References: <20180524110011.1940-1-vbabka@suse.cz>
- <20180524153225.GA7329@cmpxchg.org>
- <fcdcf7be-afd1-9747-d97e-51cd071d3f5c@suse.cz>
+Subject: Re: [PATCH 0/7] psi: pressure stall information for CPU, memory, and
+ IO
+Message-ID: <20180529181616.GB28689@cmpxchg.org>
+References: <20180507210135.1823-1-hannes@cmpxchg.org>
+ <CAJuCfpF4q+1aSg4WQn_p-1-zEDhh-iqST6dc1DkxnDofSPBKGw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fcdcf7be-afd1-9747-d97e-51cd071d3f5c@suse.cz>
+In-Reply-To: <CAJuCfpF4q+1aSg4WQn_p-1-zEDhh-iqST6dc1DkxnDofSPBKGw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Vijayanand Jitta <vjitta@codeaurora.org>
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-On Mon, May 28, 2018 at 10:15:46AM +0200, Vlastimil Babka wrote:
-> On 05/24/2018 05:32 PM, Johannes Weiner wrote:
-> > On Thu, May 24, 2018 at 01:00:06PM +0200, Vlastimil Babka wrote:
-> >> - the vmstat/meminfo counter name is rather general and might suggest it also
-> >>   includes reclaimable page caches, which it doesn't
-> >>
-> >> Suggestions welcome for all three points. For the last one, we might also keep
-> >> the counter separate from nr_slab_reclaimable, not superset. I did a superset
-> >> as IIRC somebody suggested that in the older threads or at LSF.
-> > 
-> > Yeah, the "reclaimable" name is too generic. How about KReclaimable?
-> > 
-> > The counter being a superset sounds good to me. We use this info for
-> > both load balancing and manual debugging. For load balancing code it's
-> > nice not having to worry about finding all the counters that hold
-> > reclaimable memory depending on kernel version; it's always simply
-> > user cache + user anon + kernel reclaimable. And for debugging, we can
-> > always add more specific subset counters later on if we need them.
-> 
-> Hm, Christoph in his reply to patch 4/5 expressed a different opinion.
-> It's true that updating two counters has extra overhead, especially if
-> there are two separate critical sections:
-> 
-> mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, nr_pages);
-> mod_node_page_state(page_pgdat(page), NR_RECLAIMABLE, nr_pages);
-> 
-> The first disables irq for CONFIG_MEMCG or defers to
-> mod_node_page_state() otherwise.
-> mod_node_page_state() is different depending on CONFIG_SMP and
-> CONFIG_HAVE_CMPXCHG_LOCAL.
-> 
-> I don't see an easy way to make this optimal? Different counter would be
-> indeed simpler. /proc/vmstat would then print separate counters, but we
-> could have both separate and summary counter in /proc/meminfo. Would
-> that be enough?
+Hi Suren,
 
-Yeah, that works just as well.
+On Fri, May 25, 2018 at 05:29:30PM -0700, Suren Baghdasaryan wrote:
+> Hi Johannes,
+> I tried your previous memdelay patches before this new set was posted
+> and results were promising for predicting when Android system is close
+> to OOM. I'm definitely going to try this one after I backport it to
+> 4.9.
+
+I'm happy to hear that!
+
+> Would it make sense to split CONFIG_PSI into CONFIG_PSI_CPU,
+> CONFIG_PSI_MEM and CONFIG_PSI_IO since one might need only specific
+> subset of this feature?
+
+Yes, that should be doable. I'll split them out in the next version.
+
+> > The total= value gives the absolute stall time in microseconds. This
+> > allows detecting latency spikes that might be too short to sway the
+> > running averages. It also allows custom time averaging in case the
+> > 10s/1m/5m windows aren't adequate for the usecase (or are too coarse
+> > with future hardware).
+> 
+> Any reasons these specific windows were chosen (empirical
+> data/historical reasons)? I'm worried that with the smallest window
+> being 10s the signal might be too inert to detect fast memory pressure
+> buildup before OOM kill happens. I'll have to experiment with that
+> first, however if you have some insights into this already please
+> share them.
+
+They were chosen empirically. We started out with the loadavg window
+sizes, but had to reduce them for exactly the reason you mention -
+they're way too coarse to detect acute pressure buildup.
+
+10s has been working well for us. We could make it smaller, but there
+is some worry that we don't have enough samples then and the average
+becomes too erratic - whereas monitoring total= directly would allow
+you to detect accute spikes and handle this erraticness explicitly.
+
+Let me know how it works out in your tests.
+
+Thanks for your feedback.
