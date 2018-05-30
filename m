@@ -1,84 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BC0E66B000A
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 08:54:03 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id k129-v6so10011804itg.8
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 05:54:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v25-v6sor529823iog.107.2018.05.30.05.54.02
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 05DE36B0006
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 09:04:44 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id v2-v6so12964777wmc.0
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 06:04:43 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id g42-v6si1319234edg.360.2018.05.30.06.04.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 30 May 2018 05:54:02 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 30 May 2018 06:04:42 -0700 (PDT)
+Date: Wed, 30 May 2018 09:06:48 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 05/13] swap,blkcg: issue swap io with the appropriate
+ context
+Message-ID: <20180530130648.GA4035@cmpxchg.org>
+References: <20180529211724.4531-1-josef@toxicpanda.com>
+ <20180529211724.4531-6-josef@toxicpanda.com>
 MIME-Version: 1.0
-In-Reply-To: <20180530103936.17812-1-liwang@redhat.com>
-References: <20180530103936.17812-1-liwang@redhat.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 30 May 2018 08:53:21 -0400
-Message-ID: <CALZtONBKSVfXe+RHOjgS=4VrDqFsxNRx3OuGctp0o1Hrtix3Ew@mail.gmail.com>
-Subject: Re: [PATCH v2] zswap: re-check zswap_is_full after do zswap_shrink
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180529211724.4531-6-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjenning@redhat.com>, Huang Ying <huang.ying.caritas@gmail.com>, Yu Zhao <yuzhao@google.com>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: axboe@kernel.dk, kernel-team@fb.com, linux-block@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tj@kernel.org, linux-fsdevel@vger.kernel.org
 
-On Wed, May 30, 2018 at 6:39 AM, Li Wang <liwang@redhat.com> wrote:
-> The '/sys/../zswap/stored_pages:' keep raising in zswap test with
-> "zswap.max_pool_percent=0" parameter. But theoretically, it should
-> not compress or store pages any more since there is no space in
-> compressed pool.
->
-> Reproduce steps:
->   1. Boot kernel with "zswap.enabled=1"
->   2. Set the max_pool_percent to 0
->       # echo 0 > /sys/module/zswap/parameters/max_pool_percent
->   3. Do memory stress test to see if some pages have been compressed
->       # stress --vm 1 --vm-bytes $mem_available"M" --timeout 60s
->   4. Watching the 'stored_pages' number increasing or not
->
-> The root cause is:
->   When zswap_max_pool_percent is setting to 0 via kernel parameter, the
->   zswap_is_full() will always return true to do zswap_shrink(). But if
->   the shinking is able to reclain a page successful, then proceeds to
->   compress/store another page, so the value of stored_pages will keep
->   changing.
->
-> To solve the issue, this patch adds zswap_is_full() check again after
-> zswap_shrink() to make sure it's now under the max_pool_percent, and
-> not to compress/store if reach its limitaion.
->
-> Signed-off-by: Li Wang <liwang@redhat.com>
-
-Acked-by: Dan Streetman <ddstreet@ieee.org>
-
-> Cc: Seth Jennings <sjenning@redhat.com>
-> Cc: Dan Streetman <ddstreet@ieee.org>
-> Cc: Huang Ying <huang.ying.caritas@gmail.com>
-> Cc: Yu Zhao <yuzhao@google.com>
+On Tue, May 29, 2018 at 05:17:16PM -0400, Josef Bacik wrote:
+> From: Tejun Heo <tj@kernel.org>
+> 
+> For backcharging we need to know who the page belongs to when swapping
+> it out.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
 > ---
->  mm/zswap.c | 9 +++++++++
->  1 file changed, 9 insertions(+)
->
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index 61a5c41..fd320c3 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -1026,6 +1026,15 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->                         ret = -ENOMEM;
->                         goto reject;
->                 }
+>  mm/page_io.c | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+> 
+> diff --git a/mm/page_io.c b/mm/page_io.c
+> index a552cb37e220..61e1268e5dbc 100644
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
+> @@ -339,6 +339,16 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
+>  		goto out;
+>  	}
+>  	bio->bi_opf = REQ_OP_WRITE | REQ_SWAP | wbc_to_write_flags(wbc);
+> +#if defined(CONFIG_MEMCG) && defined(CONFIG_BLK_CGROUP)
+> +	if (page->mem_cgroup) {
+> +		struct cgroup_subsys_state *blkcg_css;
 > +
-> +               /* A second zswap_is_full() check after
-> +                * zswap_shrink() to make sure it's now
-> +                * under the max_pool_percent
-> +                */
-> +               if (zswap_is_full()) {
-> +                       ret = -ENOMEM;
-> +                       goto reject;
-> +               }
->         }
->
->         /* allocate entry */
-> --
-> 2.9.5
->
+> +		blkcg_css = cgroup_get_e_css(page->mem_cgroup->css.cgroup,
+> +					     &io_cgrp_subsys);
+> +		bio_associate_blkcg(bio, blkcg_css);
+> +		css_put(blkcg_css);
+> +	}
+> +#endif
+
+This looks reasonable, but it probably warrants a helper function.
+
+bio_associate_blkcg_from_page() or something?
