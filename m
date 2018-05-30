@@ -1,125 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 10FAB6B0006
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 19:21:35 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id e95-v6so12975502otb.15
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 16:21:35 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 5-v6sor140483oid.287.2018.05.30.16.21.33
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D58326B0006
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 19:32:54 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 201-v6so10442739itj.4
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 16:32:54 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w19-v6sor7979277ioc.87.2018.05.30.16.32.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 30 May 2018 16:21:34 -0700 (PDT)
+        Wed, 30 May 2018 16:32:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180530081356.mohu6fx22fzd7fxb@quack2.suse.cz>
-References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152699999778.24093.18007971664703285330.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180523084030.dvv4jbvsnzrsaz6q@quack2.suse.cz> <CAPcyv4gUM7Br3XONOVkNCg-mvR5U8QLq+OOc54cLpP61LXhJXA@mail.gmail.com>
- <20180530081356.mohu6fx22fzd7fxb@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 30 May 2018 16:21:33 -0700
-Message-ID: <CAPcyv4iPa_n7c6iLRtNyE4GdXcn7JcF=Z1bUDmNrjrKvnLic2A@mail.gmail.com>
-Subject: Re: [PATCH 05/11] filesystem-dax: set page->index
+In-Reply-To: <20180529181616.GB28689@cmpxchg.org>
+References: <20180507210135.1823-1-hannes@cmpxchg.org> <CAJuCfpF4q+1aSg4WQn_p-1-zEDhh-iqST6dc1DkxnDofSPBKGw@mail.gmail.com>
+ <20180529181616.GB28689@cmpxchg.org>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Wed, 30 May 2018 16:32:52 -0700
+Message-ID: <CAJuCfpGXSyu3SOky6jMhKjix=bbaPccg05VcepbvuJiv+bQgzw@mail.gmail.com>
+Subject: Re: [PATCH 0/7] psi: pressure stall information for CPU, memory, and IO
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>, linux-xfs <linux-xfs@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, cgroups@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linuxfoundation.org>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>, Mike Galbraith <efault@gmx.de>, Oliver Yang <yangoliver@me.com>, Shakeel Butt <shakeelb@google.com>, xxx xxx <x.qendo@gmail.com>, Taras Kondratiuk <takondra@cisco.com>, Daniel Walker <danielwa@cisco.com>, Vinayak Menon <vinmenon@codeaurora.org>, Ruslan Ruslichenko <rruslich@cisco.com>, kernel-team@fb.com
 
-On Wed, May 30, 2018 at 1:13 AM, Jan Kara <jack@suse.cz> wrote:
-> On Tue 29-05-18 18:38:41, Dan Williams wrote:
->> On Wed, May 23, 2018 at 1:40 AM, Jan Kara <jack@suse.cz> wrote:
->> > On Tue 22-05-18 07:39:57, Dan Williams wrote:
->> >> In support of enabling memory_failure() handling for filesystem-dax
->> >> mappings, set ->index to the pgoff of the page. The rmap implementation
->> >> requires ->index to bound the search through the vma interval tree. The
->> >> index is set and cleared at dax_associate_entry() and
->> >> dax_disassociate_entry() time respectively.
->> >>
->> >> Cc: Jan Kara <jack@suse.cz>
->> >> Cc: Christoph Hellwig <hch@lst.de>
->> >> Cc: Matthew Wilcox <mawilcox@microsoft.com>
->> >> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
->> >> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->> >> ---
->> >>  fs/dax.c |   11 ++++++++---
->> >>  1 file changed, 8 insertions(+), 3 deletions(-)
->> >>
->> >> diff --git a/fs/dax.c b/fs/dax.c
->> >> index aaec72ded1b6..2e4682cd7c69 100644
->> >> --- a/fs/dax.c
->> >> +++ b/fs/dax.c
->> >> @@ -319,18 +319,22 @@ static unsigned long dax_radix_end_pfn(void *entry)
->> >>       for (pfn = dax_radix_pfn(entry); \
->> >>                       pfn < dax_radix_end_pfn(entry); pfn++)
->> >>
->> >> -static void dax_associate_entry(void *entry, struct address_space *mapping)
->> >> +static void dax_associate_entry(void *entry, struct address_space *mapping,
->> >> +             struct vm_area_struct *vma, unsigned long address)
->> >>  {
->> >> -     unsigned long pfn;
->> >> +     unsigned long size = dax_entry_size(entry), pfn, index;
->> >> +     int i = 0;
->> >>
->> >>       if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
->> >>               return;
->> >>
->> >> +     index = linear_page_index(vma, address & ~(size - 1));
->> >>       for_each_mapped_pfn(entry, pfn) {
->> >>               struct page *page = pfn_to_page(pfn);
->> >>
->> >>               WARN_ON_ONCE(page->mapping);
->> >>               page->mapping = mapping;
->> >> +             page->index = index + i++;
->> >>       }
->> >>  }
->> >
->> > Hum, this just made me think: How is this going to work with XFS reflink?
->> > In fact is not the page->mapping association already broken by XFS reflink?
->> > Because with reflink we can have two or more mappings pointing to the same
->> > physical blocks (i.e., pages in DAX case)...
->>
->> Good question. I assume we are ok in the non-DAX reflink case because
->> rmap of failing / poison pages is only relative to the specific page
->> cache page for a given inode in the reflink. However, DAX would seem
->> to break this because we only get one shared 'struct page' for all
->> possible mappings of the physical file block. I think this means for
->> iterating over the rmap of "where is this page mapped" would require
->> iterating over the other "sibling" inodes that know about the given
->> physical file block.
->>
->> As far as I can see reflink+dax would require teaching kernel code
->> paths that ->mapping may not be a singular relationship. Something
->> along the line's of what Jerome was presenting at LSF to create a
->> special value to indicate, "call back into the filesystem (or the page
->> owner)" to perform this operation.
->>
->> In the meantime the kernel crashes when userspace accesses poisoned
->> pmem via DAX. I assume that reworking rmap for the dax+reflink case
->> should not block dax poison handling? Yell if you disagree.
+On Tue, May 29, 2018 at 11:16 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> Hi Suren,
 >
-> The thing is, up until get_user_pages() vs truncate series ("fs, dax: use
-> page->mapping to warn if truncate collides with a busy page" in
-> particular), DAX was perfectly fine with reflinks since we never needed
-> page->mapping.
+> On Fri, May 25, 2018 at 05:29:30PM -0700, Suren Baghdasaryan wrote:
+>> Hi Johannes,
+>> I tried your previous memdelay patches before this new set was posted
+>> and results were promising for predicting when Android system is close
+>> to OOM. I'm definitely going to try this one after I backport it to
+>> 4.9.
+>
+> I'm happy to hear that!
+>
+>> Would it make sense to split CONFIG_PSI into CONFIG_PSI_CPU,
+>> CONFIG_PSI_MEM and CONFIG_PSI_IO since one might need only specific
+>> subset of this feature?
+>
+> Yes, that should be doable. I'll split them out in the next version.
+>
+>> > The total= value gives the absolute stall time in microseconds. This
+>> > allows detecting latency spikes that might be too short to sway the
+>> > running averages. It also allows custom time averaging in case the
+>> > 10s/1m/5m windows aren't adequate for the usecase (or are too coarse
+>> > with future hardware).
+>>
+>> Any reasons these specific windows were chosen (empirical
+>> data/historical reasons)? I'm worried that with the smallest window
+>> being 10s the signal might be too inert to detect fast memory pressure
+>> buildup before OOM kill happens. I'll have to experiment with that
+>> first, however if you have some insights into this already please
+>> share them.
+>
+> They were chosen empirically. We started out with the loadavg window
+> sizes, but had to reduce them for exactly the reason you mention -
+> they're way too coarse to detect acute pressure buildup.
+>
+> 10s has been working well for us. We could make it smaller, but there
+> is some worry that we don't have enough samples then and the average
+> becomes too erratic - whereas monitoring total= directly would allow
+> you to detect accute spikes and handle this erraticness explicitly.
 
-Sure, but if this rmap series had come first I still would have needed
-to implement ->mapping. So unless we invent a general ->mapping
-replacement and switch all mapping users, it was always going to
-collide with DAX eventually.
+Unfortunately total= field is now updated only at 2sec intervals which
+might be too late to react to mounting memory pressure. With previous
+memdelay patchset md->aggregate which is reported as "total" was
+calculated directly from inside memdelay_task_change, so it was always
+up-to-date. Now group->some and group->full are updated from inside
+psi_clock with up to 2sec delay. This prevents us from detecting these
+acute pressure spikes immediately. I understand why you moved these
+calculations out of the hot path but maybe we could keep updating
+"total" inside psi_group_update? This would allow for custom averaging
+and eliminate this delay for detecting spikes in the pressure signal.
+More conceptually I would love to have a way to monitor the averages
+at a slow rate and when they rise and cross some threshold to increase
+the monitoring rate and react quickly in case they shoot up. Current
+2sec delay poses a problem for doing that.
 
-> Now this series adds even page->index dependency which makes
-> life for rmap with reflinks even harder. So if nothing else we should at
-> least make sure reflinked filesystems cannot be mounted with dax mount
-> option for now and seriously start looking into how to implement rmap with
-> reflinked files for DAX because this noticeably reduces its usefulness.
+>
+> Let me know how it works out in your tests.
 
-This restriction is already in place. In xfs_reflink_remap_range() we have:
+I've done the backporting to 4.9 and running the tests but the 2sec
+delay is problematic for getting a detailed look at the signal and its
+usefulness. Thinking about workarounds if only for data collection but
+don't want to deviate too much from your baseline. Would love to hear
+from you if a good compromise can be reached here.
 
-        /* Don't share DAX file data for now. */
-        if (IS_DAX(inode_in) || IS_DAX(inode_out))
-                goto out_unlock;
-
-All this said, perhaps we don't need to set ->link, it would just mean
-a wider search through the rmap tree to find if the given page is
-mapped. So, I think I can forgo setting ->link if I teach the rmap
-code to search the entire ->mapping.
+>
+> Thanks for your feedback.
