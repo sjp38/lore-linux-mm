@@ -1,79 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AABA6B0003
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 16:51:45 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y26-v6so1811182pfn.14
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 13:51:45 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B02446B0003
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 16:56:44 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id k13-v6so4407044pgr.11
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 13:56:44 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b9-v6sor14145207plb.139.2018.05.30.13.51.43
+        by mx.google.com with SMTPS id n59-v6sor1065976plb.0.2018.05.30.13.56.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 30 May 2018 13:51:43 -0700 (PDT)
-Date: Wed, 30 May 2018 13:51:42 -0700 (PDT)
+        Wed, 30 May 2018 13:56:43 -0700 (PDT)
+Date: Wed, 30 May 2018 13:56:41 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, hugetlb_cgroup: suppress SIGBUS when hugetlb_cgroup
- charge fails
-In-Reply-To: <7cf79250-a58a-b8a3-50ca-5e472762b510@oracle.com>
-Message-ID: <alpine.DEB.2.21.1805301342430.149715@chino.kir.corp.google.com>
-References: <alpine.DEB.2.21.1805251316090.167008@chino.kir.corp.google.com> <7cf79250-a58a-b8a3-50ca-5e472762b510@oracle.com>
+Subject: Re: [PATCH v6] Refactor part of the oom report in dump_header
+In-Reply-To: <20180528141000.GG27180@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.21.1805301353140.150424@chino.kir.corp.google.com>
+References: <1527413551-5982-1-git-send-email-ufo19890607@gmail.com> <20180528141000.GG27180@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: ufo19890607 <ufo19890607@gmail.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Mike,
+On Mon, 28 May 2018, Michal Hocko wrote:
 
-On Tue, 29 May 2018, Mike Kravetz wrote:
+> > Below is the part of the oom report in the dmesg
+> > ...
+> > [  142.158316] panic cpuset=/ mems_allowed=0-1
+> > [  142.158983] CPU: 15 PID: 8682 Comm: panic Not tainted 4.17.0-rc6+ #13
+> > [  142.159659] Hardware name: Inspur SA5212M4/YZMB-00370-107, BIOS 4.1.10 11/14/2016
+> > [  142.160342] Call Trace:
+> > [  142.161037]  dump_stack+0x78/0xb3
+> > [  142.161734]  dump_header+0x7d/0x334
+> > [  142.162433]  oom_kill_process+0x228/0x490
+> > [  142.163126]  ? oom_badness+0x2a/0x130
+> > [  142.163821]  out_of_memory+0xf0/0x280
+> > [  142.164532]  __alloc_pages_slowpath+0x711/0xa07
+> > [  142.165241]  __alloc_pages_nodemask+0x23f/0x260
+> > [  142.165947]  alloc_pages_vma+0x73/0x180
+> > [  142.166665]  do_anonymous_page+0xed/0x4e0
+> > [  142.167388]  __handle_mm_fault+0xbd2/0xe00
+> > [  142.168114]  handle_mm_fault+0x116/0x250
+> > [  142.168841]  __do_page_fault+0x233/0x4d0
+> > [  142.169567]  do_page_fault+0x32/0x130
+> > [  142.170303]  ? page_fault+0x8/0x30
+> > [  142.171036]  page_fault+0x1e/0x30
+> > [  142.171764] RIP: 0033:0x7f403000a860
+> > [  142.172517] RSP: 002b:00007ffc9f745c28 EFLAGS: 00010206
+> > [  142.173268] RAX: 00007f3f6fd7d000 RBX: 0000000000000000 RCX: 00007f3f7f5cd000
+> > [  142.174040] RDX: 00007f3fafd7d000 RSI: 0000000000000000 RDI: 00007f3f6fd7d000
+> > [  142.174806] RBP: 00007ffc9f745c50 R08: ffffffffffffffff R09: 0000000000000000
+> > [  142.175623] R10: 0000000000000022 R11: 0000000000000246 R12: 0000000000400490
+> > [  142.176542] R13: 00007ffc9f745d30 R14: 0000000000000000 R15: 0000000000000000
+> > [  142.177709] oom-kill: constrain=CONSTRAINT_NONE nodemask=(null) origin_memcg= kill_memcg=/test/test1/test2 task=panic pid= 8622 uid=    0
+> 
+> Is it really helpful to dump the nodemask here again? We already have it
+> as a part of the "%s invoked oom-killer:" message.
+> 
 
-> > When charging to a hugetlb_cgroup fails, alloc_huge_page() returns
-> > ERR_PTR(-ENOSPC) which will cause VM_FAULT_SIGBUS to be returned to the
-> > page fault handler.
-> > 
-> > Instead, return the proper error code, ERR_PTR(-ENOMEM), so VM_FAULT_OOM
-> > is handled correctly.  This is consistent with failing mem cgroup charges
-> > in the non-hugetlb fault path.
-> 
-> Apologies for the late reply.
-> 
-> I am not %100 sure we want to make this change.  When hugetlb cgroup support
-> was added by Aneesh, the intention was for the application to get SIGBUS.
-> 
-> commit 2bc64a204697
-> https://lwn.net/Articles/499255/
-> 
-> Since the code has always caused SIGBUS when exceeding cgroup limit, there
-> may be applications depending on this behavior.  I would be especially
-> concerned with HPC applications which were the original purpose for adding
-> the feature.
-> 
-> Perhaps, the original code should have returned ENOMEM to be consistent as
-> in your patch.  That does seem to be the more correct behavior.  But, do we
-> want to change behavior now (admittedly undocumented) and potentially break
-> some application?
-> 
-> I echo Michal's question about the reason for the change.  If there is a
-> real problem or issue to solve, that makes more of a case for making the
-> change.  If it is simply code/behavior cleanup for consistency then I would
-> suggest not making the change, but rather documenting this as another
-> hugetlbfs "special behavior".
-> 
+At the risk of making the patch more complex, it would be possible to 
+suppress nodemask=<mask> for constraints that are not 
+CONSTRAINT_MEMORY_POLICY, but the goal was to provide a single line output 
+that userspace can parse for all information and not rely on surrounding 
+lines to match oom kills with invocations (the invocation itself may have 
+been lost from the ring buffer), and we want this to not be subjected to 
+any ratelimit.
 
-Yes, I mentioned the backwards compatibility issue and I'm not sure there 
-is a likely way around it.  But it's rather unfortunate that applications 
-can become constrained in such a way that SIGBUS may be unavoidable if 
-alloc_buddy_huge_page_with_mpol() cannot allocate from surplus and/or the 
-hugetlb_cgroup limit is reached.  Not only are both racy, but applications 
-prior to hugetlb_cgroup was introduced may have avoided SIGBUS by checking 
-global hstate and are now limited to hugetlb_cgroup constraints 
-unknowingly.  It's also not possible to avoid the SIGBUS by trying to 
-terminate a lower priority process that has hugetlb reservations.
-
-I'm not sure there is a path forward that can make this more 
-deterministic.  We have customers who have reported receiving SIGBUS deep 
-in their allocation stack using MAP_HUGETLB and were checking global 
-hstate but were unaware of any hugetlb_cgroup restriction.
-
-Andrew, please drop the patch.  I'd like to know if anybody has any ideas 
-on how this can be more userspace friendly, however.
+We need to eliminate the spurious spaces in the output, though, and fix 
+the spelling of "constrain".  There should be no spaces between pid and 
+uid values.
