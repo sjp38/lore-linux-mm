@@ -1,64 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BEDA6B0005
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 11:41:12 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id d4-v6so11485115plr.17
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 08:41:12 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w69-v6si11445624pgd.101.2018.05.30.08.41.11
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 126A46B0003
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 11:49:38 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id u15-v6so3644030ybi.19
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 08:49:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k18-v6sor6414311ywa.300.2018.05.30.08.49.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 30 May 2018 08:41:11 -0700 (PDT)
-Date: Wed, 30 May 2018 08:41:10 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: dmapool: Check the dma pool name
-Message-ID: <20180530154110.GA22184@bombadil.infradead.org>
-References: <59623b15001e5a20ac32b1a393db88722be2e718.1527679621.git.baolin.wang@linaro.org>
- <20180530120133.GC17450@bombadil.infradead.org>
- <CAMz4ku+fBt2uY6MbiMX1X-6jtjdpqp=DWNMrefOG4SsUHWN4kQ@mail.gmail.com>
- <20180530151327.GA13951@bombadil.infradead.org>
+        (Google Transport Security);
+        Wed, 30 May 2018 08:49:37 -0700 (PDT)
+Date: Wed, 30 May 2018 08:49:33 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 01/13] block: add bi_blkg to the bio for cgroups
+Message-ID: <20180530154933.GI1351649@devbig577.frc2.facebook.com>
+References: <20180529211724.4531-1-josef@toxicpanda.com>
+ <20180529211724.4531-2-josef@toxicpanda.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180530151327.GA13951@bombadil.infradead.org>
+In-Reply-To: <20180529211724.4531-2-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baolin Wang <baolin.wang@linaro.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Mark Brown <broonie@kernel.org>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: axboe@kernel.dk, kernel-team@fb.com, linux-block@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-On Wed, May 30, 2018 at 08:13:27AM -0700, Matthew Wilcox wrote:
-> On Wed, May 30, 2018 at 08:14:09PM +0800, Baolin Wang wrote:
-> > On 30 May 2018 at 20:01, Matthew Wilcox <willy@infradead.org> wrote:
-> > > On Wed, May 30, 2018 at 07:28:43PM +0800, Baolin Wang wrote:
-> > >> It will be crash if we pass one NULL name when creating one dma pool,
-> > >> so we should check the passing name when copy it to dma pool.
-> > >
-> > > NAK.  Crashing is the appropriate thing to do.  Fix the caller to not
-> > > pass NULL.
-> > >
-> > > If you permit NULL to be passed then you're inviting crashes or just
-> > > bad reporting later when pool->name is printed.
-> > 
-> > I think it just prints one NULL pool name. Sometimes the device
-> > doesn't care the dma pool names, so I think we can make code more
-> > solid to valid the passing parameters like other code does.
-> > Or can we add check to return NULL when the passing name is NULL
-> > instead of crashing the kernel? Thanks.
+On Tue, May 29, 2018 at 05:17:12PM -0400, Josef Bacik wrote:
+> From: Josef Bacik <jbacik@fb.com>
 > 
-> No.  Fix your driver.
+> Currently io.low uses a bi_cg_private to stash its private data for the
+> blkg, however other blkcg policies may want to use this as well.  Since
+> we can get the private data out of the blkg, move this to bi_blkg in the
+> bio and make it generic, then we can use bio_associate_blkg() to attach
+> the blkg to the bio.
+> 
+> Theoretically we could simply replace the bi_css with this since we can
+> get to all the same information from the blkg, however you have to
+> lookup the blkg, so for example wbc_init_bio() would have to lookup and
+> possibly allocate the blkg for the css it was trying to attach to the
+> bio.  This could be problematic and result in us either not attaching
+> the css at all to the bio, or falling back to the root blkcg if we are
+> unable to allocate the corresponding blkg.
+> 
+> So for now do this, and in the future if possible we could just replace
+> the bi_css with bi_blkg and update the helpers to do the correct
+> translation.
+> 
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
 
-Let me elaborate on this.  Kernel code is supposed to be "reasonable".
-That means we don't check every argument to every function for sanity,
-unless it's going to cause trouble later.  Crashing immediately with
-a bogus argument is fine; you can see the problem and fix it immediately.
-Returning NULL with a bad argument is actually worse; you won't know why
-the function returned NULL (maybe we're out of memory?) and you'll have
-a more complex debugging experience.
+Acked-by: Tejun Heo <tj@kernel.org>
 
-Sometimes it makes sense to accept a NULL pointer and do something
-reasonable, like kfree().  In this case, we can eliminate checks in all
-the callers.  But we don't, in general, put sanity checks on arguments
-without a good reason.
+Thanks.
 
-Your reasons aren't good.  "The driver doesn't care" -- well, just pass
-the driver's name, then.
+-- 
+tejun
