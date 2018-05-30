@@ -1,301 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6502E6B0003
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 12:22:49 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id q5-v6so15042314itq.2
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 09:22:49 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id w204-v6si9120191iof.133.2018.05.30.09.22.47
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C4C726B0006
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 12:25:03 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k18-v6so15180494wrm.6
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 09:25:03 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s12-v6si5908212edb.332.2018.05.30.09.25.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 May 2018 09:22:47 -0700 (PDT)
-Date: Wed, 30 May 2018 09:22:43 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 11/13] iomap: add an iomap-based readpage and readpages
- implementation
-Message-ID: <20180530162243.GC837@magnolia>
-References: <20180530095813.31245-1-hch@lst.de>
- <20180530095813.31245-12-hch@lst.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 May 2018 09:25:02 -0700 (PDT)
+Date: Wed, 30 May 2018 18:25:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] fs, elf: drop MAP_FIXED usage from elf_map
+Message-ID: <20180530162501.GB15278@dhcp22.suse.cz>
+References: <20171129144219.22867-1-mhocko@kernel.org>
+ <20171129144219.22867-3-mhocko@kernel.org>
+ <93ce964b-e352-1905-c2b6-deedf2ea06f8@oracle.com>
+ <c0e447b3-4ba7-239e-6550-64de7721ad28@oracle.com>
+ <20180530080212.GA27180@dhcp22.suse.cz>
+ <e7705544-04fe-c382-f6d0-48d0680b46f2@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180530095813.31245-12-hch@lst.de>
+In-Reply-To: <e7705544-04fe-c382-f6d0-48d0680b46f2@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, libhugetlbfs@googlegroups.com
 
-On Wed, May 30, 2018 at 11:58:11AM +0200, Christoph Hellwig wrote:
-> Simply use iomap_apply to iterate over the file and a submit a bio for
-> each non-uptodate but mapped region and zero everything else.  Note that
-> as-is this can not be used for file systems with a blocksize smaller than
-> the page size, but that support will be added later.
+On Wed 30-05-18 08:00:29, Mike Kravetz wrote:
+> On 05/30/2018 01:02 AM, Michal Hocko wrote:
+> > On Tue 29-05-18 15:21:14, Mike Kravetz wrote:
+> >> Just a quick heads up.  I noticed a change in libhugetlbfs testing starting
+> >> with v4.17-rc1.
+> >>
+> >> V4.16 libhugetlbfs test results
+> >> ********** TEST SUMMARY
+> >> *                      2M            
+> >> *                      32-bit 64-bit 
+> >> *     Total testcases:   110    113   
+> >> *             Skipped:     0      0   
+> >> *                PASS:   105    111   
+> >> *                FAIL:     0      0   
+> >> *    Killed by signal:     4      1   
+> >> *   Bad configuration:     1      1   
+> >> *       Expected FAIL:     0      0   
+> >> *     Unexpected PASS:     0      0   
+> >> *    Test not present:     0      0   
+> >> * Strange test result:     0      0   
+> >> **********
+> >>
+> >> v4.17-rc1 (and later) libhugetlbfs test results
+> >> ********** TEST SUMMARY
+> >> *                      2M            
+> >> *                      32-bit 64-bit 
+> >> *     Total testcases:   110    113   
+> >> *             Skipped:     0      0   
+> >> *                PASS:    98    111   
+> >> *                FAIL:     0      0   
+> >> *    Killed by signal:    11      1   
+> >> *   Bad configuration:     1      1   
+> >> *       Expected FAIL:     0      0   
+> >> *     Unexpected PASS:     0      0   
+> >> *    Test not present:     0      0   
+> >> * Strange test result:     0      0   
+> >> **********
+> >>
+> >> I traced the 7 additional (32-bit) killed by signal results to this
+> >> commit 4ed28639519c fs, elf: drop MAP_FIXED usage from elf_map.
+> >>
+> >> libhugetlbfs does unusual things and even provides custom linker scripts.
+> >> So, in hindsight this change in behavior does not seem too unexpected.  I
+> >> JUST discovered this while running libhugetlbfs tests for an unrelated
+> >> issue/change and, will do some analysis to see exactly what is happening.
+> > 
+> > I am definitely interested about further details. Are there any messages
+> > in the kernel log?
+> >
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-
-Looks ok,
-Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
-
---D
-
-> ---
->  fs/iomap.c            | 203 +++++++++++++++++++++++++++++++++++++++++-
->  include/linux/iomap.h |   4 +
->  2 files changed, 206 insertions(+), 1 deletion(-)
+> Yes, new messages associated with the failures.
 > 
-> diff --git a/fs/iomap.c b/fs/iomap.c
-> index b0bc928672af..5e5a266e3325 100644
-> --- a/fs/iomap.c
-> +++ b/fs/iomap.c
-> @@ -1,6 +1,6 @@
->  /*
->   * Copyright (C) 2010 Red Hat, Inc.
-> - * Copyright (c) 2016 Christoph Hellwig.
-> + * Copyright (c) 2016-2018 Christoph Hellwig.
->   *
->   * This program is free software; you can redistribute it and/or modify it
->   * under the terms and conditions of the GNU General Public License,
-> @@ -18,6 +18,7 @@
->  #include <linux/uaccess.h>
->  #include <linux/gfp.h>
->  #include <linux/mm.h>
-> +#include <linux/mm_inline.h>
->  #include <linux/swap.h>
->  #include <linux/pagemap.h>
->  #include <linux/file.h>
-> @@ -102,6 +103,206 @@ iomap_sector(struct iomap *iomap, loff_t pos)
->  	return (iomap->addr + pos - iomap->offset) >> SECTOR_SHIFT;
->  }
->  
-> +static void
-> +iomap_read_end_io(struct bio *bio)
-> +{
-> +	int error = blk_status_to_errno(bio->bi_status);
-> +	struct bio_vec *bvec;
-> +	int i;
-> +
-> +	bio_for_each_segment_all(bvec, bio, i)
-> +		page_endio(bvec->bv_page, false, error);
-> +	bio_put(bio);
-> +}
-> +
-> +struct iomap_readpage_ctx {
-> +	struct page		*cur_page;
-> +	bool			cur_page_in_bio;
-> +	bool			is_readahead;
-> +	struct bio		*bio;
-> +	struct list_head	*pages;
-> +};
-> +
-> +static loff_t
-> +iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
-> +		struct iomap *iomap)
-> +{
-> +	struct iomap_readpage_ctx *ctx = data;
-> +	struct page *page = ctx->cur_page;
-> +	unsigned poff = pos & (PAGE_SIZE - 1);
-> +	unsigned plen = min_t(loff_t, PAGE_SIZE - poff, length);
-> +	bool is_contig = false;
-> +	sector_t sector;
-> +
-> +	/* we don't support blocksize < PAGE_SIZE quite yet: */
-> +	WARN_ON_ONCE(pos != page_offset(page));
-> +	WARN_ON_ONCE(plen != PAGE_SIZE);
-> +
-> +	if (iomap->type != IOMAP_MAPPED || pos >= i_size_read(inode)) {
-> +		zero_user(page, poff, plen);
-> +		SetPageUptodate(page);
-> +		goto done;
-> +	}
-> +
-> +	ctx->cur_page_in_bio = true;
-> +
-> +	/*
-> +	 * Try to merge into a previous segment if we can.
-> +	 */
-> +	sector = iomap_sector(iomap, pos);
-> +	if (ctx->bio && bio_end_sector(ctx->bio) == sector) {
-> +		if (__bio_try_merge_page(ctx->bio, page, plen, poff))
-> +			goto done;
-> +		is_contig = true;
-> +	}
-> +
-> +	if (!ctx->bio || !is_contig || bio_full(ctx->bio)) {
-> +		gfp_t gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL);
-> +		int nr_vecs = (length + PAGE_SIZE - 1) >> PAGE_SHIFT;
-> +
-> +		if (ctx->bio)
-> +			submit_bio(ctx->bio);
-> +
-> +		if (ctx->is_readahead) /* same as readahead_gfp_mask */
-> +			gfp |= __GFP_NORETRY | __GFP_NOWARN;
-> +		ctx->bio = bio_alloc(gfp, min(BIO_MAX_PAGES, nr_vecs));
-> +		ctx->bio->bi_opf = REQ_OP_READ;
-> +		if (ctx->is_readahead)
-> +			ctx->bio->bi_opf |= REQ_RAHEAD;
-> +		ctx->bio->bi_iter.bi_sector = sector;
-> +		bio_set_dev(ctx->bio, iomap->bdev);
-> +		ctx->bio->bi_end_io = iomap_read_end_io;
-> +	}
-> +
-> +	__bio_add_page(ctx->bio, page, plen, poff);
-> +done:
-> +	return plen;
-> +}
-> +
-> +int
-> +iomap_readpage(struct page *page, const struct iomap_ops *ops)
-> +{
-> +	struct iomap_readpage_ctx ctx = { .cur_page = page };
-> +	struct inode *inode = page->mapping->host;
-> +	unsigned poff;
-> +	loff_t ret;
-> +
-> +	WARN_ON_ONCE(page_has_buffers(page));
-> +
-> +	for (poff = 0; poff < PAGE_SIZE; poff += ret) {
-> +		ret = iomap_apply(inode, page_offset(page) + poff,
-> +				PAGE_SIZE - poff, 0, ops, &ctx,
-> +				iomap_readpage_actor);
-> +		if (ret <= 0) {
-> +			WARN_ON_ONCE(ret == 0);
-> +			SetPageError(page);
-> +			break;
-> +		}
-> +	}
-> +
-> +	if (ctx.bio) {
-> +		submit_bio(ctx.bio);
-> +		WARN_ON_ONCE(!ctx.cur_page_in_bio);
-> +	} else {
-> +		WARN_ON_ONCE(ctx.cur_page_in_bio);
-> +		unlock_page(page);
-> +	}
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL_GPL(iomap_readpage);
-> +
-> +static struct page *
-> +iomap_next_page(struct inode *inode, struct list_head *pages, loff_t pos,
-> +		loff_t length, loff_t *done)
-> +{
-> +	while (!list_empty(pages)) {
-> +		struct page *page = lru_to_page(pages);
-> +
-> +		if (page_offset(page) >= (u64)pos + length)
-> +			break;
-> +
-> +		list_del(&page->lru);
-> +		if (!add_to_page_cache_lru(page, inode->i_mapping, page->index,
-> +				GFP_NOFS))
-> +			return page;
-> +
-> +		/*
-> +		 * If we already have a page in the page cache at index we are
-> +		 * done.  Upper layers don't care if it is uptodate after the
-> +		 * readpages call itself as every page gets checked again once
-> +		 * actually needed.
-> +		 */
-> +		*done += PAGE_SIZE;
-> +		put_page(page);
-> +	}
-> +
-> +	return NULL;
-> +}
-> +
-> +static loff_t
-> +iomap_readpages_actor(struct inode *inode, loff_t pos, loff_t length,
-> +		void *data, struct iomap *iomap)
-> +{
-> +	struct iomap_readpage_ctx *ctx = data;
-> +	loff_t done, ret;
-> +
-> +	for (done = 0; done < length; done += ret) {
-> +		if (ctx->cur_page && ((pos + done) & (PAGE_SIZE - 1)) == 0) {
-> +			if (!ctx->cur_page_in_bio)
-> +				unlock_page(ctx->cur_page);
-> +			put_page(ctx->cur_page);
-> +			ctx->cur_page = NULL;
-> +		}
-> +		if (!ctx->cur_page) {
-> +			ctx->cur_page = iomap_next_page(inode, ctx->pages,
-> +					pos, length, &done);
-> +			if (!ctx->cur_page)
-> +				break;
-> +			ctx->cur_page_in_bio = false;
-> +		}
-> +		ret = iomap_readpage_actor(inode, pos + done, length - done,
-> +				ctx, iomap);
-> +	}
-> +
-> +	return done;
-> +}
-> +
-> +int
-> +iomap_readpages(struct address_space *mapping, struct list_head *pages,
-> +		unsigned nr_pages, const struct iomap_ops *ops)
-> +{
-> +	struct iomap_readpage_ctx ctx = {
-> +		.pages		= pages,
-> +		.is_readahead	= true,
-> +	};
-> +	loff_t pos = page_offset(list_entry(pages->prev, struct page, lru));
-> +	loff_t last = page_offset(list_entry(pages->next, struct page, lru));
-> +	loff_t length = last - pos + PAGE_SIZE, ret = 0;
-> +
-> +	while (length > 0) {
-> +		ret = iomap_apply(mapping->host, pos, length, 0, ops,
-> +				&ctx, iomap_readpages_actor);
-> +		if (ret <= 0) {
-> +			WARN_ON_ONCE(ret == 0);
-> +			goto done;
-> +		}
-> +		pos += ret;
-> +		length -= ret;
-> +	}
-> +	ret = 0;
-> +done:
-> +	if (ctx.bio)
-> +		submit_bio(ctx.bio);
-> +	if (ctx.cur_page) {
-> +		if (!ctx.cur_page_in_bio)
-> +			unlock_page(ctx.cur_page);
-> +		put_page(ctx.cur_page);
-> +	}
-> +	WARN_ON_ONCE(!ret && !list_empty(ctx.pages));
-> +	return ret;
-> +}
-> +EXPORT_SYMBOL_GPL(iomap_readpages);
-> +
->  static void
->  iomap_write_failed(struct inode *inode, loff_t pos, unsigned len)
->  {
-> diff --git a/include/linux/iomap.h b/include/linux/iomap.h
-> index a044a824da85..7300d30ca495 100644
-> --- a/include/linux/iomap.h
-> +++ b/include/linux/iomap.h
-> @@ -9,6 +9,7 @@ struct fiemap_extent_info;
->  struct inode;
->  struct iov_iter;
->  struct kiocb;
-> +struct page;
->  struct vm_area_struct;
->  struct vm_fault;
->  
-> @@ -88,6 +89,9 @@ struct iomap_ops {
->  
->  ssize_t iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *from,
->  		const struct iomap_ops *ops);
-> +int iomap_readpage(struct page *page, const struct iomap_ops *ops);
-> +int iomap_readpages(struct address_space *mapping, struct list_head *pages,
-> +		unsigned nr_pages, const struct iomap_ops *ops);
->  int iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
->  		const struct iomap_ops *ops);
->  int iomap_zero_range(struct inode *inode, loff_t pos, loff_t len,
-> -- 
-> 2.17.0
+> [   47.570451] 1368 (xB.linkhuge_nof): Uhuuh, elf segment at 00000000a731413b requested but the memory is mapped already
+> [   47.606991] 1372 (xB.linkhuge_nof): Uhuuh, elf segment at 00000000a731413b requested but the memory is mapped already
+> [   47.641351] 1376 (xB.linkhuge_nof): Uhuuh, elf segment at 00000000a731413b requested but the memory is mapped already
+> [   47.726138] 1384 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
+> [   47.773169] 1393 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
+> [   47.817788] 1402 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
+> [   47.857338] 1406 (xB.linkshare): Uhuuh, elf segment at 0000000018430471 requested but the memory is mapped already
+> [   47.956355] 1427 (xB.linkshare): Uhuuh, elf segment at 0000000018430471 requested but the memory is mapped already
+> [   48.054894] 1448 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
+> [   48.071221] 1451 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
 > 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Just curious, the addresses printed in those messages does not seem correct.
+> They should be page aligned.  Correct?
+
+I have no idea what the loader actually does here.
+
+> I think that %p conversion in the pr_info() may doing something wrong.
+
+Well, we are using %px and that shouldn't do any tricks to the given
+address.
+
+> Also, the new failures in question are indeed being built with custom linker
+> scripts designed for use with binutils older than 2.16 (really old).  So, no
+> new users should encounter this issue (I think).  It appears that this may
+> only impact old applications built long ago with pre-2.16 binutils.
+
+Could you add a debugging data to dump the VMA which overlaps the
+requested adress and who requested that? E.g. hook into do_mmap and dump
+all requests from the linker.
+-- 
+Michal Hocko
+SUSE Labs
