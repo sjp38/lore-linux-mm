@@ -1,32 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 632606B000A
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 01:30:05 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id v5-v6so15483205qto.13
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 22:30:05 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id g39-v6si7488588qtk.36.2018.05.29.22.30.04
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AE4126B000C
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 01:31:24 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id z140-v6so15465219qka.12
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 22:31:24 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id b45-v6si5778059qtc.235.2018.05.29.22.31.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 May 2018 22:30:04 -0700 (PDT)
-Date: Tue, 29 May 2018 22:30:00 -0700
+        Tue, 29 May 2018 22:31:23 -0700 (PDT)
+Date: Tue, 29 May 2018 22:31:20 -0700
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 02/34] fs: factor out a __generic_write_end helper
-Message-ID: <20180530053000.GQ30110@magnolia>
+Subject: Re: [PATCH 03/34] fs: move page_cache_seek_hole_data to iomap.c
+Message-ID: <20180530053120.GR30110@magnolia>
 References: <20180523144357.18985-1-hch@lst.de>
- <20180523144357.18985-3-hch@lst.de>
+ <20180523144357.18985-4-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180523144357.18985-3-hch@lst.de>
+In-Reply-To: <20180523144357.18985-4-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Hellwig <hch@lst.de>
 Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 23, 2018 at 04:43:25PM +0200, Christoph Hellwig wrote:
-> Bits of the buffer.c based write_end implementations that don't know
-> about buffer_heads and can be reused by other implementations.
+On Wed, May 23, 2018 at 04:43:26PM +0200, Christoph Hellwig wrote:
+> This function is only used by the iomap code, depends on being called
+> from it, and will soon stop poking into buffer head internals.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 
@@ -36,109 +36,283 @@ Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
 --D
 
 > ---
->  fs/buffer.c   | 67 +++++++++++++++++++++++++++------------------------
->  fs/internal.h |  2 ++
->  2 files changed, 37 insertions(+), 32 deletions(-)
+>  fs/buffer.c                 | 114 -----------------------------------
+>  fs/iomap.c                  | 116 ++++++++++++++++++++++++++++++++++++
+>  include/linux/buffer_head.h |   2 -
+>  3 files changed, 116 insertions(+), 116 deletions(-)
 > 
 > diff --git a/fs/buffer.c b/fs/buffer.c
-> index 249b83fafe48..bd964b2ad99a 100644
+> index bd964b2ad99a..aba2a948b235 100644
 > --- a/fs/buffer.c
 > +++ b/fs/buffer.c
-> @@ -2076,6 +2076,40 @@ int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
+> @@ -3430,120 +3430,6 @@ int bh_submit_read(struct buffer_head *bh)
 >  }
->  EXPORT_SYMBOL(block_write_begin);
+>  EXPORT_SYMBOL(bh_submit_read);
 >  
-> +int __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
-> +		struct page *page)
+> -/*
+> - * Seek for SEEK_DATA / SEEK_HOLE within @page, starting at @lastoff.
+> - *
+> - * Returns the offset within the file on success, and -ENOENT otherwise.
+> - */
+> -static loff_t
+> -page_seek_hole_data(struct page *page, loff_t lastoff, int whence)
+> -{
+> -	loff_t offset = page_offset(page);
+> -	struct buffer_head *bh, *head;
+> -	bool seek_data = whence == SEEK_DATA;
+> -
+> -	if (lastoff < offset)
+> -		lastoff = offset;
+> -
+> -	bh = head = page_buffers(page);
+> -	do {
+> -		offset += bh->b_size;
+> -		if (lastoff >= offset)
+> -			continue;
+> -
+> -		/*
+> -		 * Unwritten extents that have data in the page cache covering
+> -		 * them can be identified by the BH_Unwritten state flag.
+> -		 * Pages with multiple buffers might have a mix of holes, data
+> -		 * and unwritten extents - any buffer with valid data in it
+> -		 * should have BH_Uptodate flag set on it.
+> -		 */
+> -
+> -		if ((buffer_unwritten(bh) || buffer_uptodate(bh)) == seek_data)
+> -			return lastoff;
+> -
+> -		lastoff = offset;
+> -	} while ((bh = bh->b_this_page) != head);
+> -	return -ENOENT;
+> -}
+> -
+> -/*
+> - * Seek for SEEK_DATA / SEEK_HOLE in the page cache.
+> - *
+> - * Within unwritten extents, the page cache determines which parts are holes
+> - * and which are data: unwritten and uptodate buffer heads count as data;
+> - * everything else counts as a hole.
+> - *
+> - * Returns the resulting offset on successs, and -ENOENT otherwise.
+> - */
+> -loff_t
+> -page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
+> -			  int whence)
+> -{
+> -	pgoff_t index = offset >> PAGE_SHIFT;
+> -	pgoff_t end = DIV_ROUND_UP(offset + length, PAGE_SIZE);
+> -	loff_t lastoff = offset;
+> -	struct pagevec pvec;
+> -
+> -	if (length <= 0)
+> -		return -ENOENT;
+> -
+> -	pagevec_init(&pvec);
+> -
+> -	do {
+> -		unsigned nr_pages, i;
+> -
+> -		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping, &index,
+> -						end - 1);
+> -		if (nr_pages == 0)
+> -			break;
+> -
+> -		for (i = 0; i < nr_pages; i++) {
+> -			struct page *page = pvec.pages[i];
+> -
+> -			/*
+> -			 * At this point, the page may be truncated or
+> -			 * invalidated (changing page->mapping to NULL), or
+> -			 * even swizzled back from swapper_space to tmpfs file
+> -			 * mapping.  However, page->index will not change
+> -			 * because we have a reference on the page.
+> -                         *
+> -			 * If current page offset is beyond where we've ended,
+> -			 * we've found a hole.
+> -                         */
+> -			if (whence == SEEK_HOLE &&
+> -			    lastoff < page_offset(page))
+> -				goto check_range;
+> -
+> -			lock_page(page);
+> -			if (likely(page->mapping == inode->i_mapping) &&
+> -			    page_has_buffers(page)) {
+> -				lastoff = page_seek_hole_data(page, lastoff, whence);
+> -				if (lastoff >= 0) {
+> -					unlock_page(page);
+> -					goto check_range;
+> -				}
+> -			}
+> -			unlock_page(page);
+> -			lastoff = page_offset(page) + PAGE_SIZE;
+> -		}
+> -		pagevec_release(&pvec);
+> -	} while (index < end);
+> -
+> -	/* When no page at lastoff and we are not done, we found a hole. */
+> -	if (whence != SEEK_HOLE)
+> -		goto not_found;
+> -
+> -check_range:
+> -	if (lastoff < offset + length)
+> -		goto out;
+> -not_found:
+> -	lastoff = -ENOENT;
+> -out:
+> -	pagevec_release(&pvec);
+> -	return lastoff;
+> -}
+> -
+>  void __init buffer_init(void)
+>  {
+>  	unsigned long nrpages;
+> diff --git a/fs/iomap.c b/fs/iomap.c
+> index f2456d0d8ddd..4a01d2f4e8e9 100644
+> --- a/fs/iomap.c
+> +++ b/fs/iomap.c
+> @@ -20,6 +20,7 @@
+>  #include <linux/mm.h>
+>  #include <linux/swap.h>
+>  #include <linux/pagemap.h>
+> +#include <linux/pagevec.h>
+>  #include <linux/file.h>
+>  #include <linux/uio.h>
+>  #include <linux/backing-dev.h>
+> @@ -588,6 +589,121 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
+>  }
+>  EXPORT_SYMBOL_GPL(iomap_fiemap);
+>  
+> +/*
+> + * Seek for SEEK_DATA / SEEK_HOLE within @page, starting at @lastoff.
+> + *
+> + * Returns the offset within the file on success, and -ENOENT otherwise.
+> + */
+> +static loff_t
+> +page_seek_hole_data(struct page *page, loff_t lastoff, int whence)
 > +{
-> +	loff_t old_size = inode->i_size;
-> +	bool i_size_changed = false;
+> +	loff_t offset = page_offset(page);
+> +	struct buffer_head *bh, *head;
+> +	bool seek_data = whence == SEEK_DATA;
 > +
-> +	/*
-> +	 * No need to use i_size_read() here, the i_size cannot change under us
-> +	 * because we hold i_rwsem.
-> +	 *
-> +	 * But it's important to update i_size while still holding page lock:
-> +	 * page writeout could otherwise come in and zero beyond i_size.
-> +	 */
-> +	if (pos + copied > inode->i_size) {
-> +		i_size_write(inode, pos + copied);
-> +		i_size_changed = true;
-> +	}
+> +	if (lastoff < offset)
+> +		lastoff = offset;
 > +
-> +	unlock_page(page);
-> +	put_page(page);
+> +	bh = head = page_buffers(page);
+> +	do {
+> +		offset += bh->b_size;
+> +		if (lastoff >= offset)
+> +			continue;
 > +
-> +	if (old_size < pos)
-> +		pagecache_isize_extended(inode, old_size, pos);
-> +	/*
-> +	 * Don't mark the inode dirty under page lock. First, it unnecessarily
-> +	 * makes the holding time of page lock longer. Second, it forces lock
-> +	 * ordering of page lock and transaction start for journaling
-> +	 * filesystems.
-> +	 */
-> +	if (i_size_changed)
-> +		mark_inode_dirty(inode);
-> +	return copied;
+> +		/*
+> +		 * Unwritten extents that have data in the page cache covering
+> +		 * them can be identified by the BH_Unwritten state flag.
+> +		 * Pages with multiple buffers might have a mix of holes, data
+> +		 * and unwritten extents - any buffer with valid data in it
+> +		 * should have BH_Uptodate flag set on it.
+> +		 */
+> +
+> +		if ((buffer_unwritten(bh) || buffer_uptodate(bh)) == seek_data)
+> +			return lastoff;
+> +
+> +		lastoff = offset;
+> +	} while ((bh = bh->b_this_page) != head);
+> +	return -ENOENT;
 > +}
 > +
->  int block_write_end(struct file *file, struct address_space *mapping,
->  			loff_t pos, unsigned len, unsigned copied,
->  			struct page *page, void *fsdata)
-> @@ -2116,39 +2150,8 @@ int generic_write_end(struct file *file, struct address_space *mapping,
->  			loff_t pos, unsigned len, unsigned copied,
->  			struct page *page, void *fsdata)
->  {
-> -	struct inode *inode = mapping->host;
-> -	loff_t old_size = inode->i_size;
-> -	int i_size_changed = 0;
-> -
->  	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
-> -
-> -	/*
-> -	 * No need to use i_size_read() here, the i_size
-> -	 * cannot change under us because we hold i_mutex.
-> -	 *
-> -	 * But it's important to update i_size while still holding page lock:
-> -	 * page writeout could otherwise come in and zero beyond i_size.
-> -	 */
-> -	if (pos+copied > inode->i_size) {
-> -		i_size_write(inode, pos+copied);
-> -		i_size_changed = 1;
-> -	}
-> -
-> -	unlock_page(page);
-> -	put_page(page);
-> -
-> -	if (old_size < pos)
-> -		pagecache_isize_extended(inode, old_size, pos);
-> -	/*
-> -	 * Don't mark the inode dirty under page lock. First, it unnecessarily
-> -	 * makes the holding time of page lock longer. Second, it forces lock
-> -	 * ordering of page lock and transaction start for journaling
-> -	 * filesystems.
-> -	 */
-> -	if (i_size_changed)
-> -		mark_inode_dirty(inode);
-> -
-> -	return copied;
-> +	return __generic_write_end(mapping->host, pos, copied, page);
->  }
->  EXPORT_SYMBOL(generic_write_end);
+> +/*
+> + * Seek for SEEK_DATA / SEEK_HOLE in the page cache.
+> + *
+> + * Within unwritten extents, the page cache determines which parts are holes
+> + * and which are data: unwritten and uptodate buffer heads count as data;
+> + * everything else counts as a hole.
+> + *
+> + * Returns the resulting offset on successs, and -ENOENT otherwise.
+> + */
+> +static loff_t
+> +page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
+> +		int whence)
+> +{
+> +	pgoff_t index = offset >> PAGE_SHIFT;
+> +	pgoff_t end = DIV_ROUND_UP(offset + length, PAGE_SIZE);
+> +	loff_t lastoff = offset;
+> +	struct pagevec pvec;
+> +
+> +	if (length <= 0)
+> +		return -ENOENT;
+> +
+> +	pagevec_init(&pvec);
+> +
+> +	do {
+> +		unsigned nr_pages, i;
+> +
+> +		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping, &index,
+> +						end - 1);
+> +		if (nr_pages == 0)
+> +			break;
+> +
+> +		for (i = 0; i < nr_pages; i++) {
+> +			struct page *page = pvec.pages[i];
+> +
+> +			/*
+> +			 * At this point, the page may be truncated or
+> +			 * invalidated (changing page->mapping to NULL), or
+> +			 * even swizzled back from swapper_space to tmpfs file
+> +			 * mapping.  However, page->index will not change
+> +			 * because we have a reference on the page.
+> +                         *
+> +			 * If current page offset is beyond where we've ended,
+> +			 * we've found a hole.
+> +                         */
+> +			if (whence == SEEK_HOLE &&
+> +			    lastoff < page_offset(page))
+> +				goto check_range;
+> +
+> +			lock_page(page);
+> +			if (likely(page->mapping == inode->i_mapping) &&
+> +			    page_has_buffers(page)) {
+> +				lastoff = page_seek_hole_data(page, lastoff, whence);
+> +				if (lastoff >= 0) {
+> +					unlock_page(page);
+> +					goto check_range;
+> +				}
+> +			}
+> +			unlock_page(page);
+> +			lastoff = page_offset(page) + PAGE_SIZE;
+> +		}
+> +		pagevec_release(&pvec);
+> +	} while (index < end);
+> +
+> +	/* When no page at lastoff and we are not done, we found a hole. */
+> +	if (whence != SEEK_HOLE)
+> +		goto not_found;
+> +
+> +check_range:
+> +	if (lastoff < offset + length)
+> +		goto out;
+> +not_found:
+> +	lastoff = -ENOENT;
+> +out:
+> +	pagevec_release(&pvec);
+> +	return lastoff;
+> +}
+> +
+> +
+>  static loff_t
+>  iomap_seek_hole_actor(struct inode *inode, loff_t offset, loff_t length,
+>  		      void *data, struct iomap *iomap)
+> diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
+> index 894e5d125de6..96225a77c112 100644
+> --- a/include/linux/buffer_head.h
+> +++ b/include/linux/buffer_head.h
+> @@ -205,8 +205,6 @@ void write_boundary_block(struct block_device *bdev,
+>  			sector_t bblock, unsigned blocksize);
+>  int bh_uptodate_or_lock(struct buffer_head *bh);
+>  int bh_submit_read(struct buffer_head *bh);
+> -loff_t page_cache_seek_hole_data(struct inode *inode, loff_t offset,
+> -				 loff_t length, int whence);
 >  
-> diff --git a/fs/internal.h b/fs/internal.h
-> index e08972db0303..b955232d3d49 100644
-> --- a/fs/internal.h
-> +++ b/fs/internal.h
-> @@ -43,6 +43,8 @@ static inline int __sync_blockdev(struct block_device *bdev, int wait)
->  extern void guard_bio_eod(int rw, struct bio *bio);
->  extern int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
->  		get_block_t *get_block, struct iomap *iomap);
-> +int __generic_write_end(struct inode *inode, loff_t pos, unsigned copied,
-> +		struct page *page);
+>  extern int buffer_heads_over_limit;
 >  
->  /*
->   * char_dev.c
 > -- 
 > 2.17.0
 > 
