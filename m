@@ -1,80 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E91176B0003
-	for <linux-mm@kvack.org>; Tue, 29 May 2018 23:40:50 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id l204-v6so423965lfg.12
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 20:40:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h17-v6sor7859620ljg.113.2018.05.29.20.40.48
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 617826B0003
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 00:59:31 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k18-v6so14039515wrm.6
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 21:59:31 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id w39-v6si31613eda.109.2018.05.29.21.59.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 May 2018 20:40:49 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 May 2018 21:59:28 -0700 (PDT)
+Date: Wed, 30 May 2018 06:59:27 +0200
+From: "joro@8bytes.org" <joro@8bytes.org>
+Subject: Re: [PATCH v3 3/3] x86/mm: add TLB purge to free pmd/pte page
+ interfaces
+Message-ID: <20180530045927.GP18595@8bytes.org>
+References: <20180516233207.1580-1-toshi.kani@hpe.com>
+ <20180516233207.1580-4-toshi.kani@hpe.com>
+ <20180529144438.GM18595@8bytes.org>
+ <1527610139.14039.58.camel@hpe.com>
 MIME-Version: 1.0
-In-Reply-To: <20180529173445.GD15148@bombadil.infradead.org>
-References: <20180529143126.GA19698@jordon-HP-15-Notebook-PC>
- <20180529145055.GA15148@bombadil.infradead.org> <CAFqt6zaxt=wXjvKV0qA+OwU1iUyoBdW2cJSLFqXupVWRpKdqEA@mail.gmail.com>
- <20180529173445.GD15148@bombadil.infradead.org>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Wed, 30 May 2018 09:10:47 +0530
-Message-ID: <CAFqt6zZCX7Ai2w9dV3OvUn=V4Z02H=+FBirjHT3QSU1Fuz+uLQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: Change return type to vm_fault_t
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1527610139.14039.58.camel@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, zi.yan@cs.rutgers.edu, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Greg KH <gregkh@linuxfoundation.org>, Mark Rutland <mark.rutland@arm.com>, riel@redhat.com, pasha.tatashin@oracle.com, jschoenh@amazon.de, Kate Stewart <kstewart@linuxfoundation.org>, David Rientjes <rientjes@google.com>, tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, yang.s@alibaba-inc.com, Minchan Kim <minchan@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: "Kani, Toshi" <toshi.kani@hpe.com>
+Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "Hocko, Michal" <MHocko@suse.com>
 
-On Tue, May 29, 2018 at 11:04 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Tue, May 29, 2018 at 09:25:05PM +0530, Souptick Joarder wrote:
->> On Tue, May 29, 2018 at 8:20 PM, Matthew Wilcox <willy@infradead.org> wrote:
->> > On Tue, May 29, 2018 at 08:01:26PM +0530, Souptick Joarder wrote:
->> >> Use new return type vm_fault_t for fault handler. For
->> >> now, this is just documenting that the function returns
->> >> a VM_FAULT value rather than an errno. Once all instances
->> >> are converted, vm_fault_t will become a distinct type.
->> >
->> > I don't believe you've checked this with sparse.
->> >
->> >> @@ -802,7 +802,8 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
->> >>                    bool *unlocked)
->> >>  {
->> >>       struct vm_area_struct *vma;
->> >> -     int ret, major = 0;
->> >> +     int major = 0;
->> >> +     vm_fault_t ret;
->> >>
->> >>       if (unlocked)
->> >>               fault_flags |= FAULT_FLAG_ALLOW_RETRY;
->> >
->> > ...
->> >         major |= ret & VM_FAULT_MAJOR;
->> >
->> > That should be throwing a warning.
->>
->> Sorry, but I verified again and didn't see similar warnings.
->>
->> steps followed -
->>
->> apply the patch
->> make c=2 -j4 ( build for x86_64)
->> looking for warnings in files because of this patch.
->>
->> The only error I am seeing "error: undefined identifier '__COUNTER__' "
->> which is pointing to BUG(). There are few warnings but those are not
->> related to this patch.
->>
->> In my test tree the final patch to create new vm_fault_t type is
->> already applied.
->>
->> Do you want me to verify in some other way ?
->
-> I see:
->
-> mm/gup.c:817:15: warning: invalid assignment: |=
-> mm/gup.c:817:15:    left side has type int
-> mm/gup.c:817:15:    right side has type restricted vm_fault_t
->
-> are you building with 'c=2' or 'C=2'?
+On Tue, May 29, 2018 at 04:10:24PM +0000, Kani, Toshi wrote:
+> Can you explain why you think allocating a page here is a major problem?
 
-Building with C=2.
-Do I need to enable any separate FLAG ?
+Because a larger allocation is more likely to fail. And if you fail the
+allocation, you also fail to free more pages, which _is_ a problem. So
+better avoid any allocations in code paths that are about freeing
+memory.
+
+> If we just revert, please apply patch 1/3 first.  This patch address the
+> BUG_ON issue on PAE.  This is a real issue that needs a fix ASAP.
+
+It does not address the problem of dirty page-walk caches on x86-64.
+
+> The page-directory cache issue on x64, which is addressed by patch 3/3,
+> is a theoretical issue that I could not hit by putting ioremap() calls
+> into a loop for a whole day.  Nobody hit this issue, either.
+
+How do you know you didn't hit that issue? It might cause silent data
+corruption, which might not be easily detected.
+
+> The simple revert patch Joerg posted a while ago causes
+> pmd_free_pte_page() to fail on x64.  This causes multiple pmd mappings
+> to fall into pte mappings on my test systems.  This can be seen as a
+> degradation, and I am afraid that it is more harmful than good.
+
+The plain revert just removes all the issues with the dirty TLB that the
+original patch introduced and prevents huge mappings from being
+established when there have been smaller mappings before. This is not
+ideal, but at least its is consistent and does not leak pages and leaves
+no dirty TLBs. So this is the easiest and most reliable fix for this
+stage in the release process.
+
+
+Regards,
+
+	Joerg
