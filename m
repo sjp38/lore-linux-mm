@@ -1,49 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 422356B02A8
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 06:46:41 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id n9-v6so10820376wmh.6
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 03:46:41 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d5-v6si1883114edq.426.2018.05.30.03.46.39
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B7F7B6B02AA
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 07:03:02 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id i1-v6so15182713ioh.15
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 04:03:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 189-v6sor3583755itl.72.2018.05.30.04.03.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 May 2018 03:46:39 -0700 (PDT)
-Date: Wed, 30 May 2018 12:46:37 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-Message-ID: <20180530104637.GC27180@dhcp22.suse.cz>
-References: <CA+7wUswp_Sr=hHqi1bwRZ3FE2wY5ozZWZ8Z1BgrFnSAmijUKjA@mail.gmail.com>
- <20180528083451.GE1517@dhcp22.suse.cz>
- <f054219d-6daa-68b1-0c60-0acd9ad8c5ab@i-love.sakura.ne.jp>
- <20180528132410.GD27180@dhcp22.suse.cz>
- <201805290605.DGF87549.LOVFMFJQSOHtFO@I-love.SAKURA.ne.jp>
- <1126233373.5118805.1527600426174.JavaMail.zimbra@redhat.com>
- <f3d58cbd-29ca-7a23-69e0-59690b9cd4fb@i-love.sakura.ne.jp>
- <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com>
+        (Google Transport Security);
+        Wed, 30 May 2018 04:03:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com>
+In-Reply-To: <8a9e048b-f60c-90bc-6884-e2fa6eca2c28@redhat.com>
+References: <20180523144357.18985-1-hch@lst.de> <20180523144357.18985-12-hch@lst.de>
+ <20180530055033.GZ30110@magnolia> <bc621d7c-f1a6-14c2-663f-57ded16811fa@redhat.com>
+ <20180530095911.GB31068@lst.de> <e14b3cfb-73ca-e712-e1e9-4ceabc8c7b6d@redhat.com>
+ <20180530101003.GA31419@lst.de> <8a9e048b-f60c-90bc-6884-e2fa6eca2c28@redhat.com>
+From: Andreas Gruenbacher <agruenba@redhat.com>
+Date: Wed, 30 May 2018 13:03:00 +0200
+Message-ID: <CAHc6FU7We19b5m2eXq2HKN=4szM+mgfyv6COMZzjAdxRyj0SKg@mail.gmail.com>
+Subject: Re: [Cluster-devel] [PATCH 11/34] iomap: move IOMAP_F_BOUNDARY to gfs2
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chunyu Hu <chuhu@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, dvyukov@google.com, linux-mm@kvack.org, catalin marinas <catalin.marinas@arm.com>
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, cluster-devel <cluster-devel@redhat.com>, linux-mm@kvack.org
 
-On Wed 30-05-18 05:35:37, Chunyu Hu wrote:
-[...]
-> I'm trying to reuse the make_it_fail field in task for fault injection. As adding
-> an extra memory alloc flag is not thought so good,  I think adding task flag
-> is either? 
+On 30 May 2018 at 12:12, Steven Whitehouse <swhiteho@redhat.com> wrote:
+> Hi,
+>
+> On 30/05/18 11:10, Christoph Hellwig wrote:
+>>
+>> On Wed, May 30, 2018 at 11:02:08AM +0100, Steven Whitehouse wrote:
+>>>
+>>> In that case,  maybe it would be simpler to drop it for GFS2. Unless we
+>>> are getting a lot of benefit from it, then we should probably just follow
+>>> the generic pattern here. Eventually we'll move everything to iomap, so
+>>> that the bh mapping interface will be gone. That implies that we might be
+>>> able to drop it now, to avoid this complication during the conversion.
+>>>
+>>> Andreas, do you see any issues with that?
 
-Yeah, task flag will be reduced to KMEMLEAK enabled configurations
-without an additional maint. overhead. Anyway, you should really think
-about how to guarantee trackability for atomic allocation requests. You
-cannot simply assume that GFP_NOWAIT will succeed. I guess you really
-want to have a pre-populated pool of objects for those requests. The
-obvious question is how to balance such a pool. It ain't easy to track
-memory by allocating more memory...
+We're not handling reads through iomap yet, so I'd be happier with
+keeping that flag in one form or the other until we get there. This
+will go away eventually anyway.
 
--- 
-Michal Hocko
-SUSE Labs
+>> I suspect it actually is doing the wrong thing today.  It certainly
+>> does for SSDs, and it probably doesn't do a useful thing for modern
+>> disks with intelligent caches either.
+>
+>
+> Yes, agreed that it makes no sense for SSDs,
+
+Thanks,
+Andreas
