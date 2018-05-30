@@ -1,76 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C97D96B0007
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 03:59:04 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id b26-v6so618758lfa.6
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 00:59:04 -0700 (PDT)
-Received: from forwardcorp1j.cmail.yandex.net (forwardcorp1j.cmail.yandex.net. [2a02:6b8:0:1630::190])
-        by mx.google.com with ESMTPS id r189-v6si14522170lfe.87.2018.05.30.00.59.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 668586B0008
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 04:02:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e1-v6so12020419wma.3
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 01:02:14 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u20-v6si3323339edl.251.2018.05.30.01.02.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 May 2018 00:59:02 -0700 (PDT)
-Subject: Re: [PATCH] mm/huge_memory.c: __split_huge_page() use atomic
- ClearPageDirty()
-References: <alpine.LSU.2.11.1805291841070.3197@eggly.anvils>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <6c069202-c963-07a4-fc35-630acb223041@yandex-team.ru>
-Date: Wed, 30 May 2018 10:59:00 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 May 2018 01:02:13 -0700 (PDT)
+Date: Wed, 30 May 2018 10:02:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] fs, elf: drop MAP_FIXED usage from elf_map
+Message-ID: <20180530080212.GA27180@dhcp22.suse.cz>
+References: <20171129144219.22867-1-mhocko@kernel.org>
+ <20171129144219.22867-3-mhocko@kernel.org>
+ <93ce964b-e352-1905-c2b6-deedf2ea06f8@oracle.com>
+ <c0e447b3-4ba7-239e-6550-64de7721ad28@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1805291841070.3197@eggly.anvils>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c0e447b3-4ba7-239e-6550-64de7721ad28@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, libhugetlbfs@googlegroups.com
 
-On 30.05.2018 04:50, Hugh Dickins wrote:
-> Swapping load on huge=always tmpfs (with khugepaged tuned up to be very
-> eager, but I'm not sure that is relevant) soon hung uninterruptibly,
-> waiting for page lock in shmem_getpage_gfp()'s find_lock_entry(), most
-> often when "cp -a" was trying to write to a smallish file.  Debug showed
-> that the page in question was not locked, and page->mapping NULL by now,
-> but page->index consistent with having been in a huge page before.
+On Tue 29-05-18 15:21:14, Mike Kravetz wrote:
+> Just a quick heads up.  I noticed a change in libhugetlbfs testing starting
+> with v4.17-rc1.
 > 
-> Reproduced in minutes on a 4.15 kernel, even with 4.17's 605ca5ede764
-> ("mm/huge_memory.c: reorder operations in __split_huge_page_tail()")
-> added in; but took hours to reproduce on a 4.17 kernel (no idea why).
+> V4.16 libhugetlbfs test results
+> ********** TEST SUMMARY
+> *                      2M            
+> *                      32-bit 64-bit 
+> *     Total testcases:   110    113   
+> *             Skipped:     0      0   
+> *                PASS:   105    111   
+> *                FAIL:     0      0   
+> *    Killed by signal:     4      1   
+> *   Bad configuration:     1      1   
+> *       Expected FAIL:     0      0   
+> *     Unexpected PASS:     0      0   
+> *    Test not present:     0      0   
+> * Strange test result:     0      0   
+> **********
 > 
-> The culprit proved to be the __ClearPageDirty() on tails beyond i_size
-> in __split_huge_page(): the non-atomic __bitoperation may have been safe
-> when 4.8's baa355fd3314 ("thp: file pages support for split_huge_page()")
-> introduced it, but liable to erase PageWaiters after 4.10's 62906027091f
-> ("mm: add PageWaiters indicating tasks are waiting for a page bit").
+> v4.17-rc1 (and later) libhugetlbfs test results
+> ********** TEST SUMMARY
+> *                      2M            
+> *                      32-bit 64-bit 
+> *     Total testcases:   110    113   
+> *             Skipped:     0      0   
+> *                PASS:    98    111   
+> *                FAIL:     0      0   
+> *    Killed by signal:    11      1   
+> *   Bad configuration:     1      1   
+> *       Expected FAIL:     0      0   
+> *     Unexpected PASS:     0      0   
+> *    Test not present:     0      0   
+> * Strange test result:     0      0   
+> **********
 > 
-> Fixes: 62906027091f ("mm: add PageWaiters indicating tasks are waiting for a page bit")
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
+> I traced the 7 additional (32-bit) killed by signal results to this
+> commit 4ed28639519c fs, elf: drop MAP_FIXED usage from elf_map.
 > 
-> It's not a 4.17-rc regression that this fixes, so no great need to slip
-> this into 4.17 at the last moment - though it makes a good companion to
-> Konstantin's 605ca5ede764. I think they both should go to stable, but
-> since Konstantin's already went into rc1 without that tag, we shall
-> have to recommend Konstantin's to GregKH out-of-band.
+> libhugetlbfs does unusual things and even provides custom linker scripts.
+> So, in hindsight this change in behavior does not seem too unexpected.  I
+> JUST discovered this while running libhugetlbfs tests for an unrelated
+> issue/change and, will do some analysis to see exactly what is happening.
 
-Good catch.
+I am definitely interested about further details. Are there any messages
+in the kernel log?
 
-This is the same issue, so all 4.10+ needs them both.
-Preserving known regressions in core pieces like lock_page() is a bad idea.
-
-> 
->   mm/huge_memory.c |    2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- 4.17-rc7/mm/huge_memory.c	2018-04-26 10:48:36.019288258 -0700
-> +++ linux/mm/huge_memory.c	2018-05-29 18:14:52.095512715 -0700
-> @@ -2431,7 +2431,7 @@ static void __split_huge_page(struct pag
->   		__split_huge_page_tail(head, i, lruvec, list);
->   		/* Some pages can be beyond i_size: drop them from page cache */
->   		if (head[i].index >= end) {
-> -			__ClearPageDirty(head + i);
-> +			ClearPageDirty(head + i);
->   			__delete_from_page_cache(head + i, NULL);
->   			if (IS_ENABLED(CONFIG_SHMEM) && PageSwapBacked(head))
->   				shmem_uncharge(head->mapping->host, 1);
-> 
+-- 
+Michal Hocko
+SUSE Labs
