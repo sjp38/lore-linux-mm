@@ -1,109 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A96A46B000A
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 09:35:55 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id t1-v6so11929647oth.3
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 06:35:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r36-v6si4957593otr.223.2018.05.30.06.35.54
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BE276B0003
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 10:13:33 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e3-v6so10959875pfe.15
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 07:13:33 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id m9-v6si1849719pfe.128.2018.05.30.07.13.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 May 2018 06:35:54 -0700 (PDT)
-Date: Wed, 30 May 2018 09:35:52 -0400
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [PATCH 05/18] xfs: move locking into
- xfs_bmap_punch_delalloc_range
-Message-ID: <20180530133551.GE112411@bfoster.bfoster>
-References: <20180530100013.31358-1-hch@lst.de>
- <20180530100013.31358-6-hch@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 30 May 2018 07:13:31 -0700 (PDT)
+Date: Wed, 30 May 2018 10:15:33 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 07/13] memcontrol: schedule throttling if we are congested
+Message-ID: <20180530141533.GC4035@cmpxchg.org>
+References: <20180529211724.4531-1-josef@toxicpanda.com>
+ <20180529211724.4531-8-josef@toxicpanda.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180530100013.31358-6-hch@lst.de>
+In-Reply-To: <20180529211724.4531-8-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: axboe@kernel.dk, kernel-team@fb.com, linux-block@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tj@kernel.org, linux-fsdevel@vger.kernel.org
 
-On Wed, May 30, 2018 at 12:00:00PM +0200, Christoph Hellwig wrote:
-> Both callers want the same looking, so do it only once.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  fs/xfs/xfs_aops.c      | 2 --
->  fs/xfs/xfs_bmap_util.c | 7 ++++---
->  fs/xfs/xfs_iomap.c     | 3 ---
->  3 files changed, 4 insertions(+), 8 deletions(-)
-> 
-> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index f2333e351e07..5dd09e83c81c 100644
-> --- a/fs/xfs/xfs_aops.c
-> +++ b/fs/xfs/xfs_aops.c
-> @@ -761,10 +761,8 @@ xfs_aops_discard_page(
->  		"page discard on page "PTR_FMT", inode 0x%llx, offset %llu.",
->  			page, ip->i_ino, offset);
->  
-> -	xfs_ilock(ip, XFS_ILOCK_EXCL);
->  	error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
->  			PAGE_SIZE / i_blocksize(inode));
-> -	xfs_iunlock(ip, XFS_ILOCK_EXCL);
->  	if (error && !XFS_FORCED_SHUTDOWN(mp))
->  		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
->  out_invalidate:
-> diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
-> index f2b87873612d..86a7ee425bfc 100644
-> --- a/fs/xfs/xfs_bmap_util.c
-> +++ b/fs/xfs/xfs_bmap_util.c
-> @@ -712,12 +712,11 @@ xfs_bmap_punch_delalloc_range(
->  	struct xfs_iext_cursor	icur;
->  	int			error = 0;
->  
-> -	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-> -
-> +	xfs_ilock(ip, XFS_ILOCK_EXCL);
->  	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
->  		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
->  		if (error)
-> -			return error;
-> +			goto out_unlock;
->  	}
->  
->  	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &icur, &got))
-
-There's a return 0 just below here that needs the exit label treatment.
-Otherwise looks Ok.
-
-Brian
-
-> @@ -738,6 +737,8 @@ xfs_bmap_punch_delalloc_range(
->  		}
->  	}
->  
-> +out_unlock:
-> +	xfs_iunlock(ip, XFS_ILOCK_EXCL);
->  	return error;
+On Tue, May 29, 2018 at 05:17:18PM -0400, Josef Bacik wrote:
+> @@ -5458,6 +5458,30 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+>  	return ret;
 >  }
 >  
-> diff --git a/fs/xfs/xfs_iomap.c b/fs/xfs/xfs_iomap.c
-> index da6d1995e460..f949f0dd7382 100644
-> --- a/fs/xfs/xfs_iomap.c
-> +++ b/fs/xfs/xfs_iomap.c
-> @@ -1203,11 +1203,8 @@ xfs_file_iomap_end_delalloc(
->  		truncate_pagecache_range(VFS_I(ip), XFS_FSB_TO_B(mp, start_fsb),
->  					 XFS_FSB_TO_B(mp, end_fsb) - 1);
->  
-> -		xfs_ilock(ip, XFS_ILOCK_EXCL);
->  		error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
->  					       end_fsb - start_fsb);
-> -		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-> -
->  		if (error && !XFS_FORCED_SHUTDOWN(mp)) {
->  			xfs_alert(mp, "%s: unable to clean up ino %lld",
->  				__func__, ip->i_ino);
-> -- 
-> 2.17.0
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> +int mem_cgroup_try_charge_delay(struct page *page, struct mm_struct *mm,
+> +			  gfp_t gfp_mask, struct mem_cgroup **memcgp,
+> +			  bool compound)
+> +{
+> +	struct mem_cgroup *memcg;
+> +	struct block_device *bdev;
+> +	int ret;
+> +
+> +	ret = mem_cgroup_try_charge(page, mm, gfp_mask, memcgp, compound);
+> +	memcg = *memcgp;
+> +
+> +	if (!(gfp_mask & __GFP_IO) || !memcg)
+> +		return ret;
+> +#if defined(CONFIG_BLOCK) && defined(CONFIG_SWAP)
+> +	if (atomic_read(&memcg->css.cgroup->congestion_count) &&
+> +	    has_usable_swap()) {
+> +		map_swap_page(page, &bdev);
+
+This doesn't work, unfortunately - or only works on accident.
+
+It goes through page_private(), which is only valid for pages in the
+swapcache. The newly allocated pages you call it against aren't in the
+swapcache, but their page_private() is 0, which is incorrectly
+interpreted as "first swap slot on the first swap device" - which
+happens to make sense if you have only one swap device.
+
+> +		blkcg_schedule_throttle(bdev_get_queue(bdev), true);
+
+By the time we allocate, we simply cannot know which swap device the
+page will end up on. However, we know what's likely: swap_avail_heads
+is sorted by order in which we try to allocate swap slots; the first
+device on there is where swap io will go. If we walk this list and
+throttle on the first device that has built-up delay debt, we'll
+throttle against the device that probably gets the current bulk of the
+swap writes.
+
+Also, if we have two swap devices with the same priority, swap
+allocation will re-order the list for us automatically in order to do
+round-robin loading of the devices. See get_swap_pages(). That should
+work out nicely for throttling as well.
+
+You can use page_to_nid() on the newly allocated page to index into
+swap_avail_heads[].
+
+On an unrelated note, mem_cgroup_try_charge_delay() isn't the most
+descriptive name. Since it's not too page specific, we might want to
+move the throttling part out of the charge function and do something
+simliar to a stand-alone balance_dirty_pages() function.
+
+mem_cgroup_balance_anon_pages()?
+
+mem_cgroup_throttle_swaprate()?
+
+mem_cgroup_anon_throttle()?
+
+mem_cgroup_anon_allocwait()?
+
+Something like that. I personally like balance_anon_pages the best;
+not because it is the best name by itself, but because in the MM it
+has the notion of throttling the creation of IO liabilities to the
+write rate, which is what we're doing here as well.
