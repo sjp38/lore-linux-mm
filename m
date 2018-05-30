@@ -1,127 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 365DC6B0005
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 13:40:12 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id a14-v6so12376192otf.1
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 10:40:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x15-v6si13474427ote.1.2018.05.30.10.40.07
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BF0056B0003
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 13:44:44 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id o22-v6so14883923ioh.23
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 10:44:44 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id t206-v6si6037854iod.120.2018.05.30.10.44.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 May 2018 10:40:07 -0700 (PDT)
-Date: Wed, 30 May 2018 13:40:05 -0400
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [PATCH 05/18] xfs: move locking into
- xfs_bmap_punch_delalloc_range
-Message-ID: <20180530174004.GG112411@bfoster.bfoster>
+        Wed, 30 May 2018 10:44:43 -0700 (PDT)
+Date: Wed, 30 May 2018 10:44:39 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 12/18] xfs: remove the imap_valid flag
+Message-ID: <20180530174439.GP837@magnolia>
 References: <20180530100013.31358-1-hch@lst.de>
- <20180530100013.31358-6-hch@lst.de>
- <20180530133551.GE112411@bfoster.bfoster>
- <20180530165804.GI837@magnolia>
+ <20180530100013.31358-13-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180530165804.GI837@magnolia>
+In-Reply-To: <20180530100013.31358-13-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 30, 2018 at 09:58:04AM -0700, Darrick J. Wong wrote:
-> On Wed, May 30, 2018 at 09:35:52AM -0400, Brian Foster wrote:
-> > On Wed, May 30, 2018 at 12:00:00PM +0200, Christoph Hellwig wrote:
-> > > Both callers want the same looking, so do it only once.
-> > > 
-> > > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> > > ---
-> > >  fs/xfs/xfs_aops.c      | 2 --
-> > >  fs/xfs/xfs_bmap_util.c | 7 ++++---
-> > >  fs/xfs/xfs_iomap.c     | 3 ---
-> > >  3 files changed, 4 insertions(+), 8 deletions(-)
-> > > 
-> > > diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> > > index f2333e351e07..5dd09e83c81c 100644
-> > > --- a/fs/xfs/xfs_aops.c
-> > > +++ b/fs/xfs/xfs_aops.c
-> > > @@ -761,10 +761,8 @@ xfs_aops_discard_page(
-> > >  		"page discard on page "PTR_FMT", inode 0x%llx, offset %llu.",
-> > >  			page, ip->i_ino, offset);
-> > >  
-> > > -	xfs_ilock(ip, XFS_ILOCK_EXCL);
-> > >  	error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
-> > >  			PAGE_SIZE / i_blocksize(inode));
-> > > -	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-> > >  	if (error && !XFS_FORCED_SHUTDOWN(mp))
-> > >  		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
-> > >  out_invalidate:
-> > > diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
-> > > index f2b87873612d..86a7ee425bfc 100644
-> > > --- a/fs/xfs/xfs_bmap_util.c
-> > > +++ b/fs/xfs/xfs_bmap_util.c
-> > > @@ -712,12 +712,11 @@ xfs_bmap_punch_delalloc_range(
-> > >  	struct xfs_iext_cursor	icur;
-> > >  	int			error = 0;
-> > >  
-> > > -	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-> > > -
-> > > +	xfs_ilock(ip, XFS_ILOCK_EXCL);
-> > >  	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-> > >  		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
-> > >  		if (error)
-> > > -			return error;
-> > > +			goto out_unlock;
-> > >  	}
-> > >  
-> > >  	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &icur, &got))
-> > 
-> > There's a return 0 just below here that needs the exit label treatment.
-> > Otherwise looks Ok.
+On Wed, May 30, 2018 at 12:00:07PM +0200, Christoph Hellwig wrote:
+> Simplify the way we check for a valid imap - we know we have a valid
+> mapping after xfs_map_blocks returned successfully, and we know we can
+> call xfs_imap_valid on any imap, as it will always fail on a
+> zero-initialized map.
 > 
-> Will fix that in my tree for testing.  Brian, will you RVB the fixed up
-> patch?
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+
+Looks ok,
+Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
+
+--D
+
+> ---
+>  fs/xfs/xfs_aops.c | 11 ++---------
+>  1 file changed, 2 insertions(+), 9 deletions(-)
 > 
-
-Yep. With the locking fix:
-
-Reviewed-by: Brian Foster <bfoster@redhat.com>
-
-> --D
+> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> index 7dc13b0aae60..910b410e5a90 100644
+> --- a/fs/xfs/xfs_aops.c
+> +++ b/fs/xfs/xfs_aops.c
+> @@ -42,7 +42,6 @@
+>   */
+>  struct xfs_writepage_ctx {
+>  	struct xfs_bmbt_irec    imap;
+> -	bool			imap_valid;
+>  	unsigned int		io_type;
+>  	struct xfs_ioend	*ioend;
+>  	sector_t		last_block;
+> @@ -858,10 +857,6 @@ xfs_writepage_map(
+>  			continue;
+>  		}
+>  
+> -		/* Check to see if current map spans this file offset */
+> -		if (wpc->imap_valid)
+> -			wpc->imap_valid = xfs_imap_valid(inode, &wpc->imap,
+> -							 file_offset);
+>  		/*
+>  		 * If we don't have a valid map, now it's time to get a new one
+>  		 * for this offset.  This will convert delayed allocations
+> @@ -869,16 +864,14 @@ xfs_writepage_map(
+>  		 * a valid map, it means we landed in a hole and we skip the
+>  		 * block.
+>  		 */
+> -		if (!wpc->imap_valid) {
+> +		if (!xfs_imap_valid(inode, &wpc->imap, file_offset)) {
+>  			error = xfs_map_blocks(inode, file_offset, &wpc->imap,
+>  					     &wpc->io_type);
+>  			if (error)
+>  				goto out;
+> -			wpc->imap_valid = xfs_imap_valid(inode, &wpc->imap,
+> -							 file_offset);
+>  		}
+>  
+> -		if (!wpc->imap_valid || wpc->io_type == XFS_IO_HOLE) {
+> +		if (wpc->io_type == XFS_IO_HOLE) {
+>  			/*
+>  			 * set_page_dirty dirties all buffers in a page, independent
+>  			 * of their state.  The dirty state however is entirely
+> -- 
+> 2.17.0
 > 
-> > Brian
-> > 
-> > > @@ -738,6 +737,8 @@ xfs_bmap_punch_delalloc_range(
-> > >  		}
-> > >  	}
-> > >  
-> > > +out_unlock:
-> > > +	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-> > >  	return error;
-> > >  }
-> > >  
-> > > diff --git a/fs/xfs/xfs_iomap.c b/fs/xfs/xfs_iomap.c
-> > > index da6d1995e460..f949f0dd7382 100644
-> > > --- a/fs/xfs/xfs_iomap.c
-> > > +++ b/fs/xfs/xfs_iomap.c
-> > > @@ -1203,11 +1203,8 @@ xfs_file_iomap_end_delalloc(
-> > >  		truncate_pagecache_range(VFS_I(ip), XFS_FSB_TO_B(mp, start_fsb),
-> > >  					 XFS_FSB_TO_B(mp, end_fsb) - 1);
-> > >  
-> > > -		xfs_ilock(ip, XFS_ILOCK_EXCL);
-> > >  		error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
-> > >  					       end_fsb - start_fsb);
-> > > -		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-> > > -
-> > >  		if (error && !XFS_FORCED_SHUTDOWN(mp)) {
-> > >  			xfs_alert(mp, "%s: unable to clean up ino %lld",
-> > >  				__func__, ip->i_ino);
-> > > -- 
-> > > 2.17.0
-> > > 
-> > > --
-> > > To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> > > the body of a message to majordomo@vger.kernel.org
-> > > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
