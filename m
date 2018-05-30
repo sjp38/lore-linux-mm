@@ -1,112 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AAB2C6B000D
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 04:13:58 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k27-v6so14100806wre.23
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 01:13:58 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c7-v6si4475098eda.138.2018.05.30.01.13.57
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 71E7A6B0005
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 04:53:38 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id q5-v6so14030827itq.2
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 01:53:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j76-v6sor8279142itj.16.2018.05.30.01.53.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 May 2018 01:13:57 -0700 (PDT)
-Date: Wed, 30 May 2018 10:13:56 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 05/11] filesystem-dax: set page->index
-Message-ID: <20180530081356.mohu6fx22fzd7fxb@quack2.suse.cz>
-References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152699999778.24093.18007971664703285330.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180523084030.dvv4jbvsnzrsaz6q@quack2.suse.cz>
- <CAPcyv4gUM7Br3XONOVkNCg-mvR5U8QLq+OOc54cLpP61LXhJXA@mail.gmail.com>
+        (Google Transport Security);
+        Wed, 30 May 2018 01:53:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4gUM7Br3XONOVkNCg-mvR5U8QLq+OOc54cLpP61LXhJXA@mail.gmail.com>
+In-Reply-To: <CAEemH2c=EWHb1Ua6Fe4g_kF2JC8LKoiySPabZ7xXF43ovrNFmg@mail.gmail.com>
+References: <20180524095752.17770-1-liwang@redhat.com> <CALZtONA4y+7vzUr2xPa8ZbwCczjJV9EMCOXaCsE94DdfGbrmtA@mail.gmail.com>
+ <CAEemH2c=EWHb1Ua6Fe4g_kF2JC8LKoiySPabZ7xXF43ovrNFmg@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 30 May 2018 04:52:56 -0400
+Message-ID: <CALZtONC69mq9Sh+pi_1Snntj-31ej5vW+UH-d77oUdvrEAS-Bw@mail.gmail.com>
+Subject: Re: [PATCH RFC] zswap: reject to compress/store page if
+ zswap_max_pool_percent is 0
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>, linux-xfs <linux-xfs@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Li Wang <liwang@redhat.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjenning@redhat.com>, Huang Ying <huang.ying.caritas@gmail.com>, Yu Zhao <yuzhao@google.com>
 
-On Tue 29-05-18 18:38:41, Dan Williams wrote:
-> On Wed, May 23, 2018 at 1:40 AM, Jan Kara <jack@suse.cz> wrote:
-> > On Tue 22-05-18 07:39:57, Dan Williams wrote:
-> >> In support of enabling memory_failure() handling for filesystem-dax
-> >> mappings, set ->index to the pgoff of the page. The rmap implementation
-> >> requires ->index to bound the search through the vma interval tree. The
-> >> index is set and cleared at dax_associate_entry() and
-> >> dax_disassociate_entry() time respectively.
-> >>
-> >> Cc: Jan Kara <jack@suse.cz>
-> >> Cc: Christoph Hellwig <hch@lst.de>
-> >> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> >> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> >> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> >> ---
-> >>  fs/dax.c |   11 ++++++++---
-> >>  1 file changed, 8 insertions(+), 3 deletions(-)
-> >>
-> >> diff --git a/fs/dax.c b/fs/dax.c
-> >> index aaec72ded1b6..2e4682cd7c69 100644
-> >> --- a/fs/dax.c
-> >> +++ b/fs/dax.c
-> >> @@ -319,18 +319,22 @@ static unsigned long dax_radix_end_pfn(void *entry)
-> >>       for (pfn = dax_radix_pfn(entry); \
-> >>                       pfn < dax_radix_end_pfn(entry); pfn++)
-> >>
-> >> -static void dax_associate_entry(void *entry, struct address_space *mapping)
-> >> +static void dax_associate_entry(void *entry, struct address_space *mapping,
-> >> +             struct vm_area_struct *vma, unsigned long address)
-> >>  {
-> >> -     unsigned long pfn;
-> >> +     unsigned long size = dax_entry_size(entry), pfn, index;
-> >> +     int i = 0;
-> >>
-> >>       if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-> >>               return;
-> >>
-> >> +     index = linear_page_index(vma, address & ~(size - 1));
-> >>       for_each_mapped_pfn(entry, pfn) {
-> >>               struct page *page = pfn_to_page(pfn);
-> >>
-> >>               WARN_ON_ONCE(page->mapping);
-> >>               page->mapping = mapping;
-> >> +             page->index = index + i++;
-> >>       }
-> >>  }
-> >
-> > Hum, this just made me think: How is this going to work with XFS reflink?
-> > In fact is not the page->mapping association already broken by XFS reflink?
-> > Because with reflink we can have two or more mappings pointing to the same
-> > physical blocks (i.e., pages in DAX case)...
-> 
-> Good question. I assume we are ok in the non-DAX reflink case because
-> rmap of failing / poison pages is only relative to the specific page
-> cache page for a given inode in the reflink. However, DAX would seem
-> to break this because we only get one shared 'struct page' for all
-> possible mappings of the physical file block. I think this means for
-> iterating over the rmap of "where is this page mapped" would require
-> iterating over the other "sibling" inodes that know about the given
-> physical file block.
-> 
-> As far as I can see reflink+dax would require teaching kernel code
-> paths that ->mapping may not be a singular relationship. Something
-> along the line's of what Jerome was presenting at LSF to create a
-> special value to indicate, "call back into the filesystem (or the page
-> owner)" to perform this operation.
-> 
-> In the meantime the kernel crashes when userspace accesses poisoned
-> pmem via DAX. I assume that reworking rmap for the dax+reflink case
-> should not block dax poison handling? Yell if you disagree.
+On Tue, May 29, 2018 at 10:57 PM, Li Wang <liwang@redhat.com> wrote:
+> Hi Dan,
+>
+> On Wed, May 30, 2018 at 5:14 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+>>
+>> On Thu, May 24, 2018 at 5:57 AM, Li Wang <liwang@redhat.com> wrote:
+>> > The '/sys/../zswap/stored_pages:' keep raising in zswap test with
+>> > "zswap.max_pool_percent=0" parameter. But theoretically, it should
+>> > not compress or store pages any more since there is no space for
+>> > compressed pool.
+>> >
+>> > Reproduce steps:
+>> >
+>> >   1. Boot kernel with "zswap.enabled=1 zswap.max_pool_percent=17"
+>> >   2. Set the max_pool_percent to 0
+>> >       # echo 0 > /sys/module/zswap/parameters/max_pool_percent
+>> >      Confirm this parameter works fine
+>> >       # cat /sys/kernel/debug/zswap/pool_total_size
+>> >       0
+>> >   3. Do memory stress test to see if some pages have been compressed
+>> >       # stress --vm 1 --vm-bytes $mem_available"M" --timeout 60s
+>> >      Watching the 'stored_pages' numbers increasing or not
+>> >
+>> > The root cause is:
+>> >
+>> >   When the zswap_max_pool_percent is set to 0 via kernel parameter, the
+>> > zswap_is_full()
+>> >   will always return true to shrink the pool size by zswap_shrink(). If
+>> > the pool size
+>> >   has been shrinked a little success, zswap will do compress/store pages
+>> > again. Then we
+>> >   get fails on that as above.
+>>
+>> special casing 0% doesn't make a lot of sense to me, and I'm not
+>> entirely sure what exactly you are trying to fix here.
+>
+>
+> Sorry for that confusing, I am a pretty new to zswap.
+>
+> To specify 0 to max_pool_percent is purpose to verify if zswap stopping work
+> when there is no space in compressed pool.
+>
+> Another consideration from me is:
+>
+> [Method A]
+>
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -1021,7 +1021,7 @@ static int zswap_frontswap_store(unsigned type,
+> pgoff_t offset,
+>         /* reclaim space if needed */
+>         if (zswap_is_full()) {
+>                 zswap_pool_limit_hit++;
+> -               if (zswap_shrink()) {
+> +               if (!zswap_max_pool_percent || zswap_shrink()) {
+>                         zswap_reject_reclaim_fail++;
+>                         ret = -ENOMEM;
+>                         goto reject;
+>
+> This make sure the compressed pool is enough to do zswap_shrink().
+>
+>
+>>
+>>
+>> however, zswap does currently do a zswap_is_full() check, and then if
+>> it's able to reclaim a page happily proceeds to store another page,
+>> without re-checking zswap_is_full().  If you're trying to fix that,
+>> then I would ack a patch that adds a second zswap_is_full() check
+>> after zswap_shrink() to make sure it's now under the max_pool_percent
+>> (or somehow otherwise fixes that behavior).
+>>
+>
+> Ok, it sounds like can also fix the issue. The changes maybe like:
+>
+> [Method B]
+>
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -1026,6 +1026,15 @@ static int zswap_frontswap_store(unsigned type,
+> pgoff_t offset,
+>                         ret = -ENOMEM;
+>                         goto reject;
+>                 }
+> +
+> +               /* A second zswap_is_full() check after
+> +                * zswap_shrink() to make sure it's now
+> +                * under the max_pool_percent
+> +                */
+> +               if (zswap_is_full()) {
+> +                       ret = -ENOMEM;
+> +                       goto reject;
+> +               }
+>         }
+>
+>
+> So, which one do you think is better, A or B?
 
-The thing is, up until get_user_pages() vs truncate series ("fs, dax: use
-page->mapping to warn if truncate collides with a busy page" in
-particular), DAX was perfectly fine with reflinks since we never needed
-page->mapping. Now this series adds even page->index dependency which makes
-life for rmap with reflinks even harder. So if nothing else we should at
-least make sure reflinked filesystems cannot be mounted with dax mount
-option for now and seriously start looking into how to implement rmap with
-reflinked files for DAX because this noticeably reduces its usefulness.
+this is better.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+>
+> --
+> Regards,
+> Li Wang
