@@ -1,46 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B7E66B0003
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 11:13:29 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id o23-v6so11416281pll.12
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 08:13:29 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k12-v6si6482139pgp.561.2018.05.30.08.13.28
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C2856B0003
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 11:39:43 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id u63-v6so5475064oia.8
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 08:39:43 -0700 (PDT)
+Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
+        by mx.google.com with ESMTPS id e8-v6si11614837oif.84.2018.05.30.08.39.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 30 May 2018 08:13:28 -0700 (PDT)
-Date: Wed, 30 May 2018 08:13:27 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: dmapool: Check the dma pool name
-Message-ID: <20180530151327.GA13951@bombadil.infradead.org>
-References: <59623b15001e5a20ac32b1a393db88722be2e718.1527679621.git.baolin.wang@linaro.org>
- <20180530120133.GC17450@bombadil.infradead.org>
- <CAMz4ku+fBt2uY6MbiMX1X-6jtjdpqp=DWNMrefOG4SsUHWN4kQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 May 2018 08:39:41 -0700 (PDT)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [PATCH v3 3/3] x86/mm: add TLB purge to free pmd/pte page
+ interfaces
+Date: Wed, 30 May 2018 15:39:20 +0000
+Message-ID: <1527694673.14039.106.camel@hpe.com>
+References: <20180516233207.1580-1-toshi.kani@hpe.com>
+	 <20180516233207.1580-4-toshi.kani@hpe.com>
+	 <20180529144438.GM18595@8bytes.org> <1527610139.14039.58.camel@hpe.com>
+	 <20180530045927.GP18595@8bytes.org>
+In-Reply-To: <20180530045927.GP18595@8bytes.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <1ADD97029483FF44A342DDC6835343AD@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMz4ku+fBt2uY6MbiMX1X-6jtjdpqp=DWNMrefOG4SsUHWN4kQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baolin Wang <baolin.wang@linaro.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Mark Brown <broonie@kernel.org>
+To: "joro@8bytes.org" <joro@8bytes.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "cpandya@codeaurora.org" <cpandya@codeaurora.org>, "Hocko, Michal" <MHocko@suse.com>
 
-On Wed, May 30, 2018 at 08:14:09PM +0800, Baolin Wang wrote:
-> On 30 May 2018 at 20:01, Matthew Wilcox <willy@infradead.org> wrote:
-> > On Wed, May 30, 2018 at 07:28:43PM +0800, Baolin Wang wrote:
-> >> It will be crash if we pass one NULL name when creating one dma pool,
-> >> so we should check the passing name when copy it to dma pool.
-> >
-> > NAK.  Crashing is the appropriate thing to do.  Fix the caller to not
-> > pass NULL.
-> >
-> > If you permit NULL to be passed then you're inviting crashes or just
-> > bad reporting later when pool->name is printed.
-> 
-> I think it just prints one NULL pool name. Sometimes the device
-> doesn't care the dma pool names, so I think we can make code more
-> solid to valid the passing parameters like other code does.
-> Or can we add check to return NULL when the passing name is NULL
-> instead of crashing the kernel? Thanks.
-
-No.  Fix your driver.
+T24gV2VkLCAyMDE4LTA1LTMwIGF0IDA2OjU5ICswMjAwLCBqb3JvQDhieXRlcy5vcmcgd3JvdGU6
+DQo+IE9uIFR1ZSwgTWF5IDI5LCAyMDE4IGF0IDA0OjEwOjI0UE0gKzAwMDAsIEthbmksIFRvc2hp
+IHdyb3RlOg0KPiA+IENhbiB5b3UgZXhwbGFpbiB3aHkgeW91IHRoaW5rIGFsbG9jYXRpbmcgYSBw
+YWdlIGhlcmUgaXMgYSBtYWpvciBwcm9ibGVtPw0KPiANCj4gQmVjYXVzZSBhIGxhcmdlciBhbGxv
+Y2F0aW9uIGlzIG1vcmUgbGlrZWx5IHRvIGZhaWwuIEFuZCBpZiB5b3UgZmFpbCB0aGUNCj4gYWxs
+b2NhdGlvbiwgeW91IGFsc28gZmFpbCB0byBmcmVlIG1vcmUgcGFnZXMsIHdoaWNoIF9pc18gYSBw
+cm9ibGVtLiBTbw0KPiBiZXR0ZXIgYXZvaWQgYW55IGFsbG9jYXRpb25zIGluIGNvZGUgcGF0aHMg
+dGhhdCBhcmUgYWJvdXQgZnJlZWluZw0KPiBtZW1vcnkuDQoNCkl0IG9ubHkgYWxsb2NhdGVzIGEg
+c2luZ2xlIHBhZ2UuICBJZiBpdCBmYWlscyB0byBhbGxvY2F0ZSBhIHNpbmdsZSBwYWdlLA0KdGhp
+cyBwdWQgbWFwcGluZyByZXF1ZXN0IHNpbXBseSBmYWxscyB0byBwbWQgbWFwcGluZ3MsIHdoaWNo
+IGlzIG9ubHkgYXMNCmJhZCBhcyB5b3VyIHN1Z2dlc3RlZCBwbGFpbiByZXZlcnQgYWx3YXlzIGRv
+ZXMgZm9yIGJvdGggcHVkIGFuZCBwbWQNCm1hcHBpbmdzLiAgQWxzbywgdGhpcyBmdW5jIGlzIGNh
+bGxlZCBmcm9tIGlvcmVtYXAoKSB3aGVuIGEgZHJpdmVyDQppbml0aWFsaXplcyBpdHMgbWFwcGlu
+Zy4gIElmIHRoZSBzeXN0ZW0gZG9lcyBub3QgaGF2ZSBhIHNpbmdsZSBwYWdlIHRvDQphbGxvY2F0
+ZSwgdGhlIGRyaXZlciBoYXMgYSBtdWNoIGJpZ2dlciBpc3N1ZSB0byBkZWFsIHdpdGggdGhhbiBp
+dHMNCnJlcXVlc3QgZmFsbGluZyBiYWNrIHRvIHBtZCBtYXBwaW5ncy4gIFBsZWFzZSBhbHNvIG5v
+dGUgdGhhdCB0aGlzIGZ1bmMNCmlzIG5vdCBjYWxsZWQgZnJvbSBmcmVlLW1lbW9yeSBwYXRoLg0K
+DQo+ID4gSWYgd2UganVzdCByZXZlcnQsIHBsZWFzZSBhcHBseSBwYXRjaCAxLzMgZmlyc3QuICBU
+aGlzIHBhdGNoIGFkZHJlc3MgdGhlDQo+ID4gQlVHX09OIGlzc3VlIG9uIFBBRS4gIFRoaXMgaXMg
+YSByZWFsIGlzc3VlIHRoYXQgbmVlZHMgYSBmaXggQVNBUC4NCj4gDQo+IEl0IGRvZXMgbm90IGFk
+ZHJlc3MgdGhlIHByb2JsZW0gb2YgZGlydHkgcGFnZS13YWxrIGNhY2hlcyBvbiB4ODYtNjQuDQoN
+ClRoaXMgcGF0Y2ggMy8zIGZpeGVzIGl0LiAgSG9wZSBteSBleHBsYW5hdGlvbiBhYm92ZSBjbGFy
+aWZpZWQuDQoNCj4gPiBUaGUgcGFnZS1kaXJlY3RvcnkgY2FjaGUgaXNzdWUgb24geDY0LCB3aGlj
+aCBpcyBhZGRyZXNzZWQgYnkgcGF0Y2ggMy8zLA0KPiA+IGlzIGEgdGhlb3JldGljYWwgaXNzdWUg
+dGhhdCBJIGNvdWxkIG5vdCBoaXQgYnkgcHV0dGluZyBpb3JlbWFwKCkgY2FsbHMNCj4gPiBpbnRv
+IGEgbG9vcCBmb3IgYSB3aG9sZSBkYXkuICBOb2JvZHkgaGl0IHRoaXMgaXNzdWUsIGVpdGhlci4N
+Cj4gDQo+IEhvdyBkbyB5b3Uga25vdyB5b3UgZGlkbid0IGhpdCB0aGF0IGlzc3VlPyBJdCBtaWdo
+dCBjYXVzZSBzaWxlbnQgZGF0YQ0KPiBjb3JydXB0aW9uLCB3aGljaCBtaWdodCBub3QgYmUgZWFz
+aWx5IGRldGVjdGVkLg0KDQpJZiB0aGUgdGVzdCBoaXQgdGhhdCBpc3N1ZSwgaXQgd291bGQgaGF2
+ZSBjYXVzZWQgYSBrZXJuZWwgcGFnZSBmYXVsdA0KKGZyZWVkICYgY2xlYXJlZCBwdGUgcGFnZSBz
+dGlsbCB1bm1hcHBlZCwgb3IgdGhpcyBwYWdlIHJldXNlZCBhbmQNCmF0dHJpYnV0ZSBkYXRhIGlu
+dmFsaWQpIG9yIE1DRSAocHRlIHBhZ2UgcmV1c2VkIGFuZCBwaHlzIGFkZHIgaW52YWxpZCkNCndo
+ZW4gaXQgYWNjZXNzZWQgdG8gaW9yZW1hcCdkIGFkZHJlc3MuDQoNCkNhdXNpbmcgc2lsZW50IGRh
+dGEgY29ycnVwdGlvbiByZXF1aXJlcyB0aGF0IHRoaXMgZnJlZWQgJiBjbGVhcmVkIHB0ZQ0KcGFn
+ZSB0byBiZSByZXVzZWQgYW5kIHJlLWluaXRpYWxpemVkIHdpdGggYSB2YWxpZCBwdGUgZW50cnkg
+ZGF0YS4gIFdoaWxlDQp0aGlzIGNhc2UgaXMgcG9zc2libGUsIHRoZSBjaGFuY2Ugb2YgbXkgdGVz
+dCBvbmx5IGhpdHRpbmcgdGhpcyBjYXNlDQp3aXRob3V0IGV2ZXIgaGl0dGluZyBtdWNoIG1vcmUg
+bGlrZWx5IGNhc2VzIG9mIHBhZ2UgZmF1bHQgb3IgTUNFIGlzDQpiYXNpY2FsbHkgemVyby4NCg0K
+PiA+IFRoZSBzaW1wbGUgcmV2ZXJ0IHBhdGNoIEpvZXJnIHBvc3RlZCBhIHdoaWxlIGFnbyBjYXVz
+ZXMNCj4gPiBwbWRfZnJlZV9wdGVfcGFnZSgpIHRvIGZhaWwgb24geDY0LiAgVGhpcyBjYXVzZXMg
+bXVsdGlwbGUgcG1kIG1hcHBpbmdzDQo+ID4gdG8gZmFsbCBpbnRvIHB0ZSBtYXBwaW5ncyBvbiBt
+eSB0ZXN0IHN5c3RlbXMuICBUaGlzIGNhbiBiZSBzZWVuIGFzIGENCj4gPiBkZWdyYWRhdGlvbiwg
+YW5kIEkgYW0gYWZyYWlkIHRoYXQgaXQgaXMgbW9yZSBoYXJtZnVsIHRoYW4gZ29vZC4NCj4gDQo+
+IFRoZSBwbGFpbiByZXZlcnQganVzdCByZW1vdmVzIGFsbCB0aGUgaXNzdWVzIHdpdGggdGhlIGRp
+cnR5IFRMQiB0aGF0IHRoZQ0KPiBvcmlnaW5hbCBwYXRjaCBpbnRyb2R1Y2VkIGFuZCBwcmV2ZW50
+cyBodWdlIG1hcHBpbmdzIGZyb20gYmVpbmcNCj4gZXN0YWJsaXNoZWQgd2hlbiB0aGVyZSBoYXZl
+IGJlZW4gc21hbGxlciBtYXBwaW5ncyBiZWZvcmUuIFRoaXMgaXMgbm90DQo+IGlkZWFsLCBidXQg
+YXQgbGVhc3QgaXRzIGlzIGNvbnNpc3RlbnQgYW5kIGRvZXMgbm90IGxlYWsgcGFnZXMgYW5kIGxl
+YXZlcw0KPiBubyBkaXJ0eSBUTEJzLiBTbyB0aGlzIGlzIHRoZSBlYXNpZXN0IGFuZCBtb3N0IHJl
+bGlhYmxlIGZpeCBmb3IgdGhpcw0KPiBzdGFnZSBpbiB0aGUgcmVsZWFzZSBwcm9jZXNzLg0KDQpJ
+ZiB5b3UgdGhpbmsgdGhlIHBhZ2UgZGlyZWN0b3J5IGlzc3VlIG5lZWRzIGEgZml4IEFTQVAsIEkg
+YmVsaWV2ZSB0YWtpbmcNCnBhdGNoIDMvMyBpcyBtdWNoIGJldHRlciBvcHRpb24gdGhhbiB0aGUg
+cGxhaW4gcmV2ZXJ0LCB3aGljaCB3aWxsDQppbnRyb2R1Y2UgdGhlIGZhbGwtYmFjayBpc3N1ZSBJ
+IGV4cGxhaW5lZC4NCg0KVGhhbmtzLA0KLVRvc2hpDQo=
