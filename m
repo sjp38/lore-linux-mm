@@ -1,114 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C4C726B0006
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 12:25:03 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k18-v6so15180494wrm.6
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 09:25:03 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s12-v6si5908212edb.332.2018.05.30.09.25.02
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2886D6B0007
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 12:26:34 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id w8-v6so6744778ywg.22
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 09:26:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w2-v6sor3393575yba.27.2018.05.30.09.26.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 May 2018 09:25:02 -0700 (PDT)
-Date: Wed, 30 May 2018 18:25:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] fs, elf: drop MAP_FIXED usage from elf_map
-Message-ID: <20180530162501.GB15278@dhcp22.suse.cz>
-References: <20171129144219.22867-1-mhocko@kernel.org>
- <20171129144219.22867-3-mhocko@kernel.org>
- <93ce964b-e352-1905-c2b6-deedf2ea06f8@oracle.com>
- <c0e447b3-4ba7-239e-6550-64de7721ad28@oracle.com>
- <20180530080212.GA27180@dhcp22.suse.cz>
- <e7705544-04fe-c382-f6d0-48d0680b46f2@oracle.com>
+        (Google Transport Security);
+        Wed, 30 May 2018 09:26:33 -0700 (PDT)
+Date: Wed, 30 May 2018 09:26:29 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 06/13] blkcg: add generic throttling mechanism
+Message-ID: <20180530162629.GN1351649@devbig577.frc2.facebook.com>
+References: <20180529211724.4531-1-josef@toxicpanda.com>
+ <20180529211724.4531-7-josef@toxicpanda.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e7705544-04fe-c382-f6d0-48d0680b46f2@oracle.com>
+In-Reply-To: <20180529211724.4531-7-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, libhugetlbfs@googlegroups.com
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: axboe@kernel.dk, kernel-team@fb.com, linux-block@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-On Wed 30-05-18 08:00:29, Mike Kravetz wrote:
-> On 05/30/2018 01:02 AM, Michal Hocko wrote:
-> > On Tue 29-05-18 15:21:14, Mike Kravetz wrote:
-> >> Just a quick heads up.  I noticed a change in libhugetlbfs testing starting
-> >> with v4.17-rc1.
-> >>
-> >> V4.16 libhugetlbfs test results
-> >> ********** TEST SUMMARY
-> >> *                      2M            
-> >> *                      32-bit 64-bit 
-> >> *     Total testcases:   110    113   
-> >> *             Skipped:     0      0   
-> >> *                PASS:   105    111   
-> >> *                FAIL:     0      0   
-> >> *    Killed by signal:     4      1   
-> >> *   Bad configuration:     1      1   
-> >> *       Expected FAIL:     0      0   
-> >> *     Unexpected PASS:     0      0   
-> >> *    Test not present:     0      0   
-> >> * Strange test result:     0      0   
-> >> **********
-> >>
-> >> v4.17-rc1 (and later) libhugetlbfs test results
-> >> ********** TEST SUMMARY
-> >> *                      2M            
-> >> *                      32-bit 64-bit 
-> >> *     Total testcases:   110    113   
-> >> *             Skipped:     0      0   
-> >> *                PASS:    98    111   
-> >> *                FAIL:     0      0   
-> >> *    Killed by signal:    11      1   
-> >> *   Bad configuration:     1      1   
-> >> *       Expected FAIL:     0      0   
-> >> *     Unexpected PASS:     0      0   
-> >> *    Test not present:     0      0   
-> >> * Strange test result:     0      0   
-> >> **********
-> >>
-> >> I traced the 7 additional (32-bit) killed by signal results to this
-> >> commit 4ed28639519c fs, elf: drop MAP_FIXED usage from elf_map.
-> >>
-> >> libhugetlbfs does unusual things and even provides custom linker scripts.
-> >> So, in hindsight this change in behavior does not seem too unexpected.  I
-> >> JUST discovered this while running libhugetlbfs tests for an unrelated
-> >> issue/change and, will do some analysis to see exactly what is happening.
-> > 
-> > I am definitely interested about further details. Are there any messages
-> > in the kernel log?
-> >
-> 
-> Yes, new messages associated with the failures.
-> 
-> [   47.570451] 1368 (xB.linkhuge_nof): Uhuuh, elf segment at 00000000a731413b requested but the memory is mapped already
-> [   47.606991] 1372 (xB.linkhuge_nof): Uhuuh, elf segment at 00000000a731413b requested but the memory is mapped already
-> [   47.641351] 1376 (xB.linkhuge_nof): Uhuuh, elf segment at 00000000a731413b requested but the memory is mapped already
-> [   47.726138] 1384 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
-> [   47.773169] 1393 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
-> [   47.817788] 1402 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
-> [   47.857338] 1406 (xB.linkshare): Uhuuh, elf segment at 0000000018430471 requested but the memory is mapped already
-> [   47.956355] 1427 (xB.linkshare): Uhuuh, elf segment at 0000000018430471 requested but the memory is mapped already
-> [   48.054894] 1448 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
-> [   48.071221] 1451 (xB.linkhuge): Uhuuh, elf segment at 0000000090b9eaf6 requested but the memory is mapped already
-> 
-> Just curious, the addresses printed in those messages does not seem correct.
-> They should be page aligned.  Correct?
+Hello,
 
-I have no idea what the loader actually does here.
+On Tue, May 29, 2018 at 05:17:17PM -0400, Josef Bacik wrote:
+> +static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
+> +{
+> +	u64 old = atomic64_read(&blkg->delay_start);
+> +
+> +	if (old + NSEC_PER_SEC <= now &&
 
-> I think that %p conversion in the pr_info() may doing something wrong.
+Maybe time_before64()?
 
-Well, we are using %px and that shouldn't do any tricks to the given
-address.
+> +	    atomic64_cmpxchg(&blkg->delay_start, old, now) == old) {
+> +		u64 cur = atomic64_read(&blkg->delay_nsec);
+> +		u64 sub = min_t(u64, blkg->last_delay, now - old);
+> +		int cur_use = atomic_read(&blkg->use_delay);
+> +
+> +		if (cur_use < blkg->last_use)
+> +			sub = max_t(u64, sub, blkg->last_delay >> 1);
+> +
+> +		/* This shouldn't happen, but handle it anyway. */
+> +		if (unlikely(cur < sub)) {
+> +			atomic64_set(&blkg->delay_nsec, 0);
+> +			blkg->last_delay = 0;
+> +		} else {
+> +			atomic64_sub(sub, &blkg->delay_nsec);
+> +			blkg->last_delay = cur - sub;
+> +		}
+> +		blkg->last_use = cur_use;
 
-> Also, the new failures in question are indeed being built with custom linker
-> scripts designed for use with binutils older than 2.16 (really old).  So, no
-> new users should encounter this issue (I think).  It appears that this may
-> only impact old applications built long ago with pre-2.16 binutils.
+Can you please add some comments explaining the above?  It's a lot of
+logic.
 
-Could you add a debugging data to dump the VMA which overlaps the
-requested adress and who requested that? E.g. hook into do_mmap and dump
-all requests from the linker.
+> +static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
+> +{
+
+Maybe add a comment explaining that this is a cold path?
+
+> +	u64 now = ktime_to_ns(ktime_get());
+> +	u64 exp;
+> +	u64 delay_nsec = 0;
+> +	int tok;
+> +
+> +	while (blkg->parent) {
+> +		if (atomic_read(&blkg->use_delay)) {
+> +			blkcg_scale_delay(blkg, now);
+> +			delay_nsec = max_t(u64, delay_nsec,
+> +					   atomic64_read(&blkg->delay_nsec));
+> +		}
+> +		blkg = blkg->parent;
+> +	}
+
+Cuz the above may look too much otherwise.
+
+...
+> +void blkcg_maybe_throttle_current(void)
+> +{
+> +	struct request_queue *q = current->throttle_queue;
+> +	struct cgroup_subsys_state *css;
+> +	struct blkcg *blkcg;
+> +	struct blkcg_gq *blkg;
+> +	bool use_memdelay = current->use_memdelay;
+> +
+> +	if (!q)
+> +		return;
+
+The above would be the path taken in most cases, right?
+
+> +
+> +	current->throttle_queue = NULL;
+> +	current->use_memdelay = false;
+
+So, we only wait once, capped to 1s per blkcg_schedule_throttle()?
+It'd be great to document the rationales.
+
+> +	rcu_read_lock();
+> +	css = kthread_blkcg();
+> +	if (css)
+> +		blkcg = css_to_blkcg(css);
+> +	else
+> +		blkcg = css_to_blkcg(task_css(current, io_cgrp_id));
+> +
+> +	if (!blkcg)
+> +		goto out;
+> +	blkg = blkg_lookup(blkcg, q);
+> +	if (!blkg)
+> +		goto out;
+> +	blkg_get(blkg);
+
+I don't think we can do blkg_get() on a blkg which is only protected
+by rcu.  We probably need blkg_tryget() here.
+
+> +	rcu_read_unlock();
+> +	blk_put_queue(q);
+> +
+> +	blkcg_maybe_throttle_blkg(blkg, use_memdelay);
+> +	blkg_put(blkg);
+> +	return;
+> +out:
+> +	rcu_read_unlock();
+> +	blk_put_queue(q);
+> +}
+> +EXPORT_SYMBOL_GPL(blkcg_maybe_throttle_current);
+> +
+> +void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay)
+> +{
+> +	if (unlikely(current->flags & PF_KTHREAD))
+> +		return;
+> +
+> +	if (!blk_get_queue(q))
+> +		return;
+> +
+> +	if (current->throttle_queue)
+> +		blk_put_queue(current->throttle_queue);
+> +	current->throttle_queue = q;
+
+Can't we set current->throttle_blkg directly?
+
+> +static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
+> +{
+> +	int old = atomic_read(&blkg->use_delay);
+> +
+> +	if (old == 0)
+> +		return 0;
+> +
+> +	while (old) {
+> +		int cur = atomic_cmpxchg(&blkg->use_delay, old, old - 1);
+
+Can we use atomic_dec_return() here?
+
+> +		if (cur == old)
+> +			break;
+> +		cur = old;
+> +	}
+> +
+> +	if (old == 0)
+> +		return 0;
+> +	if (old == 1)
+> +		atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
+> +	return 1;
+> +}
+> +
+> +static inline void blkcg_clear_delay(struct blkcg_gq *blkg)
+> +{
+> +	int old = atomic_read(&blkg->use_delay);
+> +	if (!old)
+> +		return;
+> +	if (atomic_cmpxchg(&blkg->use_delay, old, 0) == old)
+> +		atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
+
+atomic_add_unless()?
+
+Thanks.
+
 -- 
-Michal Hocko
-SUSE Labs
+tejun
