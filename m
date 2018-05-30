@@ -1,129 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 71E7A6B0005
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 04:53:38 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id q5-v6so14030827itq.2
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 01:53:38 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j76-v6sor8279142itj.16.2018.05.30.01.53.37
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E9536B0005
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 05:03:06 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k9-v6so14863910ioa.6
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 02:03:06 -0700 (PDT)
+Received: from mail1.bemta12.messagelabs.com (mail1.bemta12.messagelabs.com. [216.82.251.4])
+        by mx.google.com with ESMTPS id 78-v6si15042493itj.4.2018.05.30.02.03.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 30 May 2018 01:53:37 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 May 2018 02:03:05 -0700 (PDT)
+From: Huaisheng HS1 Ye <yehs1@lenovo.com>
+Subject: RE: [External]  Re: [RFC PATCH v2 00/12] get rid of
+ GFP_ZONE_TABLE/BAD
+Date: Wed, 30 May 2018 09:02:13 +0000
+Message-ID: <HK2PR03MB1684C44F2408F3927B1A21BC926C0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+References: <1526916033-4877-1-git-send-email-yehs2007@gmail.com>
+ <20180522183728.GB20441@dhcp22.suse.cz>
+ <HK2PR03MB16847646E90A10E2D48CEA8E926B0@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180524121853.GG20441@dhcp22.suse.cz>
+ <HK2PR03MB1684ED6EC6859A88A196DC0C92690@HK2PR03MB1684.apcprd03.prod.outlook.com>
+ <20180528133733.GF27180@dhcp22.suse.cz>
+In-Reply-To: <20180528133733.GF27180@dhcp22.suse.cz>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <CAEemH2c=EWHb1Ua6Fe4g_kF2JC8LKoiySPabZ7xXF43ovrNFmg@mail.gmail.com>
-References: <20180524095752.17770-1-liwang@redhat.com> <CALZtONA4y+7vzUr2xPa8ZbwCczjJV9EMCOXaCsE94DdfGbrmtA@mail.gmail.com>
- <CAEemH2c=EWHb1Ua6Fe4g_kF2JC8LKoiySPabZ7xXF43ovrNFmg@mail.gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 30 May 2018 04:52:56 -0400
-Message-ID: <CALZtONC69mq9Sh+pi_1Snntj-31ej5vW+UH-d77oUdvrEAS-Bw@mail.gmail.com>
-Subject: Re: [PATCH RFC] zswap: reject to compress/store page if
- zswap_max_pool_percent is 0
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Wang <liwang@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjenning@redhat.com>, Huang Ying <huang.ying.caritas@gmail.com>, Yu Zhao <yuzhao@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@infradead.org" <willy@infradead.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "kstewart@linuxfoundation.org" <kstewart@linuxfoundation.org>, "alexander.levin@verizon.com" <alexander.levin@verizon.com>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "colyli@suse.de" <colyli@suse.de>, NingTing Cheng <chengnt@lenovo.com>, Ocean HY1 He <hehy1@lenovo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
 
-On Tue, May 29, 2018 at 10:57 PM, Li Wang <liwang@redhat.com> wrote:
-> Hi Dan,
->
-> On Wed, May 30, 2018 at 5:14 AM, Dan Streetman <ddstreet@ieee.org> wrote:
->>
->> On Thu, May 24, 2018 at 5:57 AM, Li Wang <liwang@redhat.com> wrote:
->> > The '/sys/../zswap/stored_pages:' keep raising in zswap test with
->> > "zswap.max_pool_percent=0" parameter. But theoretically, it should
->> > not compress or store pages any more since there is no space for
->> > compressed pool.
->> >
->> > Reproduce steps:
->> >
->> >   1. Boot kernel with "zswap.enabled=1 zswap.max_pool_percent=17"
->> >   2. Set the max_pool_percent to 0
->> >       # echo 0 > /sys/module/zswap/parameters/max_pool_percent
->> >      Confirm this parameter works fine
->> >       # cat /sys/kernel/debug/zswap/pool_total_size
->> >       0
->> >   3. Do memory stress test to see if some pages have been compressed
->> >       # stress --vm 1 --vm-bytes $mem_available"M" --timeout 60s
->> >      Watching the 'stored_pages' numbers increasing or not
->> >
->> > The root cause is:
->> >
->> >   When the zswap_max_pool_percent is set to 0 via kernel parameter, the
->> > zswap_is_full()
->> >   will always return true to shrink the pool size by zswap_shrink(). If
->> > the pool size
->> >   has been shrinked a little success, zswap will do compress/store pages
->> > again. Then we
->> >   get fails on that as above.
->>
->> special casing 0% doesn't make a lot of sense to me, and I'm not
->> entirely sure what exactly you are trying to fix here.
->
->
-> Sorry for that confusing, I am a pretty new to zswap.
->
-> To specify 0 to max_pool_percent is purpose to verify if zswap stopping work
-> when there is no space in compressed pool.
->
-> Another consideration from me is:
->
-> [Method A]
->
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -1021,7 +1021,7 @@ static int zswap_frontswap_store(unsigned type,
-> pgoff_t offset,
->         /* reclaim space if needed */
->         if (zswap_is_full()) {
->                 zswap_pool_limit_hit++;
-> -               if (zswap_shrink()) {
-> +               if (!zswap_max_pool_percent || zswap_shrink()) {
->                         zswap_reject_reclaim_fail++;
->                         ret = -ENOMEM;
->                         goto reject;
->
-> This make sure the compressed pool is enough to do zswap_shrink().
->
->
->>
->>
->> however, zswap does currently do a zswap_is_full() check, and then if
->> it's able to reclaim a page happily proceeds to store another page,
->> without re-checking zswap_is_full().  If you're trying to fix that,
->> then I would ack a patch that adds a second zswap_is_full() check
->> after zswap_shrink() to make sure it's now under the max_pool_percent
->> (or somehow otherwise fixes that behavior).
->>
->
-> Ok, it sounds like can also fix the issue. The changes maybe like:
->
-> [Method B]
->
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -1026,6 +1026,15 @@ static int zswap_frontswap_store(unsigned type,
-> pgoff_t offset,
->                         ret = -ENOMEM;
->                         goto reject;
->                 }
-> +
-> +               /* A second zswap_is_full() check after
-> +                * zswap_shrink() to make sure it's now
-> +                * under the max_pool_percent
-> +                */
-> +               if (zswap_is_full()) {
-> +                       ret = -ENOMEM;
-> +                       goto reject;
-> +               }
->         }
->
->
-> So, which one do you think is better, A or B?
+From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On Behalf =
+Of Michal Hocko
+Sent: Monday, May 28, 2018 9:38 PM
+> > In my opinion, originally there shouldn't be such many wrong
+> > combinations of these bottom 3 bits. For any user, whether or
+> > driver and fs, they should make a decision that which zone is they
+> > preferred. Matthew's idea is great, because with it the user must
+> > offer an unambiguous flag to gfp zone bits.
+>=20
+> Well, I would argue that those shouldn't really care about any zones at
+> all. All they should carea bout is whether they really need a low mem
+> zone (aka directly accessible to the kernel), highmem or they are the
+> allocation is generally movable. Mixing zones into the picture just
+> makes the whole thing more complicated and error prone.
 
-this is better.
+Dear Michal,
 
->
-> --
-> Regards,
-> Li Wang
+I don't quite understand that. I think those, mostly drivers, need to
+get the correct zone they want. ZONE_DMA32 is an example, if drivers can be
+satisfied with a low mem zone, why they mark the gfp flags as
+'GFP_KERNEL|__GFP_DMA32'?
+GFP_KERNEL is enough to make sure a directly accessible low mem, but it is
+obvious that they want to get a DMA accessible zone below 4G.
+
+> This should be a part of the changelog. Please note that you should
+> provide some number if you claim performance benefits. The complexity
+> will always be subjective.
+
+Sure, I will post them to changelog with next version of patches.
+
+Sincerely,
+Huaisheng Ye
