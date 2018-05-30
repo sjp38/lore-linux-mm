@@ -1,75 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D72546B02A2
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 06:39:43 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 5-v6so16458546qke.19
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 03:39:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id d10-v6si661849qvd.227.2018.05.30.03.39.42
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 422356B02A8
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 06:46:41 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id n9-v6so10820376wmh.6
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 03:46:41 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d5-v6si1883114edq.426.2018.05.30.03.46.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 May 2018 03:39:43 -0700 (PDT)
-From: Li Wang <liwang@redhat.com>
-Subject: [PATCH v2] zswap: re-check zswap_is_full after do zswap_shrink
-Date: Wed, 30 May 2018 18:39:36 +0800
-Message-Id: <20180530103936.17812-1-liwang@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 May 2018 03:46:39 -0700 (PDT)
+Date: Wed, 30 May 2018 12:46:37 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
+Message-ID: <20180530104637.GC27180@dhcp22.suse.cz>
+References: <CA+7wUswp_Sr=hHqi1bwRZ3FE2wY5ozZWZ8Z1BgrFnSAmijUKjA@mail.gmail.com>
+ <20180528083451.GE1517@dhcp22.suse.cz>
+ <f054219d-6daa-68b1-0c60-0acd9ad8c5ab@i-love.sakura.ne.jp>
+ <20180528132410.GD27180@dhcp22.suse.cz>
+ <201805290605.DGF87549.LOVFMFJQSOHtFO@I-love.SAKURA.ne.jp>
+ <1126233373.5118805.1527600426174.JavaMail.zimbra@redhat.com>
+ <f3d58cbd-29ca-7a23-69e0-59690b9cd4fb@i-love.sakura.ne.jp>
+ <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ddstreet@ieee.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@redhat.com>, Huang Ying <huang.ying.caritas@gmail.com>, Yu Zhao <yuzhao@google.com>
+To: Chunyu Hu <chuhu@redhat.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, dvyukov@google.com, linux-mm@kvack.org, catalin marinas <catalin.marinas@arm.com>
 
-The '/sys/../zswap/stored_pages:' keep raising in zswap test with
-"zswap.max_pool_percent=0" parameter. But theoretically, it should
-not compress or store pages any more since there is no space in
-compressed pool.
+On Wed 30-05-18 05:35:37, Chunyu Hu wrote:
+[...]
+> I'm trying to reuse the make_it_fail field in task for fault injection. As adding
+> an extra memory alloc flag is not thought so good,  I think adding task flag
+> is either? 
 
-Reproduce steps:
-  1. Boot kernel with "zswap.enabled=1"
-  2. Set the max_pool_percent to 0
-      # echo 0 > /sys/module/zswap/parameters/max_pool_percent
-  3. Do memory stress test to see if some pages have been compressed
-      # stress --vm 1 --vm-bytes $mem_available"M" --timeout 60s
-  4. Watching the 'stored_pages' number increasing or not
+Yeah, task flag will be reduced to KMEMLEAK enabled configurations
+without an additional maint. overhead. Anyway, you should really think
+about how to guarantee trackability for atomic allocation requests. You
+cannot simply assume that GFP_NOWAIT will succeed. I guess you really
+want to have a pre-populated pool of objects for those requests. The
+obvious question is how to balance such a pool. It ain't easy to track
+memory by allocating more memory...
 
-The root cause is:
-  When zswap_max_pool_percent is setting to 0 via kernel parameter, the
-  zswap_is_full() will always return true to do zswap_shrink(). But if
-  the shinking is able to reclain a page successful, then proceeds to
-  compress/store another page, so the value of stored_pages will keep
-  changing.
-
-To solve the issue, this patch adds zswap_is_full() check again after
-zswap_shrink() to make sure it's now under the max_pool_percent, and
-not to compress/store if reach its limitaion.
-
-Signed-off-by: Li Wang <liwang@redhat.com>
-Cc: Seth Jennings <sjenning@redhat.com>
-Cc: Dan Streetman <ddstreet@ieee.org>
-Cc: Huang Ying <huang.ying.caritas@gmail.com>
-Cc: Yu Zhao <yuzhao@google.com>
----
- mm/zswap.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
-
-diff --git a/mm/zswap.c b/mm/zswap.c
-index 61a5c41..fd320c3 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -1026,6 +1026,15 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
- 			ret = -ENOMEM;
- 			goto reject;
- 		}
-+
-+		/* A second zswap_is_full() check after
-+		 * zswap_shrink() to make sure it's now
-+		 * under the max_pool_percent
-+		 */
-+		if (zswap_is_full()) {
-+			ret = -ENOMEM;
-+			goto reject;
-+		}
- 	}
- 
- 	/* allocate entry */
 -- 
-2.9.5
+Michal Hocko
+SUSE Labs
