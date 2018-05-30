@@ -1,57 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CC7C96B029C
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 06:02:13 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id l7-v6so16344864qkk.20
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 03:02:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id v129-v6si1785271qka.94.2018.05.30.03.02.13
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 01F8E6B02A0
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 06:03:45 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id p7-v6so14769996wrj.4
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 03:03:44 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id j131-v6si13897988wmg.197.2018.05.30.03.03.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 May 2018 03:02:13 -0700 (PDT)
+        Wed, 30 May 2018 03:03:43 -0700 (PDT)
+Date: Wed, 30 May 2018 12:10:03 +0200
+From: Christoph Hellwig <hch@lst.de>
 Subject: Re: [Cluster-devel] [PATCH 11/34] iomap: move IOMAP_F_BOUNDARY to
- gfs2
-References: <20180523144357.18985-1-hch@lst.de>
- <20180523144357.18985-12-hch@lst.de> <20180530055033.GZ30110@magnolia>
- <bc621d7c-f1a6-14c2-663f-57ded16811fa@redhat.com>
- <20180530095911.GB31068@lst.de>
-From: Steven Whitehouse <swhiteho@redhat.com>
-Message-ID: <e14b3cfb-73ca-e712-e1e9-4ceabc8c7b6d@redhat.com>
-Date: Wed, 30 May 2018 11:02:08 +0100
+	gfs2
+Message-ID: <20180530101003.GA31419@lst.de>
+References: <20180523144357.18985-1-hch@lst.de> <20180523144357.18985-12-hch@lst.de> <20180530055033.GZ30110@magnolia> <bc621d7c-f1a6-14c2-663f-57ded16811fa@redhat.com> <20180530095911.GB31068@lst.de> <e14b3cfb-73ca-e712-e1e9-4ceabc8c7b6d@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20180530095911.GB31068@lst.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <e14b3cfb-73ca-e712-e1e9-4ceabc8c7b6d@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, cluster-devel@redhat.com, linux-mm@kvack.org, =?UTF-8?Q?Andreas_Gr=c3=bcnbacher?= <agruenba@redhat.com>
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, cluster-devel@redhat.com, linux-mm@kvack.org, Andreas =?iso-8859-1?Q?Gr=FCnbacher?= <agruenba@redhat.com>
 
-Hi,
+On Wed, May 30, 2018 at 11:02:08AM +0100, Steven Whitehouse wrote:
+> In that case,  maybe it would be simpler to drop it for GFS2. Unless we 
+> are getting a lot of benefit from it, then we should probably just follow 
+> the generic pattern here. Eventually we'll move everything to iomap, so 
+> that the bh mapping interface will be gone. That implies that we might be 
+> able to drop it now, to avoid this complication during the conversion.
+>
+> Andreas, do you see any issues with that?
 
-
-On 30/05/18 10:59, Christoph Hellwig wrote:
-> On Wed, May 30, 2018 at 10:30:32AM +0100, Steven Whitehouse wrote:
->> I may have missed the context here, but I thought that the boundary wa=
-s a
->> generic thing meaning "there will have to be a metadata read before mo=
-re
->> blocks can be mapped" so I'm not sure why that would now be GFS2 speci=
-fic?
-> It was always a hack.  But with iomap it doesn't make any sensee to sta=
-rt
-> with, all metadata I/O happens in iomap_begin, so there is no point in
-> marking an iomap with flags like this for the actual iomap interface.
-
-In that case,=C2=A0 maybe it would be simpler to drop it for GFS2. Unless=
- we=20
-are getting a lot of benefit from it, then we should probably just=20
-follow the generic pattern here. Eventually we'll move everything to=20
-iomap, so that the bh mapping interface will be gone. That implies that=20
-we might be able to drop it now, to avoid this complication during the=20
-conversion.
-
-Andreas, do you see any issues with that?
-
-Steve.
+I suspect it actually is doing the wrong thing today.  It certainly
+does for SSDs, and it probably doesn't do a useful thing for modern
+disks with intelligent caches either.
