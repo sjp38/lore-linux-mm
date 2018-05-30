@@ -1,121 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 671FF6B0007
-	for <linux-mm@kvack.org>; Wed, 30 May 2018 01:20:46 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t17-v6so9312607ply.13
-        for <linux-mm@kvack.org>; Tue, 29 May 2018 22:20:46 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id k6-v6si26627010pgq.85.2018.05.29.22.20.44
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D83236B000A
+	for <linux-mm@kvack.org>; Wed, 30 May 2018 01:28:39 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id e4-v6so15452340qtp.15
+        for <linux-mm@kvack.org>; Tue, 29 May 2018 22:28:39 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id b18-v6si2788736qtp.303.2018.05.29.22.28.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 May 2018 22:20:45 -0700 (PDT)
-From: Jaewon Kim <jaewon31.kim@samsung.com>
-Subject: [PATCH] drivers: of: of_reserved_mem: detect count overflow or
- range overlap
-Date: Wed, 30 May 2018 14:21:42 +0900
-Message-id: <20180530052142.24761-1-jaewon31.kim@samsung.com>
-References: <CGME20180530052041epcas2p395f2fbf4506d911c127cc4243838fedb@epcas2p3.samsung.com>
+        Tue, 29 May 2018 22:28:38 -0700 (PDT)
+Date: Tue, 29 May 2018 22:28:32 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 01/34] block: add a lower-level bio_add_page interface
+Message-ID: <20180530052832.GP30110@magnolia>
+References: <20180523144357.18985-1-hch@lst.de>
+ <20180523144357.18985-2-hch@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180523144357.18985-2-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: robh+dt@kernel.org, m.szyprowski@samsung.com, mitchelh@codeaurora.org
-Cc: frowand.list@gmail.com, devicetree@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com, Jaewon Kim <jaewon31.kim@samsung.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-During development, number of reserved memory region could be increased
-and a new region could be unwantedly overlapped. In that case the new
-region may work well but one of exisiting region could be affected so
-that it would not be defined properly. It may require time consuming
-work to find reason that there is a newly added region.
+On Wed, May 23, 2018 at 04:43:24PM +0200, Christoph Hellwig wrote:
+> For the upcoming removal of buffer heads in XFS we need to keep track of
+> the number of outstanding writeback requests per page.  For this we need
+> to know if bio_add_page merged a region with the previous bvec or not.
+> Instead of adding additional arguments this refactors bio_add_page to
+> be implemented using three lower level helpers which users like XFS can
+> use directly if they care about the merge decisions.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Jens Axboe <axboe@kernel.dk>
 
-If a newly added region invoke kernel panic, it will be helpful. This
-patch records if there is count overflow or range overlap, and invoke
-panic if that case.
+Looks ok,
+Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
 
-These are test example based on v4.9.
+--D
 
-Case 1 - out of region count
-<3>[    0.000000]  [0:        swapper:    0] OF: reserved mem: not enough space all defined regions.
-<0>[    1.688695]  [6:      swapper/0:    1] Kernel panic - not syncing: overflow on reserved memory, check the latest change
-<4>[    1.688743]  [6:      swapper/0:    1] CPU: 6 PID: 1 Comm: swapper/0 Not tainted 4.9.65+ #10
-<4>[    1.688836]  [6:      swapper/0:    1] Call trace:
-<4>[    1.688869]  [6:      swapper/0:    1] [<ffffff8008095748>] dump_backtrace+0x0/0x248
-<4>[    1.688913]  [6:      swapper/0:    1] [<ffffff8008095b48>] show_stack+0x18/0x28
-<4>[    1.688958]  [6:      swapper/0:    1] [<ffffff8008446e84>] dump_stack+0x98/0xc0
-<4>[    1.689001]  [6:      swapper/0:    1] [<ffffff80081cf784>] panic+0x1e0/0x404
-<4>[    1.689046]  [6:      swapper/0:    1] [<ffffff8008ddcdb8>] check_reserved_mem+0x40/0x50
-<4>[    1.689091]  [6:      swapper/0:    1] [<ffffff8008090190>] do_one_initcall+0x54/0x214
-<4>[    1.689138]  [6:      swapper/0:    1] [<ffffff8009eacf98>] kernel_init_freeable+0x198/0x24c
-<4>[    1.689187]  [6:      swapper/0:    1] [<ffffff8009396950>] kernel_init+0x18/0x144
-<4>[    1.689229]  [6:      swapper/0:    1] [<ffffff800808fa50>] ret_from_fork+0x10/0x40
-
-Case 2 - overlapped region
-<3>[    0.000000]  [0:        swapper:    0] OF: reserved mem: OVERLAP DETECTED!
-<0>[    2.309331]  [2:      swapper/0:    1] Kernel panic - not syncing: reserved memory overlap, check the latest change
-<4>[    2.309398]  [2:      swapper/0:    1] CPU: 2 PID: 1 Comm: swapper/0 Not tainted 4.9.65+ #14
-<4>[    2.309508]  [2:      swapper/0:    1] Call trace:
-<4>[    2.309546]  [2:      swapper/0:    1] [<ffffff8008121748>] dump_backtrace+0x0/0x248
-<4>[    2.309599]  [2:      swapper/0:    1] [<ffffff8008121b48>] show_stack+0x18/0x28
-<4>[    2.309652]  [2:      swapper/0:    1] [<ffffff80084d2e84>] dump_stack+0x98/0xc0
-<4>[    2.309701]  [2:      swapper/0:    1] [<ffffff800825b784>] panic+0x1e0/0x404
-<4>[    2.309751]  [2:      swapper/0:    1] [<ffffff8008e68dc4>] check_reserved_mem+0x4c/0x50
-<4>[    2.309802]  [2:      swapper/0:    1] [<ffffff800811c190>] do_one_initcall+0x54/0x214
-<4>[    2.309856]  [2:      swapper/0:    1] [<ffffff8009f38f98>] kernel_init_freeable+0x198/0x24c
-<4>[    2.309913]  [2:      swapper/0:    1] [<ffffff8009422950>] kernel_init+0x18/0x144
-<4>[    2.309961]  [2:      swapper/0:    1] [<ffffff800811ba50>] ret_from_fork+0x10/0x40
-
-Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
----
- drivers/of/of_reserved_mem.c | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
-
-diff --git a/drivers/of/of_reserved_mem.c b/drivers/of/of_reserved_mem.c
-index 9a4f4246231d..e97d5c5dcc9a 100644
---- a/drivers/of/of_reserved_mem.c
-+++ b/drivers/of/of_reserved_mem.c
-@@ -65,6 +65,7 @@ int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
- }
- #endif
- 
-+static bool rmem_overflow;
- /**
-  * res_mem_save_node() - save fdt node for second pass initialization
-  */
-@@ -75,6 +76,7 @@ void __init fdt_reserved_mem_save_node(unsigned long node, const char *uname,
- 
- 	if (reserved_mem_count == ARRAY_SIZE(reserved_mem)) {
- 		pr_err("not enough space all defined regions.\n");
-+		rmem_overflow = true;
- 		return;
- 	}
- 
-@@ -221,6 +223,7 @@ static int __init __rmem_cmp(const void *a, const void *b)
- 	return 0;
- }
- 
-+static bool rmem_overlap;
- static void __init __rmem_check_for_overlap(void)
- {
- 	int i;
-@@ -245,6 +248,7 @@ static void __init __rmem_check_for_overlap(void)
- 			pr_err("OVERLAP DETECTED!\n%s (%pa--%pa) overlaps with %s (%pa--%pa)\n",
- 			       this->name, &this->base, &this_end,
- 			       next->name, &next->base, &next_end);
-+			rmem_overlap = true;
- 		}
- 	}
- }
-@@ -419,3 +423,13 @@ struct reserved_mem *of_reserved_mem_lookup(struct device_node *np)
- 	return NULL;
- }
- EXPORT_SYMBOL_GPL(of_reserved_mem_lookup);
-+
-+static int check_reserved_mem(void)
-+{
-+	if (rmem_overflow)
-+		panic("overflow on reserved memory, check the latest change");
-+	if (rmem_overlap)
-+		panic("overlap on reserved memory, check the latest change");
-+	return 0;
-+}
-+late_initcall(check_reserved_mem);
--- 
-2.13.0
+> ---
+>  block/bio.c         | 96 +++++++++++++++++++++++++++++----------------
+>  include/linux/bio.h |  9 +++++
+>  2 files changed, 72 insertions(+), 33 deletions(-)
+> 
+> diff --git a/block/bio.c b/block/bio.c
+> index 53e0f0a1ed94..fdf635d42bbd 100644
+> --- a/block/bio.c
+> +++ b/block/bio.c
+> @@ -773,7 +773,7 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
+>  			return 0;
+>  	}
+>  
+> -	if (bio->bi_vcnt >= bio->bi_max_vecs)
+> +	if (bio_full(bio))
+>  		return 0;
+>  
+>  	/*
+> @@ -821,52 +821,82 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
+>  EXPORT_SYMBOL(bio_add_pc_page);
+>  
+>  /**
+> - *	bio_add_page	-	attempt to add page to bio
+> - *	@bio: destination bio
+> - *	@page: page to add
+> - *	@len: vec entry length
+> - *	@offset: vec entry offset
+> + * __bio_try_merge_page - try appending data to an existing bvec.
+> + * @bio: destination bio
+> + * @page: page to add
+> + * @len: length of the data to add
+> + * @off: offset of the data in @page
+>   *
+> - *	Attempt to add a page to the bio_vec maplist. This will only fail
+> - *	if either bio->bi_vcnt == bio->bi_max_vecs or it's a cloned bio.
+> + * Try to add the data at @page + @off to the last bvec of @bio.  This is a
+> + * a useful optimisation for file systems with a block size smaller than the
+> + * page size.
+> + *
+> + * Return %true on success or %false on failure.
+>   */
+> -int bio_add_page(struct bio *bio, struct page *page,
+> -		 unsigned int len, unsigned int offset)
+> +bool __bio_try_merge_page(struct bio *bio, struct page *page,
+> +		unsigned int len, unsigned int off)
+>  {
+> -	struct bio_vec *bv;
+> -
+> -	/*
+> -	 * cloned bio must not modify vec list
+> -	 */
+>  	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
+> -		return 0;
+> +		return false;
+>  
+> -	/*
+> -	 * For filesystems with a blocksize smaller than the pagesize
+> -	 * we will often be called with the same page as last time and
+> -	 * a consecutive offset.  Optimize this special case.
+> -	 */
+>  	if (bio->bi_vcnt > 0) {
+> -		bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+> +		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+>  
+> -		if (page == bv->bv_page &&
+> -		    offset == bv->bv_offset + bv->bv_len) {
+> +		if (page == bv->bv_page && off == bv->bv_offset + bv->bv_len) {
+>  			bv->bv_len += len;
+> -			goto done;
+> +			bio->bi_iter.bi_size += len;
+> +			return true;
+>  		}
+>  	}
+> +	return false;
+> +}
+> +EXPORT_SYMBOL_GPL(__bio_try_merge_page);
+>  
+> -	if (bio->bi_vcnt >= bio->bi_max_vecs)
+> -		return 0;
+> +/**
+> + * __bio_add_page - add page to a bio in a new segment
+> + * @bio: destination bio
+> + * @page: page to add
+> + * @len: length of the data to add
+> + * @off: offset of the data in @page
+> + *
+> + * Add the data at @page + @off to @bio as a new bvec.  The caller must ensure
+> + * that @bio has space for another bvec.
+> + */
+> +void __bio_add_page(struct bio *bio, struct page *page,
+> +		unsigned int len, unsigned int off)
+> +{
+> +	struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt];
+>  
+> -	bv		= &bio->bi_io_vec[bio->bi_vcnt];
+> -	bv->bv_page	= page;
+> -	bv->bv_len	= len;
+> -	bv->bv_offset	= offset;
+> +	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
+> +	WARN_ON_ONCE(bio_full(bio));
+> +
+> +	bv->bv_page = page;
+> +	bv->bv_offset = off;
+> +	bv->bv_len = len;
+>  
+> -	bio->bi_vcnt++;
+> -done:
+>  	bio->bi_iter.bi_size += len;
+> +	bio->bi_vcnt++;
+> +}
+> +EXPORT_SYMBOL_GPL(__bio_add_page);
+> +
+> +/**
+> + *	bio_add_page	-	attempt to add page to bio
+> + *	@bio: destination bio
+> + *	@page: page to add
+> + *	@len: vec entry length
+> + *	@offset: vec entry offset
+> + *
+> + *	Attempt to add a page to the bio_vec maplist. This will only fail
+> + *	if either bio->bi_vcnt == bio->bi_max_vecs or it's a cloned bio.
+> + */
+> +int bio_add_page(struct bio *bio, struct page *page,
+> +		 unsigned int len, unsigned int offset)
+> +{
+> +	if (!__bio_try_merge_page(bio, page, len, offset)) {
+> +		if (bio_full(bio))
+> +			return 0;
+> +		__bio_add_page(bio, page, len, offset);
+> +	}
+>  	return len;
+>  }
+>  EXPORT_SYMBOL(bio_add_page);
+> diff --git a/include/linux/bio.h b/include/linux/bio.h
+> index ce547a25e8ae..3e73c8bc25ea 100644
+> --- a/include/linux/bio.h
+> +++ b/include/linux/bio.h
+> @@ -123,6 +123,11 @@ static inline void *bio_data(struct bio *bio)
+>  	return NULL;
+>  }
+>  
+> +static inline bool bio_full(struct bio *bio)
+> +{
+> +	return bio->bi_vcnt >= bio->bi_max_vecs;
+> +}
+> +
+>  /*
+>   * will die
+>   */
+> @@ -470,6 +475,10 @@ void bio_chain(struct bio *, struct bio *);
+>  extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
+>  extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
+>  			   unsigned int, unsigned int);
+> +bool __bio_try_merge_page(struct bio *bio, struct page *page,
+> +		unsigned int len, unsigned int off);
+> +void __bio_add_page(struct bio *bio, struct page *page,
+> +		unsigned int len, unsigned int off);
+>  int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
+>  struct rq_map_data;
+>  extern struct bio *bio_map_user_iov(struct request_queue *,
+> -- 
+> 2.17.0
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
