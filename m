@@ -1,90 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A15FF6B0006
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 17:46:23 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id t3-v6so2401025vkb.19
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 14:46:23 -0700 (PDT)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id r185-v6si5552565vkb.123.2018.05.31.14.46.22
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 561336B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 17:49:52 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id b192-v6so12667965oii.12
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 14:49:52 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s133-v6sor17180438oif.251.2018.05.31.14.49.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 14:46:22 -0700 (PDT)
-Subject: Re: [PATCH 2/2] fs, elf: drop MAP_FIXED usage from elf_map
-References: <20171129144219.22867-1-mhocko@kernel.org>
- <20171129144219.22867-3-mhocko@kernel.org>
- <93ce964b-e352-1905-c2b6-deedf2ea06f8@oracle.com>
- <c0e447b3-4ba7-239e-6550-64de7721ad28@oracle.com>
- <20180530080212.GA27180@dhcp22.suse.cz>
- <e7705544-04fe-c382-f6d0-48d0680b46f2@oracle.com>
- <20180530162501.GB15278@dhcp22.suse.cz>
- <1f6be96b-12ac-9a03-df90-386dab02369d@oracle.com>
- <20180531092425.GM15278@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <29bd73d1-ceed-0e4d-324a-b9ae87c4da4e@oracle.com>
-Date: Thu, 31 May 2018 14:46:15 -0700
+        (Google Transport Security);
+        Thu, 31 May 2018 14:49:50 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180531092425.GM15278@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180531100849.xkwe5xsjpkw6nev7@quack2.suse.cz>
+References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152699999778.24093.18007971664703285330.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180523084030.dvv4jbvsnzrsaz6q@quack2.suse.cz> <CAPcyv4gUM7Br3XONOVkNCg-mvR5U8QLq+OOc54cLpP61LXhJXA@mail.gmail.com>
+ <20180530081356.mohu6fx22fzd7fxb@quack2.suse.cz> <CAPcyv4iPa_n7c6iLRtNyE4GdXcn7JcF=Z1bUDmNrjrKvnLic2A@mail.gmail.com>
+ <20180531100849.xkwe5xsjpkw6nev7@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 31 May 2018 14:49:49 -0700
+Message-ID: <CAPcyv4j6zjvzxKb3JUHU+iSrPXybj-uRNFAWXoc46dkMgjyN6g@mail.gmail.com>
+Subject: Re: [PATCH 05/11] filesystem-dax: set page->index
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, libhugetlbfs@googlegroups.com
+To: Jan Kara <jack@suse.cz>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>, linux-xfs <linux-xfs@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>
 
-On 05/31/2018 02:24 AM, Michal Hocko wrote:
-> I am not an expert on the load linkers myself so I cannot really answer
-> this question. Please note that ppc had something similar. See
-> ad55eac74f20 ("elf: enforce MAP_FIXED on overlaying elf segments").
-> Maybe we need to sprinkle more of those at other places?
+On Thu, May 31, 2018 at 3:08 AM, Jan Kara <jack@suse.cz> wrote:
+[..]
+>> >> As far as I can see reflink+dax would require teaching kernel code
+>> >> paths that ->mapping may not be a singular relationship. Something
+>> >> along the line's of what Jerome was presenting at LSF to create a
+>> >> special value to indicate, "call back into the filesystem (or the page
+>> >> owner)" to perform this operation.
+>> >>
+>> >> In the meantime the kernel crashes when userspace accesses poisoned
+>> >> pmem via DAX. I assume that reworking rmap for the dax+reflink case
+>> >> should not block dax poison handling? Yell if you disagree.
+>> >
+>> > The thing is, up until get_user_pages() vs truncate series ("fs, dax: use
+>> > page->mapping to warn if truncate collides with a busy page" in
+>> > particular), DAX was perfectly fine with reflinks since we never needed
+>> > page->mapping.
+>>
+>> Sure, but if this rmap series had come first I still would have needed
+>> to implement ->mapping. So unless we invent a general ->mapping
+>> replacement and switch all mapping users, it was always going to
+>> collide with DAX eventually.
+>
+> Yes, my comment was more in direction that life would be easier if we could
+> keep DAX without rmap support but I guess that's just too cumbersome.
 
-I finally understand the issue, and it is NOT a problem with the kernel.
-The issue is with old libhugetlbfs provided linker scripts, and yes,
-starting with v4.17 people who run libhugetlbfs tests on x86 (at least)
-will see additional failures.
+I'm open to deeper reworks later. As it stands currently just calling
+madvise(..., MADV_HWPOISON) on a DAX mapping causes a page reference
+to be leaked because the madvise code has no clue about proper
+handling of DAX pages, and consuming real poison leads to a fatal
+condition / reset.
 
-I'll try to work this from the libhugetlbfs side.  In the unlikely event
-that anyone knows about those linker scripts, assistance and/or feedback
-would be appreciated.
+I think fixing those bugs with the current rmap dependencies on
+->mapping and ->index is step1 and step2 is a longer term solution for
+dax rmap that does also allow reflink. I.e. it's an rmap > reflink
+argument for now.
 
-Read on only if you want additional details about this failure.
+>
+>> > Now this series adds even page->index dependency which makes
+>> > life for rmap with reflinks even harder. So if nothing else we should at
+>> > least make sure reflinked filesystems cannot be mounted with dax mount
+>> > option for now and seriously start looking into how to implement rmap with
+>> > reflinked files for DAX because this noticeably reduces its usefulness.
+>>
+>> This restriction is already in place. In xfs_reflink_remap_range() we have:
+>>
+>>         /* Don't share DAX file data for now. */
+>>         if (IS_DAX(inode_in) || IS_DAX(inode_out))
+>>                 goto out_unlock;
+>
+> OK, good.
+>
+>> All this said, perhaps we don't need to set ->link, it would just mean
+>> a wider search through the rmap tree to find if the given page is
+>> mapped. So, I think I can forgo setting ->link if I teach the rmap
+>> code to search the entire ->mapping.
+>
+> I guess you mean ->index in the above. And now when thinking about it I don't
+> think it is worth the complications to avoid using ->index.
 
-The executable files which are now failing are created with the elf_i386.xB
-linker script.  This script is provided for pre-2.17 versions of binutils.
-binutils-2.17 came out aprox in 2007, and this script is disabled by default
-if binutils-2.17 or later is used.  The only way to create executables with
-this script today is by setting the HUGETLB_DEPRECATED_LINK env variable.
-This is what libhugetlbfs tests do to simply continue testing the old scripts.
-
-I previously was mistaken about which tests were causing the additional
-failures.  The example I previously provided failed on v4.16 as well as
-v4.17-rc kernels.  So, please ignore that information.
-
-For an executable that runs on v4.16 and fails on v4.17-rc, here is a listing
-of elf sections that the kernel will attempt to load.
-
-Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
-LOAD           0x000000 0x08048000 0x08048000 0x11c24 0x11c24 R E 0x1000
-LOAD           0x011c24 0x08059c24 0x08059c24 0x10d04 0x10d04 RW  0x1000
-LOAD           0x023000 0x09000000 0x09000000 0x00000 0x10048 RWE 0x1000
-
-The first section is loaded without issue.  elf_map() will create a vma
-based on the following:
-map_addr ELF_PAGESTART(addr) 8048000 ELF_PAGEALIGN(size) 12000 
-File_offset 0
-
-We then attempt to load the following section with:
-map_addr ELF_PAGESTART(addr) 8059000 ELF_PAGEALIGN(size) 12000
-File_offset 11000
-
-This results in,
-Uhuuh, elf segment at 8059000 requested but the memory is mapped already
-
-Note that the last page of the first section overlaps with the first page
-of the second section.  Unlike the case in ad55eac74f20, the access
-permissions on section 1 (RE) are different than section 2 (RW).  If we
-allowed the previous MAP_FIXED behavior, we would be changing part of a
-read only section to read write.  This is exactly what MAP_FIXED_NOREPLACE
-was designed to prevent.
--- 
-Mike Kravetz
+Ok, and yes I meant ->index... sorry, too much struct page on the
+brain presently.
