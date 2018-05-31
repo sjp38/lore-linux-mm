@@ -1,29 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3F86B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 18:50:47 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c4-v6so13378240pfg.22
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 15:50:47 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p10-v6sor13544331pfe.96.2018.05.31.15.50.45
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EEDF96B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 18:52:58 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id f35-v6so14072593plb.10
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 15:52:58 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f17-v6si1566033pgv.383.2018.05.31.15.52.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 31 May 2018 15:50:45 -0700 (PDT)
-Date: Thu, 31 May 2018 15:50:36 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 May 2018 15:52:58 -0700 (PDT)
+Date: Thu, 31 May 2018 15:52:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm/shmem: Zero out unused vma fields in
  shmem_pseudo_vma_init()
+Message-Id: <20180531155256.a5f557c9e620a6d7e85e4ca1@linux-foundation.org>
 In-Reply-To: <20180531135602.20321-1-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.LSU.2.11.1805311522380.13187@eggly.anvils>
 References: <20180531135602.20321-1-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Josef Bacik <jbacik@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 31 May 2018, Kirill A. Shutemov wrote:
+On Thu, 31 May 2018 16:56:02 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
 > shmem/tmpfs uses pseudo vma to allocate page with correct NUMA policy.
 > 
@@ -32,35 +33,9 @@ On Thu, 31 May 2018, Kirill A. Shutemov wrote:
 > 
 > Zero out all unused fields in the pseudo vma.
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-I won't go so far as to say NAK, but personally I much prefer that we
-document what fields actually get used, by initializing only those,
-rather than having such a blanket memset.
+So there are no known problems in the current mainline kernel?
 
-And you say "We are going to ...": so this should really be part of
-some future patchset, shouldn't it?
-
-My opinion might be in the minority: you remind me of a similar
-request from Josef some while ago, Cc'ing him.
-
-(I'm very ashamed, by the way, of shmem's pseudo-vma, I think it's
-horrid, and just reflects that shmem was an afterthought when NUMA
-mempolicies were designed.  Internally, we replaced alloc_pages_vma()
-throughout by alloc_pages_mpol(), which has no need for pseudo-vmas,
-and the advantage of dropping mmap_sem across the bulk of NUMA page
-migration. I shall be updating that work in coming months, and hope
-to upstream, but no promise from me on the timing - your need for
-vm_page_prot likely much sooner.)
-
-Hugh
-
-> ---
->  mm/shmem.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 9d6c7e595415..693fb82b4b42 100644
 > --- a/mm/shmem.c
 > +++ b/mm/shmem.c
 > @@ -1404,10 +1404,9 @@ static void shmem_pseudo_vma_init(struct vm_area_struct *vma,
@@ -74,6 +49,3 @@ Hugh
 > -	vma->vm_ops = NULL;
 >  	vma->vm_policy = mpol_shared_policy_lookup(&info->policy, index);
 >  }
->  
-> -- 
-> 2.17.0
