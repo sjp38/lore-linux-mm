@@ -1,34 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 916646B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 02:56:42 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k27-v6so15972986wre.23
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 23:56:42 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id t19-v6si24488047wrg.75.2018.05.30.23.56.41
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DB0866B0006
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 02:56:48 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id f10-v6so12765763pln.21
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 23:56:48 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d24-v6si36600637plr.302.2018.05.30.23.56.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 May 2018 23:56:41 -0700 (PDT)
-Date: Thu, 31 May 2018 09:03:07 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 13/18] xfs: don't look at buffer heads in
-	xfs_add_to_ioend
-Message-ID: <20180531070307.GA32051@lst.de>
-References: <20180530100013.31358-1-hch@lst.de> <20180530100013.31358-14-hch@lst.de> <20180530175529.GQ837@magnolia>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 May 2018 23:56:47 -0700 (PDT)
+Date: Thu, 31 May 2018 08:56:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memcg: force charge kmem counter too
+Message-ID: <20180531065642.GI15278@dhcp22.suse.cz>
+References: <20180525185501.82098-1-shakeelb@google.com>
+ <20180526185144.xvh7ejlyelzvqwdb@esperanza>
+ <CALvZod5yTxcuB_Aao-a0ChNEnwyBJk9UPvEQ80s9tZFBQ0cxpw@mail.gmail.com>
+ <20180528091110.GG1517@dhcp22.suse.cz>
+ <CALvZod6x5iRmcJ6pYKS+jwJd855jnwmVcPK9tnKbuJ9Hfppa-A@mail.gmail.com>
+ <20180529083153.GR27180@dhcp22.suse.cz>
+ <CALvZod67qzq+hQLms4Wut5LNVBjBcEQPpMp9zxF6NE5k+7CLOw@mail.gmail.com>
+ <20180531060133.GA31477@rodete-desktop-imager.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180530175529.GQ837@magnolia>
+In-Reply-To: <20180531060133.GA31477@rodete-desktop-imager.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Shakeel Butt <shakeelb@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, May 30, 2018 at 10:55:29AM -0700, Darrick J. Wong wrote:
-> > +	sector = xfs_fsb_to_db(ip, wpc->imap.br_startblock) +
-> > +		((offset - XFS_FSB_TO_B(mp, wpc->imap.br_startoff)) >> 9);
+On Thu 31-05-18 15:01:33, Minchan Kim wrote:
+> On Wed, May 30, 2018 at 11:14:33AM -0700, Shakeel Butt wrote:
+> > On Tue, May 29, 2018 at 1:31 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > > On Mon 28-05-18 10:23:07, Shakeel Butt wrote:
+> > >> On Mon, May 28, 2018 at 2:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > >> Though is there a precedence where the broken feature is not fixed
+> > >> because an alternative is available?
+> > >
+> > > Well, I can see how breaking GFP_NOFAIL semantic is problematic, on the
+> > > other hand we keep saying that kmem accounting in v1 is hard usable and
+> > > strongly discourage people from using it. Sure we can add the code which
+> > > handles _this_ particular case but that wouldn't make the whole thing
+> > > more usable I strongly suspect. Maybe I am wrong and you can provide
+> > > some specific examples. Is GFP_NOFAIL that common to matter?
+> > >
+> > > In any case we should balance between the code maintainability here.
+> > > Adding more cruft into the allocator path is not free.
+> > >
+> > 
+> > We do not use kmem limits internally and this is something I found
+> > through code inspection. If this patch is increasing the cost of code
+> > maintainability I am fine with dropping it but at least there should a
+> > comment saying that kmem limits are broken and no need fix.
+>  
+> I agree.
 > 
-> " >> SECTOR_SHIFT" here?  If so, I can fix this on its way in.
+> Even, I didn't know kmem is strongly discouraged until now. Then,
+> why is it enabled by default on cgroup v1?
 
-The >> 9 that until very recently was used everywhere makes it nicely
-fit on two lines.  But the fixup is ok with me, too.
+You have to set a non-zero limit to make it active IIRC. The code is
+compiled in because v2 enables it by default.
+
+> Let's turn if off with comment "It's broken so do not use/fix. Instead,
+> please move to cgroup v2".
+
+-- 
+Michal Hocko
+SUSE Labs
