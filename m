@@ -1,96 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 537486B0006
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 09:49:32 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id v10-v6so13808883oth.16
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 06:49:32 -0700 (PDT)
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A0E56B000A
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 09:49:36 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id a14-v6so14128118otf.1
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 06:49:36 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 133-v6si592017oia.19.2018.05.31.06.49.31
+        by mx.google.com with ESMTPS id e9-v6si11385359oiy.330.2018.05.31.06.49.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 06:49:31 -0700 (PDT)
-Date: Thu, 31 May 2018 09:49:29 -0400
+        Thu, 31 May 2018 06:49:35 -0700 (PDT)
+Date: Thu, 31 May 2018 09:49:33 -0400
 From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [PATCH 14/18] xfs: move all writeback buffer_head manipulation
- into xfs_map_at_offset
-Message-ID: <20180531134929.GH2997@bfoster.bfoster>
+Subject: Re: [PATCH 15/18] xfs: remove xfs_start_page_writeback
+Message-ID: <20180531134933.GI2997@bfoster.bfoster>
 References: <20180530100013.31358-1-hch@lst.de>
- <20180530100013.31358-15-hch@lst.de>
+ <20180530100013.31358-16-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180530100013.31358-15-hch@lst.de>
+In-Reply-To: <20180530100013.31358-16-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Hellwig <hch@lst.de>
 Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 30, 2018 at 12:00:09PM +0200, Christoph Hellwig wrote:
-> This keeps it in a single place so it can be made otional more easily.
+On Wed, May 30, 2018 at 12:00:10PM +0200, Christoph Hellwig wrote:
+> This helper only has two callers, one of them with a constant error
+> argument.  Remove it to make pending changes to the code a little easier.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
 
 Reviewed-by: Brian Foster <bfoster@redhat.com>
 
->  fs/xfs/xfs_aops.c | 22 +++++-----------------
->  1 file changed, 5 insertions(+), 17 deletions(-)
+>  fs/xfs/xfs_aops.c | 47 +++++++++++++++++++++--------------------------
+>  1 file changed, 21 insertions(+), 26 deletions(-)
 > 
 > diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index 7d02d04d5a5b..025f2acac100 100644
+> index 025f2acac100..38021023131e 100644
 > --- a/fs/xfs/xfs_aops.c
 > +++ b/fs/xfs/xfs_aops.c
-> @@ -495,21 +495,6 @@ xfs_imap_valid(
+> @@ -495,30 +495,6 @@ xfs_imap_valid(
 >  		offset < imap->br_startoff + imap->br_blockcount;
 >  }
 >  
 > -STATIC void
-> -xfs_start_buffer_writeback(
-> -	struct buffer_head	*bh)
+> -xfs_start_page_writeback(
+> -	struct page		*page,
+> -	int			clear_dirty)
 > -{
-> -	ASSERT(buffer_mapped(bh));
-> -	ASSERT(buffer_locked(bh));
-> -	ASSERT(!buffer_delay(bh));
-> -	ASSERT(!buffer_unwritten(bh));
+> -	ASSERT(PageLocked(page));
+> -	ASSERT(!PageWriteback(page));
 > -
-> -	bh->b_end_io = NULL;
-> -	set_buffer_async_write(bh);
-> -	set_buffer_uptodate(bh);
-> -	clear_buffer_dirty(bh);
+> -	/*
+> -	 * if the page was not fully cleaned, we need to ensure that the higher
+> -	 * layers come back to it correctly. That means we need to keep the page
+> -	 * dirty, and for WB_SYNC_ALL writeback we need to ensure the
+> -	 * PAGECACHE_TAG_TOWRITE index mark is not removed so another attempt to
+> -	 * write this page in this writeback sweep will be made.
+> -	 */
+> -	if (clear_dirty) {
+> -		clear_page_dirty_for_io(page);
+> -		set_page_writeback(page);
+> -	} else
+> -		set_page_writeback_keepwrite(page);
+> -
+> -	unlock_page(page);
 > -}
 > -
->  STATIC void
->  xfs_start_page_writeback(
->  	struct page		*page,
-> @@ -718,6 +703,7 @@ xfs_map_at_offset(
->  	ASSERT(imap->br_startblock != HOLESTARTBLOCK);
->  	ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
+>  /*
+>   * Submit the bio for an ioend. We are passed an ioend with a bio attached to
+>   * it, and we submit that bio. The ioend may be used for multiple bio
+> @@ -877,6 +853,9 @@ xfs_writepage_map(
+>  	ASSERT(wpc->ioend || list_empty(&submit_list));
 >  
-> +	lock_buffer(bh);
->  	xfs_map_buffer(inode, bh, imap, offset);
->  	set_buffer_mapped(bh);
->  	clear_buffer_delay(bh);
-> @@ -730,6 +716,10 @@ xfs_map_at_offset(
->  	 * set the bdev now.
+>  out:
+> +	ASSERT(PageLocked(page));
+> +	ASSERT(!PageWriteback(page));
+> +
+>  	/*
+>  	 * On error, we have to fail the ioend here because we have locked
+>  	 * buffers in the ioend. If we don't do this, we'll deadlock
+> @@ -895,7 +874,21 @@ xfs_writepage_map(
+>  	 * treated correctly on error.
 >  	 */
->  	bh->b_bdev = xfs_find_bdev_for_inode(inode);
-> +	bh->b_end_io = NULL;
-> +	set_buffer_async_write(bh);
-> +	set_buffer_uptodate(bh);
-> +	clear_buffer_dirty(bh);
->  }
+>  	if (count) {
+> -		xfs_start_page_writeback(page, !error);
+> +		/*
+> +		 * If the page was not fully cleaned, we need to ensure that the
+> +		 * higher layers come back to it correctly.  That means we need
+> +		 * to keep the page dirty, and for WB_SYNC_ALL writeback we need
+> +		 * to ensure the PAGECACHE_TAG_TOWRITE index mark is not removed
+> +		 * so another attempt to write this page in this writeback sweep
+> +		 * will be made.
+> +		 */
+> +		if (error) {
+> +			set_page_writeback_keepwrite(page);
+> +		} else {
+> +			clear_page_dirty_for_io(page);
+> +			set_page_writeback(page);
+> +		}
+> +		unlock_page(page);
 >  
->  STATIC void
-> @@ -875,11 +865,9 @@ xfs_writepage_map(
->  			continue;
->  		}
->  
-> -		lock_buffer(bh);
->  		xfs_map_at_offset(inode, bh, &wpc->imap, file_offset);
->  		xfs_add_to_ioend(inode, file_offset, page, wpc, wbc,
->  				&submit_list);
-> -		xfs_start_buffer_writeback(bh);
->  		count++;
+>  		/*
+>  		 * Preserve the original error if there was one, otherwise catch
+> @@ -920,7 +913,9 @@ xfs_writepage_map(
+>  		 * race with a partial page truncate on a sub-page block sized
+>  		 * filesystem. In that case we need to mark the page clean.
+>  		 */
+> -		xfs_start_page_writeback(page, 1);
+> +		clear_page_dirty_for_io(page);
+> +		set_page_writeback(page);
+> +		unlock_page(page);
+>  		end_page_writeback(page);
 >  	}
 >  
 > -- 
