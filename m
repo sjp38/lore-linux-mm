@@ -1,86 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 78CB66B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 11:22:34 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id q129-v6so1155978oic.9
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 08:22:34 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s30-v6si14355821otd.357.2018.05.31.08.22.31
-        for <linux-mm@kvack.org>;
-        Thu, 31 May 2018 08:22:32 -0700 (PDT)
-Date: Thu, 31 May 2018 16:22:26 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-Message-ID: <20180531152225.2ck6ach4lma4zeim@armageddon.cambridge.arm.com>
-References: <CA+7wUswp_Sr=hHqi1bwRZ3FE2wY5ozZWZ8Z1BgrFnSAmijUKjA@mail.gmail.com>
- <f054219d-6daa-68b1-0c60-0acd9ad8c5ab@i-love.sakura.ne.jp>
- <20180528132410.GD27180@dhcp22.suse.cz>
- <201805290605.DGF87549.LOVFMFJQSOHtFO@I-love.SAKURA.ne.jp>
- <1126233373.5118805.1527600426174.JavaMail.zimbra@redhat.com>
- <f3d58cbd-29ca-7a23-69e0-59690b9cd4fb@i-love.sakura.ne.jp>
- <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com>
- <20180530104637.GC27180@dhcp22.suse.cz>
- <1684479370.5483281.1527680579781.JavaMail.zimbra@redhat.com>
- <20180530123826.GF27180@dhcp22.suse.cz>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E74B86B0007
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 11:24:34 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id j12-v6so12155111oiw.10
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 08:24:34 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id k66-v6si5162733oiy.173.2018.05.31.08.24.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 May 2018 08:24:33 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
+ oom_lock held.
+References: <20180525083118.GI11881@dhcp22.suse.cz>
+ <201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp>
+ <20180525114213.GJ11881@dhcp22.suse.cz>
+ <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
+ <20180528124313.GC27180@dhcp22.suse.cz>
+ <201805290557.BAJ39558.MFLtOJVFOHFOSQ@I-love.SAKURA.ne.jp>
+ <20180529060755.GH27180@dhcp22.suse.cz>
+ <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org>
+ <16eca862-5fa6-2333-8a81-94a2c2692758@i-love.sakura.ne.jp>
+ <20180531104450.GN15278@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <7276d450-5e66-be56-3a17-0fc77596a3b6@i-love.sakura.ne.jp>
+Date: Fri, 1 Jun 2018 00:23:57 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180530123826.GF27180@dhcp22.suse.cz>
+In-Reply-To: <20180531104450.GN15278@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Chunyu Hu <chuhu@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, dvyukov@google.com, linux-mm@kvack.org, Akinobu Mita <akinobu.mita@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org
 
-Hi Michal,
-
-I'm catching up with this thread.
-
-On Wed, May 30, 2018 at 02:38:26PM +0200, Michal Hocko wrote:
-> On Wed 30-05-18 07:42:59, Chunyu Hu wrote:
-> > From: "Michal Hocko" <mhocko@suse.com>
-> > > want to have a pre-populated pool of objects for those requests. The
-> > > obvious question is how to balance such a pool. It ain't easy to track
-> > > memory by allocating more memory...
-> > 
-> > This solution is going to make kmemleak trace really nofail. We can think
-> > later.
-> > 
-> > while I'm thinking about if fault inject can be disabled via flag in task.
-> > 
-> > Actually, I'm doing something like below, the disable_fault_inject() is
-> > just setting a flag in task->make_it_fail. But this will depend on if
-> > fault injection accept a change like this. CCing Akinobu 
+On 2018/05/31 19:44, Michal Hocko wrote:
+> On Thu 31-05-18 19:10:48, Tetsuo Handa wrote:
+>> On 2018/05/30 8:07, Andrew Morton wrote:
+>>> On Tue, 29 May 2018 09:17:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+>>>
+>>>>> I suggest applying
+>>>>> this patch first, and then fix "mm, oom: cgroup-aware OOM killer" patch.
+>>>>
+>>>> Well, I hope the whole pile gets merged in the upcoming merge window
+>>>> rather than stall even more.
+>>>
+>>> I'm more inclined to drop it all.  David has identified significant
+>>> shortcomings and I'm not seeing a way of addressing those shortcomings
+>>> in a backward-compatible fashion.  Therefore there is no way forward
+>>> at present.
+>>>
+>>
+>> Can we apply my patch as-is first?
 > 
-> You still seem to be missing my point I am afraid (or I am ;). So say
-> that you want to track a GFP_NOWAIT allocation request. So create_object
-> will get called with that gfp mask and no matter what you try here your
-> tracking object will be allocated in a weak allocation context as well
-> and disable kmemleak. So it only takes a more heavy memory pressure and
-> the tracing is gone...
+> No. As already explained before. Sprinkling new sleeps without a strong
+> reason is not acceptable. The issue you are seeing is pretty artificial
+> and as such doesn're really warrant an immediate fix. We should rather
+> go with a well thought trhough fix. In other words we should simply drop
+> the sleep inside the oom_lock for starter unless it causes some really
+> unexpected behavior change.
+> 
 
-create_object() indeed gets the originating gfp but it only cares
-whether it was GFP_KERNEL or GFP_ATOMIC. gfp_kmemleak_mask() masks out
-all the other flags when allocating a struct kmemleak_object (and adds
-some of its own).
+The OOM killer did not require schedule_timeout_killable(1) to return
+as long as the OOM victim can call __mmput(). But now the OOM killer
+requires schedule_timeout_killable(1) to return in order to allow the
+OOM victim to call __oom_reap_task_mm(). Thus, this is a regression.
 
-This has worked ok so far. There is a higher risk of GFP_ATOMIC
-allocations failing but I haven't seen issues with kmemleak unless you
-run it under heavy memory pressure (and kmemleak just disables itself).
-With fault injection, such pressure is simulated with the side effect of
-rendering kmemleak unusable.
+Artificial cannot become the reason to postpone my patch. If we don't care
+artificialness/maliciousness, we won't need to care Spectre/Meltdown bugs.
 
-Kmemleak could implement its own allocation mechanism (maybe even
-skipping the slab altogether) but I feel it's overkill just to cope with
-the specific case of fault injection. Also, it's not easy to figure out
-how to balance such pool and it may end up calling alloc_pages() which
-in turn can inject a fault.
-
-Could we tweak gfp_kmemleak_mask() to still pass __GFP_NOFAIL but in a
-compatible way (e.g. by setting __GFP_DIRECT_RECLAIM) when fault
-injection is enabled?
-
-Otherwise, I'd prefer some per-thread temporary fault injection
-disabling.
-
--- 
-Catalin
+I'm not sprinkling new sleeps. I'm just merging existing sleeps (i.e.
+mutex_trylock() case and !mutex_trylock() case) and updating the outdated
+comments.
