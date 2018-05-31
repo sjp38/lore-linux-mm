@@ -1,36 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2851D6B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 02:58:01 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b83-v6so14098849wme.7
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 23:58:01 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id d16-v6si3134092wrp.194.2018.05.30.23.57.59
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B0196B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 03:26:30 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k27-v6so16016184wre.23
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 00:26:30 -0700 (PDT)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id b7-v6si10053140edl.365.2018.05.31.00.26.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 May 2018 23:58:00 -0700 (PDT)
-Date: Thu, 31 May 2018 09:04:26 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 17/18] xfs: do not set the page uptodate in
-	xfs_writepage_map
-Message-ID: <20180531070426.GB32051@lst.de>
-References: <20180530100013.31358-1-hch@lst.de> <20180530100013.31358-18-hch@lst.de> <20180530180839.GU837@magnolia>
+        Thu, 31 May 2018 00:26:29 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 89ABF1C1C3A
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 08:26:28 +0100 (IST)
+Date: Thu, 31 May 2018 08:26:27 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: fix the NULL mapping case in __isolate_lru_page()
+Message-ID: <20180531072627.bdnclijtjkbpmxds@techsingularity.net>
+References: <alpine.LSU.2.11.1805302014001.12558@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20180530180839.GU837@magnolia>
+In-Reply-To: <alpine.LSU.2.11.1805302014001.12558@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 30, 2018 at 11:08:39AM -0700, Darrick J. Wong wrote:
-> > and isn't present in other writepage implementations.
-> > 
-> > Signed-off-by: Christoph Hellwig <hch@lst.de>
+On Wed, May 30, 2018 at 08:23:16PM -0700, Hugh Dickins wrote:
+> George Boole would have noticed a slight error in 4.16 commit 69d763fc6d3a
+> ("mm: pin address_space before dereferencing it while isolating an LRU page").
+> Fix it, to match both the comment above it, and the original behaviour.
 > 
-> Looks ok, assuming that reads or buffered writes set the page
-> uptodate...
+> Although anonymous pages are not marked PageDirty at first, we have an
+> old habit of calling SetPageDirty when a page is removed from swap cache:
+> so there's a category of ex-swap pages that are easily migratable, but
+> were inadvertently excluded from compaction's async migration in 4.16.
+> 
+> Fixes: 69d763fc6d3a ("mm: pin address_space before dereferencing it while isolating an LRU page")
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Reads have to by definition, as do buffered writes that bring in
-data / overwrite data.
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
+
+-- 
+Mel Gorman
+SUSE Labs
