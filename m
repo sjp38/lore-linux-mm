@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 66D1B6B026A
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 14:06:41 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l85-v6so12998006pfb.18
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 11:06:41 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A6146B026C
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 14:06:44 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 89-v6so13760956plc.1
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 11:06:44 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z188-v6si36995660pfz.335.2018.05.31.11.06.40
+        by mx.google.com with ESMTPS id s187-v6si13033347pgc.447.2018.05.31.11.06.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 31 May 2018 11:06:40 -0700 (PDT)
+        Thu, 31 May 2018 11:06:43 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 06/13] iomap: fix the comment describing IOMAP_NOWAIT
-Date: Thu, 31 May 2018 20:06:07 +0200
-Message-Id: <20180531180614.21506-7-hch@lst.de>
+Subject: [PATCH 07/13] iomap: move IOMAP_F_BOUNDARY to gfs2
+Date: Thu, 31 May 2018 20:06:08 +0200
+Message-Id: <20180531180614.21506-8-hch@lst.de>
 In-Reply-To: <20180531180614.21506-1-hch@lst.de>
 References: <20180531180614.21506-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,25 +20,80 @@ List-ID: <linux-mm.kvack.org>
 To: linux-xfs@vger.kernel.org
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
+Just define a range of fs specific flags and use that in gfs2 instead of
+exposing this internal flag globally.
+
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Dave Chinner <dchinner@redhat.com>
 Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- include/linux/iomap.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/gfs2/bmap.c        | 8 +++++---
+ include/linux/iomap.h | 9 +++++++--
+ 2 files changed, 12 insertions(+), 5 deletions(-)
 
+diff --git a/fs/gfs2/bmap.c b/fs/gfs2/bmap.c
+index cbeedd3cfb36..8efa6297e19c 100644
+--- a/fs/gfs2/bmap.c
++++ b/fs/gfs2/bmap.c
+@@ -683,6 +683,8 @@ static void gfs2_stuffed_iomap(struct inode *inode, struct iomap *iomap)
+ 	iomap->type = IOMAP_INLINE;
+ }
+ 
++#define IOMAP_F_GFS2_BOUNDARY IOMAP_F_PRIVATE
++
+ /**
+  * gfs2_iomap_begin - Map blocks from an inode to disk blocks
+  * @inode: The inode
+@@ -774,7 +776,7 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
+ 	bh = mp.mp_bh[ip->i_height - 1];
+ 	len = gfs2_extent_length(bh->b_data, bh->b_size, ptr, lend - lblock, &eob);
+ 	if (eob)
+-		iomap->flags |= IOMAP_F_BOUNDARY;
++		iomap->flags |= IOMAP_F_GFS2_BOUNDARY;
+ 	iomap->length = (u64)len << inode->i_blkbits;
+ 
+ out_release:
+@@ -846,12 +848,12 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
+ 
+ 	if (iomap.length > bh_map->b_size) {
+ 		iomap.length = bh_map->b_size;
+-		iomap.flags &= ~IOMAP_F_BOUNDARY;
++		iomap.flags &= ~IOMAP_F_GFS2_BOUNDARY;
+ 	}
+ 	if (iomap.addr != IOMAP_NULL_ADDR)
+ 		map_bh(bh_map, inode->i_sb, iomap.addr >> inode->i_blkbits);
+ 	bh_map->b_size = iomap.length;
+-	if (iomap.flags & IOMAP_F_BOUNDARY)
++	if (iomap.flags & IOMAP_F_GFS2_BOUNDARY)
+ 		set_buffer_boundary(bh_map);
+ 	if (iomap.flags & IOMAP_F_NEW)
+ 		set_buffer_new(bh_map);
 diff --git a/include/linux/iomap.h b/include/linux/iomap.h
-index 8f7095fc514e..13d19b4c29a9 100644
+index 13d19b4c29a9..819e0cd2a950 100644
 --- a/include/linux/iomap.h
 +++ b/include/linux/iomap.h
-@@ -59,7 +59,7 @@ struct iomap {
- #define IOMAP_REPORT		(1 << 2) /* report extent status, e.g. FIEMAP */
- #define IOMAP_FAULT		(1 << 3) /* mapping for page fault */
- #define IOMAP_DIRECT		(1 << 4) /* direct I/O */
--#define IOMAP_NOWAIT		(1 << 5) /* Don't wait for writeback */
-+#define IOMAP_NOWAIT		(1 << 5) /* do not block */
+@@ -27,8 +27,7 @@ struct vm_fault;
+  * written data and requires fdatasync to commit them to persistent storage.
+  */
+ #define IOMAP_F_NEW		0x01	/* blocks have been newly allocated */
+-#define IOMAP_F_BOUNDARY	0x02	/* mapping ends at metadata boundary */
+-#define IOMAP_F_DIRTY		0x04	/* uncommitted metadata */
++#define IOMAP_F_DIRTY		0x02	/* uncommitted metadata */
  
- struct iomap_ops {
- 	/*
+ /*
+  * Flags that only need to be reported for IOMAP_REPORT requests:
+@@ -36,6 +35,12 @@ struct vm_fault;
+ #define IOMAP_F_MERGED		0x10	/* contains multiple blocks/extents */
+ #define IOMAP_F_SHARED		0x20	/* block shared with another file */
+ 
++/*
++ * Flags from 0x1000 up are for file system specific usage:
++ */
++#define IOMAP_F_PRIVATE		0x1000
++
++
+ /*
+  * Magic value for addr:
+  */
 -- 
 2.17.0
