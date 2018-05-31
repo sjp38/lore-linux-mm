@@ -1,40 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 819086B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 01:03:11 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b25-v6so12076525pfn.10
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 22:03:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i67-v6sor3929995pfk.43.2018.05.30.22.03.08
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E00F6B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 02:01:07 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id j14-v6so2584952wro.7
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 23:01:07 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id o63-v6si17320631wrb.115.2018.05.30.23.01.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 30 May 2018 22:03:08 -0700 (PDT)
-Date: Thu, 31 May 2018 14:03:02 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: fix the NULL mapping case in __isolate_lru_page()
-Message-ID: <20180531050302.GA24220@rodete-desktop-imager.corp.google.com>
-References: <alpine.LSU.2.11.1805302014001.12558@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 May 2018 23:01:05 -0700 (PDT)
+Date: Thu, 31 May 2018 08:07:31 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 10/13] iomap: add an iomap-based bmap implementation
+Message-ID: <20180531060731.GA31350@lst.de>
+References: <20180530095813.31245-1-hch@lst.de> <20180530095813.31245-11-hch@lst.de> <20180530231156.GH10363@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1805302014001.12558@eggly.anvils>
+In-Reply-To: <20180530231156.GH10363@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, "Huang, Ying" <ying.huang@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 30, 2018 at 08:23:16PM -0700, Hugh Dickins wrote:
-> George Boole would have noticed a slight error in 4.16 commit 69d763fc6d3a
-> ("mm: pin address_space before dereferencing it while isolating an LRU page").
-> Fix it, to match both the comment above it, and the original behaviour.
+On Thu, May 31, 2018 at 09:11:56AM +1000, Dave Chinner wrote:
+> On Wed, May 30, 2018 at 11:58:10AM +0200, Christoph Hellwig wrote:
+> > This adds a simple iomap-based implementation of the legacy ->bmap
+> > interface.  Note that we can't easily add checks for rt or reflink
+> > files, so these will have to remain in the callers.  This interface
+> > just needs to die..
+> > 
+> > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> > Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > ---
+> >  fs/iomap.c            | 34 ++++++++++++++++++++++++++++++++++
+> >  include/linux/iomap.h |  3 +++
+> >  2 files changed, 37 insertions(+)
+> > 
+> > diff --git a/fs/iomap.c b/fs/iomap.c
+> > index 74cdf8b5bbb0..b0bc928672af 100644
+> > --- a/fs/iomap.c
+> > +++ b/fs/iomap.c
+> > @@ -1307,3 +1307,37 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
+> >  }
+> >  EXPORT_SYMBOL_GPL(iomap_swapfile_activate);
+> >  #endif /* CONFIG_SWAP */
+> > +
+> > +static loff_t
+> > +iomap_bmap_actor(struct inode *inode, loff_t pos, loff_t length,
+> > +		void *data, struct iomap *iomap)
+> > +{
+> > +	sector_t *bno = data, addr;
 > 
-> Although anonymous pages are not marked PageDirty at first, we have an
-> old habit of calling SetPageDirty when a page is removed from swap cache:
-> so there's a category of ex-swap pages that are easily migratable, but
-> were inadvertently excluded from compaction's async migration in 4.16.
-> 
-> Fixes: 69d763fc6d3a ("mm: pin address_space before dereferencing it while isolating an LRU page")
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
+> Can you split these? maybe scope addr insie the if() branch it is
+> used in?
 
-Thanks, Hugh.
+This was intentional to avoid wasting another two lines on this
+trivial, deprecated functionality..
