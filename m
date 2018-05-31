@@ -1,56 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B37296B0007
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 09:55:05 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id e1-v6so3266212pgp.20
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 06:55:05 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id b66-v6si37586672plb.107.2018.05.31.06.55.04
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CDF056B0008
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 09:56:09 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id o19-v6so3336816pgn.14
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 06:56:09 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id c10-v6si17914027plz.190.2018.05.31.06.56.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 06:55:04 -0700 (PDT)
+        Thu, 31 May 2018 06:56:08 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 1/2] mm/page_ext: Drop definition of unused PAGE_EXT_DEBUG_POISON
-Date: Thu, 31 May 2018 16:54:56 +0300
-Message-Id: <20180531135457.20167-2-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20180531135457.20167-1-kirill.shutemov@linux.intel.com>
-References: <20180531135457.20167-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm/shmem: Zero out unused vma fields in shmem_pseudo_vma_init()
+Date: Thu, 31 May 2018 16:56:02 +0300
+Message-Id: <20180531135602.20321-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-After bd33ef368135 ("mm: enable page poisoning early at boot")
-PAGE_EXT_DEBUG_POISON is not longer used. Remove it.
+shmem/tmpfs uses pseudo vma to allocate page with correct NUMA policy.
+
+The pseudo vma doesn't have vm_page_prot set. We are going to encode
+encryption KeyID in vm_page_prot. Having garbage there causes problems.
+
+Zero out all unused fields in the pseudo vma.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Vinayak Menon <vinmenon@codeaurora.org>
 ---
- include/linux/page_ext.h | 11 -----------
- 1 file changed, 11 deletions(-)
+ mm/shmem.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-index ca5461efae2f..bbec618a614b 100644
---- a/include/linux/page_ext.h
-+++ b/include/linux/page_ext.h
-@@ -16,18 +16,7 @@ struct page_ext_operations {
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 9d6c7e595415..693fb82b4b42 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1404,10 +1404,9 @@ static void shmem_pseudo_vma_init(struct vm_area_struct *vma,
+ 		struct shmem_inode_info *info, pgoff_t index)
+ {
+ 	/* Create a pseudo vma that just contains the policy */
+-	vma->vm_start = 0;
++	memset(vma, 0, sizeof(*vma));
+ 	/* Bias interleave by inode number to distribute better across nodes */
+ 	vma->vm_pgoff = index + info->vfs_inode.i_ino;
+-	vma->vm_ops = NULL;
+ 	vma->vm_policy = mpol_shared_policy_lookup(&info->policy, index);
+ }
  
- #ifdef CONFIG_PAGE_EXTENSION
- 
--/*
-- * page_ext->flags bits:
-- *
-- * PAGE_EXT_DEBUG_POISON is set for poisoned pages. This is used to
-- * implement generic debug pagealloc feature. The pages are filled with
-- * poison patterns and set this flag after free_pages(). The poisoned
-- * pages are verified whether the patterns are not corrupted and clear
-- * the flag before alloc_pages().
-- */
--
- enum page_ext_flags {
--	PAGE_EXT_DEBUG_POISON,		/* Page is poisoned */
- 	PAGE_EXT_DEBUG_GUARD,
- 	PAGE_EXT_OWNER,
- #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
 -- 
 2.17.0
