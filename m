@@ -1,51 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EEDF96B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 18:52:58 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id f35-v6so14072593plb.10
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 15:52:58 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f17-v6si1566033pgv.383.2018.05.31.15.52.57
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0066B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 19:30:18 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id x2-v6so14171153plv.0
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 16:30:18 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o70-v6sor13530653pfi.118.2018.05.31.16.30.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 15:52:58 -0700 (PDT)
-Date: Thu, 31 May 2018 15:52:56 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/shmem: Zero out unused vma fields in
- shmem_pseudo_vma_init()
-Message-Id: <20180531155256.a5f557c9e620a6d7e85e4ca1@linux-foundation.org>
-In-Reply-To: <20180531135602.20321-1-kirill.shutemov@linux.intel.com>
-References: <20180531135602.20321-1-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 31 May 2018 16:30:17 -0700 (PDT)
+Date: Thu, 31 May 2018 16:30:08 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: fix kswap excessive pressure after wrong condition
+ transfer
+In-Reply-To: <CABA=pqc8tuLGc4OTGymj5wN3ypisMM60mgOLpy2OXxmfteoJFg@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1805311552390.13499@eggly.anvils>
+References: <20180531193420.26087-1-ikalvachev@gmail.com> <CAHH2K0afVpVyMw+_J48pg9ngj9oovBEPBFd3kfCcCfyV7xxF0w@mail.gmail.com> <CABA=pqc8tuLGc4OTGymj5wN3ypisMM60mgOLpy2OXxmfteoJFg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ivan Kalvachev <ikalvachev@gmail.com>
+Cc: Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
 
-On Thu, 31 May 2018 16:56:02 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-
-> shmem/tmpfs uses pseudo vma to allocate page with correct NUMA policy.
+On Fri, 1 Jun 2018, Ivan Kalvachev wrote:
+> On 5/31/18, Greg Thelen <gthelen@google.com> wrote:
+> > On Thu, May 31, 2018 at 12:34 PM Ivan Kalvachev <ikalvachev@gmail.com>
+> > wrote:
+> >>
+> >> Fixes commit 69d763fc6d3aee787a3e8c8c35092b4f4960fa5d
+> >> (mm: pin address_space before dereferencing it while isolating an LRU
+> >> page)
+> >>
+> >> working code:
+> >>
+> >>     mapping = page_mapping(page);
+> >>     if (mapping && !mapping->a_ops->migratepage)
+> >>         return ret;
+> >>
+> >> buggy code:
+> >>
+> >>     if (!trylock_page(page))
+> >>         return ret;
+> >>
+> >>     mapping = page_mapping(page);
+> >>     migrate_dirty = mapping && mapping->a_ops->migratepage;
+> >>     unlock_page(page);
+> >>     if (!migrate_dirty)
+> >>         return ret;
+> >>
+> >> The problem is that !(a && b) = (!a || !b) while the old code was (a &&
+> >> !b).
+> >> The commit message of the buggy commit explains the need for
+> >> locking/unlocking
+> >> around the check but does not give any reason for the change of the
+> >> condition.
+> >> It seems to be an unintended change.
+> >>
+> >> The result of that change is noticeable under swap pressure.
+> >> Big memory consumers like browsers would have a lot of pages swapped out,
+> >> even pages that are been used actively, causing the process to repeatedly
+> >> block for second or longer. At the same time there would be gigabytes of
+> >> unused free memory (sometimes half of the total RAM).
+> >> The buffers/cache would also be at minimum size.
+> >>
+> >> Fixes: 69d763fc6d3a ("mm: pin address_space before dereferencing it while
+> >> isolating an LRU page")
+> >> Signed-off-by: Ivan Kalvachev <ikalvachev@gmail.com>
+> >> ---
+> >>  mm/vmscan.c | 4 ++--
+> >>  1 file changed, 2 insertions(+), 2 deletions(-)
+> >>
+> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >> index 9b697323a88c..83df26078d13 100644
+> >> --- a/mm/vmscan.c
+> >> +++ b/mm/vmscan.c
+> >> @@ -1418,9 +1418,9 @@ int __isolate_lru_page(struct page *page,
+> >> isolate_mode_t mode)
+> >>                                 return ret;
+> >>
+> >>                         mapping = page_mapping(page);
+> >> -                       migrate_dirty = mapping &&
+> >> mapping->a_ops->migratepage;
+> >> +                       migrate_dirty = mapping &&
+> >> !mapping->a_ops->migratepage;
+> >>                         unlock_page(page);
+> >> -                       if (!migrate_dirty)
+> >> +                       if (migrate_dirty)
+> >>                                 return ret;
+> >>                 }
+> >>         }
+> >> --
+> >> 2.17.1
+> >
+> > This looks like yesterday's https://lkml.org/lkml/2018/5/30/1158
+> >
 > 
-> The pseudo vma doesn't have vm_page_prot set. We are going to encode
-> encryption KeyID in vm_page_prot. Having garbage there causes problems.
-> 
-> Zero out all unused fields in the pseudo vma.
-> 
+> Yes, it seems to be the same problem.
+> It also have better technical description.
 
-So there are no known problems in the current mainline kernel?
+Well, your paragraph above on "Big memory consumers" gives a much
+better user viewpoint, and a more urgent case for the patch to go in,
+to stable if it does not make 4.17.0.
 
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1404,10 +1404,9 @@ static void shmem_pseudo_vma_init(struct vm_area_struct *vma,
->  		struct shmem_inode_info *info, pgoff_t index)
->  {
->  	/* Create a pseudo vma that just contains the policy */
-> -	vma->vm_start = 0;
-> +	memset(vma, 0, sizeof(*vma));
->  	/* Bias interleave by inode number to distribute better across nodes */
->  	vma->vm_pgoff = index + info->vfs_inode.i_ino;
-> -	vma->vm_ops = NULL;
->  	vma->vm_policy = mpol_shared_policy_lookup(&info->policy, index);
->  }
+But I am surprised: the change is in a block of code only used in
+one of the modes of compaction (not in  reclaim itself), and I thought
+it was a mode which gives up quite easily, rather than visibly blocking. 
+
+So I wonder if there's another issue to be improved here,
+and the mistreatment of the ex-swap pages just exposed it somehow.
+Cc'ing Vlastimil and David in case it triggers any insight from them.
+
+> 
+> Such let down.
+> It took me so much time to bisect the issue...
+
+Thank you for all your work on it, odd how we found it at the same
+time: I was just porting Mel's patch into another tree, had to make
+a change near there, and suddenly noticed that the test was wrong.
+
+Hugh
+
+> 
+> Well, I hope that the fix will get into 4.17 release in time.
