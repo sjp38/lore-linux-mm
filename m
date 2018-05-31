@@ -1,59 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E00F6B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 02:01:07 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id j14-v6so2584952wro.7
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 23:01:07 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id o63-v6si17320631wrb.115.2018.05.30.23.01.05
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CC1E96B0006
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 02:01:40 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id x2-v6so12755017plv.0
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 23:01:40 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j3-v6sor4583563pgq.324.2018.05.30.23.01.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 May 2018 23:01:05 -0700 (PDT)
-Date: Thu, 31 May 2018 08:07:31 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 10/13] iomap: add an iomap-based bmap implementation
-Message-ID: <20180531060731.GA31350@lst.de>
-References: <20180530095813.31245-1-hch@lst.de> <20180530095813.31245-11-hch@lst.de> <20180530231156.GH10363@dastard>
+        (Google Transport Security);
+        Wed, 30 May 2018 23:01:39 -0700 (PDT)
+Date: Thu, 31 May 2018 15:01:33 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] memcg: force charge kmem counter too
+Message-ID: <20180531060133.GA31477@rodete-desktop-imager.corp.google.com>
+References: <20180525185501.82098-1-shakeelb@google.com>
+ <20180526185144.xvh7ejlyelzvqwdb@esperanza>
+ <CALvZod5yTxcuB_Aao-a0ChNEnwyBJk9UPvEQ80s9tZFBQ0cxpw@mail.gmail.com>
+ <20180528091110.GG1517@dhcp22.suse.cz>
+ <CALvZod6x5iRmcJ6pYKS+jwJd855jnwmVcPK9tnKbuJ9Hfppa-A@mail.gmail.com>
+ <20180529083153.GR27180@dhcp22.suse.cz>
+ <CALvZod67qzq+hQLms4Wut5LNVBjBcEQPpMp9zxF6NE5k+7CLOw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180530231156.GH10363@dastard>
+In-Reply-To: <CALvZod67qzq+hQLms4Wut5LNVBjBcEQPpMp9zxF6NE5k+7CLOw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, May 31, 2018 at 09:11:56AM +1000, Dave Chinner wrote:
-> On Wed, May 30, 2018 at 11:58:10AM +0200, Christoph Hellwig wrote:
-> > This adds a simple iomap-based implementation of the legacy ->bmap
-> > interface.  Note that we can't easily add checks for rt or reflink
-> > files, so these will have to remain in the callers.  This interface
-> > just needs to die..
-> > 
-> > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> > Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
-> > ---
-> >  fs/iomap.c            | 34 ++++++++++++++++++++++++++++++++++
-> >  include/linux/iomap.h |  3 +++
-> >  2 files changed, 37 insertions(+)
-> > 
-> > diff --git a/fs/iomap.c b/fs/iomap.c
-> > index 74cdf8b5bbb0..b0bc928672af 100644
-> > --- a/fs/iomap.c
-> > +++ b/fs/iomap.c
-> > @@ -1307,3 +1307,37 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
-> >  }
-> >  EXPORT_SYMBOL_GPL(iomap_swapfile_activate);
-> >  #endif /* CONFIG_SWAP */
-> > +
-> > +static loff_t
-> > +iomap_bmap_actor(struct inode *inode, loff_t pos, loff_t length,
-> > +		void *data, struct iomap *iomap)
-> > +{
-> > +	sector_t *bno = data, addr;
+On Wed, May 30, 2018 at 11:14:33AM -0700, Shakeel Butt wrote:
+> On Tue, May 29, 2018 at 1:31 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Mon 28-05-18 10:23:07, Shakeel Butt wrote:
+> >> On Mon, May 28, 2018 at 2:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >> Though is there a precedence where the broken feature is not fixed
+> >> because an alternative is available?
+> >
+> > Well, I can see how breaking GFP_NOFAIL semantic is problematic, on the
+> > other hand we keep saying that kmem accounting in v1 is hard usable and
+> > strongly discourage people from using it. Sure we can add the code which
+> > handles _this_ particular case but that wouldn't make the whole thing
+> > more usable I strongly suspect. Maybe I am wrong and you can provide
+> > some specific examples. Is GFP_NOFAIL that common to matter?
+> >
+> > In any case we should balance between the code maintainability here.
+> > Adding more cruft into the allocator path is not free.
+> >
 > 
-> Can you split these? maybe scope addr insie the if() branch it is
-> used in?
+> We do not use kmem limits internally and this is something I found
+> through code inspection. If this patch is increasing the cost of code
+> maintainability I am fine with dropping it but at least there should a
+> comment saying that kmem limits are broken and no need fix.
+ 
+I agree.
 
-This was intentional to avoid wasting another two lines on this
-trivial, deprecated functionality..
+Even, I didn't know kmem is strongly discouraged until now. Then,
+why is it enabled by default on cgroup v1?
+
+Let's turn if off with comment "It's broken so do not use/fix. Instead,
+please move to cgroup v2".
