@@ -1,61 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC1E96B0006
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 02:01:40 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id x2-v6so12755017plv.0
-        for <linux-mm@kvack.org>; Wed, 30 May 2018 23:01:40 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j3-v6sor4583563pgq.324.2018.05.30.23.01.39
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CCAAE6B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 02:06:50 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id j18-v6so6167478wme.5
+        for <linux-mm@kvack.org>; Wed, 30 May 2018 23:06:50 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id h22-v6si263640wmc.36.2018.05.30.23.06.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 30 May 2018 23:01:39 -0700 (PDT)
-Date: Thu, 31 May 2018 15:01:33 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] memcg: force charge kmem counter too
-Message-ID: <20180531060133.GA31477@rodete-desktop-imager.corp.google.com>
-References: <20180525185501.82098-1-shakeelb@google.com>
- <20180526185144.xvh7ejlyelzvqwdb@esperanza>
- <CALvZod5yTxcuB_Aao-a0ChNEnwyBJk9UPvEQ80s9tZFBQ0cxpw@mail.gmail.com>
- <20180528091110.GG1517@dhcp22.suse.cz>
- <CALvZod6x5iRmcJ6pYKS+jwJd855jnwmVcPK9tnKbuJ9Hfppa-A@mail.gmail.com>
- <20180529083153.GR27180@dhcp22.suse.cz>
- <CALvZod67qzq+hQLms4Wut5LNVBjBcEQPpMp9zxF6NE5k+7CLOw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 May 2018 23:06:49 -0700 (PDT)
+Date: Thu, 31 May 2018 08:13:15 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 11/13] iomap: add an iomap-based readpage and readpages
+	implementation
+Message-ID: <20180531061315.GB31350@lst.de>
+References: <20180530095813.31245-1-hch@lst.de> <20180530095813.31245-12-hch@lst.de> <20180530234557.GI10363@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod67qzq+hQLms4Wut5LNVBjBcEQPpMp9zxF6NE5k+7CLOw@mail.gmail.com>
+In-Reply-To: <20180530234557.GI10363@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 30, 2018 at 11:14:33AM -0700, Shakeel Butt wrote:
-> On Tue, May 29, 2018 at 1:31 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Mon 28-05-18 10:23:07, Shakeel Butt wrote:
-> >> On Mon, May 28, 2018 at 2:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> >> Though is there a precedence where the broken feature is not fixed
-> >> because an alternative is available?
-> >
-> > Well, I can see how breaking GFP_NOFAIL semantic is problematic, on the
-> > other hand we keep saying that kmem accounting in v1 is hard usable and
-> > strongly discourage people from using it. Sure we can add the code which
-> > handles _this_ particular case but that wouldn't make the whole thing
-> > more usable I strongly suspect. Maybe I am wrong and you can provide
-> > some specific examples. Is GFP_NOFAIL that common to matter?
-> >
-> > In any case we should balance between the code maintainability here.
-> > Adding more cruft into the allocator path is not free.
-> >
+On Thu, May 31, 2018 at 09:45:57AM +1000, Dave Chinner wrote:
+> sentence ends with a ".". :)
+
+Ok.  This was intended to point to the WARN_ON calls below, but a "."
+is fine with me, too.
+
 > 
-> We do not use kmem limits internally and this is something I found
-> through code inspection. If this patch is increasing the cost of code
-> maintainability I am fine with dropping it but at least there should a
-> comment saying that kmem limits are broken and no need fix.
- 
-I agree.
+> > +	WARN_ON_ONCE(pos != page_offset(page));
+> > +	WARN_ON_ONCE(plen != PAGE_SIZE);
+> > +
+> > +	if (iomap->type != IOMAP_MAPPED || pos >= i_size_read(inode)) {
+> 
+> In what situation do we get a read request completely beyond EOF?
+> (comment, please!)
 
-Even, I didn't know kmem is strongly discouraged until now. Then,
-why is it enabled by default on cgroup v1?
+This is generally to cover a racing read beyond EOF.  That being said
+I'd have to look up if it can really happen for blocksize == pagesize.
 
-Let's turn if off with comment "It's broken so do not use/fix. Instead,
-please move to cgroup v2".
+All this becomes moot once small block size support is added, so I think
+I'd rather skip the comment and research here for now.
+
+> > +	if (ctx.bio) {
+> > +		submit_bio(ctx.bio);
+> > +		WARN_ON_ONCE(!ctx.cur_page_in_bio);
+> > +	} else {
+> > +		WARN_ON_ONCE(ctx.cur_page_in_bio);
+> > +		unlock_page(page);
+> > +	}
+> > +	return 0;
+> 
+> Hmmm. If we had an error from iomap_apply, shouldn't we be returning
+> it here instead just throwing it away? some ->readpage callers
+> appear to ignore the PageError() state on return but do expect
+> errors to be returned.
+
+Both mpage_readpage and block_read_full_page always return 0, so for
+now I'd like to stay compatible to them.  Might be worth a full audit
+later.
+
+> > +	loff_t pos = page_offset(list_entry(pages->prev, struct page, lru));
+> > +	loff_t last = page_offset(list_entry(pages->next, struct page, lru));
+> > +	loff_t length = last - pos + PAGE_SIZE, ret = 0;
+> 
+> Two lines, please.
+
+I really like it that way, though..
+
+> > +done:
+> > +	if (ctx.bio)
+> > +		submit_bio(ctx.bio);
+> > +	if (ctx.cur_page) {
+> > +		if (!ctx.cur_page_in_bio)
+> > +			unlock_page(ctx.cur_page);
+> > +		put_page(ctx.cur_page);
+> > +	}
+> > +	WARN_ON_ONCE(!ret && !list_empty(ctx.pages));
+> 
+> What error condition is this warning about?
+
+Not finishing all pages without an error.  Which wasn't too hard to get
+wrong given the arance readpages calling convention.
