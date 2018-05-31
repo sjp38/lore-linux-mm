@@ -1,130 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 51D566B000D
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 09:49:40 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id w12-v6so13505597otg.2
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 06:49:40 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 082B06B0010
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 09:49:46 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id k62-v6so8413313oiy.1
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 06:49:46 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p22-v6si13050734otk.138.2018.05.31.06.49.39
+        by mx.google.com with ESMTPS id n43-v6si1705043otd.218.2018.05.31.06.49.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 06:49:39 -0700 (PDT)
-Date: Thu, 31 May 2018 09:49:37 -0400
+        Thu, 31 May 2018 06:49:45 -0700 (PDT)
+Date: Thu, 31 May 2018 09:49:43 -0400
 From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [PATCH 16/18] xfs: refactor the tail of xfs_writepage_map
-Message-ID: <20180531134937.GJ2997@bfoster.bfoster>
+Subject: Re: [PATCH 17/18] xfs: do not set the page uptodate in
+ xfs_writepage_map
+Message-ID: <20180531134943.GK2997@bfoster.bfoster>
 References: <20180530100013.31358-1-hch@lst.de>
- <20180530100013.31358-17-hch@lst.de>
+ <20180530100013.31358-18-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180530100013.31358-17-hch@lst.de>
+In-Reply-To: <20180530100013.31358-18-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Hellwig <hch@lst.de>
 Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 30, 2018 at 12:00:11PM +0200, Christoph Hellwig wrote:
-> Rejuggle how we deal with the different error vs non-error and have
-> ioends vs not have ioend cases to keep the fast path streamlined, and
-> the duplicate code at a minimum.
+On Wed, May 30, 2018 at 12:00:12PM +0200, Christoph Hellwig wrote:
+> We already track the page uptodate status based on the buffer uptodate
+> status, which is updated whenever reading or zeroing blocks.
+> 
+> This code has been there since commit a ptool commit in 2002, which
+> claims to:
+> 
+>     "merge" the 2.4 fsx fix for block size < page size to 2.5.  This needed
+>     major changes to actually fit.
+> 
+> and isn't present in other writepage implementations.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
 
 Reviewed-by: Brian Foster <bfoster@redhat.com>
 
->  fs/xfs/xfs_aops.c | 65 +++++++++++++++++++++++------------------------
->  1 file changed, 32 insertions(+), 33 deletions(-)
+>  fs/xfs/xfs_aops.c | 5 -----
+>  1 file changed, 5 deletions(-)
 > 
 > diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index 38021023131e..ac417ef326a9 100644
+> index ac417ef326a9..84f88cecd2f1 100644
 > --- a/fs/xfs/xfs_aops.c
 > +++ b/fs/xfs/xfs_aops.c
-> @@ -873,7 +873,14 @@ xfs_writepage_map(
->  	 * submission of outstanding ioends on the writepage context so they are
->  	 * treated correctly on error.
->  	 */
-> -	if (count) {
-> +	if (unlikely(error)) {
-> +		if (!count) {
-> +			xfs_aops_discard_page(page);
-> +			ClearPageUptodate(page);
-> +			unlock_page(page);
-> +			goto done;
-> +		}
-> +
->  		/*
->  		 * If the page was not fully cleaned, we need to ensure that the
->  		 * higher layers come back to it correctly.  That means we need
-> @@ -882,43 +889,35 @@ xfs_writepage_map(
->  		 * so another attempt to write this page in this writeback sweep
->  		 * will be made.
->  		 */
-> -		if (error) {
-> -			set_page_writeback_keepwrite(page);
-> -		} else {
-> -			clear_page_dirty_for_io(page);
-> -			set_page_writeback(page);
-> -		}
-> -		unlock_page(page);
-> -
-> -		/*
-> -		 * Preserve the original error if there was one, otherwise catch
-> -		 * submission errors here and propagate into subsequent ioend
-> -		 * submissions.
-> -		 */
-> -		list_for_each_entry_safe(ioend, next, &submit_list, io_list) {
-> -			int error2;
-> -
-> -			list_del_init(&ioend->io_list);
-> -			error2 = xfs_submit_ioend(wbc, ioend, error);
-> -			if (error2 && !error)
-> -				error = error2;
-> -		}
-> -	} else if (error) {
-> -		xfs_aops_discard_page(page);
-> -		ClearPageUptodate(page);
-> -		unlock_page(page);
-> +		set_page_writeback_keepwrite(page);
->  	} else {
-> -		/*
-> -		 * We can end up here with no error and nothing to write if we
-> -		 * race with a partial page truncate on a sub-page block sized
-> -		 * filesystem. In that case we need to mark the page clean.
-> -		 */
->  		clear_page_dirty_for_io(page);
->  		set_page_writeback(page);
-> -		unlock_page(page);
-> -		end_page_writeback(page);
+> @@ -786,7 +786,6 @@ xfs_writepage_map(
+>  	ssize_t			len = i_blocksize(inode);
+>  	int			error = 0;
+>  	int			count = 0;
+> -	bool			uptodate = true;
+>  	loff_t			file_offset;	/* file offset of page */
+>  	unsigned		poffset;	/* offset into page */
+>  
+> @@ -813,7 +812,6 @@ xfs_writepage_map(
+>  		if (!buffer_uptodate(bh)) {
+>  			if (PageUptodate(page))
+>  				ASSERT(buffer_mapped(bh));
+> -			uptodate = false;
+>  			continue;
+>  		}
+>  
+> @@ -847,9 +845,6 @@ xfs_writepage_map(
+>  		count++;
 >  	}
 >  
-> +	unlock_page(page);
-> +
-> +	/*
-> +	 * Preserve the original error if there was one, otherwise catch
-> +	 * submission errors here and propagate into subsequent ioend
-> +	 * submissions.
-> +	 */
-> +	list_for_each_entry_safe(ioend, next, &submit_list, io_list) {
-> +		int error2;
-> +
-> +		list_del_init(&ioend->io_list);
-> +		error2 = xfs_submit_ioend(wbc, ioend, error);
-> +		if (error2 && !error)
-> +			error = error2;
-> +	}
-> +
-> +	/*
-> +	 * We can end up here with no error and nothing to write if we race with
-> +	 * a partial page truncate on a sub-page block sized filesystem.
-> +	 */
-> +	if (!count)
-> +		end_page_writeback(page);
-> +done:
->  	mapping_set_error(page->mapping, error);
->  	return error;
->  }
+> -	if (uptodate && poffset == PAGE_SIZE)
+> -		SetPageUptodate(page);
+> -
+>  	ASSERT(wpc->ioend || list_empty(&submit_list));
+>  
+>  out:
 > -- 
 > 2.17.0
 > 
