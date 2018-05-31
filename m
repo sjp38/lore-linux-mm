@@ -1,113 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EF5A16B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 09:46:41 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id k62-v6so8409531oiy.1
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 06:46:41 -0700 (PDT)
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C6DE6B0007
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 09:46:47 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id m7-v6so3943627otd.20
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 06:46:47 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o23-v6si14303464oto.55.2018.05.31.06.46.40
+        by mx.google.com with ESMTPS id 89-v6si13787564otj.164.2018.05.31.06.46.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 06:46:40 -0700 (PDT)
-Date: Thu, 31 May 2018 09:46:38 -0400
+        Thu, 31 May 2018 06:46:46 -0700 (PDT)
+Date: Thu, 31 May 2018 09:46:44 -0400
 From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [PATCH 07/18] xfs: remove the now unused XFS_BMAPI_IGSTATE flag
-Message-ID: <20180531134637.GA2997@bfoster.bfoster>
+Subject: Re: [PATCH 08/18] xfs: remove xfs_reflink_find_cow_mapping
+Message-ID: <20180531134643.GB2997@bfoster.bfoster>
 References: <20180530100013.31358-1-hch@lst.de>
- <20180530100013.31358-8-hch@lst.de>
+ <20180530100013.31358-9-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180530100013.31358-8-hch@lst.de>
+In-Reply-To: <20180530100013.31358-9-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Hellwig <hch@lst.de>
 Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 30, 2018 at 12:00:02PM +0200, Christoph Hellwig wrote:
+On Wed, May 30, 2018 at 12:00:03PM +0200, Christoph Hellwig wrote:
+> We only have one caller left, and open coding the simple extent list
+> lookup in it allows us to make the code both more understandable and
+> reuse calculations and variables already present.
+> 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
 
-The change looks Ok... It's clearly reasonable to remove a flag that is
-no longer used, but why is it no longer used? The previous patch drops
-it to "make xfs_writepage_map() extent map centric," but the description
-doesn't exactly explain why (and it's not immediately clear to me
-amongst all the other code changes).
+Reviewed-by: Brian Foster <bfoster@redhat.com>
 
-My understanding of the purpose of IGSTATE here is that if we already
-have an iotype == unwritten ioend, it makes sense to combine contiguous
-mappings since we'd convert the unwritten portions on I/O completion.
-Now that we look up extent first and establish the ioend type from that
-rather than set the ioend type based on the buffer state, I suppose it
-is possible for IGSTATE to lose the fact that a contiguous unwritten
-extent ends up being merged with a normal extent before the ioend type
-is established..? Then again, was IGSTATE even effective in this context
-with nimaps == 1?
-
-This change may very well be fine in the end, but it's made
-unnecessarily difficult to review by the nature of the previous patch.
-ISTM that if this is a dependency of the broader change, it should be
-split off into a separate patch that drops the usage and the flag
-together and explains why.
-
-Brian
-
->  fs/xfs/libxfs/xfs_bmap.c | 6 ++----
->  fs/xfs/libxfs/xfs_bmap.h | 3 ---
->  2 files changed, 2 insertions(+), 7 deletions(-)
+>  fs/xfs/xfs_aops.c    | 17 ++++++++++++-----
+>  fs/xfs/xfs_reflink.c | 30 ------------------------------
+>  fs/xfs/xfs_reflink.h |  2 --
+>  fs/xfs/xfs_trace.h   |  1 -
+>  4 files changed, 12 insertions(+), 38 deletions(-)
 > 
-> diff --git a/fs/xfs/libxfs/xfs_bmap.c b/fs/xfs/libxfs/xfs_bmap.c
-> index 7b0e2b551e23..4b5e014417d2 100644
-> --- a/fs/xfs/libxfs/xfs_bmap.c
-> +++ b/fs/xfs/libxfs/xfs_bmap.c
-> @@ -3799,8 +3799,7 @@ xfs_bmapi_update_map(
->  		   mval[-1].br_startblock != HOLESTARTBLOCK &&
->  		   mval->br_startblock == mval[-1].br_startblock +
->  					  mval[-1].br_blockcount &&
-> -		   ((flags & XFS_BMAPI_IGSTATE) ||
-> -			mval[-1].br_state == mval->br_state)) {
-> +		   mval[-1].br_state == mval->br_state) {
->  		ASSERT(mval->br_startoff ==
->  		       mval[-1].br_startoff + mval[-1].br_blockcount);
->  		mval[-1].br_blockcount += mval->br_blockcount;
-> @@ -3845,7 +3844,7 @@ xfs_bmapi_read(
+> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> index 8cc41a786b5e..e2671b223409 100644
+> --- a/fs/xfs/xfs_aops.c
+> +++ b/fs/xfs/xfs_aops.c
+> @@ -385,6 +385,7 @@ xfs_map_blocks(
+>  	ssize_t			count = i_blocksize(inode);
+>  	xfs_fileoff_t		offset_fsb, end_fsb;
+>  	int			whichfork = XFS_DATA_FORK;
+> +	struct xfs_iext_cursor	icur;
+>  	int			error = 0;
+>  	int			nimaps = 1;
 >  
->  	ASSERT(*nmap >= 1);
->  	ASSERT(!(flags & ~(XFS_BMAPI_ATTRFORK|XFS_BMAPI_ENTIRE|
-> -			   XFS_BMAPI_IGSTATE|XFS_BMAPI_COWFORK)));
-> +			   XFS_BMAPI_COWFORK)));
->  	ASSERT(xfs_isilocked(ip, XFS_ILOCK_SHARED|XFS_ILOCK_EXCL));
+> @@ -396,8 +397,18 @@ xfs_map_blocks(
+>  	       (ip->i_df.if_flags & XFS_IFEXTENTS));
+>  	ASSERT(offset <= mp->m_super->s_maxbytes);
 >  
->  	if (unlikely(XFS_TEST_ERROR(
-> @@ -4290,7 +4289,6 @@ xfs_bmapi_write(
+> +	if (offset > mp->m_super->s_maxbytes - count)
+> +		count = mp->m_super->s_maxbytes - offset;
+> +	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
+> +	offset_fsb = XFS_B_TO_FSBT(mp, offset);
+> +
+> +	/*
+> +	 * Check if this is offset is covered by a COW extents, and if yes use
+> +	 * it directly instead of looking up anything in the data fork.
+> +	 */
+>  	if (xfs_is_reflink_inode(ip) &&
+> -	    xfs_reflink_find_cow_mapping(ip, offset, imap)) {
+> +	    xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, imap) &&
+> +	    imap->br_startoff <= offset_fsb) {
+>  		xfs_iunlock(ip, XFS_ILOCK_SHARED);
+>  		/*
+>  		 * Truncate can race with writeback since writeback doesn't
+> @@ -417,10 +428,6 @@ xfs_map_blocks(
+>  		goto allocate_blocks;
+>  	}
 >  
->  	ASSERT(*nmap >= 1);
->  	ASSERT(*nmap <= XFS_BMAP_MAX_NMAP);
-> -	ASSERT(!(flags & XFS_BMAPI_IGSTATE));
->  	ASSERT(tp != NULL ||
->  	       (flags & (XFS_BMAPI_CONVERT | XFS_BMAPI_COWFORK)) ==
->  			(XFS_BMAPI_CONVERT | XFS_BMAPI_COWFORK));
-> diff --git a/fs/xfs/libxfs/xfs_bmap.h b/fs/xfs/libxfs/xfs_bmap.h
-> index 2c233f9f1a26..a845fe57d1b5 100644
-> --- a/fs/xfs/libxfs/xfs_bmap.h
-> +++ b/fs/xfs/libxfs/xfs_bmap.h
-> @@ -80,8 +80,6 @@ struct xfs_extent_free_item
->  #define XFS_BMAPI_METADATA	0x002	/* mapping metadata not user data */
->  #define XFS_BMAPI_ATTRFORK	0x004	/* use attribute fork not data */
->  #define XFS_BMAPI_PREALLOC	0x008	/* preallocation op: unwritten space */
-> -#define XFS_BMAPI_IGSTATE	0x010	/* Ignore state - */
-> -					/* combine contig. space */
->  #define XFS_BMAPI_CONTIG	0x020	/* must allocate only one extent */
+> -	if (offset > mp->m_super->s_maxbytes - count)
+> -		count = mp->m_super->s_maxbytes - offset;
+> -	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
+> -	offset_fsb = XFS_B_TO_FSBT(mp, offset);
+>  	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
+>  				imap, &nimaps, XFS_BMAPI_ENTIRE);
+>  	if (!nimaps) {
+> diff --git a/fs/xfs/xfs_reflink.c b/fs/xfs/xfs_reflink.c
+> index 713e857d9ffa..8e5eb8e70c89 100644
+> --- a/fs/xfs/xfs_reflink.c
+> +++ b/fs/xfs/xfs_reflink.c
+> @@ -484,36 +484,6 @@ xfs_reflink_allocate_cow(
+>  	return error;
+>  }
+>  
+> -/*
+> - * Find the CoW reservation for a given byte offset of a file.
+> - */
+> -bool
+> -xfs_reflink_find_cow_mapping(
+> -	struct xfs_inode		*ip,
+> -	xfs_off_t			offset,
+> -	struct xfs_bmbt_irec		*imap)
+> -{
+> -	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+> -	xfs_fileoff_t			offset_fsb;
+> -	struct xfs_bmbt_irec		got;
+> -	struct xfs_iext_cursor		icur;
+> -
+> -	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
+> -
+> -	if (!xfs_is_reflink_inode(ip))
+> -		return false;
+> -	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
+> -	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &icur, &got))
+> -		return false;
+> -	if (got.br_startoff > offset_fsb)
+> -		return false;
+> -
+> -	trace_xfs_reflink_find_cow_mapping(ip, offset, 1, XFS_IO_OVERWRITE,
+> -			&got);
+> -	*imap = got;
+> -	return true;
+> -}
+> -
 >  /*
->   * unwritten extent conversion - this needs write cache flushing and no additional
-> @@ -128,7 +126,6 @@ struct xfs_extent_free_item
->  	{ XFS_BMAPI_METADATA,	"METADATA" }, \
->  	{ XFS_BMAPI_ATTRFORK,	"ATTRFORK" }, \
->  	{ XFS_BMAPI_PREALLOC,	"PREALLOC" }, \
-> -	{ XFS_BMAPI_IGSTATE,	"IGSTATE" }, \
->  	{ XFS_BMAPI_CONTIG,	"CONTIG" }, \
->  	{ XFS_BMAPI_CONVERT,	"CONVERT" }, \
->  	{ XFS_BMAPI_ZERO,	"ZERO" }, \
+>   * Trim an extent to end at the next CoW reservation past offset_fsb.
+>   */
+> diff --git a/fs/xfs/xfs_reflink.h b/fs/xfs/xfs_reflink.h
+> index 701487bab468..15a456492667 100644
+> --- a/fs/xfs/xfs_reflink.h
+> +++ b/fs/xfs/xfs_reflink.h
+> @@ -32,8 +32,6 @@ extern int xfs_reflink_allocate_cow(struct xfs_inode *ip,
+>  		struct xfs_bmbt_irec *imap, bool *shared, uint *lockmode);
+>  extern int xfs_reflink_convert_cow(struct xfs_inode *ip, xfs_off_t offset,
+>  		xfs_off_t count);
+> -extern bool xfs_reflink_find_cow_mapping(struct xfs_inode *ip, xfs_off_t offset,
+> -		struct xfs_bmbt_irec *imap);
+>  extern void xfs_reflink_trim_irec_to_next_cow(struct xfs_inode *ip,
+>  		xfs_fileoff_t offset_fsb, struct xfs_bmbt_irec *imap);
+>  
+> diff --git a/fs/xfs/xfs_trace.h b/fs/xfs/xfs_trace.h
+> index 9d4c4ca24fe6..ed8f774944ba 100644
+> --- a/fs/xfs/xfs_trace.h
+> +++ b/fs/xfs/xfs_trace.h
+> @@ -3227,7 +3227,6 @@ DEFINE_INODE_IREC_EVENT(xfs_reflink_convert_cow);
+>  DEFINE_RW_EVENT(xfs_reflink_reserve_cow);
+>  
+>  DEFINE_SIMPLE_IO_EVENT(xfs_reflink_bounce_dio_write);
+> -DEFINE_IOMAP_EVENT(xfs_reflink_find_cow_mapping);
+>  DEFINE_INODE_IREC_EVENT(xfs_reflink_trim_irec);
+>  
+>  DEFINE_SIMPLE_IO_EVENT(xfs_reflink_cancel_cow_range);
 > -- 
 > 2.17.0
 > 
