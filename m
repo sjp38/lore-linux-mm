@@ -1,68 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 25B376B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 17:53:32 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id d4-v6so13978970plr.17
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 14:53:32 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id w21-v6si4182265pgv.462.2018.05.31.14.53.30
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D3F86B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 18:50:47 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c4-v6so13378240pfg.22
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 15:50:47 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p10-v6sor13544331pfe.96.2018.05.31.15.50.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 14:53:31 -0700 (PDT)
-Date: Thu, 31 May 2018 15:53:29 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v11 00/63] Convert page cache to XArray
-Message-ID: <20180531215329.GG28256@linux.intel.com>
-References: <20180414141316.7167-1-willy@infradead.org>
- <20180416160133.GA12434@linux.intel.com>
- <20180531213643.GD28256@linux.intel.com>
- <20180531213742.GE28256@linux.intel.com>
- <20180531214612.GA12216@bombadil.infradead.org>
+        (Google Transport Security);
+        Thu, 31 May 2018 15:50:45 -0700 (PDT)
+Date: Thu, 31 May 2018 15:50:36 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm/shmem: Zero out unused vma fields in
+ shmem_pseudo_vma_init()
+In-Reply-To: <20180531135602.20321-1-kirill.shutemov@linux.intel.com>
+Message-ID: <alpine.LSU.2.11.1805311522380.13187@eggly.anvils>
+References: <20180531135602.20321-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180531214612.GA12216@bombadil.infradead.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Josef Bacik <jbacik@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 31, 2018 at 02:46:12PM -0700, Matthew Wilcox wrote:
-> On Thu, May 31, 2018 at 03:37:42PM -0600, Ross Zwisler wrote:
-> > Never mind, just saw your mail from a few weeks ago.  :-/  I'll retest on my
-> > end.
-> 
-> Don't strain too hard; I found (and fixed) some bugs in the DAX
-> conversion.  I keep finding new bugs though -- the latest was that
-> xas_store(xas, NULL); doesn't work properly if xas is multiindex and some
-> of the covered entries are not NULL.  And in fixing that, I noticed that
-> xas_store(xas, not-null) doesn't handle tagged entries correctly.
-> 
-> I'd offer to push out the current version for testing but I've pulled
-> everything apart and nothing works right now ;-)  I always think "it'll
-> be ready tomorrow", but I don't want to make a promise I can't keep.
-> 
-> Here's my current changelog (may have forgotten a few things; need to
-> compare a diff once I've put together a decent patch series)
-> 
->  - Reordered two DAX bugfixes to the head of the queue to allow them to
->    be merged independently.
->  - Converted apparmor secid to IDR
->  - Fixed bug in page cache lookup conversion which could lead to returning
->    pages which had been released from the page cache.
->  - Fixed several bugs in DAX conversion
->  - Re-added conversion of dax_layout_busy_page
->  - At Ross's request, renamed dax_mk_foo() to dax_make_foo().
->  - Split out the radix tree test suite addition of ubsan.
->  - Split out radix tree code deletion.
->  - Removed __radix_tree_create from the public API
->  - Fixed up a couple of comments in DAX
->  - Renamed shmem_xa_replace() to shmem_replace_entry()
->  * Undid change of xas_load() behaviour with multislot xa_state
->  - Added xas_store_for_each() and use it in DAX
->  - Corrected some typos in the XArray kerneldoc.
->  - Fixed multi-index xas_store(xas, NULL)
->  - Fixed tag handling in multi-index xas_store(xas, not-null)
+On Thu, 31 May 2018, Kirill A. Shutemov wrote:
 
-Ah, okay.  I'll retest & resume review once things settle down and you send
-out a new version.
+> shmem/tmpfs uses pseudo vma to allocate page with correct NUMA policy.
+> 
+> The pseudo vma doesn't have vm_page_prot set. We are going to encode
+> encryption KeyID in vm_page_prot. Having garbage there causes problems.
+> 
+> Zero out all unused fields in the pseudo vma.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+I won't go so far as to say NAK, but personally I much prefer that we
+document what fields actually get used, by initializing only those,
+rather than having such a blanket memset.
+
+And you say "We are going to ...": so this should really be part of
+some future patchset, shouldn't it?
+
+My opinion might be in the minority: you remind me of a similar
+request from Josef some while ago, Cc'ing him.
+
+(I'm very ashamed, by the way, of shmem's pseudo-vma, I think it's
+horrid, and just reflects that shmem was an afterthought when NUMA
+mempolicies were designed.  Internally, we replaced alloc_pages_vma()
+throughout by alloc_pages_mpol(), which has no need for pseudo-vmas,
+and the advantage of dropping mmap_sem across the bulk of NUMA page
+migration. I shall be updating that work in coming months, and hope
+to upstream, but no promise from me on the timing - your need for
+vm_page_prot likely much sooner.)
+
+Hugh
+
+> ---
+>  mm/shmem.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 9d6c7e595415..693fb82b4b42 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1404,10 +1404,9 @@ static void shmem_pseudo_vma_init(struct vm_area_struct *vma,
+>  		struct shmem_inode_info *info, pgoff_t index)
+>  {
+>  	/* Create a pseudo vma that just contains the policy */
+> -	vma->vm_start = 0;
+> +	memset(vma, 0, sizeof(*vma));
+>  	/* Bias interleave by inode number to distribute better across nodes */
+>  	vma->vm_pgoff = index + info->vfs_inode.i_ino;
+> -	vma->vm_ops = NULL;
+>  	vma->vm_policy = mpol_shared_policy_lookup(&info->policy, index);
+>  }
+>  
+> -- 
+> 2.17.0
