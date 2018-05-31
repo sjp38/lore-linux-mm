@@ -1,47 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1806B0006
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 17:37:45 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id c3-v6so12723912plz.7
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 14:37:45 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id a21-v6si13847563pls.237.2018.05.31.14.37.44
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B4546B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 17:39:33 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b25-v6so13296321pfn.10
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 14:39:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u5-v6sor5386623pgc.15.2018.05.31.14.39.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 14:37:44 -0700 (PDT)
-Date: Thu, 31 May 2018 15:37:42 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v11 00/63] Convert page cache to XArray
-Message-ID: <20180531213742.GE28256@linux.intel.com>
-References: <20180414141316.7167-1-willy@infradead.org>
- <20180416160133.GA12434@linux.intel.com>
- <20180531213643.GD28256@linux.intel.com>
+        (Google Transport Security);
+        Thu, 31 May 2018 14:39:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180531213643.GD28256@linux.intel.com>
+In-Reply-To: <CAHH2K0afVpVyMw+_J48pg9ngj9oovBEPBFd3kfCcCfyV7xxF0w@mail.gmail.com>
+References: <20180531193420.26087-1-ikalvachev@gmail.com> <CAHH2K0afVpVyMw+_J48pg9ngj9oovBEPBFd3kfCcCfyV7xxF0w@mail.gmail.com>
+From: Ivan Kalvachev <ikalvachev@gmail.com>
+Date: Fri, 1 Jun 2018 00:39:31 +0300
+Message-ID: <CABA=pqc8tuLGc4OTGymj5wN3ypisMM60mgOLpy2OXxmfteoJFg@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix kswap excessive pressure after wrong condition transfer
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Linux MM <linux-mm@kvack.org>
 
-On Thu, May 31, 2018 at 03:36:43PM -0600, Ross Zwisler wrote:
-> On Mon, Apr 16, 2018 at 10:01:33AM -0600, Ross Zwisler wrote:
-> > On Sat, Apr 14, 2018 at 07:12:13AM -0700, Matthew Wilcox wrote:
-> > > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > > 
-> > > This conversion keeps the radix tree and XArray data structures in sync
-> > > at all times.  That allows us to convert the page cache one function at
-> > > a time and should allow for easier bisection.  Other than renaming some
-> > > elements of the structures, the data structures are fundamentally
-> > > unchanged; a radix tree walk and an XArray walk will touch the same
-> > > number of cachelines.  I have changes planned to the XArray data
-> > > structure, but those will happen in future patches.
-> > 
-> > I've hit a few failures when throwing this into my test setup.  The first two
-> > seem like similar bugs hit in two different ways, the third seems unique.
-> > I've verified that these don't seem to happen with the next-20180413 baseline.
-> 
-> Hey Matthew, did you ever figure out these failures?
+On 5/31/18, Greg Thelen <gthelen@google.com> wrote:
+> On Thu, May 31, 2018 at 12:34 PM Ivan Kalvachev <ikalvachev@gmail.com>
+> wrote:
+>>
+>> Fixes commit 69d763fc6d3aee787a3e8c8c35092b4f4960fa5d
+>> (mm: pin address_space before dereferencing it while isolating an LRU
+>> page)
+>>
+>> working code:
+>>
+>>     mapping = page_mapping(page);
+>>     if (mapping && !mapping->a_ops->migratepage)
+>>         return ret;
+>>
+>> buggy code:
+>>
+>>     if (!trylock_page(page))
+>>         return ret;
+>>
+>>     mapping = page_mapping(page);
+>>     migrate_dirty = mapping && mapping->a_ops->migratepage;
+>>     unlock_page(page);
+>>     if (!migrate_dirty)
+>>         return ret;
+>>
+>> The problem is that !(a && b) = (!a || !b) while the old code was (a &&
+>> !b).
+>> The commit message of the buggy commit explains the need for
+>> locking/unlocking
+>> around the check but does not give any reason for the change of the
+>> condition.
+>> It seems to be an unintended change.
+>>
+>> The result of that change is noticeable under swap pressure.
+>> Big memory consumers like browsers would have a lot of pages swapped out,
+>> even pages that are been used actively, causing the process to repeatedly
+>> block for second or longer. At the same time there would be gigabytes of
+>> unused free memory (sometimes half of the total RAM).
+>> The buffers/cache would also be at minimum size.
+>>
+>> Fixes: 69d763fc6d3a ("mm: pin address_space before dereferencing it while
+>> isolating an LRU page")
+>> Signed-off-by: Ivan Kalvachev <ikalvachev@gmail.com>
+>> ---
+>>  mm/vmscan.c | 4 ++--
+>>  1 file changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 9b697323a88c..83df26078d13 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1418,9 +1418,9 @@ int __isolate_lru_page(struct page *page,
+>> isolate_mode_t mode)
+>>                                 return ret;
+>>
+>>                         mapping = page_mapping(page);
+>> -                       migrate_dirty = mapping &&
+>> mapping->a_ops->migratepage;
+>> +                       migrate_dirty = mapping &&
+>> !mapping->a_ops->migratepage;
+>>                         unlock_page(page);
+>> -                       if (!migrate_dirty)
+>> +                       if (migrate_dirty)
+>>                                 return ret;
+>>                 }
+>>         }
+>> --
+>> 2.17.1
+>
+> This looks like yesterday's https://lkml.org/lkml/2018/5/30/1158
+>
 
-Never mind, just saw your mail from a few weeks ago.  :-/  I'll retest on my
-end.
+Yes, it seems to be the same problem.
+It also have better technical description.
+
+Such let down.
+It took me so much time to bisect the issue...
+
+Well, I hope that the fix will get into 4.17 release in time.
+
+
+On 5/31/18, Greg Thelen <gthelen@google.com> wrote:
+> On Thu, May 31, 2018 at 12:34 PM Ivan Kalvachev <ikalvachev@gmail.com>
+> wrote:
+>>
+>> Fixes commit 69d763fc6d3aee787a3e8c8c35092b4f4960fa5d
+>> (mm: pin address_space before dereferencing it while isolating an LRU
+>> page)
+>>
+>> working code:
+>>
+>>     mapping = page_mapping(page);
+>>     if (mapping && !mapping->a_ops->migratepage)
+>>         return ret;
+>>
+>> buggy code:
+>>
+>>     if (!trylock_page(page))
+>>         return ret;
+>>
+>>     mapping = page_mapping(page);
+>>     migrate_dirty = mapping && mapping->a_ops->migratepage;
+>>     unlock_page(page);
+>>     if (!migrate_dirty)
+>>         return ret;
+>>
+>> The problem is that !(a && b) = (!a || !b) while the old code was (a &&
+>> !b).
+>> The commit message of the buggy commit explains the need for
+>> locking/unlocking
+>> around the check but does not give any reason for the change of the
+>> condition.
+>> It seems to be an unintended change.
+>>
+>> The result of that change is noticeable under swap pressure.
+>> Big memory consumers like browsers would have a lot of pages swapped out,
+>> even pages that are been used actively, causing the process to repeatedly
+>> block for second or longer. At the same time there would be gigabytes of
+>> unused free memory (sometimes half of the total RAM).
+>> The buffers/cache would also be at minimum size.
+>>
+>> Fixes: 69d763fc6d3a ("mm: pin address_space before dereferencing it while
+>> isolating an LRU page")
+>> Signed-off-by: Ivan Kalvachev <ikalvachev@gmail.com>
+>> ---
+>>  mm/vmscan.c | 4 ++--
+>>  1 file changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 9b697323a88c..83df26078d13 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1418,9 +1418,9 @@ int __isolate_lru_page(struct page *page,
+>> isolate_mode_t mode)
+>>                                 return ret;
+>>
+>>                         mapping = page_mapping(page);
+>> -                       migrate_dirty = mapping &&
+>> mapping->a_ops->migratepage;
+>> +                       migrate_dirty = mapping &&
+>> !mapping->a_ops->migratepage;
+>>                         unlock_page(page);
+>> -                       if (!migrate_dirty)
+>> +                       if (migrate_dirty)
+>>                                 return ret;
+>>                 }
+>>         }
+>> --
+>> 2.17.1
+>
+> This looks like yesterday's https://lkml.org/lkml/2018/5/30/1158
+>
