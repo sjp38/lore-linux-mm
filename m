@@ -1,62 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0630C6B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 17:46:18 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id i1-v6so13977618pld.11
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 14:46:17 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a65-v6si10595320pfa.148.2018.05.31.14.46.16
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A15FF6B0006
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 17:46:23 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id t3-v6so2401025vkb.19
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 14:46:23 -0700 (PDT)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id r185-v6si5552565vkb.123.2018.05.31.14.46.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 31 May 2018 14:46:16 -0700 (PDT)
-Date: Thu, 31 May 2018 14:46:12 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v11 00/63] Convert page cache to XArray
-Message-ID: <20180531214612.GA12216@bombadil.infradead.org>
-References: <20180414141316.7167-1-willy@infradead.org>
- <20180416160133.GA12434@linux.intel.com>
- <20180531213643.GD28256@linux.intel.com>
- <20180531213742.GE28256@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 May 2018 14:46:22 -0700 (PDT)
+Subject: Re: [PATCH 2/2] fs, elf: drop MAP_FIXED usage from elf_map
+References: <20171129144219.22867-1-mhocko@kernel.org>
+ <20171129144219.22867-3-mhocko@kernel.org>
+ <93ce964b-e352-1905-c2b6-deedf2ea06f8@oracle.com>
+ <c0e447b3-4ba7-239e-6550-64de7721ad28@oracle.com>
+ <20180530080212.GA27180@dhcp22.suse.cz>
+ <e7705544-04fe-c382-f6d0-48d0680b46f2@oracle.com>
+ <20180530162501.GB15278@dhcp22.suse.cz>
+ <1f6be96b-12ac-9a03-df90-386dab02369d@oracle.com>
+ <20180531092425.GM15278@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <29bd73d1-ceed-0e4d-324a-b9ae87c4da4e@oracle.com>
+Date: Thu, 31 May 2018 14:46:15 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180531213742.GE28256@linux.intel.com>
+In-Reply-To: <20180531092425.GM15278@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, libhugetlbfs@googlegroups.com
 
-On Thu, May 31, 2018 at 03:37:42PM -0600, Ross Zwisler wrote:
-> Never mind, just saw your mail from a few weeks ago.  :-/  I'll retest on my
-> end.
+On 05/31/2018 02:24 AM, Michal Hocko wrote:
+> I am not an expert on the load linkers myself so I cannot really answer
+> this question. Please note that ppc had something similar. See
+> ad55eac74f20 ("elf: enforce MAP_FIXED on overlaying elf segments").
+> Maybe we need to sprinkle more of those at other places?
 
-Don't strain too hard; I found (and fixed) some bugs in the DAX
-conversion.  I keep finding new bugs though -- the latest was that
-xas_store(xas, NULL); doesn't work properly if xas is multiindex and some
-of the covered entries are not NULL.  And in fixing that, I noticed that
-xas_store(xas, not-null) doesn't handle tagged entries correctly.
+I finally understand the issue, and it is NOT a problem with the kernel.
+The issue is with old libhugetlbfs provided linker scripts, and yes,
+starting with v4.17 people who run libhugetlbfs tests on x86 (at least)
+will see additional failures.
 
-I'd offer to push out the current version for testing but I've pulled
-everything apart and nothing works right now ;-)  I always think "it'll
-be ready tomorrow", but I don't want to make a promise I can't keep.
+I'll try to work this from the libhugetlbfs side.  In the unlikely event
+that anyone knows about those linker scripts, assistance and/or feedback
+would be appreciated.
 
-Here's my current changelog (may have forgotten a few things; need to
-compare a diff once I've put together a decent patch series)
+Read on only if you want additional details about this failure.
 
- - Reordered two DAX bugfixes to the head of the queue to allow them to
-   be merged independently.
- - Converted apparmor secid to IDR
- - Fixed bug in page cache lookup conversion which could lead to returning
-   pages which had been released from the page cache.
- - Fixed several bugs in DAX conversion
- - Re-added conversion of dax_layout_busy_page
- - At Ross's request, renamed dax_mk_foo() to dax_make_foo().
- - Split out the radix tree test suite addition of ubsan.
- - Split out radix tree code deletion.
- - Removed __radix_tree_create from the public API
- - Fixed up a couple of comments in DAX
- - Renamed shmem_xa_replace() to shmem_replace_entry()
- * Undid change of xas_load() behaviour with multislot xa_state
- - Added xas_store_for_each() and use it in DAX
- - Corrected some typos in the XArray kerneldoc.
- - Fixed multi-index xas_store(xas, NULL)
- - Fixed tag handling in multi-index xas_store(xas, not-null)
+The executable files which are now failing are created with the elf_i386.xB
+linker script.  This script is provided for pre-2.17 versions of binutils.
+binutils-2.17 came out aprox in 2007, and this script is disabled by default
+if binutils-2.17 or later is used.  The only way to create executables with
+this script today is by setting the HUGETLB_DEPRECATED_LINK env variable.
+This is what libhugetlbfs tests do to simply continue testing the old scripts.
+
+I previously was mistaken about which tests were causing the additional
+failures.  The example I previously provided failed on v4.16 as well as
+v4.17-rc kernels.  So, please ignore that information.
+
+For an executable that runs on v4.16 and fails on v4.17-rc, here is a listing
+of elf sections that the kernel will attempt to load.
+
+Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+LOAD           0x000000 0x08048000 0x08048000 0x11c24 0x11c24 R E 0x1000
+LOAD           0x011c24 0x08059c24 0x08059c24 0x10d04 0x10d04 RW  0x1000
+LOAD           0x023000 0x09000000 0x09000000 0x00000 0x10048 RWE 0x1000
+
+The first section is loaded without issue.  elf_map() will create a vma
+based on the following:
+map_addr ELF_PAGESTART(addr) 8048000 ELF_PAGEALIGN(size) 12000 
+File_offset 0
+
+We then attempt to load the following section with:
+map_addr ELF_PAGESTART(addr) 8059000 ELF_PAGEALIGN(size) 12000
+File_offset 11000
+
+This results in,
+Uhuuh, elf segment at 8059000 requested but the memory is mapped already
+
+Note that the last page of the first section overlaps with the first page
+of the second section.  Unlike the case in ad55eac74f20, the access
+permissions on section 1 (RE) are different than section 2 (RW).  If we
+allowed the previous MAP_FIXED behavior, we would be changing part of a
+read only section to read write.  This is exactly what MAP_FIXED_NOREPLACE
+was designed to prevent.
+-- 
+Mike Kravetz
