@@ -1,119 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CCB446B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 07:35:13 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 89-v6so13128501plb.18
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 04:35:13 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w73-v6si37953253pfd.19.2018.05.31.04.35.11
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 31 May 2018 04:35:11 -0700 (PDT)
-Date: Thu, 31 May 2018 13:35:08 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-Message-ID: <20180531113508.GO15278@dhcp22.suse.cz>
-References: <CA+7wUswp_Sr=hHqi1bwRZ3FE2wY5ozZWZ8Z1BgrFnSAmijUKjA@mail.gmail.com>
- <201805290605.DGF87549.LOVFMFJQSOHtFO@I-love.SAKURA.ne.jp>
- <1126233373.5118805.1527600426174.JavaMail.zimbra@redhat.com>
- <f3d58cbd-29ca-7a23-69e0-59690b9cd4fb@i-love.sakura.ne.jp>
- <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com>
- <20180530104637.GC27180@dhcp22.suse.cz>
- <1684479370.5483281.1527680579781.JavaMail.zimbra@redhat.com>
- <20180530123826.GF27180@dhcp22.suse.cz>
- <2074740225.5769475.1527763882580.JavaMail.zimbra@redhat.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C05966B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 07:59:44 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x21-v6so12540179pfn.23
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 04:59:44 -0700 (PDT)
+Received: from ipmail02.adl2.internode.on.net (ipmail02.adl2.internode.on.net. [150.101.137.139])
+        by mx.google.com with ESMTP id s26-v6si3070776pgo.298.2018.05.31.04.59.41
+        for <linux-mm@kvack.org>;
+        Thu, 31 May 2018 04:59:42 -0700 (PDT)
+Date: Thu, 31 May 2018 21:59:38 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 11/13] iomap: add an iomap-based readpage and readpages
+ implementation
+Message-ID: <20180531115938.GM10363@dastard>
+References: <20180530095813.31245-1-hch@lst.de>
+ <20180530095813.31245-12-hch@lst.de>
+ <20180530234557.GI10363@dastard>
+ <20180531061315.GB31350@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2074740225.5769475.1527763882580.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20180531061315.GB31350@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chunyu Hu <chuhu@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, dvyukov@google.com, linux-mm@kvack.org, catalin marinas <catalin.marinas@arm.com>, Akinobu Mita <akinobu.mita@gmail.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 31-05-18 06:51:22, Chunyu Hu wrote:
+On Thu, May 31, 2018 at 08:13:15AM +0200, Christoph Hellwig wrote:
+> On Thu, May 31, 2018 at 09:45:57AM +1000, Dave Chinner wrote:
+> > sentence ends with a ".". :)
 > 
+> Ok.  This was intended to point to the WARN_ON calls below, but a "."
+> is fine with me, too.
 > 
-> ----- Original Message -----
-> > From: "Michal Hocko" <mhocko@suse.com>
-> > To: "Chunyu Hu" <chuhu@redhat.com>
-> > Cc: "Tetsuo Handa" <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, dvyukov@google.com, linux-mm@kvack.org,
-> > "catalin marinas" <catalin.marinas@arm.com>, "Akinobu Mita" <akinobu.mita@gmail.com>
-> > Sent: Wednesday, May 30, 2018 8:38:26 PM
-> > Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
 > > 
-> > On Wed 30-05-18 07:42:59, Chunyu Hu wrote:
-> > > 
-> > > ----- Original Message -----
-> > > > From: "Michal Hocko" <mhocko@suse.com>
-> > > > To: "Chunyu Hu" <chuhu@redhat.com>
-> > > > Cc: "Tetsuo Handa" <penguin-kernel@i-love.sakura.ne.jp>,
-> > > > malat@debian.org, dvyukov@google.com, linux-mm@kvack.org,
-> > > > "catalin marinas" <catalin.marinas@arm.com>
-> > > > Sent: Wednesday, May 30, 2018 6:46:37 PM
-> > > > Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-> > > > 
-> > > > On Wed 30-05-18 05:35:37, Chunyu Hu wrote:
-> > > > [...]
-> > > > > I'm trying to reuse the make_it_fail field in task for fault injection.
-> > > > > As
-> > > > > adding
-> > > > > an extra memory alloc flag is not thought so good,  I think adding task
-> > > > > flag
-> > > > > is either?
-> > > > 
-> > > > Yeah, task flag will be reduced to KMEMLEAK enabled configurations
-> > > > without an additional maint. overhead. Anyway, you should really think
-> > > > about how to guarantee trackability for atomic allocation requests. You
-> > > > cannot simply assume that GFP_NOWAIT will succeed. I guess you really
-> > > 
-> > > Sure. While I'm using task->make_it_fail, I'm still in the direction of
-> > > making kmemleak avoid fault inject with task flag instead of page alloc
-> > > flag.
-> > > 
-> > > > want to have a pre-populated pool of objects for those requests. The
-> > > > obvious question is how to balance such a pool. It ain't easy to track
-> > > > memory by allocating more memory...
-> > > 
-> > > This solution is going to make kmemleak trace really nofail. We can think
-> > > later.
-> > > 
-> > > while I'm thinking about if fault inject can be disabled via flag in task.
-> > > 
-> > > Actually, I'm doing something like below, the disable_fault_inject() is
-> > > just setting a flag in task->make_it_fail. But this will depend on if
-> > > fault injection accept a change like this. CCing Akinobu
+> > > +	WARN_ON_ONCE(pos != page_offset(page));
+> > > +	WARN_ON_ONCE(plen != PAGE_SIZE);
+> > > +
+> > > +	if (iomap->type != IOMAP_MAPPED || pos >= i_size_read(inode)) {
 > > 
-> > You still seem to be missing my point I am afraid (or I am ;). So say
-> > that you want to track a GFP_NOWAIT allocation request. So create_object
-> > will get called with that gfp mask and no matter what you try here your
-> > tracking object will be allocated in a weak allocation context as well
-> > and disable kmemleak. So it only takes a more heavy memory pressure and
-> > the tracing is gone...
+> > In what situation do we get a read request completely beyond EOF?
+> > (comment, please!)
 > 
-> Michal,
+> This is generally to cover a racing read beyond EOF.  That being said
+> I'd have to look up if it can really happen for blocksize == pagesize.
 > 
-> Thank you for the good suggestion. You mean GFP_NOWAIT still can make create_object
-> fail and as a result kmemleak disable itself. So it's not so useful, just like
-> the current __GFP_NOFAIL usage in create_object. 
-> 
-> In the first thread, we discussed this. and that time you suggested we have 
-> fault injection disabled when kmemleak is working and suggested per task way.
-> so my head has been stuck in that point. While now you gave a better suggestion
-> that why not we pre allocate a urgent pool for kmemleak objects. After thinking
-> for a while, I got  your point, it's a good way for improving kmemleak to make
-> it can tolerate light allocation failure. And catalin mentioned that we have
-> one option that use the early_log array as urgent pool, which has the similar
-> ideology.
-> 
-> Basing on your suggestions, I tried to draft this, what does it look to you? 
-> another strong alloc mask and an extra thread for fill the pool, which containts
-> 1M objects in a frequency of 100 ms. If first kmem_cache_alloc failed, then
-> get a object from the pool. 
+> All this becomes moot once small block size support is added, so I think
+> I'd rather skip the comment and research here for now.
 
-I am not really familiar with kmemleak code base to judge the
-implementation. Could you be more specific about the highlevel design
-please? Who is the producer and how does it sync with consumers?
+OK.
+
+> > > +	if (ctx.bio) {
+> > > +		submit_bio(ctx.bio);
+> > > +		WARN_ON_ONCE(!ctx.cur_page_in_bio);
+> > > +	} else {
+> > > +		WARN_ON_ONCE(ctx.cur_page_in_bio);
+> > > +		unlock_page(page);
+> > > +	}
+> > > +	return 0;
+> > 
+> > Hmmm. If we had an error from iomap_apply, shouldn't we be returning
+> > it here instead just throwing it away? some ->readpage callers
+> > appear to ignore the PageError() state on return but do expect
+> > errors to be returned.
+> 
+> Both mpage_readpage and block_read_full_page always return 0, so for
+> now I'd like to stay compatible to them.  Might be worth a full audit
+> later.
+> 
+> > > +	loff_t pos = page_offset(list_entry(pages->prev, struct page, lru));
+> > > +	loff_t last = page_offset(list_entry(pages->next, struct page, lru));
+> > > +	loff_t length = last - pos + PAGE_SIZE, ret = 0;
+> > 
+> > Two lines, please.
+> 
+> I really like it that way, though..
+
+Except for the fact most peoples eyes are trained for one line per
+declaration and one variable assignment per line. I don't care about
+an extra line of code or two, but it's so easy to lose a declaration
+of a short variable in all those long declarations and initialisers.
+I found myself asking several times through these patchsets "now
+where was /that/ variable declared/initialised?".  That's why I'm
+asking for it to be changed.
+
+> > > +done:
+> > > +	if (ctx.bio)
+> > > +		submit_bio(ctx.bio);
+> > > +	if (ctx.cur_page) {
+> > > +		if (!ctx.cur_page_in_bio)
+> > > +			unlock_page(ctx.cur_page);
+> > > +		put_page(ctx.cur_page);
+> > > +	}
+> > > +	WARN_ON_ONCE(!ret && !list_empty(ctx.pages));
+> > 
+> > What error condition is this warning about?
+> 
+> Not finishing all pages without an error.  Which wasn't too hard to get
+> wrong given the arance readpages calling convention.
+
+It's crusty old code like this that make me realise why we have so
+many problems with IO error reporting - instead of fixing error
+propagation problems when we come across them,  we just layer more
+crap on top with some undocumented warnings for good measure.
+
+Not really happy about it. Please add comments explaining the crap
+you're adding to work around the crappy error propagation issues.
+
+Cheers,
+
+Dave.
 -- 
-Michal Hocko
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
