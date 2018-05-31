@@ -1,176 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B4546B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 17:39:33 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b25-v6so13296321pfn.10
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 14:39:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u5-v6sor5386623pgc.15.2018.05.31.14.39.32
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0630C6B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 17:46:18 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id i1-v6so13977618pld.11
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 14:46:17 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a65-v6si10595320pfa.148.2018.05.31.14.46.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 31 May 2018 14:39:32 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 31 May 2018 14:46:16 -0700 (PDT)
+Date: Thu, 31 May 2018 14:46:12 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v11 00/63] Convert page cache to XArray
+Message-ID: <20180531214612.GA12216@bombadil.infradead.org>
+References: <20180414141316.7167-1-willy@infradead.org>
+ <20180416160133.GA12434@linux.intel.com>
+ <20180531213643.GD28256@linux.intel.com>
+ <20180531213742.GE28256@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAHH2K0afVpVyMw+_J48pg9ngj9oovBEPBFd3kfCcCfyV7xxF0w@mail.gmail.com>
-References: <20180531193420.26087-1-ikalvachev@gmail.com> <CAHH2K0afVpVyMw+_J48pg9ngj9oovBEPBFd3kfCcCfyV7xxF0w@mail.gmail.com>
-From: Ivan Kalvachev <ikalvachev@gmail.com>
-Date: Fri, 1 Jun 2018 00:39:31 +0300
-Message-ID: <CABA=pqc8tuLGc4OTGymj5wN3ypisMM60mgOLpy2OXxmfteoJFg@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix kswap excessive pressure after wrong condition transfer
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180531213742.GE28256@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Linux MM <linux-mm@kvack.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, James Simmons <jsimmons@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 5/31/18, Greg Thelen <gthelen@google.com> wrote:
-> On Thu, May 31, 2018 at 12:34 PM Ivan Kalvachev <ikalvachev@gmail.com>
-> wrote:
->>
->> Fixes commit 69d763fc6d3aee787a3e8c8c35092b4f4960fa5d
->> (mm: pin address_space before dereferencing it while isolating an LRU
->> page)
->>
->> working code:
->>
->>     mapping = page_mapping(page);
->>     if (mapping && !mapping->a_ops->migratepage)
->>         return ret;
->>
->> buggy code:
->>
->>     if (!trylock_page(page))
->>         return ret;
->>
->>     mapping = page_mapping(page);
->>     migrate_dirty = mapping && mapping->a_ops->migratepage;
->>     unlock_page(page);
->>     if (!migrate_dirty)
->>         return ret;
->>
->> The problem is that !(a && b) = (!a || !b) while the old code was (a &&
->> !b).
->> The commit message of the buggy commit explains the need for
->> locking/unlocking
->> around the check but does not give any reason for the change of the
->> condition.
->> It seems to be an unintended change.
->>
->> The result of that change is noticeable under swap pressure.
->> Big memory consumers like browsers would have a lot of pages swapped out,
->> even pages that are been used actively, causing the process to repeatedly
->> block for second or longer. At the same time there would be gigabytes of
->> unused free memory (sometimes half of the total RAM).
->> The buffers/cache would also be at minimum size.
->>
->> Fixes: 69d763fc6d3a ("mm: pin address_space before dereferencing it while
->> isolating an LRU page")
->> Signed-off-by: Ivan Kalvachev <ikalvachev@gmail.com>
->> ---
->>  mm/vmscan.c | 4 ++--
->>  1 file changed, 2 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 9b697323a88c..83df26078d13 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -1418,9 +1418,9 @@ int __isolate_lru_page(struct page *page,
->> isolate_mode_t mode)
->>                                 return ret;
->>
->>                         mapping = page_mapping(page);
->> -                       migrate_dirty = mapping &&
->> mapping->a_ops->migratepage;
->> +                       migrate_dirty = mapping &&
->> !mapping->a_ops->migratepage;
->>                         unlock_page(page);
->> -                       if (!migrate_dirty)
->> +                       if (migrate_dirty)
->>                                 return ret;
->>                 }
->>         }
->> --
->> 2.17.1
->
-> This looks like yesterday's https://lkml.org/lkml/2018/5/30/1158
->
+On Thu, May 31, 2018 at 03:37:42PM -0600, Ross Zwisler wrote:
+> Never mind, just saw your mail from a few weeks ago.  :-/  I'll retest on my
+> end.
 
-Yes, it seems to be the same problem.
-It also have better technical description.
+Don't strain too hard; I found (and fixed) some bugs in the DAX
+conversion.  I keep finding new bugs though -- the latest was that
+xas_store(xas, NULL); doesn't work properly if xas is multiindex and some
+of the covered entries are not NULL.  And in fixing that, I noticed that
+xas_store(xas, not-null) doesn't handle tagged entries correctly.
 
-Such let down.
-It took me so much time to bisect the issue...
+I'd offer to push out the current version for testing but I've pulled
+everything apart and nothing works right now ;-)  I always think "it'll
+be ready tomorrow", but I don't want to make a promise I can't keep.
 
-Well, I hope that the fix will get into 4.17 release in time.
+Here's my current changelog (may have forgotten a few things; need to
+compare a diff once I've put together a decent patch series)
 
-
-On 5/31/18, Greg Thelen <gthelen@google.com> wrote:
-> On Thu, May 31, 2018 at 12:34 PM Ivan Kalvachev <ikalvachev@gmail.com>
-> wrote:
->>
->> Fixes commit 69d763fc6d3aee787a3e8c8c35092b4f4960fa5d
->> (mm: pin address_space before dereferencing it while isolating an LRU
->> page)
->>
->> working code:
->>
->>     mapping = page_mapping(page);
->>     if (mapping && !mapping->a_ops->migratepage)
->>         return ret;
->>
->> buggy code:
->>
->>     if (!trylock_page(page))
->>         return ret;
->>
->>     mapping = page_mapping(page);
->>     migrate_dirty = mapping && mapping->a_ops->migratepage;
->>     unlock_page(page);
->>     if (!migrate_dirty)
->>         return ret;
->>
->> The problem is that !(a && b) = (!a || !b) while the old code was (a &&
->> !b).
->> The commit message of the buggy commit explains the need for
->> locking/unlocking
->> around the check but does not give any reason for the change of the
->> condition.
->> It seems to be an unintended change.
->>
->> The result of that change is noticeable under swap pressure.
->> Big memory consumers like browsers would have a lot of pages swapped out,
->> even pages that are been used actively, causing the process to repeatedly
->> block for second or longer. At the same time there would be gigabytes of
->> unused free memory (sometimes half of the total RAM).
->> The buffers/cache would also be at minimum size.
->>
->> Fixes: 69d763fc6d3a ("mm: pin address_space before dereferencing it while
->> isolating an LRU page")
->> Signed-off-by: Ivan Kalvachev <ikalvachev@gmail.com>
->> ---
->>  mm/vmscan.c | 4 ++--
->>  1 file changed, 2 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 9b697323a88c..83df26078d13 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -1418,9 +1418,9 @@ int __isolate_lru_page(struct page *page,
->> isolate_mode_t mode)
->>                                 return ret;
->>
->>                         mapping = page_mapping(page);
->> -                       migrate_dirty = mapping &&
->> mapping->a_ops->migratepage;
->> +                       migrate_dirty = mapping &&
->> !mapping->a_ops->migratepage;
->>                         unlock_page(page);
->> -                       if (!migrate_dirty)
->> +                       if (migrate_dirty)
->>                                 return ret;
->>                 }
->>         }
->> --
->> 2.17.1
->
-> This looks like yesterday's https://lkml.org/lkml/2018/5/30/1158
->
+ - Reordered two DAX bugfixes to the head of the queue to allow them to
+   be merged independently.
+ - Converted apparmor secid to IDR
+ - Fixed bug in page cache lookup conversion which could lead to returning
+   pages which had been released from the page cache.
+ - Fixed several bugs in DAX conversion
+ - Re-added conversion of dax_layout_busy_page
+ - At Ross's request, renamed dax_mk_foo() to dax_make_foo().
+ - Split out the radix tree test suite addition of ubsan.
+ - Split out radix tree code deletion.
+ - Removed __radix_tree_create from the public API
+ - Fixed up a couple of comments in DAX
+ - Renamed shmem_xa_replace() to shmem_replace_entry()
+ * Undid change of xas_load() behaviour with multislot xa_state
+ - Added xas_store_for_each() and use it in DAX
+ - Corrected some typos in the XArray kerneldoc.
+ - Fixed multi-index xas_store(xas, NULL)
+ - Fixed tag handling in multi-index xas_store(xas, not-null)
