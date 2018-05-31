@@ -1,186 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D63646B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 08:28:43 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id r58-v6so13336085otr.0
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 05:28:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 67-v6si14312378otl.401.2018.05.31.05.28.42
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 920196B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 09:10:30 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id z5-v6so12684835pfz.6
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 06:10:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o70-v6sor13255484pfo.38.2018.05.31.06.10.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 05:28:42 -0700 (PDT)
-Date: Thu, 31 May 2018 08:28:41 -0400 (EDT)
-From: Chunyu Hu <chuhu@redhat.com>
-Reply-To: Chunyu Hu <chuhu@redhat.com>
-Message-ID: <1565920114.5787741.1527769721089.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20180531113508.GO15278@dhcp22.suse.cz>
-References: <CA+7wUswp_Sr=hHqi1bwRZ3FE2wY5ozZWZ8Z1BgrFnSAmijUKjA@mail.gmail.com> <f3d58cbd-29ca-7a23-69e0-59690b9cd4fb@i-love.sakura.ne.jp> <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com> <20180530104637.GC27180@dhcp22.suse.cz> <1684479370.5483281.1527680579781.JavaMail.zimbra@redhat.com> <20180530123826.GF27180@dhcp22.suse.cz> <2074740225.5769475.1527763882580.JavaMail.zimbra@redhat.com> <20180531113508.GO15278@dhcp22.suse.cz>
-Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
+        (Google Transport Security);
+        Thu, 31 May 2018 06:10:28 -0700 (PDT)
+From: Jia-Ju Bai <baijiaju1990@gmail.com>
+Subject: Can kfree() sleep at runtime?
+Message-ID: <30ecafd7-ed61-907b-f924-77fc37dcc753@gmail.com>
+Date: Thu, 31 May 2018 21:10:07 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative;
+ boundary="------------6CDAB3B1D5538EEDBFDCB4E4"
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, dvyukov@google.com, linux-mm@kvack.org, catalin marinas <catalin.marinas@arm.com>, Akinobu Mita <akinobu.mita@gmail.com>
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
+This is a multi-part message in MIME format.
+--------------6CDAB3B1D5538EEDBFDCB4E4
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 
+Hello,
 
------ Original Message -----
-> From: "Michal Hocko" <mhocko@suse.com>
-> To: "Chunyu Hu" <chuhu@redhat.com>
-> Cc: "Tetsuo Handa" <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, dvyukov@google.com, linux-mm@kvack.org,
-> "catalin marinas" <catalin.marinas@arm.com>, "Akinobu Mita" <akinobu.mita@gmail.com>
-> Sent: Thursday, May 31, 2018 7:35:08 PM
-> Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-> 
-> On Thu 31-05-18 06:51:22, Chunyu Hu wrote:
-> > 
-> > 
-> > ----- Original Message -----
-> > > From: "Michal Hocko" <mhocko@suse.com>
-> > > To: "Chunyu Hu" <chuhu@redhat.com>
-> > > Cc: "Tetsuo Handa" <penguin-kernel@i-love.sakura.ne.jp>,
-> > > malat@debian.org, dvyukov@google.com, linux-mm@kvack.org,
-> > > "catalin marinas" <catalin.marinas@arm.com>, "Akinobu Mita"
-> > > <akinobu.mita@gmail.com>
-> > > Sent: Wednesday, May 30, 2018 8:38:26 PM
-> > > Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-> > > 
-> > > On Wed 30-05-18 07:42:59, Chunyu Hu wrote:
-> > > > 
-> > > > ----- Original Message -----
-> > > > > From: "Michal Hocko" <mhocko@suse.com>
-> > > > > To: "Chunyu Hu" <chuhu@redhat.com>
-> > > > > Cc: "Tetsuo Handa" <penguin-kernel@i-love.sakura.ne.jp>,
-> > > > > malat@debian.org, dvyukov@google.com, linux-mm@kvack.org,
-> > > > > "catalin marinas" <catalin.marinas@arm.com>
-> > > > > Sent: Wednesday, May 30, 2018 6:46:37 PM
-> > > > > Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-> > > > > 
-> > > > > On Wed 30-05-18 05:35:37, Chunyu Hu wrote:
-> > > > > [...]
-> > > > > > I'm trying to reuse the make_it_fail field in task for fault
-> > > > > > injection.
-> > > > > > As
-> > > > > > adding
-> > > > > > an extra memory alloc flag is not thought so good,  I think adding
-> > > > > > task
-> > > > > > flag
-> > > > > > is either?
-> > > > > 
-> > > > > Yeah, task flag will be reduced to KMEMLEAK enabled configurations
-> > > > > without an additional maint. overhead. Anyway, you should really
-> > > > > think
-> > > > > about how to guarantee trackability for atomic allocation requests.
-> > > > > You
-> > > > > cannot simply assume that GFP_NOWAIT will succeed. I guess you really
-> > > > 
-> > > > Sure. While I'm using task->make_it_fail, I'm still in the direction of
-> > > > making kmemleak avoid fault inject with task flag instead of page alloc
-> > > > flag.
-> > > > 
-> > > > > want to have a pre-populated pool of objects for those requests. The
-> > > > > obvious question is how to balance such a pool. It ain't easy to
-> > > > > track
-> > > > > memory by allocating more memory...
-> > > > 
-> > > > This solution is going to make kmemleak trace really nofail. We can
-> > > > think
-> > > > later.
-> > > > 
-> > > > while I'm thinking about if fault inject can be disabled via flag in
-> > > > task.
-> > > > 
-> > > > Actually, I'm doing something like below, the disable_fault_inject() is
-> > > > just setting a flag in task->make_it_fail. But this will depend on if
-> > > > fault injection accept a change like this. CCing Akinobu
-> > > 
-> > > You still seem to be missing my point I am afraid (or I am ;). So say
-> > > that you want to track a GFP_NOWAIT allocation request. So create_object
-> > > will get called with that gfp mask and no matter what you try here your
-> > > tracking object will be allocated in a weak allocation context as well
-> > > and disable kmemleak. So it only takes a more heavy memory pressure and
-> > > the tracing is gone...
-> > 
-> > Michal,
-> > 
-> > Thank you for the good suggestion. You mean GFP_NOWAIT still can make
-> > create_object
-> > fail and as a result kmemleak disable itself. So it's not so useful, just
-> > like
-> > the current __GFP_NOFAIL usage in create_object.
-> > 
-> > In the first thread, we discussed this. and that time you suggested we have
-> > fault injection disabled when kmemleak is working and suggested per task
-> > way.
-> > so my head has been stuck in that point. While now you gave a better
-> > suggestion
-> > that why not we pre allocate a urgent pool for kmemleak objects. After
-> > thinking
-> > for a while, I got  your point, it's a good way for improving kmemleak to
-> > make
-> > it can tolerate light allocation failure. And catalin mentioned that we
-> > have
-> > one option that use the early_log array as urgent pool, which has the
-> > similar
-> > ideology.
-> > 
-> > Basing on your suggestions, I tried to draft this, what does it look to
-> > you?
-> > another strong alloc mask and an extra thread for fill the pool, which
-> > containts
-> > 1M objects in a frequency of 100 ms. If first kmem_cache_alloc failed, then
-> > get a object from the pool.
-> 
-> I am not really familiar with kmemleak code base to judge the
-> implementation. Could you be more specific about the highlevel design
-> please? Who is the producer and how does it sync with consumers?
+I write a static analysis tool (DSAC), and it finds that kfree() can sleep.
 
-OK. 
+Here is the call path for kfree().
+Please look at it *from the bottom up*.
 
-To better describe. We know that, kmemleak_object is meta object for kmemleak
-trace, and each time kmem_cache_alloc(or other) success, the another following
-kmem_cache_alloc would be called (in create_object() to get a kmemleak_object 
-and this must succeed, otherwise kmemleak would generate too many false positives
-as a result of losing track to a memory block which could contain pointer to 
-other objects. so kmemleak trace choose to disable itself when getting such
-a allocation failure. 
+[FUNC] alloc_pages(GFP_KERNEL)
+arch/x86/mm/pageattr.c, 756: alloc_pages in split_large_page
+arch/x86/mm/pageattr.c, 1283: split_large_page in __change_page_attr
+arch/x86/mm/pageattr.c, 1391: __change_page_attr in 
+__change_page_attr_set_clr
+arch/x86/mm/pageattr.c, 2014: __change_page_attr_set_clr in __set_pages_np
+arch/x86/mm/pageattr.c, 2034: __set_pages_np in __kernel_map_pages
+./include/linux/mm.h, 2488: __kernel_map_pages in kernel_map_pages
+mm/page_alloc.c, 1074: kernel_map_pages in free_pages_prepare
+mm/page_alloc.c, 1264: free_pages_prepare in __free_pages_ok
+mm/page_alloc.c, 4312: __free_pages_ok in __free_pages
+mm/slub.c, 3914: __free_pages in kfree
 
-When facing fault injection, this would become an issue that kmemleak would
-easily disable itself when fault injected. And  memory allocation can
-happen in irq context, so the followed kmemleak_alloc can't choose a
-very strong way for allocation (such as blackable). So we can prepare
-a dynamic kmemleak_object pool. And the design is in fact rather straight,
-by maintaining a list of kmemleak_object. 
+I always have an impression that kfree() never sleeps, so I feel 
+confused here.
+So could someone please help me to find the mistake?
+Thanks in advance :)
 
-So the reproducer is a new kernel thread. which do a kmemleak_object(contains
-list member itself, so easy to link) allocation every 100ms, in a strong
-allocation way (can sleep and reclaim), to the pool_object_list, and the max
-length of the list is 1024*1024 (1M).
- 
-  [pool_thread (reproducer)]                   
-    pool_object_list<-->kmemleak_object<-->kmemleak_object...<-->...
+Best wishes,
+Jia-Ju Bai
 
-And the consumer is create_object(). it can pick one from the list when
-got failure in first weak allocation. 
+--------------6CDAB3B1D5538EEDBFDCB4E4
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 7bit
 
-  [task doing memory alloc (consumer)]
-    kmem_cache_alloc()
-        create_object() 
-           kmem_cache_alloc()
-             (fail ?)--Yes ---> (get kmemleak_object from the pool_object_lsit)
-                     |_ No ---> got kmemleak_object
-                  [insert kmemleak_object to rb tree]
+<html>
+  <head>
 
-And consumer and producer are synced with spinlock kmemleak_object_lock(maybe
-call pool_object_lock)
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    Hello,<br>
+    <br>
+    I write a static analysis tool (DSAC), and it finds that kfree() can
+    sleep.
+    <br>
+    <br>
+    Here is the call path for kfree().
+    <br>
+    Please look at it <b class="moz-txt-star"><span class="moz-txt-tag">*</span>from
+      the bottom up<span class="moz-txt-tag">*</span></b>.<br>
+    <br>
+    [FUNC] alloc_pages(GFP_KERNEL)<br>
+    arch/x86/mm/pageattr.c, 756: alloc_pages in split_large_page<br>
+    arch/x86/mm/pageattr.c, 1283: split_large_page in __change_page_attr<br>
+    arch/x86/mm/pageattr.c, 1391: __change_page_attr in
+    __change_page_attr_set_clr<br>
+    arch/x86/mm/pageattr.c, 2014: __change_page_attr_set_clr in
+    __set_pages_np<br>
+    arch/x86/mm/pageattr.c, 2034: __set_pages_np in __kernel_map_pages<br>
+    ./include/linux/mm.h, 2488: __kernel_map_pages in kernel_map_pages<br>
+    mm/page_alloc.c, 1074: kernel_map_pages in free_pages_prepare<br>
+    mm/page_alloc.c, 1264: free_pages_prepare in __free_pages_ok<br>
+    mm/page_alloc.c, 4312: __free_pages_ok in __free_pages<br>
+    mm/slub.c, 3914: __free_pages in kfree<br>
+    <br>
+    I always have an impression that kfree() never sleeps, so I feel
+    confused here.<br>
+    So could someone please help me to find the mistake?<br>
+    Thanks in advance :)<br>
+    <br>
+    Best wishes,<br>
+    Jia-Ju Bai<br>
+  </body>
+</html>
 
-  [spin lock]
-  kmemleak_object_lock
-
-Hope I described it clear...
-
--- 
-Regards,
-Chunyu Hu
+--------------6CDAB3B1D5538EEDBFDCB4E4--
