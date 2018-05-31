@@ -1,81 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E66476B0006
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 14:47:25 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u21-v6so1283910pfn.0
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 11:47:25 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d34-v6si37193912pld.532.2018.05.31.11.47.24
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2590E6B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 15:34:49 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 44-v6so17697085wrt.9
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 12:34:49 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g9-v6sor1014426wrp.71.2018.05.31.12.34.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 31 May 2018 11:47:24 -0700 (PDT)
-Date: Thu, 31 May 2018 20:47:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
- oom_lock held.
-Message-ID: <20180531184721.GU15278@dhcp22.suse.cz>
-References: <201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp>
- <20180525114213.GJ11881@dhcp22.suse.cz>
- <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
- <20180528124313.GC27180@dhcp22.suse.cz>
- <201805290557.BAJ39558.MFLtOJVFOHFOSQ@I-love.SAKURA.ne.jp>
- <20180529060755.GH27180@dhcp22.suse.cz>
- <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org>
- <16eca862-5fa6-2333-8a81-94a2c2692758@i-love.sakura.ne.jp>
- <20180531104450.GN15278@dhcp22.suse.cz>
- <7276d450-5e66-be56-3a17-0fc77596a3b6@i-love.sakura.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <7276d450-5e66-be56-3a17-0fc77596a3b6@i-love.sakura.ne.jp>
+        (Google Transport Security);
+        Thu, 31 May 2018 12:34:47 -0700 (PDT)
+From: Ivan Kalvachev <ikalvachev@gmail.com>
+Subject: [PATCH] mm: fix kswap excessive pressure after wrong condition transfer
+Date: Thu, 31 May 2018 22:34:20 +0300
+Message-Id: <20180531193420.26087-1-ikalvachev@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Ivan Kalvachev <ikalvachev@gmail.com>
 
-On Fri 01-06-18 00:23:57, Tetsuo Handa wrote:
-> On 2018/05/31 19:44, Michal Hocko wrote:
-> > On Thu 31-05-18 19:10:48, Tetsuo Handa wrote:
-> >> On 2018/05/30 8:07, Andrew Morton wrote:
-> >>> On Tue, 29 May 2018 09:17:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> >>>
-> >>>>> I suggest applying
-> >>>>> this patch first, and then fix "mm, oom: cgroup-aware OOM killer" patch.
-> >>>>
-> >>>> Well, I hope the whole pile gets merged in the upcoming merge window
-> >>>> rather than stall even more.
-> >>>
-> >>> I'm more inclined to drop it all.  David has identified significant
-> >>> shortcomings and I'm not seeing a way of addressing those shortcomings
-> >>> in a backward-compatible fashion.  Therefore there is no way forward
-> >>> at present.
-> >>>
-> >>
-> >> Can we apply my patch as-is first?
-> > 
-> > No. As already explained before. Sprinkling new sleeps without a strong
-> > reason is not acceptable. The issue you are seeing is pretty artificial
-> > and as such doesn're really warrant an immediate fix. We should rather
-> > go with a well thought trhough fix. In other words we should simply drop
-> > the sleep inside the oom_lock for starter unless it causes some really
-> > unexpected behavior change.
-> > 
-> 
-> The OOM killer did not require schedule_timeout_killable(1) to return
-> as long as the OOM victim can call __mmput(). But now the OOM killer
-> requires schedule_timeout_killable(1) to return in order to allow the
-> OOM victim to call __oom_reap_task_mm(). Thus, this is a regression.
-> 
-> Artificial cannot become the reason to postpone my patch. If we don't care
-> artificialness/maliciousness, we won't need to care Spectre/Meltdown bugs.
-> 
-> I'm not sprinkling new sleeps. I'm just merging existing sleeps (i.e.
-> mutex_trylock() case and !mutex_trylock() case) and updating the outdated
-> comments.
+Fixes commit 69d763fc6d3aee787a3e8c8c35092b4f4960fa5d
+(mm: pin address_space before dereferencing it while isolating an LRU page)
 
-Sigh. So what exactly is wrong with going simple and do
-http://lkml.kernel.org/r/20180528124313.GC27180@dhcp22.suse.cz ?
+working code:
 
+    mapping = page_mapping(page);
+    if (mapping && !mapping->a_ops->migratepage)
+        return ret;
+
+buggy code:
+
+    if (!trylock_page(page))
+        return ret;
+
+    mapping = page_mapping(page);
+    migrate_dirty = mapping && mapping->a_ops->migratepage;
+    unlock_page(page);
+    if (!migrate_dirty)
+        return ret;
+
+The problem is that !(a && b) = (!a || !b) while the old code was (a && !b).
+The commit message of the buggy commit explains the need for locking/unlocking
+around the check but does not give any reason for the change of the condition.
+It seems to be an unintended change.
+
+The result of that change is noticeable under swap pressure.
+Big memory consumers like browsers would have a lot of pages swapped out,
+even pages that are been used actively, causing the process to repeatedly
+block for second or longer. At the same time there would be gigabytes of
+unused free memory (sometimes half of the total RAM).
+The buffers/cache would also be at minimum size.
+
+Fixes: 69d763fc6d3a ("mm: pin address_space before dereferencing it while isolating an LRU page")
+Signed-off-by: Ivan Kalvachev <ikalvachev@gmail.com>
+---
+ mm/vmscan.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9b697323a88c..83df26078d13 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1418,9 +1418,9 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+ 				return ret;
+ 
+ 			mapping = page_mapping(page);
+-			migrate_dirty = mapping && mapping->a_ops->migratepage;
++			migrate_dirty = mapping && !mapping->a_ops->migratepage;
+ 			unlock_page(page);
+-			if (!migrate_dirty)
++			if (migrate_dirty)
+ 				return ret;
+ 		}
+ 	}
 -- 
-Michal Hocko
-SUSE Labs
+2.17.1
