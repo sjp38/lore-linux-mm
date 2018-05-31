@@ -1,142 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C4DF6B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 06:08:53 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id n17-v6so12133233wmh.4
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 03:08:53 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c8-v6si1965291eds.159.2018.05.31.03.08.50
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 903776B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 06:11:12 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id q4-v6so13521595ote.6
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 03:11:12 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id z47-v6si5034069otz.253.2018.05.31.03.11.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 31 May 2018 03:08:50 -0700 (PDT)
-Date: Thu, 31 May 2018 12:08:49 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 05/11] filesystem-dax: set page->index
-Message-ID: <20180531100849.xkwe5xsjpkw6nev7@quack2.suse.cz>
-References: <152699997165.24093.12194490924829406111.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152699999778.24093.18007971664703285330.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180523084030.dvv4jbvsnzrsaz6q@quack2.suse.cz>
- <CAPcyv4gUM7Br3XONOVkNCg-mvR5U8QLq+OOc54cLpP61LXhJXA@mail.gmail.com>
- <20180530081356.mohu6fx22fzd7fxb@quack2.suse.cz>
- <CAPcyv4iPa_n7c6iLRtNyE4GdXcn7JcF=Z1bUDmNrjrKvnLic2A@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 May 2018 03:11:10 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
+ oom_lock held.
+References: <20180525083118.GI11881@dhcp22.suse.cz>
+ <201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp>
+ <20180525114213.GJ11881@dhcp22.suse.cz>
+ <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
+ <20180528124313.GC27180@dhcp22.suse.cz>
+ <201805290557.BAJ39558.MFLtOJVFOHFOSQ@I-love.SAKURA.ne.jp>
+ <20180529060755.GH27180@dhcp22.suse.cz>
+ <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <16eca862-5fa6-2333-8a81-94a2c2692758@i-love.sakura.ne.jp>
+Date: Thu, 31 May 2018 19:10:48 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4iPa_n7c6iLRtNyE4GdXcn7JcF=Z1bUDmNrjrKvnLic2A@mail.gmail.com>
+In-Reply-To: <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Luck, Tony" <tony.luck@intel.com>, linux-xfs <linux-xfs@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, torvalds@linux-foundation.org
+Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org
 
-On Wed 30-05-18 16:21:33, Dan Williams wrote:
-> On Wed, May 30, 2018 at 1:13 AM, Jan Kara <jack@suse.cz> wrote:
-> > On Tue 29-05-18 18:38:41, Dan Williams wrote:
-> >> On Wed, May 23, 2018 at 1:40 AM, Jan Kara <jack@suse.cz> wrote:
-> >> > On Tue 22-05-18 07:39:57, Dan Williams wrote:
-> >> >> In support of enabling memory_failure() handling for filesystem-dax
-> >> >> mappings, set ->index to the pgoff of the page. The rmap implementation
-> >> >> requires ->index to bound the search through the vma interval tree. The
-> >> >> index is set and cleared at dax_associate_entry() and
-> >> >> dax_disassociate_entry() time respectively.
-> >> >>
-> >> >> Cc: Jan Kara <jack@suse.cz>
-> >> >> Cc: Christoph Hellwig <hch@lst.de>
-> >> >> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> >> >> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> >> >> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> >> >> ---
-> >> >>  fs/dax.c |   11 ++++++++---
-> >> >>  1 file changed, 8 insertions(+), 3 deletions(-)
-> >> >>
-> >> >> diff --git a/fs/dax.c b/fs/dax.c
-> >> >> index aaec72ded1b6..2e4682cd7c69 100644
-> >> >> --- a/fs/dax.c
-> >> >> +++ b/fs/dax.c
-> >> >> @@ -319,18 +319,22 @@ static unsigned long dax_radix_end_pfn(void *entry)
-> >> >>       for (pfn = dax_radix_pfn(entry); \
-> >> >>                       pfn < dax_radix_end_pfn(entry); pfn++)
-> >> >>
-> >> >> -static void dax_associate_entry(void *entry, struct address_space *mapping)
-> >> >> +static void dax_associate_entry(void *entry, struct address_space *mapping,
-> >> >> +             struct vm_area_struct *vma, unsigned long address)
-> >> >>  {
-> >> >> -     unsigned long pfn;
-> >> >> +     unsigned long size = dax_entry_size(entry), pfn, index;
-> >> >> +     int i = 0;
-> >> >>
-> >> >>       if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-> >> >>               return;
-> >> >>
-> >> >> +     index = linear_page_index(vma, address & ~(size - 1));
-> >> >>       for_each_mapped_pfn(entry, pfn) {
-> >> >>               struct page *page = pfn_to_page(pfn);
-> >> >>
-> >> >>               WARN_ON_ONCE(page->mapping);
-> >> >>               page->mapping = mapping;
-> >> >> +             page->index = index + i++;
-> >> >>       }
-> >> >>  }
-> >> >
-> >> > Hum, this just made me think: How is this going to work with XFS reflink?
-> >> > In fact is not the page->mapping association already broken by XFS reflink?
-> >> > Because with reflink we can have two or more mappings pointing to the same
-> >> > physical blocks (i.e., pages in DAX case)...
-> >>
-> >> Good question. I assume we are ok in the non-DAX reflink case because
-> >> rmap of failing / poison pages is only relative to the specific page
-> >> cache page for a given inode in the reflink. However, DAX would seem
-> >> to break this because we only get one shared 'struct page' for all
-> >> possible mappings of the physical file block. I think this means for
-> >> iterating over the rmap of "where is this page mapped" would require
-> >> iterating over the other "sibling" inodes that know about the given
-> >> physical file block.
-> >>
-> >> As far as I can see reflink+dax would require teaching kernel code
-> >> paths that ->mapping may not be a singular relationship. Something
-> >> along the line's of what Jerome was presenting at LSF to create a
-> >> special value to indicate, "call back into the filesystem (or the page
-> >> owner)" to perform this operation.
-> >>
-> >> In the meantime the kernel crashes when userspace accesses poisoned
-> >> pmem via DAX. I assume that reworking rmap for the dax+reflink case
-> >> should not block dax poison handling? Yell if you disagree.
-> >
-> > The thing is, up until get_user_pages() vs truncate series ("fs, dax: use
-> > page->mapping to warn if truncate collides with a busy page" in
-> > particular), DAX was perfectly fine with reflinks since we never needed
-> > page->mapping.
+On 2018/05/30 8:07, Andrew Morton wrote:
+> On Tue, 29 May 2018 09:17:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Sure, but if this rmap series had come first I still would have needed
-> to implement ->mapping. So unless we invent a general ->mapping
-> replacement and switch all mapping users, it was always going to
-> collide with DAX eventually.
-
-Yes, my comment was more in direction that life would be easier if we could
-keep DAX without rmap support but I guess that's just too cumbersome.
-
-> > Now this series adds even page->index dependency which makes
-> > life for rmap with reflinks even harder. So if nothing else we should at
-> > least make sure reflinked filesystems cannot be mounted with dax mount
-> > option for now and seriously start looking into how to implement rmap with
-> > reflinked files for DAX because this noticeably reduces its usefulness.
+>>> I suggest applying
+>>> this patch first, and then fix "mm, oom: cgroup-aware OOM killer" patch.
+>>
+>> Well, I hope the whole pile gets merged in the upcoming merge window
+>> rather than stall even more.
 > 
-> This restriction is already in place. In xfs_reflink_remap_range() we have:
+> I'm more inclined to drop it all.  David has identified significant
+> shortcomings and I'm not seeing a way of addressing those shortcomings
+> in a backward-compatible fashion.  Therefore there is no way forward
+> at present.
 > 
->         /* Don't share DAX file data for now. */
->         if (IS_DAX(inode_in) || IS_DAX(inode_out))
->                 goto out_unlock;
 
-OK, good.
+Can we apply my patch as-is first? My patch mitigates lockup regression
+which should be able to be easily backported to stable kernels. We can
+later evaluate whether moving the short sleep to should_reclaim_retry()
+has negative impact.
 
-> All this said, perhaps we don't need to set ->link, it would just mean
-> a wider search through the rmap tree to find if the given page is
-> mapped. So, I think I can forgo setting ->link if I teach the rmap
-> code to search the entire ->mapping.
+Also we can eliminate the short sleep in Roman's patch before deciding
+whether we can merge Roman's patchset in the upcoming merge window.
 
-I guess you mean ->index in the above. And now when thinking about it I don't
-think it is worth the complications to avoid using ->index.
 
-								Honza
+
+>From 4b356c742a3f1b720d5b709792fe68b25d800902 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Sat, 12 May 2018 12:27:52 +0900
+Subject: [PATCH] mm,oom: Don't call schedule_timeout_killable() with oom_lock held.
+
+When I was examining a bug which occurs under CPU + memory pressure, I
+observed that a thread which called out_of_memory() can sleep for minutes
+at schedule_timeout_killable(1) with oom_lock held when many threads are
+doing direct reclaim.
+
+The whole point of the sleep is give the OOM victim some time to exit.
+But since commit 27ae357fa82be5ab ("mm, oom: fix concurrent munlock and
+oom reaper unmap, v3") changed the OOM victim to wait for oom_lock in order
+to close race window at exit_mmap(), the whole point of this sleep is lost
+now. We need to make sure that the thread which called out_of_memory() will
+release oom_lock shortly. Therefore, this patch brings the sleep to outside
+of the OOM path.
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Tejun Heo <tj@kernel.org>
+---
+ mm/oom_kill.c   | 38 +++++++++++++++++---------------------
+ mm/page_alloc.c |  7 ++++++-
+ 2 files changed, 23 insertions(+), 22 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 8ba6cb8..23ce67f 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -479,6 +479,21 @@ bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
+ static struct task_struct *oom_reaper_list;
+ static DEFINE_SPINLOCK(oom_reaper_lock);
+ 
++/*
++ * We have to make sure not to cause premature new oom victim selection.
++ *
++ * __alloc_pages_may_oom()     oom_reap_task_mm()/exit_mmap()
++ *   mutex_trylock(&oom_lock)
++ *   get_page_from_freelist(ALLOC_WMARK_HIGH) # fails
++ *                               unmap_page_range() # frees some memory
++ *                               set_bit(MMF_OOM_SKIP)
++ *   out_of_memory()
++ *     select_bad_process()
++ *       test_bit(MMF_OOM_SKIP) # selects new oom victim
++ *   mutex_unlock(&oom_lock)
++ *
++ * Therefore, the callers hold oom_lock when calling this function.
++ */
+ void __oom_reap_task_mm(struct mm_struct *mm)
+ {
+ 	struct vm_area_struct *vma;
+@@ -523,20 +538,6 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ {
+ 	bool ret = true;
+ 
+-	/*
+-	 * We have to make sure to not race with the victim exit path
+-	 * and cause premature new oom victim selection:
+-	 * oom_reap_task_mm		exit_mm
+-	 *   mmget_not_zero
+-	 *				  mmput
+-	 *				    atomic_dec_and_test
+-	 *				  exit_oom_victim
+-	 *				[...]
+-	 *				out_of_memory
+-	 *				  select_bad_process
+-	 *				    # no TIF_MEMDIE task selects new victim
+-	 *  unmap_page_range # frees some memory
+-	 */
+ 	mutex_lock(&oom_lock);
+ 
+ 	if (!down_read_trylock(&mm->mmap_sem)) {
+@@ -1077,15 +1078,9 @@ bool out_of_memory(struct oom_control *oc)
+ 		dump_header(oc, NULL);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+-	if (oc->chosen && oc->chosen != (void *)-1UL) {
++	if (oc->chosen && oc->chosen != (void *)-1UL)
+ 		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+ 				 "Memory cgroup out of memory");
+-		/*
+-		 * Give the killed process a good chance to exit before trying
+-		 * to allocate memory again.
+-		 */
+-		schedule_timeout_killable(1);
+-	}
+ 	return !!oc->chosen;
+ }
+ 
+@@ -1111,4 +1106,5 @@ void pagefault_out_of_memory(void)
+ 		return;
+ 	out_of_memory(&oc);
+ 	mutex_unlock(&oom_lock);
++	schedule_timeout_killable(1);
+ }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 905db9d..458ed32 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3478,7 +3478,6 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ 	 */
+ 	if (!mutex_trylock(&oom_lock)) {
+ 		*did_some_progress = 1;
+-		schedule_timeout_uninterruptible(1);
+ 		return NULL;
+ 	}
+ 
+@@ -4241,6 +4240,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	/* Retry as long as the OOM killer is making progress */
+ 	if (did_some_progress) {
+ 		no_progress_loops = 0;
++		/*
++		 * This schedule_timeout_*() serves as a guaranteed sleep for
++		 * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
++		 */
++		if (!tsk_is_oom_victim(current))
++			schedule_timeout_uninterruptible(1);
+ 		goto retry;
+ 	}
+ 
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+1.8.3.1
