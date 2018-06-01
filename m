@@ -1,132 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 978606B0005
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 03:46:48 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k18-v6so2254493wrn.8
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 00:46:48 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8679D6B0005
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 04:04:49 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id i1-v6so14856374pld.11
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 01:04:49 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i55-v6si3538321eda.40.2018.06.01.00.46.45
+        by mx.google.com with ESMTPS id v7-v6si38091975plp.304.2018.06.01.01.04.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Jun 2018 00:46:45 -0700 (PDT)
-Date: Fri, 1 Jun 2018 09:46:42 +0200
+        Fri, 01 Jun 2018 01:04:48 -0700 (PDT)
+Date: Fri, 1 Jun 2018 10:04:43 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [rfc patch] mm, oom: fix unnecessary killing of additional
- processes
-Message-ID: <20180601074642.GW15278@dhcp22.suse.cz>
-References: <alpine.DEB.2.21.1805241422070.182300@chino.kir.corp.google.com>
- <20180525072636.GE11881@dhcp22.suse.cz>
- <alpine.DEB.2.21.1805251227380.158701@chino.kir.corp.google.com>
- <20180528081345.GD1517@dhcp22.suse.cz>
- <alpine.DEB.2.21.1805301357100.150424@chino.kir.corp.google.com>
- <20180531063212.GF15278@dhcp22.suse.cz>
- <alpine.DEB.2.21.1805311400260.74563@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
+ oom_lock held.
+Message-ID: <20180601080443.GX15278@dhcp22.suse.cz>
+References: <7276d450-5e66-be56-3a17-0fc77596a3b6@i-love.sakura.ne.jp>
+ <20180531184721.GU15278@dhcp22.suse.cz>
+ <201806010121.w511LDbC077249@www262.sakura.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1805311400260.74563@chino.kir.corp.google.com>
+In-Reply-To: <201806010121.w511LDbC077249@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org
 
-On Thu 31-05-18 14:16:34, David Rientjes wrote:
-> On Thu, 31 May 2018, Michal Hocko wrote:
-> 
-> > > It's not a random timeout, it's sufficiently long such that we don't oom 
-> > > kill several processes needlessly in the very rare case where oom livelock 
-> > > would actually prevent the original victim from exiting.  The oom reaper 
-> > > processing an mm, finding everything to be mlocked, and immediately 
-> > > MMF_OOM_SKIP is inappropriate.  This is rather trivial to reproduce for a 
-> > > large memory hogging process that mlocks all of its memory; we 
-> > > consistently see spurious and unnecessary oom kills simply because the oom 
-> > > reaper has set MMF_OOM_SKIP very early.
+On Fri 01-06-18 10:21:13, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Fri 01-06-18 00:23:57, Tetsuo Handa wrote:
+> > > On 2018/05/31 19:44, Michal Hocko wrote:
+> > > > On Thu 31-05-18 19:10:48, Tetsuo Handa wrote:
+> > > >> On 2018/05/30 8:07, Andrew Morton wrote:
+> > > >>> On Tue, 29 May 2018 09:17:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> > > >>>
+> > > >>>>> I suggest applying
+> > > >>>>> this patch first, and then fix "mm, oom: cgroup-aware OOM killer" patch.
+> > > >>>>
+> > > >>>> Well, I hope the whole pile gets merged in the upcoming merge window
+> > > >>>> rather than stall even more.
+> > > >>>
+> > > >>> I'm more inclined to drop it all.  David has identified significant
+> > > >>> shortcomings and I'm not seeing a way of addressing those shortcomings
+> > > >>> in a backward-compatible fashion.  Therefore there is no way forward
+> > > >>> at present.
+> > > >>>
+> > > >>
+> > > >> Can we apply my patch as-is first?
+> > > > 
+> > > > No. As already explained before. Sprinkling new sleeps without a strong
+> > > > reason is not acceptable. The issue you are seeing is pretty artificial
+> > > > and as such doesn're really warrant an immediate fix. We should rather
+> > > > go with a well thought trhough fix. In other words we should simply drop
+> > > > the sleep inside the oom_lock for starter unless it causes some really
+> > > > unexpected behavior change.
+> > > > 
+> > > 
+> > > The OOM killer did not require schedule_timeout_killable(1) to return
+> > > as long as the OOM victim can call __mmput(). But now the OOM killer
+> > > requires schedule_timeout_killable(1) to return in order to allow the
+> > > OOM victim to call __oom_reap_task_mm(). Thus, this is a regression.
+> > > 
+> > > Artificial cannot become the reason to postpone my patch. If we don't care
+> > > artificialness/maliciousness, we won't need to care Spectre/Meltdown bugs.
+> > > 
+> > > I'm not sprinkling new sleeps. I'm just merging existing sleeps (i.e.
+> > > mutex_trylock() case and !mutex_trylock() case) and updating the outdated
+> > > comments.
 > > 
-> > It takes quite some additional steps for admin to allow a large amount
-> > of mlocked memory and such an application should be really careful to
-> > not consume too much memory. So how come this is something you see that
-> > consistently? Is this some sort of bug or an unfortunate workload side
-> > effect? I am asking this because I really want to see how relevant this
-> > really is.
-> > 
-> 
-> The bug is that the oom reaper sets MMF_OOM_SKIP almost immediately after 
-> the victim has been chosen for oom kill and we get follow-up oom kills, 
-> not that the process is able to mlock a large amount of memory.  Mlock 
-> here is only being discussed as a single example.  Tetsuo has brought up 
-> the example of all shared file-backed memory.
-
-How is such a case even possible? File backed memory is reclaimable and
-as such should be gone by the time we hit the OOM killer. If that is not
-the case then I fail how wait slightly longer helps anything.
-
-> We've discussed the mm 
-> having a single blockable mmu notifier.  Regardless of how we arrive at 
-> the point where the oom reaper can't free memory, which could be any of 
-> those three cases, if (1) the original victim is sufficiently large that 
-> follow-up oom kills would become unnecessary and (2) other threads 
-> allocate/charge before the oom victim reaches exit_mmap(), this occurs.
-> 
-> We have examples of cases where oom reaping was successful, but the rss 
-> numbers in the kernel log are very similar to when it was oom killed and 
-> the process is known not to mlock, the reason is because the oom reaper 
-> could free very little memory due to blockable mmu notifiers.
-
-Please be more specific. Which notifiers these were. Blockable notifiers
-are a PITA and we should be addressing them. That requiers identifying
-them first.
-
-> > But the waiting periods just turn out to be a really poor design. There
-> > will be no good timeout to fit for everybody. We can do better and as
-> > long as this is the case the timeout based solution should be really
-> > rejected. It is a shortcut that doesn't really solve the underlying
-> > problem.
+> > Sigh. So what exactly is wrong with going simple and do
+> > http://lkml.kernel.org/r/20180528124313.GC27180@dhcp22.suse.cz ?
 > > 
 > 
-> The current implementation is a timeout based solution for mmap_sem, it 
-> just has the oom reaper spinning trying to grab the sem and eventually 
-> gives up.  This patch allows it to currently work on other mm's and 
-> detects the timeout in a different way, with jiffies instead of an 
-> iterator.
+> Because
+> 
+>   (1) You are trying to apply this fix after Roman's patchset which
+>       Andrew Morton is more inclined to drop.
+> 
+>   (2) You are making this fix difficult to backport because this
+>       patch depends on Roman's patchset.
+> 
+>   (3) You are not fixing the bug in Roman's patchset.
 
-And I argue that anything timeout based is just broken by design. Trying
-n times will at least give you a consistent behavior. Retrying on mmap
-sem makes sense because the lock might be taken for a short time.
-Retrying on a memory oom reaper doesn't reclaim is just pointless
-waiting for somebody else doing the work. See the difference?
+Sigh. Would you be more happy if this was on top of linus tree? I mean
+this is trivial to do so. I have provided _something_ for testing
+exactly as you asked for. Considering that the cgroup aware oom killer
+shouldn't stand in a way for global oom killer without a special
+configurion I do no see what is the actual problem.
 
-> I'd love a solution where we can reliably detect an oom livelock and oom 
-> kill additional processes but only after the original victim has had a 
-> chance to do exit_mmap() without a timeout, but I don't see one being 
-> offered.  Given Tetsuo has seen issues with this in the past and suggested 
-> a similar proposal means we are not the only ones feeling pain from this.
+>   (4) You are not updating the outdated comment in my patch and
+>       Roman's patchset.
 
-Tetsuo is doing an artificial stress test which doesn't resemble any
-reasonable workload. This is good to catch different corner cases but
-nothing even close to base any design on. I will definitely nack any
-attempt to add a timeout based solution based on such a non-realistic
-tests. If we have realistic workloads then try to address them and
-resort to any timeout or other hacks as the last option.
+But the comment is not really related to the sleep in any way. This
+should be a separate patch AFAICS.
+
+>   (5) You are not evaluating the side effect of not sleeping
+>       outside of the OOM path, despite you said
+
+Exactly. There is no point in preserving the status quo if you cannot
+reasonably argue of the effect. And I do not see the actual problem to
+be honest. If there are any, we can always fix up (note that OOM are
+rare events we do not optimize for) with the proper justification.
+
+>       > If we _really_ need to touch should_reclaim_retry then
+>       > it should be done in a separate patch with some numbers/tracing
+>       > data backing that story.
+> 
+>       and I consider that "whether moving the short sleep to
+>       should_reclaim_retry() has negative impact" and "whether
+>       eliminating the short sleep has negative impact" should be
+>       evaluated in a separate patch.
+> 
+> but I will tolerate below patch if you can accept below patch "as-is"
+> (because it explicitly notes what actually happens and there might be
+> unexpected side effect of not sleeping outside of the OOM path).
+
+Well, I do not mind. If you really insist then I just do not care enough
+to argue. But please note that this very patch breaks your 1, 2, 3 :p
+So if you are really serious you should probably apply and test the
+following on top of Linus tree:
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 8ba6cb88cf58..ed9d473c571e 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -1077,15 +1077,9 @@ bool out_of_memory(struct oom_control *oc)
+ 		dump_header(oc, NULL);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+-	if (oc->chosen && oc->chosen != (void *)-1UL) {
++	if (oc->chosen && oc->chosen != (void *)-1UL)
+ 		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+ 				 "Memory cgroup out of memory");
+-		/*
+-		 * Give the killed process a good chance to exit before trying
+-		 * to allocate memory again.
+-		 */
+-		schedule_timeout_killable(1);
+-	}
+ 	return !!oc->chosen;
+ }
  
-> > > I'm open to hearing any other suggestions that you have other than waiting 
-> > > some time period before MMF_OOM_SKIP gets set to solve this problem.
-> > 
-> > I've already offered one. Make mlocked pages reapable.
-> 
-> Making mlocked pages reapable would only solve the most trivial reproducer 
-> of this.  Unless the oom reaper can guarantee that it will never block and 
-> can free all memory that exit_mmap() can free, we need to ensure that a 
-> victim has a chance to reach the exit path on its own before killing every 
-> other process on the system.
-> 
-> I'll fix the issue I identified with doing list_add_tail() rather than 
-> list_add(), fix up the commit message per Tetsuo to identify the other 
-> possible ways this can occur other than mlock, remove the rfc tag, and 
-> repost.
-
-As I've already said. I will nack any timeout based solution until we
-address all particular problems and still see more to come. Here we have
-a clear goal. Address mlocked pages and identify mmu notifier offenders.
 -- 
 Michal Hocko
 SUSE Labs
