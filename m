@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 756136B0007
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C36CD6B0008
 	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 08:54:12 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id e26-v6so766958wmh.7
+Received: by mail-wm0-f72.google.com with SMTP id t185-v6so727524wmt.8
         for <linux-mm@kvack.org>; Fri, 01 Jun 2018 05:54:12 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i15-v6sor433520wmg.49.2018.06.01.05.54.10
+        by mx.google.com with SMTPS id b206-v6sor586653wmh.31.2018.06.01.05.54.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 01 Jun 2018 05:54:10 -0700 (PDT)
+        Fri, 01 Jun 2018 05:54:11 -0700 (PDT)
 From: osalvador@techadventures.net
-Subject: [PATCH 1/4] mm/memory_hotplug: Make add_memory_resource use __try_online_node
-Date: Fri,  1 Jun 2018 14:53:18 +0200
-Message-Id: <20180601125321.30652-2-osalvador@techadventures.net>
+Subject: [PATCH 2/4] mm/memory_hotplug: Call register_mem_sect_under_node
+Date: Fri,  1 Jun 2018 14:53:19 +0200
+Message-Id: <20180601125321.30652-3-osalvador@techadventures.net>
 In-Reply-To: <20180601125321.30652-1-osalvador@techadventures.net>
 References: <20180601125321.30652-1-osalvador@techadventures.net>
 Sender: owner-linux-mm@kvack.org
@@ -22,149 +22,116 @@ Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, linux-mm@kvack.o
 
 From: Oscar Salvador <osalvador@suse.de>
 
-add_memory_resource() contains code to allocate a new node in case
-it is necessary.
-Since try_online_node() also hast some code for this purpose,
-let us make use of that and remove duplicate code.
+When hotpluging memory, it is possible that two calls are being made
+to register_mem_sect_under_node().
+One comes from __add_section()->hotplug_memory_register()
+and the other from add_memory_resource()->link_mem_sections() if
+we had to register a new node.
 
-This introduces __try_online_node(), which is called by add_memory_resource()
-and try_online_node().
-__try_online_node() has two new parameters, start_addr of the node,
-and if the node should be onlined and registered right away.
-This is always wanted if we are calling from do_cpu_up(), but not
-when we are calling from memhotplug code.
-Nothing changes from the point of view of the users of try_online_node(),
-since try_online_node passes start_addr=0 and online_node=true to
-__try_online_node().
+In case we had to register a new node, hotplug_memory_register()
+will only handle/allocate the memory_block's since
+register_mem_sect_under_node() will return right away because the
+node it is not online yet.
+
+I think it is better if we leave hotplug_memory_register() to
+handle/allocate only memory_block's and make link_mem_sections()
+to call register_mem_sect_under_node().
+
+So this patch removes the call to register_mem_sect_under_node()
+from hotplug_memory_register(), and moves the call to link_mem_sections()
+out of the condition, so it will always be called.
+In this way we only have one place where the memory sections
+are registered.
 
 Signed-off-by: Oscar Salvador <osalvador@suse.de>
 ---
- mm/memory_hotplug.c | 61 +++++++++++++++++++++++++++++------------------------
- 1 file changed, 34 insertions(+), 27 deletions(-)
+ drivers/base/memory.c |  2 --
+ mm/memory_hotplug.c   | 40 ++++++++++++++++++----------------------
+ 2 files changed, 18 insertions(+), 24 deletions(-)
 
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index f5e560188a18..c8a1cb0b6136 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -736,8 +736,6 @@ int hotplug_memory_register(int nid, struct mem_section *section)
+ 		mem->section_count++;
+ 	}
+ 
+-	if (mem->section_count == sections_per_block)
+-		ret = register_mem_sect_under_node(mem, nid, false);
+ out:
+ 	mutex_unlock(&mem_sysfs_mutex);
+ 	return ret;
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 7deb49f69e27..29a5fc89bdb1 100644
+index 29a5fc89bdb1..f84ef96175ab 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1034,8 +1034,10 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 	return pgdat;
- }
- 
--static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
-+static void rollback_node_hotadd(int nid)
- {
-+	pg_data_t *pgdat = NODE_DATA(nid);
-+
- 	arch_refresh_nodedata(nid, NULL);
- 	free_percpu(pgdat->per_cpu_nodestats);
- 	arch_free_nodedata(pgdat);
-@@ -1046,28 +1048,43 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
- /**
-  * try_online_node - online a node if offlined
-  * @nid: the node ID
-- *
-+ * @start: start addr of the node
-+ * @set_node_online: Whether we want to online the node
-  * called by cpu_up() to online a node without onlined memory.
-  */
--int try_online_node(int nid)
-+static int __try_online_node(int nid, u64 start, bool set_node_online)
- {
--	pg_data_t	*pgdat;
--	int	ret;
-+	pg_data_t *pgdat;
-+	int ret = 1;
- 
- 	if (node_online(nid))
- 		return 0;
- 
--	mem_hotplug_begin();
--	pgdat = hotadd_new_pgdat(nid, 0);
-+	pgdat = hotadd_new_pgdat(nid, start);
- 	if (!pgdat) {
- 		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
- 		ret = -ENOMEM;
- 		goto out;
- 	}
--	node_set_online(nid);
--	ret = register_one_node(nid);
--	BUG_ON(ret);
-+
-+	if (set_node_online) {
-+		node_set_online(nid);
-+		ret = register_one_node(nid);
-+		BUG_ON(ret);
-+	}
- out:
-+	return ret;
-+}
-+
-+/*
-+ * Users of this function always want to online/register the node
-+ */
-+int try_online_node(int nid)
-+{
-+	int ret;
-+
-+	mem_hotplug_begin();
-+	ret =  __try_online_node (nid, 0, true);
- 	mem_hotplug_done();
- 	return ret;
- }
-@@ -1099,8 +1116,6 @@ static int online_memory_block(struct memory_block *mem, void *arg)
- int __ref add_memory_resource(int nid, struct resource *res, bool online)
- {
+@@ -1118,6 +1118,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
  	u64 start, size;
--	pg_data_t *pgdat = NULL;
--	bool new_pgdat;
  	bool new_node;
  	int ret;
++	unsigned long start_pfn, nr_pages;
  
-@@ -1111,11 +1126,6 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 	if (ret)
- 		return ret;
- 
--	{	/* Stupid hack to suppress address-never-null warning */
--		void *p = NODE_DATA(nid);
--		new_pgdat = !p;
--	}
--
- 	mem_hotplug_begin();
- 
- 	/*
-@@ -1126,17 +1136,14 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
- 	 */
- 	memblock_add_node(start, size, nid);
- 
--	new_node = !node_online(nid);
--	if (new_node) {
--		pgdat = hotadd_new_pgdat(nid, start);
--		ret = -ENOMEM;
--		if (!pgdat)
--			goto error;
--	}
-+	ret = __try_online_node (nid, start, false);
-+	new_node = !!(ret > 0);
-+	if (ret < 0)
-+		goto error;
-+
- 
- 	/* call arch's memory hotadd */
- 	ret = arch_add_memory(nid, start, size, NULL, true);
--
+ 	start = res->start;
+ 	size = resource_size(res);
+@@ -1147,34 +1148,21 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
  	if (ret < 0)
  		goto error;
  
-@@ -1180,8 +1187,8 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+-	/* we online node here. we can't roll back from here. */
+-	node_set_online(nid);
+-
+ 	if (new_node) {
+-		unsigned long start_pfn = start >> PAGE_SHIFT;
+-		unsigned long nr_pages = size >> PAGE_SHIFT;
+-
++		/* we online node here. we can't roll back from here. */
++		node_set_online(nid);
+ 		ret = __register_one_node(nid);
+ 		if (ret)
+ 			goto register_fail;
+-
+-		/*
+-		 * link memory sections under this node. This is already
+-		 * done when creatig memory section in register_new_memory
+-		 * but that depends to have the node registered so offline
+-		 * nodes have to go through register_node.
+-		 * TODO clean up this mess.
+-		 */
+-		ret = link_mem_sections(nid, start_pfn, nr_pages, false);
+-register_fail:
+-		/*
+-		 * If sysfs file of new node can't create, cpu on the node
+-		 * can't be hot-added. There is no rollback way now.
+-		 * So, check by BUG_ON() to catch it reluctantly..
+-		 */
+-		BUG_ON(ret);
+ 	}
  
++	/* link memory sections under this node.*/
++	start_pfn = start >> PAGE_SHIFT;
++	nr_pages = size >> PAGE_SHIFT;
++	ret = link_mem_sections(nid, start_pfn, nr_pages, false);
++	if (ret)
++		goto register_fail;
++
+ 	/* create new memmap entry */
+ 	firmware_map_add_hotplug(start, start + size, "System RAM");
+ 
+@@ -1185,6 +1173,14 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ 
+ 	goto out;
+ 
++register_fail:
++	/*
++	 * If sysfs file of new node can't create, cpu on the node
++	 * can't be hot-added. There is no rollback way now.
++	 * So, check by BUG_ON() to catch it reluctantly..
++	 */
++	BUG_ON(ret);
++
  error:
  	/* rollback pgdat allocation and others */
--	if (new_pgdat && pgdat)
--		rollback_node_hotadd(nid, pgdat);
-+	if (new_node)
-+		rollback_node_hotadd(nid);
- 	memblock_remove(start, size);
- 
- out:
+ 	if (new_node)
 -- 
 2.13.6
