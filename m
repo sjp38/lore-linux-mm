@@ -1,40 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D2BF6B0007
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 06:46:23 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t133-v6so2479685oih.2
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 03:46:23 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g4-v6si13592362oia.335.2018.06.01.03.46.21
-        for <linux-mm@kvack.org>;
-        Fri, 01 Jun 2018 03:46:22 -0700 (PDT)
-Subject: Re: [PATCH v2 21/40] iommu/arm-smmu-v3: Add support for Substream IDs
-References: <20180511190641.23008-1-jean-philippe.brucker@arm.com>
- <20180511190641.23008-22-jean-philippe.brucker@arm.com>
- <BLUPR0201MB1505AA55707BE2E13392FFAFA5630@BLUPR0201MB1505.namprd02.prod.outlook.com>
-From: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
-Message-ID: <be58739e-ed03-396f-c7ac-19a3195aef87@arm.com>
-Date: Fri, 1 Jun 2018 11:46:07 +0100
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DE1C96B0005
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 07:25:33 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id o15-v6so634477wmf.1
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 04:25:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o10-v6sor19705673wra.54.2018.06.01.04.25.31
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 01 Jun 2018 04:25:31 -0700 (PDT)
+Date: Fri, 1 Jun 2018 13:25:30 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: [RFC PATCH 0/3] Small cleanup for hotplugmem
+Message-ID: <20180601112530.GA21638@techadventures.net>
+References: <20180528081352.GA14293@techadventures.net>
 MIME-Version: 1.0
-In-Reply-To: <BLUPR0201MB1505AA55707BE2E13392FFAFA5630@BLUPR0201MB1505.namprd02.prod.outlook.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180528081352.GA14293@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bharat Kumar Gogada <bharatku@xilinx.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "joro@8bytes.org" <joro@8bytes.org>, Will Deacon <Will.Deacon@arm.com>, Robin Murphy <Robin.Murphy@arm.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "tn@semihalf.com" <tn@semihalf.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, "ilias.apalodimas@linaro.org" <ilias.apalodimas@linaro.org>, "jonathan.cameron@huawei.com" <jonathan.cameron@huawei.com>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "rfranz@cavium.com" <rfranz@cavium.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "jacob.jun.pan@linux.intel.com" <jacob.jun.pan@linux.intel.com>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "kevin.tian@intel.com" <kevin.tian@intel.com>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, "robdclark@gmail.com" <robdclark@gmail.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, Ravikiran Gummaluri <rgummal@xilinx.com>
+To: linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-foundation.org
 
-On 31/05/18 12:01, Bharat Kumar Gogada wrote:
->>  static void arm_smmu_sync_cd(void *cookie, int ssid, bool leaf)  {
->> +	struct arm_smmu_cmdq_ent cmd = {
->> +		.opcode	= CMDQ_OP_CFGI_CD_ALL,
+On Mon, May 28, 2018 at 10:13:52AM +0200, osalvador@techadventures.net wrote:
+> From: Oscar Salvador <osalvador@suse.de>
 > 
-> Hi Jean, here CMDQ_OP_CFGI_CD opcode 0x5. 
+> Hi guys,
+> 
+> I wanted to give it a chance a do a small cleanup in the hotplug memory code.
+> A lot more could be done, but I wanted to start somewhere.
+> I tried to unify/remove duplicated code.
+> 
+> Here I have just done three things
+> 
+> 1) add_memory_resource() had code to allocate a node in case it was offline.
+>    Since try_online_node already does that, I just made add_memory_resource() to
+>    use that function.
+>    This is better explained in patch 1/3.
+> 
+> 2) register_mem_sect_under_node() will be called only from link_mem_sections
+> 
+> 3) Get rid of link_mem_sections() in favour of walk_memory_range with a callback to
+>    register_mem_sect_under_node()
+> 
+> I am posting this as a RFC because I could not see that these patches break anything,
+> but expert eyes might see something that I am missing here.
+> 
+> Oscar Salvador (3):
+>   mm/memory_hotplug: Make add_memory_resource use __try_online_node
+>   mm/memory_hotplug: Call register_mem_sect_under_node
+>   mm/memory_hotplug: Get rid of link_mem_sections
+> 
+>  drivers/base/memory.c |   2 -
+>  drivers/base/node.c   |  47 +++++------------------
+>  include/linux/node.h  |  21 +++++------
+>  mm/memory_hotplug.c   | 101 ++++++++++++++++++++++++++------------------------
+>  4 files changed, 71 insertions(+), 100 deletions(-)
+> 
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> 
+> -- 
+> 2.13.6
+> 
 
-Woops, nice catch!
+Since there have not been any concerns so far, I will send v1 of this patchset.
 
-I pushed fixes for all comments so far to branch sva/current
+Thanks
 
-Thanks,
-Jean
+Oscar Salvador
