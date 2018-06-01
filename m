@@ -1,173 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C99D06B0005
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 00:53:46 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id c6-v6so15540776otk.9
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 21:53:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p62-v6si3549651oic.106.2018.05.31.21.53.44
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B442E6B0006
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 02:14:15 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id j26-v6so20016546ioa.3
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 23:14:15 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id l63-v6si1178798ita.47.2018.05.31.23.14.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 21:53:45 -0700 (PDT)
-Date: Fri, 1 Jun 2018 00:53:43 -0400 (EDT)
-From: Chunyu Hu <chuhu@redhat.com>
-Reply-To: Chunyu Hu <chuhu@redhat.com>
-Message-ID: <57176788.6562837.1527828823442.JavaMail.zimbra@redhat.com>
-In-Reply-To: <1390612460.6539623.1527817820286.JavaMail.zimbra@redhat.com>
-References: <f054219d-6daa-68b1-0c60-0acd9ad8c5ab@i-love.sakura.ne.jp> <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com> <20180530104637.GC27180@dhcp22.suse.cz> <1684479370.5483281.1527680579781.JavaMail.zimbra@redhat.com> <20180530123826.GF27180@dhcp22.suse.cz> <20180531152225.2ck6ach4lma4zeim@armageddon.cambridge.arm.com> <20180531184104.GT15278@dhcp22.suse.cz> <1390612460.6539623.1527817820286.JavaMail.zimbra@redhat.com>
-Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
+        Thu, 31 May 2018 23:14:11 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH -mm -V3 00/21] mm, THP, swap: Swapout/swapin THP in one
+ piece
+Date: Fri, 1 Jun 2018 06:11:16 +0000
+Message-ID: <20180601061116.GA4813@hori1.linux.bs1.fc.nec.co.jp>
+References: <20180523082625.6897-1-ying.huang@intel.com>
+In-Reply-To: <20180523082625.6897-1-ying.huang@intel.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <1D0CB96370BFC843A021E2C684759B6B@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, dvyukov@google.com, linux-mm@kvack.org, Akinobu Mita <akinobu.mita@gmail.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
+On Wed, May 23, 2018 at 04:26:04PM +0800, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+>=20
+> Hi, Andrew, could you help me to check whether the overall design is
+> reasonable?
+>=20
+> Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+> swap part of the patchset?  Especially [02/21], [03/21], [04/21],
+> [05/21], [06/21], [07/21], [08/21], [09/21], [10/21], [11/21],
+> [12/21], [20/21].
+>=20
+> Hi, Andrea and Kirill, could you help me to review the THP part of the
+> patchset?  Especially [01/21], [07/21], [09/21], [11/21], [13/21],
+> [15/21], [16/21], [17/21], [18/21], [19/21], [20/21], [21/21].
+>=20
+> Hi, Johannes and Michal, could you help me to review the cgroup part
+> of the patchset?  Especially [14/21].
+>=20
+> And for all, Any comment is welcome!
 
+Hi Ying Huang,
+I've read through this series and find no issue.
 
------ Original Message -----
-> From: "Chunyu Hu" <chuhu@redhat.com>
-> To: "Catalin Marinas" <catalin.marinas@arm.com>
-> Cc: "Michal Hocko" <mhocko@suse.com>, "Tetsuo Handa" <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org,
-> dvyukov@google.com, linux-mm@kvack.org, "Akinobu Mita" <akinobu.mita@gmail.com>
-> Sent: Friday, June 1, 2018 9:50:20 AM
-> Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-> 
-> 
-> 
-> ----- Original Message -----
-> > From: "Michal Hocko" <mhocko@suse.com>
-> > To: "Catalin Marinas" <catalin.marinas@arm.com>
-> > Cc: "Chunyu Hu" <chuhu@redhat.com>, "Tetsuo Handa"
-> > <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org,
-> > dvyukov@google.com, linux-mm@kvack.org, "Akinobu Mita"
-> > <akinobu.mita@gmail.com>
-> > Sent: Friday, June 1, 2018 2:41:04 AM
-> > Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
-> > 
-> > On Thu 31-05-18 16:22:26, Catalin Marinas wrote:
-> > > Hi Michal,
-> > > 
-> > > I'm catching up with this thread.
-> > > 
-> > > On Wed, May 30, 2018 at 02:38:26PM +0200, Michal Hocko wrote:
-> > > > On Wed 30-05-18 07:42:59, Chunyu Hu wrote:
-> > > > > From: "Michal Hocko" <mhocko@suse.com>
-> > > > > > want to have a pre-populated pool of objects for those requests.
-> > > > > > The
-> > > > > > obvious question is how to balance such a pool. It ain't easy to
-> > > > > > track
-> > > > > > memory by allocating more memory...
-> > > > > 
-> > > > > This solution is going to make kmemleak trace really nofail. We can
-> > > > > think
-> > > > > later.
-> > > > > 
-> > > > > while I'm thinking about if fault inject can be disabled via flag in
-> > > > > task.
-> > > > > 
-> > > > > Actually, I'm doing something like below, the disable_fault_inject()
-> > > > > is
-> > > > > just setting a flag in task->make_it_fail. But this will depend on if
-> > > > > fault injection accept a change like this. CCing Akinobu
-> > > > 
-> > > > You still seem to be missing my point I am afraid (or I am ;). So say
-> > > > that you want to track a GFP_NOWAIT allocation request. So
-> > > > create_object
-> > > > will get called with that gfp mask and no matter what you try here your
-> > > > tracking object will be allocated in a weak allocation context as well
-> > > > and disable kmemleak. So it only takes a more heavy memory pressure and
-> > > > the tracing is gone...
-> > > 
-> > > create_object() indeed gets the originating gfp but it only cares
-> > > whether it was GFP_KERNEL or GFP_ATOMIC. gfp_kmemleak_mask() masks out
-> > > all the other flags when allocating a struct kmemleak_object (and adds
-> > > some of its own).
-> > > 
-> > > This has worked ok so far. There is a higher risk of GFP_ATOMIC
-> > > allocations failing but I haven't seen issues with kmemleak unless you
-> > > run it under heavy memory pressure (and kmemleak just disables itself).
-> > > With fault injection, such pressure is simulated with the side effect of
-> > > rendering kmemleak unusable.
-> > > 
-> > > Kmemleak could implement its own allocation mechanism (maybe even
-> > > skipping the slab altogether) but I feel it's overkill just to cope with
-> > > the specific case of fault injection. Also, it's not easy to figure out
-> > > how to balance such pool and it may end up calling alloc_pages() which
-> > > in turn can inject a fault.
-> 
-> 
-> it would benefit kmemleak trace, I see in my test that kmemleak even can work
-> in
-> user pressure cases, such as in my test, stress-ng to consume
-> nearly all the swap space. kmemleak is still working. but 1M objects pool
-> is consuming around 400M + memory. So this is just a experiment try, as you
-> said, how to balance it's size is the issue or ther issues has to be
-> resolved,
-> such as when to add pool, the speed, how big, and so on ...
-> 
-> And I fault injected 20000 times fail_page_alloc, and 2148 times happened
-> in create_object, and in such a case, kmemleak is till working after the
-> 2000+ calloc failures.
-> 
-> [root@dhcp-12-244 fail_page_alloc]# grep create_object /var/log/messages | wc
-> -l
-> 2148
-> 
-> [60498.299412] FAULT_INJECTION: forcing a failure.
-> name fail_page_alloc, interval 0, probability 80, space 0, times 2
-> 
-> So this way is not just for fault injection, it's about making kmemleak
-> a bit stronger under memory failure case. It would be an exciting experience
-> we
-> see if kmemleak still work even after mem pressure, as a user, I experienced
-> the good usage.
-> 
-> 
-> > > 
-> > > Could we tweak gfp_kmemleak_mask() to still pass __GFP_NOFAIL but in a
-> > > compatible way (e.g. by setting __GFP_DIRECT_RECLAIM) when fault
-> > > injection is enabled?
-> 
-> Maybe I can have a try on this..
+It seems that thp swapout never happens if swap devices are backed by
+rotation storages.  I guess that's because this feature depends on swap
+cluster searching algorithm which only supports non-rotational storages.
 
-looks like I tried this in my first report thread, and it failed. As it
-can sleep in irq() ..
+I think that this limitation is OK because non-rotational storage is
+better for swap device (most future users will use it). But I think
+it's better to document the limitation somewhere because swap cluster
+is in-kernel thing and we can't assume that end users know about it.
 
-https://marc.info/?l=linux-mm&m=152482400222806&w=2
+Thanks,
+Naoya Horiguchi
 
-> 
-> > > 
-> > > Otherwise, I'd prefer some per-thread temporary fault injection
-> > > disabling.
-> 
-> I tried in make_it_fail flag, kmemleak can avoid fault injection, but I
-> can see kmemleak diabled itself...
-> 
-> > 
-> > Well, there are two issues (which boil down to the one in the end) here.
-> > Fault injection or a GFP_NOWAIT or any other weaker than GFP_KERNEL
-> > context is something to care about. A weaker allocation context can and
-> > will lead to kmemleak meta data allocation failures regardless of the
-> > fault injection. The way how those objects are allocated directly in the
-> > allacator context makes this really hard and inherently subtle. I can
-> > see only two ways around. Either you have a placeholder for "this object
-> > is not tracked so do not throw false positives" or have a preallocated
-> > pool to use if the direct context allocation failes for whatever reason.
-> > Abusing __GFP_NOFAIL is simply a crude hack which will lead to all kind
-> > of problems.
-> > --
-> > Michal Hocko
-> > SUSE Labs
-> > 
-> 
-> --
-> Regards,
-> Chunyu Hu
-> 
-> 
-
--- 
-Regards,
-Chunyu Hu
+>=20
+> This patchset is based on the 2018-05-18 head of mmotm/master.
+>=20
+> This is the final step of THP (Transparent Huge Page) swap
+> optimization.  After the first and second step, the splitting huge
+> page is delayed from almost the first step of swapout to after swapout
+> has been finished.  In this step, we avoid splitting THP for swapout
+> and swapout/swapin the THP in one piece.
+>=20
+> We tested the patchset with vm-scalability benchmark swap-w-seq test
+> case, with 16 processes.  The test case forks 16 processes.  Each
+> process allocates large anonymous memory range, and writes it from
+> begin to end for 8 rounds.  The first round will swapout, while the
+> remaining rounds will swapin and swapout.  The test is done on a Xeon
+> E5 v3 system, the swap device used is a RAM simulated PMEM (persistent
+> memory) device.  The test result is as follow,
+>=20
+>             base                  optimized
+> ---------------- --------------------------=20
+>          %stddev     %change         %stddev
+>              \          |                \ =20
+>    1417897 =1B$B!^=1B(B  2%    +992.8%   15494673        vm-scalability.t=
+hroughput
+>    1020489 =1B$B!^=1B(B  4%   +1091.2%   12156349        vmstat.swap.si
+>    1255093 =1B$B!^=1B(B  3%    +940.3%   13056114        vmstat.swap.so
+>    1259769 =1B$B!^=1B(B  7%   +1818.3%   24166779        meminfo.AnonHuge=
+Pages
+>   28021761           -10.7%   25018848 =1B$B!^=1B(B  2%  meminfo.AnonPage=
+s
+>   64080064 =1B$B!^=1B(B  4%     -95.6%    2787565 =1B$B!^=1B(B 33%  inter=
+rupts.CAL:Function_call_interrupts
+>      13.91 =1B$B!^=1B(B  5%     -13.8        0.10 =1B$B!^=1B(B 27%  perf-=
+profile.children.cycles-pp.native_queued_spin_lock_slowpath
+>=20
+> Where, the score of benchmark (bytes written per second) improved
+> 992.8%.  The swapout/swapin throughput improved 1008% (from about
+> 2.17GB/s to 24.04GB/s).  The performance difference is huge.  In base
+> kernel, for the first round of writing, the THP is swapout and split,
+> so in the remaining rounds, there is only normal page swapin and
+> swapout.  While in optimized kernel, the THP is kept after first
+> swapout, so THP swapin and swapout is used in the remaining rounds.
+> This shows the key benefit to swapout/swapin THP in one piece, the THP
+> will be kept instead of being split.  meminfo information verified
+> this, in base kernel only 4.5% of anonymous page are THP during the
+> test, while in optimized kernel, that is 96.6%.  The TLB flushing IPI
+> (represented as interrupts.CAL:Function_call_interrupts) reduced
+> 95.6%, while cycles for spinlock reduced from 13.9% to 0.1%.  These
+> are performance benefit of THP swapout/swapin too.
+>=20
+> Below is the description for all steps of THP swap optimization.
+>=20
+> Recently, the performance of the storage devices improved so fast that
+> we cannot saturate the disk bandwidth with single logical CPU when do
+> page swapping even on a high-end server machine.  Because the
+> performance of the storage device improved faster than that of single
+> logical CPU.  And it seems that the trend will not change in the near
+> future.  On the other hand, the THP becomes more and more popular
+> because of increased memory size.  So it becomes necessary to optimize
+> THP swap performance.
+>=20
+> The advantages to swapout/swapin a THP in one piece include:
+>=20
+> - Batch various swap operations for the THP.  Many operations need to
+>   be done once per THP instead of per normal page, for example,
+>   allocating/freeing the swap space, writing/reading the swap space,
+>   flushing TLB, page fault, etc.  This will improve the performance of
+>   the THP swap greatly.
+>=20
+> - The THP swap space read/write will be large sequential IO (2M on
+>   x86_64).  It is particularly helpful for the swapin, which are
+>   usually 4k random IO.  This will improve the performance of the THP
+>   swap too.
+>=20
+> - It will help the memory fragmentation, especially when the THP is
+>   heavily used by the applications.  The THP order pages will be free
+>   up after THP swapout.
+>=20
+> - It will improve the THP utilization on the system with the swap
+>   turned on.  Because the speed for khugepaged to collapse the normal
+>   pages into the THP is quite slow.  After the THP is split during the
+>   swapout, it will take quite long time for the normal pages to
+>   collapse back into the THP after being swapin.  The high THP
+>   utilization helps the efficiency of the page based memory management
+>   too.
+>=20
+> There are some concerns regarding THP swapin, mainly because possible
+> enlarged read/write IO size (for swapout/swapin) may put more overhead
+> on the storage device.  To deal with that, the THP swapin is turned on
+> only when necessary.  A new sysfs interface:
+> /sys/kernel/mm/transparent_hugepage/swapin_enabled is added to
+> configure it.  It uses "always/never/madvise" logic, to be turned on
+> globally, turned off globally, or turned on only for VMA with
+> MADV_HUGEPAGE, etc.
+> GE, etc.
+>=20
+> Changelog
+> ---------
+>=20
+> v3:
+>=20
+> - Rebased on 5/18 HEAD of mmotm/master
+>=20
+> - Fixed a build bug, Thanks 0-Day!
+>=20
+> v2:
+>=20
+> - Fixed several build bugs, Thanks 0-Day!
+>=20
+> - Improved documentation as suggested by Randy Dunlap.
+>=20
+> - Fixed several bugs in reading huge swap cluster
+> =
