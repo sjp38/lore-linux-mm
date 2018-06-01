@@ -1,140 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 018846B0005
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 21:33:17 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id 140-v6so2883919iou.14
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 18:33:16 -0700 (PDT)
-Received: from mail-sh2.amlogic.com (mail-sh2.amlogic.com. [58.32.228.45])
-        by mx.google.com with ESMTPS id s184-v6si8860755ios.22.2018.05.31.18.33.14
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 276FA6B0005
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 21:34:58 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d20-v6so13601602pfn.16
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 18:34:58 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r68-v6sor13774489pfi.57.2018.05.31.18.34.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 31 May 2018 18:33:15 -0700 (PDT)
-Date: Fri, 1 Jun 2018 09:32:12 +0800
-From: Tao.Zeng <Tao.Zeng@amlogic.com>
-Reply-To: Tao.Zeng <Tao.Zeng@amlogic.com>
-Subject: Re: Re: Report A bug of PTE attribute set for mprotect
-References: <2018052919455555635434@amlogic.com>,
-	<87tvqn96ro.fsf@e105922-lin.cambridge.arm.com>
-MIME-Version: 1.0
-Message-ID: <2018060109321088618142@amlogic.com>
-Content-Type: multipart/alternative;
-	boundary="----=_001_NextPart334085347325_=----"
+        (Google Transport Security);
+        Thu, 31 May 2018 18:34:57 -0700 (PDT)
+From: Nadav Amit <nadav.amit@gmail.com>
+Message-Id: <0875D539-4B35-402D-9CCA-09BBA8DDB46E@gmail.com>
+Content-Type: multipart/signed;
+ boundary="Apple-Mail=_C21D2376-2116-4F8B-B8B9-7E52AF020EE9";
+ protocol="application/pgp-signature"; micalg=pgp-sha512
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: Can kfree() sleep at runtime?
+Date: Thu, 31 May 2018 18:34:45 -0700
+In-Reply-To: <066df211-4d1e-787b-b89d-31b8827ea7a5@gmail.com>
+References: <30ecafd7-ed61-907b-f924-77fc37dcc753@gmail.com>
+ <20180531140808.GA30221@bombadil.infradead.org>
+ <01000163b68a8026-56fb6a35-040b-4af9-8b73-eb3b4a41c595-000000@email.amazonses.com>
+ <20180531141452.GC30221@bombadil.infradead.org>
+ <01000163b69b6b62-6c5ac940-d6c1-419a-9dc9-697908020c53-000000@email.amazonses.com>
+ <066df211-4d1e-787b-b89d-31b8827ea7a5@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: mgorman <mgorman@suse.de>, tglx <tglx@linutronix.de>, "dan.j.williams" <dan.j.williams@intel.com>, "nadav.amit" <nadav.amit@gmail.com>, khandual <khandual@linux.vnet.ibm.com>, "zi.yan" <zi.yan@cs.rutgers.edu>, n-horiguchi <n-horiguchi@ah.jp.nec.com>, "henry.willard" <henry.willard@oracle.com>, jglisse <jglisse@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Jia-Ju Bai <baijiaju1990@gmail.com>
+Cc: Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-------=_001_NextPart334085347325_=----
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
 
-RGVhciBQdW5pdCBBZ3Jhd2FsOg0KDQpZZXMsIEkgZmluZCBrZXJuZWwgZml4ZWQgaW50IGluOg0K
-aHR0cDovLzEwLjguOS41L2tlcm5lbC9jb21tb24vY29tbWl0Lz9oPWFtbG9naWMtNC45LWRldiZp
-ZD1lODZmMTVlZTY0ZDhlZTQ2MjU1ZDk2NGQ1NWY3NGY1YmE5YWY4YzM2DQoNClRoYW5rcyBmb3Ig
-eW91ciBzdXBwb3J0IQ0KDQoNCg0KDQpUYW8uWmVuZw0KDQpGcm9tOiBQdW5pdCBBZ3Jhd2FsDQpE
-YXRlOiAyMDE4LTA1LTMxIDIzOjM2DQpUbzogVGFvLlplbmcNCkNDOiBtZ29ybWFuOyB0Z2x4OyBk
-YW4uai53aWxsaWFtczsgbmFkYXYuYW1pdDsga2hhbmR1YWw7IHppLnlhbjsgbi1ob3JpZ3VjaGk7
-IGhlbnJ5LndpbGxhcmQ7IGpnbGlzc2U7IGxpbnV4LW1tOyBsaW51eC1rZXJuZWwNClN1YmplY3Q6
-IFJlOiBSZXBvcnQgQSBidWcgb2YgUFRFIGF0dHJpYnV0ZSBzZXQgZm9yIG1wcm90ZWN0DQpUYW8u
-WmVuZyA8VGFvLlplbmdAYW1sb2dpYy5jb20+IHdyaXRlczoNCg0KWy4uLl0NCg0KPiBCYWNrZ3Jv
-dW5kIG9mIHRoaXMgcHJvYmxlbToNCg0KPiBPdXIga2VybmVsIHZlcnNpb24gaXMgMy4xNC4yOSwN
-Cg0KQXJlIHlvdSBhYmxlIHRvIHJlcHJvZHVjZSB0aGUgcHJvYmxlbSBvbiBhIHJlY2VudCB1cHN0
-cmVhbSBrZXJuZWw/DQoNCjMuMTQuMjkgaXMgbW9yZSB0aGFuIHRocmVlIHllYXJzIG9sZCBhbmQg
-dGhlIHByb2JsZW0geW91IHNlZSBtaWdodCBoYXZlDQpiZWVuIGZpeGVkIHNpbmNlIHRoZW4uDQoN
-ClRoYW5rcywNClB1bml0
-
-------=_001_NextPart334085347325_=----
-Content-Type: text/html; charset="gb2312"
+--Apple-Mail=_C21D2376-2116-4F8B-B8B9-7E52AF020EE9
 Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=us-ascii
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD><FMDATA content=3D""></FMDATA><FMDATA content=3D""></FMDATA>
-<META content=3D"text/html; charset=3Dgb2312" http-equiv=3DContent-Type>
-<STYLE>
-BLOCKQUOTE {
-	MARGIN-BOTTOM: 0px; MARGIN-TOP: 0px; MARGIN-LEFT: 2em
-}
-OL {
-	MARGIN-BOTTOM: 0px; MARGIN-TOP: 0px
-}
-UL {
-	MARGIN-BOTTOM: 0px; MARGIN-TOP: 0px
-}
-BODY {
-	FONT-SIZE: 10.5pt; FONT-FAMILY: &#23435; COLOR: #000000; LINE-HEIGHT: 1.5=
-; 20307:=20
-}
-P {
-	MARGIN-BOTTOM: 0px; MARGIN-TOP: 0px
-}
-</STYLE>
+Jia-Ju Bai <baijiaju1990@gmail.com> wrote:
 
-<META name=3DGENERATOR content=3D"MSHTML 11.00.10570.1001"></HEAD>
-<BODY style=3D"MARGIN: 10px">
-<DIV style=3D"FONT-FAMILY: Courier New; COLOR: #000080">Dear <SPAN>Punit=20
-Agrawal</SPAN>:</DIV>
-<DIV style=3D"FONT-SIZE: 10pt; FONT-FAMILY: Courier New">&nbsp;</DIV>
-<DIV style=3D"FONT-SIZE: 10pt; FONT-FAMILY: Courier New; TEXT-INDENT: 2em"=
->Yes, I=20
-find kernel fixed int in:</DIV>
-<DIV style=3D"FONT-SIZE: 10pt; FONT-FAMILY: Courier New; TEXT-INDENT: 2em"=
->
-<DIV><A=20
-href=3D"http://10.8.9.5/kernel/common/commit/?h=3Damlogic-4.9-dev&amp;id=
-=3De86f15ee64d8ee46255d964d55f74f5ba9af8c36">http://10.8.9.5/kernel/common=
-/commit/?h=3Damlogic-4.9-dev&amp;id=3De86f15ee64d8ee46255d964d55f74f5ba9af=
-8c36</A></DIV>
-<DIV>&nbsp;</DIV>
-<DIV>Thanks for your support!</DIV></DIV>
-<DIV style=3D"FONT-SIZE: 10pt; FONT-FAMILY: Courier New">&nbsp;</DIV>
-<HR style=3D"HEIGHT: 1px; WIDTH: 210px" align=3Dleft color=3D#b5c4df SIZE=
-=3D1>
+>=20
+>=20
+> On 2018/5/31 22:30, Christopher Lameter wrote:
+>> On Thu, 31 May 2018, Matthew Wilcox wrote:
+>>=20
+>>>> Freeing a page in the page allocator also was traditionally not =
+sleeping.
+>>>> That has changed?
+>>> No.  "Your bug" being "The bug in your static analysis tool".  It =
+probably
+>>> isn't following the data flow correctly (or deeply enough).
+>> Well ok this is not going to trigger for kfree(), this is x86 =
+specific and
+>> requires CONFIG_DEBUG_PAGEALLOC and a free of a page in a huge page.
+>>=20
+>> Ok that is a very contorted situation but how would a static checker =
+deal
+>> with that?
+>=20
+> I admit that my tool does not follow the data flow well, and I need to =
+improve it.
+> In this case of kfree(), I want know how the data flow leads to my =
+mistake.
 
-<DIV><SPAN>Tao.Zeng</SPAN></DIV>
-<DIV>&nbsp;</DIV>
-<DIV=20
-style=3D"BORDER-TOP: #b5c4df 1pt solid; BORDER-RIGHT: medium none; BORDER-=
-BOTTOM: medium none; PADDING-BOTTOM: 0cm; PADDING-TOP: 3pt; PADDING-LEFT: =
-0cm; BORDER-LEFT: medium none; PADDING-RIGHT: 0cm">
-<DIV=20
-style=3D"FONT-SIZE: 12px; BACKGROUND: #efefef; COLOR: #000000; PADDING-BOT=
-TOM: 8px; PADDING-TOP: 8px; PADDING-LEFT: 8px; PADDING-RIGHT: 8px">
-<DIV><B>From:</B>&nbsp;<A href=3D"mailto:punit.agrawal@arm.com">Punit=20
-Agrawal</A></DIV>
-<DIV><B>Date:</B>&nbsp;2018-05-31&nbsp;23:36</DIV>
-<DIV><B>To:</B>&nbsp;<A href=3D"mailto:Tao.Zeng@amlogic.com">Tao.Zeng</A><=
-/DIV>
-<DIV><B>CC:</B>&nbsp;<A href=3D"mailto:mgorman@suse.de">mgorman</A>; <A=20
-href=3D"mailto:tglx@linutronix.de">tglx</A>; <A=20
-href=3D"mailto:dan.j.williams@intel.com">dan.j.williams</A>; <A=20
-href=3D"mailto:nadav.amit@gmail.com">nadav.amit</A>; <A=20
-href=3D"mailto:khandual@linux.vnet.ibm.com">khandual</A>; <A=20
-href=3D"mailto:zi.yan@cs.rutgers.edu">zi.yan</A>; <A=20
-href=3D"mailto:n-horiguchi@ah.jp.nec.com">n-horiguchi</A>; <A=20
-href=3D"mailto:henry.willard@oracle.com">henry.willard</A>; <A=20
-href=3D"mailto:jglisse@redhat.com">jglisse</A>; <A=20
-href=3D"mailto:linux-mm@kvack.org">linux-mm</A>; <A=20
-href=3D"mailto:linux-kernel@vger.kernel.org">linux-kernel</A></DIV>
-<DIV><B>Subject:</B>&nbsp;Re: Report A bug of PTE attribute set for=20
-mprotect</DIV></DIV></DIV>
-<DIV>
-<DIV>Tao.Zeng&nbsp;&lt;Tao.Zeng@amlogic.com&gt;&nbsp;writes:</DIV>
-<DIV>&nbsp;</DIV>
-<DIV>[...]</DIV>
-<DIV>&nbsp;</DIV>
-<DIV>&gt;&nbsp;Background&nbsp;of&nbsp;this&nbsp;problem:</DIV>
-<DIV>&nbsp;</DIV>
-<DIV>&gt;&nbsp;Our&nbsp;kernel&nbsp;version&nbsp;is&nbsp;3.14.29,</DIV>
-<DIV>&nbsp;</DIV>
-<DIV>Are&nbsp;you&nbsp;able&nbsp;to&nbsp;reproduce&nbsp;the&nbsp;problem&n=
-bsp;on&nbsp;a&nbsp;recent&nbsp;upstream&nbsp;kernel?</DIV>
-<DIV>&nbsp;</DIV>
-<DIV>3.14.29&nbsp;is&nbsp;more&nbsp;than&nbsp;three&nbsp;years&nbsp;old&nb=
-sp;and&nbsp;the&nbsp;problem&nbsp;you&nbsp;see&nbsp;might&nbsp;have</DIV>
-<DIV>been&nbsp;fixed&nbsp;since&nbsp;then.</DIV>
-<DIV>&nbsp;</DIV>
-<DIV>Thanks,</DIV>
-<DIV>Punit</DIV>
-<DIV>&nbsp;</DIV></DIV></BODY></HTML>
+Note that is only enabled in debug mode:
 
-------=_001_NextPart334085347325_=------
+static inline void
+kernel_map_pages(struct page *page, int numpages, int enable)
+{
+        if (!debug_pagealloc_enabled())
+                return;
+
+        __kernel_map_pages(page, numpages, enable);
+}
+
+--Apple-Mail=_C21D2376-2116-4F8B-B8B9-7E52AF020EE9
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename=signature.asc
+Content-Type: application/pgp-signature;
+	name=signature.asc
+Content-Description: Message signed with OpenPGP
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEE0YCJM4pMIpzxUdmOK4dOkxJsY0AFAlsQorUACgkQK4dOkxJs
+Y0As5g//UwJi2Da+1MTTDXrF0fseQgsSj19NMCrxxJHd3aduKLJNx+vZkz3LkltE
+jZg4PAe0STe4hvJF/hfOg1CZPWbLh5zHrcmOc8At0QJKgWp9LPKeYSKmonEew6Z1
+GUngUmkejqca6e1DE2XS/ugCRtKrcbahyFbjR0//Q4co/+KokXgaINa0UT1BlEiF
+lK3wt7ID7it+Y0Yn5W/d5oFAEy9wfxXEZFYqKrDDY2qraKVUleHNhK9SrRcJYwKO
+EgL4Dv2NHPzBTwWYuPzSe/a7CtNj7+rMx5wqLyWcNJ5dXaJ6Rq8MA+8CqxV0gahR
+dQvErle7rOfp2z1lfgwVlSfEgrA/aKI9odEDuIdzcYqJF5u7T4syIHkPGzApDqPb
+JTVUHDrndQGiHY1TuQU1BzaysqGVOec0DQxjfP4iyH5a9PYbQlVEdx5Hyf8mqrn5
+1pnJuN1G/6EJ4OJiB3SJOAow6HAWuBJuHLRpVb+SQzEb2pPmSs7AvIG6ynEVNSFA
+V528vklsGR7/XTHJYJEDToxiok0PjQ9tEzIA77FwPLeGgjtO/09m2nwtQ3qQ1e43
+tcIDoOo4YaRH0W+y3ALv25L5LRx8azlKaGKPnseMltiN8iyTWiieOoO4zUdV2ema
+amGI7ZIRyeIRumGyEP6ONvJSp75yw1v7SM8LSdE2/QeezujP1VQ=
+=ACvM
+-----END PGP SIGNATURE-----
+
+--Apple-Mail=_C21D2376-2116-4F8B-B8B9-7E52AF020EE9--
