@@ -1,99 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 077C66B0266
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 21:21:31 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id n40-v6so14044708ote.13
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 18:21:31 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id j131-v6si13003180oia.26.2018.05.31.18.21.28
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 46AF16B026C
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 21:22:23 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id x32-v6so14281626pld.16
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 18:22:23 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u6-v6sor6106070plz.37.2018.05.31.18.22.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 May 2018 18:21:29 -0700 (PDT)
-Message-Id: <201806010121.w511LDbC077249@www262.sakura.ne.jp>
-Subject: Re: [PATCH] mm,oom: Don't call =?ISO-2022-JP?B?c2NoZWR1bGVfdGltZW91dF9r?=
- =?ISO-2022-JP?B?aWxsYWJsZSgpIHdpdGggb29tX2xvY2sgaGVsZC4=?=
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+        (Google Transport Security);
+        Thu, 31 May 2018 18:22:22 -0700 (PDT)
+Subject: Re: Can kfree() sleep at runtime?
+References: <30ecafd7-ed61-907b-f924-77fc37dcc753@gmail.com>
+ <20180531140808.GA30221@bombadil.infradead.org>
+ <01000163b68a8026-56fb6a35-040b-4af9-8b73-eb3b4a41c595-000000@email.amazonses.com>
+ <20180531141452.GC30221@bombadil.infradead.org>
+ <01000163b69b6b62-6c5ac940-d6c1-419a-9dc9-697908020c53-000000@email.amazonses.com>
+From: Jia-Ju Bai <baijiaju1990@gmail.com>
+Message-ID: <066df211-4d1e-787b-b89d-31b8827ea7a5@gmail.com>
+Date: Fri, 1 Jun 2018 09:22:00 +0800
 MIME-Version: 1.0
-Date: Fri, 01 Jun 2018 10:21:13 +0900
-References: <7276d450-5e66-be56-3a17-0fc77596a3b6@i-love.sakura.ne.jp> <20180531184721.GU15278@dhcp22.suse.cz>
-In-Reply-To: <20180531184721.GU15278@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-2022-JP"
+In-Reply-To: <01000163b69b6b62-6c5ac940-d6c1-419a-9dc9-697908020c53-000000@email.amazonses.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org
+To: Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>
+Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> On Fri 01-06-18 00:23:57, Tetsuo Handa wrote:
-> > On 2018/05/31 19:44, Michal Hocko wrote:
-> > > On Thu 31-05-18 19:10:48, Tetsuo Handa wrote:
-> > >> On 2018/05/30 8:07, Andrew Morton wrote:
-> > >>> On Tue, 29 May 2018 09:17:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> > >>>
-> > >>>>> I suggest applying
-> > >>>>> this patch first, and then fix "mm, oom: cgroup-aware OOM killer" patch.
-> > >>>>
-> > >>>> Well, I hope the whole pile gets merged in the upcoming merge window
-> > >>>> rather than stall even more.
-> > >>>
-> > >>> I'm more inclined to drop it all.  David has identified significant
-> > >>> shortcomings and I'm not seeing a way of addressing those shortcomings
-> > >>> in a backward-compatible fashion.  Therefore there is no way forward
-> > >>> at present.
-> > >>>
-> > >>
-> > >> Can we apply my patch as-is first?
-> > > 
-> > > No. As already explained before. Sprinkling new sleeps without a strong
-> > > reason is not acceptable. The issue you are seeing is pretty artificial
-> > > and as such doesn're really warrant an immediate fix. We should rather
-> > > go with a well thought trhough fix. In other words we should simply drop
-> > > the sleep inside the oom_lock for starter unless it causes some really
-> > > unexpected behavior change.
-> > > 
-> > 
-> > The OOM killer did not require schedule_timeout_killable(1) to return
-> > as long as the OOM victim can call __mmput(). But now the OOM killer
-> > requires schedule_timeout_killable(1) to return in order to allow the
-> > OOM victim to call __oom_reap_task_mm(). Thus, this is a regression.
-> > 
-> > Artificial cannot become the reason to postpone my patch. If we don't care
-> > artificialness/maliciousness, we won't need to care Spectre/Meltdown bugs.
-> > 
-> > I'm not sprinkling new sleeps. I'm just merging existing sleeps (i.e.
-> > mutex_trylock() case and !mutex_trylock() case) and updating the outdated
-> > comments.
-> 
-> Sigh. So what exactly is wrong with going simple and do
-> http://lkml.kernel.org/r/20180528124313.GC27180@dhcp22.suse.cz ?
-> 
 
-Because
 
-  (1) You are trying to apply this fix after Roman's patchset which
-      Andrew Morton is more inclined to drop.
+On 2018/5/31 22:30, Christopher Lameter wrote:
+> On Thu, 31 May 2018, Matthew Wilcox wrote:
+>
+>>> Freeing a page in the page allocator also was traditionally not sleeping.
+>>> That has changed?
+>> No.  "Your bug" being "The bug in your static analysis tool".  It probably
+>> isn't following the data flow correctly (or deeply enough).
+> Well ok this is not going to trigger for kfree(), this is x86 specific and
+> requires CONFIG_DEBUG_PAGEALLOC and a free of a page in a huge page.
+>
+> Ok that is a very contorted situation but how would a static checker deal
+> with that?
 
-  (2) You are making this fix difficult to backport because this
-      patch depends on Roman's patchset.
+I admit that my tool does not follow the data flow well, and I need to 
+improve it.
+In this case of kfree(), I want know how the data flow leads to my mistake.
 
-  (3) You are not fixing the bug in Roman's patchset.
 
-  (4) You are not updating the outdated comment in my patch and
-      Roman's patchset.
-
-  (5) You are not evaluating the side effect of not sleeping
-      outside of the OOM path, despite you said
-
-      > If we _really_ need to touch should_reclaim_retry then
-      > it should be done in a separate patch with some numbers/tracing
-      > data backing that story.
-
-      and I consider that "whether moving the short sleep to
-      should_reclaim_retry() has negative impact" and "whether
-      eliminating the short sleep has negative impact" should be
-      evaluated in a separate patch.
-
-but I will tolerate below patch if you can accept below patch "as-is"
-(because it explicitly notes what actually happens and there might be
-unexpected side effect of not sleeping outside of the OOM path).
+Best wishes,
+Jia-Ju Bai
