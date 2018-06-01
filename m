@@ -1,57 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 686636B0005
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 11:28:04 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id t185-v6so928904wmt.8
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 08:28:04 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h34-v6si1085290edc.132.2018.06.01.08.28.03
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AAC66B0005
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 12:37:24 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id v10-v6so16233563oth.16
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 09:37:24 -0700 (PDT)
+Received: from sender-pp-092.zoho.com (sender-pp-092.zoho.com. [135.84.80.237])
+        by mx.google.com with ESMTPS id 64-v6si13479519oig.226.2018.06.01.09.37.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Jun 2018 08:28:03 -0700 (PDT)
-Date: Fri, 1 Jun 2018 17:28:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
- oom_lock held.
-Message-ID: <20180601152801.GH15278@dhcp22.suse.cz>
-References: <20180525083118.GI11881@dhcp22.suse.cz>
- <201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp>
- <20180525114213.GJ11881@dhcp22.suse.cz>
- <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
- <20180528124313.GC27180@dhcp22.suse.cz>
- <201805290557.BAJ39558.MFLtOJVFOHFOSQ@I-love.SAKURA.ne.jp>
- <20180529060755.GH27180@dhcp22.suse.cz>
- <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Jun 2018 09:37:23 -0700 (PDT)
+From: Huaisheng Ye <yehs2007@zoho.com>
+Subject: [PATCH] include/linux/gfp.h: fix the annotation of GFP_ZONE_TABLE
+Date: Sat,  2 Jun 2018 00:34:03 +0800
+Message-Id: <20180601163403.1032-1-yehs2007@zoho.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: linux-mm@kvack.org
+Cc: chengnt@lenovo.com, Huaisheng Ye <yehs1@lenovo.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Kate Stewart <kstewart@linuxfoundation.org>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@infradead.org>
 
-On Tue 29-05-18 16:07:00, Andrew Morton wrote:
-> On Tue, 29 May 2018 09:17:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > > I suggest applying
-> > > this patch first, and then fix "mm, oom: cgroup-aware OOM killer" patch.
-> > 
-> > Well, I hope the whole pile gets merged in the upcoming merge window
-> > rather than stall even more.
-> 
-> I'm more inclined to drop it all.  David has identified significant
-> shortcomings and I'm not seeing a way of addressing those shortcomings
-> in a backward-compatible fashion.  Therefore there is no way forward
-> at present.
+From: Huaisheng Ye <yehs1@lenovo.com>
 
-Well, I thought we have argued about those "shortcomings" back and forth
-and expressed that they are not really a problem for workloads which are
-going to use the feature. The backward compatibility has been explained
-as well AFAICT. Anyway if this is your position on the matter then I
-just give up. I've tried to do my best to review the feature (as !author
-nor the end user) and I cannot do really much more. I find it quite sad
-though to be honest.
+When bit is equal to 0x4, it means OPT_ZONE_DMA32 should be got
+from GFP_ZONE_TABLE.
+OPT_ZONE_DMA32 shall be equal to ZONE_DMA32 or ZONE_NORMAL
+according to the status of CONFIG_ZONE_DMA32.
+
+Similarly, when bit is equal to 0xc, that means OPT_ZONE_DMA32
+should be got with an allocation policy GFP_MOVABLE.
+So ZONE_DMA32 or ZONE_NORMAL is the possible result value.
+
+Signed-off-by: Huaisheng Ye <yehs1@lenovo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Kate Stewart <kstewart@linuxfoundation.org>
+Cc: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+---
+ include/linux/gfp.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 1a4582b..3f1b3dc 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -343,7 +343,7 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
+  *       0x1    => DMA or NORMAL
+  *       0x2    => HIGHMEM or NORMAL
+  *       0x3    => BAD (DMA+HIGHMEM)
+- *       0x4    => DMA32 or DMA or NORMAL
++ *       0x4    => DMA32 or NORMAL
+  *       0x5    => BAD (DMA+DMA32)
+  *       0x6    => BAD (HIGHMEM+DMA32)
+  *       0x7    => BAD (HIGHMEM+DMA32+DMA)
+@@ -351,7 +351,7 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
+  *       0x9    => DMA or NORMAL (MOVABLE+DMA)
+  *       0xa    => MOVABLE (Movable is valid only if HIGHMEM is set too)
+  *       0xb    => BAD (MOVABLE+HIGHMEM+DMA)
+- *       0xc    => DMA32 (MOVABLE+DMA32)
++ *       0xc    => DMA32 or NORMAL (MOVABLE+DMA32)
+  *       0xd    => BAD (MOVABLE+DMA32+DMA)
+  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
+  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
