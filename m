@@ -1,82 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 969576B0005
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 00:18:13 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id u45-v6so10738328uau.14
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 21:18:13 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h1-v6sor16239166vkg.108.2018.05.31.21.18.12
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C99D06B0005
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 00:53:46 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id c6-v6so15540776otk.9
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 21:53:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p62-v6si3549651oic.106.2018.05.31.21.53.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 31 May 2018 21:18:12 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 May 2018 21:53:45 -0700 (PDT)
+Date: Fri, 1 Jun 2018 00:53:43 -0400 (EDT)
+From: Chunyu Hu <chuhu@redhat.com>
+Reply-To: Chunyu Hu <chuhu@redhat.com>
+Message-ID: <57176788.6562837.1527828823442.JavaMail.zimbra@redhat.com>
+In-Reply-To: <1390612460.6539623.1527817820286.JavaMail.zimbra@redhat.com>
+References: <f054219d-6daa-68b1-0c60-0acd9ad8c5ab@i-love.sakura.ne.jp> <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com> <20180530104637.GC27180@dhcp22.suse.cz> <1684479370.5483281.1527680579781.JavaMail.zimbra@redhat.com> <20180530123826.GF27180@dhcp22.suse.cz> <20180531152225.2ck6ach4lma4zeim@armageddon.cambridge.arm.com> <20180531184104.GT15278@dhcp22.suse.cz> <1390612460.6539623.1527817820286.JavaMail.zimbra@redhat.com>
+Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFzjt27tDoxU=iVo7N3cR_nVSRm5+nvTZg=+t2A4k_yNwA@mail.gmail.com>
-References: <20180601004233.37822-1-keescook@chromium.org> <CA+55aFzjt27tDoxU=iVo7N3cR_nVSRm5+nvTZg=+t2A4k_yNwA@mail.gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 31 May 2018 21:18:10 -0700
-Message-ID: <CAGXu5jJeHD4Ouo9icjHk8oTCQLxjBvugVqQoZ7euDtLNtWCJ-A@mail.gmail.com>
-Subject: Re: [PATCH v3 00/16] Provide saturating helpers for allocation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Matthew Wilcox <willy@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, dvyukov@google.com, linux-mm@kvack.org, Akinobu Mita <akinobu.mita@gmail.com>
 
-On Thu, May 31, 2018 at 5:54 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Thu, May 31, 2018 at 7:43 PM Kees Cook <keescook@chromium.org> wrote:
->>
->> So, while nothing does:
->>     kmalloc_array(a, b, ...) -> kmalloc(array_size(a, b), ...)
->> the treewide changes DO perform changes like this:
->>     kmalloc(a * b, ...) -> kmalloc(array_size(a, b), ...)
->
-> Ugh. I really really still absolutely despise this.
 
-Heh. Yeah, I called this out specifically because I wasn't sure if
-this was going to be okay. :P
 
-> Why can't you just have a separate set of coccinelle scripts that do
-> the simple and clean cases?
->
-> So *before* doing any array_size() conversions, just do
->
->     kzalloc(a*b, ...) -> kcalloc(a, b, ...)
->     kmalloc(a*b,..) -> kmalloc_array(a,b, ...)
->
-> and the obvious variations on that (devm_xyz() has all the same helpers).
+----- Original Message -----
+> From: "Chunyu Hu" <chuhu@redhat.com>
+> To: "Catalin Marinas" <catalin.marinas@arm.com>
+> Cc: "Michal Hocko" <mhocko@suse.com>, "Tetsuo Handa" <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org,
+> dvyukov@google.com, linux-mm@kvack.org, "Akinobu Mita" <akinobu.mita@gmail.com>
+> Sent: Friday, June 1, 2018 9:50:20 AM
+> Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
+> 
+> 
+> 
+> ----- Original Message -----
+> > From: "Michal Hocko" <mhocko@suse.com>
+> > To: "Catalin Marinas" <catalin.marinas@arm.com>
+> > Cc: "Chunyu Hu" <chuhu@redhat.com>, "Tetsuo Handa"
+> > <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org,
+> > dvyukov@google.com, linux-mm@kvack.org, "Akinobu Mita"
+> > <akinobu.mita@gmail.com>
+> > Sent: Friday, June 1, 2018 2:41:04 AM
+> > Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
+> > 
+> > On Thu 31-05-18 16:22:26, Catalin Marinas wrote:
+> > > Hi Michal,
+> > > 
+> > > I'm catching up with this thread.
+> > > 
+> > > On Wed, May 30, 2018 at 02:38:26PM +0200, Michal Hocko wrote:
+> > > > On Wed 30-05-18 07:42:59, Chunyu Hu wrote:
+> > > > > From: "Michal Hocko" <mhocko@suse.com>
+> > > > > > want to have a pre-populated pool of objects for those requests.
+> > > > > > The
+> > > > > > obvious question is how to balance such a pool. It ain't easy to
+> > > > > > track
+> > > > > > memory by allocating more memory...
+> > > > > 
+> > > > > This solution is going to make kmemleak trace really nofail. We can
+> > > > > think
+> > > > > later.
+> > > > > 
+> > > > > while I'm thinking about if fault inject can be disabled via flag in
+> > > > > task.
+> > > > > 
+> > > > > Actually, I'm doing something like below, the disable_fault_inject()
+> > > > > is
+> > > > > just setting a flag in task->make_it_fail. But this will depend on if
+> > > > > fault injection accept a change like this. CCing Akinobu
+> > > > 
+> > > > You still seem to be missing my point I am afraid (or I am ;). So say
+> > > > that you want to track a GFP_NOWAIT allocation request. So
+> > > > create_object
+> > > > will get called with that gfp mask and no matter what you try here your
+> > > > tracking object will be allocated in a weak allocation context as well
+> > > > and disable kmemleak. So it only takes a more heavy memory pressure and
+> > > > the tracing is gone...
+> > > 
+> > > create_object() indeed gets the originating gfp but it only cares
+> > > whether it was GFP_KERNEL or GFP_ATOMIC. gfp_kmemleak_mask() masks out
+> > > all the other flags when allocating a struct kmemleak_object (and adds
+> > > some of its own).
+> > > 
+> > > This has worked ok so far. There is a higher risk of GFP_ATOMIC
+> > > allocations failing but I haven't seen issues with kmemleak unless you
+> > > run it under heavy memory pressure (and kmemleak just disables itself).
+> > > With fault injection, such pressure is simulated with the side effect of
+> > > rendering kmemleak unusable.
+> > > 
+> > > Kmemleak could implement its own allocation mechanism (maybe even
+> > > skipping the slab altogether) but I feel it's overkill just to cope with
+> > > the specific case of fault injection. Also, it's not easy to figure out
+> > > how to balance such pool and it may end up calling alloc_pages() which
+> > > in turn can inject a fault.
+> 
+> 
+> it would benefit kmemleak trace, I see in my test that kmemleak even can work
+> in
+> user pressure cases, such as in my test, stress-ng to consume
+> nearly all the swap space. kmemleak is still working. but 1M objects pool
+> is consuming around 400M + memory. So this is just a experiment try, as you
+> said, how to balance it's size is the issue or ther issues has to be
+> resolved,
+> such as when to add pool, the speed, how big, and so on ...
+> 
+> And I fault injected 20000 times fail_page_alloc, and 2148 times happened
+> in create_object, and in such a case, kmemleak is till working after the
+> 2000+ calloc failures.
+> 
+> [root@dhcp-12-244 fail_page_alloc]# grep create_object /var/log/messages | wc
+> -l
+> 2148
+> 
+> [60498.299412] FAULT_INJECTION: forcing a failure.
+> name fail_page_alloc, interval 0, probability 80, space 0, times 2
+> 
+> So this way is not just for fault injection, it's about making kmemleak
+> a bit stronger under memory failure case. It would be an exciting experience
+> we
+> see if kmemleak still work even after mem pressure, as a user, I experienced
+> the good usage.
+> 
+> 
+> > > 
+> > > Could we tweak gfp_kmemleak_mask() to still pass __GFP_NOFAIL but in a
+> > > compatible way (e.g. by setting __GFP_DIRECT_RECLAIM) when fault
+> > > injection is enabled?
+> 
+> Maybe I can have a try on this..
 
-Yup. I'll get started on it. I did have a version of a python script
-that generated coccinelle scripts, but I started losing my mind. I'll
-double-check if I can find a way to do some internal-to-Coccinelle
-python to handle some of the variation directly, etc.
+looks like I tried this in my first report thread, and it failed. As it
+can sleep in irq() ..
 
-For those interested in the details: the complexity for me is in how
-Coccinelle handles expressions (or my understanding of it's handling).
-There's nothing in between "expression" and "identifier", so
-"thing->field" is an expression not an identifier ("thing" is an
-identifier), but "foo * bar" is _also_ an expression, so I have to
-slowly peel away the "easy" stuff (sizeof, constants, etc) before
-expressions to avoid collapsing factors into the wrong arguments (e.g.
-kzalloc(a * b * c, ...) -> kcalloc(a * b, c, ...) is not desirable),
-so there end up being a LOT of rules... I was able to compress
-allocation families into a a regex, but without that, I'll end up with
-the sizeof/const/etc rules times the family times the kalloc and
-_array rules.
+https://marc.info/?l=linux-mm&m=152482400222806&w=2
 
-> Only after doing the ones that don't have the nice obvious helpers, do
-> the remaining ones with array_size(), ie
->
->     *alloc(a*b, ..) -> *alloc(array_size(a,b), ...)
->
-> because that really makes for much less legible code.
->
-> Hmm?
-
-Sounds good. Thanks!
-
--Kees
+> 
+> > > 
+> > > Otherwise, I'd prefer some per-thread temporary fault injection
+> > > disabling.
+> 
+> I tried in make_it_fail flag, kmemleak can avoid fault injection, but I
+> can see kmemleak diabled itself...
+> 
+> > 
+> > Well, there are two issues (which boil down to the one in the end) here.
+> > Fault injection or a GFP_NOWAIT or any other weaker than GFP_KERNEL
+> > context is something to care about. A weaker allocation context can and
+> > will lead to kmemleak meta data allocation failures regardless of the
+> > fault injection. The way how those objects are allocated directly in the
+> > allacator context makes this really hard and inherently subtle. I can
+> > see only two ways around. Either you have a placeholder for "this object
+> > is not tracked so do not throw false positives" or have a preallocated
+> > pool to use if the direct context allocation failes for whatever reason.
+> > Abusing __GFP_NOFAIL is simply a crude hack which will lead to all kind
+> > of problems.
+> > --
+> > Michal Hocko
+> > SUSE Labs
+> > 
+> 
+> --
+> Regards,
+> Chunyu Hu
+> 
+> 
 
 -- 
-Kees Cook
-Pixel Security
+Regards,
+Chunyu Hu
