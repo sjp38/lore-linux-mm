@@ -1,46 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C10A6B0266
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 09:15:29 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id c9-v6so16843971wrm.14
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 06:15:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l28-v6sor3477451wre.45.2018.06.01.06.15.28
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 31EB56B0005
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 09:51:06 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id d4-v6so15282492plr.17
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 06:51:06 -0700 (PDT)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40106.outbound.protection.outlook.com. [40.107.4.106])
+        by mx.google.com with ESMTPS id g28-v6si181784plj.307.2018.06.01.06.51.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 01 Jun 2018 06:15:28 -0700 (PDT)
-Date: Fri, 1 Jun 2018 15:15:26 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [RFC PATCH 0/3] Small cleanup for hotplugmem
-Message-ID: <20180601131526.GA22366@techadventures.net>
-References: <20180528081352.GA14293@techadventures.net>
- <20180601112530.GA21638@techadventures.net>
- <20180601130842.GC15278@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 01 Jun 2018 06:51:04 -0700 (PDT)
+In-Reply-To: 
+From: Peter Rosin <peda@axentia.se>
+Subject: Re: [PATCH v3 00/16] Provide saturating helpers for allocation
+Message-ID: <0634bebc-e16d-ed40-ee26-5401e4bc7b50@axentia.se>
+Date: Fri, 1 Jun 2018 15:50:57 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180601130842.GC15278@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: linux-mm@kvack.org, vbabka@suse.cz, pasha.tatashin@oracle.com, akpm@linux-foundation.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On Fri, Jun 01, 2018 at 03:08:42PM +0200, Michal Hocko wrote:
-> On Fri 01-06-18 13:25:30, Oscar Salvador wrote:
-> [...]
-> > Since there have not been any concerns so far, I will send v1 of this patchset.
+Kees Cook wrote:
+> This is a stab at providing three new helpers for allocation size
+> calculation:
 > 
-> I suspect nobody had time to look at those patches yet. It is getting
-> close to the merge window and I expect people are busy. I will try to
-> get to this after merge window.
+> struct_size(), array_size(), and array3_size().
+> 
+> These are implemented on top of Rasmus's overflow checking functions. The
+> existing allocators are adjusted to use the more efficient overflow
+> checks as well.
+> 
+> While the tree-wide conversions continue to be largely unchanged,
+> I've updated their commit logs a bit with some more details on
+> rationale and options. Notably, while there are NO plans to replace
+> kmalloc_array() and kcalloc() with kmalloc(array_size(...),...) and
+> kzalloc(array_size(...),...), the treewide conversions only add the
+> new helpers, as making the ..._array() and ...calloc() conversions
+> balloons the Coccinelle script terribly (I haven't found a way to
+> make the replacement function name depend on the matched regular expression).
+> So, while nothing does:
+>     kmalloc_array(a, b, ...) -> kmalloc(array_size(a, b), ...)
+> the treewide changes DO perform changes like this:
+>     kmalloc(a * b, ...) -> kmalloc(array_size(a, b), ...)
+> 
+> It should also be noted that the treewide changes overlap with a few
+> recently reported "real" overflows, so these aren't theoretical fixes.
+> 
+> At the very least, I'd like to get the helpers and self-test landed in
+> the v4.18 merge window (coming right up!) since those are relatively
+> self-contained. If the treewide changes need adjustment we've got,
+> in theory, through the end of -rc2 to land those.
 
-No problem at all, I know people are busy and merge window is coming so
-I did not really expect a lot of movement here.
+In some places you make an effort to have the count as the first
+argument, e.g. in "treewide: Use array_size() for kmalloc()-family"
 
-But since next week I am going to be quite busy and I will be tight in time, 
-I just sent the patchset (<20180601125321.30652-1-osalvador@techadventures.net>), so you might want to comment
-there in case you want.
+-	kbuf = kmalloc(sizeof(*kbuf) * maxevents, GFP_KERNEL);
++	kbuf = kmalloc(array_size(maxevents, sizeof(*kbuf)), GFP_KERNEL);
 
-Anyway, thanks for the time.
+which is reordered, and from the same patch
 
-Oscar Salvador
+-	mapping->bitmaps = kzalloc(extensions * sizeof(unsigned long *),
+-				GFP_KERNEL);
++	mapping->bitmaps = kzalloc(array_size(extensions, sizeof(unsigned long *)),
++				   GFP_KERNEL);
+
+which is not reordered. That is all fine by me.
+
+But then, in "treewide: Use array_size() for devm_*alloc()-like, leftovers"
+this reordering thing is not happening, e.g.
+
+ 	values = devm_kzalloc(&pdev->dev,
+-			      sizeof(*mux->data.values) * mux->data.n_values,
++			      array_size(sizeof(*mux->data.values), mux->data.n_values),
+ 			      GFP_KERNEL);
+
+Also, the above shows two of numerous examples of the tools breaking the
+80 column "rule", even though the surrounding code makes decent effort to
+uphold it.
+
+I can see why these things happen, but they are annoying.
+
+Cheers,
+Peter
