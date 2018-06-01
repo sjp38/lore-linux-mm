@@ -1,178 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F23C26B0005
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 03:03:54 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id g6-v6so14850073plq.9
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 00:03:54 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id e92-v6si38465096pld.601.2018.06.01.00.03.52
+	by kanga.kvack.org (Postfix) with ESMTP id 4146D6B0007
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 03:11:19 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id g6-v6so14860609plq.9
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 00:11:19 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id g17-v6si37687612plo.355.2018.06.01.00.11.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Jun 2018 00:03:52 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -V3 00/21] mm, THP, swap: Swapout/swapin THP in one piece
-References: <20180523082625.6897-1-ying.huang@intel.com>
-	<20180601061116.GA4813@hori1.linux.bs1.fc.nec.co.jp>
-Date: Fri, 01 Jun 2018 15:03:50 +0800
-In-Reply-To: <20180601061116.GA4813@hori1.linux.bs1.fc.nec.co.jp> (Naoya
-	Horiguchi's message of "Fri, 1 Jun 2018 06:11:16 +0000")
-Message-ID: <87efhryomh.fsf@yhuang-dev.intel.com>
+        Fri, 01 Jun 2018 00:11:18 -0700 (PDT)
+Date: Fri, 1 Jun 2018 15:11:15 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: [RFC PATCH] mem_cgroup: make sure moving_account, move_lock_task and
+ stat_cpu in the same cacheline
+Message-ID: <20180601071115.GA27302@intel.com>
+References: <20180508053451.GD30203@yexl-desktop>
+ <20180508172640.GB24175@cmpxchg.org>
+ <20180528085201.GA2918@intel.com>
+ <20180529084816.GS27180@dhcp22.suse.cz>
+ <20180530082752.GF14785@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180530082752.GF14785@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, kernel test robot <xiaolong.ye@intel.com>, lkp@01.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+The LKP robot found a 27% will-it-scale/page_fault3 performance regression
+regarding commit e27be240df53("mm: memcg: make sure memory.events is
+uptodate when waking pollers").
 
-> On Wed, May 23, 2018 at 04:26:04PM +0800, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> Hi, Andrew, could you help me to check whether the overall design is
->> reasonable?
->> 
->> Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
->> swap part of the patchset?  Especially [02/21], [03/21], [04/21],
->> [05/21], [06/21], [07/21], [08/21], [09/21], [10/21], [11/21],
->> [12/21], [20/21].
->> 
->> Hi, Andrea and Kirill, could you help me to review the THP part of the
->> patchset?  Especially [01/21], [07/21], [09/21], [11/21], [13/21],
->> [15/21], [16/21], [17/21], [18/21], [19/21], [20/21], [21/21].
->> 
->> Hi, Johannes and Michal, could you help me to review the cgroup part
->> of the patchset?  Especially [14/21].
->> 
->> And for all, Any comment is welcome!
->
-> Hi Ying Huang,
-> I've read through this series and find no issue.
+What the test does is:
+1 mkstemp() a 128M file on a tmpfs;
+2 start $nr_cpu processes, each to loop the following:
+  2.1 mmap() this file in shared write mode;
+  2.2 write 0 to this file in a PAGE_SIZE step till the end of the file;
+  2.3 unmap() this file and repeat this process.
+3 After 5 minutes, check how many loops they managed to complete,
+  the higher the better.
 
-Thanks a lot for your review!
+The commit itself looks innocent enough as it merely changed some event
+counting mechanism and this test didn't trigger those events at all.
+Perf shows increased cycles spent on accessing root_mem_cgroup->stat_cpu
+in count_memcg_event_mm()(called by handle_mm_fault()) and in
+__mod_memcg_state() called by page_add_file_rmap(). So it's likely due
+to the changed layout of 'struct mem_cgroup' that either make stat_cpu
+falling into a constantly modifying cacheline or some hot fields stop
+being in the same cacheline.
 
-> It seems that thp swapout never happens if swap devices are backed by
-> rotation storages.  I guess that's because this feature depends on swap
-> cluster searching algorithm which only supports non-rotational storages.
->
-> I think that this limitation is OK because non-rotational storage is
-> better for swap device (most future users will use it). But I think
-> it's better to document the limitation somewhere because swap cluster
-> is in-kernel thing and we can't assume that end users know about it.
+I verified this by moving memory_events[] back to where it was:
 
-Yes.  I will try to document it somewhere.
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index d99b71b..c767db1 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -205,7 +205,6 @@ struct mem_cgroup {
+ 	int		oom_kill_disable;
 
-Best Regards,
-Huang, Ying
+ 	/* memory.events */
+-	atomic_long_t memory_events[MEMCG_NR_MEMORY_EVENTS];
+ 	struct cgroup_file events_file;
 
-> Thanks,
-> Naoya Horiguchi
->
->> 
->> This patchset is based on the 2018-05-18 head of mmotm/master.
->> 
->> This is the final step of THP (Transparent Huge Page) swap
->> optimization.  After the first and second step, the splitting huge
->> page is delayed from almost the first step of swapout to after swapout
->> has been finished.  In this step, we avoid splitting THP for swapout
->> and swapout/swapin the THP in one piece.
->> 
->> We tested the patchset with vm-scalability benchmark swap-w-seq test
->> case, with 16 processes.  The test case forks 16 processes.  Each
->> process allocates large anonymous memory range, and writes it from
->> begin to end for 8 rounds.  The first round will swapout, while the
->> remaining rounds will swapin and swapout.  The test is done on a Xeon
->> E5 v3 system, the swap device used is a RAM simulated PMEM (persistent
->> memory) device.  The test result is as follow,
->> 
->>             base                  optimized
->> ---------------- -------------------------- 
->>          %stddev     %change         %stddev
->>              \          |                \  
->>    1417897 A+-  2%    +992.8%   15494673        vm-scalability.throughput
->>    1020489 A+-  4%   +1091.2%   12156349        vmstat.swap.si
->>    1255093 A+-  3%    +940.3%   13056114        vmstat.swap.so
->>    1259769 A+-  7%   +1818.3%   24166779        meminfo.AnonHugePages
->>   28021761           -10.7%   25018848 A+-  2%  meminfo.AnonPages
->>   64080064 A+-  4%     -95.6%    2787565 A+- 33%  interrupts.CAL:Function_call_interrupts
->>      13.91 A+-  5%     -13.8        0.10 A+- 27%  perf-profile.children.cycles-pp.native_queued_spin_lock_slowpath
->> 
->> Where, the score of benchmark (bytes written per second) improved
->> 992.8%.  The swapout/swapin throughput improved 1008% (from about
->> 2.17GB/s to 24.04GB/s).  The performance difference is huge.  In base
->> kernel, for the first round of writing, the THP is swapout and split,
->> so in the remaining rounds, there is only normal page swapin and
->> swapout.  While in optimized kernel, the THP is kept after first
->> swapout, so THP swapin and swapout is used in the remaining rounds.
->> This shows the key benefit to swapout/swapin THP in one piece, the THP
->> will be kept instead of being split.  meminfo information verified
->> this, in base kernel only 4.5% of anonymous page are THP during the
->> test, while in optimized kernel, that is 96.6%.  The TLB flushing IPI
->> (represented as interrupts.CAL:Function_call_interrupts) reduced
->> 95.6%, while cycles for spinlock reduced from 13.9% to 0.1%.  These
->> are performance benefit of THP swapout/swapin too.
->> 
->> Below is the description for all steps of THP swap optimization.
->> 
->> Recently, the performance of the storage devices improved so fast that
->> we cannot saturate the disk bandwidth with single logical CPU when do
->> page swapping even on a high-end server machine.  Because the
->> performance of the storage device improved faster than that of single
->> logical CPU.  And it seems that the trend will not change in the near
->> future.  On the other hand, the THP becomes more and more popular
->> because of increased memory size.  So it becomes necessary to optimize
->> THP swap performance.
->> 
->> The advantages to swapout/swapin a THP in one piece include:
->> 
->> - Batch various swap operations for the THP.  Many operations need to
->>   be done once per THP instead of per normal page, for example,
->>   allocating/freeing the swap space, writing/reading the swap space,
->>   flushing TLB, page fault, etc.  This will improve the performance of
->>   the THP swap greatly.
->> 
->> - The THP swap space read/write will be large sequential IO (2M on
->>   x86_64).  It is particularly helpful for the swapin, which are
->>   usually 4k random IO.  This will improve the performance of the THP
->>   swap too.
->> 
->> - It will help the memory fragmentation, especially when the THP is
->>   heavily used by the applications.  The THP order pages will be free
->>   up after THP swapout.
->> 
->> - It will improve the THP utilization on the system with the swap
->>   turned on.  Because the speed for khugepaged to collapse the normal
->>   pages into the THP is quite slow.  After the THP is split during the
->>   swapout, it will take quite long time for the normal pages to
->>   collapse back into the THP after being swapin.  The high THP
->>   utilization helps the efficiency of the page based memory management
->>   too.
->> 
->> There are some concerns regarding THP swapin, mainly because possible
->> enlarged read/write IO size (for swapout/swapin) may put more overhead
->> on the storage device.  To deal with that, the THP swapin is turned on
->> only when necessary.  A new sysfs interface:
->> /sys/kernel/mm/transparent_hugepage/swapin_enabled is added to
->> configure it.  It uses "always/never/madvise" logic, to be turned on
->> globally, turned off globally, or turned on only for VMA with
->> MADV_HUGEPAGE, etc.
->> GE, etc.
->> 
->> Changelog
->> ---------
->> 
->> v3:
->> 
->> - Rebased on 5/18 HEAD of mmotm/master
->> 
->> - Fixed a build bug, Thanks 0-Day!
->> 
->> v2:
->> 
->> - Fixed several build bugs, Thanks 0-Day!
->> 
->> - Improved documentation as suggested by Randy Dunlap.
->> 
->> - Fixed several bugs in reading huge swap cluster
->> 
+ 	/* protect arrays of thresholds */
+@@ -238,6 +237,7 @@ struct mem_cgroup {
+ 	struct mem_cgroup_stat_cpu __percpu *stat_cpu;
+ 	atomic_long_t		stat[MEMCG_NR_STAT];
+ 	atomic_long_t		events[NR_VM_EVENT_ITEMS];
++	atomic_long_t memory_events[MEMCG_NR_MEMORY_EVENTS];
+
+ 	unsigned long		socket_pressure;
+
+And performance restored.
+
+Later investigation found that as long as the following 3 fields
+moving_account, move_lock_task and stat_cpu are in the same cacheline,
+performance will be good. To avoid future performance surprise by
+other commits changing the layout of 'struct mem_cgroup', this patch
+makes sure the 3 fields stay in the same cacheline.
+
+One concern of this approach is, moving_account and move_lock_task
+could be modified when a process changes memory cgroup while stat_cpu
+is a always read field, it might hurt to place them in the same
+cacheline. I assume it is rare for a process to change memory cgroup
+so this should be OK.
+
+LINK: https://lkml.kernel.org/r/20180528114019.GF9904@yexl-desktop
+Reported-by: kernel test robot <xiaolong.ye@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>
+Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+---
+ include/linux/memcontrol.h | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index d99b71bc2c66..c79972a78d6c 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -158,6 +158,15 @@ enum memcg_kmem_state {
+ 	KMEM_ONLINE,
+ };
+ 
++#if defined(CONFIG_SMP)
++struct memcg_padding {
++	char x[0];
++} ____cacheline_internodealigned_in_smp;
++#define MEMCG_PADDING(name)      struct memcg_padding name;
++#else
++#define MEMCG_PADDING(name)
++#endif
++
+ /*
+  * The memory controller data structure. The memory controller controls both
+  * page cache and RSS per cgroup. We would eventually like to provide
+@@ -225,17 +234,23 @@ struct mem_cgroup {
+ 	 * mem_cgroup ? And what type of charges should we move ?
+ 	 */
+ 	unsigned long move_charge_at_immigrate;
++	/* taken only while moving_account > 0 */
++	spinlock_t		move_lock;
++	unsigned long		move_lock_flags;
++
++	MEMCG_PADDING(_pad1_);
++
+ 	/*
+ 	 * set > 0 if pages under this cgroup are moving to other cgroup.
+ 	 */
+ 	atomic_t		moving_account;
+-	/* taken only while moving_account > 0 */
+-	spinlock_t		move_lock;
+ 	struct task_struct	*move_lock_task;
+-	unsigned long		move_lock_flags;
+ 
+ 	/* memory.stat */
+ 	struct mem_cgroup_stat_cpu __percpu *stat_cpu;
++
++	MEMCG_PADDING(_pad2_);
++
+ 	atomic_long_t		stat[MEMCG_NR_STAT];
+ 	atomic_long_t		events[NR_VM_EVENT_ITEMS];
+ 
+-- 
+2.17.0
