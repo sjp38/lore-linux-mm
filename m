@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CADA06B0266
-	for <linux-mm@kvack.org>; Thu, 31 May 2018 20:43:48 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id e1-v6so14161127pld.23
-        for <linux-mm@kvack.org>; Thu, 31 May 2018 17:43:48 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D13696B026A
+	for <linux-mm@kvack.org>; Thu, 31 May 2018 20:43:49 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t5-v6so5789587pgt.18
+        for <linux-mm@kvack.org>; Thu, 31 May 2018 17:43:49 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z10-v6sor3998451pgu.421.2018.05.31.17.43.47
+        by mx.google.com with SMTPS id a129-v6sor14769668pfb.146.2018.05.31.17.43.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 31 May 2018 17:43:47 -0700 (PDT)
+        Thu, 31 May 2018 17:43:48 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v3 06/16] mm: Use overflow helpers in kmalloc_array*()
-Date: Thu, 31 May 2018 17:42:23 -0700
-Message-Id: <20180601004233.37822-7-keescook@chromium.org>
+Subject: [PATCH v3 07/16] mm: Use overflow helpers in kvmalloc()
+Date: Thu, 31 May 2018 17:42:24 -0700
+Message-Id: <20180601004233.37822-8-keescook@chromium.org>
 In-Reply-To: <20180601004233.37822-1-keescook@chromium.org>
 References: <20180601004233.37822-1-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,58 +21,53 @@ To: Matthew Wilcox <mawilcox@microsoft.com>
 Cc: Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Matthew Wilcox <willy@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Kernel Hardening <kernel-hardening@lists.openwall.com>
 
 Instead of open-coded multiplication and bounds checking, use the new
-overflow helper.
+overflow helper. Additionally prepare for vmalloc() users to add
+array_size()-family helpers in the future.
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- include/linux/slab.h | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
+ include/linux/mm.h      | 7 +++++--
+ include/linux/vmalloc.h | 1 +
+ 2 files changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 81ebd71f8c03..4d759e1ddc33 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -13,6 +13,7 @@
- #define	_LINUX_SLAB_H
- 
- #include <linux/gfp.h>
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1ac1f06a4be6..7cb1c6a6bf82 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -25,6 +25,7 @@
+ #include <linux/err.h>
+ #include <linux/page_ref.h>
+ #include <linux/memremap.h>
 +#include <linux/overflow.h>
- #include <linux/types.h>
- #include <linux/workqueue.h>
  
-@@ -624,11 +625,13 @@ int memcg_update_all_caches(int num_memcgs);
-  */
- static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
+ struct mempolicy;
+ struct anon_vma;
+@@ -560,10 +561,12 @@ static inline void *kvzalloc(size_t size, gfp_t flags)
+ 
+ static inline void *kvmalloc_array(size_t n, size_t size, gfp_t flags)
  {
 -	if (size != 0 && n > SIZE_MAX / size)
 +	size_t bytes;
 +
 +	if (unlikely(check_mul_overflow(n, size, &bytes)))
  		return NULL;
- 	if (__builtin_constant_p(n) && __builtin_constant_p(size))
--		return kmalloc(n * size, flags);
--	return __kmalloc(n * size, flags);
-+		return kmalloc(bytes, flags);
-+	return __kmalloc(bytes, flags);
+ 
+-	return kvmalloc(n * size, flags);
++	return kvmalloc(bytes, flags);
  }
  
- /**
-@@ -657,11 +660,13 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
- static inline void *kmalloc_array_node(size_t n, size_t size, gfp_t flags,
- 				       int node)
- {
--	if (size != 0 && n > SIZE_MAX / size)
-+	size_t bytes;
-+
-+	if (unlikely(check_mul_overflow(n, size, &bytes)))
- 		return NULL;
- 	if (__builtin_constant_p(n) && __builtin_constant_p(size))
--		return kmalloc_node(n * size, flags, node);
--	return __kmalloc_node(n * size, flags, node);
-+		return kmalloc_node(bytes, flags, node);
-+	return __kmalloc_node(bytes, flags, node);
- }
+ extern void kvfree(const void *addr);
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 1e5d8c392f15..398e9c95cd61 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -8,6 +8,7 @@
+ #include <linux/llist.h>
+ #include <asm/page.h>		/* pgprot_t */
+ #include <linux/rbtree.h>
++#include <linux/overflow.h>
  
- static inline void *kcalloc_node(size_t n, size_t size, gfp_t flags, int node)
+ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
+ struct notifier_block;		/* in notifier.h */
 -- 
 2.17.0
