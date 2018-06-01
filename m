@@ -1,101 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C106C6B0007
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 07:53:40 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e7-v6so14346564pfi.8
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 04:53:40 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s9-v6sor3716809pgc.260.2018.06.01.04.53.38
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 72D656B0005
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 08:24:19 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id 12-v6so5232752qtq.8
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 05:24:19 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id b5-v6si3584304qvo.203.2018.06.01.05.24.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 01 Jun 2018 04:53:39 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm: kvmalloc does not fallback to vmalloc for incompatible gfp flags
-Date: Fri,  1 Jun 2018 13:53:29 +0200
-Message-Id: <20180601115329.27807-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Jun 2018 05:24:18 -0700 (PDT)
+Date: Fri, 1 Jun 2018 14:24:10 +0200
+From: Igor Mammedov <imammedo@redhat.com>
+Subject: Re: [Qemu-devel] [RFC v2 0/2] kvm "fake DAX" device flushing
+Message-ID: <20180601142410.5c986f13@redhat.com>
+In-Reply-To: <20180425112415.12327-1-pagupta@redhat.com>
+References: <20180425112415.12327-1-pagupta@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Tom Herbert <tom@quantonium.net>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Pankaj Gupta <pagupta@redhat.com>
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, kwolf@redhat.com, haozhong.zhang@intel.com, jack@suse.cz, xiaoguangrong.eric@gmail.com, riel@surriel.com, niteshnarayanlal@hotmail.com, david@redhat.com, ross.zwisler@intel.com, lcapitulino@redhat.com, hch@infradead.org, mst@redhat.com, stefanha@redhat.com, marcel@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com, nilal@redhat.com
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed, 25 Apr 2018 16:54:12 +0530
+Pankaj Gupta <pagupta@redhat.com> wrote:
 
-kvmalloc warned about incompatible gfp_mask to catch abusers (mostly
-GFP_NOFS) with an intention that this will motivate authors of the code
-to fix those. Linus argues that this just motivates people to do even
-more hacks like
-	if (gfp == GFP_KERNEL)
-		kvmalloc
-	else
-		kmalloc
+[...]
+> - Qemu virtio-pmem device
+>   It exposes a persistent memory range to KVM guest which 
+>   at host side is file backed memory and works as persistent 
+>   memory device. In addition to this it provides virtio 
+>   device handling of flushing interface. KVM guest performs
+>   Qemu side asynchronous sync using this interface.
+a random high level question,
+Have you considered using a separate (from memory itself)
+virtio device as controller for exposing some memory, async flushing.
+And then just slaving pc-dimm devices to it with notification/ACPI
+code suppressed so that guest won't touch them?
 
-I haven't seen this happening much (Linus pointed to bucket_lock special
-cases an atomic allocation but my git foo hasn't found much more) but
-it is true that we can grow those in future. Therefore Linus suggested
-to simply not fallback to vmalloc for incompatible gfp flags and rather
-stick with the kmalloc path.
+That way it might be more scale-able, you consume only 1 PCI slot
+for controller vs multiple for virtio-pmem devices.
 
-Requested-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
 
-Hi Andrew,
-for more context. Linus has pointed out [1] that our (well mine)
-insisting on GFP_KERNEL compatible gfp flags for kvmalloc* can actually
-lead to a worse code because people will work around the restriction.
-So this patch allows kvmalloc to be more permissive and silently skip
-vmalloc path for incompatible gfp flags. This will not help my original
-plan to enforce people to think about GFP_NOFS usage more deeply but
-I can live with that obviously...
-
-alloc_bucket_spinlocks is the only place I could find which special
-cases kvmalloc based on the gfp mask.
-
-[1] http://lkml.kernel.org/r/CA+55aFxvNCEBQsxfr=yL3jgxiC8M8wY2MHwVBH+T8qSWyP-WPg@mail.gmail.com
-
- lib/bucket_locks.c | 5 +----
- mm/util.c          | 6 ++++--
- 2 files changed, 5 insertions(+), 6 deletions(-)
-
-diff --git a/lib/bucket_locks.c b/lib/bucket_locks.c
-index 266a97c5708b..ade3ce6c4af6 100644
---- a/lib/bucket_locks.c
-+++ b/lib/bucket_locks.c
-@@ -30,10 +30,7 @@ int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *locks_mask,
- 	}
- 
- 	if (sizeof(spinlock_t) != 0) {
--		if (gfpflags_allow_blocking(gfp))
--			tlocks = kvmalloc(size * sizeof(spinlock_t), gfp);
--		else
--			tlocks = kmalloc_array(size, sizeof(spinlock_t), gfp);
-+		tlocks = kvmalloc_array(size, sizeof(spinlock_t), gfp);
- 		if (!tlocks)
- 			return -ENOMEM;
- 		for (i = 0; i < size; i++)
-diff --git a/mm/util.c b/mm/util.c
-index 45fc3169e7b0..c6586c146995 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -391,7 +391,8 @@ EXPORT_SYMBOL(vm_mmap);
-  * __GFP_RETRY_MAYFAIL is supported, and it should be used only if kmalloc is
-  * preferable to the vmalloc fallback, due to visible performance drawbacks.
-  *
-- * Any use of gfp flags outside of GFP_KERNEL should be consulted with mm people.
-+ * Please note that any use of gfp flags outside of GFP_KERNEL is careful to not
-+ * fall back to vmalloc.
-  */
- void *kvmalloc_node(size_t size, gfp_t flags, int node)
- {
-@@ -402,7 +403,8 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
- 	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
- 	 * so the given set of flags has to be compatible.
- 	 */
--	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
-+	if ((flags & GFP_KERNEL) != GFP_KERNEL)
-+		return kmalloc_node(size, flags, node);
- 
- 	/*
- 	 * We want to attempt a large physically contiguous block first because
--- 
-2.17.0
+> Changes from previous RFC[1]:
+> 
+> - Reuse existing 'pmem' code for registering persistent 
+>   memory and other operations instead of creating an entirely 
+>   new block driver.
+> - Use VIRTIO driver to register memory information with 
+>   nvdimm_bus and create region_type accordingly. 
+> - Call VIRTIO flush from existing pmem driver.
+> 
+> Details of project idea for 'fake DAX' flushing interface is 
+> shared [2] & [3].
+> 
+> Pankaj Gupta (2):
+>    Add virtio-pmem guest driver
+>    pmem: device flush over VIRTIO
+> 
+> [1] https://marc.info/?l=linux-mm&m=150782346802290&w=2
+> [2] https://www.spinics.net/lists/kvm/msg149761.html
+> [3] https://www.spinics.net/lists/kvm/msg153095.html  
+> 
+>  drivers/nvdimm/region_devs.c     |    7 ++
+>  drivers/virtio/Kconfig           |   12 +++
+>  drivers/virtio/Makefile          |    1 
+>  drivers/virtio/virtio_pmem.c     |  118 +++++++++++++++++++++++++++++++++++++++
+>  include/linux/libnvdimm.h        |    4 +
+>  include/uapi/linux/virtio_ids.h  |    1 
+>  include/uapi/linux/virtio_pmem.h |   58 +++++++++++++++++++
+>  7 files changed, 201 insertions(+)
+> 
