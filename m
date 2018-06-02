@@ -1,86 +1,346 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7756B0005
-	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 20:03:58 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id q129-v6so3527713oic.9
-        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 17:03:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v128-v6sor18517807oib.252.2018.06.01.17.03.56
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 63AB06B0005
+	for <linux-mm@kvack.org>; Fri,  1 Jun 2018 20:09:45 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id i1-v6so21887804ioh.15
+        for <linux-mm@kvack.org>; Fri, 01 Jun 2018 17:09:45 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id i184-v6si2904054ite.25.2018.06.01.17.09.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 01 Jun 2018 17:03:56 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 01 Jun 2018 17:09:43 -0700 (PDT)
+Subject: Re: [PATCH] docs/admin-guide/mm: add high level concepts overview
+References: <20180529113725.GB13092@rapoport-lnx>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <285dd950-0b25-dba3-60b6-ceac6075fb48@infradead.org>
+Date: Fri, 1 Jun 2018 17:09:38 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180601170100.0a8e5567@thinkpad>
-References: <152658753673.26786.16458605771414761966.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180518094616.GA25838@lst.de> <CAPcyv4iO1yss0sfBzHVDy3qja_wc+JT2Zi1zwtApDckTeuG2wQ@mail.gmail.com>
- <20180521090410.7ygosxzjfhceqrq4@quack2.suse.cz> <20180522062806.GD7816@lst.de>
- <20180523205017.0f2bc83e@thinkpad> <CAPcyv4gRvG=yT==SPgF940F7v9FqGqG-dQ8Vjcm0LPch86i1RA@mail.gmail.com>
- <20180601170100.0a8e5567@thinkpad>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 1 Jun 2018 17:03:55 -0700
-Message-ID: <CAPcyv4is_iW6UjVrb4ZKJh=EuGjnCxm=O49kNAtOF5nrQG4+Ag@mail.gmail.com>
-Subject: Re: [PATCH v10] mm: introduce MEMORY_DEVICE_FS_DAX and CONFIG_DEV_PAGEMAP_OPS
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180529113725.GB13092@rapoport-lnx>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Christoph Hellwig <hch@lst.de>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.com>, kbuild test robot <lkp@intel.com>, Thomas Meyer <thomas@m3y3r.de>, Dave Jiang <dave.jiang@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 1, 2018 at 8:01 AM, Gerald Schaefer
-<gerald.schaefer@de.ibm.com> wrote:
-> On Tue, 29 May 2018 13:26:33 -0700
-> Dan Williams <dan.j.williams@intel.com> wrote:
->
->> On Wed, May 23, 2018 at 11:50 AM, Gerald Schaefer
->> <gerald.schaefer@de.ibm.com> wrote:
->> > On Tue, 22 May 2018 08:28:06 +0200
->> > Christoph Hellwig <hch@lst.de> wrote:
->> >
->> >> On Mon, May 21, 2018 at 11:04:10AM +0200, Jan Kara wrote:
->> >> > We definitely do have customers using "execute in place" on s390x from
->> >> > dcssblk. I've got about two bug reports for it when customers were updating
->> >> > from old kernels using original XIP to kernels using DAX. So we need to
->> >> > keep that working.
->> >>
->> >> That is all good an fine, but I think time has come where s390 needs
->> >> to migrate to provide the pmem API so that we can get rid of these
->> >> special cases.  Especially given that the old XIP/legacy DAX has all
->> >> kinds of known bugs at this point in time.
->> >
->> > I haven't yet looked at this patch series, but I can feel that this
->> > FS_DAX_LIMITED workaround is beginning to cause some headaches, apart
->> > from being quite ugly of course.
->> >
->> > Just to make sure I still understand the basic problem, which I thought
->> > was missing struct pages for the dcssblk memory, what exactly do you
->> > mean with "provide the pmem API", is there more to do?
->>
->> No, just 'struct page' is needed.
->>
->> What used to be the pmem API is now pushed down into to dax_operations
->> provided by the device driver. dcssblk is free to just redirect to the
->> generic implementations for copy_from_iter() and copy_to_iter(), and
->> be done. I.e. we've removed the "pmem API" requirement.
->>
->> > I do have a prototype patch lying around that adds struct pages, but
->> > didn't yet have time to fully test/complete it. Of course we initially
->> > introduced XIP as a mechanism to reduce memory consumption, and that
->> > is probably the use case for the remaining customer(s). Adding struct
->> > pages would somehow reduce that benefit, but as long as we can still
->> > "execute in place", I guess it will be OK.
->>
->> The pmem driver has the option to allocate the 'struct page' map out
->> of pmem directly. If the overhead of having the map in System RAM is
->> too high it could borrow the same approach, but that adds another
->> degree of configuration complexity freedom.
->>
->
-> Thanks for clarifying, and mentioning the pmem altmap support, that
-> looks interesting. I also noticed that I probably should enable
-> CONFIG_ZONE_DEVICE for s390, and use devm_memremap_pages() to get
-> the struct pages, rather than my homegrown solution so far. This will
-> take some time however, so I hope you can live with the FS_DAX_LIMITED
-> a little longer.
->
+On 05/29/2018 04:37 AM, Mike Rapoport wrote:
+> Hi,
+> 
+> From 2d3ec7ea101a66b1535d5bec4acfc1e0f737fd53 Mon Sep 17 00:00:00 2001
+> From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Date: Tue, 29 May 2018 14:12:39 +0300
+> Subject: [PATCH] docs/admin-guide/mm: add high level concepts overview
+> 
+> The are terms that seem obvious to the mm developers, but may be somewhat
 
-Yes, no urgent rush as far as I can see. Thanks Gerald.
+  There are [or: These are]
+
+> obscure for, say, less involved readers.
+> 
+> The concepts overview can be seen as an "extended glossary" that introduces
+> such terms to the readers of the kernel documentation.
+> 
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> ---
+>  Documentation/admin-guide/mm/concepts.rst | 222 ++++++++++++++++++++++++++++++
+>  Documentation/admin-guide/mm/index.rst    |   5 +
+>  2 files changed, 227 insertions(+)
+>  create mode 100644 Documentation/admin-guide/mm/concepts.rst
+> 
+> diff --git a/Documentation/admin-guide/mm/concepts.rst b/Documentation/admin-guide/mm/concepts.rst
+> new file mode 100644
+> index 0000000..291699c
+> --- /dev/null
+> +++ b/Documentation/admin-guide/mm/concepts.rst
+> @@ -0,0 +1,222 @@
+> +.. _mm_concepts:
+> +
+> +=================
+> +Concepts overview
+> +=================
+> +
+> +The memory management in Linux is complex system that evolved over the
+
+                                  is a complex
+
+> +years and included more and more functionality to support variety of
+
+                                                     support a variety of
+
+> +systems from MMU-less microcontrollers to supercomputers. The memory
+> +management for systems without MMU is called ``nommu`` and it
+
+                          without an MMU
+
+> +definitely deserves a dedicated document, which hopefully will be
+> +eventually written. Yet, although some of the concepts are the same,
+> +here we assume that MMU is available and CPU can translate a virtual
+
+                  that an MMU           and a CPU
+
+> +address to a physical address.
+> +
+> +.. contents:: :local:
+> +
+> +Virtual Memory Primer
+> +=====================
+> +
+> +The physical memory in a computer system is a limited resource and
+> +even for systems that support memory hotplug there is a hard limit on
+> +the amount of memory that can be installed. The physical memory is not
+> +necessary contiguous, it might be accessible as a set of distinct
+
+Change comma to semi-colon or period (and if latter, s/it/It/).
+
+> +address ranges. Besides, different CPU architectures, and even
+> +different implementations of the same architecture have different view
+
+                                                                     views of
+
+> +how these address ranges defined.
+> +
+> +All this makes dealing directly with physical memory quite complex and
+> +to avoid this complexity a concept of virtual memory was developed.
+> +
+> +The virtual memory abstracts the details of physical memory from the
+
+       virtual memory {system, implementation} abstracts
+
+> +application software, allows to keep only needed information in the
+
+               software, allowing the VM to keep only needed information in the
+
+> +physical memory (demand paging) and provides a mechanism for the
+> +protection and controlled sharing of data between processes.
+> +
+> +With virtual memory, each and every memory access uses a virtual
+> +address. When the CPU decodes the an instruction that reads (or
+> +writes) from (or to) the system memory, it translates the `virtual`
+> +address encoded in that instruction to a `physical` address that the
+> +memory controller can understand.
+> +
+> +The physical system memory is divided into page frames, or pages. The
+> +size of each page is architecture specific. Some architectures allow
+> +selection of the page size from several supported values; this
+> +selection is performed at the kernel build time by setting an
+> +appropriate kernel configuration option.
+> +
+> +Each physical memory page can be mapped as one or more virtual
+> +pages. These mappings are described by page tables that allow
+> +translation from virtual address used by programs to real address in
+
+               from a virtual address                to {a, the} real address in
+
+> +the physical memory. The page tables organized hierarchically.
+
+                                 tables are organized
+
+> +
+> +The tables at the lowest level of the hierarchy contain physical
+> +addresses of actual pages used by the software. The tables at higher
+> +levels contain physical addresses of the pages belonging to the lower
+> +levels. The pointer to the top level page table resides in a
+> +register. When the CPU performs the address translation, it uses this
+> +register to access the top level page table. The high bits of the
+> +virtual address are used to index an entry in the top level page
+> +table. That entry is then used to access the next level in the
+> +hierarchy with the next bits of the virtual address as the index to
+> +that level page table. The lowest bits in the virtual address define
+> +the offset inside the actual page.
+> +
+> +Huge Pages
+> +==========
+> +
+> +The address translation requires several memory accesses and memory
+> +accesses are slow relatively to CPU speed. To avoid spending precious
+> +processor cycles on the address translation, CPUs maintain a cache of
+> +such translations called Translation Lookaside Buffer (or
+> +TLB). Usually TLB is pretty scarce resource and applications with
+> +large memory working set will experience performance hit because of
+> +TLB misses.
+> +
+> +Many modern CPU architectures allow mapping of the memory pages
+> +directly by the higher levels in the page table. For instance, on x86,
+> +it is possible to map 2M and even 1G pages using entries in the second
+> +and the third level page tables. In Linux such pages are called
+> +`huge`. Usage of huge pages significantly reduces pressure on TLB,
+> +improves TLB hit-rate and thus improves overall system performance.
+> +
+> +There are two mechanisms in Linux that enable mapping of the physical
+> +memory with the huge pages. The first one is `HugeTLB filesystem`, or
+> +hugetlbfs. It is a pseudo filesystem that uses RAM as its backing
+> +store. For the files created in this filesystem the data resides in
+> +the memory and mapped using huge pages. The hugetlbfs is described at
+> +:ref:`Documentation/admin-guide/mm/hugetlbpage.rst <hugetlbpage>`.
+> +
+> +Another, more recent, mechanism that enables use of the huge pages is
+> +called `Transparent HugePages`, or THP. Unlike the hugetlbfs that
+> +requires users and/or system administrators to configure what parts of
+> +the system memory should and can be mapped by the huge pages, THP
+> +manages such mappings transparently to the user and hence the
+> +name. See
+> +:ref:`Documentation/admin-guide/mm/transhuge.rst <admin_guide_transhuge>`
+> +for more details about THP.
+> +
+> +Zones
+> +=====
+> +
+> +Often hardware poses restrictions on how different physical memory
+> +ranges can be accessed. In some cases, devices cannot perform DMA to
+> +all the addressable memory. In other cases, the size of the physical
+> +memory exceeds the maximal addressable size of virtual memory and
+> +special actions are required to access portions of the memory. Linux
+> +groups memory pages into `zones` according to their possible
+> +usage. For example, ZONE_DMA will contain memory that can be used by
+> +devices for DMA, ZONE_HIGHMEM will contain memory that is not
+> +permanently mapped into kernel's address space and ZONE_NORMAL will
+> +contain normally addressed pages.
+> +
+> +The actual layout of the memory zones is hardware dependent as not all
+> +architectures define all zones, and requirements for DMA are different
+> +for different platforms.
+> +
+> +Nodes
+> +=====
+> +
+> +Many multi-processor machines are NUMA - Non-Uniform Memory Access -
+> +systems. In such systems the memory is arranged into banks that have
+> +different access latency depending on the "distance" from the
+> +processor. Each bank is referred as `node` and for each node Linux
+
+                        is referred to as a `node`
+
+> +constructs an independent memory management subsystem. A node has it's
+
+                                                                     its
+
+> +own set of zones, lists of free and used pages and various statistics
+> +counters. You can find more details about NUMA in
+> +:ref:`Documentation/vm/numa.rst <numa>` and in
+> +:ref:`Documentation/admin-guide/mm/numa_memory_policy.rst <numa_memory_policy>`.
+> +
+> +Page cache
+> +==========
+> +
+> +The physical memory is volatile and the common case for getting data
+> +into the memory is to read it from files. Whenever a file is read, the
+> +data is put into the `page cache` to avoid expensive disk access on
+> +the subsequent reads. Similarly, when one writes to a file, the data
+> +is placed in the page cache and eventually gets into the backing
+> +storage device. The written pages are marked as `dirty` and when Linux
+> +decides to reuse them for other purposes, it makes sure to synchronize
+> +the file contents on the device with the updated data.
+> +
+> +Anonymous Memory
+> +================
+> +
+> +The `anonymous memory` or `anonymous mappings` represent memory that
+> +is not backed by a filesystem. Such mappings are implicitly created
+> +for program's stack and heap or by explicit calls to mmap(2) system
+> +call. Usually, the anonymous mappings only define virtual memory areas
+> +that the program is allowed to access. The read accesses will result
+> +in creation of a page table entry that references a special physical
+> +page filled with zeroes. When the program performs a write, regular
+
+                                                        write, a regular
+
+> +physical page will be allocated to hold the written data. The page
+> +will be marked dirty and if the kernel will decide to repurpose it,
+> +the dirty page will be swapped out.
+> +
+> +Reclaim
+> +=======
+> +
+> +Throughout the system lifetime, a physical page can be used for storing
+> +different types of data. It can be kernel internal data structures,
+> +DMA'able buffers for device drivers use, data read from a filesystem,
+> +memory allocated by user space processes etc.
+> +
+> +Depending on the page usage it is treated differently by the Linux
+> +memory management. The pages that can be freed at any time, either
+> +because they cache the data available elsewhere, for instance, on a
+> +hard disk, or because they can be swapped out, again, to the hard
+> +disk, are called `reclaimable`. The most notable categories of the
+> +reclaimable pages are page cache and anonymous memory.
+> +
+> +In most cases, the pages holding internal kernel data and used as DMA
+> +buffers cannot be repurposed, and they remain pinned until freed by
+> +their user. Such pages are called `unreclaimable`. However, in certain
+> +circumstances, even pages occupied with kernel data structures can be
+> +reclaimed. For instance, in-memory caches of filesystem metadata can
+> +be re-read from the storage device and therefore it is possible to
+> +discard them from the main memory when system is under memory
+> +pressure.
+> +
+> +The process of freeing the reclaimable physical memory pages and
+> +repurposing them is called (surprise!) `reclaim`. Linux can reclaim
+> +pages either asynchronously or synchronously, depending on the state
+> +of the system. When system is not loaded, most of the memory is free
+
+                  When {the, a} system
+
+> +and allocation request will be satisfied immediately from the free
+
+                  requests
+or
+   and an allocation request
+
+> +pages supply. As the load increases, the amount of the free pages goes
+> +down and when it reaches a certain threshold (high watermark), an
+> +allocation request will awaken the ``kswapd`` daemon. It will
+> +asynchronously scan memory pages and either just free them if the data
+> +they contain is available elsewhere, or evict to the backing storage
+> +device (remember those dirty pages?). As memory usage increases even
+> +more and reaches another threshold - min watermark - an allocation
+> +will trigger the `direct reclaim`. In this case allocation is stalled
+
+s/the//
+
+> +until enough memory pages are reclaimed to satisfy the request.
+> +
+> +Compaction
+> +==========
+> +
+> +As the system runs, tasks allocate and free the memory and it becomes
+> +fragmented. Although with virtual memory it is possible to present
+> +scattered physical pages as virtually contiguous range, sometimes it is
+> +necessary to allocate large physically contiguous memory areas. Such
+> +need may arise, for instance, when a device driver requires large
+
+                                                      requires a large
+
+> +buffer for DMA, or when THP allocates a huge page. Memory `compaction`
+> +addresses the fragmentation issue. This mechanism moves occupied pages
+> +from the lower part of a memory zone to free pages in the upper part
+> +of the zone. When a compaction scan is finished free pages are grouped
+> +together at the beginning of the zone and allocations of large
+> +physically contiguous areas become possible.
+> +
+> +Like reclaim, the compaction may happen asynchronously in ``kcompactd``
+
+                                                          in the
+
+> +daemon or synchronously as a result of memory allocation request.
+
+                                       of a memory allocation request.
+
+> +
+> +OOM killer
+> +==========
+> +
+> +It may happen, that on a loaded machine memory will be exhausted. When
+
+no comma.
+
+> +the kernel detects that the system runs out of memory (OOM) it invokes
+> +`OOM killer`. Its mission is simple: all it has to do is to select a
+> +task to sacrifice for the sake of the overall system health. The
+> +selected task is killed in a hope that after it exits enough memory
+> +will be freed to continue normal operation.
+
+
+thanks for doing this overview.
+
+-- 
+~Randy
