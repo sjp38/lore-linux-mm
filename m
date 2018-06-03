@@ -1,78 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 132ED6B0005
-	for <linux-mm@kvack.org>; Sat,  2 Jun 2018 18:02:31 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id g6-v6so17642280plq.9
-        for <linux-mm@kvack.org>; Sat, 02 Jun 2018 15:02:31 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t9-v6si6684396pfg.199.2018.06.02.15.02.29
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 92F526B0005
+	for <linux-mm@kvack.org>; Sat,  2 Jun 2018 23:24:14 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id f207-v6so21781836qke.22
+        for <linux-mm@kvack.org>; Sat, 02 Jun 2018 20:24:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id q8-v6si2323942qvo.99.2018.06.02.20.24.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 02 Jun 2018 15:02:29 -0700 (PDT)
-Date: Sat, 2 Jun 2018 15:01:36 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2] mm: Change return type int to vm_fault_t for fault
- handlers
-Message-ID: <20180602220136.GA14810@bombadil.infradead.org>
-References: <20180602200407.GA15200@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180602200407.GA15200@jordon-HP-15-Notebook-PC>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 02 Jun 2018 20:24:13 -0700 (PDT)
+From: Baoquan He <bhe@redhat.com>
+Subject: [PATCH] slab: Clean up the code comment in slab kmem_cache struct
+Date: Sun,  3 Jun 2018 11:24:02 +0800
+Message-Id: <20180603032402.27526-1-bhe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: viro@zeniv.linux.org.uk, hughd@google.com, akpm@linux-foundation.org, mhocko@suse.com, ross.zwisler@linux.intel.com, zi.yan@cs.rutgers.edu, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, gregkh@linuxfoundation.org, mark.rutland@arm.com, riel@redhat.com, pasha.tatashin@oracle.com, jschoenh@amazon.de, kstewart@linuxfoundation.org, rientjes@google.com, tglx@linutronix.de, peterz@infradead.org, mgorman@suse.de, yang.s@alibaba-inc.com, minchan@kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, Baoquan He <bhe@redhat.com>
 
-On Sun, Jun 03, 2018 at 01:34:07AM +0530, Souptick Joarder wrote:
-> @@ -3570,9 +3571,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->  			return 0;
->  		}
->  
-> -		ret = (PTR_ERR(new_page) == -ENOMEM) ?
-> -			VM_FAULT_OOM : VM_FAULT_SIGBUS;
-> -		goto out_release_old;
-> +		ret = vmf_error(PTR_ERR(new_page));
-> +			goto out_release_old;
->  	}
->  
->  	/*
+In commit
 
-Something weird happened to the goto here?
+  3b0efdfa1e7("mm, sl[aou]b: Extract common fields from struct kmem_cache")
 
-> +static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
-> +			struct vm_area_struct *vma,
-> +			struct address_space *mapping, pgoff_t idx,
-> +			unsigned long address, pte_t *ptep, unsigned int flags)
->  {
->  	struct hstate *h = hstate_vma(vma);
-> -	int ret = VM_FAULT_SIGBUS;
-> -	int anon_rmap = 0;
-> +	vm_fault_t ret = VM_FAULT_SIGBUS;
-> +	int anon_rmap = 0, err;
->  	unsigned long size;
->  	struct page *page;
->  	pte_t new_pte;
-> @@ -3742,11 +3743,8 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  
->  		page = alloc_huge_page(vma, address, 0);
->  		if (IS_ERR(page)) {
-> -			ret = PTR_ERR(page);
-> -			if (ret == -ENOMEM)
-> -				ret = VM_FAULT_OOM;
-> -			else
-> -				ret = VM_FAULT_SIGBUS;
-> +			err = PTR_ERR(page);
-> +			ret = vmf_error(err);
->  			goto out;
->  		}
->  		clear_huge_page(page, address, pages_per_huge_page(h));
+The variable 'obj_size' was moved above, however the related code comment
+is not updated accordingly. Do it here.
 
-Not sure why you bother with the 'int err' in this function when just
-above you were happy to do
+Signed-off-by: Baoquan He <bhe@redhat.com>
+---
+ include/linux/slab_def.h | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-			ret = vmf_error(PTR_ERR(page));
-
-With those fixed,
-
-Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+index d9228e4d0320..3485c58cfd1c 100644
+--- a/include/linux/slab_def.h
++++ b/include/linux/slab_def.h
+@@ -67,9 +67,10 @@ struct kmem_cache {
+ 
+ 	/*
+ 	 * If debugging is enabled, then the allocator can add additional
+-	 * fields and/or padding to every object. size contains the total
+-	 * object size including these internal fields, the following two
+-	 * variables contain the offset to the user object and its size.
++	 * fields and/or padding to every object. 'size' contains the total
++	 * object size including these internal fields, while 'obj_offset'
++	 * and 'object_size' contain the offset to the user object and its
++	 * size.
+ 	 */
+ 	int obj_offset;
+ #endif /* CONFIG_DEBUG_SLAB */
+-- 
+2.13.6
