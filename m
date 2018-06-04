@@ -1,67 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0986B6B0003
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 06:28:03 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 69-v6so7055237pgg.0
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 03:28:03 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id x1-v6si45833765plb.8.2018.06.04.03.28.01
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F27C6B0003
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 06:41:19 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id e2-v6so17904300oii.20
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 03:41:19 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id k77-v6si5906469oib.353.2018.06.04.03.41.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 03:28:02 -0700 (PDT)
-Subject: Re: [PATCH v2 03/16] khwasan: add CONFIG_KASAN_GENERIC and
- CONFIG_KASAN_HW
-References: <cover.1527259068.git.andreyknvl@google.com>
- <2ef4932c434047ca5a2062782206b4163263dc57.1527259068.git.andreyknvl@google.com>
-From: Chintan Pandya <cpandya@codeaurora.org>
-Message-ID: <ec94bd47-f3a0-a75a-17b7-59765ec32c15@codeaurora.org>
-Date: Mon, 4 Jun 2018 15:57:38 +0530
+        Mon, 04 Jun 2018 03:41:17 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
+ oom_lock held.
+References: <20180525083118.GI11881@dhcp22.suse.cz>
+ <201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp>
+ <20180525114213.GJ11881@dhcp22.suse.cz>
+ <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
+ <20180528124313.GC27180@dhcp22.suse.cz>
+ <201805290557.BAJ39558.MFLtOJVFOHFOSQ@I-love.SAKURA.ne.jp>
+ <20180529060755.GH27180@dhcp22.suse.cz>
+ <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org>
+ <20180601152801.GH15278@dhcp22.suse.cz>
+ <20180601141110.34915e0a1fdbd07d25cc15cc@linux-foundation.org>
+ <20180604070419.GG19202@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <30c750b4-2c65-5737-3172-bddc666d0a8f@i-love.sakura.ne.jp>
+Date: Mon, 4 Jun 2018 19:41:01 +0900
 MIME-Version: 1.0
-In-Reply-To: <2ef4932c434047ca5a2062782206b4163263dc57.1527259068.git.andreyknvl@google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20180604070419.GG19202@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 
-
-
-On 5/25/2018 8:10 PM, Andrey Konovalov wrote:
-...<snip>
-
-> +ifdef CONFIG_KASAN_HW
-> +
-> +ifdef CONFIG_KASAN_INLINE
-> +    instrumentation_flags := -mllvm -hwasan-mapping-offset=$(KASAN_SHADOW_OFFSET)
-> +else
-> +    instrumentation_flags := -mllvm -hwasan-instrument-with-calls=1
-> +endif
->   
-> +CFLAGS_KASAN := -fsanitize=kernel-hwaddress \
-> +		-mllvm -hwasan-instrument-stack=0 \
-> +		$(instrumentation_flags)
-> +
-> +ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
-
-/s/CFLAGS_KASAN_MINIMAL/CFLAGS_KASAN ??
-
-> +    ifneq ($(CONFIG_COMPILE_TEST),y)
-> +        $(warning Cannot use CONFIG_KASAN_HW: \
-> +            -fsanitize=hwaddress is not supported by compiler)
-> +    endif
-> +endif
-> +
-> +endif
-> +
-> +ifdef CONFIG_KASAN
-> +CFLAGS_KASAN_NOSANITIZE := -fno-builtin
->   endif
+On 2018/06/04 16:04, Michal Hocko wrote:
+> On Fri 01-06-18 14:11:10, Andrew Morton wrote:
+>> On Fri, 1 Jun 2018 17:28:01 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+>>
+>>> On Tue 29-05-18 16:07:00, Andrew Morton wrote:
+>>>> On Tue, 29 May 2018 09:17:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+>>>>
+>>>>>> I suggest applying
+>>>>>> this patch first, and then fix "mm, oom: cgroup-aware OOM killer" patch.
+>>>>>
+>>>>> Well, I hope the whole pile gets merged in the upcoming merge window
+>>>>> rather than stall even more.
+>>>>
+>>>> I'm more inclined to drop it all.  David has identified significant
+>>>> shortcomings and I'm not seeing a way of addressing those shortcomings
+>>>> in a backward-compatible fashion.  Therefore there is no way forward
+>>>> at present.
+>>>
+>>> Well, I thought we have argued about those "shortcomings" back and forth
+>>> and expressed that they are not really a problem for workloads which are
+>>> going to use the feature. The backward compatibility has been explained
+>>> as well AFAICT.
+>>
+>> Feel free to re-explain.  It's the only way we'll get there.
 > 
-
-Chintan
--- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
-Inc. is a member of the Code Aurora Forum, a Linux Foundation
-Collaborative Project
+> OK, I will go and my points to the last version of the patchset.
+> 
+>> David has proposed an alternative patchset.  IIRC Roman gave that a
+>> one-line positive response but I don't think it has seen a lot of
+>> attention?
+> 
+> I plan to go and revisit that. My preliminary feedback is that a more
+> generic policy API is really tricky and the patchset has many holes
+> there. But I will come with a more specific feedback in the respective
+> thread.
+> 
+Is current version of "mm, oom: cgroup-aware OOM killer" patchset going to be
+dropped for now? I want to know which state should I use for baseline for my patch.
