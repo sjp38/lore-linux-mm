@@ -1,88 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E86B66B0003
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 06:12:12 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 126-v6so6202256qkd.20
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 03:12:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id p41-v6si3155781qtp.345.2018.06.04.03.12.11
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 936266B0003
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 06:26:07 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p9-v6so14947552wrm.22
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 03:26:07 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id z14-v6si11573836wrn.199.2018.06.04.03.26.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 03:12:11 -0700 (PDT)
-Subject: Re: pkeys on POWER: Access rights not reset on execve
-References: <53828769-23c4-b2e3-cf59-239936819c3e@redhat.com>
- <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
- <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
- <20180519202747.GK5479@ram.oc3035372033.ibm.com>
- <CALCETrVz9otkOQAxVkz6HtuMwjAeY6mMuLgFK_o0M0kbkUznwg@mail.gmail.com>
- <20180520060425.GL5479@ram.oc3035372033.ibm.com>
- <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
- <20180520191115.GM5479@ram.oc3035372033.ibm.com>
- <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
- <20180603201832.GA10109@ram.oc3035372033.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
-Date: Mon, 4 Jun 2018 12:12:07 +0200
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 04 Jun 2018 03:26:06 -0700 (PDT)
+Date: Mon, 4 Jun 2018 12:25:59 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Subject: [PATCH 1/5 v2] spinlock: atomic_dec_and_lock: Add an irqsave variant
+Message-ID: <20180604102559.2ynbassthjzva62l@linutronix.de>
+References: <20180504154533.8833-1-bigeasy@linutronix.de>
+ <20180504154533.8833-2-bigeasy@linutronix.de>
 MIME-Version: 1.0
-In-Reply-To: <20180603201832.GA10109@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20180504154533.8833-2-bigeasy@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Dave Hansen <dave.hansen@intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, Anna-Maria Gleixner <anna-maria@linutronix.de>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, linux-alpha@vger.kernel.org
 
-On 06/03/2018 10:18 PM, Ram Pai wrote:
-> On Mon, May 21, 2018 at 01:29:11PM +0200, Florian Weimer wrote:
->> On 05/20/2018 09:11 PM, Ram Pai wrote:
->>> Florian,
->>>
->>> 	Does the following patch fix the problem for you?  Just like x86
->>> 	I am enabling all keys in the UAMOR register during
->>> 	initialization itself. Hence any key created by any thread at
->>> 	any time, will get activated on all threads. So any thread
->>> 	can change the permission on that key. Smoke tested it
->>> 	with your test program.
->>
->> I think this goes in the right direction, but the AMR value after
->> fork is still strange:
->>
->> AMR (PID 34912): 0x0000000000000000
->> AMR after fork (PID 34913): 0x0000000000000000
->> AMR (PID 34913): 0x0000000000000000
->> Allocated key in subprocess (PID 34913): 2
->> Allocated key (PID 34912): 2
->> Setting AMR: 0xffffffffffffffff
->> New AMR value (PID 34912): 0x0fffffffffffffff
->> About to call execl (PID 34912) ...
->> AMR (PID 34912): 0x0fffffffffffffff
->> AMR after fork (PID 34914): 0x0000000000000003
->> AMR (PID 34914): 0x0000000000000003
->> Allocated key in subprocess (PID 34914): 2
->> Allocated key (PID 34912): 2
->> Setting AMR: 0xffffffffffffffff
->> New AMR value (PID 34912): 0x0fffffffffffffff
->>
->> I mean this line:
->>
->> AMR after fork (PID 34914): 0x0000000000000003
->>
->> Shouldn't it be the same as in the parent process?
-> 
-> Fixed it. Please try this patch. If it all works to your satisfaction, I
-> will clean it up further and send to Michael Ellermen(ppc maintainer).
-> 
-> 
-> commit 51f4208ed5baeab1edb9b0f8b68d7144449b3527
-> Author: Ram Pai <linuxram@us.ibm.com>
-> Date:   Sun Jun 3 14:44:32 2018 -0500
-> 
->      Fix for the fork bug.
->      
->      Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+There are in-tree users of atomic_dec_and_lock() which must acquire the
+spin lock with interrupts disabled. To workaround the lack of an irqsave
+variant of atomic_dec_and_lock() they use local_irq_save() at the call
+site. This causes extra code and creates in some places unneeded long
+interrupt disabled times. These places need also extra treatment for
+PREEMPT_RT due to the disconnect of the irq disabling and the lock
+function.
 
-Is this on top of the previous patch, or a separate fix?
+Implement the missing irqsave variant of the function.
+Add a stub for Alpha which should work without the assmebly optimisation
+for the fastpath.
 
-Thanks,
-Florian
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org> [not the Alpha bits]
+Cc: Richard Henderson <rth@twiddle.net>
+Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+Cc: Matt Turner <mattst88@gmail.com>
+Cc: linux-alpha@vger.kernel.org
+Signed-off-by: Anna-Maria Gleixner <anna-maria@linutronix.de>
+[bigeasy: adding Alpha bits]
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+---
+v1=E2=80=A6v2: Add Alpha bits (kbuild reported build failure on Alpha)
+
+ arch/alpha/lib/dec_and_lock.c | 16 ++++++++++++++++
+ include/linux/spinlock.h      |  5 +++++
+ lib/dec_and_lock.c            | 16 ++++++++++++++++
+ 3 files changed, 37 insertions(+)
+
+diff --git a/arch/alpha/lib/dec_and_lock.c b/arch/alpha/lib/dec_and_lock.c
+index a117707f57fe..069fef7372dc 100644
+--- a/arch/alpha/lib/dec_and_lock.c
++++ b/arch/alpha/lib/dec_and_lock.c
+@@ -42,3 +42,19 @@ static int __used atomic_dec_and_lock_1(atomic_t *atomic=
+, spinlock_t *lock)
+ 	return 0;
+ }
+ EXPORT_SYMBOL(_atomic_dec_and_lock);
++
++int _atomic_dec_and_lock_irqsave(atomic_t *atomic, spinlock_t *lock,
++				 unsigned long *flags)
++{
++	/* Subtract 1 from counter unless that drops it to 0 (ie. it was 1) */
++	if (atomic_add_unless(atomic, -1, 1))
++		return 0;
++
++	/* Otherwise do it the slow way */
++	spin_lock_irqsave(lock, *flags);
++	if (atomic_dec_and_test(atomic))
++		return 1;
++	spin_unlock_irqrestore(lock, *flags);
++	return 0;
++}
++EXPORT_SYMBOL(_atomic_dec_and_lock_irqsave);
+diff --git a/include/linux/spinlock.h b/include/linux/spinlock.h
+index 4894d322d258..803536c992f5 100644
+--- a/include/linux/spinlock.h
++++ b/include/linux/spinlock.h
+@@ -409,6 +409,11 @@ extern int _atomic_dec_and_lock(atomic_t *atomic, spin=
+lock_t *lock);
+ #define atomic_dec_and_lock(atomic, lock) \
+ 		__cond_lock(lock, _atomic_dec_and_lock(atomic, lock))
+=20
++extern int _atomic_dec_and_lock_irqsave(atomic_t *atomic, spinlock_t *lock,
++					unsigned long *flags);
++#define atomic_dec_and_lock_irqsave(atomic, lock, flags) \
++		__cond_lock(lock, _atomic_dec_and_lock_irqsave(atomic, lock, &(flags)))
++
+ int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *lock_mask,
+ 			   size_t max_size, unsigned int cpu_mult,
+ 			   gfp_t gfp);
+diff --git a/lib/dec_and_lock.c b/lib/dec_and_lock.c
+index 347fa7ac2e8a..9555b68bb774 100644
+--- a/lib/dec_and_lock.c
++++ b/lib/dec_and_lock.c
+@@ -33,3 +33,19 @@ int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *l=
+ock)
+ }
+=20
+ EXPORT_SYMBOL(_atomic_dec_and_lock);
++
++int _atomic_dec_and_lock_irqsave(atomic_t *atomic, spinlock_t *lock,
++				 unsigned long *flags)
++{
++	/* Subtract 1 from counter unless that drops it to 0 (ie. it was 1) */
++	if (atomic_add_unless(atomic, -1, 1))
++		return 0;
++
++	/* Otherwise do it the slow way */
++	spin_lock_irqsave(lock, *flags);
++	if (atomic_dec_and_test(atomic))
++		return 1;
++	spin_unlock_irqrestore(lock, *flags);
++	return 0;
++}
++EXPORT_SYMBOL(_atomic_dec_and_lock_irqsave);
+--=20
+2.17.1
