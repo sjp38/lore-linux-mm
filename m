@@ -1,90 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D0436B0007
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 01:57:02 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id p12-v6so5597370oti.6
-        for <linux-mm@kvack.org>; Sun, 03 Jun 2018 22:57:02 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x22-v6si9509034oti.95.2018.06.03.22.57.00
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 87ABF6B0003
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 02:25:46 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l72-v6so2603031lfl.20
+        for <linux-mm@kvack.org>; Sun, 03 Jun 2018 23:25:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u15-v6sor4043973lfi.27.2018.06.03.23.25.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Jun 2018 22:57:01 -0700 (PDT)
-Date: Mon, 4 Jun 2018 01:56:55 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <1227242806.39629768.1528091815515.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20180601142410.5c986f13@redhat.com>
-References: <20180425112415.12327-1-pagupta@redhat.com> <20180601142410.5c986f13@redhat.com>
-Subject: Re: [Qemu-devel] [RFC v2 0/2] kvm "fake DAX" device flushing
+        (Google Transport Security);
+        Sun, 03 Jun 2018 23:25:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+References: <1527940734-35161-1-git-send-email-ufo19890607@gmail.com>
+ <1527940734-35161-2-git-send-email-ufo19890607@gmail.com> <20180603124941.GA29497@rapoport-lnx>
+ <CAHCio2ifo3SNH9E3GX2=q1a=MNiNnoCu+2a++yX5_xMBheya5g@mail.gmail.com>
+ <CAHCio2in8NXZRanE9MS0VsSZxKaSvTy96TF59hODoNCxuQTz5A@mail.gmail.com> <20180604045812.GA15196@rapoport-lnx>
+In-Reply-To: <20180604045812.GA15196@rapoport-lnx>
+From: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Date: Mon, 4 Jun 2018 14:25:31 +0800
+Message-ID: <CAHCio2i+HeB+LjqzjmQaqu7EnKOmSd4i4k73Kz2mt7bLqzw46A@mail.gmail.com>
+Subject: Re: [PATCH v7 2/2] Refactor part of the oom report in dump_header
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Mammedov <imammedo@redhat.com>
-Cc: kwolf@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, nilal@redhat.com, jack@suse.cz, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, kvm@vger.kernel.org, riel@surriel.com, linux-nvdimm@ml01.01.org, david@redhat.com, ross zwisler <ross.zwisler@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, hch@infradead.org, linux-mm@kvack.org, mst@redhat.com, stefanha@redhat.com, niteshnarayanlal@hotmail.com, marcel@redhat.com, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, lcapitulino@redhat.com
+To: rppt@linux.vnet.ibm.com
+Cc: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
+Hi Mike
+> My question was why do you call to alloc_constrained in the dump_header()
+>function rather than pass the constraint that was detected a bit earlier to
+>that function?
 
-Hi Igor,
+Ok, I will add a  new parameter in the dump_header.
 
-> 
-> [...]
-> > - Qemu virtio-pmem device
-> >   It exposes a persistent memory range to KVM guest which
-> >   at host side is file backed memory and works as persistent
-> >   memory device. In addition to this it provides virtio
-> >   device handling of flushing interface. KVM guest performs
-> >   Qemu side asynchronous sync using this interface.
-> a random high level question,
-> Have you considered using a separate (from memory itself)
-> virtio device as controller for exposing some memory, async flushing.
-> And then just slaving pc-dimm devices to it with notification/ACPI
-> code suppressed so that guest won't touch them?
-
-No.
-
-> 
-> That way it might be more scale-able, you consume only 1 PCI slot
-> for controller vs multiple for virtio-pmem devices.
-
-That sounds like a good suggestion. I will note it as an
-enhancement once we have other concerns related to basic working 
-of 'flush' interface addressed. Then probably we can work on
-things 'need to optimize' with robust core flush functionality. 
-
-BTW any sample code doing this right now in Qemu? 
-
-> 
-> 
-> > Changes from previous RFC[1]:
-> > 
-> > - Reuse existing 'pmem' code for registering persistent
-> >   memory and other operations instead of creating an entirely
-> >   new block driver.
-> > - Use VIRTIO driver to register memory information with
-> >   nvdimm_bus and create region_type accordingly.
-> > - Call VIRTIO flush from existing pmem driver.
-> > 
-> > Details of project idea for 'fake DAX' flushing interface is
-> > shared [2] & [3].
-> > 
-> > Pankaj Gupta (2):
-> >    Add virtio-pmem guest driver
-> >    pmem: device flush over VIRTIO
-> > 
-> > [1] https://marc.info/?l=linux-mm&m=150782346802290&w=2
-> > [2] https://www.spinics.net/lists/kvm/msg149761.html
-> > [3] https://www.spinics.net/lists/kvm/msg153095.html
-> > 
-> >  drivers/nvdimm/region_devs.c     |    7 ++
-> >  drivers/virtio/Kconfig           |   12 +++
-> >  drivers/virtio/Makefile          |    1
-> >  drivers/virtio/virtio_pmem.c     |  118
-> >  +++++++++++++++++++++++++++++++++++++++
-> >  include/linux/libnvdimm.h        |    4 +
-> >  include/uapi/linux/virtio_ids.h  |    1
-> >  include/uapi/linux/virtio_pmem.h |   58 +++++++++++++++++++
-> >  7 files changed, 201 insertions(+)
-> > 
-> 
-> 
-> 
+Thank you.
