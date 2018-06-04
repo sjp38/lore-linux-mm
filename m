@@ -1,124 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 936266B0003
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 06:26:07 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p9-v6so14947552wrm.22
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 03:26:07 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id z14-v6si11573836wrn.199.2018.06.04.03.26.05
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0986B6B0003
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 06:28:03 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 69-v6so7055237pgg.0
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 03:28:03 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id x1-v6si45833765plb.8.2018.06.04.03.28.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Jun 2018 03:26:06 -0700 (PDT)
-Date: Mon, 4 Jun 2018 12:25:59 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 1/5 v2] spinlock: atomic_dec_and_lock: Add an irqsave variant
-Message-ID: <20180604102559.2ynbassthjzva62l@linutronix.de>
-References: <20180504154533.8833-1-bigeasy@linutronix.de>
- <20180504154533.8833-2-bigeasy@linutronix.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Jun 2018 03:28:02 -0700 (PDT)
+Subject: Re: [PATCH v2 03/16] khwasan: add CONFIG_KASAN_GENERIC and
+ CONFIG_KASAN_HW
+References: <cover.1527259068.git.andreyknvl@google.com>
+ <2ef4932c434047ca5a2062782206b4163263dc57.1527259068.git.andreyknvl@google.com>
+From: Chintan Pandya <cpandya@codeaurora.org>
+Message-ID: <ec94bd47-f3a0-a75a-17b7-59765ec32c15@codeaurora.org>
+Date: Mon, 4 Jun 2018 15:57:38 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20180504154533.8833-2-bigeasy@linutronix.de>
+In-Reply-To: <2ef4932c434047ca5a2062782206b4163263dc57.1527259068.git.andreyknvl@google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, Shaohua Li <shli@kernel.org>, linux-raid@vger.kernel.org, Anna-Maria Gleixner <anna-maria@linutronix.de>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, linux-alpha@vger.kernel.org
+To: Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kasan-dev@googlegroups.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sparse@vger.kernel.org, linux-mm@kvack.org, linux-kbuild@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
 
-There are in-tree users of atomic_dec_and_lock() which must acquire the
-spin lock with interrupts disabled. To workaround the lack of an irqsave
-variant of atomic_dec_and_lock() they use local_irq_save() at the call
-site. This causes extra code and creates in some places unneeded long
-interrupt disabled times. These places need also extra treatment for
-PREEMPT_RT due to the disconnect of the irq disabling and the lock
-function.
 
-Implement the missing irqsave variant of the function.
-Add a stub for Alpha which should work without the assmebly optimisation
-for the fastpath.
 
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org> [not the Alpha bits]
-Cc: Richard Henderson <rth@twiddle.net>
-Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
-Cc: Matt Turner <mattst88@gmail.com>
-Cc: linux-alpha@vger.kernel.org
-Signed-off-by: Anna-Maria Gleixner <anna-maria@linutronix.de>
-[bigeasy: adding Alpha bits]
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
-v1=E2=80=A6v2: Add Alpha bits (kbuild reported build failure on Alpha)
+On 5/25/2018 8:10 PM, Andrey Konovalov wrote:
+...<snip>
 
- arch/alpha/lib/dec_and_lock.c | 16 ++++++++++++++++
- include/linux/spinlock.h      |  5 +++++
- lib/dec_and_lock.c            | 16 ++++++++++++++++
- 3 files changed, 37 insertions(+)
+> +ifdef CONFIG_KASAN_HW
+> +
+> +ifdef CONFIG_KASAN_INLINE
+> +    instrumentation_flags := -mllvm -hwasan-mapping-offset=$(KASAN_SHADOW_OFFSET)
+> +else
+> +    instrumentation_flags := -mllvm -hwasan-instrument-with-calls=1
+> +endif
+>   
+> +CFLAGS_KASAN := -fsanitize=kernel-hwaddress \
+> +		-mllvm -hwasan-instrument-stack=0 \
+> +		$(instrumentation_flags)
+> +
+> +ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
 
-diff --git a/arch/alpha/lib/dec_and_lock.c b/arch/alpha/lib/dec_and_lock.c
-index a117707f57fe..069fef7372dc 100644
---- a/arch/alpha/lib/dec_and_lock.c
-+++ b/arch/alpha/lib/dec_and_lock.c
-@@ -42,3 +42,19 @@ static int __used atomic_dec_and_lock_1(atomic_t *atomic=
-, spinlock_t *lock)
- 	return 0;
- }
- EXPORT_SYMBOL(_atomic_dec_and_lock);
-+
-+int _atomic_dec_and_lock_irqsave(atomic_t *atomic, spinlock_t *lock,
-+				 unsigned long *flags)
-+{
-+	/* Subtract 1 from counter unless that drops it to 0 (ie. it was 1) */
-+	if (atomic_add_unless(atomic, -1, 1))
-+		return 0;
-+
-+	/* Otherwise do it the slow way */
-+	spin_lock_irqsave(lock, *flags);
-+	if (atomic_dec_and_test(atomic))
-+		return 1;
-+	spin_unlock_irqrestore(lock, *flags);
-+	return 0;
-+}
-+EXPORT_SYMBOL(_atomic_dec_and_lock_irqsave);
-diff --git a/include/linux/spinlock.h b/include/linux/spinlock.h
-index 4894d322d258..803536c992f5 100644
---- a/include/linux/spinlock.h
-+++ b/include/linux/spinlock.h
-@@ -409,6 +409,11 @@ extern int _atomic_dec_and_lock(atomic_t *atomic, spin=
-lock_t *lock);
- #define atomic_dec_and_lock(atomic, lock) \
- 		__cond_lock(lock, _atomic_dec_and_lock(atomic, lock))
-=20
-+extern int _atomic_dec_and_lock_irqsave(atomic_t *atomic, spinlock_t *lock,
-+					unsigned long *flags);
-+#define atomic_dec_and_lock_irqsave(atomic, lock, flags) \
-+		__cond_lock(lock, _atomic_dec_and_lock_irqsave(atomic, lock, &(flags)))
-+
- int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *lock_mask,
- 			   size_t max_size, unsigned int cpu_mult,
- 			   gfp_t gfp);
-diff --git a/lib/dec_and_lock.c b/lib/dec_and_lock.c
-index 347fa7ac2e8a..9555b68bb774 100644
---- a/lib/dec_and_lock.c
-+++ b/lib/dec_and_lock.c
-@@ -33,3 +33,19 @@ int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *l=
-ock)
- }
-=20
- EXPORT_SYMBOL(_atomic_dec_and_lock);
-+
-+int _atomic_dec_and_lock_irqsave(atomic_t *atomic, spinlock_t *lock,
-+				 unsigned long *flags)
-+{
-+	/* Subtract 1 from counter unless that drops it to 0 (ie. it was 1) */
-+	if (atomic_add_unless(atomic, -1, 1))
-+		return 0;
-+
-+	/* Otherwise do it the slow way */
-+	spin_lock_irqsave(lock, *flags);
-+	if (atomic_dec_and_test(atomic))
-+		return 1;
-+	spin_unlock_irqrestore(lock, *flags);
-+	return 0;
-+}
-+EXPORT_SYMBOL(_atomic_dec_and_lock_irqsave);
---=20
-2.17.1
+/s/CFLAGS_KASAN_MINIMAL/CFLAGS_KASAN ??
+
+> +    ifneq ($(CONFIG_COMPILE_TEST),y)
+> +        $(warning Cannot use CONFIG_KASAN_HW: \
+> +            -fsanitize=hwaddress is not supported by compiler)
+> +    endif
+> +endif
+> +
+> +endif
+> +
+> +ifdef CONFIG_KASAN
+> +CFLAGS_KASAN_NOSANITIZE := -fno-builtin
+>   endif
+> 
+
+Chintan
+-- 
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
+Inc. is a member of the Code Aurora Forum, a Linux Foundation
+Collaborative Project
