@@ -1,93 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 86BE06B0003
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 05:55:41 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id a16-v6so12123548qkb.7
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 02:55:41 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E86B66B0003
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 06:12:12 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id 126-v6so6202256qkd.20
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 03:12:12 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id p6-v6si1106554qvk.246.2018.06.04.02.55.40
+        by mx.google.com with ESMTPS id p41-v6si3155781qtp.345.2018.06.04.03.12.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 02:55:40 -0700 (PDT)
-Subject: Re: [Qemu-devel] [RFC v2 0/2] kvm "fake DAX" device flushing
-References: <20180425112415.12327-1-pagupta@redhat.com>
- <20180601142410.5c986f13@redhat.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <a36137df-d2f6-39d5-318e-9006415b8ca2@redhat.com>
-Date: Mon, 4 Jun 2018 11:55:33 +0200
+        Mon, 04 Jun 2018 03:12:11 -0700 (PDT)
+Subject: Re: pkeys on POWER: Access rights not reset on execve
+References: <53828769-23c4-b2e3-cf59-239936819c3e@redhat.com>
+ <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
+ <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
+ <20180519202747.GK5479@ram.oc3035372033.ibm.com>
+ <CALCETrVz9otkOQAxVkz6HtuMwjAeY6mMuLgFK_o0M0kbkUznwg@mail.gmail.com>
+ <20180520060425.GL5479@ram.oc3035372033.ibm.com>
+ <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
+ <20180520191115.GM5479@ram.oc3035372033.ibm.com>
+ <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
+ <20180603201832.GA10109@ram.oc3035372033.ibm.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
+Date: Mon, 4 Jun 2018 12:12:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <20180601142410.5c986f13@redhat.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20180603201832.GA10109@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Mammedov <imammedo@redhat.com>, Pankaj Gupta <pagupta@redhat.com>
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, kwolf@redhat.com, haozhong.zhang@intel.com, jack@suse.cz, xiaoguangrong.eric@gmail.com, riel@surriel.com, niteshnarayanlal@hotmail.com, ross.zwisler@intel.com, lcapitulino@redhat.com, hch@infradead.org, mst@redhat.com, stefanha@redhat.com, marcel@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com, nilal@redhat.com
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Dave Hansen <dave.hansen@intel.com>
 
-On 01.06.2018 14:24, Igor Mammedov wrote:
-> On Wed, 25 Apr 2018 16:54:12 +0530
-> Pankaj Gupta <pagupta@redhat.com> wrote:
+On 06/03/2018 10:18 PM, Ram Pai wrote:
+> On Mon, May 21, 2018 at 01:29:11PM +0200, Florian Weimer wrote:
+>> On 05/20/2018 09:11 PM, Ram Pai wrote:
+>>> Florian,
+>>>
+>>> 	Does the following patch fix the problem for you?  Just like x86
+>>> 	I am enabling all keys in the UAMOR register during
+>>> 	initialization itself. Hence any key created by any thread at
+>>> 	any time, will get activated on all threads. So any thread
+>>> 	can change the permission on that key. Smoke tested it
+>>> 	with your test program.
+>>
+>> I think this goes in the right direction, but the AMR value after
+>> fork is still strange:
+>>
+>> AMR (PID 34912): 0x0000000000000000
+>> AMR after fork (PID 34913): 0x0000000000000000
+>> AMR (PID 34913): 0x0000000000000000
+>> Allocated key in subprocess (PID 34913): 2
+>> Allocated key (PID 34912): 2
+>> Setting AMR: 0xffffffffffffffff
+>> New AMR value (PID 34912): 0x0fffffffffffffff
+>> About to call execl (PID 34912) ...
+>> AMR (PID 34912): 0x0fffffffffffffff
+>> AMR after fork (PID 34914): 0x0000000000000003
+>> AMR (PID 34914): 0x0000000000000003
+>> Allocated key in subprocess (PID 34914): 2
+>> Allocated key (PID 34912): 2
+>> Setting AMR: 0xffffffffffffffff
+>> New AMR value (PID 34912): 0x0fffffffffffffff
+>>
+>> I mean this line:
+>>
+>> AMR after fork (PID 34914): 0x0000000000000003
+>>
+>> Shouldn't it be the same as in the parent process?
 > 
-> [...]
->> - Qemu virtio-pmem device
->>   It exposes a persistent memory range to KVM guest which 
->>   at host side is file backed memory and works as persistent 
->>   memory device. In addition to this it provides virtio 
->>   device handling of flushing interface. KVM guest performs
->>   Qemu side asynchronous sync using this interface.
-> a random high level question,
-> Have you considered using a separate (from memory itself)
-> virtio device as controller for exposing some memory, async flushing.
-> And then just slaving pc-dimm devices to it with notification/ACPI
-> code suppressed so that guest won't touch them?
-
-I don't think slaving pc-dimm would be the right thing to do (e.g.
-slots, pcdimm vs nvdimm, bus(less), etc..). However the general idea is
-interesting for virtio-pmem (as we might have a bigger number of disks).
-
-We could have something like a virtio-pmem-bus to which you attach
-virtio-pmem devices. By specifying the mapping, e.g. the thread that
-will be used for async flushes will be implicit.
-
+> Fixed it. Please try this patch. If it all works to your satisfaction, I
+> will clean it up further and send to Michael Ellermen(ppc maintainer).
 > 
-> That way it might be more scale-able, you consume only 1 PCI slot
-> for controller vs multiple for virtio-pmem devices.>
 > 
->> Changes from previous RFC[1]:
->>
->> - Reuse existing 'pmem' code for registering persistent 
->>   memory and other operations instead of creating an entirely 
->>   new block driver.
->> - Use VIRTIO driver to register memory information with 
->>   nvdimm_bus and create region_type accordingly. 
->> - Call VIRTIO flush from existing pmem driver.
->>
->> Details of project idea for 'fake DAX' flushing interface is 
->> shared [2] & [3].
->>
->> Pankaj Gupta (2):
->>    Add virtio-pmem guest driver
->>    pmem: device flush over VIRTIO
->>
->> [1] https://marc.info/?l=linux-mm&m=150782346802290&w=2
->> [2] https://www.spinics.net/lists/kvm/msg149761.html
->> [3] https://www.spinics.net/lists/kvm/msg153095.html  
->>
->>  drivers/nvdimm/region_devs.c     |    7 ++
->>  drivers/virtio/Kconfig           |   12 +++
->>  drivers/virtio/Makefile          |    1 
->>  drivers/virtio/virtio_pmem.c     |  118 +++++++++++++++++++++++++++++++++++++++
->>  include/linux/libnvdimm.h        |    4 +
->>  include/uapi/linux/virtio_ids.h  |    1 
->>  include/uapi/linux/virtio_pmem.h |   58 +++++++++++++++++++
->>  7 files changed, 201 insertions(+)
->>
+> commit 51f4208ed5baeab1edb9b0f8b68d7144449b3527
+> Author: Ram Pai <linuxram@us.ibm.com>
+> Date:   Sun Jun 3 14:44:32 2018 -0500
 > 
+>      Fix for the fork bug.
+>      
+>      Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 
-
--- 
+Is this on top of the previous patch, or a separate fix?
 
 Thanks,
-
-David / dhildenb
+Florian
