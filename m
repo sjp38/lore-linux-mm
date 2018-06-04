@@ -1,42 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 47E086B0003
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 00:37:19 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id b26-v6so4785511lfa.6
-        for <linux-mm@kvack.org>; Sun, 03 Jun 2018 21:37:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a75-v6sor91232lfb.19.2018.06.03.21.37.17
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A8B356B0003
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 00:58:24 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id j18-v6so3790366wme.5
+        for <linux-mm@kvack.org>; Sun, 03 Jun 2018 21:58:24 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id i132-v6si5720730wma.19.2018.06.03.21.58.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 03 Jun 2018 21:37:17 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 03 Jun 2018 21:58:23 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w544s9XH135707
+	for <linux-mm@kvack.org>; Mon, 4 Jun 2018 00:58:21 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jctv57069-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 04 Jun 2018 00:58:21 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 4 Jun 2018 05:58:20 +0100
+Date: Mon, 4 Jun 2018 07:58:12 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v7 2/2] Refactor part of the oom report in dump_header
+References: <1527940734-35161-1-git-send-email-ufo19890607@gmail.com>
+ <1527940734-35161-2-git-send-email-ufo19890607@gmail.com>
+ <20180603124941.GA29497@rapoport-lnx>
+ <CAHCio2ifo3SNH9E3GX2=q1a=MNiNnoCu+2a++yX5_xMBheya5g@mail.gmail.com>
+ <CAHCio2in8NXZRanE9MS0VsSZxKaSvTy96TF59hODoNCxuQTz5A@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180602220136.GA14810@bombadil.infradead.org>
-References: <20180602200407.GA15200@jordon-HP-15-Notebook-PC> <20180602220136.GA14810@bombadil.infradead.org>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Mon, 4 Jun 2018 10:07:16 +0530
-Message-ID: <CAFqt6zaf1k1SvYXLrCXAvsAPC+jGQoKxR_LtUwNybdJosptQTQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Change return type int to vm_fault_t for fault handlers
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAHCio2in8NXZRanE9MS0VsSZxKaSvTy96TF59hODoNCxuQTz5A@mail.gmail.com>
+Message-Id: <20180604045812.GA15196@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, zi.yan@cs.rutgers.edu, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Greg KH <gregkh@linuxfoundation.org>, Mark Rutland <mark.rutland@arm.com>, riel@redhat.com, pasha.tatashin@oracle.com, jschoenh@amazon.de, Kate Stewart <kstewart@linuxfoundation.org>, David Rientjes <rientjes@google.com>, tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, yang.s@alibaba-inc.com, Minchan Kim <minchan@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: =?utf-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wind Yu <yuzhoujian@didichuxing.com>
 
-On Sun, Jun 3, 2018 at 3:31 AM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Sun, Jun 03, 2018 at 01:34:07AM +0530, Souptick Joarder wrote:
->> @@ -3570,9 +3571,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
->>                       return 0;
->>               }
->>
->> -             ret = (PTR_ERR(new_page) == -ENOMEM) ?
->> -                     VM_FAULT_OOM : VM_FAULT_SIGBUS;
->> -             goto out_release_old;
->> +             ret = vmf_error(PTR_ERR(new_page));
->> +                     goto out_release_old;
->>       }
->>
->>       /*
->
-> Something weird happened to the goto here
+On Mon, Jun 04, 2018 at 10:41:10AM +0800, c|1e??e?(R) wrote:
+> Hi Tetsuo
+> > Since origin_memcg_name is printed for both memcg OOM and !memcg OOM, it is strange that origin_memcg_name is updated only when memcg != NULL. Have you really tested !memcg OOM case?
+> 
+> if memcg == NULL , origin_memcg_name will also be NULL, so the length
+> of it is 0. origin_memcg_name will be "(null)". I've tested !memcg OOM
+> case with CONFIG_MEMCG and !CONFIG_MEMCG, and found nothing wrong.
+> 
+> Thanks
+> Wind
+> c|1e??e?(R) <ufo19890607@gmail.com> ao?2018a1'6ae??4ae?JPYa??a,? a,?a??9:58a??e??i 1/4 ?
+> >
+> > Hi Mike
+> > > Please keep the brief description of the function actually brief and move the detailed explanation after the parameters description.
+> > Thanks for your advice.
+> >
+> > > The allocation constraint is detected by the dump_header() callers, why not just use it here?
+> > David suggest that constraint need to be printed in the oom report, so
+> > I add the enum variable in this function.
 
-Didn't get it ? Do you refer to wrong indent in goto ?
+My question was why do you call to alloc_constrained in the dump_header()
+function rather than pass the constraint that was detected a bit earlier to
+that function? 
+
+Sorry if wasn't clear enough.
+
+> > Thanks
+> > Wind
+> 
+
+-- 
+Sincerely yours,
+Mike.
