@@ -1,104 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DCEB6B0006
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 11:53:35 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id g22-v6so8029280ioh.5
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 08:53:35 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id s196-v6si393286ita.124.2018.06.04.08.53.33
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FF106B0006
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 12:23:55 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id u13-v6so5062324lfg.10
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 09:23:55 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id v18-v6si20950747lji.20.2018.06.04.09.23.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 04 Jun 2018 08:53:33 -0700 (PDT)
-Subject: Re: [PATCH] docs/admin-guide/mm: add high level concepts overview
-References: <20180529113725.GB13092@rapoport-lnx>
- <285dd950-0b25-dba3-60b6-ceac6075fb48@infradead.org>
- <20180604122235.GB15196@rapoport-lnx>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <30155b1b-cc7f-9203-49dc-c1235e204012@infradead.org>
-Date: Mon, 4 Jun 2018 08:53:25 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Jun 2018 09:23:53 -0700 (PDT)
+Date: Mon, 4 Jun 2018 17:23:06 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 2/2] mm: don't skip memory guarantee calculations
+Message-ID: <20180604162259.GA3404@castle>
+References: <20180522132528.23769-1-guro@fb.com>
+ <20180522132528.23769-2-guro@fb.com>
+ <20180604122953.GN19202@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180604122235.GB15196@rapoport-lnx>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180604122953.GN19202@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 06/04/2018 05:22 AM, Mike Rapoport wrote:
-> Hi Randy,
+On Mon, Jun 04, 2018 at 02:29:53PM +0200, Michal Hocko wrote:
+> On Tue 22-05-18 14:25:28, Roman Gushchin wrote:
+> > There are two cases when effective memory guarantee calculation
+> > is mistakenly skipped:
+> > 
+> > 1) If memcg is a child of the root cgroup, and the root
+> > cgroup is not root_mem_cgroup (in other words, if the reclaim
+> > is targeted). Top-level memory cgroups are handled specially
+> > in mem_cgroup_protected(), because the root memory cgroup doesn't
+> > have memory guarantee and can't limit its children guarantees.
+> > So, all effective guarantee calculation is skipped.
+> > But in case of targeted reclaim things are different:
+> > cgroups, which parent exceeded its memory limit aren't special.
+> > 
+> > 2) If memcg has no charged memory (memory usage is 0). In this
+> > case mem_cgroup_protected() always returns MEMCG_PROT_NONE, which
+> > is correct and prevents to generate fake memory low events for
+> > empty cgroups. But skipping memory emin/elow calculation is wrong:
+> > if there is no global memory pressure there might be no good
+> > chance again, so we can end up with effective guarantees set to 0
+> > without any reason.
 > 
-> Thanks for the review! I always have trouble with articles :)
-> The patch below addresses most of your comments.
-> 
-> On Fri, Jun 01, 2018 at 05:09:38PM -0700, Randy Dunlap wrote:
->> On 05/29/2018 04:37 AM, Mike Rapoport wrote:
->>> Hi,
->>>
->>> From 2d3ec7ea101a66b1535d5bec4acfc1e0f737fd53 Mon Sep 17 00:00:00 2001
->>> From: Mike Rapoport <rppt@linux.vnet.ibm.com>
->>> Date: Tue, 29 May 2018 14:12:39 +0300
->>> Subject: [PATCH] docs/admin-guide/mm: add high level concepts overview
->>>
->>> The are terms that seem obvious to the mm developers, but may be somewhat
-> 
-> Huh, I afraid it's to late to change the commit message :(
+> Roman, so these two patches are on top of the min limit patches, right?
+> The fact that they come after just makes me feel this whole thing is not
+> completely thought through and I would like to see all 4 patch in one
+> series describing the whole design. We are getting really close to the
+> merge window and last minute updates makes me really nervouse. Can you
+> please repost the whole thing after the merge window, please?
 
-Sure.
+Hi, Michal!
 
->>   There are [or: These are]
->>
->>> obscure for, say, less involved readers.
->>>
->>> The concepts overview can be seen as an "extended glossary" that introduces
->>> such terms to the readers of the kernel documentation.
->>>
->>> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
->>> ---
->>>  Documentation/admin-guide/mm/concepts.rst | 222 ++++++++++++++++++++++++++++++
->>>  Documentation/admin-guide/mm/index.rst    |   5 +
->>>  2 files changed, 227 insertions(+)
->>>  create mode 100644 Documentation/admin-guide/mm/concepts.rst
->>>
->>> diff --git a/Documentation/admin-guide/mm/concepts.rst b/Documentation/admin-guide/mm/concepts.rst
->>> new file mode 100644
->>> index 0000000..291699c
->>> --- /dev/null
->>> +++ b/Documentation/admin-guide/mm/concepts.rst
-> 
-> [...]
-> 
->>> +All this makes dealing directly with physical memory quite complex and
->>> +to avoid this complexity a concept of virtual memory was developed.
->>> +
->>> +The virtual memory abstracts the details of physical memory from the
->>
->>        virtual memory {system, implementation} abstracts
->>
->>> +application software, allows to keep only needed information in the
->>
->>                software, allowing the VM to keep only needed information in the
->>
->>> +physical memory (demand paging) and provides a mechanism for the
->>> +protection and controlled sharing of data between processes.
->>> +
-> 
-> My intention was "virtual memory concept allows ... and provides ..."
-> I didn't want to repeat "concept", to I've just omitted it.
-> 
-> Somehow, I don't feel that "system" or "implementation" fit here...
+These changes are fixing some edge cases which I've discovered
+when I started writing unit tests for the memory controller
+(see in tools/testing/selftesting/cgroup/). All these edge cases
+are temporarily effects which exist only when there is no
+global memory pressure.
 
-OK.  Thanks for the update.
+We're already using my implementation in production for some time,
+and so far had no issues with it.
 
-> Subject: [PATCH] docs/admin-guide/mm/concepts.rst: grammar fixups
+Please note, that the existing implementation of memory.low has much more
+serious problems: it barely works without some significant configuration
+tweaks (e.g. set all memory.low in the hierarchy to max, except leaves),
+which are painful in production.
 
-> The patch is mostly about adding 'a' and 'the' and updating indentation.
+I'm happy to discuss any concrete issues/concerns, but I really see
+no reasons to drop it from the mm tree now and start the discussion
+from scratch.
 
-I would say that it's mostly about improving readability.
-
-Acked-by: Randy Dunlap <rdunlap@infradead.org>
-
-
--- 
-~Randy
+Thank you!
