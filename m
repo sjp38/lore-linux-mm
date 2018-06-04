@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BD2656B0269
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 19:22:10 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id g6-v6so236694plq.9
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 16:22:10 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id z62-v6si22625328pfk.197.2018.06.04.16.22.09
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 82DDB6B026A
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 19:22:15 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id r4-v6so103367pgq.2
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 16:22:15 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id a143-v6si7072314pfd.258.2018.06.04.16.22.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 16:22:09 -0700 (PDT)
-Subject: [PATCH v3 06/12] mm,
- madvise_inject_error: Let memory_failure() optionally take a page
- reference
+        Mon, 04 Jun 2018 16:22:14 -0700 (PDT)
+Subject: [PATCH v3 07/12] x86/mm/pat: Prepare {reserve,
+ free}_memtype() for "decoy" addresses
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 04 Jun 2018 16:12:12 -0700
-Message-ID: <152815393199.39010.5209788235715575901.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Mon, 04 Jun 2018 16:12:17 -0700
+Message-ID: <152815393710.39010.782984743904638793.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -23,76 +22,66 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jack@suse.cz
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, x86@kernel.org, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jack@suse.cz
 
-The madvise_inject_error() routine uses get_user_pages() to lookup the
-pfn and other information for injected error, but it does not release
-that pin. The assumption is that failed pages should be taken out of
-circulation.
+In preparation for using set_memory_uc() instead set_memory_np() for
+isolating poison from speculation, teach the memtype code to sanitize
+physical addresses vs __PHYSICAL_MASK.
 
-However, for dax mappings it is not possible to take pages out of
-circulation since they are 1:1 physically mapped as filesystem blocks,
-or device-dax capacity. They also typically represent persistent memory
-which has an error clearing capability.
+The motivation for using set_memory_uc() for this case is to allow
+ongoing access to persistent memory pages via the pmem-driver +
+memcpy_mcsafe() until the poison is repaired.
 
-In preparation for adding a special handler for dax mappings, shift the
-responsibility of taking the page reference to memory_failure(). I.e.
-drop the page reference and do not specify MF_COUNT_INCREASED to
-memory_failure().
-
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: <linux-edac@vger.kernel.org>
+Cc: <x86@kernel.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/madvise.c |   18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ arch/x86/mm/pat.c |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 4d3c922ea1a1..b731933dddae 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -631,11 +631,13 @@ static int madvise_inject_error(int behavior,
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index 1555bd7d3449..6788ffa990f8 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -512,6 +512,17 @@ static int free_ram_pages_type(u64 start, u64 end)
+ 	return 0;
+ }
  
- 
- 	for (; start < end; start += PAGE_SIZE << order) {
-+		unsigned long pfn;
- 		int ret;
- 
- 		ret = get_user_pages_fast(start, 1, 0, &page);
- 		if (ret != 1)
- 			return ret;
-+		pfn = page_to_pfn(page);
- 
- 		/*
- 		 * When soft offlining hugepages, after migrating the page
-@@ -651,17 +653,27 @@ static int madvise_inject_error(int behavior,
- 
- 		if (behavior == MADV_SOFT_OFFLINE) {
- 			pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
--						page_to_pfn(page), start);
-+					pfn, start);
- 
- 			ret = soft_offline_page(page, MF_COUNT_INCREASED);
- 			if (ret)
- 				return ret;
- 			continue;
- 		}
++static u64 sanitize_phys(u64 address)
++{
++	/*
++	 * When changing the memtype for pages containing poison allow
++	 * for a "decoy" virtual address (bit 63 clear) passed to
++	 * set_memory_X(). __pa() on a "decoy" address results in a
++	 * physical address with it 63 set.
++	 */
++	return address & __PHYSICAL_MASK;
++}
 +
- 		pr_info("Injecting memory failure for pfn %#lx at process virtual address %#lx\n",
--						page_to_pfn(page), start);
-+				pfn, start);
-+
-+		ret = memory_failure(pfn, 0);
-+
-+		/*
-+		 * Drop the page reference taken by get_user_pages_fast(). In
-+		 * the absence of MF_COUNT_INCREASED the memory_failure()
-+		 * routine is responsible for pinning the page to prevent it
-+		 * from being released back to the page allocator.
-+		 */
-+		put_page(page);
+ /*
+  * req_type typically has one of the:
+  * - _PAGE_CACHE_MODE_WB
+@@ -533,6 +544,8 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
+ 	int is_range_ram;
+ 	int err = 0;
  
--		ret = memory_failure(page_to_pfn(page), MF_COUNT_INCREASED);
- 		if (ret)
- 			return ret;
- 	}
++	start = sanitize_phys(start);
++	end = sanitize_phys(end);
+ 	BUG_ON(start >= end); /* end is exclusive */
+ 
+ 	if (!pat_enabled()) {
+@@ -609,6 +622,9 @@ int free_memtype(u64 start, u64 end)
+ 	if (!pat_enabled())
+ 		return 0;
+ 
++	start = sanitize_phys(start);
++	end = sanitize_phys(end);
++
+ 	/* Low ISA region is always mapped WB. No need to track */
+ 	if (x86_platform.is_untracked_pat_range(start, end))
+ 		return 0;
