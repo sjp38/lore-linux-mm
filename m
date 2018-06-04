@@ -1,122 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AE02B6B0003
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 13:57:53 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id m65-v6so31562663qkh.11
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 10:57:53 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id b80-v6si5972876qkg.25.2018.06.04.10.57.51
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 419496B000D
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 14:06:53 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id 196-v6so11520794vko.21
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 11:06:53 -0700 (PDT)
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id v38-v6si20682848uaf.47.2018.06.04.11.06.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 10:57:51 -0700 (PDT)
-Subject: Re: pkeys on POWER: Access rights not reset on execve
-References: <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
- <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
- <20180519202747.GK5479@ram.oc3035372033.ibm.com>
- <CALCETrVz9otkOQAxVkz6HtuMwjAeY6mMuLgFK_o0M0kbkUznwg@mail.gmail.com>
- <20180520060425.GL5479@ram.oc3035372033.ibm.com>
- <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
- <20180520191115.GM5479@ram.oc3035372033.ibm.com>
- <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
- <20180603201832.GA10109@ram.oc3035372033.ibm.com>
- <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
- <20180604140135.GA10088@ram.oc3035372033.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <f2f61c24-8e8f-0d36-4e22-196a2a3f7ca7@redhat.com>
-Date: Mon, 4 Jun 2018 19:57:46 +0200
+        Mon, 04 Jun 2018 11:06:51 -0700 (PDT)
+Date: Mon, 4 Jun 2018 11:06:42 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [PATCH -mm -V3 00/21] mm, THP, swap: Swapout/swapin THP in one
+ piece
+Message-ID: <20180604180642.qexvwe5dqvkgraij@ca-dmjordan1.us.oracle.com>
+References: <20180523082625.6897-1-ying.huang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180604140135.GA10088@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180523082625.6897-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Dave Hansen <dave.hansen@intel.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/04/2018 04:01 PM, Ram Pai wrote:
-> On Mon, Jun 04, 2018 at 12:12:07PM +0200, Florian Weimer wrote:
->> On 06/03/2018 10:18 PM, Ram Pai wrote:
->>> On Mon, May 21, 2018 at 01:29:11PM +0200, Florian Weimer wrote:
->>>> On 05/20/2018 09:11 PM, Ram Pai wrote:
->>>>> Florian,
->>>>>
->>>>> 	Does the following patch fix the problem for you?  Just like x86
->>>>> 	I am enabling all keys in the UAMOR register during
->>>>> 	initialization itself. Hence any key created by any thread at
->>>>> 	any time, will get activated on all threads. So any thread
->>>>> 	can change the permission on that key. Smoke tested it
->>>>> 	with your test program.
->>>>
->>>> I think this goes in the right direction, but the AMR value after
->>>> fork is still strange:
->>>>
->>>> AMR (PID 34912): 0x0000000000000000
->>>> AMR after fork (PID 34913): 0x0000000000000000
->>>> AMR (PID 34913): 0x0000000000000000
->>>> Allocated key in subprocess (PID 34913): 2
->>>> Allocated key (PID 34912): 2
->>>> Setting AMR: 0xffffffffffffffff
->>>> New AMR value (PID 34912): 0x0fffffffffffffff
->>>> About to call execl (PID 34912) ...
->>>> AMR (PID 34912): 0x0fffffffffffffff
->>>> AMR after fork (PID 34914): 0x0000000000000003
->>>> AMR (PID 34914): 0x0000000000000003
->>>> Allocated key in subprocess (PID 34914): 2
->>>> Allocated key (PID 34912): 2
->>>> Setting AMR: 0xffffffffffffffff
->>>> New AMR value (PID 34912): 0x0fffffffffffffff
->>>>
->>>> I mean this line:
->>>>
->>>> AMR after fork (PID 34914): 0x0000000000000003
->>>>
->>>> Shouldn't it be the same as in the parent process?
->>>
->>> Fixed it. Please try this patch. If it all works to your satisfaction, I
->>> will clean it up further and send to Michael Ellermen(ppc maintainer).
->>>
->>>
->>> commit 51f4208ed5baeab1edb9b0f8b68d7144449b3527
->>> Author: Ram Pai <linuxram@us.ibm.com>
->>> Date:   Sun Jun 3 14:44:32 2018 -0500
->>>
->>>      Fix for the fork bug.
->>>      Signed-off-by: Ram Pai <linuxram@us.ibm.com>
->>
->> Is this on top of the previous patch, or a separate fix?
+On Wed, May 23, 2018 at 04:26:04PM +0800, Huang, Ying wrote:
+> And for all, Any comment is welcome!
 > 
-> top of previous patch.
+> This patchset is based on the 2018-05-18 head of mmotm/master.
 
-Thanks.  With this patch, I get this on an LPAR:
+Trying to review this and it doesn't apply to mmotm-2018-05-18-16-44.  git
+fails on patch 10:
 
-AMR (PID 1876): 0x0000000000000003
-AMR after fork (PID 1877): 0x0000000000000003
-AMR (PID 1877): 0x0000000000000003
-Allocated key in subprocess (PID 1877): 2
-Allocated key (PID 1876): 2
-Setting AMR: 0xffffffffffffffff
-New AMR value (PID 1876): 0x0fffffffffffffff
-About to call execl (PID 1876) ...
-AMR (PID 1876): 0x0000000000000003
-AMR after fork (PID 1878): 0x0000000000000003
-AMR (PID 1878): 0x0000000000000003
-Allocated key in subprocess (PID 1878): 2
-Allocated key (PID 1876): 2
-Setting AMR: 0xffffffffffffffff
-New AMR value (PID 1876): 0x0fffffffffffffff
+Applying: mm, THP, swap: Support to count THP swapin and its fallback
+error: Documentation/vm/transhuge.rst: does not exist in index
+Patch failed at 0010 mm, THP, swap: Support to count THP swapin and its fallback
 
-Test program is still this one:
+Sure enough, this tag has Documentation/vm/transhuge.txt but not the .rst
+version.  Was this the tag you meant?  If so did you pull in some of Mike
+Rapoport's doc changes on top?
 
-<https://lists.ozlabs.org/pipermail/linuxppc-dev/2018-May/173198.html>
+>             base                  optimized
+> ---------------- -------------------------- 
+>          %stddev     %change         %stddev
+>              \          |                \  
+>    1417897 +-  2%    +992.8%   15494673        vm-scalability.throughput
+>    1020489 +-  4%   +1091.2%   12156349        vmstat.swap.si
+>    1255093 +-  3%    +940.3%   13056114        vmstat.swap.so
+>    1259769 +-  7%   +1818.3%   24166779        meminfo.AnonHugePages
+>   28021761           -10.7%   25018848 +-  2%  meminfo.AnonPages
+>   64080064 +-  4%     -95.6%    2787565 +- 33%  interrupts.CAL:Function_call_interrupts
+>      13.91 +-  5%     -13.8        0.10 +- 27%  perf-profile.children.cycles-pp.native_queued_spin_lock_slowpath
+> 
+...snip...
+> test, while in optimized kernel, that is 96.6%.  The TLB flushing IPI
+> (represented as interrupts.CAL:Function_call_interrupts) reduced
+> 95.6%, while cycles for spinlock reduced from 13.9% to 0.1%.  These
+> are performance benefit of THP swapout/swapin too.
 
-So the process starts out with a different AMR value for some reason. 
-That could be a pre-existing bug that was just hidden by the 
-reset-to-zero on fork, or it could be intentional.  But the kernel code 
-does not indicate that key 63 is reserved (POWER numbers keys from the 
-MSB to the LSB).
-
-But it looks like we are finally getting somewhere. 8-)
-
-Thanks,
-Florian
+Which spinlocks are we spending less time on?
