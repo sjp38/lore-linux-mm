@@ -1,62 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 419496B000D
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 14:06:53 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id 196-v6so11520794vko.21
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 11:06:53 -0700 (PDT)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id v38-v6si20682848uaf.47.2018.06.04.11.06.51
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D521A6B000D
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 14:08:47 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id z9-v6so1789228pfe.23
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 11:08:47 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id b70-v6si47522230pfe.265.2018.06.04.11.08.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 11:06:51 -0700 (PDT)
-Date: Mon, 4 Jun 2018 11:06:42 -0700
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [PATCH -mm -V3 00/21] mm, THP, swap: Swapout/swapin THP in one
- piece
-Message-ID: <20180604180642.qexvwe5dqvkgraij@ca-dmjordan1.us.oracle.com>
-References: <20180523082625.6897-1-ying.huang@intel.com>
+        Mon, 04 Jun 2018 11:08:46 -0700 (PDT)
+Date: Mon, 4 Jun 2018 11:08:45 -0700
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [PATCH v2 07/11] x86, memory_failure: Introduce {set,
+ clear}_mce_nospec()
+Message-ID: <20180604180845.GA17942@agluck-desk>
+References: <152800336321.17112.3300876636370683279.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152800340082.17112.1154560126059273408.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180604170801.GA17234@agluck-desk>
+ <CAPcyv4g76nv=D2NXrpFLS-aWQR=N0T2n01WhrVY2_KPavkvLCA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180523082625.6897-1-ying.huang@intel.com>
+In-Reply-To: <CAPcyv4g76nv=D2NXrpFLS-aWQR=N0T2n01WhrVY2_KPavkvLCA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, X86 ML <x86@kernel.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>
 
-On Wed, May 23, 2018 at 04:26:04PM +0800, Huang, Ying wrote:
-> And for all, Any comment is welcome!
+On Mon, Jun 04, 2018 at 10:39:48AM -0700, Dan Williams wrote:
+> On Mon, Jun 4, 2018 at 10:08 AM, Luck, Tony <tony.luck@intel.com> wrote:
+> > On Sat, Jun 02, 2018 at 10:23:20PM -0700, Dan Williams wrote:
+> >> +static inline int set_mce_nospec(unsigned long pfn)
+> >> +{
+> >> +     int rc;
+> >> +
+> >> +     rc = set_memory_uc((unsigned long) __va(PFN_PHYS(pfn)), 1);
+> >
+> > You should really do the decoy_addr thing here that I had in mce_unmap_kpfn().
+> > Putting the virtual address of the page you mustn't accidentally prefetch
+> > from into a register is a pretty good way to make sure that the processor
+> > does do a prefetch.
 > 
-> This patchset is based on the 2018-05-18 head of mmotm/master.
+> Maybe I'm misreading, but doesn't that make the page completely
+> inaccessible? We still want to read pmem through the driver and the
+> linear mapping with memcpy_mcsafe(). Alternatively I could just drop
+> this patch and setup a private / alias mapping for the pmem driver to
+> use. It seems aliased mappings would be the safer option, but I want
+> to make sure I've comprehended your suggestion correctly?
 
-Trying to review this and it doesn't apply to mmotm-2018-05-18-16-44.  git
-fails on patch 10:
+I'm OK with the call to set_memory_uc() to make this uncacheable
+instead of set_memory_np() to make it inaccessible.
 
-Applying: mm, THP, swap: Support to count THP swapin and its fallback
-error: Documentation/vm/transhuge.rst: does not exist in index
-Patch failed at 0010 mm, THP, swap: Support to count THP swapin and its fallback
+The problem is how to achieve that.
 
-Sure enough, this tag has Documentation/vm/transhuge.txt but not the .rst
-version.  Was this the tag you meant?  If so did you pull in some of Mike
-Rapoport's doc changes on top?
+The result of __va(PFN_PHYS(pfn) is the virtual address where the poison
+page is currently mapped into the kernel. That value gets put into
+register %rdi to make the call to set_memory_uc() (which goes on to
+call a bunch of other functions passing the virtual address along
+the way).
 
->             base                  optimized
-> ---------------- -------------------------- 
->          %stddev     %change         %stddev
->              \          |                \  
->    1417897 +-  2%    +992.8%   15494673        vm-scalability.throughput
->    1020489 +-  4%   +1091.2%   12156349        vmstat.swap.si
->    1255093 +-  3%    +940.3%   13056114        vmstat.swap.so
->    1259769 +-  7%   +1818.3%   24166779        meminfo.AnonHugePages
->   28021761           -10.7%   25018848 +-  2%  meminfo.AnonPages
->   64080064 +-  4%     -95.6%    2787565 +- 33%  interrupts.CAL:Function_call_interrupts
->      13.91 +-  5%     -13.8        0.10 +- 27%  perf-profile.children.cycles-pp.native_queued_spin_lock_slowpath
-> 
-...snip...
-> test, while in optimized kernel, that is 96.6%.  The TLB flushing IPI
-> (represented as interrupts.CAL:Function_call_interrupts) reduced
-> 95.6%, while cycles for spinlock reduced from 13.9% to 0.1%.  These
-> are performance benefit of THP swapout/swapin too.
+Now imagine an impatient super-speculative processor is waiting for
+some result to decide where to jump next, and picks a path that isn't
+going to be taken ... out in the weeds somewhere it runs into:
 
-Which spinlocks are we spending less time on?
+	movzbl	(%rdi), %eax
+
+Oops ... now you just read from the address you were trying to
+avoid. So we log an error. Eventually the speculation gets sorted
+out and the processor knows not to signal a machine check. But the
+log is sitting in a machine check bank waiting to cause an overflow
+if we try to log a second error.
+
+The decoy_addr trick in mce_unmap_kpfn() throws in the high bit
+to the address passed.  The set_memory_np() code (and I assume the
+set_memory_uc()) code ignores it, but it means any stray speculative
+access won't point at the poison page.
+
+-Tony
+
+Note: this is *mostly* a problem if the poison is in the first
+cache line of the page.  But you could hit other lines if the
+instruction you speculatively ran into had the right offset. E.g.
+to hit the third line:
+
+	movzbl	128(%rdi), %eax
