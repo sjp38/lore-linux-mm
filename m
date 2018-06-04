@@ -1,50 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EBB656B0007
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 09:58:21 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id q5-v6so8411052itq.2
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 06:58:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v25-v6sor5180756iog.107.2018.06.04.06.58.20
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 60C156B0007
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 10:01:50 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id l17-v6so19249273wrm.3
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 07:01:50 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id r6-v6si186515wma.177.2018.06.04.07.01.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Jun 2018 06:58:20 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Jun 2018 07:01:49 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w54E0gNU107744
+	for <linux-mm@kvack.org>; Mon, 4 Jun 2018 10:01:47 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2jd4yndxac-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 04 Jun 2018 10:01:46 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Mon, 4 Jun 2018 15:01:43 +0100
+Date: Mon, 4 Jun 2018 07:01:35 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: pkeys on POWER: Access rights not reset on execve
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
+ <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
+ <20180519202747.GK5479@ram.oc3035372033.ibm.com>
+ <CALCETrVz9otkOQAxVkz6HtuMwjAeY6mMuLgFK_o0M0kbkUznwg@mail.gmail.com>
+ <20180520060425.GL5479@ram.oc3035372033.ibm.com>
+ <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
+ <20180520191115.GM5479@ram.oc3035372033.ibm.com>
+ <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
+ <20180603201832.GA10109@ram.oc3035372033.ibm.com>
+ <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <ec94bd47-f3a0-a75a-17b7-59765ec32c15@codeaurora.org>
-References: <cover.1527259068.git.andreyknvl@google.com> <2ef4932c434047ca5a2062782206b4163263dc57.1527259068.git.andreyknvl@google.com>
- <ec94bd47-f3a0-a75a-17b7-59765ec32c15@codeaurora.org>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 4 Jun 2018 15:58:18 +0200
-Message-ID: <CAAeHK+y=yZAgh4xzfqjEAtcLXeaUSWgJcUyTSsWfLqrpZS88eg@mail.gmail.com>
-Subject: Re: [PATCH v2 03/16] khwasan: add CONFIG_KASAN_GENERIC and CONFIG_KASAN_HW
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
+Message-Id: <20180604140135.GA10088@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christopher Li <sparse@chrisli.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>, Mark Rutland <mark.rutland@arm.com>, Nick Desaulniers <ndesaulniers@google.com>, Yury Norov <ynorov@caviumnetworks.com>, Marc Zyngier <marc.zyngier@arm.com>, Kristina Martsenko <kristina.martsenko@arm.com>, Suzuki K Poulose <suzuki.poulose@arm.com>, Punit Agrawal <punit.agrawal@arm.com>, Dave Martin <dave.martin@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, James Morse <james.morse@arm.com>, Michael Weiser <michael.weiser@gmx.de>, Julien Thierry <julien.thierry@arm.com>, Tyler Baicar <tbaicar@codeaurora.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@chromium.org>, Sandipan Das <sandipan@linux.vnet.ibm.com>, David Woodhouse <dwmw@amazon.co.uk>, Paul Lawrence <paullawrence@google.com>, Herbert Xu <herbert@gondor.apana.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Philippe Ombredanne <pombredanne@nexb.com>, Kate Stewart <kstewart@linuxfoundation.org>, Laura Abbott <labbott@redhat.com>, Boris Brezillon <boris.brezillon@bootlin.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Agarwal <pintu.ping@gmail.com>, Doug Berger <opendmb@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kasan-dev <kasan-dev@googlegroups.com>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-sparse@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Kees Cook <keescook@google.com>, Jann Horn <jannh@google.com>, Mark Brand <markbrand@google.com>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Dave Hansen <dave.hansen@intel.com>
 
-On Mon, Jun 4, 2018 at 12:27 PM, Chintan Pandya <cpandya@codeaurora.org> wrote:
->
->
-> On 5/25/2018 8:10 PM, Andrey Konovalov wrote:
-> ...<snip>
->
->> +ifdef CONFIG_KASAN_HW
->> +
->> +ifdef CONFIG_KASAN_INLINE
->> +    instrumentation_flags := -mllvm
->> -hwasan-mapping-offset=$(KASAN_SHADOW_OFFSET)
->> +else
->> +    instrumentation_flags := -mllvm -hwasan-instrument-with-calls=1
->> +endif
->>   +CFLAGS_KASAN := -fsanitize=kernel-hwaddress \
->> +               -mllvm -hwasan-instrument-stack=0 \
->> +               $(instrumentation_flags)
->> +
->> +ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
->
->
-> /s/CFLAGS_KASAN_MINIMAL/CFLAGS_KASAN ??
->
+On Mon, Jun 04, 2018 at 12:12:07PM +0200, Florian Weimer wrote:
+> On 06/03/2018 10:18 PM, Ram Pai wrote:
+> >On Mon, May 21, 2018 at 01:29:11PM +0200, Florian Weimer wrote:
+> >>On 05/20/2018 09:11 PM, Ram Pai wrote:
+> >>>Florian,
+> >>>
+> >>>	Does the following patch fix the problem for you?  Just like x86
+> >>>	I am enabling all keys in the UAMOR register during
+> >>>	initialization itself. Hence any key created by any thread at
+> >>>	any time, will get activated on all threads. So any thread
+> >>>	can change the permission on that key. Smoke tested it
+> >>>	with your test program.
+> >>
+> >>I think this goes in the right direction, but the AMR value after
+> >>fork is still strange:
+> >>
+> >>AMR (PID 34912): 0x0000000000000000
+> >>AMR after fork (PID 34913): 0x0000000000000000
+> >>AMR (PID 34913): 0x0000000000000000
+> >>Allocated key in subprocess (PID 34913): 2
+> >>Allocated key (PID 34912): 2
+> >>Setting AMR: 0xffffffffffffffff
+> >>New AMR value (PID 34912): 0x0fffffffffffffff
+> >>About to call execl (PID 34912) ...
+> >>AMR (PID 34912): 0x0fffffffffffffff
+> >>AMR after fork (PID 34914): 0x0000000000000003
+> >>AMR (PID 34914): 0x0000000000000003
+> >>Allocated key in subprocess (PID 34914): 2
+> >>Allocated key (PID 34912): 2
+> >>Setting AMR: 0xffffffffffffffff
+> >>New AMR value (PID 34912): 0x0fffffffffffffff
+> >>
+> >>I mean this line:
+> >>
+> >>AMR after fork (PID 34914): 0x0000000000000003
+> >>
+> >>Shouldn't it be the same as in the parent process?
+> >
+> >Fixed it. Please try this patch. If it all works to your satisfaction, I
+> >will clean it up further and send to Michael Ellermen(ppc maintainer).
+> >
+> >
+> >commit 51f4208ed5baeab1edb9b0f8b68d7144449b3527
+> >Author: Ram Pai <linuxram@us.ibm.com>
+> >Date:   Sun Jun 3 14:44:32 2018 -0500
+> >
+> >     Fix for the fork bug.
+> >     Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> 
+> Is this on top of the previous patch, or a separate fix?
 
-Right, thanks! Will fix in v3.
+top of previous patch.
+RP
