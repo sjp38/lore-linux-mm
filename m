@@ -1,88 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 339466B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 10:31:29 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s84-v6so17793101oig.17
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 07:31:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b9-v6sor20297653oia.135.2018.06.04.07.31.27
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Jun 2018 07:31:27 -0700 (PDT)
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B6C186B0003
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 11:08:16 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id p12-v6so6465651oti.6
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 08:08:16 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id v102-v6si2452027ota.144.2018.06.04.08.08.13
+        for <linux-mm@kvack.org>;
+        Mon, 04 Jun 2018 08:08:13 -0700 (PDT)
+Date: Mon, 4 Jun 2018 16:08:08 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] kmemleak: don't use __GFP_NOFAIL
+Message-ID: <20180604150808.g75xxjya5npr6sh3@armageddon.cambridge.arm.com>
+References: <1730157334.5467848.1527672937617.JavaMail.zimbra@redhat.com>
+ <20180530104637.GC27180@dhcp22.suse.cz>
+ <1684479370.5483281.1527680579781.JavaMail.zimbra@redhat.com>
+ <20180530123826.GF27180@dhcp22.suse.cz>
+ <20180531152225.2ck6ach4lma4zeim@armageddon.cambridge.arm.com>
+ <20180531184104.GT15278@dhcp22.suse.cz>
+ <1390612460.6539623.1527817820286.JavaMail.zimbra@redhat.com>
+ <57176788.6562837.1527828823442.JavaMail.zimbra@redhat.com>
+ <CACT4Y+ZE_qbnqzjnhbrk=vhLqijKZ5x1QbtbJSyNuqA3htFgFA@mail.gmail.com>
+ <20180604124210.GQ19202@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180604124031.GP19202@dhcp22.suse.cz>
-References: <152800336321.17112.3300876636370683279.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180604124031.GP19202@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 4 Jun 2018 07:31:25 -0700
-Message-ID: <CAPcyv4gLxz7Ke6ApXoATDN31PSGwTgNRLTX-u1dtT3d+6jmzjw@mail.gmail.com>
-Subject: Re: [PATCH v2 00/11] mm: Teach memory_failure() about ZONE_DEVICE pages
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180604124210.GQ19202@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Chunyu Hu <chuhu@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, malat@debian.org, Linux-MM <linux-mm@kvack.org>, Akinobu Mita <akinobu.mita@gmail.com>
 
-On Mon, Jun 4, 2018 at 5:40 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Sat 02-06-18 22:22:43, Dan Williams wrote:
->> Changes since v1 [1]:
->> * Rework the locking to not use lock_page() instead use a combination of
->>   rcu_read_lock(), xa_lock_irq(&mapping->pages), and igrab() to validate
->>   that dax pages are still associated with the given mapping, and to
->>   prevent the address_space from being freed while memory_failure() is
->>   busy. (Jan)
->>
->> * Fix use of MF_COUNT_INCREASED in madvise_inject_error() to account for
->>   the case where the injected error is a dax mapping and the pinned
->>   reference needs to be dropped. (Naoya)
->>
->> * Clarify with a comment that VM_FAULT_NOPAGE may not always indicate a
->>   mapping of the storage capacity, it could also indicate the zero page.
->>   (Jan)
->>
->> [1]: https://lists.01.org/pipermail/linux-nvdimm/2018-May/015932.html
->>
->> ---
->>
->> As it stands, memory_failure() gets thoroughly confused by dev_pagemap
->> backed mappings. The recovery code has specific enabling for several
->> possible page states and needs new enabling to handle poison in dax
->> mappings.
->>
->> In order to support reliable reverse mapping of user space addresses:
->>
->> 1/ Add new locking in the memory_failure() rmap path to prevent races
->> that would typically be handled by the page lock.
->>
->> 2/ Since dev_pagemap pages are hidden from the page allocator and the
->> "compound page" accounting machinery, add a mechanism to determine the
->> size of the mapping that encompasses a given poisoned pfn.
->>
->> 3/ Given pmem errors can be repaired, change the speculatively accessed
->> poison protection, mce_unmap_kpfn(), to be reversible and otherwise
->> allow ongoing access from the kernel.
->
-> This doesn't really describe the problem you are trying to solve and why
-> do you believe that HWPoison is the best way to handle it. As things
-> stand HWPoison is rather ad-hoc and I am not sure adding more to it is
-> really great without some deep reconsidering how the whole thing is done
-> right now IMHO. Are you actually trying to solve some real world problem
-> or you merely want to make soft offlining work properly?
+On Mon, Jun 04, 2018 at 02:42:10PM +0200, Michal Hocko wrote:
+> On Mon 04-06-18 10:41:39, Dmitry Vyukov wrote:
+> [...]
+> > FWIW this problem is traditionally solved in dynamic analysis tools by
+> > embedding meta info right in headers of heap blocks. All of KASAN,
+> > KMSAN, slub debug, LeakSanitizer, asan, valgrind work this way. Then
+> > an object is either allocated or not. If caller has something to
+> > prevent allocations from failing in any context, then the same will be
+> > true for KMEMLEAK meta data.
+> 
+> This makes much more sense, of course. I thought there were some
+> fundamental reasons why kmemleak needs to have an off-object tracking
+> which makes the whole thing much more complicated of course.
 
-I'm trying to solve this real world problem when real poison is
-consumed through a dax mapping:
+Kmemleak needs to track all memory blocks that may contain pointers
+(otherwise the dependency graph cannot be correctly tracked leading to
+lots of false positives). Not all these objects come from the slab
+allocator, for example it tracks certain alloc_pages() blocks, all of
+memblock_alloc().
 
-        mce: Uncorrected hardware memory error in user-access at af34214200
-        {1}[Hardware Error]: It has been corrected by h/w and requires
-no further action
-        mce: [Hardware Error]: Machine check events logged
-        {1}[Hardware Error]: event severity: corrected
-        Memory failure: 0xaf34214: reserved kernel page still
-referenced by 1 users
-        [..]
-        Memory failure: 0xaf34214: recovery action for reserved kernel
-page: Failed
-        mce: Memory error not recovered
+An option would be to use separate metadata only for non-slab objects,
+though I'd have to see how intrusive this is for mm/sl*b.c. Also there
+is RCU freeing for the kmemleak metadata to avoid locking when
+traversing the internal lists. If the metadata is in the slab object
+itself, we'd have to either defer its freeing or add some bigger lock to
+kmemleak.
 
-...i.e. currently all poison consumed through dax mappings is
-needlessly system fatal.
+-- 
+Catalin
