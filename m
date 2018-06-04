@@ -1,100 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 60C156B0007
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 10:01:50 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id l17-v6so19249273wrm.3
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 07:01:50 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r6-v6si186515wma.177.2018.06.04.07.01.48
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 339466B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 10:31:29 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id s84-v6so17793101oig.17
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 07:31:29 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b9-v6sor20297653oia.135.2018.06.04.07.31.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 07:01:49 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w54E0gNU107744
-	for <linux-mm@kvack.org>; Mon, 4 Jun 2018 10:01:47 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2jd4yndxac-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 04 Jun 2018 10:01:46 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Mon, 4 Jun 2018 15:01:43 +0100
-Date: Mon, 4 Jun 2018 07:01:35 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: pkeys on POWER: Access rights not reset on execve
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <20180519011947.GJ5479@ram.oc3035372033.ibm.com>
- <CALCETrWMP9kTmAFCR0WHR3YP93gLSzgxhfnb0ma_0q=PCuSdQA@mail.gmail.com>
- <20180519202747.GK5479@ram.oc3035372033.ibm.com>
- <CALCETrVz9otkOQAxVkz6HtuMwjAeY6mMuLgFK_o0M0kbkUznwg@mail.gmail.com>
- <20180520060425.GL5479@ram.oc3035372033.ibm.com>
- <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
- <20180520191115.GM5479@ram.oc3035372033.ibm.com>
- <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
- <20180603201832.GA10109@ram.oc3035372033.ibm.com>
- <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
+        (Google Transport Security);
+        Mon, 04 Jun 2018 07:31:27 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
-Message-Id: <20180604140135.GA10088@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 8bit
-Content-Disposition: inline
+In-Reply-To: <20180604124031.GP19202@dhcp22.suse.cz>
+References: <152800336321.17112.3300876636370683279.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180604124031.GP19202@dhcp22.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 4 Jun 2018 07:31:25 -0700
+Message-ID: <CAPcyv4gLxz7Ke6ApXoATDN31PSGwTgNRLTX-u1dtT3d+6jmzjw@mail.gmail.com>
+Subject: Re: [PATCH v2 00/11] mm: Teach memory_failure() about ZONE_DEVICE pages
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Dave Hansen <dave.hansen@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Mon, Jun 04, 2018 at 12:12:07PM +0200, Florian Weimer wrote:
-> On 06/03/2018 10:18 PM, Ram Pai wrote:
-> >On Mon, May 21, 2018 at 01:29:11PM +0200, Florian Weimer wrote:
-> >>On 05/20/2018 09:11 PM, Ram Pai wrote:
-> >>>Florian,
-> >>>
-> >>>	Does the following patch fix the problem for you?  Just like x86
-> >>>	I am enabling all keys in the UAMOR register during
-> >>>	initialization itself. Hence any key created by any thread at
-> >>>	any time, will get activated on all threads. So any thread
-> >>>	can change the permission on that key. Smoke tested it
-> >>>	with your test program.
-> >>
-> >>I think this goes in the right direction, but the AMR value after
-> >>fork is still strange:
-> >>
-> >>AMR (PID 34912): 0x0000000000000000
-> >>AMR after fork (PID 34913): 0x0000000000000000
-> >>AMR (PID 34913): 0x0000000000000000
-> >>Allocated key in subprocess (PID 34913): 2
-> >>Allocated key (PID 34912): 2
-> >>Setting AMR: 0xffffffffffffffff
-> >>New AMR value (PID 34912): 0x0fffffffffffffff
-> >>About to call execl (PID 34912) ...
-> >>AMR (PID 34912): 0x0fffffffffffffff
-> >>AMR after fork (PID 34914): 0x0000000000000003
-> >>AMR (PID 34914): 0x0000000000000003
-> >>Allocated key in subprocess (PID 34914): 2
-> >>Allocated key (PID 34912): 2
-> >>Setting AMR: 0xffffffffffffffff
-> >>New AMR value (PID 34912): 0x0fffffffffffffff
-> >>
-> >>I mean this line:
-> >>
-> >>AMR after fork (PID 34914): 0x0000000000000003
-> >>
-> >>Shouldn't it be the same as in the parent process?
-> >
-> >Fixed it. Please try this patch. If it all works to your satisfaction, I
-> >will clean it up further and send to Michael Ellermen(ppc maintainer).
-> >
-> >
-> >commit 51f4208ed5baeab1edb9b0f8b68d7144449b3527
-> >Author: Ram Pai <linuxram@us.ibm.com>
-> >Date:   Sun Jun 3 14:44:32 2018 -0500
-> >
-> >     Fix for the fork bug.
-> >     Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> 
-> Is this on top of the previous patch, or a separate fix?
+On Mon, Jun 4, 2018 at 5:40 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Sat 02-06-18 22:22:43, Dan Williams wrote:
+>> Changes since v1 [1]:
+>> * Rework the locking to not use lock_page() instead use a combination of
+>>   rcu_read_lock(), xa_lock_irq(&mapping->pages), and igrab() to validate
+>>   that dax pages are still associated with the given mapping, and to
+>>   prevent the address_space from being freed while memory_failure() is
+>>   busy. (Jan)
+>>
+>> * Fix use of MF_COUNT_INCREASED in madvise_inject_error() to account for
+>>   the case where the injected error is a dax mapping and the pinned
+>>   reference needs to be dropped. (Naoya)
+>>
+>> * Clarify with a comment that VM_FAULT_NOPAGE may not always indicate a
+>>   mapping of the storage capacity, it could also indicate the zero page.
+>>   (Jan)
+>>
+>> [1]: https://lists.01.org/pipermail/linux-nvdimm/2018-May/015932.html
+>>
+>> ---
+>>
+>> As it stands, memory_failure() gets thoroughly confused by dev_pagemap
+>> backed mappings. The recovery code has specific enabling for several
+>> possible page states and needs new enabling to handle poison in dax
+>> mappings.
+>>
+>> In order to support reliable reverse mapping of user space addresses:
+>>
+>> 1/ Add new locking in the memory_failure() rmap path to prevent races
+>> that would typically be handled by the page lock.
+>>
+>> 2/ Since dev_pagemap pages are hidden from the page allocator and the
+>> "compound page" accounting machinery, add a mechanism to determine the
+>> size of the mapping that encompasses a given poisoned pfn.
+>>
+>> 3/ Given pmem errors can be repaired, change the speculatively accessed
+>> poison protection, mce_unmap_kpfn(), to be reversible and otherwise
+>> allow ongoing access from the kernel.
+>
+> This doesn't really describe the problem you are trying to solve and why
+> do you believe that HWPoison is the best way to handle it. As things
+> stand HWPoison is rather ad-hoc and I am not sure adding more to it is
+> really great without some deep reconsidering how the whole thing is done
+> right now IMHO. Are you actually trying to solve some real world problem
+> or you merely want to make soft offlining work properly?
 
-top of previous patch.
-RP
+I'm trying to solve this real world problem when real poison is
+consumed through a dax mapping:
+
+        mce: Uncorrected hardware memory error in user-access at af34214200
+        {1}[Hardware Error]: It has been corrected by h/w and requires
+no further action
+        mce: [Hardware Error]: Machine check events logged
+        {1}[Hardware Error]: event severity: corrected
+        Memory failure: 0xaf34214: reserved kernel page still
+referenced by 1 users
+        [..]
+        Memory failure: 0xaf34214: recovery action for reserved kernel
+page: Failed
+        mce: Memory error not recovered
+
+...i.e. currently all poison consumed through dax mappings is
+needlessly system fatal.
