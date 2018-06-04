@@ -1,105 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9D06B0007
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 08:22:48 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id v12-v6so4344614wmc.1
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 05:22:48 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id w11-v6si845686edf.375.2018.06.04.05.22.46
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EA5A76B000A
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 08:26:13 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id h12-v6so437230wrq.2
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 05:26:13 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 19-v6si170895edz.385.2018.06.04.05.26.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 05:22:47 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w54CJEj2076816
-	for <linux-mm@kvack.org>; Mon, 4 Jun 2018 08:22:45 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jd3shv79b-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 04 Jun 2018 08:22:44 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 4 Jun 2018 13:22:42 +0100
-Date: Mon, 4 Jun 2018 15:22:35 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] docs/admin-guide/mm: add high level concepts overview
-References: <20180529113725.GB13092@rapoport-lnx>
- <285dd950-0b25-dba3-60b6-ceac6075fb48@infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 04 Jun 2018 05:26:12 -0700 (PDT)
+Date: Mon, 4 Jun 2018 14:26:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm: propagate memory effective protection on setting
+ memory.min/low
+Message-ID: <20180604122610.GM19202@dhcp22.suse.cz>
+References: <20180522132528.23769-1-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <285dd950-0b25-dba3-60b6-ceac6075fb48@infradead.org>
-Message-Id: <20180604122235.GB15196@rapoport-lnx>
+In-Reply-To: <20180522132528.23769-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi Randy,
-
-Thanks for the review! I always have trouble with articles :)
-The patch below addresses most of your comments.
-
-On Fri, Jun 01, 2018 at 05:09:38PM -0700, Randy Dunlap wrote:
-> On 05/29/2018 04:37 AM, Mike Rapoport wrote:
-> > Hi,
-> > 
-> > From 2d3ec7ea101a66b1535d5bec4acfc1e0f737fd53 Mon Sep 17 00:00:00 2001
-> > From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> > Date: Tue, 29 May 2018 14:12:39 +0300
-> > Subject: [PATCH] docs/admin-guide/mm: add high level concepts overview
-> > 
-> > The are terms that seem obvious to the mm developers, but may be somewhat
-
-Huh, I afraid it's to late to change the commit message :(
- 
->   There are [or: These are]
+On Tue 22-05-18 14:25:27, Roman Gushchin wrote:
+> Explicitly propagate effective memory min/low values down by the tree.
 > 
-> > obscure for, say, less involved readers.
-> > 
-> > The concepts overview can be seen as an "extended glossary" that introduces
-> > such terms to the readers of the kernel documentation.
-> > 
-> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> > ---
-> >  Documentation/admin-guide/mm/concepts.rst | 222 ++++++++++++++++++++++++++++++
-> >  Documentation/admin-guide/mm/index.rst    |   5 +
-> >  2 files changed, 227 insertions(+)
-> >  create mode 100644 Documentation/admin-guide/mm/concepts.rst
-> > 
-> > diff --git a/Documentation/admin-guide/mm/concepts.rst b/Documentation/admin-guide/mm/concepts.rst
-> > new file mode 100644
-> > index 0000000..291699c
-> > --- /dev/null
-> > +++ b/Documentation/admin-guide/mm/concepts.rst
-
-[...]
-
-> > +All this makes dealing directly with physical memory quite complex and
-> > +to avoid this complexity a concept of virtual memory was developed.
-> > +
-> > +The virtual memory abstracts the details of physical memory from the
+> If there is the global memory pressure, it's not really necessary.
+> Effective memory guarantees will be propagated automatically
+> as we traverse memory cgroup tree in the reclaim path.
 > 
->        virtual memory {system, implementation} abstracts
-> 
-> > +application software, allows to keep only needed information in the
-> 
->                software, allowing the VM to keep only needed information in the
-> 
-> > +physical memory (demand paging) and provides a mechanism for the
-> > +protection and controlled sharing of data between processes.
-> > +
+> But if there is no global memory pressure, effective memory protection
+> still matters for local (memcg-scoped) memory pressure.
+> So, we have to update effective limits in the subtree,
+> if a user changes memory.min and memory.low values.
 
-My intention was "virtual memory concept allows ... and provides ..."
-I didn't want to repeat "concept", to I've just omitted it.
+Please be explicit about the exact problem. Ideally with a memcg tree example.
 
-Somehow, I don't feel that "system" or "implementation" fit here...
-
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Greg Thelen <gthelen@google.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  mm/memcontrol.c | 14 ++++++++++++--
+>  1 file changed, 12 insertions(+), 2 deletions(-)
 > 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index ab5673dbfc4e..b9cd0bb63759 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5374,7 +5374,7 @@ static int memory_min_show(struct seq_file *m, void *v)
+>  static ssize_t memory_min_write(struct kernfs_open_file *of,
+>  				char *buf, size_t nbytes, loff_t off)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+> +	struct mem_cgroup *iter, *memcg = mem_cgroup_from_css(of_css(of));
+>  	unsigned long min;
+>  	int err;
+>  
+> @@ -5385,6 +5385,11 @@ static ssize_t memory_min_write(struct kernfs_open_file *of,
+>  
+>  	page_counter_set_min(&memcg->memory, min);
+>  
+> +	rcu_read_lock();
+> +	for_each_mem_cgroup_tree(iter, memcg)
+> +		mem_cgroup_protected(NULL, iter);
+> +	rcu_read_unlock();
+> +
+>  	return nbytes;
+>  }
+>  
+> @@ -5404,7 +5409,7 @@ static int memory_low_show(struct seq_file *m, void *v)
+>  static ssize_t memory_low_write(struct kernfs_open_file *of,
+>  				char *buf, size_t nbytes, loff_t off)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+> +	struct mem_cgroup *iter, *memcg = mem_cgroup_from_css(of_css(of));
+>  	unsigned long low;
+>  	int err;
+>  
+> @@ -5415,6 +5420,11 @@ static ssize_t memory_low_write(struct kernfs_open_file *of,
+>  
+>  	page_counter_set_low(&memcg->memory, low);
+>  
+> +	rcu_read_lock();
+> +	for_each_mem_cgroup_tree(iter, memcg)
+> +		mem_cgroup_protected(NULL, iter);
+> +	rcu_read_unlock();
+> +
+>  	return nbytes;
+>  }
+>  
 > -- 
-> ~Randy
-> 
+> 2.14.3
 
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
