@@ -1,143 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A57AC6B0003
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 17:00:08 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 126-v6so57543qkd.20
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 14:00:08 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 11-v6si209301qvj.212.2018.06.04.14.00.06
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AABD06B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 19:21:38 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id b7-v6so100554pgv.5
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 16:21:38 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 11-v6si48473014plc.466.2018.06.04.16.21.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 14:00:07 -0700 (PDT)
-Subject: Re: pkeys on POWER: Access rights not reset on execve
-References: <20180519202747.GK5479@ram.oc3035372033.ibm.com>
- <CALCETrVz9otkOQAxVkz6HtuMwjAeY6mMuLgFK_o0M0kbkUznwg@mail.gmail.com>
- <20180520060425.GL5479@ram.oc3035372033.ibm.com>
- <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
- <20180520191115.GM5479@ram.oc3035372033.ibm.com>
- <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
- <20180603201832.GA10109@ram.oc3035372033.ibm.com>
- <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
- <20180604140135.GA10088@ram.oc3035372033.ibm.com>
- <f2f61c24-8e8f-0d36-4e22-196a2a3f7ca7@redhat.com>
- <20180604190229.GB10088@ram.oc3035372033.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <30040030-1aa2-623b-beec-dd1ceb3eb9a7@redhat.com>
-Date: Mon, 4 Jun 2018 23:00:00 +0200
+        Mon, 04 Jun 2018 16:21:37 -0700 (PDT)
+Subject: [PATCH v3 00/12] mm: Teach memory_failure() about ZONE_DEVICE pages
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 04 Jun 2018 16:11:39 -0700
+Message-ID: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180604190229.GB10088@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Dave Hansen <dave.hansen@intel.com>
+To: linux-nvdimm@lists.01.org
+Cc: linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.orgjack@suse.cz
 
-On 06/04/2018 09:02 PM, Ram Pai wrote:
-> On Mon, Jun 04, 2018 at 07:57:46PM +0200, Florian Weimer wrote:
->> On 06/04/2018 04:01 PM, Ram Pai wrote:
->>> On Mon, Jun 04, 2018 at 12:12:07PM +0200, Florian Weimer wrote:
->>>> On 06/03/2018 10:18 PM, Ram Pai wrote:
->>>>> On Mon, May 21, 2018 at 01:29:11PM +0200, Florian Weimer wrote:
->>>>>> On 05/20/2018 09:11 PM, Ram Pai wrote:
->>>>>>> Florian,
->>>>>>>
->>>>>>> 	Does the following patch fix the problem for you?  Just like x86
->>>>>>> 	I am enabling all keys in the UAMOR register during
->>>>>>> 	initialization itself. Hence any key created by any thread at
->>>>>>> 	any time, will get activated on all threads. So any thread
->>>>>>> 	can change the permission on that key. Smoke tested it
->>>>>>> 	with your test program.
->>>>>>
->>>>>> I think this goes in the right direction, but the AMR value after
->>>>>> fork is still strange:
->>>>>>
->>>>>> AMR (PID 34912): 0x0000000000000000
->>>>>> AMR after fork (PID 34913): 0x0000000000000000
->>>>>> AMR (PID 34913): 0x0000000000000000
->>>>>> Allocated key in subprocess (PID 34913): 2
->>>>>> Allocated key (PID 34912): 2
->>>>>> Setting AMR: 0xffffffffffffffff
->>>>>> New AMR value (PID 34912): 0x0fffffffffffffff
->>>>>> About to call execl (PID 34912) ...
->>>>>> AMR (PID 34912): 0x0fffffffffffffff
->>>>>> AMR after fork (PID 34914): 0x0000000000000003
->>>>>> AMR (PID 34914): 0x0000000000000003
->>>>>> Allocated key in subprocess (PID 34914): 2
->>>>>> Allocated key (PID 34912): 2
->>>>>> Setting AMR: 0xffffffffffffffff
->>>>>> New AMR value (PID 34912): 0x0fffffffffffffff
->>>>>>
->>>>>> I mean this line:
->>>>>>
->>>>>> AMR after fork (PID 34914): 0x0000000000000003
->>>>>>
->>>>>> Shouldn't it be the same as in the parent process?
->>>>>
->>>>> Fixed it. Please try this patch. If it all works to your satisfaction, I
->>>>> will clean it up further and send to Michael Ellermen(ppc maintainer).
->>>>>
->>>>>
->>>>> commit 51f4208ed5baeab1edb9b0f8b68d7144449b3527
->>>>> Author: Ram Pai <linuxram@us.ibm.com>
->>>>> Date:   Sun Jun 3 14:44:32 2018 -0500
->>>>>
->>>>>      Fix for the fork bug.
->>>>>      Signed-off-by: Ram Pai <linuxram@us.ibm.com>
->>>>
->>>> Is this on top of the previous patch, or a separate fix?
->>>
->>> top of previous patch.
->>
->> Thanks.  With this patch, I get this on an LPAR:
->>
->> AMR (PID 1876): 0x0000000000000003
->> AMR after fork (PID 1877): 0x0000000000000003
->> AMR (PID 1877): 0x0000000000000003
->> Allocated key in subprocess (PID 1877): 2
->> Allocated key (PID 1876): 2
->> Setting AMR: 0xffffffffffffffff
->> New AMR value (PID 1876): 0x0fffffffffffffff
->> About to call execl (PID 1876) ...
->> AMR (PID 1876): 0x0000000000000003
->> AMR after fork (PID 1878): 0x0000000000000003
->> AMR (PID 1878): 0x0000000000000003
->> Allocated key in subprocess (PID 1878): 2
->> Allocated key (PID 1876): 2
->> Setting AMR: 0xffffffffffffffff
->> New AMR value (PID 1876): 0x0fffffffffffffff
->>
->> Test program is still this one:
->>
->> <https://lists.ozlabs.org/pipermail/linuxppc-dev/2018-May/173198.html>
->>
->> So the process starts out with a different AMR value for some
->> reason. That could be a pre-existing bug that was just hidden by the
->> reset-to-zero on fork, or it could be intentional.  But the kernel
-> 
-> yes it is a bug, a patch for which is lined up for submission..
-> 
-> The fix is
-> 
-> 
-> commit eaf5b2ac002ad2f5bca118d7ce075ce28311aa8e
-> Author: Ram Pai <linuxram@us.ibm.com>
-> Date:   Mon Jun 4 10:58:44 2018 -0500
-> 
->      powerpc/pkeys: fix total pkeys calculation
->      
->      Total number of pkeys calculation is off by 1. Fix it.
->      
->      Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+Note: With this repost this series is now being actively revised during
+the 4.18 merge window. Just holler if you want this to stop and wait for
+4.19. Otherwise, this series completes the poison handling story for
+pmem + dax with the other memcpy_mcsafe() changes that are going in this
+cycle.
 
-Looks good to me now.  Initial AMR value is zero, as is currently intended.
+---
 
-So the remaining question at this point is whether the Intel behavior 
-(default-deny instead of default-allow) is preferable.
+Changes since v2 [1]:
+* Fix compilation failure in "device-dax: Enable page_mapping()". Update
+  the function signature for __dev_dax_pud_fault() in the
+  CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD=n case. (0day Kbuild Robot)
 
-But if you can get the existing fixes into 4.18 and perhaps the relevant 
-stable kernels, that would already be a great help for my glibc work.
+* Prepare {reserve,free}_memtype() for decoy addresses
 
-Thanks,
-Florian
+* Fix the set_mce_nospec() helper to use a decoy address. (Tony)
+
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2018-June/016120.html
+
+---
+
+As it stands, memory_failure() gets thoroughly confused by dev_pagemap
+backed mappings. The recovery code has specific enabling for several
+possible page states and needs new enabling to handle poison in dax
+mappings.
+
+In order to support reliable reverse mapping of user space addresses:
+
+1/ Add new locking in the memory_failure() rmap path to prevent races
+that would typically be handled by the page lock.
+
+2/ Since dev_pagemap pages are hidden from the page allocator and the
+"compound page" accounting machinery, add a mechanism to determine the
+size of the mapping that encompasses a given poisoned pfn.
+
+3/ Given pmem errors can be repaired, change the speculatively accessed
+poison protection, mce_unmap_kpfn(), to be reversible and otherwise
+allow ongoing access from the kernel.
+
+A side effect of this enabling is that MADV_HWPOISON becomes usable for
+dax mappings, however the primary motivation is to allow the system to
+survive userspace consumption of hardware-poison via dax. Specifically
+the current behavior is:
+
+    mce: Uncorrected hardware memory error in user-access at af34214200
+    {1}[Hardware Error]: It has been corrected by h/w and requires no further action
+    mce: [Hardware Error]: Machine check events logged
+    {1}[Hardware Error]: event severity: corrected
+    Memory failure: 0xaf34214: reserved kernel page still referenced by 1 users
+    [..]
+    Memory failure: 0xaf34214: recovery action for reserved kernel page: Failed
+    mce: Memory error not recovered
+
+...and with these changes:
+
+    Injecting memory failure for pfn 0x20cb00 at process virtual address 0x7f763dd00000
+    Memory failure: 0x20cb00: Killing dax-pmd:5421 due to hardware memory corruption
+    Memory failure: 0x20cb00: recovery action for dax page: Recovered
+
+---
+
+Dan Williams (12):
+      device-dax: Convert to vmf_insert_mixed and vm_fault_t
+      device-dax: Cleanup vm_fault de-reference chains
+      device-dax: Enable page_mapping()
+      device-dax: Set page->index
+      filesystem-dax: Set page->index
+      mm, madvise_inject_error: Let memory_failure() optionally take a page reference
+      x86/mm/pat: Prepare {reserve,free}_memtype() for "decoy" addresses
+      x86/memory_failure: Introduce {set,clear}_mce_nospec()
+      mm, memory_failure: Pass page size to kill_proc()
+      mm, memory_failure: Fix page->mapping assumptions relative to the page lock
+      mm, memory_failure: Teach memory_failure() about dev_pagemap pages
+      libnvdimm, pmem: Restore page attributes when clearing errors
+
+
+ arch/x86/include/asm/set_memory.h         |   42 ++++++
+ arch/x86/kernel/cpu/mcheck/mce-internal.h |   15 --
+ arch/x86/kernel/cpu/mcheck/mce.c          |   38 -----
+ arch/x86/mm/pat.c                         |   16 ++
+ drivers/dax/device.c                      |   97 ++++++++-----
+ drivers/nvdimm/pmem.c                     |   26 ++++
+ drivers/nvdimm/pmem.h                     |   13 ++
+ fs/dax.c                                  |   16 ++
+ include/linux/huge_mm.h                   |    5 -
+ include/linux/mm.h                        |    1 
+ include/linux/set_memory.h                |   14 ++
+ mm/huge_memory.c                          |    4 -
+ mm/madvise.c                              |   18 ++
+ mm/memory-failure.c                       |  209 ++++++++++++++++++++++++++---
+ 14 files changed, 395 insertions(+), 119 deletions(-)
