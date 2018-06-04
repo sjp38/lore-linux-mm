@@ -1,83 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E04FE6B0003
-	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 07:30:34 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s84-v6so17566973oig.17
-        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 04:30:34 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id i41-v6si7843940ote.178.2018.06.04.04.30.33
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AB4A6B0003
+	for <linux-mm@kvack.org>; Mon,  4 Jun 2018 07:32:41 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id 89-v6so20372854plc.1
+        for <linux-mm@kvack.org>; Mon, 04 Jun 2018 04:32:41 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id c24-v6si45899118plo.489.2018.06.04.04.32.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jun 2018 04:30:33 -0700 (PDT)
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
- oom_lock held.
-References: <20180525114213.GJ11881@dhcp22.suse.cz>
- <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
- <20180528124313.GC27180@dhcp22.suse.cz>
- <201805290557.BAJ39558.MFLtOJVFOHFOSQ@I-love.SAKURA.ne.jp>
- <20180529060755.GH27180@dhcp22.suse.cz>
- <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org>
- <20180601152801.GH15278@dhcp22.suse.cz>
- <20180601141110.34915e0a1fdbd07d25cc15cc@linux-foundation.org>
- <20180604070419.GG19202@dhcp22.suse.cz>
- <30c750b4-2c65-5737-3172-bddc666d0a8f@i-love.sakura.ne.jp>
- <20180604112212.GJ19202@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <fca5452c-6135-9b23-b140-4962d1c88d65@i-love.sakura.ne.jp>
-Date: Mon, 4 Jun 2018 20:30:17 +0900
+        Mon, 04 Jun 2018 04:32:39 -0700 (PDT)
+Date: Mon, 4 Jun 2018 14:32:36 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH] mm/shmem: Zero out unused vma fields in
+ shmem_pseudo_vma_init()
+Message-ID: <20180604113236.oewgy7jb7frsawg5@black.fi.intel.com>
+References: <20180531135602.20321-1-kirill.shutemov@linux.intel.com>
+ <alpine.LSU.2.11.1805311522380.13187@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20180604112212.GJ19202@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1805311522380.13187@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, guro@fb.com, rientjes@google.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Josef Bacik <jbacik@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2018/06/04 20:22, Michal Hocko wrote:
-> On Mon 04-06-18 19:41:01, Tetsuo Handa wrote:
->> On 2018/06/04 16:04, Michal Hocko wrote:
->>> On Fri 01-06-18 14:11:10, Andrew Morton wrote:
->>>> On Fri, 1 Jun 2018 17:28:01 +0200 Michal Hocko <mhocko@kernel.org> wrote:
->>>>
->>>>> On Tue 29-05-18 16:07:00, Andrew Morton wrote:
->>>>>> On Tue, 29 May 2018 09:17:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
->>>>>>
->>>>>>>> I suggest applying
->>>>>>>> this patch first, and then fix "mm, oom: cgroup-aware OOM killer" patch.
->>>>>>>
->>>>>>> Well, I hope the whole pile gets merged in the upcoming merge window
->>>>>>> rather than stall even more.
->>>>>>
->>>>>> I'm more inclined to drop it all.  David has identified significant
->>>>>> shortcomings and I'm not seeing a way of addressing those shortcomings
->>>>>> in a backward-compatible fashion.  Therefore there is no way forward
->>>>>> at present.
->>>>>
->>>>> Well, I thought we have argued about those "shortcomings" back and forth
->>>>> and expressed that they are not really a problem for workloads which are
->>>>> going to use the feature. The backward compatibility has been explained
->>>>> as well AFAICT.
->>>>
->>>> Feel free to re-explain.  It's the only way we'll get there.
->>>
->>> OK, I will go and my points to the last version of the patchset.
->>>
->>>> David has proposed an alternative patchset.  IIRC Roman gave that a
->>>> one-line positive response but I don't think it has seen a lot of
->>>> attention?
->>>
->>> I plan to go and revisit that. My preliminary feedback is that a more
->>> generic policy API is really tricky and the patchset has many holes
->>> there. But I will come with a more specific feedback in the respective
->>> thread.
->>>
->> Is current version of "mm, oom: cgroup-aware OOM killer" patchset going to be
->> dropped for now? I want to know which state should I use for baseline for my patch.
+On Thu, May 31, 2018 at 10:50:36PM +0000, Hugh Dickins wrote:
+> On Thu, 31 May 2018, Kirill A. Shutemov wrote:
 > 
-> Is it that urgent that it cannot wait until after the merge window when
-> thing should settle down?
+> > shmem/tmpfs uses pseudo vma to allocate page with correct NUMA policy.
+> > 
+> > The pseudo vma doesn't have vm_page_prot set. We are going to encode
+> > encryption KeyID in vm_page_prot. Having garbage there causes problems.
+> > 
+> > Zero out all unused fields in the pseudo vma.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > 
-Yes, for it is a regression fix which I expected to be in time for 4.17.
-I want to apply it before OOM killer code gets complicated by cgroup-aware OOM killer.
+> I won't go so far as to say NAK, but personally I much prefer that we
+> document what fields actually get used, by initializing only those,
+> rather than having such a blanket memset.
+
+I recognize value of documentation here. But I still think leaving garbage
+in the fields is not a great idea.
+
+> 
+> And you say "We are going to ...": so this should really be part of
+> some future patchset, shouldn't it?
+
+Yeah. It's for MKTME. I just try to push easy patches first.
+
+> My opinion might be in the minority: you remind me of a similar
+> request from Josef some while ago, Cc'ing him.
+> 
+> (I'm very ashamed, by the way, of shmem's pseudo-vma, I think it's
+> horrid, and just reflects that shmem was an afterthought when NUMA
+> mempolicies were designed.  Internally, we replaced alloc_pages_vma()
+> throughout by alloc_pages_mpol(), which has no need for pseudo-vmas,
+> and the advantage of dropping mmap_sem across the bulk of NUMA page
+> migration. I shall be updating that work in coming months, and hope
+> to upstream, but no promise from me on the timing - your need for
+> vm_page_prot likely much sooner.)
+
+I will try to look at how we can get alloc_pages_mpol() implemented.
+(Although interleave bias is kinda confusing. I'll need to wrap my head
+around the thing.)
+
+-- 
+ Kirill A. Shutemov
