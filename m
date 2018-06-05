@@ -1,60 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C69A6B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 10:51:24 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id u73-v6so2660193qku.12
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 07:51:24 -0700 (PDT)
-Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
-        by mx.google.com with ESMTPS id q1-v6si1900400qve.94.2018.06.05.07.51.22
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4434C6B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 11:27:05 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 12-v6so2666991qtq.8
+        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 08:27:05 -0700 (PDT)
+Received: from a9-114.smtp-out.amazonses.com (a9-114.smtp-out.amazonses.com. [54.240.9.114])
+        by mx.google.com with ESMTPS id k7-v6si3090415qkd.125.2018.06.05.08.27.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 05 Jun 2018 07:51:22 -0700 (PDT)
-Date: Tue, 5 Jun 2018 14:51:22 +0000
+        Tue, 05 Jun 2018 08:27:03 -0700 (PDT)
+Date: Tue, 5 Jun 2018 15:27:02 +0000
 From: Christopher Lameter <cl@linux.com>
 Subject: Re: HARDENED_USERCOPY will BUG on multiple slub objects coalesced
  into an sk_buff fragment
-In-Reply-To: <20180601205837.GB29651@bombadil.infradead.org>
-Message-ID: <01000163d06e5616-69f9336a-c45d-4aa0-9ff1-76354b8949e2-000000@email.amazonses.com>
+In-Reply-To: <CAKYffwpAAgD+a+0kebid43tpyS6L+8o=4hBbDvhfgaoV_gze1g@mail.gmail.com>
+Message-ID: <01000163d08f00b4-068f6b54-5d34-447d-90c6-010a24fc36d5-000000@email.amazonses.com>
 References: <CAKYffwqAXWUhdmU7t+OzK1A2oODS+WsfMKJZyWVTwxzR2QbHbw@mail.gmail.com> <55be03eb-3d0d-d43d-b0a4-669341e6d9ab@redhat.com> <CAGXu5jKYsS2jnRcb9RhFwvB-FLdDhVyAf+=CZ0WFB9UwPdefpw@mail.gmail.com> <20180601205837.GB29651@bombadil.infradead.org>
+ <CAGXu5jLvN5bmakZ3aDu4TRB9+_DYVaCX2LTLtKvsqgYpjMaNsA@mail.gmail.com> <CAKYffwpAAgD+a+0kebid43tpyS6L+8o=4hBbDvhfgaoV_gze1g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Anton Eidelman <anton@lightbitslabs.com>, Linux-MM <linux-mm@kvack.org>, linux-hardened@lists.openwall.com
+To: Anton Eidelman <anton@lightbitslabs.com>
+Cc: Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>, Laura Abbott <labbott@redhat.com>, Linux-MM <linux-mm@kvack.org>, linux-hardened@lists.openwall.com
 
-On Fri, 1 Jun 2018, Matthew Wilcox wrote:
+On Fri, 1 Jun 2018, Anton Eidelman wrote:
 
-> > >> My take on the root cause:
-> > >>    When adding data to an skb, new data is appended to the current
-> > >> fragment if the new chunk immediately follows the last one: by simply
-> > >> increasing the frag->size, skb_frag_size_add().
-> > >>    See include/linux/skbuff.h:skb_can_coalesce() callers.
-> >
-> > Oooh, sneaky:
-> >                 return page == skb_frag_page(frag) &&
-> >                        off == frag->page_offset + skb_frag_size(frag);
-> >
-> > Originally I was thinking that slab red-zoning would get triggered
-> > too, but I see the above is checking to see if these are precisely
-> > neighboring allocations, I think.
-> >
-> > But then ... how does freeing actually work? I'm really not sure how
-> > this seeming layering violation could be safe in other areas?
+> I do not have a way of reproducing this decent enough to recommend: I'll
+> keep digging.
 
-So if there are two neighboring slab objects that the page struct
-addresses will match and the network code will coalesce the objects even
-if they are in two different slab objects?
+If you can reproduce it: Could you try the following patch?
 
-The check in skb_can_coalesce() must verify that these are distinct slab
-object. Simple thing would be to return false if one object is a slab
-object but then the coalescing would not work in a single slab object
-either.
 
-So what needs to happen is that we need to check if this is
 
-1) A Page. Then the proper length of the segment within we can coalesce is
-the page size.
+Subject: [NET] Fix false positives of skb_can_coalesce
 
-2) A slab page. Then we can use ksize() to establish the end of the slab
-object and we should only coalesce within that boundary.
+Skb fragments may be slab objects. Two slab objects may reside
+in the same slab page. In that case skb_can_coalesce() may return
+true althought the skb cannot be expanded because it would
+cross a slab boundary.
+
+Enabling slab debugging will avoid the issue since red zones will
+be inserted and thus the skb_can_coalesce() check will not detect
+neighboring objects and return false.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/include/linux/skbuff.h
+===================================================================
+--- linux.orig/include/linux/skbuff.h
++++ linux/include/linux/skbuff.h
+@@ -3010,8 +3010,29 @@ static inline bool skb_can_coalesce(stru
+ 	if (i) {
+ 		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i - 1];
+
+-		return page == skb_frag_page(frag) &&
+-		       off == frag->page_offset + skb_frag_size(frag);
++		if (page != skb_frag_page(frag))
++			return false;
++
++		if (off != frag->page_offset + skb_frag_size(frag))
++			return false;
++
++		/*
++		 * This may be a slab page and we may have pointers
++		 * to different slab objects in the same page
++		 */
++		if (!PageSlab(skb_frag_page(frag)))
++			return true;
++
++		/*
++		 * We could still return true if we would check here
++		 * if the two fragments are within the same
++		 * slab object. But that is complicated and
++		 * I guess we would need a new slab function
++		 * to check if two pointers are within the same
++		 * object.
++		 */
++		return false;
++
+ 	}
+ 	return false;
+ }
