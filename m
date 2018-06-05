@@ -1,136 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 358276B0003
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 17:52:40 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id y123-v6so2327378oie.5
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 14:52:40 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A2F6B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 18:19:18 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id a1-v6so1250618lfh.4
+        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 15:19:17 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f34-v6sor24665660otc.52.2018.06.05.14.52.38
+        by mx.google.com with SMTPS id z144-v6sor4420074lff.44.2018.06.05.15.19.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 05 Jun 2018 14:52:38 -0700 (PDT)
+        Tue, 05 Jun 2018 15:19:16 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180605130329.f7069e01c5faacc08a10996c@linux-foundation.org>
-References: <bug-199931-27@https.bugzilla.kernel.org/> <20180605130329.f7069e01c5faacc08a10996c@linux-foundation.org>
-From: james harvey <jamespharvey20@gmail.com>
-Date: Tue, 5 Jun 2018 17:52:38 -0400
-Message-ID: <CA+X5Wn5_iJYS9MLFdArG9sDHQO2n=BkZmaYAOexhdoVc+tQnmw@mail.gmail.com>
-Subject: Re: [Bug 199931] New: systemd/rtorrent file data corruption when
- using echo 3 >/proc/sys/vm/drop_caches
+In-Reply-To: <20180605184811.GC4423@redhat.com>
+References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180524001026.GA3527@redhat.com> <CAPcyv4hVERZoqWrCxwOkmM075OP_ada7FiYsQgokijuWyC1MbA@mail.gmail.com>
+ <CAPM=9tzMJq=KC+ijoj-JGmc1R3wbshdwtfR3Zpmyaw3jYJ9+gw@mail.gmail.com>
+ <CAPcyv4g2XQtuYGPu8HMbPj6wXqGwxiL5jDRznf5fmW4WgC2DTw@mail.gmail.com>
+ <CAPM=9twm=17t=2=M27ELB=vZWzpqM7GuwCUsC891jJ0t3JM4vg@mail.gmail.com>
+ <CAPcyv4jTty4k1xXCOWbeRjzv-KjxNH1L4oOkWW1EbJt66jF4_w@mail.gmail.com> <20180605184811.GC4423@redhat.com>
+From: Dave Airlie <airlied@gmail.com>
+Date: Wed, 6 Jun 2018 08:19:15 +1000
+Message-ID: <CAPM=9twgL_tzkPO=V2mmecSzLjKJkEsJ8A4426fO2Nuus0N_UQ@mail.gmail.com>
+Subject: Re: [PATCH 0/5] mm: rework hmm to use devm_memremap_pages
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chris Mason <clm@fb.com>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, bugzilla-daemon@bugzilla.kernel.org, bugzilla.kernel.org@plan9.de, Btrfs BTRFS <linux-btrfs@vger.kernel.org>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Jun 5, 2018 at 4:03 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Tue, 05 Jun 2018 18:01:36 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+On 6 June 2018 at 04:48, Jerome Glisse <jglisse@redhat.com> wrote:
+> On Tue, May 29, 2018 at 04:33:49PM -0700, Dan Williams wrote:
+>> On Tue, May 29, 2018 at 4:00 PM, Dave Airlie <airlied@gmail.com> wrote:
+>> > On 30 May 2018 at 08:31, Dan Williams <dan.j.williams@intel.com> wrote:
+>> >> On Tue, May 29, 2018 at 3:22 PM, Dave Airlie <airlied@gmail.com> wrote:
+>> >>>
+>> >>> On 24 May 2018 at 13:18, Dan Williams <dan.j.williams@intel.com> wrote:
+>> >>> > On Wed, May 23, 2018 at 5:10 PM, Jerome Glisse <jglisse@redhat.com> wrote:
+>> >>> >> On Mon, May 21, 2018 at 03:35:14PM -0700, Dan Williams wrote:
+>> >>> >>> Hi Andrew, please consider this series for 4.18.
+>> >>> >>>
+>> >>> >>> For maintainability, as ZONE_DEVICE continues to attract new users,
+>> >>> >>> it is useful to keep all users consolidated on devm_memremap_pages() as
+>> >>> >>> the interface for create "device pages".
+>> >>> >>>
+>> >>> >>> The devm_memremap_pages() implementation was recently reworked to make
+>> >>> >>> it more generic for arbitrary users, like the proposed peer-to-peer
+>> >>> >>> PCI-E enabling. HMM pre-dated this rework and opted to duplicate
+>> >>> >>> devm_memremap_pages() as hmm_devmem_pages_create().
+>> >>> >>>
+>> >>> >>> Rework HMM to be a consumer of devm_memremap_pages() directly and fix up
+>> >>> >>> the licensing on the exports given the deep dependencies on the mm.
+>> >>> >>
+>> >>> >> I am on PTO right now so i won't be able to quickly review it all
+>> >>> >> but forcing GPL export is problematic for me now. I rather have
+>> >>> >> device driver using "sane" common helpers than creating their own
+>> >>> >> crazy thing.
+>> >>> >
+>> >>> > Sane drivers that need this level of deep integration with Linux
+>> >>> > memory management need to be upstream. Otherwise, HMM is an
+>> >>> > unprecedented departure from the norms of Linux kernel development.
+>> >>>
+>> >>> Isn't it the author of code choice what EXPORT_SYMBOL to use? and
+>> >>> isn't the agreement that if something is EXPORT_SYMBOL now, changing
+>> >>> underlying exports isn't considered a good idea. We've seen this before
+>> >>> with the refcount fun,
+>> >>>
+>> >>> See d557d1b58b3546bab2c5bc2d624c5709840e6b10
+>> >>>
+>> >>> Not commenting on the legality or what derived works are considered,
+>> >>> since really the markings are just an indication of the authors opinion,
+>> >>> and at this stage I think are actually meaningless, since we've diverged
+>> >>> considerably from the advice given to Linus back when this started.
+>> >>
+>> >> Yes, and in this case devm_memremap_pages() was originally written by
+>> >> Christoph and I:
+>> >>
+>> >>     41e94a851304 add devm_memremap_pages
+>> >
+>> > So you wrote some code in 2015 (3 years ago) and you've now decided
+>> > to change the EXPORT marker on it? what changed in 3 years, and why
+>> > would changing that marker 3 years later have any effect on your original
+>> > statement that it was an EXPORT_SYMBOL.
+>> >
+>> > Think what EXPORT_SYMBOL vs GPL means, it isn't a bit stick that magically
+>> > makes things into derived works. If something wasn't a derived work for 3 years
+>> > using that API, then it isn't a derived work now 3 years later because you
+>> > changed the marker. Retrospectively changing the markers doesn't really
+>> > make any sense legally or otherwise.
+>>
+>> It honestly was an oversight, and as we've gone on to add deeper and
+>> deeper ties into the mm and filesystems [1] I realized this symbol was
+>> mis-labeled.  It would be one thing if this was just some random
+>> kernel leaf / library function, but this capability when turned on
+>> causes the entire kernel to be recompiled as things like the
+>> definition of put_page() changes. It's deeply integrated with how
+>> Linux manages memory.
 >
->> https://bugzilla.kernel.org/show_bug.cgi?id=199931
->>
->>             Bug ID: 199931
->>            Summary: systemd/rtorrent file data corruption when using echo
->>                     3 >/proc/sys/vm/drop_caches
->
-> A long tale of woe here.  Chris, do you think the pagecache corruption
-> is a general thing, or is it possible that btrfs is contributing?
-...
->> We found that
->>
->>    echo 3 >/proc/sys/vm/drop_caches
->>
->> causes file data corruption. We found this because we saw systemd journal
->> corruption (https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=897266) and
->> tracked this to a cron job dropping caches every hour. The filesystem in use is
->> btrfs, but I don't know if it only happens with this filesystem. btrfs scrub
->> reports no problems, so this is not filesystem metdata corruption.
-...
->> This is not always reproducible, but when deleting our journal, creating log
->> messages for a few hours and then doing the above manually has a ~50% chance of
->> corrupting the journal.
-...
+> I am personaly on the fence on deciding GPL versus non GPL export
+> base on subjective view of what is deeply integrated and what is
+> not. I think one can argue that every single linux kernel function
+> is deeply integrated within the kernel, starting with all device
+> drivers functions. One could similarly argue that nothing is ...
 
-This sounds a lot related to what Qu Wenruo (as the BTRFS expert and
-patch writer) and I (from a reporter and research standpoint) have
-been working on, but with a different twist.
+This is the point I wasn't making so well, the whole deciding on a derived
+work from the pov of one of the works isn't really going to be how a court
+looks at it.
 
-My strong bet is you have a hardware issue.  Something like a drive
-going bad, bad cables, bad port, etc.  My strong bet is you're also
-using BTRFS mirroring.
+At day 0, you have a Linux kernel, and a separate Windows kernel driver,
+clearly they are not derived works.
 
-You're describing intermittent data corruption on files that I'm
-thinking all have NOCOW turned on.  On BTRFS, journald turns on NOCOW
-for its journal files.  It makes an attempt to turn COW back on when
-it's done writing to a journal file, but in a way that guarantees it
-to fail.  This has been reported to systemd at
-https://github.com/systemd/systemd/issues/9112 but poettering has
-expressed the desire to leave it the way it is rather than fix it.
-(Granted the situation is going to be improved in the context of the
-compression/replace bugs described below, by submitted patches, but
-leaving the situation of other on-disk data corruption.)  My bet is
-your torrent downloads also have NOCOW turned on.
+You add interfaces to the Windows kernel driver and it becomes a Linux
+kernel driver, you never ship them together, derived work only if those
+interfaces are GPL only? or derived work only if shipped together?
+only shipped together and GPL only? Clearly not a clearcut case here.
 
-When NOCOW is turned on, BTRFS also stops performing checksumming of
-the data.  (Associated metadata is still checksummed.)
+The code base is 99% the same, the kernel changes an export to a GPL
+export, the external driver hasn't changed one line of code, and it suddenly
+becomes a derived work?
 
-If your BTRFS volume uses mirroring, and you have corruption on one
-mirror but not the other, you will get correct or corrupted data
-pseudo-randomly depending on which disk is read from.
+Oversights happen, but 3 years of advertising an interface under the non-GPL
+and changing it doesn't change whether the external driver is derived or not,
+nor will it change anyone's legal position.
 
-If your BTRFS volume doesn't use mirroring, then if it's a new file
-still in the cache, it won't be corrupted, and after dropping the
-cache and re-reading it, if you have a hardware issue, you'll be
-reading a corrupted copy.  But, I suspect you are using mirroring, or
-else you'd probably be getting unfixable checksum errors on COW files
-as well.
-
-Where with checksums and mirroring BTRFS would automatically recognize
-a bad read, try the other mirror, and correct the bad copy, with NOCOW
-on, even with mirroring, BTRFS has no way to know the data read is
-corrupted.
-
-The context I ran into this problem was with several other bugs
-interacting, that "btrfs replace" has been guaranteed to corrupt
-non-checksummed (NOCOW) compressed data, which the combination of
-those shouldn't happen, but does in some defragmentation situations
-due to another bug.  In my situation, I don't have a hardware issue.
-
-
-
-If you're using BTRFS mirroring, there's an easy way for you to see if
-I'm right.  Additions to btrfs-tools are in the works to detect this,
-but you can manually do it in the meantime.
-
-Run "filefrag -v <path-filename a file you're having intermittent
-corruption on>".
-
-This isn't the ideal tool for the job (btrfs-debug tree is) but it
-will more quickly show you the starting block number and length of
-blocks for each extent of your file.
-
-For each extent line listed, run 2 commands: "btrfs-map-logical -l
-<4096 * physical_offset first (starting) number> -b <4096 * length> -c
-1 -o <physical_offset>.1"; and the same but ending "-c 2 -o
-<physical_offset>.2".
-
-So, if filefrag shows:
-0: 0.. 23: 1201616.. 1201639: 24: last,shared,eof
-
-You'd run (again, for each extent line, with appropriate -l and -b
-values and output file name):
-btrfs-map-logical -l 4921819136 -b 98304 -c 1 -o 4921819136.1
-btrfs-map-logical -l 4921819136 -b 98304 -c 2 -o 4921819136.2
-
-(If you are using BTRFS compression, and a flags column includes
-"encoded", you want to use "-b 4096" because filefrag doesn't report
-the proper ending physical_offset and length in this situation, and
-they're always 4096 bytes.)
-
-This will read each of the extents in your file from both mirrored
-copies, and write them to separate files.
-
-Then compare each set of <physical_offset>.1 and <physical_offset>.2 files.
-
-They should never be different.  If they are, for one reason or
-another, your mirrored copies differ, and you've found why dropping
-cache causes an intermittent problem.
+Dave.
