@@ -1,52 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D68256B0003
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 17:38:48 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id c6-v6so2047573pll.4
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 14:38:48 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j6-v6si9970614pll.54.2018.06.05.14.38.47
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C24856B0003
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 17:43:33 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id b8-v6so3816439qto.13
+        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 14:43:33 -0700 (PDT)
+Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
+        by mx.google.com with ESMTPS id o82-v6si4149166qki.221.2018.06.05.14.43.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jun 2018 14:38:47 -0700 (PDT)
-Date: Tue, 5 Jun 2018 14:38:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 199931] New: systemd/rtorrent file data corruption when
- using echo 3 >/proc/sys/vm/drop_caches
-Message-Id: <20180605143846.ec86323745ead25c74bc4c37@linux-foundation.org>
-In-Reply-To: <34c7a73b-15d5-4d67-fa7c-0630b30a4c1c@i-love.sakura.ne.jp>
-References: <bug-199931-27@https.bugzilla.kernel.org/>
-	<20180605130329.f7069e01c5faacc08a10996c@linux-foundation.org>
-	<34c7a73b-15d5-4d67-fa7c-0630b30a4c1c@i-love.sakura.ne.jp>
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 05 Jun 2018 14:43:33 -0700 (PDT)
+Date: Tue, 5 Jun 2018 21:43:32 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: HARDENED_USERCOPY will BUG on multiple slub objects coalesced
+ into an sk_buff fragment
+In-Reply-To: <CAKYffwqf5EhabhFwT85iTYNLjpR0noQ9Kua+2aOYNZ5AaJAWOw@mail.gmail.com>
+Message-ID: <01000163d1e7b1bf-7bd8565a-7d5e-4d61-b998-6e59557cf8e4-000000@email.amazonses.com>
+References: <CAKYffwqAXWUhdmU7t+OzK1A2oODS+WsfMKJZyWVTwxzR2QbHbw@mail.gmail.com> <55be03eb-3d0d-d43d-b0a4-669341e6d9ab@redhat.com> <CAGXu5jKYsS2jnRcb9RhFwvB-FLdDhVyAf+=CZ0WFB9UwPdefpw@mail.gmail.com> <20180601205837.GB29651@bombadil.infradead.org>
+ <CAGXu5jLvN5bmakZ3aDu4TRB9+_DYVaCX2LTLtKvsqgYpjMaNsA@mail.gmail.com> <CAKYffwpAAgD+a+0kebid43tpyS6L+8o=4hBbDvhfgaoV_gze1g@mail.gmail.com> <01000163d08f00b4-068f6b54-5d34-447d-90c6-010a24fc36d5-000000@email.amazonses.com>
+ <CAKYffwqf5EhabhFwT85iTYNLjpR0noQ9Kua+2aOYNZ5AaJAWOw@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Chris Mason <clm@fb.com>, Michal Hocko <mhocko@suse.com>, bugzilla-daemon@bugzilla.kernel.org, bugzilla.kernel.org@plan9.de, linux-btrfs@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+To: Anton Eidelman <anton@lightbitslabs.com>
+Cc: Kees Cook <keescook@chromium.org>, Matthew Wilcox <willy@infradead.org>, Laura Abbott <labbott@redhat.com>, Linux-MM <linux-mm@kvack.org>, linux-hardened@lists.openwall.com
 
-On Wed, 6 Jun 2018 06:22:25 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
+On Tue, 5 Jun 2018, Anton Eidelman wrote:
 
-> On 2018/06/06 5:03, Andrew Morton wrote:
-> > 
-> > (switched to email.  Please respond via emailed reply-to-all, not via the
-> > bugzilla web interface).
-> > 
-> > On Tue, 05 Jun 2018 18:01:36 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-> > 
-> >> https://bugzilla.kernel.org/show_bug.cgi?id=199931
-> >>
-> >>             Bug ID: 199931
-> >>            Summary: systemd/rtorrent file data corruption when using echo
-> >>                     3 >/proc/sys/vm/drop_caches
-> > 
-> > A long tale of woe here.  Chris, do you think the pagecache corruption
-> > is a general thing, or is it possible that btrfs is contributing?
-> 
-> According to timestamp of my testcases, I was observing corrupted-bytes issue upon OOM-kill
-> (without using btrfs) as of 2017 Aug 11. Thus, I don't think that this is specific to btrfs.
-> But I can't find which patch fixed this issue.
+> What I am still wondering about (and investigating), is how kernel_sendpage()
+> with slab payload results in slab payload on another socket RX.
+> Do you see how page ref-counting can be broken with extra references taken
+> on a slab page containing the fragments, and dropped when networking is
+> done with them?
 
-That sounds different.  Here, the corruption is caused by performing
-drop_caches, not by an oom-killing.
+The slab allocators do not use page refcounting. The objects may be
+destroyed via poisioning etc if you use kfree() while still holding a
+refcount on the page. Even without poisoning the slab allocator may
+overwrite the object.
