@@ -1,76 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F6026B0007
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 18:53:57 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id c6-v6so2140630pll.4
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 15:53:57 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 663546B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 19:06:15 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id 9-v6so2390396oin.12
+        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 16:06:15 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r27-v6sor3135360pfl.7.2018.06.05.15.53.55
+        by mx.google.com with SMTPS id u2-v6sor4512959otf.329.2018.06.05.16.06.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 05 Jun 2018 15:53:55 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [PATCH] mremap: Avoid TLB flushing anonymous pages that are not
- in swap cache
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <20180605200800.emb3yfdtnpjgmxb7@techsingularity.net>
-Date: Tue, 5 Jun 2018 15:53:51 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <4635880A-CC44-4E06-B3DB-597DE6F5B530@gmail.com>
-References: <20180605171319.uc5jxdkxopio6kg3@techsingularity.net>
- <EAD124C4-FFA4-4894-AE8B-33949CD6731B@gmail.com>
- <20180605200800.emb3yfdtnpjgmxb7@techsingularity.net>
+        Tue, 05 Jun 2018 16:06:13 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAPM=9twgL_tzkPO=V2mmecSzLjKJkEsJ8A4426fO2Nuus0N_UQ@mail.gmail.com>
+References: <152694211402.5484.2277538346144115181.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180524001026.GA3527@redhat.com> <CAPcyv4hVERZoqWrCxwOkmM075OP_ada7FiYsQgokijuWyC1MbA@mail.gmail.com>
+ <CAPM=9tzMJq=KC+ijoj-JGmc1R3wbshdwtfR3Zpmyaw3jYJ9+gw@mail.gmail.com>
+ <CAPcyv4g2XQtuYGPu8HMbPj6wXqGwxiL5jDRznf5fmW4WgC2DTw@mail.gmail.com>
+ <CAPM=9twm=17t=2=M27ELB=vZWzpqM7GuwCUsC891jJ0t3JM4vg@mail.gmail.com>
+ <CAPcyv4jTty4k1xXCOWbeRjzv-KjxNH1L4oOkWW1EbJt66jF4_w@mail.gmail.com>
+ <20180605184811.GC4423@redhat.com> <CAPM=9twgL_tzkPO=V2mmecSzLjKJkEsJ8A4426fO2Nuus0N_UQ@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 5 Jun 2018 16:06:12 -0700
+Message-ID: <CAPcyv4gSEYdnJKd=D-_yc3M=sY0HWjYzYhh5ha-v7KA4-40dsg@mail.gmail.com>
+Subject: Re: [PATCH 0/5] mm: rework hmm to use devm_memremap_pages
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Aaron Lu <aaron.lu@intel.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Dave Airlie <airlied@gmail.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Mel Gorman <mgorman@techsingularity.net> wrote:
+On Tue, Jun 5, 2018 at 3:19 PM, Dave Airlie <airlied@gmail.com> wrote:
+> On 6 June 2018 at 04:48, Jerome Glisse <jglisse@redhat.com> wrote:
+>> On Tue, May 29, 2018 at 04:33:49PM -0700, Dan Williams wrote:
+>>> On Tue, May 29, 2018 at 4:00 PM, Dave Airlie <airlied@gmail.com> wrote:
+>>> > On 30 May 2018 at 08:31, Dan Williams <dan.j.williams@intel.com> wrote:
+>>> >> On Tue, May 29, 2018 at 3:22 PM, Dave Airlie <airlied@gmail.com> wrote:
+>>> >>>
+>>> >>> On 24 May 2018 at 13:18, Dan Williams <dan.j.williams@intel.com> wrote:
+>>> >>> > On Wed, May 23, 2018 at 5:10 PM, Jerome Glisse <jglisse@redhat.com> wrote:
+>>> >>> >> On Mon, May 21, 2018 at 03:35:14PM -0700, Dan Williams wrote:
+>>> >>> >>> Hi Andrew, please consider this series for 4.18.
+>>> >>> >>>
+>>> >>> >>> For maintainability, as ZONE_DEVICE continues to attract new users,
+>>> >>> >>> it is useful to keep all users consolidated on devm_memremap_pages() as
+>>> >>> >>> the interface for create "device pages".
+>>> >>> >>>
+>>> >>> >>> The devm_memremap_pages() implementation was recently reworked to make
+>>> >>> >>> it more generic for arbitrary users, like the proposed peer-to-peer
+>>> >>> >>> PCI-E enabling. HMM pre-dated this rework and opted to duplicate
+>>> >>> >>> devm_memremap_pages() as hmm_devmem_pages_create().
+>>> >>> >>>
+>>> >>> >>> Rework HMM to be a consumer of devm_memremap_pages() directly and fix up
+>>> >>> >>> the licensing on the exports given the deep dependencies on the mm.
+>>> >>> >>
+>>> >>> >> I am on PTO right now so i won't be able to quickly review it all
+>>> >>> >> but forcing GPL export is problematic for me now. I rather have
+>>> >>> >> device driver using "sane" common helpers than creating their own
+>>> >>> >> crazy thing.
+>>> >>> >
+>>> >>> > Sane drivers that need this level of deep integration with Linux
+>>> >>> > memory management need to be upstream. Otherwise, HMM is an
+>>> >>> > unprecedented departure from the norms of Linux kernel development.
+>>> >>>
+>>> >>> Isn't it the author of code choice what EXPORT_SYMBOL to use? and
+>>> >>> isn't the agreement that if something is EXPORT_SYMBOL now, changing
+>>> >>> underlying exports isn't considered a good idea. We've seen this before
+>>> >>> with the refcount fun,
+>>> >>>
+>>> >>> See d557d1b58b3546bab2c5bc2d624c5709840e6b10
+>>> >>>
+>>> >>> Not commenting on the legality or what derived works are considered,
+>>> >>> since really the markings are just an indication of the authors opinion,
+>>> >>> and at this stage I think are actually meaningless, since we've diverged
+>>> >>> considerably from the advice given to Linus back when this started.
+>>> >>
+>>> >> Yes, and in this case devm_memremap_pages() was originally written by
+>>> >> Christoph and I:
+>>> >>
+>>> >>     41e94a851304 add devm_memremap_pages
+>>> >
+>>> > So you wrote some code in 2015 (3 years ago) and you've now decided
+>>> > to change the EXPORT marker on it? what changed in 3 years, and why
+>>> > would changing that marker 3 years later have any effect on your original
+>>> > statement that it was an EXPORT_SYMBOL.
+>>> >
+>>> > Think what EXPORT_SYMBOL vs GPL means, it isn't a bit stick that magically
+>>> > makes things into derived works. If something wasn't a derived work for 3 years
+>>> > using that API, then it isn't a derived work now 3 years later because you
+>>> > changed the marker. Retrospectively changing the markers doesn't really
+>>> > make any sense legally or otherwise.
+>>>
+>>> It honestly was an oversight, and as we've gone on to add deeper and
+>>> deeper ties into the mm and filesystems [1] I realized this symbol was
+>>> mis-labeled.  It would be one thing if this was just some random
+>>> kernel leaf / library function, but this capability when turned on
+>>> causes the entire kernel to be recompiled as things like the
+>>> definition of put_page() changes. It's deeply integrated with how
+>>> Linux manages memory.
+>>
+>> I am personaly on the fence on deciding GPL versus non GPL export
+>> base on subjective view of what is deeply integrated and what is
+>> not. I think one can argue that every single linux kernel function
+>> is deeply integrated within the kernel, starting with all device
+>> drivers functions. One could similarly argue that nothing is ...
+>
+> This is the point I wasn't making so well, the whole deciding on a derived
+> work from the pov of one of the works isn't really going to be how a court
+> looks at it.
+>
+> At day 0, you have a Linux kernel, and a separate Windows kernel driver,
+> clearly they are not derived works.
+>
+> You add interfaces to the Windows kernel driver and it becomes a Linux
+> kernel driver, you never ship them together, derived work only if those
+> interfaces are GPL only? or derived work only if shipped together?
+> only shipped together and GPL only? Clearly not a clearcut case here.
+>
+> The code base is 99% the same, the kernel changes an export to a GPL
+> export, the external driver hasn't changed one line of code, and it suddenly
+> becomes a derived work?
+>
+> Oversights happen, but 3 years of advertising an interface under the non-GPL
+> and changing it doesn't change whether the external driver is derived or not,
+> nor will it change anyone's legal position.
 
-> On Tue, Jun 05, 2018 at 12:53:57PM -0700, Nadav Amit wrote:
->> While I do not have a specific reservation regarding the logic, I =
-find the
->> current TLB invalidation scheme hard to follow and inconsistent. I =
-guess
->> should_force_flush() can be extended and used more commonly to make =
-things
->> clearer.
->>=20
->> To be more specific and to give an example: Can should_force_flush() =
-be used
->> in zap_pte_range() to set the force_flush instead of the current =
-code?
->>=20
->>  if (!PageAnon(page)) {
->> 	if (pte_dirty(ptent)) {
->> 		force_flush =3D 1;
->> 		...
->>  	}
->=20
-> That check is against !PageAnon pages where it's potentially critical
-> that the dirty PTE bit be propogated to the page. You could split the
-> separate the TLB flush from the dirty page setting but it's not the =
-same
-> class of problem and without perf data, it's not clear it's =
-worthwhile.
->=20
-> Note that I also didn't handle the huge page moving because it's =
-already
-> naturally batching a larger range with a lower potential factor of TLB
-> flushing and has different potential race conditions.
+My concern is the long term health and maintainability of the Linux
+kernel. HMM exports deep Linux internals out to proprietary drivers
+with no way for folks in the wider kernel community to validate that
+the interfaces are necessary or sufficient besides "take Jerome's word
+for it". Every time I've pushed back on any HMM feature the response
+is something to the effect of, "no, out of tree drivers need this".
+HMM needs to grow upstream users and the functionality needs to be
+limited to whatever those upstream users exploit. Since there are no
+upstream users of HMM, we should delete it unless / until those users
+arrive.
 
-I noticed.
-
->=20
-> I agree that the TLB handling would benefit from being simplier but =
-it's
-> not a simple search/replace job to deal with the different cases that =
-apply.
-
-I understand. It=E2=80=99s not just a matter of performance: having a =
-consistent
-implementation can prevent bugs and allow auditing of the invalidation
-scheme.
-
-Anyhow, if I find some free time, I=E2=80=99ll give it a shot.
+I want the EXPORT_SYMBOL_GPL on devm_memremap_pages() primarily for
+development purposes. Any new users of devm_memremap_pages() should be
+aware that they are subscribing to the whims of the core-VM, i.e. the
+ongoing evolution of 'struct page', and encourage those drivers to be
+upstream to improve the implementation, and consolidate use cases. I'm
+not qualified to comment on your "nor will it change anyone's legal
+position.", but I'm saying it's in the Linux kernel's best interest
+that new users of this interface assume they need to be GPL.
