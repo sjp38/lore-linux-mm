@@ -1,72 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 21B176B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 13:54:22 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x203-v6so1633564wmg.8
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 10:54:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 3-v6sor24195436wry.4.2018.06.05.10.54.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 23A596B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 14:18:24 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c187-v6so1645265pfa.20
+        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 11:18:24 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id n20-v6si49714937pff.370.2018.06.05.11.18.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 05 Jun 2018 10:54:20 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Jun 2018 11:18:22 -0700 (PDT)
+Subject: Re: [PATCH] mremap: Avoid TLB flushing anonymous pages that are not
+ in swap cache
+References: <20180605171319.uc5jxdkxopio6kg3@techsingularity.net>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <bfc2e579-915f-24db-0ff0-29bd9148b8c0@intel.com>
+Date: Tue, 5 Jun 2018 11:18:18 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180416205150.113915-2-shakeelb@google.com>
-References: <20180416205150.113915-1-shakeelb@google.com> <20180416205150.113915-2-shakeelb@google.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 5 Jun 2018 10:54:18 -0700
-Message-ID: <CALvZod5buYF8O2TWq06f=M1SyJdS0vJrFhkH4FQw2Ga1qv3GsA@mail.gmail.com>
-Subject: Re: [PATCH v5 1/2] mm: memcg: remote memcg charging for kmem allocations
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180605171319.uc5jxdkxopio6kg3@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: mhocko@kernel.org, vbabka@suse.cz, Aaron Lu <aaron.lu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Apr 16, 2018 at 1:51 PM, Shakeel Butt <shakeelb@google.com> wrote:
-> Introduce the memcg variant for kmalloc[_node] and
-> kmem_cache_alloc[_node].  For kmem_cache_alloc, the kernel switches the
-> root kmem cache with the memcg specific kmem cache for __GFP_ACCOUNT
-> allocations to charge those allocations to the memcg.  However, the memcg
-> to charge is extracted from the current task_struct.  This patch
-> introduces the variant of kmem cache allocation functions where the memcg
-> can be provided explicitly by the caller instead of deducing the memcg
-> from the current task.
->
-> The kmalloc allocations are underlying served using the kmem caches unless
-> the size of the allocation request is larger than KMALLOC_MAX_CACHE_SIZE,
-> in which case, the kmem caches are bypassed and the request is routed
-> directly to page allocator.  So, for __GFP_ACCOUNT kmalloc allocations,
-> the memcg of current task is charged.  This patch introduces memcg variant
-> of kmalloc functions to allow callers to provide memcg for charging.
->
-> These functions are useful for use-cases where the allocations should be
-> charged to the memcg different from the memcg of the caller.  One such
-> concrete use-case is the allocations for fsnotify event objects where the
-> objects should be charged to the listener instead of the producer.
->
-> One requirement to call these functions is that the caller must have the
-> reference to the memcg.  Using kmalloc_memcg and kmem_cache_alloc_memcg
-> implicitly assumes that the caller is requesting a __GFP_ACCOUNT
-> allocation.
->
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+On 06/05/2018 10:13 AM, Mel Gorman wrote:
+> The anonymous page race fix is overkill for two reasons. Pages that are not
+> in the swap cache are not going to be issued for IO and if a stale TLB entry
+> is used, the write still occurs on the same physical page. Any race with
+> mmap replacing the address space is handled by mmap_sem. As anonymous pages
+> are often dirty, it can mean that mremap always has to flush even when it is
+> not necessary.
 
-I will send the v6 of this patchset after this merge window. In v6, I
-will make memalloc_memcg_[save|restore] scope API similar to NOFS,
-NOIO and NORECLAIM APIs.
+This looks fine to me.  One nit on the description: I found myself
+wondering if we skip the flush under the ptl where the flush is
+eventually done.  That code is a bit out of the context, so we don't see
+it in the patch.
 
-> ---
-> Changelog since v4:
-> - Removed branch from hot path of memory charging.
->
-> Changelog since v3:
-> - Added node variant of directed kmem allocation functions.
->
-> Changelog since v2:
-> - Merge the kmalloc_memcg patch into this patch.
-> - Instead of plumbing memcg throughout, use field in task_struct to pass
->   the target_memcg.
->
-> Changelog since v1:
-> - Fixed build for SLOB
->
+We have two modes of flushing during move_ptes():
+1. The flush_tlb_range() while holding the ptl in move_ptes().
+2. A flush_tlb_range() at the end of move_table_tables(), driven by
+  'need_flush' which will be set any time move_ptes() does *not* flush.
+
+This patch broadens the scope where move_ptes() does not flush and
+shifts the burden to the flush inside move_table_tables().
+
+Right?
+
+Other minor nits:
+
+> +/* Returns true if a TLB must be flushed before PTL is dropped */
+> +static bool should_force_flush(pte_t *pte)
+> +{
+
+I usually try to make the non-pte-modifying functions take a pte_t
+instead of 'pte_t *' to make it obvious that there no modification going
+on.  Any reason not to do that here?
+
+> +	if (!trylock_page(page))
+> +		return true;
+> +	is_swapcache = PageSwapCache(page);
+> +	unlock_page(page);
+> +
+> +	return is_swapcache;
+> +}
+
+I was hoping we didn't have to go as far as taking the page lock, but I
+guess the proof is in the pudding that this tradeoff is worth it.
+
+BTW, do you want to add a tiny comment about why we do the
+trylock_page()?  I assume it's because we don't want to wait on finding
+an exact answer: we just assume it is in the swap cache if the page is
+locked and flush regardless.
