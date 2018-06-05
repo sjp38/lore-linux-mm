@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CE70E6B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 10:33:19 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id l95-v6so1712199otl.17
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 07:33:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h3-v6sor21968884ote.269.2018.06.05.07.33.18
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C69A6B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jun 2018 10:51:24 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id u73-v6so2660193qku.12
+        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 07:51:24 -0700 (PDT)
+Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
+        by mx.google.com with ESMTPS id q1-v6si1900400qve.94.2018.06.05.07.51.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 05 Jun 2018 07:33:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 05 Jun 2018 07:51:22 -0700 (PDT)
+Date: Tue, 5 Jun 2018 14:51:22 +0000
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: HARDENED_USERCOPY will BUG on multiple slub objects coalesced
+ into an sk_buff fragment
+In-Reply-To: <20180601205837.GB29651@bombadil.infradead.org>
+Message-ID: <01000163d06e5616-69f9336a-c45d-4aa0-9ff1-76354b8949e2-000000@email.amazonses.com>
+References: <CAKYffwqAXWUhdmU7t+OzK1A2oODS+WsfMKJZyWVTwxzR2QbHbw@mail.gmail.com> <55be03eb-3d0d-d43d-b0a4-669341e6d9ab@redhat.com> <CAGXu5jKYsS2jnRcb9RhFwvB-FLdDhVyAf+=CZ0WFB9UwPdefpw@mail.gmail.com> <20180601205837.GB29651@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180605141104.GF19202@dhcp22.suse.cz>
-References: <152800336321.17112.3300876636370683279.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180604124031.GP19202@dhcp22.suse.cz> <CAPcyv4gLxz7Ke6ApXoATDN31PSGwTgNRLTX-u1dtT3d+6jmzjw@mail.gmail.com>
- <20180605141104.GF19202@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 5 Jun 2018 07:33:17 -0700
-Message-ID: <CAPcyv4iGd56kc2NG5GDYMqW740RNr7NZr9DRft==fPxPyieq7Q@mail.gmail.com>
-Subject: Re: [PATCH v2 00/11] mm: Teach memory_failure() about ZONE_DEVICE pages
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@redhat.com>, Anton Eidelman <anton@lightbitslabs.com>, Linux-MM <linux-mm@kvack.org>, linux-hardened@lists.openwall.com
 
-On Tue, Jun 5, 2018 at 7:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Mon 04-06-18 07:31:25, Dan Williams wrote:
-> [...]
->> I'm trying to solve this real world problem when real poison is
->> consumed through a dax mapping:
->>
->>         mce: Uncorrected hardware memory error in user-access at af34214200
->>         {1}[Hardware Error]: It has been corrected by h/w and requires
->> no further action
->>         mce: [Hardware Error]: Machine check events logged
->>         {1}[Hardware Error]: event severity: corrected
->>         Memory failure: 0xaf34214: reserved kernel page still
->> referenced by 1 users
->>         [..]
->>         Memory failure: 0xaf34214: recovery action for reserved kernel
->> page: Failed
->>         mce: Memory error not recovered
->>
->> ...i.e. currently all poison consumed through dax mappings is
->> needlessly system fatal.
->
-> Thanks. That should be a part of the changelog.
+On Fri, 1 Jun 2018, Matthew Wilcox wrote:
 
-...added for v3:
-https://lists.01.org/pipermail/linux-nvdimm/2018-June/016153.html
+> > >> My take on the root cause:
+> > >>    When adding data to an skb, new data is appended to the current
+> > >> fragment if the new chunk immediately follows the last one: by simply
+> > >> increasing the frag->size, skb_frag_size_add().
+> > >>    See include/linux/skbuff.h:skb_can_coalesce() callers.
+> >
+> > Oooh, sneaky:
+> >                 return page == skb_frag_page(frag) &&
+> >                        off == frag->page_offset + skb_frag_size(frag);
+> >
+> > Originally I was thinking that slab red-zoning would get triggered
+> > too, but I see the above is checking to see if these are precisely
+> > neighboring allocations, I think.
+> >
+> > But then ... how does freeing actually work? I'm really not sure how
+> > this seeming layering violation could be safe in other areas?
 
-> It would be great to
-> describe why this cannot be simply handled by hwpoison code without any
-> ZONE_DEVICE specific hacks? The error is recoverable so why does
-> hwpoison code even care?
->
+So if there are two neighboring slab objects that the page struct
+addresses will match and the network code will coalesce the objects even
+if they are in two different slab objects?
 
-Up until we started testing hardware poison recovery for persistent
-memory I assumed that the kernel did not need any new enabling to get
-basic support for recovering userspace consumed poison.
+The check in skb_can_coalesce() must verify that these are distinct slab
+object. Simple thing would be to return false if one object is a slab
+object but then the coalescing would not work in a single slab object
+either.
 
-However, the recovery code has a dedicated path for many different
-page states (see: action_page_types). Without any changes it
-incorrectly assumes that a dax mapped page is a page cache page
-undergoing dma, or some other pinned operation. It also assumes that
-the page must be offlined which is not correct / possible for dax
-mapped pages. There is a possibility to repair poison to dax mapped
-persistent memory pages, and the pages can't otherwise be offlined
-because they 1:1 correspond with a physical storage block, i.e.
-offlining pmem would be equivalent to punching a hole in the physical
-address space.
+So what needs to happen is that we need to check if this is
 
-There's also the entanglement of device-dax which guarantees a given
-mapping size (4K, 2M, 1G). This requires determining the size of the
-mapping encompassing a given pfn to know how much to unmap. Since dax
-mapped pfns don't come from the page allocator we need to read the
-page size from the page tables, not compound_order(page).
+1) A Page. Then the proper length of the segment within we can coalesce is
+the page size.
+
+2) A slab page. Then we can use ksize() to establish the end of the slab
+object and we should only coalesce within that boundary.
