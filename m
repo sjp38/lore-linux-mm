@@ -1,90 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CC6346B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 03:39:14 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id f3-v6so2745517wre.11
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 00:39:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p10-v6si975677edc.248.2018.06.06.00.39.12
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 55CFD6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 04:04:12 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id v5-v6so2675946wmh.6
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 01:04:12 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m184-v6sor966151wmd.84.2018.06.06.01.04.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Jun 2018 00:39:13 -0700 (PDT)
-Date: Wed, 6 Jun 2018 09:39:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 00/11] mm: Teach memory_failure() about ZONE_DEVICE
- pages
-Message-ID: <20180606073910.GB32433@dhcp22.suse.cz>
-References: <152800336321.17112.3300876636370683279.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180604124031.GP19202@dhcp22.suse.cz>
- <CAPcyv4gLxz7Ke6ApXoATDN31PSGwTgNRLTX-u1dtT3d+6jmzjw@mail.gmail.com>
- <20180605141104.GF19202@dhcp22.suse.cz>
- <CAPcyv4iGd56kc2NG5GDYMqW740RNr7NZr9DRft==fPxPyieq7Q@mail.gmail.com>
+        (Google Transport Security);
+        Wed, 06 Jun 2018 01:04:10 -0700 (PDT)
+Date: Wed, 6 Jun 2018 10:04:08 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: kernel panic in reading /proc/kpageflags when enabling
+ RAM-simulated PMEM
+Message-ID: <20180606080408.GA31794@techadventures.net>
+References: <20180605005402.GA22975@hori1.linux.bs1.fc.nec.co.jp>
+ <20180605011836.GA32444@bombadil.infradead.org>
+ <20180605073500.GA23766@hori1.linux.bs1.fc.nec.co.jp>
+ <20180606051624.GA16021@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4iGd56kc2NG5GDYMqW740RNr7NZr9DRft==fPxPyieq7Q@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180606051624.GA16021@hori1.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Matthew Wilcox <willy@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>
 
-On Tue 05-06-18 07:33:17, Dan Williams wrote:
-> On Tue, Jun 5, 2018 at 7:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Mon 04-06-18 07:31:25, Dan Williams wrote:
-> > [...]
-> >> I'm trying to solve this real world problem when real poison is
-> >> consumed through a dax mapping:
-> >>
-> >>         mce: Uncorrected hardware memory error in user-access at af34214200
-> >>         {1}[Hardware Error]: It has been corrected by h/w and requires
-> >> no further action
-> >>         mce: [Hardware Error]: Machine check events logged
-> >>         {1}[Hardware Error]: event severity: corrected
-> >>         Memory failure: 0xaf34214: reserved kernel page still
-> >> referenced by 1 users
-> >>         [..]
-> >>         Memory failure: 0xaf34214: recovery action for reserved kernel
-> >> page: Failed
-> >>         mce: Memory error not recovered
-> >>
-> >> ...i.e. currently all poison consumed through dax mappings is
-> >> needlessly system fatal.
-> >
-> > Thanks. That should be a part of the changelog.
+On Wed, Jun 06, 2018 at 05:16:24AM +0000, Naoya Horiguchi wrote:
+> On Tue, Jun 05, 2018 at 07:35:01AM +0000, Horiguchi Naoya(a ?a?GBP c?'a1?) wrote:
+> > On Mon, Jun 04, 2018 at 06:18:36PM -0700, Matthew Wilcox wrote:
+> > > On Tue, Jun 05, 2018 at 12:54:03AM +0000, Naoya Horiguchi wrote:
+> > > > Reproduction precedure is like this:
+> > > >  - enable RAM based PMEM (with a kernel boot parameter like memmap=1G!4G)
+> > > >  - read /proc/kpageflags (or call tools/vm/page-types with no arguments)
+> > > >  (- my kernel config is attached)
+> > > > 
+> > > > I spent a few days on this, but didn't reach any solutions.
+> > > > So let me report this with some details below ...
+> > > > 
+> > > > In the critial page request, stable_page_flags() is called with an argument
+> > > > page whose ->compound_head was somehow filled with '0xffffffffffffffff'.
+> > > > And compound_head() returns (struct page *)(head - 1), which explains the
+> > > > address 0xfffffffffffffffe in the above message.
+> > > 
+> > > Hm.  compound_head shares with:
+> > > 
+> > >                         struct list_head lru;
+> > >                                 struct list_head slab_list;     /* uses lru */
+> > >                                 struct {        /* Partial pages */
+> > >                                         struct page *next;
+> > >                         unsigned long _compound_pad_1;  /* compound_head */
+> > >                         unsigned long _pt_pad_1;        /* compound_head */
+> > >                         struct dev_pagemap *pgmap;
+> > >                 struct rcu_head rcu_head;
+> > > 
+> > > None of them should be -1.
+> > > 
+> > > > It seems that this kernel panic happens when reading kpageflags of pfn range
+> > > > [0xbffd7, 0xc0000), which coresponds to a 'reserved' range.
+> > > > 
+> > > > [    0.000000] user-defined physical RAM map:
+> > > > [    0.000000] user: [mem 0x0000000000000000-0x000000000009fbff] usable
+> > > > [    0.000000] user: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+> > > > [    0.000000] user: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+> > > > [    0.000000] user: [mem 0x0000000000100000-0x00000000bffd6fff] usable
+> > > > [    0.000000] user: [mem 0x00000000bffd7000-0x00000000bfffffff] reserved
+> > > > [    0.000000] user: [mem 0x00000000feffc000-0x00000000feffffff] reserved
+> > > > [    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+> > > > [    0.000000] user: [mem 0x0000000100000000-0x000000013fffffff] persistent (type 12)
+> > > > 
+> > > > So I guess 'memmap=' parameter might badly affect the memory initialization process.
+> > > > 
+> > > > This problem doesn't reproduce on v4.17, so some pre-released patch introduces it.
+> > > > I hope this info helps you find the solution/workaround.
+> > > 
+> > > Can you try bisecting this?  It could be one of my patches to reorder struct
+> > > page, or it could be one of Pavel's deferred page initialisation patches.
+> > > Or something else ;-)
+> > 
+> > Thank you for the comment. I'm trying bisecting now, let you know the result later.
+> > 
+> > And I found that my statement "not reproduce on v4.17" was wrong (I used
+> > different kvm guests, which made some different test condition and misguided me),
+> > this seems an older (at least < 4.15) bug.
 > 
-> ...added for v3:
-> https://lists.01.org/pipermail/linux-nvdimm/2018-June/016153.html
+> (Cc: Pavel)
 > 
-> > It would be great to
-> > describe why this cannot be simply handled by hwpoison code without any
-> > ZONE_DEVICE specific hacks? The error is recoverable so why does
-> > hwpoison code even care?
-> >
+> Bisection showed that the following commit introduced this issue:
 > 
-> Up until we started testing hardware poison recovery for persistent
-> memory I assumed that the kernel did not need any new enabling to get
-> basic support for recovering userspace consumed poison.
+>   commit f7f99100d8d95dbcf09e0216a143211e79418b9f
+>   Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+>   Date:   Wed Nov 15 17:36:44 2017 -0800
+>   
+>       mm: stop zeroing memory during allocation in vmemmap
 > 
-> However, the recovery code has a dedicated path for many different
-> page states (see: action_page_types). Without any changes it
-> incorrectly assumes that a dax mapped page is a page cache page
-> undergoing dma, or some other pinned operation. It also assumes that
-> the page must be offlined which is not correct / possible for dax
-> mapped pages. There is a possibility to repair poison to dax mapped
-> persistent memory pages, and the pages can't otherwise be offlined
-> because they 1:1 correspond with a physical storage block, i.e.
-> offlining pmem would be equivalent to punching a hole in the physical
-> address space.
-> 
-> There's also the entanglement of device-dax which guarantees a given
-> mapping size (4K, 2M, 1G). This requires determining the size of the
-> mapping encompassing a given pfn to know how much to unmap. Since dax
-> mapped pfns don't come from the page allocator we need to read the
-> page size from the page tables, not compound_order(page).
+> This patch postpones struct page zeroing to later stage of memory initialization.
+> My kernel config disabled CONFIG_DEFERRED_STRUCT_PAGE_INIT so two callsites of
+> __init_single_page() were never reached. So in such case, struct pages populated
+> by vmemmap_pte_populate() could be left uninitialized?
+> And I'm not sure yet how this issue becomes visible with memmap= setting.
 
-OK, but my question is still. Do we really want to do more on top of the
-existing code and add even more special casing or it is time to rethink
-the whole hwpoison design?
--- 
-Michal Hocko
-SUSE Labs
+I think that this becomes visible because memmap=x!y creates a persistent memory region:
+
+parse_memmap_one
+{
+	...
+        } else if (*p == '!') {
+                start_at = memparse(p+1, &p);
+                e820__range_add(start_at, mem_size, E820_TYPE_PRAM);
+	...
+}
+
+and this region it is not added neither in memblock.memory nor in memblock.reserved.
+Ranges in memblock.memory get zeroed in memmap_init_zone(), while memblock.reserved get zeroed 
+in free_low_memory_core_early():
+
+static unsigned long __init free_low_memory_core_early(void)
+{
+	...
+	for_each_reserved_mem_region(i, &start, &end)
+		reserve_bootmem_region(start, end);
+	...
+}
+
+
+Maybe I am mistaken, but I think that persistent memory regions should be marked as reserved.
+A comment in do_mark_busy() suggests this:
+
+static bool __init do_mark_busy(enum e820_type type, struct resource *res)
+{
+
+	...
+        /*
+         * Treat persistent memory like device memory, i.e. reserve it
+         * for exclusive use of a driver
+         */
+	...
+}
+
+
+I wonder if something like this could work and if so, if it is right (i haven't tested it yet):
+
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index 71c11ad5643e..3c9686ef74e5 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -1247,6 +1247,11 @@ void __init e820__memblock_setup(void)
+                if (end != (resource_size_t)end)
+                        continue;
+ 
++               if (entry->type == E820_TYPE_PRAM || entry->type == E820_TYPE_PMEM) {
++                       memblock_reserve(entry->addr, entry->size);
++                       continue;
++               }
++
+                if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
+                        continue;
+
+Best Regards
+Oscar Salvador
