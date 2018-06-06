@@ -1,249 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E61746B0007
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 05:25:43 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id v4-v6so4280948iol.8
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 02:25:43 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id m192-v6si3277935ita.7.2018.06.06.02.25.42
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 70CB86B0007
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 05:32:21 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id k13-v6so2056769pgr.11
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 02:32:21 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b83-v6si25522944pfk.342.2018.06.06.02.32.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jun 2018 02:25:42 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: kernel panic in reading /proc/kpageflags when enabling
- RAM-simulated PMEM
-Date: Wed, 6 Jun 2018 09:24:05 +0000
-Message-ID: <20180606092405.GA6562@hori1.linux.bs1.fc.nec.co.jp>
-References: <20180605005402.GA22975@hori1.linux.bs1.fc.nec.co.jp>
- <20180605011836.GA32444@bombadil.infradead.org>
- <20180605073500.GA23766@hori1.linux.bs1.fc.nec.co.jp>
- <20180606051624.GA16021@hori1.linux.bs1.fc.nec.co.jp>
- <20180606080408.GA31794@techadventures.net>
- <20180606085319.GA32052@techadventures.net>
- <20180606090630.GA27065@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20180606090630.GA27065@hori1.linux.bs1.fc.nec.co.jp>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <00CCDBC604631D4AA83A74F3C49903A6@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 06 Jun 2018 02:32:20 -0700 (PDT)
+Date: Wed, 6 Jun 2018 11:32:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/3] mm: add find_alloc_contig_pages() interface
+Message-ID: <20180606093214.GE32433@dhcp22.suse.cz>
+References: <20180417020915.11786-1-mike.kravetz@oracle.com>
+ <20180417020915.11786-3-mike.kravetz@oracle.com>
+ <deb9dd1d-84bf-75c7-2880-a7bcec880d47@suse.cz>
+ <af56d281-fea1-2bd7-aff1-108fa1d9f3be@oracle.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <af56d281-fea1-2bd7-aff1-108fa1d9f3be@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: Matthew Wilcox <willy@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Reinette Chatre <reinette.chatre@intel.com>, Christopher Lameter <cl@linux.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, David Nellans <dnellans@nvidia.com>, Laura Abbott <labbott@redhat.com>, Pavel Machek <pavel@ucw.cz>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Jun 06, 2018 at 09:06:30AM +0000, Horiguchi Naoya(=1B$BKY8}=1B(B =
-=1B$BD>Li=1B(B) wrote:
-> On Wed, Jun 06, 2018 at 10:53:19AM +0200, Oscar Salvador wrote:
-> > On Wed, Jun 06, 2018 at 10:04:08AM +0200, Oscar Salvador wrote:
-> > > On Wed, Jun 06, 2018 at 05:16:24AM +0000, Naoya Horiguchi wrote:
-> > > > On Tue, Jun 05, 2018 at 07:35:01AM +0000, Horiguchi Naoya(=1B$BKY8}=
-=1B(B =1B$BD>Li=1B(B) wrote:
-> > > > > On Mon, Jun 04, 2018 at 06:18:36PM -0700, Matthew Wilcox wrote:
-> > > > > > On Tue, Jun 05, 2018 at 12:54:03AM +0000, Naoya Horiguchi wrote=
-:
-> > > > > > > Reproduction precedure is like this:
-> > > > > > >  - enable RAM based PMEM (with a kernel boot parameter like m=
-emmap=3D1G!4G)
-> > > > > > >  - read /proc/kpageflags (or call tools/vm/page-types with no=
- arguments)
-> > > > > > >  (- my kernel config is attached)
-> > > > > > >
-> > > > > > > I spent a few days on this, but didn't reach any solutions.
-> > > > > > > So let me report this with some details below ...
-> > > > > > >
-> > > > > > > In the critial page request, stable_page_flags() is called wi=
-th an argument
-> > > > > > > page whose ->compound_head was somehow filled with '0xfffffff=
-fffffffff'.
-> > > > > > > And compound_head() returns (struct page *)(head - 1), which =
-explains the
-> > > > > > > address 0xfffffffffffffffe in the above message.
-> > > > > >
-> > > > > > Hm.  compound_head shares with:
-> > > > > >
-> > > > > >                         struct list_head lru;
-> > > > > >                                 struct list_head slab_list;    =
- /* uses lru */
-> > > > > >                                 struct {        /* Partial page=
-s */
-> > > > > >                                         struct page *next;
-> > > > > >                         unsigned long _compound_pad_1;  /* comp=
-ound_head */
-> > > > > >                         unsigned long _pt_pad_1;        /* comp=
-ound_head */
-> > > > > >                         struct dev_pagemap *pgmap;
-> > > > > >                 struct rcu_head rcu_head;
-> > > > > >
-> > > > > > None of them should be -1.
-> > > > > >
-> > > > > > > It seems that this kernel panic happens when reading kpagefla=
-gs of pfn range
-> > > > > > > [0xbffd7, 0xc0000), which coresponds to a 'reserved' range.
-> > > > > > >
-> > > > > > > [    0.000000] user-defined physical RAM map:
-> > > > > > > [    0.000000] user: [mem 0x0000000000000000-0x000000000009fb=
-ff] usable
-> > > > > > > [    0.000000] user: [mem 0x000000000009fc00-0x000000000009ff=
-ff] reserved
-> > > > > > > [    0.000000] user: [mem 0x00000000000f0000-0x00000000000fff=
-ff] reserved
-> > > > > > > [    0.000000] user: [mem 0x0000000000100000-0x00000000bffd6f=
-ff] usable
-> > > > > > > [    0.000000] user: [mem 0x00000000bffd7000-0x00000000bfffff=
-ff] reserved
-> > > > > > > [    0.000000] user: [mem 0x00000000feffc000-0x00000000feffff=
-ff] reserved
-> > > > > > > [    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffff=
-ff] reserved
-> > > > > > > [    0.000000] user: [mem 0x0000000100000000-0x000000013fffff=
-ff] persistent (type 12)
-> > > > > > >
-> > > > > > > So I guess 'memmap=3D' parameter might badly affect the memor=
-y initialization process.
-> > > > > > >
-> > > > > > > This problem doesn't reproduce on v4.17, so some pre-released=
- patch introduces it.
-> > > > > > > I hope this info helps you find the solution/workaround.
-> > > > > >
-> > > > > > Can you try bisecting this?  It could be one of my patches to r=
-eorder struct
-> > > > > > page, or it could be one of Pavel's deferred page initialisatio=
-n patches.
-> > > > > > Or something else ;-)
-> > > > >
-> > > > > Thank you for the comment. I'm trying bisecting now, let you know=
- the result later.
-> > > > >
-> > > > > And I found that my statement "not reproduce on v4.17" was wrong =
-(I used
-> > > > > different kvm guests, which made some different test condition an=
-d misguided me),
-> > > > > this seems an older (at least < 4.15) bug.
-> > > >
-> > > > (Cc: Pavel)
-> > > >
-> > > > Bisection showed that the following commit introduced this issue:
-> > > >
-> > > >   commit f7f99100d8d95dbcf09e0216a143211e79418b9f
-> > > >   Author: Pavel Tatashin <pasha.tatashin@oracle.com>
-> > > >   Date:   Wed Nov 15 17:36:44 2017 -0800
-> > > >
-> > > >       mm: stop zeroing memory during allocation in vmemmap
-> > > >
-> > > > This patch postpones struct page zeroing to later stage of memory i=
-nitialization.
-> > > > My kernel config disabled CONFIG_DEFERRED_STRUCT_PAGE_INIT so two c=
-allsites of
-> > > > __init_single_page() were never reached. So in such case, struct pa=
-ges populated
-> > > > by vmemmap_pte_populate() could be left uninitialized?
-> > > > And I'm not sure yet how this issue becomes visible with memmap=3D =
-setting.
-> > >
-> > > I think that this becomes visible because memmap=3Dx!y creates a pers=
-istent memory region:
-> > >
-> > > parse_memmap_one
-> > > {
-> > > 	...
-> > >         } else if (*p =3D=3D '!') {
-> > >                 start_at =3D memparse(p+1, &p);
-> > >                 e820__range_add(start_at, mem_size, E820_TYPE_PRAM);
-> > > 	...
-> > > }
-> > >
-> > > and this region it is not added neither in memblock.memory nor in mem=
-block.reserved.
-> > > Ranges in memblock.memory get zeroed in memmap_init_zone(), while mem=
-block.reserved get zeroed
-> > > in free_low_memory_core_early():
-> > >
-> > > static unsigned long __init free_low_memory_core_early(void)
-> > > {
-> > > 	...
-> > > 	for_each_reserved_mem_region(i, &start, &end)
-> > > 		reserve_bootmem_region(start, end);
-> > > 	...
-> > > }
-> > >
-> > >
-> > > Maybe I am mistaken, but I think that persistent memory regions shoul=
-d be marked as reserved.
-> > > A comment in do_mark_busy() suggests this:
-> > >
-> > > static bool __init do_mark_busy(enum e820_type type, struct resource =
-*res)
-> > > {
-> > >
-> > > 	...
-> > >         /*
-> > >          * Treat persistent memory like device memory, i.e. reserve i=
-t
-> > >          * for exclusive use of a driver
-> > >          */
-> > > 	...
-> > > }
-> > >
-> > >
-> > > I wonder if something like this could work and if so, if it is right =
-(i haven't tested it yet):
-> > >
-> > > diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-> > > index 71c11ad5643e..3c9686ef74e5 100644
-> > > --- a/arch/x86/kernel/e820.c
-> > > +++ b/arch/x86/kernel/e820.c
-> > > @@ -1247,6 +1247,11 @@ void __init e820__memblock_setup(void)
-> > >                 if (end !=3D (resource_size_t)end)
-> > >                         continue;
-> > >
-> > > +               if (entry->type =3D=3D E820_TYPE_PRAM || entry->type =
-=3D=3D E820_TYPE_PMEM) {
-> > > +                       memblock_reserve(entry->addr, entry->size);
-> > > +                       continue;
-> > > +               }
-> > > +
-> > >                 if (entry->type !=3D E820_TYPE_RAM && entry->type !=
-=3D E820_TYPE_RESERVED_KERN)
-> > >                         continue;
-> >
-> > It does not seem to work, so the reasoning might be incorrect.
->=20
-> Thank you for the comment.
->=20
-> One note is that the memory region with "broken struct page" is a typical
-> reserved region, not a pmem region. Strangely reading offset 0xbffd7 of
-> /proc/kpageflags is OK if pmem region does not exist, but NG if pmem regi=
-on exists.
-> Reading the offset like 0x100000 (on pmem region) does not cause the cras=
-h,
-> so pmem region seems properly set up.
->=20
-> [    0.000000] user-defined physical RAM map:
-> [    0.000000] user: [mem 0x0000000000000000-0x000000000009fbff] usable
-> [    0.000000] user: [mem 0x000000000009fc00-0x000000000009ffff] reserved
-> [    0.000000] user: [mem 0x00000000000f0000-0x00000000000fffff] reserved
-> [    0.000000] user: [mem 0x0000000000100000-0x00000000bffd6fff] usable
-> [    0.000000] user: [mem 0x00000000bffd7000-0x00000000bfffffff] reserved=
-   =3D=3D=3D> "broken struct page" region
-> [    0.000000] user: [mem 0x00000000feffc000-0x00000000feffffff] reserved
-> [    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
-> [    0.000000] user: [mem 0x0000000100000000-0x000000013fffffff] persiste=
-nt (type 12) =3D> pmem region
-> [    0.000000] user: [mem 0x0000000140000000-0x000000023fffffff] usable
->=20
+On Wed 02-05-18 14:13:32, Mike Kravetz wrote:
+> On 04/21/2018 09:16 AM, Vlastimil Babka wrote:
+> > On 04/17/2018 04:09 AM, Mike Kravetz wrote:
+> >> find_alloc_contig_pages() is a new interface that attempts to locate
+> >> and allocate a contiguous range of pages.  It is provided as a more
+> >> convenient interface than alloc_contig_range() which is currently
+> >> used by CMA and gigantic huge pages.
+> >>
+> >> When attempting to allocate a range of pages, migration is employed
+> >> if possible.  There is no guarantee that the routine will succeed.
+> >> So, the user must be prepared for failure and have a fall back plan.
+> >>
+> >> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> > 
+> > Hi, just two quick observations, maybe discussion pointers for the
+> > LSF/MM session:
+> > - it's weird that find_alloc_contig_pages() takes an order, and
+> > free_contig_pages() takes a nr_pages. I suspect the interface would be
+> > more future-proof with both using nr_pages? Perhaps also minimum
+> > alignment for the allocation side? Order is fine for hugetlb, but what
+> > about other potential users?
+> 
+> Agreed, and I am changing this to nr_pages and adding alignment.
+> 
+> > - contig_alloc_migratetype_ok() says that MIGRATE_CMA blocks are OK to
+> > allocate from. This silently assumes that everything allocated by this
+> > will be migratable itself, or it might eat CMA reserves. Is it the case?
+> > Also you then call alloc_contig_range() with MIGRATE_MOVABLE, so it will
+> > skip/fail on MIGRATE_CMA anyway IIRC.
+> 
+> When looking closer at the code, alloc_contig_range currently has comments
+> saying migratetype must be MIGRATE_MOVABLE or MIGRATE_CMA.  However, this
+> is not checked/enforced anywhere in the code (that I can see).  The
+> migratetype passed to alloc_contig_range() will be used to set the migrate
+> type of all pageblocks in the range.  If there is an error, one side effect
+> is that some pageblocks may have their migrate type changed to migratetype.
+> Depending on how far we got before hitting the error, the number of pageblocks
+> changed is unknown.  This actually can happen at the lower level routine
+> start_isolate_page_range().
+> 
+> My first thought was to make start_isolate_page_range/set_migratetype_isolate
+> check that the migrate type of a pageblock was migratetype before isolating.
+> This would work for CMA, and I could make it work for the new allocator.
+> However, offline_pages also calls start_isolate_page_range and I believe we
+> do not want to enforce such a rule (all pageblocks must be of the same migrate
+> type) for memory hotplug/offline?
+> 
+> Should we be concerned at all about this potential changing of migrate type
+> on error?  The only way I can think to avoid this is to save the original
+> migrate type before isolation.
 
-I have another note:
-
-> My kernel config disabled CONFIG_DEFERRED_STRUCT_PAGE_INIT so two callsit=
-es of
-> __init_single_page() were never reached. So in such case, struct pages po=
-pulated
-> by vmemmap_pte_populate() could be left uninitialized?
-
-I quickly checked whether enabling CONFIG_DEFERRED_STRUCT_PAGE_INIT affect
-the issue. And found that the kernel panic happens even with this config en=
-abled.
-So I'm still confused...
-
-- Naoya=
+This is more a question to Vlastimil, Joonsoo. But my understanding is
+that it doesn't matter. MIGRATE_MOVABLE will not block other
+allocations. So we seem to need it only for MIGRATE_CMA. The later
+should die sooner or later hopefully so this awful kludge should just
+die with it.
+-- 
+Michal Hocko
+SUSE Labs
