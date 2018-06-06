@@ -1,52 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EB196B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 01:55:30 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id g5-v6so1801914pgv.12
-        for <linux-mm@kvack.org>; Tue, 05 Jun 2018 22:55:30 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id o9-v6si49583450plk.434.2018.06.05.22.55.28
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4269F6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 03:07:05 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 54-v6so2997861wrw.1
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 00:07:05 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id n203-v6si2563979wmf.120.2018.06.06.00.07.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jun 2018 22:55:28 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm, memory_failure: remove a stray tab
-Date: Wed, 6 Jun 2018 05:53:38 +0000
-Message-ID: <20180606055338.GA18635@hori1.linux.bs1.fc.nec.co.jp>
-References: <20180605081616.o2q4wdbvolggefck@kili.mountain>
-In-Reply-To: <20180605081616.o2q4wdbvolggefck@kili.mountain>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <BFFD73FB430EE8408B048FE98D958039@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Wed, 06 Jun 2018 00:07:03 -0700 (PDT)
+Date: Wed, 6 Jun 2018 09:14:18 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 0/5] mm: rework hmm to use devm_memremap_pages
+Message-ID: <20180606071418.GA7660@lst.de>
+References: <CAPcyv4hVERZoqWrCxwOkmM075OP_ada7FiYsQgokijuWyC1MbA@mail.gmail.com> <CAPM=9tzMJq=KC+ijoj-JGmc1R3wbshdwtfR3Zpmyaw3jYJ9+gw@mail.gmail.com> <CAPcyv4g2XQtuYGPu8HMbPj6wXqGwxiL5jDRznf5fmW4WgC2DTw@mail.gmail.com> <CAPM=9twm=17t=2=M27ELB=vZWzpqM7GuwCUsC891jJ0t3JM4vg@mail.gmail.com> <CAPcyv4jTty4k1xXCOWbeRjzv-KjxNH1L4oOkWW1EbJt66jF4_w@mail.gmail.com> <20180605184811.GC4423@redhat.com> <CAPM=9twgL_tzkPO=V2mmecSzLjKJkEsJ8A4426fO2Nuus0N_UQ@mail.gmail.com> <CAPcyv4gSEYdnJKd=D-_yc3M=sY0HWjYzYhh5ha-v7KA4-40dsg@mail.gmail.com> <20180606000822.GE4423@redhat.com> <CAPcyv4gsS4xDXahZdOggURBHS2y-oJ5tPG9vXPDdY2p6jPufxA@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4gsS4xDXahZdOggURBHS2y-oJ5tPG9vXPDdY2p6jPufxA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-janitors@vger.kernel.org" <kernel-janitors@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, Dave Airlie <airlied@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Jun 05, 2018 at 11:16:16AM +0300, Dan Carpenter wrote:
-> The return statement is indented too far.
->=20
-> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
+On Tue, Jun 05, 2018 at 06:33:04PM -0700, Dan Williams wrote:
+> Unless the nouveau patches are using the entirety of what is already
+> upstream for HMM, we should look to pare HMM back.
+> 
+> There is plenty of precedent of building a large capability
+> out-of-tree and piecemeal merging it later, so I do not buy the
+> "chicken-egg" argument. The change in the export is to make sure we
+> don't repeat this backward "merge first, ask questions later" mistake
+> in the future as devm_memremap_pages() is continuing to find new users
+> like peer-to-peer DMA support and Linux is better off if that
+> development is upstream. From a purely technical standpoint
+> devm_memremap_pages() is EXPORT_SYMBOL_GPL because it hacks around
+> several implementation details in the core kernel to achieve its goal,
+> and it leaks new assumptions all over the kernel. It is strictly not a
+> self contained interface.
 
-Thanks!
+Agreed with all of that.  And remember EXPORT_SYMBOL_GPL really just is
+a clear expression of the authors they think these are internals.
+The lack of it doesn't make it any less a derived work, we just remove
+a very clear hint to users that they are poking very deeply into internals.
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
->=20
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index de0bc897d6e7..72cde4b0939e 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1147,7 +1147,7 @@ static unsigned long dax_mapping_size(struct addres=
-s_space *mapping,
->  	if (page->mapping !=3D mapping) {
->  		xa_unlock_irq(&mapping->i_pages);
->  		i_mmap_unlock_read(mapping);
-> -			return 0;
-> +		return 0;
->  	}
->  	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
->  		unsigned long address =3D vma_address(page, vma);
-> =
+And with HMM they very clearly do.
