@@ -1,103 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D0E86B000D
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 09:44:48 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id z25-v6so860418otk.3
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 06:44:48 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p25-v6sor10162041ote.338.2018.06.06.06.44.46
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B01AA6B000E
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 09:44:52 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id q5-v6so1940227lff.23
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 06:44:52 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id f78-v6si4381554lji.248.2018.06.06.06.44.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Jun 2018 06:44:46 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Jun 2018 06:44:50 -0700 (PDT)
+From: Chris Mason <clm@fb.com>
+Subject: Re: [Bug 199931] New: systemd/rtorrent file data corruption when
+ using echo 3 >/proc/sys/vm/drop_caches
+Date: Wed, 6 Jun 2018 09:44:31 -0400
+Message-ID: <0909E1D8-D024-4667-A0E8-C1CF40E77683@fb.com>
+In-Reply-To: <CANQeFDBZp5b5MV_uk63ZPhvB2fnWc0hqsTCL6-7v8e-9LULVpQ@mail.gmail.com>
+References: <bug-199931-27@https.bugzilla.kernel.org/>
+ <20180605130329.f7069e01c5faacc08a10996c@linux-foundation.org>
+ <9C514595-AA27-4794-9831-BEF3A8A6787E@fb.com>
+ <CANQeFDBZp5b5MV_uk63ZPhvB2fnWc0hqsTCL6-7v8e-9LULVpQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180606073910.GB32433@dhcp22.suse.cz>
-References: <152800336321.17112.3300876636370683279.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180604124031.GP19202@dhcp22.suse.cz> <CAPcyv4gLxz7Ke6ApXoATDN31PSGwTgNRLTX-u1dtT3d+6jmzjw@mail.gmail.com>
- <20180605141104.GF19202@dhcp22.suse.cz> <CAPcyv4iGd56kc2NG5GDYMqW740RNr7NZr9DRft==fPxPyieq7Q@mail.gmail.com>
- <20180606073910.GB32433@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 6 Jun 2018 06:44:45 -0700
-Message-ID: <CAPcyv4hA2Na7wyuyLZSWG5s_4+pEv6aMApk23d2iO1vhFx92XQ@mail.gmail.com>
-Subject: Re: [PATCH v2 00/11] mm: Teach memory_failure() about ZONE_DEVICE pages
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Liu Bo <obuil.liubo@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, bugzilla-daemon@bugzilla.kernel.org, bugzilla.kernel.org@plan9.de, linux-btrfs@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-On Wed, Jun 6, 2018 at 12:39 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Tue 05-06-18 07:33:17, Dan Williams wrote:
->> On Tue, Jun 5, 2018 at 7:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
->> > On Mon 04-06-18 07:31:25, Dan Williams wrote:
->> > [...]
->> >> I'm trying to solve this real world problem when real poison is
->> >> consumed through a dax mapping:
->> >>
->> >>         mce: Uncorrected hardware memory error in user-access at af34214200
->> >>         {1}[Hardware Error]: It has been corrected by h/w and requires
->> >> no further action
->> >>         mce: [Hardware Error]: Machine check events logged
->> >>         {1}[Hardware Error]: event severity: corrected
->> >>         Memory failure: 0xaf34214: reserved kernel page still
->> >> referenced by 1 users
->> >>         [..]
->> >>         Memory failure: 0xaf34214: recovery action for reserved kernel
->> >> page: Failed
->> >>         mce: Memory error not recovered
->> >>
->> >> ...i.e. currently all poison consumed through dax mappings is
->> >> needlessly system fatal.
->> >
->> > Thanks. That should be a part of the changelog.
+On 6 Jun 2018, at 9:38, Liu Bo wrote:
+
+> On Wed, Jun 6, 2018 at 8:18 AM, Chris Mason <clm@fb.com> wrote:
 >>
->> ...added for v3:
->> https://lists.01.org/pipermail/linux-nvdimm/2018-June/016153.html
 >>
->> > It would be great to
->> > describe why this cannot be simply handled by hwpoison code without any
->> > ZONE_DEVICE specific hacks? The error is recoverable so why does
->> > hwpoison code even care?
->> >
+>> On 5 Jun 2018, at 16:03, Andrew Morton wrote:
 >>
->> Up until we started testing hardware poison recovery for persistent
->> memory I assumed that the kernel did not need any new enabling to get
->> basic support for recovering userspace consumed poison.
+>>> (switched to email.  Please respond via emailed reply-to-all, not 
+>>> via the
+>>> bugzilla web interface).
+>>>
+>>> On Tue, 05 Jun 2018 18:01:36 +0000 
+>>> bugzilla-daemon@bugzilla.kernel.org
+>>> wrote:
+>>>
+>>>> https://bugzilla.kernel.org/show_bug.cgi?id=199931
+>>>>
+>>>>             Bug ID: 199931
+>>>>            Summary: systemd/rtorrent file data corruption when 
+>>>> using echo
+>>>>                     3 >/proc/sys/vm/drop_caches
+>>>
+>>>
+>>> A long tale of woe here.  Chris, do you think the pagecache 
+>>> corruption
+>>> is a general thing, or is it possible that btrfs is contributing?
+>>>
+>>> Also, that 4.4 oom-killer regression sounds very serious.
 >>
->> However, the recovery code has a dedicated path for many different
->> page states (see: action_page_types). Without any changes it
->> incorrectly assumes that a dax mapped page is a page cache page
->> undergoing dma, or some other pinned operation. It also assumes that
->> the page must be offlined which is not correct / possible for dax
->> mapped pages. There is a possibility to repair poison to dax mapped
->> persistent memory pages, and the pages can't otherwise be offlined
->> because they 1:1 correspond with a physical storage block, i.e.
->> offlining pmem would be equivalent to punching a hole in the physical
->> address space.
 >>
->> There's also the entanglement of device-dax which guarantees a given
->> mapping size (4K, 2M, 1G). This requires determining the size of the
->> mapping encompassing a given pfn to know how much to unmap. Since dax
->> mapped pfns don't come from the page allocator we need to read the
->> page size from the page tables, not compound_order(page).
+>> This week I found a bug in btrfs file write with how we handle stable 
+>> pages.
+>> Basically it works like this:
+>>
+>> write(fd, some bytes less than a page)
+>> write(fd, some bytes into the same page)
+>>     btrfs prefaults the userland page
+>>     lock_and_cleanup_extent_if_need()   <- stable pages
+>>                 wait for writeback()
+>>                 clear_page_dirty_for_io()
+>>
+>> At this point we have a page that was dirty and is now clean.  That's
+>> normally fine, unless our prefaulted page isn't in ram anymore.
+>>
+>>         iov_iter_copy_from_user_atomic() <--- uh oh
+>>
+>> If the copy_from_user fails, we drop all our locks and retry.  But 
+>> along the
+>> way, we completely lost the dirty bit on the page.  If the page is 
+>> dropped
+>> by drop_caches, the writes are lost.  We'll just read back the stale
+>> contents of that page during the retry loop.  This won't result in 
+>> crc
+>> errors because the bytes we lost were never crc'd.
+>>
 >
-> OK, but my question is still. Do we really want to do more on top of the
-> existing code and add even more special casing or it is time to rethink
-> the whole hwpoison design?
+> So we're going to carefully redirty the page under the page lock, 
+> right?
 
-Well, there's the immediate problem that the current implementation is
-broken for dax and then the longer term problem that the current
-design appears to be too literal with a lot of custom marshaling.
+I don't think we actually need to clean it.  We have the page locked, 
+writeback won't start until we unlock.
 
-At least for dax in the long term we want to offer an alternative
-error handling model and get the filesystem much more involved. That
-filesystem redesign work has been waiting for the reverse-block-map
-effort to settle in xfs. However, that's more custom work for dax and
-not a redesign that helps the core-mm more generically.
+>
+>> It could result in zeros in the file because we're basically reading 
+>> a hole,
+>> and those zeros could move around in the page depending on which part 
+>> of the
+>> page was dirty when the writes were lost.
+>>
+>
+> I got a question, while re-reading this page, wouldn't it read
+> old/stale on-disk data?
 
-I think the unmap and SIGBUS portion of poison handling is relatively
-straightforward. It's the handling of the page HWPoison page flag that
-seems a bit ad hoc. The current implementation certainly was not
-prepared for the concept that memory can be repaired. set_mce_nospec()
-is a step in the direction of generic memory error handling.
+If it was never written we should be treating it like a hole, but I'll 
+double check.
 
-Thoughts on other pain points in the design that are on your mind, Michal?
+-chris
