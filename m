@@ -1,94 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1080E6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 15:06:49 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 33-v6so4026776wrb.12
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 12:06:49 -0700 (PDT)
-Received: from mail.nethype.de (mail.nethype.de. [5.9.56.24])
-        by mx.google.com with ESMTPS id g203-v6si3588657wmd.78.2018.06.06.12.06.46
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C2916B0003
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 15:41:48 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x203-v6so3431377wmg.8
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 12:41:48 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n196-v6sor1596618wmd.62.2018.06.06.12.41.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Jun 2018 12:06:46 -0700 (PDT)
-Date: Wed, 6 Jun 2018 21:06:35 +0200
-From: Marc Lehmann <schmorp@schmorp.de>
-Subject: Re: [Bug 199931] New: systemd/rtorrent file data corruption when
- using echo 3 >/proc/sys/vm/drop_caches
-Message-ID: <20180606190635.meodcz3mchhtqprb@schmorp.de>
-References: <bug-199931-27@https.bugzilla.kernel.org/>
- <20180605130329.f7069e01c5faacc08a10996c@linux-foundation.org>
- <CA+X5Wn5_iJYS9MLFdArG9sDHQO2n=BkZmaYAOexhdoVc+tQnmw@mail.gmail.com>
+        (Google Transport Security);
+        Wed, 06 Jun 2018 12:41:47 -0700 (PDT)
+From: Mathieu Malaterre <malat@debian.org>
+Subject: [PATCH] mm/memblock: add missing include <linux/bootmem.h>
+Date: Wed,  6 Jun 2018 21:41:43 +0200
+Message-Id: <20180606194144.16990-1-malat@debian.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+X5Wn5_iJYS9MLFdArG9sDHQO2n=BkZmaYAOexhdoVc+tQnmw@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: james harvey <jamespharvey20@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, bugzilla-daemon@bugzilla.kernel.org, bugzilla.kernel.org@plan9.de, Btrfs BTRFS <linux-btrfs@vger.kernel.org>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mathieu Malaterre <malat@debian.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 05, 2018 at 05:52:38PM -0400, james harvey <jamespharvey20@gmail.com> wrote:
-> >> This is not always reproducible, but when deleting our journal, creating log
-> >> messages for a few hours and then doing the above manually has a ~50% chance of
-> >> corrupting the journal.
-> ...
-> 
-> My strong bet is you have a hardware issue.
+Commit 26f09e9b3a06 ("mm/memblock: add memblock memory allocation apis")
+introduced two new function definitions:
+  a??memblock_virt_alloc_try_nid_nopanica??
+and
+  a??memblock_virt_alloc_try_nida??.
+Commit ea1f5f3712af ("mm: define memblock_virt_alloc_try_nid_raw")
+introduced the following function definition:
+  a??memblock_virt_alloc_try_nid_rawa??
 
-Strange, what kind of harwdare bug would affect multiple very different
-computers in exactly the same way?
+This commit adds an includeof header file <linux/bootmem.h> to provide the
+missing function prototypes. Silence the following gcc warning (W=1):
 
-> going bad, bad cables, bad port, etc.  My strong bet is you're also
-> using BTRFS mirroring.
+  mm/memblock.c:1334:15: warning: no previous prototype for a??memblock_virt_alloc_try_nid_rawa?? [-Wmissing-prototypes]
+  mm/memblock.c:1371:15: warning: no previous prototype for a??memblock_virt_alloc_try_nid_nopanica?? [-Wmissing-prototypes]
+  mm/memblock.c:1407:15: warning: no previous prototype for a??memblock_virt_alloc_try_nida?? [-Wmissing-prototypes]
 
-Not sure what exactly you mean with btrfs mirroring (there are many btrfs
-features this could refer to), but the closest thing to that that I use is
-dup for metadata (which is always checksummed), data is always single. All
-btrfs filesystems are on lvm (not mirrored), and most (but not all) are
-encrypted. One affected fs is on a hardware raid controller, one is on an
-ssd. I have a single btrfs fs in that box with raid1 for metadata, as an
-experiment, but I haven't used it for testing yet.
+Signed-off-by: Mathieu Malaterre <malat@debian.org>
+---
+ mm/memblock.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-> You're describing intermittent data corruption on files that I'm
-> thinking all have NOCOW turned on.
-
-The systemd journal files are nocow (I re-enabled that after I turned it
-off for a while), but the rtorrent directory (and the files in it) are
-not.
-
-I did experiment (a year ago) with nocow for torrent files and, more
-importantly, vm images, but it didn't really solve the "millions of
-fragments slow down" problem with btrfs, so I figured I can keep them cow
-and regularly copy them to defragment them. Thats why I am quite sure cow
-is switched on long before I booted my first 4.14 kernel (and it still
-is).
-
-> it's done writing to a journal file, but in a way that guarantees it
-> to fail.  This has been reported to systemd at
-> https://github.com/systemd/systemd/issues/9112 but poettering has
-
-I am aware that systemd tries to turn on nocow, and I think this is actually
-a bug, but this wouldn't have an an effect on rtorrent, which has corruption
-problems on a different fs. And boy would it be wonderufl if Debian switched
-away form systemd, I feel I personally ran into every single bug that
-exists...
-
-However, no matter how much systemd plays with btrfs flags, it shouldn't
-corrupt data.
-
-> The context I ran into this problem was with several other bugs
-> interacting, that "btrfs replace" has been guaranteed to corrupt
-> non-checksummed (NOCOW) compressed data, which the combination of
-> those shouldn't happen, but does in some defragmentation situations
-> due to another bug.  In my situation, I don't have a hardware issue.
-
-Yeah, btrfs is full of bugs that I constantly run into, but most of them
-are containable, unlikely this problem, which might or might not be a
-btrfs bug - especially since all your bets seem to be wrong here.
-
+diff --git a/mm/memblock.c b/mm/memblock.c
+index feb9185d391e..c5fb9c846890 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -20,6 +20,7 @@
+ #include <linux/kmemleak.h>
+ #include <linux/seq_file.h>
+ #include <linux/memblock.h>
++#include <linux/bootmem.h>
+ 
+ #include <asm/sections.h>
+ #include <linux/io.h>
 -- 
-                The choice of a       Deliantra, the free code+content MORPG
-      -----==-     _GNU_              http://www.deliantra.net
-      ----==-- _       generation
-      ---==---(_)__  __ ____  __      Marc Lehmann
-      --==---/ / _ \/ // /\ \/ /      schmorp@schmorp.de
-      -=====/_/_//_/\_,_/ /_/\_\
+2.11.0
