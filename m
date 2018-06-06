@@ -1,132 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E0CE6B0003
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 16:39:49 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id e16-v6so5549778ybq.7
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 13:39:49 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5986B0003
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 16:50:06 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 44-v6so4292366wrt.9
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 13:50:06 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j64-v6sor6321678ywc.440.2018.06.06.13.39.47
+        by mx.google.com with SMTPS id e6-v6sor1514220wmh.3.2018.06.06.13.50.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 06 Jun 2018 13:39:48 -0700 (PDT)
+        Wed, 06 Jun 2018 13:50:05 -0700 (PDT)
 MIME-Version: 1.0
-References: <1527768879-88161-1-git-send-email-xiexiuqi@huawei.com>
- <1527768879-88161-2-git-send-email-xiexiuqi@huawei.com> <20180606154516.GL6631@arm.com>
-In-Reply-To: <20180606154516.GL6631@arm.com>
-From: Bjorn Helgaas <bhelgaas@google.com>
-Date: Wed, 6 Jun 2018 15:39:34 -0500
-Message-ID: <CAErSpo6S0qtR42tjGZrFu4aMFFyThx1hkHTSowTt6t3XerpHnA@mail.gmail.com>
-Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
+References: <152698356466.3393.5351712806709424140.stgit@localhost.localdomain>
+In-Reply-To: <152698356466.3393.5351712806709424140.stgit@localhost.localdomain>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 6 Jun 2018 13:49:52 -0700
+Message-ID: <CALvZod5==RV=emZ_gqC1UhGsx7W=YkMtSXJ-Uzc04HQH29zERA@mail.gmail.com>
+Subject: Re: [PATCH v7 00/17] Improve shrink_slab() scalability (old
+ complexity was O(n^2), new is O(n))
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: xiexiuqi@huawei.com, Catalin Marinas <catalin.marinas@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-arm <linux-arm-kernel@lists.infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hanjun Guo <guohanjun@huawei.com>, wanghuiqiang@huawei.com, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, stummala@codeaurora.org, gregkh@linuxfoundation.org, Stephen Rothwell <sfr@canb.auug.org.au>, Roman Gushchin <guro@fb.com>, mka@chromium.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Chris Wilson <chris@chris-wilson.co.uk>, longman@redhat.com, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, jbacik@fb.com, Guenter Roeck <linux@roeck-us.net>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Matthew Wilcox <willy@infradead.org>, lirongqing@baidu.com, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-[+cc akpm, linux-mm, linux-pci]
-
-On Wed, Jun 6, 2018 at 10:44 AM Will Deacon <will.deacon@arm.com> wrote:
+On Tue, May 22, 2018 at 3:07 AM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
 >
-> On Thu, May 31, 2018 at 08:14:38PM +0800, Xie XiuQi wrote:
-> > A numa system may return node which is not online.
-> > For example, a numa node:
-> > 1) without memory
-> > 2) NR_CPUS is very small, and the cpus on the node are not brought up
-> >
-> > In this situation, we use NUMA_NO_NODE to avoid oops.
-> >
-> > [   25.732905] Unable to handle kernel NULL pointer dereference at virtual address 00001988
-> > [   25.740982] Mem abort info:
-> > [   25.743762]   ESR = 0x96000005
-> > [   25.746803]   Exception class = DABT (current EL), IL = 32 bits
-> > [   25.752711]   SET = 0, FnV = 0
-> > [   25.755751]   EA = 0, S1PTW = 0
-> > [   25.758878] Data abort info:
-> > [   25.761745]   ISV = 0, ISS = 0x00000005
-> > [   25.765568]   CM = 0, WnR = 0
-> > [   25.768521] [0000000000001988] user address but active_mm is swapper
-> > [   25.774861] Internal error: Oops: 96000005 [#1] SMP
-> > [   25.779724] Modules linked in:
-> > [   25.782768] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 4.17.0-rc6-mpam+ #115
-> > [   25.789714] Hardware name: Huawei D06/D06, BIOS Hisilicon D06 EC UEFI Nemo 2.0 RC0 - B305 05/28/2018
-> > [   25.798831] pstate: 80c00009 (Nzcv daif +PAN +UAO)
-> > [   25.803612] pc : __alloc_pages_nodemask+0xf0/0xe70
-> > [   25.808389] lr : __alloc_pages_nodemask+0x184/0xe70
-> > [   25.813252] sp : ffff00000996f660
-> > [   25.816553] x29: ffff00000996f660 x28: 0000000000000000
-> > [   25.821852] x27: 00000000014012c0 x26: 0000000000000000
-> > [   25.827150] x25: 0000000000000003 x24: ffff000008099eac
-> > [   25.832449] x23: 0000000000400000 x22: 0000000000000000
-> > [   25.837747] x21: 0000000000000001 x20: 0000000000000000
-> > [   25.843045] x19: 0000000000400000 x18: 0000000000010e00
-> > [   25.848343] x17: 000000000437f790 x16: 0000000000000020
-> > [   25.853641] x15: 0000000000000000 x14: 6549435020524541
-> > [   25.858939] x13: 20454d502067756c x12: 0000000000000000
-> > [   25.864237] x11: ffff00000996f6f0 x10: 0000000000000006
-> > [   25.869536] x9 : 00000000000012a4 x8 : ffff8023c000ff90
-> > [   25.874834] x7 : 0000000000000000 x6 : ffff000008d73c08
-> > [   25.880132] x5 : 0000000000000000 x4 : 0000000000000081
-> > [   25.885430] x3 : 0000000000000000 x2 : 0000000000000000
-> > [   25.890728] x1 : 0000000000000001 x0 : 0000000000001980
-> > [   25.896027] Process swapper/0 (pid: 1, stack limit = 0x        (ptrval))
-> > [   25.902712] Call trace:
-> > [   25.905146]  __alloc_pages_nodemask+0xf0/0xe70
-> > [   25.909577]  allocate_slab+0x94/0x590
-> > [   25.913225]  new_slab+0x68/0xc8
-> > [   25.916353]  ___slab_alloc+0x444/0x4f8
-> > [   25.920088]  __slab_alloc+0x50/0x68
-> > [   25.923562]  kmem_cache_alloc_node_trace+0xe8/0x230
-> > [   25.928426]  pci_acpi_scan_root+0x94/0x278
-> > [   25.932510]  acpi_pci_root_add+0x228/0x4b0
-> > [   25.936593]  acpi_bus_attach+0x10c/0x218
-> > [   25.940501]  acpi_bus_attach+0xac/0x218
-> > [   25.944323]  acpi_bus_attach+0xac/0x218
-> > [   25.948144]  acpi_bus_scan+0x5c/0xc0
-> > [   25.951708]  acpi_scan_init+0xf8/0x254
-> > [   25.955443]  acpi_init+0x310/0x37c
-> > [   25.958831]  do_one_initcall+0x54/0x208
-> > [   25.962653]  kernel_init_freeable+0x244/0x340
-> > [   25.966999]  kernel_init+0x18/0x118
-> > [   25.970474]  ret_from_fork+0x10/0x1c
-> > [   25.974036] Code: 7100047f 321902a4 1a950095 b5000602 (b9400803)
-> > [   25.980162] ---[ end trace 64f0893eb21ec283 ]---
-> > [   25.984765] Kernel panic - not syncing: Fatal exception
-> >
-> > Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
-> > Tested-by: Huiqiang Wang <wanghuiqiang@huawei.com>
-> > Cc: Hanjun Guo <hanjun.guo@linaro.org>
-> > Cc: Tomasz Nowicki <Tomasz.Nowicki@caviumnetworks.com>
-> > Cc: Xishi Qiu <qiuxishi@huawei.com>
-> > ---
-> >  arch/arm64/kernel/pci.c | 3 +++
-> >  1 file changed, 3 insertions(+)
-> >
-> > diff --git a/arch/arm64/kernel/pci.c b/arch/arm64/kernel/pci.c
-> > index 0e2ea1c..e17cc45 100644
-> > --- a/arch/arm64/kernel/pci.c
-> > +++ b/arch/arm64/kernel/pci.c
-> > @@ -170,6 +170,9 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
-> >       struct pci_bus *bus, *child;
-> >       struct acpi_pci_root_ops *root_ops;
-> >
-> > +     if (node != NUMA_NO_NODE && !node_online(node))
-> > +             node = NUMA_NO_NODE;
-> > +
+> Hi,
 >
-> This really feels like a bodge, but it does appear to be what other
-> architectures do, so:
+> this patches solves the problem with slow shrink_slab() occuring
+> on the machines having many shrinkers and memory cgroups (i.e.,
+> with many containers). The problem is complexity of shrink_slab()
+> is O(n^2) and it grows too fast with the growth of containers
+> numbers.
 >
-> Acked-by: Will Deacon <will.deacon@arm.com>
+> Let we have 200 containers, and every container has 10 mounts
+> and 10 cgroups. All container tasks are isolated, and they don't
+> touch foreign containers mounts.
+>
+> In case of global reclaim, a task has to iterate all over the memcgs
+> and to call all the memcg-aware shrinkers for all of them. This means,
+> the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
+> and since there are 2000 memcgs, the total calls of do_shrink_slab()
+> are 2000 * 2000 = 4000000.
+>
+> 4 million calls are not a number operations, which can takes 1 cpu cycle.
+> E.g., super_cache_count() accesses at least two lists, and makes arifmetical
+> calculations. Even, if there are no charged objects, we do these calculations,
+> and replaces cpu caches by read memory. I observed nodes spending almost 100%
+> time in kernel, in case of intensive writing and global reclaim. The writer
+> consumes pages fast, but it's need to shrink_slab() before the reclaimer
+> reached shrink pages function (and frees SWAP_CLUSTER_MAX pages). Even if
+> there is no writing, the iterations just waste the time, and slows reclaim down.
+>
+> Let's see the small test below:
+>
+> $echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+> $mkdir /sys/fs/cgroup/memory/ct
+> $echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+> $for i in `seq 0 4000`;
+>         do mkdir /sys/fs/cgroup/memory/ct/$i;
+>         echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
+>         mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file;
+> done
+>
+> Then, let's see drop caches time (5 sequential calls):
+> $time echo 3 > /proc/sys/vm/drop_caches
+>
+> 0.00user 13.78system 0:13.78elapsed 99%CPU
+> 0.00user 5.59system 0:05.60elapsed 99%CPU
+> 0.00user 5.48system 0:05.48elapsed 99%CPU
+> 0.00user 8.35system 0:08.35elapsed 99%CPU
+> 0.00user 8.34system 0:08.35elapsed 99%CPU
+>
+>
+> Last four calls don't actually shrink something. So, the iterations
+> over slab shrinkers take 5.48 seconds. Not so good for scalability.
+>
+> The patchset solves the problem by making shrink_slab() of O(n)
+> complexity. There are following functional actions:
+>
+> 1)Assign id to every registered memcg-aware shrinker.
+> 2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
+>   and set a shrinker-related bit after the first element
+>   is added to lru list (also, when removed child memcg
+>   elements are reparanted).
+> 3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
+>   and call a shrinker if its bit is set in memcg's shrinker
+>   bitmap.
+>   (Also, there is a functionality to clear the bit, after
+>   last element is shrinked).
+>
+> This gives signify performance increase. The result after patchset is applied:
+>
+> $time echo 3 > /proc/sys/vm/drop_caches
+>
+> 0.00user 1.10system 0:01.10elapsed 99%CPU
+> 0.00user 0.00system 0:00.01elapsed 64%CPU
+> 0.00user 0.01system 0:00.01elapsed 82%CPU
+> 0.00user 0.00system 0:00.01elapsed 64%CPU
+> 0.00user 0.01system 0:00.01elapsed 82%CPU
+>
+> The results show the performance increases at least in 548 times.
+>
+> So, the patchset makes shrink_slab() of less complexity and improves
+> the performance in such types of load I pointed. This will give a profit
+> in case of !global reclaim case, since there also will be less
+> do_shrink_slab() calls.
+>
+> This patchset is made against linux-next.git tree.
+>
+> v7: Refactorings and readability improvements.
+>
+> v6: Added missed rcu_dereference() to memcg_set_shrinker_bit().
+>     Use different functions for allocation and expanding map.
+>     Use new memcg_shrinker_map_size variable in memcontrol.c.
+>     Refactorings.
+>
+> v5: Make the optimizing logic under CONFIG_MEMCG_SHRINKER instead of MEMCG && !SLOB
+>
+> v4: Do not use memcg mem_cgroup_idr for iteration over mem cgroups
+>
+> v3: Many changes requested in commentaries to v2:
+>
+> 1)rebase on prealloc_shrinker() code base
+> 2)root_mem_cgroup is made out of memcg maps
+> 3)rwsem replaced with shrinkers_nr_max_mutex
+> 4)changes around assignment of shrinker id to list lru
+> 5)everything renamed
+>
+> v2: Many changes requested in commentaries to v1:
+>
+> 1)the code mostly moved to mm/memcontrol.c;
+> 2)using IDR instead of array of shrinkers;
+> 3)added a possibility to assign list_lru shrinker id
+>   at the time of shrinker registering;
+> 4)reorginized locking and renamed functions and variables.
+>
+> ---
+>
+> Kirill Tkhai (16):
+>       list_lru: Combine code under the same define
+>       mm: Introduce CONFIG_MEMCG_KMEM as combination of CONFIG_MEMCG && !CONFIG_SLOB
+>       mm: Assign id to every memcg-aware shrinker
+>       memcg: Move up for_each_mem_cgroup{,_tree} defines
+>       mm: Assign memcg-aware shrinkers bitmap to memcg
+>       mm: Refactoring in workingset_init()
+>       fs: Refactoring in alloc_super()
+>       fs: Propagate shrinker::id to list_lru
+>       list_lru: Add memcg argument to list_lru_from_kmem()
+>       list_lru: Pass dst_memcg argument to memcg_drain_list_lru_node()
+>       list_lru: Pass lru argument to memcg_drain_list_lru_node()
+>       mm: Export mem_cgroup_is_root()
+>       mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
+>       mm: Iterate only over charged shrinkers during memcg shrink_slab()
+>       mm: Add SHRINK_EMPTY shrinker methods return value
+>       mm: Clear shrinker bit if there are no objects related to memcg
+>
+> Vladimir Davydov (1):
+>       mm: Generalize shrink_slab() calls in shrink_node()
+>
+>
+>  fs/super.c                 |   11 ++
+>  include/linux/list_lru.h   |   18 ++--
+>  include/linux/memcontrol.h |   46 +++++++++-
+>  include/linux/sched.h      |    2
+>  include/linux/shrinker.h   |   11 ++
+>  include/linux/slab.h       |    2
+>  init/Kconfig               |    5 +
+>  mm/list_lru.c              |   90 ++++++++++++++-----
+>  mm/memcontrol.c            |  173 +++++++++++++++++++++++++++++++------
+>  mm/slab.h                  |    6 +
+>  mm/slab_common.c           |    8 +-
+>  mm/vmscan.c                |  204 +++++++++++++++++++++++++++++++++++++++-----
+>  mm/workingset.c            |   11 ++
+>  13 files changed, 478 insertions(+), 109 deletions(-)
+>
+> --
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 
-I agree, this doesn't feel like something we should be avoiding in the
-caller of kzalloc_node().
+Hi Kirill,
 
-I would not expect kzalloc_node() to return memory that's offline, no
-matter what node we told it to allocate from.  I could imagine it
-returning failure, or returning memory from a node that *is* online,
-but returning a pointer to offline memory seems broken.
+I tested this patch series on mmotm tree's
+v4.17-rc6-mmotm-2018-05-25-14-52 tag. I did experiment similar to the
+one I did for your lockless lru_list patch but on an actual machine.
 
-Are we putting memory that's offline in the free list?  I don't know
-where to look to figure this out.
+I created 255 memcgs, 255 ext4 mounts and made each memcg create a
+file containing few KiBs on corresponding mount. Then in a separate
+memcg of 200 MiB limit ran a fork-bomb.
 
-Bjorn
+I ran the "perf record -ag -- sleep 60" and below are the results:
+
+Without the patch series:
+Samples: 4M of event 'cycles', Event count (approx.): 3279403076005
++  36.40%            fb.sh  [kernel.kallsyms]    [k] shrink_slab
++  18.97%            fb.sh  [kernel.kallsyms]    [k] list_lru_count_one
++   6.75%            fb.sh  [kernel.kallsyms]    [k] super_cache_count
++   0.49%            fb.sh  [kernel.kallsyms]    [k] down_read_trylock
++   0.44%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
++   0.27%            fb.sh  [kernel.kallsyms]    [k] up_read
++   0.21%            fb.sh  [kernel.kallsyms]    [k] osq_lock
++   0.13%            fb.sh  [kernel.kallsyms]    [k] shmem_unused_huge_count
++   0.08%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
++   0.08%            fb.sh  [kernel.kallsyms]    [k] shrink_node
+
+With the patch series:
+Samples: 4M of event 'cycles', Event count (approx.): 2756866824946
++  47.49%            fb.sh  [kernel.kallsyms]    [k] down_read_trylock
++  30.72%            fb.sh  [kernel.kallsyms]    [k] up_read
++   9.51%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
++   1.69%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
++   1.35%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_protected
++   1.05%            fb.sh  [kernel.kallsyms]    [k] queued_spin_lock_slowpath
++   0.85%            fb.sh  [kernel.kallsyms]    [k] _raw_spin_lock
++   0.78%            fb.sh  [kernel.kallsyms]    [k] lruvec_lru_size
++   0.57%            fb.sh  [kernel.kallsyms]    [k] shrink_node
++   0.54%            fb.sh  [kernel.kallsyms]    [k] queue_work_on
++   0.46%            fb.sh  [kernel.kallsyms]    [k] shrink_slab_memcg
+
+
+Next I did a simple hack by removing shrinker_rwsem lock/unlock from
+shrink_slab_memcg (which is functionally not correct but I made sure
+there aren't any parallel mounts). I got the following result:
+
+Samples: 5M of event 'cycles', Event count (approx.): 3473394237366
++  40.13%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_protected
++  17.66%            fb.sh  [kernel.kallsyms]    [k] shrink_node_memcg
++  14.78%            fb.sh  [kernel.kallsyms]    [k] mem_cgroup_iter
++   7.07%            fb.sh  [kernel.kallsyms]    [k] lruvec_lru_size
++   3.19%            fb.sh  [kernel.kallsyms]    [k] shrink_slab_memcg
++   2.82%            fb.sh  [kernel.kallsyms]    [k] queued_spin_lock_slowpath
++   1.96%            fb.sh  [kernel.kallsyms]    [k] try_charge
++   1.81%            fb.sh  [kernel.kallsyms]    [k] shrink_node
++   0.91%            fb.sh  [kernel.kallsyms]    [k] page_counter_try_charge
++   0.65%            fb.sh  [kernel.kallsyms]    [k] css_next_descendant_pre
++   0.62%            fb.sh  [kernel.kallsyms]    [k] cgroup_file_notify
+
+>From the result it seems like, in the workload where one job is
+thrashing and affecting the whole system, this patch series moves the
+load from shrinker list traversal to the shrinker_rwsem lock as there
+isn't much to traverse. Since shrink_slab_memcg only takes read lock
+on shrinker_rwsem, this seems like cache misses/thrashing for rwsem.
+Maybe next direction is to go lockless.
+
+thanks,
+Shakeel
