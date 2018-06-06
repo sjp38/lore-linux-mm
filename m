@@ -1,103 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ADB5D6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 04:50:57 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id a5-v6so3000075plp.8
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 01:50:57 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id u133-v6si25260596pgb.357.2018.06.06.01.50.56
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 968176B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 04:53:22 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l17-v6so3175133wrm.3
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 01:53:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p1-v6sor20488692wra.0.2018.06.06.01.53.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jun 2018 01:50:56 -0700 (PDT)
-Date: Wed, 6 Jun 2018 16:50:54 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [LKP] [lkp-robot] [mm, memcontrol] 309fe96bfc:
- vm-scalability.throughput +23.0% improvement
-Message-ID: <20180606085053.GA21167@intel.com>
-References: <20180528114019.GF9904@yexl-desktop>
- <20180601072604.GB27302@intel.com>
+        (Google Transport Security);
+        Wed, 06 Jun 2018 01:53:21 -0700 (PDT)
+Date: Wed, 6 Jun 2018 10:53:19 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: kernel panic in reading /proc/kpageflags when enabling
+ RAM-simulated PMEM
+Message-ID: <20180606085319.GA32052@techadventures.net>
+References: <20180605005402.GA22975@hori1.linux.bs1.fc.nec.co.jp>
+ <20180605011836.GA32444@bombadil.infradead.org>
+ <20180605073500.GA23766@hori1.linux.bs1.fc.nec.co.jp>
+ <20180606051624.GA16021@hori1.linux.bs1.fc.nec.co.jp>
+ <20180606080408.GA31794@techadventures.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180601072604.GB27302@intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180606080408.GA31794@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel test robot <xiaolong.ye@intel.com>
-Cc: Tejun Heo <tj@kernel.org>, lkp@01.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Matthew Wilcox <willy@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>
 
-On Fri, Jun 01, 2018 at 03:26:04PM +0800, Aaron Lu wrote:
-> On Mon, May 28, 2018 at 07:40:19PM +0800, kernel test robot wrote:
+On Wed, Jun 06, 2018 at 10:04:08AM +0200, Oscar Salvador wrote:
+> On Wed, Jun 06, 2018 at 05:16:24AM +0000, Naoya Horiguchi wrote:
+> > On Tue, Jun 05, 2018 at 07:35:01AM +0000, Horiguchi Naoya(a ?a?GBP c?'a1?) wrote:
+> > > On Mon, Jun 04, 2018 at 06:18:36PM -0700, Matthew Wilcox wrote:
+> > > > On Tue, Jun 05, 2018 at 12:54:03AM +0000, Naoya Horiguchi wrote:
+> > > > > Reproduction precedure is like this:
+> > > > >  - enable RAM based PMEM (with a kernel boot parameter like memmap=1G!4G)
+> > > > >  - read /proc/kpageflags (or call tools/vm/page-types with no arguments)
+> > > > >  (- my kernel config is attached)
+> > > > > 
+> > > > > I spent a few days on this, but didn't reach any solutions.
+> > > > > So let me report this with some details below ...
+> > > > > 
+> > > > > In the critial page request, stable_page_flags() is called with an argument
+> > > > > page whose ->compound_head was somehow filled with '0xffffffffffffffff'.
+> > > > > And compound_head() returns (struct page *)(head - 1), which explains the
+> > > > > address 0xfffffffffffffffe in the above message.
+> > > > 
+> > > > Hm.  compound_head shares with:
+> > > > 
+> > > >                         struct list_head lru;
+> > > >                                 struct list_head slab_list;     /* uses lru */
+> > > >                                 struct {        /* Partial pages */
+> > > >                                         struct page *next;
+> > > >                         unsigned long _compound_pad_1;  /* compound_head */
+> > > >                         unsigned long _pt_pad_1;        /* compound_head */
+> > > >                         struct dev_pagemap *pgmap;
+> > > >                 struct rcu_head rcu_head;
+> > > > 
+> > > > None of them should be -1.
+> > > > 
+> > > > > It seems that this kernel panic happens when reading kpageflags of pfn range
+> > > > > [0xbffd7, 0xc0000), which coresponds to a 'reserved' range.
+> > > > > 
+> > > > > [    0.000000] user-defined physical RAM map:
+> > > > > [    0.000000] user: [mem 0x0000000000000000-0x000000000009fbff] usable
+> > > > > [    0.000000] user: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+> > > > > [    0.000000] user: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+> > > > > [    0.000000] user: [mem 0x0000000000100000-0x00000000bffd6fff] usable
+> > > > > [    0.000000] user: [mem 0x00000000bffd7000-0x00000000bfffffff] reserved
+> > > > > [    0.000000] user: [mem 0x00000000feffc000-0x00000000feffffff] reserved
+> > > > > [    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+> > > > > [    0.000000] user: [mem 0x0000000100000000-0x000000013fffffff] persistent (type 12)
+> > > > > 
+> > > > > So I guess 'memmap=' parameter might badly affect the memory initialization process.
+> > > > > 
+> > > > > This problem doesn't reproduce on v4.17, so some pre-released patch introduces it.
+> > > > > I hope this info helps you find the solution/workaround.
+> > > > 
+> > > > Can you try bisecting this?  It could be one of my patches to reorder struct
+> > > > page, or it could be one of Pavel's deferred page initialisation patches.
+> > > > Or something else ;-)
+> > > 
+> > > Thank you for the comment. I'm trying bisecting now, let you know the result later.
+> > > 
+> > > And I found that my statement "not reproduce on v4.17" was wrong (I used
+> > > different kvm guests, which made some different test condition and misguided me),
+> > > this seems an older (at least < 4.15) bug.
 > > 
-> > Greeting,
+> > (Cc: Pavel)
 > > 
-> > FYI, we noticed a +23.0% improvement of vm-scalability.throughput due to commit:
+> > Bisection showed that the following commit introduced this issue:
 > > 
+> >   commit f7f99100d8d95dbcf09e0216a143211e79418b9f
+> >   Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+> >   Date:   Wed Nov 15 17:36:44 2017 -0800
+> >   
+> >       mm: stop zeroing memory during allocation in vmemmap
 > > 
-> > commit: 309fe96bfc0ae387f53612927a8f0dc3eb056efd ("mm, memcontrol: implement memory.swap.events")
-> > https://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git master
-> > 
-> > in testcase: vm-scalability
-> > on test machine: 144 threads Intel(R) Xeon(R) CPU E7-8890 v3 @ 2.50GHz with 512G memory
-> > with following parameters:
-> > 
-> > 	runtime: 300s
-> > 	size: 1T
-> > 	test: lru-shm
-> > 	cpufreq_governor: performance
-> > 
-> > test-description: The motivation behind this suite is to exercise functions and regions of the mm/ of the Linux kernel which are of interest to us.
-> > test-url: https://git.kernel.org/cgit/linux/kernel/git/wfg/vm-scalability.git/
-> > 
+> > This patch postpones struct page zeroing to later stage of memory initialization.
+> > My kernel config disabled CONFIG_DEFERRED_STRUCT_PAGE_INIT so two callsites of
+> > __init_single_page() were never reached. So in such case, struct pages populated
+> > by vmemmap_pte_populate() could be left uninitialized?
+> > And I'm not sure yet how this issue becomes visible with memmap= setting.
 > 
-> With the patch I just sent out:
-> "mem_cgroup: make sure moving_account, move_lock_task and stat_cpu in the
-> same cacheline"
+> I think that this becomes visible because memmap=x!y creates a persistent memory region:
 > 
-> Applying this commit on top doesn't yield 23% improvement any more, but
-> a 6% performace drop...
-> I found the culprit being the following one line introduced in this commit:
+> parse_memmap_one
+> {
+> 	...
+>         } else if (*p == '!') {
+>                 start_at = memparse(p+1, &p);
+>                 e820__range_add(start_at, mem_size, E820_TYPE_PRAM);
+> 	...
+> }
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index d90b0201a8c4..07ab974c0a49 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -6019,13 +6019,17 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
->  	if (!memcg)
->  		return 0;
+> and this region it is not added neither in memblock.memory nor in memblock.reserved.
+> Ranges in memblock.memory get zeroed in memmap_init_zone(), while memblock.reserved get zeroed 
+> in free_low_memory_core_early():
+> 
+> static unsigned long __init free_low_memory_core_early(void)
+> {
+> 	...
+> 	for_each_reserved_mem_region(i, &start, &end)
+> 		reserve_bootmem_region(start, end);
+> 	...
+> }
+> 
+> 
+> Maybe I am mistaken, but I think that persistent memory regions should be marked as reserved.
+> A comment in do_mark_busy() suggests this:
+> 
+> static bool __init do_mark_busy(enum e820_type type, struct resource *res)
+> {
+> 
+> 	...
+>         /*
+>          * Treat persistent memory like device memory, i.e. reserve it
+>          * for exclusive use of a driver
+>          */
+> 	...
+> }
+> 
+> 
+> I wonder if something like this could work and if so, if it is right (i haven't tested it yet):
+> 
+> diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+> index 71c11ad5643e..3c9686ef74e5 100644
+> --- a/arch/x86/kernel/e820.c
+> +++ b/arch/x86/kernel/e820.c
+> @@ -1247,6 +1247,11 @@ void __init e820__memblock_setup(void)
+>                 if (end != (resource_size_t)end)
+>                         continue;
 >  
-> -	if (!entry.val)
-> +	if (!entry.val) {
-> +		memcg_memory_event(memcg, MEMCG_SWAP_FAIL);
+> +               if (entry->type == E820_TYPE_PRAM || entry->type == E820_TYPE_PMEM) {
+> +                       memblock_reserve(entry->addr, entry->size);
+> +                       continue;
+> +               }
+> +
+>                 if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
+>                         continue;
 
-Removing this line restored performance but it really doesn't make any
-sense. Ying suggested it might be code alignment related and suggested
-to use a different compiler than gcc-7.2. Then I used gcc-6.4 and turned
-out the test result to be pretty much the same for the two commits:
+It does not seem to work, so the reasoning might be incorrect.
 
-(each test has run for 3 times)
-$ grep throughput base/*/stats.json
-base/0/stats.json: "vm-scalability.throughput": 89207489,
-base/1/stats.json: "vm-scalability.throughput": 89982933,
-base/2/stats.json: "vm-scalability.throughput": 90436592,
-
-$ grep throughput head/*/stats.json
-head/0/stats.json: "vm-scalability.throughput": 90882775,
-head/1/stats.json: "vm-scalability.throughput": 90675220,
-head/2/stats.json: "vm-scalability.throughput": 91173479,
-
-So probably it's really related to code alignment and this bisected
-commit doesn't cause performance change(as expected).
-
->  		return 0;
-> +	}
->  
->  	memcg = mem_cgroup_id_get_online(memcg);
->  
-> If I remove that memcg_memory_event() call, performance will restore.
-> 
-> It's beyond my understanding why this code path matters since there is
-> no swap device setup in the test machine so I don't see how possible
-> get_swap_page() could ever be called.
-> 
-> Still investigating...
-> 
+Best Regards
+Oscar Salvador
