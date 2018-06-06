@@ -1,62 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E49936B0007
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 09:38:11 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id a25-v6so4058125otf.2
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 06:38:11 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id g41-v6si228576ote.66.2018.06.06.06.38.09
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CB996B000A
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 09:38:27 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 189-v6so300783ita.1
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 06:38:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g66-v6sor10687777ioa.284.2018.06.06.06.38.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jun 2018 06:38:10 -0700 (PDT)
-Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
- oom_lock held.
-References: <20180525083118.GI11881@dhcp22.suse.cz>
- <201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp>
- <20180525114213.GJ11881@dhcp22.suse.cz>
- <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp>
- <20180528124313.GC27180@dhcp22.suse.cz>
- <201805290557.BAJ39558.MFLtOJVFOHFOSQ@I-love.SAKURA.ne.jp>
- <20180529060755.GH27180@dhcp22.suse.cz>
- <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org>
- <20180601152801.GH15278@dhcp22.suse.cz>
- <20180601141110.34915e0a1fdbd07d25cc15cc@linux-foundation.org>
- <20180604070419.GG19202@dhcp22.suse.cz>
- <30c750b4-2c65-5737-3172-bddc666d0a8f@i-love.sakura.ne.jp>
- <alpine.DEB.2.21.1806060155120.104813@chino.kir.corp.google.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <bb08ebf7-e950-f3e2-d794-bff289fb22a9@i-love.sakura.ne.jp>
-Date: Wed, 6 Jun 2018 22:37:42 +0900
+        (Google Transport Security);
+        Wed, 06 Jun 2018 06:38:26 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1806060155120.104813@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <9C514595-AA27-4794-9831-BEF3A8A6787E@fb.com>
+References: <bug-199931-27@https.bugzilla.kernel.org/> <20180605130329.f7069e01c5faacc08a10996c@linux-foundation.org>
+ <9C514595-AA27-4794-9831-BEF3A8A6787E@fb.com>
+From: Liu Bo <obuil.liubo@gmail.com>
+Date: Wed, 6 Jun 2018 21:38:25 +0800
+Message-ID: <CANQeFDBZp5b5MV_uk63ZPhvB2fnWc0hqsTCL6-7v8e-9LULVpQ@mail.gmail.com>
+Subject: Re: [Bug 199931] New: systemd/rtorrent file data corruption when
+ using echo 3 >/proc/sys/vm/drop_caches
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, guro@fb.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: Chris Mason <clm@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, bugzilla-daemon@bugzilla.kernel.org, bugzilla.kernel.org@plan9.de, linux-btrfs@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-On 2018/06/06 18:02, David Rientjes wrote:
-> On Mon, 4 Jun 2018, Tetsuo Handa wrote:
-> 
->> Is current version of "mm, oom: cgroup-aware OOM killer" patchset going to be
->> dropped for now? I want to know which state should I use for baseline for my patch.
+On Wed, Jun 6, 2018 at 8:18 AM, Chris Mason <clm@fb.com> wrote:
+>
+>
+> On 5 Jun 2018, at 16:03, Andrew Morton wrote:
+>
+>> (switched to email.  Please respond via emailed reply-to-all, not via the
+>> bugzilla web interface).
 >>
-> 
-> My patchset to fix the issues with regard to the cgroup-aware oom killer 
-> to fix its calculations (current version in -mm is completey buggy for 
-> oom_score_adj, fixed in my patch 4/6), its context based errors 
-> (discounting mempolicy oom kills, fixed in my patch 6/6) and make it 
-> generally useful beyond highly specialized usecases in a backwards 
-> compatible way was posted on March 22 at 
-> https://marc.info/?l=linux-kernel&m=152175564104466.
-> 
-> The base patchset is seemingly abandoned in -mm, unfortunately, so I think 
-> all oom killer patches should be based on Linus's tree.
-> 
-OK. I will use linux.git as a base.
+>> On Tue, 05 Jun 2018 18:01:36 +0000 bugzilla-daemon@bugzilla.kernel.org
+>> wrote:
+>>
+>>> https://bugzilla.kernel.org/show_bug.cgi?id=199931
+>>>
+>>>             Bug ID: 199931
+>>>            Summary: systemd/rtorrent file data corruption when using echo
+>>>                     3 >/proc/sys/vm/drop_caches
+>>
+>>
+>> A long tale of woe here.  Chris, do you think the pagecache corruption
+>> is a general thing, or is it possible that btrfs is contributing?
+>>
+>> Also, that 4.4 oom-killer regression sounds very serious.
+>
+>
+> This week I found a bug in btrfs file write with how we handle stable pages.
+> Basically it works like this:
+>
+> write(fd, some bytes less than a page)
+> write(fd, some bytes into the same page)
+>     btrfs prefaults the userland page
+>     lock_and_cleanup_extent_if_need()   <- stable pages
+>                 wait for writeback()
+>                 clear_page_dirty_for_io()
+>
+> At this point we have a page that was dirty and is now clean.  That's
+> normally fine, unless our prefaulted page isn't in ram anymore.
+>
+>         iov_iter_copy_from_user_atomic() <--- uh oh
+>
+> If the copy_from_user fails, we drop all our locks and retry.  But along the
+> way, we completely lost the dirty bit on the page.  If the page is dropped
+> by drop_caches, the writes are lost.  We'll just read back the stale
+> contents of that page during the retry loop.  This won't result in crc
+> errors because the bytes we lost were never crc'd.
+>
 
-By the way, does "[RFC] Getting rid of INFLIGHT_VICTIM" simplify or break
-your cgroup-aware oom killer? If it simplifies your work, I'd like to apply
-it as well.
+So we're going to carefully redirty the page under the page lock, right?
+
+> It could result in zeros in the file because we're basically reading a hole,
+> and those zeros could move around in the page depending on which part of the
+> page was dirty when the writes were lost.
+>
+
+I got a question, while re-reading this page, wouldn't it read
+old/stale on-disk data?
+
+thanks,
+liubo
+
+> I spent a morning trying to trigger this with drop_caches and couldn't make
+> it happen, even with schedule_timeout()s inserted and other tricks.  But I
+> was able to get corruptions if I manually invalidated pages in the critical
+> section.
+>
+> I'm working on a patch, and I'll check and see if any of the other recent
+> fixes Dave integrated may have a less exotic explanation.
+>
+> -chris
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-btrfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
