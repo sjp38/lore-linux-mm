@@ -1,118 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DD806B0005
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 14:38:06 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id x14-v6so4042016wrr.17
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 11:38:06 -0700 (PDT)
-Received: from outbound-smtp25.blacknight.com (outbound-smtp25.blacknight.com. [81.17.249.193])
-        by mx.google.com with ESMTPS id d23-v6si1762052edq.426.2018.06.06.11.38.04
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E0136B0005
+	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 14:45:01 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id b31-v6so3824864plb.5
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 11:45:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i8-v6sor5433715pgt.20.2018.06.06.11.45.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Jun 2018 11:38:04 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp25.blacknight.com (Postfix) with ESMTPS id 6F724B8A29
-	for <linux-mm@kvack.org>; Wed,  6 Jun 2018 19:38:04 +0100 (IST)
-Date: Wed, 6 Jun 2018 19:38:03 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mremap: Remove LATENCY_LIMIT from mremap to reduce the
- number of TLB shootdowns
-Message-ID: <20180606183803.k7qaw2xnbvzshv34@techsingularity.net>
+        (Google Transport Security);
+        Wed, 06 Jun 2018 11:45:00 -0700 (PDT)
+Date: Wed, 6 Jun 2018 11:44:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm,oom: Don't call schedule_timeout_killable() with
+ oom_lock held.
+In-Reply-To: <bb08ebf7-e950-f3e2-d794-bff289fb22a9@i-love.sakura.ne.jp>
+Message-ID: <alpine.DEB.2.21.1806061143140.210542@chino.kir.corp.google.com>
+References: <20180525083118.GI11881@dhcp22.suse.cz> <201805251957.EJJ09809.LFJHFFVOOSQOtM@I-love.SAKURA.ne.jp> <20180525114213.GJ11881@dhcp22.suse.cz> <201805252046.JFF30222.JHSFOFQFMtVOLO@I-love.SAKURA.ne.jp> <20180528124313.GC27180@dhcp22.suse.cz>
+ <201805290557.BAJ39558.MFLtOJVFOHFOSQ@I-love.SAKURA.ne.jp> <20180529060755.GH27180@dhcp22.suse.cz> <20180529160700.dbc430ebbfac301335ac8cf4@linux-foundation.org> <20180601152801.GH15278@dhcp22.suse.cz> <20180601141110.34915e0a1fdbd07d25cc15cc@linux-foundation.org>
+ <20180604070419.GG19202@dhcp22.suse.cz> <30c750b4-2c65-5737-3172-bddc666d0a8f@i-love.sakura.ne.jp> <alpine.DEB.2.21.1806060155120.104813@chino.kir.corp.google.com> <bb08ebf7-e950-f3e2-d794-bff289fb22a9@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@intel.com>, mhocko@kernel.org, vbabka@suse.cz, Aaron Lu <aaron.lu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, guro@fb.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, tj@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 
-Commit 5d1904204c99 ("mremap: fix race between mremap() and page cleanning")
-fixed races between mremap and other operations for both file-backed and
-anonymous mappings. The file-backed was the most critical as it allowed the
-possibility that data could be changed on a physical page after page_mkclean
-returned which could trigger data loss or data integrity issues. A customer
-reported that the cost of the TLBs for anonymous regressions was excessive
-and resulting in a 30-50% drop in performance overall since this commit
-on a microbenchmark. Unfortunately I neither have access to the test-case
-nor can I describe what it does other than saying that mremap operations
-dominate heavily.
+On Wed, 6 Jun 2018, Tetsuo Handa wrote:
 
-This patch removes the LATENCY_LIMIT to handle TLB flushes on a PMD boundary
-instead of every 64 pages to reduce the number of TLB shootdowns by a factor
-of 8 in the ideal case. LATENCY_LIMIT was almost certainly used originally
-to limit the PTL hold times but the latency savings are likely offset by
-the cost of IPIs in many cases. This patch is not reported to completely
-restore performance but gets it within an acceptable percentage. The given
-metric here is simply described as "higher is better".
+> OK. I will use linux.git as a base.
+> 
+> By the way, does "[RFC] Getting rid of INFLIGHT_VICTIM" simplify or break
+> your cgroup-aware oom killer? If it simplifies your work, I'd like to apply
+> it as well.
+> 
 
-Baseline that was known good
-002:  Metric:       91.05
-004:  Metric:      109.45
-008:  Metric:       73.08
-016:  Metric:       58.14
-032:  Metric:       61.09
-064:  Metric:       57.76
-128:  Metric:       55.43
-
-Current
-001:  Metric:       54.98
-002:  Metric:       56.56
-004:  Metric:       41.22
-008:  Metric:       35.96
-016:  Metric:       36.45
-032:  Metric:       35.71
-064:  Metric:       35.73
-128:  Metric:       34.96
-
-With patch
-001:  Metric:       61.43
-002:  Metric:       81.64
-004:  Metric:       67.92
-008:  Metric:       51.67
-016:  Metric:       50.47
-032:  Metric:       52.29
-064:  Metric:       50.01
-128:  Metric:       49.04
-
-So for low threads, it's not restored but for larger number of threads,
-it's closer to the "known good" baseline.
-
-Using a different mremap-intensive workload that is not representative of
-the real workload there is little difference observed outside of noise in
-the headline metrics However, the TLB shootdowns are reduced by 11% on
-average and at the peak, TLB shootdowns were reduced by 21%. Interrupts
-were sampled every second while the workload ran to get those figures.
-It's known that the figures will vary as the non-representative load is
-non-deterministic.
-
-An alternative patch was posted that should have significantly reduced the
-TLB flushes but unfortunately it does not perform as well as this version
-on the customer test case. If revisited, the two patches can stack on top
-of each other.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/mremap.c | 4 ----
- 1 file changed, 4 deletions(-)
-
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 049470aa1e3e..5c2e18505f75 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -191,8 +191,6 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
- 		drop_rmap_locks(vma);
- }
- 
--#define LATENCY_LIMIT	(64 * PAGE_SIZE)
--
- unsigned long move_page_tables(struct vm_area_struct *vma,
- 		unsigned long old_addr, struct vm_area_struct *new_vma,
- 		unsigned long new_addr, unsigned long len,
-@@ -247,8 +245,6 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
- 		next = (new_addr + PMD_SIZE) & PMD_MASK;
- 		if (extent > next - new_addr)
- 			extent = next - new_addr;
--		if (extent > LATENCY_LIMIT)
--			extent = LATENCY_LIMIT;
- 		move_ptes(vma, old_pmd, old_addr, old_addr + extent, new_vma,
- 			  new_pmd, new_addr, need_rmap_locks, &need_flush);
- 	}
+I think it impacts the proposal to allow the oom reaper to operate over 
+several different mm's in its list without processing one, waiting to give 
+up, removing it, and moving on to the next one.  It doesn't impact the 
+cgroup-aware oom killer extension that I made other than trivial patch 
+conflicts.  I think if we can iterate over the oom reaper list to 
+determine inflight victims it's simpler.
