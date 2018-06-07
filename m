@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B59D16B0003
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E90106B000C
 	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 10:57:27 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id o19-v6so3598290pgn.14
+Received: by mail-pg0-f72.google.com with SMTP id z20-v6so3582242pgv.17
         for <linux-mm@kvack.org>; Thu, 07 Jun 2018 07:57:27 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 33-v6si54395414plq.348.2018.06.07.07.57.26
+        by mx.google.com with ESMTPS id i33-v6si52978553pld.546.2018.06.07.07.57.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Thu, 07 Jun 2018 07:57:26 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 3/6] Convert v4l2 event to struct_size
-Date: Thu,  7 Jun 2018 07:57:17 -0700
-Message-Id: <20180607145720.22590-4-willy@infradead.org>
+Subject: [PATCH 1/6] Convert virtio_console to struct_size
+Date: Thu,  7 Jun 2018 07:57:15 -0700
+Message-Id: <20180607145720.22590-2-willy@infradead.org>
 In-Reply-To: <20180607145720.22590-1-willy@infradead.org>
 References: <20180607145720.22590-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,22 +24,22 @@ From: Matthew Wilcox <mawilcox@microsoft.com>
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- drivers/media/v4l2-core/v4l2-event.c | 3 +--
+ drivers/char/virtio_console.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/drivers/media/v4l2-core/v4l2-event.c b/drivers/media/v4l2-core/v4l2-event.c
-index 968c2eb08b5a..127fe6eb91d9 100644
---- a/drivers/media/v4l2-core/v4l2-event.c
-+++ b/drivers/media/v4l2-core/v4l2-event.c
-@@ -215,8 +215,7 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
- 	if (elems < 1)
- 		elems = 1;
+diff --git a/drivers/char/virtio_console.c b/drivers/char/virtio_console.c
+index 21085515814f..4bf7c06c2343 100644
+--- a/drivers/char/virtio_console.c
++++ b/drivers/char/virtio_console.c
+@@ -433,8 +433,7 @@ static struct port_buffer *alloc_buf(struct virtio_device *vdev, size_t buf_size
+ 	 * Allocate buffer and the sg list. The sg list array is allocated
+ 	 * directly after the port_buffer struct.
+ 	 */
+-	buf = kmalloc(sizeof(*buf) + sizeof(struct scatterlist) * pages,
+-		      GFP_KERNEL);
++	buf = kmalloc(struct_size(buf, sg, pages), GFP_KERNEL);
+ 	if (!buf)
+ 		goto fail;
  
--	sev = kvzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems,
--		       GFP_KERNEL);
-+	sev = kvzalloc(struct_size(sev, events, elems), GFP_KERNEL);
- 	if (!sev)
- 		return -ENOMEM;
- 	for (i = 0; i < elems; i++)
 -- 
 2.17.0
