@@ -1,74 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4926B026C
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 12:44:23 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 76-v6so4932607wmw.3
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:44:23 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id k6-v6si13884300wrr.333.2018.06.07.09.44.21
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BDB2C6B026E
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 12:45:10 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id w25-v6so6537345otj.18
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:45:10 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g201-v6sor6632576oib.285.2018.06.07.09.45.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Jun 2018 09:44:22 -0700 (PDT)
-Subject: Re: [PATCH 1/7] x86/cet: Add Kconfig option for user-mode Indirect
- Branch Tracking
-References: <20180607143855.3681-1-yu-cheng.yu@intel.com>
- <20180607143855.3681-2-yu-cheng.yu@intel.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <9c99f892-8965-8b08-4a80-506b48c2205d@infradead.org>
-Date: Thu, 7 Jun 2018 09:43:49 -0700
+        (Google Transport Security);
+        Thu, 07 Jun 2018 09:45:09 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180607143855.3681-2-yu-cheng.yu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180607163036.o7vmi6onrsexphrk@quack2.suse.cz>
+References: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152815395775.39010.9355109660470832490.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180607163036.o7vmi6onrsexphrk@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 7 Jun 2018 09:45:08 -0700
+Message-ID: <CAPcyv4injASP0_sH5q1-_OTN7iA1xGUd_C2+kK7ahQOj5z_z4w@mail.gmail.com>
+Subject: Re: [PATCH v3 11/12] mm, memory_failure: Teach memory_failure() about
+ dev_pagemap pages
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On 06/07/2018 07:38 AM, Yu-cheng Yu wrote:
-> The user-mode indirect branch tracking support is done mostly by
-> GCC to insert ENDBR64/ENDBR32 instructions at branch targets.
-> The kernel provides CPUID enumeration, feature MSR setup and
-> the allocation of legacy bitmap.
-> 
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  arch/x86/Kconfig | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
-> 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 24339a5299da..27bfbd137fbe 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -1953,6 +1953,18 @@ config X86_INTEL_SHADOW_STACK_USER
->  
->  	  If unsure, say y.
->  
-> +config X86_INTEL_BRANCH_TRACKING_USER
-> +	prompt "Intel Indirect Branch Tracking for user-mode"
-> +	def_bool n
-> +	depends on CPU_SUP_INTEL && X86_64
-> +	select X86_INTEL_CET
-> +	select ARCH_HAS_PROGRAM_PROPERTIES
-> +	---help---
-> +	  Indirect Branch Tracking provides hardware protection against 	
-> +	  oriented programing attacks.
+On Thu, Jun 7, 2018 at 9:30 AM, Jan Kara <jack@suse.cz> wrote:
+> On Mon 04-06-18 16:12:37, Dan Williams wrote:
+>>     mce: Uncorrected hardware memory error in user-access at af34214200
+>>     {1}[Hardware Error]: It has been corrected by h/w and requires no further action
+>>     mce: [Hardware Error]: Machine check events logged
+>>     {1}[Hardware Error]: event severity: corrected
+>>     Memory failure: 0xaf34214: reserved kernel page still referenced by 1 users
+>>     [..]
+>>     Memory failure: 0xaf34214: recovery action for reserved kernel page: Failed
+>>     mce: Memory error not recovered
+>>
+>> In contrast to typical memory, dev_pagemap pages may be dax mapped. With
+>> dax there is no possibility to map in another page dynamically since dax
+>> establishes 1:1 physical address to file offset associations. Also
+>> dev_pagemap pages associated with NVDIMM / persistent memory devices can
+>> internal remap/repair addresses with poison. While memory_failure()
+>> assumes that it can discard typical poisoned pages and keep them
+>> unmapped indefinitely, dev_pagemap pages may be returned to service
+>> after the error is cleared.
+>>
+>> Teach memory_failure() to detect and handle MEMORY_DEVICE_HOST
+>> dev_pagemap pages that have poison consumed by userspace. Mark the
+>> memory as UC instead of unmapping it completely to allow ongoing access
+>> via the device driver (nd_pmem). Later, nd_pmem will grow support for
+>> marking the page back to WB when the error is cleared.
+>
+> ...
+>
+>> +static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
+>> +             struct dev_pagemap *pgmap)
+>> +{
+>> +     struct page *page = pfn_to_page(pfn);
+>> +     const bool unmap_success = true;
+>> +     struct address_space *mapping;
+>> +     unsigned long size;
+>> +     LIST_HEAD(tokill);
+>> +     int rc = -EBUSY;
+>> +     loff_t start;
+>> +
+>> +     /*
+>> +      * Prevent the inode from being freed while we are interrogating
+>> +      * the address_space, typically this would be handled by
+>> +      * lock_page(), but dax pages do not use the page lock.
+>> +      */
+>> +     rcu_read_lock();
+>> +     mapping = page->mapping;
+>> +     if (!mapping) {
+>> +             rcu_read_unlock();
+>> +             goto out;
+>> +     }
+>> +     if (!igrab(mapping->host)) {
+>> +             mapping = NULL;
+>> +             rcu_read_unlock();
+>> +             goto out;
+>> +     }
+>> +     rcu_read_unlock();
+>
+> Why don't you use radix tree entry lock here instead? That is a direct
+> replacement of the page lock and you don't have to play games with pinning
+> the inode and verifying the mapping afterwards.
 
-	           programming
+I was hoping to avoid teaching device-dax about radix entries...
 
-and please just move the return/jmp parts to the next line also:
+However, now that I look again, we're already protected against
+device-dax inode teardown by the dev_pagemap reference.
 
-	                                             protection against
-	  return-/jmp-oriented programming attacks.
+I'll switch over.
 
-> +
-> +	  If unsure, say y
-> +
->  config EFI
->  	bool "EFI runtime service support"
->  	depends on ACPI
-> 
+>> +out:
+>> +     if (mapping)
+>> +             iput(mapping->host);
+>
+> BTW, this would have to be prepared to do full inode deletion which I'm not
+> quite sure is safe from this context.
 
-
--- 
-~Randy
+Ah, I had not considered that, now I know for future reference.
