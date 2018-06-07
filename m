@@ -1,49 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 497436B0005
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 12:58:00 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id s16-v6so4835133pfm.1
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:58:00 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 203-v6si56036968pfc.21.2018.06.07.09.57.58
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A5AC86B0005
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 13:02:17 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e16-v6so4833477pfn.5
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 10:02:17 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id w16-v6si54516010plq.141.2018.06.07.10.02.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 09:57:59 -0700 (PDT)
-Subject: Re: [PATCH 7/9] x86/mm: Shadow stack page fault error checking
-References: <20180607143705.3531-1-yu-cheng.yu@intel.com>
- <20180607143705.3531-8-yu-cheng.yu@intel.com>
- <CALCETrXA--XrVNvPM4-Cv6-E6OFd=TZ5Gw_MWePt7MtqCBBqRg@mail.gmail.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <5764865a-1dd2-ec5b-c67c-1ea322aea203@linux.intel.com>
-Date: Thu, 7 Jun 2018 09:56:36 -0700
+        Thu, 07 Jun 2018 10:02:15 -0700 (PDT)
+Date: Thu, 7 Jun 2018 10:02:14 -0700
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [PATCH v3 08/12] x86/memory_failure: Introduce {set,
+ clear}_mce_nospec()
+Message-ID: <20180607170214.GA21636@agluck-desk>
+References: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152815394224.39010.16927947197432406234.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <CAPcyv4jHV+2esMsoP-zDQ_kOCuWawN=V09nWYKuR7vht28p0=w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrXA--XrVNvPM4-Cv6-E6OFd=TZ5Gw_MWePt7MtqCBBqRg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4jHV+2esMsoP-zDQ_kOCuWawN=V09nWYKuR7vht28p0=w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, X86 ML <x86@kernel.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>
 
-On 06/07/2018 09:26 AM, Andy Lutomirski wrote:
->>
->> +       /*
->> +        * Verify X86_PF_SHSTK is within a shadow stack VMA.
->> +        * It is always an error if there is a shadow stack
->> +        * fault outside a shadow stack VMA.
->> +        */
->> +       if (error_code & X86_PF_SHSTK) {
->> +               if (!(vma->vm_flags & VM_SHSTK))
->> +                       return 1;
->> +               return 0;
->> +       }
->> +
-> What, if anything, would go wrong without this change?  It seems like
-> it might be purely an optimization.  If so, can you mention that in
-> the comment?
+On Wed, Jun 06, 2018 at 09:42:28PM -0700, Dan Williams wrote:
+> > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > Cc: Ingo Molnar <mingo@redhat.com>
+> > Cc: "H. Peter Anvin" <hpa@zytor.com>
+> > Cc: Tony Luck <tony.luck@intel.com>
+> 
+> Tony, safe to assume you are ok with this patch now that the
+> decoy_addr approach is back?
+> 
 
-This is a fine exercise.  I'm curious what it does, too.
+Yes. s/Cc/Acked-by/ for my line above.
 
-But, I really like it being explicit in the end.  If we depend on
-implicit behavior, I really worry that someone breaks it accidentally.
+-Tony
