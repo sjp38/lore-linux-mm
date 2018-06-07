@@ -1,66 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BFB46B0005
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 12:49:22 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id g6-v6so5711869plq.9
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:49:22 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id h68-v6si28951237pgc.429.2018.06.07.09.49.21
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 626976B0005
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 12:52:25 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id u80-v6so5988492oie.6
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:52:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d203-v6sor23248931oif.163.2018.06.07.09.52.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 09:49:21 -0700 (PDT)
-Message-ID: <1528389969.4636.25.camel@2b52.sc.intel.com>
-Subject: Re: [PATCH 7/9] x86/mm: Shadow stack page fault error checking
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Thu, 07 Jun 2018 09:46:09 -0700
-In-Reply-To: <CALCETrXA--XrVNvPM4-Cv6-E6OFd=TZ5Gw_MWePt7MtqCBBqRg@mail.gmail.com>
-References: <20180607143705.3531-1-yu-cheng.yu@intel.com>
-	 <20180607143705.3531-8-yu-cheng.yu@intel.com>
-	 <CALCETrXA--XrVNvPM4-Cv6-E6OFd=TZ5Gw_MWePt7MtqCBBqRg@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 07 Jun 2018 09:52:23 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20180607143724.GS32433@dhcp22.suse.cz>
+References: <152800336321.17112.3300876636370683279.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180604124031.GP19202@dhcp22.suse.cz> <CAPcyv4gLxz7Ke6ApXoATDN31PSGwTgNRLTX-u1dtT3d+6jmzjw@mail.gmail.com>
+ <20180605141104.GF19202@dhcp22.suse.cz> <CAPcyv4iGd56kc2NG5GDYMqW740RNr7NZr9DRft==fPxPyieq7Q@mail.gmail.com>
+ <20180606073910.GB32433@dhcp22.suse.cz> <CAPcyv4hA2Na7wyuyLZSWG5s_4+pEv6aMApk23d2iO1vhFx92XQ@mail.gmail.com>
+ <20180607143724.GS32433@dhcp22.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 7 Jun 2018 09:52:22 -0700
+Message-ID: <CAPcyv4jnyuC-yjuSgu4qKtzB0h9yYMZDsg5Rqqa=HTCY9KM_gw@mail.gmail.com>
+Subject: Re: [PATCH v2 00/11] mm: Teach memory_failure() about ZONE_DEVICE pages
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Thu, 2018-06-07 at 09:26 -0700, Andy Lutomirski wrote:
-> On Thu, Jun 7, 2018 at 7:40 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
-> >
-> > If a page fault is triggered by a shadow stack access (e.g.
-> > call/ret) or shadow stack management instructions (e.g.
-> > wrussq), then bit[6] of the page fault error code is set.
-> >
-> > In access_error(), we check if a shadow stack page fault
-> > is within a shadow stack memory area.
-> >
-> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> 
-> > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> > index 73bd8c95ac71..2b3b9170109c 100644
-> > --- a/arch/x86/mm/fault.c
-> > +++ b/arch/x86/mm/fault.c
-> > @@ -1166,6 +1166,17 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
-> >                                        (error_code & X86_PF_INSTR), foreign))
-> >                 return 1;
-> >
-> > +       /*
-> > +        * Verify X86_PF_SHSTK is within a shadow stack VMA.
-> > +        * It is always an error if there is a shadow stack
-> > +        * fault outside a shadow stack VMA.
-> > +        */
-> > +       if (error_code & X86_PF_SHSTK) {
-> > +               if (!(vma->vm_flags & VM_SHSTK))
-> > +                       return 1;
-> > +               return 0;
-> > +       }
-> > +
-> 
-> What, if anything, would go wrong without this change?  It seems like
-> it might be purely an optimization.  If so, can you mention that in
-> the comment?
+On Thu, Jun 7, 2018 at 7:37 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Wed 06-06-18 06:44:45, Dan Williams wrote:
+>> On Wed, Jun 6, 2018 at 12:39 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>> > On Tue 05-06-18 07:33:17, Dan Williams wrote:
+>> >> On Tue, Jun 5, 2018 at 7:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>> >> > On Mon 04-06-18 07:31:25, Dan Williams wrote:
+>> >> > [...]
+>> >> >> I'm trying to solve this real world problem when real poison is
+>> >> >> consumed through a dax mapping:
+>> >> >>
+>> >> >>         mce: Uncorrected hardware memory error in user-access at af34214200
+>> >> >>         {1}[Hardware Error]: It has been corrected by h/w and requires
+>> >> >> no further action
+>> >> >>         mce: [Hardware Error]: Machine check events logged
+>> >> >>         {1}[Hardware Error]: event severity: corrected
+>> >> >>         Memory failure: 0xaf34214: reserved kernel page still
+>> >> >> referenced by 1 users
+>> >> >>         [..]
+>> >> >>         Memory failure: 0xaf34214: recovery action for reserved kernel
+>> >> >> page: Failed
+>> >> >>         mce: Memory error not recovered
+>> >> >>
+>> >> >> ...i.e. currently all poison consumed through dax mappings is
+>> >> >> needlessly system fatal.
+>> >> >
+>> >> > Thanks. That should be a part of the changelog.
+>> >>
+>> >> ...added for v3:
+>> >> https://lists.01.org/pipermail/linux-nvdimm/2018-June/016153.html
+>> >>
+>> >> > It would be great to
+>> >> > describe why this cannot be simply handled by hwpoison code without any
+>> >> > ZONE_DEVICE specific hacks? The error is recoverable so why does
+>> >> > hwpoison code even care?
+>> >> >
+>> >>
+>> >> Up until we started testing hardware poison recovery for persistent
+>> >> memory I assumed that the kernel did not need any new enabling to get
+>> >> basic support for recovering userspace consumed poison.
+>> >>
+>> >> However, the recovery code has a dedicated path for many different
+>> >> page states (see: action_page_types). Without any changes it
+>> >> incorrectly assumes that a dax mapped page is a page cache page
+>> >> undergoing dma, or some other pinned operation. It also assumes that
+>> >> the page must be offlined which is not correct / possible for dax
+>> >> mapped pages. There is a possibility to repair poison to dax mapped
+>> >> persistent memory pages, and the pages can't otherwise be offlined
+>> >> because they 1:1 correspond with a physical storage block, i.e.
+>> >> offlining pmem would be equivalent to punching a hole in the physical
+>> >> address space.
+>> >>
+>> >> There's also the entanglement of device-dax which guarantees a given
+>> >> mapping size (4K, 2M, 1G). This requires determining the size of the
+>> >> mapping encompassing a given pfn to know how much to unmap. Since dax
+>> >> mapped pfns don't come from the page allocator we need to read the
+>> >> page size from the page tables, not compound_order(page).
+>> >
+>> > OK, but my question is still. Do we really want to do more on top of the
+>> > existing code and add even more special casing or it is time to rethink
+>> > the whole hwpoison design?
+>>
+>> Well, there's the immediate problem that the current implementation is
+>> broken for dax and then the longer term problem that the current
+>> design appears to be too literal with a lot of custom marshaling.
+>>
+>> At least for dax in the long term we want to offer an alternative
+>> error handling model and get the filesystem much more involved. That
+>> filesystem redesign work has been waiting for the reverse-block-map
+>> effort to settle in xfs. However, that's more custom work for dax and
+>> not a redesign that helps the core-mm more generically.
+>>
+>> I think the unmap and SIGBUS portion of poison handling is relatively
+>> straightforward. It's the handling of the page HWPoison page flag that
+>> seems a bit ad hoc. The current implementation certainly was not
+>> prepared for the concept that memory can be repaired. set_mce_nospec()
+>> is a step in the direction of generic memory error handling.
+>
+> Agreed! Moreover random checks for HWPoison pages is just a maintenance
+> hell.
+>
+>> Thoughts on other pain points in the design that are on your mind, Michal?
+>
+> we have discussed those at LSFMM this year https://lwn.net/Articles/753261/
+> The main problem is that there is besically no design description so the
+> whole feature is very easy to break. Yours is another good example of
+> that. We need to get back to the drawing board and think about how to
+> make this more robust.
 
-Without this check, the page fault code could overlook the fact that the
-application is trying to use non shadow stack area for shadow stack.
-I will add this to the comments.
+I saw that article, but to be honest I did not glean any direct
+suggestions that read on these current patches. I'm interested in
+discussing a redesign, but I'm not interested in leaving poison
+unhandled for DAX while we figure it out. Developers are actively
+testing media error handling for persistent memory applications, and
+expect the current SIGBUS + BUS_MCEERR_AR kernel ABI to work for
+memory errors in userspace mappings.
+
+The article mentioned that PUD poison does not work. That may be the
+case for THP, but it does work for DAX. Here's the simple test [1],
+yes, more test driven design of poison handling as you lamented.
+
+[1]: https://patchwork.kernel.org/patch/10451131/
