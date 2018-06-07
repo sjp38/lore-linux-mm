@@ -1,92 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D3FF66B0003
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 19:01:38 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j25-v6so4068606pfi.9
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 16:01:38 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id s1-v6si8908548pgb.486.2018.06.07.16.01.37
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 065316B0003
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 19:38:03 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id 126-v6so11375914qkd.20
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 16:38:02 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id 36-v6si7920829qvp.133.2018.06.07.16.38.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 16:01:37 -0700 (PDT)
-Received: from mail-wr0-f174.google.com (mail-wr0-f174.google.com [209.85.128.174])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 109F6208AF
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 23:01:37 +0000 (UTC)
-Received: by mail-wr0-f174.google.com with SMTP id o12-v6so11435003wrm.12
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 16:01:36 -0700 (PDT)
+        Thu, 07 Jun 2018 16:38:01 -0700 (PDT)
+Date: Thu, 7 Jun 2018 19:38:00 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v2] mm/ksm: ignore STABLE_FLAG of rmap_item->address in
+ rmap_walk_ksm
+Message-ID: <20180607233800.GA6965@redhat.com>
+References: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
+ <1525403506-6750-1-git-send-email-hejianet@gmail.com>
+ <20180509163101.02f23de1842a822c61fc68ff@linux-foundation.org>
+ <2cd6b39b-1496-bbd5-9e31-5e3dcb31feda@arm.com>
+ <6c417ab1-a808-72ea-9618-3d76ec203684@arm.com>
+ <20180524133805.6e9bfd4bf48de065ce1d7611@linux-foundation.org>
+ <20180607151344.a22a1e7182a2142e6d24e4de@linux-foundation.org>
 MIME-Version: 1.0
-References: <20180607143807.3611-1-yu-cheng.yu@intel.com> <20180607143807.3611-7-yu-cheng.yu@intel.com>
- <CALCETrU6axo158CiSCRRkC4GC5hib9hypC98t7LLjA3gDaacsw@mail.gmail.com>
- <1528403417.5265.35.camel@2b52.sc.intel.com> <CALCETrXz3WWgZwUXJsDTWvmqKUArQFuMH1xJdSLVKFpTysNWxg@mail.gmail.com>
- <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
-In-Reply-To: <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 7 Jun 2018 16:01:23 -0700
-Message-ID: <CALCETrV1GG5rq_kwxkS-o3x8Ldr72ThdYgkJKQ9cx9Q63SxgTQ@mail.gmail.com>
-Subject: Re: [PATCH 06/10] x86/cet: Add arch_prctl functions for shadow stack
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180607151344.a22a1e7182a2142e6d24e4de@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. J. Lu" <hjl.tools@gmail.com>
-Cc: Andrew Lutomirski <luto@kernel.org>, Yu-cheng Yu <yu-cheng.yu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Suzuki K Poulose <Suzuki.Poulose@arm.com>, Jia He <hejianet@gmail.com>, Minchan Kim <minchan@kernel.org>, Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jia.he@hxt-semitech.com, Hugh Dickins <hughd@google.com>
 
-On Thu, Jun 7, 2018 at 3:02 PM H.J. Lu <hjl.tools@gmail.com> wrote:
->
-> On Thu, Jun 7, 2018 at 2:01 PM, Andy Lutomirski <luto@kernel.org> wrote:
-> > On Thu, Jun 7, 2018 at 1:33 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
-> >>
-> >> On Thu, 2018-06-07 at 11:48 -0700, Andy Lutomirski wrote:
-> >> > On Thu, Jun 7, 2018 at 7:41 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
-> >> > >
-> >> > > The following operations are provided.
-> >> > >
-> >> > > ARCH_CET_STATUS:
-> >> > >         return the current CET status
-> >> > >
-> >> > > ARCH_CET_DISABLE:
-> >> > >         disable CET features
-> >> > >
-> >> > > ARCH_CET_LOCK:
-> >> > >         lock out CET features
-> >> > >
-> >> > > ARCH_CET_EXEC:
-> >> > >         set CET features for exec()
-> >> > >
-> >> > > ARCH_CET_ALLOC_SHSTK:
-> >> > >         allocate a new shadow stack
-> >> > >
-> >> > > ARCH_CET_PUSH_SHSTK:
-> >> > >         put a return address on shadow stack
-> >> > >
-> >> > > ARCH_CET_ALLOC_SHSTK and ARCH_CET_PUSH_SHSTK are intended only for
-> >> > > the implementation of GLIBC ucontext related APIs.
-> >> >
-> >> > Please document exactly what these all do and why.  I don't understand
-> >> > what purpose ARCH_CET_LOCK and ARCH_CET_EXEC serve.  CET is opt in for
-> >> > each ELF program, so I think there should be no need for a magic
-> >> > override.
-> >>
-> >> CET is initially enabled if the loader has CET capability.  Then the
-> >> loader decides if the application can run with CET.  If the application
-> >> cannot run with CET (e.g. a dependent library does not have CET), then
-> >> the loader turns off CET before passing to the application.  When the
-> >> loader is done, it locks out CET and the feature cannot be turned off
-> >> anymore until the next exec() call.
-> >
-> > Why is the lockout necessary?  If user code enables CET and tries to
-> > run code that doesn't support CET, it will crash.  I don't see why we
-> > need special code in the kernel to prevent a user program from calling
-> > arch_prctl() and crashing itself.  There are already plenty of ways to
-> > do that :)
->
-> On CET enabled machine, not all programs nor shared libraries are
-> CET enabled.  But since ld.so is CET enabled, all programs start
-> as CET enabled.  ld.so will disable CET if a program or any of its shared
-> libraries aren't CET enabled.  ld.so will lock up CET once it is done CET
-> checking so that CET can't no longer be disabled afterwards.
+On Thu, Jun 07, 2018 at 03:13:44PM -0700, Andrew Morton wrote:
+> This patch is quite urgent and is tagged for -stable backporting, yet
+> it remains in an unreviewed state.  Any takers?
 
-Yeah, I got that.  No one has explained *why*.
+It looks a straightforward safe fix, on x86 hva_to_gfn_memslot would
+zap those bits and hide the misalignment caused by the low metadata
+bits being erroneously left set in the address, but the arm code
+notices when that's the last page in the memslot and the hva_end is
+getting aligned and the size is below one page.
 
-(Also, shouldn't the vDSO itself be marked as supporting CET?)
+> [35380.933345] [<ffff000008088f00>] dump_backtrace+0x0/0x22c
+> [35380.938723] [<ffff000008089150>] show_stack+0x24/0x2c
+> [35380.943759] [<ffff00000893c078>] dump_stack+0x8c/0xb0
+> [35380.948794] [<ffff00000820ab50>] bad_page+0xf4/0x154
+> [35380.953740] [<ffff000008211ce8>] free_pages_check_bad+0x90/0x9c
+> [35380.959642] [<ffff00000820c430>] free_pcppages_bulk+0x464/0x518
+> [35380.965545] [<ffff00000820db98>] free_hot_cold_page+0x22c/0x300
+> [35380.971448] [<ffff0000082176fc>] __put_page+0x54/0x60
+> [35380.976484] [<ffff0000080b1164>] unmap_stage2_range+0x170/0x2b4
+> [35380.982385] [<ffff0000080b12d8>] kvm_unmap_hva_handler+0x30/0x40
+> [35380.988375] [<ffff0000080b0104>] handle_hva_to_gpa+0xb0/0xec
+> [35380.994016] [<ffff0000080b2644>] kvm_unmap_hva_range+0x5c/0xd0
+> [35380.999833] [<ffff0000080a8054>] 
+> 
+> I even injected a fault on purpose in kvm_unmap_hva_range by seting
+> size=size-0x200, the call trace is similar as above.  So I thought the
+> panic is similarly caused by the root cause of WARN_ON.
+
+I think the problem triggers in the addr += PAGE_SIZE of
+unmap_stage2_ptes that never matches end because end is aligned but
+addr is not.
+
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+
+x86 again only works on hva_start/hva_end after converting it to
+gfn_start/end and that being in pfn units the bits are zapped before
+they risk to cause trouble.
+
+> 
+> Link: http://lkml.kernel.org/r/1525403506-6750-1-git-send-email-hejianet@gmail.com
+> Signed-off-by: Jia He <jia.he@hxt-semitech.com>
+> Cc: Suzuki K Poulose <Suzuki.Poulose@arm.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
+> Cc: Arvind Yadav <arvind.yadav.cs@gmail.com>
+> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Cc: Jia He <hejianet@gmail.com>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
