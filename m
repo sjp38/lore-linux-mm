@@ -1,84 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AFAF36B0003
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 09:32:29 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id j8-v6so5398829wrh.18
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 06:32:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 3-v6sor26583200wry.4.2018.06.07.06.32.27
+	by kanga.kvack.org (Postfix) with ESMTP id BE4856B0007
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 09:37:38 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k12-v6so5493917wrl.21
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 06:37:38 -0700 (PDT)
+Received: from baptiste.telenet-ops.be (baptiste.telenet-ops.be. [2a02:1800:120:4::f00:13])
+        by mx.google.com with ESMTPS id o15-v6si7239772wrh.142.2018.06.07.06.37.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 07 Jun 2018 06:32:27 -0700 (PDT)
-Date: Thu, 7 Jun 2018 15:32:25 +0200
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: Re: [PATCH 0/4] Small cleanup for memoryhotplug
-Message-ID: <20180607133225.GA11024@techadventures.net>
-References: <20180601125321.30652-1-osalvador@techadventures.net>
- <20180607114245.00001068@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jun 2018 06:37:37 -0700 (PDT)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Subject: [PATCH] xsk: Fix umem fill/completion queue mmap on 32-bit
+Date: Thu,  7 Jun 2018 15:37:34 +0200
+Message-Id: <1528378654-1484-1-git-send-email-geert@linux-m68k.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180607114245.00001068@huawei.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, pasha.tatashin@oracle.com, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.de>
+To: "David S . Miller" <davem@davemloft.net>, =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn.topel@intel.com>, Magnus Karlsson <magnus.karlsson@intel.com>, Alexei Starovoitov <ast@kernel.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>
 
-On Thu, Jun 07, 2018 at 11:42:45AM +0100, Jonathan Cameron wrote:
-> On Fri, 1 Jun 2018 14:53:17 +0200
-> <osalvador@techadventures.net> wrote:
-> 
-> > From: Oscar Salvador <osalvador@suse.de>
-> > 
-> > 
-> > Hi,
-> > 
-> > I wanted to give it a try and do a small cleanup in the memhotplug's code.
-> > A lot more could be done, but I wanted to start somewhere.
-> > I tried to unify/remove duplicated code.
-> > 
-> > The following is what this patchset does:
-> > 
-> > 1) add_memory_resource() has code to allocate a node in case it was offline.
-> >    Since try_online_node has some code for that as well, I just made add_memory_resource() to
-> >    use that so we can remove duplicated code..
-> >    This is better explained in patch 1/4.
-> > 
-> > 2) register_mem_sect_under_node() will be called only from link_mem_sections()
-> > 
-> > 3) Get rid of link_mem_sections() in favour of walk_memory_range() with a callback to
-> >    register_mem_sect_under_node()
-> > 
-> > 4) Drop unnecessary checks from register_mem_sect_under_node()
-> > 
-> > 
-> > I have done some tests and I could not see anything broken because of 
-> > this patchset.
-> Works fine with the patch set for arm64 I'm intermittently working on.
-> Or at least I don't need to make any additional changes on top of what I currently
-> have!
-> 
-> Tested-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+With gcc-4.1.2 on 32-bit:
 
-Thanks for having tested it Jonathan ;-)!
+    net/xdp/xsk.c:663: warning: integer constant is too large for a??longa?? type
+    net/xdp/xsk.c:665: warning: integer constant is too large for a??longa?? type
 
-> 
-> Thanks,
-> 
-> Jonathan
-> > 
-> > Oscar Salvador (4):
-> >   mm/memory_hotplug: Make add_memory_resource use __try_online_node
-> >   mm/memory_hotplug: Call register_mem_sect_under_node
-> >   mm/memory_hotplug: Get rid of link_mem_sections
-> >   mm/memory_hotplug: Drop unnecessary checks from
-> >     register_mem_sect_under_node
-> > 
-> >  drivers/base/memory.c |   2 -
-> >  drivers/base/node.c   |  52 +++++---------------------
-> >  include/linux/node.h  |  21 +++++------
-> >  mm/memory_hotplug.c   | 101 ++++++++++++++++++++++++++------------------------
-> >  4 files changed, 71 insertions(+), 105 deletions(-)
-> > 
-> 
-> 
+Add the missing "ULL" suffixes to the large XDP_UMEM_PGOFF_*_RING values
+to fix this.
+
+    net/xdp/xsk.c:663: warning: comparison is always false due to limited range of data type
+    net/xdp/xsk.c:665: warning: comparison is always false due to limited range of data type
+
+"unsigned long" is 32-bit on 32-bit systems, hence the offset is
+truncated, and can never be equal to any of the XDP_UMEM_PGOFF_*_RING
+values.  Use loff_t (and the required cast) to fix this.
+
+Fixes: 423f38329d267969 ("xsk: add umem fill queue support and mmap")
+Fixes: fe2308328cd2f26e ("xsk: add umem completion queue support and mmap")
+Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
+---
+Compile-tested only.
+---
+ include/uapi/linux/if_xdp.h | 4 ++--
+ net/xdp/xsk.c               | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/uapi/linux/if_xdp.h b/include/uapi/linux/if_xdp.h
+index 1fa0e977ea8d0224..caed8b1614ffc0aa 100644
+--- a/include/uapi/linux/if_xdp.h
++++ b/include/uapi/linux/if_xdp.h
+@@ -63,8 +63,8 @@ struct xdp_statistics {
+ /* Pgoff for mmaping the rings */
+ #define XDP_PGOFF_RX_RING			  0
+ #define XDP_PGOFF_TX_RING		 0x80000000
+-#define XDP_UMEM_PGOFF_FILL_RING	0x100000000
+-#define XDP_UMEM_PGOFF_COMPLETION_RING	0x180000000
++#define XDP_UMEM_PGOFF_FILL_RING	0x100000000ULL
++#define XDP_UMEM_PGOFF_COMPLETION_RING	0x180000000ULL
+ 
+ /* Rx/Tx descriptor */
+ struct xdp_desc {
+diff --git a/net/xdp/xsk.c b/net/xdp/xsk.c
+index c6ed2454f7ce55e8..36919a254ba370c3 100644
+--- a/net/xdp/xsk.c
++++ b/net/xdp/xsk.c
+@@ -643,7 +643,7 @@ static int xsk_getsockopt(struct socket *sock, int level, int optname,
+ static int xsk_mmap(struct file *file, struct socket *sock,
+ 		    struct vm_area_struct *vma)
+ {
+-	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
++	loff_t offset = (loff_t)vma->vm_pgoff << PAGE_SHIFT;
+ 	unsigned long size = vma->vm_end - vma->vm_start;
+ 	struct xdp_sock *xs = xdp_sk(sock->sk);
+ 	struct xsk_queue *q = NULL;
+-- 
+2.7.4
