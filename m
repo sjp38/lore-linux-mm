@@ -1,244 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 089F06B0007
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 00:42:31 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id k62-v6so5073995oiy.1
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 21:42:31 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A1FD6B0003
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 01:41:52 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y21-v6so4088325pfm.4
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 22:41:52 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c5-v6sor4371605otb.103.2018.06.06.21.42.29
+        by mx.google.com with SMTPS id u11-v6sor11254888plr.12.2018.06.06.22.41.50
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 06 Jun 2018 21:42:29 -0700 (PDT)
+        Wed, 06 Jun 2018 22:41:51 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <152815394224.39010.16927947197432406234.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152815394224.39010.16927947197432406234.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 6 Jun 2018 21:42:28 -0700
-Message-ID: <CAPcyv4jHV+2esMsoP-zDQ_kOCuWawN=V09nWYKuR7vht28p0=w@mail.gmail.com>
-Subject: Re: [PATCH v3 08/12] x86/memory_failure: Introduce {set, clear}_mce_nospec()
+In-Reply-To: <1528336942.3147.52.camel@intel.com>
+References: <201805210314.e6bdStHL%fengguang.wu@intel.com> <CACT4Y+bR+ywj_OtGDYiCp+PZ4MfdqfrXg5XQwN36uRnNCEHEZg@mail.gmail.com>
+ <831EE4E5E37DCC428EB295A351E662494CB5166D@shsmsx102.ccr.corp.intel.com>
+ <831EE4E5E37DCC428EB295A351E662494CB9C137@shsmsx102.ccr.corp.intel.com> <1528336942.3147.52.camel@intel.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 7 Jun 2018 07:41:29 +0200
+Message-ID: <CACT4Y+YgHaji6k-yxseGOqG4EQ0F4Oq1GOw5fPpRJccpaP2FhQ@mail.gmail.com>
+Subject: Re: FW: [kbuild-all] [linux-next:master 5885/8111]
+ /tmp/cc3gKKeM.s:35: Error: .err encountered
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm <linux-nvdimm@lists.01.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, X86 ML <x86@kernel.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>
+To: Chen Rong <rongx.a.chen@intel.com>
+Cc: kbuild test robot <lkp@intel.com>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org, Arnd Bergmann <arnd@arndb.de>
 
-On Mon, Jun 4, 2018 at 4:12 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> Currently memory_failure() returns zero if the error was handled. On
-> that result mce_unmap_kpfn() is called to zap the page out of the kernel
-> linear mapping to prevent speculative fetches of potentially poisoned
-> memory. However, in the case of dax mapped devmap pages the page may be
-> in active permanent use by the device driver, so it cannot be unmapped
-> from the kernel.
+On Thu, Jun 7, 2018 at 4:02 AM, Chen Rong <rongx.a.chen@intel.com> wrote:
+> Hi Dmitry,
 >
-> Instead of marking the page not present, marking the page UC should
-> be sufficient for preventing poison from being pre-fetched into the
-> cache. Convert mce_unmap_pfn() to set_mce_nospec() remapping the page as
-> UC, to hide it from speculative accesses.
->
-> Given that that persistent memory errors can be cleared by the driver,
-> include a facility to restore the page to cacheable operation,
-> clear_mce_nospec().
->
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Tony Luck <tony.luck@intel.com>
+> We have updated the make.cross. you could get the new one from https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross
+> and run the command "GCC_VERSION=7.2.0 make.cross ARCH=arm"
 
-Tony, safe to assume you are ok with this patch now that the
-decoy_addr approach is back?
+Do you mean that the script now reproduces this error?
 
-> Cc: Borislav Petkov <bp@alien8.de>
-> Cc: <linux-edac@vger.kernel.org>
-> Cc: <x86@kernel.org>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  arch/x86/include/asm/set_memory.h         |   42 +++++++++++++++++++++++++++++
->  arch/x86/kernel/cpu/mcheck/mce-internal.h |   15 ----------
->  arch/x86/kernel/cpu/mcheck/mce.c          |   38 ++------------------------
->  include/linux/set_memory.h                |   14 ++++++++++
->  4 files changed, 59 insertions(+), 50 deletions(-)
->
-> diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
-> index bd090367236c..cf5e9124b45e 100644
-> --- a/arch/x86/include/asm/set_memory.h
-> +++ b/arch/x86/include/asm/set_memory.h
-> @@ -88,4 +88,46 @@ extern int kernel_set_to_readonly;
->  void set_kernel_text_rw(void);
->  void set_kernel_text_ro(void);
->
-> +#ifdef CONFIG_X86_64
-> +static inline int set_mce_nospec(unsigned long pfn)
-> +{
-> +       unsigned long decoy_addr;
-> +       int rc;
-> +
-> +       /*
-> +        * Mark the linear address as UC to make sure we don't log more
-> +        * errors because of speculative access to the page.
-> +        * We would like to just call:
-> +        *      set_memory_uc((unsigned long)pfn_to_kaddr(pfn), 1);
-> +        * but doing that would radically increase the odds of a
-> +        * speculative access to the poison page because we'd have
-> +        * the virtual address of the kernel 1:1 mapping sitting
-> +        * around in registers.
-> +        * Instead we get tricky.  We create a non-canonical address
-> +        * that looks just like the one we want, but has bit 63 flipped.
-> +        * This relies on set_memory_uc() properly sanitizing any __pa()
-> +        * results with __PHYSICAL_MASK or PTE_PFN_MASK.
-> +        */
-> +       decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
-> +
-> +       rc = set_memory_uc(decoy_addr, 1);
-> +       if (rc)
-> +               pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
-> +       return rc;
-> +}
-> +#define set_mce_nospec set_mce_nospec
-> +
-> +/* Restore full speculative operation to the pfn. */
-> +static inline int clear_mce_nospec(unsigned long pfn)
-> +{
-> +       return set_memory_wb((unsigned long) pfn_to_kaddr(pfn), 1);
-> +}
-> +#define clear_mce_nospec clear_mce_nospec
-> +#else
-> +/*
-> + * Few people would run a 32-bit kernel on a machine that supports
-> + * recoverable errors because they have too much memory to boot 32-bit.
-> + */
-> +#endif
-> +
->  #endif /* _ASM_X86_SET_MEMORY_H */
-> diff --git a/arch/x86/kernel/cpu/mcheck/mce-internal.h b/arch/x86/kernel/cpu/mcheck/mce-internal.h
-> index 374d1aa66952..ceb67cd5918f 100644
-> --- a/arch/x86/kernel/cpu/mcheck/mce-internal.h
-> +++ b/arch/x86/kernel/cpu/mcheck/mce-internal.h
-> @@ -113,21 +113,6 @@ static inline void mce_register_injector_chain(struct notifier_block *nb)  { }
->  static inline void mce_unregister_injector_chain(struct notifier_block *nb)    { }
->  #endif
->
-> -#ifndef CONFIG_X86_64
-> -/*
-> - * On 32-bit systems it would be difficult to safely unmap a poison page
-> - * from the kernel 1:1 map because there are no non-canonical addresses that
-> - * we can use to refer to the address without risking a speculative access.
-> - * However, this isn't much of an issue because:
-> - * 1) Few unmappable pages are in the 1:1 map. Most are in HIGHMEM which
-> - *    are only mapped into the kernel as needed
-> - * 2) Few people would run a 32-bit kernel on a machine that supports
-> - *    recoverable errors because they have too much memory to boot 32-bit.
-> - */
-> -static inline void mce_unmap_kpfn(unsigned long pfn) {}
-> -#define mce_unmap_kpfn mce_unmap_kpfn
-> -#endif
-> -
->  struct mca_config {
->         bool dont_log_ce;
->         bool cmci_disabled;
-> diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
-> index 42cf2880d0ed..a0fbf0a8b7e6 100644
-> --- a/arch/x86/kernel/cpu/mcheck/mce.c
-> +++ b/arch/x86/kernel/cpu/mcheck/mce.c
-> @@ -42,6 +42,7 @@
->  #include <linux/irq_work.h>
->  #include <linux/export.h>
->  #include <linux/jump_label.h>
-> +#include <linux/set_memory.h>
->
->  #include <asm/intel-family.h>
->  #include <asm/processor.h>
-> @@ -50,7 +51,6 @@
->  #include <asm/mce.h>
->  #include <asm/msr.h>
->  #include <asm/reboot.h>
-> -#include <asm/set_memory.h>
->
->  #include "mce-internal.h"
->
-> @@ -108,10 +108,6 @@ static struct irq_work mce_irq_work;
->
->  static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
->
-> -#ifndef mce_unmap_kpfn
-> -static void mce_unmap_kpfn(unsigned long pfn);
-> -#endif
-> -
->  /*
->   * CPU/chipset specific EDAC code can register a notifier call here to print
->   * MCE errors in a human-readable form.
-> @@ -602,7 +598,7 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
->         if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
->                 pfn = mce->addr >> PAGE_SHIFT;
->                 if (!memory_failure(pfn, 0))
-> -                       mce_unmap_kpfn(pfn);
-> +                       set_mce_nospec(pfn);
->         }
->
->         return NOTIFY_OK;
-> @@ -1070,38 +1066,10 @@ static int do_memory_failure(struct mce *m)
->         if (ret)
->                 pr_err("Memory error not recovered");
->         else
-> -               mce_unmap_kpfn(m->addr >> PAGE_SHIFT);
-> +               set_mce_nospec(m->addr >> PAGE_SHIFT);
->         return ret;
->  }
->
-> -#ifndef mce_unmap_kpfn
-> -static void mce_unmap_kpfn(unsigned long pfn)
-> -{
-> -       unsigned long decoy_addr;
-> -
-> -       /*
-> -        * Unmap this page from the kernel 1:1 mappings to make sure
-> -        * we don't log more errors because of speculative access to
-> -        * the page.
-> -        * We would like to just call:
-> -        *      set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
-> -        * but doing that would radically increase the odds of a
-> -        * speculative access to the poison page because we'd have
-> -        * the virtual address of the kernel 1:1 mapping sitting
-> -        * around in registers.
-> -        * Instead we get tricky.  We create a non-canonical address
-> -        * that looks just like the one we want, but has bit 63 flipped.
-> -        * This relies on set_memory_np() not checking whether we passed
-> -        * a legal address.
-> -        */
-> -
-> -       decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
-> -
-> -       if (set_memory_np(decoy_addr, 1))
-> -               pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
-> -}
-> -#endif
-> -
->  /*
->   * The actual machine check handler. This only handles real
->   * exceptions when something got corrupted coming in through int 18.
-> diff --git a/include/linux/set_memory.h b/include/linux/set_memory.h
-> index da5178216da5..2a986d282a97 100644
-> --- a/include/linux/set_memory.h
-> +++ b/include/linux/set_memory.h
-> @@ -17,6 +17,20 @@ static inline int set_memory_x(unsigned long addr,  int numpages) { return 0; }
->  static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
->  #endif
->
-> +#ifndef set_mce_nospec
-> +static inline int set_mce_nospec(unsigned long pfn)
-> +{
-> +       return 0;
-> +}
-> +#endif
-> +
-> +#ifndef clear_mce_nospec
-> +static inline int clear_mce_nospec(unsigned long pfn)
-> +{
-> +       return 0;
-> +}
-> +#endif
-> +
->  #ifndef CONFIG_ARCH_HAS_MEM_ENCRYPT
->  static inline int set_memory_encrypted(unsigned long addr, int numpages)
->  {
->
+But I think that Arnd has fixed this with "ARM: disable KCOV for
+trusted foundations code" now:
+https://patchwork.kernel.org/patch/10434909/
+The failure mode he referenced matches reported here.
+
+
+>> -----Original Message-----
+>> From: kbuild-all [mailto:kbuild-all-bounces@lists.01.org] On Behalf Of Li, Philip
+>> Sent: Saturday, May 26, 2018 10:37 PM
+>> To: Dmitry Vyukov <dvyukov@google.com>; lkp <lkp@intel.com>
+>> Cc: Linux Memory Management List <linux-mm@kvack.org>; Andrew Morton <akpm@linux-foundation.org>; kbuild-all@01.org
+>> Subject: Re: [kbuild-all] [linux-next:master 5885/8111] /tmp/cc3gKKeM.s:35: Error: .err encountered
+>>
+>> > Subject: Re: [kbuild-all] [linux-next:master 5885/8111] /tmp/cc3gKKeM.s:35:
+>> > Error: .err encountered
+>> >
+>> > On Sun, May 20, 2018 at 9:15 PM, kbuild test robot <lkp@intel.com> wrote:
+>> > > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+>> > > head:   fbbe3b8c2c9c5f84caf668703c26154cb4fbb9d1
+>> > > commit: 3b67022379d3d0c6a5cc5152f6b46eeea635a194 [5885/8111] arm: port
+>> >
+>> > KCOV to arm
+>> > > config: arm-allmodconfig (attached as .config)
+>> > > compiler: arm-linux-gnueabi-gcc (Debian 7.2.0-11) 7.2.0
+>> > > reproduce:
+>> > >         wget https://raw.githubusercontent.com/intel/lkp-
+>> >
+>> > tests/master/sbin/make.cross -O ~/bin/make.cross
+>> > >         chmod +x ~/bin/make.cross
+>> > >         git checkout 3b67022379d3d0c6a5cc5152f6b46eeea635a194
+>> > >         # save the attached .config to linux build tree
+>> > >         make.cross ARCH=arm
+>> > >
+>> > > All errors (new ones prefixed by >>):
+>> > >
+>> > >    /tmp/cc3gKKeM.s: Assembler messages:
+>> > > > > /tmp/cc3gKKeM.s:35: Error: .err encountered
+>> > >
+>> > >    /tmp/cc3gKKeM.s:36: Error: .err encountered
+>> > >    /tmp/cc3gKKeM.s:37: Error: .err encountered
+>> >
+>> > I've tried to reproduce this following the instructions, but I failed,
+>>
+>> thanks for input, we will follow up this to see whether there's issue
+>> in bot side.
+>>
+>> > build succeeds for me:
+>> > https://www.spinics.net/lists/linux-mm/msg152336.html
+>> > _______________________________________________
+>> > kbuild-all mailing list
+>> > kbuild-all@lists.01.org
+>> > https://lists.01.org/mailman/listinfo/kbuild-all
+>>
+>> _______________________________________________
+>> kbuild-all mailing list
+>> kbuild-all@lists.01.org
+>> https://lists.01.org/mailman/listinfo/kbuild-all
