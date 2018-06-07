@@ -1,126 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3E46B0003
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 05:32:33 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id j14-v6so5198669wro.7
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 02:32:33 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j18-v6si4715805edf.15.2018.06.07.02.32.32
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 238206B0003
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 05:49:25 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id h18-v6so4392181wmb.8
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 02:49:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w81-v6sor312063wmw.26.2018.06.07.02.49.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Jun 2018 02:32:32 -0700 (PDT)
-Subject: Re: [PATCH] mremap: Remove LATENCY_LIMIT from mremap to reduce the
- number of TLB shootdowns
-References: <20180606183803.k7qaw2xnbvzshv34@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <2e3ad7ae-c65a-5b1d-d817-42b3549b93ed@suse.cz>
-Date: Thu, 7 Jun 2018 11:32:30 +0200
+        (Google Transport Security);
+        Thu, 07 Jun 2018 02:49:23 -0700 (PDT)
+Date: Thu, 7 Jun 2018 11:49:21 +0200
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: Re: kernel panic in reading /proc/kpageflags when enabling
+ RAM-simulated PMEM
+Message-ID: <20180607094921.GA8545@techadventures.net>
+References: <20180605005402.GA22975@hori1.linux.bs1.fc.nec.co.jp>
+ <20180605011836.GA32444@bombadil.infradead.org>
+ <20180605073500.GA23766@hori1.linux.bs1.fc.nec.co.jp>
+ <20180606051624.GA16021@hori1.linux.bs1.fc.nec.co.jp>
+ <20180606080408.GA31794@techadventures.net>
+ <20180606085319.GA32052@techadventures.net>
+ <20180606090630.GA27065@hori1.linux.bs1.fc.nec.co.jp>
+ <20180606092405.GA6562@hori1.linux.bs1.fc.nec.co.jp>
+ <20180607062218.GB22554@hori1.linux.bs1.fc.nec.co.jp>
+ <20180607065940.GA7334@techadventures.net>
 MIME-Version: 1.0
-In-Reply-To: <20180606183803.k7qaw2xnbvzshv34@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180607065940.GA7334@techadventures.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@intel.com>, mhocko@kernel.org, Aaron Lu <aaron.lu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Matthew Wilcox <willy@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>
 
-On 06/06/2018 08:38 PM, Mel Gorman wrote:
-> Commit 5d1904204c99 ("mremap: fix race between mremap() and page cleanning")
-> fixed races between mremap and other operations for both file-backed and
-> anonymous mappings. The file-backed was the most critical as it allowed the
-> possibility that data could be changed on a physical page after page_mkclean
-> returned which could trigger data loss or data integrity issues. A customer
-> reported that the cost of the TLBs for anonymous regressions was excessive
-> and resulting in a 30-50% drop in performance overall since this commit
-> on a microbenchmark. Unfortunately I neither have access to the test-case
-> nor can I describe what it does other than saying that mremap operations
-> dominate heavily.
-> 
-> This patch removes the LATENCY_LIMIT to handle TLB flushes on a PMD boundary
-> instead of every 64 pages to reduce the number of TLB shootdowns by a factor
-> of 8 in the ideal case. LATENCY_LIMIT was almost certainly used originally
-> to limit the PTL hold times but the latency savings are likely offset by
-> the cost of IPIs in many cases. This patch is not reported to completely
-> restore performance but gets it within an acceptable percentage. The given
-> metric here is simply described as "higher is better".
-> 
-> Baseline that was known good
-> 002:  Metric:       91.05
-> 004:  Metric:      109.45
-> 008:  Metric:       73.08
-> 016:  Metric:       58.14
-> 032:  Metric:       61.09
-> 064:  Metric:       57.76
-> 128:  Metric:       55.43
-> 
-> Current
-> 001:  Metric:       54.98
-> 002:  Metric:       56.56
-> 004:  Metric:       41.22
-> 008:  Metric:       35.96
-> 016:  Metric:       36.45
-> 032:  Metric:       35.71
-> 064:  Metric:       35.73
-> 128:  Metric:       34.96
-> 
-> With patch
-> 001:  Metric:       61.43
-> 002:  Metric:       81.64
-> 004:  Metric:       67.92
-> 008:  Metric:       51.67
-> 016:  Metric:       50.47
-> 032:  Metric:       52.29
-> 064:  Metric:       50.01
-> 128:  Metric:       49.04
-> 
-> So for low threads, it's not restored but for larger number of threads,
-> it's closer to the "known good" baseline.
-> 
-> Using a different mremap-intensive workload that is not representative of
-> the real workload there is little difference observed outside of noise in
-> the headline metrics However, the TLB shootdowns are reduced by 11% on
-> average and at the peak, TLB shootdowns were reduced by 21%. Interrupts
-> were sampled every second while the workload ran to get those figures.
-> It's known that the figures will vary as the non-representative load is
-> non-deterministic.
-> 
-> An alternative patch was posted that should have significantly reduced the
-> TLB flushes but unfortunately it does not perform as well as this version
-> on the customer test case. If revisited, the two patches can stack on top
-> of each other.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+On Thu, Jun 07, 2018 at 08:59:40AM +0200, Oscar Salvador wrote:
+> On Thu, Jun 07, 2018 at 06:22:19AM +0000, Naoya Horiguchi wrote:
+> > On Wed, Jun 06, 2018 at 09:24:05AM +0000, Horiguchi Naoya(a ?a?GBP c?'a1?) wrote:
+> > > On Wed, Jun 06, 2018 at 09:06:30AM +0000, Horiguchi Naoya(a ?a?GBP c?'a1?) wrote:
+> > > > On Wed, Jun 06, 2018 at 10:53:19AM +0200, Oscar Salvador wrote:
+> > > > > On Wed, Jun 06, 2018 at 10:04:08AM +0200, Oscar Salvador wrote:
+> > > > > > On Wed, Jun 06, 2018 at 05:16:24AM +0000, Naoya Horiguchi wrote:
+> > > > > > > On Tue, Jun 05, 2018 at 07:35:01AM +0000, Horiguchi Naoya(a ?a?GBP c?'a1?) wrote:
+> > > > > > > > On Mon, Jun 04, 2018 at 06:18:36PM -0700, Matthew Wilcox wrote:
+> > > > > > > > > On Tue, Jun 05, 2018 at 12:54:03AM +0000, Naoya Horiguchi wrote:
+> > > > > > > > > > Reproduction precedure is like this:
+> > > > > > > > > >  - enable RAM based PMEM (with a kernel boot parameter like memmap=1G!4G)
+> > > > > > > > > >  - read /proc/kpageflags (or call tools/vm/page-types with no arguments)
+> > > > > > > > > >  (- my kernel config is attached)
+> > > > > > > > > >
+> > > > > > > > > > I spent a few days on this, but didn't reach any solutions.
+> > > > > > > > > > So let me report this with some details below ...
+> > > > > > > > > >
+> > > > > > > > > > In the critial page request, stable_page_flags() is called with an argument
+> > > > > > > > > > page whose ->compound_head was somehow filled with '0xffffffffffffffff'.
+> > > > > > > > > > And compound_head() returns (struct page *)(head - 1), which explains the
+> > > > > > > > > > address 0xfffffffffffffffe in the above message.
+> > > > > > > > >
+> > > > > > > > > Hm.  compound_head shares with:
+> > > > > > > > >
+> > > > > > > > >                         struct list_head lru;
+> > > > > > > > >                                 struct list_head slab_list;     /* uses lru */
+> > > > > > > > >                                 struct {        /* Partial pages */
+> > > > > > > > >                                         struct page *next;
+> > > > > > > > >                         unsigned long _compound_pad_1;  /* compound_head */
+> > > > > > > > >                         unsigned long _pt_pad_1;        /* compound_head */
+> > > > > > > > >                         struct dev_pagemap *pgmap;
+> > > > > > > > >                 struct rcu_head rcu_head;
+> > > > > > > > >
+> > > > > > > > > None of them should be -1.
+> > > > > > > > >
+> > > > > > > > > > It seems that this kernel panic happens when reading kpageflags of pfn range
+> > > > > > > > > > [0xbffd7, 0xc0000), which coresponds to a 'reserved' range.
+> > > > > > > > > >
+> > > > > > > > > > [    0.000000] user-defined physical RAM map:
+> > > > > > > > > > [    0.000000] user: [mem 0x0000000000000000-0x000000000009fbff] usable
+> > > > > > > > > > [    0.000000] user: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+> > > > > > > > > > [    0.000000] user: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+> > > > > > > > > > [    0.000000] user: [mem 0x0000000000100000-0x00000000bffd6fff] usable
+> > > > > > > > > > [    0.000000] user: [mem 0x00000000bffd7000-0x00000000bfffffff] reserved
+> > > > > > > > > > [    0.000000] user: [mem 0x00000000feffc000-0x00000000feffffff] reserved
+> > > > > > > > > > [    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+> > > > > > > > > > [    0.000000] user: [mem 0x0000000100000000-0x000000013fffffff] persistent (type 12)
+> > > > > > > > > >
+> > > > > > > > > > So I guess 'memmap=' parameter might badly affect the memory initialization process.
+> > > > > > > > > >
+> > > > > > > > > > This problem doesn't reproduce on v4.17, so some pre-released patch introduces it.
+> > > > > > > > > > I hope this info helps you find the solution/workaround.
+> > > > > > > > >
+> > > > > > > > > Can you try bisecting this?  It could be one of my patches to reorder struct
+> > > > > > > > > page, or it could be one of Pavel's deferred page initialisation patches.
+> > > > > > > > > Or something else ;-)
+> > > > > > > >
+> > > > > > > > Thank you for the comment. I'm trying bisecting now, let you know the result later.
+> > > > > > > >
+> > > > > > > > And I found that my statement "not reproduce on v4.17" was wrong (I used
+> > > > > > > > different kvm guests, which made some different test condition and misguided me),
+> > > > > > > > this seems an older (at least < 4.15) bug.
+> > > > > > >
+> > > > > > > (Cc: Pavel)
+> > > > > > >
+> > > > > > > Bisection showed that the following commit introduced this issue:
+> > > > > > >
+> > > > > > >   commit f7f99100d8d95dbcf09e0216a143211e79418b9f
+> > > > > > >   Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+> > > > > > >   Date:   Wed Nov 15 17:36:44 2017 -0800
+> > > > > > >
+> > > > > > >       mm: stop zeroing memory during allocation in vmemmap
+> > > > > > >
+> > > > > > > This patch postpones struct page zeroing to later stage of memory initialization.
+> > > > > > > My kernel config disabled CONFIG_DEFERRED_STRUCT_PAGE_INIT so two callsites of
+> > > > > > > __init_single_page() were never reached. So in such case, struct pages populated
+> > > > > > > by vmemmap_pte_populate() could be left uninitialized?
+> > > > > > > And I'm not sure yet how this issue becomes visible with memmap= setting.
+> > > > > >
+> > > > > > I think that this becomes visible because memmap=x!y creates a persistent memory region:
+> > > > > >
+> > > > > > parse_memmap_one
+> > > > > > {
+> > > > > > 	...
+> > > > > >         } else if (*p == '!') {
+> > > > > >                 start_at = memparse(p+1, &p);
+> > > > > >                 e820__range_add(start_at, mem_size, E820_TYPE_PRAM);
+> > > > > > 	...
+> > > > > > }
+> > > > > >
+> > > > > > and this region it is not added neither in memblock.memory nor in memblock.reserved.
+> > > > > > Ranges in memblock.memory get zeroed in memmap_init_zone(), while memblock.reserved get zeroed
+> > > > > > in free_low_memory_core_early():
+> > > > > >
+> > > > > > static unsigned long __init free_low_memory_core_early(void)
+> > > > > > {
+> > > > > > 	...
+> > > > > > 	for_each_reserved_mem_region(i, &start, &end)
+> > > > > > 		reserve_bootmem_region(start, end);
+> > > > > > 	...
+> > > > > > }
+> > > > > >
+> > > > > >
+> > > > > > Maybe I am mistaken, but I think that persistent memory regions should be marked as reserved.
+> > > > > > A comment in do_mark_busy() suggests this:
+> > > > > >
+> > > > > > static bool __init do_mark_busy(enum e820_type type, struct resource *res)
+> > > > > > {
+> > > > > >
+> > > > > > 	...
+> > > > > >         /*
+> > > > > >          * Treat persistent memory like device memory, i.e. reserve it
+> > > > > >          * for exclusive use of a driver
+> > > > > >          */
+> > > > > > 	...
+> > > > > > }
+> > > > > >
+> > > > > >
+> > > > > > I wonder if something like this could work and if so, if it is right (i haven't tested it yet):
+> > > > > >
+> > > > > > diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+> > > > > > index 71c11ad5643e..3c9686ef74e5 100644
+> > > > > > --- a/arch/x86/kernel/e820.c
+> > > > > > +++ b/arch/x86/kernel/e820.c
+> > > > > > @@ -1247,6 +1247,11 @@ void __init e820__memblock_setup(void)
+> > > > > >                 if (end != (resource_size_t)end)
+> > > > > >                         continue;
+> > > > > >
+> > > > > > +               if (entry->type == E820_TYPE_PRAM || entry->type == E820_TYPE_PMEM) {
+> > > > > > +                       memblock_reserve(entry->addr, entry->size);
+> > > > > > +                       continue;
+> > > > > > +               }
+> > > > > > +
+> > > > > >                 if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
+> > > > > >                         continue;
+> > > > >
+> > > > > It does not seem to work, so the reasoning might be incorrect.
+> > > > 
+> > > > Thank you for the comment.
+> > > > 
+> > > > One note is that the memory region with "broken struct page" is a typical
+> > > > reserved region, not a pmem region. Strangely reading offset 0xbffd7 of
+> > > > /proc/kpageflags is OK if pmem region does not exist, but NG if pmem region exists.
+> > > > Reading the offset like 0x100000 (on pmem region) does not cause the crash,
+> > > > so pmem region seems properly set up.
+> > > > 
+> > > > [    0.000000] user-defined physical RAM map:
+> > > > [    0.000000] user: [mem 0x0000000000000000-0x000000000009fbff] usable
+> > > > [    0.000000] user: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+> > > > [    0.000000] user: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+> > > > [    0.000000] user: [mem 0x0000000000100000-0x00000000bffd6fff] usable
+> > > > [    0.000000] user: [mem 0x00000000bffd7000-0x00000000bfffffff] reserved   ===> "broken struct page" region
+> > > > [    0.000000] user: [mem 0x00000000feffc000-0x00000000feffffff] reserved
+> > > > [    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+> > > > [    0.000000] user: [mem 0x0000000100000000-0x000000013fffffff] persistent (type 12) => pmem region
+> > > > [    0.000000] user: [mem 0x0000000140000000-0x000000023fffffff] usable
+> > > > 
+> > > 
+> > > I have another note:
+> > > 
+> > > > My kernel config disabled CONFIG_DEFERRED_STRUCT_PAGE_INIT so two callsites of
+> > > > __init_single_page() were never reached. So in such case, struct pages populated
+> > > > by vmemmap_pte_populate() could be left uninitialized?
+> > > 
+> > > I quickly checked whether enabling CONFIG_DEFERRED_STRUCT_PAGE_INIT affect
+> > > the issue. And found that the kernel panic happens even with this config enabled.
+> > > So I'm still confused...
+> > 
+> > Let me share some new facts:
+> > 
+> > I gave accidentally an inconvenient memmap layout like 'memmap=1G!4G' in
+> > 2 NUMA node with 8 GB memory.
+> > While I didn't intended this, but 4GB is the address starting some memory
+> > block when no "memmap=" option is provided.
+> > 
+> >   (messages from free_area_init_nodes() for no "memmap=" case
+> >   [    0.000000] Early memory node ranges
+> >   [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009efff]
+> >   [    0.000000]   node   0: [mem 0x0000000000100000-0x00000000bffd6fff]
+> >   [    0.000000]   node   0: [mem 0x0000000100000000-0x000000013fffffff] // <---
+> >   [    0.000000]   node   1: [mem 0x0000000140000000-0x000000023fffffff]
+> > 
+> > When "memmap=1G!4G" is given, the range [0x0000000100000000-0x000000013fffffff]
+> > disappears and kernel messages are like below:
+> > 
+> >   (messages from free_area_init_nodes() for "memmap=1G!4G" case
+> >   [    0.000000] Early memory node ranges
+> >   [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009efff]
+> >   [    0.000000]   node   0: [mem 0x0000000000100000-0x00000000bffd6fff]
+> >   [    0.000000]   node   1: [mem 0x0000000140000000-0x000000023fffffff]
+> > 
+> > This makes kernel think that the end pfn of node 0 is 0 0xbffd7
+> > instead of 0x140000, which affects the memory initialization process.
+> > memmap_init_zone() calls __init_single_page() for each page within a zone,
+> > so if zone->spanned_pages are underestimated, some pages are left uninitialized.
+> > 
+> > If I provide 'memmap=1G!7G', the kernel panic does not reproduce and
+> > kernel messages are like below.
+> >   
+> >   (messages from free_area_init_nodes() for "memmap=1G!7G" case
+> >   [    0.000000] Early memory node ranges
+> >   [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009efff]
+> >   [    0.000000]   node   0: [mem 0x0000000000100000-0x00000000bffd6fff]
+> >   [    0.000000]   node   0: [mem 0x0000000100000000-0x000000013fffffff]
+> >   [    0.000000]   node   1: [mem 0x0000000140000000-0x00000001bfffffff]
+> >   [    0.000000]   node   1: [mem 0x0000000200000000-0x000000023fffffff]
+> > 
+> > 
+> > I think that in order to fix this, we need some conditions and/or prechecks
+> > for memblock layout, does it make sense? Or any other better approaches?
 
-Yeah, I doubt the PTL hold times will be a problem. OTOH this should
-ultimately reduce the mmap_sem write hold time.
+Could you share the "e820: BIOS-provided physical RAM map" and "e820: user-defined physical RAM map"
+output with both memmap= args (1G!4G and 1G!7G)?
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/mremap.c | 4 ----
->  1 file changed, 4 deletions(-)
-> 
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index 049470aa1e3e..5c2e18505f75 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -191,8 +191,6 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
->  		drop_rmap_locks(vma);
->  }
->  
-> -#define LATENCY_LIMIT	(64 * PAGE_SIZE)
-> -
->  unsigned long move_page_tables(struct vm_area_struct *vma,
->  		unsigned long old_addr, struct vm_area_struct *new_vma,
->  		unsigned long new_addr, unsigned long len,
-> @@ -247,8 +245,6 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
->  		next = (new_addr + PMD_SIZE) & PMD_MASK;
->  		if (extent > next - new_addr)
->  			extent = next - new_addr;
-> -		if (extent > LATENCY_LIMIT)
-> -			extent = LATENCY_LIMIT;
->  		move_ptes(vma, old_pmd, old_addr, old_addr + extent, new_vma,
->  			  new_pmd, new_addr, need_rmap_locks, &need_flush);
->  	}
-> 
+thanks
+Oscar Salvador
