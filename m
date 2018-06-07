@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 827746B0269
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 10:40:42 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id j13-v6so3573517pgp.16
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 07:40:42 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ACD206B026B
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 10:40:43 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e7-v6so4626550pfi.8
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 07:40:43 -0700 (PDT)
 Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
         by mx.google.com with ESMTPS id b60-v6si54342625plc.270.2018.06.07.07.40.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 07:40:41 -0700 (PDT)
+        Thu, 07 Jun 2018 07:40:42 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH 2/9] x86/cet: Add Kconfig option for user-mode shadow stack
-Date: Thu,  7 Jun 2018 07:36:58 -0700
-Message-Id: <20180607143705.3531-3-yu-cheng.yu@intel.com>
+Subject: [PATCH 3/9] mm: Introduce VM_SHSTK for shadow stack memory
+Date: Thu,  7 Jun 2018 07:36:59 -0700
+Message-Id: <20180607143705.3531-4-yu-cheng.yu@intel.com>
 In-Reply-To: <20180607143705.3531-1-yu-cheng.yu@intel.com>
 References: <20180607143705.3531-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,65 +20,70 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Mike Kravetz <mike.kravetz@oracle.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-Introduce Kconfig option X86_INTEL_SHADOW_STACK_USER.
+VM_SHSTK indicates a shadow stack memory area.
 
-An application has shadow stack protection when all the following are
-true:
+A shadow stack PTE must be read-only and dirty.  For non shadow
+stack, we use a spare bit of the 64-bit PTE for dirty.  The PTE
+changes are in the next patch.
 
-  (1) The kernel has X86_INTEL_SHADOW_STACK_USER enabled,
-  (2) The running processor supports the shadow stack,
-  (3) The application is built with shadow stack enabled tools & libs
-      and, and at runtime, all dependent shared libs can support shadow
-      stack.
-
-If this kernel config option is enabled, but (2) or (3) above is not
-true, the application runs without the shadow stack protection.
-Existing legacy applications will continue to work without the shadow
-stack protection.
-
-The user-mode shadow stack protection is only implemented for the
-64-bit kernel.  Thirty-two bit applications are supported under the
-compatibility mode.
+There is no more spare bit in the 32-bit PTE (except for PAE) and
+the shadow stack is not implemented for the 32-bit kernel.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/Kconfig | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ include/linux/mm.h | 8 ++++++++
+ mm/internal.h      | 8 ++++++++
+ 2 files changed, 16 insertions(+)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index c07f492b871a..dd580d4910fc 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1925,6 +1925,30 @@ config X86_INTEL_MEMORY_PROTECTION_KEYS
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 02a616e2f17d..bf4388a8cc41 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -221,11 +221,13 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
+ #define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
+ #define VM_HIGH_ARCH_BIT_4	36	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_BIT_5	37	/* bit only usable on 64-bit architectures */
+ #define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
+ #define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
+ #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
+ #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
+ #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
++#define VM_HIGH_ARCH_5	BIT(VM_HIGH_ARCH_BIT_5)
+ #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
  
- 	  If unsure, say y.
+ #if defined(CONFIG_X86)
+@@ -257,6 +259,12 @@ extern unsigned int kobjsize(const void *objp);
+ # define VM_MPX		VM_NONE
+ #endif
  
-+config X86_INTEL_CET
-+	def_bool n
++#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
++# define VM_SHSTK	VM_HIGH_ARCH_5
++#else
++# define VM_SHSTK	VM_NONE
++#endif
 +
-+config ARCH_HAS_SHSTK
-+	def_bool n
+ #ifndef VM_GROWSUP
+ # define VM_GROWSUP	VM_NONE
+ #endif
+diff --git a/mm/internal.h b/mm/internal.h
+index 502d14189794..44c64711a309 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -280,6 +280,14 @@ static inline bool is_data_mapping(vm_flags_t flags)
+ 	return (flags & (VM_WRITE | VM_SHARED | VM_STACK)) == VM_WRITE;
+ }
+ 
++/*
++ * Shadow stack area
++ */
++static inline bool is_shstk_mapping(vm_flags_t flags)
++{
++	return (flags & VM_SHSTK);
++}
 +
-+config X86_INTEL_SHADOW_STACK_USER
-+	prompt "Intel Shadow Stack for user-mode"
-+	def_bool n
-+	depends on CPU_SUP_INTEL && X86_64
-+	select X86_INTEL_CET
-+	select ARCH_HAS_SHSTK
-+	---help---
-+	  Shadow stack provides hardware protection against program stack
-+	  corruption.  Only when all the following are true will an application
-+	  have the shadow stack protection: the kernel supports it (i.e. this
-+	  feature is enabled), the application is compiled and linked with
-+	  shadow stack enabled, and the processor supports this feature.
-+	  When the kernel has this configuration enabled, existing non shadow
-+	  stack applications will continue to work, but without shadow stack
-+	  protection.
-+
-+	  If unsure, say y.
-+
- config EFI
- 	bool "EFI runtime service support"
- 	depends on ACPI
+ /* mm/util.c */
+ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		struct vm_area_struct *prev, struct rb_node *rb_parent);
 -- 
 2.15.1
