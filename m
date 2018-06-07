@@ -1,274 +1,244 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D8A76B0003
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 00:22:51 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id v71-v6so3917529oie.20
-        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 21:22:51 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 089F06B0007
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 00:42:31 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id k62-v6so5073995oiy.1
+        for <linux-mm@kvack.org>; Wed, 06 Jun 2018 21:42:31 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f67-v6sor4265904oia.136.2018.06.06.21.22.49
+        by mx.google.com with SMTPS id c5-v6sor4371605otb.103.2018.06.06.21.42.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 06 Jun 2018 21:22:49 -0700 (PDT)
+        Wed, 06 Jun 2018 21:42:29 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <152815395775.39010.9355109660470832490.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <152815394224.39010.16927947197432406234.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152815395775.39010.9355109660470832490.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152815394224.39010.16927947197432406234.stgit@dwillia2-desk3.amr.corp.intel.com>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 6 Jun 2018 21:22:48 -0700
-Message-ID: <CAPcyv4hPTqE0ODM7isZxcE6cbB3X4E6fbVR19fvWT3K77mPSLA@mail.gmail.com>
-Subject: Re: [PATCH v3 11/12] mm, memory_failure: Teach memory_failure() about
- dev_pagemap pages
+Date: Wed, 6 Jun 2018 21:42:28 -0700
+Message-ID: <CAPcyv4jHV+2esMsoP-zDQ_kOCuWawN=V09nWYKuR7vht28p0=w@mail.gmail.com>
+Subject: Re: [PATCH v3 08/12] x86/memory_failure: Introduce {set, clear}_mce_nospec()
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm <linux-nvdimm@lists.01.org>
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, X86 ML <x86@kernel.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>
 
-On Mon, Jun 4, 2018 at 4:12 PM, Dan Williams <dan.j.williams@intel.com> wro=
-te:
->     mce: Uncorrected hardware memory error in user-access at af34214200
->     {1}[Hardware Error]: It has been corrected by h/w and requires no fur=
-ther action
->     mce: [Hardware Error]: Machine check events logged
->     {1}[Hardware Error]: event severity: corrected
->     Memory failure: 0xaf34214: reserved kernel page still referenced by 1=
- users
->     [..]
->     Memory failure: 0xaf34214: recovery action for reserved kernel page: =
-Failed
->     mce: Memory error not recovered
+On Mon, Jun 4, 2018 at 4:12 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> Currently memory_failure() returns zero if the error was handled. On
+> that result mce_unmap_kpfn() is called to zap the page out of the kernel
+> linear mapping to prevent speculative fetches of potentially poisoned
+> memory. However, in the case of dax mapped devmap pages the page may be
+> in active permanent use by the device driver, so it cannot be unmapped
+> from the kernel.
 >
-> In contrast to typical memory, dev_pagemap pages may be dax mapped. With
-> dax there is no possibility to map in another page dynamically since dax
-> establishes 1:1 physical address to file offset associations. Also
-> dev_pagemap pages associated with NVDIMM / persistent memory devices can
-> internal remap/repair addresses with poison. While memory_failure()
-> assumes that it can discard typical poisoned pages and keep them
-> unmapped indefinitely, dev_pagemap pages may be returned to service
-> after the error is cleared.
+> Instead of marking the page not present, marking the page UC should
+> be sufficient for preventing poison from being pre-fetched into the
+> cache. Convert mce_unmap_pfn() to set_mce_nospec() remapping the page as
+> UC, to hide it from speculative accesses.
 >
-> Teach memory_failure() to detect and handle MEMORY_DEVICE_HOST
-> dev_pagemap pages that have poison consumed by userspace. Mark the
-> memory as UC instead of unmapping it completely to allow ongoing access
-> via the device driver (nd_pmem). Later, nd_pmem will grow support for
-> marking the page back to WB when the error is cleared.
+> Given that that persistent memory errors can be cleared by the driver,
+> include a facility to restore the page to cacheable operation,
+> clear_mce_nospec().
 >
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Tony Luck <tony.luck@intel.com>
 
-Naoya, your thoughts on this patch? It is passing my unit tests for
-filesystem-dax and device-dax.
+Tony, safe to assume you are ok with this patch now that the
+decoy_addr approach is back?
 
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: <linux-edac@vger.kernel.org>
+> Cc: <x86@kernel.org>
 > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 > ---
->  include/linux/mm.h  |    1
->  mm/memory-failure.c |  145 +++++++++++++++++++++++++++++++++++++++++++++=
-++++++
->  2 files changed, 146 insertions(+)
+>  arch/x86/include/asm/set_memory.h         |   42 +++++++++++++++++++++++++++++
+>  arch/x86/kernel/cpu/mcheck/mce-internal.h |   15 ----------
+>  arch/x86/kernel/cpu/mcheck/mce.c          |   38 ++------------------------
+>  include/linux/set_memory.h                |   14 ++++++++++
+>  4 files changed, 59 insertions(+), 50 deletions(-)
 >
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 1ac1f06a4be6..566c972e03e7 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2669,6 +2669,7 @@ enum mf_action_page_type {
->         MF_MSG_TRUNCATED_LRU,
->         MF_MSG_BUDDY,
->         MF_MSG_BUDDY_2ND,
-> +       MF_MSG_DAX,
->         MF_MSG_UNKNOWN,
->  };
+> diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
+> index bd090367236c..cf5e9124b45e 100644
+> --- a/arch/x86/include/asm/set_memory.h
+> +++ b/arch/x86/include/asm/set_memory.h
+> @@ -88,4 +88,46 @@ extern int kernel_set_to_readonly;
+>  void set_kernel_text_rw(void);
+>  void set_kernel_text_ro(void);
 >
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index b6efb78ba49b..de0bc897d6e7 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -55,6 +55,7 @@
->  #include <linux/hugetlb.h>
->  #include <linux/memory_hotplug.h>
->  #include <linux/mm_inline.h>
-> +#include <linux/memremap.h>
->  #include <linux/kfifo.h>
->  #include <linux/ratelimit.h>
->  #include "internal.h"
-> @@ -531,6 +532,7 @@ static const char * const action_page_types[] =3D {
->         [MF_MSG_TRUNCATED_LRU]          =3D "already truncated LRU page",
->         [MF_MSG_BUDDY]                  =3D "free buddy page",
->         [MF_MSG_BUDDY_2ND]              =3D "free buddy page (2nd try)",
-> +       [MF_MSG_DAX]                    =3D "dax page",
->         [MF_MSG_UNKNOWN]                =3D "unknown page",
->  };
->
-> @@ -1132,6 +1134,144 @@ static int memory_failure_hugetlb(unsigned long p=
-fn, int flags)
->         return res;
->  }
->
-> +static unsigned long dax_mapping_size(struct address_space *mapping,
-> +               struct page *page)
+> +#ifdef CONFIG_X86_64
+> +static inline int set_mce_nospec(unsigned long pfn)
 > +{
-> +       pgoff_t pgoff =3D page_to_pgoff(page);
-> +       struct vm_area_struct *vma;
-> +       unsigned long size =3D 0;
-> +
-> +       i_mmap_lock_read(mapping);
-> +       xa_lock_irq(&mapping->i_pages);
-> +       /* validate that @page is still linked to @mapping */
-> +       if (page->mapping !=3D mapping) {
-> +               xa_unlock_irq(&mapping->i_pages);
-> +               i_mmap_unlock_read(mapping);
-> +                       return 0;
-> +       }
-> +       vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
-> +               unsigned long address =3D vma_address(page, vma);
-> +               pgd_t *pgd;
-> +               p4d_t *p4d;
-> +               pud_t *pud;
-> +               pmd_t *pmd;
-> +               pte_t *pte;
-> +
-> +               pgd =3D pgd_offset(vma->vm_mm, address);
-> +               if (!pgd_present(*pgd))
-> +                       continue;
-> +               p4d =3D p4d_offset(pgd, address);
-> +               if (!p4d_present(*p4d))
-> +                       continue;
-> +               pud =3D pud_offset(p4d, address);
-> +               if (!pud_present(*pud))
-> +                       continue;
-> +               if (pud_devmap(*pud)) {
-> +                       size =3D PUD_SIZE;
-> +                       break;
-> +               }
-> +               pmd =3D pmd_offset(pud, address);
-> +               if (!pmd_present(*pmd))
-> +                       continue;
-> +               if (pmd_devmap(*pmd)) {
-> +                       size =3D PMD_SIZE;
-> +                       break;
-> +               }
-> +               pte =3D pte_offset_map(pmd, address);
-> +               if (!pte_present(*pte))
-> +                       continue;
-> +               if (pte_devmap(*pte)) {
-> +                       size =3D PAGE_SIZE;
-> +                       break;
-> +               }
-> +       }
-> +       xa_unlock_irq(&mapping->i_pages);
-> +       i_mmap_unlock_read(mapping);
-> +
-> +       return size;
-> +}
-> +
-> +static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
-> +               struct dev_pagemap *pgmap)
-> +{
-> +       struct page *page =3D pfn_to_page(pfn);
-> +       const bool unmap_success =3D true;
-> +       struct address_space *mapping;
-> +       unsigned long size;
-> +       LIST_HEAD(tokill);
-> +       int rc =3D -EBUSY;
-> +       loff_t start;
+> +       unsigned long decoy_addr;
+> +       int rc;
 > +
 > +       /*
-> +        * Prevent the inode from being freed while we are interrogating
-> +        * the address_space, typically this would be handled by
-> +        * lock_page(), but dax pages do not use the page lock.
+> +        * Mark the linear address as UC to make sure we don't log more
+> +        * errors because of speculative access to the page.
+> +        * We would like to just call:
+> +        *      set_memory_uc((unsigned long)pfn_to_kaddr(pfn), 1);
+> +        * but doing that would radically increase the odds of a
+> +        * speculative access to the poison page because we'd have
+> +        * the virtual address of the kernel 1:1 mapping sitting
+> +        * around in registers.
+> +        * Instead we get tricky.  We create a non-canonical address
+> +        * that looks just like the one we want, but has bit 63 flipped.
+> +        * This relies on set_memory_uc() properly sanitizing any __pa()
+> +        * results with __PHYSICAL_MASK or PTE_PFN_MASK.
 > +        */
-> +       rcu_read_lock();
-> +       mapping =3D page->mapping;
-> +       if (!mapping) {
-> +               rcu_read_unlock();
-> +               goto out;
-> +       }
-> +       if (!igrab(mapping->host)) {
-> +               mapping =3D NULL;
-> +               rcu_read_unlock();
-> +               goto out;
-> +       }
-> +       rcu_read_unlock();
+> +       decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
 > +
-> +       if (hwpoison_filter(page)) {
-> +               rc =3D 0;
-> +               goto out;
-> +       }
-> +
-> +       switch (pgmap->type) {
-> +       case MEMORY_DEVICE_PRIVATE:
-> +       case MEMORY_DEVICE_PUBLIC:
-> +               /*
-> +                * TODO: Handle HMM pages which may need coordination
-> +                * with device-side memory.
-> +                */
-> +               goto out;
-> +       default:
-> +               break;
-> +       }
-> +
-> +       /*
-> +        * If the page is not mapped in userspace then report it as
-> +        * unhandled.
-> +        */
-> +       size =3D dax_mapping_size(mapping, page);
-> +       if (!size) {
-> +               pr_err("Memory failure: %#lx: failed to unmap page\n", pf=
-n);
-> +               goto out;
-> +       }
-> +
-> +       SetPageHWPoison(page);
-> +
-> +       /*
-> +        * Unlike System-RAM there is no possibility to swap in a
-> +        * different physical page at a given virtual address, so all
-> +        * userspace consumption of ZONE_DEVICE memory necessitates
-> +        * SIGBUS (i.e. MF_MUST_KILL)
-> +        */
-> +       flags |=3D MF_ACTION_REQUIRED | MF_MUST_KILL;
-> +       collect_procs(mapping, page, &tokill, flags & MF_ACTION_REQUIRED)=
-;
-> +
-> +       start =3D (page->index << PAGE_SHIFT) & ~(size - 1);
-> +       unmap_mapping_range(page->mapping, start, start + size, 0);
-> +
-> +       kill_procs(&tokill, flags & MF_MUST_KILL, !unmap_success, ilog2(s=
-ize),
-> +                       mapping, page, flags);
-> +       rc =3D 0;
-> +out:
-> +       if (mapping)
-> +               iput(mapping->host);
-> +       put_dev_pagemap(pgmap);
-> +       action_result(pfn, MF_MSG_DAX, rc ? MF_FAILED : MF_RECOVERED);
+> +       rc = set_memory_uc(decoy_addr, 1);
+> +       if (rc)
+> +               pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
 > +       return rc;
 > +}
+> +#define set_mce_nospec set_mce_nospec
 > +
->  /**
->   * memory_failure - Handle memory failure of a page.
->   * @pfn: Page Number of the corrupted page
-> @@ -1154,6 +1294,7 @@ int memory_failure(unsigned long pfn, int flags)
->         struct page *p;
->         struct page *hpage;
->         struct page *orig_head;
-> +       struct dev_pagemap *pgmap;
->         int res;
->         unsigned long page_flags;
+> +/* Restore full speculative operation to the pfn. */
+> +static inline int clear_mce_nospec(unsigned long pfn)
+> +{
+> +       return set_memory_wb((unsigned long) pfn_to_kaddr(pfn), 1);
+> +}
+> +#define clear_mce_nospec clear_mce_nospec
+> +#else
+> +/*
+> + * Few people would run a 32-bit kernel on a machine that supports
+> + * recoverable errors because they have too much memory to boot 32-bit.
+> + */
+> +#endif
+> +
+>  #endif /* _ASM_X86_SET_MEMORY_H */
+> diff --git a/arch/x86/kernel/cpu/mcheck/mce-internal.h b/arch/x86/kernel/cpu/mcheck/mce-internal.h
+> index 374d1aa66952..ceb67cd5918f 100644
+> --- a/arch/x86/kernel/cpu/mcheck/mce-internal.h
+> +++ b/arch/x86/kernel/cpu/mcheck/mce-internal.h
+> @@ -113,21 +113,6 @@ static inline void mce_register_injector_chain(struct notifier_block *nb)  { }
+>  static inline void mce_unregister_injector_chain(struct notifier_block *nb)    { }
+>  #endif
 >
-> @@ -1166,6 +1307,10 @@ int memory_failure(unsigned long pfn, int flags)
->                 return -ENXIO;
+> -#ifndef CONFIG_X86_64
+> -/*
+> - * On 32-bit systems it would be difficult to safely unmap a poison page
+> - * from the kernel 1:1 map because there are no non-canonical addresses that
+> - * we can use to refer to the address without risking a speculative access.
+> - * However, this isn't much of an issue because:
+> - * 1) Few unmappable pages are in the 1:1 map. Most are in HIGHMEM which
+> - *    are only mapped into the kernel as needed
+> - * 2) Few people would run a 32-bit kernel on a machine that supports
+> - *    recoverable errors because they have too much memory to boot 32-bit.
+> - */
+> -static inline void mce_unmap_kpfn(unsigned long pfn) {}
+> -#define mce_unmap_kpfn mce_unmap_kpfn
+> -#endif
+> -
+>  struct mca_config {
+>         bool dont_log_ce;
+>         bool cmci_disabled;
+> diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+> index 42cf2880d0ed..a0fbf0a8b7e6 100644
+> --- a/arch/x86/kernel/cpu/mcheck/mce.c
+> +++ b/arch/x86/kernel/cpu/mcheck/mce.c
+> @@ -42,6 +42,7 @@
+>  #include <linux/irq_work.h>
+>  #include <linux/export.h>
+>  #include <linux/jump_label.h>
+> +#include <linux/set_memory.h>
+>
+>  #include <asm/intel-family.h>
+>  #include <asm/processor.h>
+> @@ -50,7 +51,6 @@
+>  #include <asm/mce.h>
+>  #include <asm/msr.h>
+>  #include <asm/reboot.h>
+> -#include <asm/set_memory.h>
+>
+>  #include "mce-internal.h"
+>
+> @@ -108,10 +108,6 @@ static struct irq_work mce_irq_work;
+>
+>  static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
+>
+> -#ifndef mce_unmap_kpfn
+> -static void mce_unmap_kpfn(unsigned long pfn);
+> -#endif
+> -
+>  /*
+>   * CPU/chipset specific EDAC code can register a notifier call here to print
+>   * MCE errors in a human-readable form.
+> @@ -602,7 +598,7 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
+>         if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
+>                 pfn = mce->addr >> PAGE_SHIFT;
+>                 if (!memory_failure(pfn, 0))
+> -                       mce_unmap_kpfn(pfn);
+> +                       set_mce_nospec(pfn);
 >         }
 >
-> +       pgmap =3D get_dev_pagemap(pfn, NULL);
-> +       if (pgmap)
-> +               return memory_failure_dev_pagemap(pfn, flags, pgmap);
+>         return NOTIFY_OK;
+> @@ -1070,38 +1066,10 @@ static int do_memory_failure(struct mce *m)
+>         if (ret)
+>                 pr_err("Memory error not recovered");
+>         else
+> -               mce_unmap_kpfn(m->addr >> PAGE_SHIFT);
+> +               set_mce_nospec(m->addr >> PAGE_SHIFT);
+>         return ret;
+>  }
+>
+> -#ifndef mce_unmap_kpfn
+> -static void mce_unmap_kpfn(unsigned long pfn)
+> -{
+> -       unsigned long decoy_addr;
+> -
+> -       /*
+> -        * Unmap this page from the kernel 1:1 mappings to make sure
+> -        * we don't log more errors because of speculative access to
+> -        * the page.
+> -        * We would like to just call:
+> -        *      set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
+> -        * but doing that would radically increase the odds of a
+> -        * speculative access to the poison page because we'd have
+> -        * the virtual address of the kernel 1:1 mapping sitting
+> -        * around in registers.
+> -        * Instead we get tricky.  We create a non-canonical address
+> -        * that looks just like the one we want, but has bit 63 flipped.
+> -        * This relies on set_memory_np() not checking whether we passed
+> -        * a legal address.
+> -        */
+> -
+> -       decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
+> -
+> -       if (set_memory_np(decoy_addr, 1))
+> -               pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
+> -}
+> -#endif
+> -
+>  /*
+>   * The actual machine check handler. This only handles real
+>   * exceptions when something got corrupted coming in through int 18.
+> diff --git a/include/linux/set_memory.h b/include/linux/set_memory.h
+> index da5178216da5..2a986d282a97 100644
+> --- a/include/linux/set_memory.h
+> +++ b/include/linux/set_memory.h
+> @@ -17,6 +17,20 @@ static inline int set_memory_x(unsigned long addr,  int numpages) { return 0; }
+>  static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
+>  #endif
+>
+> +#ifndef set_mce_nospec
+> +static inline int set_mce_nospec(unsigned long pfn)
+> +{
+> +       return 0;
+> +}
+> +#endif
 > +
->         p =3D pfn_to_page(pfn);
->         if (PageHuge(p))
->                 return memory_failure_hugetlb(pfn, flags);
+> +#ifndef clear_mce_nospec
+> +static inline int clear_mce_nospec(unsigned long pfn)
+> +{
+> +       return 0;
+> +}
+> +#endif
+> +
+>  #ifndef CONFIG_ARCH_HAS_MEM_ENCRYPT
+>  static inline int set_memory_encrypted(unsigned long addr, int numpages)
+>  {
 >
