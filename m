@@ -1,78 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F17B6B02A4
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 10:57:28 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id j25-v6so3562768pfi.9
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 07:57:28 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v1-v6si1825227ply.458.2018.06.07.07.57.26
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D5D686B000C
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 11:39:02 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id z20-v6so3631238pgv.17
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 08:39:02 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id t12-v6si21851128pgp.565.2018.06.07.08.39.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Jun 2018 07:57:27 -0700 (PDT)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 6/6] Convert intel uncore to struct_size
-Date: Thu,  7 Jun 2018 07:57:20 -0700
-Message-Id: <20180607145720.22590-7-willy@infradead.org>
-In-Reply-To: <20180607145720.22590-1-willy@infradead.org>
-References: <20180607145720.22590-1-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jun 2018 08:39:00 -0700 (PDT)
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 2C7EA208AC
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 15:39:00 +0000 (UTC)
+Received: by mail-io0-f172.google.com with SMTP id r24-v6so12310746ioh.9
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 08:39:00 -0700 (PDT)
+MIME-Version: 1.0
+References: <20180607143544.3477-1-yu-cheng.yu@intel.com> <20180607143544.3477-3-yu-cheng.yu@intel.com>
+In-Reply-To: <20180607143544.3477-3-yu-cheng.yu@intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Thu, 7 Jun 2018 08:38:47 -0700
+Message-ID: <CALCETrXAx4vBUxf3VaePNm3HHLZkdTFAR9TV0T+A-jb2QL7Uag@mail.gmail.com>
+Subject: Re: [PATCH 2/5] x86/fpu/xstate: Change some names to separate XSAVES
+ system and user states
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+On Thu, Jun 7, 2018 at 7:40 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+>
+> To support XSAVES system states, change some names to distinguish
+> user and system states.
+>
+> Change:
+>   supervisor to system
+>   copy_init_fpstate_to_fpregs() to copy_init_fpstate_user_settings_to_fpregs()
+>   xfeatures_mask to xfeatures_mask_user
+>   XCNTXT_MASK to SUPPORTED_XFEATURES_MASK (states supported)
 
-Need to do a bit of rearranging to make this work.
+How about copy_init_user_fpstate_to_fpregs()?  It's shorter and more
+to the point.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- arch/x86/events/intel/uncore.c | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
-
-diff --git a/arch/x86/events/intel/uncore.c b/arch/x86/events/intel/uncore.c
-index 15b07379e72d..e15cfad4f89b 100644
---- a/arch/x86/events/intel/uncore.c
-+++ b/arch/x86/events/intel/uncore.c
-@@ -865,8 +865,6 @@ static void uncore_types_exit(struct intel_uncore_type **types)
- static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
- {
- 	struct intel_uncore_pmu *pmus;
--	struct attribute_group *attr_group;
--	struct attribute **attrs;
- 	size_t size;
- 	int i, j;
- 
-@@ -891,21 +889,24 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
- 				0, type->num_counters, 0, 0);
- 
- 	if (type->event_descs) {
-+		struct {
-+			struct attribute_group group;
-+			struct attribute *attrs[];
-+		} *attr_group;
- 		for (i = 0; type->event_descs[i].attr.attr.name; i++);
- 
--		attr_group = kzalloc(sizeof(struct attribute *) * (i + 1) +
--					sizeof(*attr_group), GFP_KERNEL);
-+		attr_group = kzalloc(struct_size(attr_group, attrs, i + 1),
-+								GFP_KERNEL);
- 		if (!attr_group)
- 			goto err;
- 
--		attrs = (struct attribute **)(attr_group + 1);
--		attr_group->name = "events";
--		attr_group->attrs = attrs;
-+		attr_group->group.name = "events";
-+		attr_group->group.attrs = attr_group->attrs;
- 
- 		for (j = 0; j < i; j++)
--			attrs[j] = &type->event_descs[j].attr.attr;
-+			attr_group->attrs[j] = &type->event_descs[j].attr.attr;
- 
--		type->events_group = attr_group;
-+		type->events_group = &attr_group->group;
- 	}
- 
- 	type->pmu_group = &uncore_pmu_attr_group;
--- 
-2.17.0
+--Andy
