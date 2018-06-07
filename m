@@ -1,98 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A868B6B000A
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 12:30:41 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j25-v6so3676093pfi.9
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:30:41 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p11-v6si54473616pfj.294.2018.06.07.09.30.39
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EADBB6B026C
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 12:34:49 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id z26-v6so9324330qto.17
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:34:49 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d10-v6sor19128321qkj.5.2018.06.07.09.34.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Jun 2018 09:30:39 -0700 (PDT)
-Date: Thu, 7 Jun 2018 18:30:36 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 11/12] mm, memory_failure: Teach memory_failure()
- about dev_pagemap pages
-Message-ID: <20180607163036.o7vmi6onrsexphrk@quack2.suse.cz>
-References: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152815395775.39010.9355109660470832490.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Thu, 07 Jun 2018 09:34:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <152815395775.39010.9355109660470832490.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <1528378654-1484-1-git-send-email-geert@linux-m68k.org>
+In-Reply-To: <1528378654-1484-1-git-send-email-geert@linux-m68k.org>
+From: =?UTF-8?B?QmrDtnJuIFTDtnBlbA==?= <bjorn.topel@gmail.com>
+Date: Thu, 7 Jun 2018 18:34:29 +0200
+Message-ID: <CAJ+HfNiciU0+4zd3ppapH12Gg_SFf9oUWTy+yafJSxCX8Mv-Dg@mail.gmail.com>
+Subject: Re: [PATCH] xsk: Fix umem fill/completion queue mmap on 32-bit
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: geert@linux-m68k.org
+Cc: David Miller <davem@davemloft.net>, =?UTF-8?B?QmrDtnJuIFTDtnBlbA==?= <bjorn.topel@intel.com>, "Karlsson, Magnus" <magnus.karlsson@intel.com>, ast@kernel.org, Arnd Bergmann <arnd@arndb.de>, akpm@linux-foundation.org, Netdev <netdev@vger.kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 04-06-18 16:12:37, Dan Williams wrote:
->     mce: Uncorrected hardware memory error in user-access at af34214200
->     {1}[Hardware Error]: It has been corrected by h/w and requires no further action
->     mce: [Hardware Error]: Machine check events logged
->     {1}[Hardware Error]: event severity: corrected
->     Memory failure: 0xaf34214: reserved kernel page still referenced by 1 users
->     [..]
->     Memory failure: 0xaf34214: recovery action for reserved kernel page: Failed
->     mce: Memory error not recovered
-> 
-> In contrast to typical memory, dev_pagemap pages may be dax mapped. With
-> dax there is no possibility to map in another page dynamically since dax
-> establishes 1:1 physical address to file offset associations. Also
-> dev_pagemap pages associated with NVDIMM / persistent memory devices can
-> internal remap/repair addresses with poison. While memory_failure()
-> assumes that it can discard typical poisoned pages and keep them
-> unmapped indefinitely, dev_pagemap pages may be returned to service
-> after the error is cleared.
-> 
-> Teach memory_failure() to detect and handle MEMORY_DEVICE_HOST
-> dev_pagemap pages that have poison consumed by userspace. Mark the
-> memory as UC instead of unmapping it completely to allow ongoing access
-> via the device driver (nd_pmem). Later, nd_pmem will grow support for
-> marking the page back to WB when the error is cleared.
+Den tors 7 juni 2018 kl 15:37 skrev Geert Uytterhoeven <geert@linux-m68k.or=
+g>:
+>
+> With gcc-4.1.2 on 32-bit:
+>
+>     net/xdp/xsk.c:663: warning: integer constant is too large for =E2=80=
+=98long=E2=80=99 type
+>     net/xdp/xsk.c:665: warning: integer constant is too large for =E2=80=
+=98long=E2=80=99 type
+>
+> Add the missing "ULL" suffixes to the large XDP_UMEM_PGOFF_*_RING values
+> to fix this.
+>
+>     net/xdp/xsk.c:663: warning: comparison is always false due to limited=
+ range of data type
+>     net/xdp/xsk.c:665: warning: comparison is always false due to limited=
+ range of data type
+>
+> "unsigned long" is 32-bit on 32-bit systems, hence the offset is
+> truncated, and can never be equal to any of the XDP_UMEM_PGOFF_*_RING
+> values.  Use loff_t (and the required cast) to fix this.
+>
+> Fixes: 423f38329d267969 ("xsk: add umem fill queue support and mmap")
+> Fixes: fe2308328cd2f26e ("xsk: add umem completion queue support and mmap=
+")
+> Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
+> ---
+> Compile-tested only.
+> ---
+>  include/uapi/linux/if_xdp.h | 4 ++--
+>  net/xdp/xsk.c               | 2 +-
+>  2 files changed, 3 insertions(+), 3 deletions(-)
+>
+> diff --git a/include/uapi/linux/if_xdp.h b/include/uapi/linux/if_xdp.h
+> index 1fa0e977ea8d0224..caed8b1614ffc0aa 100644
+> --- a/include/uapi/linux/if_xdp.h
+> +++ b/include/uapi/linux/if_xdp.h
+> @@ -63,8 +63,8 @@ struct xdp_statistics {
+>  /* Pgoff for mmaping the rings */
+>  #define XDP_PGOFF_RX_RING                        0
+>  #define XDP_PGOFF_TX_RING               0x80000000
+> -#define XDP_UMEM_PGOFF_FILL_RING       0x100000000
+> -#define XDP_UMEM_PGOFF_COMPLETION_RING 0x180000000
+> +#define XDP_UMEM_PGOFF_FILL_RING       0x100000000ULL
+> +#define XDP_UMEM_PGOFF_COMPLETION_RING 0x180000000ULL
+>
+>  /* Rx/Tx descriptor */
+>  struct xdp_desc {
+> diff --git a/net/xdp/xsk.c b/net/xdp/xsk.c
+> index c6ed2454f7ce55e8..36919a254ba370c3 100644
+> --- a/net/xdp/xsk.c
+> +++ b/net/xdp/xsk.c
+> @@ -643,7 +643,7 @@ static int xsk_getsockopt(struct socket *sock, int le=
+vel, int optname,
+>  static int xsk_mmap(struct file *file, struct socket *sock,
+>                     struct vm_area_struct *vma)
+>  {
+> -       unsigned long offset =3D vma->vm_pgoff << PAGE_SHIFT;
+> +       loff_t offset =3D (loff_t)vma->vm_pgoff << PAGE_SHIFT;
+>         unsigned long size =3D vma->vm_end - vma->vm_start;
+>         struct xdp_sock *xs =3D xdp_sk(sock->sk);
+>         struct xsk_queue *q =3D NULL;
+> --
+> 2.7.4
+>
 
-...
+Thanks Geert!
 
-> +static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
-> +		struct dev_pagemap *pgmap)
-> +{
-> +	struct page *page = pfn_to_page(pfn);
-> +	const bool unmap_success = true;
-> +	struct address_space *mapping;
-> +	unsigned long size;
-> +	LIST_HEAD(tokill);
-> +	int rc = -EBUSY;
-> +	loff_t start;
-> +
-> +	/*
-> +	 * Prevent the inode from being freed while we are interrogating
-> +	 * the address_space, typically this would be handled by
-> +	 * lock_page(), but dax pages do not use the page lock.
-> +	 */
-> +	rcu_read_lock();
-> +	mapping = page->mapping;
-> +	if (!mapping) {
-> +		rcu_read_unlock();
-> +		goto out;
-> +	}
-> +	if (!igrab(mapping->host)) {
-> +		mapping = NULL;
-> +		rcu_read_unlock();
-> +		goto out;
-> +	}
-> +	rcu_read_unlock();
-
-Why don't you use radix tree entry lock here instead? That is a direct
-replacement of the page lock and you don't have to play games with pinning
-the inode and verifying the mapping afterwards.
-
-> +out:
-> +	if (mapping)
-> +		iput(mapping->host);
-
-BTW, this would have to be prepared to do full inode deletion which I'm not
-quite sure is safe from this context.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Acked-by: Bj=C3=B6rn T=C3=B6pel <bjorn.topel@intel.com>
