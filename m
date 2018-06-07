@@ -1,41 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A5AC86B0005
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 13:02:17 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e16-v6so4833477pfn.5
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 10:02:17 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id w16-v6si54516010plq.141.2018.06.07.10.02.15
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4911B6B0005
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 13:29:53 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id w74-v6so10565041qka.4
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 10:29:53 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id u15-v6si5159783qvi.15.2018.06.07.10.29.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 10:02:15 -0700 (PDT)
-Date: Thu, 7 Jun 2018 10:02:14 -0700
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: [PATCH v3 08/12] x86/memory_failure: Introduce {set,
- clear}_mce_nospec()
-Message-ID: <20180607170214.GA21636@agluck-desk>
-References: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152815394224.39010.16927947197432406234.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAPcyv4jHV+2esMsoP-zDQ_kOCuWawN=V09nWYKuR7vht28p0=w@mail.gmail.com>
+        Thu, 07 Jun 2018 10:29:51 -0700 (PDT)
+Subject: Re: [PATCH 6/6] Convert intel uncore to struct_size
+References: <20180607145720.22590-1-willy@infradead.org>
+ <20180607145720.22590-7-willy@infradead.org>
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <03d9addb-9c68-c6e5-d7db-57468fc3950c@nvidia.com>
+Date: Thu, 7 Jun 2018 10:29:49 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4jHV+2esMsoP-zDQ_kOCuWawN=V09nWYKuR7vht28p0=w@mail.gmail.com>
+In-Reply-To: <20180607145720.22590-7-willy@infradead.org>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, X86 ML <x86@kernel.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>, Kees Cook <keescook@chromium.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On Wed, Jun 06, 2018 at 09:42:28PM -0700, Dan Williams wrote:
-> > Cc: Thomas Gleixner <tglx@linutronix.de>
-> > Cc: Ingo Molnar <mingo@redhat.com>
-> > Cc: "H. Peter Anvin" <hpa@zytor.com>
-> > Cc: Tony Luck <tony.luck@intel.com>
+
+
+On 06/07/2018 07:57 AM, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> Tony, safe to assume you are ok with this patch now that the
-> decoy_addr approach is back?
+> Need to do a bit of rearranging to make this work.
 > 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> ---
+>   arch/x86/events/intel/uncore.c | 19 ++++++++++---------
+>   1 file changed, 10 insertions(+), 9 deletions(-)
+> 
+> diff --git a/arch/x86/events/intel/uncore.c b/arch/x86/events/intel/uncore.c
+> index 15b07379e72d..e15cfad4f89b 100644
+> --- a/arch/x86/events/intel/uncore.c
+> +++ b/arch/x86/events/intel/uncore.c
+> @@ -865,8 +865,6 @@ static void uncore_types_exit(struct intel_uncore_type **types)
+>   static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
+>   {
+>   	struct intel_uncore_pmu *pmus;
+> -	struct attribute_group *attr_group;
+> -	struct attribute **attrs;
+>   	size_t size;
+>   	int i, j;
+>   
+> @@ -891,21 +889,24 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
+>   				0, type->num_counters, 0, 0);
+>   
+>   	if (type->event_descs) {
+> +		struct {
+> +			struct attribute_group group;
+> +			struct attribute *attrs[];
+> +		} *attr_group;
+>   		for (i = 0; type->event_descs[i].attr.attr.name; i++);
 
-Yes. s/Cc/Acked-by/ for my line above.
+What does this for loop do?
+Looks like nothing given the semicolon at the end.
 
--Tony
+> -		attr_group = kzalloc(sizeof(struct attribute *) * (i + 1) +
+> -					sizeof(*attr_group), GFP_KERNEL);
+> +		attr_group = kzalloc(struct_size(attr_group, attrs, i + 1),
+> +								GFP_KERNEL);
+>   		if (!attr_group)
+>   			goto err;
+>   
+> -		attrs = (struct attribute **)(attr_group + 1);
+> -		attr_group->name = "events";
+> -		attr_group->attrs = attrs;
+> +		attr_group->group.name = "events";
+> +		attr_group->group.attrs = attr_group->attrs;
+>   
+>   		for (j = 0; j < i; j++)
+> -			attrs[j] = &type->event_descs[j].attr.attr;
+> +			attr_group->attrs[j] = &type->event_descs[j].attr.attr;
+>   
+> -		type->events_group = attr_group;
+> +		type->events_group = &attr_group->group;
+>   	}
+>   
+>   	type->pmu_group = &uncore_pmu_attr_group;
+> 
