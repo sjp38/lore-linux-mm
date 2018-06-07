@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CADD96B0003
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D08C46B0006
 	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 10:39:59 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id o19-v6so3583564pgn.14
+Received: by mail-pf0-f198.google.com with SMTP id e7-v6so4625874pfi.8
         for <linux-mm@kvack.org>; Thu, 07 Jun 2018 07:39:59 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
         by mx.google.com with ESMTPS id 88-v6si53306702pla.315.2018.06.07.07.39.58
@@ -10,58 +10,69 @@ Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 07 Jun 2018 07:39:58 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH 1/5] x86/cpufeatures: Add CPUIDs for Control-flow Enforcement Technology (CET)
-Date: Thu,  7 Jun 2018 07:35:40 -0700
-Message-Id: <20180607143544.3477-2-yu-cheng.yu@intel.com>
-In-Reply-To: <20180607143544.3477-1-yu-cheng.yu@intel.com>
-References: <20180607143544.3477-1-yu-cheng.yu@intel.com>
+Subject: [PATCH 0/5] Control Flow Enforcement - Part (1)
+Date: Thu,  7 Jun 2018 07:35:39 -0700
+Message-Id: <20180607143544.3477-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Mike Kravetz <mike.kravetz@oracle.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-Add CPUIDs for Control-flow Enforcement Technology (CET).
+Control flow enforcement technology (CET) is an upcoming Intel
+processor family feature that prevents return/jmp-oriented
+programming attacks.  It has two components: shadow stack (SHSTK)
+and indirect branch tracking (IBT).
 
-CPUID.(EAX=7,ECX=0):ECX[bit 7] Shadow stack
-CPUID.(EAX=7,ECX=0):EDX[bit 20] Indirect branch tracking
+The specification is at:
 
-Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
----
- arch/x86/include/asm/cpufeatures.h | 2 ++
- arch/x86/kernel/cpu/scattered.c    | 1 +
- 2 files changed, 3 insertions(+)
+  https://software.intel.com/sites/default/files/managed/4d/2a/
+  control-flow-enforcement-technology-preview.pdf
 
-diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
-index fb00a2fca990..244c2aa07f0c 100644
---- a/arch/x86/include/asm/cpufeatures.h
-+++ b/arch/x86/include/asm/cpufeatures.h
-@@ -219,6 +219,7 @@
- #define X86_FEATURE_IBPB		( 7*32+26) /* Indirect Branch Prediction Barrier */
- #define X86_FEATURE_STIBP		( 7*32+27) /* Single Thread Indirect Branch Predictors */
- #define X86_FEATURE_ZEN			( 7*32+28) /* "" CPU is AMD family 0x17 (Zen) */
-+#define X86_FEATURE_IBT			( 7*32+29) /* Indirect Branch Tracking */
- 
- /* Virtualization flags: Linux defined, word 8 */
- #define X86_FEATURE_TPR_SHADOW		( 8*32+ 0) /* Intel TPR Shadow */
-@@ -317,6 +318,7 @@
- #define X86_FEATURE_PKU			(16*32+ 3) /* Protection Keys for Userspace */
- #define X86_FEATURE_OSPKE		(16*32+ 4) /* OS Protection Keys Enable */
- #define X86_FEATURE_AVX512_VBMI2	(16*32+ 6) /* Additional AVX512 Vector Bit Manipulation Instructions */
-+#define X86_FEATURE_SHSTK		(16*32+ 7) /* Shadow Stack */
- #define X86_FEATURE_GFNI		(16*32+ 8) /* Galois Field New Instructions */
- #define X86_FEATURE_VAES		(16*32+ 9) /* Vector AES */
- #define X86_FEATURE_VPCLMULQDQ		(16*32+10) /* Carry-Less Multiplication Double Quadword */
-diff --git a/arch/x86/kernel/cpu/scattered.c b/arch/x86/kernel/cpu/scattered.c
-index 772c219b6889..63cbb4d9938e 100644
---- a/arch/x86/kernel/cpu/scattered.c
-+++ b/arch/x86/kernel/cpu/scattered.c
-@@ -21,6 +21,7 @@ struct cpuid_bit {
- static const struct cpuid_bit cpuid_bits[] = {
- 	{ X86_FEATURE_APERFMPERF,       CPUID_ECX,  0, 0x00000006, 0 },
- 	{ X86_FEATURE_EPB,		CPUID_ECX,  3, 0x00000006, 0 },
-+	{ X86_FEATURE_IBT,		CPUID_EDX, 20, 0x00000007, 0},
- 	{ X86_FEATURE_CAT_L3,		CPUID_EBX,  1, 0x00000010, 0 },
- 	{ X86_FEATURE_CAT_L2,		CPUID_EBX,  2, 0x00000010, 0 },
- 	{ X86_FEATURE_CDP_L3,		CPUID_ECX,  2, 0x00000010, 1 },
+The SHSTK is a secondary stack allocated from system memory.
+The CALL instruction stores a secure copy of the return address
+on the SHSTK; the RET instruction compares the return address
+from the program stack to the SHSTK copy.  Any mismatch
+triggers a control protection fault.
+
+When the IBT is enabled, the processor verifies an indirect
+CALL/JMP destination is an ENDBR instruction; otherwise, it
+raises a control protection fault.  The compiler inserts ENDBRs
+at all valid branch targets.
+
+CET can be enabled for both kernel and user mode protection.
+The Linux kernel patches being posted are for user-mode
+protection.  They are grouped into four series:
+
+  (1) CPUID enumeration, CET XSAVES system states, and
+      documentation;
+  (2) Kernel config, exception handling, and memory management
+      changes;
+  (3) SHSTK support;
+  (4) IBT support, command-line tool, PTRACE.
+
+Yu-cheng Yu (5):
+  x86/cpufeatures: Add CPUIDs for Control-flow Enforcement Technology
+    (CET)
+  x86/fpu/xstate: Change some names to separate XSAVES system and user
+    states
+  x86/fpu/xstate: Enable XSAVES system states
+  x86/fpu/xstate: Add XSAVES system states for shadow stack
+  Documentation/x86: Add CET description
+
+ Documentation/admin-guide/kernel-parameters.txt |   6 +
+ Documentation/x86/intel_cet.txt                 | 161 ++++++++++++++++++++++++
+ arch/x86/include/asm/cpufeatures.h              |   2 +
+ arch/x86/include/asm/fpu/internal.h             |   6 +-
+ arch/x86/include/asm/fpu/types.h                |  22 ++++
+ arch/x86/include/asm/fpu/xstate.h               |  31 ++---
+ arch/x86/include/uapi/asm/processor-flags.h     |   2 +
+ arch/x86/kernel/cpu/scattered.c                 |   1 +
+ arch/x86/kernel/fpu/core.c                      |  11 +-
+ arch/x86/kernel/fpu/init.c                      |  10 --
+ arch/x86/kernel/fpu/signal.c                    |   6 +-
+ arch/x86/kernel/fpu/xstate.c                    | 152 +++++++++++++---------
+ 12 files changed, 319 insertions(+), 91 deletions(-)
+ create mode 100644 Documentation/x86/intel_cet.txt
+
 -- 
 2.15.1
