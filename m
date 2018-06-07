@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F02C6B0289
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 10:41:34 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id e2-v6so3592695pgq.4
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 07:41:34 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 58FF66B028B
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 10:41:35 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id e1-v6so3584338pgp.20
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 07:41:35 -0700 (PDT)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id i74-v6si8716254pgc.188.2018.06.07.07.41.33
+        by mx.google.com with ESMTPS id i74-v6si8716254pgc.188.2018.06.07.07.41.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 07:41:33 -0700 (PDT)
+        Thu, 07 Jun 2018 07:41:34 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH 07/10] mm: Prevent mprotect from changing shadow stack
-Date: Thu,  7 Jun 2018 07:38:04 -0700
-Message-Id: <20180607143807.3611-8-yu-cheng.yu@intel.com>
+Subject: [PATCH 08/10] mm: Prevent mremap of shadow stack
+Date: Thu,  7 Jun 2018 07:38:05 -0700
+Message-Id: <20180607143807.3611-9-yu-cheng.yu@intel.com>
 In-Reply-To: <20180607143807.3611-1-yu-cheng.yu@intel.com>
 References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,28 +22,31 @@ Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- mm/mprotect.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ mm/mremap.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 625608bc8962..128dcb880c12 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -446,6 +446,15 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
- 	error = -ENOMEM;
- 	if (!vma)
- 		goto out;
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 049470aa1e3e..70f20edb248e 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -525,7 +525,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 		unsigned long, new_addr)
+ {
+ 	struct mm_struct *mm = current->mm;
+-	struct vm_area_struct *vma;
++	struct vm_area_struct *vma = find_vma(mm, addr);
+ 	unsigned long ret = -EINVAL;
+ 	unsigned long charged = 0;
+ 	bool locked = false;
+@@ -533,6 +533,9 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 	LIST_HEAD(uf_unmap_early);
+ 	LIST_HEAD(uf_unmap);
+ 
++	if (vma->vm_flags & VM_SHSTK)
++		return ret;
 +
-+	/*
-+	 * Do not allow changing shadow stack memory.
-+	 */
-+	if (vma->vm_flags & VM_SHSTK) {
-+		error = -EINVAL;
-+		goto out;
-+	}
-+
- 	prev = vma->vm_prev;
- 	if (unlikely(grows & PROT_GROWSDOWN)) {
- 		if (vma->vm_start >= end)
+ 	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
+ 		return ret;
+ 
 -- 
 2.15.1
