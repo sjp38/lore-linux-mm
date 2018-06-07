@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A28846B029A
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C2D936B029D
 	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 10:42:32 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d20-v6so4647047pfn.16
+Received: by mail-pl0-f70.google.com with SMTP id i1-v6so5493485pld.11
         for <linux-mm@kvack.org>; Thu, 07 Jun 2018 07:42:32 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
         by mx.google.com with ESMTPS id l22-v6si26243115pgu.353.2018.06.07.07.42.31
@@ -10,9 +10,9 @@ Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 07 Jun 2018 07:42:31 -0700 (PDT)
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH 4/7] x86/cet: add arcp_prctl functions for indirect branch tracking
-Date: Thu,  7 Jun 2018 07:38:52 -0700
-Message-Id: <20180607143855.3681-5-yu-cheng.yu@intel.com>
+Subject: [PATCH 7/7] x86/cet: Add PTRACE interface for CET
+Date: Thu,  7 Jun 2018 07:38:55 -0700
+Message-Id: <20180607143855.3681-8-yu-cheng.yu@intel.com>
 In-Reply-To: <20180607143855.3681-1-yu-cheng.yu@intel.com>
 References: <20180607143855.3681-1-yu-cheng.yu@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,180 +20,141 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Mike Kravetz <mike.kravetz@oracle.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
 
-Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
+Add PTRACE interface for CET MSRs.
+
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/asm/cet.h        |  1 +
- arch/x86/include/uapi/asm/prctl.h |  1 +
- arch/x86/kernel/cet_prctl.c       | 54 ++++++++++++++++++++++++++++++++++++---
- arch/x86/kernel/elf.c             | 12 ++++++---
- arch/x86/kernel/process.c         |  1 +
- 5 files changed, 62 insertions(+), 7 deletions(-)
+ arch/x86/include/asm/fpu/regset.h |  7 ++++---
+ arch/x86/kernel/fpu/regset.c      | 41 +++++++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/ptrace.c          | 16 +++++++++++++++
+ include/uapi/linux/elf.h          |  1 +
+ 4 files changed, 62 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
-index d07bdeb27db4..5b71a2b44eb1 100644
---- a/arch/x86/include/asm/cet.h
-+++ b/arch/x86/include/asm/cet.h
-@@ -19,6 +19,7 @@ struct cet_stat {
- 	unsigned int	ibt_enabled:1;
- 	unsigned int	locked:1;
- 	unsigned int	exec_shstk:2;
-+	unsigned int	exec_ibt:2;
- };
+diff --git a/arch/x86/include/asm/fpu/regset.h b/arch/x86/include/asm/fpu/regset.h
+index d5bdffb9d27f..edad0d889084 100644
+--- a/arch/x86/include/asm/fpu/regset.h
++++ b/arch/x86/include/asm/fpu/regset.h
+@@ -7,11 +7,12 @@
  
- #ifdef CONFIG_X86_INTEL_CET
-diff --git a/arch/x86/include/uapi/asm/prctl.h b/arch/x86/include/uapi/asm/prctl.h
-index f9965403b655..fef476d2d2f6 100644
---- a/arch/x86/include/uapi/asm/prctl.h
-+++ b/arch/x86/include/uapi/asm/prctl.h
-@@ -20,6 +20,7 @@
- #define ARCH_CET_EXEC		0x3004
- #define ARCH_CET_ALLOC_SHSTK	0x3005
- #define ARCH_CET_PUSH_SHSTK	0x3006
-+#define ARCH_CET_LEGACY_BITMAP	0x3007
+ #include <linux/regset.h>
+ 
+-extern user_regset_active_fn regset_fpregs_active, regset_xregset_fpregs_active;
++extern user_regset_active_fn regset_fpregs_active, regset_xregset_fpregs_active,
++				cetregs_active;
+ extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get,
+-				xstateregs_get;
++				xstateregs_get, cetregs_get;
+ extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set,
+-				 xstateregs_set;
++				 xstateregs_set, cetregs_set;
  
  /*
-  * Settings for ARCH_CET_EXEC
-diff --git a/arch/x86/kernel/cet_prctl.c b/arch/x86/kernel/cet_prctl.c
-index 326996e2ea80..948f7ba98dc2 100644
---- a/arch/x86/kernel/cet_prctl.c
-+++ b/arch/x86/kernel/cet_prctl.c
-@@ -19,6 +19,7 @@
-  * ARCH_CET_EXEC: set default features for exec()
-  * ARCH_CET_ALLOC_SHSTK: allocate shadow stack
-  * ARCH_CET_PUSH_SHSTK: put a return address on shadow stack
-+ * ARCH_CET_LEGACY_BITMAP: allocate legacy bitmap
-  */
- 
- static int handle_get_status(unsigned long arg2)
-@@ -28,8 +29,12 @@ static int handle_get_status(unsigned long arg2)
- 
- 	if (current->thread.cet.shstk_enabled)
- 		features |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
-+	if (current->thread.cet.ibt_enabled)
-+		features |= GNU_PROPERTY_X86_FEATURE_1_IBT;
- 	if (current->thread.cet.exec_shstk == CET_EXEC_ALWAYS_ON)
- 		cet_exec |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
-+	if (current->thread.cet.exec_ibt == CET_EXEC_ALWAYS_ON)
-+		cet_exec |= GNU_PROPERTY_X86_FEATURE_1_IBT;
- 	shstk_size = current->thread.cet.exec_shstk_size;
- 
- 	if (in_compat_syscall()) {
-@@ -94,9 +99,18 @@ static int handle_set_exec(unsigned long arg2)
- 			return -EPERM;
- 	}
- 
-+	if (features & GNU_PROPERTY_X86_FEATURE_1_IBT) {
-+		if (!cpu_feature_enabled(X86_FEATURE_IBT))
-+			return -EINVAL;
-+		if ((current->thread.cet.exec_ibt == CET_EXEC_ALWAYS_ON) &&
-+		    (cet_exec != CET_EXEC_ALWAYS_ON))
-+			return -EPERM;
-+	}
-+
- 	if (features & GNU_PROPERTY_X86_FEATURE_1_SHSTK)
- 		current->thread.cet.exec_shstk = cet_exec;
--
-+	if (features & GNU_PROPERTY_X86_FEATURE_1_IBT)
-+		current->thread.cet.exec_ibt = cet_exec;
- 	current->thread.cet.exec_shstk_size = shstk_size;
- 	return 0;
- }
-@@ -167,9 +181,36 @@ static int handle_alloc_shstk(unsigned long arg2)
- 	return 0;
+  * xstateregs_active == regset_fpregs_active. Please refer to the comment
+diff --git a/arch/x86/kernel/fpu/regset.c b/arch/x86/kernel/fpu/regset.c
+index bc02f5144b95..7008eb084d36 100644
+--- a/arch/x86/kernel/fpu/regset.c
++++ b/arch/x86/kernel/fpu/regset.c
+@@ -160,6 +160,47 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
+ 	return ret;
  }
  
-+static int handle_bitmap(unsigned long arg2)
++int cetregs_active(struct task_struct *target, const struct user_regset *regset)
 +{
-+	unsigned long addr, size;
-+
-+	if (current->thread.cet.ibt_enabled) {
-+		if (!current->thread.cet.ibt_bitmap_addr)
-+			cet_setup_ibt_bitmap();
-+		addr = current->thread.cet.ibt_bitmap_addr;
-+		size = current->thread.cet.ibt_bitmap_size;
-+	} else {
-+		addr = 0;
-+		size = 0;
-+	}
-+
-+	if (in_compat_syscall()) {
-+		if (put_user(addr, (unsigned int __user *)arg2) ||
-+		    put_user(size, (unsigned int __user *)arg2 + 1))
-+			return -EFAULT;
-+	} else {
-+		if (put_user(addr, (unsigned long __user *)arg2) ||
-+		    put_user(size, (unsigned long __user *)arg2 + 1))
-+		return -EFAULT;
-+	}
++#ifdef CONFIG_X86_INTEL_CET
++	if (target->thread.cet.shstk_enabled || target->thread.cet.ibt_enabled)
++		return regset->n;
++#endif
 +	return 0;
 +}
 +
- int prctl_cet(int option, unsigned long arg2)
- {
--	if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
-+	if (!cpu_feature_enabled(X86_FEATURE_SHSTK) &&
-+	    !cpu_feature_enabled(X86_FEATURE_IBT))
- 		return -EINVAL;
- 
- 	switch (option) {
-@@ -181,7 +222,8 @@ int prctl_cet(int option, unsigned long arg2)
- 			return -EPERM;
- 		if (arg2 & GNU_PROPERTY_X86_FEATURE_1_SHSTK)
- 			cet_disable_free_shstk(current);
--
-+		if (arg2 & GNU_PROPERTY_X86_FEATURE_1_IBT)
-+			cet_disable_ibt();
- 		return 0;
- 
- 	case ARCH_CET_LOCK:
-@@ -197,6 +239,12 @@ int prctl_cet(int option, unsigned long arg2)
- 	case ARCH_CET_PUSH_SHSTK:
- 		return handle_push_shstk(arg2);
- 
-+	/*
-+	 * Allocate legacy bitmap and return address & size to user.
-+	 */
-+	case ARCH_CET_LEGACY_BITMAP:
-+		return handle_bitmap(arg2);
++int cetregs_get(struct task_struct *target, const struct user_regset *regset,
++		unsigned int pos, unsigned int count,
++		void *kbuf, void __user *ubuf)
++{
++	struct fpu *fpu = &target->thread.fpu;
++	struct cet_user_state *cetregs;
 +
- 	default:
- 		return -EINVAL;
- 	}
-diff --git a/arch/x86/kernel/elf.c b/arch/x86/kernel/elf.c
-index a3995c8c2fc2..c2a89f3c7186 100644
---- a/arch/x86/kernel/elf.c
-+++ b/arch/x86/kernel/elf.c
-@@ -230,10 +230,14 @@ int arch_setup_features(void *ehdr_p, void *phdr_p,
- 	}
- 
- 	if (cpu_feature_enabled(X86_FEATURE_IBT)) {
--		if (ibt) {
--			err = cet_setup_ibt();
--			if (err < 0)
--				goto out;
-+		int exec = current->thread.cet.exec_ibt;
++	if (!boot_cpu_has(X86_FEATURE_SHSTK))
++		return -ENODEV;
 +
-+		if (exec != CET_EXEC_ALWAYS_OFF) {
-+			if (ibt || (exec == CET_EXEC_ALWAYS_ON)) {
-+				err = cet_setup_ibt();
-+				if (err < 0)
-+					goto out;
-+			}
- 		}
- 	}
++	cetregs = get_xsave_addr(&fpu->state.xsave, XFEATURE_MASK_SHSTK_USER);
++
++	fpu__prepare_read(fpu);
++	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, cetregs, 0, -1);
++}
++
++int cetregs_set(struct task_struct *target, const struct user_regset *regset,
++		  unsigned int pos, unsigned int count,
++		  const void *kbuf, const void __user *ubuf)
++{
++	struct fpu *fpu = &target->thread.fpu;
++	struct cet_user_state *cetregs;
++
++	if (!boot_cpu_has(X86_FEATURE_SHSTK))
++		return -ENODEV;
++
++	cetregs = get_xsave_addr(&fpu->state.xsave, XFEATURE_MASK_SHSTK_USER);
++
++	fpu__prepare_write(fpu);
++	return user_regset_copyin(&pos, &count, &kbuf, &ubuf, cetregs, 0, -1);
++}
++
+ #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
  
-diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
-index 9bec164e7958..c69576b4abd1 100644
---- a/arch/x86/kernel/process.c
-+++ b/arch/x86/kernel/process.c
-@@ -801,6 +801,7 @@ long do_arch_prctl_common(struct task_struct *task, int option,
- 	case ARCH_CET_EXEC:
- 	case ARCH_CET_ALLOC_SHSTK:
- 	case ARCH_CET_PUSH_SHSTK:
-+	case ARCH_CET_LEGACY_BITMAP:
- 		return prctl_cet(option, cpuid_enabled);
- 	}
+ /*
+diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+index ed5c4cdf0a34..a4501b8d086a 100644
+--- a/arch/x86/kernel/ptrace.c
++++ b/arch/x86/kernel/ptrace.c
+@@ -49,7 +49,9 @@ enum x86_regset {
+ 	REGSET_IOPERM64 = REGSET_XFP,
+ 	REGSET_XSTATE,
+ 	REGSET_TLS,
++	REGSET_CET64 = REGSET_TLS,
+ 	REGSET_IOPERM32,
++	REGSET_CET32,
+ };
  
+ struct pt_regs_offset {
+@@ -1276,6 +1278,13 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
+ 		.size = sizeof(long), .align = sizeof(long),
+ 		.active = ioperm_active, .get = ioperm_get
+ 	},
++	[REGSET_CET64] = {
++		.core_note_type = NT_X86_CET,
++		.n = sizeof(struct cet_user_state) / sizeof(u64),
++		.size = sizeof(u64), .align = sizeof(u64),
++		.active = cetregs_active, .get = cetregs_get,
++		.set = cetregs_set
++	},
+ };
+ 
+ static const struct user_regset_view user_x86_64_view = {
+@@ -1331,6 +1340,13 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
+ 		.size = sizeof(u32), .align = sizeof(u32),
+ 		.active = ioperm_active, .get = ioperm_get
+ 	},
++	[REGSET_CET32] = {
++		.core_note_type = NT_X86_CET,
++		.n = sizeof(struct cet_user_state) / sizeof(u64),
++		.size = sizeof(u64), .align = sizeof(u64),
++		.active = cetregs_active, .get = cetregs_get,
++		.set = cetregs_set
++	},
+ };
+ 
+ static const struct user_regset_view user_x86_32_view = {
+diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
+index f69ed8702271..0dd1f9dc6e14 100644
+--- a/include/uapi/linux/elf.h
++++ b/include/uapi/linux/elf.h
+@@ -401,6 +401,7 @@ typedef struct elf64_shdr {
+ #define NT_386_TLS	0x200		/* i386 TLS slots (struct user_desc) */
+ #define NT_386_IOPERM	0x201		/* x86 io permission bitmap (1=deny) */
+ #define NT_X86_XSTATE	0x202		/* x86 extended state using xsave */
++#define NT_X86_CET	0x203		/* x86 cet state */
+ #define NT_S390_HIGH_GPRS	0x300	/* s390 upper register halves */
+ #define NT_S390_TIMER	0x301		/* s390 timer register */
+ #define NT_S390_TODCMP	0x302		/* s390 TOD clock comparator register */
 -- 
 2.15.1
