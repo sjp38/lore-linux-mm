@@ -1,77 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 143D16B0003
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 07:52:45 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id v5-v6so4584768wmh.6
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 04:52:45 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id g18-v6si283966edm.273.2018.06.07.04.52.43
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B9526B0003
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 07:56:16 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id p41-v6so6182972oth.5
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 04:56:16 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l74-v6sor8558261oih.1.2018.06.07.04.56.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 04:52:43 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w57BmtU4043258
-	for <linux-mm@kvack.org>; Thu, 7 Jun 2018 07:52:41 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jf383tqdn-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 07 Jun 2018 07:52:41 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 7 Jun 2018 12:52:39 +0100
-Date: Thu, 7 Jun 2018 14:52:33 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
-References: <20180418193220.4603-1-timofey.titovets@synesis.ru>
- <20180418193220.4603-3-timofey.titovets@synesis.ru>
- <20180522202242.otvdunkl75yfhkt4@xakep.localdomain>
- <CAGqmi76gJV=ZDX5=Y3toF2tPiJs8T=PiUJFQg5nq9O5yztx80Q@mail.gmail.com>
- <CAGM2reaZ2YoxFhEDtcXi=hMFoGFi8+SROOn+_SRMwnx3cW15kw@mail.gmail.com>
- <CAGqmi76-qK9q_OTvyqpb-9k_m0CLMt3o860uaN5LL8nBkf5RTg@mail.gmail.com>
- <20180527130325.GB4522@rapoport-lnx>
- <CAGM2rea2GBvOAiKcSpHkQ9F+jgvy3sCsBw7hFz26DvQ+c_677A@mail.gmail.com>
- <CAGqmi74G-7bM5mbbaHjzOkTvuEpCcAbZ8Q0PVCMkyP09XaVSkA@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 07 Jun 2018 04:56:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAGqmi74G-7bM5mbbaHjzOkTvuEpCcAbZ8Q0PVCMkyP09XaVSkA@mail.gmail.com>
-Message-Id: <20180607115232.GA8245@rapoport-lnx>
+In-Reply-To: <cd26794b-cb82-919c-053d-9bcb6e3d78d8@redhat.com>
+References: <20180606122731.GB27707@jra-laptop.brq.redhat.com>
+ <20180607110713.GJ32433@dhcp22.suse.cz> <cd26794b-cb82-919c-053d-9bcb6e3d78d8@redhat.com>
+From: Jirka Hladky <jhladky@redhat.com>
+Date: Thu, 7 Jun 2018 13:56:14 +0200
+Message-ID: <CAE4VaGDtRGDPc7DL2qKMwgsVBrt=_pzXcFTk4DG4yjEHuRdiSg@mail.gmail.com>
+Subject: Re: [4.17 regression] Performance drop on kernel-4.17 visible on
+ Stream, Linpack and NAS parallel benchmarks
+Content-Type: multipart/alternative; boundary="0000000000006f99b7056e0bf892"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <nefelim4ag@gmail.com>
-Cc: pasha.tatashin@oracle.com, linux-mm@kvack.org, Sioh Lee <solee@os.korea.ac.kr>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org
+To: =?UTF-8?B?SmFrdWIgUmHEjWVr?= <jracek@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, linux-acpi@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, "jhladky@redhat.com" <jhladky@redhat.com>
 
-On Thu, Jun 07, 2018 at 11:58:05AM +0300, Timofey Titovets wrote:
-> D2N?, 29 D 1/4 D?N? 2018 D3. D2 17:46, Pavel Tatashin <pasha.tatashin@oracle.com>:
-> >
-> > > What about moving choice_fastest_hash() to run_store()?
-> >
-> > > KSM anyway starts with ksm_run = KSM_RUN_STOP and does not scan until
-> > > userspace writes !0 to /sys/kernel/mm/ksm/run.
-> >
-> > > Selection of the hash function when KSM is actually enabled seems quite
-> > > appropriate...
-> >
-> > Hi Mike,
-> >
-> > This is a good idea to select hash function from run_store() when (flags &
-> > KSM_RUN_MERGE) is set for the first time.
-> >
-> > Pavel
-> 
-> IIRC, run_store hidden under '#ifdef CONFIG_SYSFS'
-> So, what's about case without CONFIG_SYSFS?
+--0000000000006f99b7056e0bf892
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-With CONFIG_SYSFS=n there is nothing that will set ksm_run to anything but
-zero and ksm_do_scan will never be called.
- 
-> -- 
-> Have a nice day,
-> Timofey.
-> 
+Adding myself to Cc.
 
--- 
-Sincerely yours,
-Mike.
+On Thu, Jun 7, 2018 at 1:19 PM, Jakub Ra=C4=8Dek <jracek@redhat.com> wrote:
+
+> Hi,
+>
+> On 06/07/2018 01:07 PM, Michal Hocko wrote:
+>
+>> [CCing Mel and MM mailing list]
+>>
+>> On Wed 06-06-18 14:27:32, Jakub Racek wrote:
+>>
+>>> Hi,
+>>>
+>>> There is a huge performance regression on the 2 and 4 NUMA node systems
+>>> on
+>>> stream benchmark with 4.17 kernel compared to 4.16 kernel. Stream,
+>>> Linpack
+>>> and NAS parallel benchmarks show upto 50% performance drop.
+>>>
+>>> When running for example 20 stream processes in parallel, we see the
+>>> following behavior:
+>>>
+>>> * all processes are started at NODE #1
+>>> * memory is also allocated on NODE #1
+>>> * roughly half of the processes are moved to the NODE #0 very quickly. =
+*
+>>> however, memory is not moved to NODE #0 and stays allocated on NODE #1
+>>>
+>>> As the result, half of the processes are running on NODE#0 with memory
+>>> being
+>>> still allocated on NODE#1. This leads to non-local memory accesses
+>>> on the high Remote-To-Local Memory Access Ratio on the numatop charts.
+>>>
+>>> So it seems that 4.17 is not doing a good job to move the memory to the
+>>> right NUMA
+>>> node after the process has been moved.
+>>>
+>>> ----8<----
+>>>
+>>> The above is an excerpt from performance testing on 4.16 and 4.17
+>>> kernels.
+>>>
+>>> For now I'm merely making sure the problem is reported.
+>>>
+>>
+>> Do you have numa balancing enabled?
+>>
+>>
+> Yes. The relevant settings are:
+>
+> kernel.numa_balancing =3D 1
+> kernel.numa_balancing_scan_delay_ms =3D 1000
+> kernel.numa_balancing_scan_period_max_ms =3D 60000
+> kernel.numa_balancing_scan_period_min_ms =3D 1000
+> kernel.numa_balancing_scan_size_mb =3D 256
+>
+>
+> --
+> Best regards,
+> Jakub Racek
+> FMK
+>
+
+--0000000000006f99b7056e0bf892
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Adding myself to Cc.</div><div class=3D"gmail_extra"><br><=
+div class=3D"gmail_quote">On Thu, Jun 7, 2018 at 1:19 PM, Jakub Ra=C4=8Dek =
+<span dir=3D"ltr">&lt;<a href=3D"mailto:jracek@redhat.com" target=3D"_blank=
+">jracek@redhat.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quo=
+te" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"=
+>Hi,<span class=3D""><br>
+<br>
+On 06/07/2018 01:07 PM, Michal Hocko wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+[CCing Mel and MM mailing list]<br>
+<br>
+On Wed 06-06-18 14:27:32, Jakub Racek wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+Hi,<br>
+<br>
+There is a huge performance regression on the 2 and 4 NUMA node systems on<=
+br>
+stream benchmark with 4.17 kernel compared to 4.16 kernel. Stream, Linpack<=
+br>
+and NAS parallel benchmarks show upto 50% performance drop.<br>
+<br>
+When running for example 20 stream processes in parallel, we see the follow=
+ing behavior:<br>
+<br>
+* all processes are started at NODE #1<br>
+* memory is also allocated on NODE #1<br>
+* roughly half of the processes are moved to the NODE #0 very quickly. *<br=
+>
+however, memory is not moved to NODE #0 and stays allocated on NODE #1<br>
+<br>
+As the result, half of the processes are running on NODE#0 with memory bein=
+g<br>
+still allocated on NODE#1. This leads to non-local memory accesses<br>
+on the high Remote-To-Local Memory Access Ratio on the numatop charts.<br>
+<br>
+So it seems that 4.17 is not doing a good job to move the memory to the rig=
+ht NUMA<br>
+node after the process has been moved.<br>
+<br>
+----8&lt;----<br>
+<br>
+The above is an excerpt from performance testing on 4.16 and 4.17 kernels.<=
+br>
+<br>
+For now I&#39;m merely making sure the problem is reported.<br>
+</blockquote>
+<br>
+Do you have numa balancing enabled?<br>
+<br>
+</blockquote>
+<br></span>
+Yes. The relevant settings are:<br>
+<br>
+kernel.numa_balancing =3D 1<br>
+kernel.numa_balancing_scan_del<wbr>ay_ms =3D 1000<br>
+kernel.numa_balancing_scan_per<wbr>iod_max_ms =3D 60000<br>
+kernel.numa_balancing_scan_per<wbr>iod_min_ms =3D 1000<br>
+kernel.numa_balancing_scan_siz<wbr>e_mb =3D 256<span class=3D"HOEnZb"><font=
+ color=3D"#888888"><br>
+<br>
+<br>
+-- <br>
+Best regards,<br>
+Jakub Racek<br>
+FMK<br>
+</font></span></blockquote></div><br></div>
+
+--0000000000006f99b7056e0bf892--
