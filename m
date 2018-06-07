@@ -1,69 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 56BD66B0003
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 12:28:20 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x17-v6so329766pfm.18
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:28:20 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y125-v6si30464598pfb.284.2018.06.07.09.28.19
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A868B6B000A
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 12:30:41 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j25-v6so3676093pfi.9
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:30:41 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p11-v6si54473616pfj.294.2018.06.07.09.30.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 09:28:19 -0700 (PDT)
-Received: from mail-wr0-f180.google.com (mail-wr0-f180.google.com [209.85.128.180])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A640D208AC
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 16:28:18 +0000 (UTC)
-Received: by mail-wr0-f180.google.com with SMTP id w10-v6so10486582wrk.9
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 09:28:18 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Jun 2018 09:30:39 -0700 (PDT)
+Date: Thu, 7 Jun 2018 18:30:36 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 11/12] mm, memory_failure: Teach memory_failure()
+ about dev_pagemap pages
+Message-ID: <20180607163036.o7vmi6onrsexphrk@quack2.suse.cz>
+References: <152815389835.39010.13253559944508110923.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152815395775.39010.9355109660470832490.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-References: <20180607143705.3531-1-yu-cheng.yu@intel.com> <20180607143705.3531-3-yu-cheng.yu@intel.com>
- <CALCETrWwGCZ+Fbk+O8T6S48teHj60bQQiHQ49=SsKUOpm8VLBA@mail.gmail.com> <1528387137.4636.6.camel@2b52.sc.intel.com>
-In-Reply-To: <1528387137.4636.6.camel@2b52.sc.intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 7 Jun 2018 09:28:05 -0700
-Message-ID: <CALCETrWEeBbhGgJ2rVMAQGOK3BUuRSCWzuhmpO=WrmwO85Tnaw@mail.gmail.com>
-Subject: Re: [PATCH 2/9] x86/cet: Add Kconfig option for user-mode shadow stack
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <152815395775.39010.9355109660470832490.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: Andrew Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu, Jun 7, 2018 at 9:02 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
->
-> On Thu, 2018-06-07 at 08:47 -0700, Andy Lutomirski wrote:
-> > On Thu, Jun 7, 2018 at 7:40 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
-> > >
-> > > Introduce Kconfig option X86_INTEL_SHADOW_STACK_USER.
-> > >
-> > > An application has shadow stack protection when all the following are
-> > > true:
-> > >
-> > >   (1) The kernel has X86_INTEL_SHADOW_STACK_USER enabled,
-> > >   (2) The running processor supports the shadow stack,
-> > >   (3) The application is built with shadow stack enabled tools & libs
-> > >       and, and at runtime, all dependent shared libs can support shadow
-> > >       stack.
-> > >
-> > > If this kernel config option is enabled, but (2) or (3) above is not
-> > > true, the application runs without the shadow stack protection.
-> > > Existing legacy applications will continue to work without the shadow
-> > > stack protection.
-> > >
-> > > The user-mode shadow stack protection is only implemented for the
-> > > 64-bit kernel.  Thirty-two bit applications are supported under the
-> > > compatibility mode.
-> > >
-> >
-> > The 64-bit only part seems entirely reasonable.  So please make the
-> > code 64-bit only :)
->
-> Yes, I will remove changes in "arch/x86/entry/entry32.S".
-> We still want to support x32/ia32 in the 64-bit kernel, right?
->
+On Mon 04-06-18 16:12:37, Dan Williams wrote:
+>     mce: Uncorrected hardware memory error in user-access at af34214200
+>     {1}[Hardware Error]: It has been corrected by h/w and requires no further action
+>     mce: [Hardware Error]: Machine check events logged
+>     {1}[Hardware Error]: event severity: corrected
+>     Memory failure: 0xaf34214: reserved kernel page still referenced by 1 users
+>     [..]
+>     Memory failure: 0xaf34214: recovery action for reserved kernel page: Failed
+>     mce: Memory error not recovered
+> 
+> In contrast to typical memory, dev_pagemap pages may be dax mapped. With
+> dax there is no possibility to map in another page dynamically since dax
+> establishes 1:1 physical address to file offset associations. Also
+> dev_pagemap pages associated with NVDIMM / persistent memory devices can
+> internal remap/repair addresses with poison. While memory_failure()
+> assumes that it can discard typical poisoned pages and keep them
+> unmapped indefinitely, dev_pagemap pages may be returned to service
+> after the error is cleared.
+> 
+> Teach memory_failure() to detect and handle MEMORY_DEVICE_HOST
+> dev_pagemap pages that have poison consumed by userspace. Mark the
+> memory as UC instead of unmapping it completely to allow ongoing access
+> via the device driver (nd_pmem). Later, nd_pmem will grow support for
+> marking the page back to WB when the error is cleared.
 
-Yes, I think.  But that's not in entry_32.S
+...
 
+> +static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
+> +		struct dev_pagemap *pgmap)
+> +{
+> +	struct page *page = pfn_to_page(pfn);
+> +	const bool unmap_success = true;
+> +	struct address_space *mapping;
+> +	unsigned long size;
+> +	LIST_HEAD(tokill);
+> +	int rc = -EBUSY;
+> +	loff_t start;
+> +
+> +	/*
+> +	 * Prevent the inode from being freed while we are interrogating
+> +	 * the address_space, typically this would be handled by
+> +	 * lock_page(), but dax pages do not use the page lock.
+> +	 */
+> +	rcu_read_lock();
+> +	mapping = page->mapping;
+> +	if (!mapping) {
+> +		rcu_read_unlock();
+> +		goto out;
+> +	}
+> +	if (!igrab(mapping->host)) {
+> +		mapping = NULL;
+> +		rcu_read_unlock();
+> +		goto out;
+> +	}
+> +	rcu_read_unlock();
 
->
+Why don't you use radix tree entry lock here instead? That is a direct
+replacement of the page lock and you don't have to play games with pinning
+the inode and verifying the mapping afterwards.
+
+> +out:
+> +	if (mapping)
+> +		iput(mapping->host);
+
+BTW, this would have to be prepared to do full inode deletion which I'm not
+quite sure is safe from this context.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
