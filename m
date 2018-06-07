@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 994816B0005
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 18:48:09 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id x2-v6so6178690plv.0
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 15:48:09 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id j66-v6si6075133pfc.243.2018.06.07.15.48.08
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B80496B0006
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 18:48:28 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id c3-v6so6149264plz.7
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 15:48:28 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id j189-v6si26084560pgd.657.2018.06.07.15.48.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 15:48:08 -0700 (PDT)
-Subject: Re: [PATCH v4 1/4] mm/sparse: Add a static variable
- nr_present_sections
+        Thu, 07 Jun 2018 15:48:27 -0700 (PDT)
+Subject: Re: [PATCH v4 2/4] mm/sparsemem: Defer the ms->section_mem_map
+ clearing
 References: <20180521101555.25610-1-bhe@redhat.com>
- <20180521101555.25610-2-bhe@redhat.com>
+ <20180521101555.25610-3-bhe@redhat.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <cd3e1821-5e89-97a5-f108-d67e819cc209@intel.com>
-Date: Thu, 7 Jun 2018 15:46:46 -0700
+Message-ID: <39ec4f7c-2ef8-aaef-7034-e1f895eeb283@intel.com>
+Date: Thu, 7 Jun 2018 15:47:05 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180521101555.25610-2-bhe@redhat.com>
+In-Reply-To: <20180521101555.25610-3-bhe@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -27,11 +27,18 @@ To: Baoquan He <bhe@redhat.com>, linux-kernel@vger.kernel.org, akpm@linux-founda
 Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
 On 05/21/2018 03:15 AM, Baoquan He wrote:
-> It's used to record how many memory sections are marked as present
-> during system boot up, and will be used in the later patch.
+> In sparse_init(), if CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER=y, system
+> will allocate one continuous memory chunk for mem maps on one node and
+> populate the relevant page tables to map memory section one by one. If
+> fail to populate for a certain mem section, print warning and its
+> ->section_mem_map will be cleared to cancel the marking of being present.
+> Like this, the number of mem sections marked as present could become
+> less during sparse_init() execution.
+> 
+> Here just defer the ms->section_mem_map clearing if failed to populate
+> its page tables until the last for_each_present_section_nr() loop. This
+> is in preparation for later optimizing the mem map allocation.
 > 
 > Signed-off-by: Baoquan He <bhe@redhat.com>
-
-I think this is fine:
 
 Acked-By: Dave Hansen <dave.hansen@intel.com>
