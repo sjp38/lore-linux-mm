@@ -1,69 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4476E6B0003
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 06:44:58 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id b8-v6so11882054qto.13
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 03:44:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q78-v6si10232513qka.40.2018.06.08.03.44.56
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B55C06B0003
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 06:47:44 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id z1-v6so6074483pfh.3
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 03:47:44 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id f4-v6si13686618pgc.522.2018.06.08.03.47.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jun 2018 03:44:56 -0700 (PDT)
-Subject: Re: pkeys on POWER: Access rights not reset on execve
-References: <20180520060425.GL5479@ram.oc3035372033.ibm.com>
- <CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
- <20180520191115.GM5479@ram.oc3035372033.ibm.com>
- <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
- <20180603201832.GA10109@ram.oc3035372033.ibm.com>
- <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
- <20180604140135.GA10088@ram.oc3035372033.ibm.com>
- <f2f61c24-8e8f-0d36-4e22-196a2a3f7ca7@redhat.com>
- <20180604190229.GB10088@ram.oc3035372033.ibm.com>
- <30040030-1aa2-623b-beec-dd1ceb3eb9a7@redhat.com>
- <20180608023441.GA5573@ram.oc3035372033.ibm.com>
- <2858a8eb-c9b5-42ce-5cfc-74a4b3ad6aa9@redhat.com>
- <20180608121551.3c151e0c@naga.suse.cz>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <aa136e1e-3bf2-fd92-2eab-16469c467729@redhat.com>
-Date: Fri, 8 Jun 2018 12:44:53 +0200
+        Fri, 08 Jun 2018 03:47:43 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm,oom: Don't call schedule_timeout_killable() with
+ oom_lock held.
+References: <1528369223-7571-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20180607111137.GK32433@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <7e4a311b-29e3-2fd2-eb27-d7713c3e9fd3@i-love.sakura.ne.jp>
+Date: Fri, 8 Jun 2018 19:47:18 +0900
 MIME-Version: 1.0
-In-Reply-To: <20180608121551.3c151e0c@naga.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20180607111137.GK32433@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Michal_Such=c3=a1nek?= <msuchanek@suse.de>
-Cc: Ram Pai <linuxram@us.ibm.com>, Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On 06/08/2018 12:15 PM, Michal SuchA!nek wrote:
-> On Fri, 8 Jun 2018 07:53:51 +0200
-> Florian Weimer <fweimer@redhat.com> wrote:
+On 2018/06/07 20:28, Michal Hocko wrote:
+> On Thu 07-06-18 20:00:23, Tetsuo Handa wrote:
+> OK, this looks like a nice shortcut. I am quite surprise that all your
+> NOMMU concerns are gone now while you clearly regress that case because
+> inflight victims are not detected anymore AFAICS. Not that I care all
+> that much, just sayin'.
 > 
->> On 06/08/2018 04:34 AM, Ram Pai wrote:
->>>>
->>>> So the remaining question at this point is whether the Intel
->>>> behavior (default-deny instead of default-allow) is preferable.
->>>
->>> Florian, remind me what behavior needs to fixed?
+> Anyway, I would suggest splitting this into two patches. One to add an
+> early check for inflight oom victims and one removing the detection from
+> oom_evaluate_task. Just to make it easier to revert if somebody on nommu
+> actually notices a regression.
+
+Sure. Making it easier to revert is a good thing.
+But this patch comes after PATCH 3/4. Need to solve previous problem.
+
+On 2018/06/07 20:16, Michal Hocko wrote:
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> 
+> with a minor nit
+> 
+>> ---
+>>  mm/oom_kill.c | 13 ++++++++-----
+>>  1 file changed, 8 insertions(+), 5 deletions(-)
 >>
->> See the other thread.  The Intel register equivalent to the AMR by
->> default disallows access to yet-unallocated keys, so that threads
->> which are created before key allocation do not magically gain access
->> to a key allocated by another thread.
->>
+>> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+>> index 23ce67f..5a6f1b1 100644
+>> --- a/mm/oom_kill.c
+>> +++ b/mm/oom_kill.c
+>> @@ -1073,15 +1073,18 @@ bool out_of_memory(struct oom_control *oc)
+>>  	}
+>>  
+>>  	select_bad_process(oc);
+>> +	if (oc->chosen == (void *)-1UL)
 > 
-> That does not make any sense. The threads share the address space so
-> they should also share the keys.
+> I think this one deserves a comment.
+> 	/* There is an inflight oom victim *.
 > 
-> Or in other words the keys are supposed to be acceleration of
-> mprotect() so if mprotect() magically gives access to threads that did
-> not call it so should pkey functions. If they cannot do that then they
-> fail the primary purpose.
+>> +		return true;
 
-That's not how protection keys work.  The access rights are 
-thread-specific, so that you can change them locally, without 
-synchronization and expensive inter-node communication.
+OK. Though, this change will be reverted by PATCH 4/4.
+But this patch comes after PATCH 1/4. Need to solve previous problem.
 
-Thanks,
-Florian
+On 2018/06/07 20:13, Michal Hocko wrote:
+> On Thu 07-06-18 20:00:21, Tetsuo Handa wrote:
+> 
+> Your s-o-b is missing here. And I suspect this should be From: /me
+> but I do not care all that much.
+
+How can I do that? Forge the From: line (assuming that mail server does not
+reject forged From: line)?
+
+But I am quite surprised that you did not respond PATCH 2/4 with Nacked-by:
+because
+
+On 2018/06/07 20:11, Michal Hocko wrote:
+> On Thu 07-06-18 20:00:20, Tetsuo Handa wrote:
+> [...]
+>> @@ -4238,6 +4237,12 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+>>  	/* Retry as long as the OOM killer is making progress */
+>>  	if (did_some_progress) {
+>>  		no_progress_loops = 0;
+>> +		/*
+>> +		 * This schedule_timeout_*() serves as a guaranteed sleep for
+>> +		 * PF_WQ_WORKER threads when __zone_watermark_ok() == false.
+>> +		 */
+>> +		if (!tsk_is_oom_victim(current))
+>> +			schedule_timeout_uninterruptible(1);
+>>  		goto retry;
+>>  	}
+> 
+> Nacked-by: Michal Hocko <mhocko@suse.com>
+> 
+> as explainaed several times already. This moving code just to preserve
+> the current logic without any arguments to back them must stop finally.
+> We have way too much of this "just in case" code that nobody really
+> understands and others just pile on top. Seriously this is not how the
+> development should work.
+> 
+
+I am purposely splitting into PATCH 1/4 and PATCH 2/4 in order to make it
+easier to revert (like you suggested doing so for PATCH 4/4) in case
+somebody actually notices an unexpected side effect.
+
+PATCH 1/4 is doing logically correct thing, no matter how you hate
+the short sleep which will be removed by PATCH 2/4.
+
+PATCH 1/4 is proven to be safe. But PATCH 2/4 is not tested to be safe.
+PATCH 1/4 is safe for stable. But 2/4 might not be safe for stable.
+Therefore, I insist on two separate patches.
+
+If you can accept what PATCH 1/4 + PATCH 2/4 are doing, you are free to post
+one squashed patch.
