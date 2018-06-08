@@ -1,60 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 844CB6B0003
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 21:23:30 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e16-v6so5362625pfn.5
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 18:23:30 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e4-v6sor3617549pfn.127.2018.06.07.18.23.28
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 95A666B0003
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 21:30:10 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id a10-v6so8753271iod.22
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 18:30:10 -0700 (PDT)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id x2-v6si6691933iof.146.2018.06.07.18.30.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 07 Jun 2018 18:23:29 -0700 (PDT)
-Subject: Re: [PATCH v2] mm/ksm: ignore STABLE_FLAG of rmap_item->address in
- rmap_walk_ksm
-References: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
- <1525403506-6750-1-git-send-email-hejianet@gmail.com>
- <20180509163101.02f23de1842a822c61fc68ff@linux-foundation.org>
- <2cd6b39b-1496-bbd5-9e31-5e3dcb31feda@arm.com>
- <6c417ab1-a808-72ea-9618-3d76ec203684@arm.com>
- <20180524133805.6e9bfd4bf48de065ce1d7611@linux-foundation.org>
- <20180607151344.a22a1e7182a2142e6d24e4de@linux-foundation.org>
-From: Jia He <hejianet@gmail.com>
-Message-ID: <f92a05ac-6f9d-a152-fb4c-52bfb15bdffb@gmail.com>
-Date: Fri, 8 Jun 2018 09:23:20 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jun 2018 18:30:09 -0700 (PDT)
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w581Kmpq081418
+	for <linux-mm@kvack.org>; Fri, 8 Jun 2018 01:30:08 GMT
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by aserp2130.oracle.com with ESMTP id 2jbvypb4rq-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 08 Jun 2018 01:30:08 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w581U6W5019725
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 8 Jun 2018 01:30:06 GMT
+Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w581U6B9028976
+	for <linux-mm@kvack.org>; Fri, 8 Jun 2018 01:30:06 GMT
+Received: by mail-ot0-f182.google.com with SMTP id q17-v6so13846101otg.2
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 18:30:06 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180607151344.a22a1e7182a2142e6d24e4de@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+References: <20180418193220.4603-1-timofey.titovets@synesis.ru>
+ <20180418193220.4603-3-timofey.titovets@synesis.ru> <20180522202242.otvdunkl75yfhkt4@xakep.localdomain>
+ <CAGqmi76gJV=ZDX5=Y3toF2tPiJs8T=PiUJFQg5nq9O5yztx80Q@mail.gmail.com>
+ <CAGM2reaZ2YoxFhEDtcXi=hMFoGFi8+SROOn+_SRMwnx3cW15kw@mail.gmail.com>
+ <CAGqmi76-qK9q_OTvyqpb-9k_m0CLMt3o860uaN5LL8nBkf5RTg@mail.gmail.com>
+ <20180527130325.GB4522@rapoport-lnx> <CAGM2rea2GBvOAiKcSpHkQ9F+jgvy3sCsBw7hFz26DvQ+c_677A@mail.gmail.com>
+ <CAGqmi74G-7bM5mbbaHjzOkTvuEpCcAbZ8Q0PVCMkyP09XaVSkA@mail.gmail.com> <20180607115232.GA8245@rapoport-lnx>
+In-Reply-To: <20180607115232.GA8245@rapoport-lnx>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Thu, 7 Jun 2018 21:29:49 -0400
+Message-ID: <CAGM2rebK=gNbcAwkmt7W9kwtd=QWoPRogQMaoXOv=bmX+_d+yw@mail.gmail.com>
+Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Suzuki K Poulose <Suzuki.Poulose@arm.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jia.he@hxt-semitech.com, Hugh Dickins <hughd@google.com>
+To: rppt@linux.vnet.ibm.com
+Cc: Timofey Titovets <nefelim4ag@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, solee@os.korea.ac.kr, aarcange@redhat.com, kvm@vger.kernel.org
 
-Hi Andrew
+> With CONFIG_SYSFS=n there is nothing that will set ksm_run to anything but
+> zero and ksm_do_scan will never be called.
+>
 
-On 6/8/2018 6:13 AM, Andrew Morton Wrote:
-> On Thu, 24 May 2018 13:38:05 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
->>>
->>> Jia, Andrew,
->>>
->>> What is the status of this patch ?
->>>
->>
->> I have it scheduled for 4.18-rc1, with a cc:stable for backporting.
->>
->> I'd normally put such a fix into 4.17-rcX but I'd like to give Hugh
->> time to review it and to generally give it a bit more time for review
->> and test.
->>
->> Have you tested it yourself?
-> 
-> I'll take your silence as a no.
-Sorry if you asked the previous question to me.
-I've tested by myself in arm64 server (QDF2400,46 cpus,96G mem)
-Without this patch, the WARN_ON is very easy for reproducing.
-After this patch, I have run the same benchmarch for a whole day without any
-WARN_ONs
+Unfortunatly, this is not so:
 
-Hope it helpful.
+In: /linux-master/mm/ksm.c
 
-Cheers,
-Jia
+3143#else
+3144 ksm_run = KSM_RUN_MERGE; /* no way for user to start it */
+3145
+3146#endif /* CONFIG_SYSFS */
+
+So, we do set ksm_run to run right from ksm_init() when CONFIG_SYSFS=n.
+
+I wonder if this is acceptible to only use xxhash when CONFIG_SYSFS=n ?
+
+Thank you,
+Pavel
