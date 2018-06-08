@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F4DE6B0003
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 13:05:09 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id e39-v6so428181plb.10
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 10:05:09 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y124-v6si24861169pgb.61.2018.06.08.10.05.08
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F2D606B0005
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 13:05:11 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id j24-v6so8866969otk.11
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 10:05:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h64-v6sor5608752oig.60.2018.06.08.10.05.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 08 Jun 2018 10:05:08 -0700 (PDT)
-Date: Fri, 8 Jun 2018 10:05:03 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm: Check for SIGKILL inside dup_mmap() loop.
-Message-ID: <20180608170503.GA29260@bombadil.infradead.org>
-References: <201804071938.CDE04681.SOFVQJFtMHOOLF@I-love.SAKURA.ne.jp>
- <20180418144401.7c9311079914803c9076d209@linux-foundation.org>
- <201804190154.w3J1sieH011800@www262.sakura.ne.jp>
- <20180418193254.2db529eeca5d0dc5b82f6b3e@linux-foundation.org>
- <20180607150546.1c7db21f70221008e14b8bb8@linux-foundation.org>
+        (Google Transport Security);
+        Fri, 08 Jun 2018 10:05:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180607150546.1c7db21f70221008e14b8bb8@linux-foundation.org>
+In-Reply-To: <152847720311.55924.16999195879201817653.stgit@djiang5-desk3.ch.intel.com>
+References: <152847720311.55924.16999195879201817653.stgit@djiang5-desk3.ch.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 8 Jun 2018 10:05:10 -0700
+Message-ID: <CAPcyv4h+OTXvfLiG8cpS7nO5wkUTkZBsyq9iq6FB_FG4wi4naA@mail.gmail.com>
+Subject: Re: [PATCH] dax: remove VM_MIXEDMAP for fsdax and device dax
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, kirill.shutemov@linux.intel.com, mhocko@suse.com, riel@redhat.com
+To: Dave Jiang <dave.jiang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>
 
-On Thu, Jun 07, 2018 at 03:05:46PM -0700, Andrew Morton wrote:
-> [akpm@linux-foundation.org: add comment]
+On Fri, Jun 8, 2018 at 10:00 AM, Dave Jiang <dave.jiang@intel.com> wrote:
+> This patch is reworked from an earlier patch that Dan has posted:
+> https://patchwork.kernel.org/patch/10131727/
+>
+> VM_MIXEDMAP is used by dax to direct mm paths like vm_normal_page() that
+> the memory page it is dealing with is not typical memory from the linear
+> map. The get_user_pages_fast() path, since it does not resolve the vma,
+> is already using {pte,pmd}_devmap() as a stand-in for VM_MIXEDMAP, so we
+> use that as a VM_MIXEDMAP replacement in some locations. In the cases
+> where there is no pte to consult we fallback to using vma_is_dax() to
+> detect the VM_MIXEDMAP special case.
+>
+> Now that we have explicit driver pfn_t-flag opt-in/opt-out for
+> get_user_pages() support for DAX we can stop setting VM_MIXEDMAP.  This
+> also means we no longer need to worry about safely manipulating vm_flags
+> in a future where we support dynamically changing the dax mode of a
+> file.
+>
+> DAX should also now be supported with madvise_behavior(), vma_merge(),
+> and copy_page_range().
+>
+> This patch has been tested against ndctl unit test. It has also been
+> tested against xfstests commit: 625515d using fake pmem created by memmap
+> and no additional issues have been observed.
+>
+> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
 
-Can I fix the comment?  ;-)
-
-> @@ -440,6 +440,14 @@ static __latent_entropy int dup_mmap(str
->  			continue;
->  		}
->  		charge = 0;
-> +		/*
-> +		 * Don't duplicate many vmas if we've been oom-killed (for
-> +		 * example)
-> +		 */
-
-		/*
-		 * No point in continuing if we're just going to die at
-		 * the end of the fork.  This may happen due to being OOM.
-		 */
-
-> +		if (fatal_signal_pending(current)) {
-> +			retval = -EINTR;
-> +			goto out;
-> +		}
-
-Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+Acked-by: Dan Williams <dan.j.williams@intel.com>
