@@ -1,68 +1,54 @@
-Return-Path: <linux-kernel-owner@vger.kernel.org>
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 33/72] page cache: Convert filemap_range_has_page to XArray
-Date: Mon, 11 Jun 2018 07:06:00 -0700
-Message-Id: <20180611140639.17215-34-willy@infradead.org>
-In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
-References: <20180611140639.17215-1-willy@infradead.org>
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
-List-ID: <linux-mm.kvack.org>
+From: Duncan <1i5t5.duncan@cox.net>
+Subject: Re: [Bug 199931] New: systemd/rtorrent file data corruption when
+ using echo 3 >/proc/sys/vm/drop_caches
+Date: Fri, 8 Jun 2018 07:18:44 +0000 (UTC)
+Message-ID: <pan$a2388$84c4dee0$cda57858$77256a9d@cox.net>
+References: <bug-199931-27@https.bugzilla.kernel.org/>
+        <20180605130329.f7069e01c5faacc08a10996c@linux-foundation.org>
+        <CA+X5Wn5_iJYS9MLFdArG9sDHQO2n=BkZmaYAOexhdoVc+tQnmw@mail.gmail.com>
+        <20180606190635.meodcz3mchhtqprb@schmorp.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Return-path: <linux-btrfs-owner@vger.kernel.org>
+Sender: linux-btrfs-owner@vger.kernel.org
+To: linux-btrfs@vger.kernel.org
+Cc: linux-mm@kvack.org
+List-Id: linux-mm.kvack.org
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+Marc Lehmann posted on Wed, 06 Jun 2018 21:06:35 +0200 as excerpted:
 
-Instead of calling find_get_pages_range() and putting any reference,
-use xas_find() to iterate over any entries in the range, skipping the
-shadow/swap entries.
+> Not sure what exactly you mean with btrfs mirroring (there are many
+> btrfs features this could refer to), but the closest thing to that that
+> I use is dup for metadata (which is always checksummed), data is always
+> single. All btrfs filesystems are on lvm (not mirrored), and most (but
+> not all) are encrypted. One affected fs is on a hardware raid
+> controller, one is on an ssd. I have a single btrfs fs in that box with
+> raid1 for metadata, as an experiment, but I haven't used it for testing
+> yet.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- mm/filemap.c | 26 ++++++++++++++++++--------
- 1 file changed, 18 insertions(+), 8 deletions(-)
+On the off chance, tho it doesn't sound like it from your description...
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index e447dd2d0f5c..68890327d1f2 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -455,20 +455,30 @@ EXPORT_SYMBOL(filemap_flush);
- bool filemap_range_has_page(struct address_space *mapping,
- 			   loff_t start_byte, loff_t end_byte)
- {
--	pgoff_t index = start_byte >> PAGE_SHIFT;
--	pgoff_t end = end_byte >> PAGE_SHIFT;
- 	struct page *page;
-+	XA_STATE(xas, &mapping->i_pages, start_byte >> PAGE_SHIFT);
-+	pgoff_t max = end_byte >> PAGE_SHIFT;
- 
- 	if (end_byte < start_byte)
- 		return false;
- 
--	if (mapping->nrpages == 0)
--		return false;
-+	rcu_read_lock();
-+	do {
-+		page = xas_find(&xas, max);
-+		if (xas_retry(&xas, page))
-+			continue;
-+		/* Shadow entries don't count */
-+		if (xa_is_value(page))
-+			continue;
-+		/*
-+		 * We don't need to try to pin this page; we're about to
-+		 * release the RCU lock anyway.  It is enough to know that
-+		 * there was a page here recently.
-+		 */
-+	} while (0);
-+	rcu_read_unlock();
- 
--	if (!find_get_pages_range(mapping, &index, end, 1, &page))
--		return false;
--	put_page(page);
--	return true;
-+	return page != NULL;
- }
- EXPORT_SYMBOL(filemap_range_has_page);
- 
+You're not doing LVM snapshots of the volumes with btrfs on them, 
+correct?  Because btrfs depends on filesystem GUIDs being just that, 
+globally unique, using them to find the possible multiple devices of a 
+multi-device btrfs (normal single-device filesystems don't have the issue 
+as they don't have to deal with multi-device as btrfs does), and btrfs 
+can get very confused, with data-loss potential, if it sees multiple 
+copies of a device with the same filesystem GUID, as can happen if lvm 
+snapshots (which obviously have the same filesystem GUID as the original) 
+are taken and both the snapshot and the source are exposed to btrfs 
+device scan (which is auto-triggered by udev when the new device 
+appears), with one of them mounted.
+
+Presumably you'd consider lvm snapshotting a form of mirroring and you've 
+already said you're not doing that in any form, but just in case, because 
+this is a rather obscure trap people using lvm could find themselves in, 
+without a clue as to the danger, and the resulting symptoms could be 
+rather hard to troubleshoot if this possibility wasn't considered.
+
 -- 
-2.17.1
+Duncan - List replies preferred.   No HTML msgs.
+"Every nonfree program has a lord, a master --
+and if you use the program, he is your master."  Richard Stallman
+
