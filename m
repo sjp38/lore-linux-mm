@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AAD56B026B
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 20:00:55 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z5-v6so6957934pfz.6
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 17:00:55 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id a6-v6si5483741plz.351.2018.06.08.17.00.54
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ED2326B026D
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 20:00:56 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id g6-v6so8189374plq.9
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 17:00:56 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id t127-v6si8472290pfc.174.2018.06.08.17.00.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jun 2018 17:00:54 -0700 (PDT)
-Subject: [PATCH v4 05/12] filesystem-dax: Set page->index
+        Fri, 08 Jun 2018 17:00:55 -0700 (PDT)
+Subject: [PATCH v4 07/12] x86/mm/pat: Prepare {reserve,
+ free}_memtype() for "decoy" addresses
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 08 Jun 2018 16:50:47 -0700
-Message-ID: <152850184756.38390.8348959280033335538.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 08 Jun 2018 16:50:58 -0700
+Message-ID: <152850185800.38390.16809919962943041626.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,71 +22,66 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Christoph Hellwig <hch@lst.de>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.orgjack@suse.cz
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, x86@kernel.org, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jack@suse.cz
 
-In support of enabling memory_failure() handling for filesystem-dax
-mappings, set ->index to the pgoff of the page. The rmap implementation
-requires ->index to bound the search through the vma interval tree. The
-index is set and cleared at dax_associate_entry() and
-dax_disassociate_entry() time respectively.
+In preparation for using set_memory_uc() instead set_memory_np() for
+isolating poison from speculation, teach the memtype code to sanitize
+physical addresses vs __PHYSICAL_MASK.
 
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
+The motivation for using set_memory_uc() for this case is to allow
+ongoing access to persistent memory pages via the pmem-driver +
+memcpy_mcsafe() until the poison is repaired.
+
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: <linux-edac@vger.kernel.org>
+Cc: <x86@kernel.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- fs/dax.c |   16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ arch/x86/mm/pat.c |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index aaec72ded1b6..cccf6cad1a7a 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -319,18 +319,27 @@ static unsigned long dax_radix_end_pfn(void *entry)
- 	for (pfn = dax_radix_pfn(entry); \
- 			pfn < dax_radix_end_pfn(entry); pfn++)
- 
--static void dax_associate_entry(void *entry, struct address_space *mapping)
-+/*
-+ * TODO: for reflink+dax we need a way to associate a single page with
-+ * multiple address_space instances at different linear_page_index()
-+ * offsets.
-+ */
-+static void dax_associate_entry(void *entry, struct address_space *mapping,
-+		struct vm_area_struct *vma, unsigned long address)
- {
--	unsigned long pfn;
-+	unsigned long size = dax_entry_size(entry), pfn, index;
-+	int i = 0;
- 
- 	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
- 		return;
- 
-+	index = linear_page_index(vma, address & ~(size - 1));
- 	for_each_mapped_pfn(entry, pfn) {
- 		struct page *page = pfn_to_page(pfn);
- 
- 		WARN_ON_ONCE(page->mapping);
- 		page->mapping = mapping;
-+		page->index = index + i++;
- 	}
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index 1555bd7d3449..6788ffa990f8 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -512,6 +512,17 @@ static int free_ram_pages_type(u64 start, u64 end)
+ 	return 0;
  }
  
-@@ -348,6 +357,7 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
- 		WARN_ON_ONCE(trunc && page_ref_count(page) > 1);
- 		WARN_ON_ONCE(page->mapping && page->mapping != mapping);
- 		page->mapping = NULL;
-+		page->index = 0;
- 	}
- }
++static u64 sanitize_phys(u64 address)
++{
++	/*
++	 * When changing the memtype for pages containing poison allow
++	 * for a "decoy" virtual address (bit 63 clear) passed to
++	 * set_memory_X(). __pa() on a "decoy" address results in a
++	 * physical address with it 63 set.
++	 */
++	return address & __PHYSICAL_MASK;
++}
++
+ /*
+  * req_type typically has one of the:
+  * - _PAGE_CACHE_MODE_WB
+@@ -533,6 +544,8 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
+ 	int is_range_ram;
+ 	int err = 0;
  
-@@ -604,7 +614,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 	new_entry = dax_radix_locked_entry(pfn, flags);
- 	if (dax_entry_size(entry) != dax_entry_size(new_entry)) {
- 		dax_disassociate_entry(entry, mapping, false);
--		dax_associate_entry(new_entry, mapping);
-+		dax_associate_entry(new_entry, mapping, vmf->vma, vmf->address);
- 	}
++	start = sanitize_phys(start);
++	end = sanitize_phys(end);
+ 	BUG_ON(start >= end); /* end is exclusive */
  
- 	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry)) {
+ 	if (!pat_enabled()) {
+@@ -609,6 +622,9 @@ int free_memtype(u64 start, u64 end)
+ 	if (!pat_enabled())
+ 		return 0;
+ 
++	start = sanitize_phys(start);
++	end = sanitize_phys(end);
++
+ 	/* Low ISA region is always mapped WB. No need to track */
+ 	if (x86_platform.is_untracked_pat_range(start, end))
+ 		return 0;
