@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A45826B026F
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 20:01:02 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id x25-v6so6943904pfn.21
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 17:01:02 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id a23-v6si8043211plm.305.2018.06.08.17.01.01
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 417AD6B0271
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 20:01:08 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p29-v6so6977622pfi.19
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 17:01:08 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id y125-v6si33385152pfb.284.2018.06.08.17.01.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jun 2018 17:01:01 -0700 (PDT)
-Subject: [PATCH v4 08/12] x86/memory_failure: Introduce {set,
- clear}_mce_nospec()
+        Fri, 08 Jun 2018 17:01:06 -0700 (PDT)
+Subject: [PATCH v4 09/12] mm, memory_failure: Pass page size to kill_proc()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 08 Jun 2018 16:51:03 -0700
-Message-ID: <152850186345.38390.5993995809392775033.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 08 Jun 2018 16:51:08 -0700
+Message-ID: <152850186890.38390.5754581007005072615.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,218 +21,87 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, linux-edac@vger.kernel.org, x86@kernel.org, Tony Luck <tony.luck@intel.com>, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jack@suse.cz
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jack@suse.cz
 
-Currently memory_failure() returns zero if the error was handled. On
-that result mce_unmap_kpfn() is called to zap the page out of the kernel
-linear mapping to prevent speculative fetches of potentially poisoned
-memory. However, in the case of dax mapped devmap pages the page may be
-in active permanent use by the device driver, so it cannot be unmapped
-from the kernel.
+Given that ZONE_DEVICE / dev_pagemap pages are never assembled into
+compound pages, the size determination logic in kill_proc() needs
+updating for the dev_pagemap case. In preparation for dev_pagemap
+support rework memory_failure() and kill_proc() to pass / consume the page
+size explicitly.
 
-Instead of marking the page not present, marking the page UC should
-be sufficient for preventing poison from being pre-fetched into the
-cache. Convert mce_unmap_pfn() to set_mce_nospec() remapping the page as
-UC, to hide it from speculative accesses.
-
-Given that that persistent memory errors can be cleared by the driver,
-include a facility to restore the page to cacheable operation,
-clear_mce_nospec().
-
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: <linux-edac@vger.kernel.org>
-Cc: <x86@kernel.org>
-Acked-by: Tony Luck <tony.luck@intel.com>
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/x86/include/asm/set_memory.h         |   42 +++++++++++++++++++++++++++++
- arch/x86/kernel/cpu/mcheck/mce-internal.h |   15 ----------
- arch/x86/kernel/cpu/mcheck/mce.c          |   38 ++------------------------
- include/linux/set_memory.h                |   14 ++++++++++
- 4 files changed, 59 insertions(+), 50 deletions(-)
+ mm/memory-failure.c |   16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
-index bd090367236c..cf5e9124b45e 100644
---- a/arch/x86/include/asm/set_memory.h
-+++ b/arch/x86/include/asm/set_memory.h
-@@ -88,4 +88,46 @@ extern int kernel_set_to_readonly;
- void set_kernel_text_rw(void);
- void set_kernel_text_ro(void);
- 
-+#ifdef CONFIG_X86_64
-+static inline int set_mce_nospec(unsigned long pfn)
-+{
-+	unsigned long decoy_addr;
-+	int rc;
-+
-+	/*
-+	 * Mark the linear address as UC to make sure we don't log more
-+	 * errors because of speculative access to the page.
-+	 * We would like to just call:
-+	 *      set_memory_uc((unsigned long)pfn_to_kaddr(pfn), 1);
-+	 * but doing that would radically increase the odds of a
-+	 * speculative access to the poison page because we'd have
-+	 * the virtual address of the kernel 1:1 mapping sitting
-+	 * around in registers.
-+	 * Instead we get tricky.  We create a non-canonical address
-+	 * that looks just like the one we want, but has bit 63 flipped.
-+	 * This relies on set_memory_uc() properly sanitizing any __pa()
-+	 * results with __PHYSICAL_MASK or PTE_PFN_MASK.
-+	 */
-+	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
-+
-+	rc = set_memory_uc(decoy_addr, 1);
-+	if (rc)
-+		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
-+	return rc;
-+}
-+#define set_mce_nospec set_mce_nospec
-+
-+/* Restore full speculative operation to the pfn. */
-+static inline int clear_mce_nospec(unsigned long pfn)
-+{
-+	return set_memory_wb((unsigned long) pfn_to_kaddr(pfn), 1);
-+}
-+#define clear_mce_nospec clear_mce_nospec
-+#else
-+/*
-+ * Few people would run a 32-bit kernel on a machine that supports
-+ * recoverable errors because they have too much memory to boot 32-bit.
-+ */
-+#endif
-+
- #endif /* _ASM_X86_SET_MEMORY_H */
-diff --git a/arch/x86/kernel/cpu/mcheck/mce-internal.h b/arch/x86/kernel/cpu/mcheck/mce-internal.h
-index 374d1aa66952..ceb67cd5918f 100644
---- a/arch/x86/kernel/cpu/mcheck/mce-internal.h
-+++ b/arch/x86/kernel/cpu/mcheck/mce-internal.h
-@@ -113,21 +113,6 @@ static inline void mce_register_injector_chain(struct notifier_block *nb)	{ }
- static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
- #endif
- 
--#ifndef CONFIG_X86_64
--/*
-- * On 32-bit systems it would be difficult to safely unmap a poison page
-- * from the kernel 1:1 map because there are no non-canonical addresses that
-- * we can use to refer to the address without risking a speculative access.
-- * However, this isn't much of an issue because:
-- * 1) Few unmappable pages are in the 1:1 map. Most are in HIGHMEM which
-- *    are only mapped into the kernel as needed
-- * 2) Few people would run a 32-bit kernel on a machine that supports
-- *    recoverable errors because they have too much memory to boot 32-bit.
-- */
--static inline void mce_unmap_kpfn(unsigned long pfn) {}
--#define mce_unmap_kpfn mce_unmap_kpfn
--#endif
--
- struct mca_config {
- 	bool dont_log_ce;
- 	bool cmci_disabled;
-diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
-index 42cf2880d0ed..a0fbf0a8b7e6 100644
---- a/arch/x86/kernel/cpu/mcheck/mce.c
-+++ b/arch/x86/kernel/cpu/mcheck/mce.c
-@@ -42,6 +42,7 @@
- #include <linux/irq_work.h>
- #include <linux/export.h>
- #include <linux/jump_label.h>
-+#include <linux/set_memory.h>
- 
- #include <asm/intel-family.h>
- #include <asm/processor.h>
-@@ -50,7 +51,6 @@
- #include <asm/mce.h>
- #include <asm/msr.h>
- #include <asm/reboot.h>
--#include <asm/set_memory.h>
- 
- #include "mce-internal.h"
- 
-@@ -108,10 +108,6 @@ static struct irq_work mce_irq_work;
- 
- static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
- 
--#ifndef mce_unmap_kpfn
--static void mce_unmap_kpfn(unsigned long pfn);
--#endif
--
- /*
-  * CPU/chipset specific EDAC code can register a notifier call here to print
-  * MCE errors in a human-readable form.
-@@ -602,7 +598,7 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
- 	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
- 		pfn = mce->addr >> PAGE_SHIFT;
- 		if (!memory_failure(pfn, 0))
--			mce_unmap_kpfn(pfn);
-+			set_mce_nospec(pfn);
- 	}
- 
- 	return NOTIFY_OK;
-@@ -1070,38 +1066,10 @@ static int do_memory_failure(struct mce *m)
- 	if (ret)
- 		pr_err("Memory error not recovered");
- 	else
--		mce_unmap_kpfn(m->addr >> PAGE_SHIFT);
-+		set_mce_nospec(m->addr >> PAGE_SHIFT);
- 	return ret;
- }
- 
--#ifndef mce_unmap_kpfn
--static void mce_unmap_kpfn(unsigned long pfn)
--{
--	unsigned long decoy_addr;
--
--	/*
--	 * Unmap this page from the kernel 1:1 mappings to make sure
--	 * we don't log more errors because of speculative access to
--	 * the page.
--	 * We would like to just call:
--	 *	set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
--	 * but doing that would radically increase the odds of a
--	 * speculative access to the poison page because we'd have
--	 * the virtual address of the kernel 1:1 mapping sitting
--	 * around in registers.
--	 * Instead we get tricky.  We create a non-canonical address
--	 * that looks just like the one we want, but has bit 63 flipped.
--	 * This relies on set_memory_np() not checking whether we passed
--	 * a legal address.
--	 */
--
--	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
--
--	if (set_memory_np(decoy_addr, 1))
--		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
--}
--#endif
--
- /*
-  * The actual machine check handler. This only handles real
-  * exceptions when something got corrupted coming in through int 18.
-diff --git a/include/linux/set_memory.h b/include/linux/set_memory.h
-index da5178216da5..2a986d282a97 100644
---- a/include/linux/set_memory.h
-+++ b/include/linux/set_memory.h
-@@ -17,6 +17,20 @@ static inline int set_memory_x(unsigned long addr,  int numpages) { return 0; }
- static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
- #endif
- 
-+#ifndef set_mce_nospec
-+static inline int set_mce_nospec(unsigned long pfn)
-+{
-+	return 0;
-+}
-+#endif
-+
-+#ifndef clear_mce_nospec
-+static inline int clear_mce_nospec(unsigned long pfn)
-+{
-+	return 0;
-+}
-+#endif
-+
- #ifndef CONFIG_ARCH_HAS_MEM_ENCRYPT
- static inline int set_memory_encrypted(unsigned long addr, int numpages)
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 9d142b9b86dc..42a193ee14d3 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -179,18 +179,16 @@ EXPORT_SYMBOL_GPL(hwpoison_filter);
+  * ``action required'' if error happened in current execution context
+  */
+ static int kill_proc(struct task_struct *t, unsigned long addr,
+-			unsigned long pfn, struct page *page, int flags)
++			unsigned long pfn, unsigned size_shift, int flags)
  {
+-	short addr_lsb;
+ 	int ret;
+ 
+ 	pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory corruption\n",
+ 		pfn, t->comm, t->pid);
+-	addr_lsb = compound_order(compound_head(page)) + PAGE_SHIFT;
+ 
+ 	if ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm) {
+ 		ret = force_sig_mceerr(BUS_MCEERR_AR, (void __user *)addr,
+-				       addr_lsb, current);
++				       size_shift, current);
+ 	} else {
+ 		/*
+ 		 * Don't use force here, it's convenient if the signal
+@@ -199,7 +197,7 @@ static int kill_proc(struct task_struct *t, unsigned long addr,
+ 		 * to SIG_IGN, but hopefully no one will do that?
+ 		 */
+ 		ret = send_sig_mceerr(BUS_MCEERR_AO, (void __user *)addr,
+-				      addr_lsb, t);  /* synchronous? */
++				      size_shift, t);  /* synchronous? */
+ 	}
+ 	if (ret < 0)
+ 		pr_info("Memory failure: Error sending signal to %s:%d: %d\n",
+@@ -318,7 +316,7 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
+  * wrong earlier.
+  */
+ static void kill_procs(struct list_head *to_kill, int forcekill,
+-			  bool fail, struct page *page, unsigned long pfn,
++			  bool fail, unsigned size_shift, unsigned long pfn,
+ 			  int flags)
+ {
+ 	struct to_kill *tk, *next;
+@@ -343,7 +341,7 @@ static void kill_procs(struct list_head *to_kill, int forcekill,
+ 			 * process anyways.
+ 			 */
+ 			else if (kill_proc(tk->tsk, tk->addr,
+-					      pfn, page, flags) < 0)
++					      pfn, size_shift, flags) < 0)
+ 				pr_err("Memory failure: %#lx: Cannot send advisory machine check signal to %s:%d\n",
+ 				       pfn, tk->tsk->comm, tk->tsk->pid);
+ 		}
+@@ -928,6 +926,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	struct address_space *mapping;
+ 	LIST_HEAD(tokill);
+ 	bool unmap_success;
++	unsigned size_shift;
+ 	int kill = 1, forcekill;
+ 	struct page *hpage = *hpagep;
+ 	bool mlocked = PageMlocked(hpage);
+@@ -1012,7 +1011,8 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	 * any accesses to the poisoned memory.
+ 	 */
+ 	forcekill = PageDirty(hpage) || (flags & MF_MUST_KILL);
+-	kill_procs(&tokill, forcekill, !unmap_success, p, pfn, flags);
++	size_shift = compound_order(compound_head(p)) + PAGE_SHIFT;
++	kill_procs(&tokill, forcekill, !unmap_success, size_shift, pfn, flags);
+ 
+ 	return unmap_success;
+ }
