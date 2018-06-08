@@ -1,65 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 95A666B0003
-	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 21:30:10 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id a10-v6so8753271iod.22
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 18:30:10 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id x2-v6si6691933iof.146.2018.06.07.18.30.09
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E872E6B0003
+	for <linux-mm@kvack.org>; Thu,  7 Jun 2018 21:32:37 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e3-v6so5369127pfe.15
+        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 18:32:37 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e9-v6sor20894562plk.26.2018.06.07.18.32.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jun 2018 18:30:09 -0700 (PDT)
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id w581Kmpq081418
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2018 01:30:08 GMT
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by aserp2130.oracle.com with ESMTP id 2jbvypb4rq-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 08 Jun 2018 01:30:08 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w581U6W5019725
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2018 01:30:06 GMT
-Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id w581U6B9028976
-	for <linux-mm@kvack.org>; Fri, 8 Jun 2018 01:30:06 GMT
-Received: by mail-ot0-f182.google.com with SMTP id q17-v6so13846101otg.2
-        for <linux-mm@kvack.org>; Thu, 07 Jun 2018 18:30:06 -0700 (PDT)
+        (Google Transport Security);
+        Thu, 07 Jun 2018 18:32:36 -0700 (PDT)
+Subject: Re: [PATCH v2] mm/ksm: ignore STABLE_FLAG of rmap_item->address in
+ rmap_walk_ksm
+References: <20180503124415.3f9d38aa@p-imbrenda.boeblingen.de.ibm.com>
+ <1525403506-6750-1-git-send-email-hejianet@gmail.com>
+ <20180509163101.02f23de1842a822c61fc68ff@linux-foundation.org>
+ <2cd6b39b-1496-bbd5-9e31-5e3dcb31feda@arm.com>
+ <6c417ab1-a808-72ea-9618-3d76ec203684@arm.com>
+ <20180524133805.6e9bfd4bf48de065ce1d7611@linux-foundation.org>
+ <20180607151344.a22a1e7182a2142e6d24e4de@linux-foundation.org>
+ <20180607233800.GA6965@redhat.com>
+From: Jia He <hejianet@gmail.com>
+Message-ID: <91c87688-50d3-581c-339d-70ad658a292a@gmail.com>
+Date: Fri, 8 Jun 2018 09:32:28 +0800
 MIME-Version: 1.0
-References: <20180418193220.4603-1-timofey.titovets@synesis.ru>
- <20180418193220.4603-3-timofey.titovets@synesis.ru> <20180522202242.otvdunkl75yfhkt4@xakep.localdomain>
- <CAGqmi76gJV=ZDX5=Y3toF2tPiJs8T=PiUJFQg5nq9O5yztx80Q@mail.gmail.com>
- <CAGM2reaZ2YoxFhEDtcXi=hMFoGFi8+SROOn+_SRMwnx3cW15kw@mail.gmail.com>
- <CAGqmi76-qK9q_OTvyqpb-9k_m0CLMt3o860uaN5LL8nBkf5RTg@mail.gmail.com>
- <20180527130325.GB4522@rapoport-lnx> <CAGM2rea2GBvOAiKcSpHkQ9F+jgvy3sCsBw7hFz26DvQ+c_677A@mail.gmail.com>
- <CAGqmi74G-7bM5mbbaHjzOkTvuEpCcAbZ8Q0PVCMkyP09XaVSkA@mail.gmail.com> <20180607115232.GA8245@rapoport-lnx>
-In-Reply-To: <20180607115232.GA8245@rapoport-lnx>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 7 Jun 2018 21:29:49 -0400
-Message-ID: <CAGM2rebK=gNbcAwkmt7W9kwtd=QWoPRogQMaoXOv=bmX+_d+yw@mail.gmail.com>
-Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180607233800.GA6965@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rppt@linux.vnet.ibm.com
-Cc: Timofey Titovets <nefelim4ag@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, solee@os.korea.ac.kr, aarcange@redhat.com, kvm@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Suzuki K Poulose <Suzuki.Poulose@arm.com>, Minchan Kim <minchan@kernel.org>, Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jia.he@hxt-semitech.com, Hugh Dickins <hughd@google.com>
 
-> With CONFIG_SYSFS=n there is nothing that will set ksm_run to anything but
-> zero and ksm_do_scan will never be called.
->
+Hi Andrea
+Thanks for the review.
 
-Unfortunatly, this is not so:
+On 6/8/2018 7:38 AM, Andrea Arcangeli Wrote:
+> On Thu, Jun 07, 2018 at 03:13:44PM -0700, Andrew Morton wrote:
+>> This patch is quite urgent and is tagged for -stable backporting, yet
+>> it remains in an unreviewed state.  Any takers?
+> 
+> It looks a straightforward safe fix, on x86 hva_to_gfn_memslot would
+> zap those bits and hide the misalignment caused by the low metadata
+> bits being erroneously left set in the address, but the arm code
+> notices when that's the last page in the memslot and the hva_end is
+> getting aligned and the size is below one page.
+> 
+>> [35380.933345] [<ffff000008088f00>] dump_backtrace+0x0/0x22c
+>> [35380.938723] [<ffff000008089150>] show_stack+0x24/0x2c
+>> [35380.943759] [<ffff00000893c078>] dump_stack+0x8c/0xb0
+>> [35380.948794] [<ffff00000820ab50>] bad_page+0xf4/0x154
+>> [35380.953740] [<ffff000008211ce8>] free_pages_check_bad+0x90/0x9c
+>> [35380.959642] [<ffff00000820c430>] free_pcppages_bulk+0x464/0x518
+>> [35380.965545] [<ffff00000820db98>] free_hot_cold_page+0x22c/0x300
+>> [35380.971448] [<ffff0000082176fc>] __put_page+0x54/0x60
+>> [35380.976484] [<ffff0000080b1164>] unmap_stage2_range+0x170/0x2b4
+>> [35380.982385] [<ffff0000080b12d8>] kvm_unmap_hva_handler+0x30/0x40
+>> [35380.988375] [<ffff0000080b0104>] handle_hva_to_gpa+0xb0/0xec
+>> [35380.994016] [<ffff0000080b2644>] kvm_unmap_hva_range+0x5c/0xd0
+>> [35380.999833] [<ffff0000080a8054>] 
+>>
+>> I even injected a fault on purpose in kvm_unmap_hva_range by seting
+>> size=size-0x200, the call trace is similar as above.  So I thought the
+>> panic is similarly caused by the root cause of WARN_ON.
+> 
+> I think the problem triggers in the addr += PAGE_SIZE of
+> unmap_stage2_ptes that never matches end because end is aligned but
+> addr is not.
+> 
+> 	} while (pte++, addr += PAGE_SIZE, addr != end);
+> 
+> x86 again only works on hva_start/hva_end after converting it to
+> gfn_start/end and that being in pfn units the bits are zapped before
+> they risk to cause trouble.
+For this panic issue on arm64, I started another thread to discuss
+https://lkml.org/lkml/2018/5/2/61
 
-In: /linux-master/mm/ksm.c
 
-3143#else
-3144 ksm_run = KSM_RUN_MERGE; /* no way for user to start it */
-3145
-3146#endif /* CONFIG_SYSFS */
-
-So, we do set ksm_run to run right from ksm_init() when CONFIG_SYSFS=n.
-
-I wonder if this is acceptible to only use xxhash when CONFIG_SYSFS=n ?
-
-Thank you,
-Pavel
+-- 
+Cheers,
+Jia
+> 
+>>
+>> Link: http://lkml.kernel.org/r/1525403506-6750-1-git-send-email-hejianet@gmail.com
+>> Signed-off-by: Jia He <jia.he@hxt-semitech.com>
+>> Cc: Suzuki K Poulose <Suzuki.Poulose@arm.com>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
+>> Cc: Arvind Yadav <arvind.yadav.cs@gmail.com>
+>> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+>> Cc: Jia He <hejianet@gmail.com>
+>> Cc: <stable@vger.kernel.org>
+>> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>> ---
+>>
+> 
+> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+> 
