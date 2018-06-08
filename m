@@ -1,79 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 993E76B0006
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 08:50:51 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id n33-v6so11833597qte.23
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 05:50:51 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q2-v6si2982323qta.3.2018.06.08.05.50.50
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E2696B0003
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 08:54:19 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id s3-v6so5932499plp.21
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 05:54:19 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b30-v6si19885667pli.427.2018.06.08.05.54.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jun 2018 05:50:50 -0700 (PDT)
-Date: Fri, 8 Jun 2018 20:50:29 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [RESEND PATCH V5 00/33] block: support multipage bvec
-Message-ID: <20180608125023.GA9444@ming.t460p>
-References: <20180525034621.31147-1-ming.lei@redhat.com>
- <20180601140954.GY3539@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 08 Jun 2018 05:54:18 -0700 (PDT)
+Date: Fri, 8 Jun 2018 14:54:13 +0200
+From: Michal =?UTF-8?B?U3VjaMOhbmVr?= <msuchanek@suse.de>
+Subject: Re: pkeys on POWER: Access rights not reset on execve
+Message-ID: <20180608145413.393fa245@kitsune.suse.cz>
+In-Reply-To: <aa136e1e-3bf2-fd92-2eab-16469c467729@redhat.com>
+References: <20180520060425.GL5479@ram.oc3035372033.ibm.com>
+	<CALCETrVvQkphypn10A_rkX35DNqi29MJcXYRpRiCFNm02VYz2g@mail.gmail.com>
+	<20180520191115.GM5479@ram.oc3035372033.ibm.com>
+	<aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
+	<20180603201832.GA10109@ram.oc3035372033.ibm.com>
+	<4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
+	<20180604140135.GA10088@ram.oc3035372033.ibm.com>
+	<f2f61c24-8e8f-0d36-4e22-196a2a3f7ca7@redhat.com>
+	<20180604190229.GB10088@ram.oc3035372033.ibm.com>
+	<30040030-1aa2-623b-beec-dd1ceb3eb9a7@redhat.com>
+	<20180608023441.GA5573@ram.oc3035372033.ibm.com>
+	<2858a8eb-c9b5-42ce-5cfc-74a4b3ad6aa9@redhat.com>
+	<20180608121551.3c151e0c@naga.suse.cz>
+	<aa136e1e-3bf2-fd92-2eab-16469c467729@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180601140954.GY3539@suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dsterba@suse.cz, Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Ram Pai <linuxram@us.ibm.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>
 
-On Fri, Jun 01, 2018 at 04:09:54PM +0200, David Sterba wrote:
-> On Fri, May 25, 2018 at 11:45:48AM +0800, Ming Lei wrote:
-> >  fs/btrfs/check-integrity.c          |   6 +-
-> >  fs/btrfs/compression.c              |   8 +-
-> >  fs/btrfs/disk-io.c                  |   3 +-
-> >  fs/btrfs/extent_io.c                |  14 ++-
-> >  fs/btrfs/file-item.c                |   4 +-
-> >  fs/btrfs/inode.c                    |  12 ++-
-> >  fs/btrfs/raid56.c                   |   5 +-
-> 
-> For the btrfs bits,
-> Acked-by: David Sterba <dsterba@suse.com>
-> 
-> but that's from the bio API user perspective only, I'll leave the design
-> and implementation questions to others.
-> 
-> I've let the patchset through fstests, no problems. One thing that caught
+On Fri, 8 Jun 2018 12:44:53 +0200
+Florian Weimer <fweimer@redhat.com> wrote:
 
-Thanks for your test!
+> On 06/08/2018 12:15 PM, Michal Such=C3=A1nek wrote:
+> > On Fri, 8 Jun 2018 07:53:51 +0200
+> > Florian Weimer <fweimer@redhat.com> wrote:
+> >  =20
+> >> On 06/08/2018 04:34 AM, Ram Pai wrote: =20
+> >>>>
+> >>>> So the remaining question at this point is whether the Intel
+> >>>> behavior (default-deny instead of default-allow) is preferable. =20
+> >>>
+> >>> Florian, remind me what behavior needs to fixed? =20
+> >>
+> >> See the other thread.  The Intel register equivalent to the AMR by
+> >> default disallows access to yet-unallocated keys, so that threads
+> >> which are created before key allocation do not magically gain
+> >> access to a key allocated by another thread.
+> >> =20
+> >=20
+> > That does not make any sense. The threads share the address space so
+> > they should also share the keys.
+> >=20
+> > Or in other words the keys are supposed to be acceleration of
+> > mprotect() so if mprotect() magically gives access to threads that
+> > did not call it so should pkey functions. If they cannot do that
+> > then they fail the primary purpose. =20
+>=20
+> That's not how protection keys work.  The access rights are=20
+> thread-specific, so that you can change them locally, without=20
+> synchronization and expensive inter-node communication.
+>=20
 
-> my eye was use of the 'struct bvec_iter_all' in random functions. As
-> this structure is a compound of 2 others and is 40 bytes in size, I was
-> curious how this increased stack consumption.
-> 
-> Measured with -fstack-usage before and after patch 22/33 "btrfs: conver to
-> bio_for_each_page_all2"
-> 
-> -disk-io.c:btree_csum_one_bio                             48 static
-> +disk-io.c:btree_csum_one_bio                             80 static
-> -extent_io.c:end_bio_extent_buffer_writepage              56 static
-> +extent_io.c:end_bio_extent_buffer_writepage              80 static
-> -extent_io.c:end_bio_extent_readpage                      176 dynamic,bounded
-> +extent_io.c:end_bio_extent_readpage                      240 dynamic,bounded
-> -extent_io.c:end_bio_extent_writepage                     56 static
-> +extent_io.c:end_bio_extent_writepage                     120 static
-> -inode.c:btrfs_retry_endio                                96 dynamic,bounded
-> +inode.c:btrfs_retry_endio                                144 dynamic,bounded
-> -inode.c:btrfs_retry_endio_nocsum                         72 dynamic,bounded
-> +inode.c:btrfs_retry_endio_nocsum                         104 dynamic,bounded
-> -raid56.c:set_bio_pages_uptodate                          8 static
-> +raid56.c:set_bio_pages_uptodate                          40 static
-> 
-> It's not that bad, but still quite a lot just to iterate a list of bios. I
-> think it's worth mentioning as it affects several other filesystems and
-> should be possibly optimized in the future.
+And the association of a key with part of the address space is
+thread-local as well?
 
-OK.
+Thanks
 
-We could decrease the affect by using a lightweight iterator for
-bio_for_each_page_all2(), will do it in V6.
-
-
-Thanks,
-Ming
+Michal
