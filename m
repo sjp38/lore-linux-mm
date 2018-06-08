@@ -1,192 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B7FF6B0003
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 16:35:57 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id x32-v6so7894385pld.16
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 13:35:57 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 473AB6B0006
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 16:55:13 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g15-v6so6740509pfh.10
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 13:55:13 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j6-v6si17470786pll.54.2018.06.08.13.35.54
+        by mx.google.com with ESMTPS id f71-v6si3859461pfc.316.2018.06.08.13.55.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jun 2018 13:35:54 -0700 (PDT)
-Date: Fri, 8 Jun 2018 13:35:52 -0700
+        Fri, 08 Jun 2018 13:55:11 -0700 (PDT)
+Date: Fri, 8 Jun 2018 13:55:10 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] mm: fix race between kmem_cache destroy, create and
-  deactivate
-Message-Id: <20180608133552.d9839eb08f6b98ec4d0ad783@linux-foundation.org>
-In-Reply-To: <20180530001204.183758-1-shakeelb@google.com>
-References: <20180530001204.183758-1-shakeelb@google.com>
+Subject: Re: [Bug 199999] New: memremap attempted on mixed range  lockup.
+Message-Id: <20180608135510.48d7d50cbb0cef7b9194816f@linux-foundation.org>
+In-Reply-To: <bug-199999-27@https.bugzilla.kernel.org/>
+References: <bug-199999-27@https.bugzilla.kernel.org/>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, me@hussam.eu.org
 
-On Tue, 29 May 2018 17:12:04 -0700 Shakeel Butt <shakeelb@google.com> wrote:
 
-> The memcg kmem cache creation and deactivation (SLUB only) is
-> asynchronous. If a root kmem cache is destroyed whose memcg cache is in
-> the process of creation or deactivation, the kernel may crash.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+On Fri, 08 Jun 2018 16:25:31 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=199999
 > 
-> Example of one such crash:
-> 	general protection fault: 0000 [#1] SMP PTI
-> 	CPU: 1 PID: 1721 Comm: kworker/14:1 Not tainted 4.17.0-smp
-> 	...
-> 	Workqueue: memcg_kmem_cache kmemcg_deactivate_workfn
-> 	RIP: 0010:has_cpu_slab
-> 	...
-> 	Call Trace:
-> 	? on_each_cpu_cond
-> 	__kmem_cache_shrink
-> 	kmemcg_cache_deact_after_rcu
-> 	kmemcg_deactivate_workfn
-> 	process_one_work
-> 	worker_thread
-> 	kthread
-> 	ret_from_fork+0x35/0x40
+>             Bug ID: 199999
+>            Summary: memremap attempted on mixed range  lockup.
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 4.14.48
+>           Hardware: All
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: me@hussam.eu.org
+>         Regression: No
+
+That WARN_ON in memremap() (soon perhaps devm_memremap_pages()) is
+triggering on /dev/mem.
+
+> hello. I was poking around and for no real reason, I did cat /dev/mem and
+> strings /dev/mem.
+> Then I saw the following warning in dmesg. I saved it and rebooted immediately.
 > 
-> To fix this race, on root kmem cache destruction, mark the cache as
-> dying and flush the workqueue used for memcg kmem cache creation and
-> deactivation.
-
-We have a distinct lack of reviewers and testers on this one.  Please.
-
-Vladimir, v3 replaced the refcounting with workqueue flushing, as you
-suggested...
-
-
-From: Shakeel Butt <shakeelb@google.com>
-Subject: mm: fix race between kmem_cache destroy, create and deactivate
-
-The memcg kmem cache creation and deactivation (SLUB only) is
-asynchronous.  If a root kmem cache is destroyed whose memcg cache is in
-the process of creation or deactivation, the kernel may crash.
-
-Example of one such crash:
-	general protection fault: 0000 [#1] SMP PTI
-	CPU: 1 PID: 1721 Comm: kworker/14:1 Not tainted 4.17.0-smp
-	...
-	Workqueue: memcg_kmem_cache kmemcg_deactivate_workfn
-	RIP: 0010:has_cpu_slab
-	...
-	Call Trace:
-	? on_each_cpu_cond
-	__kmem_cache_shrink
-	kmemcg_cache_deact_after_rcu
-	kmemcg_deactivate_workfn
-	process_one_work
-	worker_thread
-	kthread
-	ret_from_fork+0x35/0x40
-
-To fix this race, on root kmem cache destruction, mark the cache as dying
-and flush the workqueue used for memcg kmem cache creation and
-deactivation.
-
-[shakeelb@google.com: add more documentation, rename fields for readability]
-  Link: http://lkml.kernel.org/r/20180522201336.196994-1-shakeelb@google.com
-[akpm@linux-foundation.org: fix build, per Shakeel]
-[shakeelb@google.com: v3.  Instead of refcount, flush the workqueue]
-  Link: http://lkml.kernel.org/r/20180530001204.183758-1-shakeelb@google.com
-Link: http://lkml.kernel.org/r/20180521174116.171846-1-shakeelb@google.com
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Greg Thelen <gthelen@google.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- include/linux/slab.h |    1 +
- mm/slab_common.c     |   21 ++++++++++++++++++++-
- 2 files changed, 21 insertions(+), 1 deletion(-)
-
-diff -puN include/linux/slab_def.h~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate include/linux/slab_def.h
-diff -puN include/linux/slab.h~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate include/linux/slab.h
---- a/include/linux/slab.h~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate
-+++ a/include/linux/slab.h
-@@ -600,6 +600,7 @@ struct memcg_cache_params {
- 			struct memcg_cache_array __rcu *memcg_caches;
- 			struct list_head __root_caches_node;
- 			struct list_head children;
-+			bool dying;
- 		};
- 		struct {
- 			struct mem_cgroup *memcg;
-diff -puN include/linux/slub_def.h~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate include/linux/slub_def.h
-diff -puN mm/memcontrol.c~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate mm/memcontrol.c
-diff -puN mm/slab.c~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate mm/slab.c
-diff -puN mm/slab_common.c~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate mm/slab_common.c
---- a/mm/slab_common.c~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate
-+++ a/mm/slab_common.c
-@@ -136,6 +136,7 @@ void slab_init_memcg_params(struct kmem_
- 	s->memcg_params.root_cache = NULL;
- 	RCU_INIT_POINTER(s->memcg_params.memcg_caches, NULL);
- 	INIT_LIST_HEAD(&s->memcg_params.children);
-+	s->memcg_params.dying = false;
- }
- 
- static int init_memcg_params(struct kmem_cache *s,
-@@ -608,7 +609,7 @@ void memcg_create_kmem_cache(struct mem_
- 	 * The memory cgroup could have been offlined while the cache
- 	 * creation work was pending.
- 	 */
--	if (memcg->kmem_state != KMEM_ONLINE)
-+	if (memcg->kmem_state != KMEM_ONLINE || root_cache->memcg_params.dying)
- 		goto out_unlock;
- 
- 	idx = memcg_cache_id(memcg);
-@@ -712,6 +713,9 @@ void slab_deactivate_memcg_cache_rcu_sch
- 	    WARN_ON_ONCE(s->memcg_params.deact_fn))
- 		return;
- 
-+	if (s->memcg_params.root_cache->memcg_params.dying)
-+		return;
-+
- 	/* pin memcg so that @s doesn't get destroyed in the middle */
- 	css_get(&s->memcg_params.memcg->css);
- 
-@@ -823,11 +827,24 @@ static int shutdown_memcg_caches(struct
- 		return -EBUSY;
- 	return 0;
- }
-+
-+static void flush_memcg_workqueue(struct kmem_cache *s)
-+{
-+	mutex_lock(&slab_mutex);
-+	s->memcg_params.dying = true;
-+	mutex_unlock(&slab_mutex);
-+
-+	flush_workqueue(memcg_kmem_cache_wq);
-+}
- #else
- static inline int shutdown_memcg_caches(struct kmem_cache *s)
- {
- 	return 0;
- }
-+
-+static inline void flush_memcg_workqueue(struct kmem_cache *s)
-+{
-+}
- #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
- 
- void slab_kmem_cache_release(struct kmem_cache *s)
-@@ -845,6 +862,8 @@ void kmem_cache_destroy(struct kmem_cach
- 	if (unlikely(!s))
- 		return;
- 
-+	flush_memcg_workqueue(s);
-+
- 	get_online_cpus();
- 	get_online_mems();
- 
-diff -puN mm/slab.h~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate mm/slab.h
-diff -puN mm/slub.c~mm-fix-race-between-kmem_cache-destroy-create-and-deactivate mm/slub.c
-_
+> Jun 08 19:07:25 hades kernel: memremap attempted on mixed range
+> 0x000000000009c000 size: 0x1000
+> Jun 08 19:07:25 hades kernel: ------------[ cut here ]------------
+> Jun 08 19:07:25 hades kernel: WARNING: CPU: 0 PID: 11810 at
+> kernel/memremap.c:98 memremap+0x104/0x170
+> Jun 08 19:07:25 hades kernel: Modules linked in: button isofs udf crc_itu_t
+> loop nls_iso8859_1 nls_cp437 vfat fat uas usb_storage fuse bsd_comp
+> ipt_MASQUERADE nf_nat_masquerade_ipv4 act_police sch_ingress cls_u32 sch_sfq
+> iptable_nat nf_c>
+> Jun 08 19:07:25 hades kernel:  thermal snd_pcm snd_timer snd video soundcore
+> shpchp mei_me mei fan i2c_i801 acpi_pad sch_fq_codel nvidia_uvm(PO) nvidia(PO)
+> ipmi_devintf ipmi_msghandler nbd crypto_user ip_tables x_tables ext4
+> crc32c_gener>
+> Jun 08 19:07:25 hades kernel: CPU: 0 PID: 11810 Comm: strings Tainted: P       
+>    O    4.14.48-1-lts #1
+> Jun 08 19:07:25 hades kernel: Hardware name: LENOVO 90DA00D7AD/SKYBAY, BIOS
+> FYKT58A 06/02/2016
+> Jun 08 19:07:25 hades kernel: task: ffff9393c0be3b00 task.stack:
+> ffffb41287a3c000
+> Jun 08 19:07:25 hades kernel: RIP: 0010:memremap+0x104/0x170
+> Jun 08 19:07:25 hades kernel: RSP: 0018:ffffb41287a3fdc8 EFLAGS: 00010282
+> Jun 08 19:07:25 hades kernel: RAX: 0000000000000041 RBX: 0000000000000000 RCX:
+> 0000000000000000
+> Jun 08 19:07:25 hades kernel: RDX: 0000000000000000 RSI: ffff9396bec165d8 RDI:
+> ffff9396bec165d8
+> Jun 08 19:07:25 hades kernel: RBP: 0000000000000001 R08: 0000000000000412 R09:
+> 0000000000000004
+> Jun 08 19:07:25 hades kernel: R10: 0000000000000000 R11: 0000000000000001 R12:
+> 0000000000001000
+> Jun 08 19:07:25 hades kernel: R13: 000055630d83b020 R14: ffff9396a5ec3000 R15:
+> 0000000000000000
+> Jun 08 19:07:25 hades kernel: FS:  00007fa2611ddb80(0000)
+> GS:ffff9396bec00000(0000) knlGS:0000000000000000
+> Jun 08 19:07:25 hades kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> Jun 08 19:07:25 hades kernel: CR2: 000055630d83c028 CR3: 00000001d5388006 CR4:
+> 00000000003606f0
+> Jun 08 19:07:25 hades kernel: Call Trace:
+> Jun 08 19:07:25 hades kernel:  xlate_dev_mem_ptr+0x25/0x40
+> Jun 08 19:07:25 hades kernel:  read_mem+0x89/0x1a0
+> Jun 08 19:07:25 hades kernel:  __vfs_read+0x36/0x170
+> Jun 08 19:07:25 hades kernel:  ? __fsnotify_parent+0x91/0x120
+> Jun 08 19:07:25 hades kernel:  vfs_read+0x89/0x130
+> Jun 08 19:07:25 hades kernel:  SyS_read+0x52/0xc0
+> Jun 08 19:07:25 hades kernel:  do_syscall_64+0x67/0x120
+> Jun 08 19:07:25 hades kernel:  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
+> Jun 08 19:07:25 hades kernel: RIP: 0033:0x7fa2609fd4a1
+> Jun 08 19:07:25 hades kernel: RSP: 002b:00007ffef180bb58 EFLAGS: 00000246
+> ORIG_RAX: 0000000000000000
+> Jun 08 19:07:25 hades kernel: RAX: ffffffffffffffda RBX: 000055630d818470 RCX:
+> 00007fa2609fd4a1
+> Jun 08 19:07:25 hades kernel: RDX: 0000000000001000 RSI: 000055630d83b020 RDI:
+> 0000000000000003
+> Jun 08 19:07:25 hades kernel: RBP: 0000000000000d68 R08: 0000000000000000 R09:
+> 0000000000000004
+> Jun 08 19:07:25 hades kernel: R10: 0000000000000000 R11: 0000000000000246 R12:
+> 00007fa260c94720
+> Jun 08 19:07:25 hades kernel: R13: 00007fa260c95260 R14: 00007ffef180bc14 R15:
+> 00007ffef180bc08
+> Jun 08 19:07:25 hades kernel: Code: 48 83 c4 08 5b 5d 41 5c c3 80 3d 18 de f5
+> 00 00 75 b7 4c 89 e2 48 89 e6 48 c7 c7 e8 db df 90 c6 05 02 de f5 00 01 e8 07
+> fa f4 ff <0f> 0b eb 9a 4c 89 e6 48 89 df e8 0d f8 ed ff 48 85 c0 74 99 48 
+> Jun 08 19:07:25 hades kernel: ---[ end trace 5bdcf881c57b4daa ]---
+> 
+> -- 
+> You are receiving this mail because:
+> You are the assignee for the bug.
