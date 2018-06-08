@@ -1,52 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F2D606B0005
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 13:05:11 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id j24-v6so8866969otk.11
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 10:05:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h64-v6sor5608752oig.60.2018.06.08.10.05.11
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E992A6B0003
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 13:06:58 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id z144-v6so4365754lff.2
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 10:06:58 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 20-v6si10390799ljq.70.2018.06.08.10.06.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 08 Jun 2018 10:05:11 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Jun 2018 10:06:56 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH] mm: fix null pointer dereference in mem_cgroup_protected
+Date: Fri, 8 Jun 2018 18:06:07 +0100
+Message-ID: <20180608170607.29120-1-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <152847720311.55924.16999195879201817653.stgit@djiang5-desk3.ch.intel.com>
-References: <152847720311.55924.16999195879201817653.stgit@djiang5-desk3.ch.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 8 Jun 2018 10:05:10 -0700
-Message-ID: <CAPcyv4h+OTXvfLiG8cpS7nO5wkUTkZBsyq9iq6FB_FG4wi4naA@mail.gmail.com>
-Subject: Re: [PATCH] dax: remove VM_MIXEDMAP for fsdax and device dax
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jiang <dave.jiang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>
+Cc: linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Fri, Jun 8, 2018 at 10:00 AM, Dave Jiang <dave.jiang@intel.com> wrote:
-> This patch is reworked from an earlier patch that Dan has posted:
-> https://patchwork.kernel.org/patch/10131727/
->
-> VM_MIXEDMAP is used by dax to direct mm paths like vm_normal_page() that
-> the memory page it is dealing with is not typical memory from the linear
-> map. The get_user_pages_fast() path, since it does not resolve the vma,
-> is already using {pte,pmd}_devmap() as a stand-in for VM_MIXEDMAP, so we
-> use that as a VM_MIXEDMAP replacement in some locations. In the cases
-> where there is no pte to consult we fallback to using vma_is_dax() to
-> detect the VM_MIXEDMAP special case.
->
-> Now that we have explicit driver pfn_t-flag opt-in/opt-out for
-> get_user_pages() support for DAX we can stop setting VM_MIXEDMAP.  This
-> also means we no longer need to worry about safely manipulating vm_flags
-> in a future where we support dynamically changing the dax mode of a
-> file.
->
-> DAX should also now be supported with madvise_behavior(), vma_merge(),
-> and copy_page_range().
->
-> This patch has been tested against ndctl unit test. It has also been
-> tested against xfstests commit: 625515d using fake pmem created by memmap
-> and no additional issues have been observed.
->
-> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+Shakeel reported a crash in mem_cgroup_protected(), which
+can be triggered by memcg reclaim if the legacy cgroup v1
+use_hierarchy=0 mode is used:
 
-Acked-by: Dan Williams <dan.j.williams@intel.com>
+[  226.060572] BUG: unable to handle kernel NULL pointer dereference
+at 0000000000000120
+[  226.068310] PGD 8000001ff55da067 P4D 8000001ff55da067 PUD 1fdc7df067 PMD 0
+[  226.075191] Oops: 0000 [#4] SMP PTI
+[  226.078637] CPU: 0 PID: 15581 Comm: bash Tainted: G      D
+ 4.17.0-smp-clean #5
+[  226.086635] Hardware name: ...
+[  226.094546] RIP: 0010:mem_cgroup_protected+0x54/0x130
+[  226.099533] Code: 4c 8b 8e 00 01 00 00 4c 8b 86 08 01 00 00 48 8d
+8a 08 ff ff ff 48 85 d2 ba 00 00 00 00 48 0f 44 ca 48 39 c8 0f 84 cf
+00 00 00 <48> 8b 81 20 01 00 00 4d 89 ca 4c 39 c8 4c 0f 46 d0 4d 85 d2
+74 05
+[  226.118194] RSP: 0000:ffffabe64dfafa58 EFLAGS: 00010286
+[  226.123358] RAX: ffff9fb6ff03d000 RBX: ffff9fb6f5b1b000 RCX: 0000000000000000
+[  226.130406] RDX: 0000000000000000 RSI: ffff9fb6f5b1b000 RDI: ffff9fb6f5b1b000
+[  226.137454] RBP: ffffabe64dfafb08 R08: 0000000000000000 R09: 0000000000000000
+[  226.144503] R10: 0000000000000000 R11: 000000000000c800 R12: ffffabe64dfafb88
+[  226.151551] R13: ffff9fb6f5b1b000 R14: ffffabe64dfafb88 R15: ffff9fb77fffe000
+[  226.158602] FS:  00007fed1f8ac700(0000) GS:ffff9fb6ff400000(0000)
+knlGS:0000000000000000
+[  226.166594] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  226.172270] CR2: 0000000000000120 CR3: 0000001fdcf86003 CR4: 00000000001606f0
+[  226.179317] Call Trace:
+[  226.181732]  ? shrink_node+0x194/0x510
+[  226.185435]  do_try_to_free_pages+0xfd/0x390
+[  226.189653]  try_to_free_mem_cgroup_pages+0x123/0x210
+[  226.194643]  try_charge+0x19e/0x700
+[  226.198088]  mem_cgroup_try_charge+0x10b/0x1a0
+[  226.202478]  wp_page_copy+0x134/0x5b0
+[  226.206094]  do_wp_page+0x90/0x460
+[  226.209453]  __handle_mm_fault+0x8e3/0xf30
+[  226.213498]  handle_mm_fault+0xfe/0x220
+[  226.217285]  __do_page_fault+0x262/0x500
+[  226.221158]  do_page_fault+0x28/0xd0
+[  226.224689]  ? page_fault+0x8/0x30
+[  226.228048]  page_fault+0x1e/0x30
+[  226.231323] RIP: 0033:0x485b72
+
+The problem happens because parent_mem_cgroup() returns a NULL
+pointer, which is dereferenced later without a check.
+
+As cgroup v1 has no memory guarantee support, let's make
+mem_cgroup_protected() immediately return MEMCG_PROT_NONE,
+if the given cgroup has no parent (non-hierarchical mode is used).
+
+Reported-by: Shakeel Butt <shakeelb@google.com>
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/memcontrol.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 6c9fb4e47be3..6205ba512928 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5750,6 +5750,9 @@ enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
+ 	elow = memcg->memory.low;
+ 
+ 	parent = parent_mem_cgroup(memcg);
++	if (!parent)
++		return MEMCG_PROT_NONE;
++
+ 	if (parent == root_mem_cgroup)
+ 		goto exit;
+ 
+-- 
+2.14.3
