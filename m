@@ -1,111 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BBC4C6B0008
-	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 15:21:24 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 44-v6so8146751wrt.9
-        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 12:21:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m15-v6sor16622097wrp.61.2018.06.08.12.21.22
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FBD36B0003
+	for <linux-mm@kvack.org>; Fri,  8 Jun 2018 15:57:23 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id g6-v6so7890109plq.9
+        for <linux-mm@kvack.org>; Fri, 08 Jun 2018 12:57:23 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d1-v6si17108484pgo.337.2018.06.08.12.57.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 08 Jun 2018 12:21:22 -0700 (PDT)
-MIME-Version: 1.0
-References: <152698356466.3393.5351712806709424140.stgit@localhost.localdomain>
- <152698379298.3393.3040399931339145602.stgit@localhost.localdomain>
-In-Reply-To: <152698379298.3393.3040399931339145602.stgit@localhost.localdomain>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Fri, 8 Jun 2018 12:21:10 -0700
-Message-ID: <CALvZod4zzw0f_q4a1HpMHWjhjfK9OcegRkAQb5ZSyfjAYpAfJw@mail.gmail.com>
-Subject: Re: [PATCH v7 15/17] mm: Generalize shrink_slab() calls in shrink_node()
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Jun 2018 12:57:18 -0700 (PDT)
+Date: Fri, 8 Jun 2018 12:57:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/madvise: allow MADV_DONTNEED to free memory that is
+ MLOCK_ONFAULT
+Message-Id: <20180608125717.c34d3e7125c62fc91ac427c8@linux-foundation.org>
+In-Reply-To: <1528484212-7199-1-git-send-email-jbaron@akamai.com>
+References: <1528484212-7199-1-git-send-email-jbaron@akamai.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Philippe Ombredanne <pombredanne@nexb.com>, stummala@codeaurora.org, gregkh@linuxfoundation.org, Stephen Rothwell <sfr@canb.auug.org.au>, Roman Gushchin <guro@fb.com>, mka@chromium.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Chris Wilson <chris@chris-wilson.co.uk>, longman@redhat.com, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, jbacik@fb.com, Guenter Roeck <linux@roeck-us.net>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Matthew Wilcox <willy@infradead.org>, lirongqing@baidu.com, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Jason Baron <jbaron@akamai.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, May 22, 2018 at 3:09 AM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
->
-> From: Vladimir Davydov <vdavydov.dev@gmail.com>
->
-> The patch makes shrink_slab() be called for root_mem_cgroup
-> in the same way as it's called for the rest of cgroups.
-> This simplifies the logic and improves the readability.
->
-> Signed-off-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-> ktkhai: Description written.
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> ---
->  mm/vmscan.c |   21 ++++++---------------
->  1 file changed, 6 insertions(+), 15 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index f26ca1e00efb..6dbc659db120 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -628,10 +628,8 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
->   * @nid is passed along to shrinkers with SHRINKER_NUMA_AWARE set,
->   * unaware shrinkers will receive a node id of 0 instead.
->   *
-> - * @memcg specifies the memory cgroup to target. If it is not NULL,
-> - * only shrinkers with SHRINKER_MEMCG_AWARE set will be called to scan
-> - * objects from the memory cgroup specified. Otherwise, only unaware
-> - * shrinkers are called.
-> + * @memcg specifies the memory cgroup to target. Unaware shrinkers
-> + * are called only if it is the root cgroup.
->   *
->   * @priority is sc->priority, we take the number of objects and >> by priority
->   * in order to get the scan target.
-> @@ -645,7 +643,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->         struct shrinker *shrinker;
->         unsigned long freed = 0;
->
+On Fri,  8 Jun 2018 14:56:52 -0400 Jason Baron <jbaron@akamai.com> wrote:
 
-Shouldn't there be a VM_BUG_ON(!memcg) here?
+> In order to free memory that is marked MLOCK_ONFAULT, the memory region
+> needs to be first unlocked, before calling MADV_DONTNEED. And if the region
+> is to be reused as MLOCK_ONFAULT, we require another call to mlock2() with
+> the MLOCK_ONFAULT flag.
+> 
+> Let's simplify freeing memory that is set MLOCK_ONFAULT, by allowing
+> MADV_DONTNEED to work directly for memory that is set MLOCK_ONFAULT. The
+> locked memory limits, tracked by mm->locked_vm do not need to be adjusted
+> in this case, since they were charged to the entire region when
+> MLOCK_ONFAULT was initially set.
 
-> -       if (memcg && !mem_cgroup_is_root(memcg))
-> +       if (!mem_cgroup_is_root(memcg))
->                 return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
->
->         if (!down_read_trylock(&shrinker_rwsem))
-> @@ -658,9 +656,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->                         .memcg = memcg,
->                 };
->
-> -               if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
-> -                       continue;
-> -
->                 if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
->                         sc.nid = 0;
->
-> @@ -690,6 +685,7 @@ void drop_slab_node(int nid)
->                 struct mem_cgroup *memcg = NULL;
->
->                 freed = 0;
-> +               memcg = mem_cgroup_iter(NULL, NULL, NULL);
->                 do {
->                         freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
->                 } while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
-> @@ -2709,9 +2705,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->                         shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
->                         node_lru_pages += lru_pages;
->
-> -                       if (memcg)
-> -                               shrink_slab(sc->gfp_mask, pgdat->node_id,
-> -                                           memcg, sc->priority);
-> +                       shrink_slab(sc->gfp_mask, pgdat->node_id,
-> +                                   memcg, sc->priority);
->
->                         /* Record the group's reclaim efficiency */
->                         vmpressure(sc->gfp_mask, memcg, false,
-> @@ -2735,10 +2730,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->                         }
->                 } while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
->
-> -               if (global_reclaim(sc))
-> -                       shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
-> -                                   sc->priority);
-> -
->                 if (reclaim_state) {
->                         sc->nr_reclaimed += reclaim_state->reclaimed_slab;
->                         reclaim_state->reclaimed_slab = 0;
->
+Seems useful.
+
+Is a manpage update planned?
+
+Various updates to tools/testing/selftests/vm/* seem appropriate.
+
+> Further, I don't think allowing MADV_FREE for MLOCK_ONFAULT regions makes
+> sense, since the point of MLOCK_ONFAULT is for userspace to know when pages
+> are locked in memory and thus to know when page faults will occur.
+
+This sounds non-backward-compatible?
