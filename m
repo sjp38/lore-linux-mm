@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BE9A86B027E
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:33:39 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id l10-v6so14532322qth.14
-        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:33:39 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E50096B0280
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:33:49 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id p12-v6so14540329qtg.5
+        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:33:49 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id d7-v6si3646714qvf.4.2018.06.09.05.33.38
+        by mx.google.com with ESMTPS id v87-v6si11893758qkl.392.2018.06.09.05.33.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Jun 2018 05:33:38 -0700 (PDT)
+        Sat, 09 Jun 2018 05:33:49 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V6 15/30] block: introduce bio_clone_chunk_bioset()
-Date: Sat,  9 Jun 2018 20:29:59 +0800
-Message-Id: <20180609123014.8861-16-ming.lei@redhat.com>
+Subject: [PATCH V6 16/30] dm: clone bio via bio_clone_chunk_bioset
+Date: Sat,  9 Jun 2018 20:30:00 +0800
+Message-Id: <20180609123014.8861-17-ming.lei@redhat.com>
 In-Reply-To: <20180609123014.8861-1-ming.lei@redhat.com>
 References: <20180609123014.8861-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,121 +20,32 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>
 Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>, Ming Lei <ming.lei@redhat.com>
 
-There is one use case(DM) which requires to clone bio chunk by
-chunk, so introduce this API.
+The incoming bio will become very big after multipage bvec is enabled,
+so we can't clone bio page by page.
+
+This patch uses the introduced bio_clone_chunk_bioset(), so the incoming
+bio can be cloned successfully. This way is safe because device mapping
+won't modify the bio vector on the cloned multipage bio.
 
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- block/bio.c         | 56 +++++++++++++++++++++++++++++++++++++++--------------
- include/linux/bio.h |  1 +
- 2 files changed, 43 insertions(+), 14 deletions(-)
+ drivers/md/dm.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/block/bio.c b/block/bio.c
-index cb0f46e2752b..60219f82ddab 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -644,21 +644,13 @@ struct bio *bio_clone_fast(struct bio *bio, gfp_t gfp_mask, struct bio_set *bs)
- }
- EXPORT_SYMBOL(bio_clone_fast);
- 
--/**
-- * 	bio_clone_bioset - clone a bio
-- * 	@bio_src: bio to clone
-- *	@gfp_mask: allocation priority
-- *	@bs: bio_set to allocate from
-- *
-- *	Clone bio. Caller will own the returned bio, but not the actual data it
-- *	points to. Reference count of returned bio will be one.
-- */
--struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
--			     struct bio_set *bs)
-+static struct bio *__bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
-+				      struct bio_set *bs, bool seg)
- {
- 	struct bvec_iter iter;
- 	struct bio_vec bv;
- 	struct bio *bio;
-+	int nr_vecs = seg ? bio_segments(bio_src) : bio_chunks(bio_src);
- 
- 	/*
- 	 * Pre immutable biovecs, __bio_clone() used to just do a memcpy from
-@@ -682,7 +674,7 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
- 	 *    __bio_clone_fast() anyways.
- 	 */
- 
--	bio = bio_alloc_bioset(gfp_mask, bio_segments(bio_src), bs);
-+	bio = bio_alloc_bioset(gfp_mask, nr_vecs, bs);
- 	if (!bio)
- 		return NULL;
- 	bio->bi_disk		= bio_src->bi_disk;
-@@ -700,8 +692,13 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
- 		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
- 		break;
- 	default:
--		bio_for_each_segment(bv, bio_src, iter)
--			bio->bi_io_vec[bio->bi_vcnt++] = bv;
-+		if (seg) {
-+			bio_for_each_segment(bv, bio_src, iter)
-+				bio->bi_io_vec[bio->bi_vcnt++] = bv;
-+		} else {
-+			bio_for_each_chunk(bv, bio_src, iter)
-+				bio->bi_io_vec[bio->bi_vcnt++] = bv;
-+		}
- 		break;
- 	}
- 
-@@ -719,9 +716,40 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
- 
- 	return bio;
- }
-+
-+/**
-+ * 	bio_clone_bioset - clone a bio
-+ * 	@bio_src: bio to clone
-+ *	@gfp_mask: allocation priority
-+ *	@bs: bio_set to allocate from
-+ *
-+ *	Clone bio. Caller will own the returned bio, but not the actual data it
-+ *	points to. Reference count of returned bio will be one.
-+ */
-+struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
-+			     struct bio_set *bs)
-+{
-+	return __bio_clone_bioset(bio_src, gfp_mask, bs, true);
-+}
- EXPORT_SYMBOL(bio_clone_bioset);
- 
- /**
-+ * 	bio_clone_seg_bioset - clone a bio segment by segment
-+ * 	@bio_src: bio to clone
-+ *	@gfp_mask: allocation priority
-+ *	@bs: bio_set to allocate from
-+ *
-+ *	Clone bio. Caller will own the returned bio, but not the actual data it
-+ *	points to. Reference count of returned bio will be one.
-+ */
-+struct bio *bio_clone_chunk_bioset(struct bio *bio_src, gfp_t gfp_mask,
-+				   struct bio_set *bs)
-+{
-+	return __bio_clone_bioset(bio_src, gfp_mask, bs, false);
-+}
-+EXPORT_SYMBOL(bio_clone_chunk_bioset);
-+
-+/**
-  *	bio_add_pc_page	-	attempt to add page to bio
-  *	@q: the target queue
-  *	@bio: destination bio
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 13fd7bc30390..0fa1035dde38 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -483,6 +483,7 @@ extern void bio_put(struct bio *);
- extern void __bio_clone_fast(struct bio *, struct bio *);
- extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
- extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *bs);
-+extern struct bio *bio_clone_chunk_bioset(struct bio *, gfp_t, struct bio_set *bs);
- 
- extern struct bio_set fs_bio_set;
- 
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index 98dff36b89a3..13ca3574d972 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -1582,8 +1582,8 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
+ 				 * the usage of io->orig_bio in dm_remap_zone_report()
+ 				 * won't be affected by this reassignment.
+ 				 */
+-				struct bio *b = bio_clone_bioset(bio, GFP_NOIO,
+-								 &md->queue->bio_split);
++				struct bio *b = bio_clone_chunk_bioset(bio, GFP_NOIO,
++								       &md->queue->bio_split);
+ 				ci.io->orig_bio = b;
+ 				bio_advance(bio, (bio_sectors(bio) - ci.sector_count) << 9);
+ 				bio_chain(b, bio);
 -- 
 2.9.5
