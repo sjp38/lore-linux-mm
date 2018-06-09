@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CA9C6B0286
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:34:21 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id c1-v6so378540qtj.6
-        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:34:21 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DECD76B0288
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:34:30 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id c3-v6so15573968qkb.2
+        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:34:30 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q87-v6si7619460qkh.219.2018.06.09.05.34.20
+        by mx.google.com with ESMTPS id v51-v6si3744568qta.51.2018.06.09.05.34.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Jun 2018 05:34:20 -0700 (PDT)
+        Sat, 09 Jun 2018 05:34:30 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V6 19/30] md/dm/bcache: conver to bio_for_each_chunk_segment_all and bio_for_each_chunk_all
-Date: Sat,  9 Jun 2018 20:30:03 +0800
-Message-Id: <20180609123014.8861-20-ming.lei@redhat.com>
+Subject: [PATCH V6 20/30] fs: conver to bio_for_each_chunk_segment_all()
+Date: Sat,  9 Jun 2018 20:30:04 +0800
+Message-Id: <20180609123014.8861-21-ming.lei@redhat.com>
 In-Reply-To: <20180609123014.8861-1-ming.lei@redhat.com>
 References: <20180609123014.8861-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,85 +20,109 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>
 Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>, Ming Lei <ming.lei@redhat.com>
 
-In bch_bio_alloc_pages(), bio_for_each_chunk_all() is fine because this
-helper can only be used on a freshly new bio.
-
-For other cases, we conver to bio_for_each_chunk_segment_all() since they needn't
-to update bvec table.
-
 bio_for_each_segment_all() can't be used any more after multipage bvec is
 enabled, so we have to convert to bio_for_each_chunk_segment_all().
 
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- drivers/md/bcache/btree.c | 3 ++-
- drivers/md/bcache/util.c  | 2 +-
- drivers/md/dm-crypt.c     | 3 ++-
- drivers/md/raid1.c        | 3 ++-
- 4 files changed, 7 insertions(+), 4 deletions(-)
+ fs/block_dev.c  | 6 ++++--
+ fs/crypto/bio.c | 3 ++-
+ fs/direct-io.c  | 4 +++-
+ fs/iomap.c      | 3 ++-
+ fs/mpage.c      | 3 ++-
+ 5 files changed, 13 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
-index 2a0968c04e21..dc0747c37bdf 100644
---- a/drivers/md/bcache/btree.c
-+++ b/drivers/md/bcache/btree.c
-@@ -423,8 +423,9 @@ static void do_btree_node_write(struct btree *b)
- 		int j;
- 		struct bio_vec *bv;
- 		void *base = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
-+		struct bvec_chunk_iter citer;
- 
--		bio_for_each_segment_all(bv, b->bio, j)
-+		bio_for_each_chunk_segment_all(bv, b->bio, j, citer)
- 			memcpy(page_address(bv->bv_page),
- 			       base + j * PAGE_SIZE, PAGE_SIZE);
- 
-diff --git a/drivers/md/bcache/util.c b/drivers/md/bcache/util.c
-index fc479b026d6d..2f05199f7edb 100644
---- a/drivers/md/bcache/util.c
-+++ b/drivers/md/bcache/util.c
-@@ -268,7 +268,7 @@ int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index bef6934b6189..6726f8297a7b 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -197,6 +197,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
+ 	ssize_t ret;
+ 	blk_qc_t qc;
  	int i;
- 	struct bio_vec *bv;
- 
--	bio_for_each_segment_all(bv, bio, i) {
-+	bio_for_each_chunk_all(bv, bio, i) {
- 		bv->bv_page = alloc_page(gfp_mask);
- 		if (!bv->bv_page) {
- 			while (--bv >= bio->bi_io_vec)
-diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index da02f4d8e4b9..637ef1b1dc43 100644
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -1450,8 +1450,9 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
- {
- 	unsigned int i;
- 	struct bio_vec *bv;
 +	struct bvec_chunk_iter citer;
  
--	bio_for_each_segment_all(bv, clone, i) {
-+	bio_for_each_chunk_segment_all(bv, clone, i, citer) {
- 		BUG_ON(!bv->bv_page);
- 		mempool_free(bv->bv_page, &cc->page_pool);
+ 	if ((pos | iov_iter_alignment(iter)) &
+ 	    (bdev_logical_block_size(bdev) - 1))
+@@ -242,7 +243,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
  	}
-diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-index bad28520719b..2a4f1037c680 100644
---- a/drivers/md/raid1.c
-+++ b/drivers/md/raid1.c
-@@ -2116,13 +2116,14 @@ static void process_checks(struct r1bio *r1_bio)
- 		struct page **spages = get_resync_pages(sbio)->pages;
- 		struct bio_vec *bi;
- 		int page_len[RESYNC_PAGES] = { 0 };
+ 	__set_current_state(TASK_RUNNING);
+ 
+-	bio_for_each_segment_all(bvec, &bio, i) {
++	bio_for_each_chunk_segment_all(bvec, &bio, i, citer) {
+ 		if (should_dirty && !PageCompound(bvec->bv_page))
+ 			set_page_dirty_lock(bvec->bv_page);
+ 		put_page(bvec->bv_page);
+@@ -309,8 +310,9 @@ static void blkdev_bio_end_io(struct bio *bio)
+ 	} else {
+ 		struct bio_vec *bvec;
+ 		int i;
 +		struct bvec_chunk_iter citer;
  
- 		if (sbio->bi_end_io != end_sync_read)
- 			continue;
- 		/* Now we can 'fixup' the error value */
- 		sbio->bi_status = 0;
+-		bio_for_each_segment_all(bvec, bio, i)
++		bio_for_each_chunk_segment_all(bvec, bio, i, citer)
+ 			put_page(bvec->bv_page);
+ 		bio_put(bio);
+ 	}
+diff --git a/fs/crypto/bio.c b/fs/crypto/bio.c
+index 0d5e6a569d58..13bcbdbf3440 100644
+--- a/fs/crypto/bio.c
++++ b/fs/crypto/bio.c
+@@ -37,8 +37,9 @@ static void completion_pages(struct work_struct *work)
+ 	struct bio *bio = ctx->r.bio;
+ 	struct bio_vec *bv;
+ 	int i;
++	struct bvec_chunk_iter citer;
  
--		bio_for_each_segment_all(bi, sbio, j)
-+		bio_for_each_chunk_segment_all(bi, sbio, j, citer)
- 			page_len[j] = bi->bv_len;
+-	bio_for_each_segment_all(bv, bio, i) {
++	bio_for_each_chunk_segment_all(bv, bio, i, citer) {
+ 		struct page *page = bv->bv_page;
+ 		int ret = fscrypt_decrypt_page(page->mapping->host, page,
+ 				PAGE_SIZE, 0, page->index);
+diff --git a/fs/direct-io.c b/fs/direct-io.c
+index 093fb54cd316..8f7fd985450a 100644
+--- a/fs/direct-io.c
++++ b/fs/direct-io.c
+@@ -551,7 +551,9 @@ static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio)
+ 	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty) {
+ 		bio_check_pages_dirty(bio);	/* transfers ownership */
+ 	} else {
+-		bio_for_each_segment_all(bvec, bio, i) {
++		struct bvec_chunk_iter citer;
++
++		bio_for_each_chunk_segment_all(bvec, bio, i, citer) {
+ 			struct page *page = bvec->bv_page;
  
- 		if (!status) {
+ 			if (dio->op == REQ_OP_READ && !PageCompound(page) &&
+diff --git a/fs/iomap.c b/fs/iomap.c
+index 206539d369a8..dbc35c40a1c4 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -934,8 +934,9 @@ static void iomap_dio_bio_end_io(struct bio *bio)
+ 	} else {
+ 		struct bio_vec *bvec;
+ 		int i;
++		struct bvec_chunk_iter citer;
+ 
+-		bio_for_each_segment_all(bvec, bio, i)
++		bio_for_each_chunk_segment_all(bvec, bio, i, citer)
+ 			put_page(bvec->bv_page);
+ 		bio_put(bio);
+ 	}
+diff --git a/fs/mpage.c b/fs/mpage.c
+index b7e7f570733a..78b372607650 100644
+--- a/fs/mpage.c
++++ b/fs/mpage.c
+@@ -48,8 +48,9 @@ static void mpage_end_io(struct bio *bio)
+ {
+ 	struct bio_vec *bv;
+ 	int i;
++	struct bvec_chunk_iter citer;
+ 
+-	bio_for_each_segment_all(bv, bio, i) {
++	bio_for_each_chunk_segment_all(bv, bio, i, citer) {
+ 		struct page *page = bv->bv_page;
+ 		page_endio(page, op_is_write(bio_op(bio)),
+ 				blk_status_to_errno(bio->bi_status));
 -- 
 2.9.5
