@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8EC26B0008
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:31:05 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id j11-v6so14530539qtf.15
-        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:31:05 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E246C6B000A
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:31:16 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id m65-v6so15129565qkh.11
+        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:31:16 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id y64-v6si1422680qvy.245.2018.06.09.05.31.04
+        by mx.google.com with ESMTPS id t7-v6si8168731qvn.81.2018.06.09.05.31.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Jun 2018 05:31:04 -0700 (PDT)
+        Sat, 09 Jun 2018 05:31:15 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V6 02/30] block: bio_set_pages_dirty can't see NULL bv_page in a valid bio_vec
-Date: Sat,  9 Jun 2018 20:29:46 +0800
-Message-Id: <20180609123014.8861-3-ming.lei@redhat.com>
+Subject: [PATCH V6 03/30] block: use bio_add_page in bio_iov_iter_get_pages
+Date: Sat,  9 Jun 2018 20:29:47 +0800
+Message-Id: <20180609123014.8861-4-ming.lei@redhat.com>
 In-Reply-To: <20180609123014.8861-1-ming.lei@redhat.com>
 References: <20180609123014.8861-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,30 +22,89 @@ Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-ker
 
 From: Christoph Hellwig <hch@lst.de>
 
-So don't bother handling it.
+Replace a nasty hack with a different nasty hack to prepare for multipage
+bio_vecs.  By moving the temporary page array as far up as possible in
+the space allocated for the bio_vec array we can iterate forward over it
+and thus use bio_add_page.  Using bio_add_page means we'll be able to
+merge physically contiguous pages once support for multipath bio_vecs is
+merged.
 
 Reviewed-by: Ming Lei <ming.lei@redhat.com>
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- block/bio.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ block/bio.c | 45 +++++++++++++++++++++------------------------
+ 1 file changed, 21 insertions(+), 24 deletions(-)
 
 diff --git a/block/bio.c b/block/bio.c
-index 3e7d117c3346..ebd3ca62e037 100644
+index ebd3ca62e037..cb0f46e2752b 100644
 --- a/block/bio.c
 +++ b/block/bio.c
-@@ -1634,10 +1634,8 @@ void bio_set_pages_dirty(struct bio *bio)
- 	int i;
- 
- 	bio_for_each_segment_all(bvec, bio, i) {
--		struct page *page = bvec->bv_page;
--
--		if (page && !PageCompound(page))
--			set_page_dirty_lock(page);
-+		if (!PageCompound(bvec->bv_page))
-+			set_page_dirty_lock(bvec->bv_page);
- 	}
+@@ -902,6 +902,8 @@ int bio_add_page(struct bio *bio, struct page *page,
  }
- EXPORT_SYMBOL_GPL(bio_set_pages_dirty);
+ EXPORT_SYMBOL(bio_add_page);
+ 
++#define PAGE_PTRS_PER_BVEC	(sizeof(struct bio_vec) / sizeof(struct page *))
++
+ /**
+  * bio_iov_iter_get_pages - pin user or kernel pages and add them to a bio
+  * @bio: bio to add pages to
+@@ -913,38 +915,33 @@ EXPORT_SYMBOL(bio_add_page);
+ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+ {
+ 	unsigned short nr_pages = bio->bi_max_vecs - bio->bi_vcnt;
++	unsigned short entries_left = bio->bi_max_vecs - bio->bi_vcnt;
+ 	struct bio_vec *bv = bio->bi_io_vec + bio->bi_vcnt;
+ 	struct page **pages = (struct page **)bv;
+-	size_t offset, diff;
+-	ssize_t size;
++	ssize_t size, left;
++	unsigned len, i;
++	size_t offset;
++
++	/*
++	 * Move page array up in the allocated memory for the bio vecs as
++	 * far as possible so that we can start filling biovecs from the
++	 * beginning without overwriting the temporary page array.
++	 */
++	BUILD_BUG_ON(PAGE_PTRS_PER_BVEC < 2);
++	pages += entries_left * (PAGE_PTRS_PER_BVEC - 1);
+ 
+ 	size = iov_iter_get_pages(iter, pages, LONG_MAX, nr_pages, &offset);
+ 	if (unlikely(size <= 0))
+ 		return size ? size : -EFAULT;
+-	nr_pages = (size + offset + PAGE_SIZE - 1) / PAGE_SIZE;
+ 
+-	/*
+-	 * Deep magic below:  We need to walk the pinned pages backwards
+-	 * because we are abusing the space allocated for the bio_vecs
+-	 * for the page array.  Because the bio_vecs are larger than the
+-	 * page pointers by definition this will always work.  But it also
+-	 * means we can't use bio_add_page, so any changes to it's semantics
+-	 * need to be reflected here as well.
+-	 */
+-	bio->bi_iter.bi_size += size;
+-	bio->bi_vcnt += nr_pages;
+-
+-	diff = (nr_pages * PAGE_SIZE - offset) - size;
+-	while (nr_pages--) {
+-		bv[nr_pages].bv_page = pages[nr_pages];
+-		bv[nr_pages].bv_len = PAGE_SIZE;
+-		bv[nr_pages].bv_offset = 0;
+-	}
++	for (left = size, i = 0; left > 0; left -= len, i++) {
++		struct page *page = pages[i];
+ 
+-	bv[0].bv_offset += offset;
+-	bv[0].bv_len -= offset;
+-	if (diff)
+-		bv[bio->bi_vcnt - 1].bv_len -= diff;
++		len = min_t(size_t, PAGE_SIZE - offset, left);
++		if (WARN_ON_ONCE(bio_add_page(bio, page, len, offset) != len))
++			return -EINVAL;
++		offset = 0;
++	}
+ 
+ 	iov_iter_advance(iter, size);
+ 	return 0;
 -- 
 2.9.5
