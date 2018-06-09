@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A9E046B0296
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:35:37 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id p85-v6so15140965qke.23
-        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:35:37 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E3986B0298
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:35:50 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id u127-v6so15542228qka.9
+        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:35:50 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id p50-v6si189213qtk.213.2018.06.09.05.35.36
+        by mx.google.com with ESMTPS id c85-v6si335091qkj.206.2018.06.09.05.35.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Jun 2018 05:35:36 -0700 (PDT)
+        Sat, 09 Jun 2018 05:35:49 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V6 27/30] block: kill bio_for_each_segment_all()
-Date: Sat,  9 Jun 2018 20:30:11 +0800
-Message-Id: <20180609123014.8861-28-ming.lei@redhat.com>
+Subject: [PATCH V6 28/30] block: enable multipage bvecs
+Date: Sat,  9 Jun 2018 20:30:12 +0800
+Message-Id: <20180609123014.8861-29-ming.lei@redhat.com>
 In-Reply-To: <20180609123014.8861-1-ming.lei@redhat.com>
 References: <20180609123014.8861-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,43 +20,49 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>
 Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>, Ming Lei <ming.lei@redhat.com>
 
-No one uses it any more, so kill it now.
+This patch pulls the trigger for multipage bvecs.
+
+Now any request queue which supports queue cluster will see multipage
+bvecs.
 
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- include/linux/bio.h  | 5 +----
- include/linux/bvec.h | 2 +-
- 2 files changed, 2 insertions(+), 5 deletions(-)
+ block/bio.c | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index c22b8be961ce..69ef05dc7019 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -165,11 +165,8 @@ static inline bool bio_full(struct bio *bio)
-  * drivers should _never_ use the all version - the bio may have been split
-  * before it got to the driver and the driver won't own all of it
-  */
--#define bio_for_each_segment_all(bvl, bio, i)				\
--	for (i = 0, bvl = (bio)->bi_io_vec; i < (bio)->bi_vcnt; i++, bvl++)
--
- #define bio_for_each_chunk_all(bvl, bio, i)		\
--	bio_for_each_segment_all(bvl, bio, i)
-+	for (i = 0, bvl = (bio)->bi_io_vec; i < (bio)->bi_vcnt; i++, bvl++)
+diff --git a/block/bio.c b/block/bio.c
+index 276fc35ec559..284085ab97e7 100644
+--- a/block/bio.c
++++ b/block/bio.c
+@@ -870,12 +870,23 @@ bool __bio_try_merge_page(struct bio *bio, struct page *page,
  
- #define chunk_for_each_segment(bv, bvl, i, citer)			\
- 	for (bv = bvec_init_chunk_iter(&citer);				\
-diff --git a/include/linux/bvec.h b/include/linux/bvec.h
-index d4eaa0c26bb5..58267bde111e 100644
---- a/include/linux/bvec.h
-+++ b/include/linux/bvec.h
-@@ -47,7 +47,7 @@
-  *   page, so we keep the sp interface not changed, for example,
-  *   bio_for_each_segment() still returns bvec with single page
-  *
-- * - bio_for_each_segment_all() will be changed to return singlepage
-+ * - bio_for_each_chunk_all() will be changed to return singlepage
-  *   bvec too
-  *
-  * - during iterating, iterator variable(struct bvec_iter) is always
+ 	if (bio->bi_vcnt > 0) {
+ 		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+-
+-		if (page == bv->bv_page && off == bv->bv_offset + bv->bv_len) {
+-			bv->bv_len += len;
+-			bio->bi_iter.bi_size += len;
+-			return true;
+-		}
++		struct request_queue *q = NULL;
++
++		if (page == bv->bv_page && off == bv->bv_offset + bv->bv_len)
++			goto merge;
++
++		if (bio->bi_disk)
++			q = bio->bi_disk->queue;
++
++		/* disable multipage bvec too if cluster isn't enabled */
++		if (!q || !blk_queue_cluster(q) ||
++		    (bvec_to_phys(bv) + bv->bv_len !=
++		     page_to_phys(page) + off))
++			return false;
++ merge:
++		bv->bv_len += len;
++		bio->bi_iter.bi_size += len;
++		return true;
+ 	}
+ 	return false;
+ }
 -- 
 2.9.5
