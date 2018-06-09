@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 94F146B028E
-	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:35:00 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id f8-v6so4524464qth.9
-        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:35:00 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E1C646B0290
+	for <linux-mm@kvack.org>; Sat,  9 Jun 2018 08:35:07 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id p12-v6so14542006qtg.5
+        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 05:35:07 -0700 (PDT)
 Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id 39-v6si199065qtv.111.2018.06.09.05.34.59
+        by mx.google.com with ESMTPS id t1-v6si7769934qtb.341.2018.06.09.05.35.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Jun 2018 05:34:59 -0700 (PDT)
+        Sat, 09 Jun 2018 05:35:07 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V6 23/30] f2fs: conver to bio_for_each_chunk_segment_all
-Date: Sat,  9 Jun 2018 20:30:07 +0800
-Message-Id: <20180609123014.8861-24-ming.lei@redhat.com>
+Subject: [PATCH V6 24/30] xfs: conver to bio_for_each_chunk_segment_all
+Date: Sat,  9 Jun 2018 20:30:08 +0800
+Message-Id: <20180609123014.8861-25-ming.lei@redhat.com>
 In-Reply-To: <20180609123014.8861-1-ming.lei@redhat.com>
 References: <20180609123014.8861-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -23,59 +23,43 @@ Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-ker
 bio_for_each_page_all() can't be used any more after multipage bvec is
 enabled, so we have to convert to bio_for_each_chunk_segment_all().
 
+Given bvec can't be changed under bio_for_each_chunk_segment_all(), this patch
+marks the bvec parameter as 'const' for xfs_finish_page_writeback().
+
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/f2fs/data.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ fs/xfs/xfs_aops.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index 02237d4d91f5..00ee386b902c 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -54,6 +54,7 @@ static void f2fs_read_end_io(struct bio *bio)
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index ca6903726689..c134db97911d 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -107,7 +107,7 @@ xfs_find_daxdev_for_inode(
+ static void
+ xfs_finish_page_writeback(
+ 	struct inode		*inode,
+-	struct bio_vec		*bvec,
++	const struct bio_vec	*bvec,
+ 	int			error)
  {
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_chunk_iter citer;
+ 	struct buffer_head	*head = page_buffers(bvec->bv_page), *bh = head;
+@@ -169,6 +169,7 @@ xfs_destroy_ioend(
+ 	for (bio = &ioend->io_inline_bio; bio; bio = next) {
+ 		struct bio_vec	*bvec;
+ 		int		i;
++		struct bvec_chunk_iter citer;
  
- #ifdef CONFIG_F2FS_FAULT_INJECTION
- 	if (time_to_inject(F2FS_P_SB(bio_first_page_all(bio)), FAULT_IO)) {
-@@ -71,7 +72,7 @@ static void f2fs_read_end_io(struct bio *bio)
- 		}
- 	}
+ 		/*
+ 		 * For the last bio, bi_private points to the ioend, so we
+@@ -180,7 +181,7 @@ xfs_destroy_ioend(
+ 			next = bio->bi_private;
  
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_chunk_segment_all(bvec, bio, i, citer) {
- 		struct page *page = bvec->bv_page;
+ 		/* walk each page on bio, ending page IO on them */
+-		bio_for_each_segment_all(bvec, bio, i)
++		bio_for_each_chunk_segment_all(bvec, bio, i, citer)
+ 			xfs_finish_page_writeback(inode, bvec, error);
  
- 		if (!bio->bi_status) {
-@@ -91,8 +92,9 @@ static void f2fs_write_end_io(struct bio *bio)
- 	struct f2fs_sb_info *sbi = bio->bi_private;
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_chunk_iter citer;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_chunk_segment_all(bvec, bio, i, citer) {
- 		struct page *page = bvec->bv_page;
- 		enum count_type type = WB_DATA_TYPE(page);
- 
-@@ -267,6 +269,7 @@ static bool __has_merged_page(struct f2fs_bio_info *io,
- 	struct bio_vec *bvec;
- 	struct page *target;
- 	int i;
-+	struct bvec_chunk_iter citer;
- 
- 	if (!io->bio)
- 		return false;
-@@ -274,7 +277,7 @@ static bool __has_merged_page(struct f2fs_bio_info *io,
- 	if (!inode && !ino)
- 		return true;
- 
--	bio_for_each_segment_all(bvec, io->bio, i) {
-+	bio_for_each_chunk_segment_all(bvec, io->bio, i, citer) {
- 
- 		if (bvec->bv_page->mapping)
- 			target = bvec->bv_page;
+ 		bio_put(bio);
 -- 
 2.9.5
