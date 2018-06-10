@@ -1,152 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 14D146B0003
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 13:40:32 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id w9-v6so11464740wrl.13
-        for <linux-mm@kvack.org>; Sun, 10 Jun 2018 10:40:32 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 18E826B0003
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 17:28:48 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id o20-v6so5644888lfg.8
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2018 14:28:48 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b7-v6sor8043778wro.36.2018.06.10.10.40.30
+        by mx.google.com with SMTPS id l11-v6sor2332675lfc.79.2018.06.10.14.28.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 10 Jun 2018 10:40:30 -0700 (PDT)
+        Sun, 10 Jun 2018 14:28:46 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180530001204.183758-1-shakeelb@google.com> <20180609102027.5vkqucnzvh6nfdxu@esperanza>
- <CALvZod7OrDrq571An-GHeWFNvARWsS+fvX1-G9=nYzxgq2N3UQ@mail.gmail.com> <20180610163420.GK3593@linux.vnet.ibm.com>
-In-Reply-To: <20180610163420.GK3593@linux.vnet.ibm.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Sun, 10 Jun 2018 10:40:17 -0700
-Message-ID: <CALvZod5HiwJPkD-_KnV+m=gWYgkb8rZceKoUkBK1KPW8iOzYug@mail.gmail.com>
-Subject: Re: [PATCH v3] mm: fix race between kmem_cache destroy, create and deactivate
+From: shankarapailoor <shankarapailoor@gmail.com>
+Date: Sun, 10 Jun 2018 14:28:45 -0700
+Message-ID: <CAB+yDaY7jk1E4=iDO3_F_3di3-k1WA7cU8qGpJLzZjBoo-_73w@mail.gmail.com>
+Subject: KMSAN: kernel-infoleak in copyout lib/iov_iter.c
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: mhocko@suse.com, kirill.shutemov@linux.intel.com, jglisse@redhat.com, akpm@linux-foundation.org, minchan@kernel.org, dan.j.williams@intel.com, ying.huang@intel.com, ross.zwisler@linux.intel.com, hughd@google.com
+Cc: linux-mm@kvack.org, syzkaller <syzkaller@googlegroups.com>
 
-On Sun, Jun 10, 2018 at 9:32 AM Paul E. McKenney
-<paulmck@linux.vnet.ibm.com> wrote:
->
-> On Sun, Jun 10, 2018 at 07:52:50AM -0700, Shakeel Butt wrote:
-> > On Sat, Jun 9, 2018 at 3:20 AM Vladimir Davydov <vdavydov.dev@gmail.com> wrote:
-> > >
-> > > On Tue, May 29, 2018 at 05:12:04PM -0700, Shakeel Butt wrote:
-> > > > The memcg kmem cache creation and deactivation (SLUB only) is
-> > > > asynchronous. If a root kmem cache is destroyed whose memcg cache is in
-> > > > the process of creation or deactivation, the kernel may crash.
-> > > >
-> > > > Example of one such crash:
-> > > >       general protection fault: 0000 [#1] SMP PTI
-> > > >       CPU: 1 PID: 1721 Comm: kworker/14:1 Not tainted 4.17.0-smp
-> > > >       ...
-> > > >       Workqueue: memcg_kmem_cache kmemcg_deactivate_workfn
-> > > >       RIP: 0010:has_cpu_slab
-> > > >       ...
-> > > >       Call Trace:
-> > > >       ? on_each_cpu_cond
-> > > >       __kmem_cache_shrink
-> > > >       kmemcg_cache_deact_after_rcu
-> > > >       kmemcg_deactivate_workfn
-> > > >       process_one_work
-> > > >       worker_thread
-> > > >       kthread
-> > > >       ret_from_fork+0x35/0x40
-> > > >
-> > > > To fix this race, on root kmem cache destruction, mark the cache as
-> > > > dying and flush the workqueue used for memcg kmem cache creation and
-> > > > deactivation.
-> > >
-> > > > @@ -845,6 +862,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
-> > > >       if (unlikely(!s))
-> > > >               return;
-> > > >
-> > > > +     flush_memcg_workqueue(s);
-> > > > +
-> > >
-> > > This should definitely help against async memcg_kmem_cache_create(),
-> > > but I'm afraid it doesn't eliminate the race with async destruction,
-> > > unfortunately, because the latter uses call_rcu_sched():
-> > >
-> > >   memcg_deactivate_kmem_caches
-> > >    __kmem_cache_deactivate
-> > >     slab_deactivate_memcg_cache_rcu_sched
-> > >      call_rcu_sched
-> > >                                             kmem_cache_destroy
-> > >                                              shutdown_memcg_caches
-> > >                                               shutdown_cache
-> > >       memcg_deactivate_rcufn
-> > >        <dereference destroyed cache>
-> > >
-> > > Can we somehow flush those pending rcu requests?
-> >
-> > You are right and thanks for catching that. Now I am wondering if
-> > synchronize_sched() just before flush_workqueue() should be enough.
-> > Otherwise we might have to replace call_sched_rcu with
-> > synchronize_sched() in kmemcg_deactivate_workfn which I would not
-> > prefer as that would holdup the kmem_cache workqueue.
-> >
-> > +Paul
-> >
-> > Paul, we have a situation something similar to the following pseudo code.
-> >
-> > CPU0:
-> > lock(l)
-> > if (!flag)
-> >   call_rcu_sched(callback);
-> > unlock(l)
-> > ------
-> > CPU1:
-> > lock(l)
-> > flag = true
-> > unlock(l)
-> > synchronize_sched()
-> > ------
-> >
-> > If CPU0 has called already called call_rchu_sched(callback) then later
-> > if CPU1 calls synchronize_sched(). Is there any guarantee that on
-> > return from synchronize_sched(), the rcu callback scheduled by CPU0
-> > has already been executed?
->
-> No.  There is no such guarantee.
->
-> You instead want rcu_barrier_sched(), which waits for the callbacks from
-> all prior invocations of call_rcu_sched() to be invoked.
->
-> Please note that synchronize_sched() is -not- sufficient.  It is only
-> guaranteed to wait for a grace period, not necessarily for all prior
-> callbacks.  This goes both directions because if there are no callbacks
-> in the system, then rcu_barrier_sched() is within its rights to return
-> immediately.
->
-> So please make sure you use each of synchronize_sched() and
-> rcu_barrier_sched() to do the job that it was intended to do!  ;-)
->
-> If your lock(l) is shorthand for spin_lock(&l), it looks to me like you
-> actually only need rcu_barrier_sched():
->
->         CPU0:
->         spin_lock(&l);
->         if (!flag)
->           call_rcu_sched(callback);
->         spin_unlock(&l);
->
->         CPU1:
->         spin_lock(&l);
->         flag = true;
->         spin_unlock(&l);
->         /* At this point, no more callbacks will be registered. */
->         rcu_barrier_sched();
->         /* At this point, all registered callbacks will have been invoked. */
->
-> On the other hand, if your "lock(l)" was instead shorthand for
-> rcu_read_lock_sched(), then you need -both- synchronize_sched() -and-
-> rcu_barrier().  And even then, you will be broken in -rt kernels.
-> (Which might or might not be a concern, depending on whether your code
-> matters to -rt kernels.
->
-> Make sense?
->
+Hi,
 
-Thanks a lot, that was really helpful. The lock is actually
-mutex_lock. So, I think rcu_barrier_sched() should be sufficient.
+I have been fuzzing Linux 4.17 with KMSAN
+(https://github.com/google/kmsan/)  and I found the following crash:
 
-Shakeel
+=======================================================
+BUG: KMSAN: kernel-infoleak in copyout lib/iov_iter.c:140 [inline]
+BUG: KMSAN: kernel-infoleak in copy_page_to_iter_iovec
+lib/iov_iter.c:212 [inline]
+BUG: KMSAN: kernel-infoleak in copy_page_to_iter+0x754/0x1b70 lib/iov_iter.c:716
+ CPU: 2 PID: 21280 Comm: syz-executor3 Not tainted 4.17.0+ #4 Hardware
+name: Google Google Compute Engine/Google Compute Engine, BIOS Google
+01/01/2011
+Call Trace:
+__dump_stack lib/dump_stack.c:77 [inline]
+dump_stack+0x185/0x1d0 lib/dump_stack.c:113 kmsan_report+0x188/0x2a0
+mm/kmsan/kmsan.c:1117 kmsan_internal_check_memory+0x17e/0x1f0
+mm/kmsan/kmsan.c:1230 kmsan_copy_to_user+0x7a/0x160
+mm/kmsan/kmsan.c:1253 copyout lib/iov_iter.c:140 [inline]
+copy_page_to_iter_iovec lib/iov_iter.c:212 [inline]
+copy_page_to_iter+0x754/0x1b70 lib/iov_iter.c:716 process_vm_rw_pages
+mm/process_vm_access.c:53 [inline] process_vm_rw_single_vec
+mm/process_vm_access.c:124 [inline] process_vm_rw_core+0xf6a/0x1930
+mm/process_vm_access.c:220 process_vm_rw+0x3d0/0x500
+mm/process_vm_access.c:288 __do_sys_process_vm_readv
+mm/process_vm_access.c:302 [inline] __se_sys_process_vm_readv
+mm/process_vm_access.c:298 [inline]
+__x64_sys_process_vm_readv+0x1a0/0x200 mm/process_vm_access.c:298
+do_syscall_64+0x15b/0x230 arch/x86/entry/common.c:287
+entry_SYSCALL_64_after_hwframe+0x44/0xa9RIP: 0033:0x455a09RSP:
+002b:00007f621260ec68 EFLAGS: 00000246 ORIG_RAX: 0000000000000136RAX:
+ffffffffffffffda RBX: 00007f621260f6d4 RCX: 0000000000455a09RDX:
+0000000000000007 RSI: 0000000020001b00 RDI: 000000000000070aRBP:
+000000000072bea0 R08: 0000000000000001 R09: 0000000000000000R10:
+0000000020001c80 R11: 0000000000000246 R12: 00000000ffffffffR13:
+0000000000000524 R14: 00000000006fbc00 R15: 0000000000000000
+
+Uninit was created at: kmsan_save_stack_with_flags
+mm/kmsan/kmsan.c:279 [inline] kmsan_alloc_meta_for_pages+0x161/0x3a0
+mm/kmsan/kmsan.c:815 kmsan_alloc_page+0x82/0xe0 mm/kmsan/kmsan.c:885
+__alloc_pages_nodemask+0xe02/0x5c80 mm/page_alloc.c:4402 __alloc_pages
+include/linux/gfp.h:458 [inline] __alloc_pages_node
+include/linux/gfp.h:471 [inline]
+alloc_pages_vma+0x1555/0x17f0 mm/mempolicy.c:2049
+do_huge_pmd_wp_page+0x3026/0x4f50 mm/huge_memory.c:1296 wp_huge_pmd
+mm/memory.c:3866 [inline]
+__handle_mm_fault mm/memory.c:4079 [inline]
+handle_mm_fault+0x22aa/0x7c40 mm/memory.c:4126
+__do_page_fault+0xec6/0x1a10 arch/x86/mm/fault.c:1400
+do_page_fault+0xb7/0x250 arch/x86/mm/fault.c:1477 page_fault+0x1e/0x30
+arch/x86/entry/entry_64.S:1160
+Bytes 0-204 of 205 are uninitialized
+Memory access starts at ffff880029601b80
+==================================================================
+
+I am able to reliably reproduce the crash using ./syz-repro on the
+following program:
+
+r0 = gettid()
+process_vm_readv(r0, &(0x7f0000001b00)=[{&(0x7f00000006c0)=""/221,
+0xdd}, {&(0x7f00000007c0)=""/248, 0xf8}, {&(0x7f00000008c0)=""/254,
+0xfe}, {&(0x7f00000009c0)=""/4096, 0x1000}, {&(0x7f00000019c0)},
+{&(0x7f0000001a00)=""/184, 0xb8}, {&(0x7f0000001ac0)=""/26, 0x1a}],
+0x7, &(0x7f0000001c80)=[{&(0x7f0000001b80)=""/205, 0xcd}], 0x1, 0x0)
+r1 = socket$inet(0x2, 0x1, 0x0)
+fcntl$setown(r1, 0x8, 0xffffffffffffffff)
+fcntl$getownex(r1, 0x10, &(0x7f00000000c0)={0x0,<r2=>0x0})
+process_vm_writev(r2, &(0x7f0000000080)=[{&(0x7f0000000000)=""/99,
+0x63}], 0x1, &(0x7f00000003c0)=[{&(0x7f0000000100)=""/157, 0x9d},
+{&(0x7f00000001c0)=""/22, 0x16}, {&(0x7f0000000200)=""/137, 0x89},
+{&(0x7f00000002c0)=""/51, 0x33}, {&(0x7f0000000300)=""/134, 0x86}],
+0x5, 0x0)
+
+Here is a C program that can (inconsistently) trigger the crash:
+https://pastebin.com/pRBptS9X
+My kernel configs are here: https://pastebin.com/KGjTG2Yd
+Log context around crash: https://pastebin.com/f5BsDUpV
+
+
+Regards,
+Shankara Pailoor
