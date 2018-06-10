@@ -1,83 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D6C336B0003
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 01:38:50 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id x6-v6so10460193wrl.6
-        for <linux-mm@kvack.org>; Sat, 09 Jun 2018 22:38:50 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o6-v6si5051843edl.95.2018.06.09.22.38.48
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 75F726B0003
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 08:38:45 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id j18-v6so3985561wme.5
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2018 05:38:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x53-v6si2772507eda.150.2018.06.10.05.38.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Jun 2018 22:38:49 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5A5Y3xY111534
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 01:38:47 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2jgvdajb0w-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 01:38:47 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sun, 10 Jun 2018 06:38:45 +0100
-Date: Sun, 10 Jun 2018 08:38:39 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH V6 2/2 RESEND] ksm: replace jhash2 with faster hash
-References: <20180418193220.4603-3-timofey.titovets@synesis.ru>
- <20180522202242.otvdunkl75yfhkt4@xakep.localdomain>
- <CAGqmi76gJV=ZDX5=Y3toF2tPiJs8T=PiUJFQg5nq9O5yztx80Q@mail.gmail.com>
- <CAGM2reaZ2YoxFhEDtcXi=hMFoGFi8+SROOn+_SRMwnx3cW15kw@mail.gmail.com>
- <CAGqmi76-qK9q_OTvyqpb-9k_m0CLMt3o860uaN5LL8nBkf5RTg@mail.gmail.com>
- <20180527130325.GB4522@rapoport-lnx>
- <CAGM2rea2GBvOAiKcSpHkQ9F+jgvy3sCsBw7hFz26DvQ+c_677A@mail.gmail.com>
- <CAGqmi74G-7bM5mbbaHjzOkTvuEpCcAbZ8Q0PVCMkyP09XaVSkA@mail.gmail.com>
- <20180607115232.GA8245@rapoport-lnx>
- <CAGM2rebK=gNbcAwkmt7W9kwtd=QWoPRogQMaoXOv=bmX+_d+yw@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 10 Jun 2018 05:38:43 -0700 (PDT)
+Subject: Re: [PATCH V6 19/30] md/dm/bcache: conver to
+ bio_for_each_chunk_segment_all and bio_for_each_chunk_all
+References: <20180609123014.8861-1-ming.lei@redhat.com>
+ <20180609123014.8861-20-ming.lei@redhat.com>
+From: Coly Li <colyli@suse.de>
+Message-ID: <5467522a-4bf6-1ec6-6aad-545d9b3da15e@suse.de>
+Date: Sun, 10 Jun 2018 20:38:28 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGM2rebK=gNbcAwkmt7W9kwtd=QWoPRogQMaoXOv=bmX+_d+yw@mail.gmail.com>
-Message-Id: <20180610053838.GB20681@rapoport-lnx>
+In-Reply-To: <20180609123014.8861-20-ming.lei@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Timofey Titovets <nefelim4ag@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, solee@os.korea.ac.kr, aarcange@redhat.com, kvm@vger.kernel.org
+To: Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>
+Cc: David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>
 
-On Thu, Jun 07, 2018 at 09:29:49PM -0400, Pavel Tatashin wrote:
-> > With CONFIG_SYSFS=n there is nothing that will set ksm_run to anything but
-> > zero and ksm_do_scan will never be called.
-> >
+On 2018/6/9 8:30 PM, Ming Lei wrote:
+> In bch_bio_alloc_pages(), bio_for_each_chunk_all() is fine because this
+> helper can only be used on a freshly new bio.
 > 
-> Unfortunatly, this is not so:
+> For other cases, we conver to bio_for_each_chunk_segment_all() since they needn't
+> to update bvec table.
 > 
-> In: /linux-master/mm/ksm.c
+> bio_for_each_segment_all() can't be used any more after multipage bvec is
+> enabled, so we have to convert to bio_for_each_chunk_segment_all().
 > 
-> 3143#else
-> 3144 ksm_run = KSM_RUN_MERGE; /* no way for user to start it */
-> 3145
-> 3146#endif /* CONFIG_SYSFS */
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+
+I am OK with the bcache part. Acked-by: Coly Li <colyli@suse.de>
+
+Thanks.
+
+Coly Li
+
+> ---
+>  drivers/md/bcache/btree.c | 3 ++-
+>  drivers/md/bcache/util.c  | 2 +-
+>  drivers/md/dm-crypt.c     | 3 ++-
+>  drivers/md/raid1.c        | 3 ++-
+>  4 files changed, 7 insertions(+), 4 deletions(-)
 > 
-> So, we do set ksm_run to run right from ksm_init() when CONFIG_SYSFS=n.
-
-Huh, missed that one...
- 
-> I wonder if this is acceptible to only use xxhash when CONFIG_SYSFS=n ?
-
-A bit unrelated to CONFIG_SYSFS, but rather for rare use-cases in general.
-What will happen in the following scenario:
-
-* The system has crc32c HW acceleration
-* KSM chooses crc32c
-* KSM runs with crc32c
-* user removes crc32c HW acceleration module
-
-If I understand correctly, we'll then fall back to pure SW crc32c
-calculations, right?
-
-> Thank you,
-> Pavel
+> diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
+> index 2a0968c04e21..dc0747c37bdf 100644
+> --- a/drivers/md/bcache/btree.c
+> +++ b/drivers/md/bcache/btree.c
+> @@ -423,8 +423,9 @@ static void do_btree_node_write(struct btree *b)
+>  		int j;
+>  		struct bio_vec *bv;
+>  		void *base = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
+> +		struct bvec_chunk_iter citer;
+>  
+> -		bio_for_each_segment_all(bv, b->bio, j)
+> +		bio_for_each_chunk_segment_all(bv, b->bio, j, citer)
+>  			memcpy(page_address(bv->bv_page),
+>  			       base + j * PAGE_SIZE, PAGE_SIZE);
+>  
+> diff --git a/drivers/md/bcache/util.c b/drivers/md/bcache/util.c
+> index fc479b026d6d..2f05199f7edb 100644
+> --- a/drivers/md/bcache/util.c
+> +++ b/drivers/md/bcache/util.c
+> @@ -268,7 +268,7 @@ int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
+>  	int i;
+>  	struct bio_vec *bv;
+>  
+> -	bio_for_each_segment_all(bv, bio, i) {
+> +	bio_for_each_chunk_all(bv, bio, i) {
+>  		bv->bv_page = alloc_page(gfp_mask);
+>  		if (!bv->bv_page) {
+>  			while (--bv >= bio->bi_io_vec)
+> diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+> index da02f4d8e4b9..637ef1b1dc43 100644
+> --- a/drivers/md/dm-crypt.c
+> +++ b/drivers/md/dm-crypt.c
+> @@ -1450,8 +1450,9 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
+>  {
+>  	unsigned int i;
+>  	struct bio_vec *bv;
+> +	struct bvec_chunk_iter citer;
+>  
+> -	bio_for_each_segment_all(bv, clone, i) {
+> +	bio_for_each_chunk_segment_all(bv, clone, i, citer) {
+>  		BUG_ON(!bv->bv_page);
+>  		mempool_free(bv->bv_page, &cc->page_pool);
+>  	}
+> diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
+> index bad28520719b..2a4f1037c680 100644
+> --- a/drivers/md/raid1.c
+> +++ b/drivers/md/raid1.c
+> @@ -2116,13 +2116,14 @@ static void process_checks(struct r1bio *r1_bio)
+>  		struct page **spages = get_resync_pages(sbio)->pages;
+>  		struct bio_vec *bi;
+>  		int page_len[RESYNC_PAGES] = { 0 };
+> +		struct bvec_chunk_iter citer;
+>  
+>  		if (sbio->bi_end_io != end_sync_read)
+>  			continue;
+>  		/* Now we can 'fixup' the error value */
+>  		sbio->bi_status = 0;
+>  
+> -		bio_for_each_segment_all(bi, sbio, j)
+> +		bio_for_each_chunk_segment_all(bi, sbio, j, citer)
+>  			page_len[j] = bi->bv_len;
+>  
+>  		if (!status) {
 > 
-
--- 
-Sincerely yours,
-Mike.
