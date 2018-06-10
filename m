@@ -1,57 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 85B316B0003
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 19:33:04 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 5-v6so18269265qke.19
-        for <linux-mm@kvack.org>; Sun, 10 Jun 2018 16:33:04 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id c12-v6si399622qkb.288.2018.06.10.16.33.03
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 264B76B0006
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 19:57:51 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id r2-v6so11944272wrm.15
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2018 16:57:51 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m5-v6si5049388wme.111.2018.06.10.16.57.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Jun 2018 16:33:03 -0700 (PDT)
-Date: Mon, 11 Jun 2018 07:32:56 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH v4 3/4] mm/sparse: Add a new parameter 'data_unit_size'
- for alloc_usemap_and_memmap
-Message-ID: <20180610233256.GF16231@MiWiFi-R3L-srv>
-References: <20180521101555.25610-1-bhe@redhat.com>
- <20180521101555.25610-4-bhe@redhat.com>
- <8ff7638c-d3ee-a40c-e5cf-deded8d19e93@intel.com>
- <20180608062733.GB16231@MiWiFi-R3L-srv>
- <74359df3-76a8-6dc7-51c5-27019130224f@intel.com>
- <20180608151748.GE16231@MiWiFi-R3L-srv>
- <6cb5f16f-68a6-84af-c7e6-1a563133fac8@intel.com>
+        Sun, 10 Jun 2018 16:57:49 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5ANsLBl082631
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 19:57:48 -0400
+Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2jhd5dhc4s-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 19:57:48 -0400
+Received: from localhost
+	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Sun, 10 Jun 2018 19:57:47 -0400
+Date: Sun, 10 Jun 2018 16:59:34 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3] mm: fix race between kmem_cache destroy, create and
+ deactivate
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20180530001204.183758-1-shakeelb@google.com>
+ <20180609102027.5vkqucnzvh6nfdxu@esperanza>
+ <CALvZod7OrDrq571An-GHeWFNvARWsS+fvX1-G9=nYzxgq2N3UQ@mail.gmail.com>
+ <20180610163420.GK3593@linux.vnet.ibm.com>
+ <CALvZod5HiwJPkD-_KnV+m=gWYgkb8rZceKoUkBK1KPW8iOzYug@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <6cb5f16f-68a6-84af-c7e6-1a563133fac8@intel.com>
+In-Reply-To: <CALvZod5HiwJPkD-_KnV+m=gWYgkb8rZceKoUkBK1KPW8iOzYug@mail.gmail.com>
+Message-Id: <20180610235934.GM3593@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 06/08/18 at 09:13am, Dave Hansen wrote:
-> On 06/08/2018 08:17 AM, Baoquan He wrote:
-> > 
-> > Then inside alloc_usemap_and_memmap(), For each node, we get how many
-> > present sections on this node, call hook alloc_func(). Then we update
-> > the pointer to point at a new position of usemap_map[] or map_map[].
+On Sun, Jun 10, 2018 at 10:40:17AM -0700, Shakeel Butt wrote:
+> On Sun, Jun 10, 2018 at 9:32 AM Paul E. McKenney
+> <paulmck@linux.vnet.ibm.com> wrote:
+> >
+> > On Sun, Jun 10, 2018 at 07:52:50AM -0700, Shakeel Butt wrote:
+> > > On Sat, Jun 9, 2018 at 3:20 AM Vladimir Davydov <vdavydov.dev@gmail.com> wrote:
+> > > >
+> > > > On Tue, May 29, 2018 at 05:12:04PM -0700, Shakeel Butt wrote:
+> > > > > The memcg kmem cache creation and deactivation (SLUB only) is
+> > > > > asynchronous. If a root kmem cache is destroyed whose memcg cache is in
+> > > > > the process of creation or deactivation, the kernel may crash.
+> > > > >
+> > > > > Example of one such crash:
+> > > > >       general protection fault: 0000 [#1] SMP PTI
+> > > > >       CPU: 1 PID: 1721 Comm: kworker/14:1 Not tainted 4.17.0-smp
+> > > > >       ...
+> > > > >       Workqueue: memcg_kmem_cache kmemcg_deactivate_workfn
+> > > > >       RIP: 0010:has_cpu_slab
+> > > > >       ...
+> > > > >       Call Trace:
+> > > > >       ? on_each_cpu_cond
+> > > > >       __kmem_cache_shrink
+> > > > >       kmemcg_cache_deact_after_rcu
+> > > > >       kmemcg_deactivate_workfn
+> > > > >       process_one_work
+> > > > >       worker_thread
+> > > > >       kthread
+> > > > >       ret_from_fork+0x35/0x40
+> > > > >
+> > > > > To fix this race, on root kmem cache destruction, mark the cache as
+> > > > > dying and flush the workqueue used for memcg kmem cache creation and
+> > > > > deactivation.
+> > > >
+> > > > > @@ -845,6 +862,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
+> > > > >       if (unlikely(!s))
+> > > > >               return;
+> > > > >
+> > > > > +     flush_memcg_workqueue(s);
+> > > > > +
+> > > >
+> > > > This should definitely help against async memcg_kmem_cache_create(),
+> > > > but I'm afraid it doesn't eliminate the race with async destruction,
+> > > > unfortunately, because the latter uses call_rcu_sched():
+> > > >
+> > > >   memcg_deactivate_kmem_caches
+> > > >    __kmem_cache_deactivate
+> > > >     slab_deactivate_memcg_cache_rcu_sched
+> > > >      call_rcu_sched
+> > > >                                             kmem_cache_destroy
+> > > >                                              shutdown_memcg_caches
+> > > >                                               shutdown_cache
+> > > >       memcg_deactivate_rcufn
+> > > >        <dereference destroyed cache>
+> > > >
+> > > > Can we somehow flush those pending rcu requests?
+> > >
+> > > You are right and thanks for catching that. Now I am wondering if
+> > > synchronize_sched() just before flush_workqueue() should be enough.
+> > > Otherwise we might have to replace call_sched_rcu with
+> > > synchronize_sched() in kmemcg_deactivate_workfn which I would not
+> > > prefer as that would holdup the kmem_cache workqueue.
+> > >
+> > > +Paul
+> > >
+> > > Paul, we have a situation something similar to the following pseudo code.
+> > >
+> > > CPU0:
+> > > lock(l)
+> > > if (!flag)
+> > >   call_rcu_sched(callback);
+> > > unlock(l)
+> > > ------
+> > > CPU1:
+> > > lock(l)
+> > > flag = true
+> > > unlock(l)
+> > > synchronize_sched()
+> > > ------
+> > >
+> > > If CPU0 has called already called call_rchu_sched(callback) then later
+> > > if CPU1 calls synchronize_sched(). Is there any guarantee that on
+> > > return from synchronize_sched(), the rcu callback scheduled by CPU0
+> > > has already been executed?
+> >
+> > No.  There is no such guarantee.
+> >
+> > You instead want rcu_barrier_sched(), which waits for the callbacks from
+> > all prior invocations of call_rcu_sched() to be invoked.
+> >
+> > Please note that synchronize_sched() is -not- sufficient.  It is only
+> > guaranteed to wait for a grace period, not necessarily for all prior
+> > callbacks.  This goes both directions because if there are no callbacks
+> > in the system, then rcu_barrier_sched() is within its rights to return
+> > immediately.
+> >
+> > So please make sure you use each of synchronize_sched() and
+> > rcu_barrier_sched() to do the job that it was intended to do!  ;-)
+> >
+> > If your lock(l) is shorthand for spin_lock(&l), it looks to me like you
+> > actually only need rcu_barrier_sched():
+> >
+> >         CPU0:
+> >         spin_lock(&l);
+> >         if (!flag)
+> >           call_rcu_sched(callback);
+> >         spin_unlock(&l);
+> >
+> >         CPU1:
+> >         spin_lock(&l);
+> >         flag = true;
+> >         spin_unlock(&l);
+> >         /* At this point, no more callbacks will be registered. */
+> >         rcu_barrier_sched();
+> >         /* At this point, all registered callbacks will have been invoked. */
+> >
+> > On the other hand, if your "lock(l)" was instead shorthand for
+> > rcu_read_lock_sched(), then you need -both- synchronize_sched() -and-
+> > rcu_barrier().  And even then, you will be broken in -rt kernels.
+> > (Which might or might not be a concern, depending on whether your code
+> > matters to -rt kernels.
+> >
+> > Make sense?
 > 
-> I think this is the key.
-> 
-> alloc_usemap_and_memmap() is passed in a "void *" that it needs to
-> update as things get consumed.  But, it knows only the quantity of
-> objects consumed and not the type.  This effectively tells it enough
-> about the type to let it update the pointer as objects are consumed.
-> 
-> Right?
-> 
-> Can we get that in the changelog?
+> Thanks a lot, that was really helpful. The lock is actually
+> mutex_lock. So, I think rcu_barrier_sched() should be sufficient.
 
-Hmm, I like above sentences very much, thanks.
+Yes, with either spin_lock() or mutex_lock(), this should work.  Mutual
+exclusion and all that.  ;-)
 
-Do you means putting it in changelog, but not commit log of patch 3/4,
-right? I can do this when repost.
-
-Thanks
-Baoquan
+							Thanx, Paul
