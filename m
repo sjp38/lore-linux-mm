@@ -1,103 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 18E826B0003
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 17:28:48 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id o20-v6so5644888lfg.8
-        for <linux-mm@kvack.org>; Sun, 10 Jun 2018 14:28:48 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l11-v6sor2332675lfc.79.2018.06.10.14.28.46
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 85B316B0003
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 19:33:04 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id 5-v6so18269265qke.19
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2018 16:33:04 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id c12-v6si399622qkb.288.2018.06.10.16.33.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 10 Jun 2018 14:28:46 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 10 Jun 2018 16:33:03 -0700 (PDT)
+Date: Mon, 11 Jun 2018 07:32:56 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH v4 3/4] mm/sparse: Add a new parameter 'data_unit_size'
+ for alloc_usemap_and_memmap
+Message-ID: <20180610233256.GF16231@MiWiFi-R3L-srv>
+References: <20180521101555.25610-1-bhe@redhat.com>
+ <20180521101555.25610-4-bhe@redhat.com>
+ <8ff7638c-d3ee-a40c-e5cf-deded8d19e93@intel.com>
+ <20180608062733.GB16231@MiWiFi-R3L-srv>
+ <74359df3-76a8-6dc7-51c5-27019130224f@intel.com>
+ <20180608151748.GE16231@MiWiFi-R3L-srv>
+ <6cb5f16f-68a6-84af-c7e6-1a563133fac8@intel.com>
 MIME-Version: 1.0
-From: shankarapailoor <shankarapailoor@gmail.com>
-Date: Sun, 10 Jun 2018 14:28:45 -0700
-Message-ID: <CAB+yDaY7jk1E4=iDO3_F_3di3-k1WA7cU8qGpJLzZjBoo-_73w@mail.gmail.com>
-Subject: KMSAN: kernel-infoleak in copyout lib/iov_iter.c
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6cb5f16f-68a6-84af-c7e6-1a563133fac8@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, kirill.shutemov@linux.intel.com, jglisse@redhat.com, akpm@linux-foundation.org, minchan@kernel.org, dan.j.williams@intel.com, ying.huang@intel.com, ross.zwisler@linux.intel.com, hughd@google.com
-Cc: linux-mm@kvack.org, syzkaller <syzkaller@googlegroups.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, pagupta@redhat.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com
 
-Hi,
+On 06/08/18 at 09:13am, Dave Hansen wrote:
+> On 06/08/2018 08:17 AM, Baoquan He wrote:
+> > 
+> > Then inside alloc_usemap_and_memmap(), For each node, we get how many
+> > present sections on this node, call hook alloc_func(). Then we update
+> > the pointer to point at a new position of usemap_map[] or map_map[].
+> 
+> I think this is the key.
+> 
+> alloc_usemap_and_memmap() is passed in a "void *" that it needs to
+> update as things get consumed.  But, it knows only the quantity of
+> objects consumed and not the type.  This effectively tells it enough
+> about the type to let it update the pointer as objects are consumed.
+> 
+> Right?
+> 
+> Can we get that in the changelog?
 
-I have been fuzzing Linux 4.17 with KMSAN
-(https://github.com/google/kmsan/)  and I found the following crash:
+Hmm, I like above sentences very much, thanks.
 
-=======================================================
-BUG: KMSAN: kernel-infoleak in copyout lib/iov_iter.c:140 [inline]
-BUG: KMSAN: kernel-infoleak in copy_page_to_iter_iovec
-lib/iov_iter.c:212 [inline]
-BUG: KMSAN: kernel-infoleak in copy_page_to_iter+0x754/0x1b70 lib/iov_iter.c:716
- CPU: 2 PID: 21280 Comm: syz-executor3 Not tainted 4.17.0+ #4 Hardware
-name: Google Google Compute Engine/Google Compute Engine, BIOS Google
-01/01/2011
-Call Trace:
-__dump_stack lib/dump_stack.c:77 [inline]
-dump_stack+0x185/0x1d0 lib/dump_stack.c:113 kmsan_report+0x188/0x2a0
-mm/kmsan/kmsan.c:1117 kmsan_internal_check_memory+0x17e/0x1f0
-mm/kmsan/kmsan.c:1230 kmsan_copy_to_user+0x7a/0x160
-mm/kmsan/kmsan.c:1253 copyout lib/iov_iter.c:140 [inline]
-copy_page_to_iter_iovec lib/iov_iter.c:212 [inline]
-copy_page_to_iter+0x754/0x1b70 lib/iov_iter.c:716 process_vm_rw_pages
-mm/process_vm_access.c:53 [inline] process_vm_rw_single_vec
-mm/process_vm_access.c:124 [inline] process_vm_rw_core+0xf6a/0x1930
-mm/process_vm_access.c:220 process_vm_rw+0x3d0/0x500
-mm/process_vm_access.c:288 __do_sys_process_vm_readv
-mm/process_vm_access.c:302 [inline] __se_sys_process_vm_readv
-mm/process_vm_access.c:298 [inline]
-__x64_sys_process_vm_readv+0x1a0/0x200 mm/process_vm_access.c:298
-do_syscall_64+0x15b/0x230 arch/x86/entry/common.c:287
-entry_SYSCALL_64_after_hwframe+0x44/0xa9RIP: 0033:0x455a09RSP:
-002b:00007f621260ec68 EFLAGS: 00000246 ORIG_RAX: 0000000000000136RAX:
-ffffffffffffffda RBX: 00007f621260f6d4 RCX: 0000000000455a09RDX:
-0000000000000007 RSI: 0000000020001b00 RDI: 000000000000070aRBP:
-000000000072bea0 R08: 0000000000000001 R09: 0000000000000000R10:
-0000000020001c80 R11: 0000000000000246 R12: 00000000ffffffffR13:
-0000000000000524 R14: 00000000006fbc00 R15: 0000000000000000
+Do you means putting it in changelog, but not commit log of patch 3/4,
+right? I can do this when repost.
 
-Uninit was created at: kmsan_save_stack_with_flags
-mm/kmsan/kmsan.c:279 [inline] kmsan_alloc_meta_for_pages+0x161/0x3a0
-mm/kmsan/kmsan.c:815 kmsan_alloc_page+0x82/0xe0 mm/kmsan/kmsan.c:885
-__alloc_pages_nodemask+0xe02/0x5c80 mm/page_alloc.c:4402 __alloc_pages
-include/linux/gfp.h:458 [inline] __alloc_pages_node
-include/linux/gfp.h:471 [inline]
-alloc_pages_vma+0x1555/0x17f0 mm/mempolicy.c:2049
-do_huge_pmd_wp_page+0x3026/0x4f50 mm/huge_memory.c:1296 wp_huge_pmd
-mm/memory.c:3866 [inline]
-__handle_mm_fault mm/memory.c:4079 [inline]
-handle_mm_fault+0x22aa/0x7c40 mm/memory.c:4126
-__do_page_fault+0xec6/0x1a10 arch/x86/mm/fault.c:1400
-do_page_fault+0xb7/0x250 arch/x86/mm/fault.c:1477 page_fault+0x1e/0x30
-arch/x86/entry/entry_64.S:1160
-Bytes 0-204 of 205 are uninitialized
-Memory access starts at ffff880029601b80
-==================================================================
-
-I am able to reliably reproduce the crash using ./syz-repro on the
-following program:
-
-r0 = gettid()
-process_vm_readv(r0, &(0x7f0000001b00)=[{&(0x7f00000006c0)=""/221,
-0xdd}, {&(0x7f00000007c0)=""/248, 0xf8}, {&(0x7f00000008c0)=""/254,
-0xfe}, {&(0x7f00000009c0)=""/4096, 0x1000}, {&(0x7f00000019c0)},
-{&(0x7f0000001a00)=""/184, 0xb8}, {&(0x7f0000001ac0)=""/26, 0x1a}],
-0x7, &(0x7f0000001c80)=[{&(0x7f0000001b80)=""/205, 0xcd}], 0x1, 0x0)
-r1 = socket$inet(0x2, 0x1, 0x0)
-fcntl$setown(r1, 0x8, 0xffffffffffffffff)
-fcntl$getownex(r1, 0x10, &(0x7f00000000c0)={0x0,<r2=>0x0})
-process_vm_writev(r2, &(0x7f0000000080)=[{&(0x7f0000000000)=""/99,
-0x63}], 0x1, &(0x7f00000003c0)=[{&(0x7f0000000100)=""/157, 0x9d},
-{&(0x7f00000001c0)=""/22, 0x16}, {&(0x7f0000000200)=""/137, 0x89},
-{&(0x7f00000002c0)=""/51, 0x33}, {&(0x7f0000000300)=""/134, 0x86}],
-0x5, 0x0)
-
-Here is a C program that can (inconsistently) trigger the crash:
-https://pastebin.com/pRBptS9X
-My kernel configs are here: https://pastebin.com/KGjTG2Yd
-Log context around crash: https://pastebin.com/f5BsDUpV
-
-
-Regards,
-Shankara Pailoor
+Thanks
+Baoquan
