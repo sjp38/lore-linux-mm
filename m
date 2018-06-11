@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 68A706B02A2
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:07:14 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x25-v6so10303439pfn.21
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:07:14 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 79EDB6B02A4
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:07:15 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id i1-v6so12149167pld.11
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:07:15 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id l26-v6si24626318pfe.299.2018.06.11.07.07.13
+        by mx.google.com with ESMTPS id u196-v6si14378342pgc.137.2018.06.11.07.07.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:07:13 -0700 (PDT)
+        Mon, 11 Jun 2018 07:07:14 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 64/72] dax: Convert dax_layout_busy_page to XArray
-Date: Mon, 11 Jun 2018 07:06:31 -0700
-Message-Id: <20180611140639.17215-65-willy@infradead.org>
+Subject: [PATCH v13 65/72] dax: Convert __dax_invalidate_entry to XArray
+Date: Mon, 11 Jun 2018 07:06:32 -0700
+Message-Id: <20180611140639.17215-66-willy@infradead.org>
 In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
 References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,102 +22,53 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Instead of using a pagevec, just use the XArray iterators.  Add a
-conditional rescheduling point which probably should have been there in
-the original.
+Avoids walking the radix tree multiple times looking for tags.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/dax.c | 57 +++++++++++++++++++++-----------------------------------
- 1 file changed, 21 insertions(+), 36 deletions(-)
+ fs/dax.c | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index 1c9b736147d3..b8ed7bf32ba1 100644
+index b8ed7bf32ba1..0566a150c458 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -621,11 +621,10 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
-  */
- struct page *dax_layout_busy_page(struct address_space *mapping)
+@@ -676,27 +676,28 @@ EXPORT_SYMBOL_GPL(dax_layout_busy_page);
+ static int __dax_invalidate_entry(struct address_space *mapping,
+ 					  pgoff_t index, bool trunc)
  {
--	pgoff_t	indices[PAGEVEC_SIZE];
-+	XA_STATE(xas, &mapping->i_pages, 0);
-+	void *entry;
-+	unsigned int scanned = 0;
- 	struct page *page = NULL;
--	struct pagevec pvec;
--	pgoff_t	index, end;
--	unsigned i;
++	XA_STATE(xas, &mapping->i_pages, index);
+ 	int ret = 0;
+ 	void *entry;
+-	struct radix_tree_root *pages = &mapping->i_pages;
  
- 	/*
- 	 * In the 'limited' case get_user_pages() for dax is disabled.
-@@ -636,13 +635,9 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
- 	if (!dax_mapping(mapping) || !mapping_mapped(mapping))
- 		return NULL;
- 
--	pagevec_init(&pvec);
--	index = 0;
--	end = -1;
--
- 	/*
- 	 * If we race get_user_pages_fast() here either we'll see the
--	 * elevated page count in the pagevec_lookup and wait, or
-+	 * elevated page count in the iteration and wait, or
- 	 * get_user_pages_fast() will see that the page it took a reference
- 	 * against is no longer mapped in the page tables and bail to the
- 	 * get_user_pages() slow path.  The slow path is protected by
-@@ -654,36 +649,26 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
- 	 */
- 	unmap_mapping_range(mapping, 0, 0, 1);
- 
--	while (index < end && pagevec_lookup_entries(&pvec, mapping, index,
--				min(end - index, (pgoff_t)PAGEVEC_SIZE),
--				indices)) {
--		for (i = 0; i < pagevec_count(&pvec); i++) {
--			struct page *pvec_ent = pvec.pages[i];
--			void *entry;
--
--			index = indices[i];
--			if (index >= end)
--				break;
--
--			if (!xa_is_value(pvec_ent))
--				continue;
--
--			xa_lock_irq(&mapping->i_pages);
--			entry = get_unlocked_mapping_entry(mapping, index, NULL);
--			if (entry)
--				page = dax_busy_page(entry);
--			put_unlocked_mapping_entry(mapping, index, entry);
--			xa_unlock_irq(&mapping->i_pages);
--			if (page)
--				break;
--		}
--		pagevec_remove_exceptionals(&pvec);
--		pagevec_release(&pvec);
--		index++;
--
+-	xa_lock_irq(pages);
+-	entry = get_unlocked_mapping_entry(mapping, index, NULL);
 +	xas_lock_irq(&xas);
-+	xas_for_each(&xas, entry, ULONG_MAX) {
-+		if (!xa_is_value(entry))
-+			continue;
-+		if (unlikely(dax_is_locked(entry)))
-+			entry = get_unlocked_entry(&xas);
-+		if (entry)
-+			page = dax_busy_page(entry);
-+		put_unlocked_entry(&xas, entry);
- 		if (page)
- 			break;
-+		if (++scanned % XA_CHECK_SCHED)
-+			continue;
-+
-+		xas_pause(&xas);
-+		xas_unlock_irq(&xas);
-+		cond_resched();
-+		xas_lock_irq(&xas);
- 	}
++	entry = get_unlocked_entry(&xas);
+ 	if (!entry || WARN_ON_ONCE(!xa_is_value(entry)))
+ 		goto out;
+ 	if (!trunc &&
+-	    (radix_tree_tag_get(pages, index, PAGECACHE_TAG_DIRTY) ||
+-	     radix_tree_tag_get(pages, index, PAGECACHE_TAG_TOWRITE)))
++	    (xas_get_tag(&xas, PAGECACHE_TAG_DIRTY) ||
++	     xas_get_tag(&xas, PAGECACHE_TAG_TOWRITE)))
+ 		goto out;
+ 	dax_disassociate_entry(entry, mapping, trunc);
+-	radix_tree_delete(pages, index);
++	xas_store(&xas, NULL);
+ 	mapping->nrexceptional--;
+ 	ret = 1;
+ out:
+-	put_unlocked_mapping_entry(mapping, index, entry);
+-	xa_unlock_irq(pages);
++	put_unlocked_entry(&xas, entry);
 +	xas_unlock_irq(&xas);
- 	return page;
+ 	return ret;
  }
- EXPORT_SYMBOL_GPL(dax_layout_busy_page);
++
+ /*
+  * Delete DAX entry at @index from @mapping.  Wait for it
+  * to be unlocked before deleting it.
 -- 
 2.17.1
