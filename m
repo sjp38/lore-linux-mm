@@ -1,66 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 993C56B0006
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:33:29 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id z26-v6so17742007qto.17
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 05:33:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id l24-v6si11018618qki.398.2018.06.11.05.33.28
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 848646B0003
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:58:17 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id v186-v6so8368996vkv.1
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 05:58:17 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d94-v6sor1193807uad.101.2018.06.11.05.58.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jun 2018 05:33:28 -0700 (PDT)
-Subject: Re: [PATCH v1 00/10] mm: online/offline 4MB chunks controlled by
- device driver
-References: <20180523151151.6730-1-david@redhat.com>
- <20180524075327.GU20441@dhcp22.suse.cz>
- <14d79dad-ad47-f090-2ec0-c5daf87ac529@redhat.com>
- <20180524093121.GZ20441@dhcp22.suse.cz>
- <c0b8bbd5-6c01-f550-ae13-ef80b2255ea6@redhat.com>
- <20180524120341.GF20441@dhcp22.suse.cz>
- <1a03ac4e-9185-ce8e-a672-c747c3e40ff2@redhat.com>
- <20180524142241.GJ20441@dhcp22.suse.cz>
- <819e45c5-6ae3-1dff-3f1d-c0411b6e2e1d@redhat.com>
- <3748f033-f349-6d88-d189-d77c76565981@redhat.com>
- <20180611115641.GL13364@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <71bd1b65-2a88-5de7-9789-bf4fac26507d@redhat.com>
-Date: Mon, 11 Jun 2018 14:33:20 +0200
+        (Google Transport Security);
+        Mon, 11 Jun 2018 05:58:16 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180611115641.GL13364@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <CAB+yDaY7jk1E4=iDO3_F_3di3-k1WA7cU8qGpJLzZjBoo-_73w@mail.gmail.com>
+ <CACT4Y+YcaXt1ATjFfgEFEzHcXZP7FfgJnkJ8PxS2152f8RCe8w@mail.gmail.com>
+In-Reply-To: <CACT4Y+YcaXt1ATjFfgEFEzHcXZP7FfgJnkJ8PxS2152f8RCe8w@mail.gmail.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Mon, 11 Jun 2018 14:58:02 +0200
+Message-ID: <CAG_fn=URhSOj9DScoP+bEJoy5GVn_9wQRuFGn2q1ZFD4sPjDZg@mail.gmail.com>
+Subject: Re: KMSAN: kernel-infoleak in copyout lib/iov_iter.c
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Balbir Singh <bsingharora@gmail.com>, Baoquan He <bhe@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>, Jan Kara <jack@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>, Kate Stewart <kstewart@linuxfoundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Mel Gorman <mgorman@suse.de>, Michael Ellerman <mpe@ellerman.id.au>, Miles Chen <miles.chen@mediatek.com>, Oscar Salvador <osalvador@techadventures.net>, Paul Mackerras <paulus@samba.org>, Pavel Tatashin <pasha.tatashin@oracle.com>, Philippe Ombredanne <pombredanne@nexb.com>, Rashmica Gupta <rashmica.g@gmail.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Souptick Joarder <jrdr.linux@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
+To: Dmitriy Vyukov <dvyukov@google.com>
+Cc: shankarapailoor@gmail.com, kasan-dev <kasan-dev@googlegroups.com>, mhocko@suse.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, jglisse@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, dan.j.williams@intel.com, ying.huang@intel.com, ross.zwisler@linux.intel.com, Hugh Dickins <hughd@google.com>, Linux Memory Management List <linux-mm@kvack.org>, syzkaller <syzkaller@googlegroups.com>
 
-On 11.06.2018 13:56, Michal Hocko wrote:
-> On Mon 11-06-18 13:53:49, David Hildenbrand wrote:
->> On 24.05.2018 23:07, David Hildenbrand wrote:
->>> On 24.05.2018 16:22, Michal Hocko wrote:
->>>> I will go over the rest of the email later I just wanted to make this
->>>> point clear because I suspect we are talking past each other.
->>>
->>> It sounds like we are now talking about how to solve the problem. I like
->>> that :)
->>>
->>
->> Hi Michal,
->>
->> did you have time to think about the details of your proposed idea?
-> 
-> Not really. Sorry about that. It's been busy time. I am planning to
-> revisit after merge window closes.
-> 
+On Mon, Jun 11, 2018 at 7:43 AM 'Dmitry Vyukov' via syzkaller
+<syzkaller@googlegroups.com> wrote:
+>
+> On Sun, Jun 10, 2018 at 11:28 PM, shankarapailoor
+> <shankarapailoor@gmail.com> wrote:
+> > Hi,
+> >
+Hi Shankara,
 
-Sure no worries, I still have a bunch of other things to work on. But it
-would be nice to clarify soon in which direction I have to head to get
-this implemented and upstream (e.g. what I proposed, what you proposed
-or maybe something different).
+> > I have been fuzzing Linux 4.17 with KMSAN
+> > (https://github.com/google/kmsan/)  and I found the following crash:
+> >
+> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D
+> > BUG: KMSAN: kernel-infoleak in copyout lib/iov_iter.c:140 [inline]
+I couldn't reproduce the report on a KMSAN tree. Could you please
+share your .config file?
+I've seen similar reports on syzbot and think that the problem is in
+KMSAN missing the initialization in copy_user_page()
+The speculative fix is here:
+https://github.com/google/kmsan/commit/5cdf0501ac1bdc9ba2844d17b2665c7881cb=
+2ac7,
+could you please try that out?
 
--- 
+Overall, it's usually unlikely that there're big infoleaks in trivial
+places like a plain process_vm_readv() call.
+Because KMSAN is still in development, it's better to validate the
+reports manually by e.g. filling the suspect memory with some constant
+and printing its contents in the reproducer.
 
-Thanks,
+> > BUG: KMSAN: kernel-infoleak in copy_page_to_iter_iovec
+> > lib/iov_iter.c:212 [inline]
+> > BUG: KMSAN: kernel-infoleak in copy_page_to_iter+0x754/0x1b70 lib/iov_i=
+ter.c:716
+> >  CPU: 2 PID: 21280 Comm: syz-executor3 Not tainted 4.17.0+ #4 Hardware
+> > name: Google Google Compute Engine/Google Compute Engine, BIOS Google
+> > 01/01/2011
+> > Call Trace:
+> > __dump_stack lib/dump_stack.c:77 [inline]
+> > dump_stack+0x185/0x1d0 lib/dump_stack.c:113 kmsan_report+0x188/0x2a0
+> > mm/kmsan/kmsan.c:1117 kmsan_internal_check_memory+0x17e/0x1f0
+> > mm/kmsan/kmsan.c:1230 kmsan_copy_to_user+0x7a/0x160
+> > mm/kmsan/kmsan.c:1253 copyout lib/iov_iter.c:140 [inline]
+> > copy_page_to_iter_iovec lib/iov_iter.c:212 [inline]
+> > copy_page_to_iter+0x754/0x1b70 lib/iov_iter.c:716 process_vm_rw_pages
+> > mm/process_vm_access.c:53 [inline] process_vm_rw_single_vec
+> > mm/process_vm_access.c:124 [inline] process_vm_rw_core+0xf6a/0x1930
+> > mm/process_vm_access.c:220 process_vm_rw+0x3d0/0x500
+> > mm/process_vm_access.c:288 __do_sys_process_vm_readv
+> > mm/process_vm_access.c:302 [inline] __se_sys_process_vm_readv
+> > mm/process_vm_access.c:298 [inline]
+> > __x64_sys_process_vm_readv+0x1a0/0x200 mm/process_vm_access.c:298
+> > do_syscall_64+0x15b/0x230 arch/x86/entry/common.c:287
+> > entry_SYSCALL_64_after_hwframe+0x44/0xa9RIP: 0033:0x455a09RSP:
+> > 002b:00007f621260ec68 EFLAGS: 00000246 ORIG_RAX: 0000000000000136RAX:
+> > ffffffffffffffda RBX: 00007f621260f6d4 RCX: 0000000000455a09RDX:
+> > 0000000000000007 RSI: 0000000020001b00 RDI: 000000000000070aRBP:
+> > 000000000072bea0 R08: 0000000000000001 R09: 0000000000000000R10:
+> > 0000000020001c80 R11: 0000000000000246 R12: 00000000ffffffffR13:
+> > 0000000000000524 R14: 00000000006fbc00 R15: 0000000000000000
+> >
+> > Uninit was created at: kmsan_save_stack_with_flags
+> > mm/kmsan/kmsan.c:279 [inline] kmsan_alloc_meta_for_pages+0x161/0x3a0
+> > mm/kmsan/kmsan.c:815 kmsan_alloc_page+0x82/0xe0 mm/kmsan/kmsan.c:885
+> > __alloc_pages_nodemask+0xe02/0x5c80 mm/page_alloc.c:4402 __alloc_pages
+> > include/linux/gfp.h:458 [inline] __alloc_pages_node
+> > include/linux/gfp.h:471 [inline]
+> > alloc_pages_vma+0x1555/0x17f0 mm/mempolicy.c:2049
+> > do_huge_pmd_wp_page+0x3026/0x4f50 mm/huge_memory.c:1296 wp_huge_pmd
+> > mm/memory.c:3866 [inline]
+> > __handle_mm_fault mm/memory.c:4079 [inline]
+> > handle_mm_fault+0x22aa/0x7c40 mm/memory.c:4126
+>
+> /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+>
+> User pages must be initialized. Alex, do we handle clear_huge_page alread=
+y?
+>
+>
+> > __do_page_fault+0xec6/0x1a10 arch/x86/mm/fault.c:1400
+> > do_page_fault+0xb7/0x250 arch/x86/mm/fault.c:1477 page_fault+0x1e/0x30
+> > arch/x86/entry/entry_64.S:1160
+> > Bytes 0-204 of 205 are uninitialized
+> > Memory access starts at ffff880029601b80
+> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> >
+> > I am able to reliably reproduce the crash using ./syz-repro on the
+> > following program:
+> >
+> > r0 =3D gettid()
+> > process_vm_readv(r0, &(0x7f0000001b00)=3D[{&(0x7f00000006c0)=3D""/221,
+> > 0xdd}, {&(0x7f00000007c0)=3D""/248, 0xf8}, {&(0x7f00000008c0)=3D""/254,
+> > 0xfe}, {&(0x7f00000009c0)=3D""/4096, 0x1000}, {&(0x7f00000019c0)},
+> > {&(0x7f0000001a00)=3D""/184, 0xb8}, {&(0x7f0000001ac0)=3D""/26, 0x1a}],
+> > 0x7, &(0x7f0000001c80)=3D[{&(0x7f0000001b80)=3D""/205, 0xcd}], 0x1, 0x0=
+)
+> > r1 =3D socket$inet(0x2, 0x1, 0x0)
+> > fcntl$setown(r1, 0x8, 0xffffffffffffffff)
+> > fcntl$getownex(r1, 0x10, &(0x7f00000000c0)=3D{0x0,<r2=3D>0x0})
+> > process_vm_writev(r2, &(0x7f0000000080)=3D[{&(0x7f0000000000)=3D""/99,
+I've seen similar reports from process_vm_readv() on Friday (
+> > 0x63}], 0x1, &(0x7f00000003c0)=3D[{&(0x7f0000000100)=3D""/157, 0x9d},
+> > {&(0x7f00000001c0)=3D""/22, 0x16}, {&(0x7f0000000200)=3D""/137, 0x89},
+> > {&(0x7f00000002c0)=3D""/51, 0x33}, {&(0x7f0000000300)=3D""/134, 0x86}],
+> > 0x5, 0x0)
+> >
+> > Here is a C program that can (inconsistently) trigger the crash:
+> > https://pastebin.com/pRBptS9X
+> > My kernel configs are here: https://pastebin.com/KGjTG2Yd
+> > Log context around crash: https://pastebin.com/f5BsDUpV
+> >
+> >
+> > Regards,
+> > Shankara Pailoor
+> >
+> > --
+> > You received this message because you are subscribed to the Google Grou=
+ps "syzkaller" group.
+> > To unsubscribe from this group and stop receiving emails from it, send =
+an email to syzkaller+unsubscribe@googlegroups.com.
+> > For more options, visit https://groups.google.com/d/optout.
+>
+> --
+> You received this message because you are subscribed to the Google Groups=
+ "syzkaller" group.
+> To unsubscribe from this group and stop receiving emails from it, send an=
+ email to syzkaller+unsubscribe@googlegroups.com.
+> For more options, visit https://groups.google.com/d/optout.
 
-David / dhildenb
+
+
+--
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
