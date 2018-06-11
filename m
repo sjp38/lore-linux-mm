@@ -1,51 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 52B666B0006
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 11:19:56 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id b2-v6so10806438oib.14
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:19:56 -0700 (PDT)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E9D36B0280
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 11:38:57 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id t17-v6so12328326ply.13
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:38:57 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u15-v6sor16516813oia.89.2018.06.11.08.19.55
+        by mx.google.com with SMTPS id d9-v6sor4144861pgu.328.2018.06.11.08.38.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Jun 2018 08:19:55 -0700 (PDT)
+        Mon, 11 Jun 2018 08:38:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20180611145636.GP13364@dhcp22.suse.cz>
-References: <20180604124031.GP19202@dhcp22.suse.cz> <CAPcyv4gLxz7Ke6ApXoATDN31PSGwTgNRLTX-u1dtT3d+6jmzjw@mail.gmail.com>
- <20180605141104.GF19202@dhcp22.suse.cz> <CAPcyv4iGd56kc2NG5GDYMqW740RNr7NZr9DRft==fPxPyieq7Q@mail.gmail.com>
- <20180606073910.GB32433@dhcp22.suse.cz> <CAPcyv4hA2Na7wyuyLZSWG5s_4+pEv6aMApk23d2iO1vhFx92XQ@mail.gmail.com>
- <20180607143724.GS32433@dhcp22.suse.cz> <CAPcyv4jnyuC-yjuSgu4qKtzB0h9yYMZDsg5Rqqa=HTCY9KM_gw@mail.gmail.com>
- <20180611075004.GH13364@dhcp22.suse.cz> <CAPcyv4gSTMEi5XdzLQZqxMMKCcwF=me02wCiRtAAXSiy2CPGJA@mail.gmail.com>
- <20180611145636.GP13364@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 11 Jun 2018 08:19:54 -0700
-Message-ID: <CAPcyv4hnPRk0hTGctHB4tBnyL_27x3DwPUVwhZ+L7c-=1Xdf6Q@mail.gmail.com>
-Subject: Re: [PATCH v2 00/11] mm: Teach memory_failure() about ZONE_DEVICE pages
+In-Reply-To: <112df846-76d6-140f-8fdb-44dd0437c859@suse.cz>
+References: <20180531193420.26087-1-ikalvachev@gmail.com> <CAHH2K0afVpVyMw+_J48pg9ngj9oovBEPBFd3kfCcCfyV7xxF0w@mail.gmail.com>
+ <CABA=pqc8tuLGc4OTGymj5wN3ypisMM60mgOLpy2OXxmfteoJFg@mail.gmail.com>
+ <alpine.LSU.2.11.1805311552390.13499@eggly.anvils> <112df846-76d6-140f-8fdb-44dd0437c859@suse.cz>
+From: Ivan Kalvachev <ikalvachev@gmail.com>
+Date: Mon, 11 Jun 2018 18:38:54 +0300
+Message-ID: <CABA=pqf81WiOEhX-_O8EJ-cr_QMTFML3vvRzMrcEkbiXD4ogiA@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix kswap excessive pressure after wrong condition transfer
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
 
-On Mon, Jun 11, 2018 at 7:56 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Mon 11-06-18 07:44:39, Dan Williams wrote:
-> [...]
->> I'm still trying to understand the next level of detail on where you
->> think the design should go next? Is it just the HWPoison page flag?
->> Are you concerned about supporting greater than PAGE_SIZE poison?
+On 6/1/18, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 06/01/2018 01:30 AM, Hugh Dickins wrote:
+>> On Fri, 1 Jun 2018, Ivan Kalvachev wrote:
+>>> On 5/31/18, Greg Thelen <gthelen@google.com> wrote:
+>>>>
+>>>> This looks like yesterday's https://lkml.org/lkml/2018/5/30/1158
+>>>>
+>>>
+>>> Yes, it seems to be the same problem.
+>>> It also have better technical description.
+>>
+>> Well, your paragraph above on "Big memory consumers" gives a much
+>> better user viewpoint, and a more urgent case for the patch to go in,
+>> to stable if it does not make 4.17.0.
+>>
+>> But I am surprised: the change is in a block of code only used in
+>> one of the modes of compaction (not in  reclaim itself), and I thought
+>> it was a mode which gives up quite easily, rather than visibly blocking.
+>>
+>> So I wonder if there's another issue to be improved here,
+>> and the mistreatment of the ex-swap pages just exposed it somehow.
+>> Cc'ing Vlastimil and David in case it triggers any insight from them.
 >
-> I simply do not want to check for HWPoison at zillion of places and have
-> each type of page to have some special handling which can get wrong very
-> easily. I am not clear on details here, this is something for users of
-> hwpoison to define what is the reasonable scenarios when the feature is
-> useful and turn that into a feature list that can be actually turned
-> into a design document. See the different from let's put some more on
-> top approach...
+> My guess is that the problem is compaction fails because of the
+> isolation failures, causing further reclaim/complaction attempts with
+> higher priority, in the context of non-costly thus non-failing
+> allocations. Initially I thought that increased priority of compaction
+> would eventually synchronous and thus not go via this block of code
+> anymore. But (see isolate_migratepages()) only MIGRATE_SYNC compaction
+> mode drops the ISOLATE_ASYNC_MIGRATE isolate_mode flag. And MIGRATE_SYNC
+> is only used for compaction triggered via /proc - direct compaction
+> stops at MIGRATE_SYNC_LIGHT. Maybe that could be changed? Mel had
+> reasons to limit to SYNC_LIGHT, I guess...
 >
+> If the above is correct, it means that even with gigabytes of free
+> memory you can fail order-3 (max non-costly order) allocation if
+> compaction doesn't work properly. That's a bit surprising, but not
+> impossible I guess...
 
-So you want me to pay the toll of writing a design document justifying
-all the existing use cases of HWPoison before we fix the DAX bugs, and
-the design document may or may not result in any substantive change to
-these patches?
+Is somebody working on testing this guess?
 
-Naoya or Andi, can you chime in here?
+I don't fully understand this explanation, however I cannot imagine
+non-costly allocation to fail when there are gigabytes of free
+(unused) memory.
+
+That's why I still think that the possibility that this bug is
+triggering some underlying issue. So I did a little bit more poking
+around.
+
+For clarity, I'll be referring to the commits as:
+-the bug : 69d763fc6d3a ("mm: pin address_space before dereferencing
+it while isolating an LRU page")
+-the fix : 145e1a71e090("mm: fix the NULL mapping case in __isolate_lru_page()")
+
+The following results might be interesting to you:
+
+1. I've discovered that 4.14.41 does not exhibit any problems, despite
+having "the bug" backported into it . I used it again for a while, to
+make sure I haven't overlooked it. No issues at all.
+
+2. The 4.15 kernels were shortly supported so I backported "the bug"
+on my own and run the kernel (first 4.15.18, later 4.15.0 ). At first
+I thought that they were not affected, because I was not getting
+blocking during use. However `top` showed that they also tend to
+accumulate gigabytes of "free ram". Likely they were just better at
+swapping unused pages.
+
+3. I've tried the original 4.16.13 that has "the bug" but not "the
+fix", however this time I disabled the "Transparent Hugepage Support"
+from `make menuconfig`.
+I ran that kernel for a while without any sign of issues.
+
+So, before I start another round of bisect,
+Does anybody have an educated guess what commit might have introduced
+this behavior?
+
+Do you think it is unintended behavior that should be investigated?
+
+Any other hits?
+
+Best Regards
+   Ivan Kalvachev
+
+
+>>>
+>>> Such let down.
+>>> It took me so much time to bisect the issue...
+>>
+>> Thank you for all your work on it, odd how we found it at the same
+>> time: I was just porting Mel's patch into another tree, had to make
+>> a change near there, and suddenly noticed that the test was wrong.
+>>
+>> Hugh
+>>
+>>>
+>>> Well, I hope that the fix will get into 4.17 release in time.
+>>
+>
+>
