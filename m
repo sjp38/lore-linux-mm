@@ -1,71 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ED17F6B0279
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 11:03:33 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id n8-v6so4666301wmh.0
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:03:33 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c9-v6si2235208edq.130.2018.06.11.08.03.32
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D28D6B027F
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 11:06:05 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id k13-v6so6646412pgr.11
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:06:05 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id u76-v6si40856602pfj.58.2018.06.11.08.06.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jun 2018 08:03:32 -0700 (PDT)
-Date: Mon, 11 Jun 2018 17:03:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/madvise: allow MADV_DONTNEED to free memory that is
- MLOCK_ONFAULT
-Message-ID: <20180611150330.GQ13364@dhcp22.suse.cz>
-References: <1528484212-7199-1-git-send-email-jbaron@akamai.com>
- <20180611072005.GC13364@dhcp22.suse.cz>
- <4c4de46d-c55a-99a8-469f-e1e634fb8525@akamai.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4c4de46d-c55a-99a8-469f-e1e634fb8525@akamai.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jun 2018 08:06:04 -0700 (PDT)
+Message-ID: <1528729376.4526.0.camel@2b52.sc.intel.com>
+Subject: Re: [PATCH 02/10] x86/cet: Introduce WRUSS instruction
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Mon, 11 Jun 2018 08:02:56 -0700
+In-Reply-To: <20180611081704.GI12180@hirez.programming.kicks-ass.net>
+References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
+	 <20180607143807.3611-3-yu-cheng.yu@intel.com>
+	 <CALCETrU45Cuzvfz3c1+-+7=9KS2N33Bpp1JqBtaGxhPo8U+Fqg@mail.gmail.com>
+	 <20180611081704.GI12180@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Baron <jbaron@akamai.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org, emunson@mgebm.net
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
 
-On Mon 11-06-18 10:51:44, Jason Baron wrote:
-> On 06/11/2018 03:20 AM, Michal Hocko wrote:
-> > [CCing linux-api - please make sure to CC this mailing list anytime you
-> >  are touching user visible apis]
-> > 
-> > On Fri 08-06-18 14:56:52, Jason Baron wrote:
-> >> In order to free memory that is marked MLOCK_ONFAULT, the memory region
-> >> needs to be first unlocked, before calling MADV_DONTNEED. And if the region
-> >> is to be reused as MLOCK_ONFAULT, we require another call to mlock2() with
-> >> the MLOCK_ONFAULT flag.
-> >>
-> >> Let's simplify freeing memory that is set MLOCK_ONFAULT, by allowing
-> >> MADV_DONTNEED to work directly for memory that is set MLOCK_ONFAULT.
-> > 
-> > I do not understand the point here. How is MLOCK_ONFAULT any different
-> > from the regular mlock here? If you want to free mlocked memory then
-> > fine but the behavior should be consistent. MLOCK_ONFAULT is just a way
-> > to say that we do not want to pre-populate the mlocked area and do that
-> > lazily on the page fault time. madvise should make any difference here.
-> >
+On Mon, 2018-06-11 at 10:17 +0200, Peter Zijlstra wrote:
+> On Thu, Jun 07, 2018 at 09:40:02AM -0700, Andy Lutomirski wrote:
+> > On Thu, Jun 7, 2018 at 7:41 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
 > 
-> The difference for me is after the page has been freed, MLOCK_ONFAULT
-> will re-populate the range if its accessed again. Whereas with regular
-> mlock I don't think it will because its normally done at mlock() or
-> mmap() time.
+> > Peterz, isn't there some fancy better way we're supposed to handle the
+> > error return these days?
+> 
+> > > +       asm volatile("1:.byte 0x66, 0x0f, 0x38, 0xf5, 0x37\n"
+> > > +                    "xor %[err],%[err]\n"
+> > > +                    "2:\n"
+> > > +                    ".section .fixup,\"ax\"\n"
+> > > +                    "3: mov $-1,%[err]; jmp 2b\n"
+> > > +                    ".previous\n"
+> > > +                    _ASM_EXTABLE(1b, 3b)
+> > > +               : [err] "=a" (err)
+> > > +               : [val] "S" (val), [addr] "D" (addr)
+> > > +               : "memory");
+> 
+> So the alternative is something like:
+> 
+> __visible bool ex_handler_wuss(const struct exception_table_entry *fixup,
+> 			       struct pt_regs *regs, int trapnr)
+> {
+> 	regs->ip = ex_fixup_addr(fixup);
+> 	regs->ax = -1L;
+> 
+> 	return true;
+> }
+> 
+> 
+> 	int err = 0;
+> 
+> 	asm volatile("1: INSN_WUSS\n"
+> 		     "2:\n"
+> 		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_wuss)
+> 		     : "=a" (err)
+> 		     : "S" (val), "D" (addr));
+> 
+> But I'm not at all sure that's actually better.
 
-The vma would still be locked so we would effectively turn it into
-ONFAULT IIRC.
+Thanks!  I will fix it.
 
-> In any case, the state of a region being locked with
-> regular mlock and pages not present does not currently exist, whereas it
-> does for MLOCK_ONFAULT, so it seems more natural to do it only for
-> MLOCK_ONFAULT. Finally, the use-case we had for this, didn't need
-> regular mlock().
-
-So can we start discussing whether we want to allow MADV_DONTNEED on
-mlocked areas and what downsides it might have? Sure it would turn the
-strong mlock guarantee to have the whole vma resident but is this
-acceptable for something that is an explicit request from the owner of
-the memory?
--- 
-Michal Hocko
-SUSE Labs
+Yu-cheng
