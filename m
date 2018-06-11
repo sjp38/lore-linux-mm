@@ -1,99 +1,366 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 426726B0006
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 04:52:43 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k18-v6so12399157wrn.8
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 01:52:43 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t46-v6si1224864edm.33.2018.06.11.01.52.41
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B37E56B0003
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 05:15:36 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id m12-v6so8674941ita.6
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 02:15:36 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id r143-v6si6580691ita.0.2018.06.11.02.15.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jun 2018 01:52:41 -0700 (PDT)
-Date: Mon, 11 Jun 2018 10:52:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
-Message-ID: <20180611085237.GI13364@dhcp22.suse.cz>
-References: <1527768879-88161-1-git-send-email-xiexiuqi@huawei.com>
- <1527768879-88161-2-git-send-email-xiexiuqi@huawei.com>
- <20180606154516.GL6631@arm.com>
- <CAErSpo6S0qtR42tjGZrFu4aMFFyThx1hkHTSowTt6t3XerpHnA@mail.gmail.com>
- <20180607105514.GA13139@dhcp22.suse.cz>
- <5ed798a0-6c9c-086e-e5e8-906f593ca33e@huawei.com>
- <20180607122152.GP32433@dhcp22.suse.cz>
- <a880df29-b656-d98d-3037-b04761c7ed78@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jun 2018 02:15:35 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: kernel panic in reading /proc/kpageflags when enabling
+ RAM-simulated PMEM
+Date: Mon, 11 Jun 2018 09:05:00 +0000
+Message-ID: <20180611090500.GA20480@hori1.linux.bs1.fc.nec.co.jp>
+References: <20180605073500.GA23766@hori1.linux.bs1.fc.nec.co.jp>
+ <20180606051624.GA16021@hori1.linux.bs1.fc.nec.co.jp>
+ <20180606080408.GA31794@techadventures.net>
+ <20180606085319.GA32052@techadventures.net>
+ <20180606090630.GA27065@hori1.linux.bs1.fc.nec.co.jp>
+ <20180606092405.GA6562@hori1.linux.bs1.fc.nec.co.jp>
+ <20180607062218.GB22554@hori1.linux.bs1.fc.nec.co.jp>
+ <20180607065940.GA7334@techadventures.net>
+ <20180607094921.GA8545@techadventures.net>
+ <20180607100256.GA9129@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20180607100256.GA9129@hori1.linux.bs1.fc.nec.co.jp>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <0C1CA386112E9742BDC2E4797561174B@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a880df29-b656-d98d-3037-b04761c7ed78@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie XiuQi <xiexiuqi@huawei.com>
-Cc: Hanjun Guo <guohanjun@huawei.com>, Bjorn Helgaas <bhelgaas@google.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-arm <linux-arm-kernel@lists.infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, wanghuiqiang@huawei.com, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, zhongjiang <zhongjiang@huawei.com>
+To: Oscar Salvador <osalvador@techadventures.net>
+Cc: Matthew Wilcox <willy@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>, Pavel Tatashin <pasha.tatashin@oracle.com>
 
-On Mon 11-06-18 11:23:18, Xie XiuQi wrote:
-> Hi Michal,
-> 
-> On 2018/6/7 20:21, Michal Hocko wrote:
-> > On Thu 07-06-18 19:55:53, Hanjun Guo wrote:
-> >> On 2018/6/7 18:55, Michal Hocko wrote:
-> > [...]
-> >>> I am not sure I have the full context but pci_acpi_scan_root calls
-> >>> kzalloc_node(sizeof(*info), GFP_KERNEL, node)
-> >>> and that should fall back to whatever node that is online. Offline node
-> >>> shouldn't keep any pages behind. So there must be something else going
-> >>> on here and the patch is not the right way to handle it. What does
-> >>> faddr2line __alloc_pages_nodemask+0xf0 tells on this kernel?
-> >>
-> >> The whole context is:
-> >>
-> >> The system is booted with a NUMA node has no memory attaching to it
-> >> (memory-less NUMA node), also with NR_CPUS less than CPUs presented
-> >> in MADT, so CPUs on this memory-less node are not brought up, and
-> >> this NUMA node will not be online (but SRAT presents this NUMA node);
-> >>
-> >> Devices attaching to this NUMA node such as PCI host bridge still
-> >> return the valid NUMA node via _PXM, but actually that valid NUMA node
-> >> is not online which lead to this issue.
-> > 
-> > But we should have other numa nodes on the zonelists so the allocator
-> > should fall back to other node. If the zonelist is not intiailized
-> > properly, though, then this can indeed show up as a problem. Knowing
-> > which exact place has blown up would help get a better picture...
-> > 
-> 
-> I specific a non-exist node to allocate memory using kzalloc_node,
-> and got this following error message.
->
-> And I found out there is just a VM_WARN, but it does not prevent the memory
-> allocation continue.
-> 
-> This nid would be use to access NODE_DADA(nid), so if nid is invalid,
-> it would cause oops here.
-> 
-> 459 /*
-> 460  * Allocate pages, preferring the node given as nid. The node must be valid and
-> 461  * online. For more general interface, see alloc_pages_node().
-> 462  */
-> 463 static inline struct page *
-> 464 __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
-> 465 {
-> 466         VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-> 467         VM_WARN_ON(!node_online(nid));
-> 468
-> 469         return __alloc_pages(gfp_mask, order, nid);
-> 470 }
-> 471
-> 
-> (I wrote a ko, to allocate memory on a non-exist node using kzalloc_node().)
+On Thu, Jun 07, 2018 at 10:02:56AM +0000, Horiguchi Naoya(=1B$BKY8}=1B(B =
+=1B$BD>Li=1B(B) wrote:
+> On Thu, Jun 07, 2018 at 11:49:21AM +0200, Oscar Salvador wrote:
+> > On Thu, Jun 07, 2018 at 08:59:40AM +0200, Oscar Salvador wrote:
+> > > On Thu, Jun 07, 2018 at 06:22:19AM +0000, Naoya Horiguchi wrote:
+> > > > On Wed, Jun 06, 2018 at 09:24:05AM +0000, Horiguchi Naoya(=1B$BKY8}=
+=1B(B =1B$BD>Li=1B(B) wrote:
+> > > > > On Wed, Jun 06, 2018 at 09:06:30AM +0000, Horiguchi Naoya(=1B$BKY=
+8}=1B(B =1B$BD>Li=1B(B) wrote:
+> > > > > > On Wed, Jun 06, 2018 at 10:53:19AM +0200, Oscar Salvador wrote:
+> > > > > > > On Wed, Jun 06, 2018 at 10:04:08AM +0200, Oscar Salvador wrot=
+e:
+> > > > > > > > On Wed, Jun 06, 2018 at 05:16:24AM +0000, Naoya Horiguchi w=
+rote:
+> > > > > > > > > On Tue, Jun 05, 2018 at 07:35:01AM +0000, Horiguchi Naoya=
+(=1B$BKY8}=1B(B =1B$BD>Li=1B(B) wrote:
+> > > > > > > > > > On Mon, Jun 04, 2018 at 06:18:36PM -0700, Matthew Wilco=
+x wrote:
+> > > > > > > > > > > On Tue, Jun 05, 2018 at 12:54:03AM +0000, Naoya Horig=
+uchi wrote:
+> > > > > > > > > > > > Reproduction precedure is like this:
+> > > > > > > > > > > >  - enable RAM based PMEM (with a kernel boot parame=
+ter like memmap=3D1G!4G)
+> > > > > > > > > > > >  - read /proc/kpageflags (or call tools/vm/page-typ=
+es with no arguments)
+> > > > > > > > > > > >  (- my kernel config is attached)
+> > > > > > > > > > > >
+> > > > > > > > > > > > I spent a few days on this, but didn't reach any so=
+lutions.
+> > > > > > > > > > > > So let me report this with some details below ...
+> > > > > > > > > > > >
+> > > > > > > > > > > > In the critial page request, stable_page_flags() is=
+ called with an argument
+> > > > > > > > > > > > page whose ->compound_head was somehow filled with =
+'0xffffffffffffffff'.
+> > > > > > > > > > > > And compound_head() returns (struct page *)(head - =
+1), which explains the
+> > > > > > > > > > > > address 0xfffffffffffffffe in the above message.
+> > > > > > > > > > >
+> > > > > > > > > > > Hm.  compound_head shares with:
+> > > > > > > > > > >
+> > > > > > > > > > >                         struct list_head lru;
+> > > > > > > > > > >                                 struct list_head slab=
+_list;     /* uses lru */
+> > > > > > > > > > >                                 struct {        /* Pa=
+rtial pages */
+> > > > > > > > > > >                                         struct page *=
+next;
+> > > > > > > > > > >                         unsigned long _compound_pad_1=
+;  /* compound_head */
+> > > > > > > > > > >                         unsigned long _pt_pad_1;     =
+   /* compound_head */
+> > > > > > > > > > >                         struct dev_pagemap *pgmap;
+> > > > > > > > > > >                 struct rcu_head rcu_head;
+> > > > > > > > > > >
+> > > > > > > > > > > None of them should be -1.
+> > > > > > > > > > >
+> > > > > > > > > > > > It seems that this kernel panic happens when readin=
+g kpageflags of pfn range
+> > > > > > > > > > > > [0xbffd7, 0xc0000), which coresponds to a 'reserved=
+' range.
+> > > > > > > > > > > >
+> > > > > > > > > > > > [    0.000000] user-defined physical RAM map:
+> > > > > > > > > > > > [    0.000000] user: [mem 0x0000000000000000-0x0000=
+00000009fbff] usable
+> > > > > > > > > > > > [    0.000000] user: [mem 0x000000000009fc00-0x0000=
+00000009ffff] reserved
+> > > > > > > > > > > > [    0.000000] user: [mem 0x00000000000f0000-0x0000=
+0000000fffff] reserved
+> > > > > > > > > > > > [    0.000000] user: [mem 0x0000000000100000-0x0000=
+0000bffd6fff] usable
+> > > > > > > > > > > > [    0.000000] user: [mem 0x00000000bffd7000-0x0000=
+0000bfffffff] reserved
+> > > > > > > > > > > > [    0.000000] user: [mem 0x00000000feffc000-0x0000=
+0000feffffff] reserved
+> > > > > > > > > > > > [    0.000000] user: [mem 0x00000000fffc0000-0x0000=
+0000ffffffff] reserved
+> > > > > > > > > > > > [    0.000000] user: [mem 0x0000000100000000-0x0000=
+00013fffffff] persistent (type 12)
+> > > > > > > > > > > >
+> > > > > > > > > > > > So I guess 'memmap=3D' parameter might badly affect=
+ the memory initialization process.
+> > > > > > > > > > > >
+> > > > > > > > > > > > This problem doesn't reproduce on v4.17, so some pr=
+e-released patch introduces it.
+> > > > > > > > > > > > I hope this info helps you find the solution/workar=
+ound.
+> > > > > > > > > > >
+> > > > > > > > > > > Can you try bisecting this?  It could be one of my pa=
+tches to reorder struct
+> > > > > > > > > > > page, or it could be one of Pavel's deferred page ini=
+tialisation patches.
+> > > > > > > > > > > Or something else ;-)
+> > > > > > > > > >
+> > > > > > > > > > Thank you for the comment. I'm trying bisecting now, le=
+t you know the result later.
+> > > > > > > > > >
+> > > > > > > > > > And I found that my statement "not reproduce on v4.17" =
+was wrong (I used
+> > > > > > > > > > different kvm guests, which made some different test co=
+ndition and misguided me),
+> > > > > > > > > > this seems an older (at least < 4.15) bug.
+> > > > > > > > >
+> > > > > > > > > (Cc: Pavel)
+> > > > > > > > >
+> > > > > > > > > Bisection showed that the following commit introduced thi=
+s issue:
+> > > > > > > > >
+> > > > > > > > >   commit f7f99100d8d95dbcf09e0216a143211e79418b9f
+> > > > > > > > >   Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+> > > > > > > > >   Date:   Wed Nov 15 17:36:44 2017 -0800
+> > > > > > > > >
+> > > > > > > > >       mm: stop zeroing memory during allocation in vmemma=
+p
+> > > > > > > > >
+> > > > > > > > > This patch postpones struct page zeroing to later stage o=
+f memory initialization.
+> > > > > > > > > My kernel config disabled CONFIG_DEFERRED_STRUCT_PAGE_INI=
+T so two callsites of
+> > > > > > > > > __init_single_page() were never reached. So in such case,=
+ struct pages populated
+> > > > > > > > > by vmemmap_pte_populate() could be left uninitialized?
+> > > > > > > > > And I'm not sure yet how this issue becomes visible with =
+memmap=3D setting.
+> > > > > > > >
+> > > > > > > > I think that this becomes visible because memmap=3Dx!y crea=
+tes a persistent memory region:
+> > > > > > > >
+> > > > > > > > parse_memmap_one
+> > > > > > > > {
+> > > > > > > > 	...
+> > > > > > > >         } else if (*p =3D=3D '!') {
+> > > > > > > >                 start_at =3D memparse(p+1, &p);
+> > > > > > > >                 e820__range_add(start_at, mem_size, E820_TY=
+PE_PRAM);
+> > > > > > > > 	...
+> > > > > > > > }
+> > > > > > > >
+> > > > > > > > and this region it is not added neither in memblock.memory =
+nor in memblock.reserved.
+> > > > > > > > Ranges in memblock.memory get zeroed in memmap_init_zone(),=
+ while memblock.reserved get zeroed
+> > > > > > > > in free_low_memory_core_early():
+> > > > > > > >
+> > > > > > > > static unsigned long __init free_low_memory_core_early(void=
+)
+> > > > > > > > {
+> > > > > > > > 	...
+> > > > > > > > 	for_each_reserved_mem_region(i, &start, &end)
+> > > > > > > > 		reserve_bootmem_region(start, end);
+> > > > > > > > 	...
+> > > > > > > > }
+> > > > > > > >
+> > > > > > > >
+> > > > > > > > Maybe I am mistaken, but I think that persistent memory reg=
+ions should be marked as reserved.
+> > > > > > > > A comment in do_mark_busy() suggests this:
+> > > > > > > >
+> > > > > > > > static bool __init do_mark_busy(enum e820_type type, struct=
+ resource *res)
+> > > > > > > > {
+> > > > > > > >
+> > > > > > > > 	...
+> > > > > > > >         /*
+> > > > > > > >          * Treat persistent memory like device memory, i.e.=
+ reserve it
+> > > > > > > >          * for exclusive use of a driver
+> > > > > > > >          */
+> > > > > > > > 	...
+> > > > > > > > }
+> > > > > > > >
+> > > > > > > >
+> > > > > > > > I wonder if something like this could work and if so, if it=
+ is right (i haven't tested it yet):
+> > > > > > > >
+> > > > > > > > diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.=
+c
+> > > > > > > > index 71c11ad5643e..3c9686ef74e5 100644
+> > > > > > > > --- a/arch/x86/kernel/e820.c
+> > > > > > > > +++ b/arch/x86/kernel/e820.c
+> > > > > > > > @@ -1247,6 +1247,11 @@ void __init e820__memblock_setup(voi=
+d)
+> > > > > > > >                 if (end !=3D (resource_size_t)end)
+> > > > > > > >                         continue;
+> > > > > > > >
+> > > > > > > > +               if (entry->type =3D=3D E820_TYPE_PRAM || en=
+try->type =3D=3D E820_TYPE_PMEM) {
+> > > > > > > > +                       memblock_reserve(entry->addr, entry=
+->size);
+> > > > > > > > +                       continue;
+> > > > > > > > +               }
+> > > > > > > > +
+> > > > > > > >                 if (entry->type !=3D E820_TYPE_RAM && entry=
+->type !=3D E820_TYPE_RESERVED_KERN)
+> > > > > > > >                         continue;
+> > > > > > >
+> > > > > > > It does not seem to work, so the reasoning might be incorrect=
+.
+> > > > > >=20
+> > > > > > Thank you for the comment.
+> > > > > >=20
+> > > > > > One note is that the memory region with "broken struct page" is=
+ a typical
+> > > > > > reserved region, not a pmem region. Strangely reading offset 0x=
+bffd7 of
+> > > > > > /proc/kpageflags is OK if pmem region does not exist, but NG if=
+ pmem region exists.
+> > > > > > Reading the offset like 0x100000 (on pmem region) does not caus=
+e the crash,
+> > > > > > so pmem region seems properly set up.
+> > > > > >=20
+> > > > > > [    0.000000] user-defined physical RAM map:
+> > > > > > [    0.000000] user: [mem 0x0000000000000000-0x000000000009fbff=
+] usable
+> > > > > > [    0.000000] user: [mem 0x000000000009fc00-0x000000000009ffff=
+] reserved
+> > > > > > [    0.000000] user: [mem 0x00000000000f0000-0x00000000000fffff=
+] reserved
+> > > > > > [    0.000000] user: [mem 0x0000000000100000-0x00000000bffd6fff=
+] usable
+> > > > > > [    0.000000] user: [mem 0x00000000bffd7000-0x00000000bfffffff=
+] reserved   =3D=3D=3D> "broken struct page" region
+> > > > > > [    0.000000] user: [mem 0x00000000feffc000-0x00000000feffffff=
+] reserved
+> > > > > > [    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffffff=
+] reserved
+> > > > > > [    0.000000] user: [mem 0x0000000100000000-0x000000013fffffff=
+] persistent (type 12) =3D> pmem region
+> > > > > > [    0.000000] user: [mem 0x0000000140000000-0x000000023fffffff=
+] usable
+> > > > > >=20
+> > > > >=20
+> > > > > I have another note:
+> > > > >=20
+> > > > > > My kernel config disabled CONFIG_DEFERRED_STRUCT_PAGE_INIT so t=
+wo callsites of
+> > > > > > __init_single_page() were never reached. So in such case, struc=
+t pages populated
+> > > > > > by vmemmap_pte_populate() could be left uninitialized?
+> > > > >=20
+> > > > > I quickly checked whether enabling CONFIG_DEFERRED_STRUCT_PAGE_IN=
+IT affect
+> > > > > the issue. And found that the kernel panic happens even with this=
+ config enabled.
+> > > > > So I'm still confused...
+> > > >=20
+> > > > Let me share some new facts:
+> > > >=20
+> > > > I gave accidentally an inconvenient memmap layout like 'memmap=3D1G=
+!4G' in
+> > > > 2 NUMA node with 8 GB memory.
+> > > > While I didn't intended this, but 4GB is the address starting some =
+memory
+> > > > block when no "memmap=3D" option is provided.
+> > > >=20
+> > > >   (messages from free_area_init_nodes() for no "memmap=3D" case
+> > > >   [    0.000000] Early memory node ranges
+> > > >   [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009=
+efff]
+> > > >   [    0.000000]   node   0: [mem 0x0000000000100000-0x00000000bffd=
+6fff]
+> > > >   [    0.000000]   node   0: [mem 0x0000000100000000-0x000000013fff=
+ffff] // <---
+> > > >   [    0.000000]   node   1: [mem 0x0000000140000000-0x000000023fff=
+ffff]
+> > > >=20
+> > > > When "memmap=3D1G!4G" is given, the range [0x0000000100000000-0x000=
+000013fffffff]
+> > > > disappears and kernel messages are like below:
+> > > >=20
+> > > >   (messages from free_area_init_nodes() for "memmap=3D1G!4G" case
+> > > >   [    0.000000] Early memory node ranges
+> > > >   [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009=
+efff]
+> > > >   [    0.000000]   node   0: [mem 0x0000000000100000-0x00000000bffd=
+6fff]
+> > > >   [    0.000000]   node   1: [mem 0x0000000140000000-0x000000023fff=
+ffff]
+> > > >=20
+> > > > This makes kernel think that the end pfn of node 0 is 0 0xbffd7
+> > > > instead of 0x140000, which affects the memory initialization proces=
+s.
+> > > > memmap_init_zone() calls __init_single_page() for each page within =
+a zone,
+> > > > so if zone->spanned_pages are underestimated, some pages are left u=
+ninitialized.
+> > > >=20
+> > > > If I provide 'memmap=3D1G!7G', the kernel panic does not reproduce =
+and
+> > > > kernel messages are like below.
+> > > >  =20
+> > > >   (messages from free_area_init_nodes() for "memmap=3D1G!7G" case
+> > > >   [    0.000000] Early memory node ranges
+> > > >   [    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009=
+efff]
+> > > >   [    0.000000]   node   0: [mem 0x0000000000100000-0x00000000bffd=
+6fff]
+> > > >   [    0.000000]   node   0: [mem 0x0000000100000000-0x000000013fff=
+ffff]
+> > > >   [    0.000000]   node   1: [mem 0x0000000140000000-0x00000001bfff=
+ffff]
+> > > >   [    0.000000]   node   1: [mem 0x0000000200000000-0x000000023fff=
+ffff]
+> > > >=20
+> > > >=20
+> > > > I think that in order to fix this, we need some conditions and/or p=
+rechecks
+> > > > for memblock layout, does it make sense? Or any other better approa=
+ches?
+> >=20
 
-OK, so this is an artificialy broken code, right. You shouldn't get a
-non-existent node via standard APIs AFAICS. The original report was
-about an existing node which is offline AFAIU. That would be a different
-case. If I am missing something and there are legitimate users that try
-to allocate from non-existing nodes then we should handle that in
-node_zonelist.
+> All this is handled in parse_memmap_one(), so I wonder if the right to do=
+ would be that in
+> case we detect that an user-specified map falls in an usable map, we just=
+ back off and do not insert it.
+>=20
+> Maybe a subroutine that checks for that kind of overlapping maps before c=
+alling e820__range_add()?
+>=20
 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+This problem seems to happen when the end address of the user-defined memma=
+p
+is equal to the end address of NUMA node (0x140000000 or 5GB in this case.)
+So that's the condition to be checked, I think.
+However we don't initialize numa at parse_memmap_one(), so we need identify
+right place to do this, so I'll do this next.
+
+Thanks,
+Naoya Horiguchi=
