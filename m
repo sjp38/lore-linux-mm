@@ -1,64 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DA6846B000D
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:29:36 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id c139-v6so19570582qkg.6
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:29:36 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id q76-v6si6171096qke.218.2018.06.11.10.29.35
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 180116B0003
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:36:00 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id o7-v6so6502209pgc.23
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:36:00 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 63-v6si35537155pfx.61.2018.06.11.10.35.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jun 2018 10:29:35 -0700 (PDT)
-Subject: Re: pkeys on POWER: Access rights not reset on execve
-References: <20180520191115.GM5479@ram.oc3035372033.ibm.com>
- <aae1952c-886b-cfc8-e98b-fa3be5fab0fa@redhat.com>
- <20180603201832.GA10109@ram.oc3035372033.ibm.com>
- <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
- <20180604140135.GA10088@ram.oc3035372033.ibm.com>
- <f2f61c24-8e8f-0d36-4e22-196a2a3f7ca7@redhat.com>
- <20180604190229.GB10088@ram.oc3035372033.ibm.com>
- <30040030-1aa2-623b-beec-dd1ceb3eb9a7@redhat.com>
- <20180608023441.GA5573@ram.oc3035372033.ibm.com>
- <2858a8eb-c9b5-42ce-5cfc-74a4b3ad6aa9@redhat.com>
- <20180611172305.GB5697@ram.oc3035372033.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <30f5cb0e-e09a-15e6-f77d-a3afa422a651@redhat.com>
-Date: Mon, 11 Jun 2018 19:29:33 +0200
+        Mon, 11 Jun 2018 10:35:58 -0700 (PDT)
+Date: Mon, 11 Jun 2018 10:35:58 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH v2 00/11] mm: Teach memory_failure() about ZONE_DEVICE
+ pages
+Message-ID: <20180611173558.GB11953@tassilo.jf.intel.com>
+References: <20180605141104.GF19202@dhcp22.suse.cz>
+ <CAPcyv4iGd56kc2NG5GDYMqW740RNr7NZr9DRft==fPxPyieq7Q@mail.gmail.com>
+ <20180606073910.GB32433@dhcp22.suse.cz>
+ <CAPcyv4hA2Na7wyuyLZSWG5s_4+pEv6aMApk23d2iO1vhFx92XQ@mail.gmail.com>
+ <20180607143724.GS32433@dhcp22.suse.cz>
+ <CAPcyv4jnyuC-yjuSgu4qKtzB0h9yYMZDsg5Rqqa=HTCY9KM_gw@mail.gmail.com>
+ <20180611075004.GH13364@dhcp22.suse.cz>
+ <CAPcyv4gSTMEi5XdzLQZqxMMKCcwF=me02wCiRtAAXSiy2CPGJA@mail.gmail.com>
+ <20180611145636.GP13364@dhcp22.suse.cz>
+ <CAPcyv4hnPRk0hTGctHB4tBnyL_27x3DwPUVwhZ+L7c-=1Xdf6Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180611172305.GB5697@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4hnPRk0hTGctHB4tBnyL_27x3DwPUVwhZ+L7c-=1Xdf6Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, linux-edac@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@alien8.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ingo Molnar <mingo@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Souptick Joarder <jrdr.linux@gmail.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On 06/11/2018 07:23 PM, Ram Pai wrote:
-> On Fri, Jun 08, 2018 at 07:53:51AM +0200, Florian Weimer wrote:
->> On 06/08/2018 04:34 AM, Ram Pai wrote:
->>>>
->>>> So the remaining question at this point is whether the Intel
->>>> behavior (default-deny instead of default-allow) is preferable.
->>>
->>> Florian, remind me what behavior needs to fixed?
->>
->> See the other thread.  The Intel register equivalent to the AMR by
->> default disallows access to yet-unallocated keys, so that threads
->> which are created before key allocation do not magically gain access
->> to a key allocated by another thread.
+On Mon, Jun 11, 2018 at 08:19:54AM -0700, Dan Williams wrote:
+> On Mon, Jun 11, 2018 at 7:56 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Mon 11-06-18 07:44:39, Dan Williams wrote:
+> > [...]
+> >> I'm still trying to understand the next level of detail on where you
+> >> think the design should go next? Is it just the HWPoison page flag?
+> >> Are you concerned about supporting greater than PAGE_SIZE poison?
+> >
+> > I simply do not want to check for HWPoison at zillion of places and have
+> > each type of page to have some special handling which can get wrong very
+> > easily. I am not clear on details here, this is something for users of
+> > hwpoison to define what is the reasonable scenarios when the feature is
+> > useful and turn that into a feature list that can be actually turned
+> > into a design document. See the different from let's put some more on
+> > top approach...
+> >
 > 
-> Are you referring to the thread
-> '[PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change signal semantics'
+> So you want me to pay the toll of writing a design document justifying
+> all the existing use cases of HWPoison before we fix the DAX bugs, and
+> the design document may or may not result in any substantive change to
+> these patches?
+> 
+> Naoya or Andi, can you chime in here?
 
-> Otherwise please point me to the URL of that thread. Sorry and thankx. :)
+A new document doesn't make any sense. We have the commit messages and
+the code comments as design documents, and as usual the ultimative authority is
+what the code does.
 
-No, it's this issue:
+The guiding light for new memory recovery code is just these sentences (taken
+from the beginning of the main file):
 
-   <https://lists.ozlabs.org/pipermail/linuxppc-dev/2018-May/173157.html>
+ * In general any code for handling new cases should only be added iff:
+ * - You know how to test it.
+ * - You have a test that can be added to mce-test
+ *   https://git.kernel.org/cgit/utils/cpu/mce/mce-test.git/
+ * - The case actually shows up as a frequent (top 10) page state in
+ *   tools/vm/page-types when running a real workload.
 
-The UAMOR part has been fixed (thanks), but I think processes still 
-start out with default-allow AMR.
+Since persistent memory is so big it makes sense to add support
+for it in common code paths. That is usually just kernel copies and
+user space execution.
 
-Thanks,
-Florian
+-Andi
