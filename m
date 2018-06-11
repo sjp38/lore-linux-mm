@@ -1,45 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 084B66B000C
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 12:48:22 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id j10-v6so6744387pgv.6
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 09:48:21 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y65-v6si25609129pfi.195.2018.06.11.09.48.20
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B90296B0010
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 12:48:47 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id y18-v6so14955547otg.14
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 09:48:47 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l186-v6sor2712182oif.94.2018.06.11.09.48.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 09:48:20 -0700 (PDT)
-Date: Mon, 11 Jun 2018 09:48:06 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH V6 00/30] block: support multipage bvec
-Message-ID: <20180611164806.GA7452@infradead.org>
-References: <20180609123014.8861-1-ming.lei@redhat.com>
+        (Google Transport Security);
+        Mon, 11 Jun 2018 09:48:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20180609123014.8861-1-ming.lei@redhat.com>
+In-Reply-To: <20180611154146.jc5xt4gyaihq64lm@quack2.suse.cz>
+References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152850187437.38390.2257981090761438811.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20180611154146.jc5xt4gyaihq64lm@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 11 Jun 2018 09:48:45 -0700
+Message-ID: <CAPcyv4g2+qTQoYN+_VjUsRTZYPKOagL43zZDfdoMi2qEKWJiAg@mail.gmail.com>
+Subject: Re: [PATCH v4 10/12] filesystem-dax: Introduce dax_lock_page()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-D? think the new naming scheme in this series is a nightmare.  It
-confuses the heck out of me, and that is despite knowing many bits of
-the block layer inside out, and reviewing previous series.
+On Mon, Jun 11, 2018 at 8:41 AM, Jan Kara <jack@suse.cz> wrote:
+> On Fri 08-06-18 16:51:14, Dan Williams wrote:
+>> In preparation for implementing support for memory poison (media error)
+>> handling via dax mappings, implement a lock_page() equivalent. Poison
+>> error handling requires rmap and needs guarantees that the page->mapping
+>> association is maintained / valid (inode not freed) for the duration of
+>> the lookup.
+>>
+>> In the device-dax case it is sufficient to simply hold a dev_pagemap
+>> reference. In the filesystem-dax case we need to use the entry lock.
+>>
+>> Export the entry lock via dax_lock_page() that uses rcu_read_lock() to
+>> protect against the inode being freed, and revalidates the page->mapping
+>> association under xa_lock().
+>>
+>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>
+> Some comments below...
+>
+>> diff --git a/fs/dax.c b/fs/dax.c
+>> index cccf6cad1a7a..b7e71b108fcf 100644
+>> --- a/fs/dax.c
+>> +++ b/fs/dax.c
+>> @@ -361,6 +361,82 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
+>>       }
+>>  }
+>>
+>> +struct page *dax_lock_page(unsigned long pfn)
+>> +{
+>
+> Why do you return struct page here? Any reason behind that? Because struct
+> page exists and can be accessed through pfn_to_page() regardless of result
+> of this function so it looks a bit confusing. Also dax_lock_page() name
+> seems a bit confusing. Maybe dax_lock_pfn_mapping_entry()?
+>
+>> +     pgoff_t index;
+>> +     struct inode *inode;
+>> +     wait_queue_head_t *wq;
+>> +     void *entry = NULL, **slot;
+>> +     struct address_space *mapping;
+>> +     struct wait_exceptional_entry_queue ewait;
+>> +     struct page *ret = NULL, *page = pfn_to_page(pfn);
+>> +
+>> +     rcu_read_lock();
+>> +     for (;;) {
+>> +             mapping = READ_ONCE(page->mapping);
+>> +
+>> +             if (!mapping || !IS_DAX(mapping->host))
+>> +                     break;
+>> +
+>> +             /*
+>> +              * In the device-dax case there's no need to lock, a
+>> +              * struct dev_pagemap pin is sufficient to keep the
+>> +              * inode alive.
+>> +              */
+>> +             inode = mapping->host;
+>> +             if (S_ISCHR(inode->i_mode)) {
+>> +                     ret = page;
+>> +                     break;
+>> +             }
+>> +
+>> +             xa_lock_irq(&mapping->i_pages);
+>> +             if (mapping != page->mapping) {
+>> +                     xa_unlock_irq(&mapping->i_pages);
+>> +                     continue;
+>> +             }
+>> +             index = page->index;
+>> +
+>> +             init_wait(&ewait.wait);
+>> +             ewait.wait.func = wake_exceptional_entry_func;
+>
+> This initialization could be before the loop.
+>
+>> +
+>> +             entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
+>> +                             &slot);
+>> +             if (!entry ||
+>> +                 WARN_ON_ONCE(!radix_tree_exceptional_entry(entry))) {
+>> +                     xa_unlock_irq(&mapping->i_pages);
+>> +                     break;
+>> +             } else if (!slot_locked(mapping, slot)) {
+>> +                     lock_slot(mapping, slot);
+>> +                     ret = page;
+>> +                     xa_unlock_irq(&mapping->i_pages);
+>> +                     break;
+>> +             }
+>> +
+>> +             wq = dax_entry_waitqueue(mapping, index, entry, &ewait.key);
+>> +             prepare_to_wait_exclusive(wq, &ewait.wait,
+>> +                             TASK_UNINTERRUPTIBLE);
+>> +             xa_unlock_irq(&mapping->i_pages);
+>> +             rcu_read_unlock();
+>> +             schedule();
+>> +             finish_wait(wq, &ewait.wait);
+>> +             rcu_read_lock();
+>> +     }
+>> +     rcu_read_unlock();
+>
+> I don't like how this duplicates a lot of get_unlocked_mapping_entry().
+> Can we possibly factor this out similary as done for wait_event()?
 
-I think we need to take a step back and figure out what names what we
-want in the end, and how we get there separately.
-
-For the end result using bio_for_each_page in some form for the per-page
-iteration seems like the only sensible idea, as that is what it does.
-
-For the bio-vec iteration I'm fine with either bio_for_each_bvec as that
-exactly explains what it does, or bio_for_each_segment to keep the
-change at a minimum.
-
-And in terms of how to get there: maybe we need to move all the drivers
-and file systems to the new names first before the actual changes to
-document all the intent.  For that using the bio_for_each_bvec variant
-might be benefitial as it allows to seasily see the difference between
-old uncovered code and the already converted one.
+Ok, I'll give that a shot.
