@@ -1,128 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A12786B0283
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 11:41:49 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w21-v6so4721282wmc.4
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:41:49 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2D76B0283
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 11:50:16 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id a15-v6so13141902wrr.23
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:50:16 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l26-v6si442383edf.279.2018.06.11.08.41.47
+        by mx.google.com with ESMTPS id l40-v6si7240334edc.143.2018.06.11.08.50.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jun 2018 08:41:48 -0700 (PDT)
-Date: Mon, 11 Jun 2018 17:41:46 +0200
+        Mon, 11 Jun 2018 08:50:15 -0700 (PDT)
+Date: Mon, 11 Jun 2018 17:50:13 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 10/12] filesystem-dax: Introduce dax_lock_page()
-Message-ID: <20180611154146.jc5xt4gyaihq64lm@quack2.suse.cz>
+Subject: Re: [PATCH v4 11/12] mm, memory_failure: Teach memory_failure()
+ about dev_pagemap pages
+Message-ID: <20180611155013.tt4sykwh2dp2vq2e@quack2.suse.cz>
 References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152850187437.38390.2257981090761438811.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152850187949.38390.1012249765651998342.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <152850187437.38390.2257981090761438811.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <152850187949.38390.1012249765651998342.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jack@suse.cz
+Cc: linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Fri 08-06-18 16:51:14, Dan Williams wrote:
-> In preparation for implementing support for memory poison (media error)
-> handling via dax mappings, implement a lock_page() equivalent. Poison
-> error handling requires rmap and needs guarantees that the page->mapping
-> association is maintained / valid (inode not freed) for the duration of
-> the lookup.
+On Fri 08-06-18 16:51:19, Dan Williams wrote:
+>     mce: Uncorrected hardware memory error in user-access at af34214200
+>     {1}[Hardware Error]: It has been corrected by h/w and requires no further action
+>     mce: [Hardware Error]: Machine check events logged
+>     {1}[Hardware Error]: event severity: corrected
+>     Memory failure: 0xaf34214: reserved kernel page still referenced by 1 users
+>     [..]
+>     Memory failure: 0xaf34214: recovery action for reserved kernel page: Failed
+>     mce: Memory error not recovered
 > 
-> In the device-dax case it is sufficient to simply hold a dev_pagemap
-> reference. In the filesystem-dax case we need to use the entry lock.
+> In contrast to typical memory, dev_pagemap pages may be dax mapped. With
+> dax there is no possibility to map in another page dynamically since dax
+> establishes 1:1 physical address to file offset associations. Also
+> dev_pagemap pages associated with NVDIMM / persistent memory devices can
+> internal remap/repair addresses with poison. While memory_failure()
+> assumes that it can discard typical poisoned pages and keep them
+> unmapped indefinitely, dev_pagemap pages may be returned to service
+> after the error is cleared.
 > 
-> Export the entry lock via dax_lock_page() that uses rcu_read_lock() to
-> protect against the inode being freed, and revalidates the page->mapping
-> association under xa_lock().
-> 
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> Teach memory_failure() to detect and handle MEMORY_DEVICE_HOST
+> dev_pagemap pages that have poison consumed by userspace. Mark the
+> memory as UC instead of unmapping it completely to allow ongoing access
+> via the device driver (nd_pmem). Later, nd_pmem will grow support for
+> marking the page back to WB when the error is cleared.
 
-Some comments below...
+...
 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index cccf6cad1a7a..b7e71b108fcf 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -361,6 +361,82 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
->  	}
->  }
->  
-> +struct page *dax_lock_page(unsigned long pfn)
+> +static unsigned long dax_mapping_size(struct page *page)
 > +{
-
-Why do you return struct page here? Any reason behind that? Because struct
-page exists and can be accessed through pfn_to_page() regardless of result
-of this function so it looks a bit confusing. Also dax_lock_page() name
-seems a bit confusing. Maybe dax_lock_pfn_mapping_entry()?
-
-> +	pgoff_t index;
-> +	struct inode *inode;
-> +	wait_queue_head_t *wq;
-> +	void *entry = NULL, **slot;
-> +	struct address_space *mapping;
-> +	struct wait_exceptional_entry_queue ewait;
-> +	struct page *ret = NULL, *page = pfn_to_page(pfn);
+> +	struct address_space *mapping = page->mapping;
+> +	pgoff_t pgoff = page_to_pgoff(page);
+> +	struct vm_area_struct *vma;
+> +	unsigned long size = 0;
 > +
-> +	rcu_read_lock();
-> +	for (;;) {
-> +		mapping = READ_ONCE(page->mapping);
+> +	i_mmap_lock_read(mapping);
+> +	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+> +		unsigned long address = vma_address(page, vma);
+> +		pgd_t *pgd;
+> +		p4d_t *p4d;
+> +		pud_t *pud;
+> +		pmd_t *pmd;
+> +		pte_t *pte;
 > +
-> +		if (!mapping || !IS_DAX(mapping->host))
-> +			break;
-> +
-> +		/*
-> +		 * In the device-dax case there's no need to lock, a
-> +		 * struct dev_pagemap pin is sufficient to keep the
-> +		 * inode alive.
-> +		 */
-> +		inode = mapping->host;
-> +		if (S_ISCHR(inode->i_mode)) {
-> +			ret = page;
-> +			break;
-> +		}
-> +
-> +		xa_lock_irq(&mapping->i_pages);
-> +		if (mapping != page->mapping) {
-> +			xa_unlock_irq(&mapping->i_pages);
+> +		pgd = pgd_offset(vma->vm_mm, address);
+> +		if (!pgd_present(*pgd))
 > +			continue;
-> +		}
-> +		index = page->index;
-> +
-> +		init_wait(&ewait.wait);
-> +		ewait.wait.func = wake_exceptional_entry_func;
-
-This initialization could be before the loop.
-
-> +
-> +		entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
-> +				&slot);
-> +		if (!entry ||
-> +		    WARN_ON_ONCE(!radix_tree_exceptional_entry(entry))) {
-> +			xa_unlock_irq(&mapping->i_pages);
-> +			break;
-> +		} else if (!slot_locked(mapping, slot)) {
-> +			lock_slot(mapping, slot);
-> +			ret = page;
-> +			xa_unlock_irq(&mapping->i_pages);
+> +		p4d = p4d_offset(pgd, address);
+> +		if (!p4d_present(*p4d))
+> +			continue;
+> +		pud = pud_offset(p4d, address);
+> +		if (!pud_present(*pud))
+> +			continue;
+> +		if (pud_devmap(*pud)) {
+> +			size = PUD_SIZE;
 > +			break;
 > +		}
-> +
-> +		wq = dax_entry_waitqueue(mapping, index, entry, &ewait.key);
-> +		prepare_to_wait_exclusive(wq, &ewait.wait,
-> +				TASK_UNINTERRUPTIBLE);
-> +		xa_unlock_irq(&mapping->i_pages);
-> +		rcu_read_unlock();
-> +		schedule();
-> +		finish_wait(wq, &ewait.wait);
-> +		rcu_read_lock();
+> +		pmd = pmd_offset(pud, address);
+> +		if (!pmd_present(*pmd))
+> +			continue;
+> +		if (pmd_devmap(*pmd)) {
+> +			size = PMD_SIZE;
+> +			break;
+> +		}
+> +		pte = pte_offset_map(pmd, address);
+> +		if (!pte_present(*pte))
+> +			continue;
+> +		if (pte_devmap(*pte)) {
+> +			size = PAGE_SIZE;
+> +			break;
+> +		}
 > +	}
-> +	rcu_read_unlock();
+> +	i_mmap_unlock_read(mapping);
+> +
+> +	return size;
+> +}
 
-I don't like how this duplicates a lot of get_unlocked_mapping_entry().
-Can we possibly factor this out similary as done for wait_event()?
+Correct me if I'm wrong but cannot the same pfn be mapped by different VMAs
+with different granularity? I recall that if we have a fully allocated PMD
+entry in the radix tree we can hand out 4k entries from inside of it just
+fine... So whether dax_mapping_size() returns 4k or 2MB would be random?
+Why don't we use the entry size in the radix tree when we have done all the
+work and looked it up there to lock it anyway?
 
 								Honza
 -- 
