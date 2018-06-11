@@ -1,37 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AB5976B0006
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:17:08 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x203-v6so5539954wmg.8
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:17:08 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id w27-v6si3745516edl.174.2018.06.11.07.17.07
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A63616B02AF
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:34:18 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p29-v6so10383042pfi.19
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:34:18 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id x22-v6si14482351pln.235.2018.06.11.07.34.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:17:07 -0700 (PDT)
-Date: Mon, 11 Jun 2018 10:19:25 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: fix null pointer dereference in mem_cgroup_protected
-Message-ID: <20180611141925.GC1507@cmpxchg.org>
-References: <20180608170607.29120-1-guro@fb.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jun 2018 07:34:17 -0700 (PDT)
+Date: Mon, 11 Jun 2018 17:34:15 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 0/2] mm/page_ext: Trivial cleanups
+Message-ID: <20180611143414.vqbfvrn2bvqtjpfw@black.fi.intel.com>
+References: <20180531135457.20167-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180608170607.29120-1-guro@fb.com>
+In-Reply-To: <20180531135457.20167-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 08, 2018 at 06:06:07PM +0100, Roman Gushchin wrote:
-> Shakeel reported a crash in mem_cgroup_protected(), which
-> can be triggered by memcg reclaim if the legacy cgroup v1
-> use_hierarchy=0 mode is used:
-...
-> Reported-by: Shakeel Butt <shakeelb@google.com>
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
+On Thu, May 31, 2018 at 01:54:55PM +0000, Kirill A. Shutemov wrote:
+> A pair of trivial cleanups in preparation for memory encryption.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Andrew, can we get these applied?
+
+-- 
+ Kirill A. Shutemov
