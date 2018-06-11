@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3226B02AC
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:07:19 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j25-v6so9229490pfi.9
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:07:19 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FDE76B02B8
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:08:16 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x25-v6so10304508pfn.21
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:08:16 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id o3-v6si63464941pld.50.2018.06.11.07.07.18
+        by mx.google.com with ESMTPS id 17-v6si30803190pfn.37.2018.06.11.07.06.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:07:18 -0700 (PDT)
+        Mon, 11 Jun 2018 07:06:55 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 72/72] radix tree: Remove radix_tree_clear_tags
-Date: Mon, 11 Jun 2018 07:06:39 -0700
-Message-Id: <20180611140639.17215-73-willy@infradead.org>
+Subject: [PATCH v13 35/72] mm: Convert workingset to XArray
+Date: Mon, 11 Jun 2018 07:06:02 -0700
+Message-Id: <20180611140639.17215-36-willy@infradead.org>
 In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
 References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,108 +22,159 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The page cache was the only user of this interface and it has now
-been converted to the XArray.  Transform the test into a test of
-xas_init_tags().
+We construct a fake XA_STATE and use it to delete the node with
+xas_store() rather than adding a special function for this unique
+use case.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/radix-tree.h           |  2 --
- lib/radix-tree.c                     | 13 -----------
- tools/testing/radix-tree/tag_check.c | 32 +++++++++++++---------------
- 3 files changed, 15 insertions(+), 32 deletions(-)
+ include/linux/swap.h |  9 --------
+ mm/workingset.c      | 51 +++++++++++++++++++-------------------------
+ 2 files changed, 22 insertions(+), 38 deletions(-)
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index f8ef267e4975..27c15990951d 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -252,8 +252,6 @@ void radix_tree_iter_delete(struct radix_tree_root *,
- 			struct radix_tree_iter *iter, void __rcu **slot);
- void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
- void *radix_tree_delete(struct radix_tree_root *, unsigned long);
--void radix_tree_clear_tags(struct radix_tree_root *, struct radix_tree_node *,
--			   void __rcu **slot);
- unsigned int radix_tree_gang_lookup(const struct radix_tree_root *,
- 			void **results, unsigned long first_index,
- 			unsigned int max_items);
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index ad03dc0c562f..101f1c28e1b6 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -1711,19 +1711,6 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
- }
- EXPORT_SYMBOL(radix_tree_delete);
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 1b91e7f7bdeb..a450a1d40b19 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -307,15 +307,6 @@ void workingset_update_node(struct xa_node *node);
+ 		xas_set_update(xas, workingset_update_node);		\
+ } while (0)
  
--void radix_tree_clear_tags(struct radix_tree_root *root,
--			   struct radix_tree_node *node,
--			   void __rcu **slot)
--{
--	if (node) {
--		unsigned int tag, offset = get_slot_offset(node, slot);
--		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
--			node_tag_clear(root, node, tag, offset);
--	} else {
--		root_tag_clear_all(root);
--	}
--}
+-/* Returns workingset_update_node() if the mapping has shadow entries. */
+-#define workingset_lookup_update(mapping)				\
+-({									\
+-	radix_tree_update_node_t __helper = workingset_update_node;	\
+-	if (dax_mapping(mapping) || shmem_mapping(mapping))		\
+-		__helper = NULL;					\
+-	__helper;							\
+-})
 -
- /**
-  *	radix_tree_tagged - test whether any items in the tree are tagged
-  *	@root:		radix tree root
-diff --git a/tools/testing/radix-tree/tag_check.c b/tools/testing/radix-tree/tag_check.c
-index 543181e4847b..340bc4f72f34 100644
---- a/tools/testing/radix-tree/tag_check.c
-+++ b/tools/testing/radix-tree/tag_check.c
-@@ -331,29 +331,27 @@ static void single_check(void)
- 	item_kill_tree(&tree);
- }
+ /* linux/mm/page_alloc.c */
+ extern unsigned long totalram_pages;
+ extern unsigned long totalreserve_pages;
+diff --git a/mm/workingset.c b/mm/workingset.c
+index bad4e58881cd..564e97bd5934 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -148,7 +148,7 @@
+  * and activations is maintained (node->inactive_age).
+  *
+  * On eviction, a snapshot of this counter (along with some bits to
+- * identify the node) is stored in the now empty page cache radix tree
++ * identify the node) is stored in the now empty page cache
+  * slot of the evicted page.  This is called a shadow entry.
+  *
+  * On cache misses for which there are shadow entries, an eligible
+@@ -162,7 +162,7 @@
  
--void radix_tree_clear_tags_test(void)
-+void init_tags_test(void)
+ /*
+  * Eviction timestamps need to be able to cover the full range of
+- * actionable refaults. However, bits are tight in the radix tree
++ * actionable refaults. However, bits are tight in the xarray
+  * entry, and after storing the identifier for the lruvec there might
+  * not be enough left to represent every single actionable refault. In
+  * that case, we have to sacrifice granularity for distance, and group
+@@ -338,7 +338,7 @@ void workingset_activation(struct page *page)
+ 
+ static struct list_lru shadow_nodes;
+ 
+-void workingset_update_node(struct radix_tree_node *node)
++void workingset_update_node(struct xa_node *node)
  {
-+	DEFINE_XARRAY(tree);
-+	XA_STATE(xas, &tree, 0);
- 	unsigned long index;
+ 	/*
+ 	 * Track non-empty nodes that contain only shadow entries;
+@@ -370,7 +370,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 	local_irq_enable();
+ 
+ 	/*
+-	 * Approximate a reasonable limit for the radix tree nodes
++	 * Approximate a reasonable limit for the nodes
+ 	 * containing shadow entries. We don't need to keep more
+ 	 * shadow entries than possible pages on the active list,
+ 	 * since refault distances bigger than that are dismissed.
+@@ -385,11 +385,11 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 	 * worst-case density of 1/8th. Below that, not all eligible
+ 	 * refaults can be detected anymore.
+ 	 *
+-	 * On 64-bit with 7 radix_tree_nodes per page and 64 slots
++	 * On 64-bit with 7 xa_nodes per page and 64 slots
+ 	 * each, this will reclaim shadow entries when they consume
+ 	 * ~1.8% of available memory:
+ 	 *
+-	 * PAGE_SIZE / radix_tree_nodes / node_entries * 8 / PAGE_SIZE
++	 * PAGE_SIZE / xa_nodes / node_entries * 8 / PAGE_SIZE
+ 	 */
+ 	if (sc->memcg) {
+ 		cache = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+@@ -398,7 +398,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 		cache = node_page_state(NODE_DATA(sc->nid), NR_ACTIVE_FILE) +
+ 			node_page_state(NODE_DATA(sc->nid), NR_INACTIVE_FILE);
+ 	}
+-	max_nodes = cache >> (RADIX_TREE_MAP_SHIFT - 3);
++	max_nodes = cache >> (XA_CHUNK_SHIFT - 3);
+ 
+ 	if (nodes <= max_nodes)
+ 		return 0;
+@@ -408,11 +408,11 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ static enum lru_status shadow_lru_isolate(struct list_head *item,
+ 					  struct list_lru_one *lru,
+ 					  spinlock_t *lru_lock,
+-					  void *arg)
++					  void *arg) __must_hold(lru_lock)
+ {
++	XA_STATE(xas, NULL, 0);
+ 	struct address_space *mapping;
 -	struct radix_tree_node *node;
--	struct radix_tree_iter iter;
--	void **slot;
-+	void *entry;
+-	unsigned int i;
++	struct xa_node *node;
+ 	int ret;
  
--	RADIX_TREE(tree, GFP_KERNEL);
--
--	item_insert(&tree, 0);
--	item_tag_set(&tree, 0, 0);
--	__radix_tree_lookup(&tree, 0, &node, &slot);
--	radix_tree_clear_tags(&tree, node, slot);
--	assert(item_tag_get(&tree, 0, 0) == 0);
-+	xa_store(&tree, 0, xa_mk_value(0), GFP_KERNEL);
-+	item_tag_set(&tree, 0, XA_TAG_0);
-+	xas_load(&xas);
-+	xas_init_tags(&xas);
-+	assert(item_tag_get(&tree, 0, XA_TAG_0) == 0);
+ 	/*
+@@ -420,7 +420,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
+ 	 * the shadow node LRU under the i_pages lock and the
+ 	 * lru_lock.  Because the page cache tree is emptied before
+ 	 * the inode can be destroyed, holding the lru_lock pins any
+-	 * address_space that has radix tree nodes on the LRU.
++	 * address_space that has nodes on the LRU.
+ 	 *
+ 	 * We can then safely transition to the i_pages lock to
+ 	 * pin only the address_space of the particular node we want
+@@ -449,25 +449,18 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
+ 		goto out_invalid;
+ 	if (WARN_ON_ONCE(node->count != node->nr_values))
+ 		goto out_invalid;
+-	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
+-		if (node->slots[i]) {
+-			if (WARN_ON_ONCE(!xa_is_value(node->slots[i])))
+-				goto out_invalid;
+-			if (WARN_ON_ONCE(!node->nr_values))
+-				goto out_invalid;
+-			if (WARN_ON_ONCE(!mapping->nrexceptional))
+-				goto out_invalid;
+-			node->slots[i] = NULL;
+-			node->nr_values--;
+-			node->count--;
+-			mapping->nrexceptional--;
+-		}
+-	}
+-	if (WARN_ON_ONCE(node->nr_values))
+-		goto out_invalid;
++	mapping->nrexceptional -= node->nr_values;
++	xas.xa = node->array;
++	xas.xa_node = rcu_dereference_protected(node->parent,
++				lockdep_is_held(&mapping->i_pages.xa_lock));
++	xas.xa_offset = node->offset;
++	xas.xa_update = workingset_update_node;
++	/*
++	 * We could store a shadow entry here which was the minimum of the
++	 * shadow entries we were tracking ...
++	 */
++	xas_store(&xas, NULL);
+ 	inc_lruvec_page_state(virt_to_page(node), WORKINGSET_NODERECLAIM);
+-	__radix_tree_delete_node(&mapping->i_pages, node,
+-				 workingset_lookup_update(mapping));
  
- 	for (index = 0; index < 1000; index++) {
--		item_insert(&tree, index);
--		item_tag_set(&tree, index, 0);
-+		xa_store(&tree, index, xa_mk_value(index), GFP_KERNEL);
-+		item_tag_set(&tree, index, XA_TAG_0);
- 	}
- 
--	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
--		radix_tree_clear_tags(&tree, iter.node, slot);
--		assert(item_tag_get(&tree, iter.index, 0) == 0);
-+	xas_for_each(&xas, entry, ULONG_MAX) {
-+		xas_init_tags(&xas);
-+		assert(item_tag_get(&tree, xas.xa_index, XA_TAG_0) == 0);
- 	}
- 
- 	item_kill_tree(&tree);
-@@ -376,5 +374,5 @@ void tag_check(void)
- 	thrash_tags();
- 	rcu_barrier();
- 	printv(2, "after thrash_tags: %d allocated\n", nr_allocated);
--	radix_tree_clear_tags_test();
-+	init_tags_test();
- }
+ out_invalid:
+ 	xa_unlock(&mapping->i_pages);
 -- 
 2.17.1
