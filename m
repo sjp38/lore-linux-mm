@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8532F6B0275
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:06:50 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id o7-v6so6314107pgc.23
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 062CA6B0274
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:06:51 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e16-v6so10350481pfn.5
         for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:06:50 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v39-v6si16868614pgn.510.2018.06.11.07.06.49
+        by mx.google.com with ESMTPS id 191-v6si33781491pgh.407.2018.06.11.07.06.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Mon, 11 Jun 2018 07:06:49 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 22/72] page cache: Convert page deletion to XArray
-Date: Mon, 11 Jun 2018 07:05:49 -0700
-Message-Id: <20180611140639.17215-23-willy@infradead.org>
+Subject: [PATCH v13 23/72] page cache: Convert find_get_entry to XArray
+Date: Mon, 11 Jun 2018 07:05:50 -0700
+Message-Id: <20180611140639.17215-24-willy@infradead.org>
 In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
 References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,69 +22,100 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The code is slightly shorter and simpler.
+Slightly shorter and simpler code.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/filemap.c | 31 +++++++++++++------------------
- 1 file changed, 13 insertions(+), 18 deletions(-)
+ mm/filemap.c | 63 +++++++++++++++++++++++-----------------------------
+ 1 file changed, 28 insertions(+), 35 deletions(-)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 965ff68e5b8d..7cdb1d4b8117 100644
+index 7cdb1d4b8117..6db3d35ff5f6 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -111,31 +111,26 @@
-  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
+@@ -1382,47 +1382,40 @@ EXPORT_SYMBOL(page_cache_prev_gap);
   */
- 
--static void page_cache_tree_delete(struct address_space *mapping,
-+static void page_cache_delete(struct address_space *mapping,
- 				   struct page *page, void *shadow)
+ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
  {
--	int i, nr;
-+	XA_STATE(xas, &mapping->i_pages, page->index);
-+	unsigned int nr = 1;
+-	void **pagep;
++	XA_STATE(xas, &mapping->i_pages, offset);
+ 	struct page *head, *page;
  
--	/* hugetlb pages are represented by one entry in the radix tree */
--	nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
-+	mapping_set_update(&xas, mapping);
-+
-+	/* hugetlb pages are represented by a single entry in the xarray */
-+	if (!PageHuge(page)) {
-+		xas_set_order(&xas, page->index, compound_order(page));
-+		nr = 1U << compound_order(page);
+ 	rcu_read_lock();
+ repeat:
+-	page = NULL;
+-	pagep = radix_tree_lookup_slot(&mapping->i_pages, offset);
+-	if (pagep) {
+-		page = radix_tree_deref_slot(pagep);
+-		if (unlikely(!page))
+-			goto out;
+-		if (radix_tree_exception(page)) {
+-			if (radix_tree_deref_retry(page))
+-				goto repeat;
+-			/*
+-			 * A shadow entry of a recently evicted page,
+-			 * or a swap entry from shmem/tmpfs.  Return
+-			 * it without attempting to raise page count.
+-			 */
+-			goto out;
+-		}
++	xas_reset(&xas);
++	page = xas_load(&xas);
++	if (xas_retry(&xas, page))
++		goto repeat;
++	/*
++	 * A shadow entry of a recently evicted page, or a swap entry from
++	 * shmem/tmpfs.  Return it without attempting to raise page count.
++	 */
++	if (!page || xa_is_value(page))
++		goto out;
+ 
+-		head = compound_head(page);
+-		if (!page_cache_get_speculative(head))
+-			goto repeat;
++	head = compound_head(page);
++	if (!page_cache_get_speculative(head))
++		goto repeat;
+ 
+-		/* The page was split under us? */
+-		if (compound_head(page) != head) {
+-			put_page(head);
+-			goto repeat;
+-		}
++	/* The page was split under us? */
++	if (compound_head(page) != head) {
++		put_page(head);
++		goto repeat;
 +	}
  
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageTail(page), page);
- 	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
+-		/*
+-		 * Has the page moved?
+-		 * This is part of the lockless pagecache protocol. See
+-		 * include/linux/pagemap.h for details.
+-		 */
+-		if (unlikely(page != *pagep)) {
+-			put_page(head);
+-			goto repeat;
+-		}
++	/*
++	 * Has the page moved?
++	 * This is part of the lockless pagecache protocol. See
++	 * include/linux/pagemap.h for details.
++	 */
++	if (unlikely(page != xas_reload(&xas))) {
++		put_page(head);
++		goto repeat;
+ 	}
+ out:
+ 	rcu_read_unlock();
+@@ -1453,7 +1446,7 @@ struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset)
  
--	for (i = 0; i < nr; i++) {
--		struct radix_tree_node *node;
--		void **slot;
--
--		__radix_tree_lookup(&mapping->i_pages, page->index + i,
--				    &node, &slot);
--
--		VM_BUG_ON_PAGE(!node && nr != 1, page);
--
--		radix_tree_clear_tags(&mapping->i_pages, node, slot);
--		__radix_tree_replace(&mapping->i_pages, node, slot, shadow,
--				workingset_lookup_update(mapping));
--	}
-+	xas_store(&xas, shadow);
-+	xas_init_tags(&xas);
- 
- 	page->mapping = NULL;
- 	/* Leave page->index set: truncation lookup relies upon it */
-@@ -234,7 +229,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 	trace_mm_filemap_delete_from_page_cache(page);
- 
- 	unaccount_page_cache_page(mapping, page);
--	page_cache_tree_delete(mapping, page, shadow);
-+	page_cache_delete(mapping, page, shadow);
- }
- 
- static void page_cache_free_page(struct address_space *mapping,
+ repeat:
+ 	page = find_get_entry(mapping, offset);
+-	if (page && !radix_tree_exception(page)) {
++	if (page && !xa_is_value(page)) {
+ 		lock_page(page);
+ 		/* Has the page been truncated? */
+ 		if (unlikely(page_mapping(page) != mapping)) {
 -- 
 2.17.1
