@@ -1,54 +1,150 @@
-From: Duncan <1i5t5.duncan@cox.net>
-Subject: Re: [Bug 199931] New: systemd/rtorrent file data corruption when
- using echo 3 >/proc/sys/vm/drop_caches
-Date: Fri, 8 Jun 2018 07:18:44 +0000 (UTC)
-Message-ID: <pan$a2388$84c4dee0$cda57858$77256a9d@cox.net>
-References: <bug-199931-27@https.bugzilla.kernel.org/>
-        <20180605130329.f7069e01c5faacc08a10996c@linux-foundation.org>
-        <CA+X5Wn5_iJYS9MLFdArG9sDHQO2n=BkZmaYAOexhdoVc+tQnmw@mail.gmail.com>
-        <20180606190635.meodcz3mchhtqprb@schmorp.de>
+From: Kenneth Lee <Kenneth-Lee-2012-H32Fclmsjq1BDgjK7y7TUQ@public.gmane.org>
+Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
+Date: Tue, 12 Jun 2018 00:10:55 +0800
+Message-ID: <24416.1759772853$1528733367@news.gmane.org>
+References: <20180511190641.23008-4-jean-philippe.brucker@arm.com>
+	<20180516163117.622693ea@jacob-builder>
+	<de478769-9f7a-d40b-a55e-e2c63ad883e8@arm.com>
+	<20180522094334.71f0e36b@jacob-builder>
+	<f73b4a0e-669e-8483-88d7-1b2c8a2b9934@arm.com>
+	<20180524115039.GA10260@apalos>
+	<19e82a74-429a-3f86-119e-32b12082d0ff@arm.com>
+	<20180525063311.GA11605@apalos>
+	<20180525093959.000040a7@huawei.com> <20180526022445.GA6069@kllp05>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Return-path: <linux-btrfs-owner@vger.kernel.org>
-Sender: linux-btrfs-owner@vger.kernel.org
-To: linux-btrfs@vger.kernel.org
-Cc: linux-mm@kvack.org
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+Content-Disposition: inline
+In-Reply-To: <20180526022445.GA6069@kllp05>
+List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
+List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
+Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+To: Jonathan Cameron <Jonathan.Cameron-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>
+Cc: "kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, Will Deacon <Will.Deacon-5wv7dgnIgG8@public.gmane.org>, "okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org" <okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>, "linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org" <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, liguozhu-C8/M+/jPZTeaMJb+Lgu22Q@public.gmane.org, "ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org" <ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, "iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org" <iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>, "linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org" <rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org>, "devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org" <rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>, "linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org" <linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>, Ilias Apalodimas <ilias.apalodimas-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org>, "dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org" <dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org>, "christian.koenig-5C7GfCeVMHo@public.gmane.org" <christian.koenig-5C7GfCeVMHo@public.gmane.org>
 List-Id: linux-mm.kvack.org
 
-Marc Lehmann posted on Wed, 06 Jun 2018 21:06:35 +0200 as excerpted:
+On Sat, May 26, 2018 at 10:24:45AM +0800, Kenneth Lee wrote:
+> Date: Sat, 26 May 2018 10:24:45 +0800
+> From: Kenneth Lee <Kenneth-Lee-2012-H32Fclmsjq1BDgjK7y7TUQ@public.gmane.org>
+> To: Jonathan Cameron <Jonathan.Cameron-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>
+> Cc: Ilias Apalodimas <ilias.apalodimas-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org>, Jean-Philippe Brucker
+>  <jean-philippe.brucker-5wv7dgnIgG8@public.gmane.org>, "xieyisheng1-hv44wF8Li93QT0dZR+AlfA@public.gmane.org"
+>  <xieyisheng1-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>,
+>  "linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>,
+>  "xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, Will Deacon
+>  <Will.Deacon-5wv7dgnIgG8@public.gmane.org>, "okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org" <okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>,
+>  "linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org" <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, "yi.l.liu-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org"
+>  <yi.l.liu-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, "ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org" <ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>,
+>  "tn-nYOzD4b6Jr9Wk0Htik3J/w@public.gmane.org" <tn-nYOzD4b6Jr9Wk0Htik3J/w@public.gmane.org>, "joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org" <joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org>,
+>  "robdclark-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org" <robdclark-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org>, "bharatku-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org"
+>  <bharatku-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>, "linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org"
+>  <linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "liudongdong3-hv44wF8Li93QT0dZR+AlfA@public.gmane.org"
+>  <liudongdong3-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org" <rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org>,
+>  "devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>,
+>  "kevin.tian-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org" <kevin.tian-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, Jacob Pan
+>  <jacob.jun.pan-VuQAYsv1563Yd54FQh9/CA@public.gmane.org>, "alex.williamson-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org"
+>  <alex.williamson-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, "rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org" <rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>,
+>  "thunder.leizhen-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <thunder.leizhen-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>,
+>  "linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org"
+>  <linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>, "shunyong.yang-PT9Dzx9SjPiXmMXjJBpWqg@public.gmane.org"
+>  <shunyong.yang-PT9Dzx9SjPiXmMXjJBpWqg@public.gmane.org>, "dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org"
+>  <dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org>, "liubo95-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <liubo95-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>,
+>  "jcrouse-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org" <jcrouse-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>,
+>  "iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org" <iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>,
+>  Robin Murphy <Robin.Murphy-5wv7dgnIgG8@public.gmane.org>, "christian.koenig-5C7GfCeVMHo@public.gmane.org"
+>  <christian.koenig-5C7GfCeVMHo@public.gmane.org>, "nwatters-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org"
+>  <nwatters-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>, "baolu.lu-VuQAYsv1563Yd54FQh9/CA@public.gmane.org"
+>  <baolu.lu-VuQAYsv1563Yd54FQh9/CA@public.gmane.org>, liguozhu-C8/M+/jPZTeaMJb+Lgu22Q@public.gmane.org
+> Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
+> Message-ID: <20180526022445.GA6069@kllp05>
+> 
+> On Fri, May 25, 2018 at 09:39:59AM +0100, Jonathan Cameron wrote:
+> > Date: Fri, 25 May 2018 09:39:59 +0100
+> > From: Jonathan Cameron <Jonathan.Cameron-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>
+> > To: Ilias Apalodimas <ilias.apalodimas-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org>
+> > CC: Jean-Philippe Brucker <jean-philippe.brucker-5wv7dgnIgG8@public.gmane.org>,
+> >  "xieyisheng1-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <xieyisheng1-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org"
+> >  <kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org"
+> >  <linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>,
+> >  Will Deacon <Will.Deacon-5wv7dgnIgG8@public.gmane.org>, "okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org"
+> >  <okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>, "linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org" <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>,
+> >  "yi.l.liu-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org" <yi.l.liu-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, "ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org"
+> >  <ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, "tn-nYOzD4b6Jr9Wk0Htik3J/w@public.gmane.org" <tn-nYOzD4b6Jr9Wk0Htik3J/w@public.gmane.org>,
+> >  "joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org" <joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org>, "robdclark-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org"
+> >  <robdclark-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org>, "bharatku-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org" <bharatku-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>,
+> >  "linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>,
+> >  "liudongdong3-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <liudongdong3-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org"
+> >  <rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org>, "devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org"
+> >  <devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "kevin.tian-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org"
+> >  <kevin.tian-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, Jacob Pan <jacob.jun.pan-VuQAYsv1563Yd54FQh9/CA@public.gmane.org>,
+> >  "alex.williamson-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org" <alex.williamson-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>,
+> >  "rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org" <rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>, "thunder.leizhen-hv44wF8Li93QT0dZR+AlfA@public.gmane.org"
+> >  <thunder.leizhen-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org"
+> >  <linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>, "shunyong.yang-PT9Dzx9SjPiXmMXjJBpWqg@public.gmane.org"
+> >  <shunyong.yang-PT9Dzx9SjPiXmMXjJBpWqg@public.gmane.org>, "dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org"
+> >  <dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org>, "liubo95-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <liubo95-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>,
+> >  "jcrouse-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org" <jcrouse-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>,
+> >  "iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org" <iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>,
+> >  Robin Murphy <Robin.Murphy-5wv7dgnIgG8@public.gmane.org>, "christian.koenig-5C7GfCeVMHo@public.gmane.org"
+> >  <christian.koenig-5C7GfCeVMHo@public.gmane.org>, "nwatters-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org"
+> >  <nwatters-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>, "baolu.lu-VuQAYsv1563Yd54FQh9/CA@public.gmane.org"
+> >  <baolu.lu-VuQAYsv1563Yd54FQh9/CA@public.gmane.org>, liguozhu-C8/M+/jPZTeaMJb+Lgu22Q@public.gmane.org,
+> >  kenneth-lee-2012-H32Fclmsjq1BDgjK7y7TUQ@public.gmane.org
+> > Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
+> > Message-ID: <20180525093959.000040a7-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>
+> > 
+> > +CC Kenneth Lee
+> > 
+> > On Fri, 25 May 2018 09:33:11 +0300
+> > Ilias Apalodimas <ilias.apalodimas-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org> wrote:
+> > 
+> > > On Thu, May 24, 2018 at 04:04:39PM +0100, Jean-Philippe Brucker wrote:
+> > > > On 24/05/18 12:50, Ilias Apalodimas wrote:  
+> > > > >> Interesting, I hadn't thought about this use-case before. At first I
+> > > > >> thought you were talking about mdev devices assigned to VMs, but I think
+> > > > >> you're referring to mdevs assigned to userspace drivers instead? Out of
+> > > > >> curiosity, is it only theoretical or does someone actually need this?  
+> > > > > 
+> > > > > There has been some non upstreamed efforts to have mdev and produce userspace
+> > > > > drivers. Huawei is using it on what they call "wrapdrive" for crypto devices and
+> > > > > we did a proof of concept for ethernet interfaces. At the time we choose not to
+> > > > > involve the IOMMU for the reason you mentioned, but having it there would be
+> > > > > good.  
+> > > > 
+> > > > I'm guessing there were good reasons to do it that way but I wonder, is
+> > > > it not simpler to just have the kernel driver create a /dev/foo, with a
+> > > > standard ioctl/mmap/poll interface? Here VFIO adds a layer of
+> > > > indirection, and since the mediating driver has to implement these
+> > > > operations already, what is gained?  
+> > > The best reason i can come up with is "common code". You already have one API
+> > > doing that for you so we replicate it in a /dev file?
+> > > The mdev approach still needs extentions to support what we tried to do (i.e
+> > > mdev bus might need yo have access on iommu_ops), but as far as i undestand it's
+> > > a possible case.
+> 
+> Hi, Jean, Please allow me to share my understanding here:
+> https://zhuanlan.zhihu.com/p/35489035
+> 
+> The reason we do not use the /dev/foo scheme is that the devices to be
+> shared are programmable accelerators. We cannot fix up the kernel driver for them.
+> > > > 
+> > > > Thanks,
+> > > > Jean  
+> > 
+> > 
+> 
+> -- 
+> 			-Kenneth Lee (Hisilicon)
 
-> Not sure what exactly you mean with btrfs mirroring (there are many
-> btrfs features this could refer to), but the closest thing to that that
-> I use is dup for metadata (which is always checksummed), data is always
-> single. All btrfs filesystems are on lvm (not mirrored), and most (but
-> not all) are encrypted. One affected fs is on a hardware raid
-> controller, one is on an ssd. I have a single btrfs fs in that box with
-> raid1 for metadata, as an experiment, but I haven't used it for testing
-> yet.
-
-On the off chance, tho it doesn't sound like it from your description...
-
-You're not doing LVM snapshots of the volumes with btrfs on them, 
-correct?  Because btrfs depends on filesystem GUIDs being just that, 
-globally unique, using them to find the possible multiple devices of a 
-multi-device btrfs (normal single-device filesystems don't have the issue 
-as they don't have to deal with multi-device as btrfs does), and btrfs 
-can get very confused, with data-loss potential, if it sees multiple 
-copies of a device with the same filesystem GUID, as can happen if lvm 
-snapshots (which obviously have the same filesystem GUID as the original) 
-are taken and both the snapshot and the source are exposed to btrfs 
-device scan (which is auto-triggered by udev when the new device 
-appears), with one of them mounted.
-
-Presumably you'd consider lvm snapshotting a form of mirroring and you've 
-already said you're not doing that in any form, but just in case, because 
-this is a rather obscure trap people using lvm could find themselves in, 
-without a clue as to the danger, and the resulting symptoms could be 
-rather hard to troubleshoot if this possibility wasn't considered.
+I just found this mail was missed in the mailing list. I tried it once
+again.
 
 -- 
-Duncan - List replies preferred.   No HTML msgs.
-"Every nonfree program has a lord, a master --
-and if you use the program, he is your master."  Richard Stallman
-
+			-Kenneth Lee (Hisilicon)
