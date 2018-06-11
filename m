@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EF1B6B0007
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 75E126B0266
 	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:06:46 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id w1-v6so6594894pgr.7
+Received: by mail-pg0-f71.google.com with SMTP id i12-v6so3634577pgt.13
         for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:06:46 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n64-v6si38926657pfh.210.2018.06.11.07.06.43
+        by mx.google.com with ESMTPS id m6-v6si29915874pgt.636.2018.06.11.07.06.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:06:43 -0700 (PDT)
+        Mon, 11 Jun 2018 07:06:44 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 00/72] Convert page cache to XArray
-Date: Mon, 11 Jun 2018 07:05:27 -0700
-Message-Id: <20180611140639.17215-1-willy@infradead.org>
+Subject: [PATCH v13 11/72] xarray: Add xa_cmpxchg and xa_insert
+Date: Mon, 11 Jun 2018 07:05:38 -0700
+Message-Id: <20180611140639.17215-12-willy@infradead.org>
+In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
+References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
@@ -20,223 +22,216 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The XArray is a replacement for the radix tree.  For the moment it uses
-the same data structures, enabling a gradual replacement.  This patch
-set implements the XArray and converts the page cache to use it.
+Like cmpxchg(), xa_cmpxchg will only store to the index if the current
+entry matches the old entry.  It returns the current entry, which is
+usually more useful than the errno returned by radix_tree_insert().
+For the users who really only want the errno, the xa_insert() wrapper
+provides a more convenient calling convention.
 
-A version of these patches has been running under xfstests for over 48
-hours, so I have some confidence in them.  The DAX changes are untested.
-This is based on next-20180608 and is available as a git tree at
-git://git.infradead.org/users/willy/linux-dax.git xarray-20180608
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ include/linux/xarray.h                 | 60 ++++++++++++++++++++++
+ lib/xarray.c                           | 71 ++++++++++++++++++++++++++
+ tools/testing/radix-tree/xarray-test.c | 10 ++++
+ 3 files changed, 141 insertions(+)
 
-My plan for getting this lot merged is to create a git branch from -rc1
-and ask that to be included in -next.  Last call for reviews/acks.
-I'd suggest looking at the page cache changes (patches 19-68) rather
-than the XArray patches themselves.  I know there's a lot of patches,
-but each individual patch is quite small.
-
-In particular, I'd like reviews from filesystem people of their own
-filesystem conversions.  I have that from David Sterba for btrfs, but
-I've had no response from the nilfs2 or f2fs people.
-
-Changes since v12:
- - Fixed bug in page cache lookup conversion which could lead to
-   returning pages which had been released from the page cache.  Split
-   out the seven converted functions each into their own patch to allow
-   for better bisection.
- - Fixed bug in workingset conversion that led to exceptional entries not
-   being deleted from the XArray.
- - Fixed several bugs in DAX conversion.
- - Added xas_for_each_conflict() and use it in DAX.
- - Undid change of xas_load() behaviour with multislot xa_state that
-   was introduced in v10.  Removed test cases, since we don't want that
-   behaviour.
- - Re-added conversion of dax_layout_busy_page.
- - Reordered a DAX bugfix to the head of the queue to allow it to
-   be merged independently.
- - Dropped "dax_insert_mapping_entry always succeeds" due to being
-   merged by Dan.  Thanks, Dan!
- - Dropped "dax: Return fault code from dax_load_hole" as it was taken
-   care of by Souptick's patch.
- - At Ross's request, renamed dax_mk_foo() to dax_make_foo().
- - Renamed DAX_ENTRY_LOCK to DAX_LOCKED.
- - Updated migrate_page_move_mapping conversion.
- - Split out the radix tree test suite addition of ubsan.
- - Split out radix tree code deletion.
- - Removed __radix_tree_create from the public API.
- - Fixed up a couple of comments in DAX.
- - Renamed shmem_xa_replace() to shmem_replace_entry().
- - Corrected some typos in the XArray kerneldoc and reworded a few
-   sentences in xarray.rst.
- - Added a new section on multi-index entries to xarray.rst, replacing the
-   single paragraph we used to have.
- - Fixed multi-index xas_store(xas, NULL) and added test-cases.
- - Fixed multi-index xas_store() in the presence of tags (the new entry is
-   tagged if any of the entries it is replacing is tagged).
- - Dropped lustre patch due to removal from staging
- - Use XA_BUG_ON() more in the test suite rather than assert().
-   Conversion not completed.
- - Deleted an unused variable from nilfs2 conversion.
- - Rename f2fs_clear_radix_tree_dirty_tag to f2fs_clear_page_cache_dirty_tag
-
-Matthew Wilcox (72):
-  radix tree test suite: Enable ubsan
-  dax: Fix use of zero page
-  xarray: Replace exceptional entries
-  xarray: Change definition of sibling entries
-  xarray: Add definition of struct xarray
-  xarray: Define struct xa_node
-  xarray: Add documentation
-  xarray: Add xa_load
-  xarray: Add XArray tags
-  xarray: Add xa_store
-  xarray: Add xa_cmpxchg and xa_insert
-  xarray: Add xa_for_each
-  xarray: Add xa_extract
-  xarray: Add xa_destroy
-  xarray: Add xas_next and xas_prev
-  xarray: Add xas_for_each_conflict
-  xarray: Add xas_create_range
-  xarray: Add MAINTAINERS entry
-  page cache: Rearrange address_space
-  page cache: Convert hole search to XArray
-  page cache: Add and replace pages using the XArray
-  page cache: Convert page deletion to XArray
-  page cache: Convert find_get_entry to XArray
-  page cache: Convert find_get_entries to XArray
-  page cache: Convert find_get_pages_range to XArray
-  page cache: Convert find_get_pages_contig to XArray
-  page cache; Convert find_get_pages_range_tag to XArray
-  page cache: Convert find_get_entries_tag to XArray
-  page cache: Convert filemap_map_pages to XArray
-  radix tree test suite: Convert regression1 to XArray
-  page cache: Convert delete_batch to XArray
-  page cache: Remove stray radix comment
-  page cache: Convert filemap_range_has_page to XArray
-  mm: Convert page-writeback to XArray
-  mm: Convert workingset to XArray
-  mm: Convert truncate to XArray
-  mm: Convert add_to_swap_cache to XArray
-  mm: Convert delete_from_swap_cache to XArray
-  mm: Convert __do_page_cache_readahead to XArray
-  mm: Convert page migration to XArray
-  mm: Convert huge_memory to XArray
-  mm: Convert collapse_shmem to XArray
-  mm: Convert khugepaged_scan_shmem to XArray
-  mm: Convert is_page_cache_freeable to XArray
-  pagevec: Use xa_tag_t
-  shmem: Convert shmem_radix_tree_replace to XArray
-  shmem: Convert shmem_confirm_swap to XArray
-  shmem: Convert find_swap_entry to XArray
-  shmem: Convert shmem_add_to_page_cache to XArray
-  shmem: Convert shmem_alloc_hugepage to XArray
-  shmem: Convert shmem_free_swap to XArray
-  shmem: Convert shmem_partial_swap_usage to XArray
-  memfd: Convert memfd_wait_for_pins to XArray
-  memfd: Convert memfd_tag_pins to XArray
-  shmem: Comment fixups
-  btrfs: Convert page cache to XArray
-  fs: Convert buffer to XArray
-  fs: Convert writeback to XArray
-  nilfs2: Convert to XArray
-  f2fs: Convert to XArray
-  dax: Rename some functions
-  dax: Hash on XArray instead of mapping
-  dax: Convert dax_insert_pfn_mkwrite to XArray
-  dax: Convert dax_layout_busy_page to XArray
-  dax: Convert __dax_invalidate_entry to XArray
-  dax: Convert dax writeback to XArray
-  dax: Convert page fault handlers to XArray
-  page cache: Finish XArray conversion
-  radix tree: Remove radix_tree_update_node_t
-  radix tree: Remove split/join code
-  radix tree: Remove radix_tree_maybe_preload_order
-  radix tree: Remove radix_tree_clear_tags
-
- .clang-format                                 |    1 -
- Documentation/core-api/index.rst              |    1 +
- Documentation/core-api/xarray.rst             |  395 ++++
- MAINTAINERS                                   |   12 +
- arch/powerpc/include/asm/book3s/64/pgtable.h  |    4 +-
- arch/powerpc/include/asm/nohash/64/pgtable.h  |    4 +-
- drivers/gpu/drm/i915/i915_gem.c               |   17 +-
- fs/btrfs/compression.c                        |    6 +-
- fs/btrfs/extent_io.c                          |   12 +-
- fs/buffer.c                                   |   14 +-
- fs/dax.c                                      |  792 ++++----
- fs/ext4/inode.c                               |    2 +-
- fs/f2fs/data.c                                |    6 +-
- fs/f2fs/dir.c                                 |    2 +-
- fs/f2fs/f2fs.h                                |    2 +-
- fs/f2fs/inline.c                              |    2 +-
- fs/f2fs/node.c                                |    6 +-
- fs/fs-writeback.c                             |   25 +-
- fs/gfs2/aops.c                                |    2 +-
- fs/inode.c                                    |    2 +-
- fs/nfs/blocklayout/blocklayout.c              |    2 +-
- fs/nilfs2/btnode.c                            |   26 +-
- fs/nilfs2/page.c                              |   29 +-
- fs/proc/task_mmu.c                            |    2 +-
- include/linux/fs.h                            |   63 +-
- include/linux/pagemap.h                       |   10 +-
- include/linux/pagevec.h                       |    8 +-
- include/linux/radix-tree.h                    |  136 +-
- include/linux/swap.h                          |   22 +-
- include/linux/swapops.h                       |   19 +-
- include/linux/xarray.h                        | 1026 ++++++++++
- lib/Makefile                                  |    2 +-
- lib/idr.c                                     |   66 +-
- lib/radix-tree.c                              |  575 +-----
- lib/xarray.c                                  | 1767 +++++++++++++++++
- mm/filemap.c                                  |  723 +++----
- mm/huge_memory.c                              |   17 +-
- mm/khugepaged.c                               |  177 +-
- mm/madvise.c                                  |    2 +-
- mm/memcontrol.c                               |    2 +-
- mm/memfd.c                                    |  105 +-
- mm/migrate.c                                  |   48 +-
- mm/mincore.c                                  |    2 +-
- mm/page-writeback.c                           |   72 +-
- mm/readahead.c                                |   10 +-
- mm/shmem.c                                    |  201 +-
- mm/swap.c                                     |    6 +-
- mm/swap_state.c                               |  119 +-
- mm/truncate.c                                 |   27 +-
- mm/vmscan.c                                   |   10 +-
- mm/workingset.c                               |   71 +-
- tools/include/asm-generic/bitops.h            |    1 +
- tools/include/asm-generic/bitops/atomic.h     |    9 -
- tools/include/asm-generic/bitops/non-atomic.h |  109 +
- tools/include/linux/bitmap.h                  |    1 +
- tools/include/linux/spinlock.h                |   12 +-
- tools/testing/radix-tree/.gitignore           |    2 +
- tools/testing/radix-tree/Makefile             |   20 +-
- tools/testing/radix-tree/benchmark.c          |   91 -
- tools/testing/radix-tree/bitmap.c             |   23 +
- tools/testing/radix-tree/idr-test.c           |    6 +-
- tools/testing/radix-tree/linux/bug.h          |    1 +
- tools/testing/radix-tree/linux/kconfig.h      |    1 +
- tools/testing/radix-tree/linux/kernel.h       |    5 +
- tools/testing/radix-tree/linux/lockdep.h      |   11 +
- tools/testing/radix-tree/linux/rcupdate.h     |    2 +
- tools/testing/radix-tree/linux/xarray.h       |    3 +
- tools/testing/radix-tree/main.c               |   20 +-
- tools/testing/radix-tree/multiorder.c         |  272 +--
- tools/testing/radix-tree/regression1.c        |   58 +-
- tools/testing/radix-tree/regression3.c        |   23 -
- tools/testing/radix-tree/tag_check.c          |   32 +-
- tools/testing/radix-tree/test.c               |   53 +-
- tools/testing/radix-tree/test.h               |    6 +
- tools/testing/radix-tree/xarray-test.c        |  631 ++++++
- 75 files changed, 5392 insertions(+), 2652 deletions(-)
- create mode 100644 Documentation/core-api/xarray.rst
- create mode 100644 lib/xarray.c
- create mode 100644 tools/include/asm-generic/bitops/non-atomic.h
- create mode 100644 tools/testing/radix-tree/bitmap.c
- create mode 100644 tools/testing/radix-tree/linux/kconfig.h
- create mode 100644 tools/testing/radix-tree/linux/lockdep.h
- create mode 100644 tools/testing/radix-tree/linux/xarray.h
- create mode 100644 tools/testing/radix-tree/xarray-test.c
-
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index b5220493652d..c9fc47d28c09 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -218,6 +218,8 @@ struct xarray {
+ void xa_init_flags(struct xarray *, gfp_t flags);
+ void *xa_load(struct xarray *, unsigned long index);
+ void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
++void *xa_cmpxchg(struct xarray *, unsigned long index,
++			void *old, void *entry, gfp_t);
+ bool xa_get_tag(struct xarray *, unsigned long index, xa_tag_t);
+ void xa_set_tag(struct xarray *, unsigned long index, xa_tag_t);
+ void xa_clear_tag(struct xarray *, unsigned long index, xa_tag_t);
+@@ -277,6 +279,34 @@ static inline bool xa_tagged(const struct xarray *xa, xa_tag_t tag)
+ 	return xa->xa_flags & XA_FLAGS_TAG(tag);
+ }
+ 
++/**
++ * xa_insert() - Store this entry in the XArray unless another entry is
++ *			already present.
++ * @xa: XArray.
++ * @index: Index into array.
++ * @entry: New entry.
++ * @gfp: Memory allocation flags.
++ *
++ * If you would rather see the existing entry in the array, use xa_cmpxchg().
++ * This function is for users who don't care what the entry is, only that
++ * one is present.
++ *
++ * Context: Process context.  Takes and releases the xa_lock.
++ *	    May sleep if the @gfp flags permit.
++ * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
++ * 	   -ENOMEM if memory could not be allocated.
++ */
++static inline int xa_insert(struct xarray *xa, unsigned long index,
++		void *entry, gfp_t gfp)
++{
++	void *curr = xa_cmpxchg(xa, index, NULL, entry, gfp);
++	if (!curr)
++		return 0;
++	if (xa_is_err(curr))
++		return xa_err(curr);
++	return -EEXIST;
++}
++
+ #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
+ #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
+ #define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
+@@ -296,9 +326,39 @@ static inline bool xa_tagged(const struct xarray *xa, xa_tag_t tag)
+  */
+ void *__xa_erase(struct xarray *, unsigned long index);
+ void *__xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
++void *__xa_cmpxchg(struct xarray *, unsigned long index, void *old,
++		void *entry, gfp_t);
+ void __xa_set_tag(struct xarray *, unsigned long index, xa_tag_t);
+ void __xa_clear_tag(struct xarray *, unsigned long index, xa_tag_t);
+ 
++/**
++ * __xa_insert() - Store this entry in the XArray unless another entry is
++ *			already present.
++ * @xa: XArray.
++ * @index: Index into array.
++ * @entry: New entry.
++ * @gfp: Memory allocation flags.
++ *
++ * If you would rather see the existing entry in the array, use __xa_cmpxchg().
++ * This function is for users who don't care what the entry is, only that
++ * one is present.
++ *
++ * Context: Any context.  Expects xa_lock to be held on entry.  May
++ *	    release and reacquire xa_lock if the @gfp flags permit.
++ * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
++ *	   -ENOMEM if memory could not be allocated.
++ */
++static inline int __xa_insert(struct xarray *xa, unsigned long index,
++		void *entry, gfp_t gfp)
++{
++	void *curr = __xa_cmpxchg(xa, index, NULL, entry, gfp);
++	if (!curr)
++		return 0;
++	if (xa_is_err(curr))
++		return xa_err(curr);
++	return -EEXIST;
++}
++
+ /* Everything below here is the Advanced API.  Proceed with caution. */
+ 
+ /*
+diff --git a/lib/xarray.c b/lib/xarray.c
+index d408627b2479..86b9e00a37a0 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -976,6 +976,77 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
+ }
+ EXPORT_SYMBOL(__xa_store);
+ 
++/**
++ * xa_cmpxchg() - Conditionally replace an entry in the XArray.
++ * @xa: XArray.
++ * @index: Index into array.
++ * @old: Old value to test against.
++ * @entry: New value to place in array.
++ * @gfp: Memory allocation flags.
++ *
++ * If the entry at @index is the same as @old, replace it with @entry.
++ * If the return value is equal to @old, then the exchange was successful.
++ *
++ * Context: Process context.  Takes and releases the xa_lock.  May sleep
++ * if the @gfp flags permit.
++ * Return: The old value at this index or xa_err() if an error happened.
++ */
++void *xa_cmpxchg(struct xarray *xa, unsigned long index,
++			void *old, void *entry, gfp_t gfp)
++{
++	XA_STATE(xas, xa, index);
++	void *curr;
++
++	if (WARN_ON_ONCE(xa_is_internal(entry)))
++		return XA_ERROR(-EINVAL);
++
++	do {
++		xas_lock(&xas);
++		curr = xas_load(&xas);
++		if (curr == old)
++			xas_store(&xas, entry);
++		xas_unlock(&xas);
++	} while (xas_nomem(&xas, gfp));
++
++	return xas_result(&xas, curr);
++}
++EXPORT_SYMBOL(xa_cmpxchg);
++
++/**
++ * __xa_cmpxchg() - Store this entry in the XArray.
++ * @xa: XArray.
++ * @index: Index into array.
++ * @old: Old value to test against.
++ * @entry: New entry.
++ * @gfp: Memory allocation flags.
++ *
++ * You must already be holding the xa_lock when calling this function.
++ * It will drop the lock if needed to allocate memory, and then reacquire
++ * it afterwards.
++ *
++ * Context: Any context.  Expects xa_lock to be held on entry.  May
++ * release and reacquire xa_lock if @gfp flags permit.
++ * Return: The old entry at this index or xa_err() if an error happened.
++ */
++void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
++			void *old, void *entry, gfp_t gfp)
++{
++	XA_STATE(xas, xa, index);
++	void *curr;
++
++	if (WARN_ON_ONCE(xa_is_internal(entry)))
++		return XA_ERROR(-EINVAL);
++
++	do {
++		curr = xas_load(&xas);
++		if (curr == old)
++			xas_store(&xas, entry);
++	} while (__xas_nomem(&xas, gfp));
++
++	return xas_result(&xas, curr);
++}
++EXPORT_SYMBOL(__xa_cmpxchg);
++
+ /**
+  * __xa_set_tag() - Set this tag on this entry while locked.
+  * @xa: XArray.
+diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
+index 7bc84d1d6c9a..575f494e17da 100644
+--- a/tools/testing/radix-tree/xarray-test.c
++++ b/tools/testing/radix-tree/xarray-test.c
+@@ -88,6 +88,15 @@ void check_xa_shrink(struct xarray *xa)
+ 	assert(xa_load(xa, 0) == xa_mk_value(0));
+ }
+ 
++void check_cmpxchg(struct xarray *xa)
++{
++	assert(xa_empty(xa));
++	assert(!xa_store(xa, 12345678, xa_mk_value(12345678), GFP_KERNEL));
++	assert(!xa_cmpxchg(xa, 5, xa_mk_value(5), NULL, GFP_KERNEL));
++	assert(xa_erase(xa, 12345678) == xa_mk_value(12345678));
++	assert(xa_empty(xa));
++}
++
+ void check_multi_store(struct xarray *xa)
+ {
+ 	unsigned long i, j, k;
+@@ -158,6 +167,7 @@ void xarray_checks(void)
+ 	check_xa_shrink(&array);
+ 	item_kill_tree(&array);
+ 
++	check_cmpxchg(&array);
+ 	check_multi_store(&array);
+ 	item_kill_tree(&array);
+ }
 -- 
 2.17.1
