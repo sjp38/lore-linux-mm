@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 984A46B0295
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F1D986B0293
 	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:07:06 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id bf1-v6so12218000plb.2
+Received: by mail-pg0-f69.google.com with SMTP id k193-v6so6634986pge.3
         for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:07:06 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j33-v6si63801260pld.151.2018.06.11.07.07.05
+        by mx.google.com with ESMTPS id b37-v6si64237330plb.377.2018.06.11.07.07.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:07:05 -0700 (PDT)
+        Mon, 11 Jun 2018 07:07:06 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 51/72] shmem: Convert shmem_free_swap to XArray
-Date: Mon, 11 Jun 2018 07:06:18 -0700
-Message-Id: <20180611140639.17215-52-willy@infradead.org>
+Subject: [PATCH v13 52/72] shmem: Convert shmem_partial_swap_usage to XArray
+Date: Mon, 11 Jun 2018 07:06:19 -0700
+Message-Id: <20180611140639.17215-53-willy@infradead.org>
 In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
 References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,35 +22,51 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Since we are conditionally storing NULL in the XArray, we do not need
-to allocate memory and the GFP flags will be unused.
+Simpler code because the xarray takes care of things like the limit and
+dereferencing the slot.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/shmem.c | 18 ++++--------------
+ 1 file changed, 4 insertions(+), 14 deletions(-)
 
 diff --git a/mm/shmem.c b/mm/shmem.c
-index 09452ca79220..9dbbdd5dee30 100644
+index 9dbbdd5dee30..bffb87854852 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -653,7 +653,7 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
- }
+@@ -679,29 +679,19 @@ static int shmem_free_swap(struct address_space *mapping,
+ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+ 						pgoff_t start, pgoff_t end)
+ {
+-	struct radix_tree_iter iter;
+-	void __rcu **slot;
++	XA_STATE(xas, &mapping->i_pages, start);
+ 	struct page *page;
+ 	unsigned long swapped = 0;
  
- /*
-- * Remove swap entry from radix tree, free the swap and its page cache.
-+ * Remove swap entry from page cache, free the swap and its page cache.
-  */
- static int shmem_free_swap(struct address_space *mapping,
- 			   pgoff_t index, void *radswap)
-@@ -661,7 +661,7 @@ static int shmem_free_swap(struct address_space *mapping,
- 	void *old;
+ 	rcu_read_lock();
+-
+-	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
+-		if (iter.index >= end)
+-			break;
+-
+-		page = radix_tree_deref_slot(slot);
+-
+-		if (radix_tree_deref_retry(page)) {
+-			slot = radix_tree_iter_retry(&iter);
++	xas_for_each(&xas, page, end - 1) {
++		if (xas_retry(&xas, page))
+ 			continue;
+-		}
+-
+ 		if (xa_is_value(page))
+ 			swapped++;
  
- 	xa_lock_irq(&mapping->i_pages);
--	old = radix_tree_delete_item(&mapping->i_pages, index, radswap);
-+	old = __xa_cmpxchg(&mapping->i_pages, index, radswap, NULL, 0);
- 	xa_unlock_irq(&mapping->i_pages);
- 	if (old != radswap)
- 		return -ENOENT;
+ 		if (need_resched()) {
+-			slot = radix_tree_iter_resume(slot, &iter);
++			xas_pause(&xas);
+ 			cond_resched_rcu();
+ 		}
+ 	}
 -- 
 2.17.1
