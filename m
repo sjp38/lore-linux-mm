@@ -1,155 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 19B556B0005
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 15:30:37 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 39-v6so1181108ple.6
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 12:30:37 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b21-v6sor7258206pfd.92.2018.06.11.12.30.34
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 06BC66B0005
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 16:08:20 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id j14-v6so11952363wrq.4
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:08:19 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m14-v6si39153942wrf.250.2018.06.11.13.08.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Jun 2018 12:30:34 -0700 (PDT)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH v4] mm: fix race between kmem_cache destroy, create and deactivate
-Date: Mon, 11 Jun 2018 12:29:51 -0700
-Message-Id: <20180611192951.195727-1-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jun 2018 13:08:18 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5BK3ovN177724
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 16:08:16 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2jhx6ev61a-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 16:08:16 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Mon, 11 Jun 2018 21:08:14 +0100
+Date: Mon, 11 Jun 2018 13:08:07 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: pkeys on POWER: Access rights not reset on execve
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <20180603201832.GA10109@ram.oc3035372033.ibm.com>
+ <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
+ <20180604140135.GA10088@ram.oc3035372033.ibm.com>
+ <f2f61c24-8e8f-0d36-4e22-196a2a3f7ca7@redhat.com>
+ <20180604190229.GB10088@ram.oc3035372033.ibm.com>
+ <30040030-1aa2-623b-beec-dd1ceb3eb9a7@redhat.com>
+ <20180608023441.GA5573@ram.oc3035372033.ibm.com>
+ <2858a8eb-c9b5-42ce-5cfc-74a4b3ad6aa9@redhat.com>
+ <20180611172305.GB5697@ram.oc3035372033.ibm.com>
+ <30f5cb0e-e09a-15e6-f77d-a3afa422a651@redhat.com>
+MIME-Version: 1.0
+In-Reply-To: <30f5cb0e-e09a-15e6-f77d-a3afa422a651@redhat.com>
+Message-Id: <20180611200807.GA5773@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>
-Cc: Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>
 
-The memcg kmem cache creation and deactivation (SLUB only) is
-asynchronous. If a root kmem cache is destroyed whose memcg cache is in
-the process of creation or deactivation, the kernel may crash.
+On Mon, Jun 11, 2018 at 07:29:33PM +0200, Florian Weimer wrote:
+> On 06/11/2018 07:23 PM, Ram Pai wrote:
+> >On Fri, Jun 08, 2018 at 07:53:51AM +0200, Florian Weimer wrote:
+> >>On 06/08/2018 04:34 AM, Ram Pai wrote:
+> >>>>
+> >>>>So the remaining question at this point is whether the Intel
+> >>>>behavior (default-deny instead of default-allow) is preferable.
+> >>>
+> >>>Florian, remind me what behavior needs to fixed?
+> >>
+> >>See the other thread.  The Intel register equivalent to the AMR by
+> >>default disallows access to yet-unallocated keys, so that threads
+> >>which are created before key allocation do not magically gain access
+> >>to a key allocated by another thread.
+> >
+> >Are you referring to the thread
+> >'[PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change signal semantics'
+> 
+> >Otherwise please point me to the URL of that thread. Sorry and thankx. :)
+> 
+> No, it's this issue:
+> 
+>   ...
 
-Example of one such crash:
-	general protection fault: 0000 [#1] SMP PTI
-	CPU: 1 PID: 1721 Comm: kworker/14:1 Not tainted 4.17.0-smp
-	...
-	Workqueue: memcg_kmem_cache kmemcg_deactivate_workfn
-	RIP: 0010:has_cpu_slab
-	...
-	Call Trace:
-	? on_each_cpu_cond
-	__kmem_cache_shrink
-	kmemcg_cache_deact_after_rcu
-	kmemcg_deactivate_workfn
-	process_one_work
-	worker_thread
-	kthread
-	ret_from_fork+0x35/0x40
+Ok. try this patch. This patch is on top of the 5 patches that I had
+sent last week i.e  "[PATCH  0/5] powerpc/pkeys: fixes to pkeys"
 
-To fix this race, on root kmem cache destruction, mark the cache as
-dying and flush the workqueue used for memcg kmem cache creation and
-deactivation. SLUB's memcg kmem cache deactivation also includes RCU
-callback and thus make sure all previous registered RCU callbacks
-have completed as well.
+The following is a draft patch though to check if it meets your
+expectations.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
-Changelog since v3:
-- Handle the RCU callbacks for SLUB deactivation
+commit fe53b5fe2dcb3139ea27ade3ae7cbbe43c4af3be
+Author: Ram Pai <linuxram@us.ibm.com>
+Date:   Mon Jun 11 14:57:34 2018 -0500
 
-Changelog since v2:
-- Rewrote the patch and used workqueue flushing instead of refcount
+    powerpc/pkeys: Deny read/write/execute by default
+    
+    Deny everything for all keys; with some exceptions. Do not do this for
+    pkey-0, or else everything will come to a screaching halt.  Also by
+    default, do not deny execute for execute-only key.
+    
+    This is a draft-patch for now.
+    
+    Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 
-Changelog since v1:
-- Added more documentation to the code
-- Renamed fields to be more readable
-
----
- include/linux/slab.h |  1 +
- mm/slab_common.c     | 33 ++++++++++++++++++++++++++++++++-
- 2 files changed, 33 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 9ebe659bd4a5..71c5467d99c1 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -658,6 +658,7 @@ struct memcg_cache_params {
- 			struct memcg_cache_array __rcu *memcg_caches;
- 			struct list_head __root_caches_node;
- 			struct list_head children;
-+			bool dying;
- 		};
- 		struct {
- 			struct mem_cgroup *memcg;
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index b0dd9db1eb2f..890b1f04a03a 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -136,6 +136,7 @@ void slab_init_memcg_params(struct kmem_cache *s)
- 	s->memcg_params.root_cache = NULL;
- 	RCU_INIT_POINTER(s->memcg_params.memcg_caches, NULL);
- 	INIT_LIST_HEAD(&s->memcg_params.children);
-+	s->memcg_params.dying = false;
- }
+diff --git a/arch/powerpc/mm/pkeys.c b/arch/powerpc/mm/pkeys.c
+index 8225263..289aafd 100644
+--- a/arch/powerpc/mm/pkeys.c
++++ b/arch/powerpc/mm/pkeys.c
+@@ -128,13 +128,13 @@ int pkey_initialize(void)
  
- static int init_memcg_params(struct kmem_cache *s,
-@@ -608,7 +609,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
- 	 * The memory cgroup could have been offlined while the cache
- 	 * creation work was pending.
- 	 */
--	if (memcg->kmem_state != KMEM_ONLINE)
-+	if (memcg->kmem_state != KMEM_ONLINE || root_cache->memcg_params.dying)
- 		goto out_unlock;
+ 	/* register mask is in BE format */
+ 	pkey_amr_mask = ~0x0ul;
+-	pkey_iamr_mask = ~0x0ul;
++	pkey_amr_mask &= ~(0x3ul << pkeyshift(PKEY_0));
++	pkey_amr_mask &= ~(0x3ul << pkeyshift(1));
  
- 	idx = memcg_cache_id(memcg);
-@@ -712,6 +713,9 @@ void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
- 	    WARN_ON_ONCE(s->memcg_params.deact_fn))
- 		return;
+-	for (i = 0; i < (pkeys_total - os_reserved); i++) {
+-		pkey_amr_mask &= ~(0x3ul << pkeyshift(i));
+-		pkey_iamr_mask &= ~(0x1ul << pkeyshift(i));
+-	}
+-	pkey_amr_mask |= (AMR_RD_BIT|AMR_WR_BIT) << pkeyshift(EXECUTE_ONLY_KEY);
++	pkey_iamr_mask = ~0x0ul;
++	pkey_iamr_mask &= ~(0x3ul << pkeyshift(PKEY_0));
++	pkey_iamr_mask &= ~(0x3ul << pkeyshift(1));
++	pkey_iamr_mask &= ~(0x3ul << pkeyshift(EXECUTE_ONLY_KEY));
  
-+	if (s->memcg_params.root_cache->memcg_params.dying)
-+		return;
-+
- 	/* pin memcg so that @s doesn't get destroyed in the middle */
- 	css_get(&s->memcg_params.memcg->css);
- 
-@@ -823,11 +827,36 @@ static int shutdown_memcg_caches(struct kmem_cache *s)
- 		return -EBUSY;
- 	return 0;
- }
-+
-+static void flush_memcg_workqueue(struct kmem_cache *s)
-+{
-+	mutex_lock(&slab_mutex);
-+	s->memcg_params.dying = true;
-+	mutex_unlock(&slab_mutex);
-+
-+	/*
-+	 * SLUB deactivates the kmem_caches through call_rcu_sched. Make
-+	 * sure all registered rcu callbacks have been invoked.
-+	 */
-+	if (IS_ENABLED(CONFIG_SLUB))
-+		rcu_barrier_sched();
-+
-+	/*
-+	 * SLAB and SLUB create memcg kmem_caches through workqueue and SLUB
-+	 * deactivates the memcg kmem_caches through workqueue. Make sure all
-+	 * previous workitems on workqueue are processed.
-+	 */
-+	flush_workqueue(memcg_kmem_cache_wq);
-+}
- #else
- static inline int shutdown_memcg_caches(struct kmem_cache *s)
- {
- 	return 0;
- }
-+
-+static inline void flush_memcg_workqueue(struct kmem_cache *s)
-+{
-+}
- #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
- 
- void slab_kmem_cache_release(struct kmem_cache *s)
-@@ -845,6 +874,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
- 	if (unlikely(!s))
- 		return;
- 
-+	flush_memcg_workqueue(s);
-+
- 	get_online_cpus();
- 	get_online_mems();
- 
+ 	pkey_uamor_mask = ~0x0ul;
+ 	pkey_uamor_mask &= ~(0x3ul << pkeyshift(PKEY_0));
+
 -- 
-2.18.0.rc1.242.g61856ae69a-goog
+Ram Pai
