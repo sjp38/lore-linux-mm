@@ -1,125 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E9D36B0280
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 11:38:57 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t17-v6so12328326ply.13
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:38:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d9-v6sor4144861pgu.328.2018.06.11.08.38.55
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A12786B0283
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 11:41:49 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w21-v6so4721282wmc.4
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:41:49 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l26-v6si442383edf.279.2018.06.11.08.41.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Jun 2018 08:38:55 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Jun 2018 08:41:48 -0700 (PDT)
+Date: Mon, 11 Jun 2018 17:41:46 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v4 10/12] filesystem-dax: Introduce dax_lock_page()
+Message-ID: <20180611154146.jc5xt4gyaihq64lm@quack2.suse.cz>
+References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152850187437.38390.2257981090761438811.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <112df846-76d6-140f-8fdb-44dd0437c859@suse.cz>
-References: <20180531193420.26087-1-ikalvachev@gmail.com> <CAHH2K0afVpVyMw+_J48pg9ngj9oovBEPBFd3kfCcCfyV7xxF0w@mail.gmail.com>
- <CABA=pqc8tuLGc4OTGymj5wN3ypisMM60mgOLpy2OXxmfteoJFg@mail.gmail.com>
- <alpine.LSU.2.11.1805311552390.13499@eggly.anvils> <112df846-76d6-140f-8fdb-44dd0437c859@suse.cz>
-From: Ivan Kalvachev <ikalvachev@gmail.com>
-Date: Mon, 11 Jun 2018 18:38:54 +0300
-Message-ID: <CABA=pqf81WiOEhX-_O8EJ-cr_QMTFML3vvRzMrcEkbiXD4ogiA@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix kswap excessive pressure after wrong condition transfer
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <152850187437.38390.2257981090761438811.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jack@suse.cz
 
-On 6/1/18, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 06/01/2018 01:30 AM, Hugh Dickins wrote:
->> On Fri, 1 Jun 2018, Ivan Kalvachev wrote:
->>> On 5/31/18, Greg Thelen <gthelen@google.com> wrote:
->>>>
->>>> This looks like yesterday's https://lkml.org/lkml/2018/5/30/1158
->>>>
->>>
->>> Yes, it seems to be the same problem.
->>> It also have better technical description.
->>
->> Well, your paragraph above on "Big memory consumers" gives a much
->> better user viewpoint, and a more urgent case for the patch to go in,
->> to stable if it does not make 4.17.0.
->>
->> But I am surprised: the change is in a block of code only used in
->> one of the modes of compaction (not in  reclaim itself), and I thought
->> it was a mode which gives up quite easily, rather than visibly blocking.
->>
->> So I wonder if there's another issue to be improved here,
->> and the mistreatment of the ex-swap pages just exposed it somehow.
->> Cc'ing Vlastimil and David in case it triggers any insight from them.
->
-> My guess is that the problem is compaction fails because of the
-> isolation failures, causing further reclaim/complaction attempts with
-> higher priority, in the context of non-costly thus non-failing
-> allocations. Initially I thought that increased priority of compaction
-> would eventually synchronous and thus not go via this block of code
-> anymore. But (see isolate_migratepages()) only MIGRATE_SYNC compaction
-> mode drops the ISOLATE_ASYNC_MIGRATE isolate_mode flag. And MIGRATE_SYNC
-> is only used for compaction triggered via /proc - direct compaction
-> stops at MIGRATE_SYNC_LIGHT. Maybe that could be changed? Mel had
-> reasons to limit to SYNC_LIGHT, I guess...
->
-> If the above is correct, it means that even with gigabytes of free
-> memory you can fail order-3 (max non-costly order) allocation if
-> compaction doesn't work properly. That's a bit surprising, but not
-> impossible I guess...
+On Fri 08-06-18 16:51:14, Dan Williams wrote:
+> In preparation for implementing support for memory poison (media error)
+> handling via dax mappings, implement a lock_page() equivalent. Poison
+> error handling requires rmap and needs guarantees that the page->mapping
+> association is maintained / valid (inode not freed) for the duration of
+> the lookup.
+> 
+> In the device-dax case it is sufficient to simply hold a dev_pagemap
+> reference. In the filesystem-dax case we need to use the entry lock.
+> 
+> Export the entry lock via dax_lock_page() that uses rcu_read_lock() to
+> protect against the inode being freed, and revalidates the page->mapping
+> association under xa_lock().
+> 
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Is somebody working on testing this guess?
+Some comments below...
 
-I don't fully understand this explanation, however I cannot imagine
-non-costly allocation to fail when there are gigabytes of free
-(unused) memory.
+> diff --git a/fs/dax.c b/fs/dax.c
+> index cccf6cad1a7a..b7e71b108fcf 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -361,6 +361,82 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
+>  	}
+>  }
+>  
+> +struct page *dax_lock_page(unsigned long pfn)
+> +{
 
-That's why I still think that the possibility that this bug is
-triggering some underlying issue. So I did a little bit more poking
-around.
+Why do you return struct page here? Any reason behind that? Because struct
+page exists and can be accessed through pfn_to_page() regardless of result
+of this function so it looks a bit confusing. Also dax_lock_page() name
+seems a bit confusing. Maybe dax_lock_pfn_mapping_entry()?
 
-For clarity, I'll be referring to the commits as:
--the bug : 69d763fc6d3a ("mm: pin address_space before dereferencing
-it while isolating an LRU page")
--the fix : 145e1a71e090("mm: fix the NULL mapping case in __isolate_lru_page()")
+> +	pgoff_t index;
+> +	struct inode *inode;
+> +	wait_queue_head_t *wq;
+> +	void *entry = NULL, **slot;
+> +	struct address_space *mapping;
+> +	struct wait_exceptional_entry_queue ewait;
+> +	struct page *ret = NULL, *page = pfn_to_page(pfn);
+> +
+> +	rcu_read_lock();
+> +	for (;;) {
+> +		mapping = READ_ONCE(page->mapping);
+> +
+> +		if (!mapping || !IS_DAX(mapping->host))
+> +			break;
+> +
+> +		/*
+> +		 * In the device-dax case there's no need to lock, a
+> +		 * struct dev_pagemap pin is sufficient to keep the
+> +		 * inode alive.
+> +		 */
+> +		inode = mapping->host;
+> +		if (S_ISCHR(inode->i_mode)) {
+> +			ret = page;
+> +			break;
+> +		}
+> +
+> +		xa_lock_irq(&mapping->i_pages);
+> +		if (mapping != page->mapping) {
+> +			xa_unlock_irq(&mapping->i_pages);
+> +			continue;
+> +		}
+> +		index = page->index;
+> +
+> +		init_wait(&ewait.wait);
+> +		ewait.wait.func = wake_exceptional_entry_func;
 
-The following results might be interesting to you:
+This initialization could be before the loop.
 
-1. I've discovered that 4.14.41 does not exhibit any problems, despite
-having "the bug" backported into it . I used it again for a while, to
-make sure I haven't overlooked it. No issues at all.
+> +
+> +		entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
+> +				&slot);
+> +		if (!entry ||
+> +		    WARN_ON_ONCE(!radix_tree_exceptional_entry(entry))) {
+> +			xa_unlock_irq(&mapping->i_pages);
+> +			break;
+> +		} else if (!slot_locked(mapping, slot)) {
+> +			lock_slot(mapping, slot);
+> +			ret = page;
+> +			xa_unlock_irq(&mapping->i_pages);
+> +			break;
+> +		}
+> +
+> +		wq = dax_entry_waitqueue(mapping, index, entry, &ewait.key);
+> +		prepare_to_wait_exclusive(wq, &ewait.wait,
+> +				TASK_UNINTERRUPTIBLE);
+> +		xa_unlock_irq(&mapping->i_pages);
+> +		rcu_read_unlock();
+> +		schedule();
+> +		finish_wait(wq, &ewait.wait);
+> +		rcu_read_lock();
+> +	}
+> +	rcu_read_unlock();
 
-2. The 4.15 kernels were shortly supported so I backported "the bug"
-on my own and run the kernel (first 4.15.18, later 4.15.0 ). At first
-I thought that they were not affected, because I was not getting
-blocking during use. However `top` showed that they also tend to
-accumulate gigabytes of "free ram". Likely they were just better at
-swapping unused pages.
+I don't like how this duplicates a lot of get_unlocked_mapping_entry().
+Can we possibly factor this out similary as done for wait_event()?
 
-3. I've tried the original 4.16.13 that has "the bug" but not "the
-fix", however this time I disabled the "Transparent Hugepage Support"
-from `make menuconfig`.
-I ran that kernel for a while without any sign of issues.
-
-So, before I start another round of bisect,
-Does anybody have an educated guess what commit might have introduced
-this behavior?
-
-Do you think it is unintended behavior that should be investigated?
-
-Any other hits?
-
-Best Regards
-   Ivan Kalvachev
-
-
->>>
->>> Such let down.
->>> It took me so much time to bisect the issue...
->>
->> Thank you for all your work on it, odd how we found it at the same
->> time: I was just porting Mel's patch into another tree, had to make
->> a change near there, and suddenly noticed that the test was wrong.
->>
->> Hugh
->>
->>>
->>> Well, I hope that the fix will get into 4.17 release in time.
->>
->
->
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
