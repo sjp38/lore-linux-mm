@@ -1,109 +1,109 @@
-From: Kenneth Lee <Kenneth-Lee-2012-H32Fclmsjq1BDgjK7y7TUQ@public.gmane.org>
+From: Kenneth Lee <Kenneth-Lee-2012@foxmail.com>
 Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
 Date: Tue, 12 Jun 2018 00:10:55 +0800
-Message-ID: <24416.1759772853$1528733367@news.gmane.org>
+Message-ID: <26389.2965078869$1528733406@news.gmane.org>
 References: <20180511190641.23008-4-jean-philippe.brucker@arm.com>
-	<20180516163117.622693ea@jacob-builder>
-	<de478769-9f7a-d40b-a55e-e2c63ad883e8@arm.com>
-	<20180522094334.71f0e36b@jacob-builder>
-	<f73b4a0e-669e-8483-88d7-1b2c8a2b9934@arm.com>
-	<20180524115039.GA10260@apalos>
-	<19e82a74-429a-3f86-119e-32b12082d0ff@arm.com>
-	<20180525063311.GA11605@apalos>
-	<20180525093959.000040a7@huawei.com> <20180526022445.GA6069@kllp05>
+ <20180516163117.622693ea@jacob-builder>
+ <de478769-9f7a-d40b-a55e-e2c63ad883e8@arm.com>
+ <20180522094334.71f0e36b@jacob-builder>
+ <f73b4a0e-669e-8483-88d7-1b2c8a2b9934@arm.com>
+ <20180524115039.GA10260@apalos>
+ <19e82a74-429a-3f86-119e-32b12082d0ff@arm.com>
+ <20180525063311.GA11605@apalos>
+ <20180525093959.000040a7@huawei.com> <20180526022445.GA6069@kllp05>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+Return-path: <linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org>
 Content-Disposition: inline
 In-Reply-To: <20180526022445.GA6069@kllp05>
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
-List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: Jonathan Cameron <Jonathan.Cameron-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>
-Cc: "kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, Will Deacon <Will.Deacon-5wv7dgnIgG8@public.gmane.org>, "okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org" <okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>, "linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org" <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, liguozhu-C8/M+/jPZTeaMJb+Lgu22Q@public.gmane.org, "ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org" <ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, "iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org" <iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>, "linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org" <rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org>, "devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org" <rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>, "linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org" <linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>, Ilias Apalodimas <ilias.apalodimas-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org>, "dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org" <dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org>, "christian.koenig-5C7GfCeVMHo@public.gmane.org" <christian.koenig-5C7GfCeVMHo@public.gmane.org>
+List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-arm-kernel>,
+ <mailto:linux-arm-kernel-request@lists.infradead.org?subject=unsubscribe>
+List-Archive: <http://lists.infradead.org/pipermail/linux-arm-kernel/>
+List-Post: <mailto:linux-arm-kernel@lists.infradead.org>
+List-Help: <mailto:linux-arm-kernel-request@lists.infradead.org?subject=help>
+List-Subscribe: <http://lists.infradead.org/mailman/listinfo/linux-arm-kernel>,
+ <mailto:linux-arm-kernel-request@lists.infradead.org?subject=subscribe>
+Sender: "linux-arm-kernel" <linux-arm-kernel-bounces@lists.infradead.org>
+Errors-To: linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org
+To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Cc: "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "liubo95@huawei.com" <liubo95@huawei.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, liguozhu@hisilicon.com, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, "tn@semihalf.com" <tn@semihalf.com>, "joro@8bytes.org" <joro@8bytes.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "rfranz@cavium.com" <rfranz@cavium.com>, devic
 List-Id: linux-mm.kvack.org
 
 On Sat, May 26, 2018 at 10:24:45AM +0800, Kenneth Lee wrote:
 > Date: Sat, 26 May 2018 10:24:45 +0800
-> From: Kenneth Lee <Kenneth-Lee-2012-H32Fclmsjq1BDgjK7y7TUQ@public.gmane.org>
-> To: Jonathan Cameron <Jonathan.Cameron-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>
-> Cc: Ilias Apalodimas <ilias.apalodimas-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org>, Jean-Philippe Brucker
->  <jean-philippe.brucker-5wv7dgnIgG8@public.gmane.org>, "xieyisheng1-hv44wF8Li93QT0dZR+AlfA@public.gmane.org"
->  <xieyisheng1-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>,
->  "linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>,
->  "xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, Will Deacon
->  <Will.Deacon-5wv7dgnIgG8@public.gmane.org>, "okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org" <okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>,
->  "linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org" <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, "yi.l.liu-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org"
->  <yi.l.liu-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, "ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org" <ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>,
->  "tn-nYOzD4b6Jr9Wk0Htik3J/w@public.gmane.org" <tn-nYOzD4b6Jr9Wk0Htik3J/w@public.gmane.org>, "joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org" <joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org>,
->  "robdclark-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org" <robdclark-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org>, "bharatku-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org"
->  <bharatku-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>, "linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org"
->  <linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "liudongdong3-hv44wF8Li93QT0dZR+AlfA@public.gmane.org"
->  <liudongdong3-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org" <rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org>,
->  "devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>,
->  "kevin.tian-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org" <kevin.tian-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, Jacob Pan
->  <jacob.jun.pan-VuQAYsv1563Yd54FQh9/CA@public.gmane.org>, "alex.williamson-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org"
->  <alex.williamson-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, "rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org" <rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>,
->  "thunder.leizhen-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <thunder.leizhen-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>,
->  "linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org"
->  <linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>, "shunyong.yang-PT9Dzx9SjPiXmMXjJBpWqg@public.gmane.org"
->  <shunyong.yang-PT9Dzx9SjPiXmMXjJBpWqg@public.gmane.org>, "dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org"
->  <dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org>, "liubo95-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <liubo95-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>,
->  "jcrouse-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org" <jcrouse-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>,
->  "iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org" <iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>,
->  Robin Murphy <Robin.Murphy-5wv7dgnIgG8@public.gmane.org>, "christian.koenig-5C7GfCeVMHo@public.gmane.org"
->  <christian.koenig-5C7GfCeVMHo@public.gmane.org>, "nwatters-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org"
->  <nwatters-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>, "baolu.lu-VuQAYsv1563Yd54FQh9/CA@public.gmane.org"
->  <baolu.lu-VuQAYsv1563Yd54FQh9/CA@public.gmane.org>, liguozhu-C8/M+/jPZTeaMJb+Lgu22Q@public.gmane.org
+> From: Kenneth Lee <Kenneth-Lee-2012@foxmail.com>
+> To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+> Cc: Ilias Apalodimas <ilias.apalodimas@linaro.org>, Jean-Philippe Brucker
+>  <jean-philippe.brucker@arm.com>, "xieyisheng1@huawei.com"
+>  <xieyisheng1@huawei.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+>  "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+>  "xuzaibo@huawei.com" <xuzaibo@huawei.com>, Will Deacon
+>  <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>,
+>  "linux-mm@kvack.org" <linux-mm@kvack.org>, "yi.l.liu@intel.com"
+>  <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>,
+>  "tn@semihalf.com" <tn@semihalf.com>, "joro@8bytes.org" <joro@8bytes.org>,
+>  "robdclark@gmail.com" <robdclark@gmail.com>, "bharatku@xilinx.com"
+>  <bharatku@xilinx.com>, "linux-acpi@vger.kernel.org"
+>  <linux-acpi@vger.kernel.org>, "liudongdong3@huawei.com"
+>  <liudongdong3@huawei.com>, "rfranz@cavium.com" <rfranz@cavium.com>,
+>  "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>,
+>  "kevin.tian@intel.com" <kevin.tian@intel.com>, Jacob Pan
+>  <jacob.jun.pan@linux.intel.com>, "alex.williamson@redhat.com"
+>  <alex.williamson@redhat.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>,
+>  "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>,
+>  "linux-arm-kernel@lists.infradead.org"
+>  <linux-arm-kernel@lists.infradead.org>, "shunyong.yang@hxt-semitech.com"
+>  <shunyong.yang@hxt-semitech.com>, "dwmw2@infradead.org"
+>  <dwmw2@infradead.org>, "liubo95@huawei.com" <liubo95@huawei.com>,
+>  "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>,
+>  "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>,
+>  Robin Murphy <Robin.Murphy@arm.com>, "christian.koenig@amd.com"
+>  <christian.koenig@amd.com>, "nwatters@codeaurora.org"
+>  <nwatters@codeaurora.org>, "baolu.lu@linux.intel.com"
+>  <baolu.lu@linux.intel.com>, liguozhu@hisilicon.com
 > Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
 > Message-ID: <20180526022445.GA6069@kllp05>
 > 
 > On Fri, May 25, 2018 at 09:39:59AM +0100, Jonathan Cameron wrote:
 > > Date: Fri, 25 May 2018 09:39:59 +0100
-> > From: Jonathan Cameron <Jonathan.Cameron-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>
-> > To: Ilias Apalodimas <ilias.apalodimas-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org>
-> > CC: Jean-Philippe Brucker <jean-philippe.brucker-5wv7dgnIgG8@public.gmane.org>,
-> >  "xieyisheng1-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <xieyisheng1-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org"
-> >  <kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org"
-> >  <linux-pci-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <xuzaibo-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>,
-> >  Will Deacon <Will.Deacon-5wv7dgnIgG8@public.gmane.org>, "okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org"
-> >  <okaya-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>, "linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org" <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>,
-> >  "yi.l.liu-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org" <yi.l.liu-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, "ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org"
-> >  <ashok.raj-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, "tn-nYOzD4b6Jr9Wk0Htik3J/w@public.gmane.org" <tn-nYOzD4b6Jr9Wk0Htik3J/w@public.gmane.org>,
-> >  "joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org" <joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org>, "robdclark-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org"
-> >  <robdclark-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org>, "bharatku-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org" <bharatku-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>,
-> >  "linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-acpi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>,
-> >  "liudongdong3-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <liudongdong3-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org"
-> >  <rfranz-YGCgFSpz5w/QT0dZR+AlfA@public.gmane.org>, "devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org"
-> >  <devicetree-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "kevin.tian-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org"
-> >  <kevin.tian-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org>, Jacob Pan <jacob.jun.pan-VuQAYsv1563Yd54FQh9/CA@public.gmane.org>,
-> >  "alex.williamson-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org" <alex.williamson-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>,
-> >  "rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org" <rgummal-gjFFaj9aHVfQT0dZR+AlfA@public.gmane.org>, "thunder.leizhen-hv44wF8Li93QT0dZR+AlfA@public.gmane.org"
-> >  <thunder.leizhen-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>, "linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org"
-> >  <linux-arm-kernel-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org>, "shunyong.yang-PT9Dzx9SjPiXmMXjJBpWqg@public.gmane.org"
-> >  <shunyong.yang-PT9Dzx9SjPiXmMXjJBpWqg@public.gmane.org>, "dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org"
-> >  <dwmw2-wEGCiKHe2LqWVfeAwA7xHQ@public.gmane.org>, "liubo95-hv44wF8Li93QT0dZR+AlfA@public.gmane.org" <liubo95-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>,
-> >  "jcrouse-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org" <jcrouse-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>,
-> >  "iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org" <iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>,
-> >  Robin Murphy <Robin.Murphy-5wv7dgnIgG8@public.gmane.org>, "christian.koenig-5C7GfCeVMHo@public.gmane.org"
-> >  <christian.koenig-5C7GfCeVMHo@public.gmane.org>, "nwatters-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org"
-> >  <nwatters-sgV2jX0FEOL9JmXXK+q4OQ@public.gmane.org>, "baolu.lu-VuQAYsv1563Yd54FQh9/CA@public.gmane.org"
-> >  <baolu.lu-VuQAYsv1563Yd54FQh9/CA@public.gmane.org>, liguozhu-C8/M+/jPZTeaMJb+Lgu22Q@public.gmane.org,
-> >  kenneth-lee-2012-H32Fclmsjq1BDgjK7y7TUQ@public.gmane.org
+> > From: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+> > To: Ilias Apalodimas <ilias.apalodimas@linaro.org>
+> > CC: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>,
+> >  "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "kvm@vger.kernel.org"
+> >  <kvm@vger.kernel.org>, "linux-pci@vger.kernel.org"
+> >  <linux-pci@vger.kernel.org>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>,
+> >  Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org"
+> >  <okaya@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+> >  "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com"
+> >  <ashok.raj@intel.com>, "tn@semihalf.com" <tn@semihalf.com>,
+> >  "joro@8bytes.org" <joro@8bytes.org>, "robdclark@gmail.com"
+> >  <robdclark@gmail.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>,
+> >  "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>,
+> >  "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "rfranz@cavium.com"
+> >  <rfranz@cavium.com>, "devicetree@vger.kernel.org"
+> >  <devicetree@vger.kernel.org>, "kevin.tian@intel.com"
+> >  <kevin.tian@intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>,
+> >  "alex.williamson@redhat.com" <alex.williamson@redhat.com>,
+> >  "rgummal@xilinx.com" <rgummal@xilinx.com>, "thunder.leizhen@huawei.com"
+> >  <thunder.leizhen@huawei.com>, "linux-arm-kernel@lists.infradead.org"
+> >  <linux-arm-kernel@lists.infradead.org>, "shunyong.yang@hxt-semitech.com"
+> >  <shunyong.yang@hxt-semitech.com>, "dwmw2@infradead.org"
+> >  <dwmw2@infradead.org>, "liubo95@huawei.com" <liubo95@huawei.com>,
+> >  "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>,
+> >  "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>,
+> >  Robin Murphy <Robin.Murphy@arm.com>, "christian.koenig@amd.com"
+> >  <christian.koenig@amd.com>, "nwatters@codeaurora.org"
+> >  <nwatters@codeaurora.org>, "baolu.lu@linux.intel.com"
+> >  <baolu.lu@linux.intel.com>, liguozhu@hisilicon.com,
+> >  kenneth-lee-2012@foxmail.com
 > > Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
-> > Message-ID: <20180525093959.000040a7-hv44wF8Li93QT0dZR+AlfA@public.gmane.org>
+> > Message-ID: <20180525093959.000040a7@huawei.com>
 > > 
 > > +CC Kenneth Lee
 > > 
 > > On Fri, 25 May 2018 09:33:11 +0300
-> > Ilias Apalodimas <ilias.apalodimas-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org> wrote:
+> > Ilias Apalodimas <ilias.apalodimas@linaro.org> wrote:
 > > 
 > > > On Thu, May 24, 2018 at 04:04:39PM +0100, Jean-Philippe Brucker wrote:
 > > > > On 24/05/18 12:50, Ilias Apalodimas wrote:  
