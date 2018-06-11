@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 062CA6B0274
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:06:51 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e16-v6so10350481pfn.5
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:06:50 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 47C2B6B0277
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:06:52 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id o19-v6so6615105pgn.14
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:06:52 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 191-v6si33781491pgh.407.2018.06.11.07.06.49
+        by mx.google.com with ESMTPS id l138-v6si22760453pfd.355.2018.06.11.07.06.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:06:49 -0700 (PDT)
+        Mon, 11 Jun 2018 07:06:50 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 23/72] page cache: Convert find_get_entry to XArray
-Date: Mon, 11 Jun 2018 07:05:50 -0700
-Message-Id: <20180611140639.17215-24-willy@infradead.org>
+Subject: [PATCH v13 25/72] page cache: Convert find_get_pages_range to XArray
+Date: Mon, 11 Jun 2018 07:05:52 -0700
+Message-Id: <20180611140639.17215-26-willy@infradead.org>
 In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
 References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,100 +22,101 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Slightly shorter and simpler code.
+The 'end' parameter of the xas_for_each iterator avoids a useless
+iteration at the end of the range.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/filemap.c | 63 +++++++++++++++++++++++-----------------------------
- 1 file changed, 28 insertions(+), 35 deletions(-)
+ mm/filemap.c | 52 +++++++++++++++++++---------------------------------
+ 1 file changed, 19 insertions(+), 33 deletions(-)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 7cdb1d4b8117..6db3d35ff5f6 100644
+index b49290131e85..019c263bb6be 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -1382,47 +1382,40 @@ EXPORT_SYMBOL(page_cache_prev_gap);
-  */
- struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
+@@ -1650,64 +1650,50 @@ unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
+ 			      pgoff_t end, unsigned int nr_pages,
+ 			      struct page **pages)
  {
--	void **pagep;
-+	XA_STATE(xas, &mapping->i_pages, offset);
- 	struct page *head, *page;
+-	struct radix_tree_iter iter;
+-	void **slot;
++	XA_STATE(xas, &mapping->i_pages, *start);
++	struct page *page;
+ 	unsigned ret = 0;
+ 
+ 	if (unlikely(!nr_pages))
+ 		return 0;
  
  	rcu_read_lock();
- repeat:
--	page = NULL;
--	pagep = radix_tree_lookup_slot(&mapping->i_pages, offset);
--	if (pagep) {
--		page = radix_tree_deref_slot(pagep);
+-	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, *start) {
+-		struct page *head, *page;
+-
+-		if (iter.index > end)
+-			break;
+-repeat:
+-		page = radix_tree_deref_slot(slot);
 -		if (unlikely(!page))
--			goto out;
++	xas_for_each(&xas, page, end) {
++		struct page *head;
++		if (xas_retry(&xas, page))
+ 			continue;
+-
 -		if (radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page))
--				goto repeat;
+-			if (radix_tree_deref_retry(page)) {
+-				slot = radix_tree_iter_retry(&iter);
+-				continue;
+-			}
 -			/*
 -			 * A shadow entry of a recently evicted page,
--			 * or a swap entry from shmem/tmpfs.  Return
--			 * it without attempting to raise page count.
+-			 * or a swap entry from shmem/tmpfs.  Skip
+-			 * over it.
 -			 */
--			goto out;
++		/* Skip over shadow, swap and DAX entries */
++		if (xa_is_value(page))
+ 			continue;
 -		}
-+	xas_reset(&xas);
-+	page = xas_load(&xas);
-+	if (xas_retry(&xas, page))
-+		goto repeat;
-+	/*
-+	 * A shadow entry of a recently evicted page, or a swap entry from
-+	 * shmem/tmpfs.  Return it without attempting to raise page count.
-+	 */
-+	if (!page || xa_is_value(page))
-+		goto out;
  
--		head = compound_head(page);
--		if (!page_cache_get_speculative(head))
+ 		head = compound_head(page);
+ 		if (!page_cache_get_speculative(head))
 -			goto repeat;
-+	head = compound_head(page);
-+	if (!page_cache_get_speculative(head))
-+		goto repeat;
++			goto retry;
  
--		/* The page was split under us? */
+ 		/* The page was split under us? */
 -		if (compound_head(page) != head) {
 -			put_page(head);
 -			goto repeat;
 -		}
-+	/* The page was split under us? */
-+	if (compound_head(page) != head) {
-+		put_page(head);
-+		goto repeat;
-+	}
++		if (compound_head(page) != head)
++			goto put_page;
  
--		/*
--		 * Has the page moved?
--		 * This is part of the lockless pagecache protocol. See
--		 * include/linux/pagemap.h for details.
--		 */
--		if (unlikely(page != *pagep)) {
+ 		/* Has the page moved? */
+-		if (unlikely(page != *slot)) {
 -			put_page(head);
 -			goto repeat;
 -		}
-+	/*
-+	 * Has the page moved?
-+	 * This is part of the lockless pagecache protocol. See
-+	 * include/linux/pagemap.h for details.
-+	 */
-+	if (unlikely(page != xas_reload(&xas))) {
-+		put_page(head);
-+		goto repeat;
- 	}
- out:
- 	rcu_read_unlock();
-@@ -1453,7 +1446,7 @@ struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset)
++		if (unlikely(page != xas_reload(&xas)))
++			goto put_page;
  
- repeat:
- 	page = find_get_entry(mapping, offset);
--	if (page && !radix_tree_exception(page)) {
-+	if (page && !xa_is_value(page)) {
- 		lock_page(page);
- 		/* Has the page been truncated? */
- 		if (unlikely(page_mapping(page) != mapping)) {
+ 		pages[ret] = page;
+ 		if (++ret == nr_pages) {
+-			*start = pages[ret - 1]->index + 1;
++			*start = page->index + 1;
+ 			goto out;
+ 		}
++		continue;
++put_page:
++		put_page(head);
++retry:
++		xas_reset(&xas);
+ 	}
+ 
+ 	/*
+ 	 * We come here when there is no page beyond @end. We take care to not
+ 	 * overflow the index @start as it confuses some of the callers. This
+-	 * breaks the iteration when there is page at index -1 but that is
++	 * breaks the iteration when there is a page at index -1 but that is
+ 	 * already broken anyway.
+ 	 */
+ 	if (end == (pgoff_t)-1)
 -- 
 2.17.1
