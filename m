@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C28A76B02A6
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:07:17 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id z11-v6so6629911pgu.1
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:07:17 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A8C486B02A8
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:07:18 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 39-v6so771529ple.6
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:07:18 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k9-v6si19738266pfc.129.2018.06.11.07.07.16
+        by mx.google.com with ESMTPS id a12-v6si24491395plt.474.2018.06.11.07.07.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:07:16 -0700 (PDT)
+        Mon, 11 Jun 2018 07:07:17 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 69/72] radix tree: Remove radix_tree_update_node_t
-Date: Mon, 11 Jun 2018 07:06:36 -0700
-Message-Id: <20180611140639.17215-70-willy@infradead.org>
+Subject: [PATCH v13 71/72] radix tree: Remove radix_tree_maybe_preload_order
+Date: Mon, 11 Jun 2018 07:06:38 -0700
+Message-Id: <20180611140639.17215-72-willy@infradead.org>
 In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
 References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,188 +22,132 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The only user of this functionality was the workingset code, and it's
-now been converted to the XArray.  Remove __radix_tree_delete_node()
-entirely as it was also only used by the workingset code.
+This function was only used by the page cache which is now converted
+to the XArray.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/radix-tree.h            |  7 +----
- lib/idr.c                             |  2 +-
- lib/radix-tree.c                      | 42 +++++----------------------
- tools/testing/radix-tree/multiorder.c |  2 +-
- 4 files changed, 11 insertions(+), 42 deletions(-)
+ include/linux/radix-tree.h |  1 -
+ lib/radix-tree.c           | 74 --------------------------------------
+ 2 files changed, 75 deletions(-)
 
 diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 081e68b4376b..fc13c4b1afdb 100644
+index b882d644cc47..f8ef267e4975 100644
 --- a/include/linux/radix-tree.h
 +++ b/include/linux/radix-tree.h
-@@ -242,17 +242,12 @@ void *__radix_tree_lookup(const struct radix_tree_root *, unsigned long index,
- void *radix_tree_lookup(const struct radix_tree_root *, unsigned long);
- void __rcu **radix_tree_lookup_slot(const struct radix_tree_root *,
- 					unsigned long index);
--typedef void (*radix_tree_update_node_t)(struct radix_tree_node *);
- void __radix_tree_replace(struct radix_tree_root *, struct radix_tree_node *,
--			  void __rcu **slot, void *entry,
--			  radix_tree_update_node_t update_node);
-+			  void __rcu **slot, void *entry);
- void radix_tree_iter_replace(struct radix_tree_root *,
- 		const struct radix_tree_iter *, void __rcu **slot, void *entry);
- void radix_tree_replace_slot(struct radix_tree_root *,
- 			     void __rcu **slot, void *entry);
--void __radix_tree_delete_node(struct radix_tree_root *,
--			      struct radix_tree_node *,
--			      radix_tree_update_node_t update_node);
- void radix_tree_iter_delete(struct radix_tree_root *,
- 			struct radix_tree_iter *iter, void __rcu **slot);
- void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
-diff --git a/lib/idr.c b/lib/idr.c
-index 0d7410d1fb7c..58b88f5eb672 100644
---- a/lib/idr.c
-+++ b/lib/idr.c
-@@ -303,7 +303,7 @@ void *idr_replace(struct idr *idr, void *ptr, unsigned long id)
- 	if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE))
- 		return ERR_PTR(-ENOENT);
- 
--	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL);
-+	__radix_tree_replace(&idr->idr_rt, node, slot, ptr);
- 
- 	return entry;
- }
+@@ -259,7 +259,6 @@ unsigned int radix_tree_gang_lookup(const struct radix_tree_root *,
+ 			unsigned int max_items);
+ int radix_tree_preload(gfp_t gfp_mask);
+ int radix_tree_maybe_preload(gfp_t gfp_mask);
+-int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order);
+ void radix_tree_init(void);
+ void *radix_tree_tag_set(struct radix_tree_root *,
+ 			unsigned long index, unsigned int tag);
 diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index d0f44ea96945..001062d41f9f 100644
+index c472ceeb6a97..ad03dc0c562f 100644
 --- a/lib/radix-tree.c
 +++ b/lib/radix-tree.c
-@@ -610,8 +610,7 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
-  *	radix_tree_shrink    -    shrink radix tree to minimum height
-  *	@root		radix tree root
-  */
--static inline bool radix_tree_shrink(struct radix_tree_root *root,
--				     radix_tree_update_node_t update_node)
-+static inline bool radix_tree_shrink(struct radix_tree_root *root)
- {
- 	bool shrunk = false;
+@@ -41,9 +41,6 @@
+ #include <linux/xarray.h>
  
-@@ -671,8 +670,6 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
- 		node->count = 0;
- 		if (!radix_tree_is_internal_node(child)) {
- 			node->slots[0] = (void __rcu *)RADIX_TREE_RETRY;
--			if (update_node)
--				update_node(node);
- 		}
  
- 		WARN_ON_ONCE(!list_empty(&node->private_list));
-@@ -684,8 +681,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
- }
- 
- static bool delete_node(struct radix_tree_root *root,
--			struct radix_tree_node *node,
--			radix_tree_update_node_t update_node)
-+			struct radix_tree_node *node)
- {
- 	bool deleted = false;
- 
-@@ -695,7 +691,7 @@ static bool delete_node(struct radix_tree_root *root,
- 		if (node->count) {
- 			if (node_to_entry(node) ==
- 					rcu_dereference_raw(root->xa_head))
--				deleted |= radix_tree_shrink(root, update_node);
-+				deleted |= radix_tree_shrink(root);
- 			return deleted;
- 		}
- 
-@@ -1100,15 +1096,13 @@ static int calculate_count(struct radix_tree_root *root,
-  * @node:		pointer to tree node
-  * @slot:		pointer to slot in @node
-  * @item:		new item to store in the slot.
-- * @update_node:	callback for changing leaf nodes
-  *
-  * For use with __radix_tree_lookup().  Caller must hold tree write locked
-  * across slot lookup and replacement.
-  */
- void __radix_tree_replace(struct radix_tree_root *root,
- 			  struct radix_tree_node *node,
--			  void __rcu **slot, void *item,
--			  radix_tree_update_node_t update_node)
-+			  void __rcu **slot, void *item)
- {
- 	void *old = rcu_dereference_raw(*slot);
- 	int values = !!xa_is_value(item) - !!xa_is_value(old);
-@@ -1126,10 +1120,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
- 	if (!node)
- 		return;
- 
--	if (update_node)
--		update_node(node);
+-/* Number of nodes in fully populated tree of given height */
+-static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
 -
--	delete_node(root, node, update_node);
-+	delete_node(root, node);
+ /*
+  * Radix tree node cache.
+  */
+@@ -463,51 +460,6 @@ int radix_tree_maybe_preload(gfp_t gfp_mask)
  }
+ EXPORT_SYMBOL(radix_tree_maybe_preload);
  
- /**
-@@ -1151,7 +1142,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
- void radix_tree_replace_slot(struct radix_tree_root *root,
- 			     void __rcu **slot, void *item)
- {
--	__radix_tree_replace(root, NULL, slot, item, NULL);
-+	__radix_tree_replace(root, NULL, slot, item);
- }
- EXPORT_SYMBOL(radix_tree_replace_slot);
- 
-@@ -1168,7 +1159,7 @@ void radix_tree_iter_replace(struct radix_tree_root *root,
- 				const struct radix_tree_iter *iter,
- 				void __rcu **slot, void *item)
- {
--	__radix_tree_replace(root, iter->node, slot, item, NULL);
-+	__radix_tree_replace(root, iter->node, slot, item);
- }
- 
- #ifdef CONFIG_RADIX_TREE_MULTIORDER
-@@ -1848,23 +1839,6 @@ radix_tree_gang_lookup_tag_slot(const struct radix_tree_root *root,
- }
- EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
- 
--/**
-- *	__radix_tree_delete_node    -    try to free node after clearing a slot
-- *	@root:		radix tree root
-- *	@node:		node containing @index
-- *	@update_node:	callback for changing leaf nodes
-- *
-- *	After clearing the slot at @index in @node from radix tree
-- *	rooted at @root, call this function to attempt freeing the
-- *	node and shrinking the tree.
+-/*
+- * The same as function above, but preload number of nodes required to insert
+- * (1 << order) continuous naturally-aligned elements.
 - */
--void __radix_tree_delete_node(struct radix_tree_root *root,
--			      struct radix_tree_node *node,
--			      radix_tree_update_node_t update_node)
+-int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
 -{
--	delete_node(root, node, update_node);
+-	unsigned long nr_subtrees;
+-	int nr_nodes, subtree_height;
+-
+-	/* Preloading doesn't help anything with this gfp mask, skip it */
+-	if (!gfpflags_allow_blocking(gfp_mask)) {
+-		preempt_disable();
+-		return 0;
+-	}
+-
+-	/*
+-	 * Calculate number and height of fully populated subtrees it takes to
+-	 * store (1 << order) elements.
+-	 */
+-	nr_subtrees = 1 << order;
+-	for (subtree_height = 0; nr_subtrees > RADIX_TREE_MAP_SIZE;
+-			subtree_height++)
+-		nr_subtrees >>= RADIX_TREE_MAP_SHIFT;
+-
+-	/*
+-	 * The worst case is zero height tree with a single item at index 0 and
+-	 * then inserting items starting at ULONG_MAX - (1 << order).
+-	 *
+-	 * This requires RADIX_TREE_MAX_PATH nodes to build branch from root to
+-	 * 0-index item.
+-	 */
+-	nr_nodes = RADIX_TREE_MAX_PATH;
+-
+-	/* Plus branch to fully populated subtrees. */
+-	nr_nodes += RADIX_TREE_MAX_PATH - subtree_height;
+-
+-	/* Root node is shared. */
+-	nr_nodes--;
+-
+-	/* Plus nodes required to build subtrees. */
+-	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
+-
+-	return __radix_tree_preload(gfp_mask, nr_nodes);
 -}
 -
- static bool __radix_tree_delete(struct radix_tree_root *root,
- 				struct radix_tree_node *node, void __rcu **slot)
+ static unsigned radix_tree_load_root(const struct radix_tree_root *root,
+ 		struct radix_tree_node **nodep, unsigned long *maxindex)
  {
-@@ -1880,7 +1854,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
- 			node_tag_clear(root, node, tag, offset);
- 
- 	replace_slot(slot, NULL, node, -1, values);
--	return node && delete_node(root, node, NULL);
-+	return node && delete_node(root, node);
+@@ -1928,31 +1880,6 @@ radix_tree_node_ctor(void *arg)
+ 	INIT_LIST_HEAD(&node->private_list);
  }
  
- /**
-diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index c659056340df..fc7d0c4e812a 100644
---- a/tools/testing/radix-tree/multiorder.c
-+++ b/tools/testing/radix-tree/multiorder.c
-@@ -618,7 +618,7 @@ static void multiorder_account(void)
- 	__radix_tree_insert(&tree, 1 << 5, 5, xa_mk_value(5));
- 	__radix_tree_lookup(&tree, 1 << 5, &node, &slot);
- 	assert(node->count == node->nr_values * 2);
--	__radix_tree_replace(&tree, node, slot, NULL, NULL);
-+	__radix_tree_replace(&tree, node, slot, NULL);
- 	assert(node->nr_values == 0);
- 
- 	item_kill_tree(&tree);
+-static __init unsigned long __maxindex(unsigned int height)
+-{
+-	unsigned int width = height * RADIX_TREE_MAP_SHIFT;
+-	int shift = RADIX_TREE_INDEX_BITS - width;
+-
+-	if (shift < 0)
+-		return ~0UL;
+-	if (shift >= BITS_PER_LONG)
+-		return 0UL;
+-	return ~0UL >> shift;
+-}
+-
+-static __init void radix_tree_init_maxnodes(void)
+-{
+-	unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1];
+-	unsigned int i, j;
+-
+-	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
+-		height_to_maxindex[i] = __maxindex(i);
+-	for (i = 0; i < ARRAY_SIZE(height_to_maxnodes); i++) {
+-		for (j = i; j > 0; j--)
+-			height_to_maxnodes[i] += height_to_maxindex[j - 1] + 1;
+-	}
+-}
+-
+ static int radix_tree_cpu_dead(unsigned int cpu)
+ {
+ 	struct radix_tree_preload *rtp;
+@@ -1982,7 +1909,6 @@ void __init radix_tree_init(void)
+ 			sizeof(struct radix_tree_node), 0,
+ 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
+ 			radix_tree_node_ctor);
+-	radix_tree_init_maxnodes();
+ 	ret = cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
+ 					NULL, radix_tree_cpu_dead);
+ 	WARN_ON(ret < 0);
 -- 
 2.17.1
