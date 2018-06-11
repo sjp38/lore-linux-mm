@@ -1,172 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 264B76B0006
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 19:57:51 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id r2-v6so11944272wrm.15
-        for <linux-mm@kvack.org>; Sun, 10 Jun 2018 16:57:51 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m5-v6si5049388wme.111.2018.06.10.16.57.49
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 555386B0006
+	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 20:02:04 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id d10-v6so5796622pgv.8
+        for <linux-mm@kvack.org>; Sun, 10 Jun 2018 17:02:04 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id x4-v6si11354618pgv.592.2018.06.10.17.02.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Jun 2018 16:57:49 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5ANsLBl082631
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 19:57:48 -0400
-Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2jhd5dhc4s-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 10 Jun 2018 19:57:48 -0400
-Received: from localhost
-	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Sun, 10 Jun 2018 19:57:47 -0400
-Date: Sun, 10 Jun 2018 16:59:34 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3] mm: fix race between kmem_cache destroy, create and
- deactivate
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20180530001204.183758-1-shakeelb@google.com>
- <20180609102027.5vkqucnzvh6nfdxu@esperanza>
- <CALvZod7OrDrq571An-GHeWFNvARWsS+fvX1-G9=nYzxgq2N3UQ@mail.gmail.com>
- <20180610163420.GK3593@linux.vnet.ibm.com>
- <CALvZod5HiwJPkD-_KnV+m=gWYgkb8rZceKoUkBK1KPW8iOzYug@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 10 Jun 2018 17:02:02 -0700 (PDT)
+Subject: Re: [mmotm:master 192/212] include/uapi/asm-generic/int-ll64.h:20:1:
+ error: expected '=', ',', ';', 'asm' or '__attribute__' before 'typedef'
+References: <201806081045.eZrs5GGH%fengguang.wu@intel.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <533c0099-d2be-8fea-fe2f-1453ea049c33@infradead.org>
+Date: Sun, 10 Jun 2018 17:01:48 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALvZod5HiwJPkD-_KnV+m=gWYgkb8rZceKoUkBK1KPW8iOzYug@mail.gmail.com>
-Message-Id: <20180610235934.GM3593@linux.vnet.ibm.com>
+In-Reply-To: <201806081045.eZrs5GGH%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: kbuild test robot <lkp@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Souptick Joarder <jrdr.linux@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
 
-On Sun, Jun 10, 2018 at 10:40:17AM -0700, Shakeel Butt wrote:
-> On Sun, Jun 10, 2018 at 9:32 AM Paul E. McKenney
-> <paulmck@linux.vnet.ibm.com> wrote:
-> >
-> > On Sun, Jun 10, 2018 at 07:52:50AM -0700, Shakeel Butt wrote:
-> > > On Sat, Jun 9, 2018 at 3:20 AM Vladimir Davydov <vdavydov.dev@gmail.com> wrote:
-> > > >
-> > > > On Tue, May 29, 2018 at 05:12:04PM -0700, Shakeel Butt wrote:
-> > > > > The memcg kmem cache creation and deactivation (SLUB only) is
-> > > > > asynchronous. If a root kmem cache is destroyed whose memcg cache is in
-> > > > > the process of creation or deactivation, the kernel may crash.
-> > > > >
-> > > > > Example of one such crash:
-> > > > >       general protection fault: 0000 [#1] SMP PTI
-> > > > >       CPU: 1 PID: 1721 Comm: kworker/14:1 Not tainted 4.17.0-smp
-> > > > >       ...
-> > > > >       Workqueue: memcg_kmem_cache kmemcg_deactivate_workfn
-> > > > >       RIP: 0010:has_cpu_slab
-> > > > >       ...
-> > > > >       Call Trace:
-> > > > >       ? on_each_cpu_cond
-> > > > >       __kmem_cache_shrink
-> > > > >       kmemcg_cache_deact_after_rcu
-> > > > >       kmemcg_deactivate_workfn
-> > > > >       process_one_work
-> > > > >       worker_thread
-> > > > >       kthread
-> > > > >       ret_from_fork+0x35/0x40
-> > > > >
-> > > > > To fix this race, on root kmem cache destruction, mark the cache as
-> > > > > dying and flush the workqueue used for memcg kmem cache creation and
-> > > > > deactivation.
-> > > >
-> > > > > @@ -845,6 +862,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
-> > > > >       if (unlikely(!s))
-> > > > >               return;
-> > > > >
-> > > > > +     flush_memcg_workqueue(s);
-> > > > > +
-> > > >
-> > > > This should definitely help against async memcg_kmem_cache_create(),
-> > > > but I'm afraid it doesn't eliminate the race with async destruction,
-> > > > unfortunately, because the latter uses call_rcu_sched():
-> > > >
-> > > >   memcg_deactivate_kmem_caches
-> > > >    __kmem_cache_deactivate
-> > > >     slab_deactivate_memcg_cache_rcu_sched
-> > > >      call_rcu_sched
-> > > >                                             kmem_cache_destroy
-> > > >                                              shutdown_memcg_caches
-> > > >                                               shutdown_cache
-> > > >       memcg_deactivate_rcufn
-> > > >        <dereference destroyed cache>
-> > > >
-> > > > Can we somehow flush those pending rcu requests?
-> > >
-> > > You are right and thanks for catching that. Now I am wondering if
-> > > synchronize_sched() just before flush_workqueue() should be enough.
-> > > Otherwise we might have to replace call_sched_rcu with
-> > > synchronize_sched() in kmemcg_deactivate_workfn which I would not
-> > > prefer as that would holdup the kmem_cache workqueue.
-> > >
-> > > +Paul
-> > >
-> > > Paul, we have a situation something similar to the following pseudo code.
-> > >
-> > > CPU0:
-> > > lock(l)
-> > > if (!flag)
-> > >   call_rcu_sched(callback);
-> > > unlock(l)
-> > > ------
-> > > CPU1:
-> > > lock(l)
-> > > flag = true
-> > > unlock(l)
-> > > synchronize_sched()
-> > > ------
-> > >
-> > > If CPU0 has called already called call_rchu_sched(callback) then later
-> > > if CPU1 calls synchronize_sched(). Is there any guarantee that on
-> > > return from synchronize_sched(), the rcu callback scheduled by CPU0
-> > > has already been executed?
-> >
-> > No.  There is no such guarantee.
-> >
-> > You instead want rcu_barrier_sched(), which waits for the callbacks from
-> > all prior invocations of call_rcu_sched() to be invoked.
-> >
-> > Please note that synchronize_sched() is -not- sufficient.  It is only
-> > guaranteed to wait for a grace period, not necessarily for all prior
-> > callbacks.  This goes both directions because if there are no callbacks
-> > in the system, then rcu_barrier_sched() is within its rights to return
-> > immediately.
-> >
-> > So please make sure you use each of synchronize_sched() and
-> > rcu_barrier_sched() to do the job that it was intended to do!  ;-)
-> >
-> > If your lock(l) is shorthand for spin_lock(&l), it looks to me like you
-> > actually only need rcu_barrier_sched():
-> >
-> >         CPU0:
-> >         spin_lock(&l);
-> >         if (!flag)
-> >           call_rcu_sched(callback);
-> >         spin_unlock(&l);
-> >
-> >         CPU1:
-> >         spin_lock(&l);
-> >         flag = true;
-> >         spin_unlock(&l);
-> >         /* At this point, no more callbacks will be registered. */
-> >         rcu_barrier_sched();
-> >         /* At this point, all registered callbacks will have been invoked. */
-> >
-> > On the other hand, if your "lock(l)" was instead shorthand for
-> > rcu_read_lock_sched(), then you need -both- synchronize_sched() -and-
-> > rcu_barrier().  And even then, you will be broken in -rt kernels.
-> > (Which might or might not be a concern, depending on whether your code
-> > matters to -rt kernels.
-> >
-> > Make sense?
+On 06/07/2018 07:06 PM, kbuild test robot wrote:
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   7393732bae530daa27567988b91d16ecfeef6c62
+> commit: b1a8bfbadbcb79644ccdd5f9cd370caa63cb1fa7 [192/212] linux-next-git-rejects
+> config: i386-randconfig-s0-201822-CONFIG_DEBUG_INFO_REDUCED (attached as .config)
+> compiler: gcc-6 (Debian 6.4.0-9) 6.4.0 20171026
+> reproduce:
+>         git checkout b1a8bfbadbcb79644ccdd5f9cd370caa63cb1fa7
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
 > 
-> Thanks a lot, that was really helpful. The lock is actually
-> mutex_lock. So, I think rcu_barrier_sched() should be sufficient.
+> All errors (new ones prefixed by >>):
+> 
+>    In file included from include/asm-generic/int-ll64.h:11:0,
+>                     from include/uapi/asm-generic/types.h:7,
+>                     from arch/x86/include/uapi/asm/types.h:5,
+>                     from include/uapi/linux/types.h:5,
+>                     from include/linux/types.h:6,
+>                     from net/ipv4/ipconfig.c:36:
+>>> include/uapi/asm-generic/int-ll64.h:20:1: error: expected '=', ',', ';', 'asm' or '__attribute__' before 'typedef'
+>     typedef __signed__ char __s8;
+>     ^~~~~~~
 
-Yes, with either spin_lock() or mutex_lock(), this should work.  Mutual
-exclusion and all that.  ;-)
+The problem here was that net/ipv4/ipconfig.c begins like this:
 
-							Thanx, Paul
+q// SPDX-License-Identifier: GPL-2.0
+
+Did anyone fix that?
+
+
+-- 
+~Randy
