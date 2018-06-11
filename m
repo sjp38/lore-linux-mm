@@ -1,118 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 06BC66B0005
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 16:08:20 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id j14-v6so11952363wrq.4
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:08:19 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m14-v6si39153942wrf.250.2018.06.11.13.08.17
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D5F316B0005
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 16:42:50 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id w74-v6so20482603qka.4
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:42:50 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id s11-v6si3506031qvb.73.2018.06.11.13.42.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jun 2018 13:08:18 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5BK3ovN177724
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 16:08:16 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2jhx6ev61a-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 16:08:16 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Mon, 11 Jun 2018 21:08:14 +0100
-Date: Mon, 11 Jun 2018 13:08:07 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: pkeys on POWER: Access rights not reset on execve
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <20180603201832.GA10109@ram.oc3035372033.ibm.com>
- <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
- <20180604140135.GA10088@ram.oc3035372033.ibm.com>
- <f2f61c24-8e8f-0d36-4e22-196a2a3f7ca7@redhat.com>
- <20180604190229.GB10088@ram.oc3035372033.ibm.com>
- <30040030-1aa2-623b-beec-dd1ceb3eb9a7@redhat.com>
- <20180608023441.GA5573@ram.oc3035372033.ibm.com>
- <2858a8eb-c9b5-42ce-5cfc-74a4b3ad6aa9@redhat.com>
- <20180611172305.GB5697@ram.oc3035372033.ibm.com>
- <30f5cb0e-e09a-15e6-f77d-a3afa422a651@redhat.com>
+        Mon, 11 Jun 2018 13:42:49 -0700 (PDT)
+Date: Mon, 11 Jun 2018 13:42:31 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [PATCH -mm -V3 03/21] mm, THP, swap: Support PMD swap mapping in
+ swap_duplicate()
+Message-ID: <20180611204231.ojhlyrbmda6pouxb@ca-dmjordan1.us.oracle.com>
+References: <20180523082625.6897-1-ying.huang@intel.com>
+ <20180523082625.6897-4-ying.huang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <30f5cb0e-e09a-15e6-f77d-a3afa422a651@redhat.com>
-Message-Id: <20180611200807.GA5773@ram.oc3035372033.ibm.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 8bit
 Content-Disposition: inline
+In-Reply-To: <20180523082625.6897-4-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Mon, Jun 11, 2018 at 07:29:33PM +0200, Florian Weimer wrote:
-> On 06/11/2018 07:23 PM, Ram Pai wrote:
-> >On Fri, Jun 08, 2018 at 07:53:51AM +0200, Florian Weimer wrote:
-> >>On 06/08/2018 04:34 AM, Ram Pai wrote:
-> >>>>
-> >>>>So the remaining question at this point is whether the Intel
-> >>>>behavior (default-deny instead of default-allow) is preferable.
-> >>>
-> >>>Florian, remind me what behavior needs to fixed?
-> >>
-> >>See the other thread.  The Intel register equivalent to the AMR by
-> >>default disallows access to yet-unallocated keys, so that threads
-> >>which are created before key allocation do not magically gain access
-> >>to a key allocated by another thread.
-> >
-> >Are you referring to the thread
-> >'[PATCH] pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change signal semantics'
-> 
-> >Otherwise please point me to the URL of that thread. Sorry and thankx. :)
-> 
-> No, it's this issue:
-> 
->   ...
+Hi,
 
-Ok. try this patch. This patch is on top of the 5 patches that I had
-sent last week i.e  "[PATCH  0/5] powerpc/pkeys: fixes to pkeys"
+The series up to and including this patch doesn't build.  For this patch we
+need:
 
-The following is a draft patch though to check if it meets your
-expectations.
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index c6b3eab73fde..2f2d07627113 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -433,7 +433,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+                /*
+                 * Swap entry may have been freed since our caller observed it.
+                 */
+-               err = swapcache_prepare(entry);
++               err = swapcache_prepare(entry, false);
+                if (err == -EEXIST) {
+                        radix_tree_preload_end();
+                        /*
 
-commit fe53b5fe2dcb3139ea27ade3ae7cbbe43c4af3be
-Author: Ram Pai <linuxram@us.ibm.com>
-Date:   Mon Jun 11 14:57:34 2018 -0500
 
-    powerpc/pkeys: Deny read/write/execute by default
-    
-    Deny everything for all keys; with some exceptions. Do not do this for
-    pkey-0, or else everything will come to a screaching halt.  Also by
-    default, do not deny execute for execute-only key.
-    
-    This is a draft-patch for now.
-    
-    Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+On Wed, May 23, 2018 at 04:26:07PM +0800, Huang, Ying wrote:
+> @@ -3516,11 +3512,39 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
 
-diff --git a/arch/powerpc/mm/pkeys.c b/arch/powerpc/mm/pkeys.c
-index 8225263..289aafd 100644
---- a/arch/powerpc/mm/pkeys.c
-+++ b/arch/powerpc/mm/pkeys.c
-@@ -128,13 +128,13 @@ int pkey_initialize(void)
- 
- 	/* register mask is in BE format */
- 	pkey_amr_mask = ~0x0ul;
--	pkey_iamr_mask = ~0x0ul;
-+	pkey_amr_mask &= ~(0x3ul << pkeyshift(PKEY_0));
-+	pkey_amr_mask &= ~(0x3ul << pkeyshift(1));
- 
--	for (i = 0; i < (pkeys_total - os_reserved); i++) {
--		pkey_amr_mask &= ~(0x3ul << pkeyshift(i));
--		pkey_iamr_mask &= ~(0x1ul << pkeyshift(i));
--	}
--	pkey_amr_mask |= (AMR_RD_BIT|AMR_WR_BIT) << pkeyshift(EXECUTE_ONLY_KEY);
-+	pkey_iamr_mask = ~0x0ul;
-+	pkey_iamr_mask &= ~(0x3ul << pkeyshift(PKEY_0));
-+	pkey_iamr_mask &= ~(0x3ul << pkeyshift(1));
-+	pkey_iamr_mask &= ~(0x3ul << pkeyshift(EXECUTE_ONLY_KEY));
- 
- 	pkey_uamor_mask = ~0x0ul;
- 	pkey_uamor_mask &= ~(0x3ul << pkeyshift(PKEY_0));
+Two comments about this part of __swap_duplicate as long as you're moving it to
+another function:
 
--- 
-Ram Pai
+   } else if (count || has_cache) {
+   
+   	if ((count & ~COUNT_CONTINUED) < SWAP_MAP_MAX)          /* #1   */
+   		count += usage;
+   	else if ((count & ~COUNT_CONTINUED) > SWAP_MAP_MAX)     /* #2   */
+   		err = -EINVAL;
+
+#1:  __swap_duplicate_locked might use
+
+    VM_BUG_ON(usage != SWAP_HAS_CACHE && usage != 1);
+
+to document the unstated assumption that usage is 1 (otherwise count could
+overflow).
+
+#2:  We've masked off SWAP_HAS_CACHE and COUNT_CONTINUED, and already checked
+for SWAP_MAP_BAD, so I think condition #2 always fails and can just be removed.
+
+> +#ifdef CONFIG_THP_SWAP
+> +static int __swap_duplicate_cluster(swp_entry_t *entry, unsigned char usage)
+...
+> +	} else {
+> +		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
+> +retry:
+> +			err = __swap_duplicate_locked(si, offset + i, 1);
+
+I guess usage is assumed to be 1 at this point (__swap_duplicate_locked makes
+the same assumption).  Maybe make this explicit with
+
+			err = __swap_duplicate_locked(si, offset + i, usage);
+
+, use 'usage' in cluster_set_count and __swap_entry_free too, and then
+earlier have a
+
+       VM_BUG_ON(usage != SWAP_HAS_CACHE && usage != 1);
+
+?
+
+> +#else
+> +static inline int __swap_duplicate_cluster(swp_entry_t *entry,
+
+This doesn't need inline.
+
+
+Not related to your changes, but while we're here, the comment with
+SWAP_HAS_CONT in swap_count() could be deleted: I don't think there ever was a
+SWAP_HAS_CONT.
+
+The rest looks ok up to this point.
