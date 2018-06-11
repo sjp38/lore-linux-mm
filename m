@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 126356B027E
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 587286B0280
 	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:06:55 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id g5-v6so6578804pgv.12
+Received: by mail-pg0-f69.google.com with SMTP id t5-v6so6575041pgt.18
         for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:06:55 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v11-v6si62952812plp.25.2018.06.11.07.06.53
+        by mx.google.com with ESMTPS id j11-v6si34025501pgn.129.2018.06.11.07.06.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:06:53 -0700 (PDT)
+        Mon, 11 Jun 2018 07:06:54 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 30/72] radix tree test suite: Convert regression1 to XArray
-Date: Mon, 11 Jun 2018 07:05:57 -0700
-Message-Id: <20180611140639.17215-31-willy@infradead.org>
+Subject: [PATCH v13 31/72] page cache: Convert delete_batch to XArray
+Date: Mon, 11 Jun 2018 07:05:58 -0700
+Message-Id: <20180611140639.17215-32-willy@infradead.org>
 In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
 References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,117 +22,91 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Now the page cache lookup is using the XArray, let's convert this
-regression test from the radix tree API to the XArray so it's testing
-roughly the same thing it was testing before.
+Rename the function from page_cache_tree_delete_batch to just
+page_cache_delete_batch.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- tools/testing/radix-tree/regression1.c | 58 +++++++++-----------------
- 1 file changed, 19 insertions(+), 39 deletions(-)
+ mm/filemap.c | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)
 
-diff --git a/tools/testing/radix-tree/regression1.c b/tools/testing/radix-tree/regression1.c
-index 0aece092f40e..b4a4a7168986 100644
---- a/tools/testing/radix-tree/regression1.c
-+++ b/tools/testing/radix-tree/regression1.c
-@@ -53,12 +53,12 @@ struct page {
- 	unsigned long index;
- };
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 4204d9df003b..025077bc82be 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -272,7 +272,7 @@ void delete_from_page_cache(struct page *page)
+ EXPORT_SYMBOL(delete_from_page_cache);
  
--static struct page *page_alloc(void)
-+static struct page *page_alloc(int index)
+ /*
+- * page_cache_tree_delete_batch - delete several pages from page cache
++ * page_cache_delete_batch - delete several pages from page cache
+  * @mapping: the mapping to which pages belong
+  * @pvec: pagevec with pages to delete
+  *
+@@ -285,23 +285,18 @@ EXPORT_SYMBOL(delete_from_page_cache);
+  *
+  * The function expects the i_pages lock to be held.
+  */
+-static void
+-page_cache_tree_delete_batch(struct address_space *mapping,
++static void page_cache_delete_batch(struct address_space *mapping,
+ 			     struct pagevec *pvec)
  {
- 	struct page *p;
- 	p = malloc(sizeof(struct page));
- 	p->count = 1;
--	p->index = 1;
-+	p->index = index;
- 	pthread_mutex_init(&p->lock, NULL);
+-	struct radix_tree_iter iter;
+-	void **slot;
++	XA_STATE(xas, &mapping->i_pages, pvec->pages[0]->index);
+ 	int total_pages = 0;
+ 	int i = 0, tail_pages = 0;
+ 	struct page *page;
+-	pgoff_t start;
  
- 	return p;
-@@ -80,53 +80,33 @@ static void page_free(struct page *p)
- static unsigned find_get_pages(unsigned long start,
- 			    unsigned int nr_pages, struct page **pages)
- {
--	unsigned int i;
--	unsigned int ret;
--	unsigned int nr_found;
-+	XA_STATE(xas, &mt_tree, start);
-+	struct page *page;
-+	unsigned int ret = 0;
- 
- 	rcu_read_lock();
--restart:
--	nr_found = radix_tree_gang_lookup_slot(&mt_tree,
--				(void ***)pages, NULL, start, nr_pages);
--	ret = 0;
--	for (i = 0; i < nr_found; i++) {
--		struct page *page;
--repeat:
--		page = radix_tree_deref_slot((void **)pages[i]);
--		if (unlikely(!page))
+-	start = pvec->pages[0]->index;
+-	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
++	mapping_set_update(&xas, mapping);
 +	xas_for_each(&xas, page, ULONG_MAX) {
-+		if (xas_retry(&xas, page))
+ 		if (i >= pagevec_count(pvec) && !tail_pages)
+ 			break;
+-		page = radix_tree_deref_slot_protected(slot,
+-						       &mapping->i_pages.xa_lock);
+ 		if (xa_is_value(page))
  			continue;
- 
--		if (radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page)) {
--				/*
--				 * Transient condition which can only trigger
--				 * when entry at index 0 moves out of or back
--				 * to root: none yet gotten, safe to restart.
--				 */
--				assert((start | i) == 0);
--				goto restart;
--			}
--			/*
--			 * No exceptional entries are inserted in this test.
--			 */
--			assert(0);
--		}
--
- 		pthread_mutex_lock(&page->lock);
--		if (!page->count) {
--			pthread_mutex_unlock(&page->lock);
--			goto repeat;
--		}
-+		if (!page->count)
-+			goto unlock;
-+
- 		/* don't actually update page refcount */
- 		pthread_mutex_unlock(&page->lock);
- 
- 		/* Has the page moved? */
--		if (unlikely(page != *((void **)pages[i]))) {
--			goto repeat;
--		}
-+		if (unlikely(page != xas_reload(&xas)))
-+			goto put_page;
- 
- 		pages[ret] = page;
- 		ret++;
-+		continue;
-+unlock:
-+		pthread_mutex_unlock(&page->lock);
-+put_page:
-+		xas_reset(&xas);
+ 		if (!tail_pages) {
+@@ -310,8 +305,11 @@ page_cache_tree_delete_batch(struct address_space *mapping,
+ 			 * have our pages locked so they are protected from
+ 			 * being removed.
+ 			 */
+-			if (page != pvec->pages[i])
++			if (page != pvec->pages[i]) {
++				VM_BUG_ON_PAGE(page->index >
++						pvec->pages[i]->index, page);
+ 				continue;
++			}
+ 			WARN_ON_ONCE(!PageLocked(page));
+ 			if (PageTransHuge(page) && !PageHuge(page))
+ 				tail_pages = HPAGE_PMD_NR - 1;
+@@ -322,11 +320,11 @@ page_cache_tree_delete_batch(struct address_space *mapping,
+ 			 */
+ 			i++;
+ 		} else {
++			VM_BUG_ON_PAGE(page->index + HPAGE_PMD_NR - tail_pages
++					!= pvec->pages[i]->index, page);
+ 			tail_pages--;
+ 		}
+-		radix_tree_clear_tags(&mapping->i_pages, iter.node, slot);
+-		__radix_tree_replace(&mapping->i_pages, iter.node, slot, NULL,
+-				workingset_lookup_update(mapping));
++		xas_store(&xas, NULL);
+ 		total_pages++;
  	}
- 	rcu_read_unlock();
- 	return ret;
-@@ -145,12 +125,12 @@ static void *regression1_fn(void *arg)
- 		for (j = 0; j < 1000000; j++) {
- 			struct page *p;
+ 	mapping->nrpages -= total_pages;
+@@ -347,7 +345,7 @@ void delete_from_page_cache_batch(struct address_space *mapping,
  
--			p = page_alloc();
-+			p = page_alloc(0);
- 			pthread_mutex_lock(&mt_lock);
- 			radix_tree_insert(&mt_tree, 0, p);
- 			pthread_mutex_unlock(&mt_lock);
+ 		unaccount_page_cache_page(mapping, pvec->pages[i]);
+ 	}
+-	page_cache_tree_delete_batch(mapping, pvec);
++	page_cache_delete_batch(mapping, pvec);
+ 	xa_unlock_irqrestore(&mapping->i_pages, flags);
  
--			p = page_alloc();
-+			p = page_alloc(1);
- 			pthread_mutex_lock(&mt_lock);
- 			radix_tree_insert(&mt_tree, 1, p);
- 			pthread_mutex_unlock(&mt_lock);
+ 	for (i = 0; i < pagevec_count(pvec); i++)
 -- 
 2.17.1
