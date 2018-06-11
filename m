@@ -1,114 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CA2D76B0283
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 11:50:16 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id a15-v6so13141902wrr.23
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 08:50:16 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l40-v6si7240334edc.143.2018.06.11.08.50.15
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B363F6B000A
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 12:11:18 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id j7-v6so13485296oib.19
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 09:11:18 -0700 (PDT)
+Received: from smtpbg202.qq.com (smtpbg202.qq.com. [184.105.206.29])
+        by mx.google.com with ESMTPS id i12-v6si17149627otj.54.2018.06.11.09.11.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jun 2018 08:50:15 -0700 (PDT)
-Date: Mon, 11 Jun 2018 17:50:13 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 11/12] mm, memory_failure: Teach memory_failure()
- about dev_pagemap pages
-Message-ID: <20180611155013.tt4sykwh2dp2vq2e@quack2.suse.cz>
-References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152850187949.38390.1012249765651998342.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jun 2018 09:11:16 -0700 (PDT)
+Message-ID: <5b1e9f24.1c69fb81.b1095.7272SMTPIN_ADDED_BROKEN@mx.google.com>
+Date: Tue, 12 Jun 2018 00:10:55 +0800
+From: Kenneth Lee <Kenneth-Lee-2012@foxmail.com>
+Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
+References: <20180511190641.23008-4-jean-philippe.brucker@arm.com>
+ <20180516163117.622693ea@jacob-builder>
+ <de478769-9f7a-d40b-a55e-e2c63ad883e8@arm.com>
+ <20180522094334.71f0e36b@jacob-builder>
+ <f73b4a0e-669e-8483-88d7-1b2c8a2b9934@arm.com>
+ <20180524115039.GA10260@apalos>
+ <19e82a74-429a-3f86-119e-32b12082d0ff@arm.com>
+ <20180525063311.GA11605@apalos>
+ <20180525093959.000040a7@huawei.com>
+ <20180526022445.GA6069@kllp05>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <152850187949.38390.1012249765651998342.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20180526022445.GA6069@kllp05>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Cc: Ilias Apalodimas <ilias.apalodimas@linaro.org>, Jean-Philippe Brucker <jean-philippe.brucker@arm.com>, "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>, Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>, "tn@semihalf.com" <tn@semihalf.com>, "joro@8bytes.org" <joro@8bytes.org>, "robdclark@gmail.com" <robdclark@gmail.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "rfranz@cavium.com" <rfranz@cavium.com>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "kevin.tian@intel.com" <kevin.tian@intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, "alex.williamson@redhat.com" <alex.williamson@redhat.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>, "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "shunyong.yang@hxt-semitech.com" <shunyong.yang@hxt-semitech.com>, "dwmw2@infradead.org" <dwmw2@infradead.org>, "liubo95@huawei.com" <liubo95@huawei.com>, "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, Robin Murphy <Robin.Murphy@arm.com>, "christian.koenig@amd.com" <christian.koenig@amd.com>, "nwatters@codeaurora.org" <nwatters@codeaurora.org>, "baolu.lu@linux.intel.com" <baolu.lu@linux.intel.com>, liguozhu@hisilicon.com
 
-On Fri 08-06-18 16:51:19, Dan Williams wrote:
->     mce: Uncorrected hardware memory error in user-access at af34214200
->     {1}[Hardware Error]: It has been corrected by h/w and requires no further action
->     mce: [Hardware Error]: Machine check events logged
->     {1}[Hardware Error]: event severity: corrected
->     Memory failure: 0xaf34214: reserved kernel page still referenced by 1 users
->     [..]
->     Memory failure: 0xaf34214: recovery action for reserved kernel page: Failed
->     mce: Memory error not recovered
+On Sat, May 26, 2018 at 10:24:45AM +0800, Kenneth Lee wrote:
+> Date: Sat, 26 May 2018 10:24:45 +0800
+> From: Kenneth Lee <Kenneth-Lee-2012@foxmail.com>
+> To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+> Cc: Ilias Apalodimas <ilias.apalodimas@linaro.org>, Jean-Philippe Brucker
+>  <jean-philippe.brucker@arm.com>, "xieyisheng1@huawei.com"
+>  <xieyisheng1@huawei.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+>  "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+>  "xuzaibo@huawei.com" <xuzaibo@huawei.com>, Will Deacon
+>  <Will.Deacon@arm.com>, "okaya@codeaurora.org" <okaya@codeaurora.org>,
+>  "linux-mm@kvack.org" <linux-mm@kvack.org>, "yi.l.liu@intel.com"
+>  <yi.l.liu@intel.com>, "ashok.raj@intel.com" <ashok.raj@intel.com>,
+>  "tn@semihalf.com" <tn@semihalf.com>, "joro@8bytes.org" <joro@8bytes.org>,
+>  "robdclark@gmail.com" <robdclark@gmail.com>, "bharatku@xilinx.com"
+>  <bharatku@xilinx.com>, "linux-acpi@vger.kernel.org"
+>  <linux-acpi@vger.kernel.org>, "liudongdong3@huawei.com"
+>  <liudongdong3@huawei.com>, "rfranz@cavium.com" <rfranz@cavium.com>,
+>  "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>,
+>  "kevin.tian@intel.com" <kevin.tian@intel.com>, Jacob Pan
+>  <jacob.jun.pan@linux.intel.com>, "alex.williamson@redhat.com"
+>  <alex.williamson@redhat.com>, "rgummal@xilinx.com" <rgummal@xilinx.com>,
+>  "thunder.leizhen@huawei.com" <thunder.leizhen@huawei.com>,
+>  "linux-arm-kernel@lists.infradead.org"
+>  <linux-arm-kernel@lists.infradead.org>, "shunyong.yang@hxt-semitech.com"
+>  <shunyong.yang@hxt-semitech.com>, "dwmw2@infradead.org"
+>  <dwmw2@infradead.org>, "liubo95@huawei.com" <liubo95@huawei.com>,
+>  "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>,
+>  "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>,
+>  Robin Murphy <Robin.Murphy@arm.com>, "christian.koenig@amd.com"
+>  <christian.koenig@amd.com>, "nwatters@codeaurora.org"
+>  <nwatters@codeaurora.org>, "baolu.lu@linux.intel.com"
+>  <baolu.lu@linux.intel.com>, liguozhu@hisilicon.com
+> Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
+> Message-ID: <20180526022445.GA6069@kllp05>
 > 
-> In contrast to typical memory, dev_pagemap pages may be dax mapped. With
-> dax there is no possibility to map in another page dynamically since dax
-> establishes 1:1 physical address to file offset associations. Also
-> dev_pagemap pages associated with NVDIMM / persistent memory devices can
-> internal remap/repair addresses with poison. While memory_failure()
-> assumes that it can discard typical poisoned pages and keep them
-> unmapped indefinitely, dev_pagemap pages may be returned to service
-> after the error is cleared.
+> On Fri, May 25, 2018 at 09:39:59AM +0100, Jonathan Cameron wrote:
+> > Date: Fri, 25 May 2018 09:39:59 +0100
+> > From: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+> > To: Ilias Apalodimas <ilias.apalodimas@linaro.org>
+> > CC: Jean-Philippe Brucker <jean-philippe.brucker@arm.com>,
+> >  "xieyisheng1@huawei.com" <xieyisheng1@huawei.com>, "kvm@vger.kernel.org"
+> >  <kvm@vger.kernel.org>, "linux-pci@vger.kernel.org"
+> >  <linux-pci@vger.kernel.org>, "xuzaibo@huawei.com" <xuzaibo@huawei.com>,
+> >  Will Deacon <Will.Deacon@arm.com>, "okaya@codeaurora.org"
+> >  <okaya@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+> >  "yi.l.liu@intel.com" <yi.l.liu@intel.com>, "ashok.raj@intel.com"
+> >  <ashok.raj@intel.com>, "tn@semihalf.com" <tn@semihalf.com>,
+> >  "joro@8bytes.org" <joro@8bytes.org>, "robdclark@gmail.com"
+> >  <robdclark@gmail.com>, "bharatku@xilinx.com" <bharatku@xilinx.com>,
+> >  "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>,
+> >  "liudongdong3@huawei.com" <liudongdong3@huawei.com>, "rfranz@cavium.com"
+> >  <rfranz@cavium.com>, "devicetree@vger.kernel.org"
+> >  <devicetree@vger.kernel.org>, "kevin.tian@intel.com"
+> >  <kevin.tian@intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>,
+> >  "alex.williamson@redhat.com" <alex.williamson@redhat.com>,
+> >  "rgummal@xilinx.com" <rgummal@xilinx.com>, "thunder.leizhen@huawei.com"
+> >  <thunder.leizhen@huawei.com>, "linux-arm-kernel@lists.infradead.org"
+> >  <linux-arm-kernel@lists.infradead.org>, "shunyong.yang@hxt-semitech.com"
+> >  <shunyong.yang@hxt-semitech.com>, "dwmw2@infradead.org"
+> >  <dwmw2@infradead.org>, "liubo95@huawei.com" <liubo95@huawei.com>,
+> >  "jcrouse@codeaurora.org" <jcrouse@codeaurora.org>,
+> >  "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>,
+> >  Robin Murphy <Robin.Murphy@arm.com>, "christian.koenig@amd.com"
+> >  <christian.koenig@amd.com>, "nwatters@codeaurora.org"
+> >  <nwatters@codeaurora.org>, "baolu.lu@linux.intel.com"
+> >  <baolu.lu@linux.intel.com>, liguozhu@hisilicon.com,
+> >  kenneth-lee-2012@foxmail.com
+> > Subject: Re: [PATCH v2 03/40] iommu/sva: Manage process address spaces
+> > Message-ID: <20180525093959.000040a7@huawei.com>
+> > 
+> > +CC Kenneth Lee
+> > 
+> > On Fri, 25 May 2018 09:33:11 +0300
+> > Ilias Apalodimas <ilias.apalodimas@linaro.org> wrote:
+> > 
+> > > On Thu, May 24, 2018 at 04:04:39PM +0100, Jean-Philippe Brucker wrote:
+> > > > On 24/05/18 12:50, Ilias Apalodimas wrote:  
+> > > > >> Interesting, I hadn't thought about this use-case before. At first I
+> > > > >> thought you were talking about mdev devices assigned to VMs, but I think
+> > > > >> you're referring to mdevs assigned to userspace drivers instead? Out of
+> > > > >> curiosity, is it only theoretical or does someone actually need this?  
+> > > > > 
+> > > > > There has been some non upstreamed efforts to have mdev and produce userspace
+> > > > > drivers. Huawei is using it on what they call "wrapdrive" for crypto devices and
+> > > > > we did a proof of concept for ethernet interfaces. At the time we choose not to
+> > > > > involve the IOMMU for the reason you mentioned, but having it there would be
+> > > > > good.  
+> > > > 
+> > > > I'm guessing there were good reasons to do it that way but I wonder, is
+> > > > it not simpler to just have the kernel driver create a /dev/foo, with a
+> > > > standard ioctl/mmap/poll interface? Here VFIO adds a layer of
+> > > > indirection, and since the mediating driver has to implement these
+> > > > operations already, what is gained?  
+> > > The best reason i can come up with is "common code". You already have one API
+> > > doing that for you so we replicate it in a /dev file?
+> > > The mdev approach still needs extentions to support what we tried to do (i.e
+> > > mdev bus might need yo have access on iommu_ops), but as far as i undestand it's
+> > > a possible case.
 > 
-> Teach memory_failure() to detect and handle MEMORY_DEVICE_HOST
-> dev_pagemap pages that have poison consumed by userspace. Mark the
-> memory as UC instead of unmapping it completely to allow ongoing access
-> via the device driver (nd_pmem). Later, nd_pmem will grow support for
-> marking the page back to WB when the error is cleared.
+> Hi, Jean, Please allow me to share my understanding here:
+> https://zhuanlan.zhihu.com/p/35489035
+> 
+> The reason we do not use the /dev/foo scheme is that the devices to be
+> shared are programmable accelerators. We cannot fix up the kernel driver for them.
+> > > > 
+> > > > Thanks,
+> > > > Jean  
+> > 
+> > 
+> 
+> -- 
+> 			-Kenneth Lee (Hisilicon)
 
-...
+I just found this mail was missed in the mailing list. I tried it once
+again.
 
-> +static unsigned long dax_mapping_size(struct page *page)
-> +{
-> +	struct address_space *mapping = page->mapping;
-> +	pgoff_t pgoff = page_to_pgoff(page);
-> +	struct vm_area_struct *vma;
-> +	unsigned long size = 0;
-> +
-> +	i_mmap_lock_read(mapping);
-> +	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
-> +		unsigned long address = vma_address(page, vma);
-> +		pgd_t *pgd;
-> +		p4d_t *p4d;
-> +		pud_t *pud;
-> +		pmd_t *pmd;
-> +		pte_t *pte;
-> +
-> +		pgd = pgd_offset(vma->vm_mm, address);
-> +		if (!pgd_present(*pgd))
-> +			continue;
-> +		p4d = p4d_offset(pgd, address);
-> +		if (!p4d_present(*p4d))
-> +			continue;
-> +		pud = pud_offset(p4d, address);
-> +		if (!pud_present(*pud))
-> +			continue;
-> +		if (pud_devmap(*pud)) {
-> +			size = PUD_SIZE;
-> +			break;
-> +		}
-> +		pmd = pmd_offset(pud, address);
-> +		if (!pmd_present(*pmd))
-> +			continue;
-> +		if (pmd_devmap(*pmd)) {
-> +			size = PMD_SIZE;
-> +			break;
-> +		}
-> +		pte = pte_offset_map(pmd, address);
-> +		if (!pte_present(*pte))
-> +			continue;
-> +		if (pte_devmap(*pte)) {
-> +			size = PAGE_SIZE;
-> +			break;
-> +		}
-> +	}
-> +	i_mmap_unlock_read(mapping);
-> +
-> +	return size;
-> +}
-
-Correct me if I'm wrong but cannot the same pfn be mapped by different VMAs
-with different granularity? I recall that if we have a fully allocated PMD
-entry in the radix tree we can hand out 4k entries from inside of it just
-fine... So whether dax_mapping_size() returns 4k or 2MB would be random?
-Why don't we use the entry size in the radix tree when we have done all the
-work and looked it up there to lock it anyway?
-
-								Honza
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+			-Kenneth Lee (Hisilicon)
