@@ -1,44 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EE016B000D
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:14:29 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u63-v6so13254327oia.8
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:14:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 201-v6sor15603167oib.294.2018.06.11.10.14.28
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C9056B000D
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:20:00 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id z5-v6so10547073pfz.6
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:20:00 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id w28-v6si24887211pge.329.2018.06.11.10.19.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Jun 2018 10:14:28 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Jun 2018 10:19:59 -0700 (PDT)
+Date: Mon, 11 Jun 2018 10:19:38 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH V6 08/30] block: introduce chunk_last_segment()
+Message-ID: <20180611171938.GA5101@infradead.org>
+References: <20180609123014.8861-1-ming.lei@redhat.com>
+ <20180609123014.8861-9-ming.lei@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <29908ce4-a8cf-bda6-4952-86c0afc3a9a2@linux.vnet.ibm.com>
-References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152850183221.38390.15042297366983937566.stgit@dwillia2-desk3.amr.corp.intel.com>
- <29908ce4-a8cf-bda6-4952-86c0afc3a9a2@linux.vnet.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 11 Jun 2018 10:14:27 -0700
-Message-ID: <CAPcyv4iAHbRgDXjPy2tVSuP1uqRAFNgNTfOpNUdyDSGMm3AyRQ@mail.gmail.com>
-Subject: Re: [PATCH v4 02/12] device-dax: Cleanup vm_fault de-reference chains
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180609123014.8861-9-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>
 
-On Mon, Jun 11, 2018 at 10:12 AM, Laurent Dufour
-<ldufour@linux.vnet.ibm.com> wrote:
-> On 09/06/2018 01:50, Dan Williams wrote:
->> Define a local 'vma' variable rather than repetitively de-referencing
->> the passed in 'struct vm_fault *' instance.
->
-> Hi Dan,
->
-> Why is this needed ?
->
-> I can't see the real benefit, having the vma deferenced from the vm_fault
-> structure is not obfuscating the code and it eases to follow the use of vmf->vma.
->
-> Am I missing something ?
+I think both callers would be just as easy to understand by using
+nth_page() instead of these magic helpers.  E.g. for guard_bio_eod:
 
-No, and now that I take another look it's just noise. I'll drop it.
+		unsigned offset = (bv.bv_offset + bv.bv_len);
+		struct page *page = nth_page(bv.bv_page, offset);
 
-Thanks for the poke.
+		zero_user(page, offset & PAGE_MASK, truncated_bytes);
