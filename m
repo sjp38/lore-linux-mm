@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E9E86B028A
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A6F886B028C
 	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:07:02 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id i1-v6so12148855pld.11
+Received: by mail-pf0-f200.google.com with SMTP id j14-v6so10300132pfn.11
         for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:07:02 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a19-v6si31270158pgv.47.2018.06.11.07.07.00
+        by mx.google.com with ESMTPS id o33-v6si65176771pld.170.2018.06.11.07.07.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:07:00 -0700 (PDT)
+        Mon, 11 Jun 2018 07:07:01 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 43/72] mm: Convert khugepaged_scan_shmem to XArray
-Date: Mon, 11 Jun 2018 07:06:10 -0700
-Message-Id: <20180611140639.17215-44-willy@infradead.org>
+Subject: [PATCH v13 44/72] mm: Convert is_page_cache_freeable to XArray
+Date: Mon, 11 Jun 2018 07:06:11 -0700
+Message-Id: <20180611140639.17215-45-willy@infradead.org>
 In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
 References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,56 +22,33 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Slightly shorter and easier to read code.
+This is just a variable rename and comment change.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/khugepaged.c | 17 +++++------------
- 1 file changed, 5 insertions(+), 12 deletions(-)
+ mm/vmscan.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 43598cc5998b..28579ad0c5fe 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -1538,8 +1538,7 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
- 		pgoff_t start, struct page **hpage)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 0448b1b366d9..575747728ee6 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -572,12 +572,12 @@ static inline int is_page_cache_freeable(struct page *page)
  {
- 	struct page *page = NULL;
--	struct radix_tree_iter iter;
--	void **slot;
-+	XA_STATE(xas, &mapping->i_pages, start);
- 	int present, swap;
- 	int node = NUMA_NO_NODE;
- 	int result = SCAN_SUCCEED;
-@@ -1548,17 +1547,11 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
- 	swap = 0;
- 	memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
- 	rcu_read_lock();
--	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
--		if (iter.index >= start + HPAGE_PMD_NR)
--			break;
--
--		page = radix_tree_deref_slot(slot);
--		if (radix_tree_deref_retry(page)) {
--			slot = radix_tree_iter_retry(&iter);
-+	xas_for_each(&xas, page, start + HPAGE_PMD_NR - 1) {
-+		if (xas_retry(&xas, page))
- 			continue;
--		}
+ 	/*
+ 	 * A freeable page cache page is referenced only by the caller
+-	 * that isolated the page, the page cache radix tree and
+-	 * optional buffer heads at page->private.
++	 * that isolated the page, the page cache and optional buffer
++	 * heads at page->private.
+ 	 */
+-	int radix_pins = PageTransHuge(page) && PageSwapCache(page) ?
++	int page_cache_pins = PageTransHuge(page) && PageSwapCache(page) ?
+ 		HPAGE_PMD_NR : 1;
+-	return page_count(page) - page_has_private(page) == 1 + radix_pins;
++	return page_count(page) - page_has_private(page) == 1 + page_cache_pins;
+ }
  
--		if (radix_tree_exception(page)) {
-+		if (xa_is_value(page)) {
- 			if (++swap > khugepaged_max_ptes_swap) {
- 				result = SCAN_EXCEED_SWAP_PTE;
- 				break;
-@@ -1597,7 +1590,7 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
- 		present++;
- 
- 		if (need_resched()) {
--			slot = radix_tree_iter_resume(slot, &iter);
-+			xas_pause(&xas);
- 			cond_resched_rcu();
- 		}
- 	}
+ static int may_write_to_inode(struct inode *inode, struct scan_control *sc)
 -- 
 2.17.1
