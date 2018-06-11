@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AA1116B0282
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:06:57 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t5-v6so6575104pgt.18
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:06:57 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A13E36B0283
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:06:58 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id e2-v6so6625339pgq.4
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 07:06:58 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b3-v6si43659821pls.119.2018.06.11.07.06.56
+        by mx.google.com with ESMTPS id x70-v6si32969430pgx.576.2018.06.11.07.06.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Jun 2018 07:06:56 -0700 (PDT)
+        Mon, 11 Jun 2018 07:06:57 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v13 36/72] mm: Convert truncate to XArray
-Date: Mon, 11 Jun 2018 07:06:03 -0700
-Message-Id: <20180611140639.17215-37-willy@infradead.org>
+Subject: [PATCH v13 37/72] mm: Convert add_to_swap_cache to XArray
+Date: Mon, 11 Jun 2018 07:06:04 -0700
+Message-Id: <20180611140639.17215-38-willy@infradead.org>
 In-Reply-To: <20180611140639.17215-1-willy@infradead.org>
 References: <20180611140639.17215-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,50 +22,175 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layto
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This is essentially xa_cmpxchg() with the locking handled above us,
-and it doesn't have to handle replacing a NULL entry.
+Combine __add_to_swap_cache and add_to_swap_cache into one function
+since there is no more need to preload.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/truncate.c | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+ mm/swap_state.c | 93 +++++++++++++++----------------------------------
+ 1 file changed, 29 insertions(+), 64 deletions(-)
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index ed778555c9f3..45d68e90b703 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -33,15 +33,12 @@
- static inline void __clear_shadow_entry(struct address_space *mapping,
- 				pgoff_t index, void *entry)
- {
--	struct radix_tree_node *node;
--	void **slot;
-+	XA_STATE(xas, &mapping->i_pages, index);
- 
--	if (!__radix_tree_lookup(&mapping->i_pages, index, &node, &slot))
-+	xas_set_update(&xas, workingset_update_node);
-+	if (xas_load(&xas) != entry)
- 		return;
--	if (*slot != entry)
--		return;
--	__radix_tree_replace(&mapping->i_pages, node, slot, NULL,
--			     workingset_update_node);
-+	xas_store(&xas, NULL);
- 	mapping->nrexceptional--;
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index c6b3eab73fde..ac07db436c15 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -107,14 +107,15 @@ void show_swap_cache_info(void)
  }
  
-@@ -738,10 +735,10 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
- 		index++;
- 	}
+ /*
+- * __add_to_swap_cache resembles add_to_page_cache_locked on swapper_space,
++ * add_to_swap_cache resembles add_to_page_cache_locked on swapper_space,
+  * but sets SwapCache flag and private instead of mapping and index.
+  */
+-int __add_to_swap_cache(struct page *page, swp_entry_t entry)
++int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
+ {
+-	int error, i, nr = hpage_nr_pages(page);
+-	struct address_space *address_space;
++	struct address_space *address_space = swap_address_space(entry);
+ 	pgoff_t idx = swp_offset(entry);
++	XA_STATE(xas, &address_space->i_pages, idx);
++	unsigned long i, nr = 1UL << compound_order(page);
+ 
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(PageSwapCache(page), page);
+@@ -123,50 +124,30 @@ int __add_to_swap_cache(struct page *page, swp_entry_t entry)
+ 	page_ref_add(page, nr);
+ 	SetPageSwapCache(page);
+ 
+-	address_space = swap_address_space(entry);
+-	xa_lock_irq(&address_space->i_pages);
+-	for (i = 0; i < nr; i++) {
+-		set_page_private(page + i, entry.val + i);
+-		error = radix_tree_insert(&address_space->i_pages,
+-					  idx + i, page + i);
+-		if (unlikely(error))
+-			break;
+-	}
+-	if (likely(!error)) {
++	do {
++		xas_lock_irq(&xas);
++		xas_create_range(&xas, idx + nr - 1);
++		if (xas_error(&xas))
++			goto unlock;
++		for (i = 0; i < nr; i++) {
++			VM_BUG_ON_PAGE(xas.xa_index != idx + i, page);
++			set_page_private(page + i, entry.val + i);
++			xas_store(&xas, page + i);
++			xas_next(&xas);
++		}
+ 		address_space->nrpages += nr;
+ 		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
+ 		ADD_CACHE_INFO(add_total, nr);
+-	} else {
+-		/*
+-		 * Only the context which have set SWAP_HAS_CACHE flag
+-		 * would call add_to_swap_cache().
+-		 * So add_to_swap_cache() doesn't returns -EEXIST.
+-		 */
+-		VM_BUG_ON(error == -EEXIST);
+-		set_page_private(page + i, 0UL);
+-		while (i--) {
+-			radix_tree_delete(&address_space->i_pages, idx + i);
+-			set_page_private(page + i, 0UL);
+-		}
+-		ClearPageSwapCache(page);
+-		page_ref_sub(page, nr);
+-	}
+-	xa_unlock_irq(&address_space->i_pages);
++unlock:
++		xas_unlock_irq(&xas);
++	} while (xas_nomem(&xas, gfp));
+ 
+-	return error;
+-}
+-
+-
+-int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
+-{
+-	int error;
++	if (!xas_error(&xas))
++		return 0;
+ 
+-	error = radix_tree_maybe_preload_order(gfp_mask, compound_order(page));
+-	if (!error) {
+-		error = __add_to_swap_cache(page, entry);
+-		radix_tree_preload_end();
+-	}
+-	return error;
++	ClearPageSwapCache(page);
++	page_ref_sub(page, nr);
++	return xas_error(&xas);
+ }
+ 
+ /*
+@@ -217,7 +198,7 @@ int add_to_swap(struct page *page)
+ 		return 0;
+ 
  	/*
--	 * For DAX we invalidate page tables after invalidating radix tree.  We
-+	 * For DAX we invalidate page tables after invalidating page cache.  We
- 	 * could invalidate page tables while invalidating each entry however
- 	 * that would be expensive. And doing range unmapping before doesn't
--	 * work as we have no cheap way to find whether radix tree entry didn't
-+	 * work as we have no cheap way to find whether page cache entry didn't
- 	 * get remapped later.
+-	 * Radix-tree node allocations from PF_MEMALLOC contexts could
++	 * XArray node allocations from PF_MEMALLOC contexts could
+ 	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
+ 	 * stops emergency reserves from being allocated.
+ 	 *
+@@ -229,7 +210,6 @@ int add_to_swap(struct page *page)
  	 */
- 	if (dax_mapping(mapping)) {
+ 	err = add_to_swap_cache(page, entry,
+ 			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
+-	/* -ENOMEM radix-tree allocation failure */
+ 	if (err)
+ 		/*
+ 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+@@ -423,19 +403,11 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 				break;		/* Out of memory */
+ 		}
+ 
+-		/*
+-		 * call radix_tree_preload() while we can wait.
+-		 */
+-		err = radix_tree_maybe_preload(gfp_mask & GFP_KERNEL);
+-		if (err)
+-			break;
+-
+ 		/*
+ 		 * Swap entry may have been freed since our caller observed it.
+ 		 */
+ 		err = swapcache_prepare(entry);
+ 		if (err == -EEXIST) {
+-			radix_tree_preload_end();
+ 			/*
+ 			 * We might race against get_swap_page() and stumble
+ 			 * across a SWAP_HAS_CACHE swap_map entry whose page
+@@ -443,26 +415,19 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 			 */
+ 			cond_resched();
+ 			continue;
+-		}
+-		if (err) {		/* swp entry is obsolete ? */
+-			radix_tree_preload_end();
++		} else if (err)		/* swp entry is obsolete ? */
+ 			break;
+-		}
+ 
+-		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
++		/* May fail (-ENOMEM) if XArray node allocation failed. */
+ 		__SetPageLocked(new_page);
+ 		__SetPageSwapBacked(new_page);
+-		err = __add_to_swap_cache(new_page, entry);
++		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
+ 		if (likely(!err)) {
+-			radix_tree_preload_end();
+-			/*
+-			 * Initiate read into locked page and return.
+-			 */
++			/* Initiate read into locked page */
+ 			lru_cache_add_anon(new_page);
+ 			*new_page_allocated = true;
+ 			return new_page;
+ 		}
+-		radix_tree_preload_end();
+ 		__ClearPageLocked(new_page);
+ 		/*
+ 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
 -- 
 2.17.1
