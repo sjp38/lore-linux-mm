@@ -1,128 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B90296B0010
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 12:48:47 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id y18-v6so14955547otg.14
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 09:48:47 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l186-v6sor2712182oif.94.2018.06.11.09.48.46
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1591A6B000D
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:12:30 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f65-v6so4891575wmd.2
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 10:12:30 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id w16-v6si6432405wme.37.2018.06.11.10.12.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Jun 2018 09:48:46 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20180611154146.jc5xt4gyaihq64lm@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jun 2018 10:12:28 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5BH8icW012384
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:12:25 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jhudtdq6r-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 13:12:25 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 11 Jun 2018 18:12:23 +0100
+Subject: Re: [PATCH v4 02/12] device-dax: Cleanup vm_fault de-reference chains
 References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152850187437.38390.2257981090761438811.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180611154146.jc5xt4gyaihq64lm@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 11 Jun 2018 09:48:45 -0700
-Message-ID: <CAPcyv4g2+qTQoYN+_VjUsRTZYPKOagL43zZDfdoMi2qEKWJiAg@mail.gmail.com>
-Subject: Re: [PATCH v4 10/12] filesystem-dax: Introduce dax_lock_page()
-Content-Type: text/plain; charset="UTF-8"
+ <152850183221.38390.15042297366983937566.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Mon, 11 Jun 2018 19:12:19 +0200
+MIME-Version: 1.0
+In-Reply-To: <152850183221.38390.15042297366983937566.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <29908ce4-a8cf-bda6-4952-86c0afc3a9a2@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org
+Cc: hch@lst.de, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, jack@suse.cz
 
-On Mon, Jun 11, 2018 at 8:41 AM, Jan Kara <jack@suse.cz> wrote:
-> On Fri 08-06-18 16:51:14, Dan Williams wrote:
->> In preparation for implementing support for memory poison (media error)
->> handling via dax mappings, implement a lock_page() equivalent. Poison
->> error handling requires rmap and needs guarantees that the page->mapping
->> association is maintained / valid (inode not freed) for the duration of
->> the lookup.
->>
->> In the device-dax case it is sufficient to simply hold a dev_pagemap
->> reference. In the filesystem-dax case we need to use the entry lock.
->>
->> Export the entry lock via dax_lock_page() that uses rcu_read_lock() to
->> protect against the inode being freed, and revalidates the page->mapping
->> association under xa_lock().
->>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->
-> Some comments below...
->
->> diff --git a/fs/dax.c b/fs/dax.c
->> index cccf6cad1a7a..b7e71b108fcf 100644
->> --- a/fs/dax.c
->> +++ b/fs/dax.c
->> @@ -361,6 +361,82 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
->>       }
->>  }
->>
->> +struct page *dax_lock_page(unsigned long pfn)
->> +{
->
-> Why do you return struct page here? Any reason behind that? Because struct
-> page exists and can be accessed through pfn_to_page() regardless of result
-> of this function so it looks a bit confusing. Also dax_lock_page() name
-> seems a bit confusing. Maybe dax_lock_pfn_mapping_entry()?
->
->> +     pgoff_t index;
->> +     struct inode *inode;
->> +     wait_queue_head_t *wq;
->> +     void *entry = NULL, **slot;
->> +     struct address_space *mapping;
->> +     struct wait_exceptional_entry_queue ewait;
->> +     struct page *ret = NULL, *page = pfn_to_page(pfn);
->> +
->> +     rcu_read_lock();
->> +     for (;;) {
->> +             mapping = READ_ONCE(page->mapping);
->> +
->> +             if (!mapping || !IS_DAX(mapping->host))
->> +                     break;
->> +
->> +             /*
->> +              * In the device-dax case there's no need to lock, a
->> +              * struct dev_pagemap pin is sufficient to keep the
->> +              * inode alive.
->> +              */
->> +             inode = mapping->host;
->> +             if (S_ISCHR(inode->i_mode)) {
->> +                     ret = page;
->> +                     break;
->> +             }
->> +
->> +             xa_lock_irq(&mapping->i_pages);
->> +             if (mapping != page->mapping) {
->> +                     xa_unlock_irq(&mapping->i_pages);
->> +                     continue;
->> +             }
->> +             index = page->index;
->> +
->> +             init_wait(&ewait.wait);
->> +             ewait.wait.func = wake_exceptional_entry_func;
->
-> This initialization could be before the loop.
->
->> +
->> +             entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
->> +                             &slot);
->> +             if (!entry ||
->> +                 WARN_ON_ONCE(!radix_tree_exceptional_entry(entry))) {
->> +                     xa_unlock_irq(&mapping->i_pages);
->> +                     break;
->> +             } else if (!slot_locked(mapping, slot)) {
->> +                     lock_slot(mapping, slot);
->> +                     ret = page;
->> +                     xa_unlock_irq(&mapping->i_pages);
->> +                     break;
->> +             }
->> +
->> +             wq = dax_entry_waitqueue(mapping, index, entry, &ewait.key);
->> +             prepare_to_wait_exclusive(wq, &ewait.wait,
->> +                             TASK_UNINTERRUPTIBLE);
->> +             xa_unlock_irq(&mapping->i_pages);
->> +             rcu_read_unlock();
->> +             schedule();
->> +             finish_wait(wq, &ewait.wait);
->> +             rcu_read_lock();
->> +     }
->> +     rcu_read_unlock();
->
-> I don't like how this duplicates a lot of get_unlocked_mapping_entry().
-> Can we possibly factor this out similary as done for wait_event()?
+On 09/06/2018 01:50, Dan Williams wrote:
+> Define a local 'vma' variable rather than repetitively de-referencing
+> the passed in 'struct vm_fault *' instance.
 
-Ok, I'll give that a shot.
+Hi Dan,
+
+Why is this needed ?
+
+I can't see the real benefit, having the vma deferenced from the vm_fault
+structure is not obfuscating the code and it eases to follow the use of vmf->vma.
+
+Am I missing something ?
+
+Cheers,
+Laurent.
+
+> 
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  drivers/dax/device.c |   30 ++++++++++++++++--------------
+>  1 file changed, 16 insertions(+), 14 deletions(-)
+> 
+> diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+> index d44d98c54d0f..686de08e120b 100644
+> --- a/drivers/dax/device.c
+> +++ b/drivers/dax/device.c
+> @@ -247,13 +247,14 @@ __weak phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
+>  static vm_fault_t __dev_dax_pte_fault(struct dev_dax *dev_dax,
+>  				struct vm_fault *vmf)
+>  {
+> +	struct vm_area_struct *vma = vmf->vma;
+>  	struct device *dev = &dev_dax->dev;
+>  	struct dax_region *dax_region;
+>  	phys_addr_t phys;
+>  	pfn_t pfn;
+>  	unsigned int fault_size = PAGE_SIZE;
+> 
+> -	if (check_vma(dev_dax, vmf->vma, __func__))
+> +	if (check_vma(dev_dax, vma, __func__))
+>  		return VM_FAULT_SIGBUS;
+> 
+>  	dax_region = dev_dax->region;
+> @@ -274,13 +275,14 @@ static vm_fault_t __dev_dax_pte_fault(struct dev_dax *dev_dax,
+> 
+>  	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+> 
+> -	return vmf_insert_mixed(vmf->vma, vmf->address, pfn);
+> +	return vmf_insert_mixed(vma, vmf->address, pfn);
+>  }
+> 
+>  static vm_fault_t __dev_dax_pmd_fault(struct dev_dax *dev_dax,
+>  				struct vm_fault *vmf)
+>  {
+>  	unsigned long pmd_addr = vmf->address & PMD_MASK;
+> +	struct vm_area_struct *vma = vmf->vma;
+>  	struct device *dev = &dev_dax->dev;
+>  	struct dax_region *dax_region;
+>  	phys_addr_t phys;
+> @@ -288,7 +290,7 @@ static vm_fault_t __dev_dax_pmd_fault(struct dev_dax *dev_dax,
+>  	pfn_t pfn;
+>  	unsigned int fault_size = PMD_SIZE;
+> 
+> -	if (check_vma(dev_dax, vmf->vma, __func__))
+> +	if (check_vma(dev_dax, vma, __func__))
+>  		return VM_FAULT_SIGBUS;
+> 
+>  	dax_region = dev_dax->region;
+> @@ -310,11 +312,10 @@ static vm_fault_t __dev_dax_pmd_fault(struct dev_dax *dev_dax,
+>  		return VM_FAULT_FALLBACK;
+> 
+>  	/* if we are outside of the VMA */
+> -	if (pmd_addr < vmf->vma->vm_start ||
+> -			(pmd_addr + PMD_SIZE) > vmf->vma->vm_end)
+> +	if (pmd_addr < vma->vm_start || (pmd_addr + PMD_SIZE) > vma->vm_end)
+>  		return VM_FAULT_SIGBUS;
+> 
+> -	pgoff = linear_page_index(vmf->vma, pmd_addr);
+> +	pgoff = linear_page_index(vma, pmd_addr);
+>  	phys = dax_pgoff_to_phys(dev_dax, pgoff, PMD_SIZE);
+>  	if (phys == -1) {
+>  		dev_dbg(dev, "pgoff_to_phys(%#lx) failed\n", pgoff);
+> @@ -323,7 +324,7 @@ static vm_fault_t __dev_dax_pmd_fault(struct dev_dax *dev_dax,
+> 
+>  	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+> 
+> -	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd, pfn,
+> +	return vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
+>  			vmf->flags & FAULT_FLAG_WRITE);
+>  }
+> 
+> @@ -332,6 +333,7 @@ static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
+>  				struct vm_fault *vmf)
+>  {
+>  	unsigned long pud_addr = vmf->address & PUD_MASK;
+> +	struct vm_area_struct *vma = vmf->vma;
+>  	struct device *dev = &dev_dax->dev;
+>  	struct dax_region *dax_region;
+>  	phys_addr_t phys;
+> @@ -340,7 +342,7 @@ static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
+>  	unsigned int fault_size = PUD_SIZE;
+> 
+> 
+> -	if (check_vma(dev_dax, vmf->vma, __func__))
+> +	if (check_vma(dev_dax, vma, __func__))
+>  		return VM_FAULT_SIGBUS;
+> 
+>  	dax_region = dev_dax->region;
+> @@ -362,11 +364,10 @@ static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
+>  		return VM_FAULT_FALLBACK;
+> 
+>  	/* if we are outside of the VMA */
+> -	if (pud_addr < vmf->vma->vm_start ||
+> -			(pud_addr + PUD_SIZE) > vmf->vma->vm_end)
+> +	if (pud_addr < vma->vm_start || (pud_addr + PUD_SIZE) > vma->vm_end)
+>  		return VM_FAULT_SIGBUS;
+> 
+> -	pgoff = linear_page_index(vmf->vma, pud_addr);
+> +	pgoff = linear_page_index(vma, pud_addr);
+>  	phys = dax_pgoff_to_phys(dev_dax, pgoff, PUD_SIZE);
+>  	if (phys == -1) {
+>  		dev_dbg(dev, "pgoff_to_phys(%#lx) failed\n", pgoff);
+> @@ -375,7 +376,7 @@ static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
+> 
+>  	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+> 
+> -	return vmf_insert_pfn_pud(vmf->vma, vmf->address, vmf->pud, pfn,
+> +	return vmf_insert_pfn_pud(vma, vmf->address, vmf->pud, pfn,
+>  			vmf->flags & FAULT_FLAG_WRITE);
+>  }
+>  #else
+> @@ -390,12 +391,13 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
+>  		enum page_entry_size pe_size)
+>  {
+>  	int rc, id;
+> -	struct file *filp = vmf->vma->vm_file;
+> +	struct vm_area_struct *vma = vmf->vma;
+> +	struct file *filp = vma->vm_file;
+>  	struct dev_dax *dev_dax = filp->private_data;
+> 
+>  	dev_dbg(&dev_dax->dev, "%s: %s (%#lx - %#lx) size = %d\n", current->comm,
+>  			(vmf->flags & FAULT_FLAG_WRITE) ? "write" : "read",
+> -			vmf->vma->vm_start, vmf->vma->vm_end, pe_size);
+> +			vma->vm_start, vma->vm_end, pe_size);
+> 
+>  	id = dax_read_lock();
+>  	switch (pe_size) {
+> 
