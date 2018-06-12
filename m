@@ -1,110 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DFE16B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 13:24:49 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id j14-v6so14057096wrq.4
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 10:24:49 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id v5-v6si616706edr.266.2018.06.12.10.24.46
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 483086B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 13:27:50 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id e39-v6so7099052plb.10
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 10:27:50 -0700 (PDT)
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id y2-v6si491412pgr.677.2018.06.12.10.27.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jun 2018 10:24:47 -0700 (PDT)
-Date: Tue, 12 Jun 2018 10:24:11 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v2 2/3] mm, memcg: propagate memory effective protection
- on setting memory.min/low
-Message-ID: <20180612172408.GA12904@castle.DHCP.thefacebook.com>
-References: <20180611175418.7007-1-guro@fb.com>
- <20180611175418.7007-3-guro@fb.com>
- <20180612155242.GA6300@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20180612155242.GA6300@cmpxchg.org>
+        Tue, 12 Jun 2018 10:27:48 -0700 (PDT)
+Message-ID: <1528824280.9447.30.camel@2b52.sc.intel.com>
+Subject: Re: [PATCH 00/10] Control Flow Enforcement - Part (3)
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Tue, 12 Jun 2018 10:24:40 -0700
+In-Reply-To: <CALCETrVOyZz72RuoRB=z_EjFTqqctSLfX30GM+MSEVtbcd=PeQ@mail.gmail.com>
+References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
+	 <bbfde1b3-5e1b-80e3-30e8-fd1e46a2ceb1@gmail.com>
+	 <1528815820.8271.16.camel@2b52.sc.intel.com>
+	 <CALCETrXK6hypCb5sXwxWRKr=J6_7XtS6s5GB1WPBiqi79q8-8g@mail.gmail.com>
+	 <1528820489.9324.14.camel@2b52.sc.intel.com>
+	 <CALCETrVOyZz72RuoRB=z_EjFTqqctSLfX30GM+MSEVtbcd=PeQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Shuah Khan <shuah@kernel.org>, Andrew Morton <akpm@linuxfoundation.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: bsingharora@gmail.com, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
 
-On Tue, Jun 12, 2018 at 11:52:42AM -0400, Johannes Weiner wrote:
-> On Mon, Jun 11, 2018 at 10:54:17AM -0700, Roman Gushchin wrote:
-> > Explicitly propagate effective memory min/low values down by the tree.
-> > 
-> > If there is the global memory pressure, it's not really necessary.
-> > Effective memory guarantees will be propagated automatically as we
-> > traverse memory cgroup tree in the reclaim path.
-> > 
-> > But if there is no global memory pressure, effective memory protection
-> > still matters for local (memcg-scoped) memory pressure.  So, we have to
-> > update effective limits in the subtree, if a user changes memory.min and
-> > memory.low values.
-> > 
-> > Link: http://lkml.kernel.org/r/20180522132528.23769-1-guro@fb.com
-> > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > Cc: Greg Thelen <gthelen@google.com>
-> > Cc: Tejun Heo <tj@kernel.org>
-> > Cc: Shuah Khan <shuah@kernel.org>
-> > Signed-off-by: Andrew Morton <akpm@linuxfoundation.org>
-> > ---
-> >  mm/memcontrol.c | 14 ++++++++++++--
-> >  1 file changed, 12 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 5a3873e9d657..485df6f63d26 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -5084,7 +5084,7 @@ static int memory_min_show(struct seq_file *m, void *v)
-> >  static ssize_t memory_min_write(struct kernfs_open_file *of,
-> >  				char *buf, size_t nbytes, loff_t off)
-> >  {
-> > -	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-> > +	struct mem_cgroup *iter, *memcg = mem_cgroup_from_css(of_css(of));
-> >  	unsigned long min;
-> >  	int err;
-> >  
-> > @@ -5095,6 +5095,11 @@ static ssize_t memory_min_write(struct kernfs_open_file *of,
-> >  
-> >  	page_counter_set_min(&memcg->memory, min);
-> >  
-> > +	rcu_read_lock();
-> > +	for_each_mem_cgroup_tree(iter, memcg)
-> > +		mem_cgroup_protected(NULL, iter);
-> > +	rcu_read_unlock();
+On Tue, 2018-06-12 at 09:31 -0700, Andy Lutomirski wrote:
+> On Tue, Jun 12, 2018 at 9:24 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+> >
+> > On Tue, 2018-06-12 at 09:00 -0700, Andy Lutomirski wrote:
+> > > On Tue, Jun 12, 2018 at 8:06 AM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+> > > >
+> > > > On Tue, 2018-06-12 at 20:56 +1000, Balbir Singh wrote:
+> > > > >
+> > > > > On 08/06/18 00:37, Yu-cheng Yu wrote:
+> > > > > > This series introduces CET - Shadow stack
+> > > > > >
+> > > > > > At the high level, shadow stack is:
+> > > > > >
+> > > > > >     Allocated from a task's address space with vm_flags VM_SHSTK;
+> > > > > >     Its PTEs must be read-only and dirty;
+> > > > > >     Fixed sized, but the default size can be changed by sys admin.
+> > > > > >
+> > > > > > For a forked child, the shadow stack is duplicated when the next
+> > > > > > shadow stack access takes place.
+> > > > > >
+> > > > > > For a pthread child, a new shadow stack is allocated.
+> > > > > >
+> > > > > > The signal handler uses the same shadow stack as the main program.
+> > > > > >
+> > > > >
+> > > > > Even with sigaltstack()?
+> > > > >
+> > > > >
+> > > > > Balbir Singh.
+> > > >
+> > > > Yes.
+> > > >
+> > >
+> > > I think we're going to need some provision to add an alternate signal
+> > > stack to handle the case where the shadow stack overflows.
+> >
+> > The shadow stack stores only return addresses; its consumption will not
+> > exceed a percentage of (program stack size + sigaltstack size) before
+> > those overflow.  When that happens, there is usually very little we can
+> > do.  So we set a default shadow stack size that supports certain nested
+> > calls and allow sys admin to adjust it.
+> >
 > 
-> I'm not quite following. mem_cgroup_protected() is a just-in-time
-> query that depends on the groups' usage. How does it make sense to run
-> this at the time the limit is set?
+> Of course there's something you can do: add a sigaltstack-like stack
+> switching mechanism.  Have a reserve shadow stack and, when a signal
+> is delivered (possibly guarded by other conditions like "did the
+> shadow stack overflow"), switch to a new shadow stack and maybe write
+> a special token to the new shadow stack that says "signal delivery
+> jumped here and will restore to the previous shadow stack and
+> such-and-such address on return".
 
-mem_cgroup_protected() emulates memory pressure to propagate
-effective memory guarantee values.
+If (shstk size == (stack size + sigaltstack size)), then shstk will not
+overflow before program stack overflows and sigaltstack also overflows.
+
+Let me think about this.
+
+> Also, I have a couple of other questions after reading the
+> documentation some more:
 > 
-> Also, why is target reclaim different from global reclaim here? We
-> have all the information we need, even if we don't start at the
-> root_mem_cgroup. If we enter target reclaim against a specific cgroup,
-> yes, we don't know the elow it receives from its parents. What we *do*
-> know, though, is that it hit its own hard limit. What is happening
-> higher up that group doesn't matter for the purpose of protection.
+> 1. Why on Earth does INCSSP only take an 8-bit number of frames to
+> skip?  It seems to me that code that calls setjmp() and then calls
+> longjmp() while nested more than 256 function call levels will crash.
+
+GLIBC takes care of more than 256 functions calls.
+
+> 2. The mnemonic RSTORSSP makes no sense to me.  RSTORSSP is a stack
+> *switch* operation not a stack *restore* operation, unless I'm
+> seriously misunderstanding.
+
+The intention is to switch shadow stacks with tokens.  RSTORSSP restores
+to a previous shadow stack address from a restore token.
+
+> 3. Is there anything resembling clear documentation of the format of
+> the shadow stack?  That is, what types of values might be found on the
+> shadow stack and what do they all mean?
+
+Only return addresses and restore tokens can be on a user-mode shadow
+stack.  The restore token has the incoming shadow stack address plus one
+bit indicating 64/32-bit mode.
+
+I will put this into Documentation/x86/intel_cet.txt.
+
 > 
-> I.e. it seems to me that instead of this patch we should be treating
-> the reclaim root and its first-level children the same way we treat
-> root_mem_cgroup and top-level cgroups: no protection for the root,
-> first children use their low setting as the elow, all descendants get
-> the proportional low-usage distribution.
+> 4. Usually Intel doesn't submit upstream Linux patches for ISA
+> extensions until the ISA is documented for real.  CET does not appear
+> to be documented for real.  Could Intel kindly release something that
+> at least claims to be authoritative documentation?
 > 
-
-Ok, we can keep it this way. We can have some races between the global
-and targeted reclaim, but it's fine.
-
-Andrew,
-can you, please, drop these patches from the mm tree:
-  selftests: cgroup: add test for memory.low corner cases
-  mm, memcg: don't skip memory guarantee calculations
-  mm, memcg: propagate memory effective protection on setting memory.min/low
-
-The null pointer fix ("b2c21aa3690a mm: fix null pointer dereference in mem_cgroup_protected")
-should be kept and merged asap.
-
-Thank you!
+> --Andy
