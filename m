@@ -1,61 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BD9BA6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 08:06:02 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id a16-v6so21398605qkb.7
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 05:06:02 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id n8-v6si13638qvf.50.2018.06.12.05.06.01
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 026B26B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 08:17:25 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id f8-v6so4577045qtb.23
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 05:17:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id e33-v6si14642qte.258.2018.06.12.05.17.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jun 2018 05:06:02 -0700 (PDT)
-Date: Tue, 12 Jun 2018 05:05:47 -0700
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [PATCH -mm -V3 03/21] mm, THP, swap: Support PMD swap mapping in
- swap_duplicate()
-Message-ID: <20180612120547.njpz73dymeru5mzy@ca-dmjordan1.us.oracle.com>
-References: <20180523082625.6897-1-ying.huang@intel.com>
- <20180523082625.6897-4-ying.huang@intel.com>
- <20180611204231.ojhlyrbmda6pouxb@ca-dmjordan1.us.oracle.com>
- <87o9ggpzlk.fsf@yhuang-dev.intel.com>
- <87k1r4puen.fsf@yhuang-dev.intel.com>
+        Tue, 12 Jun 2018 05:17:24 -0700 (PDT)
+Subject: Re: pkeys on POWER: Access rights not reset on execve
+References: <20180603201832.GA10109@ram.oc3035372033.ibm.com>
+ <4e53b91f-80a7-816a-3e9b-56d7be7cd092@redhat.com>
+ <20180604140135.GA10088@ram.oc3035372033.ibm.com>
+ <f2f61c24-8e8f-0d36-4e22-196a2a3f7ca7@redhat.com>
+ <20180604190229.GB10088@ram.oc3035372033.ibm.com>
+ <30040030-1aa2-623b-beec-dd1ceb3eb9a7@redhat.com>
+ <20180608023441.GA5573@ram.oc3035372033.ibm.com>
+ <2858a8eb-c9b5-42ce-5cfc-74a4b3ad6aa9@redhat.com>
+ <20180611172305.GB5697@ram.oc3035372033.ibm.com>
+ <30f5cb0e-e09a-15e6-f77d-a3afa422a651@redhat.com>
+ <20180611200807.GA5773@ram.oc3035372033.ibm.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <c2931344-d2e8-46c0-b70c-97567ae7f7a0@redhat.com>
+Date: Tue, 12 Jun 2018 14:17:21 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87k1r4puen.fsf@yhuang-dev.intel.com>
+In-Reply-To: <20180611200807.GA5773@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>
 
-On Tue, Jun 12, 2018 at 11:15:28AM +0800, Huang, Ying wrote:
-> "Huang, Ying" <ying.huang@intel.com> writes:
-> >> On Wed, May 23, 2018 at 04:26:07PM +0800, Huang, Ying wrote:
-> >>> @@ -3516,11 +3512,39 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
-> >>
-> >> Two comments about this part of __swap_duplicate as long as you're moving it to
-> >> another function:
-> >>
-> >>    } else if (count || has_cache) {
-> >>    
-> >>    	if ((count & ~COUNT_CONTINUED) < SWAP_MAP_MAX)          /* #1   */
-> >>    		count += usage;
-> >>    	else if ((count & ~COUNT_CONTINUED) > SWAP_MAP_MAX)     /* #2   */
-> >>    		err = -EINVAL;
-> >>
-> >> #1:  __swap_duplicate_locked might use
-> >>
-> >>     VM_BUG_ON(usage != SWAP_HAS_CACHE && usage != 1);
-> >>
-> >> to document the unstated assumption that usage is 1 (otherwise count could
-> >> overflow).
-> >
-> > Sounds good.  Will do this.
+On 06/11/2018 10:08 PM, Ram Pai wrote:
+> Ok. try this patch. This patch is on top of the 5 patches that I had
+> sent last week i.e  "[PATCH  0/5] powerpc/pkeys: fixes to pkeys"
 > 
-> Found usage parameter of __swap_duplicate() could be SWAP_MAP_SHMEM too.
-> We can improve the parameter checking.  But that appears not belong to
-> this series.
+> The following is a draft patch though to check if it meets your
+> expectations.
+> 
+> commit fe53b5fe2dcb3139ea27ade3ae7cbbe43c4af3be
+> Author: Ram Pai<linuxram@us.ibm.com>
+> Date:   Mon Jun 11 14:57:34 2018 -0500
+> 
+>      powerpc/pkeys: Deny read/write/execute by default
 
-Fair enough, I'll see about adding this along with the other patch I'm sending.
+With this patch, my existing misc/tst-pkey test in glibc passes.  The 
+in-tree version still has some incorrect assumptions on implementation 
+behavior, but those are test bugs.  The kernel behavior with your patch 
+look good to me.  Thanks.
 
-Daniel
+Florian
