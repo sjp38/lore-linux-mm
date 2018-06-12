@@ -1,48 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 118A76B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 06:56:54 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j14-v6so11754607pfn.11
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 03:56:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r7-v6sor212732ple.132.2018.06.12.03.56.52
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CA9BC6B0007
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 07:31:26 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id b31-v6so13899895plb.5
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 04:31:26 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id x1-v6si714216plb.8.2018.06.12.04.31.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Jun 2018 03:56:53 -0700 (PDT)
-Subject: Re: [PATCH 00/10] Control Flow Enforcement - Part (3)
-References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <bbfde1b3-5e1b-80e3-30e8-fd1e46a2ceb1@gmail.com>
-Date: Tue, 12 Jun 2018 20:56:30 +1000
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 12 Jun 2018 04:31:25 -0700 (PDT)
+Date: Tue, 12 Jun 2018 04:31:22 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v13 00/72] Convert page cache to XArray
+Message-ID: <20180612113122.GA19433@bombadil.infradead.org>
+References: <20180611140639.17215-1-willy@infradead.org>
+ <20180612104041.GB24375@twin.jikos.cz>
 MIME-Version: 1.0
-In-Reply-To: <20180607143807.3611-1-yu-cheng.yu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180612104041.GB24375@twin.jikos.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Mike Kravetz <mike.kravetz@oracle.com>
+To: dsterba@suse.cz, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
 
+On Tue, Jun 12, 2018 at 12:40:41PM +0200, David Sterba wrote:
+> [ 9875.174796] kernel BUG at fs/inode.c:513!
 
+What the ...
 
-On 08/06/18 00:37, Yu-cheng Yu wrote:
-> This series introduces CET - Shadow stack
-> 
-> At the high level, shadow stack is:
-> 
-> 	Allocated from a task's address space with vm_flags VM_SHSTK;
-> 	Its PTEs must be read-only and dirty;
-> 	Fixed sized, but the default size can be changed by sys admin.
-> 
-> For a forked child, the shadow stack is duplicated when the next
-> shadow stack access takes place.
-> 
-> For a pthread child, a new shadow stack is allocated.
-> 
-> The signal handler uses the same shadow stack as the main program.
-> 
+Somehow the fix for that got dropped.  I spent most of last week chasing
+that problem!  This is the correct code:
 
-Even with sigaltstack()?
+http://git.infradead.org/users/willy/linux-dax.git/commitdiff/01177bb06761539af8a6c872416109e2c8b64559
 
-
-Balbir Singh.
+I'll check over the patchset and see if anything else got dropped!
