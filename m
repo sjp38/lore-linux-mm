@@ -1,234 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 38EEA6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 16:07:34 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id e2-v6so48496pgq.4
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 13:07:34 -0700 (PDT)
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id s7-v6si758943pgq.230.2018.06.12.13.07.32
+	by kanga.kvack.org (Postfix) with ESMTP id 85FC86B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 16:14:23 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id e1-v6so46373pgp.20
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 13:14:23 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id q185-v6si927879pfb.216.2018.06.12.13.14.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jun 2018 13:07:32 -0700 (PDT)
-Date: Tue, 12 Jun 2018 23:07:28 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv3 14/17] x86/mm: Introduce direct_mapping_size
-Message-ID: <20180612200728.h5oxfhzb4mijjwrr@black.fi.intel.com>
-References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
- <20180612143915.68065-15-kirill.shutemov@linux.intel.com>
- <030253cc-2db5-8faf-15ef-bb7828c5f624@nextfour.com>
+        Tue, 12 Jun 2018 13:14:22 -0700 (PDT)
+Date: Tue, 12 Jun 2018 14:14:20 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v4 11/12] mm, memory_failure: Teach memory_failure()
+ about dev_pagemap pages
+Message-ID: <20180612201420.GA12706@linux.intel.com>
+References: <152850182079.38390.8280340535691965744.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152850187949.38390.1012249765651998342.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <030253cc-2db5-8faf-15ef-bb7828c5f624@nextfour.com>
+In-Reply-To: <152850187949.38390.1012249765651998342.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mika =?iso-8859-1?Q?Penttil=E4?= <mika.penttila@nextfour.com>
-Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Tue, Jun 12, 2018 at 02:58:38PM +0000, Mika Penttila wrote:
+On Fri, Jun 08, 2018 at 04:51:19PM -0700, Dan Williams wrote:
+>     mce: Uncorrected hardware memory error in user-access at af34214200
+>     {1}[Hardware Error]: It has been corrected by h/w and requires no further action
+>     mce: [Hardware Error]: Machine check events logged
+>     {1}[Hardware Error]: event severity: corrected
+>     Memory failure: 0xaf34214: reserved kernel page still referenced by 1 users
+>     [..]
+>     Memory failure: 0xaf34214: recovery action for reserved kernel page: Failed
+>     mce: Memory error not recovered
 > 
+> In contrast to typical memory, dev_pagemap pages may be dax mapped. With
+> dax there is no possibility to map in another page dynamically since dax
+> establishes 1:1 physical address to file offset associations. Also
+> dev_pagemap pages associated with NVDIMM / persistent memory devices can
+> internal remap/repair addresses with poison. While memory_failure()
+> assumes that it can discard typical poisoned pages and keep them
+> unmapped indefinitely, dev_pagemap pages may be returned to service
+> after the error is cleared.
 > 
-> On 12.06.2018 17:39, Kirill A. Shutemov wrote:
-> > Kernel need to have a way to access encrypted memory. We are going to
-> > use per-KeyID direct mapping to facilitate the access with minimal
-> > overhead.
-> >
-> > Direct mapping for each KeyID will be put next to each other in the
-> > virtual address space. We need to have a way to find boundaries of
-> > direct mapping for particular KeyID.
-> >
-> > The new variable direct_mapping_size specifies the size of direct
-> > mapping. With the value, it's trivial to find direct mapping for
-> > KeyID-N: PAGE_OFFSET + N * direct_mapping_size.
-> >
-> > Size of direct mapping is calculated during KASLR setup. If KALSR is
-> > disable it happens during MKTME initialization.
-> >
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  arch/x86/include/asm/mktme.h   |  2 ++
-> >  arch/x86/include/asm/page_64.h |  1 +
-> >  arch/x86/kernel/head64.c       |  2 ++
-> >  arch/x86/mm/kaslr.c            | 21 ++++++++++++---
-> >  arch/x86/mm/mktme.c            | 48 ++++++++++++++++++++++++++++++++++
-> >  5 files changed, 71 insertions(+), 3 deletions(-)
-> >
-> > diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-> > index 9363b989a021..3bf481fe3f56 100644
-> > --- a/arch/x86/include/asm/mktme.h
-> > +++ b/arch/x86/include/asm/mktme.h
-> > @@ -40,6 +40,8 @@ int page_keyid(const struct page *page);
-> >  
-> >  void mktme_disable(void);
-> >  
-> > +void setup_direct_mapping_size(void);
-> > +
-> >  #else
-> >  #define mktme_keyid_mask	((phys_addr_t)0)
-> >  #define mktme_nr_keyids		0
-> > diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-> > index 939b1cff4a7b..53c32af895ab 100644
-> > --- a/arch/x86/include/asm/page_64.h
-> > +++ b/arch/x86/include/asm/page_64.h
-> > @@ -14,6 +14,7 @@ extern unsigned long phys_base;
-> >  extern unsigned long page_offset_base;
-> >  extern unsigned long vmalloc_base;
-> >  extern unsigned long vmemmap_base;
-> > +extern unsigned long direct_mapping_size;
-> >  
-> >  static inline unsigned long __phys_addr_nodebug(unsigned long x)
-> >  {
-> > diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-> > index a21d6ace648e..b6175376b2e1 100644
-> > --- a/arch/x86/kernel/head64.c
-> > +++ b/arch/x86/kernel/head64.c
-> > @@ -59,6 +59,8 @@ EXPORT_SYMBOL(vmalloc_base);
-> >  unsigned long vmemmap_base __ro_after_init = __VMEMMAP_BASE_L4;
-> >  EXPORT_SYMBOL(vmemmap_base);
-> >  #endif
-> > +unsigned long direct_mapping_size __ro_after_init = -1UL;
-> > +EXPORT_SYMBOL(direct_mapping_size);
-> >  
-> >  #define __head	__section(.head.text)
-> >  
-> > diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-> > index 4408cd9a3bef..3d8ef8cb97e1 100644
-> > --- a/arch/x86/mm/kaslr.c
-> > +++ b/arch/x86/mm/kaslr.c
-> > @@ -69,6 +69,15 @@ static inline bool kaslr_memory_enabled(void)
-> >  	return kaslr_enabled() && !IS_ENABLED(CONFIG_KASAN);
-> >  }
-> >  
-> > +#ifndef CONFIG_X86_INTEL_MKTME
-> > +static void __init setup_direct_mapping_size(void)
-> > +{
-> > +	direct_mapping_size = max_pfn << PAGE_SHIFT;
-> > +	direct_mapping_size = round_up(direct_mapping_size, 1UL << TB_SHIFT);
-> > +	direct_mapping_size += (1UL << TB_SHIFT) * CONFIG_MEMORY_PHYSICAL_PADDING;
-> > +}
-> > +#endif
-> > +
-> >  /* Initialize base and padding for each memory region randomized with KASLR */
-> >  void __init kernel_randomize_memory(void)
-> >  {
-> > @@ -93,7 +102,11 @@ void __init kernel_randomize_memory(void)
-> >  	if (!kaslr_memory_enabled())
-> >  		return;
-> >  
-> > -	kaslr_regions[0].size_tb = 1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT);
-> > +	/*
-> > +	 * Upper limit for direct mapping size is 1/4 of whole virtual
-> > +	 * address space
+> Teach memory_failure() to detect and handle MEMORY_DEVICE_HOST
+> dev_pagemap pages that have poison consumed by userspace. Mark the
+> memory as UC instead of unmapping it completely to allow ongoing access
+> via the device driver (nd_pmem). Later, nd_pmem will grow support for
+> marking the page back to WB when the error is cleared.
 > 
-> or 1/2?
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Jerome Glisse <jglisse@redhat.com>
+> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+<>
+> +static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
+> +		struct dev_pagemap *pgmap)
+> +{
+> +	const bool unmap_success = true;
+> +	unsigned long size;
+> +	struct page *page;
+> +	LIST_HEAD(tokill);
+> +	int rc = -EBUSY;
+> +	loff_t start;
+> +
+> +	/*
+> +	 * Prevent the inode from being freed while we are interrogating
+> +	 * the address_space, typically this would be handled by
+> +	 * lock_page(), but dax pages do not use the page lock.
+> +	 */
+> +	page = dax_lock_page(pfn);
+> +	if (!page)
+> +		goto out;
+> +
+> +	if (hwpoison_filter(page)) {
+> +		rc = 0;
+> +		goto unlock;
+> +	}
+> +
+> +	switch (pgmap->type) {
+> +	case MEMORY_DEVICE_PRIVATE:
+> +	case MEMORY_DEVICE_PUBLIC:
+> +		/*
+> +		 * TODO: Handle HMM pages which may need coordination
+> +		 * with device-side memory.
+> +		 */
+> +		goto unlock;
+> +	default:
+> +		break;
+> +	}
+> +
+> +	/*
+> +	 * If the page is not mapped in userspace then report it as
+> +	 * unhandled.
+> +	 */
+> +	size = dax_mapping_size(page);
+> +	if (!size) {
+> +		pr_err("Memory failure: %#lx: failed to unmap page\n", pfn);
+> +		goto unlock;
+> +	}
+> +
+> +	SetPageHWPoison(page);
+> +
+> +	/*
+> +	 * Unlike System-RAM there is no possibility to swap in a
+> +	 * different physical page at a given virtual address, so all
+> +	 * userspace consumption of ZONE_DEVICE memory necessitates
+> +	 * SIGBUS (i.e. MF_MUST_KILL)
+> +	 */
+> +	flags |= MF_ACTION_REQUIRED | MF_MUST_KILL;
+> +	collect_procs(page, &tokill, flags & MF_ACTION_REQUIRED);
 
-1/2 of kernel address space or 1/4 of whole address space.
+You know "flags & MF_ACTION_REQUIRED" will always be true, so you can just
+pass in MF_ACTION_REQUIRED or even just "true".
 
-> 
-> > +	 */
-> > +	kaslr_regions[0].size_tb = 1 << (__VIRTUAL_MASK_SHIFT - 1 - TB_SHIFT);
-> 
-> 
-> 
-> >  	kaslr_regions[1].size_tb = VMALLOC_SIZE_TB;
-> >  
-> >  	/*
-> > @@ -101,8 +114,10 @@ void __init kernel_randomize_memory(void)
-> >  	 * add padding if needed (especially for memory hotplug support).
-> >  	 */
-> >  	BUG_ON(kaslr_regions[0].base != &page_offset_base);
-> > -	memory_tb = DIV_ROUND_UP(max_pfn << PAGE_SHIFT, 1UL << TB_SHIFT) +
-> > -		CONFIG_MEMORY_PHYSICAL_PADDING;
-> > +
-> > +	setup_direct_mapping_size();
-> > +
-> > +	memory_tb = direct_mapping_size * mktme_nr_keyids + 1;
-> 
-> parenthesis ?
-> 
-> memory_tb = direct_mapping_size * (mktme_nr_keyids + 1);
+> +
+> +	start = (page->index << PAGE_SHIFT) & ~(size - 1);
+> +	unmap_mapping_range(page->mapping, start, start + size, 0);
+> +
+> +	kill_procs(&tokill, flags & MF_MUST_KILL, !unmap_success, ilog2(size),
 
-Ouch. Thanks for noticing this.
+You know "flags & MF_MUST_KILL" will always be true, so you can just pass in
+MF_MUST_KILL or even just "true".
 
-> >  
-> >  	/* Adapt phyiscal memory region size based on available memory */
-> >  	if (memory_tb < kaslr_regions[0].size_tb)
-> > diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-> > index 43a44f0f2a2d..3e5322bf035e 100644
-> > --- a/arch/x86/mm/mktme.c
-> > +++ b/arch/x86/mm/mktme.c
-> > @@ -89,3 +89,51 @@ static bool need_page_mktme(void)
-> >  struct page_ext_operations page_mktme_ops = {
-> >  	.need = need_page_mktme,
-> >  };
-> > +
-> > +void __init setup_direct_mapping_size(void)
-> > +{
-> > +	unsigned long available_va;
-> > +
-> > +	/* 1/4 of virtual address space is didicated for direct mapping */
-> > +	available_va = 1UL << (__VIRTUAL_MASK_SHIFT - 1);
-> > +
-> > +	/* How much memory the systrem has? */
-> > +	direct_mapping_size = max_pfn << PAGE_SHIFT;
-> > +	direct_mapping_size = round_up(direct_mapping_size, 1UL << 40);
-> > +
-> > +	if (mktme_status != MKTME_ENUMERATED)
-> > +		goto out;
-> > +
-> > +	/*
-> > +	 * Not enough virtual address space to address all physical memory with
-> > +	 * MKTME enabled. Even without padding.
-> > +	 *
-> > +	 * Disable MKTME instead.
-> > +	 */
-> > +	if (direct_mapping_size > available_va / mktme_nr_keyids + 1) {
-> 
-> parenthesis again?
-> 
-> if (direct_mapping_size > available_va / (mktme_nr_keyids + 1)) {
-
-Yeah... :/
-
-Here's fixup.
-
-diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-index 3d8ef8cb97e1..ef437c8d5f34 100644
---- a/arch/x86/mm/kaslr.c
-+++ b/arch/x86/mm/kaslr.c
-@@ -103,8 +103,8 @@ void __init kernel_randomize_memory(void)
- 		return;
- 
- 	/*
--	 * Upper limit for direct mapping size is 1/4 of whole virtual
--	 * address space
-+	 * Upper limit for direct mapping size is half of kernel address
-+	 * space.
- 	 */
- 	kaslr_regions[0].size_tb = 1 << (__VIRTUAL_MASK_SHIFT - 1 - TB_SHIFT);
- 	kaslr_regions[1].size_tb = VMALLOC_SIZE_TB;
-@@ -117,7 +117,7 @@ void __init kernel_randomize_memory(void)
- 
- 	setup_direct_mapping_size();
- 
--	memory_tb = direct_mapping_size * mktme_nr_keyids + 1;
-+	memory_tb = direct_mapping_size * (mktme_nr_keyids + 1);
- 
- 	/* Adapt phyiscal memory region size based on available memory */
- 	if (memory_tb < kaslr_regions[0].size_tb)
-diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index 3e5322bf035e..70f6eff093d8 100644
---- a/arch/x86/mm/mktme.c
-+++ b/arch/x86/mm/mktme.c
-@@ -110,7 +110,7 @@ void __init setup_direct_mapping_size(void)
- 	 *
- 	 * Disable MKTME instead.
- 	 */
--	if (direct_mapping_size > available_va / mktme_nr_keyids + 1) {
-+	if (direct_mapping_size > available_va / (mktme_nr_keyids + 1)) {
- 		pr_err("x86/mktme: Disabled. Not enough virtual address space\n");
- 		pr_err("x86/mktme: Consider switching to 5-level paging\n");
- 		mktme_disable();
--- 
- Kirill A. Shutemov
+Also, you can get rid of the constant "unmap_success" if you want and just
+pass in false as the 3rd argument.
