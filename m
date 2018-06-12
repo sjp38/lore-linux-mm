@@ -1,59 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 42DDE6B026E
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 04:33:20 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id b26-v6so7117324lfa.6
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 01:33:20 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 82DA86B0279
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 05:54:13 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id h7-v6so7316704lfc.13
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 02:54:13 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 79-v6sor98169ljs.86.2018.06.12.01.33.18
+        by mx.google.com with SMTPS id i25-v6sor110992lfb.5.2018.06.12.02.54.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 12 Jun 2018 01:33:18 -0700 (PDT)
-Date: Tue, 12 Jun 2018 11:33:14 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH v4] mm: fix race between kmem_cache destroy, create and
- deactivate
-Message-ID: <20180612083314.ftl4hmn4xwnehjdx@esperanza>
-References: <20180611192951.195727-1-shakeelb@google.com>
+        Tue, 12 Jun 2018 02:54:11 -0700 (PDT)
+Subject: Re: Distinguishing VMalloc pages
+References: <20180611121129.GB12912@bombadil.infradead.org>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Message-ID: <c99d981a-d55e-1759-a14a-4ef856072618@gmail.com>
+Date: Tue, 12 Jun 2018 12:54:09 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180611192951.195727-1-shakeelb@google.com>
+In-Reply-To: <20180611121129.GB12912@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Linux MM <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
 
-On Mon, Jun 11, 2018 at 12:29:51PM -0700, Shakeel Butt wrote:
-> The memcg kmem cache creation and deactivation (SLUB only) is
-> asynchronous. If a root kmem cache is destroyed whose memcg cache is in
-> the process of creation or deactivation, the kernel may crash.
+On 11/06/18 15:11, Matthew Wilcox wrote:
 > 
-> Example of one such crash:
-> 	general protection fault: 0000 [#1] SMP PTI
-> 	CPU: 1 PID: 1721 Comm: kworker/14:1 Not tainted 4.17.0-smp
-> 	...
-> 	Workqueue: memcg_kmem_cache kmemcg_deactivate_workfn
-> 	RIP: 0010:has_cpu_slab
-> 	...
-> 	Call Trace:
-> 	? on_each_cpu_cond
-> 	__kmem_cache_shrink
-> 	kmemcg_cache_deact_after_rcu
-> 	kmemcg_deactivate_workfn
-> 	process_one_work
-> 	worker_thread
-> 	kthread
-> 	ret_from_fork+0x35/0x40
+> I think we all like the idea of being able to look at a page [1] and
+> determine what it's used for.  We have two places that we already look:
 > 
-> To fix this race, on root kmem cache destruction, mark the cache as
-> dying and flush the workqueue used for memcg kmem cache creation and
-> deactivation. SLUB's memcg kmem cache deactivation also includes RCU
-> callback and thus make sure all previous registered RCU callbacks
-> have completed as well.
+> PageSlab
+> page_type
 > 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> It's not possible to use page_type for VMalloc pages because that field
+> is in use for mapcount.  We don't want to use another page flag bit.
+> 
+> I tried to use the page->mapping field in my earlier patch and that was
+> a problem because page_mapping() would return non-NULL, which broke
+> user-space unmapping of vmalloced pages through the zap_pte_range ->
+> set_page_dirty path.
 
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+This seems pretty similar to what I am doing in a preparatory patch for
+pmalloc (I'm still working on this, I just got swamped in day-job 
+related stuff, but I am progressing toward an example with IMA).
+So it looks like my patch won't work, after all?
 
-Thanks.
+Although, in your case, you noticed a problem with userspace, while I do
+not care at all about that, so maybe there is some wriggling space there ...
+
+> 
+> I can see two alternatives to pursue here.  One is that we already have
+> special casing in page_mapping():
+> 
+>   	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+>   		return NULL;
+> 
+> So changing:
+> -#define MAPPING_VMalloc                (void *)0x440
+> +#define MAPPING_VMalloc                (void *)0x441
+> 
+> in my original patch would lead to page_mapping() returning NULL.
+> Are there other paths where having a special value in page->mapping is
+> going to cause a problem?  Indeed, is having the PAGE_MAPPING_ANON bit
+> set in these pages going to cause a problem?  I just don't know those
+> code paths well enough.
+> 
+> Another possibility is putting a special value in one of the other
+> fields of struct page.
+> 
+> 1. page->private is not available; everybody uses that field for
+> everything already, and there's no way that any value could be special
+> enough to be unique.
+> 2. page->index (on 32-bit systems) can already have all possible values.
+> 3. page->lru.  The second word is already used for many random things,
+> but the first word is always either a pointer or compound_head (with
+> bit 0 set).  So we could use a set of values with bits 0 & 1 clear, and
+> below 4kB (ie 1023 values total) to distinguish pages.
+> 
+> Any preferences/recommendations/words of warning?
+
+
+Why not having a reference (either direct or indirect) to the actual
+vmap area, and then the flag there, instead?
+
+I do not know the specific use case you have in mind - if any - but I
+think that if one is already trying to figure out what sort of use the
+vmalloc page is put to, then probably pretty soon there will be a need
+for a reference to the area.
+
+So what if the page could hold a reference the area, where there would
+be more space available for specifying what it is used for?
+
+--
+igor
