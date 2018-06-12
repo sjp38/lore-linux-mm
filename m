@@ -1,65 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 71E4F6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 07:36:18 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p29-v6so11857005pfi.19
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 04:36:18 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m189-v6si608407pga.107.2018.06.12.04.36.17
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C0CDD6B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 07:43:51 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id a25-v6so16676886otf.2
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 04:43:51 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t46-v6sor266560oti.289.2018.06.12.04.43.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 12 Jun 2018 04:36:17 -0700 (PDT)
-Date: Tue, 12 Jun 2018 04:36:15 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Distinguishing VMalloc pages
-Message-ID: <20180612113615.GB19433@bombadil.infradead.org>
-References: <20180611121129.GB12912@bombadil.infradead.org>
- <c99d981a-d55e-1759-a14a-4ef856072618@gmail.com>
+        (Google Transport Security);
+        Tue, 12 Jun 2018 04:43:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c99d981a-d55e-1759-a14a-4ef856072618@gmail.com>
+In-Reply-To: <alpine.DEB.2.21.1806121155450.2157@nanos.tec.linutronix.de>
+References: <20180607143807.3611-1-yu-cheng.yu@intel.com> <20180607143807.3611-7-yu-cheng.yu@intel.com>
+ <CALCETrU6axo158CiSCRRkC4GC5hib9hypC98t7LLjA3gDaacsw@mail.gmail.com>
+ <1528403417.5265.35.camel@2b52.sc.intel.com> <CALCETrXz3WWgZwUXJsDTWvmqKUArQFuMH1xJdSLVKFpTysNWxg@mail.gmail.com>
+ <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com> <alpine.DEB.2.21.1806121155450.2157@nanos.tec.linutronix.de>
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Tue, 12 Jun 2018 04:43:49 -0700
+Message-ID: <CAMe9rOoCiXQ4iVD3j_AHGrvEXtoaVVZVs7H7fCuqNEuuR5j+2Q@mail.gmail.com>
+Subject: Re: [PATCH 06/10] x86/cet: Add arch_prctl functions for shadow stack
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@gmail.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>, Yu-cheng Yu <yu-cheng.yu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
 
-On Tue, Jun 12, 2018 at 12:54:09PM +0300, Igor Stoppa wrote:
-> On 11/06/18 15:11, Matthew Wilcox wrote:
-> > I tried to use the page->mapping field in my earlier patch and that was
-> > a problem because page_mapping() would return non-NULL, which broke
-> > user-space unmapping of vmalloced pages through the zap_pte_range ->
-> > set_page_dirty path.
-> 
-> This seems pretty similar to what I am doing in a preparatory patch for
-> pmalloc (I'm still working on this, I just got swamped in day-job related
-> stuff, but I am progressing toward an example with IMA).
-> So it looks like my patch won't work, after all?
-> 
-> Although, in your case, you noticed a problem with userspace, while I do
-> not care at all about that, so maybe there is some wriggling space there ...
+On Tue, Jun 12, 2018 at 3:03 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> On Thu, 7 Jun 2018, H.J. Lu wrote:
+>> On Thu, Jun 7, 2018 at 2:01 PM, Andy Lutomirski <luto@kernel.org> wrote:
+>> > Why is the lockout necessary?  If user code enables CET and tries to
+>> > run code that doesn't support CET, it will crash.  I don't see why we
+>> > need special code in the kernel to prevent a user program from calling
+>> > arch_prctl() and crashing itself.  There are already plenty of ways to
+>> > do that :)
+>>
+>> On CET enabled machine, not all programs nor shared libraries are
+>> CET enabled.  But since ld.so is CET enabled, all programs start
+>> as CET enabled.  ld.so will disable CET if a program or any of its shared
+>> libraries aren't CET enabled.  ld.so will lock up CET once it is done CET
+>> checking so that CET can't no longer be disabled afterwards.
+>
+> That works for stuff which loads all libraries at start time, but what
+> happens if the program uses dlopen() later on? If CET is force locked and
+> the library is not CET enabled, it will fail.
 
-Yes; if your pages can never be mapped to userspace, then there's no
-problem.  Many other users of struct page use the page->mapping field
-for other purposes.
+That is to prevent disabling CET by dlopening a legacy shared library.
 
-> Why not having a reference (either direct or indirect) to the actual
-> vmap area, and then the flag there, instead?
+> I don't see the point of trying to support CET by magic. It adds complexity
+> and you'll never be able to handle all corner cases correctly. dlopen() is
+> not even a corner case.
 
-Because what we're trying to do is find out "Given a random struct page,
-what is it used for".  It might be page cache, it might be slab, it
-might be anything.  We can't go round randomly dereferencing pointers
-and seeing what pot of gold is at the end of that rainbow.
+That is a price we pay for security.  To enable CET, especially shadow
+shack, the program and all of shared libraries it uses should be CET
+enabled.  Most of programs can be enabled with CET by compiling them
+with -fcf-protection.
 
-> I do not know the specific use case you have in mind - if any - but I
-> think that if one is already trying to figure out what sort of use the
-> vmalloc page is put to, then probably pretty soon there will be a need
-> for a reference to the area.
-> 
-> So what if the page could hold a reference the area, where there would
-> be more space available for specifying what it is used for?
+> Occasionally stuff needs to be recompiled to utilize new mechanisms, see
+> retpoline ...
+>
+> Thanks,
+>
+>         tglx
+>
 
-It might be useful to refer to the earlier patch which included that
-information:
 
-https://www.spinics.net/lists/linux-mm/msg152818.html
+
+-- 
+H.J.
