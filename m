@@ -1,54 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0949C6B000A
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 06:03:21 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id x14-v6so15057422wrr.17
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 03:03:20 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id t124-v6si40560wmg.70.2018.06.12.03.03.19
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 855856B000A
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 06:28:52 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p16-v6so7708343pfn.7
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 03:28:52 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u187-v6sor115866pgc.267.2018.06.12.03.28.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Jun 2018 03:03:19 -0700 (PDT)
-Date: Tue, 12 Jun 2018 12:03:15 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 06/10] x86/cet: Add arch_prctl functions for shadow
- stack
-In-Reply-To: <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.21.1806121155450.2157@nanos.tec.linutronix.de>
-References: <20180607143807.3611-1-yu-cheng.yu@intel.com> <20180607143807.3611-7-yu-cheng.yu@intel.com> <CALCETrU6axo158CiSCRRkC4GC5hib9hypC98t7LLjA3gDaacsw@mail.gmail.com> <1528403417.5265.35.camel@2b52.sc.intel.com> <CALCETrXz3WWgZwUXJsDTWvmqKUArQFuMH1xJdSLVKFpTysNWxg@mail.gmail.com>
- <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 12 Jun 2018 03:28:50 -0700 (PDT)
+Subject: Re: [powerpc/powervm]kernel BUG at mm/memory_hotplug.c:1864!
+References: <6826dab0e4382380db8d11b047272bda@linux.vnet.ibm.com>
+ <20180608112823.GA20395@techadventures.net>
+ <3d1e7740df56ed35c8b56941acdb7079@linux.vnet.ibm.com>
+ <20180608121553.GA20774@techadventures.net>
+ <0aac625ee724d877b87c69bba5ac9a0e@linux.vnet.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <605b4df2-4cf1-2dda-3661-68b78845f8ec@gmail.com>
+Date: Tue, 12 Jun 2018 20:28:43 +1000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <0aac625ee724d877b87c69bba5ac9a0e@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H.J. Lu" <hjl.tools@gmail.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Yu-cheng Yu <yu-cheng.yu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
+To: vrbagal1 <vrbagal1@linux.vnet.ibm.com>, Oscar Salvador <osalvador@techadventures.net>
+Cc: sachinp <sachinp@linux.vnet.ibm.com>, linux-mm@kvack.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, nfont@linux.vnet.ibm.com, Linuxppc-dev <linuxppc-dev-bounces+vrbagal1=linux.vnet.ibm.com@lists.ozlabs.org>, linux-next <linux-next@vger.kernel.org>
 
-On Thu, 7 Jun 2018, H.J. Lu wrote:
-> On Thu, Jun 7, 2018 at 2:01 PM, Andy Lutomirski <luto@kernel.org> wrote:
-> > Why is the lockout necessary?  If user code enables CET and tries to
-> > run code that doesn't support CET, it will crash.  I don't see why we
-> > need special code in the kernel to prevent a user program from calling
-> > arch_prctl() and crashing itself.  There are already plenty of ways to
-> > do that :)
+
+
+On 11/06/18 17:41, vrbagal1 wrote:
+> On 2018-06-08 17:45, Oscar Salvador wrote:
+>> On Fri, Jun 08, 2018 at 05:11:24PM +0530, vrbagal1 wrote:
+>>> On 2018-06-08 16:58, Oscar Salvador wrote:
+>>> >On Fri, Jun 08, 2018 at 04:44:24PM +0530, vrbagal1 wrote:
+>>> >>Greetings!!!
+>>> >>
+>>> >>I am seeing kernel bug followed by oops message and system reboots,
+>>> >>while
+>>> >>running dlpar memory hotplug test.
+>>> >>
+>>> >>Machine Details: Power6 PowerVM Platform
+>>> >>GCC version: (gcc version 4.8.3 20140911 (Red Hat 4.8.3-7) (GCC))
+>>> >>Test case: dlpar memory hotplug test (https://github.com/avocado-framework-tests/avocado-misc-tests/blob/master/memory/memhotplug.py)
+>>> >>Kernel Version: Linux version 4.17.0-autotest
+>>> >>
+>>> >>I am seeing this bug on rc7 as well.
 > 
-> On CET enabled machine, not all programs nor shared libraries are
-> CET enabled.  But since ld.so is CET enabled, all programs start
-> as CET enabled.  ld.so will disable CET if a program or any of its shared
-> libraries aren't CET enabled.  ld.so will lock up CET once it is done CET
-> checking so that CET can't no longer be disabled afterwards.
+> Observing similar traces on linux next kernel: 4.17.0-next-20180608-autotest
+> 
+> A Block size [0x4000000] unaligned hotplug range: start 0x220000000, size 0x1000000
 
-That works for stuff which loads all libraries at start time, but what
-happens if the program uses dlopen() later on? If CET is force locked and
-the library is not CET enabled, it will fail.
+size < block_size in this case, why? how? Could you confirm that the block size is 64MB and your trying to remove 16MB
 
-I don't see the point of trying to support CET by magic. It adds complexity
-and you'll never be able to handle all corner cases correctly. dlopen() is
-not even a corner case.
-
-Occasionally stuff needs to be recompiled to utilize new mechanisms, see
-retpoline ...
-
-Thanks,
-
-	tglx
+Balbir Singh.
