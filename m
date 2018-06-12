@@ -1,70 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BE88B6B000C
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 11:23:49 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id m1-v6so3188462uao.13
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 08:23:49 -0700 (PDT)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id 81-v6si197973uau.251.2018.06.12.08.23.48
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A2B76B000C
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 11:50:30 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id x6-v6so15744086wrl.6
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 08:50:30 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id s21-v6si692146edd.135.2018.06.12.08.50.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jun 2018 08:23:48 -0700 (PDT)
-Date: Tue, 12 Jun 2018 08:23:42 -0700
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [mmotm:master] BUILD REGRESSION
- 7393732bae530daa27567988b91d16ecfeef6c62
-Message-ID: <20180612152342.gai2obwfk6xz2t2e@ca-dmjordan1.us.oracle.com>
-References: <5b1a87b7.7PNFYCcgPGh68IFP%lkp@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 12 Jun 2018 08:50:28 -0700 (PDT)
+Date: Tue, 12 Jun 2018 11:52:42 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 2/3] mm, memcg: propagate memory effective protection
+ on setting memory.min/low
+Message-ID: <20180612155242.GA6300@cmpxchg.org>
+References: <20180611175418.7007-1-guro@fb.com>
+ <20180611175418.7007-3-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5b1a87b7.7PNFYCcgPGh68IFP%lkp@intel.com>
+In-Reply-To: <20180611175418.7007-3-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Shuah Khan <shuah@kernel.org>, Andrew Morton <akpm@linuxfoundation.org>
 
-On Fri, Jun 08, 2018 at 09:42:15PM +0800, kbuild test robot wrote:
-> tree/branch: git://git.cmpxchg.org/linux-mmotm.git  master
-> branch HEAD: 7393732bae530daa27567988b91d16ecfeef6c62  pci: test for unexpectedly disabled bridges
+On Mon, Jun 11, 2018 at 10:54:17AM -0700, Roman Gushchin wrote:
+> Explicitly propagate effective memory min/low values down by the tree.
 > 
-> Regressions in current branch:
+> If there is the global memory pressure, it's not really necessary.
+> Effective memory guarantees will be propagated automatically as we
+> traverse memory cgroup tree in the reclaim path.
 > 
-> drivers/scsi//qedf/qedf_main.c:3569:6: error: redefinition of 'qedf_get_protocol_tlv_data'
-> drivers/scsi/qedf/qedf_main.c:3569:6: error: redefinition of 'qedf_get_protocol_tlv_data'
-> drivers/scsi//qedf/qedf_main.c:3649:6: error: redefinition of 'qedf_get_generic_tlv_data'
-> drivers/scsi/qedf/qedf_main.c:3649:6: error: redefinition of 'qedf_get_generic_tlv_data'
-> drivers/thermal/qcom/tsens.c:144:31: error: 's' undeclared (first use in this function)
-> fs/dax.c:1031:2: error: 'entry2' undeclared (first use in this function)
-> fs/dax.c:1031:2: error: 'entry2' undeclared (first use in this function); did you mean 'entry'?
-> fs/fat/inode.c:162:25: warning: format '%ld' expects argument of type 'long int', but argument 5 has type 'sector_t {aka long long unsigned int}' [-Wformat=]
-> fs/fat/inode.c:162:3: warning: format '%ld' expects argument of type 'long int', but argument 5 has type 'sector_t' [-Wformat=]
-> fs///fat/inode.c:163:9: warning: format '%ld' expects argument of type 'long int', but argument 5 has type 'sector_t {aka long long unsigned int}' [-Wformat=]
-> fs/fat/inode.c:163:9: warning: format '%ld' expects argument of type 'long int', but argument 5 has type 'sector_t {aka long long unsigned int}' [-Wformat=]
-> include/asm-generic/int-ll64.h:16:9: error: unknown type name '__s8'
-> include/net/ipv6.h:299:2: error: unknown type name '__s8'
-> include/uapi/asm-generic/int-ll64.h:20:1: error: expected '=', ',', ';', 'asm' or '__attribute__' before 'typedef'
-> include/uapi/linux/dqblk_xfs.h:54:2: error: unknown type name '__s8'
-> include/uapi/linux/ethtool.h:1834:2: error: unknown type name '__s8'
-> include/uapi/linux/if_bonding.h:107:2: error: unknown type name '__s8'
+> But if there is no global memory pressure, effective memory protection
+> still matters for local (memcg-scoped) memory pressure.  So, we have to
+> update effective limits in the subtree, if a user changes memory.min and
+> memory.low values.
+> 
+> Link: http://lkml.kernel.org/r/20180522132528.23769-1-guro@fb.com
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Greg Thelen <gthelen@google.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Shuah Khan <shuah@kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linuxfoundation.org>
+> ---
+>  mm/memcontrol.c | 14 ++++++++++++--
+>  1 file changed, 12 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 5a3873e9d657..485df6f63d26 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5084,7 +5084,7 @@ static int memory_min_show(struct seq_file *m, void *v)
+>  static ssize_t memory_min_write(struct kernfs_open_file *of,
+>  				char *buf, size_t nbytes, loff_t off)
+>  {
+> -	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+> +	struct mem_cgroup *iter, *memcg = mem_cgroup_from_css(of_css(of));
+>  	unsigned long min;
+>  	int err;
+>  
+> @@ -5095,6 +5095,11 @@ static ssize_t memory_min_write(struct kernfs_open_file *of,
+>  
+>  	page_counter_set_min(&memcg->memory, min);
+>  
+> +	rcu_read_lock();
+> +	for_each_mem_cgroup_tree(iter, memcg)
+> +		mem_cgroup_protected(NULL, iter);
+> +	rcu_read_unlock();
 
-> net/ipv4/ipconfig.c:1:2: error: expected ';' before 'typedef'
+I'm not quite following. mem_cgroup_protected() is a just-in-time
+query that depends on the groups' usage. How does it make sense to run
+this at the time the limit is set?
 
-Hit this today.  A wayward 'q' snuck into linux-next-git-rejects.patch:
+Also, why is target reclaim different from global reclaim here? We
+have all the information we need, even if we don't start at the
+root_mem_cgroup. If we enter target reclaim against a specific cgroup,
+yes, we don't know the elow it receives from its parents. What we *do*
+know, though, is that it hit its own hard limit. What is happening
+higher up that group doesn't matter for the purpose of protection.
 
-  diff -puN net/ipv4/ipconfig.c~linux-next-git-rejects net/ipv4/ipconfig.c
-  --- a/net/ipv4/ipconfig.c~linux-next-git-rejects
-  +++ a/net/ipv4/ipconfig.c
-  @@ -1,4 +1,4 @@
-  -// SPDX-License-Identifier: GPL-2.0
-  +q// SPDX-License-Identifier: GPL-2.0
-
-Removing the q fixes all the errors above, but there's another build issue if
-you don't have CONFIG_HYPERV=y:
-
-  arch/x86/kvm/vmx.o: In function `alloc_loaded_vmcs':                                                                                                
-  /storage/dmjordan/linux/arch/x86/kvm/vmx.c:4404: undefined reference to `ms_hyperv'
-
-This one disappears with https://patchwork.kernel.org/patch/10427825/
-
-v4.17-mmotm-2018-06-07-16-59 from linux-mmotm builds with both fixes.
+I.e. it seems to me that instead of this patch we should be treating
+the reclaim root and its first-level children the same way we treat
+root_mem_cgroup and top-level cgroups: no protection for the root,
+first children use their low setting as the elow, all descendants get
+the proportional low-usage distribution.
