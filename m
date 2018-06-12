@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 25E876B026E
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FB056B026F
 	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 10:39:35 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id 31-v6so14147748plf.19
+Received: by mail-pg0-f69.google.com with SMTP id k13-v6so7826838pgr.11
         for <linux-mm@kvack.org>; Tue, 12 Jun 2018 07:39:35 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id x4-v6si213451pgv.592.2018.06.12.07.39.27
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id j195-v6si223743pgc.543.2018.06.12.07.39.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 12 Jun 2018 07:39:28 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 12/17] x86/mm: Allow to disable MKTME after enumeration
-Date: Tue, 12 Jun 2018 17:39:10 +0300
-Message-Id: <20180612143915.68065-13-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 14/17] x86/mm: Introduce direct_mapping_size
+Date: Tue, 12 Jun 2018 17:39:12 +0300
+Message-Id: <20180612143915.68065-15-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
 References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,117 +20,169 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Separate MKTME enumaration from enabling. We need to postpone enabling
-until initialization is complete.
+Kernel need to have a way to access encrypted memory. We are going to
+use per-KeyID direct mapping to facilitate the access with minimal
+overhead.
 
-The new helper mktme_disable() allows to disable MKTME even if it's
-enumerated successfully. MKTME initialization may fail and this
-functionallity allows system to boot regardless of the failure.
+Direct mapping for each KeyID will be put next to each other in the
+virtual address space. We need to have a way to find boundaries of
+direct mapping for particular KeyID.
+
+The new variable direct_mapping_size specifies the size of direct
+mapping. With the value, it's trivial to find direct mapping for
+KeyID-N: PAGE_OFFSET + N * direct_mapping_size.
+
+Size of direct mapping is calculated during KASLR setup. If KALSR is
+disable it happens during MKTME initialization.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/mktme.h | 12 ++++++++++++
- arch/x86/kernel/cpu/intel.c  | 15 ++++-----------
- arch/x86/mm/mktme.c          |  9 +++++++++
- 3 files changed, 25 insertions(+), 11 deletions(-)
+ arch/x86/include/asm/mktme.h   |  2 ++
+ arch/x86/include/asm/page_64.h |  1 +
+ arch/x86/kernel/head64.c       |  2 ++
+ arch/x86/mm/kaslr.c            | 21 ++++++++++++---
+ arch/x86/mm/mktme.c            | 48 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 71 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-index ec7036abdb3f..9363b989a021 100644
+index 9363b989a021..3bf481fe3f56 100644
 --- a/arch/x86/include/asm/mktme.h
 +++ b/arch/x86/include/asm/mktme.h
-@@ -6,11 +6,21 @@
+@@ -40,6 +40,8 @@ int page_keyid(const struct page *page);
  
- struct vm_area_struct;
+ void mktme_disable(void);
  
-+/* Values for mktme_status */
-+#define MKTME_DISABLED			0
-+#define MKTME_ENUMERATED		1
-+#define MKTME_ENABLED			2
-+#define MKTME_UNINITIALIZED		3
-+
-+extern int mktme_status;
-+
- #ifdef CONFIG_X86_INTEL_MKTME
- extern phys_addr_t mktme_keyid_mask;
- extern int mktme_nr_keyids;
- extern int mktme_keyid_shift;
- 
-+void mktme_disable(void);
-+
- #define prep_encrypted_page prep_encrypted_page
- void prep_encrypted_page(struct page *page, int order, int keyid, bool zero);
- 
-@@ -28,6 +38,8 @@ extern struct page_ext_operations page_mktme_ops;
- #define page_keyid page_keyid
- int page_keyid(const struct page *page);
- 
-+void mktme_disable(void);
++void setup_direct_mapping_size(void);
 +
  #else
  #define mktme_keyid_mask	((phys_addr_t)0)
  #define mktme_nr_keyids		0
-diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
-index efc9e9fc47d4..fb58776513e6 100644
---- a/arch/x86/kernel/cpu/intel.c
-+++ b/arch/x86/kernel/cpu/intel.c
-@@ -508,11 +508,7 @@ static void detect_vmx_virtcap(struct cpuinfo_x86 *c)
- #define TME_ACTIVATE_CRYPTO_ALGS(x)	((x >> 48) & 0xffff)	/* Bits 63:48 */
- #define TME_ACTIVATE_CRYPTO_AES_XTS_128	1
+diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
+index 939b1cff4a7b..53c32af895ab 100644
+--- a/arch/x86/include/asm/page_64.h
++++ b/arch/x86/include/asm/page_64.h
+@@ -14,6 +14,7 @@ extern unsigned long phys_base;
+ extern unsigned long page_offset_base;
+ extern unsigned long vmalloc_base;
+ extern unsigned long vmemmap_base;
++extern unsigned long direct_mapping_size;
  
--/* Values for mktme_status (SW only construct) */
--#define MKTME_ENABLED			0
--#define MKTME_DISABLED			1
--#define MKTME_UNINITIALIZED		2
--static int mktme_status = MKTME_UNINITIALIZED;
-+int mktme_status __ro_after_init = MKTME_UNINITIALIZED;
- 
- static void detect_tme(struct cpuinfo_x86 *c)
+ static inline unsigned long __phys_addr_nodebug(unsigned long x)
  {
-@@ -568,11 +564,11 @@ static void detect_tme(struct cpuinfo_x86 *c)
- 
- 	if (mktme_status == MKTME_UNINITIALIZED) {
- 		/* MKTME is usable */
--		mktme_status = MKTME_ENABLED;
-+		mktme_status = MKTME_ENUMERATED;
- 	}
- 
- #ifdef CONFIG_X86_INTEL_MKTME
--	if (mktme_status == MKTME_ENABLED && nr_keyids) {
-+	if (mktme_status == MKTME_ENUMERATED && nr_keyids) {
- 		mktme_nr_keyids = nr_keyids;
- 		mktme_keyid_shift = c->x86_phys_bits - keyid_bits;
- 
-@@ -591,10 +587,7 @@ static void detect_tme(struct cpuinfo_x86 *c)
- 		 * Maybe needed if there's inconsistent configuation
- 		 * between CPUs.
- 		 */
--		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
--		mktme_keyid_mask = 0;
--		mktme_keyid_shift = 0;
--		mktme_nr_keyids = 0;
-+		mktme_disable();
- 	}
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index a21d6ace648e..b6175376b2e1 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -59,6 +59,8 @@ EXPORT_SYMBOL(vmalloc_base);
+ unsigned long vmemmap_base __ro_after_init = __VMEMMAP_BASE_L4;
+ EXPORT_SYMBOL(vmemmap_base);
  #endif
++unsigned long direct_mapping_size __ro_after_init = -1UL;
++EXPORT_SYMBOL(direct_mapping_size);
  
+ #define __head	__section(.head.text)
+ 
+diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
+index 4408cd9a3bef..3d8ef8cb97e1 100644
+--- a/arch/x86/mm/kaslr.c
++++ b/arch/x86/mm/kaslr.c
+@@ -69,6 +69,15 @@ static inline bool kaslr_memory_enabled(void)
+ 	return kaslr_enabled() && !IS_ENABLED(CONFIG_KASAN);
+ }
+ 
++#ifndef CONFIG_X86_INTEL_MKTME
++static void __init setup_direct_mapping_size(void)
++{
++	direct_mapping_size = max_pfn << PAGE_SHIFT;
++	direct_mapping_size = round_up(direct_mapping_size, 1UL << TB_SHIFT);
++	direct_mapping_size += (1UL << TB_SHIFT) * CONFIG_MEMORY_PHYSICAL_PADDING;
++}
++#endif
++
+ /* Initialize base and padding for each memory region randomized with KASLR */
+ void __init kernel_randomize_memory(void)
+ {
+@@ -93,7 +102,11 @@ void __init kernel_randomize_memory(void)
+ 	if (!kaslr_memory_enabled())
+ 		return;
+ 
+-	kaslr_regions[0].size_tb = 1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT);
++	/*
++	 * Upper limit for direct mapping size is 1/4 of whole virtual
++	 * address space
++	 */
++	kaslr_regions[0].size_tb = 1 << (__VIRTUAL_MASK_SHIFT - 1 - TB_SHIFT);
+ 	kaslr_regions[1].size_tb = VMALLOC_SIZE_TB;
+ 
+ 	/*
+@@ -101,8 +114,10 @@ void __init kernel_randomize_memory(void)
+ 	 * add padding if needed (especially for memory hotplug support).
+ 	 */
+ 	BUG_ON(kaslr_regions[0].base != &page_offset_base);
+-	memory_tb = DIV_ROUND_UP(max_pfn << PAGE_SHIFT, 1UL << TB_SHIFT) +
+-		CONFIG_MEMORY_PHYSICAL_PADDING;
++
++	setup_direct_mapping_size();
++
++	memory_tb = direct_mapping_size * mktme_nr_keyids + 1;
+ 
+ 	/* Adapt phyiscal memory region size based on available memory */
+ 	if (memory_tb < kaslr_regions[0].size_tb)
 diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index 1821b87abb2f..43a44f0f2a2d 100644
+index 43a44f0f2a2d..3e5322bf035e 100644
 --- a/arch/x86/mm/mktme.c
 +++ b/arch/x86/mm/mktme.c
-@@ -6,6 +6,15 @@ phys_addr_t mktme_keyid_mask;
- int mktme_nr_keyids;
- int mktme_keyid_shift;
- 
-+void mktme_disable(void)
+@@ -89,3 +89,51 @@ static bool need_page_mktme(void)
+ struct page_ext_operations page_mktme_ops = {
+ 	.need = need_page_mktme,
+ };
++
++void __init setup_direct_mapping_size(void)
 +{
-+	physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
-+	mktme_keyid_mask = 0;
-+	mktme_keyid_shift = 0;
-+	mktme_nr_keyids = 0;
-+	mktme_status = MKTME_DISABLED;
++	unsigned long available_va;
++
++	/* 1/4 of virtual address space is didicated for direct mapping */
++	available_va = 1UL << (__VIRTUAL_MASK_SHIFT - 1);
++
++	/* How much memory the systrem has? */
++	direct_mapping_size = max_pfn << PAGE_SHIFT;
++	direct_mapping_size = round_up(direct_mapping_size, 1UL << 40);
++
++	if (mktme_status != MKTME_ENUMERATED)
++		goto out;
++
++	/*
++	 * Not enough virtual address space to address all physical memory with
++	 * MKTME enabled. Even without padding.
++	 *
++	 * Disable MKTME instead.
++	 */
++	if (direct_mapping_size > available_va / mktme_nr_keyids + 1) {
++		pr_err("x86/mktme: Disabled. Not enough virtual address space\n");
++		pr_err("x86/mktme: Consider switching to 5-level paging\n");
++		mktme_disable();
++		goto out;
++	}
++
++	/*
++	 * Virtual address space is divided between per-KeyID direct mappings.
++	 */
++	available_va /= mktme_nr_keyids + 1;
++out:
++	/* Add padding, if there's enough virtual address space */
++	direct_mapping_size += (1UL << 40) * CONFIG_MEMORY_PHYSICAL_PADDING;
++	if (direct_mapping_size > available_va)
++		direct_mapping_size = available_va;
 +}
 +
- int page_keyid(const struct page *page)
- {
- 	if (mktme_status != MKTME_ENABLED)
++static int __init mktme_init(void)
++{
++	/* KASLR didn't initialized it for us. */
++	if (direct_mapping_size == -1UL)
++		setup_direct_mapping_size();
++
++	return 0;
++}
++arch_initcall(mktme_init)
 -- 
 2.17.1
