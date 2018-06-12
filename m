@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F3E496B0266
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 10:39:28 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id a5-v6so14026418plp.8
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 07:39:28 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id l5-v6si295495pls.360.2018.06.12.07.39.27
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 139626B000D
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 10:39:29 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id q18-v6so9397983pll.3
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 07:39:29 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id d191-v6si257904pga.192.2018.06.12.07.39.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 12 Jun 2018 07:39:27 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 06/17] x86/mm: Introduce variables to store number, shift and mask of KeyIDs
-Date: Tue, 12 Jun 2018 17:39:04 +0300
-Message-Id: <20180612143915.68065-7-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 13/17] x86/mm: Detect MKTME early
+Date: Tue, 12 Jun 2018 17:39:11 +0300
+Message-Id: <20180612143915.68065-14-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
 References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,102 +20,50 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-mktme_nr_keyids holds number of KeyIDs available for MKTME, excluding
-KeyID zero which used by TME. MKTME KeyIDs start from 1.
+We need to know number of KeyIDs before KALSR is initialized. Number of
+KeyIDs would determinate how much address space would be needed for
+per-KeyID direct mapping.
 
-mktme_keyid_shift holds shift of KeyID within physical address.
-
-mktme_keyid_mask holds mask to extract KeyID from physical address.
+KALSR initialization happens before full CPU initizliation is complete.
+Move detect_tme() call to early_init_intel().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/mktme.h | 16 ++++++++++++++++
- arch/x86/kernel/cpu/intel.c  | 12 ++++++++----
- arch/x86/mm/Makefile         |  2 ++
- arch/x86/mm/mktme.c          |  5 +++++
- 4 files changed, 31 insertions(+), 4 deletions(-)
- create mode 100644 arch/x86/include/asm/mktme.h
- create mode 100644 arch/x86/mm/mktme.c
+ arch/x86/kernel/cpu/intel.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-new file mode 100644
-index 000000000000..df31876ec48c
---- /dev/null
-+++ b/arch/x86/include/asm/mktme.h
-@@ -0,0 +1,16 @@
-+#ifndef	_ASM_X86_MKTME_H
-+#define	_ASM_X86_MKTME_H
-+
-+#include <linux/types.h>
-+
-+#ifdef CONFIG_X86_INTEL_MKTME
-+extern phys_addr_t mktme_keyid_mask;
-+extern int mktme_nr_keyids;
-+extern int mktme_keyid_shift;
-+#else
-+#define mktme_keyid_mask	((phys_addr_t)0)
-+#define mktme_nr_keyids		0
-+#define mktme_keyid_shift	0
-+#endif
-+
-+#endif
 diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
-index bf2caf9d52dd..efc9e9fc47d4 100644
+index fb58776513e6..3322b0125353 100644
 --- a/arch/x86/kernel/cpu/intel.c
 +++ b/arch/x86/kernel/cpu/intel.c
-@@ -573,6 +573,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
+@@ -158,6 +158,8 @@ static bool bad_spectre_microcode(struct cpuinfo_x86 *c)
+ 	return false;
+ }
  
- #ifdef CONFIG_X86_INTEL_MKTME
- 	if (mktme_status == MKTME_ENABLED && nr_keyids) {
-+		mktme_nr_keyids = nr_keyids;
-+		mktme_keyid_shift = c->x86_phys_bits - keyid_bits;
++static void detect_tme(struct cpuinfo_x86 *c);
 +
- 		/*
- 		 * Mask out bits claimed from KeyID from physical address mask.
- 		 *
-@@ -580,10 +583,8 @@ static void detect_tme(struct cpuinfo_x86 *c)
- 		 * and number of bits claimed for KeyID is 6, bits 51:46 of
- 		 * physical address is unusable.
- 		 */
--		phys_addr_t keyid_mask;
--
--		keyid_mask = GENMASK_ULL(c->x86_phys_bits - 1, c->x86_phys_bits - keyid_bits);
--		physical_mask &= ~keyid_mask;
-+		mktme_keyid_mask = GENMASK_ULL(c->x86_phys_bits - 1, mktme_keyid_shift);
-+		physical_mask &= ~mktme_keyid_mask;
- 	} else {
- 		/*
- 		 * Reset __PHYSICAL_MASK.
-@@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
- 		 * between CPUs.
- 		 */
- 		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
-+		mktme_keyid_mask = 0;
-+		mktme_keyid_shift = 0;
-+		mktme_nr_keyids = 0;
+ static void early_init_intel(struct cpuinfo_x86 *c)
+ {
+ 	u64 misc_enable;
+@@ -301,6 +303,9 @@ static void early_init_intel(struct cpuinfo_x86 *c)
  	}
- #endif
  
-diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
-index 4b101dd6e52f..4ebee899c363 100644
---- a/arch/x86/mm/Makefile
-+++ b/arch/x86/mm/Makefile
-@@ -53,3 +53,5 @@ obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= pti.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_identity.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
+ 	check_mpx_erratum(c);
 +
-+obj-$(CONFIG_X86_INTEL_MKTME)	+= mktme.o
-diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-new file mode 100644
-index 000000000000..467f1b26c737
---- /dev/null
-+++ b/arch/x86/mm/mktme.c
-@@ -0,0 +1,5 @@
-+#include <asm/mktme.h>
-+
-+phys_addr_t mktme_keyid_mask;
-+int mktme_nr_keyids;
-+int mktme_keyid_shift;
++	if (cpu_has(c, X86_FEATURE_TME))
++		detect_tme(c);
+ }
+ 
+ #ifdef CONFIG_X86_32
+@@ -762,9 +767,6 @@ static void init_intel(struct cpuinfo_x86 *c)
+ 	if (cpu_has(c, X86_FEATURE_VMX))
+ 		detect_vmx_virtcap(c);
+ 
+-	if (cpu_has(c, X86_FEATURE_TME))
+-		detect_tme(c);
+-
+ 	init_intel_energy_perf(c);
+ 
+ 	init_intel_misc_features(c);
 -- 
 2.17.1
