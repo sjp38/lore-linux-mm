@@ -1,94 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 82DA86B0279
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 05:54:13 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id h7-v6so7316704lfc.13
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 02:54:13 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i25-v6sor110992lfb.5.2018.06.12.02.54.11
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0949C6B000A
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 06:03:21 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id x14-v6so15057422wrr.17
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 03:03:20 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id t124-v6si40560wmg.70.2018.06.12.03.03.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Jun 2018 02:54:11 -0700 (PDT)
-Subject: Re: Distinguishing VMalloc pages
-References: <20180611121129.GB12912@bombadil.infradead.org>
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Message-ID: <c99d981a-d55e-1759-a14a-4ef856072618@gmail.com>
-Date: Tue, 12 Jun 2018 12:54:09 +0300
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Jun 2018 03:03:19 -0700 (PDT)
+Date: Tue, 12 Jun 2018 12:03:15 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 06/10] x86/cet: Add arch_prctl functions for shadow
+ stack
+In-Reply-To: <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.21.1806121155450.2157@nanos.tec.linutronix.de>
+References: <20180607143807.3611-1-yu-cheng.yu@intel.com> <20180607143807.3611-7-yu-cheng.yu@intel.com> <CALCETrU6axo158CiSCRRkC4GC5hib9hypC98t7LLjA3gDaacsw@mail.gmail.com> <1528403417.5265.35.camel@2b52.sc.intel.com> <CALCETrXz3WWgZwUXJsDTWvmqKUArQFuMH1xJdSLVKFpTysNWxg@mail.gmail.com>
+ <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180611121129.GB12912@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+To: "H.J. Lu" <hjl.tools@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Yu-cheng Yu <yu-cheng.yu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
 
-On 11/06/18 15:11, Matthew Wilcox wrote:
+On Thu, 7 Jun 2018, H.J. Lu wrote:
+> On Thu, Jun 7, 2018 at 2:01 PM, Andy Lutomirski <luto@kernel.org> wrote:
+> > Why is the lockout necessary?  If user code enables CET and tries to
+> > run code that doesn't support CET, it will crash.  I don't see why we
+> > need special code in the kernel to prevent a user program from calling
+> > arch_prctl() and crashing itself.  There are already plenty of ways to
+> > do that :)
 > 
-> I think we all like the idea of being able to look at a page [1] and
-> determine what it's used for.  We have two places that we already look:
-> 
-> PageSlab
-> page_type
-> 
-> It's not possible to use page_type for VMalloc pages because that field
-> is in use for mapcount.  We don't want to use another page flag bit.
-> 
-> I tried to use the page->mapping field in my earlier patch and that was
-> a problem because page_mapping() would return non-NULL, which broke
-> user-space unmapping of vmalloced pages through the zap_pte_range ->
-> set_page_dirty path.
+> On CET enabled machine, not all programs nor shared libraries are
+> CET enabled.  But since ld.so is CET enabled, all programs start
+> as CET enabled.  ld.so will disable CET if a program or any of its shared
+> libraries aren't CET enabled.  ld.so will lock up CET once it is done CET
+> checking so that CET can't no longer be disabled afterwards.
 
-This seems pretty similar to what I am doing in a preparatory patch for
-pmalloc (I'm still working on this, I just got swamped in day-job 
-related stuff, but I am progressing toward an example with IMA).
-So it looks like my patch won't work, after all?
+That works for stuff which loads all libraries at start time, but what
+happens if the program uses dlopen() later on? If CET is force locked and
+the library is not CET enabled, it will fail.
 
-Although, in your case, you noticed a problem with userspace, while I do
-not care at all about that, so maybe there is some wriggling space there ...
+I don't see the point of trying to support CET by magic. It adds complexity
+and you'll never be able to handle all corner cases correctly. dlopen() is
+not even a corner case.
 
-> 
-> I can see two alternatives to pursue here.  One is that we already have
-> special casing in page_mapping():
-> 
->   	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
->   		return NULL;
-> 
-> So changing:
-> -#define MAPPING_VMalloc                (void *)0x440
-> +#define MAPPING_VMalloc                (void *)0x441
-> 
-> in my original patch would lead to page_mapping() returning NULL.
-> Are there other paths where having a special value in page->mapping is
-> going to cause a problem?  Indeed, is having the PAGE_MAPPING_ANON bit
-> set in these pages going to cause a problem?  I just don't know those
-> code paths well enough.
-> 
-> Another possibility is putting a special value in one of the other
-> fields of struct page.
-> 
-> 1. page->private is not available; everybody uses that field for
-> everything already, and there's no way that any value could be special
-> enough to be unique.
-> 2. page->index (on 32-bit systems) can already have all possible values.
-> 3. page->lru.  The second word is already used for many random things,
-> but the first word is always either a pointer or compound_head (with
-> bit 0 set).  So we could use a set of values with bits 0 & 1 clear, and
-> below 4kB (ie 1023 values total) to distinguish pages.
-> 
-> Any preferences/recommendations/words of warning?
+Occasionally stuff needs to be recompiled to utilize new mechanisms, see
+retpoline ...
 
+Thanks,
 
-Why not having a reference (either direct or indirect) to the actual
-vmap area, and then the flag there, instead?
-
-I do not know the specific use case you have in mind - if any - but I
-think that if one is already trying to figure out what sort of use the
-vmalloc page is put to, then probably pretty soon there will be a need
-for a reference to the area.
-
-So what if the page could hold a reference the area, where there would
-be more space available for specifying what it is used for?
-
---
-igor
+	tglx
