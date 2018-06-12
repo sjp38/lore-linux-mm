@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E1B146B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 17:44:22 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id a15-v6so242088wrr.23
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 14:44:22 -0700 (PDT)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id t22-v6si1326815edi.195.2018.06.12.14.44.20
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B86D26B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 18:31:57 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id 39-v6so301479ple.6
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 15:31:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a9-v6sor367555pfj.96.2018.06.12.15.31.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jun 2018 14:44:21 -0700 (PDT)
-Date: Tue, 12 Jun 2018 14:44:02 -0700
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [PATCH -mm -V3 03/21] mm, THP, swap: Support PMD swap mapping in
- swap_duplicate()
-Message-ID: <20180612214402.cpjmcyjkkwtkgjyu@ca-dmjordan1.us.oracle.com>
-References: <20180523082625.6897-1-ying.huang@intel.com>
- <20180523082625.6897-4-ying.huang@intel.com>
- <20180611204231.ojhlyrbmda6pouxb@ca-dmjordan1.us.oracle.com>
- <87o9ggpzlk.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Tue, 12 Jun 2018 15:31:54 -0700 (PDT)
+Date: Wed, 13 Jun 2018 08:31:31 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [RFC PATCH 3/3] powerpc/64s/radix: optimise TLB flush with
+ precise TLB ranges in mmu_gather
+Message-ID: <20180613083131.139a3c34@roar.ozlabs.ibm.com>
+In-Reply-To: <CA+55aFzKBieD0Y3sgFQzt+x5esqb9vT6SEQ28xyCz5UWegfFVg@mail.gmail.com>
+References: <20180612071621.26775-1-npiggin@gmail.com>
+	<20180612071621.26775-4-npiggin@gmail.com>
+	<CA+55aFzKBieD0Y3sgFQzt+x5esqb9vT6SEQ28xyCz5UWegfFVg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <87o9ggpzlk.fsf@yhuang-dev.intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, ppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-arch <linux-arch@vger.kernel.org>, "Aneesh Kumar K. V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Nadav Amit <nadav.amit@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Jun 12, 2018 at 09:23:19AM +0800, Huang, Ying wrote:
-> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
-> >> +#else
-> >> +static inline int __swap_duplicate_cluster(swp_entry_t *entry,
+On Tue, 12 Jun 2018 11:18:27 -0700
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
+
+> On Tue, Jun 12, 2018 at 12:16 AM Nicholas Piggin <npiggin@gmail.com> wrot=
+e:
 > >
-> > This doesn't need inline.
-> 
-> Why not?  This is just a one line stub.
+> > This brings the number of tlbiel instructions required by a kernel
+> > compile from 33M to 25M, most avoided from exec->shift_arg_pages. =20
+>=20
+> And this shows that "page_start/end" is purely for powerpc and used
+> nowhere else.
+>=20
+> The previous patch should have been to purely powerpc page table
+> walking and not touch asm-generic/tlb.h
+>=20
+> I think you should make those changes to
+> arch/powerpc/include/asm/tlb.h. If that means you can't use the
+> generic header, then so be it.
 
-Forgot to respond to this.  The compiler will likely choose to optimize out
-calls to an empty function like this.  Checking, this is indeed what it does in
-this case on my machine, with or without inline.
+I can make it ppc specific if nobody else would use it. But at least
+mmu notifiers AFAIKS would rather use a precise range.
 
+> Or maybe you can embed the generic case in some ppc-specific
+> structures, and use 90% of the generic code just with your added
+> wrappers for that radix invalidation on top.
 
-By the way, when building without CONFIG_THP_SWAP, we get
+Would you mind another arch specific ifdefs in there?
 
-  linux/mm/swapfile.c:933:13: warning: a??__swap_free_clustera?? defined but not used [-Wunused-function]
-   static void __swap_free_cluster(struct swap_info_struct *si, unsigned long idx)
-               ^~~~~~~~~~~~~~~~~~~
+>=20
+> But don't make other architectures do pointless work that doesn't
+> matter - or make sense - for them.
+
+Okay sure, and this is the reason for the wide cc list. Intel does
+need it of course, from 4.10.3.1 of the dev manual:
+
+  =E2=80=94 The processor may create a PML4-cache entry even if there are no
+    translations for any linear address that might use that entry
+    (e.g., because the P flags are 0 in all entries in the referenced
+    page-directory-pointer table).
+
+But I'm sure others would not have paging structure caches at all
+(some don't even walk the page tables in hardware right?). Maybe
+they're all doing their own thing though.
+
+Thanks,
+Nick
