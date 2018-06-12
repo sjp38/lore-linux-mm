@@ -1,213 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 308FD6B0273
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 10:58:46 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id c4-v6so8855350qtp.16
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 07:58:46 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0040.outbound.protection.outlook.com. [104.47.1.40])
-        by mx.google.com with ESMTPS id 20-v6si335527qtr.180.2018.06.12.07.58.44
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C356B0273
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 11:06:12 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id j10-v6so7856454pgv.6
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 08:06:12 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id e2-v6si301634pfn.271.2018.06.12.08.06.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 12 Jun 2018 07:58:44 -0700 (PDT)
-Subject: Re: [PATCHv3 14/17] x86/mm: Introduce direct_mapping_size
-References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
- <20180612143915.68065-15-kirill.shutemov@linux.intel.com>
-From: =?UTF-8?Q?Mika_Penttil=c3=a4?= <mika.penttila@nextfour.com>
-Message-ID: <030253cc-2db5-8faf-15ef-bb7828c5f624@nextfour.com>
-Date: Tue, 12 Jun 2018 17:58:38 +0300
-MIME-Version: 1.0
-In-Reply-To: <20180612143915.68065-15-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jun 2018 08:06:11 -0700 (PDT)
+Message-ID: <1528815781.8271.15.camel@2b52.sc.intel.com>
+Subject: Re: [PATCH 01/10] x86/cet: User-mode shadow stack support
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Date: Tue, 12 Jun 2018 08:03:01 -0700
+In-Reply-To: <0e80c181-83b2-457f-a419-01e79f94ca1c@gmail.com>
+References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
+	 <20180607143807.3611-2-yu-cheng.yu@intel.com>
+	 <0e80c181-83b2-457f-a419-01e79f94ca1c@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, "H. Peter
+ Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Mike Kravetz <mike.kravetz@oracle.com>
 
+On Tue, 2018-06-12 at 21:56 +1000, Balbir Singh wrote:
+> 
+> On 08/06/18 00:37, Yu-cheng Yu wrote:
+> > This patch adds basic shadow stack enabling/disabling routines.
+> > A task's shadow stack is allocated from memory with VM_SHSTK
+> > flag set and read-only protection.  The shadow stack is
+> > allocated to a fixed size and that can be changed by the system
+> > admin.
+> > 
+> 
+> I presume a read-only permission on the kernel side, but it
+> can be written by hardware?
 
+Yes, the shadow stack is written by the processor when a call
+instruction is executed.
 
-On 12.06.2018 17:39, Kirill A. Shutemov wrote:
-> Kernel need to have a way to access encrypted memory. We are going to
-> use per-KeyID direct mapping to facilitate the access with minimal
-> overhead.
->
-> Direct mapping for each KeyID will be put next to each other in the
-> virtual address space. We need to have a way to find boundaries of
-> direct mapping for particular KeyID.
->
-> The new variable direct_mapping_size specifies the size of direct
-> mapping. With the value, it's trivial to find direct mapping for
-> KeyID-N: PAGE_OFFSET + N * direct_mapping_size.
->
-> Size of direct mapping is calculated during KASLR setup. If KALSR is
-> disable it happens during MKTME initialization.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  arch/x86/include/asm/mktme.h   |  2 ++
->  arch/x86/include/asm/page_64.h |  1 +
->  arch/x86/kernel/head64.c       |  2 ++
->  arch/x86/mm/kaslr.c            | 21 ++++++++++++---
->  arch/x86/mm/mktme.c            | 48 ++++++++++++++++++++++++++++++++++
->  5 files changed, 71 insertions(+), 3 deletions(-)
->
-> diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-> index 9363b989a021..3bf481fe3f56 100644
-> --- a/arch/x86/include/asm/mktme.h
-> +++ b/arch/x86/include/asm/mktme.h
-> @@ -40,6 +40,8 @@ int page_keyid(const struct page *page);
->  
->  void mktme_disable(void);
->  
-> +void setup_direct_mapping_size(void);
-> +
->  #else
->  #define mktme_keyid_mask	((phys_addr_t)0)
->  #define mktme_nr_keyids		0
-> diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-> index 939b1cff4a7b..53c32af895ab 100644
-> --- a/arch/x86/include/asm/page_64.h
-> +++ b/arch/x86/include/asm/page_64.h
-> @@ -14,6 +14,7 @@ extern unsigned long phys_base;
->  extern unsigned long page_offset_base;
->  extern unsigned long vmalloc_base;
->  extern unsigned long vmemmap_base;
-> +extern unsigned long direct_mapping_size;
->  
->  static inline unsigned long __phys_addr_nodebug(unsigned long x)
->  {
-> diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-> index a21d6ace648e..b6175376b2e1 100644
-> --- a/arch/x86/kernel/head64.c
-> +++ b/arch/x86/kernel/head64.c
-> @@ -59,6 +59,8 @@ EXPORT_SYMBOL(vmalloc_base);
->  unsigned long vmemmap_base __ro_after_init = __VMEMMAP_BASE_L4;
->  EXPORT_SYMBOL(vmemmap_base);
->  #endif
-> +unsigned long direct_mapping_size __ro_after_init = -1UL;
-> +EXPORT_SYMBOL(direct_mapping_size);
->  
->  #define __head	__section(.head.text)
->  
-> diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-> index 4408cd9a3bef..3d8ef8cb97e1 100644
-> --- a/arch/x86/mm/kaslr.c
-> +++ b/arch/x86/mm/kaslr.c
-> @@ -69,6 +69,15 @@ static inline bool kaslr_memory_enabled(void)
->  	return kaslr_enabled() && !IS_ENABLED(CONFIG_KASAN);
->  }
->  
-> +#ifndef CONFIG_X86_INTEL_MKTME
-> +static void __init setup_direct_mapping_size(void)
-> +{
-> +	direct_mapping_size = max_pfn << PAGE_SHIFT;
-> +	direct_mapping_size = round_up(direct_mapping_size, 1UL << TB_SHIFT);
-> +	direct_mapping_size += (1UL << TB_SHIFT) * CONFIG_MEMORY_PHYSICAL_PADDING;
-> +}
-> +#endif
-> +
->  /* Initialize base and padding for each memory region randomized with KASLR */
->  void __init kernel_randomize_memory(void)
->  {
-> @@ -93,7 +102,11 @@ void __init kernel_randomize_memory(void)
->  	if (!kaslr_memory_enabled())
->  		return;
->  
-> -	kaslr_regions[0].size_tb = 1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT);
-> +	/*
-> +	 * Upper limit for direct mapping size is 1/4 of whole virtual
-> +	 * address space
+...
 
-or 1/2?
+> > 
+> > diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
+> > new file mode 100644
+> > index 000000000000..9d5bc1efc9b7
+> > --- /dev/null
+> > +++ b/arch/x86/include/asm/cet.h
+> > @@ -0,0 +1,32 @@
+> > +/* SPDX-License-Identifier: GPL-2.0 */
+> > +#ifndef _ASM_X86_CET_H
+> > +#define _ASM_X86_CET_H
+> > +
+> > +#ifndef __ASSEMBLY__
+> > +#include <linux/types.h>
+> > +
+> > +struct task_struct;
+> > +/*
+> > + * Per-thread CET status
+> > + */
+> > +struct cet_stat {
+> 
+> stat sounds like statistics, just expand out to status please
 
-> +	 */
-> +	kaslr_regions[0].size_tb = 1 << (__VIRTUAL_MASK_SHIFT - 1 - TB_SHIFT);
+I will make it 'cet_status'.
 
+> > +	unsigned long	shstk_base;
+> > +	unsigned long	shstk_size;
+> > +	unsigned int	shstk_enabled:1;
+> > +};
+> > +
+> > +#ifdef CONFIG_X86_INTEL_CET
+> > +unsigned long cet_get_shstk_ptr(void);
+> 
+> For the current task? Why does _ptr routine return an unsigned long?
 
+What about cet_get_shstk_addr()?
 
->  	kaslr_regions[1].size_tb = VMALLOC_SIZE_TB;
->  
->  	/*
-> @@ -101,8 +114,10 @@ void __init kernel_randomize_memory(void)
->  	 * add padding if needed (especially for memory hotplug support).
->  	 */
->  	BUG_ON(kaslr_regions[0].base != &page_offset_base);
-> -	memory_tb = DIV_ROUND_UP(max_pfn << PAGE_SHIFT, 1UL << TB_SHIFT) +
-> -		CONFIG_MEMORY_PHYSICAL_PADDING;
-> +
-> +	setup_direct_mapping_size();
-> +
-> +	memory_tb = direct_mapping_size * mktme_nr_keyids + 1;
+...
 
-parenthesis ?
+> > diff --git a/arch/x86/include/asm/msr-index.h b/arch/x86/include/asm/msr-index.h
+> > index fda2114197b3..428d13828ba9 100644
+> > --- a/arch/x86/include/asm/msr-index.h
+> > +++ b/arch/x86/include/asm/msr-index.h
+> > @@ -770,4 +770,18 @@
+> >  #define MSR_VM_IGNNE                    0xc0010115
+> >  #define MSR_VM_HSAVE_PA                 0xc0010117
+> >  
+> > +/* Control-flow Enforcement Technology MSRs */
+> > +#define MSR_IA32_U_CET		0x6a0
+> > +#define MSR_IA32_S_CET		0x6a2
+> > +#define MSR_IA32_PL0_SSP	0x6a4
+> > +#define MSR_IA32_PL3_SSP	0x6a7
+> > +#define MSR_IA32_INT_SSP_TAB	0x6a8
+> 
+> some comments on the purpose of the MSR would be nice
 
-memory_tb = direct_mapping_size * (mktme_nr_keyids + 1);
+Sure.
 
+...
 
->  
->  	/* Adapt phyiscal memory region size based on available memory */
->  	if (memory_tb < kaslr_regions[0].size_tb)
-> diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-> index 43a44f0f2a2d..3e5322bf035e 100644
-> --- a/arch/x86/mm/mktme.c
-> +++ b/arch/x86/mm/mktme.c
-> @@ -89,3 +89,51 @@ static bool need_page_mktme(void)
->  struct page_ext_operations page_mktme_ops = {
->  	.need = need_page_mktme,
->  };
-> +
-> +void __init setup_direct_mapping_size(void)
-> +{
-> +	unsigned long available_va;
-> +
-> +	/* 1/4 of virtual address space is didicated for direct mapping */
-> +	available_va = 1UL << (__VIRTUAL_MASK_SHIFT - 1);
-> +
-> +	/* How much memory the systrem has? */
-> +	direct_mapping_size = max_pfn << PAGE_SHIFT;
-> +	direct_mapping_size = round_up(direct_mapping_size, 1UL << 40);
-> +
-> +	if (mktme_status != MKTME_ENUMERATED)
-> +		goto out;
-> +
-> +	/*
-> +	 * Not enough virtual address space to address all physical memory with
-> +	 * MKTME enabled. Even without padding.
-> +	 *
-> +	 * Disable MKTME instead.
-> +	 */
-> +	if (direct_mapping_size > available_va / mktme_nr_keyids + 1) {
+> 
+> I think there was a comment about this being TASK_SIZE_MAX
+> 
+> > +
+> > +	rdmsrl(MSR_IA32_U_CET, r);
+> > +	wrmsrl(MSR_IA32_U_CET, r | MSR_IA32_CET_SHSTK_EN);
+> > +	wrmsrl(MSR_IA32_PL3_SSP, addr);
+> 
+> Should the enable happen before setting addr? I would expect to do this in the opposite order.
 
-parenthesis again?
+I will check.
 
-if (direct_mapping_size > available_va / (mktme_nr_keyids + 1)) {
+> > +	return 0;
+> > +}
+> > +
+> > +unsigned long cet_get_shstk_ptr(void)
+> > +{
+> > +	unsigned long ptr;
+> > +
+> > +	if (!current->thread.cet.shstk_enabled)
+> > +		return 0;
+> > +
+> > +	rdmsrl(MSR_IA32_PL3_SSP, ptr);
+> > +	return ptr;
+> > +}
+> > +
+> > +static unsigned long shstk_mmap(unsigned long addr, unsigned long len)
+> > +{
+> > +	struct mm_struct *mm = current->mm;
+> > +	unsigned long populate;
+> > +
+> > +	down_write(&mm->mmap_sem);
+> > +	addr = do_mmap(NULL, addr, len, PROT_READ,
+> > +		       MAP_ANONYMOUS | MAP_PRIVATE, VM_SHSTK,
+> > +		       0, &populate, NULL);
+> > +	up_write(&mm->mmap_sem);
+> 
+> What happens if the mmap fails for any reason? I presume the caller disables shadow stack on this process?
 
+This is from exec(), and that fails.
 
+> > +
+> > +	if (populate)
+> > +		mm_populate(addr, populate);
+> > +
+> > +	return addr;
+> > +}
+> > +
+> > +int cet_setup_shstk(void)
+> > +{
+> > +	unsigned long addr, size;
+> > +
+> > +	if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
+> > +		return -EOPNOTSUPP;
+> > +
+> > +	size = SHSTK_SIZE;
+> > +	addr = shstk_mmap(0, size);
+> > +
+> > +	if (addr >= TASK_SIZE)
+> > +		return -ENOMEM;
+> > +
+> 
+> TASK_SIZE_MAX?
 
-> +		pr_err("x86/mktme: Disabled. Not enough virtual address space\n");
-> +		pr_err("x86/mktme: Consider switching to 5-level paging\n");
-> +		mktme_disable();
-> +		goto out;
-> +	}
-> +
-> +	/*
-> +	 * Virtual address space is divided between per-KeyID direct mappings.
-> +	 */
-> +	available_va /= mktme_nr_keyids + 1
-> +out:
-> +	/* Add padding, if there's enough virtual address space */
-> +	direct_mapping_size += (1UL << 40) * CONFIG_MEMORY_PHYSICAL_PADDING;
-> +	if (direct_mapping_size > available_va)
-> +		direct_mapping_size = available_va;
-> +}
-> +
-> +static int __init mktme_init(void)
-> +{
-> +	/* KASLR didn't initialized it for us. */
-> +	if (direct_mapping_size == -1UL)
-> +		setup_direct_mapping_size();
-> +
-> +	return 0;
-> +}
-> +arch_initcall(mktme_init)
+Yes.
+
+> 
+> > +	cet_set_shstk_ptr(addr + size - sizeof(void *));
+> > +	current->thread.cet.shstk_base = addr;
+> > +	current->thread.cet.shstk_size = size;
+> > +	current->thread.cet.shstk_enabled = 1;
+> > +	return 0;
+> > +}
+> > +
+> > +void cet_disable_shstk(void)
+> > +{
+> > +	u64 r;
+> > +
+> > +	if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
+> > +		return;
+> > +
+> > +	rdmsrl(MSR_IA32_U_CET, r);
+> > +	r &= ~(MSR_IA32_CET_SHSTK_EN);
+> > +	wrmsrl(MSR_IA32_U_CET, r);
+> > +	wrmsrl(MSR_IA32_PL3_SSP, 0);
+> 
+> Again, I'd expect the order to be the reverse
+> 
+> > +	current->thread.cet.shstk_enabled = 0;
+> > +}
+> > +
+> > +void cet_disable_free_shstk(struct task_struct *tsk)
+> > +{
+> > +	if (!cpu_feature_enabled(X86_FEATURE_SHSTK) ||
+> > +	    !tsk->thread.cet.shstk_enabled)
+> > +		return;
+> > +
+> > +	if (tsk == current)
+> > +		cet_disable_shstk();
+> > +
+> > +	/*
+> > +	 * Free only when tsk is current or shares mm
+> > +	 * with current but has its own shstk.
+> > +	 */
+> > +	if (tsk->mm && (tsk->mm == current->mm) &&
+> > +	    (tsk->thread.cet.shstk_base)) {
+> 
+> Does the caller hold a reference to tsk->mm?
+
+If (tsk->mm == current->mm), i.e. it is current or it is a pthread of
+current, then yes.
+
+Yu-cheng
