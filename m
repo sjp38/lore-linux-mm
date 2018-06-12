@@ -1,57 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BA8FA6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 19:35:24 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id 18-v6so14180167oix.4
-        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 16:35:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 31-v6sor28892992otf.157.2018.06.11.16.35.23
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 839B06B0005
+	for <linux-mm@kvack.org>; Mon, 11 Jun 2018 21:23:25 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id y26-v6so11124730pfn.14
+        for <linux-mm@kvack.org>; Mon, 11 Jun 2018 18:23:25 -0700 (PDT)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id q14-v6si18809650pll.324.2018.06.11.18.23.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Jun 2018 16:35:23 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jun 2018 18:23:23 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -V3 03/21] mm, THP, swap: Support PMD swap mapping in swap_duplicate()
+References: <20180523082625.6897-1-ying.huang@intel.com>
+	<20180523082625.6897-4-ying.huang@intel.com>
+	<20180611204231.ojhlyrbmda6pouxb@ca-dmjordan1.us.oracle.com>
+Date: Tue, 12 Jun 2018 09:23:19 +0800
+In-Reply-To: <20180611204231.ojhlyrbmda6pouxb@ca-dmjordan1.us.oracle.com>
+	(Daniel Jordan's message of "Mon, 11 Jun 2018 13:42:31 -0700")
+Message-ID: <87o9ggpzlk.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180611145809.c05f215b9b2e7dab9e808304@linux-foundation.org>
-References: <152669369110.34337.14271778212195820353.stgit@dwillia2-desk3.amr.corp.intel.com>
- <152669370864.34337.13815113039455146564.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20180611145809.c05f215b9b2e7dab9e808304@linux-foundation.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 11 Jun 2018 16:35:22 -0700
-Message-ID: <CAPcyv4gziGh7Xih_W2-5nxpHRLnUwi1nDtwsC7bbQousuibsQg@mail.gmail.com>
-Subject: Re: [PATCH v11 3/7] mm: fix __gup_device_huge vs unmap
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, stable <stable@vger.kernel.org>, Jan Kara <jack@suse.cz>, david <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Mon, Jun 11, 2018 at 2:58 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Fri, 18 May 2018 18:35:08 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
+Hi, Daniel,
+
+Thanks for your effort to review this series.
+
+Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+
+> Hi,
 >
->> get_user_pages_fast() for device pages is missing the typical validation
->> that all page references have been taken while the mapping was valid.
->> Without this validation truncate operations can not reliably coordinate
->> against new page reference events like O_DIRECT.
->>
->> Cc: <stable@vger.kernel.org>
+> The series up to and including this patch doesn't build.  For this patch we
+> need:
 >
-> I'm not seeing anything in the changelog which justifies a -stable
-> backport.  ie: a description of the end-user-visible effects of the
-> bug?
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index c6b3eab73fde..2f2d07627113 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -433,7 +433,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+>                 /*
+>                  * Swap entry may have been freed since our caller observed it.
+>                  */
+> -               err = swapcache_prepare(entry);
+> +               err = swapcache_prepare(entry, false);
+>                 if (err == -EEXIST) {
+>                         radix_tree_preload_end();
+>                         /*
+
+Thanks for pointing this out!  Will change in the next version.
+
 >
+> On Wed, May 23, 2018 at 04:26:07PM +0800, Huang, Ying wrote:
+>> @@ -3516,11 +3512,39 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+>
+> Two comments about this part of __swap_duplicate as long as you're moving it to
+> another function:
+>
+>    } else if (count || has_cache) {
+>    
+>    	if ((count & ~COUNT_CONTINUED) < SWAP_MAP_MAX)          /* #1   */
+>    		count += usage;
+>    	else if ((count & ~COUNT_CONTINUED) > SWAP_MAP_MAX)     /* #2   */
+>    		err = -EINVAL;
+>
+> #1:  __swap_duplicate_locked might use
+>
+>     VM_BUG_ON(usage != SWAP_HAS_CACHE && usage != 1);
+>
+> to document the unstated assumption that usage is 1 (otherwise count could
+> overflow).
 
-Without this change get_user_pages_fast() could race truncate. The
-ordering of page_cache_add_speculative() before re-validating the
-mapping allows truncate and page freeing to synchronize against
-get_user_pages_fast().
+Sounds good.  Will do this.
 
-Specifically, a get_user_pages_fast() thread could continue allowing a
-page to be mapped and accessed via the kernel mapping after it was
-meant to be torn down. This could cause unexpected data corruption or
-access to the physical page after it has been invalidated from process
-page tables.
+> #2:  We've masked off SWAP_HAS_CACHE and COUNT_CONTINUED, and already checked
+> for SWAP_MAP_BAD, so I think condition #2 always fails and can just be removed.
 
-Ideally I think we would go further than this patch and backport the
-full fix for the filesystem-dax-vs-truncate problem. I was planning to
-spin up a 4.14 backport with the full set of the pieces that went into
-4.17 and 4.18.
+I think this is used to check some software bug.  For example,
+SWAP_MAP_SHMEM will yield true here.
+
+>> +#ifdef CONFIG_THP_SWAP
+>> +static int __swap_duplicate_cluster(swp_entry_t *entry, unsigned char usage)
+> ...
+>> +	} else {
+>> +		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
+>> +retry:
+>> +			err = __swap_duplicate_locked(si, offset + i, 1);
+>
+> I guess usage is assumed to be 1 at this point (__swap_duplicate_locked makes
+> the same assumption).  Maybe make this explicit with
+>
+> 			err = __swap_duplicate_locked(si, offset + i, usage);
+>
+> , use 'usage' in cluster_set_count and __swap_entry_free too, and then
+> earlier have a
+>
+>        VM_BUG_ON(usage != SWAP_HAS_CACHE && usage != 1);
+>
+> ?
+
+Yes.  I will fix this.  And we can just check it in
+__swap_duplicate_locked() and all these will be covered.
+
+>> +#else
+>> +static inline int __swap_duplicate_cluster(swp_entry_t *entry,
+>
+> This doesn't need inline.
+
+Why not?  This is just a one line stub.
+
+> Not related to your changes, but while we're here, the comment with
+> SWAP_HAS_CONT in swap_count() could be deleted: I don't think there ever was a
+> SWAP_HAS_CONT.
+
+Yes.  We should correct this.  Because this should go to a separate patch,
+would you mind to submit a patch to fix it?
+
+> The rest looks ok up to this point.
+
+Thanks!
+
+Best Regards,
+Huang, Ying
