@@ -1,48 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E4896B000C
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 11:21:01 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o15-v6so6689711wmf.1
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 08:21:01 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t24-v6si652987edm.168.2018.06.12.08.20.59
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE88B6B000C
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 11:23:49 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id m1-v6so3188462uao.13
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 08:23:49 -0700 (PDT)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id 81-v6si197973uau.251.2018.06.12.08.23.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Jun 2018 08:20:59 -0700 (PDT)
-Date: Tue, 12 Jun 2018 17:20:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
-Message-ID: <20180612152057.GA13364@dhcp22.suse.cz>
-References: <CAErSpo6S0qtR42tjGZrFu4aMFFyThx1hkHTSowTt6t3XerpHnA@mail.gmail.com>
- <20180607105514.GA13139@dhcp22.suse.cz>
- <5ed798a0-6c9c-086e-e5e8-906f593ca33e@huawei.com>
- <20180607122152.GP32433@dhcp22.suse.cz>
- <a880df29-b656-d98d-3037-b04761c7ed78@huawei.com>
- <20180611085237.GI13364@dhcp22.suse.cz>
- <16c4db2f-bc70-d0f2-fb38-341d9117ff66@huawei.com>
- <20180611134303.GC75679@bhelgaas-glaptop.roam.corp.google.com>
- <20180611145330.GO13364@dhcp22.suse.cz>
- <87lgbk59gs.fsf@e105922-lin.cambridge.arm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jun 2018 08:23:48 -0700 (PDT)
+Date: Tue, 12 Jun 2018 08:23:42 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [mmotm:master] BUILD REGRESSION
+ 7393732bae530daa27567988b91d16ecfeef6c62
+Message-ID: <20180612152342.gai2obwfk6xz2t2e@ca-dmjordan1.us.oracle.com>
+References: <5b1a87b7.7PNFYCcgPGh68IFP%lkp@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87lgbk59gs.fsf@e105922-lin.cambridge.arm.com>
+In-Reply-To: <5b1a87b7.7PNFYCcgPGh68IFP%lkp@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: Bjorn Helgaas <helgaas@kernel.org>, Xie XiuQi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, wanghuiqiang@huawei.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, linux-arm <linux-arm-kernel@lists.infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue 12-06-18 16:08:03, Punit Agrawal wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
-[...]
-> > Well, the standard way to handle memory less NUMA nodes is to simply
-> > fallback to the closest NUMA node. We even have an API for that
-> > (numa_mem_id).
+On Fri, Jun 08, 2018 at 09:42:15PM +0800, kbuild test robot wrote:
+> tree/branch: git://git.cmpxchg.org/linux-mmotm.git  master
+> branch HEAD: 7393732bae530daa27567988b91d16ecfeef6c62  pci: test for unexpectedly disabled bridges
 > 
-> CONFIG_HAVE_MEMORYLESS node is not enabled on arm64 which means we end
-> up returning the original node in the fallback path.
+> Regressions in current branch:
+> 
+> drivers/scsi//qedf/qedf_main.c:3569:6: error: redefinition of 'qedf_get_protocol_tlv_data'
+> drivers/scsi/qedf/qedf_main.c:3569:6: error: redefinition of 'qedf_get_protocol_tlv_data'
+> drivers/scsi//qedf/qedf_main.c:3649:6: error: redefinition of 'qedf_get_generic_tlv_data'
+> drivers/scsi/qedf/qedf_main.c:3649:6: error: redefinition of 'qedf_get_generic_tlv_data'
+> drivers/thermal/qcom/tsens.c:144:31: error: 's' undeclared (first use in this function)
+> fs/dax.c:1031:2: error: 'entry2' undeclared (first use in this function)
+> fs/dax.c:1031:2: error: 'entry2' undeclared (first use in this function); did you mean 'entry'?
+> fs/fat/inode.c:162:25: warning: format '%ld' expects argument of type 'long int', but argument 5 has type 'sector_t {aka long long unsigned int}' [-Wformat=]
+> fs/fat/inode.c:162:3: warning: format '%ld' expects argument of type 'long int', but argument 5 has type 'sector_t' [-Wformat=]
+> fs///fat/inode.c:163:9: warning: format '%ld' expects argument of type 'long int', but argument 5 has type 'sector_t {aka long long unsigned int}' [-Wformat=]
+> fs/fat/inode.c:163:9: warning: format '%ld' expects argument of type 'long int', but argument 5 has type 'sector_t {aka long long unsigned int}' [-Wformat=]
+> include/asm-generic/int-ll64.h:16:9: error: unknown type name '__s8'
+> include/net/ipv6.h:299:2: error: unknown type name '__s8'
+> include/uapi/asm-generic/int-ll64.h:20:1: error: expected '=', ',', ';', 'asm' or '__attribute__' before 'typedef'
+> include/uapi/linux/dqblk_xfs.h:54:2: error: unknown type name '__s8'
+> include/uapi/linux/ethtool.h:1834:2: error: unknown type name '__s8'
+> include/uapi/linux/if_bonding.h:107:2: error: unknown type name '__s8'
 
-Yes this makes more sense.
--- 
-Michal Hocko
-SUSE Labs
+> net/ipv4/ipconfig.c:1:2: error: expected ';' before 'typedef'
+
+Hit this today.  A wayward 'q' snuck into linux-next-git-rejects.patch:
+
+  diff -puN net/ipv4/ipconfig.c~linux-next-git-rejects net/ipv4/ipconfig.c
+  --- a/net/ipv4/ipconfig.c~linux-next-git-rejects
+  +++ a/net/ipv4/ipconfig.c
+  @@ -1,4 +1,4 @@
+  -// SPDX-License-Identifier: GPL-2.0
+  +q// SPDX-License-Identifier: GPL-2.0
+
+Removing the q fixes all the errors above, but there's another build issue if
+you don't have CONFIG_HYPERV=y:
+
+  arch/x86/kvm/vmx.o: In function `alloc_loaded_vmcs':                                                                                                
+  /storage/dmjordan/linux/arch/x86/kvm/vmx.c:4404: undefined reference to `ms_hyperv'
+
+This one disappears with https://patchwork.kernel.org/patch/10427825/
+
+v4.17-mmotm-2018-06-07-16-59 from linux-mmotm builds with both fixes.
