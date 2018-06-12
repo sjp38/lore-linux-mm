@@ -1,99 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C08B86B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 12:51:57 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id r26-v6so9023717otk.17
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 09:51:57 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y4-v6sor279707oty.159.2018.06.12.09.51.56
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DFE16B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 13:24:49 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id j14-v6so14057096wrq.4
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 10:24:49 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id v5-v6si616706edr.266.2018.06.12.10.24.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Jun 2018 09:51:56 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jun 2018 10:24:47 -0700 (PDT)
+Date: Tue, 12 Jun 2018 10:24:11 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2 2/3] mm, memcg: propagate memory effective protection
+ on setting memory.min/low
+Message-ID: <20180612172408.GA12904@castle.DHCP.thefacebook.com>
+References: <20180611175418.7007-1-guro@fb.com>
+ <20180611175418.7007-3-guro@fb.com>
+ <20180612155242.GA6300@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrWmGRkQvsUgRaj+j0CP4beKys+TT5aDR5+18nuphwr+Cw@mail.gmail.com>
-References: <20180607143807.3611-1-yu-cheng.yu@intel.com> <20180607143807.3611-7-yu-cheng.yu@intel.com>
- <CALCETrU6axo158CiSCRRkC4GC5hib9hypC98t7LLjA3gDaacsw@mail.gmail.com>
- <1528403417.5265.35.camel@2b52.sc.intel.com> <CALCETrXz3WWgZwUXJsDTWvmqKUArQFuMH1xJdSLVKFpTysNWxg@mail.gmail.com>
- <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
- <alpine.DEB.2.21.1806121155450.2157@nanos.tec.linutronix.de>
- <CAMe9rOoCiXQ4iVD3j_AHGrvEXtoaVVZVs7H7fCuqNEuuR5j+2Q@mail.gmail.com>
- <CALCETrXO8R+RQPhJFk4oiA4PF77OgSS2Yro_POXQj1zvdLo61A@mail.gmail.com>
- <CAMe9rOpLxPussn7gKvn0GgbOB4f5W+DKOGipe_8NMam+Afd+RA@mail.gmail.com> <CALCETrWmGRkQvsUgRaj+j0CP4beKys+TT5aDR5+18nuphwr+Cw@mail.gmail.com>
-From: "H.J. Lu" <hjl.tools@gmail.com>
-Date: Tue, 12 Jun 2018 09:51:55 -0700
-Message-ID: <CAMe9rOpzcCdje=bUVs+C1WrY6GuwA-8AUFVLOG325LGz7KHJxw@mail.gmail.com>
-Subject: Re: [PATCH 06/10] x86/cet: Add arch_prctl functions for shadow stack
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180612155242.GA6300@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Yu-cheng Yu <yu-cheng.yu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Shuah Khan <shuah@kernel.org>, Andrew Morton <akpm@linuxfoundation.org>
 
-On Tue, Jun 12, 2018 at 9:34 AM, Andy Lutomirski <luto@kernel.org> wrote:
-> On Tue, Jun 12, 2018 at 9:05 AM H.J. Lu <hjl.tools@gmail.com> wrote:
->>
->> On Tue, Jun 12, 2018 at 9:01 AM, Andy Lutomirski <luto@kernel.org> wrote:
->> > On Tue, Jun 12, 2018 at 4:43 AM H.J. Lu <hjl.tools@gmail.com> wrote:
->> >>
->> >> On Tue, Jun 12, 2018 at 3:03 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
->> >> > On Thu, 7 Jun 2018, H.J. Lu wrote:
->> >> >> On Thu, Jun 7, 2018 at 2:01 PM, Andy Lutomirski <luto@kernel.org> wrote:
->> >> >> > Why is the lockout necessary?  If user code enables CET and tries to
->> >> >> > run code that doesn't support CET, it will crash.  I don't see why we
->> >> >> > need special code in the kernel to prevent a user program from calling
->> >> >> > arch_prctl() and crashing itself.  There are already plenty of ways to
->> >> >> > do that :)
->> >> >>
->> >> >> On CET enabled machine, not all programs nor shared libraries are
->> >> >> CET enabled.  But since ld.so is CET enabled, all programs start
->> >> >> as CET enabled.  ld.so will disable CET if a program or any of its shared
->> >> >> libraries aren't CET enabled.  ld.so will lock up CET once it is done CET
->> >> >> checking so that CET can't no longer be disabled afterwards.
->> >> >
->> >> > That works for stuff which loads all libraries at start time, but what
->> >> > happens if the program uses dlopen() later on? If CET is force locked and
->> >> > the library is not CET enabled, it will fail.
->> >>
->> >> That is to prevent disabling CET by dlopening a legacy shared library.
->> >>
->> >> > I don't see the point of trying to support CET by magic. It adds complexity
->> >> > and you'll never be able to handle all corner cases correctly. dlopen() is
->> >> > not even a corner case.
->> >>
->> >> That is a price we pay for security.  To enable CET, especially shadow
->> >> shack, the program and all of shared libraries it uses should be CET
->> >> enabled.  Most of programs can be enabled with CET by compiling them
->> >> with -fcf-protection.
->> >
->> > If you charge too high a price for security, people may turn it off.
->> > I think we're going to need a mode where a program says "I want to use
->> > the CET, but turn it off if I dlopen an unsupported library".  There
->> > are programs that load binary-only plugins.
->>
->> You can do
->>
->> # export GLIBC_TUNABLES=glibc.tune.hwcaps=-SHSTK
->>
->> which turns off shadow stack.
->>
->
-> Which exactly illustrates my point.  By making your security story too
-> absolute, you'll force people to turn it off when they don't need to.
-> If I'm using a fully CET-ified distro and I'm using a CET-aware
-> program that loads binary plugins, and I may or may not have an old
-> (binary-only, perhaps) plugin that doesn't support CET, then the
-> behavior I want is for CET to be on until I dlopen() a program that
-> doesn't support it.  Unless there's some ABI reason why that can't be
-> done, but I don't think there is.
+On Tue, Jun 12, 2018 at 11:52:42AM -0400, Johannes Weiner wrote:
+> On Mon, Jun 11, 2018 at 10:54:17AM -0700, Roman Gushchin wrote:
+> > Explicitly propagate effective memory min/low values down by the tree.
+> > 
+> > If there is the global memory pressure, it's not really necessary.
+> > Effective memory guarantees will be propagated automatically as we
+> > traverse memory cgroup tree in the reclaim path.
+> > 
+> > But if there is no global memory pressure, effective memory protection
+> > still matters for local (memcg-scoped) memory pressure.  So, we have to
+> > update effective limits in the subtree, if a user changes memory.min and
+> > memory.low values.
+> > 
+> > Link: http://lkml.kernel.org/r/20180522132528.23769-1-guro@fb.com
+> > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> > Cc: Greg Thelen <gthelen@google.com>
+> > Cc: Tejun Heo <tj@kernel.org>
+> > Cc: Shuah Khan <shuah@kernel.org>
+> > Signed-off-by: Andrew Morton <akpm@linuxfoundation.org>
+> > ---
+> >  mm/memcontrol.c | 14 ++++++++++++--
+> >  1 file changed, 12 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 5a3873e9d657..485df6f63d26 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -5084,7 +5084,7 @@ static int memory_min_show(struct seq_file *m, void *v)
+> >  static ssize_t memory_min_write(struct kernfs_open_file *of,
+> >  				char *buf, size_t nbytes, loff_t off)
+> >  {
+> > -	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+> > +	struct mem_cgroup *iter, *memcg = mem_cgroup_from_css(of_css(of));
+> >  	unsigned long min;
+> >  	int err;
+> >  
+> > @@ -5095,6 +5095,11 @@ static ssize_t memory_min_write(struct kernfs_open_file *of,
+> >  
+> >  	page_counter_set_min(&memcg->memory, min);
+> >  
+> > +	rcu_read_lock();
+> > +	for_each_mem_cgroup_tree(iter, memcg)
+> > +		mem_cgroup_protected(NULL, iter);
+> > +	rcu_read_unlock();
+> 
+> I'm not quite following. mem_cgroup_protected() is a just-in-time
+> query that depends on the groups' usage. How does it make sense to run
+> this at the time the limit is set?
 
-We can make it opt-in via GLIBC_TUNABLES.  But by default, the legacy
-shared object is disallowed when CET is enabled.
+mem_cgroup_protected() emulates memory pressure to propagate
+effective memory guarantee values.
+> 
+> Also, why is target reclaim different from global reclaim here? We
+> have all the information we need, even if we don't start at the
+> root_mem_cgroup. If we enter target reclaim against a specific cgroup,
+> yes, we don't know the elow it receives from its parents. What we *do*
+> know, though, is that it hit its own hard limit. What is happening
+> higher up that group doesn't matter for the purpose of protection.
+> 
+> I.e. it seems to me that instead of this patch we should be treating
+> the reclaim root and its first-level children the same way we treat
+> root_mem_cgroup and top-level cgroups: no protection for the root,
+> first children use their low setting as the elow, all descendants get
+> the proportional low-usage distribution.
+> 
 
-> I'm concerned that the entire concept of locking CET is there to solve
-> a security problem that doesn't actually exist.
+Ok, we can keep it this way. We can have some races between the global
+and targeted reclaim, but it's fine.
 
-We don't know that.
+Andrew,
+can you, please, drop these patches from the mm tree:
+  selftests: cgroup: add test for memory.low corner cases
+  mm, memcg: don't skip memory guarantee calculations
+  mm, memcg: propagate memory effective protection on setting memory.min/low
 
+The null pointer fix ("b2c21aa3690a mm: fix null pointer dereference in mem_cgroup_protected")
+should be kept and merged asap.
 
--- 
-H.J.
+Thank you!
