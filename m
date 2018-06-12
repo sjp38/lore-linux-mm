@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BF9A56B000E
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F3E496B0266
 	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 10:39:28 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id d2-v6so3958820pgq.22
+Received: by mail-pl0-f69.google.com with SMTP id a5-v6so14026418plp.8
         for <linux-mm@kvack.org>; Tue, 12 Jun 2018 07:39:28 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id w1-v6si242590pgp.10.2018.06.12.07.39.27
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id l5-v6si295495pls.360.2018.06.12.07.39.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 12 Jun 2018 07:39:27 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 08/17] x86/mm: Implement vma_is_encrypted() and vma_keyid()
-Date: Tue, 12 Jun 2018 17:39:06 +0300
-Message-Id: <20180612143915.68065-9-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 06/17] x86/mm: Introduce variables to store number, shift and mask of KeyIDs
+Date: Tue, 12 Jun 2018 17:39:04 +0300
+Message-Id: <20180612143915.68065-7-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
 References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,67 +20,102 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We store KeyID in upper bits for vm_page_prot that match position of
-KeyID in PTE. vma_keyid() extracts KeyID from vm_page_prot.
+mktme_nr_keyids holds number of KeyIDs available for MKTME, excluding
+KeyID zero which used by TME. MKTME KeyIDs start from 1.
 
-VMA is encrypted if KeyID is non-zero. vma_is_encrypted() checks that.
+mktme_keyid_shift holds shift of KeyID within physical address.
+
+mktme_keyid_mask holds mask to extract KeyID from physical address.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/mktme.h |  9 +++++++++
- arch/x86/mm/mktme.c          | 17 +++++++++++++++++
- 2 files changed, 26 insertions(+)
+ arch/x86/include/asm/mktme.h | 16 ++++++++++++++++
+ arch/x86/kernel/cpu/intel.c  | 12 ++++++++----
+ arch/x86/mm/Makefile         |  2 ++
+ arch/x86/mm/mktme.c          |  5 +++++
+ 4 files changed, 31 insertions(+), 4 deletions(-)
+ create mode 100644 arch/x86/include/asm/mktme.h
+ create mode 100644 arch/x86/mm/mktme.c
 
 diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-index df31876ec48c..08f613953207 100644
---- a/arch/x86/include/asm/mktme.h
+new file mode 100644
+index 000000000000..df31876ec48c
+--- /dev/null
 +++ b/arch/x86/include/asm/mktme.h
-@@ -3,10 +3,19 @@
- 
- #include <linux/types.h>
- 
-+struct vm_area_struct;
+@@ -0,0 +1,16 @@
++#ifndef	_ASM_X86_MKTME_H
++#define	_ASM_X86_MKTME_H
 +
++#include <linux/types.h>
++
++#ifdef CONFIG_X86_INTEL_MKTME
++extern phys_addr_t mktme_keyid_mask;
++extern int mktme_nr_keyids;
++extern int mktme_keyid_shift;
++#else
++#define mktme_keyid_mask	((phys_addr_t)0)
++#define mktme_nr_keyids		0
++#define mktme_keyid_shift	0
++#endif
++
++#endif
+diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
+index bf2caf9d52dd..efc9e9fc47d4 100644
+--- a/arch/x86/kernel/cpu/intel.c
++++ b/arch/x86/kernel/cpu/intel.c
+@@ -573,6 +573,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
+ 
  #ifdef CONFIG_X86_INTEL_MKTME
- extern phys_addr_t mktme_keyid_mask;
- extern int mktme_nr_keyids;
- extern int mktme_keyid_shift;
+ 	if (mktme_status == MKTME_ENABLED && nr_keyids) {
++		mktme_nr_keyids = nr_keyids;
++		mktme_keyid_shift = c->x86_phys_bits - keyid_bits;
 +
-+#define vma_is_encrypted vma_is_encrypted
-+bool vma_is_encrypted(struct vm_area_struct *vma);
-+
-+#define vma_keyid vma_keyid
-+int vma_keyid(struct vm_area_struct *vma);
-+
- #else
- #define mktme_keyid_mask	((phys_addr_t)0)
- #define mktme_nr_keyids		0
-diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index 467f1b26c737..3b2f28a21d99 100644
---- a/arch/x86/mm/mktme.c
-+++ b/arch/x86/mm/mktme.c
-@@ -1,5 +1,22 @@
-+#include <linux/mm.h>
- #include <asm/mktme.h>
+ 		/*
+ 		 * Mask out bits claimed from KeyID from physical address mask.
+ 		 *
+@@ -580,10 +583,8 @@ static void detect_tme(struct cpuinfo_x86 *c)
+ 		 * and number of bits claimed for KeyID is 6, bits 51:46 of
+ 		 * physical address is unusable.
+ 		 */
+-		phys_addr_t keyid_mask;
+-
+-		keyid_mask = GENMASK_ULL(c->x86_phys_bits - 1, c->x86_phys_bits - keyid_bits);
+-		physical_mask &= ~keyid_mask;
++		mktme_keyid_mask = GENMASK_ULL(c->x86_phys_bits - 1, mktme_keyid_shift);
++		physical_mask &= ~mktme_keyid_mask;
+ 	} else {
+ 		/*
+ 		 * Reset __PHYSICAL_MASK.
+@@ -591,6 +592,9 @@ static void detect_tme(struct cpuinfo_x86 *c)
+ 		 * between CPUs.
+ 		 */
+ 		physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
++		mktme_keyid_mask = 0;
++		mktme_keyid_shift = 0;
++		mktme_nr_keyids = 0;
+ 	}
+ #endif
  
- phys_addr_t mktme_keyid_mask;
- int mktme_nr_keyids;
- int mktme_keyid_shift;
+diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+index 4b101dd6e52f..4ebee899c363 100644
+--- a/arch/x86/mm/Makefile
++++ b/arch/x86/mm/Makefile
+@@ -53,3 +53,5 @@ obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= pti.o
+ obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
+ obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_identity.o
+ obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
 +
-+bool vma_is_encrypted(struct vm_area_struct *vma)
-+{
-+	return pgprot_val(vma->vm_page_prot) & mktme_keyid_mask;
-+}
++obj-$(CONFIG_X86_INTEL_MKTME)	+= mktme.o
+diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
+new file mode 100644
+index 000000000000..467f1b26c737
+--- /dev/null
++++ b/arch/x86/mm/mktme.c
+@@ -0,0 +1,5 @@
++#include <asm/mktme.h>
 +
-+int vma_keyid(struct vm_area_struct *vma)
-+{
-+	pgprotval_t prot;
-+
-+	if (!vma_is_anonymous(vma))
-+		return 0;
-+
-+	prot = pgprot_val(vma->vm_page_prot);
-+	return (prot & mktme_keyid_mask) >> mktme_keyid_shift;
-+}
++phys_addr_t mktme_keyid_mask;
++int mktme_nr_keyids;
++int mktme_keyid_shift;
 -- 
 2.17.1
