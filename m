@@ -1,83 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 46BCA6B0273
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 14:46:36 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id g5-v6so1173811pgv.12
-        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 11:46:36 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id a186-v6si2792090pgc.453.2018.06.13.11.46.35
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7C06B0273
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 14:53:50 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id g2-v6so2830846qkm.13
+        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 11:53:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id u1-v6si3202663qka.174.2018.06.13.11.53.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jun 2018 11:46:35 -0700 (PDT)
-Subject: Re: [PATCHv3 17/17] x86: Introduce CONFIG_X86_INTEL_MKTME
-References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
- <20180612143915.68065-18-kirill.shutemov@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <43ea6cea-b88c-e08a-3f4e-64c39b20ae59@intel.com>
-Date: Wed, 13 Jun 2018 11:46:34 -0700
+        Wed, 13 Jun 2018 11:53:49 -0700 (PDT)
+Date: Wed, 13 Jun 2018 14:53:47 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH RESEND] slab: introduce the flag SLAB_MINIMIZE_WASTE
+In-Reply-To: <20180613181654.GA24315@infradead.org>
+Message-ID: <alpine.LRH.2.02.1806131446110.26196@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.DEB.2.20.1804170940340.17557@nuc-kabylake> <alpine.LRH.2.02.1804171454020.26973@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804180952580.1334@nuc-kabylake> <alpine.LRH.2.02.1804251702250.9428@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.LRH.2.02.1804251917460.2429@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804261354230.6674@nuc-kabylake> <alpine.LRH.2.02.1804261508430.26980@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.20.1804271136390.11686@nuc-kabylake>
+ <alpine.LRH.2.02.1804271513320.16558@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1806131300370.1012@file01.intranet.prod.int.rdu2.redhat.com> <20180613181654.GA24315@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20180612143915.68065-18-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Christopher Lameter <cl@linux.com>, Mike Snitzer <snitzer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On 06/12/2018 07:39 AM, Kirill A. Shutemov wrote:
-> Add new config option to enabled/disable Multi-Key Total Memory
-> Encryption support.
+
+
+On Wed, 13 Jun 2018, Christoph Hellwig wrote:
+
+> On Wed, Jun 13, 2018 at 01:01:22PM -0400, Mikulas Patocka wrote:
+> > Hi
+> > 
+> > I'd like to ask about this patch - will you commit it, or do you want to 
+> > make some more changes to it?
 > 
-> MKTME uses MEMORY_PHYSICAL_PADDING to reserve enough space in per-KeyID
-> direct mappings for memory hotplug.
+> How about you resend it with the series adding an actual user once
+> ready?  I haven't actually seen patches using it posted on any list yet.
 
-Isn't it really *the* direct mapping primarily?  We make all of them
-larger, but the direct mapping is impacted too.  This makes it sound
-like it applies only to the MKTME mappings.
+dm-bufio is already using it. Starting with the kernel 4.17 (f51f2e0a7fb1 
+- "dm bufio: support non-power-of-two block sizes"), dm-bufio has the 
+capability to use non-power-of-two buffers. It uses slab cache for its 
+buffers - so we would like to have this slab optimization - to avoid 
+excessive memory wasting.
 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 4fa2cf807321..d013495bb4ae 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -1513,6 +1513,23 @@ config ARCH_USE_MEMREMAP_PROT
->  	def_bool y
->  	depends on AMD_MEM_ENCRYPT
->  
-> +config X86_INTEL_MKTME
-> +	bool "Intel Multi-Key Total Memory Encryption"
-> +	select DYNAMIC_PHYSICAL_MASK
-> +	select PAGE_EXTENSION
-> +	depends on X86_64 && CPU_SUP_INTEL
-> +	---help---
-> +	  Say yes to enable support for Multi-Key Total Memory Encryption.
-> +	  This requires Intel processor that has support of the feature.
+Originally, the slub patch used a new flag SLAB_MINIMIZE_WASTE, but after 
+a suggestion from others, I reworked the patch so that it minimizes waste 
+of all slub caches and doesn't need an extra flag to activate.
 
-"requires an Intel processor"...
-
-> +	  Multikey Total Memory Encryption (MKTME) is a technology that allows
-> +	  transparent memory encryption in upcoming Intel platforms.
-
-"in an upcoming"
-
-> +	  MKTME is built on top of TME. TME allows encryption of the entirety
-> +	  of system memory using a single key. MKTME allows to have multiple
-
-"allows having multiple"...
-
-> +	  encryption domains, each having own key -- different memory pages can
-> +	  be encrypted with different keys.
-> +
->  # Common NUMA Features
->  config NUMA
->  	bool "Numa Memory Allocation and Scheduler Support"
-> @@ -2189,7 +2206,7 @@ config RANDOMIZE_MEMORY
->  
->  config MEMORY_PHYSICAL_PADDING
->  	hex "Physical memory mapping padding" if EXPERT
-> -	depends on RANDOMIZE_MEMORY
-> +	depends on RANDOMIZE_MEMORY || X86_INTEL_MKTME
->  	default "0xa" if MEMORY_HOTPLUG
->  	default "0x0"
->  	range 0x1 0x40 if MEMORY_HOTPLUG
-> 
+Mikulas
