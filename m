@@ -1,37 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D0F2D6B000A
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 08:55:49 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id g15-v6so1279894pfh.10
-        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 05:55:49 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t190-v6si2442238pgc.445.2018.06.13.05.55.48
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0A36B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 09:21:01 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id v134-v6so1664012oia.15
+        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 06:21:01 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id d70-v6si965907oic.398.2018.06.13.06.20.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Jun 2018 05:55:48 -0700 (PDT)
-Date: Wed, 13 Jun 2018 05:55:46 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] mm: cma: honor __GFP_ZERO flag in cma_alloc()
-Message-ID: <20180613125546.GB32016@infradead.org>
-References: <CGME20180613085851eucas1p20337d050face8ff8ea87674e16a9ccd2@eucas1p2.samsung.com>
- <20180613085851eucas1p20337d050face8ff8ea87674e16a9ccd2~3rI_9nj8b0455904559eucas1p2C@eucas1p2.samsung.com>
- <20180613122359.GA8695@bombadil.infradead.org>
- <20180613124001eucas1p2422f7916367ce19fecd40d6131990383~3uKFrT3ML1977219772eucas1p2G@eucas1p2.samsung.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jun 2018 06:21:00 -0700 (PDT)
+Subject: Re: [rfc patch] mm, oom: fix unnecessary killing of additional
+ processes
+References: <alpine.DEB.2.21.1805241422070.182300@chino.kir.corp.google.com>
+ <20180525072636.GE11881@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1805251227380.158701@chino.kir.corp.google.com>
+ <20180528081345.GD1517@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1805301357100.150424@chino.kir.corp.google.com>
+ <20180531063212.GF15278@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1805311400260.74563@chino.kir.corp.google.com>
+ <20180601074642.GW15278@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1806042100200.71129@chino.kir.corp.google.com>
+ <20180605085707.GV19202@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <56138495-fd91-62f8-464a-db9960bfeb28@i-love.sakura.ne.jp>
+Date: Wed, 13 Jun 2018 22:20:49 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180613124001eucas1p2422f7916367ce19fecd40d6131990383~3uKFrT3ML1977219772eucas1p2G@eucas1p2.samsung.com>
+In-Reply-To: <20180605085707.GV19202@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jun 13, 2018 at 02:40:00PM +0200, Marek Szyprowski wrote:
-> It is not only the matter of the spinlocks. GFP_ATOMIC is not supported 
-> by the
-> memory compaction code, which is used in alloc_contig_range(). Right, this
-> should be also noted in the documentation.
+On 2018/06/05 17:57, Michal Hocko wrote:
+>> For this reason, we see testing harnesses often oom killed immediately 
+>> after running a unittest that stresses reclaim or compaction by inducing a 
+>> system-wide oom condition.  The harness spawns the unittest which spawns 
+>> an antagonist memory hog that is intended to be oom killed.  When memory 
+>> is mlocked or there are a large number of threads faulting memory for the 
+>> antagonist, the unittest and the harness itself get oom killed because the 
+>> oom reaper sets MMF_OOM_SKIP; this ends up happening a lot on powerpc.  
+>> The memory hog has mm->mmap_sem readers queued ahead of a writer that is 
+>> doing mmap() so the oom reaper can't grab the sem quickly enough.
+> 
+> How come the writer doesn't back off. mmap paths should be taking an
+> exclusive mmap sem in killable sleep so it should back off. Or is the
+> holder of the lock deep inside mmap path doing something else and not
+> backing out with the exclusive lock held?
+> 
+ 
+Here is an example where the writer doesn't back off.
 
-Documentation is good, asserts are better.  The code should reject any
-flag not explicitly supported, or even better have its own flags type
-with the few actually supported flags.
+  http://lkml.kernel.org/r/20180607150546.1c7db21f70221008e14b8bb8@linux-foundation.org
+
+down_write_killable(&mm->mmap_sem) is nothing but increasing the possibility of
+successfully back off. There is no guarantee that the owner of that exclusive
+mmap sem will not be blocked by other unkillable waits.
