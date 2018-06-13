@@ -1,65 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B60436B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 21:10:40 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id x14-v6so999409ioa.6
-        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 18:10:40 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c133-v6sor623907ioc.84.2018.06.12.18.10.38
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D47C6B0007
+	for <linux-mm@kvack.org>; Tue, 12 Jun 2018 21:26:59 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n19-v6so469330pff.8
+        for <linux-mm@kvack.org>; Tue, 12 Jun 2018 18:26:59 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id bf6-v6si1434527plb.44.2018.06.12.18.26.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Jun 2018 18:10:38 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jun 2018 18:26:57 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -V3 03/21] mm, THP, swap: Support PMD swap mapping in swap_duplicate()
+References: <20180523082625.6897-1-ying.huang@intel.com>
+	<20180523082625.6897-4-ying.huang@intel.com>
+	<20180611204231.ojhlyrbmda6pouxb@ca-dmjordan1.us.oracle.com>
+	<87o9ggpzlk.fsf@yhuang-dev.intel.com>
+	<20180612214402.cpjmcyjkkwtkgjyu@ca-dmjordan1.us.oracle.com>
+Date: Wed, 13 Jun 2018 09:26:54 +0800
+In-Reply-To: <20180612214402.cpjmcyjkkwtkgjyu@ca-dmjordan1.us.oracle.com>
+	(Daniel Jordan's message of "Tue, 12 Jun 2018 14:44:02 -0700")
+Message-ID: <87vaano4rl.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-References: <20180612071621.26775-1-npiggin@gmail.com> <20180612071621.26775-4-npiggin@gmail.com>
- <CA+55aFzKBieD0Y3sgFQzt+x5esqb9vT6SEQ28xyCz5UWegfFVg@mail.gmail.com>
- <20180613083131.139a3c34@roar.ozlabs.ibm.com> <CA+55aFyk9VBLUk8VYhfEUR55x0TXY9_QX1dE4wE0A_ias9tMNQ@mail.gmail.com>
- <20180613090950.50566245@roar.ozlabs.ibm.com> <CA+55aFxd97-29qi-JMxyPPoZMxw=eObQHB5XXGiLj7SNV8B-oQ@mail.gmail.com>
- <CA+55aFzbYBXUDcAGaP_HoCxjTvOgkixc0+7nJqMea0yKjLSnhw@mail.gmail.com> <20180613101241.004fd64e@roar.ozlabs.ibm.com>
-In-Reply-To: <20180613101241.004fd64e@roar.ozlabs.ibm.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 12 Jun 2018 18:10:26 -0700
-Message-ID: <CA+55aFzJRknbQD6Mv3OSOvUVozQ4H8ni8jPP7UEEi9wKXmVhQA@mail.gmail.com>
-Subject: Re: [RFC PATCH 3/3] powerpc/64s/radix: optimise TLB flush with
- precise TLB ranges in mmu_gather
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Piggin <npiggin@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, ppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-arch <linux-arch@vger.kernel.org>, "Aneesh Kumar K. V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Nadav Amit <nadav.amit@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Tue, Jun 12, 2018 at 5:12 PM Nicholas Piggin <npiggin@gmail.com> wrote:
-> >
-> > And in _theory_, maybe you could have just used "invalpg" with a
-> > targeted address instead. In fact, I think a single invlpg invalidates
-> > _all_ caches for the associated MM, but don't quote me on that.
+Daniel Jordan <daniel.m.jordan@oracle.com> writes:
 
-Confirmed. The SDK says
+> On Tue, Jun 12, 2018 at 09:23:19AM +0800, Huang, Ying wrote:
+>> Daniel Jordan <daniel.m.jordan@oracle.com> writes:
+>> >> +#else
+>> >> +static inline int __swap_duplicate_cluster(swp_entry_t *entry,
+>> >
+>> > This doesn't need inline.
+>> 
+>> Why not?  This is just a one line stub.
+>
+> Forgot to respond to this.  The compiler will likely choose to optimize out
+> calls to an empty function like this.  Checking, this is indeed what it does in
+> this case on my machine, with or without inline.
 
- "INVLPG also invalidates all entries in all paging-structure caches
-  associated with the current PCID, regardless of the linear addresses
-  to which they correspond"
+Yes.  I believe a decent compiler will inline the function in any way.
+And it does no harm to keep "inline" too, Yes?
 
-so if x86 wants to do this "separate invalidation for page directory
-entryes", then it would want to
+> By the way, when building without CONFIG_THP_SWAP, we get
+>
+>   linux/mm/swapfile.c:933:13: warning: a??__swap_free_clustera?? defined but not used [-Wunused-function]
+>    static void __swap_free_cluster(struct swap_info_struct *si, unsigned long idx)
+>                ^~~~~~~~~~~~~~~~~~~
 
- (a) remove the __tlb_adjust_range() operation entirely from
-pud_free_tlb() and friends
+Thanks!  I will fix this.  Don't know why 0-Day didn't catch this.
 
- (b) instead just have a single field for "invalidate_tlb_caches",
-which could be a boolean, or could just be one of the addresses
-
-and then the logic would be that IFF no other tlb invalidate is done
-due to an actual page range, then we look at that
-invalidate_tlb_caches field, and do a single INVLPG instead.
-
-I still am not sure if this would actually make a difference in
-practice, but I guess it does mean that x86 could at least participate
-in some kind of scheme where we have architecture-specific actions for
-those page directory entries.
-
-And we could make the default behavior - if no architecture-specific
-tlb page directory invalidation function exists - be the current
-"__tlb_adjust_range()" case. So the default would be to not change
-behavior, and architectures could opt in to something like this.
-
-            Linus
+Best Regards,
+Huang, Ying
