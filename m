@@ -1,48 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A37136B0003
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 09:39:17 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f9-v6so1577780wmc.7
-        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 06:39:17 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a40-v6si1350033edf.324.2018.06.13.06.39.16
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E84D36B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 10:43:12 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g15-v6so1404970pfh.10
+        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 07:43:12 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d65-v6si3104651pfg.142.2018.06.13.07.43.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Jun 2018 06:39:16 -0700 (PDT)
-Date: Wed, 13 Jun 2018 15:39:13 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: cma: honor __GFP_ZERO flag in cma_alloc()
-Message-ID: <20180613133913.GD20315@dhcp22.suse.cz>
-References: <CGME20180613085851eucas1p20337d050face8ff8ea87674e16a9ccd2@eucas1p2.samsung.com>
- <20180613085851eucas1p20337d050face8ff8ea87674e16a9ccd2~3rI_9nj8b0455904559eucas1p2C@eucas1p2.samsung.com>
- <20180613122359.GA8695@bombadil.infradead.org>
- <20180613124001eucas1p2422f7916367ce19fecd40d6131990383~3uKFrT3ML1977219772eucas1p2G@eucas1p2.samsung.com>
- <20180613125546.GB32016@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Jun 2018 07:43:11 -0700 (PDT)
+Date: Wed, 13 Jun 2018 07:42:53 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH V6 00/30] block: support multipage bvec
+Message-ID: <20180613144253.GA4693@infradead.org>
+References: <20180609123014.8861-1-ming.lei@redhat.com>
+ <20180611164806.GA7452@infradead.org>
+ <20180612034242.GC26412@ming.t460p>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180613125546.GB32016@infradead.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180612034242.GC26412@ming.t460p>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Jens Axboe <axboe@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>
 
-On Wed 13-06-18 05:55:46, Christoph Hellwig wrote:
-> On Wed, Jun 13, 2018 at 02:40:00PM +0200, Marek Szyprowski wrote:
-> > It is not only the matter of the spinlocks. GFP_ATOMIC is not supported 
-> > by the
-> > memory compaction code, which is used in alloc_contig_range(). Right, this
-> > should be also noted in the documentation.
+On Tue, Jun 12, 2018 at 11:42:49AM +0800, Ming Lei wrote:
+> On Mon, Jun 11, 2018 at 09:48:06AM -0700, Christoph Hellwig wrote:
+> > D? think the new naming scheme in this series is a nightmare.  It
+> > confuses the heck out of me, and that is despite knowing many bits of
+> > the block layer inside out, and reviewing previous series.
 > 
-> Documentation is good, asserts are better.  The code should reject any
-> flag not explicitly supported, or even better have its own flags type
-> with the few actually supported flags.
+> In V5, there isn't such issue, since bio_for_each_segment* is renamed
+> into bio_for_each_page* first before doing the change.
 
-Agreed. Is the cma allocator used for anything other than GFP_KERNEL
-btw.? If not then, shouldn't we simply drop the gfp argument altogether
-rather than give users a false hope for differen gfp modes that are not
-really supported and grow broken code?
+But now we are at V6 where that isn't the case..
 
--- 
-Michal Hocko
-SUSE Labs
+> Seems Jens isn't fine with the big renaming, then I follow the suggestion
+> of taking 'chunk' for representing multipage bvec in V6.
+
+Please don't use chunk.  We are iterating over bio_vec structures, while
+we have the concept of a chunk size for something else in the block layer,
+so this just creates confusion.  Nevermind names like
+bio_for_each_chunk_segment_all which just double the confusion.
+
+So assuming that bio_for_each_segment is set to stay as-is for now,
+here is a proposal for sanity by using the vec name.
+
+OLD:	    bio_for_each_segment
+NEW(page):  bio_for_each_segment, to be renamed bio_for_each_page later
+NEW(bvec):  bio_for_each_bvec
+
+OLD:	    __bio_for_each_segment
+NEW(page):  __bio_for_each_segment, to be renamed __bio_for_each_page later
+NEW(bvec):  (no bvec version needed)
+
+OLD:	    bio_for_each_segment_all
+NEW(page):  bio_for_each_page_all (needs updated prototype anyway)
+NEW(bvec):  (no bvec version needed once bcache is fixed up)	
