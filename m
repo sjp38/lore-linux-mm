@@ -1,97 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C92D86B0003
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 13:39:04 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id l11-v6so1986091oth.1
-        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 10:39:04 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s9-v6si1106676otc.202.2018.06.13.10.39.03
-        for <linux-mm@kvack.org>;
-        Wed, 13 Jun 2018 10:39:03 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
-References: <1527768879-88161-2-git-send-email-xiexiuqi@huawei.com>
-	<20180606154516.GL6631@arm.com>
-	<CAErSpo6S0qtR42tjGZrFu4aMFFyThx1hkHTSowTt6t3XerpHnA@mail.gmail.com>
-	<20180607105514.GA13139@dhcp22.suse.cz>
-	<5ed798a0-6c9c-086e-e5e8-906f593ca33e@huawei.com>
-	<20180607122152.GP32433@dhcp22.suse.cz>
-	<a880df29-b656-d98d-3037-b04761c7ed78@huawei.com>
-	<20180611085237.GI13364@dhcp22.suse.cz>
-	<16c4db2f-bc70-d0f2-fb38-341d9117ff66@huawei.com>
-	<20180611134303.GC75679@bhelgaas-glaptop.roam.corp.google.com>
-	<20180611145330.GO13364@dhcp22.suse.cz>
-	<87lgbk59gs.fsf@e105922-lin.cambridge.arm.com>
-Date: Wed, 13 Jun 2018 18:39:00 +0100
-In-Reply-To: <87lgbk59gs.fsf@e105922-lin.cambridge.arm.com> (Punit Agrawal's
-	message of "Tue, 12 Jun 2018 16:08:03 +0100")
-Message-ID: <87bmce60y3.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CE6056B0003
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 13:45:26 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id j10-v6so1139147pgv.6
+        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 10:45:26 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id x3-v6si2860890pgt.88.2018.06.13.10.45.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jun 2018 10:45:25 -0700 (PDT)
+Subject: Re: [PATCHv3 01/17] mm: Do no merge VMAs with different encryption
+ KeyIDs
+References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
+ <20180612143915.68065-2-kirill.shutemov@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <090170d5-44a7-9bd6-2287-c1f9f87f536f@intel.com>
+Date: Wed, 13 Jun 2018 10:45:24 -0700
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20180612143915.68065-2-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie XiuQi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
-Cc: Bjorn Helgaas <helgaas@kernel.org>, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, wanghuiqiang@huawei.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, linux-arm <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Punit Agrawal <punit.agrawal@arm.com> writes:
-
-
-[...]
-
->
-> CONFIG_HAVE_MEMORYLESS node is not enabled on arm64 which means we end
-> up returning the original node in the fallback path.
->
-> Xie, does the below patch help? I can submit a proper patch if this
-> fixes the issue for you.
->
-> -- >8 --
-> Subject: [PATCH] arm64/numa: Enable memoryless numa nodes
->
-> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+On 06/12/2018 07:38 AM, Kirill A. Shutemov wrote:
+> VMAs with different KeyID do not mix together. Only VMAs with the same
+> KeyID are compatible.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > ---
->  arch/arm64/Kconfig   | 4 ++++
->  arch/arm64/mm/numa.c | 2 ++
->  2 files changed, 6 insertions(+)
->
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index eb2cf4938f6d..5317e9aa93ab 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -756,6 +756,10 @@ config USE_PERCPU_NUMA_NODE_ID
->  	def_bool y
->  	depends on NUMA
->  
-> +config HAVE_MEMORYLESS_NODES
-> +       def_bool y
-> +       depends on NUMA
-> +
->  config HAVE_SETUP_PER_CPU_AREA
->  	def_bool y
->  	depends on NUMA
-> diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
-> index dad128ba98bf..c699dcfe93de 100644
-> --- a/arch/arm64/mm/numa.c
-> +++ b/arch/arm64/mm/numa.c
-> @@ -73,6 +73,8 @@ EXPORT_SYMBOL(cpumask_of_node);
->  static void map_cpu_to_node(unsigned int cpu, int nid)
->  {
->  	set_cpu_numa_node(cpu, nid);
-> +	set_numa_mem(local_memory_node(nid));
-
-Argh, this should be
-
-        set_cpu_numa_mem(cpu, local_memory_node(nid));
-
-There is not guarantee that map_cpu_to_node() will be called on the
-local cpu.
-
-Hanjun, Xie - can you try with the update please?
-
-Thanks,
-Punit
-
-> +
->  	if (nid >= 0)
->  		cpumask_set_cpu(cpu, node_to_cpumask_map[nid]);
+>  include/linux/mm.h | 7 +++++++
+>  mm/mmap.c          | 3 ++-
+>  2 files changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 02a616e2f17d..1c3c15f37ed6 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1492,6 +1492,13 @@ static inline bool vma_is_anonymous(struct vm_area_struct *vma)
+>  	return !vma->vm_ops;
 >  }
+>  
+> +#ifndef vma_keyid
+> +static inline int vma_keyid(struct vm_area_struct *vma)
+> +{
+> +	return 0;
+> +}
+> +#endif
+
+I'm generally not a fan of this #ifdef'ing method.  It makes it hard to
+figure out who is supposed to define it, and it's also substantially
+more fragile in the face of #include ordering.
+
+I'd much rather see some Kconfig involvement, like
+CONFIG_ARCH_HAS_MEM_ENCRYPTION or something.
