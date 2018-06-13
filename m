@@ -1,58 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 32DE76B0271
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 14:43:10 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id a5-v6so1887324plp.8
-        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 11:43:10 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id c14-v6si3328979pls.32.2018.06.13.11.43.08
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 46BCA6B0273
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 14:46:36 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id g5-v6so1173811pgv.12
+        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 11:46:36 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id a186-v6si2792090pgc.453.2018.06.13.11.46.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jun 2018 11:43:09 -0700 (PDT)
-Subject: Re: [PATCHv3 16/17] x86/mm: Handle encrypted memory in page_to_virt()
- and __pa()
+        Wed, 13 Jun 2018 11:46:35 -0700 (PDT)
+Subject: Re: [PATCHv3 17/17] x86: Introduce CONFIG_X86_INTEL_MKTME
 References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
- <20180612143915.68065-17-kirill.shutemov@linux.intel.com>
+ <20180612143915.68065-18-kirill.shutemov@linux.intel.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <f8b9da42-1f7b-529c-bfdd-e82f669f6fe8@intel.com>
-Date: Wed, 13 Jun 2018 11:43:08 -0700
+Message-ID: <43ea6cea-b88c-e08a-3f4e-64c39b20ae59@intel.com>
+Date: Wed, 13 Jun 2018 11:46:34 -0700
 MIME-Version: 1.0
-In-Reply-To: <20180612143915.68065-17-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20180612143915.68065-18-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
 Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-> index efc0d4bb3b35..d6edcabacfc7 100644
-> --- a/arch/x86/include/asm/mktme.h
-> +++ b/arch/x86/include/asm/mktme.h
-> @@ -43,6 +43,9 @@ void mktme_disable(void);
->  void setup_direct_mapping_size(void);
->  int sync_direct_mapping(void);
+On 06/12/2018 07:39 AM, Kirill A. Shutemov wrote:
+> Add new config option to enabled/disable Multi-Key Total Memory
+> Encryption support.
+> 
+> MKTME uses MEMORY_PHYSICAL_PADDING to reserve enough space in per-KeyID
+> direct mappings for memory hotplug.
+
+Isn't it really *the* direct mapping primarily?  We make all of them
+larger, but the direct mapping is impacted too.  This makes it sound
+like it applies only to the MKTME mappings.
+
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index 4fa2cf807321..d013495bb4ae 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -1513,6 +1513,23 @@ config ARCH_USE_MEMREMAP_PROT
+>  	def_bool y
+>  	depends on AMD_MEM_ENCRYPT
 >  
-> +#define page_to_virt(x) \
-> +	(__va(PFN_PHYS(page_to_pfn(x))) + page_keyid(x) * direct_mapping_size)
+> +config X86_INTEL_MKTME
+> +	bool "Intel Multi-Key Total Memory Encryption"
+> +	select DYNAMIC_PHYSICAL_MASK
+> +	select PAGE_EXTENSION
+> +	depends on X86_64 && CPU_SUP_INTEL
+> +	---help---
+> +	  Say yes to enable support for Multi-Key Total Memory Encryption.
+> +	  This requires Intel processor that has support of the feature.
 
-This looks like a super important memory management function being
-defined in some obscure Intel-specific feature header.  How does that work?
+"requires an Intel processor"...
 
->  #else
->  #define mktme_keyid_mask	((phys_addr_t)0)
->  #define mktme_nr_keyids		0
-> diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-> index 53c32af895ab..ffad496aadad 100644
-> --- a/arch/x86/include/asm/page_64.h
-> +++ b/arch/x86/include/asm/page_64.h
-> @@ -23,7 +23,7 @@ static inline unsigned long __phys_addr_nodebug(unsigned long x)
->  	/* use the carry flag to determine if x was < __START_KERNEL_map */
->  	x = y + ((x > y) ? phys_base : (__START_KERNEL_map - PAGE_OFFSET));
+> +	  Multikey Total Memory Encryption (MKTME) is a technology that allows
+> +	  transparent memory encryption in upcoming Intel platforms.
+
+"in an upcoming"
+
+> +	  MKTME is built on top of TME. TME allows encryption of the entirety
+> +	  of system memory using a single key. MKTME allows to have multiple
+
+"allows having multiple"...
+
+> +	  encryption domains, each having own key -- different memory pages can
+> +	  be encrypted with different keys.
+> +
+>  # Common NUMA Features
+>  config NUMA
+>  	bool "Numa Memory Allocation and Scheduler Support"
+> @@ -2189,7 +2206,7 @@ config RANDOMIZE_MEMORY
 >  
-> -	return x;
-> +	return x % direct_mapping_size;
->  }
-
-What are the performance implications of this patch?
+>  config MEMORY_PHYSICAL_PADDING
+>  	hex "Physical memory mapping padding" if EXPERT
+> -	depends on RANDOMIZE_MEMORY
+> +	depends on RANDOMIZE_MEMORY || X86_INTEL_MKTME
+>  	default "0xa" if MEMORY_HOTPLUG
+>  	default "0x0"
+>  	range 0x1 0x40 if MEMORY_HOTPLUG
+> 
