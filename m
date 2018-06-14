@@ -1,57 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F35E6B0008
-	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 21:07:37 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id w6-v6so2407056plp.14
-        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 18:07:37 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a9-v6sor1192617pfj.96.2018.06.13.18.07.36
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F0D5C6B000C
+	for <linux-mm@kvack.org>; Wed, 13 Jun 2018 21:19:20 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id k83-v6so3652042qkl.15
+        for <linux-mm@kvack.org>; Wed, 13 Jun 2018 18:19:20 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id h20-v6si2472016qtm.314.2018.06.13.18.19.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Jun 2018 18:07:36 -0700 (PDT)
-Message-ID: <814fc15e80908d8630ff665be690ccbe6e69be88.camel@gmail.com>
-Subject: Re: [PATCH 00/10] Control Flow Enforcement - Part (3)
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Thu, 14 Jun 2018 11:07:23 +1000
-In-Reply-To: <1528815820.8271.16.camel@2b52.sc.intel.com>
-References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
-	 <bbfde1b3-5e1b-80e3-30e8-fd1e46a2ceb1@gmail.com>
-	 <1528815820.8271.16.camel@2b52.sc.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jun 2018 18:19:19 -0700 (PDT)
+Date: Thu, 14 Jun 2018 09:18:58 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V6 00/30] block: support multipage bvec
+Message-ID: <20180614011852.GA19828@ming.t460p>
+References: <20180609123014.8861-1-ming.lei@redhat.com>
+ <20180611164806.GA7452@infradead.org>
+ <20180612034242.GC26412@ming.t460p>
+ <20180613144253.GA4693@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180613144253.GA4693@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, "H. Peter
- Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jens Axboe <axboe@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, David Sterba <dsterba@suse.cz>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Randy Dunlap <rdunlap@infradead.org>
 
-On Tue, 2018-06-12 at 08:03 -0700, Yu-cheng Yu wrote:
-> On Tue, 2018-06-12 at 20:56 +1000, Balbir Singh wrote:
+On Wed, Jun 13, 2018 at 07:42:53AM -0700, Christoph Hellwig wrote:
+> On Tue, Jun 12, 2018 at 11:42:49AM +0800, Ming Lei wrote:
+> > On Mon, Jun 11, 2018 at 09:48:06AM -0700, Christoph Hellwig wrote:
+> > > D? think the new naming scheme in this series is a nightmare.  It
+> > > confuses the heck out of me, and that is despite knowing many bits of
+> > > the block layer inside out, and reviewing previous series.
 > > 
-> > On 08/06/18 00:37, Yu-cheng Yu wrote:
-> > > This series introduces CET - Shadow stack
-> > > 
-> > > At the high level, shadow stack is:
-> > > 
-> > > 	Allocated from a task's address space with vm_flags VM_SHSTK;
-> > > 	Its PTEs must be read-only and dirty;
-> > > 	Fixed sized, but the default size can be changed by sys admin.
-> > > 
-> > > For a forked child, the shadow stack is duplicated when the next
-> > > shadow stack access takes place.
-> > > 
-> > > For a pthread child, a new shadow stack is allocated.
-> > > 
-> > > The signal handler uses the same shadow stack as the main program.
-> > > 
-> > 
-> > Even with sigaltstack()?
-> > 
-> Yes.
+> > In V5, there isn't such issue, since bio_for_each_segment* is renamed
+> > into bio_for_each_page* first before doing the change.
+> 
+> But now we are at V6 where that isn't the case..
+> 
+> > Seems Jens isn't fine with the big renaming, then I follow the suggestion
+> > of taking 'chunk' for representing multipage bvec in V6.
+> 
+> Please don't use chunk.  We are iterating over bio_vec structures, while
+> we have the concept of a chunk size for something else in the block layer,
+> so this just creates confusion.  Nevermind names like
+> bio_for_each_chunk_segment_all which just double the confusion.
 
-I am not convinced that it would work, as we switch stacks, oveflow might
-be an issue. I also forgot to bring up setcontext(2), I presume those
-will get new shadow stacks
+We may keep the name of bio_for_each_segment_all(), and just change
+the prototype in one single big patch.
 
-Balbir Singh.
+> 
+> So assuming that bio_for_each_segment is set to stay as-is for now,
+> here is a proposal for sanity by using the vec name.
+> 
+> OLD:	    bio_for_each_segment
+> NEW(page):  bio_for_each_segment, to be renamed bio_for_each_page later
+> NEW(bvec):  bio_for_each_bvec
+> 
+> OLD:	    __bio_for_each_segment
+> NEW(page):  __bio_for_each_segment, to be renamed __bio_for_each_page later
+> NEW(bvec):  (no bvec version needed)
+
+For the above two, basically similar with V6, just V6 takes chunk, :-)
+
+> 
+> OLD:	    bio_for_each_segment_all
+> NEW(page):  bio_for_each_page_all (needs updated prototype anyway)
+> NEW(bvec):  (no bvec version needed once bcache is fixed up)	
+
+This one may cause confusing, since we iterate over pages via
+bio_for_each_segment(), but the _all version takes another name
+of page, still iterate over pages.
+
+So could we change it in the following way?
+
+ OLD:	    bio_for_each_segment_all
+ NEW(page): bio_for_each_segment_all (update prototype in one tree-wide &
+ 			big patch, to be renamed bio_for_each_page_all)
+ NEW(bvec):  (no bvec version needed once bcache is fixed up)	
+
+
+Thanks,
+Ming
