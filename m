@@ -1,98 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 33B8B6B0003
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2018 14:25:06 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id g20-v6so3379763pfi.2
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2018 11:25:06 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id v11-v6si5947014plp.25.2018.06.14.11.25.04
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 10ED36B0006
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2018 14:34:13 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id c139-v6so5700465qkg.6
+        for <linux-mm@kvack.org>; Thu, 14 Jun 2018 11:34:13 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id v19-v6si628005qkb.310.2018.06.14.11.34.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jun 2018 11:25:04 -0700 (PDT)
-Subject: [PATCH] mm: disallow mapping that conflict for devm_memremap_pages()
-From: Dave Jiang <dave.jiang@intel.com>
-Date: Thu, 14 Jun 2018 11:25:03 -0700
-Message-ID: <152900070339.49084.2958083852988708457.stgit@djiang5-desk3.ch.intel.com>
+        Thu, 14 Jun 2018 11:34:12 -0700 (PDT)
+Date: Thu, 14 Jun 2018 14:34:06 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: dm bufio: Reduce dm_bufio_lock contention
+In-Reply-To: <20180614073153.GB9371@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1806141424510.30404@file01.intranet.prod.int.rdu2.redhat.com>
+References: <1528790608-19557-1-git-send-email-jing.xia@unisoc.com> <20180612212007.GA22717@redhat.com> <alpine.LRH.2.02.1806131001250.15845@file01.intranet.prod.int.rdu2.redhat.com> <CAN=25QMQiJ7wvfvYvmZnEnrkeb-SA7_hPj+N2RnO8y-aVO8wOQ@mail.gmail.com>
+ <20180614073153.GB9371@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, dan.j.williams@intel.com, linux-nvdimm@lists.01.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: jing xia <jing.xia.mail@gmail.com>, Mike Snitzer <snitzer@redhat.com>, agk@redhat.com, dm-devel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-When pmem namespaces created are smaller than section size, this can cause
-issue during removal and gpf was observed:
 
-[ 249.613597] general protection fault: 0000 1 SMP PTI
-[ 249.725203] CPU: 36 PID: 3941 Comm: ndctl Tainted: G W
-4.14.28-1.el7uek.x86_64 #2
-[ 249.745495] task: ffff88acda150000 task.stack: ffffc900233a4000
-[ 249.752107] RIP: 0010:__put_page+0x56/0x79
-[ 249.844675] Call Trace:
-[ 249.847410] devm_memremap_pages_release+0x155/0x23a
-[ 249.852953] release_nodes+0x21e/0x260
-[ 249.857138] devres_release_all+0x3c/0x48
-[ 249.861606] device_release_driver_internal+0x15c/0x207
-[ 249.867439] device_release_driver+0x12/0x14
-[ 249.872204] unbind_store+0xba/0xd8
-[ 249.876098] drv_attr_store+0x27/0x31
-[ 249.880186] sysfs_kf_write+0x3f/0x46
-[ 249.884266] kernfs_fop_write+0x10f/0x18b
-[ 249.888734] __vfs_write+0x3a/0x16d
-[ 249.892628] ? selinux_file_permission+0xe5/0x116
-[ 249.897881] ? security_file_permission+0x41/0xbb
-[ 249.903133] vfs_write+0xb2/0x1a1
-[ 249.906835] ? syscall_trace_enter+0x1ce/0x2b8
-[ 249.911795] SyS_write+0x55/0xb9
-[ 249.915397] do_syscall_64+0x79/0x1ae
-[ 249.919485] entry_SYSCALL_64_after_hwframe+0x3d/0x0
 
-Add code to check whether we have mapping already in the same section and
-prevent additional mapping from created if that is the case.
+On Thu, 14 Jun 2018, Michal Hocko wrote:
 
-Signed-off-by: Dave Jiang <dave.jiang@intel.com>
----
- kernel/memremap.c |   18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+> On Thu 14-06-18 15:18:58, jing xia wrote:
+> [...]
+> > PID: 22920  TASK: ffffffc0120f1a00  CPU: 1   COMMAND: "kworker/u8:2"
+> >  #0 [ffffffc0282af3d0] __switch_to at ffffff8008085e48
+> >  #1 [ffffffc0282af3f0] __schedule at ffffff8008850cc8
+> >  #2 [ffffffc0282af450] schedule at ffffff8008850f4c
+> >  #3 [ffffffc0282af470] schedule_timeout at ffffff8008853a0c
+> >  #4 [ffffffc0282af520] schedule_timeout_uninterruptible at ffffff8008853aa8
+> >  #5 [ffffffc0282af530] wait_iff_congested at ffffff8008181b40
+> 
+> This trace doesn't provide the full picture unfortunately. Waiting in
+> the direct reclaim means that the underlying bdi is congested. The real
+> question is why it doesn't flush IO in time.
 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 5857267a4af5..d9ac547993cb 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -176,10 +176,27 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	unsigned long pfn, pgoff, order;
- 	pgprot_t pgprot = PAGE_KERNEL;
- 	int error, nid, is_ram;
-+	struct dev_pagemap *conflict_pgmap;
- 
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
- 		- align_start;
-+	align_end = align_start + align_size - 1;
-+
-+	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_start), NULL);
-+	if (conflict_pgmap) {
-+		dev_warn(dev, "Conflicting mapping in same section\n");
-+		put_dev_pagemap(conflict_pgmap);
-+		return ERR_PTR(-ENOMEM);
-+	}
-+
-+	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_end), NULL);
-+	if (conflict_pgmap) {
-+		dev_warn(dev, "Conflicting mapping in same section\n");
-+		put_dev_pagemap(conflict_pgmap);
-+		return ERR_PTR(-ENOMEM);
-+	}
-+
- 	is_ram = region_intersects(align_start, align_size,
- 		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
- 
-@@ -199,7 +216,6 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 
- 	mutex_lock(&pgmap_lock);
- 	error = 0;
--	align_end = align_start + align_size - 1;
- 
- 	foreach_order_pgoff(res, order, pgoff) {
- 		error = __radix_tree_insert(&pgmap_radix,
+I pointed this out two years ago and you just refused to fix it:
+http://lkml.iu.edu/hypermail/linux/kernel/1608.1/04507.html
+
+I'm sure you'll come up with another creative excuse why GFP_NORETRY 
+allocations need incur deliberate 100ms delays in block device drivers.
+
+Mikulas
+
+> >  #6 [ffffffc0282af5b0] shrink_inactive_list at ffffff8008177c80
+> >  #7 [ffffffc0282af680] shrink_lruvec at ffffff8008178510
+> >  #8 [ffffffc0282af790] mem_cgroup_shrink_node_zone at ffffff80081793bc
+> >  #9 [ffffffc0282af840] mem_cgroup_soft_limit_reclaim at ffffff80081b6040
+> > #10 [ffffffc0282af8f0] do_try_to_free_pages at ffffff8008178b6c
+> > #11 [ffffffc0282af990] try_to_free_pages at ffffff8008178f3c
+> > #12 [ffffffc0282afa30] __perform_reclaim at ffffff8008169130
+> > #13 [ffffffc0282afab0] __alloc_pages_nodemask at ffffff800816c9b8
+> > #14 [ffffffc0282afbd0] __get_free_pages at ffffff800816cd6c
+> > #15 [ffffffc0282afbe0] alloc_buffer at ffffff8008591a94
+> > #16 [ffffffc0282afc20] __bufio_new at ffffff8008592e94
+> > #17 [ffffffc0282afc70] dm_bufio_prefetch at ffffff8008593198
+> > #18 [ffffffc0282afd20] verity_prefetch_io at ffffff8008598384
+> > #19 [ffffffc0282afd70] process_one_work at ffffff80080b5b3c
+> > #20 [ffffffc0282afdc0] worker_thread at ffffff80080b64fc
+> > #21 [ffffffc0282afe20] kthread at ffffff80080bae34
+> > 
+> > > Mikulas
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
