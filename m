@@ -1,59 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AE1906B0003
-	for <linux-mm@kvack.org>; Thu, 14 Jun 2018 15:37:12 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id z83-v6so4405088oiz.23
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2018 12:37:12 -0700 (PDT)
-Received: from g2t2353.austin.hpe.com (g2t2353.austin.hpe.com. [15.233.44.26])
-        by mx.google.com with ESMTPS id 4-v6si1883430oid.397.2018.06.14.12.37.11
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 855346B0003
+	for <linux-mm@kvack.org>; Thu, 14 Jun 2018 16:19:23 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id p12-v6so5685345qtg.5
+        for <linux-mm@kvack.org>; Thu, 14 Jun 2018 13:19:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id s13-v6si6283409qvk.21.2018.06.14.13.19.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jun 2018 12:37:11 -0700 (PDT)
-From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
-Subject: RE: [PATCH] mm: disallow mapping that conflict for
- devm_memremap_pages()
-Date: Thu, 14 Jun 2018 19:37:08 +0000
-Message-ID: <AT5PR8401MB11698094C482D26E172B8E41AB7D0@AT5PR8401MB1169.NAMPRD84.PROD.OUTLOOK.COM>
-References: <152900070339.49084.2958083852988708457.stgit@djiang5-desk3.ch.intel.com>
-In-Reply-To: <152900070339.49084.2958083852988708457.stgit@djiang5-desk3.ch.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Thu, 14 Jun 2018 13:19:22 -0700 (PDT)
+Subject: Re: [PATCH v13 00/24] selftests, powerpc, x86 : Memory Protection
+ Keys
+References: <1528937115-10132-1-git-send-email-linuxram@us.ibm.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <c5c119b0-f5ca-4ddc-43c0-a6b597173973@redhat.com>
+Date: Thu, 14 Jun 2018 22:19:11 +0200
 MIME-Version: 1.0
+In-Reply-To: <1528937115-10132-1-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Dave Jiang' <dave.jiang@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Ram Pai <linuxram@us.ibm.com>, shuahkh@osg.samsung.com, linux-kselftest@vger.kernel.org
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, mingo@redhat.com, dave.hansen@intel.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, msuchanek@suse.de, aneesh.kumar@linux.vnet.ibm.com
 
+On 06/14/2018 02:44 AM, Ram Pai wrote:
+> Test
+> ----
+> Verified for correctness on powerpc. Need help verifying on x86.
+> Compiles on x86.
 
+It breaks make in tools/testing/selftests/x86:
 
-> -----Original Message-----
-> From: Linux-nvdimm [mailto:linux-nvdimm-bounces@lists.01.org] On Behalf O=
-f
-> Dave Jiang
-> Sent: Thursday, June 14, 2018 1:25 PM
-> Subject: [PATCH] mm: disallow mapping that conflict for
-> devm_memremap_pages()
-...
-> +	conflict_pgmap =3D get_dev_pagemap(PHYS_PFN(align_start), NULL);
-> +	if (conflict_pgmap) {
-> +		dev_warn(dev, "Conflicting mapping in same section\n");
-> +		put_dev_pagemap(conflict_pgmap);
-> +		return ERR_PTR(-ENOMEM);
-> +	}
-> +
-> +	conflict_pgmap =3D get_dev_pagemap(PHYS_PFN(align_end), NULL);
-> +	if (conflict_pgmap) {
-> +		dev_warn(dev, "Conflicting mapping in same section\n");
-> +		put_dev_pagemap(conflict_pgmap);
-> +		return ERR_PTR(-ENOMEM);
-> +	}
+make: *** No rule to make target `protection_keys.c', needed by 
+`/home/linux/tools/testing/selftests/x86/protection_keys_64'.  Stop.
 
-Unique warning messages would help narrow down the problem.
+The generic implementation no longer builds 32-bit binaries.  Is this 
+the intent?
 
-dev_WARN is one way to make them unique, if a backtrace is also appropriate=
-.
+It's possible to build 32-bit binaries with a??make CC='gcc -m32'a??, so 
+perhaps this is good enough?
 
+But with that, I get a warning:
 
----
-Robert Elliott, HPE Persistent Memory
+protection_keys.c: In function a??dump_mema??:
+protection_keys.c:172:3: warning: format a??%lxa?? expects argument of type 
+a??long unsigned inta??, but argument 4 has type a??uint64_ta?? [-Wformat=]
+    dprintf1("dump[%03d][@%p]: %016lx\n", i, ptr, *ptr);
+    ^
+
+I suppose you could use %016llx and add a cast to unsigned long long to 
+fix this.
+
+Anyway, both the 32-bit and 64-bit tests fail here:
+
+assert() at protection_keys.c::943 test_nr: 12 iteration: 1
+running abort_hooks()...
+
+I've yet checked what causes this.  It's with the kernel headers from 
+4.17, but with other userspace headers based on glibc 2.17.  I hope to 
+look into this some more before the weekend, but I eventually have to 
+return the test machine to the pool.
+
+Thanks,
+Florian
