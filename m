@@ -1,83 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E33766B0007
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 03:05:01 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 76-v6so748577wmw.3
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 00:05:01 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 92-v6si3282976edh.423.2018.06.15.00.05.00
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BCA46B000A
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 03:18:39 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id p41-v6so5276219oth.5
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 00:18:39 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p62-v6sor2933006ota.161.2018.06.15.00.18.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Jun 2018 00:05:00 -0700 (PDT)
-Subject: Re: [PATCH] doc: add description to dirtytime_expire_seconds
-References: <1527724613-17768-1-git-send-email-yang.shi@linux.alibaba.com>
-From: Nikolay Borisov <nborisov@suse.com>
-Message-ID: <5a1efc1b-c586-616f-1668-b4b8f24f873a@suse.com>
-Date: Fri, 15 Jun 2018 10:04:57 +0300
+        (Google Transport Security);
+        Fri, 15 Jun 2018 00:18:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1527724613-17768-1-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+From: Steve Swanson <steves@fusionmemory.com>
+Date: Fri, 15 Jun 2018 00:18:36 -0700
+Message-ID: <CAJnYoQPCfAtdsosrzbi4D21H5AW_UrcQiuUwBDKiJ50VWvDyTQ@mail.gmail.com>
+Subject: Placing DIMMs in self-refresh mode
+Content-Type: multipart/alternative; boundary="00000000000043a137056ea90651"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>, tytso@mit.edu, corbet@lwn.net, akpm@linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 
+--00000000000043a137056ea90651
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
+All,
 
-On 31.05.2018 02:56, Yang Shi wrote:
-> commit 1efff914afac8a965ad63817ecf8861a927c2ace ("fs: add
-> dirtytime_expire_seconds sysctl") introduced dirtytime_expire_seconds
-> knob, but there is not description about it in
-> Documentation/sysctl/vm.txt.
-> 
-> Add the description for it.
-> 
-> Cc: Theodore Ts'o <tytso@mit.edu>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
-> I didn't dig into the old review discussion about why the description
-> was not added at the first place. I'm supposed every knob under /proc/sys
-> should have a brief description.
-> 
->  Documentation/sysctl/vm.txt | 11 +++++++++++
->  1 file changed, 11 insertions(+)
-> 
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index 17256f2..f4f4f9c 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -27,6 +27,7 @@ Currently, these files are in /proc/sys/vm:
->  - dirty_bytes
->  - dirty_expire_centisecs
->  - dirty_ratio
-> +- dirtytime_expire_seconds
->  - dirty_writeback_centisecs
->  - drop_caches
->  - extfrag_threshold
-> @@ -178,6 +179,16 @@ The total available memory is not equal to total system memory.
->  
->  ==============================================================
->  
-> +dirtytime_expire_seconds
-> +
-> +When a lazytime inode is constantly having its pages dirtied, it with an
+Summary:  As part of the testing process for a Linux + Xeon 4108-based
+system we are developing, we need to explicitly place a DIMM into
+self-refresh mode.  Is this possible from within the operating system?  How=
+?
 
-The second part of this sentence, after the comma doesn't parse.
+Details:
 
-> +updated timestamp will never get chance to be written out.  This tunable
-> +is used to define when dirty inode is old enough to be eligible for
-> +writeback by the kernel flusher threads. And, it is also used as the
-> +interval to wakeup dirtytime_writeback thread. It is expressed in seconds.
+The system we are working on is based on the SuperMicro X11DPi-NT populated
+with an Intel Xeon 4108 (Skylake).
 
-I think the final sentence is a bit redundant, given the very explicit
-name of the knob.
+I haven=E2=80=99t found anything promising in the kernel source for X86 alt=
+hough
+there are hints of support on other platforms.  We have also scoured all
+the Intel documents and have found references to the Integrated Memory
+Controller, which seems like the piece of hardware that would take care of
+this, but I haven=E2=80=99t been able to find documentation fro the IMC on =
+this
+processor.   Another likely spot seems to be Asynchronous DRAM Refresh
+(ADR) mechanism, but I'm not able find information about how that
+functionality might be used to explicitly turn on self-refresh on a
+particular DIMM.
 
-> +
-> +==============================================================
-> +
->  dirty_writeback_centisecs
->  
->  The kernel flusher threads will periodically wake up and write `old' data
-> 
+Any pointers would be greatly appreciated.
+
+Thanks.
+
+-steve
+
+--00000000000043a137056ea90651
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div style=3D"color:rgb(0,0,0);font-family:Helvetica;font-=
+size:12px;font-weight:normal">All,</div><div style=3D"color:rgb(0,0,0);font=
+-family:Helvetica;font-size:12px;font-weight:normal"><br></div><div style=
+=3D"color:rgb(0,0,0);font-family:Helvetica;font-size:12px;font-weight:norma=
+l">Summary: =C2=A0As part of the testing process for a Linux + Xeon=C2=A041=
+08-based system we are developing, we need to explicitly place a DIMM=C2=A0=
+into self-refresh mode.=C2=A0 Is this possible from within the operating=C2=
+=A0system?=C2=A0 How?</div><div style=3D"color:rgb(0,0,0);font-family:Helve=
+tica;font-size:12px;font-weight:normal"><br>Details:<br><br>The system we a=
+re working on is based on the SuperMicro X11DPi-NT populated with an Intel =
+Xeon 4108 (Skylake).<br><br>I haven=E2=80=99t found anything promising in t=
+he kernel source for X86=C2=A0although there are hints of support on other =
+platforms.=C2=A0 We have also=C2=A0scoured all the Intel documents and have=
+ found references to the=C2=A0Integrated Memory Controller,=C2=A0which seem=
+s like the piece of hardware=C2=A0that would take care of this, but I haven=
+=E2=80=99t been able to find=C2=A0documentation fro the IMC on this process=
+or. =C2=A0 Another likely spot seems=C2=A0to be Asynchronous DRAM Refresh (=
+ADR) mechanism,=C2=A0but I&#39;m not able find=C2=A0information about how t=
+hat functionality might be used to explicitly=C2=A0turn on self-refresh on =
+a particular DIMM.<br></div><div style=3D"color:rgb(0,0,0);font-family:Helv=
+etica;font-size:12px;font-weight:normal"><br></div><div style=3D"color:rgb(=
+0,0,0);font-family:Helvetica;font-size:12px;font-weight:normal">Any pointer=
+s would be greatly appreciated.<br></div><div style=3D"color:rgb(0,0,0);fon=
+t-family:Helvetica;font-size:12px;font-weight:normal"><br>Thanks.<br><br>-s=
+teve</div><br></div>
+
+--00000000000043a137056ea90651--
