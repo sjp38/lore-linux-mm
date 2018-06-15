@@ -1,164 +1,334 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A1B466B0007
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 04:41:44 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id s15-v6so5633830wrn.16
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 01:41:44 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x58-v6si1922882edx.441.2018.06.15.01.41.43
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0591F6B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 05:52:40 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id w1-v6so1838677plq.8
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 02:52:39 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t7-v6sor1835494pgs.151.2018.06.15.02.52.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Jun 2018 01:41:43 -0700 (PDT)
-Date: Fri, 15 Jun 2018 10:41:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] x86/e820: put !E820_TYPE_RAM regions into
- memblock.reserved
-Message-ID: <20180615084142.GE24039@dhcp22.suse.cz>
-References: <20180607094921.GA8545@techadventures.net>
- <20180607100256.GA9129@hori1.linux.bs1.fc.nec.co.jp>
- <20180613054107.GA5329@hori1.linux.bs1.fc.nec.co.jp>
- <20180613090700.GG13364@dhcp22.suse.cz>
- <20180614051618.GB17860@hori1.linux.bs1.fc.nec.co.jp>
- <20180614053859.GA9863@techadventures.net>
- <20180614063454.GA32419@hori1.linux.bs1.fc.nec.co.jp>
- <20180614213033.GA19374@techadventures.net>
- <20180615010927.GC1196@hori1.linux.bs1.fc.nec.co.jp>
- <20180615072947.GB23273@hori1.linux.bs1.fc.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180615072947.GB23273@hori1.linux.bs1.fc.nec.co.jp>
+        (Google Transport Security);
+        Fri, 15 Jun 2018 02:52:34 -0700 (PDT)
+From: ufo19890607@gmail.com
+Subject: [PATCH v9] Refactor part of the oom report in dump_header
+Date: Fri, 15 Jun 2018 17:52:21 +0800
+Message-Id: <1529056341-16182-1-git-send-email-ufo19890607@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Oscar Salvador <osalvador@techadventures.net>, Oscar Salvador <osalvador@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Matthew Wilcox <willy@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "mingo@kernel.org" <mingo@kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>
+To: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com, kirill.shutemov@linux.intel.com, aarcange@redhat.com, penguin-kernel@i-love.sakura.ne.jp, guro@fb.com, yang.s@alibaba-inc.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yuzhoujian@didichuxing.com
 
-On Fri 15-06-18 07:29:48, Naoya Horiguchi wrote:
-[...]
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Date: Thu, 14 Jun 2018 16:04:36 +0900
-> Subject: [PATCH] x86/e820: put !E820_TYPE_RAM regions into memblock.reserved
-> 
-> There is a kernel panic that is triggered when reading /proc/kpageflags
-> on the kernel booted with kernel parameter 'memmap=nn[KMG]!ss[KMG]':
-> 
->   BUG: unable to handle kernel paging request at fffffffffffffffe
->   PGD 9b20e067 P4D 9b20e067 PUD 9b210067 PMD 0
->   Oops: 0000 [#1] SMP PTI
->   CPU: 2 PID: 1728 Comm: page-types Not tainted 4.17.0-rc6-mm1-v4.17-rc6-180605-0816-00236-g2dfb086ef02c+ #160
->   Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-2.fc28 04/01/2014
->   RIP: 0010:stable_page_flags+0x27/0x3c0
->   Code: 00 00 00 0f 1f 44 00 00 48 85 ff 0f 84 a0 03 00 00 41 54 55 49 89 fc 53 48 8b 57 08 48 8b 2f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 01 0f 84 10 03 00 00 31 db 49 8b 54 24 08 4c 89 e7
->   RSP: 0018:ffffbbd44111fde0 EFLAGS: 00010202
->   RAX: fffffffffffffffe RBX: 00007fffffffeff9 RCX: 0000000000000000
->   RDX: 0000000000000001 RSI: 0000000000000202 RDI: ffffed1182fff5c0
->   RBP: ffffffffffffffff R08: 0000000000000001 R09: 0000000000000001
->   R10: ffffbbd44111fed8 R11: 0000000000000000 R12: ffffed1182fff5c0
->   R13: 00000000000bffd7 R14: 0000000002fff5c0 R15: ffffbbd44111ff10
->   FS:  00007efc4335a500(0000) GS:ffff93a5bfc00000(0000) knlGS:0000000000000000
->   CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->   CR2: fffffffffffffffe CR3: 00000000b2a58000 CR4: 00000000001406e0
->   Call Trace:
->    kpageflags_read+0xc7/0x120
->    proc_reg_read+0x3c/0x60
->    __vfs_read+0x36/0x170
->    vfs_read+0x89/0x130
->    ksys_pread64+0x71/0x90
->    do_syscall_64+0x5b/0x160
->    entry_SYSCALL_64_after_hwframe+0x44/0xa9
->   RIP: 0033:0x7efc42e75e23
->   Code: 09 00 ba 9f 01 00 00 e8 ab 81 f4 ff 66 2e 0f 1f 84 00 00 00 00 00 90 83 3d 29 0a 2d 00 00 75 13 49 89 ca b8 11 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 34 c3 48 83 ec 08 e8 db d3 01 00 48 89 04 24
-> 
-> According to kernel bisection, this problem became visible due to commit
-> f7f99100d8d9 which changes how struct pages are initialized.
-> 
-> Memblock layout affects the pfn ranges covered by node/zone. Consider
-> that we have a VM with 2 NUMA nodes and each node has 4GB memory, and
-> the default (no memmap= given) memblock layout is like below:
-> 
->   MEMBLOCK configuration:
->    memory size = 0x00000001fff75c00 reserved size = 0x000000000300c000
->    memory.cnt  = 0x4
->    memory[0x0]     [0x0000000000001000-0x000000000009efff], 0x000000000009e000 bytes on node 0 flags: 0x0
->    memory[0x1]     [0x0000000000100000-0x00000000bffd6fff], 0x00000000bfed7000 bytes on node 0 flags: 0x0
->    memory[0x2]     [0x0000000100000000-0x000000013fffffff], 0x0000000040000000 bytes on node 0 flags: 0x0
->    memory[0x3]     [0x0000000140000000-0x000000023fffffff], 0x0000000100000000 bytes on node 1 flags: 0x0
->    ...
-> 
-> If you give memmap=1G!4G (so it just covers memory[0x2]),
-> the range [0x100000000-0x13fffffff] is gone:
-> 
->   MEMBLOCK configuration:
->    memory size = 0x00000001bff75c00 reserved size = 0x000000000300c000
->    memory.cnt  = 0x3
->    memory[0x0]     [0x0000000000001000-0x000000000009efff], 0x000000000009e000 bytes on node 0 flags: 0x0
->    memory[0x1]     [0x0000000000100000-0x00000000bffd6fff], 0x00000000bfed7000 bytes on node 0 flags: 0x0
->    memory[0x2]     [0x0000000140000000-0x000000023fffffff], 0x0000000100000000 bytes on node 1 flags: 0x0
->    ...
-> 
-> This causes shrinking node 0's pfn range because it is calculated by
-> the address range of memblock.memory. So some of struct pages in the
-> gap range are left uninitialized.
-> 
-> We have a function zero_resv_unavail() which does zeroing the struct
-> pages within the reserved unavailable range (i.e. memblock.memory &&
-> !memblock.reserved). This patch utilizes it to cover all unavailable
-> ranges by putting them into memblock.reserved.
-> 
-> Fixes: f7f99100d8d9 ("mm: stop zeroing memory during allocation in vmemmap")
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Tested-by: Oscar Salvador <osalvador@suse.de>
+From: yuzhoujian <yuzhoujian@didichuxing.com>
 
-OK, this makes sense to me. It is definitely much better than the
-original attempt.
+Some users complains that system-wide oom report does not print memcg's
+name which contains the task killed by the oom-killer. The current system
+wide oom report prints the task's command, gfp_mask, order ,oom_score_adj
+and shows the memory info, but misses some important information, etc. the
+memcg that has reached its limit and the memcg to which the killed process
+is attached.
 
-Unless I am missing something this should be correct
-Acked-by: Michal Hocko <mhocko@suse.com>
+I follow the advices of David Rientjes and Michal Hocko, and refactor
+part of the oom report. After this patch, users can get the memcg's
+path from the oom report and check the certain container more quickly.
 
-> ---
->  arch/x86/kernel/e820.c | 15 ++++++++++++---
->  1 file changed, 12 insertions(+), 3 deletions(-)
-> 
-> diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-> index d1f25c831447..c88c23c658c1 100644
-> --- a/arch/x86/kernel/e820.c
-> +++ b/arch/x86/kernel/e820.c
-> @@ -1248,6 +1248,7 @@ void __init e820__memblock_setup(void)
->  {
->  	int i;
->  	u64 end;
-> +	u64 addr = 0;
->  
->  	/*
->  	 * The bootstrap memblock region count maximum is 128 entries
-> @@ -1264,13 +1265,21 @@ void __init e820__memblock_setup(void)
->  		struct e820_entry *entry = &e820_table->entries[i];
->  
->  		end = entry->addr + entry->size;
-> +		if (addr < entry->addr)
-> +			memblock_reserve(addr, entry->addr - addr);
-> +		addr = end;
->  		if (end != (resource_size_t)end)
->  			continue;
->  
-> +		/*
-> +		 * all !E820_TYPE_RAM ranges (including gap ranges) are put
-> +		 * into memblock.reserved to make sure that struct pages in
-> +		 * such regions are not left uninitialized after bootup.
-> +		 */
->  		if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
-> -			continue;
-> -
-> -		memblock_add(entry->addr, entry->size);
-> +			memblock_reserve(entry->addr, entry->size);
-> +		else
-> +			memblock_add(entry->addr, entry->size);
->  	}
->  
->  	/* Throw away partial pages: */
-> -- 
-> 2.7.4
+The oom print info after this patch:
+oom-kill:constraint=<constraint>,nodemask=<nodemask>,origin_memcg=<memcg>,kill_memcg=<memcg>,task=<commm>,pid=<pid>,uid=<uid>
 
+Signed-off-by: yuzhoujian <yuzhoujian@didichuxing.com>
+---
+Below is the part of the oom report in the dmesg
+...
+[  142.158316] panic cpuset=/ mems_allowed=0-1
+[  142.158983] CPU: 15 PID: 8682 Comm: panic Not tainted 4.17.0+ #13 
+[  142.159659] Hardware name: Inspur SA5212M4/YZMB-00370-107, BIOS 4.1.10 11/14/2016
+[  142.160342] Call Trace:
+[  142.161037]  dump_stack+0x78/0xb3
+[  142.161734]  dump_header+0x7d/0x334
+[  142.162433]  oom_kill_process+0x228/0x490
+[  142.163126]  ? oom_badness+0x2a/0x130
+[  142.163821]  out_of_memory+0xf0/0x280
+[  142.164532]  __alloc_pages_slowpath+0x711/0xa07
+[  142.165241]  __alloc_pages_nodemask+0x23f/0x260
+[  142.165947]  alloc_pages_vma+0x73/0x180
+[  142.166665]  do_anonymous_page+0xed/0x4e0
+[  142.167388]  __handle_mm_fault+0xbd2/0xe00
+[  142.168114]  handle_mm_fault+0x116/0x250
+[  142.168841]  __do_page_fault+0x233/0x4d0
+[  142.169567]  do_page_fault+0x32/0x130
+[  142.170303]  ? page_fault+0x8/0x30
+[  142.171036]  page_fault+0x1e/0x30
+[  142.171764] RIP: 0033:0x7f403000a860
+[  142.172517] RSP: 002b:00007ffc9f745c28 EFLAGS: 00010206
+[  142.173268] RAX: 00007f3f6fd7d000 RBX: 0000000000000000 RCX: 00007f3f7f5cd000
+[  142.174040] RDX: 00007f3fafd7d000 RSI: 0000000000000000 RDI: 00007f3f6fd7d000
+[  142.174806] RBP: 00007ffc9f745c50 R08: ffffffffffffffff R09: 0000000000000000
+[  142.175623] R10: 0000000000000022 R11: 0000000000000246 R12: 0000000000400490
+[  142.176542] R13: 00007ffc9f745d30 R14: 0000000000000000 R15: 0000000000000000
+[  142.177709] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),origin_memcg=(null),kill_memcg=/test/test1/test2,task=panic,pid= 8622,uid=    0 
+...
+
+Changes since v8:
+- add the constraint in the oom_control structure.
+- put enum oom_constraint and constraint array into the oom.h file.
+- simplify the description for mem_cgroup_print_oom_context.
+
+Changes since v7:
+- add the constraint parameter to dump_header and oom_kill_process.
+- remove the static char array in the mem_cgroup_print_oom_context, and
+  invoke pr_cont_cgroup_path to print memcg' name.
+- combine the patchset v6 into one.
+
+Changes since v6:
+- divide the patch v5 into two parts. One part is to add an array of const char and
+  put enum oom_constraint into the memcontrol.h; the other is will refactor the output
+  in the dump_header.
+- limit the memory usage for the static char array by using NAME_MAX in the mem_cgroup_print_oom_context.
+- eliminate the spurious spaces in the oom's output and fix the spelling of "constrain".
+
+Changes since v5:
+- add an array of const char for each constraint.
+- replace all of the pr_cont with a single line print of the pr_info.
+- put enum oom_constraint into the memcontrol.c file for printing oom constraint.
+
+Changes since v4:
+- rename the helper's name to mem_cgroup_print_oom_context.
+- rename the mem_cgroup_print_oom_info to mem_cgroup_print_oom_meminfo.
+- add the constrain info in the dump_header.
+
+Changes since v3:
+- rename the helper's name to mem_cgroup_print_oom_memcg_name.
+- add the rcu lock held to the helper.
+- remove the print info of memcg's name in mem_cgroup_print_oom_info.
+
+Changes since v2:
+- add the mem_cgroup_print_memcg_name helper to print the memcg's
+  name which contains the task that will be killed by the oom-killer.
+
+Changes since v1:
+- replace adding mem_cgroup_print_oom_info with printing the memcg's
+  name only.
+
+ include/linux/memcontrol.h | 16 +++++++++++++---
+ include/linux/oom.h        | 17 +++++++++++++++++
+ mm/memcontrol.c            | 41 ++++++++++++++++++++++++++++++-----------
+ mm/oom_kill.c              | 24 +++++++++---------------
+ 4 files changed, 69 insertions(+), 29 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 6c6fb116e925..d62390fca414 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -30,6 +30,7 @@
+ #include <linux/vmstat.h>
+ #include <linux/writeback.h>
+ #include <linux/page-flags.h>
++#include <linux/oom.h>
+ 
+ struct mem_cgroup;
+ struct page;
+@@ -491,8 +492,11 @@ void mem_cgroup_handle_over_high(void);
+ 
+ unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg);
+ 
+-void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+-				struct task_struct *p);
++void mem_cgroup_print_oom_context(struct mem_cgroup *memcg,
++		struct task_struct *p, enum oom_constraint constraint,
++		nodemask_t *nodemask);
++
++void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg);
+ 
+ static inline void mem_cgroup_oom_enable(void)
+ {
+@@ -903,7 +907,13 @@ static inline unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg)
+ }
+ 
+ static inline void
+-mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
++mem_cgroup_print_oom_context(struct mem_cgroup *memcg, struct task_struct *p,
++			enum oom_constraint constraint, nodemask_t *nodemask)
++{
++}
++
++static inline void
++mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
+ {
+ }
+ 
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 6adac113e96d..5bed78d4bfb8 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -15,6 +15,20 @@ struct notifier_block;
+ struct mem_cgroup;
+ struct task_struct;
+ 
++enum oom_constraint {
++	CONSTRAINT_NONE,
++	CONSTRAINT_CPUSET,
++	CONSTRAINT_MEMORY_POLICY,
++	CONSTRAINT_MEMCG,
++};
++
++static const char * const oom_constraint_text[] = {
++	[CONSTRAINT_NONE] = "CONSTRAINT_NONE",
++	[CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
++	[CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
++	[CONSTRAINT_MEMCG] = "CONSTRAINT_MEMCG",
++};
++
+ /*
+  * Details of the page allocation that triggered the oom killer that are used to
+  * determine what should be killed.
+@@ -42,6 +56,9 @@ struct oom_control {
+ 	unsigned long totalpages;
+ 	struct task_struct *chosen;
+ 	unsigned long chosen_points;
++
++	/* Used to print the constraint info. */
++	enum oom_constraint constraint;
+ };
+ 
+ extern struct mutex oom_lock;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e6f0d5ef320a..7e0704bdff01 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1119,32 +1119,51 @@ static const char *const memcg1_stat_names[] = {
+ 
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+ /**
+- * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
+- * @memcg: The memory cgroup that went over limit
++ * mem_cgroup_print_oom_context: Print OOM context information relevant to
++ * memory controller.
++ * @memcg: The origin memory cgroup that went over limit
+  * @p: Task that is going to be killed
++ * @constraint: The allocation constraint
++ * @nodemask: The allocation nodemask
+  *
+  * NOTE: @memcg and @p's mem_cgroup can be different when hierarchy is
+  * enabled
+  */
+-void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
++void mem_cgroup_print_oom_context(struct mem_cgroup *memcg, struct task_struct *p,
++		enum oom_constraint constraint, nodemask_t *nodemask)
+ {
+-	struct mem_cgroup *iter;
+-	unsigned int i;
++	struct cgroup *origin_cgrp, *kill_cgrp;
+ 
+ 	rcu_read_lock();
+ 
++	pr_info("oom-kill:constraint=%s,nodemask=%*pbl,origin_memcg=",
++	    oom_constraint_text[constraint], nodemask_pr_args(nodemask));
++
++	if (memcg)
++		pr_cont_cgroup_path(memcg->css.cgroup);
++	else
++		pr_cont("(null)");
++
+ 	if (p) {
+-		pr_info("Task in ");
++		pr_cont(",kill_memcg=");
+ 		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
+-		pr_cont(" killed as a result of limit of ");
+-	} else {
+-		pr_info("Memory limit reached of cgroup ");
++		pr_cont(",task=%s,pid=%5d,uid=%5d",
++		    p->comm, p->pid, from_kuid(&init_user_ns, task_uid(p)));
+ 	}
+-
+-	pr_cont_cgroup_path(memcg->css.cgroup);
+ 	pr_cont("\n");
+ 
+ 	rcu_read_unlock();
++}
++
++/**
++ * mem_cgroup_print_oom_info: Print OOM memory information relevant to
++ * memory controller.
++ * @memcg: The memory cgroup that went over limit
++ */
++void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
++{
++	struct mem_cgroup *iter;
++	unsigned int i;
+ 
+ 	pr_info("memory: usage %llukB, limit %llukB, failcnt %lu\n",
+ 		K((u64)page_counter_read(&memcg->memory)),
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 84081e77bc51..1db70cec0c16 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -237,13 +237,6 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+ 	return points > 0 ? points : 1;
+ }
+ 
+-enum oom_constraint {
+-	CONSTRAINT_NONE,
+-	CONSTRAINT_CPUSET,
+-	CONSTRAINT_MEMORY_POLICY,
+-	CONSTRAINT_MEMCG,
+-};
+-
+ /*
+  * Determine the type of allocation constraint.
+  */
+@@ -430,8 +423,10 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+ 
+ 	cpuset_print_current_mems_allowed();
+ 	dump_stack();
++	mem_cgroup_print_oom_context(oc->memcg, p,
++			oc->constraint, oc->nodemask);
+ 	if (is_memcg_oom(oc))
+-		mem_cgroup_print_oom_info(oc->memcg, p);
++		mem_cgroup_print_oom_meminfo(oc->memcg);
+ 	else {
+ 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+ 		if (is_dump_unreclaim_slabs())
+@@ -973,8 +968,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ /*
+  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
+  */
+-static void check_panic_on_oom(struct oom_control *oc,
+-			       enum oom_constraint constraint)
++static void check_panic_on_oom(struct oom_control *oc)
+ {
+ 	if (likely(!sysctl_panic_on_oom))
+ 		return;
+@@ -984,7 +978,7 @@ static void check_panic_on_oom(struct oom_control *oc,
+ 		 * does not panic for cpuset, mempolicy, or memcg allocation
+ 		 * failures.
+ 		 */
+-		if (constraint != CONSTRAINT_NONE)
++		if (oc->constraint != CONSTRAINT_NONE)
+ 			return;
+ 	}
+ 	/* Do not panic for oom kills triggered by sysrq */
+@@ -1021,8 +1015,8 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+ bool out_of_memory(struct oom_control *oc)
+ {
+ 	unsigned long freed = 0;
+-	enum oom_constraint constraint = CONSTRAINT_NONE;
+ 
++	oc->constraint = CONSTRAINT_NONE;
+ 	if (oom_killer_disabled)
+ 		return false;
+ 
+@@ -1057,10 +1051,10 @@ bool out_of_memory(struct oom_control *oc)
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA and memcg) that may require different handling.
+ 	 */
+-	constraint = constrained_alloc(oc);
+-	if (constraint != CONSTRAINT_MEMORY_POLICY)
++	oc->constraint = constrained_alloc(oc);
++	if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
+ 		oc->nodemask = NULL;
+-	check_panic_on_oom(oc, constraint);
++	check_panic_on_oom(oc);
+ 
+ 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
+ 	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
 -- 
-Michal Hocko
-SUSE Labs
+2.14.1
