@@ -1,86 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BCA46B000A
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 03:18:39 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id p41-v6so5276219oth.5
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 00:18:39 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p62-v6sor2933006ota.161.2018.06.15.00.18.37
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 438966B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 03:32:04 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id i14-v6so5594090wrq.1
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 00:32:04 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w44-v6si2017157edb.165.2018.06.15.00.32.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 15 Jun 2018 00:18:37 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 15 Jun 2018 00:32:02 -0700 (PDT)
+Date: Fri, 15 Jun 2018 09:32:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: dm bufio: Reduce dm_bufio_lock contention
+Message-ID: <20180615073201.GB24039@dhcp22.suse.cz>
+References: <1528790608-19557-1-git-send-email-jing.xia@unisoc.com>
+ <20180612212007.GA22717@redhat.com>
+ <alpine.LRH.2.02.1806131001250.15845@file01.intranet.prod.int.rdu2.redhat.com>
+ <CAN=25QMQiJ7wvfvYvmZnEnrkeb-SA7_hPj+N2RnO8y-aVO8wOQ@mail.gmail.com>
+ <20180614073153.GB9371@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1806141424510.30404@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-From: Steve Swanson <steves@fusionmemory.com>
-Date: Fri, 15 Jun 2018 00:18:36 -0700
-Message-ID: <CAJnYoQPCfAtdsosrzbi4D21H5AW_UrcQiuUwBDKiJ50VWvDyTQ@mail.gmail.com>
-Subject: Placing DIMMs in self-refresh mode
-Content-Type: multipart/alternative; boundary="00000000000043a137056ea90651"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1806141424510.30404@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: jing xia <jing.xia.mail@gmail.com>, Mike Snitzer <snitzer@redhat.com>, agk@redhat.com, dm-devel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---00000000000043a137056ea90651
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+On Thu 14-06-18 14:34:06, Mikulas Patocka wrote:
+> 
+> 
+> On Thu, 14 Jun 2018, Michal Hocko wrote:
+> 
+> > On Thu 14-06-18 15:18:58, jing xia wrote:
+> > [...]
+> > > PID: 22920  TASK: ffffffc0120f1a00  CPU: 1   COMMAND: "kworker/u8:2"
+> > >  #0 [ffffffc0282af3d0] __switch_to at ffffff8008085e48
+> > >  #1 [ffffffc0282af3f0] __schedule at ffffff8008850cc8
+> > >  #2 [ffffffc0282af450] schedule at ffffff8008850f4c
+> > >  #3 [ffffffc0282af470] schedule_timeout at ffffff8008853a0c
+> > >  #4 [ffffffc0282af520] schedule_timeout_uninterruptible at ffffff8008853aa8
+> > >  #5 [ffffffc0282af530] wait_iff_congested at ffffff8008181b40
+> > 
+> > This trace doesn't provide the full picture unfortunately. Waiting in
+> > the direct reclaim means that the underlying bdi is congested. The real
+> > question is why it doesn't flush IO in time.
+> 
+> I pointed this out two years ago and you just refused to fix it:
+> http://lkml.iu.edu/hypermail/linux/kernel/1608.1/04507.html
 
-All,
+Let me be evil again and let me quote the old discussion:
+: > I agree that mempool_alloc should _primarily_ sleep on their own
+: > throttling mechanism. I am not questioning that. I am just saying that
+: > the page allocator has its own throttling which it relies on and that
+: > cannot be just ignored because that might have other undesirable side
+: > effects. So if the right approach is really to never throttle certain
+: > requests then we have to bail out from a congested nodes/zones as soon
+: > as the congestion is detected.
+: >
+: > Now, I would like to see that something like that is _really_ necessary.
+:
+: Currently, it is not a problem - device mapper reports the device as
+: congested only if the underlying physical disks are congested.
+:
+: But once we change it so that device mapper reports congested state on its
+: own (when it has too many bios in progress), this starts being a problem.
 
-Summary:  As part of the testing process for a Linux + Xeon 4108-based
-system we are developing, we need to explicitly place a DIMM into
-self-refresh mode.  Is this possible from within the operating system?  How=
-?
+So has this changed since then? If yes then we can think of a proper
+solution but that would require to actually describe why we see the
+congestion, why it does help to wait on the caller rather than the
+allocator etc...
 
-Details:
+Throwing statements like ...
 
-The system we are working on is based on the SuperMicro X11DPi-NT populated
-with an Intel Xeon 4108 (Skylake).
+> I'm sure you'll come up with another creative excuse why GFP_NORETRY 
+> allocations need incur deliberate 100ms delays in block device drivers.
 
-I haven=E2=80=99t found anything promising in the kernel source for X86 alt=
-hough
-there are hints of support on other platforms.  We have also scoured all
-the Intel documents and have found references to the Integrated Memory
-Controller, which seems like the piece of hardware that would take care of
-this, but I haven=E2=80=99t been able to find documentation fro the IMC on =
-this
-processor.   Another likely spot seems to be Asynchronous DRAM Refresh
-(ADR) mechanism, but I'm not able find information about how that
-functionality might be used to explicitly turn on self-refresh on a
-particular DIMM.
+... is not really productive. I've tried to explain why I am not _sure_ what
+possible side effects such a change might have and your hand waving
+didn't really convince me. MD is not the only user of the page
+allocator...
 
-Any pointers would be greatly appreciated.
-
-Thanks.
-
--steve
-
---00000000000043a137056ea90651
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div style=3D"color:rgb(0,0,0);font-family:Helvetica;font-=
-size:12px;font-weight:normal">All,</div><div style=3D"color:rgb(0,0,0);font=
--family:Helvetica;font-size:12px;font-weight:normal"><br></div><div style=
-=3D"color:rgb(0,0,0);font-family:Helvetica;font-size:12px;font-weight:norma=
-l">Summary: =C2=A0As part of the testing process for a Linux + Xeon=C2=A041=
-08-based system we are developing, we need to explicitly place a DIMM=C2=A0=
-into self-refresh mode.=C2=A0 Is this possible from within the operating=C2=
-=A0system?=C2=A0 How?</div><div style=3D"color:rgb(0,0,0);font-family:Helve=
-tica;font-size:12px;font-weight:normal"><br>Details:<br><br>The system we a=
-re working on is based on the SuperMicro X11DPi-NT populated with an Intel =
-Xeon 4108 (Skylake).<br><br>I haven=E2=80=99t found anything promising in t=
-he kernel source for X86=C2=A0although there are hints of support on other =
-platforms.=C2=A0 We have also=C2=A0scoured all the Intel documents and have=
- found references to the=C2=A0Integrated Memory Controller,=C2=A0which seem=
-s like the piece of hardware=C2=A0that would take care of this, but I haven=
-=E2=80=99t been able to find=C2=A0documentation fro the IMC on this process=
-or. =C2=A0 Another likely spot seems=C2=A0to be Asynchronous DRAM Refresh (=
-ADR) mechanism,=C2=A0but I&#39;m not able find=C2=A0information about how t=
-hat functionality might be used to explicitly=C2=A0turn on self-refresh on =
-a particular DIMM.<br></div><div style=3D"color:rgb(0,0,0);font-family:Helv=
-etica;font-size:12px;font-weight:normal"><br></div><div style=3D"color:rgb(=
-0,0,0);font-family:Helvetica;font-size:12px;font-weight:normal">Any pointer=
-s would be greatly appreciated.<br></div><div style=3D"color:rgb(0,0,0);fon=
-t-family:Helvetica;font-size:12px;font-weight:normal"><br>Thanks.<br><br>-s=
-teve</div><br></div>
-
---00000000000043a137056ea90651--
+E.g. why has 41c73a49df31 ("dm bufio: drop the lock when doing GFP_NOIO
+allocation") even added GFP_NOIO request in the first place when you
+keep retrying and sleep yourself? The changelog only describes what but
+doesn't explain why. Or did I misread the code and this is not the
+allocation which is stalling due to congestion?
+-- 
+Michal Hocko
+SUSE Labs
