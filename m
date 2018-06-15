@@ -1,52 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 18C9A6B000C
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 10:38:34 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id m4-v6so7642284qtn.19
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 07:38:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id c45-v6si913075qte.201.2018.06.15.07.38.33
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D48586B0003
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 11:27:36 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id t19-v6so5485158plo.9
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 08:27:36 -0700 (PDT)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id t1-v6si8802797plb.90.2018.06.15.08.27.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jun 2018 07:38:33 -0700 (PDT)
-Date: Fri, 15 Jun 2018 17:38:31 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v33 0/4] Virtio-balloon: support free page reporting
-Message-ID: <20180615172933-mutt-send-email-mst@kernel.org>
-References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com>
- <20180615142610-mutt-send-email-mst@kernel.org>
- <286AC319A985734F985F78AFA26841F7396A3DC9@shsmsx102.ccr.corp.intel.com>
+        Fri, 15 Jun 2018 08:27:35 -0700 (PDT)
+Date: Fri, 15 Jun 2018 18:27:32 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv3 07/17] x86/mm: Preserve KeyID on pte_modify() and
+ pgprot_modify()
+Message-ID: <20180615152731.3y6rre7g66rmncxr@black.fi.intel.com>
+References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
+ <20180612143915.68065-8-kirill.shutemov@linux.intel.com>
+ <8c31f6d2-6512-2726-763e-6dd1cbb0350a@intel.com>
+ <20180615125720.r755xaegvfcqfr6x@black.fi.intel.com>
+ <645a4ca8-ae77-dcdd-0cbc-0da467fc210d@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <286AC319A985734F985F78AFA26841F7396A3DC9@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <645a4ca8-ae77-dcdd-0cbc-0da467fc210d@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Wei W" <wei.w.wang@intel.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "peterx@redhat.com" <peterx@redhat.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jun 15, 2018 at 02:28:49PM +0000, Wang, Wei W wrote:
-> On Friday, June 15, 2018 7:30 PM, Michael S. Tsirkin wrote:
-> > On Fri, Jun 15, 2018 at 12:43:09PM +0800, Wei Wang wrote:
-> > >       - remove the cmd id related interface. Now host can just send a free
-> > >         page hint command to the guest (via the host_cmd config register)
-> > >         to start the reporting.
-> > 
-> > Here we go again. And what if reporting was already started previously?
-> > I don't think it's a good idea to tweak the host/guest interface yet again.
+On Fri, Jun 15, 2018 at 01:43:03PM +0000, Dave Hansen wrote:
+> On 06/15/2018 05:57 AM, Kirill A. Shutemov wrote:
+> >>> +#define _PAGE_CHG_MASK	(PTE_PFN_MASK_MAX | _PAGE_PCD | _PAGE_PWT |		\
+> >>>  			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
+> >>>  			 _PAGE_SOFT_DIRTY)
+> >>>  #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
+> >> This makes me a bit nervous.  We have some places (here) where we
+> >> pretend that the KeyID is part of the paddr and then other places like
+> >> pte_pfn() where it's not.
+> > Other option is to include KeyID mask into _PAGE_CHG_MASK. But it means
+> > _PAGE_CHG_MASK would need to reference *two* variables: physical_mask and
+> > mktme_keyid_mask. I mentioned this in the commit message.
 > 
-> This interface is much simpler, and I'm not sure if that would be an
-> issue here now, because now the guest delivers the whole buffer of
-> hints to host once, instead of hint by hint as before. And the guest
-> notifies host after the buffer is delivered. In any case, the host
-> doorbell handler will be invoked, if host doesn't need the hints at
-> that time, it will just give back the buffer. There will be no stale
-> hints remained in the ring now.
-> 
-> Best,
-> Wei
+> Why can't it be one variable with a different name that's populated by
+> OR'ing physical_mask and mktme_keyid_mask together?
 
-I still think all the old arguments for cmd id apply.
+My point is that we don't need variables at all here.
+
+Architecture defines range of bits in PTE used for PFN. MKTME reduces the
+number of bits for PFN. PTE_PFN_MASK_MAX represents the original
+architectural range, before MKTME stole these bits.
+
+PTE_PFN_MASK_MAX is constant -- on x86-64 bits 51:12 -- regardless of
+MKTME support.
+
+> My issue here is that it this approach adds confusion around the logical
+> separation between physical address and the bits immediately above the
+> physical address in the PTE that are stolen for the keyID.
+
+Well, yes, with MKTME the meaning of PFN/physical address is not that clear
+cut. This comes from hardware design. I don't think we will be able to get
+rid of ambiguity completely.
+
+If you have suggestions on how to make it clearer, I would be glad to
+rework it.
+
+> Whatever you come up with will probably fine, as long as things that are
+> called "PFN" or physical address don't also get used for keyID bits.
+
+We are arguing about macros used exactly once. Is it really so confusing?
 
 -- 
-MST
+ Kirill A. Shutemov
