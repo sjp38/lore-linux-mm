@@ -1,75 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EAFAF6B0003
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 08:47:54 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id p12-v6so7424671qtg.5
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 05:47:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id c138-v6si7641390qka.130.2018.06.15.05.47.53
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AC966B0003
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 08:57:33 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id x17-v6so4623142pfm.18
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 05:57:33 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id t184-v6si6513248pgt.540.2018.06.15.05.57.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jun 2018 05:47:53 -0700 (PDT)
-Date: Fri, 15 Jun 2018 08:47:52 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: dm bufio: Reduce dm_bufio_lock contention
-In-Reply-To: <20180615115547.GH24039@dhcp22.suse.cz>
-Message-ID: <alpine.LRH.2.02.1806150832100.26650@file01.intranet.prod.int.rdu2.redhat.com>
-References: <1528790608-19557-1-git-send-email-jing.xia@unisoc.com> <20180612212007.GA22717@redhat.com> <alpine.LRH.2.02.1806131001250.15845@file01.intranet.prod.int.rdu2.redhat.com> <CAN=25QMQiJ7wvfvYvmZnEnrkeb-SA7_hPj+N2RnO8y-aVO8wOQ@mail.gmail.com>
- <20180614073153.GB9371@dhcp22.suse.cz> <alpine.LRH.2.02.1806141424510.30404@file01.intranet.prod.int.rdu2.redhat.com> <20180615073201.GB24039@dhcp22.suse.cz> <alpine.LRH.2.02.1806150724260.15022@file01.intranet.prod.int.rdu2.redhat.com>
- <20180615115547.GH24039@dhcp22.suse.cz>
+        Fri, 15 Jun 2018 05:57:31 -0700 (PDT)
+Date: Fri, 15 Jun 2018 15:57:20 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv3 07/17] x86/mm: Preserve KeyID on pte_modify() and
+ pgprot_modify()
+Message-ID: <20180615125720.r755xaegvfcqfr6x@black.fi.intel.com>
+References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
+ <20180612143915.68065-8-kirill.shutemov@linux.intel.com>
+ <8c31f6d2-6512-2726-763e-6dd1cbb0350a@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8c31f6d2-6512-2726-763e-6dd1cbb0350a@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: jing xia <jing.xia.mail@gmail.com>, Mike Snitzer <snitzer@redhat.com>, agk@redhat.com, dm-devel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-
-On Fri, 15 Jun 2018, Michal Hocko wrote:
-
-> On Fri 15-06-18 07:35:07, Mikulas Patocka wrote:
+On Wed, Jun 13, 2018 at 06:13:03PM +0000, Dave Hansen wrote:
+> On 06/12/2018 07:39 AM, Kirill A. Shutemov wrote:
+> > Encrypted VMA will have KeyID stored in vma->vm_page_prot. This way we
+> 
+> "An encrypted VMA..."
+> 
+> > don't need to do anything special to setup encrypted page table entries
+> > and don't need to reserve space for KeyID in a VMA.
 > > 
-> > Because mempool uses it. Mempool uses allocations with "GFP_NOIO | 
-> > __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN". An so dm-bufio uses 
-> > these flags too. dm-bufio is just a big mempool.
+> > This patch changes _PAGE_CHG_MASK to include KeyID bits. Otherwise they
+> > are going to be stripped from vm_page_prot on the first pgprot_modify().
+> > 
+> > Define PTE_PFN_MASK_MAX similar to PTE_PFN_MASK but based on
+> > __PHYSICAL_MASK_SHIFT. This way we include whole range of bits
+> > architecturally available for PFN without referencing physical_mask and
+> > mktme_keyid_mask variables.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  arch/x86/include/asm/pgtable_types.h | 7 ++++++-
+> >  1 file changed, 6 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+> > index 1e5a40673953..e8ebe760b88d 100644
+> > --- a/arch/x86/include/asm/pgtable_types.h
+> > +++ b/arch/x86/include/asm/pgtable_types.h
+> > @@ -121,8 +121,13 @@
+> >   * protection key is treated like _PAGE_RW, for
+> >   * instance, and is *not* included in this mask since
+> >   * pte_modify() does modify it.
+> > + *
+> > + * It includes full range of PFN bits regardless if they were claimed for KeyID
+> > + * or not: we want to preserve KeyID on pte_modify() and pgprot_modify().
+> >   */
+> > -#define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
+> > +#define PTE_PFN_MASK_MAX \
+> > +	(((signed long)PAGE_MASK) & ((1ULL << __PHYSICAL_MASK_SHIFT) - 1))
 > 
-> This doesn't answer my question though. Somebody else is doing it is not
-> an explanation. Prior to your 41c73a49df31 there was no GFP_NOIO
-> allocation AFAICS. So why do you really need it now? Why cannot you
+> "signed long" is really unusual to see.  Was that intentional?
 
-dm-bufio always used "GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | 
-__GFP_NOWARN" since the kernel 3.2 when it was introduced.
+Yes. That's trick with sign-extension, borrowed from PHYSICAL_PAGE_MASK
+definition. It helps on 32-bit with PAE properly expand the PAGE_MASK to
+64-bit.
 
-In the kernel 4.10, dm-bufio was changed so that it does GFP_NOWAIT 
-allocation, then drops the lock and does GFP_NOIO with the dropped lock 
-(because someone was likely experiencing the same issue that is reported 
-in this thread) - there are two commits that change it - 9ea61cac0 and 
-41c73a49df31.
+I'll add comment.
 
-> simply keep retrying GFP_NOWAIT with your own throttling?
+> > +#define _PAGE_CHG_MASK	(PTE_PFN_MASK_MAX | _PAGE_PCD | _PAGE_PWT |		\
+> >  			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
+> >  			 _PAGE_SOFT_DIRTY)
+> >  #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
 > 
-> Note that I am not trying to say that 41c73a49df31, I am merely trying
-> to understand why this blocking allocation is done in the first place.
->  
-> > If you argue that these flags are incorrect - then fix mempool_alloc.
-> 
-> AFAICS there is no report about mempool_alloc stalling here. Maybe this
+> This makes me a bit nervous.  We have some places (here) where we
+> pretend that the KeyID is part of the paddr and then other places like
+> pte_pfn() where it's not.
 
-If the page allocator can stall dm-bufio, it can stall mempool_alloc as 
-well. dm-bufio is just bigger, so it will hit this bug sooner.
+Other option is to include KeyID mask into _PAGE_CHG_MASK. But it means
+_PAGE_CHG_MASK would need to reference *two* variables: physical_mask and
+mktme_keyid_mask. I mentioned this in the commit message.
 
-> is the same class of problem, honestly, I dunno. And I've already said
-> that stalling __GFP_NORETRY might be a good way around that but that
-> needs much more consideration and existing users examination. I am not
-> aware anybody has done that. Doing changes like that based on a single
-> user is certainly risky.
+This is more efficient way to achieve the same compile-time without
+referencing any variables.
 
-Why don't you set any rules how these flags should be used?
+> Seems like something that will come back to bite us.
 
-If you use GFP_NOIO | __GFP_NORETRY in your own code and blame other 
-people for doing so - you are as much evil as Linus, who praised people 
-for reverse-engineering hardware and blamed them for reverse-engineering 
-bitkeeper :-)
+Any suggestions?
 
-Mikulas
+-- 
+ Kirill A. Shutemov
