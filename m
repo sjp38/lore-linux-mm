@@ -1,101 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 81F866B000E
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 01:08:47 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id n19-v6so4098668pff.8
-        for <linux-mm@kvack.org>; Thu, 14 Jun 2018 22:08:47 -0700 (PDT)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id m89-v6si6984006pfi.236.2018.06.14.22.08.46
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D27D36B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 02:55:45 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id b12-v6so5468907wrs.10
+        for <linux-mm@kvack.org>; Thu, 14 Jun 2018 23:55:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y95-v6si4852496ede.17.2018.06.14.23.55.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jun 2018 22:08:46 -0700 (PDT)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v33 4/4] virtio-balloon: VIRTIO_BALLOON_F_PAGE_POISON
-Date: Fri, 15 Jun 2018 12:43:13 +0800
-Message-Id: <1529037793-35521-5-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com>
-References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Jun 2018 23:55:44 -0700 (PDT)
+Date: Fri, 15 Jun 2018 08:55:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch] mm, oom: fix unnecessary killing of additional processes
+Message-ID: <20180615065541.GA24039@dhcp22.suse.cz>
+References: <alpine.DEB.2.21.1805241422070.182300@chino.kir.corp.google.com>
+ <alpine.DEB.2.21.1806141339580.4543@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.21.1806141339580.4543@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: torvalds@linux-foundation.org, pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com, peterx@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The VIRTIO_BALLOON_F_PAGE_POISON feature bit is used to indicate if the
-guest is using page poisoning. Guest writes to the poison_val config
-field to tell host about the page poisoning value that is in use.
+On Thu 14-06-18 13:42:59, David Rientjes wrote:
+> The oom reaper ensures forward progress by setting MMF_OOM_SKIP itself if
+> it cannot reap an mm.  This can happen for a variety of reasons,
+> including:
+> 
+>  - the inability to grab mm->mmap_sem in a sufficient amount of time,
+> 
+>  - when the mm has blockable mmu notifiers that could cause the oom reaper
+>    to stall indefinitely,
+> 
+> but we can also add a third when the oom reaper can "reap" an mm but doing
+> so is unlikely to free any amount of memory:
+> 
+>  - when the mm's memory is fully mlocked.
+> 
+> When all memory is mlocked, the oom reaper will not be able to free any
+> substantial amount of memory.  It sets MMF_OOM_SKIP before the victim can
+> unmap and free its memory in exit_mmap() and subsequent oom victims are
+> chosen unnecessarily.  This is trivial to reproduce if all eligible
+> processes on the system have mlocked their memory: the oom killer calls
+> panic() even though forward progress can be made.
+> 
+> This is the same issue where the exit path sets MMF_OOM_SKIP before
+> unmapping memory and additional processes can be chosen unnecessarily
+> because the oom killer is racing with exit_mmap().
+> 
+> We can't simply defer setting MMF_OOM_SKIP, however, because if there is
+> a true oom livelock in progress, it never gets set and no additional
+> killing is possible.
+> 
+> To fix this, this patch introduces a per-mm reaping timeout, initially set
+> at 10s.  It requires that the oom reaper's list becomes a properly linked
+> list so that other mm's may be reaped while waiting for an mm's timeout to
+> expire.
+> 
+> This replaces the current timeouts in the oom reaper: (1) when trying to
+> grab mm->mmap_sem 10 times in a row with HZ/10 sleeps in between and (2)
+> a HZ sleep if there are blockable mmu notifiers.  It extends it with
+> timeout to allow an oom victim to reach exit_mmap() before choosing
+> additional processes unnecessarily.
+> 
+> The exit path will now set MMF_OOM_SKIP only after all memory has been
+> freed, so additional oom killing is justified, and rely on MMF_UNSTABLE to
+> determine when it can race with the oom reaper.
+> 
+> The oom reaper will now set MMF_OOM_SKIP only after the reap timeout has
+> lapsed because it can no longer guarantee forward progress.
+> 
+> The reaping timeout is intentionally set for a substantial amount of time
+> since oom livelock is a very rare occurrence and it's better to optimize
+> for preventing additional (unnecessary) oom killing than a scenario that
+> is much more unlikely.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Cc: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- drivers/virtio/virtio_balloon.c     | 10 ++++++++++
- include/uapi/linux/virtio_balloon.h |  3 +++
- 2 files changed, 13 insertions(+)
+Nacked-by: Michal Hocko <mhocko@suse.com>
+as already explained elsewhere in this email thread.
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 582a03b..c59bb380 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -634,6 +634,7 @@ static struct file_system_type balloon_fs = {
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-+	__u32 poison_val;
- 	int err;
- 
- 	if (!vdev->config->get) {
-@@ -671,6 +672,11 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 			goto out_del_vqs;
- 		}
- 		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
-+		if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
-+			memset(&poison_val, PAGE_POISON, sizeof(poison_val));
-+			virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+				      poison_val, &poison_val);
-+		}
- 		vb->hints = kmalloc(FREE_PAGE_HINT_MEM_SIZE, GFP_KERNEL);
- 		if (!vb->hints) {
- 			err = -ENOMEM;
-@@ -796,6 +802,9 @@ static int virtballoon_restore(struct virtio_device *vdev)
- 
- static int virtballoon_validate(struct virtio_device *vdev)
- {
-+	if (!page_poisoning_enabled())
-+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
-+
- 	__virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
- 	return 0;
- }
-@@ -805,6 +814,7 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
- 	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
-+	VIRTIO_BALLOON_F_PAGE_POISON,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 99b8416..f3b6191 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -35,6 +35,7 @@
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
- #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
-+#define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
-@@ -47,6 +48,8 @@ struct virtio_balloon_config {
- 	__u32 actual;
- 	/* Command sent from host */
- 	__u32 host_cmd;
-+	/* Stores PAGE_POISON if page poisoning is in use */
-+	__u32 poison_val;
- };
- 
- struct virtio_balloon_free_page_hints {
+> ---
+>  Note: I understand there is an objection based on timeout based delays.
+>  This is currently the only possible way to avoid oom killing important
+>  processes completely unnecessarily.  If the oom reaper can someday free
+>  all memory, including mlocked memory and those mm's with blockable mmu
+>  notifiers, and is guaranteed to always be able to grab mm->mmap_sem,
+>  this can be removed.  I do not believe any such guarantee is possible
+>  and consider the massive killing of additional processes unnecessarily
+>  to be a regression introduced by the oom reaper and its very quick
+>  setting of MMF_OOM_SKIP to allow additional processes to be oom killed.
+
+If you find oom reaper more harmful than useful I would be willing to
+ack a comman line option to disable it. Especially when you keep
+claiming that the lockups are not really happening in your environment.
+
+Other than that I've already pointed to a more robust solution. If you
+are reluctant to try it out I will do, but introducing a timeout is just
+papering over the real problem. Maybe we will not reach the state that
+_all_ the memory is reapable but we definitely should try to make as
+much as possible to be reapable and I do not see any fundamental
+problems in that direction.
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
