@@ -1,527 +1,627 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 510EE6B0006
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 08:59:58 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id v5-v6so1243759wmh.6
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 05:59:58 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g9-v6sor3792947edp.56.2018.06.15.05.59.55
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 81DFF6B0007
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 09:02:00 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p10-v6so2895493lfc.19
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 06:02:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f1-v6sor1893566ljc.5.2018.06.15.06.01.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 15 Jun 2018 05:59:56 -0700 (PDT)
-MIME-Version: 1.0
-References: <20180609123014.8861-1-ming.lei@redhat.com>
-In-Reply-To: <20180609123014.8861-1-ming.lei@redhat.com>
-From: Gi-Oh Kim <gi-oh.kim@profitbricks.com>
-Date: Fri, 15 Jun 2018 14:59:19 +0200
-Message-ID: <CAJX1YtaRtCGt7f8H0VEDrDkcOYusB0JoL-CNB_E--MYGhcvbow@mail.gmail.com>
-Subject: Re: [PATCH V6 00/30] block: support multipage bvec
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+        Fri, 15 Jun 2018 06:01:57 -0700 (PDT)
+From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+Subject: [RFC] mm/vmalloc: keep track of free blocks for allocation
+Date: Fri, 15 Jun 2018 15:01:43 +0200
+Message-Id: <20180615130143.12957-1-urezki@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ming.lei@redhat.com
-Cc: Jens Axboe <axboe@fb.com>, hch@infradead.org, Al Viro <viro@zeniv.linux.org.uk>, kent.overstreet@gmail.com, dsterba@suse.cz, ying.huang@intel.com, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, tytso@mit.edu, darrick.wong@oracle.com, colyli@suse.de, fdmanana@gmail.com, rdunlap@infradead.org
+To: linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Thomas Garnier <thgarnie@google.com>, Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, "Uladzislau Rezki (Sony)" <urezki@gmail.com>
 
->
-> - bio size can be increased and it should improve some high-bandwidth IO
-> case in theory[4].
->
+Hello,
 
-Hi,
+please RFC.
 
-I would like to report your patch set works well on my system based on v4.1=
-4.48.
-I thought the multipage bvec could improve the performance of my system.
-(FYI, my system has v4.14.48 and provides KVM-base virtualization service.)
+Initial discussion was here: https://patchwork.kernel.org/patch/10244733/
 
-So I did back-porting your patches to v4.14.48.
-It has done without any serious problem.
-I only needed to cherry-pick "blk-merge: compute
-bio->bi_seg_front_size efficiently" and
-"block: move bio_alloc_pages() to bcache" patches before back-porting
-to prevent conflicts.
-And I ran my own test-suit for checking features of md and RAID1 layer.
-There was no problem. All test cases passed.
-(If you want, I will send you the back-ported patches.)
+Currently an allocation of the new VA area is done over
+busy list iteration until a suitable hole is found between
+two busy areas. Therefore each new allocation causes the
+list being grown. Due to long list and different permissive
+parameters an allocation can take a long time on embedded
+devices(milliseconds).
 
-Then I did two performance test as following.
-To say the conclusion first, I failed to show performance improvement
-of the patch set.
-Of course, my test cases would not be suitable to test your patch set.
-Or maybe I did test wrong.
-Please inform me which tools are suitable, then I will try them.
+This patch organizes the vmalloc memory layout into free
+areas of the VMALLOC_START-VMALLOC_END range. It uses a
+red-black tree that keeps blocks sorted by their offsets
+in pair with linked list keeping the free space in order
+of increasing addresses.
 
-1. fio
+Allocation: to allocate a new block a search is done over
+free list areas until a suitable block is large enough to
+encompass the requested size. If the block is bigger than
+requested size - it is split.
 
-First I ran fio with null device to check the performance of the block-laye=
-r.
-I am not sure those test is suitable to show the performance
-improvement or degradation.
-Nevertheless there was a little (-6%) performance degradation.
+De-allocation: red-black tree allows efficiently find a
+spot in the tree whereas a linked list allows fast merge
+of de-allocated memory chunks with existing free blocks
+creating large coalesced areas.
 
-If it is not much trouble to you, please review my options for fio and
-inform me if I used wrong or incorrect options.
-Then I will run the test again.
+model name: QEMU Virtual CPU version 2.5+
 
-1.1 Following is my options for fio.
+test_1:
+<measure this loop time>
+for (n = 0; n < 1000000; n++) {
+    void *ptr_1 = vmalloc(3 * PAGE_SIZE);
+    *((__u8 *)ptr_1) = 0; /* Pretend we used the mem */
+    vfree(ptr_1);
+}
+<measure this loop time>
 
-gkim@ib1:~/pb-ltp/benchmark/fio$ cat go_local.sh
-#!/bin/bash
-echo "fio start   : $(date)"
-echo "kernel info : $(uname -a)"
-echo "fio version : $(fio --version)"
+938007(us) vs 939222(us) +0.129%
+932760(us) vs 932565(us) -0.020%
+929691(us) vs 935795(us) +0.652%
+932767(us) vs 932683(us) -0.009%
+937520(us) vs 935457(us) -0.220%
 
-# set "none" io-scheduler
-modprobe -r null_blk
-modprobe null_blk
-echo "none" > /sys/block/nullb0/queue/scheduler
+test_2:
+for (n = 0; n < 15000; n++)
+    ptr[n] = vmalloc(1 * PAGE_SIZE);
 
-FIO_OPTION=3D"--direct=3D1 --rw=3Drandrw:2 --time_based=3D1 --group_reporti=
-ng \
-            --ioengine=3Dlibaio --iodepth=3D64 --name=3Dfiotest --numjobs=
-=3D8 \
-            --bssplit=3D512/20:1k/16:2k/9:4k/12:8k/19:16k/10:32k/8:64k/4 \
-            --fadvise_hint=3D0 --iodepth_batch_submit=3D64
---iodepth_batch_complete=3D64"
-# fio test null_blk device, so it is not necessary to run long.
-fio $FIO_OPTION --filename=3D/dev/nullb0 --runtime=3D600
+<measure this loop time>
+for (n = 0; n < 1000000; n++) {
+    void *ptr_1 = vmalloc(100 * PAGE_SIZE);
+    void *ptr_2 = vmalloc(1 * PAGE_SIZE);
+    *((__u8 *)ptr_1) = 0; /* Pretend we used the mem */
+    *((__u8 *)ptr_2) = 1; /* Pretend we used the mem */
 
-1.2 Following is the result before porting.
+    vfree(ptr_1);
+    vfree(ptr_2);
+}
+<measure this loop time>
 
-fio start   : Mon Jun 11 04:30:01 CEST 2018
-kernel info : Linux ib1 4.14.48-1-pserver
-#4.14.48-1.1+feature+daily+update+20180607.0857+1bbde0b~deb8 SMP
-x86_64 GNU/Linux
-fio version : fio-2.2.10
-fiotest: (g=3D0): rw=3Drandrw, bs=3D512-64K/512-64K/512-64K,
-ioengine=3Dlibaio, iodepth=3D64
-...
-fio-2.2.10
-Starting 8 processes
+33590880(us) vs 11027121(us) -67.172%
+34503307(us) vs 11696023(us) -66.101%
+44198667(us) vs 11849005(us) -73.191%
+19377377(us) vs 12026349(us) -37.936%
+29511186(us) vs 11757217(us) -60.160%
 
-fiotest: (groupid=3D0, jobs=3D8): err=3D 0: pid=3D1655: Mon Jun 11 04:40:02=
- 2018
-  read : io=3D7133.2GB, bw=3D12174MB/s, iops=3D1342.1K, runt=3D600001msec
-    slat (usec): min=3D1, max=3D15750, avg=3D123.78, stdev=3D153.79
-    clat (usec): min=3D0, max=3D15758, avg=3D24.70, stdev=3D77.93
-     lat (usec): min=3D2, max=3D15782, avg=3D148.49, stdev=3D167.54
-    clat percentiles (usec):
-     |  1.00th=3D[    0],  5.00th=3D[    1], 10.00th=3D[    1], 20.00th=3D[=
-    1],
-     | 30.00th=3D[    2], 40.00th=3D[    2], 50.00th=3D[    2], 60.00th=3D[=
-    6],
-     | 70.00th=3D[   22], 80.00th=3D[   36], 90.00th=3D[   72], 95.00th=3D[=
-  107],
-     | 99.00th=3D[  173], 99.50th=3D[  203], 99.90th=3D[  932], 99.95th=3D[=
- 1416],
-     | 99.99th=3D[ 2960]
-    bw (MB  /s): min=3D 1096, max=3D 2147, per=3D12.51%, avg=3D1522.69, std=
-ev=3D253.89
-  write: io=3D7131.3GB, bw=3D12171MB/s, iops=3D1343.6K, runt=3D600001msec
-    slat (usec): min=3D1, max=3D15751, avg=3D124.73, stdev=3D154.11
-    clat (usec): min=3D0, max=3D15758, avg=3D24.69, stdev=3D77.84
-     lat (usec): min=3D2, max=3D15780, avg=3D149.43, stdev=3D167.82
-    clat percentiles (usec):
-     |  1.00th=3D[    0],  5.00th=3D[    1], 10.00th=3D[    1], 20.00th=3D[=
-    1],
-     | 30.00th=3D[    2], 40.00th=3D[    2], 50.00th=3D[    2], 60.00th=3D[=
-    6],
-     | 70.00th=3D[   22], 80.00th=3D[   36], 90.00th=3D[   72], 95.00th=3D[=
-  107],
-     | 99.00th=3D[  173], 99.50th=3D[  203], 99.90th=3D[  932], 99.95th=3D[=
- 1416],
-     | 99.99th=3D[ 2960]
-    bw (MB  /s): min=3D 1080, max=3D 2121, per=3D12.51%, avg=3D1522.33, std=
-ev=3D253.96
-    lat (usec) : 2=3D21.63%, 4=3D37.80%, 10=3D2.12%, 20=3D6.43%, 50=3D16.70=
-%
-    lat (usec) : 100=3D8.86%, 250=3D6.07%, 500=3D0.17%, 750=3D0.08%, 1000=
-=3D0.05%
-    lat (msec) : 2=3D0.06%, 4=3D0.02%, 10=3D0.01%, 20=3D0.01%
-  cpu          : usr=3D22.39%, sys=3D64.19%, ctx=3D15425825, majf=3D0, minf=
-=3D97
-  IO depths    : 1=3D1.8%, 2=3D1.8%, 4=3D8.8%, 8=3D14.4%, 16=3D12.3%, 32=3D=
-41.7%, >=3D64=3D19.3%
-     submit    : 0=3D0.0%, 4=3D5.8%, 8=3D9.7%, 16=3D15.0%, 32=3D18.0%, 64=
-=3D51.5%, >=3D64=3D0.0%
-     complete  : 0=3D0.0%, 4=3D0.1%, 8=3D0.0%, 16=3D0.1%, 32=3D0.1%, 64=3D1=
-00.0%, >=3D64=3D0.0%
-     issued    : total=3Dr=3D805764385/w=3D806127393/d=3D0, short=3Dr=3D0/w=
-=3D0/d=3D0,
-drop=3Dr=3D0/w=3D0/d=3D0
-     latency   : target=3D0, window=3D0, percentile=3D100.00%, depth=3D64
+Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+---
+ mm/vmalloc.c | 420 +++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 393 insertions(+), 27 deletions(-)
 
-Run status group 0 (all jobs):
-   READ: io=3D7133.2GB, aggrb=3D12174MB/s, minb=3D12174MB/s, maxb=3D12174MB=
-/s,
-mint=3D600001msec, maxt=3D600001msec
-  WRITE: io=3D7131.3GB, aggrb=3D12171MB/s, minb=3D12171MB/s, maxb=3D12171MB=
-/s,
-mint=3D600001msec, maxt=3D600001msec
-
-Disk stats (read/write):
-  nullb0: ios=3D442461761/442546060, merge=3D363197836/363473703,
-ticks=3D12280990/12452480, in_queue=3D2740, util=3D0.43%
-
-1.3 Following is the result after porting.
-
-fio start   : Fri Jun 15 12:42:47 CEST 2018
-kernel info : Linux ib1 4.14.48-1-pserver-mpbvec+ #12 SMP Fri Jun 15
-12:21:36 CEST 2018 x86_64 GNU/Linux
-fio version : fio-2.2.10
-fiotest: (g=3D0): rw=3Drandrw, bs=3D512-64K/512-64K/512-64K,
-ioengine=3Dlibaio, iodepth=3D64
-...
-fio-2.2.10
-Starting 8 processes
-Jobs: 4 (f=3D0): [m(1),_(2),m(1),_(1),m(2),_(1)] [100.0% done]
-[8430MB/8444MB/0KB /s] [961K/963K/0 iops] [eta 00m:00s]
-fiotest: (groupid=3D0, jobs=3D8): err=3D 0: pid=3D14096: Fri Jun 15 12:52:4=
-8 2018
-  read : io=3D6633.8GB, bw=3D11322MB/s, iops=3D1246.9K, runt=3D600005msec
-    slat (usec): min=3D1, max=3D16939, avg=3D135.34, stdev=3D156.23
-    clat (usec): min=3D0, max=3D16947, avg=3D26.10, stdev=3D78.50
-     lat (usec): min=3D2, max=3D16957, avg=3D161.45, stdev=3D168.88
-    clat percentiles (usec):
-     |  1.00th=3D[    0],  5.00th=3D[    1], 10.00th=3D[    1], 20.00th=3D[=
-    1],
-     | 30.00th=3D[    2], 40.00th=3D[    2], 50.00th=3D[    2], 60.00th=3D[=
-    5],
-     | 70.00th=3D[   23], 80.00th=3D[   37], 90.00th=3D[   79], 95.00th=3D[=
-  115],
-     | 99.00th=3D[  181], 99.50th=3D[  211], 99.90th=3D[  948], 99.95th=3D[=
- 1416],
-     | 99.99th=3D[ 2864]
-    bw (MB  /s): min=3D 1106, max=3D 2031, per=3D12.51%, avg=3D1416.05, std=
-ev=3D201.81
-  write: io=3D6631.1GB, bw=3D11318MB/s, iops=3D1247.5K, runt=3D600005msec
-    slat (usec): min=3D1, max=3D16938, avg=3D136.48, stdev=3D156.54
-    clat (usec): min=3D0, max=3D16947, avg=3D26.08, stdev=3D78.43
-     lat (usec): min=3D2, max=3D16957, avg=3D162.58, stdev=3D169.15
-    clat percentiles (usec):
-     |  1.00th=3D[    0],  5.00th=3D[    1], 10.00th=3D[    1], 20.00th=3D[=
-    1],
-     | 30.00th=3D[    2], 40.00th=3D[    2], 50.00th=3D[    2], 60.00th=3D[=
-    5],
-     | 70.00th=3D[   23], 80.00th=3D[   37], 90.00th=3D[   79], 95.00th=3D[=
-  115],
-     | 99.00th=3D[  181], 99.50th=3D[  211], 99.90th=3D[  948], 99.95th=3D[=
- 1416],
-     | 99.99th=3D[ 2864]
-    bw (MB  /s): min=3D 1084, max=3D 2044, per=3D12.51%, avg=3D1415.67, std=
-ev=3D201.93
-    lat (usec) : 2=3D20.98%, 4=3D38.82%, 10=3D2.15%, 20=3D5.08%, 50=3D16.91=
-%
-    lat (usec) : 100=3D8.75%, 250=3D6.91%, 500=3D0.19%, 750=3D0.09%, 1000=
-=3D0.05%
-    lat (msec) : 2=3D0.07%, 4=3D0.02%, 10=3D0.01%, 20=3D0.01%
-  cpu          : usr=3D21.02%, sys=3D65.53%, ctx=3D15321661, majf=3D0, minf=
-=3D78
-  IO depths    : 1=3D1.9%, 2=3D1.9%, 4=3D9.5%, 8=3D13.6%, 16=3D11.2%, 32=3D=
-42.1%, >=3D64=3D19.9%
-     submit    : 0=3D0.0%, 4=3D6.3%, 8=3D10.1%, 16=3D14.1%, 32=3D18.2%,
-64=3D51.3%, >=3D64=3D0.0%
-     complete  : 0=3D0.0%, 4=3D0.1%, 8=3D0.0%, 16=3D0.1%, 32=3D0.1%, 64=3D1=
-00.0%, >=3D64=3D0.0%
-     issued    : total=3Dr=3D748120019/w=3D748454509/d=3D0, short=3Dr=3D0/w=
-=3D0/d=3D0,
-drop=3Dr=3D0/w=3D0/d=3D0
-     latency   : target=3D0, window=3D0, percentile=3D100.00%, depth=3D64
-
-Run status group 0 (all jobs):
-   READ: io=3D6633.8GB, aggrb=3D11322MB/s, minb=3D11322MB/s, maxb=3D11322MB=
-/s,
-mint=3D600005msec, maxt=3D600005msec
-  WRITE: io=3D6631.1GB, aggrb=3D11318MB/s, minb=3D11318MB/s, maxb=3D11318MB=
-/s,
-mint=3D600005msec, maxt=3D600005msec
-
-Disk stats (read/write):
-  nullb0: ios=3D410911387/410974086, merge=3D337127604/337396176,
-ticks=3D12482050/12662790, in_queue=3D1780, util=3D0.27%
-
-
-2. Unixbench
-
-Second I rand Unixbench to check general performance.
-I think there is no difference before and after porting the patches.
-Unixbench might not be suitable to check the performance improvement
-of the block layer.
-If you inform me which tools is suitable, I will try it on my system.
-
-2.1 Following is the result before porting.
-
-   BYTE UNIX Benchmarks (Version 5.1.3)
-
-   System: ib1: GNU/Linux
-   OS: GNU/Linux -- 4.14.48-1-pserver --
-#4.14.48-1.1+feature+daily+update+20180607.0857+1bbde0b~deb8 SMP
-   Machine: x86_64 (unknown)
-   Language: en_US.utf8 (charmap=3D"UTF-8", collate=3D"UTF-8")
-   CPU 0: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 1: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 2: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 3: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 4: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 5: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 6: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 7: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   05:00:01 up 3 days, 16:20,  2 users,  load average: 0.00, 0.11,
-1.11; runlevel 2018-06-07
-
-------------------------------------------------------------------------
-Benchmark Run: Mon Jun 11 2018 05:00:01 - 05:28:54
-8 CPUs in system; running 1 parallel copy of tests
-
-Dhrystone 2 using register variables       47158867.7 lps   (10.0 s, 7 samp=
-les)
-Double-Precision Whetstone                     3878.8 MWIPS (15.2 s, 7 samp=
-les)
-Execl Throughput                               9203.9 lps   (30.0 s, 2 samp=
-les)
-File Copy 1024 bufsize 2000 maxblocks       1490834.8 KBps  (30.0 s, 2 samp=
-les)
-File Copy 256 bufsize 500 maxblocks          388784.2 KBps  (30.0 s, 2 samp=
-les)
-File Copy 4096 bufsize 8000 maxblocks       3744780.2 KBps  (30.0 s, 2 samp=
-les)
-Pipe Throughput                             2682620.1 lps   (10.0 s, 7 samp=
-les)
-Pipe-based Context Switching                 263786.5 lps   (10.0 s, 7 samp=
-les)
-Process Creation                              19674.0 lps   (30.0 s, 2 samp=
-les)
-Shell Scripts (1 concurrent)                  16121.5 lpm   (60.0 s, 2 samp=
-les)
-Shell Scripts (8 concurrent)                   5623.5 lpm   (60.0 s, 2 samp=
-les)
-System Call Overhead                        4068991.3 lps   (10.0 s, 7 samp=
-les)
-
-System Benchmarks Index Values               BASELINE       RESULT    INDEX
-Dhrystone 2 using register variables         116700.0   47158867.7   4041.0
-Double-Precision Whetstone                       55.0       3878.8    705.2
-Execl Throughput                                 43.0       9203.9   2140.4
-File Copy 1024 bufsize 2000 maxblocks          3960.0    1490834.8   3764.7
-File Copy 256 bufsize 500 maxblocks            1655.0     388784.2   2349.1
-File Copy 4096 bufsize 8000 maxblocks          5800.0    3744780.2   6456.5
-Pipe Throughput                               12440.0    2682620.1   2156.4
-Pipe-based Context Switching                   4000.0     263786.5    659.5
-Process Creation                                126.0      19674.0   1561.4
-Shell Scripts (1 concurrent)                     42.4      16121.5   3802.2
-Shell Scripts (8 concurrent)                      6.0       5623.5   9372.5
-System Call Overhead                          15000.0    4068991.3   2712.7
-                                                                   =3D=3D=
-=3D=3D=3D=3D=3D=3D
-System Benchmarks Index Score                                        2547.7
-
-------------------------------------------------------------------------
-Benchmark Run: Mon Jun 11 2018 05:28:54 - 05:57:07
-8 CPUs in system; running 8 parallel copies of tests
-
-Dhrystone 2 using register variables      234727639.9 lps   (10.0 s, 7 samp=
-les)
-Double-Precision Whetstone                    35350.9 MWIPS (10.7 s, 7 samp=
-les)
-Execl Throughput                              43811.3 lps   (30.0 s, 2 samp=
-les)
-File Copy 1024 bufsize 2000 maxblocks       1401373.1 KBps  (30.0 s, 2 samp=
-les)
-File Copy 256 bufsize 500 maxblocks          366033.9 KBps  (30.0 s, 2 samp=
-les)
-File Copy 4096 bufsize 8000 maxblocks       4360829.6 KBps  (30.0 s, 2 samp=
-les)
-Pipe Throughput                            12875165.6 lps   (10.0 s, 7 samp=
-les)
-Pipe-based Context Switching                2431725.6 lps   (10.0 s, 7 samp=
-les)
-Process Creation                              97360.8 lps   (30.0 s, 2 samp=
-les)
-Shell Scripts (1 concurrent)                  58879.6 lpm   (60.0 s, 2 samp=
-les)
-Shell Scripts (8 concurrent)                   9232.5 lpm   (60.0 s, 2 samp=
-les)
-System Call Overhead                        9497958.7 lps   (10.0 s, 7 samp=
-les)
-
-System Benchmarks Index Values               BASELINE       RESULT    INDEX
-Dhrystone 2 using register variables         116700.0  234727639.9  20113.8
-Double-Precision Whetstone                       55.0      35350.9   6427.4
-Execl Throughput                                 43.0      43811.3  10188.7
-File Copy 1024 bufsize 2000 maxblocks          3960.0    1401373.1   3538.8
-File Copy 256 bufsize 500 maxblocks            1655.0     366033.9   2211.7
-File Copy 4096 bufsize 8000 maxblocks          5800.0    4360829.6   7518.7
-Pipe Throughput                               12440.0   12875165.6  10349.8
-Pipe-based Context Switching                   4000.0    2431725.6   6079.3
-Process Creation                                126.0      97360.8   7727.0
-Shell Scripts (1 concurrent)                     42.4      58879.6  13886.7
-Shell Scripts (8 concurrent)                      6.0       9232.5  15387.5
-System Call Overhead                          15000.0    9497958.7   6332.0
-                                                                   =3D=3D=
-=3D=3D=3D=3D=3D=3D
-System Benchmarks Index Score                                        7803.5
-
-
-2.2 Following is the result after porting.
-
-   BYTE UNIX Benchmarks (Version 5.1.3)
-
-   System: ib1: GNU/Linux
-   OS: GNU/Linux -- 4.14.48-1-pserver-mpbvec+ -- #12 SMP Fri Jun 15
-12:21:36 CEST 2018
-   Machine: x86_64 (unknown)
-   Language: en_US.utf8 (charmap=3D"UTF-8", collate=3D"UTF-8")
-   CPU 0: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 1: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 2: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 3: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 4: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 5: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 6: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   CPU 7: Intel(R) Xeon(R) CPU E3-1245 v5 @ 3.50GHz (7008.0 bogomips)
-          Hyper-Threading, x86-64, MMX, Physical Address Ext,
-SYSENTER/SYSEXIT, SYSCALL/SYSRET, Intel virtualization
-   13:16:11 up 50 min,  1 user,  load average: 0.00, 1.40, 3.46;
-runlevel 2018-06-15
-
-------------------------------------------------------------------------
-Benchmark Run: Fri Jun 15 2018 13:16:11 - 13:45:04
-8 CPUs in system; running 1 parallel copy of tests
-
-Dhrystone 2 using register variables       47103754.6 lps   (10.0 s, 7 samp=
-les)
-Double-Precision Whetstone                     3886.3 MWIPS (15.1 s, 7 samp=
-les)
-Execl Throughput                               8965.0 lps   (30.0 s, 2 samp=
-les)
-File Copy 1024 bufsize 2000 maxblocks       1510285.9 KBps  (30.0 s, 2 samp=
-les)
-File Copy 256 bufsize 500 maxblocks          395196.9 KBps  (30.0 s, 2 samp=
-les)
-File Copy 4096 bufsize 8000 maxblocks       3802788.0 KBps  (30.0 s, 2 samp=
-les)
-Pipe Throughput                             2670169.1 lps   (10.0 s, 7 samp=
-les)
-Pipe-based Context Switching                 275093.8 lps   (10.0 s, 7 samp=
-les)
-Process Creation                              19707.1 lps   (30.0 s, 2 samp=
-les)
-Shell Scripts (1 concurrent)                  16046.8 lpm   (60.0 s, 2 samp=
-les)
-Shell Scripts (8 concurrent)                   5600.8 lpm   (60.0 s, 2 samp=
-les)
-System Call Overhead                        4104142.0 lps   (10.0 s, 7 samp=
-les)
-
-System Benchmarks Index Values               BASELINE       RESULT    INDEX
-Dhrystone 2 using register variables         116700.0   47103754.6   4036.3
-Double-Precision Whetstone                       55.0       3886.3    706.6
-Execl Throughput                                 43.0       8965.0   2084.9
-File Copy 1024 bufsize 2000 maxblocks          3960.0    1510285.9   3813.9
-File Copy 256 bufsize 500 maxblocks            1655.0     395196.9   2387.9
-File Copy 4096 bufsize 8000 maxblocks          5800.0    3802788.0   6556.5
-Pipe Throughput                               12440.0    2670169.1   2146.4
-Pipe-based Context Switching                   4000.0     275093.8    687.7
-Process Creation                                126.0      19707.1   1564.1
-Shell Scripts (1 concurrent)                     42.4      16046.8   3784.6
-Shell Scripts (8 concurrent)                      6.0       5600.8   9334.6
-System Call Overhead                          15000.0    4104142.0   2736.1
-                                                                   =3D=3D=
-=3D=3D=3D=3D=3D=3D
-System Benchmarks Index Score                                        2560.0
-
-------------------------------------------------------------------------
-Benchmark Run: Fri Jun 15 2018 13:45:04 - 14:13:17
-8 CPUs in system; running 8 parallel copies of tests
-
-Dhrystone 2 using register variables      237271982.6 lps   (10.0 s, 7 samp=
-les)
-Double-Precision Whetstone                    35186.8 MWIPS (10.7 s, 7 samp=
-les)
-Execl Throughput                              42557.8 lps   (30.0 s, 2 samp=
-les)
-File Copy 1024 bufsize 2000 maxblocks       1403922.0 KBps  (30.0 s, 2 samp=
-les)
-File Copy 256 bufsize 500 maxblocks          367436.5 KBps  (30.0 s, 2 samp=
-les)
-File Copy 4096 bufsize 8000 maxblocks       4380468.3 KBps  (30.0 s, 2 samp=
-les)
-Pipe Throughput                            12872664.6 lps   (10.0 s, 7 samp=
-les)
-Pipe-based Context Switching                2451404.5 lps   (10.0 s, 7 samp=
-les)
-Process Creation                              97788.2 lps   (30.0 s, 2 samp=
-les)
-Shell Scripts (1 concurrent)                  58505.9 lpm   (60.0 s, 2 samp=
-les)
-Shell Scripts (8 concurrent)                   9195.4 lpm   (60.0 s, 2 samp=
-les)
-System Call Overhead                        9467372.2 lps   (10.0 s, 7 samp=
-les)
-
-System Benchmarks Index Values               BASELINE       RESULT    INDEX
-Dhrystone 2 using register variables         116700.0  237271982.6  20331.8
-Double-Precision Whetstone                       55.0      35186.8   6397.6
-Execl Throughput                                 43.0      42557.8   9897.2
-File Copy 1024 bufsize 2000 maxblocks          3960.0    1403922.0   3545.3
-File Copy 256 bufsize 500 maxblocks            1655.0     367436.5   2220.2
-File Copy 4096 bufsize 8000 maxblocks          5800.0    4380468.3   7552.5
-Pipe Throughput                               12440.0   12872664.6  10347.8
-Pipe-based Context Switching                   4000.0    2451404.5   6128.5
-Process Creation                                126.0      97788.2   7761.0
-Shell Scripts (1 concurrent)                     42.4      58505.9  13798.6
-Shell Scripts (8 concurrent)                      6.0       9195.4  15325.6
-System Call Overhead                          15000.0    9467372.2   6311.6
-                                                                   =3D=3D=
-=3D=3D=3D=3D=3D=3D
-System Benchmarks Index Score                                        7794.3
-
-
---=20
-GIOH KIM
-Linux Kernel Entwickler
-
-ProfitBricks GmbH
-Greifswalder Str. 207
-D - 10405 Berlin
-
-Tel:       +49 176 2697 8962
-Fax:      +49 30 577 008 299
-Email:    gi-oh.kim@profitbricks.com
-URL:      https://www.profitbricks.de
-
-Sitz der Gesellschaft: Berlin
-Registergericht: Amtsgericht Charlottenburg, HRB 125506 B
-Gesch=C3=A4ftsf=C3=BChrer: Achim Weiss, Matthias Steinberg, Christoph Steff=
-ens
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index ebff729cc956..2ab7ec93b199 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -332,6 +332,29 @@ LIST_HEAD(vmap_area_list);
+ static LLIST_HEAD(vmap_purge_list);
+ static struct rb_root vmap_area_root = RB_ROOT;
+ 
++/*
++ * This linked list is used in pair with free_vmap_area_root.
++ * It makes it possible of fast accessing to next/prev nodes
++ * to perform coalescing.
++ */
++static LIST_HEAD(free_vmap_area_list);
++
++/*
++ * This red-black tree is used for storing address-sorted
++ * vmap areas during free operation. Sorting is done using
++ * va_start address. We make use of it to merge a VA with
++ * its prev/next neighbors.
++ */
++static struct rb_root free_vmap_area_root = RB_ROOT;
++
++/*
++ * For vmalloc specific area allocation.
++ */
++static struct vmap_area *last_free_va_chunk;
++static unsigned long last_alloc_vstart;
++static unsigned long last_alloc_align;
++static unsigned long free_va_max_size;
++
+ /* The vmap cache globals are protected by vmap_area_lock */
+ static struct rb_node *free_vmap_cache;
+ static unsigned long cached_hole_size;
+@@ -359,27 +382,53 @@ static struct vmap_area *__find_vmap_area(unsigned long addr)
+ 	return NULL;
+ }
+ 
+-static void __insert_vmap_area(struct vmap_area *va)
++static inline void __find_va_slot(struct vmap_area *va,
++	struct rb_root *root, struct rb_node **parent, struct rb_node ***link)
+ {
+-	struct rb_node **p = &vmap_area_root.rb_node;
+-	struct rb_node *parent = NULL;
+-	struct rb_node *tmp;
++	*link = &root->rb_node;
++	*parent = NULL;
+ 
+-	while (*p) {
++	while (**link) {
+ 		struct vmap_area *tmp_va;
+ 
+-		parent = *p;
+-		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
++		*parent = **link;
++		tmp_va = rb_entry(*parent, struct vmap_area, rb_node);
+ 		if (va->va_start < tmp_va->va_end)
+-			p = &(*p)->rb_left;
++			*link = &(**link)->rb_left;
+ 		else if (va->va_end > tmp_va->va_start)
+-			p = &(*p)->rb_right;
++			*link = &(**link)->rb_right;
+ 		else
+ 			BUG();
+ 	}
++}
++
++static inline void __find_va_siblings(struct rb_node *p_rb_node,
++	struct rb_node **p_rb_link, struct list_head **next, struct list_head **prev)
++{
++	struct list_head *p_list_head;
++
++	if (likely(p_rb_node)) {
++		p_list_head = &rb_entry(p_rb_node, struct vmap_area, rb_node)->list;
++		if (&p_rb_node->rb_right == p_rb_link) {
++			*next = p_list_head->next;
++			*prev = p_list_head;
++		} else {
++			*prev = p_list_head->prev;
++			*next = p_list_head;
++		}
++	} else {
++		/* Suppose it may ever happen. */
++		*next = *prev = &free_vmap_area_list;
++	}
++}
+ 
+-	rb_link_node(&va->rb_node, parent, p);
+-	rb_insert_color(&va->rb_node, &vmap_area_root);
++static inline void __link_va(struct vmap_area *va, struct rb_root *root,
++	struct rb_node *parent, struct rb_node **p_link, struct list_head *head)
++{
++	struct rb_node *tmp;
++
++	rb_link_node(&va->rb_node, parent, p_link);
++	rb_insert_color(&va->rb_node, root);
+ 
+ 	/* address-sort this list */
+ 	tmp = rb_prev(&va->rb_node);
+@@ -388,13 +437,239 @@ static void __insert_vmap_area(struct vmap_area *va)
+ 		prev = rb_entry(tmp, struct vmap_area, rb_node);
+ 		list_add_rcu(&va->list, &prev->list);
+ 	} else
+-		list_add_rcu(&va->list, &vmap_area_list);
++		list_add_rcu(&va->list, head);
++}
++
++static void __insert_vmap_area(struct vmap_area *va,
++		struct rb_root *root, struct list_head *head)
++{
++	struct rb_node **p_link;
++	struct rb_node *parent;
++
++	__find_va_slot(va, root, &parent, &p_link);
++	__link_va(va, root, parent, p_link, head);
+ }
+ 
+ static void purge_vmap_area_lazy(void);
+ 
+ static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
+ 
++static inline unsigned long
++__va_size(struct vmap_area *va)
++{
++	return va->va_end - va->va_start;
++}
++
++static inline void
++__remove_free_va_area(struct vmap_area *va)
++{
++	/*
++	 * Remove VA from the address-sorted tree/list.
++	 * Do check if its rb_node is empty or not, since
++	 * we use this function as common interface to
++	 * destroy a vmap_area.
++	 */
++	if (!RB_EMPTY_NODE(&va->rb_node)) {
++		rb_erase(&va->rb_node, &free_vmap_area_root);
++		list_del_rcu(&va->list);
++	}
++
++	/*
++	 * Lazy free.
++	 */
++	kfree_rcu(va, rcu_head);
++}
++
++/*
++ * Merge de-allocated chunk of VA memory with previous
++ * and next free blocks. Either a pointer to the new
++ * merged area is returned if coalesce is done or VA
++ * area if inserting is done.
++ */
++static inline struct vmap_area *
++__merge_add_free_va_area(struct vmap_area *va,
++	struct rb_root *root, struct list_head *head)
++{
++	struct vmap_area *sibling;
++	struct list_head *next, *prev;
++	struct rb_node **p_link;
++	struct rb_node *parent;
++	bool merged = false;
++
++	/*
++	 * Find a place in the tree where VA potentially will be
++	 * inserted, unless it is merged with its sibling/siblings.
++	 */
++	__find_va_slot(va, root, &parent, &p_link);
++
++	/*
++	 * Get next/prev nodes of VA to check if merging can be done.
++	 */
++	__find_va_siblings(parent, p_link, &next, &prev);
++
++	/*
++	 * start            end
++	 * |                |
++	 * |<------VA------>|<-----Next----->|
++	 *                  |                |
++	 *                  start            end
++	 */
++	if (next != head) {
++		sibling = list_entry(next, struct vmap_area, list);
++		if (sibling->va_start == va->va_end) {
++			sibling->va_start = va->va_start;
++			__remove_free_va_area(va);
++
++			/* Point to the new merged area. */
++			va = sibling;
++			merged = true;
++		}
++	}
++
++	/*
++	 * start            end
++	 * |                |
++	 * |<-----Prev----->|<------VA------>|
++	 *                  |                |
++	 *                  start            end
++	 */
++	if (prev != head) {
++		sibling = list_entry(prev, struct vmap_area, list);
++		if (sibling->va_end == va->va_start) {
++			sibling->va_end = va->va_end;
++			__remove_free_va_area(va);
++
++			/* Point to the new merged area. */
++			va = sibling;
++			merged = true;
++		}
++	}
++
++	if (!merged)
++		__link_va(va, root, parent, p_link, head);
++
++	return va;
++}
++
++static inline unsigned long
++alloc_vmalloc_area(unsigned long size, unsigned long align,
++		unsigned long vstart, unsigned long vend,
++		int node, gfp_t gfp_mask)
++{
++	struct vmap_area *b_fit = NULL;  /* best fit */
++	struct vmap_area *le_fit = NULL; /* left-edge fit */
++	struct vmap_area *re_fit = NULL; /* right-edge fit */
++	struct vmap_area *ne_fit = NULL; /* no edge fit */
++	struct vmap_area *va = last_free_va_chunk;
++	unsigned long nva_start_addr;
++
++	if (!last_free_va_chunk || size <= free_va_max_size ||
++			vstart < last_alloc_vstart || align < last_alloc_align) {
++		va = list_first_entry(&free_vmap_area_list, struct vmap_area, list);
++		free_va_max_size = 0;
++		last_free_va_chunk = NULL;
++	}
++
++	nva_start_addr = ALIGN(vstart, align);
++	list_for_each_entry_from(va, &free_vmap_area_list, list) {
++		if (va->va_start > vstart)
++			nva_start_addr = ALIGN(va->va_start, align);
++
++		/* VA does not fit to requested parameters. */
++		if (nva_start_addr + size > va->va_end) {
++			free_va_max_size = max(free_va_max_size, __va_size(va));
++			continue;
++		}
++
++		/* Nothing has been found, give up. */
++		if (nva_start_addr + size > vend)
++			break;
++
++		/* Classify what we have found. */
++		if (va->va_start == nva_start_addr) {
++			if (va->va_end == nva_start_addr + size)
++				b_fit = va;
++			le_fit = va;
++		} else if (va->va_end == nva_start_addr + size) {
++			re_fit = va;
++		} else {
++			ne_fit = va;
++		}
++
++		last_free_va_chunk = va;
++		last_alloc_vstart = vstart;
++		last_alloc_align = align;
++		break;
++	}
++
++	if (b_fit) {
++		/*
++		 * No need to split VA, it fully fits.
++		 *
++		 * |               |
++		 * V      NVA      V
++		 * |---------------|
++		 */
++		if (b_fit->list.prev != &free_vmap_area_list)
++			last_free_va_chunk = list_prev_entry(b_fit, list);
++		else
++			last_free_va_chunk = NULL;
++
++		__remove_free_va_area(b_fit);
++	} else if (le_fit) {
++		/*
++		 * Split left edge fit VA.
++		 *
++		 * |       |
++		 * V  NVA  V
++		 * |-------|-------|
++		 */
++		le_fit->va_start += size;
++	} else if (re_fit) {
++		/*
++		 * Split right edge fit VA.
++		 *
++		 *         |       |
++		 *         V  NVA  V
++		 * |-------|-------|
++		 */
++		re_fit->va_end = nva_start_addr;
++	} else if (ne_fit) {
++		/*
++		 * Split no edge fit VA.
++		 *
++		 *     |       |
++		 *     V  NVA  V
++		 * |---|-------|---|
++		 */
++		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
++		if (unlikely(!va))
++			return VMALLOC_END;
++
++		/*
++		 * Build right area of VA.
++		 */
++		va->va_start = nva_start_addr + size;
++		va->va_end = ne_fit->va_end;
++
++		/*
++		 * Build left area of VA.
++		 */
++		ne_fit->va_end = nva_start_addr;
++
++		/*
++		 * Add newly built right area to the address sorted list.
++		 */
++		__insert_vmap_area(va,
++			&free_vmap_area_root, &free_vmap_area_list);
++	} else {
++		/* Not found. */
++		nva_start_addr = VMALLOC_END;
++	}
++
++	return nva_start_addr;
++}
++
+ /*
+  * Allocate a region of KVA of the specified size and alignment, within the
+  * vstart and vend.
+@@ -409,6 +684,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 	unsigned long addr;
+ 	int purged = 0;
+ 	struct vmap_area *first;
++	bool is_vmalloc_allocation;
+ 
+ 	BUG_ON(!size);
+ 	BUG_ON(offset_in_page(size));
+@@ -426,9 +702,22 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 	 * to avoid false negatives.
+ 	 */
+ 	kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask & GFP_RECLAIM_MASK);
++	is_vmalloc_allocation = is_vmalloc_addr((void *)vstart);
+ 
+ retry:
+ 	spin_lock(&vmap_area_lock);
++	if (is_vmalloc_allocation) {
++		addr = alloc_vmalloc_area(size, align,
++					vstart, vend, node, gfp_mask);
++
++		/*
++		 * If an allocation fails, the VMALLOC_END address is
++		 * returned. Therefore, an overflow path will be triggered
++		 * below.
++		 */
++		goto found;
++	}
++
+ 	/*
+ 	 * Invalidate cache if we have more permissive parameters.
+ 	 * cached_hole_size notes the largest hole noticed _below_
+@@ -504,8 +793,11 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 	va->va_start = addr;
+ 	va->va_end = addr + size;
+ 	va->flags = 0;
+-	__insert_vmap_area(va);
+-	free_vmap_cache = &va->rb_node;
++	__insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
++
++	if (!is_vmalloc_allocation)
++		free_vmap_cache = &va->rb_node;
++
+ 	spin_unlock(&vmap_area_lock);
+ 
+ 	BUG_ON(!IS_ALIGNED(va->va_start, align));
+@@ -552,9 +844,14 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
+ 
+ static void __free_vmap_area(struct vmap_area *va)
+ {
++	unsigned long last_free_va_start = 0;
++	bool is_vmalloc_area;
++
+ 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
++	is_vmalloc_area = (va->va_end > VMALLOC_START &&
++			va->va_end <= VMALLOC_END);
+ 
+-	if (free_vmap_cache) {
++	if (!is_vmalloc_area && free_vmap_cache) {
+ 		if (va->va_end < cached_vstart) {
+ 			free_vmap_cache = NULL;
+ 		} else {
+@@ -573,16 +870,39 @@ static void __free_vmap_area(struct vmap_area *va)
+ 	RB_CLEAR_NODE(&va->rb_node);
+ 	list_del_rcu(&va->list);
+ 
+-	/*
+-	 * Track the highest possible candidate for pcpu area
+-	 * allocation.  Areas outside of vmalloc area can be returned
+-	 * here too, consider only end addresses which fall inside
+-	 * vmalloc area proper.
+-	 */
+-	if (va->va_end > VMALLOC_START && va->va_end <= VMALLOC_END)
++	if (is_vmalloc_area) {
++		/*
++		 * Track the highest possible candidate for pcpu area
++		 * allocation.  Areas outside of vmalloc area can be returned
++		 * here too, consider only end addresses which fall inside
++		 * vmalloc area proper.
++		 */
+ 		vmap_area_pcpu_hole = max(vmap_area_pcpu_hole, va->va_end);
+ 
+-	kfree_rcu(va, rcu_head);
++		if (last_free_va_chunk)
++			last_free_va_start = last_free_va_chunk->va_start;
++
++		/*
++		 * Merge VA with its neighbors, otherwise add it.
++		 */
++		va = __merge_add_free_va_area(va,
++			&free_vmap_area_root, &free_vmap_area_list);
++
++		/*
++		 * Update a search criteria if merging/inserting is
++		 * done before last_free_va_chunk va_start address.
++		 */
++		if (last_free_va_start) {
++			if (va->va_start <= last_free_va_start) {
++				if (va->list.prev != &free_vmap_area_list)
++					last_free_va_chunk = list_prev_entry(va, list);
++				else
++					last_free_va_chunk = NULL;
++			}
++		}
++	} else {
++		kfree_rcu(va, rcu_head);
++	}
+ }
+ 
+ /*
+@@ -1253,7 +1573,7 @@ void __init vm_area_register_early(struct vm_struct *vm, size_t align)
+ 
+ void __init vmalloc_init(void)
+ {
+-	struct vmap_area *va;
++	struct vmap_area *va, *prev_va;
+ 	struct vm_struct *tmp;
+ 	int i;
+ 
+@@ -1269,16 +1589,62 @@ void __init vmalloc_init(void)
+ 		INIT_WORK(&p->wq, free_work);
+ 	}
+ 
++	/*
++	 * Build free areas.
++	 */
++	va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
++	va->va_start = (unsigned long) VMALLOC_START;
++
++	if (!vmlist)
++		va->va_end = (unsigned long) VMALLOC_END;
++	else
++		va->va_end = (unsigned long) vmlist->addr;
++
++	__insert_vmap_area(va,
++		&free_vmap_area_root, &free_vmap_area_list);
++
++	if (!vmlist)
++		goto build_free_area_done;
++
+ 	/* Import existing vmlist entries. */
+-	for (tmp = vmlist; tmp; tmp = tmp->next) {
++	for (tmp = vmlist, prev_va = NULL; tmp; tmp = tmp->next) {
++		struct vmap_area *free_area;
++
+ 		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
+ 		va->flags = VM_VM_AREA;
+ 		va->va_start = (unsigned long)tmp->addr;
+ 		va->va_end = va->va_start + tmp->size;
+ 		va->vm = tmp;
+-		__insert_vmap_area(va);
++		__insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
++
++		/*
++		 * Check if there is a padding between previous/current.
++		 */
++		if (prev_va && (va->va_start - prev_va->va_end) > 0) {
++			free_area = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
++			free_area->va_start = prev_va->va_end;
++			free_area->va_end = va->va_start;
++
++			__insert_vmap_area(free_area,
++				&free_vmap_area_root, &free_vmap_area_list);
++		}
++
++		/*
++		 * Handle last case building the remaining space.
++		 */
++		if (!tmp->next) {
++			free_area = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
++			free_area->va_start = va->va_end;
++			free_area->va_end = (unsigned long) VMALLOC_END;
++
++			__insert_vmap_area(free_area,
++				&free_vmap_area_root, &free_vmap_area_list);
++		}
++
++		prev_va = va;
+ 	}
+ 
++build_free_area_done:
+ 	vmap_area_pcpu_hole = VMALLOC_END;
+ 
+ 	vmap_initialized = true;
+@@ -2604,7 +2970,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
+ 
+ 		va->va_start = base + offsets[area];
+ 		va->va_end = va->va_start + sizes[area];
+-		__insert_vmap_area(va);
++		__insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
+ 	}
+ 
+ 	vmap_area_pcpu_hole = base + offsets[last_area];
+-- 
+2.11.0
