@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EE96B6B0007
-	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 10:26:00 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id y7-v6so5362952plt.17
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 07:26:00 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r125-v6si7876993pfc.202.2018.06.15.07.25.59
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CBC6C6B000A
+	for <linux-mm@kvack.org>; Fri, 15 Jun 2018 10:28:53 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id o19-v6so3452172pgn.14
+        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 07:28:53 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id e9-v6si9156915pli.337.2018.06.15.07.28.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jun 2018 07:25:59 -0700 (PDT)
-Message-ID: <1529072566.17958.4.camel@2b52.sc.intel.com>
-Subject: Re: [PATCH 5/5] Documentation/x86: Add CET description
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Date: Fri, 15 Jun 2018 07:22:46 -0700
-In-Reply-To: <20180615111424.GA4473@amd>
-References: <20180607143544.3477-1-yu-cheng.yu@intel.com>
-	 <20180607143544.3477-6-yu-cheng.yu@intel.com> <20180615111424.GA4473@amd>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Fri, 15 Jun 2018 07:28:52 -0700 (PDT)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH v33 0/4] Virtio-balloon: support free page reporting
+Date: Fri, 15 Jun 2018 14:28:49 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F7396A3DC9@shsmsx102.ccr.corp.intel.com>
+References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com>
+ <20180615142610-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20180615142610-mutt-send-email-mst@kernel.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, "H. Peter
- Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Mike Kravetz <mike.kravetz@oracle.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "peterx@redhat.com" <peterx@redhat.com>
 
-On Fri, 2018-06-15 at 13:14 +0200, Pavel Machek wrote:
-> On Thu 2018-06-07 07:35:44, Yu-cheng Yu wrote:
-> > Explain how CET works and the noshstk/noibt kernel parameters.
-> > 
-> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> > ---
-> >  Documentation/admin-guide/kernel-parameters.txt |   6 +
-> >  Documentation/x86/intel_cet.txt                 | 161 ++++++++++++++++++++++++
-> 
-> Should new files be .rst formatted or something like that?
-> 									Pavel
+On Friday, June 15, 2018 7:30 PM, Michael S. Tsirkin wrote:
+> On Fri, Jun 15, 2018 at 12:43:09PM +0800, Wei Wang wrote:
+> >       - remove the cmd id related interface. Now host can just send a f=
+ree
+> >         page hint command to the guest (via the host_cmd config registe=
+r)
+> >         to start the reporting.
+>=20
+> Here we go again. And what if reporting was already started previously?
+> I don't think it's a good idea to tweak the host/guest interface yet agai=
+n.
 
-I will fix kernel-parameters.rst.  But currently there is no .rst in
-Documentation/x86?
+This interface is much simpler, and I'm not sure if that would be an issue =
+here now, because
+now the guest delivers the whole buffer of hints to host once, instead of h=
+int by hint as before. And the guest notifies host after the buffer is deli=
+vered. In any case, the host doorbell handler will be invoked, if host does=
+n't need the hints at that time, it will just give back the buffer. There w=
+ill be no stale hints remained in the ring now.
 
-Yu-cheng
+Best,
+Wei
