@@ -1,89 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C03B26B0277
-	for <linux-mm@kvack.org>; Sat, 16 Jun 2018 01:40:57 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id x16-v6so9286051qto.20
-        for <linux-mm@kvack.org>; Fri, 15 Jun 2018 22:40:57 -0700 (PDT)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id t67-v6si6830050qkb.321.2018.06.15.22.40.56
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4258D6B0005
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2018 04:04:25 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f65-v6so2409073wmd.2
+        for <linux-mm@kvack.org>; Sat, 16 Jun 2018 01:04:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e6-v6sor974319wmh.3.2018.06.16.01.04.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jun 2018 22:40:56 -0700 (PDT)
-Subject: Re: OpenAFS module libafs.ko uses GPL-only symbol
- '__put_devmap_managed_page'
-References: <CAFhSwD9RNcsaTNdT-4DiE_BKK6zrsdBbNbGBEkBoJuwQn1JdQA@mail.gmail.com>
- <CAPcyv4hpjNaUz6qpJ0_Wh1SAz9tS9a5HLsYSgeCh_pNZKfY74A@mail.gmail.com>
- <1970355c-ebca-7f7d-38f7-ceac1ae553fb@nvidia.com>
- <CAPcyv4j=LFY31zn7yFXUrsrvzQEz=a92VLOa=Tp46JbGHhC7Xw@mail.gmail.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <a6a16c1c-3e80-2cf8-6d8d-1d0fc91008af@nvidia.com>
-Date: Fri, 15 Jun 2018 22:40:01 -0700
+        (Google Transport Security);
+        Sat, 16 Jun 2018 01:04:23 -0700 (PDT)
+Subject: Re: [PATCH v1] mm: relax deferred struct page requirements
+References: <20171117014601.31606-1-pasha.tatashin@oracle.com>
+ <20171121072416.v77vu4osm2s4o5sq@dhcp22.suse.cz>
+From: Jiri Slaby <jslaby@suse.cz>
+Message-ID: <b16029f0-ada0-df25-071b-cd5dba0ab756@suse.cz>
+Date: Sat, 16 Jun 2018 10:04:21 +0200
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4j=LFY31zn7yFXUrsrvzQEz=a92VLOa=Tp46JbGHhC7Xw@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
+In-Reply-To: <20171121072416.v77vu4osm2s4o5sq@dhcp22.suse.cz>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Joe Gorse <jhgorse@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Christoph Hellwig <hch@lst.de>
+To: Michal Hocko <mhocko@kernel.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, arbab@linux.vnet.ibm.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, mgorman@techsingularity.net
 
-On 06/15/2018 10:22 PM, Dan Williams wrote:
-> On Fri, Jun 15, 2018 at 9:43 PM, John Hubbard <jhubbard@nvidia.com> wrote:
->> On 06/13/2018 12:51 PM, Dan Williams wrote:
->>> [ adding Andrew, Christoph, and linux-mm ]
->>>
->>> On Wed, Jun 13, 2018 at 12:33 PM, Joe Gorse <jhgorse@gmail.com> wrote:
-[snip]
->>>>
->>>> P.S. The build failure, for the morbidly curious:
->>>>> FATAL: modpost: GPL-incompatible module libafs.ko uses GPL-only symbol
->>>>> '__put_devmap_managed_page'
->>>>> scripts/Makefile.modpost:92: recipe for target '__modpost' failed
->>>>> make[6]: *** [__modpost] Error 1
->>>
->>> I think the right answer here is to make __put_devmap_managed_page()
->>> EXPORT_SYMBOL(), since features like devm_memremap_pages() want to
->>> change the behavior of all users of put_page(). It again holds that
->>> devm_memremap_pages() needs to become EXPORT_SYMBOL_GPL() because it,
->>> not put_page(), is the interface that is leaking control of core
->>> kernel state/infrastructure to its users.
->>>
+On 11/21/2017, 08:24 AM, Michal Hocko wrote:
+> On Thu 16-11-17 20:46:01, Pavel Tatashin wrote:
+>> There is no need to have ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT,
+>> as all the page initialization code is in common code.
 >>
->> Hi Dan and all,
+>> Also, there is no need to depend on MEMORY_HOTPLUG, as initialization code
+>> does not really use hotplug memory functionality. So, we can remove this
+>> requirement as well.
 >>
->> It looks like put_page() also picks up one more GPL symbol:
->> devmap_managed_key.
+>> This patch allows to use deferred struct page initialization on all
+>> platforms with memblock allocator.
 >>
->> put_page
->>     put_devmap_managed_page
->>         devmap_managed_key
->>
->>     __put_devmap_managed_page
->>
->>
->> So if the goal is to restore put_page() to be effectively EXPORT_SYMBOL
->> again, then I think there would also need to be either a non-inlined
->> wrapper for devmap_managed_key (awkward for a static key), or else make
->> it EXPORT_SYMBOL, or maybe something else that's less obvious to me at the
->> moment.
+>> Tested on x86, arm64, and sparc. Also, verified that code compiles on
+>> PPC with CONFIG_MEMORY_HOTPLUG disabled.
 > 
-> Right, certainly flipping the key is a kernel internal detail since it
-> is giving the dev_pagemap owner purview over all kernel page events,
-> but put_page() users are silent consumers. And you're right there's
-> currently no good way I see to export the 'producer' and 'consumer'
-> side of the key with different export types.
-> 
+> There is slight risk that we will encounter corner cases on some
+> architectures with weird memory layout/topology
 
-It's hard to imagine how anyone could end up using devmap_managed_key
-in an out-of-tree driver, given that other related symbols are already
-locked down with EXPORT_SYMBOL_GPL. So one easy fix might be to just
-make it EXPORT_SYMBOL, with a comment that explains the intent, and just
-call it a day:
+Which x86_32-pae seems to be. Many bad page state errors are emitted
+during boot when this patch is applied:
+BUG: Bad page state in process swapper  pfn:3c01c
+page:f566c3f0 count:0 mapcount:1 mapping:00000000 index:0x0
+flags: 0x0()
+raw: 00000000 00000000 00000000 00000000 00000000 00000100 00000200 00000000
+raw: 00000000
+page dumped because: nonzero mapcount
+Modules linked in:
+CPU: 0 PID: 0 Comm: swapper Tainted: G    B
+4.17.1-4.gdf028bb-pae #1 openSUSE Tumbleweed (unreleased)
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
+1.0.0-prebuilt.qemu-project.org 04/01/2014
+Call Trace:
+ dump_stack+0x7d/0xbd
+ bad_page.cold.111+0x90/0xc7
+ free_pages_check_bad+0x52/0x70
+ free_pcppages_bulk+0x37d/0x570
+ free_unref_page_commit+0x9a/0xc0
+ free_unref_page+0x6a/0xa0
+ __free_pages+0x17/0x30
+ free_highmem_page+0x1e/0x50
+ add_highpages_with_active_regions+0xd6/0x113
+ set_highmem_pages_init+0x67/0x7d
+ mem_init+0x23/0x1d9
+ start_kernel+0x1c2/0x437
+ i386_start_kernel+0x98/0x9c
+ startup_32_smp+0x164/0x168
 
-/* This is intended to be EXPORT_SYMBOL_GPL, but actually doing so would
- * cause a problem for put_page().
- */
-EXPORT_SYMBOL(devmap_managed_key);
+free_pages_check_bad expects mapcount == -1, but it is 1 with this patch.
 
-...I'm sort of winging it here... :)
+Reverting the patch makes the BUGs go away -- the config diff is then:
+@@ -617,7 +617,7 @@
+ # CONFIG_PGTABLE_MAPPING is not set
+ # CONFIG_ZSMALLOC_STAT is not set
+ CONFIG_GENERIC_EARLY_IOREMAP=y
+-CONFIG_DEFERRED_STRUCT_PAGE_INIT=y
++CONFIG_ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT=y
+ # CONFIG_IDLE_PAGE_TRACKING is not set
+ CONFIG_FRAME_VECTOR=y
+ # CONFIG_PERCPU_STATS is not set
+
+>> --- a/arch/powerpc/Kconfig
+>> +++ b/arch/powerpc/Kconfig
+>> @@ -148,7 +148,6 @@ config PPC
+>>  	select ARCH_MIGHT_HAVE_PC_PARPORT
+>>  	select ARCH_MIGHT_HAVE_PC_SERIO
+>>  	select ARCH_SUPPORTS_ATOMIC_RMW
+>> -	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+>>  	select ARCH_USE_BUILTIN_BSWAP
+>>  	select ARCH_USE_CMPXCHG_LOCKREF		if PPC64
+>>  	select ARCH_WANT_IPC_PARSE_VERSION
+>> diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
+>> index 863a62a6de3c..525c2e3df6f5 100644
+>> --- a/arch/s390/Kconfig
+>> +++ b/arch/s390/Kconfig
+>> @@ -108,7 +108,6 @@ config S390
+>>  	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
+>>  	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
+>>  	select ARCH_SUPPORTS_ATOMIC_RMW
+>> -	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+>>  	select ARCH_SUPPORTS_NUMA_BALANCING
+>>  	select ARCH_USE_BUILTIN_BSWAP
+>>  	select ARCH_USE_CMPXCHG_LOCKREF
+>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>> index df3276d6bfe3..00a5446de394 100644
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+>> @@ -69,7 +69,6 @@ config X86
+>>  	select ARCH_MIGHT_HAVE_PC_PARPORT
+>>  	select ARCH_MIGHT_HAVE_PC_SERIO
+>>  	select ARCH_SUPPORTS_ATOMIC_RMW
+>> -	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+>>  	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
+>>  	select ARCH_USE_BUILTIN_BSWAP
+>>  	select ARCH_USE_QUEUED_RWLOCKS
+>> diff --git a/mm/Kconfig b/mm/Kconfig
+>> index 9c4bdddd80c2..c6bd0309ce7a 100644
+>> --- a/mm/Kconfig
+>> +++ b/mm/Kconfig
+>> @@ -639,15 +639,10 @@ config MAX_STACK_SIZE_MB
+>>  
+>>  	  A sane initial value is 80 MB.
+>>  
+>> -# For architectures that support deferred memory initialisation
+>> -config ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+>> -	bool
+>> -
+>>  config DEFERRED_STRUCT_PAGE_INIT
+>>  	bool "Defer initialisation of struct pages to kthreads"
+>>  	default n
+>> -	depends on ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+>> -	depends on NO_BOOTMEM && MEMORY_HOTPLUG
+>> +	depends on NO_BOOTMEM
+>>  	depends on !FLATMEM
+>>  	help
+>>  	  Ordinarily all struct pages are initialised during early boot in a
+
+thanks,
+-- 
+js
+suse labs
