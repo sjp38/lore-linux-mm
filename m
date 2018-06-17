@@ -1,36 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B6EA6B0007
-	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 07:36:12 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b65-v6so7185822plb.5
-        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 04:36:12 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BA7556B000A
+	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 07:36:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id g20-v6so7136891pfi.2
+        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 04:36:14 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m8-v6si10424254pga.530.2018.06.17.04.36.10
+        by mx.google.com with ESMTPS id b1-v6si12152110pld.323.2018.06.17.04.36.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Jun 2018 04:36:10 -0700 (PDT)
-Subject: Patch "x86/pkeys/selftests: Save off 'prot' for allocations" has been added to the 4.14-stable tree
+        Sun, 17 Jun 2018 04:36:13 -0700 (PDT)
+Subject: Patch "x86/pkeys/selftests: Add PROT_EXEC test" has been added to the 4.14-stable tree
 From: <gregkh@linuxfoundation.org>
 Date: Sun, 17 Jun 2018 13:23:31 +0200
-Message-ID: <152923461140152@kroah.com>
+Message-ID: <15292346113162@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20180509171354.AA23E228@viggo.jf.intel.com, akpm@linux-foundation.org, alexander.levin@microsoft.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, mpe@ellerman.id.au, peterz@infradead.org, shuah@kernel.org, tglx@linutronix.de, torvalds@linux-foundation.org
+To: 20180509171348.9EEE4BEF@viggo.jf.intel.com, akpm@linux-foundation.org, alexander.levin@microsoft.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, mpe@ellerman.id.au, peterz@infradead.org, shuah@kernel.org, tglx@linutronix.de, torvalds@linux-foundation.org
 Cc: stable-commits@vger.kernel.org
 
 
 This is a note to let you know that I've just added the patch titled
 
-    x86/pkeys/selftests: Save off 'prot' for allocations
+    x86/pkeys/selftests: Add PROT_EXEC test
 
 to the 4.14-stable tree which can be found at:
     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
-     x86-pkeys-selftests-save-off-prot-for-allocations.patch
+     x86-pkeys-selftests-add-prot_exec-test.patch
 and it can be found in the queue-4.14 subdirectory.
 
 If you, or anyone else, feels it should not be added to the stable tree,
@@ -39,19 +39,17 @@ please let <stable@vger.kernel.org> know about it.
 
 >From foo@baz Sun Jun 17 12:13:49 CEST 2018
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 9 May 2018 10:13:54 -0700
-Subject: x86/pkeys/selftests: Save off 'prot' for allocations
+Date: Wed, 9 May 2018 10:13:48 -0700
+Subject: x86/pkeys/selftests: Add PROT_EXEC test
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit acb25d761d6f2f64e785ccefc71e54f244f1eda4 ]
+[ Upstream commit 6af17cf89e99b64cf1f660bf848755442ab2f047 ]
 
-This makes it possible to to tell what 'prot' a given allocation
-is supposed to have.  That way, if we want to change just the
-pkey, we know what 'prot' to pass to mprotect_pkey().
+Under the covers, implement executable-only memory with
+protection keys when userspace calls mprotect(PROT_EXEC).
 
-Also, keep a record of the most recent allocation so the tests
-can easily find it.
+But, we did not have a selftest for that.  Now we do.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -63,75 +61,74 @@ Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171354.AA23E228@viggo.jf.intel.com
+Link: http://lkml.kernel.org/r/20180509171348.9EEE4BEF@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ tools/testing/selftests/x86/protection_keys.c |   44 ++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -677,10 +677,12 @@ int mprotect_pkey(void *ptr, size_t size
- struct pkey_malloc_record {
- 	void *ptr;
- 	long size;
-+	int prot;
- };
- struct pkey_malloc_record *pkey_malloc_records;
-+struct pkey_malloc_record *pkey_last_malloc_record;
- long nr_pkey_malloc_records;
--void record_pkey_malloc(void *ptr, long size)
-+void record_pkey_malloc(void *ptr, long size, int prot)
- {
- 	long i;
- 	struct pkey_malloc_record *rec = NULL;
-@@ -712,6 +714,8 @@ void record_pkey_malloc(void *ptr, long
- 		(int)(rec - pkey_malloc_records), rec, ptr, size);
- 	rec->ptr = ptr;
- 	rec->size = size;
-+	rec->prot = prot;
-+	pkey_last_malloc_record = rec;
- 	nr_pkey_malloc_records++;
+@@ -1303,6 +1303,49 @@ void test_executing_on_unreadable_memory
+ 	expected_pk_fault(pkey);
  }
  
-@@ -756,7 +760,7 @@ void *malloc_pkey_with_mprotect(long siz
- 	pkey_assert(ptr != (void *)-1);
- 	ret = mprotect_pkey((void *)ptr, PAGE_SIZE, prot, pkey);
- 	pkey_assert(!ret);
--	record_pkey_malloc(ptr, size);
-+	record_pkey_malloc(ptr, size, prot);
- 	rdpkru();
- 
- 	dprintf1("%s() for pkey %d @ %p\n", __func__, pkey, ptr);
-@@ -777,7 +781,7 @@ void *malloc_pkey_anon_huge(long size, i
- 	size = ALIGN_UP(size, HPAGE_SIZE * 2);
- 	ptr = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
- 	pkey_assert(ptr != (void *)-1);
--	record_pkey_malloc(ptr, size);
-+	record_pkey_malloc(ptr, size, prot);
- 	mprotect_pkey(ptr, size, prot, pkey);
- 
- 	dprintf1("unaligned ptr: %p\n", ptr);
-@@ -850,7 +854,7 @@ void *malloc_pkey_hugetlb(long size, int
- 	pkey_assert(ptr != (void *)-1);
- 	mprotect_pkey(ptr, size, prot, pkey);
- 
--	record_pkey_malloc(ptr, size);
-+	record_pkey_malloc(ptr, size, prot);
- 
- 	dprintf1("mmap()'d hugetlbfs for pkey %d @ %p\n", pkey, ptr);
- 	return ptr;
-@@ -872,7 +876,7 @@ void *malloc_pkey_mmap_dax(long size, in
- 
- 	mprotect_pkey(ptr, size, prot, pkey);
- 
--	record_pkey_malloc(ptr, size);
-+	record_pkey_malloc(ptr, size, prot);
- 
- 	dprintf1("mmap()'d for pkey %d @ %p\n", pkey, ptr);
- 	close(fd);
++void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
++{
++	void *p1;
++	int scratch;
++	int ptr_contents;
++	int ret;
++
++	dprintf1("%s() start\n", __func__);
++
++	p1 = get_pointer_to_instructions();
++	lots_o_noops_around_write(&scratch);
++	ptr_contents = read_ptr(p1);
++	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
++
++	/* Use a *normal* mprotect(), not mprotect_pkey(): */
++	ret = mprotect(p1, PAGE_SIZE, PROT_EXEC);
++	pkey_assert(!ret);
++
++	dprintf2("pkru: %x\n", rdpkru());
++
++	/* Make sure this is an *instruction* fault */
++	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
++	lots_o_noops_around_write(&scratch);
++	do_not_expect_pk_fault("executing on PROT_EXEC memory");
++	ptr_contents = read_ptr(p1);
++	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
++	expected_pk_fault(UNKNOWN_PKEY);
++
++	/*
++	 * Put the memory back to non-PROT_EXEC.  Should clear the
++	 * exec-only pkey off the VMA and allow it to be readable
++	 * again.  Go to PROT_NONE first to check for a kernel bug
++	 * that did not clear the pkey when doing PROT_NONE.
++	 */
++	ret = mprotect(p1, PAGE_SIZE, PROT_NONE);
++	pkey_assert(!ret);
++
++	ret = mprotect(p1, PAGE_SIZE, PROT_READ|PROT_EXEC);
++	pkey_assert(!ret);
++	ptr_contents = read_ptr(p1);
++	do_not_expect_pk_fault("plain read on recently PROT_EXEC area");
++}
++
+ void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
+ {
+ 	int size = PAGE_SIZE;
+@@ -1327,6 +1370,7 @@ void (*pkey_tests[])(int *ptr, u16 pkey)
+ 	test_kernel_gup_of_access_disabled_region,
+ 	test_kernel_gup_write_to_write_disabled_region,
+ 	test_executing_on_unreadable_memory,
++	test_implicit_mprotect_exec_only_memory,
+ 	test_ptrace_of_child,
+ 	test_pkey_syscalls_on_non_allocated_pkey,
+ 	test_pkey_syscalls_bad_args,
 
 
 Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
