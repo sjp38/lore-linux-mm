@@ -1,36 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D67326B0288
-	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 07:49:46 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id q19-v6so8232143plr.22
-        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 04:49:46 -0700 (PDT)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C00EA6B028A
+	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 07:49:49 -0400 (EDT)
+Received: by mail-pl0-f71.google.com with SMTP id f5-v6so1688045plf.18
+        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 04:49:49 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id a22-v6si11228390pfn.19.2018.06.17.04.49.45
+        by mx.google.com with ESMTPS id r11-v6si12119253pfe.145.2018.06.17.04.49.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Jun 2018 04:49:45 -0700 (PDT)
-Subject: Patch "x86/pkeys/selftests: Remove dead debugging code, fix dprint_in_signal" has been added to the 4.16-stable tree
+        Sun, 17 Jun 2018 04:49:48 -0700 (PDT)
+Subject: Patch "x86/pkeys/selftests: Save off 'prot' for allocations" has been added to the 4.16-stable tree
 From: <gregkh@linuxfoundation.org>
 Date: Sun, 17 Jun 2018 13:23:54 +0200
-Message-ID: <152923463419263@kroah.com>
+Message-ID: <1529234634205237@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20180509171342.846B9B2E@viggo.jf.intel.com, akpm@linux-foundation.org, alexander.levin@microsoft.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, mpe@ellerman.id.au, peterz@infradead.org, shuah@kernel.org, tglx@linutronix.de, torvalds@linux-foundation.org
+To: 20180509171354.AA23E228@viggo.jf.intel.com, akpm@linux-foundation.org, alexander.levin@microsoft.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, mpe@ellerman.id.au, peterz@infradead.org, shuah@kernel.org, tglx@linutronix.de, torvalds@linux-foundation.org
 Cc: stable-commits@vger.kernel.org
 
 
 This is a note to let you know that I've just added the patch titled
 
-    x86/pkeys/selftests: Remove dead debugging code, fix dprint_in_signal
+    x86/pkeys/selftests: Save off 'prot' for allocations
 
 to the 4.16-stable tree which can be found at:
     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
-     x86-pkeys-selftests-remove-dead-debugging-code-fix-dprint_in_signal.patch
+     x86-pkeys-selftests-save-off-prot-for-allocations.patch
 and it can be found in the queue-4.16 subdirectory.
 
 If you, or anyone else, feels it should not be added to the stable tree,
@@ -39,19 +39,19 @@ please let <stable@vger.kernel.org> know about it.
 
 >From foo@baz Sun Jun 17 12:07:34 CEST 2018
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 9 May 2018 10:13:42 -0700
-Subject: x86/pkeys/selftests: Remove dead debugging code, fix dprint_in_signal
+Date: Wed, 9 May 2018 10:13:54 -0700
+Subject: x86/pkeys/selftests: Save off 'prot' for allocations
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit a50093d60464dd51d1ae0c2267b0abe9e1de77f3 ]
+[ Upstream commit acb25d761d6f2f64e785ccefc71e54f244f1eda4 ]
 
-There is some noisy debug code at the end of the signal handler.  It was
-disabled by an early, unconditional "return".  However, that return also
-hid a dprint_in_signal=0, which kept dprint_in_signal=1 and effectively
-locked us into permanent dprint_in_signal=1 behavior.
+This makes it possible to to tell what 'prot' a given allocation
+is supposed to have.  That way, if we want to change just the
+pkey, we know what 'prot' to pass to mprotect_pkey().
 
-Remove the return and the dead code, fixing dprint_in_signal.
+Also, keep a record of the most recent allocation so the tests
+can easily find it.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -63,39 +63,75 @@ Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171342.846B9B2E@viggo.jf.intel.com
+Link: http://lkml.kernel.org/r/20180509171354.AA23E228@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   16 ----------------
- 1 file changed, 16 deletions(-)
+ tools/testing/selftests/x86/protection_keys.c |   14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -325,22 +325,6 @@ void signal_handler(int signum, siginfo_
- 	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
- 	pkru_faults++;
- 	dprintf1("<<<<==================================================\n");
--	return;
--	if (trapno == 14) {
--		fprintf(stderr,
--			"ERROR: In signal handler, page fault, trapno = %d, ip = %016lx\n",
--			trapno, ip);
--		fprintf(stderr, "si_addr %p\n", si->si_addr);
--		fprintf(stderr, "REG_ERR: %lx\n",
--				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
--		exit(1);
--	} else {
--		fprintf(stderr, "unexpected trap %d! at 0x%lx\n", trapno, ip);
--		fprintf(stderr, "si_addr %p\n", si->si_addr);
--		fprintf(stderr, "REG_ERR: %lx\n",
--				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
--		exit(2);
--	}
- 	dprint_in_signal = 0;
+@@ -677,10 +677,12 @@ int mprotect_pkey(void *ptr, size_t size
+ struct pkey_malloc_record {
+ 	void *ptr;
+ 	long size;
++	int prot;
+ };
+ struct pkey_malloc_record *pkey_malloc_records;
++struct pkey_malloc_record *pkey_last_malloc_record;
+ long nr_pkey_malloc_records;
+-void record_pkey_malloc(void *ptr, long size)
++void record_pkey_malloc(void *ptr, long size, int prot)
+ {
+ 	long i;
+ 	struct pkey_malloc_record *rec = NULL;
+@@ -712,6 +714,8 @@ void record_pkey_malloc(void *ptr, long
+ 		(int)(rec - pkey_malloc_records), rec, ptr, size);
+ 	rec->ptr = ptr;
+ 	rec->size = size;
++	rec->prot = prot;
++	pkey_last_malloc_record = rec;
+ 	nr_pkey_malloc_records++;
  }
  
+@@ -756,7 +760,7 @@ void *malloc_pkey_with_mprotect(long siz
+ 	pkey_assert(ptr != (void *)-1);
+ 	ret = mprotect_pkey((void *)ptr, PAGE_SIZE, prot, pkey);
+ 	pkey_assert(!ret);
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 	rdpkru();
+ 
+ 	dprintf1("%s() for pkey %d @ %p\n", __func__, pkey, ptr);
+@@ -777,7 +781,7 @@ void *malloc_pkey_anon_huge(long size, i
+ 	size = ALIGN_UP(size, HPAGE_SIZE * 2);
+ 	ptr = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+ 	pkey_assert(ptr != (void *)-1);
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 	mprotect_pkey(ptr, size, prot, pkey);
+ 
+ 	dprintf1("unaligned ptr: %p\n", ptr);
+@@ -850,7 +854,7 @@ void *malloc_pkey_hugetlb(long size, int
+ 	pkey_assert(ptr != (void *)-1);
+ 	mprotect_pkey(ptr, size, prot, pkey);
+ 
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 
+ 	dprintf1("mmap()'d hugetlbfs for pkey %d @ %p\n", pkey, ptr);
+ 	return ptr;
+@@ -872,7 +876,7 @@ void *malloc_pkey_mmap_dax(long size, in
+ 
+ 	mprotect_pkey(ptr, size, prot, pkey);
+ 
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 
+ 	dprintf1("mmap()'d for pkey %d @ %p\n", pkey, ptr);
+ 	close(fd);
 
 
 Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
