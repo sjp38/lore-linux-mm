@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 610226B0005
-	for <linux-mm@kvack.org>; Sat, 16 Jun 2018 21:25:42 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id n40-v6so8156402ote.13
-        for <linux-mm@kvack.org>; Sat, 16 Jun 2018 18:25:42 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BD62A6B0006
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2018 21:25:43 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id a1-v6so7947038oti.8
+        for <linux-mm@kvack.org>; Sat, 16 Jun 2018 18:25:43 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z35-v6sor3888426otz.301.2018.06.16.18.25.41
+        by mx.google.com with SMTPS id h185-v6sor4612602oib.220.2018.06.16.18.25.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 16 Jun 2018 18:25:41 -0700 (PDT)
+        Sat, 16 Jun 2018 18:25:42 -0700 (PDT)
 From: john.hubbard@gmail.com
-Subject: [PATCH 0/2] mm: gup: don't unmap or drop filesystem buffers
-Date: Sat, 16 Jun 2018 18:25:08 -0700
-Message-Id: <20180617012510.20139-1-jhubbard@nvidia.com>
+Subject: [PATCH 1/2] consolidate get_user_pages error handling
+Date: Sat, 16 Jun 2018 18:25:09 -0700
+Message-Id: <20180617012510.20139-2-jhubbard@nvidia.com>
+In-Reply-To: <20180617012510.20139-1-jhubbard@nvidia.com>
+References: <20180617012510.20139-1-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
@@ -20,44 +22,110 @@ Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-r
 
 From: John Hubbard <jhubbard@nvidia.com>
 
-Hi,
+In preparation for a subsequent patch, consolidate the error handling
+for __get_user_pages(). This provides a single location (the "out:" label)
+for operating on the collected set of pages that are about to be returned.
 
-I'm including people who have been talking about this. This is in one sense
-a medium-term work around, because there is a plan to talk about more
-extensive fixes at the upcoming Linux Plumbers Conference. I am seeing
-several customer bugs, though, and I really want to fix those sooner.
+As long as we are already touching every use of the "ret" variable, fix
+its name: "ret" --> "err". This also gets rid of two shadowed variable
+declarations, as tiny beneficial a side effect.
 
-I've come up with what I claim is a simple, robust fix, but...I'm
-presuming to burn a struct page flag, and limit it to 64-bit arches, in
-order to get there. Given that the problem is old (Jason Gunthorpe noted
-that RDMA has been living with this problem since 2005), I think it's
-worth it.
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+---
+ mm/gup.c | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)
 
-Leaving the new page flag set "nearly forever" is not great, but on the
-other hand, once the page is actually freed, the flag does get cleared.
-It seems like an acceptable tradeoff, given that we only get one bit
-(and are lucky to even have that).
-
-As hinted at in the longer writeup in patch #2, I really don't like the
-various other approaches in which we try to hook into the (many!)
-downstream symptoms and try to deduce that we're in this situation. It's
-more appropriate to say, "these pages shall not be unmapped, nor buffers
-removed ("do not disturb"), because they have been, well, pinned by the
-get_user_pages call. I believe that this is what the original intention
-might have been, and in any case, that's certainly how a lot of device
-driver writers have interpreted get_user_pages memory over the last
-decade.
-
-John Hubbard (2):
-  consolidate get_user_pages error handling
-  mm: set PG_dma_pinned on get_user_pages*()
-
- include/linux/page-flags.h     |  9 +++++++
- include/trace/events/mmflags.h |  9 ++++++-
- mm/gup.c                       | 48 ++++++++++++++++++++++------------
- mm/page_alloc.c                |  1 +
- mm/rmap.c                      |  2 ++
- 5 files changed, 51 insertions(+), 18 deletions(-)
-
+diff --git a/mm/gup.c b/mm/gup.c
+index b70d7ba7cc13..73f0b3316fa7 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -660,6 +660,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		struct vm_area_struct **vmas, int *nonblocking)
+ {
+ 	long i = 0;
++	int err = 0;
+ 	unsigned int page_mask;
+ 	struct vm_area_struct *vma = NULL;
+ 
+@@ -685,18 +686,19 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		if (!vma || start >= vma->vm_end) {
+ 			vma = find_extend_vma(mm, start);
+ 			if (!vma && in_gate_area(mm, start)) {
+-				int ret;
+-				ret = get_gate_page(mm, start & PAGE_MASK,
++				err = get_gate_page(mm, start & PAGE_MASK,
+ 						gup_flags, &vma,
+ 						pages ? &pages[i] : NULL);
+-				if (ret)
+-					return i ? : ret;
++				if (err)
++					goto out;
+ 				page_mask = 0;
+ 				goto next_page;
+ 			}
+ 
+-			if (!vma || check_vma_flags(vma, gup_flags))
+-				return i ? : -EFAULT;
++			if (!vma || check_vma_flags(vma, gup_flags)) {
++				err = -EFAULT;
++				goto out;
++			}
+ 			if (is_vm_hugetlb_page(vma)) {
+ 				i = follow_hugetlb_page(mm, vma, pages, vmas,
+ 						&start, &nr_pages, i,
+@@ -709,23 +711,25 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		 * If we have a pending SIGKILL, don't keep faulting pages and
+ 		 * potentially allocating memory.
+ 		 */
+-		if (unlikely(fatal_signal_pending(current)))
+-			return i ? i : -ERESTARTSYS;
++		if (unlikely(fatal_signal_pending(current))) {
++			err = -ERESTARTSYS;
++			goto out;
++		}
+ 		cond_resched();
+ 		page = follow_page_mask(vma, start, foll_flags, &page_mask);
+ 		if (!page) {
+-			int ret;
+-			ret = faultin_page(tsk, vma, start, &foll_flags,
++			err = faultin_page(tsk, vma, start, &foll_flags,
+ 					nonblocking);
+-			switch (ret) {
++			switch (err) {
+ 			case 0:
+ 				goto retry;
+ 			case -EFAULT:
+ 			case -ENOMEM:
+ 			case -EHWPOISON:
+-				return i ? i : ret;
++				goto out;
+ 			case -EBUSY:
+-				return i;
++				err = 0;
++				goto out;
+ 			case -ENOENT:
+ 				goto next_page;
+ 			}
+@@ -737,7 +741,8 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			 */
+ 			goto next_page;
+ 		} else if (IS_ERR(page)) {
+-			return i ? i : PTR_ERR(page);
++			err = PTR_ERR(page);
++			goto out;
+ 		}
+ 		if (pages) {
+ 			pages[i] = page;
+@@ -757,7 +762,9 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		start += page_increm * PAGE_SIZE;
+ 		nr_pages -= page_increm;
+ 	} while (nr_pages);
+-	return i;
++
++out:
++	return i ? i : err;
+ }
+ 
+ static bool vma_permits_fault(struct vm_area_struct *vma,
 -- 
 2.17.1
