@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7902F6B026B
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C18F76B000E
 	for <linux-mm@kvack.org>; Sat, 16 Jun 2018 22:01:02 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x17-v6so6626704pfm.18
+Received: by mail-pl0-f72.google.com with SMTP id bf1-v6so7722907plb.2
         for <linux-mm@kvack.org>; Sat, 16 Jun 2018 19:01:02 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g6-v6si9388244pgq.662.2018.06.16.19.01.00
+        by mx.google.com with ESMTPS id d39-v6si8380827pla.46.2018.06.16.19.01.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 16 Jun 2018 19:01:00 -0700 (PDT)
+        Sat, 16 Jun 2018 19:01:01 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v14 28/74] page cache; Convert find_get_pages_range_tag to XArray
-Date: Sat, 16 Jun 2018 19:00:06 -0700
-Message-Id: <20180617020052.4759-29-willy@infradead.org>
+Subject: [PATCH v14 30/74] page cache: Convert filemap_map_pages to XArray
+Date: Sat, 16 Jun 2018 19:00:08 -0700
+Message-Id: <20180617020052.4759-31-willy@infradead.org>
 In-Reply-To: <20180617020052.4759-1-willy@infradead.org>
 References: <20180617020052.4759-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,96 +20,60 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
 
-The 'end' parameter of the xas_for_each iterator avoids a useless
-iteration at the end of the range.
+Slight change of strategy here; if we have trouble getting hold of a
+page for whatever reason (eg a compound page is split underneath us),
+don't spin to stabilise the page, just continue the iteration, like we
+would if we failed to trylock the page.  Since this is a speculative
+optimisation, it feels like we should allow the process to take an extra
+fault if it turns out to need this page instead of spending time to pin
+down a page it may not need.
 
 Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- include/linux/pagemap.h |  4 +--
- mm/filemap.c            | 68 ++++++++++++++++-------------------------
- 2 files changed, 28 insertions(+), 44 deletions(-)
+ mm/filemap.c | 42 +++++++++++++-----------------------------
+ 1 file changed, 13 insertions(+), 29 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 2f5d2d3ebaac..a6d635fefb01 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -363,10 +363,10 @@ static inline unsigned find_get_pages(struct address_space *mapping,
- unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
- 			       unsigned int nr_pages, struct page **pages);
- unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
--			pgoff_t end, int tag, unsigned int nr_pages,
-+			pgoff_t end, xa_tag_t tag, unsigned int nr_pages,
- 			struct page **pages);
- static inline unsigned find_get_pages_tag(struct address_space *mapping,
--			pgoff_t *index, int tag, unsigned int nr_pages,
-+			pgoff_t *index, xa_tag_t tag, unsigned int nr_pages,
- 			struct page **pages)
- {
- 	return find_get_pages_range_tag(mapping, index, (pgoff_t)-1, tag,
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 8a69613fcdf3..83328635edaa 100644
+index 67f04bcdf9ef..4204d9df003b 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -1789,74 +1789,58 @@ EXPORT_SYMBOL(find_get_pages_contig);
-  * @tag.   We update @index to index the next page for the traversal.
-  */
- unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
--			pgoff_t end, int tag, unsigned int nr_pages,
-+			pgoff_t end, xa_tag_t tag, unsigned int nr_pages,
- 			struct page **pages)
+@@ -2516,45 +2516,31 @@ EXPORT_SYMBOL(filemap_fault);
+ void filemap_map_pages(struct vm_fault *vmf,
+ 		pgoff_t start_pgoff, pgoff_t end_pgoff)
  {
 -	struct radix_tree_iter iter;
 -	void **slot;
-+	XA_STATE(xas, &mapping->i_pages, *index);
-+	struct page *page;
- 	unsigned ret = 0;
- 
- 	if (unlikely(!nr_pages))
- 		return 0;
+ 	struct file *file = vmf->vma->vm_file;
+ 	struct address_space *mapping = file->f_mapping;
+ 	pgoff_t last_pgoff = start_pgoff;
+ 	unsigned long max_idx;
++	XA_STATE(xas, &mapping->i_pages, start_pgoff);
+ 	struct page *head, *page;
  
  	rcu_read_lock();
--	radix_tree_for_each_tagged(slot, &mapping->i_pages, &iter, *index, tag) {
--		struct page *head, *page;
--
--		if (iter.index > end)
+-	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start_pgoff) {
+-		if (iter.index > end_pgoff)
 -			break;
 -repeat:
 -		page = radix_tree_deref_slot(slot);
 -		if (unlikely(!page))
-+	xas_for_each_tagged(&xas, page, end, tag) {
-+		struct page *head;
-+		if (xas_retry(&xas, page))
- 			continue;
--
+-			goto next;
 -		if (radix_tree_exception(page)) {
 -			if (radix_tree_deref_retry(page)) {
 -				slot = radix_tree_iter_retry(&iter);
 -				continue;
 -			}
--			/*
--			 * A shadow entry of a recently evicted page.
--			 *
--			 * Those entries should never be tagged, but
--			 * this tree walk is lockless and the tags are
--			 * looked up in bulk, one radix tree node at a
--			 * time, so there is a sizable window for page
--			 * reclaim to evict a page we saw tagged.
--			 *
--			 * Skip over it.
--			 */
-+		/*
-+		 * Shadow entries should never be tagged, but this iteration
-+		 * is lockless so there is a window for page reclaim to evict
-+		 * a page we saw tagged.  Skip over it.
-+		 */
++	xas_for_each(&xas, page, end_pgoff) {
++		if (xas_retry(&xas, page))
++			continue;
 +		if (xa_is_value(page))
- 			continue;
+ 			goto next;
 -		}
  
  		head = compound_head(page);
  		if (!page_cache_get_speculative(head))
 -			goto repeat;
-+			goto retry;
++			goto next;
  
  		/* The page was split under us? */
 -		if (compound_head(page) != head) {
@@ -117,7 +81,7 @@ index 8a69613fcdf3..83328635edaa 100644
 -			goto repeat;
 -		}
 +		if (compound_head(page) != head)
-+			goto put_page;
++			goto skip;
  
  		/* Has the page moved? */
 -		if (unlikely(page != *slot)) {
@@ -125,31 +89,32 @@ index 8a69613fcdf3..83328635edaa 100644
 -			goto repeat;
 -		}
 +		if (unlikely(page != xas_reload(&xas)))
-+			goto put_page;
++			goto skip;
  
- 		pages[ret] = page;
- 		if (++ret == nr_pages) {
--			*index = pages[ret - 1]->index + 1;
-+			*index = page->index + 1;
- 			goto out;
- 		}
-+		continue;
-+put_page:
-+		put_page(head);
-+retry:
-+		xas_reset(&xas);
+ 		if (!PageUptodate(page) ||
+ 				PageReadahead(page) ||
+@@ -2573,10 +2559,10 @@ void filemap_map_pages(struct vm_fault *vmf,
+ 		if (file->f_ra.mmap_miss > 0)
+ 			file->f_ra.mmap_miss--;
+ 
+-		vmf->address += (iter.index - last_pgoff) << PAGE_SHIFT;
++		vmf->address += (xas.xa_index - last_pgoff) << PAGE_SHIFT;
+ 		if (vmf->pte)
+-			vmf->pte += iter.index - last_pgoff;
+-		last_pgoff = iter.index;
++			vmf->pte += xas.xa_index - last_pgoff;
++		last_pgoff = xas.xa_index;
+ 		if (alloc_set_pte(vmf, NULL, page))
+ 			goto unlock;
+ 		unlock_page(page);
+@@ -2589,8 +2575,6 @@ void filemap_map_pages(struct vm_fault *vmf,
+ 		/* Huge page is mapped? No need to proceed. */
+ 		if (pmd_trans_huge(*vmf->pmd))
+ 			break;
+-		if (iter.index == end_pgoff)
+-			break;
  	}
- 
- 	/*
--	 * We come here when we got at @end. We take care to not overflow the
-+	 * We come here when we got to @end. We take care to not overflow the
- 	 * index @index as it confuses some of the callers. This breaks the
--	 * iteration when there is page at index -1 but that is already broken
--	 * anyway.
-+	 * iteration when there is a page at index -1 but that is already
-+	 * broken anyway.
- 	 */
- 	if (end == (pgoff_t)-1)
- 		*index = (pgoff_t)-1;
+ 	rcu_read_unlock();
+ }
 -- 
 2.17.1
