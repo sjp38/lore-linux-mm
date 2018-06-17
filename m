@@ -1,128 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9137A6B028E
-	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 07:50:05 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x17-v6so7084285pfm.18
-        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 04:50:05 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g15-v6si10277771pgf.249.2018.06.17.04.50.04
+	by kanga.kvack.org (Postfix) with ESMTP id 47C466B0005
+	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 11:09:36 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p16-v6so7281993pfn.7
+        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 08:09:36 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k70-v6sor2696279pgd.203.2018.06.17.08.09.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Jun 2018 04:50:04 -0700 (PDT)
-Subject: Patch "x86/pkeys/selftests: Give better unexpected fault error messages" has been added to the 4.16-stable tree
-From: <gregkh@linuxfoundation.org>
-Date: Sun, 17 Jun 2018 13:23:54 +0200
-Message-ID: <1529234634239175@kroah.com>
+        (Google Transport Security);
+        Sun, 17 Jun 2018 08:09:34 -0700 (PDT)
+Date: Mon, 18 Jun 2018 00:09:31 +0900
+From: Stafford Horne <shorne@gmail.com>
+Subject: Re: [PATCH v5 4/4] mm: Mark pages in use for page tables
+Message-ID: <20180617150931.GB24595@lianli.shorne-pla.net>
+References: <20180307134443.32646-1-willy@infradead.org>
+ <20180307134443.32646-5-willy@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180307134443.32646-5-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20180509171338.55D13B64@viggo.jf.intel.com, akpm@linux-foundation.org, alexander.levin@microsoft.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, mpe@ellerman.id.au, peterz@infradead.org, shuah@kernel.org, tglx@linutronix.de, torvalds@linux-foundation.org
-Cc: stable-commits@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org
+
+On Wed, Mar 07, 2018 at 05:44:43AM -0800, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> Define a new PageTable bit in the page_type and use it to mark pages in
+> use as page tables.  This can be helpful when debugging crashdumps or
+> analysing memory fragmentation.  Add a KPF flag to report these pages
+> to userspace and update page-types.c to interpret that flag.
+> 
+> Note that only pages currently accounted as NR_PAGETABLES are tracked
+> as PageTable; this does not include pgd/p4d/pud/pmd pages.  Those will
+> be the subject of a later patch.
+> 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  arch/tile/mm/pgtable.c                 | 3 +++
+>  fs/proc/page.c                         | 2 ++
+>  include/linux/mm.h                     | 2 ++
+>  include/linux/page-flags.h             | 6 ++++++
+>  include/uapi/linux/kernel-page-flags.h | 1 +
+>  tools/vm/page-types.c                  | 1 +
+>  6 files changed, 15 insertions(+)
+> 
 
 
-This is a note to let you know that I've just added the patch titled
+Helloi Matthew,
 
-    x86/pkeys/selftests: Give better unexpected fault error messages
+I have bisected a regression on OpenRISC in v4.18-rc1 to this commit.  Using
+our defconfig after boot I am getting:
 
-to the 4.16-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
-
-The filename of the patch is:
-     x86-pkeys-selftests-give-better-unexpected-fault-error-messages.patch
-and it can be found in the queue-4.16 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
->From foo@baz Sun Jun 17 12:07:34 CEST 2018
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 9 May 2018 10:13:38 -0700
-Subject: x86/pkeys/selftests: Give better unexpected fault error messages
-
-From: Dave Hansen <dave.hansen@linux.intel.com>
-
-[ Upstream commit 55556b0b2016806b2e16a20b62d143383983a34a ]
-
-do_not_expect_pk_fault() is a helper that we call when we do not expect
-a PK fault to have occurred.  But, it is a function, which means that
-it obscures the line numbers from pkey_assert().  It also gives no
-details.
-
-Replace it with an implementation that gives nice line numbers and
-also lets callers pass in a more descriptive message about what
-happened that caused the unexpected fault.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michael Ellermen <mpe@ellerman.id.au>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Ram Pai <linuxram@us.ibm.com>
-Cc: Shuah Khan <shuah@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171338.55D13B64@viggo.jf.intel.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- tools/testing/selftests/x86/protection_keys.c |   13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
-
---- a/tools/testing/selftests/x86/protection_keys.c
-+++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -954,10 +954,11 @@ void expected_pk_fault(int pkey)
- 	last_si_pkey = -1;
- }
- 
--void do_not_expect_pk_fault(void)
--{
--	pkey_assert(last_pkru_faults == pkru_faults);
--}
-+#define do_not_expect_pk_fault(msg)	do {			\
-+	if (last_pkru_faults != pkru_faults)			\
-+		dprintf0("unexpected PK fault: %s\n", msg);	\
-+	pkey_assert(last_pkru_faults == pkru_faults);		\
-+} while (0)
- 
- int test_fds[10] = { -1 };
- int nr_test_fds;
-@@ -1243,7 +1244,7 @@ void test_ptrace_of_child(int *ptr, u16
- 	pkey_assert(ret != -1);
- 	/* Now access from the current task, and expect NO exception: */
- 	peek_result = read_ptr(plain_ptr);
--	do_not_expect_pk_fault();
-+	do_not_expect_pk_fault("read plain pointer after ptrace");
- 
- 	ret = ptrace(PTRACE_DETACH, child_pid, ignored, 0);
- 	pkey_assert(ret != -1);
-@@ -1287,7 +1288,7 @@ void test_executing_on_unreadable_memory
- 	 */
- 	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
- 	lots_o_noops_around_write(&scratch);
--	do_not_expect_pk_fault();
-+	do_not_expect_pk_fault("executing on PROT_EXEC memory");
- 	ptr_contents = read_ptr(p1);
- 	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
- 	expected_pk_fault(pkey);
+    BUG: Bad page state in process hostname  pfn:00b5c
+    page:c1ff0b80 count:0 mapcount:-1024 mapping:00000000 index:0x0
+    flags: 0x0()
+    raw: 00000000 00000000 00000000 fffffbff 00000000 00000100 00000200 00000000
+    page dumped because: nonzero mapcount
+    Modules linked in:
+    CPU: 1 PID: 38 Comm: hostname Tainted: G    B
+    4.17.0-simple-smp-07461-g1d40a5ea01d5-dirty #993
+    Call trace:
+    [<(ptrval)>] show_stack+0x44/0x54
+    [<(ptrval)>] dump_stack+0xb0/0xe8
+    [<(ptrval)>] bad_page+0x138/0x174
+    [<(ptrval)>] ? ipi_icache_page_inv+0x0/0x24
+    [<(ptrval)>] ? cpumask_next+0x24/0x34
+    [<(ptrval)>] free_pages_check_bad+0x6c/0xd0
+    [<(ptrval)>] free_pcppages_bulk+0x174/0x42c
+    [<(ptrval)>] free_unref_page_commit.isra.17+0xb8/0xc8
+    [<(ptrval)>] free_unref_page_list+0x10c/0x190
+    [<(ptrval)>] ? set_reset_devices+0x0/0x2c
+    [<(ptrval)>] release_pages+0x3a0/0x414
+    [<(ptrval)>] tlb_flush_mmu_free+0x5c/0x90
+    [<(ptrval)>] tlb_flush_mmu+0x90/0xa4
+    [<(ptrval)>] arch_tlb_finish_mmu+0x50/0x94
+    [<(ptrval)>] tlb_finish_mmu+0x30/0x64
+    [<(ptrval)>] exit_mmap+0x110/0x1e0
+    [<(ptrval)>] mmput+0x50/0xf0
+    [<(ptrval)>] do_exit+0x274/0xa94
+    [<(ptrval)>] ? _raw_spin_unlock_irqrestore+0x1c/0x2c
+    [<(ptrval)>] ? __up_read+0x70/0x88
+    [<(ptrval)>] do_group_exit+0x50/0x110
+    [<(ptrval)>] __wake_up_parent+0x0/0x38
+    [<(ptrval)>] _syscall_return+0x0/0x4
 
 
-Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
+In this series we are overloading mapcount with page_type, the above is caused
+due to this check in mm/page_alloc.c (free_pages_check_bad):
 
-queue-4.16/x86-pkeys-selftests-factor-out-instruction-page.patch
-queue-4.16/x86-pkeys-selftests-fix-pointer-math.patch
-queue-4.16/x86-pkeys-selftests-adjust-the-self-test-to-fresh-distros-that-export-the-pkeys-abi.patch
-queue-4.16/x86-pkeys-selftests-add-a-test-for-pkey-0.patch
-queue-4.16/x86-pkeys-selftests-stop-using-assert.patch
-queue-4.16/x86-pkeys-selftests-save-off-prot-for-allocations.patch
-queue-4.16/x86-pkeys-selftests-remove-dead-debugging-code-fix-dprint_in_signal.patch
-queue-4.16/x86-mpx-selftests-adjust-the-self-test-to-fresh-distros-that-export-the-mpx-abi.patch
-queue-4.16/x86-pkeys-selftests-add-prot_exec-test.patch
-queue-4.16/x86-pkeys-selftests-allow-faults-on-unknown-keys.patch
-queue-4.16/x86-pkeys-selftests-give-better-unexpected-fault-error-messages.patch
-queue-4.16/x86-pkeys-selftests-avoid-printf-in-signal-deadlocks.patch
-queue-4.16/x86-pkeys-selftests-fix-pkey-exhaustion-test-off-by-one.patch
+        if (unlikely(atomic_read(&page->_mapcount) != -1))
+                bad_reason = "nonzero mapcount";
+
+We can see in the dump above that _mapcount is fffffbff, this corresponds to the
+'PG_table' flag.  Which was added here.  But it seems for some case in openrisc
+its not getting cleared during page free.
+
+This is as far as I got tracing it.  It might be an issue with OpenRISC, but our
+implementation is mostly generic.  I will look into it more in the next few days
+but I figured you might be able to spot something more quickly.
+
+-Stafford
