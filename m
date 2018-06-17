@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 806216B0278
-	for <linux-mm@kvack.org>; Sat, 16 Jun 2018 22:01:10 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id c6-v6so7715434pll.4
-        for <linux-mm@kvack.org>; Sat, 16 Jun 2018 19:01:10 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EF7F6B027E
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2018 22:01:11 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u21-v6so6691047pfn.0
+        for <linux-mm@kvack.org>; Sat, 16 Jun 2018 19:01:11 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f67-v6si11968289plb.460.2018.06.16.19.01.09
+        by mx.google.com with ESMTPS id n7-v6si9813522pgr.31.2018.06.16.19.01.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 16 Jun 2018 19:01:09 -0700 (PDT)
+        Sat, 16 Jun 2018 19:01:10 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v14 48/74] shmem: Convert shmem_confirm_swap to XArray
-Date: Sat, 16 Jun 2018 19:00:26 -0700
-Message-Id: <20180617020052.4759-49-willy@infradead.org>
+Subject: [PATCH v14 49/74] shmem: Convert find_swap_entry to XArray
+Date: Sat, 16 Jun 2018 19:00:27 -0700
+Message-Id: <20180617020052.4759-50-willy@infradead.org>
 In-Reply-To: <20180617020052.4759-1-willy@infradead.org>
 References: <20180617020052.4759-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,28 +20,59 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
 
-xa_load has its own RCU locking, so we can eliminate it here.
+This is a 1:1 conversion.
 
 Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- mm/shmem.c | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ mm/shmem.c | 27 ++++++++++-----------------
+ 1 file changed, 10 insertions(+), 17 deletions(-)
 
 diff --git a/mm/shmem.c b/mm/shmem.c
-index 2b8720d32e7a..479e4a8e6d68 100644
+index 479e4a8e6d68..983a27656e2e 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -348,12 +348,7 @@ static int shmem_replace_entry(struct address_space *mapping,
- static bool shmem_confirm_swap(struct address_space *mapping,
- 			       pgoff_t index, swp_entry_t swap)
+@@ -1099,34 +1099,27 @@ static void shmem_evict_inode(struct inode *inode)
+ 	clear_inode(inode);
+ }
+ 
+-static unsigned long find_swap_entry(struct radix_tree_root *root, void *item)
++static unsigned long find_swap_entry(struct xarray *xa, void *item)
  {
--	void *item;
+-	struct radix_tree_iter iter;
+-	void __rcu **slot;
+-	unsigned long found = -1;
++	XA_STATE(xas, xa, 0);
+ 	unsigned int checked = 0;
++	void *entry;
+ 
+ 	rcu_read_lock();
+-	radix_tree_for_each_slot(slot, root, &iter, 0) {
+-		void *entry = radix_tree_deref_slot(slot);
 -
--	rcu_read_lock();
--	item = radix_tree_lookup(&mapping->i_pages, index);
--	rcu_read_unlock();
--	return item == swp_to_radix_entry(swap);
-+	return xa_load(&mapping->i_pages, index) == swp_to_radix_entry(swap);
+-		if (radix_tree_deref_retry(entry)) {
+-			slot = radix_tree_iter_retry(&iter);
++	xas_for_each(&xas, entry, ULONG_MAX) {
++		if (xas_retry(&xas, entry))
+ 			continue;
+-		}
+-		if (entry == item) {
+-			found = iter.index;
++		if (entry == item)
+ 			break;
+-		}
+ 		checked++;
+-		if ((checked % 4096) != 0)
++		if ((checked % XA_CHECK_SCHED) != 0)
+ 			continue;
+-		slot = radix_tree_iter_resume(slot, &iter);
++		xas_pause(&xas);
+ 		cond_resched_rcu();
+ 	}
+-
+ 	rcu_read_unlock();
+-	return found;
++
++	return xas_invalid(&xas) ? -1 : xas.xa_index;
  }
  
  /*
