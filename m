@@ -1,36 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 99CE36B028C
-	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 07:49:52 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u21-v6so7152234pfn.0
-        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 04:49:52 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9137A6B028E
+	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 07:50:05 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x17-v6so7084285pfm.18
+        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 04:50:05 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r3-v6si14298438pli.18.2018.06.17.04.49.51
+        by mx.google.com with ESMTPS id g15-v6si10277771pgf.249.2018.06.17.04.50.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Jun 2018 04:49:51 -0700 (PDT)
-Subject: Patch "x86/pkeys/selftests: Stop using assert()" has been added to the 4.16-stable tree
+        Sun, 17 Jun 2018 04:50:04 -0700 (PDT)
+Subject: Patch "x86/pkeys/selftests: Give better unexpected fault error messages" has been added to the 4.16-stable tree
 From: <gregkh@linuxfoundation.org>
 Date: Sun, 17 Jun 2018 13:23:54 +0200
-Message-ID: <1529234634194174@kroah.com>
+Message-ID: <1529234634239175@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20180509171340.E63EF7DA@viggo.jf.intel.com, akpm@linux-foundation.org, alexander.levin@microsoft.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, mpe@ellerman.id.au, peterz@infradead.org, shuah@kernel.org, tglx@linutronix.de, torvalds@linux-foundation.org
+To: 20180509171338.55D13B64@viggo.jf.intel.com, akpm@linux-foundation.org, alexander.levin@microsoft.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, mpe@ellerman.id.au, peterz@infradead.org, shuah@kernel.org, tglx@linutronix.de, torvalds@linux-foundation.org
 Cc: stable-commits@vger.kernel.org
 
 
 This is a note to let you know that I've just added the patch titled
 
-    x86/pkeys/selftests: Stop using assert()
+    x86/pkeys/selftests: Give better unexpected fault error messages
 
 to the 4.16-stable tree which can be found at:
     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
-     x86-pkeys-selftests-stop-using-assert.patch
+     x86-pkeys-selftests-give-better-unexpected-fault-error-messages.patch
 and it can be found in the queue-4.16 subdirectory.
 
 If you, or anyone else, feels it should not be added to the stable tree,
@@ -39,15 +39,21 @@ please let <stable@vger.kernel.org> know about it.
 
 >From foo@baz Sun Jun 17 12:07:34 CEST 2018
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 9 May 2018 10:13:40 -0700
-Subject: x86/pkeys/selftests: Stop using assert()
+Date: Wed, 9 May 2018 10:13:38 -0700
+Subject: x86/pkeys/selftests: Give better unexpected fault error messages
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit 86b9eea230edf4c67d4d4a70fba9b74505867a25 ]
+[ Upstream commit 55556b0b2016806b2e16a20b62d143383983a34a ]
 
-If we use assert(), the program "crashes".  That can be scary to users,
-so stop doing it.  Just exit with a >0 exit code instead.
+do_not_expect_pk_fault() is a helper that we call when we do not expect
+a PK fault to have occurred.  But, it is a function, which means that
+it obscures the line numbers from pkey_assert().  It also gives no
+details.
+
+Replace it with an implementation that gives nice line numbers and
+also lets callers pass in a more descriptive message about what
+happened that caused the unexpected fault.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -59,48 +65,50 @@ Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171340.E63EF7DA@viggo.jf.intel.com
+Link: http://lkml.kernel.org/r/20180509171338.55D13B64@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ tools/testing/selftests/x86/protection_keys.c |   13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -72,10 +72,9 @@ extern void abort_hooks(void);
- 				test_nr, iteration_nr);	\
- 		dprintf0("errno at assert: %d", errno);	\
- 		abort_hooks();			\
--		assert(condition);		\
-+		exit(__LINE__);			\
- 	}					\
- } while (0)
--#define raw_assert(cond) assert(cond)
- 
- void cat_into_file(char *str, char *file)
- {
-@@ -87,12 +86,17 @@ void cat_into_file(char *str, char *file
- 	 * these need to be raw because they are called under
- 	 * pkey_assert()
- 	 */
--	raw_assert(fd >= 0);
-+	if (fd < 0) {
-+		fprintf(stderr, "error opening '%s'\n", str);
-+		perror("error: ");
-+		exit(__LINE__);
-+	}
-+
- 	ret = write(fd, str, strlen(str));
- 	if (ret != strlen(str)) {
- 		perror("write to file failed");
- 		fprintf(stderr, "filename: '%s' str: '%s'\n", file, str);
--		raw_assert(0);
-+		exit(__LINE__);
- 	}
- 	close(fd);
+@@ -954,10 +954,11 @@ void expected_pk_fault(int pkey)
+ 	last_si_pkey = -1;
  }
+ 
+-void do_not_expect_pk_fault(void)
+-{
+-	pkey_assert(last_pkru_faults == pkru_faults);
+-}
++#define do_not_expect_pk_fault(msg)	do {			\
++	if (last_pkru_faults != pkru_faults)			\
++		dprintf0("unexpected PK fault: %s\n", msg);	\
++	pkey_assert(last_pkru_faults == pkru_faults);		\
++} while (0)
+ 
+ int test_fds[10] = { -1 };
+ int nr_test_fds;
+@@ -1243,7 +1244,7 @@ void test_ptrace_of_child(int *ptr, u16
+ 	pkey_assert(ret != -1);
+ 	/* Now access from the current task, and expect NO exception: */
+ 	peek_result = read_ptr(plain_ptr);
+-	do_not_expect_pk_fault();
++	do_not_expect_pk_fault("read plain pointer after ptrace");
+ 
+ 	ret = ptrace(PTRACE_DETACH, child_pid, ignored, 0);
+ 	pkey_assert(ret != -1);
+@@ -1287,7 +1288,7 @@ void test_executing_on_unreadable_memory
+ 	 */
+ 	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
+ 	lots_o_noops_around_write(&scratch);
+-	do_not_expect_pk_fault();
++	do_not_expect_pk_fault("executing on PROT_EXEC memory");
+ 	ptr_contents = read_ptr(p1);
+ 	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
+ 	expected_pk_fault(pkey);
 
 
 Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
