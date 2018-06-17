@@ -1,36 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B10376B000D
-	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 07:36:17 -0400 (EDT)
-Received: by mail-pl0-f69.google.com with SMTP id t19-v6so8283747plo.9
-        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 04:36:17 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DD376B0010
+	for <linux-mm@kvack.org>; Sun, 17 Jun 2018 07:36:20 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id g20-v6so7136971pfi.2
+        for <linux-mm@kvack.org>; Sun, 17 Jun 2018 04:36:20 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id k5-v6si7471589plt.178.2018.06.17.04.36.16
+        by mx.google.com with ESMTPS id n2-v6si5125946pfe.23.2018.06.17.04.36.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Jun 2018 04:36:16 -0700 (PDT)
-Subject: Patch "x86/pkeys/selftests: Adjust the self-test to fresh distros that export the pkeys ABI" has been added to the 4.14-stable tree
+        Sun, 17 Jun 2018 04:36:19 -0700 (PDT)
+Subject: Patch "x86/pkeys/selftests: Allow faults on unknown keys" has been added to the 4.14-stable tree
 From: <gregkh@linuxfoundation.org>
 Date: Sun, 17 Jun 2018 13:23:31 +0200
-Message-ID: <1529234611138121@kroah.com>
+Message-ID: <1529234611605@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 20180514085623.GB7094@gmail.com, akpm@linux-foundation.org, alexander.levin@microsoft.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, mpe@ellerman.id.au, peterz@infradead.org, shakeelb@google.com, shuah@kernel.org, tglx@linutronix.de, torvalds@linux-foundation.org
+To: 20180509171345.7FC7DA00@viggo.jf.intel.com, akpm@linux-foundation.org, alexander.levin@microsoft.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linuxram@us.ibm.com, mingo@kernel.org, mpe@ellerman.id.au, peterz@infradead.org, shuah@kernel.org, tglx@linutronix.de, torvalds@linux-foundation.org
 Cc: stable-commits@vger.kernel.org
 
 
 This is a note to let you know that I've just added the patch titled
 
-    x86/pkeys/selftests: Adjust the self-test to fresh distros that export the pkeys ABI
+    x86/pkeys/selftests: Allow faults on unknown keys
 
 to the 4.14-stable tree which can be found at:
     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
-     x86-pkeys-selftests-adjust-the-self-test-to-fresh-distros-that-export-the-pkeys-abi.patch
+     x86-pkeys-selftests-allow-faults-on-unknown-keys.patch
 and it can be found in the queue-4.14 subdirectory.
 
 If you, or anyone else, feels it should not be added to the stable tree,
@@ -38,217 +38,74 @@ please let <stable@vger.kernel.org> know about it.
 
 
 >From foo@baz Sun Jun 17 12:13:49 CEST 2018
-From: Ingo Molnar <mingo@kernel.org>
-Date: Mon, 14 May 2018 10:56:23 +0200
-Subject: x86/pkeys/selftests: Adjust the self-test to fresh distros that export the pkeys ABI
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Wed, 9 May 2018 10:13:46 -0700
+Subject: x86/pkeys/selftests: Allow faults on unknown keys
 
-From: Ingo Molnar <mingo@kernel.org>
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit 0fb96620dce351608aa82eed5942e2f58b07beda ]
+[ Upstream commit 7e7fd67ca39335a49619729821efb7cbdd674eb0 ]
 
-Ubuntu 18.04 started exporting pkeys details in header files, resulting
-in build failures and warnings in the pkeys self-tests:
+The exec-only pkey is allocated inside the kernel and userspace
+is not told what it is.  So, allow PK faults to occur that have
+an unknown key.
 
-  protection_keys.c:232:0: warning: "SEGV_BNDERR" redefined
-  protection_keys.c:387:5: error: conflicting types for a??pkey_geta??
-  protection_keys.c:409:5: error: conflicting types for a??pkey_seta??
-  ...
-
-Fix these namespace conflicts and double definitions, plus also
-clean up the ABI definitions to make it all a bit more readable ...
-
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michael Ellermen <mpe@ellerman.id.au>
 Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Ram Pai <linuxram@us.ibm.com>
+Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: akpm@linux-foundation.org
-Cc: dave.hansen@intel.com
 Cc: linux-mm@kvack.org
-Cc: linuxram@us.ibm.com
-Cc: mpe@ellerman.id.au
-Cc: shakeelb@google.com
-Cc: shuah@kernel.org
-Link: http://lkml.kernel.org/r/20180514085623.GB7094@gmail.com
+Link: http://lkml.kernel.org/r/20180509171345.7FC7DA00@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   67 +++++++++++++++-----------
- 1 file changed, 41 insertions(+), 26 deletions(-)
+ tools/testing/selftests/x86/protection_keys.c |   10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -191,26 +191,30 @@ void lots_o_noops_around_write(int *writ
- #ifdef __i386__
- 
- #ifndef SYS_mprotect_key
--# define SYS_mprotect_key 380
-+# define SYS_mprotect_key	380
- #endif
-+
- #ifndef SYS_pkey_alloc
--# define SYS_pkey_alloc	 381
--# define SYS_pkey_free	 382
-+# define SYS_pkey_alloc		381
-+# define SYS_pkey_free		382
- #endif
--#define REG_IP_IDX REG_EIP
--#define si_pkey_offset 0x14
-+
-+#define REG_IP_IDX		REG_EIP
-+#define si_pkey_offset		0x14
- 
- #else
- 
- #ifndef SYS_mprotect_key
--# define SYS_mprotect_key 329
-+# define SYS_mprotect_key	329
- #endif
-+
- #ifndef SYS_pkey_alloc
--# define SYS_pkey_alloc	 330
--# define SYS_pkey_free	 331
-+# define SYS_pkey_alloc		330
-+# define SYS_pkey_free		331
- #endif
--#define REG_IP_IDX REG_RIP
--#define si_pkey_offset 0x20
-+
-+#define REG_IP_IDX		REG_RIP
-+#define si_pkey_offset		0x20
- 
- #endif
- 
-@@ -225,8 +229,14 @@ void dump_mem(void *dumpme, int len_byte
- 	}
+@@ -921,13 +921,21 @@ void *malloc_pkey(long size, int prot, u
  }
  
--#define SEGV_BNDERR     3  /* failed address bound checks */
--#define SEGV_PKUERR     4
-+/* Failed address bound checks: */
-+#ifndef SEGV_BNDERR
-+# define SEGV_BNDERR		3
-+#endif
+ int last_pkru_faults;
++#define UNKNOWN_PKEY -2
+ void expected_pk_fault(int pkey)
+ {
+ 	dprintf2("%s(): last_pkru_faults: %d pkru_faults: %d\n",
+ 			__func__, last_pkru_faults, pkru_faults);
+ 	dprintf2("%s(%d): last_si_pkey: %d\n", __func__, pkey, last_si_pkey);
+ 	pkey_assert(last_pkru_faults + 1 == pkru_faults);
+-	pkey_assert(last_si_pkey == pkey);
 +
-+#ifndef SEGV_PKUERR
-+# define SEGV_PKUERR		4
-+#endif
- 
- static char *si_code_str(int si_code)
- {
-@@ -393,10 +403,15 @@ pid_t fork_lazy_child(void)
- 	return forkret;
- }
- 
--#define PKEY_DISABLE_ACCESS    0x1
--#define PKEY_DISABLE_WRITE     0x2
-+#ifndef PKEY_DISABLE_ACCESS
-+# define PKEY_DISABLE_ACCESS	0x1
-+#endif
++       /*
++	* For exec-only memory, we do not know the pkey in
++	* advance, so skip this check.
++	*/
++	if (pkey != UNKNOWN_PKEY)
++		pkey_assert(last_si_pkey == pkey);
 +
-+#ifndef PKEY_DISABLE_WRITE
-+# define PKEY_DISABLE_WRITE	0x2
-+#endif
- 
--u32 pkey_get(int pkey, unsigned long flags)
-+static u32 hw_pkey_get(int pkey, unsigned long flags)
- {
- 	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
- 	u32 pkru = __rdpkru();
-@@ -418,7 +433,7 @@ u32 pkey_get(int pkey, unsigned long fla
- 	return masked_pkru;
- }
- 
--int pkey_set(int pkey, unsigned long rights, unsigned long flags)
-+static int hw_pkey_set(int pkey, unsigned long rights, unsigned long flags)
- {
- 	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
- 	u32 old_pkru = __rdpkru();
-@@ -452,15 +467,15 @@ void pkey_disable_set(int pkey, int flag
- 		pkey, flags);
- 	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
- 
--	pkey_rights = pkey_get(pkey, syscall_flags);
-+	pkey_rights = hw_pkey_get(pkey, syscall_flags);
- 
--	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
-+	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
- 			pkey, pkey, pkey_rights);
- 	pkey_assert(pkey_rights >= 0);
- 
- 	pkey_rights |= flags;
- 
--	ret = pkey_set(pkey, pkey_rights, syscall_flags);
-+	ret = hw_pkey_set(pkey, pkey_rights, syscall_flags);
- 	assert(!ret);
- 	/*pkru and flags have the same format */
- 	shadow_pkru |= flags << (pkey * 2);
-@@ -468,8 +483,8 @@ void pkey_disable_set(int pkey, int flag
- 
- 	pkey_assert(ret >= 0);
- 
--	pkey_rights = pkey_get(pkey, syscall_flags);
--	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
-+	pkey_rights = hw_pkey_get(pkey, syscall_flags);
-+	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
- 			pkey, pkey, pkey_rights);
- 
- 	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
-@@ -483,24 +498,24 @@ void pkey_disable_clear(int pkey, int fl
- {
- 	unsigned long syscall_flags = 0;
- 	int ret;
--	int pkey_rights = pkey_get(pkey, syscall_flags);
-+	int pkey_rights = hw_pkey_get(pkey, syscall_flags);
- 	u32 orig_pkru = rdpkru();
- 
- 	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
- 
--	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
-+	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
- 			pkey, pkey, pkey_rights);
- 	pkey_assert(pkey_rights >= 0);
- 
- 	pkey_rights |= flags;
- 
--	ret = pkey_set(pkey, pkey_rights, 0);
-+	ret = hw_pkey_set(pkey, pkey_rights, 0);
- 	/* pkru and flags have the same format */
- 	shadow_pkru &= ~(flags << (pkey * 2));
- 	pkey_assert(ret >= 0);
- 
--	pkey_rights = pkey_get(pkey, syscall_flags);
--	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
-+	pkey_rights = hw_pkey_get(pkey, syscall_flags);
-+	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
- 			pkey, pkey, pkey_rights);
- 
- 	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
+ 	/*
+ 	 * The signal handler shold have cleared out PKRU to let the
+ 	 * test program continue.  We now have to restore it.
 
 
-Patches currently in stable-queue which might be from mingo@kernel.org are
+Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
 
-queue-4.14/locking-rwsem-add-a-new-rwsem_anonymously_owned-flag.patch
 queue-4.14/x86-pkeys-selftests-factor-out-instruction-page.patch
-queue-4.14/kthread-sched-wait-fix-kthread_parkme-wait-loop.patch
-queue-4.14/proc-kcore-don-t-bounds-check-against-address-0.patch
-queue-4.14/stop_machine-sched-fix-migrate_swap-vs.-active_balance-deadlock.patch
-queue-4.14/init-fix-false-positives-in-w-x-checking.patch
 queue-4.14/x86-pkeys-selftests-fix-pointer-math.patch
 queue-4.14/x86-pkeys-selftests-adjust-the-self-test-to-fresh-distros-that-export-the-pkeys-abi.patch
-queue-4.14/locking-percpu-rwsem-annotate-rwsem-ownership-transfer-by-setting-rwsem_owner_unknown.patch
 queue-4.14/x86-pkeys-selftests-add-a-test-for-pkey-0.patch
 queue-4.14/x86-pkeys-selftests-stop-using-assert.patch
-queue-4.14/sched-core-introduce-set_special_state.patch
 queue-4.14/x86-pkeys-selftests-save-off-prot-for-allocations.patch
 queue-4.14/x86-pkeys-selftests-remove-dead-debugging-code-fix-dprint_in_signal.patch
-queue-4.14/x86-selftests-add-mov_to_ss-test.patch
-queue-4.14/sched-debug-move-the-print_rt_rq-and-print_dl_rq-declarations-to-kernel-sched-sched.h.patch
 queue-4.14/x86-mpx-selftests-adjust-the-self-test-to-fresh-distros-that-export-the-mpx-abi.patch
 queue-4.14/x86-pkeys-selftests-add-prot_exec-test.patch
-queue-4.14/sched-deadline-make-the-grub_reclaim-function-static.patch
-queue-4.14/objtool-kprobes-x86-sync-the-latest-asm-insn.h-header-with-tools-objtool-arch-x86-include-asm-insn.h.patch
 queue-4.14/x86-pkeys-selftests-allow-faults-on-unknown-keys.patch
 queue-4.14/x86-pkeys-selftests-give-better-unexpected-fault-error-messages.patch
-queue-4.14/efi-libstub-arm64-handle-randomized-text_offset.patch
 queue-4.14/x86-pkeys-selftests-fix-pkey-exhaustion-test-off-by-one.patch
