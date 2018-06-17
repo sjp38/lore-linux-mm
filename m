@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A1556B0272
-	for <linux-mm@kvack.org>; Sat, 16 Jun 2018 22:01:05 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id z11-v6so6700761pfn.1
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 078256B0272
+	for <linux-mm@kvack.org>; Sat, 16 Jun 2018 22:01:06 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id c6-v6so7715327pll.4
         for <linux-mm@kvack.org>; Sat, 16 Jun 2018 19:01:05 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id t9-v6si11262488pfg.199.2018.06.16.19.01.03
+        by mx.google.com with ESMTPS id k123-v6si9280145pgc.203.2018.06.16.19.01.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 16 Jun 2018 19:01:03 -0700 (PDT)
+        Sat, 16 Jun 2018 19:01:04 -0700 (PDT)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v14 35/74] mm: Convert page-writeback to XArray
-Date: Sat, 16 Jun 2018 19:00:13 -0700
-Message-Id: <20180617020052.4759-36-willy@infradead.org>
+Subject: [PATCH v14 01/74] Update email address
+Date: Sat, 16 Jun 2018 18:59:39 -0700
+Message-Id: <20180617020052.4759-2-willy@infradead.org>
 In-Reply-To: <20180617020052.4759-1-willy@infradead.org>
 References: <20180617020052.4759-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,206 +20,76 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Lukas Czerner <lczerner@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Goldwyn Rodrigues <rgoldwyn@suse.com>, Nicholas Piggin <npiggin@gmail.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>, linux-f2fs-devel@lists.sourceforge.net
 
-Includes moving mapping_tagged() to fs.h as a static inline, and
-changing it to return bool.
+Redirect some older email addresses that are in the git logs.
 
 Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- include/linux/fs.h  | 17 ++++++-----
- mm/page-writeback.c | 72 ++++++++++++++++-----------------------------
- 2 files changed, 36 insertions(+), 53 deletions(-)
+ .mailmap               | 7 +++++++
+ MAINTAINERS            | 6 +++---
+ include/linux/xarray.h | 2 +-
+ 3 files changed, 11 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index f1716ce5ff6f..3fe2d7607d65 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -476,15 +476,18 @@ struct block_device {
- 	struct mutex		bd_fsfreeze_mutex;
- } __randomize_layout;
+diff --git a/.mailmap b/.mailmap
+index 29ddeb1bf015..a80dca923d32 100644
+--- a/.mailmap
++++ b/.mailmap
+@@ -114,6 +114,13 @@ Mark Brown <broonie@sirena.org.uk>
+ Mark Yao <markyao0591@gmail.com> <mark.yao@rock-chips.com>
+ Martin Kepplinger <martink@posteo.de> <martin.kepplinger@theobroma-systems.com>
+ Martin Kepplinger <martink@posteo.de> <martin.kepplinger@ginzinger.com>
++Matthew Wilcox <willy@infradead.org> <matthew.r.wilcox@intel.com>
++Matthew Wilcox <willy@infradead.org> <matthew@wil.cx>
++Matthew Wilcox <willy@infradead.org> <mawilcox@linuxonhyperv.com>
++Matthew Wilcox <willy@infradead.org> <mawilcox@microsoft.com>
++Matthew Wilcox <willy@infradead.org> <willy@debian.org>
++Matthew Wilcox <willy@infradead.org> <willy@linux.intel.com>
++Matthew Wilcox <willy@infradead.org> <willy@parisc-linux.org>
+ Matthieu CASTET <castet.matthieu@free.fr>
+ Mauro Carvalho Chehab <mchehab@kernel.org> <mchehab@brturbo.com.br>
+ Mauro Carvalho Chehab <mchehab@kernel.org> <maurochehab@gmail.com>
+diff --git a/MAINTAINERS b/MAINTAINERS
+index f15bc83753f5..6dc2c9cb2d7b 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -529,7 +529,7 @@ F:	Documentation/hwmon/adt7475
+ F:	drivers/hwmon/adt7475.c
  
-+/* XArray tags, for tagging dirty and writeback pages in the pagecache. */
-+#define PAGECACHE_TAG_DIRTY	XA_TAG_0
-+#define PAGECACHE_TAG_WRITEBACK	XA_TAG_1
-+#define PAGECACHE_TAG_TOWRITE	XA_TAG_2
-+
+ ADVANSYS SCSI DRIVER
+-M:	Matthew Wilcox <matthew@wil.cx>
++M:	Matthew Wilcox <willy@infradead.org>
+ M:	Hannes Reinecke <hare@suse.com>
+ L:	linux-scsi@vger.kernel.org
+ S:	Maintained
+@@ -4268,7 +4268,7 @@ S:	Maintained
+ F:	drivers/i2c/busses/i2c-diolan-u2c.c
+ 
+ FILESYSTEM DIRECT ACCESS (DAX)
+-M:	Matthew Wilcox <mawilcox@microsoft.com>
++M:	Matthew Wilcox <willy@infradead.org>
+ M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+ L:	linux-fsdevel@vger.kernel.org
+ S:	Supported
+@@ -8452,7 +8452,7 @@ F:	drivers/message/fusion/
+ F:	drivers/scsi/mpt3sas/
+ 
+ LSILOGIC/SYMBIOS/NCR 53C8XX and 53C1010 PCI-SCSI drivers
+-M:	Matthew Wilcox <matthew@wil.cx>
++M:	Matthew Wilcox <willy@infradead.org>
+ L:	linux-scsi@vger.kernel.org
+ S:	Maintained
+ F:	drivers/scsi/sym53c8xx_2/
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index 2dfc8006fe64..9e4c86853fa4 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -4,7 +4,7 @@
  /*
-- * Radix-tree tags, for tagging dirty and writeback pages within the pagecache
-- * radix trees
-+ * Returns true if any of the pages in the mapping are marked with the tag.
+  * eXtensible Arrays
+  * Copyright (c) 2017 Microsoft Corporation
+- * Author: Matthew Wilcox <mawilcox@microsoft.com>
++ * Author: Matthew Wilcox <willy@infradead.org>
   */
--#define PAGECACHE_TAG_DIRTY	0
--#define PAGECACHE_TAG_WRITEBACK	1
--#define PAGECACHE_TAG_TOWRITE	2
--
--int mapping_tagged(struct address_space *mapping, int tag);
-+static inline bool mapping_tagged(struct address_space *mapping, xa_tag_t tag)
-+{
-+	return xa_tagged(&mapping->i_pages, tag);
-+}
  
- static inline void i_mmap_lock_write(struct address_space *mapping)
- {
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 337c6afb3345..0e502bd13ad9 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2098,34 +2098,25 @@ void __init page_writeback_init(void)
-  * dirty pages in the file (thus it is important for this function to be quick
-  * so that it can tag pages faster than a dirtying process can create them).
-  */
--/*
-- * We tag pages in batches of WRITEBACK_TAG_BATCH to reduce the i_pages lock
-- * latency.
-- */
- void tag_pages_for_writeback(struct address_space *mapping,
- 			     pgoff_t start, pgoff_t end)
- {
--#define WRITEBACK_TAG_BATCH 4096
--	unsigned long tagged = 0;
--	struct radix_tree_iter iter;
--	void **slot;
-+	XA_STATE(xas, &mapping->i_pages, start);
-+	unsigned int tagged = 0;
-+	void *page;
- 
--	xa_lock_irq(&mapping->i_pages);
--	radix_tree_for_each_tagged(slot, &mapping->i_pages, &iter, start,
--							PAGECACHE_TAG_DIRTY) {
--		if (iter.index > end)
--			break;
--		radix_tree_iter_tag_set(&mapping->i_pages, &iter,
--							PAGECACHE_TAG_TOWRITE);
--		tagged++;
--		if ((tagged % WRITEBACK_TAG_BATCH) != 0)
-+	xas_lock_irq(&xas);
-+	xas_for_each_tagged(&xas, page, end, PAGECACHE_TAG_DIRTY) {
-+		xas_set_tag(&xas, PAGECACHE_TAG_TOWRITE);
-+		if (++tagged % XA_CHECK_SCHED)
- 			continue;
--		slot = radix_tree_iter_resume(slot, &iter);
--		xa_unlock_irq(&mapping->i_pages);
-+
-+		xas_pause(&xas);
-+		xas_unlock_irq(&xas);
- 		cond_resched();
--		xa_lock_irq(&mapping->i_pages);
-+		xas_lock_irq(&xas);
- 	}
--	xa_unlock_irq(&mapping->i_pages);
-+	xas_unlock_irq(&xas);
- }
- EXPORT_SYMBOL(tag_pages_for_writeback);
- 
-@@ -2165,7 +2156,7 @@ int write_cache_pages(struct address_space *mapping,
- 	pgoff_t done_index;
- 	int cycled;
- 	int range_whole = 0;
--	int tag;
-+	xa_tag_t tag;
- 
- 	pagevec_init(&pvec);
- 	if (wbc->range_cyclic) {
-@@ -2446,7 +2437,7 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
- 
- /*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
-- * its radix tree.
-+ * the xarray.
-  *
-  * This is also used when a single buffer is being dirtied: we want to set the
-  * page dirty in that case, but not all the buffers.  This is a "bottom-up"
-@@ -2472,7 +2463,7 @@ int __set_page_dirty_nobuffers(struct page *page)
- 		BUG_ON(page_mapping(page) != mapping);
- 		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
- 		account_page_dirtied(page, mapping);
--		radix_tree_tag_set(&mapping->i_pages, page_index(page),
-+		__xa_set_tag(&mapping->i_pages, page_index(page),
- 				   PAGECACHE_TAG_DIRTY);
- 		xa_unlock_irqrestore(&mapping->i_pages, flags);
- 		unlock_page_memcg(page);
-@@ -2635,13 +2626,13 @@ EXPORT_SYMBOL(__cancel_dirty_page);
-  * Returns true if the page was previously dirty.
-  *
-  * This is for preparing to put the page under writeout.  We leave the page
-- * tagged as dirty in the radix tree so that a concurrent write-for-sync
-+ * tagged as dirty in the xarray so that a concurrent write-for-sync
-  * can discover it via a PAGECACHE_TAG_DIRTY walk.  The ->writepage
-  * implementation will run either set_page_writeback() or set_page_dirty(),
-- * at which stage we bring the page's dirty flag and radix-tree dirty tag
-+ * at which stage we bring the page's dirty flag and xarray dirty tag
-  * back into sync.
-  *
-- * This incoherency between the page's dirty flag and radix-tree tag is
-+ * This incoherency between the page's dirty flag and xarray tag is
-  * unfortunate, but it only exists while the page is locked.
-  */
- int clear_page_dirty_for_io(struct page *page)
-@@ -2722,7 +2713,7 @@ int test_clear_page_writeback(struct page *page)
- 		xa_lock_irqsave(&mapping->i_pages, flags);
- 		ret = TestClearPageWriteback(page);
- 		if (ret) {
--			radix_tree_tag_clear(&mapping->i_pages, page_index(page),
-+			__xa_clear_tag(&mapping->i_pages, page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
- 			if (bdi_cap_account_writeback(bdi)) {
- 				struct bdi_writeback *wb = inode_to_wb(inode);
-@@ -2762,11 +2753,13 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 
- 	lock_page_memcg(page);
- 	if (mapping && mapping_use_writeback_tags(mapping)) {
-+		XA_STATE(xas, &mapping->i_pages, page_index(page));
- 		struct inode *inode = mapping->host;
- 		struct backing_dev_info *bdi = inode_to_bdi(inode);
- 		unsigned long flags;
- 
--		xa_lock_irqsave(&mapping->i_pages, flags);
-+		xas_lock_irqsave(&xas, flags);
-+		xas_load(&xas);
- 		ret = TestSetPageWriteback(page);
- 		if (!ret) {
- 			bool on_wblist;
-@@ -2774,8 +2767,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 			on_wblist = mapping_tagged(mapping,
- 						   PAGECACHE_TAG_WRITEBACK);
- 
--			radix_tree_tag_set(&mapping->i_pages, page_index(page),
--						PAGECACHE_TAG_WRITEBACK);
-+			xas_set_tag(&xas, PAGECACHE_TAG_WRITEBACK);
- 			if (bdi_cap_account_writeback(bdi))
- 				inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
- 
-@@ -2788,12 +2780,10 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 				sb_mark_inode_writeback(mapping->host);
- 		}
- 		if (!PageDirty(page))
--			radix_tree_tag_clear(&mapping->i_pages, page_index(page),
--						PAGECACHE_TAG_DIRTY);
-+			xas_clear_tag(&xas, PAGECACHE_TAG_DIRTY);
- 		if (!keep_write)
--			radix_tree_tag_clear(&mapping->i_pages, page_index(page),
--						PAGECACHE_TAG_TOWRITE);
--		xa_unlock_irqrestore(&mapping->i_pages, flags);
-+			xas_clear_tag(&xas, PAGECACHE_TAG_TOWRITE);
-+		xas_unlock_irqrestore(&xas, flags);
- 	} else {
- 		ret = TestSetPageWriteback(page);
- 	}
-@@ -2807,16 +2797,6 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- }
- EXPORT_SYMBOL(__test_set_page_writeback);
- 
--/*
-- * Return true if any of the pages in the mapping are marked with the
-- * passed tag.
-- */
--int mapping_tagged(struct address_space *mapping, int tag)
--{
--	return radix_tree_tagged(&mapping->i_pages, tag);
--}
--EXPORT_SYMBOL(mapping_tagged);
--
- /**
-  * wait_for_stable_page() - wait for writeback to finish, if necessary.
-  * @page:	The page to wait on.
+ #include <linux/spinlock.h>
 -- 
 2.17.1
