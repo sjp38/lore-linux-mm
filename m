@@ -1,45 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 492686B0007
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:04:07 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id f3-v6so11153916wre.11
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:04:07 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 61-v6si9268750wrr.193.2018.06.18.01.04.06
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 065436B000A
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:10:09 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id 31-v6so9759395plf.19
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:10:08 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z9-v6si14757766pln.250.2018.06.18.01.10.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 01:04:06 -0700 (PDT)
-Date: Mon, 18 Jun 2018 10:12:58 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
-Message-ID: <20180618081258.GB16991@lst.de>
-References: <20180617012510.20139-1-jhubbard@nvidia.com> <20180617012510.20139-3-jhubbard@nvidia.com> <CAPcyv4i=eky-QrPcLUEqjsASuRUrFEWqf79hWe0mU8xtz6Jk-w@mail.gmail.com> <20180617200432.krw36wrcwidb25cj@ziepe.ca> <CAPcyv4gayKk_zHDYAvntware12qMXWjnnL_FDJNUQsJS_zNfDw@mail.gmail.com> <311eba48-60f1-b6cc-d001-5cc3ed4d76a9@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Jun 2018 01:10:07 -0700 (PDT)
+Date: Mon, 18 Jun 2018 01:10:03 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 0/2] mm: gup: don't unmap or drop filesystem buffers
+Message-ID: <20180618081003.GA20927@infradead.org>
+References: <20180617012510.20139-1-jhubbard@nvidia.com>
+ <010001640fbe0dd8-f999e7f6-7b6e-4deb-b073-0c572006727d-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <311eba48-60f1-b6cc-d001-5cc3ed4d76a9@nvidia.com>
+In-Reply-To: <010001640fbe0dd8-f999e7f6-7b6e-4deb-b073-0c572006727d-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
+To: Christopher Lameter <cl@linux.com>
+Cc: john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>
 
-On Sun, Jun 17, 2018 at 01:28:18PM -0700, John Hubbard wrote:
-> Yes. However, my thinking was: get_user_pages() can become a way to indicate that 
-> these pages are going to be treated specially. In particular, the caller
-> does not really want or need to support certain file operations, while the
-> page is flagged this way.
+On Sun, Jun 17, 2018 at 09:54:31PM +0000, Christopher Lameter wrote:
+> On Sat, 16 Jun 2018, john.hubbard@gmail.com wrote:
 > 
-> If necessary, we could add a new API call.
+> > I've come up with what I claim is a simple, robust fix, but...I'm
+> > presuming to burn a struct page flag, and limit it to 64-bit arches, in
+> > order to get there. Given that the problem is old (Jason Gunthorpe noted
+> > that RDMA has been living with this problem since 2005), I think it's
+> > worth it.
+> >
+> > Leaving the new page flag set "nearly forever" is not great, but on the
+> > other hand, once the page is actually freed, the flag does get cleared.
+> > It seems like an acceptable tradeoff, given that we only get one bit
+> > (and are lucky to even have that).
+> 
+> This is not robust. Multiple processes may register a page with the RDMA
+> subsystem. How do you decide when to clear the flag? I think you would
+> need an additional refcount for the number of times the page was
+> registered.
 
-That API call is called get_user_pages_longterm.
+And it's not just RDMA that is using get_user_pages.  We have tons of
+users that do short, spurious get_user_pages do do zero copy operations.
 
-> But either way, I think we could
-> reasonably document that "if you pin these pages (either via get_user_pages,
-> or some new, similar-looking API call), you can DMA to/from them, and safely
-> mark them as dirty when you're done, and the right things will happen. 
-> And in the interim, you can expect that the follow file system API calls
-> will not behave predictably: fallocate, truncate, ..."
+We can't leave the page in a wrecked state after that.
 
-That is not how get_user_pages(_fast) is used.  We use it all over the
-kernel, including for direct I/O.  You'd break a lot of existing use
-cases very badly.
+> I still think the cleanest solution here is to require mmu notifier
+> callbacks and to not pin the page in the first place. If a NIC does not
+> support a hardware mmu then it can still simulate it in software by
+> holding off the ummapping the mmu notifier callback until any pending
+> operation is complete and then invalidate the mapping so that future
+> operations require a remapping (or refaulting).
+
+Sounds ok for RDMA, not going to help for most other users.
