@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 621526B0270
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:37:39 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id y26-v6so8317847pfn.14
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:37:39 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AAE06B000D
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:38:08 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 39-v6so9781867ple.6
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:38:08 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c18-v6si13497651pfn.245.2018.06.18.01.37.38
+        by mx.google.com with ESMTPS id w15-v6si13411108pfn.12.2018.06.18.01.38.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 01:37:38 -0700 (PDT)
+        Mon, 18 Jun 2018 01:38:07 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 157/189] x86/pkeys/selftests: Remove dead debugging code, fix dprint_in_signal
-Date: Mon, 18 Jun 2018 10:14:13 +0200
-Message-Id: <20180618081215.543048765@linuxfoundation.org>
+Subject: [PATCH 4.14 158/189] x86/pkeys/selftests: Allow faults on unknown keys
+Date: Mon, 18 Jun 2018 10:14:14 +0200
+Message-Id: <20180618081215.580418281@linuxfoundation.org>
 In-Reply-To: <20180618081209.254234434@linuxfoundation.org>
 References: <20180618081209.254234434@linuxfoundation.org>
 MIME-Version: 1.0
@@ -28,14 +28,11 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dav
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit a50093d60464dd51d1ae0c2267b0abe9e1de77f3 ]
+[ Upstream commit 7e7fd67ca39335a49619729821efb7cbdd674eb0 ]
 
-There is some noisy debug code at the end of the signal handler.  It was
-disabled by an early, unconditional "return".  However, that return also
-hid a dprint_in_signal=0, which kept dprint_in_signal=1 and effectively
-locked us into permanent dprint_in_signal=1 behavior.
-
-Remove the return and the dead code, fixing dprint_in_signal.
+The exec-only pkey is allocated inside the kernel and userspace
+is not told what it is.  So, allow PK faults to occur that have
+an unknown key.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -47,36 +44,36 @@ Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171342.846B9B2E@viggo.jf.intel.com
+Link: http://lkml.kernel.org/r/20180509171345.7FC7DA00@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   16 ----------------
- 1 file changed, 16 deletions(-)
+ tools/testing/selftests/x86/protection_keys.c |   10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -325,22 +325,6 @@ void signal_handler(int signum, siginfo_
- 	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
- 	pkru_faults++;
- 	dprintf1("<<<<==================================================\n");
--	return;
--	if (trapno == 14) {
--		fprintf(stderr,
--			"ERROR: In signal handler, page fault, trapno = %d, ip = %016lx\n",
--			trapno, ip);
--		fprintf(stderr, "si_addr %p\n", si->si_addr);
--		fprintf(stderr, "REG_ERR: %lx\n",
--				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
--		exit(1);
--	} else {
--		fprintf(stderr, "unexpected trap %d! at 0x%lx\n", trapno, ip);
--		fprintf(stderr, "si_addr %p\n", si->si_addr);
--		fprintf(stderr, "REG_ERR: %lx\n",
--				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
--		exit(2);
--	}
- 	dprint_in_signal = 0;
+@@ -921,13 +921,21 @@ void *malloc_pkey(long size, int prot, u
  }
  
+ int last_pkru_faults;
++#define UNKNOWN_PKEY -2
+ void expected_pk_fault(int pkey)
+ {
+ 	dprintf2("%s(): last_pkru_faults: %d pkru_faults: %d\n",
+ 			__func__, last_pkru_faults, pkru_faults);
+ 	dprintf2("%s(%d): last_si_pkey: %d\n", __func__, pkey, last_si_pkey);
+ 	pkey_assert(last_pkru_faults + 1 == pkru_faults);
+-	pkey_assert(last_si_pkey == pkey);
++
++       /*
++	* For exec-only memory, we do not know the pkey in
++	* advance, so skip this check.
++	*/
++	if (pkey != UNKNOWN_PKEY)
++		pkey_assert(last_si_pkey == pkey);
++
+ 	/*
+ 	 * The signal handler shold have cleared out PKRU to let the
+ 	 * test program continue.  We now have to restore it.
