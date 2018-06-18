@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3E26B0010
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:28:05 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id x25-v6so8296720pfn.21
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:28:05 -0700 (PDT)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DAD286B0266
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:28:08 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id 31-v6so9783333plf.19
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:28:08 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f21-v6si14803734pfh.33.2018.06.18.01.28.04
+        by mx.google.com with ESMTPS id u191-v6si11623866pgd.667.2018.06.18.01.28.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 01:28:04 -0700 (PDT)
+        Mon, 18 Jun 2018 01:28:07 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.16 245/279] x86/pkeys/selftests: Fix pointer math
-Date: Mon, 18 Jun 2018 10:13:50 +0200
-Message-Id: <20180618080618.910985893@linuxfoundation.org>
+Subject: [PATCH 4.16 246/279] x86/pkeys/selftests: Save off prot for allocations
+Date: Mon, 18 Jun 2018 10:13:51 +0200
+Message-Id: <20180618080618.947257586@linuxfoundation.org>
 In-Reply-To: <20180618080608.851973560@linuxfoundation.org>
 References: <20180618080608.851973560@linuxfoundation.org>
 MIME-Version: 1.0
@@ -28,17 +28,14 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dav
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit 3d64f4ed15c3c53dba4c514bf59c334464dee373 ]
+[ Upstream commit acb25d761d6f2f64e785ccefc71e54f244f1eda4 ]
 
-We dump out the entire area of the siginfo where the si_pkey_ptr is
-supposed to be.  But, we do some math on the poitner, which is a u32.
-We intended to do byte math, not u32 math on the pointer.
+This makes it possible to to tell what 'prot' a given allocation
+is supposed to have.  That way, if we want to change just the
+pkey, we know what 'prot' to pass to mprotect_pkey().
 
-Cast it over to a u8* so it works.
-
-Also, move this block of code to below th si_code check.  It doesn't
-hurt anything, but the si_pkey field is gibberish for other signal
-types.
+Also, keep a record of the most recent allocation so the tests
+can easily find it.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -50,41 +47,72 @@ Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171352.9BE09819@viggo.jf.intel.com
+Link: http://lkml.kernel.org/r/20180509171354.AA23E228@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ tools/testing/selftests/x86/protection_keys.c |   14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -303,13 +303,6 @@ void signal_handler(int signum, siginfo_
- 		dump_mem(pkru_ptr - 128, 256);
- 	pkey_assert(*pkru_ptr);
+@@ -677,10 +677,12 @@ int mprotect_pkey(void *ptr, size_t size
+ struct pkey_malloc_record {
+ 	void *ptr;
+ 	long size;
++	int prot;
+ };
+ struct pkey_malloc_record *pkey_malloc_records;
++struct pkey_malloc_record *pkey_last_malloc_record;
+ long nr_pkey_malloc_records;
+-void record_pkey_malloc(void *ptr, long size)
++void record_pkey_malloc(void *ptr, long size, int prot)
+ {
+ 	long i;
+ 	struct pkey_malloc_record *rec = NULL;
+@@ -712,6 +714,8 @@ void record_pkey_malloc(void *ptr, long
+ 		(int)(rec - pkey_malloc_records), rec, ptr, size);
+ 	rec->ptr = ptr;
+ 	rec->size = size;
++	rec->prot = prot;
++	pkey_last_malloc_record = rec;
+ 	nr_pkey_malloc_records++;
+ }
  
--	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
--	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
--	dump_mem(si_pkey_ptr - 8, 24);
--	siginfo_pkey = *si_pkey_ptr;
--	pkey_assert(siginfo_pkey < NR_PKEYS);
--	last_si_pkey = siginfo_pkey;
--
- 	if ((si->si_code == SEGV_MAPERR) ||
- 	    (si->si_code == SEGV_ACCERR) ||
- 	    (si->si_code == SEGV_BNDERR)) {
-@@ -317,6 +310,13 @@ void signal_handler(int signum, siginfo_
- 		exit(4);
- 	}
+@@ -756,7 +760,7 @@ void *malloc_pkey_with_mprotect(long siz
+ 	pkey_assert(ptr != (void *)-1);
+ 	ret = mprotect_pkey((void *)ptr, PAGE_SIZE, prot, pkey);
+ 	pkey_assert(!ret);
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 	rdpkru();
  
-+	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
-+	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
-+	dump_mem((u8 *)si_pkey_ptr - 8, 24);
-+	siginfo_pkey = *si_pkey_ptr;
-+	pkey_assert(siginfo_pkey < NR_PKEYS);
-+	last_si_pkey = siginfo_pkey;
-+
- 	dprintf1("signal pkru from xsave: %08x\n", *pkru_ptr);
- 	/* need __rdpkru() version so we do not do shadow_pkru checking */
- 	dprintf1("signal pkru from  pkru: %08x\n", __rdpkru());
+ 	dprintf1("%s() for pkey %d @ %p\n", __func__, pkey, ptr);
+@@ -777,7 +781,7 @@ void *malloc_pkey_anon_huge(long size, i
+ 	size = ALIGN_UP(size, HPAGE_SIZE * 2);
+ 	ptr = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+ 	pkey_assert(ptr != (void *)-1);
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 	mprotect_pkey(ptr, size, prot, pkey);
+ 
+ 	dprintf1("unaligned ptr: %p\n", ptr);
+@@ -850,7 +854,7 @@ void *malloc_pkey_hugetlb(long size, int
+ 	pkey_assert(ptr != (void *)-1);
+ 	mprotect_pkey(ptr, size, prot, pkey);
+ 
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 
+ 	dprintf1("mmap()'d hugetlbfs for pkey %d @ %p\n", pkey, ptr);
+ 	return ptr;
+@@ -872,7 +876,7 @@ void *malloc_pkey_mmap_dax(long size, in
+ 
+ 	mprotect_pkey(ptr, size, prot, pkey);
+ 
+-	record_pkey_malloc(ptr, size);
++	record_pkey_malloc(ptr, size, prot);
+ 
+ 	dprintf1("mmap()'d for pkey %d @ %p\n", pkey, ptr);
+ 	close(fd);
