@@ -1,156 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DB336B0007
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 14:23:11 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id j2-v6so14529425qtn.10
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 11:23:11 -0700 (PDT)
-Received: from rcdn-iport-4.cisco.com (rcdn-iport-4.cisco.com. [173.37.86.75])
-        by mx.google.com with ESMTPS id h12-v6si80035qtc.262.2018.06.18.11.23.10
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B046D6B0005
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 15:21:53 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id u63-v6so10168834oia.8
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 12:21:53 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 201-v6sor6101049oib.294.2018.06.18.12.21.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 11:23:10 -0700 (PDT)
-From: "Amit Chandra (amichand)" <amichand@cisco.com>
-Subject: dynamic reservation and allocation of physically contiguous memory
- using CMA
-Date: Mon, 18 Jun 2018 18:23:08 +0000
-Message-ID: <DF0025E0-5C00-4566-82D2-F3599F206210@cisco.com>
-Content-Language: en-US
-Content-Type: multipart/alternative;
-	boundary="_000_DF0025E05C00456682D2F3599F206210ciscocom_"
+        (Google Transport Security);
+        Mon, 18 Jun 2018 12:21:47 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
+References: <20180617012510.20139-1-jhubbard@nvidia.com> <20180617012510.20139-3-jhubbard@nvidia.com>
+ <CAPcyv4i=eky-QrPcLUEqjsASuRUrFEWqf79hWe0mU8xtz6Jk-w@mail.gmail.com>
+ <20180617200432.krw36wrcwidb25cj@ziepe.ca> <CAPcyv4gayKk_zHDYAvntware12qMXWjnnL_FDJNUQsJS_zNfDw@mail.gmail.com>
+ <311eba48-60f1-b6cc-d001-5cc3ed4d76a9@nvidia.com> <20180618081258.GB16991@lst.de>
+ <d4817192-6db0-2f3f-7c67-6078b69686d3@nvidia.com> <CAPcyv4iacHYxGmyWokFrVsmxvLj7=phqp2i0tv8z6AT-mYuEEA@mail.gmail.com>
+ <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 18 Jun 2018 12:21:46 -0700
+Message-ID: <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <john.hubbard@gmail.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
 
---_000_DF0025E05C00456682D2F3599F206210ciscocom_
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+On Mon, Jun 18, 2018 at 11:14 AM, John Hubbard <jhubbard@nvidia.com> wrote:
+> On 06/18/2018 10:56 AM, Dan Williams wrote:
+>> On Mon, Jun 18, 2018 at 10:50 AM, John Hubbard <jhubbard@nvidia.com> wrote:
+>>> On 06/18/2018 01:12 AM, Christoph Hellwig wrote:
+>>>> On Sun, Jun 17, 2018 at 01:28:18PM -0700, John Hubbard wrote:
+>>>>> Yes. However, my thinking was: get_user_pages() can become a way to indicate that
+>>>>> these pages are going to be treated specially. In particular, the caller
+>>>>> does not really want or need to support certain file operations, while the
+>>>>> page is flagged this way.
+>>>>>
+>>>>> If necessary, we could add a new API call.
+>>>>
+>>>> That API call is called get_user_pages_longterm.
+>>>
+>>> OK...I had the impression that this was just semi-temporary API for dax, but
+>>> given that it's an exported symbol, I guess it really is here to stay.
+>>
+>> The plan is to go back and provide api changes that bypass
+>> get_user_page_longterm() for RDMA. However, for VFIO and others, it's
+>> not clear what we could do. In the VFIO case the guest would need to
+>> be prepared handle the revocation.
+>
+> OK, let's see if I understand that plan correctly:
+>
+> 1. Change RDMA users (this could be done entirely in the various device drivers'
+> code, unless I'm overlooking something) to use mmu notifiers, and to do their
+> DMA to/from non-pinned pages.
 
-SGkgZXhwZXJ0cywNCg0KSSBoYWQgYSBxdWVzdGlvbiByZWxhdGVkIHRvIENNQS4gSSBoYXZlIGJl
-ZW4gdHJ5aW5nIHRvIHVzZSB0aGUgQ01BIGluZnJhIHRvIHJlc2VydmUgYW5kIGFsbG9jYXRlIHBo
-eXNpY2FsbHkgY29udGlndW91cyBtZW1vcnkgZHluYW1pY2FsbHkgYXQgcnVudGltZS4NCkkgYnVp
-bHQgYSBjdXN0b20ga2VybmVsIGJhc2VkIG9uIGxpbnV4LTQuMTQuNDcgdG8gaW52b2tlIHRoZSBj
-bWEgaW5pdGlhbGl6YXRpb24gYXBpcyBhdCBydW50aW1lIGZyb20ga2VybmVsIGxvYWRhYmxlIG1v
-ZHVsZS4NCkkgaW52b2tlIGNtYV9kZWNsYXJlX2NvbnRpZ3VvdXMoKSBmb2xsb3dlZCBieSBjbWFf
-aW5pdF9yZXNlcnZlZF9hcmVhcygpLg0KY21hX2RlY2xhcmVfY29udGlndW91cyB0aHJvd3Mgbm8g
-c3VycHJpc2VzIGFuZCBzdWNjZWVkcy4gVGhlIGlzc3VlIGhhcHBlbnMgd2hlbiBjbWFfaW5pdF9y
-ZXNlcnZlZF9hcmVhcygpIGlzIGludm9rZWQgcG9zdCB0aGF0Lg0KSGVyZSBpcyB0aGUga2VybmVs
-IGxvZyBzbmlwcGV0IHBvc3QgdGhhdCBjYWxsOg0KDQpKdW4gMTUgMDM6MzA6MzEgdWJ1bnR1LXF1
-aWNrc3RhcnQga2VybmVsOiBbICAzODQuNTkzMjE4XSBjbWE6IGNtYV9kZWNsYXJlX2NvbnRpZ3Vv
-dXMoc2l6ZSAweDAwMDAwMDAyMDAwMDAwMDAsIGJhc2UgMHgwMDAwMDAwMDAwMDAwMDAwLCBsaW1p
-dCAweDAwMDAwMDAwMDAwMDAwMDAgYWxpZ25tZW50IDB4MDAwMDAwMDAwMDAwMDAwMCkNCkp1biAx
-NSAwMzozMDozMSB1YnVudHUtcXVpY2tzdGFydCBrZXJuZWw6IFsgIDM4NC41OTMyMjhdIGNtYTog
-UmVzZXJ2ZWQgODE5MiBNaUIgYXQgMHgwMDAwMDAxZDRkMDAwMDAwDQpKdW4gMTUgMDM6MzA6MzEg
-dWJ1bnR1LXF1aWNrc3RhcnQga2VybmVsOiBbICAzODQuNTkzMzQ1XSBCVUc6IEJhZCBwYWdlIHN0
-YXRlIGluIHByb2Nlc3MgaW5zbW9kICBwZm46MWQ0ZDAwMA0KSnVuIDE1IDAzOjMwOjMxIHVidW50
-dS1xdWlja3N0YXJ0IGtlcm5lbDogWyAgMzg0LjU5NTc1OF0gcGFnZTpmZmZmZWZjMzM1MzQwMDAw
-IGNvdW50OjAgbWFwY291bnQ6LTEyNyBtYXBwaW5nOiAgICAgICAgICAobnVsbCkgaW5kZXg6MHgw
-DQpKdW4gMTUgMDM6MzA6MzEgdWJ1bnR1LXF1aWNrc3RhcnQga2VybmVsOiBbICAzODQuNTk5MTkz
-XSBmbGFnczogMHg1N2ZmZmMwMDAwMDAwMDAoKQ0KSnVuIDE1IDAzOjMwOjMxIHVidW50dS1xdWlj
-a3N0YXJ0IGtlcm5lbDogWyAgMzg0LjYwMDc1MV0gcmF3OiAwNTdmZmZjMDAwMDAwMDAwIDAwMDAw
-MDAwMDAwMDAwMDAgMDAwMDAwMDAwMDAwMDAwMCAwMDAwMDAwMGZmZmZmZjgwDQpKdW4gMTUgMDM6
-MzA6MzEgdWJ1bnR1LXF1aWNrc3RhcnQga2VybmVsOiBbICAzODQuNjAzOTQ2XSByYXc6IGZmZmZl
-ZmMzMzUzMzAwMjAgZmZmZmVmYzMzNTM1MDAyMCAwMDAwMDAwMDAwMDAwMDBhIDAwMDAwMDAwMDAw
-MDAwMDANCkp1biAxNSAwMzozMDozMSB1YnVudHUtcXVpY2tzdGFydCBrZXJuZWw6IFsgIDM4NC42
-MDcxNTJdIHBhZ2UgZHVtcGVkIGJlY2F1c2U6IG5vbnplcm8gbWFwY291bnQNCg0KSSBhbSBoYXZp
-bmcgYSBoYXJkIHRpbWUgdHJ5aW5nIHRvIHVuZGVyc3RhbmQgd2h5IHRoZSBtYXBjb3VudCBpcyBs
-ZXNzIHRoYW4gMCBoZXJlLiBJIGZpZ3VyZWQgdGhpcyBpcyBoYXBwZW5pbmcgaW4gdGhlIGNhbGwg
-dG8gX19mcmVlX3BhZ2VzKCkgZnJvbSBpbml0X2NtYV9yZXNlcnZlZF9wYWdlYmxvY2soKS4NCkFu
-eSBwb2ludGVycyBoZXJlIHdvdWxkIGJlIHJlYWxseSBoZWxwZnVsLiBJZiBJIGFtIG1pc3Npbmcg
-YW55IHN0ZXAgZm9yIGNtYSByZXNlcnZhdGlvbiwgcGxlYXNlIGRvIGxldCBtZSBrbm93Lg0KDQpU
-aGFua3MgaW4gYWR2YW5jZS4NCi1BbWl0DQo=
+The problem with this approach is surprising the RDMA drivers with
+notifications of teardowns. It's the RDMA userspace applications that
+need the notification, and it likely needs to be explicit opt-in, at
+least for the non-ODP drivers.
 
---_000_DF0025E05C00456682D2F3599F206210ciscocom_
-Content-Type: text/html; charset="utf-8"
-Content-ID: <D722118E92A1E148BD6E7D358A9E4D0B@emea.cisco.com>
-Content-Transfer-Encoding: base64
+> 2. Return early from get_user_pages_longterm, if the memory is...marked for
+> RDMA? (How? Same sort of page flag that I'm floating here, or something else?)
+> That would avoid the problem with pinned pages getting their buffer heads
+> removed--by disallowing the pinning. Makes sense.
 
-PGh0bWwgeG1sbnM6bz0idXJuOnNjaGVtYXMtbWljcm9zb2Z0LWNvbTpvZmZpY2U6b2ZmaWNlIiB4
-bWxuczp3PSJ1cm46c2NoZW1hcy1taWNyb3NvZnQtY29tOm9mZmljZTp3b3JkIiB4bWxuczptPSJo
-dHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL29mZmljZS8yMDA0LzEyL29tbWwiIHhtbG5zPSJo
-dHRwOi8vd3d3LnczLm9yZy9UUi9SRUMtaHRtbDQwIj4NCjxoZWFkPg0KPG1ldGEgaHR0cC1lcXVp
-dj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0bWw7IGNoYXJzZXQ9dXRmLTgiPg0KPG1l
-dGEgbmFtZT0iR2VuZXJhdG9yIiBjb250ZW50PSJNaWNyb3NvZnQgV29yZCAxNSAoZmlsdGVyZWQg
-bWVkaXVtKSI+DQo8c3R5bGU+PCEtLQ0KLyogRm9udCBEZWZpbml0aW9ucyAqLw0KQGZvbnQtZmFj
-ZQ0KCXtmb250LWZhbWlseToiQ2FtYnJpYSBNYXRoIjsNCglwYW5vc2UtMToyIDQgNSAzIDUgNCA2
-IDMgMiA0O30NCkBmb250LWZhY2UNCgl7Zm9udC1mYW1pbHk6Q2FsaWJyaTsNCglwYW5vc2UtMToy
-IDE1IDUgMiAyIDIgNCAzIDIgNDt9DQovKiBTdHlsZSBEZWZpbml0aW9ucyAqLw0KcC5Nc29Ob3Jt
-YWwsIGxpLk1zb05vcm1hbCwgZGl2Lk1zb05vcm1hbA0KCXttYXJnaW46MGluOw0KCW1hcmdpbi1i
-b3R0b206LjAwMDFwdDsNCglmb250LXNpemU6MTIuMHB0Ow0KCWZvbnQtZmFtaWx5OiJDYWxpYnJp
-IixzYW5zLXNlcmlmO30NCmE6bGluaywgc3Bhbi5Nc29IeXBlcmxpbmsNCgl7bXNvLXN0eWxlLXBy
-aW9yaXR5Ojk5Ow0KCWNvbG9yOiMwNTYzQzE7DQoJdGV4dC1kZWNvcmF0aW9uOnVuZGVybGluZTt9
-DQphOnZpc2l0ZWQsIHNwYW4uTXNvSHlwZXJsaW5rRm9sbG93ZWQNCgl7bXNvLXN0eWxlLXByaW9y
-aXR5Ojk5Ow0KCWNvbG9yOiM5NTRGNzI7DQoJdGV4dC1kZWNvcmF0aW9uOnVuZGVybGluZTt9DQpz
-cGFuLkVtYWlsU3R5bGUxNw0KCXttc28tc3R5bGUtdHlwZTpwZXJzb25hbC1jb21wb3NlOw0KCWZv
-bnQtZmFtaWx5OiJDYWxpYnJpIixzYW5zLXNlcmlmOw0KCWNvbG9yOndpbmRvd3RleHQ7fQ0KLk1z
-b0NocERlZmF1bHQNCgl7bXNvLXN0eWxlLXR5cGU6ZXhwb3J0LW9ubHk7DQoJZm9udC1mYW1pbHk6
-IkNhbGlicmkiLHNhbnMtc2VyaWY7fQ0KQHBhZ2UgV29yZFNlY3Rpb24xDQoJe3NpemU6OC41aW4g
-MTEuMGluOw0KCW1hcmdpbjoxLjBpbiAxLjBpbiAxLjBpbiAxLjBpbjt9DQpkaXYuV29yZFNlY3Rp
-b24xDQoJe3BhZ2U6V29yZFNlY3Rpb24xO30NCi0tPjwvc3R5bGU+DQo8L2hlYWQ+DQo8Ym9keSBs
-YW5nPSJFTi1VUyIgbGluaz0iIzA1NjNDMSIgdmxpbms9IiM5NTRGNzIiPg0KPGRpdiBjbGFzcz0i
-V29yZFNlY3Rpb24xIj4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNp
-emU6MTEuMHB0Ij5IaSBleHBlcnRzLDxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJN
-c29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij48bzpwPiZuYnNwOzwvbzpw
-Pjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXpl
-OjExLjBwdCI+SSBoYWQgYSBxdWVzdGlvbiByZWxhdGVkIHRvIENNQS4gSSBoYXZlIGJlZW4gdHJ5
-aW5nIHRvIHVzZSB0aGUgQ01BIGluZnJhIHRvIHJlc2VydmUgYW5kIGFsbG9jYXRlIHBoeXNpY2Fs
-bHkgY29udGlndW91cyBtZW1vcnkgZHluYW1pY2FsbHkgYXQgcnVudGltZS4NCjxvOnA+PC9vOnA+
-PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6
-MTEuMHB0Ij5JIGJ1aWx0IGEgY3VzdG9tIGtlcm5lbCBiYXNlZCBvbiBsaW51eC00LjE0LjQ3IHRv
-IGludm9rZSB0aGUgY21hIGluaXRpYWxpemF0aW9uIGFwaXMgYXQgcnVudGltZSBmcm9tIGtlcm5l
-bCBsb2FkYWJsZSBtb2R1bGUuPG86cD48L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05v
-cm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4wcHQiPkkgaW52b2tlIGNtYV9kZWNsYXJl
-X2NvbnRpZ3VvdXMoKSBmb2xsb3dlZCBieSBjbWFfaW5pdF9yZXNlcnZlZF9hcmVhcygpLjxvOnA+
-PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250
-LXNpemU6MTEuMHB0Ij5jbWFfZGVjbGFyZV9jb250aWd1b3VzIHRocm93cyBubyBzdXJwcmlzZXMg
-YW5kIHN1Y2NlZWRzLiBUaGUgaXNzdWUgaGFwcGVucyB3aGVuIGNtYV9pbml0X3Jlc2VydmVkX2Fy
-ZWFzKCkgaXMgaW52b2tlZCBwb3N0IHRoYXQuPG86cD48L286cD48L3NwYW4+PC9wPg0KPHAgY2xh
-c3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4wcHQiPkhlcmUgaXMgdGhl
-IGtlcm5lbCBsb2cgc25pcHBldCBwb3N0IHRoYXQgY2FsbDo8bzpwPjwvbzpwPjwvc3Bhbj48L3A+
-DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+PG86
-cD4mbmJzcDs8L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5
-bGU9ImZvbnQtc2l6ZToxMS4wcHQiPkp1biAxNSAwMzozMDozMSB1YnVudHUtcXVpY2tzdGFydCBr
-ZXJuZWw6IFsmbmJzcDsgMzg0LjU5MzIxOF0gY21hOiBjbWFfZGVjbGFyZV9jb250aWd1b3VzKHNp
-emUgMHgwMDAwMDAwMjAwMDAwMDAwLCBiYXNlIDB4MDAwMDAwMDAwMDAwMDAwMCwgbGltaXQgMHgw
-MDAwMDAwMDAwMDAwMDAwIGFsaWdubWVudCAweDAwMDAwMDAwMDAwMDAwMDApPG86cD48L286cD48
-L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZTox
-MS4wcHQiPkp1biAxNSAwMzozMDozMSB1YnVudHUtcXVpY2tzdGFydCBrZXJuZWw6IFsmbmJzcDsg
-Mzg0LjU5MzIyOF0gY21hOiBSZXNlcnZlZCA4MTkyIE1pQiBhdCAweDAwMDAwMDFkNGQwMDAwMDA8
-bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0i
-Zm9udC1zaXplOjExLjBwdCI+SnVuIDE1IDAzOjMwOjMxIHVidW50dS1xdWlja3N0YXJ0IGtlcm5l
-bDogWyZuYnNwOyAzODQuNTkzMzQ1XSBCVUc6IEJhZCBwYWdlIHN0YXRlIGluIHByb2Nlc3MgaW5z
-bW9kJm5ic3A7IHBmbjoxZDRkMDAwPG86cD48L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1z
-b05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4wcHQiPkp1biAxNSAwMzozMDozMSB1
-YnVudHUtcXVpY2tzdGFydCBrZXJuZWw6IFsmbmJzcDsgMzg0LjU5NTc1OF0gcGFnZTpmZmZmZWZj
-MzM1MzQwMDAwIGNvdW50OjAgbWFwY291bnQ6LTEyNyBtYXBwaW5nOiZuYnNwOyZuYnNwOyZuYnNw
-OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAobnVsbCkgaW5kZXg6MHgwPG86
-cD48L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZv
-bnQtc2l6ZToxMS4wcHQiPkp1biAxNSAwMzozMDozMSB1YnVudHUtcXVpY2tzdGFydCBrZXJuZWw6
-IFsmbmJzcDsgMzg0LjU5OTE5M10gZmxhZ3M6IDB4NTdmZmZjMDAwMDAwMDAwKCk8bzpwPjwvbzpw
-Pjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXpl
-OjExLjBwdCI+SnVuIDE1IDAzOjMwOjMxIHVidW50dS1xdWlja3N0YXJ0IGtlcm5lbDogWyZuYnNw
-OyAzODQuNjAwNzUxXSByYXc6IDA1N2ZmZmMwMDAwMDAwMDAgMDAwMDAwMDAwMDAwMDAwMCAwMDAw
-MDAwMDAwMDAwMDAwIDAwMDAwMDAwZmZmZmZmODA8bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBj
-bGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+SnVuIDE1IDAz
-OjMwOjMxIHVidW50dS1xdWlja3N0YXJ0IGtlcm5lbDogWyZuYnNwOyAzODQuNjAzOTQ2XSByYXc6
-IGZmZmZlZmMzMzUzMzAwMjAgZmZmZmVmYzMzNTM1MDAyMCAwMDAwMDAwMDAwMDAwMDBhIDAwMDAw
-MDAwMDAwMDAwMDA8bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48
-c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+SnVuIDE1IDAzOjMwOjMxIHVidW50dS1xdWlj
-a3N0YXJ0IGtlcm5lbDogWyZuYnNwOyAzODQuNjA3MTUyXSBwYWdlIGR1bXBlZCBiZWNhdXNlOiBu
-b256ZXJvIG1hcGNvdW50PG86cD48L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1h
-bCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4wcHQiPjxvOnA+Jm5ic3A7PC9vOnA+PC9zcGFu
-PjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0
-Ij5JIGFtIGhhdmluZyBhIGhhcmQgdGltZSB0cnlpbmcgdG8gdW5kZXJzdGFuZCB3aHkgdGhlIG1h
-cGNvdW50IGlzIGxlc3MgdGhhbiAwIGhlcmUuIEkgZmlndXJlZCB0aGlzIGlzIGhhcHBlbmluZyBp
-biB0aGUgY2FsbCB0byBfX2ZyZWVfcGFnZXMoKSBmcm9tIGluaXRfY21hX3Jlc2VydmVkX3BhZ2Vi
-bG9jaygpLjxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFu
-IHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij5BbnkgcG9pbnRlcnMgaGVyZSB3b3VsZCBiZSByZWFs
-bHkgaGVscGZ1bC4gSWYgSSBhbSBtaXNzaW5nIGFueSBzdGVwIGZvciBjbWEgcmVzZXJ2YXRpb24s
-IHBsZWFzZSBkbyBsZXQgbWUga25vdy48bzpwPjwvbzpwPjwvc3Bhbj48L3A+DQo8cCBjbGFzcz0i
-TXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdCI+PG86cD4mbmJzcDs8L286
-cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6
-ZToxMS4wcHQiPlRoYW5rcyBpbiBhZHZhbmNlLjxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNs
-YXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0Ij4tQW1pdDxvOnA+
-PC9vOnA+PC9zcGFuPjwvcD4NCjwvZGl2Pg0KPC9ib2R5Pg0KPC9odG1sPg0K
+Well, right now the RDMA workaround is DAX specific and it seems we
+need to generalize it for the page-cache case. One thought is to have
+try_to_unmap() take it's own reference and wait for the page reference
+count to drop to one so that the truncate path knows the page is
+dma-idle and disconnected from the page cache, but I have not looked
+at the details.
 
---_000_DF0025E05C00456682D2F3599F206210ciscocom_--
+> Also, is there anything I can help with here, so that things can happen sooner?
+
+I do think we should explore a page flag for pages that are "long
+term" pinned. Michal asked for something along these lines at LSF / MM
+so that the core-mm can give up on pages that the kernel has lost
+lifetime control. Michal, did I capture your ask correctly?
