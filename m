@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E85F6B0271
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 05:46:47 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f65-v6so5195278wmd.2
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 02:46:47 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0127.outbound.protection.outlook.com. [104.47.2.127])
-        by mx.google.com with ESMTPS id p22-v6si9358644edi.276.2018.06.18.02.46.46
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 812BF6B0274
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 05:47:01 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id g5-v6so5001369pgv.12
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 02:47:01 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0110.outbound.protection.outlook.com. [104.47.0.110])
+        by mx.google.com with ESMTPS id a10-v6si14883437pls.480.2018.06.18.02.46.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 18 Jun 2018 02:46:46 -0700 (PDT)
-Subject: [PATCH v7 REBASED 11/17] list_lru: Pass lru argument to
- memcg_drain_list_lru_node()
+        Mon, 18 Jun 2018 02:47:00 -0700 (PDT)
+Subject: [PATCH v7 REBASED 12/17] mm: Export mem_cgroup_is_root()
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Mon, 18 Jun 2018 12:46:41 +0300
-Message-ID: <152931520118.28457.1502664234163492446.stgit@localhost.localdomain>
+Date: Mon, 18 Jun 2018 12:46:50 +0300
+Message-ID: <152931521067.28457.1399177856448274667.stgit@localhost.localdomain>
 In-Reply-To: <152931506756.28457.5620076974981468927.stgit@localhost.localdomain>
 References: <152931506756.28457.5620076974981468927.stgit@localhost.localdomain>
 MIME-Version: 1.0
@@ -23,38 +22,57 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-This is just refactoring to allow next patches to have
-lru pointer in memcg_drain_list_lru_node().
+This will be used in next patch.
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 Tested-by: Shakeel Butt <shakeelb@google.com>
 ---
- mm/list_lru.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ include/linux/memcontrol.h |   10 ++++++++++
+ mm/memcontrol.c            |    5 -----
+ 2 files changed, 10 insertions(+), 5 deletions(-)
 
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index a66d13b16046..79a22404464d 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -507,9 +507,10 @@ int memcg_update_all_list_lrus(int new_size)
- 	goto out;
- }
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 40401a73000e..7ef004c4f4af 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -318,6 +318,11 @@ struct mem_cgroup {
  
--static void memcg_drain_list_lru_node(struct list_lru_node *nlru,
-+static void memcg_drain_list_lru_node(struct list_lru *lru, int nid,
- 				      int src_idx, struct mem_cgroup *dst_memcg)
+ extern struct mem_cgroup *root_mem_cgroup;
+ 
++static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
++{
++	return (memcg == root_mem_cgroup);
++}
++
+ static inline bool mem_cgroup_disabled(void)
  {
-+	struct list_lru_node *nlru = &lru->node[nid];
- 	int dst_idx = dst_memcg->kmemcg_id;
- 	struct list_lru_one *src, *dst;
+ 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
+@@ -771,6 +776,11 @@ void mem_cgroup_split_huge_fixup(struct page *head);
  
-@@ -538,7 +539,7 @@ static void memcg_drain_list_lru(struct list_lru *lru,
- 		return;
+ struct mem_cgroup;
  
- 	for_each_node(i)
--		memcg_drain_list_lru_node(&lru->node[i], src_idx, dst_memcg);
-+		memcg_drain_list_lru_node(lru, i, src_idx, dst_memcg);
++static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
++{
++	return true;
++}
++
+ static inline bool mem_cgroup_disabled(void)
+ {
+ 	return true;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2b703c4130bb..a122572c0219 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -261,11 +261,6 @@ struct cgroup_subsys_state *vmpressure_to_css(struct vmpressure *vmpr)
+ 	return &container_of(vmpr, struct mem_cgroup, vmpressure)->css;
  }
  
- void memcg_drain_all_list_lrus(int src_idx, struct mem_cgroup *dst_memcg)
+-static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+-{
+-	return (memcg == root_mem_cgroup);
+-}
+-
+ #ifdef CONFIG_MEMCG_KMEM
+ /*
+  * This will be the memcg's index in each cache's ->memcg_params.memcg_caches.
