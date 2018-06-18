@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 875DF6B000D
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:36:35 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id bf1-v6so9797655plb.2
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:36:35 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 198D96B026F
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:37:05 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id b65-v6so8700415plb.5
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:37:05 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 32-v6si14899583plc.252.2018.06.18.01.36.34
+        by mx.google.com with ESMTPS id d2-v6si11806293pge.342.2018.06.18.01.37.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 01:36:34 -0700 (PDT)
+        Mon, 18 Jun 2018 01:37:04 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 153/189] x86/mpx/selftests: Adjust the self-test to fresh distros that export the MPX ABI
-Date: Mon, 18 Jun 2018 10:14:09 +0200
-Message-Id: <20180618081215.375936556@linuxfoundation.org>
+Subject: [PATCH 4.14 156/189] x86/pkeys/selftests: Stop using assert()
+Date: Mon, 18 Jun 2018 10:14:12 +0200
+Message-Id: <20180618081215.503060714@linuxfoundation.org>
 In-Reply-To: <20180618081209.254234434@linuxfoundation.org>
 References: <20180618081209.254234434@linuxfoundation.org>
 MIME-Version: 1.0
@@ -20,59 +20,68 @@ Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, akpm@linux-foundation.org, dave.hansen@intel.com, linux-mm@kvack.org, linuxram@us.ibm.com, mpe@ellerman.id.au, shakeelb@google.com, shuah@kernel.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellermen <mpe@ellerman.id.au>, Peter Zijlstra <peterz@infradead.org>, Ram Pai <linuxram@us.ibm.com>, Shuah Khan <shuah@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
 4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
-From: Ingo Molnar <mingo@kernel.org>
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit 73bb4d6cd192b8629c5125aaada9892d9fc986b6 ]
+[ Upstream commit 86b9eea230edf4c67d4d4a70fba9b74505867a25 ]
 
-Fix this warning:
+If we use assert(), the program "crashes".  That can be scary to users,
+so stop doing it.  Just exit with a >0 exit code instead.
 
-  mpx-mini-test.c:422:0: warning: "SEGV_BNDERR" redefined
-
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michael Ellermen <mpe@ellerman.id.au>
 Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Ram Pai <linuxram@us.ibm.com>
+Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: akpm@linux-foundation.org
-Cc: dave.hansen@intel.com
 Cc: linux-mm@kvack.org
-Cc: linuxram@us.ibm.com
-Cc: mpe@ellerman.id.au
-Cc: shakeelb@google.com
-Cc: shuah@kernel.org
-Link: http://lkml.kernel.org/r/20180514085908.GA12798@gmail.com
+Link: http://lkml.kernel.org/r/20180509171340.E63EF7DA@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/mpx-mini-test.c |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ tools/testing/selftests/x86/protection_keys.c |   12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
 
---- a/tools/testing/selftests/x86/mpx-mini-test.c
-+++ b/tools/testing/selftests/x86/mpx-mini-test.c
-@@ -368,6 +368,11 @@ static int expected_bnd_index = -1;
- uint64_t shadow_plb[NR_MPX_BOUNDS_REGISTERS][2]; /* shadow MPX bound registers */
- unsigned long shadow_map[NR_MPX_BOUNDS_REGISTERS];
+--- a/tools/testing/selftests/x86/protection_keys.c
++++ b/tools/testing/selftests/x86/protection_keys.c
+@@ -72,10 +72,9 @@ extern void abort_hooks(void);
+ 				test_nr, iteration_nr);	\
+ 		dprintf0("errno at assert: %d", errno);	\
+ 		abort_hooks();			\
+-		assert(condition);		\
++		exit(__LINE__);			\
+ 	}					\
+ } while (0)
+-#define raw_assert(cond) assert(cond)
  
-+/* Failed address bound checks: */
-+#ifndef SEGV_BNDERR
-+# define SEGV_BNDERR	3
-+#endif
+ void cat_into_file(char *str, char *file)
+ {
+@@ -87,12 +86,17 @@ void cat_into_file(char *str, char *file
+ 	 * these need to be raw because they are called under
+ 	 * pkey_assert()
+ 	 */
+-	raw_assert(fd >= 0);
++	if (fd < 0) {
++		fprintf(stderr, "error opening '%s'\n", str);
++		perror("error: ");
++		exit(__LINE__);
++	}
 +
- /*
-  * The kernel is supposed to provide some information about the bounds
-  * exception in the siginfo.  It should match what we have in the bounds
-@@ -419,8 +424,6 @@ void handler(int signum, siginfo_t *si,
- 		br_count++;
- 		dprintf1("#BR 0x%jx (total seen: %d)\n", status, br_count);
- 
--#define SEGV_BNDERR     3  /* failed address bound checks */
--
- 		dprintf2("Saw a #BR! status 0x%jx at %016lx br_reason: %jx\n",
- 				status, ip, br_reason);
- 		dprintf2("si_signo: %d\n", si->si_signo);
+ 	ret = write(fd, str, strlen(str));
+ 	if (ret != strlen(str)) {
+ 		perror("write to file failed");
+ 		fprintf(stderr, "filename: '%s' str: '%s'\n", file, str);
+-		raw_assert(0);
++		exit(__LINE__);
+ 	}
+ 	close(fd);
+ }
