@@ -1,102 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 81DC96B0003
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 19:25:48 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id d64-v6so9310173pfd.13
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 16:25:48 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x2-v6si16171660plr.223.2018.06.18.16.25.47
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 05BC56B0003
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 19:34:52 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id t19-v6so10951051plo.9
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 16:34:51 -0700 (PDT)
+Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
+        by mx.google.com with ESMTPS id a98-v6si16533656pla.117.2018.06.18.16.34.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 16:25:47 -0700 (PDT)
-Date: Mon, 18 Jun 2018 16:25:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 200095] New: kasan: GPF could be caused by NULL-ptr deref
- or user memory access
-Message-Id: <20180618162545.521b8da29637cf7ec7608fa6@linux-foundation.org>
-In-Reply-To: <bug-200095-27@https.bugzilla.kernel.org/>
-References: <bug-200095-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 18 Jun 2018 16:34:50 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [RFC v2 0/2] mm: zap pages with read mmap_sem in munmap for large mapping
+Date: Tue, 19 Jun 2018 07:34:14 +0800
+Message-Id: <1529364856-49589-1-git-send-email-yang.shi@linux.alibaba.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: bugzilla-daemon@bugzilla.kernel.org, icytxw@gmail.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+To: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, peterz@infradead.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org
+Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+Background:
+Recently, when we ran some vm scalability tests on machines with large memory,
+we ran into a couple of mmap_sem scalability issues when unmapping large memory
+space, please refer to https://lkml.org/lkml/2017/12/14/733 and
+https://lkml.org/lkml/2018/2/20/576.
 
-Could the KASAN people please help interpret this one?
+History:
+Then akpm suggested to unmap large mapping section by section and drop mmap_sem
+at a time to mitigate it (see https://lkml.org/lkml/2018/3/6/784).
 
-On Sun, 17 Jun 2018 03:10:59 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+V1 patch series was submitted to the mailing list per Andrewa??s suggestion
+(see https://lkml.org/lkml/2018/3/20/786). Then I received a lot great feedback
+and suggestions.
 
-> https://bugzilla.kernel.org/show_bug.cgi?id=200095
-> 
->             Bug ID: 200095
->            Summary: kasan: GPF could be caused by NULL-ptr deref or user
->                     memory access
->            Product: Alternate Trees
->            Version: 2.5
->     Kernel Version: v4.17
->           Hardware: All
->                 OS: Linux
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: mm
->           Assignee: akpm@linux-foundation.org
->           Reporter: icytxw@gmail.com
->         Regression: No
-> 
-> Created attachment 276605
->   --> https://bugzilla.kernel.org/attachment.cgi?id=276605&action=edit
-> log0
-> 
-> $ cat ../949034f0ecf05fba42df7e5f51a55453eba53e06/report0 
-> kasan: CONFIG_KASAN_INLINE enabled
-> kasan: GPF could be caused by NULL-ptr deref or user memory access
-> general protection fault: 0000 [#1] SMP KASAN PTI
-> CPU: 0 PID: 7388 Comm: syz-executor1 Not tainted 4.17.0 #1
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-> rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
-> RIP: 0010:__insert_vmap_area+0x8c/0x3c0 mm/vmalloc.c:373
-> Code: 76 e8 78 3f e5 ff 4c 89 e0 48 c1 e8 03 80 3c 28 00 0f 85 c7 02 00 00 4c
-> 8d 6b e8 4d 8b 3c 24 49 8d 7d 08 48 89 fa 48 c1 ea 03 <80> 3c 2a 00 0f 85 a0 02
-> 00 00 4c 3b 7b f0 72 9d e8 3f 3f e5 ff 41 
-> RSP: 0018:ffff8800550778c0 EFLAGS: 00010207
-> RAX: 1ffff1000d80fd40 RBX: 0000041600000406 RCX: ffffffff8324e1de
-> RDX: 00000082c000007e RSI: ffffffff814d6dd8 RDI: 00000416000003f6
-> RBP: dffffc0000000000 R08: 1ffffffff08cf184 R09: fffffbfff08cf184
-> R10: 0000000000000001 R11: fffffbfff08cf184 R12: ffff88006c07ea00
-> R13: 00000416000003ee R14: ffffed000d80fd41 R15: ffffc90000712000
-> FS:  0000000002619940(0000) GS:ffff88006d400000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000002622978 CR3: 0000000055078000 CR4: 00000000000006f0
-> DR0: 0000000020000ac0 DR1: 0000000020000ac0 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-> Call Trace:
-> Modules linked in:
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> ---[ end trace 650893cd43a30701 ]---
-> RIP: 0010:__insert_vmap_area+0x8c/0x3c0 mm/vmalloc.c:373
-> Code: 76 e8 78 3f e5 ff 4c 89 e0 48 c1 e8 03 80 3c 28 00 0f 85 c7 02 00 00 4c
-> 8d 6b e8 4d 8b 3c 24 49 8d 7d 08 48 89 fa 48 c1 ea 03 <80> 3c 2a 00 0f 85 a0 02
-> 00 00 4c 3b 7b f0 72 9d e8 3f 3f e5 ff 41 
-> RSP: 0018:ffff8800550778c0 EFLAGS: 00010207
-> RAX: 1ffff1000d80fd40 RBX: 0000041600000406 RCX: ffffffff8324e1de
-> RDX: 00000082c000007e RSI: ffffffff814d6dd8 RDI: 00000416000003f6
-> RBP: dffffc0000000000 R08: 1ffffffff08cf184 R09: fffffbfff08cf184
-> R10: 0000000000000001 R11: fffffbfff08cf184 R12: ffff88006c07ea00
-> R13: 00000416000003ee R14: ffffed000d80fd41 R15: ffffc90000712000
-> FS:  0000000002619940(0000) GS:ffff88006d400000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000002622978 CR3: 0000000055078000 CR4: 00000000000006f0
-> DR0: 0000000020000ac0 DR1: 0000000020000ac0 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-> 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+Then this topic was discussed on LSFMM summit 2018. In the summit, Michal Hock
+suggested (also in the v1 patches review) to try "two phases" approach. Zapping
+pages with read mmap_sem, then doing via cleanup with write mmap_sem (for
+discussion detail, see https://lwn.net/Articles/753269/)
+
+So, I came up with the V2 patch series per this suggestion. Here I don't call
+madvise(MADV_DONTNEED) directly since it is a little different from what munmap
+does, so I use unmap_region() as what do_munmap() does.
+The patches may need more cleanup and refactor, but it sounds better to let the
+community start review the patches early to make sure I'm on the right track.
+
+
+Regression and performance data:
+Test is run on a machine with 32 cores of E5-2680 @ 2.70GHz and 384GB memory
+
+Regression test with full LTP and trinity (munmap) with setting thresh to 4K in
+the code (just for regression test only) so that the new code can be covered
+better and trinity (munmap) test manipulates 4K mapping.
+
+No regression issue is reported and the system survives under trinity (munmap)
+test for 4 hours until I abort the test.
+
+Throughput of page faults (#/s) with the below stress-ng test:
+stress-ng --mmap 0 --mmap-bytes 80G --mmap-file --metrics --perf
+--timeout 600s
+        pristine         patched          delta
+       89.41K/sec       97.29K/sec        +8.8%
+
+The number looks a little bit better than v1.
+
+
+Yang Shi (2):
+      uprobes: make vma_has_uprobes non-static
+      mm: mmap: zap pages with read mmap_sem for large mapping
+
+ include/linux/uprobes.h |   7 ++++
+ kernel/events/uprobes.c |   2 +-
+ mm/mmap.c               | 148 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 155 insertions(+), 2 deletions(-)
