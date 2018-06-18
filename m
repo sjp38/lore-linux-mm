@@ -1,82 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A26646B026A
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:28:17 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id e1-v6so9694957pld.23
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:28:17 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CBDF6B0003
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:36:32 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id z11-v6so8340500pfn.1
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:36:32 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j84-v6si14113197pfj.79.2018.06.18.01.28.16
+        by mx.google.com with ESMTPS id 134-v6si11802725pgd.80.2018.06.18.01.36.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 01:28:16 -0700 (PDT)
+        Mon, 18 Jun 2018 01:36:31 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.16 239/279] x86/pkeys/selftests: Remove dead debugging code, fix dprint_in_signal
-Date: Mon, 18 Jun 2018 10:13:44 +0200
-Message-Id: <20180618080618.682438301@linuxfoundation.org>
-In-Reply-To: <20180618080608.851973560@linuxfoundation.org>
-References: <20180618080608.851973560@linuxfoundation.org>
+Subject: [PATCH 4.14 152/189] x86/pkeys/selftests: Adjust the self-test to fresh distros that export the pkeys ABI
+Date: Mon, 18 Jun 2018 10:14:08 +0200
+Message-Id: <20180618081215.339341272@linuxfoundation.org>
+In-Reply-To: <20180618081209.254234434@linuxfoundation.org>
+References: <20180618081209.254234434@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michael Ellermen <mpe@ellerman.id.au>, Peter Zijlstra <peterz@infradead.org>, Ram Pai <linuxram@us.ibm.com>, Shuah Khan <shuah@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, akpm@linux-foundation.org, dave.hansen@intel.com, linux-mm@kvack.org, linuxram@us.ibm.com, mpe@ellerman.id.au, shakeelb@google.com, shuah@kernel.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
-4.16-stable review patch.  If anyone has any objections, please let me know.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+From: Ingo Molnar <mingo@kernel.org>
 
-[ Upstream commit a50093d60464dd51d1ae0c2267b0abe9e1de77f3 ]
+[ Upstream commit 0fb96620dce351608aa82eed5942e2f58b07beda ]
 
-There is some noisy debug code at the end of the signal handler.  It was
-disabled by an early, unconditional "return".  However, that return also
-hid a dprint_in_signal=0, which kept dprint_in_signal=1 and effectively
-locked us into permanent dprint_in_signal=1 behavior.
+Ubuntu 18.04 started exporting pkeys details in header files, resulting
+in build failures and warnings in the pkeys self-tests:
 
-Remove the return and the dead code, fixing dprint_in_signal.
+  protection_keys.c:232:0: warning: "SEGV_BNDERR" redefined
+  protection_keys.c:387:5: error: conflicting types for a??pkey_geta??
+  protection_keys.c:409:5: error: conflicting types for a??pkey_seta??
+  ...
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
+Fix these namespace conflicts and double definitions, plus also
+clean up the ABI definitions to make it all a bit more readable ...
+
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michael Ellermen <mpe@ellerman.id.au>
 Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Ram Pai <linuxram@us.ibm.com>
-Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: akpm@linux-foundation.org
+Cc: dave.hansen@intel.com
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171342.846B9B2E@viggo.jf.intel.com
+Cc: linuxram@us.ibm.com
+Cc: mpe@ellerman.id.au
+Cc: shakeelb@google.com
+Cc: shuah@kernel.org
+Link: http://lkml.kernel.org/r/20180514085623.GB7094@gmail.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   16 ----------------
- 1 file changed, 16 deletions(-)
+ tools/testing/selftests/x86/protection_keys.c |   67 +++++++++++++++-----------
+ 1 file changed, 41 insertions(+), 26 deletions(-)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -325,22 +325,6 @@ void signal_handler(int signum, siginfo_
- 	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
- 	pkru_faults++;
- 	dprintf1("<<<<==================================================\n");
--	return;
--	if (trapno == 14) {
--		fprintf(stderr,
--			"ERROR: In signal handler, page fault, trapno = %d, ip = %016lx\n",
--			trapno, ip);
--		fprintf(stderr, "si_addr %p\n", si->si_addr);
--		fprintf(stderr, "REG_ERR: %lx\n",
--				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
--		exit(1);
--	} else {
--		fprintf(stderr, "unexpected trap %d! at 0x%lx\n", trapno, ip);
--		fprintf(stderr, "si_addr %p\n", si->si_addr);
--		fprintf(stderr, "REG_ERR: %lx\n",
--				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
--		exit(2);
--	}
- 	dprint_in_signal = 0;
+@@ -191,26 +191,30 @@ void lots_o_noops_around_write(int *writ
+ #ifdef __i386__
+ 
+ #ifndef SYS_mprotect_key
+-# define SYS_mprotect_key 380
++# define SYS_mprotect_key	380
+ #endif
++
+ #ifndef SYS_pkey_alloc
+-# define SYS_pkey_alloc	 381
+-# define SYS_pkey_free	 382
++# define SYS_pkey_alloc		381
++# define SYS_pkey_free		382
+ #endif
+-#define REG_IP_IDX REG_EIP
+-#define si_pkey_offset 0x14
++
++#define REG_IP_IDX		REG_EIP
++#define si_pkey_offset		0x14
+ 
+ #else
+ 
+ #ifndef SYS_mprotect_key
+-# define SYS_mprotect_key 329
++# define SYS_mprotect_key	329
+ #endif
++
+ #ifndef SYS_pkey_alloc
+-# define SYS_pkey_alloc	 330
+-# define SYS_pkey_free	 331
++# define SYS_pkey_alloc		330
++# define SYS_pkey_free		331
+ #endif
+-#define REG_IP_IDX REG_RIP
+-#define si_pkey_offset 0x20
++
++#define REG_IP_IDX		REG_RIP
++#define si_pkey_offset		0x20
+ 
+ #endif
+ 
+@@ -225,8 +229,14 @@ void dump_mem(void *dumpme, int len_byte
+ 	}
  }
  
+-#define SEGV_BNDERR     3  /* failed address bound checks */
+-#define SEGV_PKUERR     4
++/* Failed address bound checks: */
++#ifndef SEGV_BNDERR
++# define SEGV_BNDERR		3
++#endif
++
++#ifndef SEGV_PKUERR
++# define SEGV_PKUERR		4
++#endif
+ 
+ static char *si_code_str(int si_code)
+ {
+@@ -393,10 +403,15 @@ pid_t fork_lazy_child(void)
+ 	return forkret;
+ }
+ 
+-#define PKEY_DISABLE_ACCESS    0x1
+-#define PKEY_DISABLE_WRITE     0x2
++#ifndef PKEY_DISABLE_ACCESS
++# define PKEY_DISABLE_ACCESS	0x1
++#endif
++
++#ifndef PKEY_DISABLE_WRITE
++# define PKEY_DISABLE_WRITE	0x2
++#endif
+ 
+-u32 pkey_get(int pkey, unsigned long flags)
++static u32 hw_pkey_get(int pkey, unsigned long flags)
+ {
+ 	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
+ 	u32 pkru = __rdpkru();
+@@ -418,7 +433,7 @@ u32 pkey_get(int pkey, unsigned long fla
+ 	return masked_pkru;
+ }
+ 
+-int pkey_set(int pkey, unsigned long rights, unsigned long flags)
++static int hw_pkey_set(int pkey, unsigned long rights, unsigned long flags)
+ {
+ 	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
+ 	u32 old_pkru = __rdpkru();
+@@ -452,15 +467,15 @@ void pkey_disable_set(int pkey, int flag
+ 		pkey, flags);
+ 	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
+ 
+-	pkey_rights = pkey_get(pkey, syscall_flags);
++	pkey_rights = hw_pkey_get(pkey, syscall_flags);
+ 
+-	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
++	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 	pkey_assert(pkey_rights >= 0);
+ 
+ 	pkey_rights |= flags;
+ 
+-	ret = pkey_set(pkey, pkey_rights, syscall_flags);
++	ret = hw_pkey_set(pkey, pkey_rights, syscall_flags);
+ 	assert(!ret);
+ 	/*pkru and flags have the same format */
+ 	shadow_pkru |= flags << (pkey * 2);
+@@ -468,8 +483,8 @@ void pkey_disable_set(int pkey, int flag
+ 
+ 	pkey_assert(ret >= 0);
+ 
+-	pkey_rights = pkey_get(pkey, syscall_flags);
+-	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
++	pkey_rights = hw_pkey_get(pkey, syscall_flags);
++	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 
+ 	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
+@@ -483,24 +498,24 @@ void pkey_disable_clear(int pkey, int fl
+ {
+ 	unsigned long syscall_flags = 0;
+ 	int ret;
+-	int pkey_rights = pkey_get(pkey, syscall_flags);
++	int pkey_rights = hw_pkey_get(pkey, syscall_flags);
+ 	u32 orig_pkru = rdpkru();
+ 
+ 	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
+ 
+-	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
++	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 	pkey_assert(pkey_rights >= 0);
+ 
+ 	pkey_rights |= flags;
+ 
+-	ret = pkey_set(pkey, pkey_rights, 0);
++	ret = hw_pkey_set(pkey, pkey_rights, 0);
+ 	/* pkru and flags have the same format */
+ 	shadow_pkru &= ~(flags << (pkey * 2));
+ 	pkey_assert(ret >= 0);
+ 
+-	pkey_rights = pkey_get(pkey, syscall_flags);
+-	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
++	pkey_rights = hw_pkey_get(pkey, syscall_flags);
++	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 
+ 	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
