@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BA086B0269
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:28:12 -0400 (EDT)
-Received: by mail-pl0-f70.google.com with SMTP id b65-v6so8688271plb.5
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:28:12 -0700 (PDT)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A26646B026A
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:28:17 -0400 (EDT)
+Received: by mail-pl0-f72.google.com with SMTP id e1-v6so9694957pld.23
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:28:17 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r5-v6si14108162pls.518.2018.06.18.01.28.10
+        by mx.google.com with ESMTPS id j84-v6si14113197pfj.79.2018.06.18.01.28.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 01:28:10 -0700 (PDT)
+        Mon, 18 Jun 2018 01:28:16 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.16 247/279] x86/pkeys/selftests: Add a test for pkey 0
-Date: Mon, 18 Jun 2018 10:13:52 +0200
-Message-Id: <20180618080618.983261598@linuxfoundation.org>
+Subject: [PATCH 4.16 239/279] x86/pkeys/selftests: Remove dead debugging code, fix dprint_in_signal
+Date: Mon, 18 Jun 2018 10:13:44 +0200
+Message-Id: <20180618080618.682438301@linuxfoundation.org>
 In-Reply-To: <20180618080608.851973560@linuxfoundation.org>
 References: <20180618080608.851973560@linuxfoundation.org>
 MIME-Version: 1.0
@@ -28,13 +28,14 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dav
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit 3488a600d90bcaf061b104dbcfbdc8d99b398312 ]
+[ Upstream commit a50093d60464dd51d1ae0c2267b0abe9e1de77f3 ]
 
-Protection key 0 is the default key for all memory and will
-not normally come back from pkey_alloc().  But, you might
-still want pass it to mprotect_pkey().
+There is some noisy debug code at the end of the signal handler.  It was
+disabled by an early, unconditional "return".  However, that return also
+hid a dprint_in_signal=0, which kept dprint_in_signal=1 and effectively
+locked us into permanent dprint_in_signal=1 behavior.
 
-This check ensures that you can use pkey 0.
+Remove the return and the dead code, fixing dprint_in_signal.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -46,57 +47,36 @@ Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171356.9E40B254@viggo.jf.intel.com
+Link: http://lkml.kernel.org/r/20180509171342.846B9B2E@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   30 ++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ tools/testing/selftests/x86/protection_keys.c |   16 ----------------
+ 1 file changed, 16 deletions(-)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -1184,6 +1184,35 @@ void test_pkey_alloc_exhaust(int *ptr, u
- 	}
+@@ -325,22 +325,6 @@ void signal_handler(int signum, siginfo_
+ 	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
+ 	pkru_faults++;
+ 	dprintf1("<<<<==================================================\n");
+-	return;
+-	if (trapno == 14) {
+-		fprintf(stderr,
+-			"ERROR: In signal handler, page fault, trapno = %d, ip = %016lx\n",
+-			trapno, ip);
+-		fprintf(stderr, "si_addr %p\n", si->si_addr);
+-		fprintf(stderr, "REG_ERR: %lx\n",
+-				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
+-		exit(1);
+-	} else {
+-		fprintf(stderr, "unexpected trap %d! at 0x%lx\n", trapno, ip);
+-		fprintf(stderr, "si_addr %p\n", si->si_addr);
+-		fprintf(stderr, "REG_ERR: %lx\n",
+-				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
+-		exit(2);
+-	}
+ 	dprint_in_signal = 0;
  }
  
-+/*
-+ * pkey 0 is special.  It is allocated by default, so you do not
-+ * have to call pkey_alloc() to use it first.  Make sure that it
-+ * is usable.
-+ */
-+void test_mprotect_with_pkey_0(int *ptr, u16 pkey)
-+{
-+	long size;
-+	int prot;
-+
-+	assert(pkey_last_malloc_record);
-+	size = pkey_last_malloc_record->size;
-+	/*
-+	 * This is a bit of a hack.  But mprotect() requires
-+	 * huge-page-aligned sizes when operating on hugetlbfs.
-+	 * So, make sure that we use something that's a multiple
-+	 * of a huge page when we can.
-+	 */
-+	if (size >= HPAGE_SIZE)
-+		size = HPAGE_SIZE;
-+	prot = pkey_last_malloc_record->prot;
-+
-+	/* Use pkey 0 */
-+	mprotect_pkey(ptr, size, prot, 0);
-+
-+	/* Make sure that we can set it back to the original pkey. */
-+	mprotect_pkey(ptr, size, prot, pkey);
-+}
-+
- void test_ptrace_of_child(int *ptr, u16 pkey)
- {
- 	__attribute__((__unused__)) int peek_result;
-@@ -1378,6 +1407,7 @@ void (*pkey_tests[])(int *ptr, u16 pkey)
- 	test_kernel_gup_write_to_write_disabled_region,
- 	test_executing_on_unreadable_memory,
- 	test_implicit_mprotect_exec_only_memory,
-+	test_mprotect_with_pkey_0,
- 	test_ptrace_of_child,
- 	test_pkey_syscalls_on_non_allocated_pkey,
- 	test_pkey_syscalls_bad_args,
