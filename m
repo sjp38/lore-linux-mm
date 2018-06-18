@@ -1,76 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E3CF6B0008
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 19:36:19 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j7-v6so3551895pff.16
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 16:36:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q17-v6si12896051pgc.270.2018.06.18.16.36.18
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D0A346B0003
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 19:59:51 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id d10-v6so5658374pgv.8
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 16:59:51 -0700 (PDT)
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id v18-v6si16046824plo.285.2018.06.18.16.59.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 16:36:18 -0700 (PDT)
-Date: Mon, 18 Jun 2018 16:36:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] x86/e820: put !E820_TYPE_RAM regions into
- memblock.reserved
-Message-Id: <20180618163616.52645949a8e4a0f73819fd62@linux-foundation.org>
-In-Reply-To: <20180615140000.44tht4f3ek3lh2u2@xakep.localdomain>
-References: <20180607100256.GA9129@hori1.linux.bs1.fc.nec.co.jp>
-	<20180613054107.GA5329@hori1.linux.bs1.fc.nec.co.jp>
-	<20180613090700.GG13364@dhcp22.suse.cz>
-	<20180614051618.GB17860@hori1.linux.bs1.fc.nec.co.jp>
-	<20180614053859.GA9863@techadventures.net>
-	<20180614063454.GA32419@hori1.linux.bs1.fc.nec.co.jp>
-	<20180614213033.GA19374@techadventures.net>
-	<20180615010927.GC1196@hori1.linux.bs1.fc.nec.co.jp>
-	<20180615072947.GB23273@hori1.linux.bs1.fc.nec.co.jp>
-	<20180615084142.GE24039@dhcp22.suse.cz>
-	<20180615140000.44tht4f3ek3lh2u2@xakep.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 18 Jun 2018 16:59:49 -0700 (PDT)
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Subject: [PATCH v2] doc: add description to dirtytime_expire_seconds
+Date: Tue, 19 Jun 2018 07:59:18 +0800
+Message-Id: <1529366358-67312-1-git-send-email-yang.shi@linux.alibaba.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Oscar Salvador <osalvador@techadventures.net>, Oscar Salvador <osalvador@suse.de>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Matthew Wilcox <willy@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, Huang Ying <ying.huang@intel.com>
+To: tytso@mit.edu, nborisov@suse.com, corbet@lwn.net, akpm@linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 15 Jun 2018 10:00:00 -0400 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+commit 1efff914afac8a965ad63817ecf8861a927c2ace ("fs: add
+dirtytime_expire_seconds sysctl") introduced dirtytime_expire_seconds
+knob, but there is not description about it in
+Documentation/sysctl/vm.txt.
 
-> > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > > Tested-by: Oscar Salvador <osalvador@suse.de>
-> > 
-> > OK, this makes sense to me. It is definitely much better than the
-> > original attempt.
-> > 
-> > Unless I am missing something this should be correct
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> First of all thank you Naoya for finding and root causing this issue.
-> 
-> So, with this fix we reserve any hole and !E820_TYPE_RAM or
-> !E820_TYPE_RESERVED_KERN in e820.  I think, this will work because we
-> do pfn_valid() check in zero_resv_unavail(), so the ranges that do not have
-> backing struct pages will be skipped. But, I am worried on the performance
-> implications of when the holes of invalid memory are rather large. We would
-> have to loop through it in zero_resv_unavail() one pfn at a time.
-> 
-> Therefore, we might also need to optimize zero_resv_unavail() a little like
-> this:
-> 
-> 6407			if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
-> 6408				continue;
-> 
-> Add before "continue":
-> 	pfn = ALIGN_DOWN(pfn, pageblock_nr_pages) + pageblock_nr_pageas - 1.
-> At least, this way, we would skip a section of invalid memory at a time.
-> 
-> For the patch above:
-> Reviewed-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> 
-> But, I think the 2nd patch with the optimization above should go along this
-> this fix.
+Add the description for it.
 
-So I expect this patch needs a cc:stable, which I'll add.
+Cc: Theodore Ts'o <tytso@mit.edu>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+v1 --> v2: Rephrased the description per Nikolay Borisov's comment
 
-The optimiation patch seems less important and I'd like to hold that
-off for 4.19-rc1?
+I didn't dig into the old review discussion about why the description
+was not added at the first place. I'm supposed every knob under /proc/sys
+should have a brief description.
+
+ Documentation/sysctl/vm.txt | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 17256f2..b078baf 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -27,6 +27,7 @@ Currently, these files are in /proc/sys/vm:
+ - dirty_bytes
+ - dirty_expire_centisecs
+ - dirty_ratio
++- dirtytime_expire_seconds
+ - dirty_writeback_centisecs
+ - drop_caches
+ - extfrag_threshold
+@@ -178,6 +179,18 @@ The total available memory is not equal to total system memory.
+ 
+ ==============================================================
+ 
++dirtytime_expire_seconds
++
++When a lazytime inode is constantly having its pages dirtied, the inode with
++an updated timestamp will never get chance to be written out.  And, if the
++only thing that has happened on the file system is a dirtytime inode caused
++by an atime update, a worker will be scheduled to make sure that inode
++eventually gets pushed out to disk.  This tunable is used to define when dirty
++inode is old enough to be eligible for writeback by the kernel flusher threads.
++And, it is also used as the interval to wakeup dirtytime_writeback thread.
++
++==============================================================
++
+ dirty_writeback_centisecs
+ 
+ The kernel flusher threads will periodically wake up and write `old' data
+-- 
+1.8.3.1
