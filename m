@@ -1,45 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 283AE6B0003
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 09:41:04 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id n3-v6so5225282pgp.21
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 06:41:04 -0700 (PDT)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id bi1-v6si14618241plb.126.2018.06.18.06.41.02
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 554946B0003
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 09:59:21 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u16-v6so8669000pfm.15
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 06:59:21 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id d1-v6si16221092pln.471.2018.06.18.06.59.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 06:41:03 -0700 (PDT)
-Date: Mon, 18 Jun 2018 16:41:00 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv3 17/17] x86: Introduce CONFIG_X86_INTEL_MKTME
-Message-ID: <20180618134100.iehlv2uw4n7ariro@black.fi.intel.com>
+        Mon, 18 Jun 2018 06:59:19 -0700 (PDT)
+Subject: Re: [PATCHv3 16/17] x86/mm: Handle encrypted memory in page_to_virt()
+ and __pa()
 References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
- <20180612143915.68065-18-kirill.shutemov@linux.intel.com>
- <43ea6cea-b88c-e08a-3f4e-64c39b20ae59@intel.com>
+ <20180612143915.68065-17-kirill.shutemov@linux.intel.com>
+ <f8b9da42-1f7b-529c-bfdd-e82f669f6fe8@intel.com>
+ <20180618133455.aumn4wihygvds543@black.fi.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <48fe7072-e92d-959a-67f7-ded82124f79f@intel.com>
+Date: Mon, 18 Jun 2018 06:59:18 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <43ea6cea-b88c-e08a-3f4e-64c39b20ae59@intel.com>
+In-Reply-To: <20180618133455.aumn4wihygvds543@black.fi.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jun 13, 2018 at 06:46:34PM +0000, Dave Hansen wrote:
-> On 06/12/2018 07:39 AM, Kirill A. Shutemov wrote:
-> > Add new config option to enabled/disable Multi-Key Total Memory
-> > Encryption support.
-> > 
-> > MKTME uses MEMORY_PHYSICAL_PADDING to reserve enough space in per-KeyID
-> > direct mappings for memory hotplug.
+On 06/18/2018 06:34 AM, Kirill A. Shutemov wrote:
+> On Wed, Jun 13, 2018 at 06:43:08PM +0000, Dave Hansen wrote:
+>>> diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
+>>> index efc0d4bb3b35..d6edcabacfc7 100644
+>>> --- a/arch/x86/include/asm/mktme.h
+>>> +++ b/arch/x86/include/asm/mktme.h
+>>> @@ -43,6 +43,9 @@ void mktme_disable(void);
+>>>  void setup_direct_mapping_size(void);
+>>>  int sync_direct_mapping(void);
+>>>  
+>>> +#define page_to_virt(x) \
+>>> +	(__va(PFN_PHYS(page_to_pfn(x))) + page_keyid(x) * direct_mapping_size)
+>>
+>> This looks like a super important memory management function being
+>> defined in some obscure Intel-specific feature header.  How does that work?
 > 
-> Isn't it really *the* direct mapping primarily?  We make all of them
-> larger, but the direct mapping is impacted too.  This makes it sound
-> like it applies only to the MKTME mappings.
+> No magic. It overwrites define in <linux/mm.h>.
 
-We only cares about the padding in two cases: MKTME and KALSR.
-If none of them enabled padding doesn't have meaning. We have PAGE_OFFSET
-at fixed address and size is also fixed.
+It frankly looks like magic to me.  How can this possibly work without
+ensuring that asm/mktme.h is #included everywhere on every file compiled
+for the entire architecture?
 
--- 
- Kirill A. Shutemov
+If we look at every definition of page_to_virt() on every architecture
+in the kernel, we see it uniquely defined in headers that look rather
+generic.  I don't see any precedent for feature-specific definitions.
+
+> arch/arm64/include/asm/memory.h:#define page_to_virt(page)	((void *)((__page_to_voff(page)) | PAGE_OFFSET))
+> arch/hexagon/include/asm/page.h:#define page_to_virt(page)	__va(page_to_phys(page))
+> arch/m68k/include/asm/page_mm.h:#define page_to_virt(page) ({						\
+> arch/m68k/include/asm/page_no.h:#define page_to_virt(page)	__va(((((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET))
+> arch/microblaze/include/asm/page.h:#  define page_to_virt(page)   __va(page_to_pfn(page) << PAGE_SHIFT)
+> arch/microblaze/include/asm/page.h:#  define page_to_virt(page)	(pfn_to_virt(page_to_pfn(page)))
+> arch/nios2/include/asm/page.h:#define page_to_virt(page)	\
+> arch/riscv/include/asm/page.h:#define page_to_virt(page)	(pfn_to_virt(page_to_pfn(page)))
+> arch/s390/include/asm/page.h:#define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))
+> arch/xtensa/include/asm/page.h:#define page_to_virt(page)	__va(page_to_pfn(page) << PAGE_SHIFT)
+
+*If* you do this, I think it 100% *HAS* to be done in a central header,
+like x86's page.h.  We need a single x86 macro for this, not something
+which can and will change based on #include ordering and Kconfig.
