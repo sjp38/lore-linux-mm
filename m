@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 198D96B026F
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:37:05 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id b65-v6so8700415plb.5
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:37:05 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 621526B0270
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:37:39 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id y26-v6so8317847pfn.14
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:37:39 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d2-v6si11806293pge.342.2018.06.18.01.37.04
+        by mx.google.com with ESMTPS id c18-v6si13497651pfn.245.2018.06.18.01.37.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 01:37:04 -0700 (PDT)
+        Mon, 18 Jun 2018 01:37:38 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 156/189] x86/pkeys/selftests: Stop using assert()
-Date: Mon, 18 Jun 2018 10:14:12 +0200
-Message-Id: <20180618081215.503060714@linuxfoundation.org>
+Subject: [PATCH 4.14 157/189] x86/pkeys/selftests: Remove dead debugging code, fix dprint_in_signal
+Date: Mon, 18 Jun 2018 10:14:13 +0200
+Message-Id: <20180618081215.543048765@linuxfoundation.org>
 In-Reply-To: <20180618081209.254234434@linuxfoundation.org>
 References: <20180618081209.254234434@linuxfoundation.org>
 MIME-Version: 1.0
@@ -28,10 +28,14 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dav
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit 86b9eea230edf4c67d4d4a70fba9b74505867a25 ]
+[ Upstream commit a50093d60464dd51d1ae0c2267b0abe9e1de77f3 ]
 
-If we use assert(), the program "crashes".  That can be scary to users,
-so stop doing it.  Just exit with a >0 exit code instead.
+There is some noisy debug code at the end of the signal handler.  It was
+disabled by an early, unconditional "return".  However, that return also
+hid a dprint_in_signal=0, which kept dprint_in_signal=1 and effectively
+locked us into permanent dprint_in_signal=1 behavior.
+
+Remove the return and the dead code, fixing dprint_in_signal.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -43,45 +47,36 @@ Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171340.E63EF7DA@viggo.jf.intel.com
+Link: http://lkml.kernel.org/r/20180509171342.846B9B2E@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+ tools/testing/selftests/x86/protection_keys.c |   16 ----------------
+ 1 file changed, 16 deletions(-)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -72,10 +72,9 @@ extern void abort_hooks(void);
- 				test_nr, iteration_nr);	\
- 		dprintf0("errno at assert: %d", errno);	\
- 		abort_hooks();			\
--		assert(condition);		\
-+		exit(__LINE__);			\
- 	}					\
- } while (0)
--#define raw_assert(cond) assert(cond)
- 
- void cat_into_file(char *str, char *file)
- {
-@@ -87,12 +86,17 @@ void cat_into_file(char *str, char *file
- 	 * these need to be raw because they are called under
- 	 * pkey_assert()
- 	 */
--	raw_assert(fd >= 0);
-+	if (fd < 0) {
-+		fprintf(stderr, "error opening '%s'\n", str);
-+		perror("error: ");
-+		exit(__LINE__);
-+	}
-+
- 	ret = write(fd, str, strlen(str));
- 	if (ret != strlen(str)) {
- 		perror("write to file failed");
- 		fprintf(stderr, "filename: '%s' str: '%s'\n", file, str);
--		raw_assert(0);
-+		exit(__LINE__);
- 	}
- 	close(fd);
+@@ -325,22 +325,6 @@ void signal_handler(int signum, siginfo_
+ 	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
+ 	pkru_faults++;
+ 	dprintf1("<<<<==================================================\n");
+-	return;
+-	if (trapno == 14) {
+-		fprintf(stderr,
+-			"ERROR: In signal handler, page fault, trapno = %d, ip = %016lx\n",
+-			trapno, ip);
+-		fprintf(stderr, "si_addr %p\n", si->si_addr);
+-		fprintf(stderr, "REG_ERR: %lx\n",
+-				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
+-		exit(1);
+-	} else {
+-		fprintf(stderr, "unexpected trap %d! at 0x%lx\n", trapno, ip);
+-		fprintf(stderr, "si_addr %p\n", si->si_addr);
+-		fprintf(stderr, "REG_ERR: %lx\n",
+-				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
+-		exit(2);
+-	}
+ 	dprint_in_signal = 0;
  }
+ 
