@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7998F6B000C
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F3C66B000D
 	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 05:18:30 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id r2-v6so11493986wrm.15
+Received: by mail-wr0-f199.google.com with SMTP id k18-v6so11226452wrn.8
         for <linux-mm@kvack.org>; Mon, 18 Jun 2018 02:18:30 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h6-v6si6876954edd.152.2018.06.18.02.18.28
+        by mx.google.com with ESMTPS id l25-v6si10109114edd.239.2018.06.18.02.18.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Mon, 18 Jun 2018 02:18:28 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 4/7] dcache: allocate external names from reclaimable kmalloc caches
-Date: Mon, 18 Jun 2018 11:18:05 +0200
-Message-Id: <20180618091808.4419-5-vbabka@suse.cz>
+Subject: [PATCH v2 6/7] mm, proc: add KReclaimable to /proc/meminfo
+Date: Mon, 18 Jun 2018 11:18:07 +0200
+Message-Id: <20180618091808.4419-7-vbabka@suse.cz>
 In-Reply-To: <20180618091808.4419-1-vbabka@suse.cz>
 References: <20180618091808.4419-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,110 +20,133 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>
 
-We can use the newly introduced kmalloc-reclaimable-X caches, to allocate
-external names in dcache, which will take care of the proper accounting
-automatically, and also improve anti-fragmentation page grouping.
-
-This effectively reverts commit f1782c9bc547 ("dcache: account external names
-as indirectly reclaimable memory") and instead passes __GFP_RECLAIMABLE to
-kmalloc(). The accounting thus moves from NR_INDIRECTLY_RECLAIMABLE_BYTES to
-NR_SLAB_RECLAIMABLE, which is also considered in MemAvailable calculation and
-overcommit decisions.
+The vmstat NR_KERNEL_MISC_RECLAIMABLE counter is for kernel non-slab
+allocations that can be reclaimed via shrinker. In /proc/meminfo, we can show
+the sum of all reclaimable kernel allocations (including slab) as
+"KReclaimable". Add the same counter also to per-node meminfo under /sys
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- fs/dcache.c | 38 +++++++++-----------------------------
- 1 file changed, 9 insertions(+), 29 deletions(-)
+ Documentation/filesystems/proc.txt |  4 ++++
+ drivers/base/node.c                | 19 ++++++++++++-------
+ fs/proc/meminfo.c                  | 16 ++++++++--------
+ 3 files changed, 24 insertions(+), 15 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 0e8e5de3c48a..518c9ed8db8c 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -257,24 +257,10 @@ static void __d_free(struct rcu_head *head)
- 	kmem_cache_free(dentry_cache, dentry); 
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 520f6a84cf50..6a255f960ab5 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -858,6 +858,7 @@ Writeback:           0 kB
+ AnonPages:      861800 kB
+ Mapped:         280372 kB
+ Shmem:             644 kB
++KReclaimable:   168048 kB
+ Slab:           284364 kB
+ SReclaimable:   159856 kB
+ SUnreclaim:     124508 kB
+@@ -921,6 +922,9 @@ AnonHugePages: Non-file backed huge pages mapped into userspace page tables
+ ShmemHugePages: Memory used by shared memory (shmem) and tmpfs allocated
+               with huge pages
+ ShmemPmdMapped: Shared memory mapped into userspace with huge pages
++KReclaimable: Kernel allocations that the kernel will attempt to reclaim
++              under memory pressure. Includes SReclaimable (below), and other
++              direct allocations with a shrinker.
+         Slab: in-kernel data structures cache
+ SReclaimable: Part of Slab, that might be reclaimed, such as caches
+   SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index a5e821d09656..81cef8031eae 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -67,8 +67,11 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 	int nid = dev->id;
+ 	struct pglist_data *pgdat = NODE_DATA(nid);
+ 	struct sysinfo i;
++	unsigned long sreclaimable, sunreclaimable;
+ 
+ 	si_meminfo_node(&i, nid);
++	sreclaimable = node_page_state(pgdat, NR_SLAB_RECLAIMABLE);
++	sunreclaimable = node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE);
+ 	n = sprintf(buf,
+ 		       "Node %d MemTotal:       %8lu kB\n"
+ 		       "Node %d MemFree:        %8lu kB\n"
+@@ -118,6 +121,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       "Node %d NFS_Unstable:   %8lu kB\n"
+ 		       "Node %d Bounce:         %8lu kB\n"
+ 		       "Node %d WritebackTmp:   %8lu kB\n"
++		       "Node %d KReclaimable:   %8lu kB\n"
+ 		       "Node %d Slab:           %8lu kB\n"
+ 		       "Node %d SReclaimable:   %8lu kB\n"
+ 		       "Node %d SUnreclaim:     %8lu kB\n"
+@@ -138,20 +142,21 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       nid, K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
+ 		       nid, K(sum_zone_node_page_state(nid, NR_BOUNCE)),
+ 		       nid, K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
+-		       nid, K(node_page_state(pgdat, NR_SLAB_RECLAIMABLE) +
+-			      node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE)),
+-		       nid, K(node_page_state(pgdat, NR_SLAB_RECLAIMABLE)),
++		       nid, K(sreclaimable +
++			      node_page_state(pgdat, NR_KERNEL_MISC_RECLAIMABLE)),
++		       nid, K(sreclaimable + sunreclaimable),
++		       nid, K(sreclaimable),
++		       nid, K(sunreclaimable)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		       nid, K(node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE)),
++		       ,
+ 		       nid, K(node_page_state(pgdat, NR_ANON_THPS) *
+ 				       HPAGE_PMD_NR),
+ 		       nid, K(node_page_state(pgdat, NR_SHMEM_THPS) *
+ 				       HPAGE_PMD_NR),
+ 		       nid, K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED) *
+-				       HPAGE_PMD_NR));
+-#else
+-		       nid, K(node_page_state(pgdat, NR_SLAB_UNRECLAIMABLE)));
++				       HPAGE_PMD_NR)
+ #endif
++		       );
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
  }
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 2fb04846ed11..61a18477bc07 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -37,6 +37,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 	long cached;
+ 	long available;
+ 	unsigned long pages[NR_LRU_LISTS];
++	unsigned long sreclaimable, sunreclaim;
+ 	int lru;
  
--static void __d_free_external_name(struct rcu_head *head)
--{
--	struct external_name *name = container_of(head, struct external_name,
--						  u.head);
--
--	mod_node_page_state(page_pgdat(virt_to_page(name)),
--			    NR_INDIRECTLY_RECLAIMABLE_BYTES,
--			    -ksize(name));
--
--	kfree(name);
--}
--
- static void __d_free_external(struct rcu_head *head)
- {
- 	struct dentry *dentry = container_of(head, struct dentry, d_u.d_rcu);
--
--	__d_free_external_name(&external_name(dentry)->u.head);
--
-+	kfree(external_name(dentry));
- 	kmem_cache_free(dentry_cache, dentry);
- }
+ 	si_meminfo(&i);
+@@ -52,6 +53,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
  
-@@ -305,7 +291,7 @@ void release_dentry_name_snapshot(struct name_snapshot *name)
- 		struct external_name *p;
- 		p = container_of(name->name, struct external_name, name[0]);
- 		if (unlikely(atomic_dec_and_test(&p->u.count)))
--			call_rcu(&p->u.head, __d_free_external_name);
-+			kfree_rcu(p, u.head);
- 	}
- }
- EXPORT_SYMBOL(release_dentry_name_snapshot);
-@@ -1608,7 +1594,6 @@ EXPORT_SYMBOL(d_invalidate);
-  
- struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- {
--	struct external_name *ext = NULL;
- 	struct dentry *dentry;
- 	char *dname;
- 	int err;
-@@ -1629,14 +1614,15 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 		dname = dentry->d_iname;
- 	} else if (name->len > DNAME_INLINE_LEN-1) {
- 		size_t size = offsetof(struct external_name, name[1]);
+ 	available = si_mem_available();
++	sreclaimable = global_node_page_state(NR_SLAB_RECLAIMABLE);
++	sunreclaim = global_node_page_state(NR_SLAB_UNRECLAIMABLE);
+ 
+ 	show_val_kb(m, "MemTotal:       ", i.totalram);
+ 	show_val_kb(m, "MemFree:        ", i.freeram);
+@@ -93,14 +96,11 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 	show_val_kb(m, "Mapped:         ",
+ 		    global_node_page_state(NR_FILE_MAPPED));
+ 	show_val_kb(m, "Shmem:          ", i.sharedram);
+-	show_val_kb(m, "Slab:           ",
+-		    global_node_page_state(NR_SLAB_RECLAIMABLE) +
+-		    global_node_page_state(NR_SLAB_UNRECLAIMABLE));
 -
--		ext = kmalloc(size + name->len, GFP_KERNEL_ACCOUNT);
--		if (!ext) {
-+		struct external_name *p = kmalloc(size + name->len,
-+						  GFP_KERNEL_ACCOUNT |
-+						  __GFP_RECLAIMABLE);
-+		if (!p) {
- 			kmem_cache_free(dentry_cache, dentry); 
- 			return NULL;
- 		}
--		atomic_set(&ext->u.count, 1);
--		dname = ext->name;
-+		atomic_set(&p->u.count, 1);
-+		dname = p->name;
- 	} else  {
- 		dname = dentry->d_iname;
- 	}	
-@@ -1675,12 +1661,6 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 		}
- 	}
- 
--	if (unlikely(ext)) {
--		pg_data_t *pgdat = page_pgdat(virt_to_page(ext));
--		mod_node_page_state(pgdat, NR_INDIRECTLY_RECLAIMABLE_BYTES,
--				    ksize(ext));
--	}
--
- 	this_cpu_inc(nr_dentry);
- 
- 	return dentry;
-@@ -2761,7 +2741,7 @@ static void copy_name(struct dentry *dentry, struct dentry *target)
- 		dentry->d_name.hash_len = target->d_name.hash_len;
- 	}
- 	if (old_name && likely(atomic_dec_and_test(&old_name->u.count)))
--		call_rcu(&old_name->u.head, __d_free_external_name);
-+		kfree_rcu(old_name, u.head);
- }
- 
- /*
+-	show_val_kb(m, "SReclaimable:   ",
+-		    global_node_page_state(NR_SLAB_RECLAIMABLE));
+-	show_val_kb(m, "SUnreclaim:     ",
+-		    global_node_page_state(NR_SLAB_UNRECLAIMABLE));
++	show_val_kb(m, "KReclaimable:   ", sreclaimable +
++		    global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE));
++	show_val_kb(m, "Slab:           ", sreclaimable + sunreclaim);
++	show_val_kb(m, "SReclaimable:   ", sreclaimable);
++	show_val_kb(m, "SUnreclaim:     ", sunreclaim);
+ 	seq_printf(m, "KernelStack:    %8lu kB\n",
+ 		   global_zone_page_state(NR_KERNEL_STACK_KB));
+ 	show_val_kb(m, "PageTables:     ",
 -- 
 2.17.1
