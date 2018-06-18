@@ -1,58 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 065436B000A
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:10:09 -0400 (EDT)
-Received: by mail-pl0-f72.google.com with SMTP id 31-v6so9759395plf.19
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:10:08 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z9-v6si14757766pln.250.2018.06.18.01.10.07
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D48476B0008
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:26:18 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id l2-v6so4743545pff.3
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:26:18 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id b2-v6si14854591plz.118.2018.06.18.01.26.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 18 Jun 2018 01:10:07 -0700 (PDT)
-Date: Mon, 18 Jun 2018 01:10:03 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 0/2] mm: gup: don't unmap or drop filesystem buffers
-Message-ID: <20180618081003.GA20927@infradead.org>
-References: <20180617012510.20139-1-jhubbard@nvidia.com>
- <010001640fbe0dd8-f999e7f6-7b6e-4deb-b073-0c572006727d-000000@email.amazonses.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Jun 2018 01:26:17 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.16 234/279] x86/pkeys/selftests: Adjust the self-test to fresh distros that export the pkeys ABI
+Date: Mon, 18 Jun 2018 10:13:39 +0200
+Message-Id: <20180618080618.495174114@linuxfoundation.org>
+In-Reply-To: <20180618080608.851973560@linuxfoundation.org>
+References: <20180618080608.851973560@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <010001640fbe0dd8-f999e7f6-7b6e-4deb-b073-0c572006727d-000000@email.amazonses.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, akpm@linux-foundation.org, dave.hansen@intel.com, linux-mm@kvack.org, linuxram@us.ibm.com, mpe@ellerman.id.au, shakeelb@google.com, shuah@kernel.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <alexander.levin@microsoft.com>
 
-On Sun, Jun 17, 2018 at 09:54:31PM +0000, Christopher Lameter wrote:
-> On Sat, 16 Jun 2018, john.hubbard@gmail.com wrote:
-> 
-> > I've come up with what I claim is a simple, robust fix, but...I'm
-> > presuming to burn a struct page flag, and limit it to 64-bit arches, in
-> > order to get there. Given that the problem is old (Jason Gunthorpe noted
-> > that RDMA has been living with this problem since 2005), I think it's
-> > worth it.
-> >
-> > Leaving the new page flag set "nearly forever" is not great, but on the
-> > other hand, once the page is actually freed, the flag does get cleared.
-> > It seems like an acceptable tradeoff, given that we only get one bit
-> > (and are lucky to even have that).
-> 
-> This is not robust. Multiple processes may register a page with the RDMA
-> subsystem. How do you decide when to clear the flag? I think you would
-> need an additional refcount for the number of times the page was
-> registered.
+4.16-stable review patch.  If anyone has any objections, please let me know.
 
-And it's not just RDMA that is using get_user_pages.  We have tons of
-users that do short, spurious get_user_pages do do zero copy operations.
+------------------
 
-We can't leave the page in a wrecked state after that.
+From: Ingo Molnar <mingo@kernel.org>
 
-> I still think the cleanest solution here is to require mmu notifier
-> callbacks and to not pin the page in the first place. If a NIC does not
-> support a hardware mmu then it can still simulate it in software by
-> holding off the ummapping the mmu notifier callback until any pending
-> operation is complete and then invalidate the mapping so that future
-> operations require a remapping (or refaulting).
+[ Upstream commit 0fb96620dce351608aa82eed5942e2f58b07beda ]
 
-Sounds ok for RDMA, not going to help for most other users.
+Ubuntu 18.04 started exporting pkeys details in header files, resulting
+in build failures and warnings in the pkeys self-tests:
+
+  protection_keys.c:232:0: warning: "SEGV_BNDERR" redefined
+  protection_keys.c:387:5: error: conflicting types for a??pkey_geta??
+  protection_keys.c:409:5: error: conflicting types for a??pkey_seta??
+  ...
+
+Fix these namespace conflicts and double definitions, plus also
+clean up the ABI definitions to make it all a bit more readable ...
+
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: akpm@linux-foundation.org
+Cc: dave.hansen@intel.com
+Cc: linux-mm@kvack.org
+Cc: linuxram@us.ibm.com
+Cc: mpe@ellerman.id.au
+Cc: shakeelb@google.com
+Cc: shuah@kernel.org
+Link: http://lkml.kernel.org/r/20180514085623.GB7094@gmail.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ tools/testing/selftests/x86/protection_keys.c |   67 +++++++++++++++-----------
+ 1 file changed, 41 insertions(+), 26 deletions(-)
+
+--- a/tools/testing/selftests/x86/protection_keys.c
++++ b/tools/testing/selftests/x86/protection_keys.c
+@@ -191,26 +191,30 @@ void lots_o_noops_around_write(int *writ
+ #ifdef __i386__
+ 
+ #ifndef SYS_mprotect_key
+-# define SYS_mprotect_key 380
++# define SYS_mprotect_key	380
+ #endif
++
+ #ifndef SYS_pkey_alloc
+-# define SYS_pkey_alloc	 381
+-# define SYS_pkey_free	 382
++# define SYS_pkey_alloc		381
++# define SYS_pkey_free		382
+ #endif
+-#define REG_IP_IDX REG_EIP
+-#define si_pkey_offset 0x14
++
++#define REG_IP_IDX		REG_EIP
++#define si_pkey_offset		0x14
+ 
+ #else
+ 
+ #ifndef SYS_mprotect_key
+-# define SYS_mprotect_key 329
++# define SYS_mprotect_key	329
+ #endif
++
+ #ifndef SYS_pkey_alloc
+-# define SYS_pkey_alloc	 330
+-# define SYS_pkey_free	 331
++# define SYS_pkey_alloc		330
++# define SYS_pkey_free		331
+ #endif
+-#define REG_IP_IDX REG_RIP
+-#define si_pkey_offset 0x20
++
++#define REG_IP_IDX		REG_RIP
++#define si_pkey_offset		0x20
+ 
+ #endif
+ 
+@@ -225,8 +229,14 @@ void dump_mem(void *dumpme, int len_byte
+ 	}
+ }
+ 
+-#define SEGV_BNDERR     3  /* failed address bound checks */
+-#define SEGV_PKUERR     4
++/* Failed address bound checks: */
++#ifndef SEGV_BNDERR
++# define SEGV_BNDERR		3
++#endif
++
++#ifndef SEGV_PKUERR
++# define SEGV_PKUERR		4
++#endif
+ 
+ static char *si_code_str(int si_code)
+ {
+@@ -393,10 +403,15 @@ pid_t fork_lazy_child(void)
+ 	return forkret;
+ }
+ 
+-#define PKEY_DISABLE_ACCESS    0x1
+-#define PKEY_DISABLE_WRITE     0x2
++#ifndef PKEY_DISABLE_ACCESS
++# define PKEY_DISABLE_ACCESS	0x1
++#endif
++
++#ifndef PKEY_DISABLE_WRITE
++# define PKEY_DISABLE_WRITE	0x2
++#endif
+ 
+-u32 pkey_get(int pkey, unsigned long flags)
++static u32 hw_pkey_get(int pkey, unsigned long flags)
+ {
+ 	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
+ 	u32 pkru = __rdpkru();
+@@ -418,7 +433,7 @@ u32 pkey_get(int pkey, unsigned long fla
+ 	return masked_pkru;
+ }
+ 
+-int pkey_set(int pkey, unsigned long rights, unsigned long flags)
++static int hw_pkey_set(int pkey, unsigned long rights, unsigned long flags)
+ {
+ 	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
+ 	u32 old_pkru = __rdpkru();
+@@ -452,15 +467,15 @@ void pkey_disable_set(int pkey, int flag
+ 		pkey, flags);
+ 	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
+ 
+-	pkey_rights = pkey_get(pkey, syscall_flags);
++	pkey_rights = hw_pkey_get(pkey, syscall_flags);
+ 
+-	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
++	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 	pkey_assert(pkey_rights >= 0);
+ 
+ 	pkey_rights |= flags;
+ 
+-	ret = pkey_set(pkey, pkey_rights, syscall_flags);
++	ret = hw_pkey_set(pkey, pkey_rights, syscall_flags);
+ 	assert(!ret);
+ 	/*pkru and flags have the same format */
+ 	shadow_pkru |= flags << (pkey * 2);
+@@ -468,8 +483,8 @@ void pkey_disable_set(int pkey, int flag
+ 
+ 	pkey_assert(ret >= 0);
+ 
+-	pkey_rights = pkey_get(pkey, syscall_flags);
+-	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
++	pkey_rights = hw_pkey_get(pkey, syscall_flags);
++	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 
+ 	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
+@@ -483,24 +498,24 @@ void pkey_disable_clear(int pkey, int fl
+ {
+ 	unsigned long syscall_flags = 0;
+ 	int ret;
+-	int pkey_rights = pkey_get(pkey, syscall_flags);
++	int pkey_rights = hw_pkey_get(pkey, syscall_flags);
+ 	u32 orig_pkru = rdpkru();
+ 
+ 	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
+ 
+-	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
++	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 	pkey_assert(pkey_rights >= 0);
+ 
+ 	pkey_rights |= flags;
+ 
+-	ret = pkey_set(pkey, pkey_rights, 0);
++	ret = hw_pkey_set(pkey, pkey_rights, 0);
+ 	/* pkru and flags have the same format */
+ 	shadow_pkru &= ~(flags << (pkey * 2));
+ 	pkey_assert(ret >= 0);
+ 
+-	pkey_rights = pkey_get(pkey, syscall_flags);
+-	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
++	pkey_rights = hw_pkey_get(pkey, syscall_flags);
++	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 
+ 	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
