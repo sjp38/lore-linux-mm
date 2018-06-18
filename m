@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AEEE6B0271
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:38:14 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id r8-v6so4971391pgq.2
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:38:14 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 69ABC6B0272
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 04:38:17 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id e11-v6so4972378pgt.19
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 01:38:17 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x16-v6si13466942pfh.354.2018.06.18.01.38.13
+        by mx.google.com with ESMTPS id x33-v6si14376784plb.512.2018.06.18.01.38.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 01:38:13 -0700 (PDT)
+        Mon, 18 Jun 2018 01:38:16 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 160/189] x86/pkeys/selftests: Add PROT_EXEC test
-Date: Mon, 18 Jun 2018 10:14:16 +0200
-Message-Id: <20180618081215.655070976@linuxfoundation.org>
+Subject: [PATCH 4.14 161/189] x86/pkeys/selftests: Fix pkey exhaustion test off-by-one
+Date: Mon, 18 Jun 2018 10:14:17 +0200
+Message-Id: <20180618081215.696074572@linuxfoundation.org>
 In-Reply-To: <20180618081209.254234434@linuxfoundation.org>
 References: <20180618081209.254234434@linuxfoundation.org>
 MIME-Version: 1.0
@@ -28,12 +28,17 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dav
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-[ Upstream commit 6af17cf89e99b64cf1f660bf848755442ab2f047 ]
+[ Upstream commit f50b4878329ab61d8e05796f655adeb6f5fb57c6 ]
 
-Under the covers, implement executable-only memory with
-protection keys when userspace calls mprotect(PROT_EXEC).
+In our "exhaust all pkeys" test, we make sure that there
+is the expected number available.  Turns out that the
+test did not cover the execute-only key, but discussed
+it anyway.  It did *not* discuss the test-allocated
+key.
 
-But, we did not have a selftest for that.  Now we do.
+Now that we have a test for the mprotect(PROT_EXEC) case,
+this off-by-one issue showed itself.  Correct the off-by-
+one and add the explanation for the case we missed.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -45,71 +50,34 @@ Cc: Ram Pai <linuxram@us.ibm.com>
 Cc: Shuah Khan <shuah@kernel.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20180509171348.9EEE4BEF@viggo.jf.intel.com
+Link: http://lkml.kernel.org/r/20180509171350.E1656B95@viggo.jf.intel.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- tools/testing/selftests/x86/protection_keys.c |   44 ++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ tools/testing/selftests/x86/protection_keys.c |   13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
 
 --- a/tools/testing/selftests/x86/protection_keys.c
 +++ b/tools/testing/selftests/x86/protection_keys.c
-@@ -1303,6 +1303,49 @@ void test_executing_on_unreadable_memory
- 	expected_pk_fault(pkey);
- }
+@@ -1163,12 +1163,15 @@ void test_pkey_alloc_exhaust(int *ptr, u
+ 	pkey_assert(i < NR_PKEYS*2);
  
-+void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
-+{
-+	void *p1;
-+	int scratch;
-+	int ptr_contents;
-+	int ret;
-+
-+	dprintf1("%s() start\n", __func__);
-+
-+	p1 = get_pointer_to_instructions();
-+	lots_o_noops_around_write(&scratch);
-+	ptr_contents = read_ptr(p1);
-+	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
-+
-+	/* Use a *normal* mprotect(), not mprotect_pkey(): */
-+	ret = mprotect(p1, PAGE_SIZE, PROT_EXEC);
-+	pkey_assert(!ret);
-+
-+	dprintf2("pkru: %x\n", rdpkru());
-+
-+	/* Make sure this is an *instruction* fault */
-+	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
-+	lots_o_noops_around_write(&scratch);
-+	do_not_expect_pk_fault("executing on PROT_EXEC memory");
-+	ptr_contents = read_ptr(p1);
-+	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
-+	expected_pk_fault(UNKNOWN_PKEY);
-+
-+	/*
-+	 * Put the memory back to non-PROT_EXEC.  Should clear the
-+	 * exec-only pkey off the VMA and allow it to be readable
-+	 * again.  Go to PROT_NONE first to check for a kernel bug
-+	 * that did not clear the pkey when doing PROT_NONE.
-+	 */
-+	ret = mprotect(p1, PAGE_SIZE, PROT_NONE);
-+	pkey_assert(!ret);
-+
-+	ret = mprotect(p1, PAGE_SIZE, PROT_READ|PROT_EXEC);
-+	pkey_assert(!ret);
-+	ptr_contents = read_ptr(p1);
-+	do_not_expect_pk_fault("plain read on recently PROT_EXEC area");
-+}
-+
- void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
- {
- 	int size = PAGE_SIZE;
-@@ -1327,6 +1370,7 @@ void (*pkey_tests[])(int *ptr, u16 pkey)
- 	test_kernel_gup_of_access_disabled_region,
- 	test_kernel_gup_write_to_write_disabled_region,
- 	test_executing_on_unreadable_memory,
-+	test_implicit_mprotect_exec_only_memory,
- 	test_ptrace_of_child,
- 	test_pkey_syscalls_on_non_allocated_pkey,
- 	test_pkey_syscalls_bad_args,
+ 	/*
+-	 * There are 16 pkeys supported in hardware.  One is taken
+-	 * up for the default (0) and another can be taken up by
+-	 * an execute-only mapping.  Ensure that we can allocate
+-	 * at least 14 (16-2).
++	 * There are 16 pkeys supported in hardware.  Three are
++	 * allocated by the time we get here:
++	 *   1. The default key (0)
++	 *   2. One possibly consumed by an execute-only mapping.
++	 *   3. One allocated by the test code and passed in via
++	 *      'pkey' to this function.
++	 * Ensure that we can allocate at least another 13 (16-3).
+ 	 */
+-	pkey_assert(i >= NR_PKEYS-2);
++	pkey_assert(i >= NR_PKEYS-3);
+ 
+ 	for (i = 0; i < nr_allocated_pkeys; i++) {
+ 		err = sys_pkey_free(allocated_pkeys[i]);
