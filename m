@@ -1,76 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CE046B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 12:28:34 -0400 (EDT)
-Received: by mail-pl0-f71.google.com with SMTP id c3-v6so10337797plz.7
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 09:28:34 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id s13-v6si14845820plp.350.2018.06.18.09.28.28
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CD8886B0007
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 13:00:11 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id h12-v6so12393840wrq.2
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 10:00:11 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d28-v6si508980wmi.142.2018.06.18.10.00.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 09:28:29 -0700 (PDT)
-Subject: Re: [PATCHv3 15/17] x86/mm: Implement sync_direct_mapping()
-References: <20180612143915.68065-1-kirill.shutemov@linux.intel.com>
- <20180612143915.68065-16-kirill.shutemov@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <848a6836-1f54-4775-0b87-e926d7b7991d@intel.com>
-Date: Mon, 18 Jun 2018 09:28:27 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180612143915.68065-16-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+        Mon, 18 Jun 2018 10:00:10 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w5IGwqgb021189
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 13:00:08 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2jpfyv9y5q-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 13:00:08 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 18 Jun 2018 18:00:06 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH 00/11] docs/mm: add boot time memory management docs
+Date: Mon, 18 Jun 2018 19:59:48 +0300
+Message-Id: <1529341199-17682-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Kai Huang <kai.huang@linux.intel.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-doc <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-> index 17383f9677fa..032b9a1ba8e1 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -731,6 +731,8 @@ kernel_physical_mapping_init(unsigned long paddr_start,
->  		pgd_changed = true;
->  	}
->  
-> +	sync_direct_mapping();
-> +
->  	if (pgd_changed)
->  		sync_global_pgds(vaddr_start, vaddr_end - 1);
->  
-> @@ -1142,10 +1144,13 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
->  static void __meminit
->  kernel_physical_mapping_remove(unsigned long start, unsigned long end)
->  {
-> +	int ret;
->  	start = (unsigned long)__va(start);
->  	end = (unsigned long)__va(end);
->  
->  	remove_pagetable(start, end, true, NULL);
-> +	ret = sync_direct_mapping();
-> +	WARN_ON(ret);
->  }
+Hi,
 
-I understand why you implemented it this way, I really do.  It's
-certainly the quickest way to hack something together and make a
-standalone piece of code.  But, I don't think it's maintainable.
+Both bootmem and memblock have pretty good documentation coverage. With
+some fixups and additions we get a nice overall description.
 
-For instance, this call to sync_direct_mapping() could be entirely
-replaced by a call to:
+The last commit in the series that creates the boot-time-mm.rst depends on
+the 'nodoc' sphix directive patch [1] I've sent earlier 
 
-	for_each_keyid(k)...
-		remove_pagetable(start + offset_per_keyid * k,
-			         end   + offset_per_keyid * k,
-				 true, NULL);
+While working on the docs, I've noticed that both bootmem and nobootmem
+implement some one-line wrappers for the core allocation methods as a
+global functions rather than 'static inline'. I wonder whether I miss
+something important here is it just a historic thing?
 
-No?
+[1] https://marc.info/?l=linux-doc&m=152932901214922&w=2
 
->  int __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
-> @@ -1290,6 +1295,7 @@ void mark_rodata_ro(void)
->  			(unsigned long) __va(__pa_symbol(rodata_end)),
->  			(unsigned long) __va(__pa_symbol(_sdata)));
->  
-> +	sync_direct_mapping();
->  	debug_checkwx();
+Mike Rapoport (11):
+  mm/bootmem: drop duplicated kernel-doc comments
+  docs/mm: nobootmem: fixup kernel-doc comments
+  docs/mm: bootmem: fix kernel-doc warnings
+  docs/mm: bootmem: add kernel-doc description of 'struct bootmem_data'
+  docs/mm: bootmem: add overview documentation
+  mm/memblock: add a name for memblock flags enumeration
+  docs/mm: memblock: update kernel-doc comments
+  docs/mm: memblock: add kernel-doc comments for memblock_add[_node]
+  docs/mm: memblock: add kernel-doc description for memblock types
+  docs/mm: memblock: add overview documentation
+  docs/mm: add description of boot time memory management
 
-Huh, checking the return code in some cases and not others.  Curious.
-Why is it that way?
+ Documentation/core-api/boot-time-mm.rst |  92 +++++++++++++++
+ Documentation/core-api/index.rst        |   1 +
+ include/linux/bootmem.h                 |  17 ++-
+ include/linux/memblock.h                |  76 ++++++++----
+ mm/bootmem.c                            | 159 +++++++++----------------
+ mm/memblock.c                           | 203 +++++++++++++++++++++++---------
+ mm/nobootmem.c                          |  20 +++-
+ 7 files changed, 380 insertions(+), 188 deletions(-)
+ create mode 100644 Documentation/core-api/boot-time-mm.rst
+
+-- 
+2.7.4
