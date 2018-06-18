@@ -1,155 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D6C46B026B
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 05:18:35 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f65-v6so5153832wmd.2
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 02:18:35 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m52-v6si6715926edc.418.2018.06.18.02.18.28
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F3A16B0003
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 05:39:42 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id p91-v6so9786250plb.12
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 02:39:42 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0130.outbound.protection.outlook.com. [104.47.1.130])
+        by mx.google.com with ESMTPS id o128-v6si14942157pfg.5.2018.06.18.02.39.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Jun 2018 02:18:28 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 5/7] mm: rename and change semantics of nr_indirectly_reclaimable_bytes
-Date: Mon, 18 Jun 2018 11:18:06 +0200
-Message-Id: <20180618091808.4419-6-vbabka@suse.cz>
-In-Reply-To: <20180618091808.4419-1-vbabka@suse.cz>
-References: <20180618091808.4419-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 18 Jun 2018 02:39:40 -0700 (PDT)
+Subject: [PATCH v7 REBASED 00/17] Improve shrink_slab() scalability (old
+ complexity was O(n^2), new is O(n))
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Mon, 18 Jun 2018 12:39:32 +0300
+Message-ID: <152931465724.27697.12828290733260370115.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Vijayanand Jitta <vjitta@codeaurora.org>, Laura Abbott <labbott@redhat.com>, Sumit Semwal <sumit.semwal@linaro.org>
+To: vdavydov.dev@gmail.com, shakeelb@google.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mhocko@kernel.org, tglx@linutronix.de, pombredanne@nexb.com, stummala@codeaurora.org, gregkh@linuxfoundation.org, sfr@canb.auug.org.au, guro@fb.com, mka@chromium.org, penguin-kernel@I-love.SAKURA.ne.jp, chris@chris-wilson.co.uk, longman@redhat.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, jbacik@fb.com, linux@roeck-us.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@infradead.org, lirongqing@baidu.com, aryabinin@virtuozzo.com
 
-The vmstat counter NR_INDIRECTLY_RECLAIMABLE_BYTES was introduced by commit
-eb59254608bc ("mm: introduce NR_INDIRECTLY_RECLAIMABLE_BYTES") with the goal of
-accounting objects that can be reclaimed, but cannot be allocated via a
-SLAB_RECLAIM_ACCOUNT cache. This is now possible via kmalloc() with
-__GFP_RECLAIMABLE flag, and the dcache external names user is converted.
+Hi,
 
-The counter is however still useful for accounting direct page allocations
-(i.e. not slab) with a shrinker, such as the ION page pool. So keep it, and:
+this patches solves the problem with slow shrink_slab() occuring
+on the machines having many shrinkers and memory cgroups (i.e.,
+with many containers). The problem is complexity of shrink_slab()
+is O(n^2) and it grows too fast with the growth of containers
+numbers.
 
-- change granularity to pages to be more like other counters; sub-page
-  allocations should be able to use kmalloc
-- rename the counter to NR_KERNEL_MISC_RECLAIMABLE
-- expose the counter again in vmstat as "nr_kernel_misc_reclaimable"; we can
-  again remove the check for not printing "hidden" counters
+Let we have 200 containers, and every container has 10 mounts
+and 10 cgroups. All container tasks are isolated, and they don't
+touch foreign containers mounts.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Vijayanand Jitta <vjitta@codeaurora.org>
-Cc: Laura Abbott <labbott@redhat.com>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>
+In case of global reclaim, a task has to iterate all over the memcgs
+and to call all the memcg-aware shrinkers for all of them. This means,
+the task has to visit 200 * 10 = 2000 shrinkers for every memcg,
+and since there are 2000 memcgs, the total calls of do_shrink_slab()
+are 2000 * 2000 = 4000000.
+
+4 million calls are not a number operations, which can takes 1 cpu cycle.
+E.g., super_cache_count() accesses at least two lists, and makes arifmetical
+calculations. Even, if there are no charged objects, we do these calculations,
+and replaces cpu caches by read memory. I observed nodes spending almost 100%
+time in kernel, in case of intensive writing and global reclaim. The writer
+consumes pages fast, but it's need to shrink_slab() before the reclaimer
+reached shrink pages function (and frees SWAP_CLUSTER_MAX pages). Even if
+there is no writing, the iterations just waste the time, and slows reclaim down.
+
+Let's see the small test below:
+
+$echo 1 > /sys/fs/cgroup/memory/memory.use_hierarchy
+$mkdir /sys/fs/cgroup/memory/ct
+$echo 4000M > /sys/fs/cgroup/memory/ct/memory.kmem.limit_in_bytes
+$for i in `seq 0 4000`;
+	do mkdir /sys/fs/cgroup/memory/ct/$i;
+	echo $$ > /sys/fs/cgroup/memory/ct/$i/cgroup.procs;
+	mkdir -p s/$i; mount -t tmpfs $i s/$i; touch s/$i/file;
+done
+
+Then, let's see drop caches time (5 sequential calls):
+$time echo 3 > /proc/sys/vm/drop_caches
+
+0.00user 13.78system 0:13.78elapsed 99%CPU
+0.00user 5.59system 0:05.60elapsed 99%CPU
+0.00user 5.48system 0:05.48elapsed 99%CPU
+0.00user 8.35system 0:08.35elapsed 99%CPU
+0.00user 8.34system 0:08.35elapsed 99%CPU
+
+
+Last four calls don't actually shrink something. So, the iterations
+over slab shrinkers take 5.48 seconds. Not so good for scalability.
+
+The patchset solves the problem by making shrink_slab() of O(n)
+complexity. There are following functional actions:
+
+1)Assign id to every registered memcg-aware shrinker.
+2)Maintain per-memcgroup bitmap of memcg-aware shrinkers,
+  and set a shrinker-related bit after the first element
+  is added to lru list (also, when removed child memcg
+  elements are reparanted).
+3)Split memcg-aware shrinkers and !memcg-aware shrinkers,
+  and call a shrinker if its bit is set in memcg's shrinker
+  bitmap.
+  (Also, there is a functionality to clear the bit, after
+  last element is shrinked).
+
+This gives signify performance increase. The result after patchset is applied:
+
+$time echo 3 > /proc/sys/vm/drop_caches
+
+0.00user 1.10system 0:01.10elapsed 99%CPU
+0.00user 0.00system 0:00.01elapsed 64%CPU
+0.00user 0.01system 0:00.01elapsed 82%CPU
+0.00user 0.00system 0:00.01elapsed 64%CPU
+0.00user 0.01system 0:00.01elapsed 82%CPU
+
+The results show the performance increases at least in 548 times.
+
+So, the patchset makes shrink_slab() of less complexity and improves
+the performance in such types of load I pointed. This will give a profit
+in case of !global reclaim case, since there also will be less
+do_shrink_slab() calls.
+
+v7: Refactorings and readability improvements.
+    REBASED on 4.18-rc1
+
+v6: Added missed rcu_dereference() to memcg_set_shrinker_bit().
+    Use different functions for allocation and expanding map.
+    Use new memcg_shrinker_map_size variable in memcontrol.c.
+    Refactorings.
+
+v5: Make the optimizing logic under CONFIG_MEMCG_SHRINKER instead of MEMCG && !SLOB
+
+v4: Do not use memcg mem_cgroup_idr for iteration over mem cgroups
+
+v3: Many changes requested in commentaries to v2:
+
+1)rebase on prealloc_shrinker() code base
+2)root_mem_cgroup is made out of memcg maps
+3)rwsem replaced with shrinkers_nr_max_mutex
+4)changes around assignment of shrinker id to list lru
+5)everything renamed
+
+v2: Many changes requested in commentaries to v1:
+
+1)the code mostly moved to mm/memcontrol.c;
+2)using IDR instead of array of shrinkers;
+3)added a possibility to assign list_lru shrinker id
+  at the time of shrinker registering;
+4)reorginized locking and renamed functions and variables.
+
 ---
- drivers/staging/android/ion/ion_page_pool.c |  4 ++--
- include/linux/mmzone.h                      |  2 +-
- mm/page_alloc.c                             | 19 +++++++------------
- mm/util.c                                   |  3 +--
- mm/vmstat.c                                 |  6 +-----
- 5 files changed, 12 insertions(+), 22 deletions(-)
 
-diff --git a/drivers/staging/android/ion/ion_page_pool.c b/drivers/staging/android/ion/ion_page_pool.c
-index 9bc56eb48d2a..b7ad2d2449ac 100644
---- a/drivers/staging/android/ion/ion_page_pool.c
-+++ b/drivers/staging/android/ion/ion_page_pool.c
-@@ -33,8 +33,8 @@ static void ion_page_pool_add(struct ion_page_pool *pool, struct page *page)
- 		pool->low_count++;
- 	}
- 
--	mod_node_page_state(page_pgdat(page), NR_INDIRECTLY_RECLAIMABLE_BYTES,
--			    (1 << (PAGE_SHIFT + pool->order)));
-+	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
-+							1 << pool->order);
- 	mutex_unlock(&pool->mutex);
- }
- 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 32699b2dc52a..c2f6bc4c9e8a 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -180,7 +180,7 @@ enum node_stat_item {
- 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
- 	NR_DIRTIED,		/* page dirtyings since bootup */
- 	NR_WRITTEN,		/* page writings since bootup */
--	NR_INDIRECTLY_RECLAIMABLE_BYTES, /* measured in bytes */
-+	NR_KERNEL_MISC_RECLAIMABLE,	/* reclaimable non-slab kernel pages */
- 	NR_VM_NODE_STAT_ITEMS
- };
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1521100f1e63..8ceb45e11b97 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4704,6 +4704,7 @@ long si_mem_available(void)
- 	unsigned long pagecache;
- 	unsigned long wmark_low = 0;
- 	unsigned long pages[NR_LRU_LISTS];
-+	unsigned long reclaimable;
- 	struct zone *zone;
- 	int lru;
- 
-@@ -4729,19 +4730,13 @@ long si_mem_available(void)
- 	available += pagecache;
- 
- 	/*
--	 * Part of the reclaimable slab consists of items that are in use,
--	 * and cannot be freed. Cap this estimate at the low watermark.
-+	 * Part of the reclaimable slab and other kernel memory consists of
-+	 * items that are in use, and cannot be freed. Cap this estimate at the
-+	 * low watermark.
- 	 */
--	available += global_node_page_state(NR_SLAB_RECLAIMABLE) -
--		     min(global_node_page_state(NR_SLAB_RECLAIMABLE) / 2,
--			 wmark_low);
--
--	/*
--	 * Part of the kernel memory, which can be released under memory
--	 * pressure.
--	 */
--	available += global_node_page_state(NR_INDIRECTLY_RECLAIMABLE_BYTES) >>
--		PAGE_SHIFT;
-+	reclaimable = global_node_page_state(NR_SLAB_RECLAIMABLE) +
-+			global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
-+	available += reclaimable - min(reclaimable / 2, wmark_low);
- 
- 	if (available < 0)
- 		available = 0;
-diff --git a/mm/util.c b/mm/util.c
-index 3351659200e6..891f0654e7b5 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -675,8 +675,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		 * Part of the kernel memory, which can be released
- 		 * under memory pressure.
- 		 */
--		free += global_node_page_state(
--			NR_INDIRECTLY_RECLAIMABLE_BYTES) >> PAGE_SHIFT;
-+		free += global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
- 
- 		/*
- 		 * Leave reserved pages. The pages are not for anonymous pages.
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 75eda9c2b260..7c677d3a61ec 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1161,7 +1161,7 @@ const char * const vmstat_text[] = {
- 	"nr_vmscan_immediate_reclaim",
- 	"nr_dirtied",
- 	"nr_written",
--	"", /* nr_indirectly_reclaimable */
-+	"nr_kernel_misc_reclaimable",
- 
- 	/* enum writeback_stat_item counters */
- 	"nr_dirty_threshold",
-@@ -1704,10 +1704,6 @@ static int vmstat_show(struct seq_file *m, void *arg)
- 	unsigned long *l = arg;
- 	unsigned long off = l - (unsigned long *)m->private;
- 
--	/* Skip hidden vmstat items. */
--	if (*vmstat_text[off] == '\0')
--		return 0;
--
- 	seq_puts(m, vmstat_text[off]);
- 	seq_put_decimal_ull(m, " ", *l);
- 	seq_putc(m, '\n');
--- 
-2.17.1
+Kirill Tkhai (16):
+      list_lru: Combine code under the same define
+      mm: Introduce CONFIG_MEMCG_KMEM as combination of CONFIG_MEMCG && !CONFIG_SLOB
+      mm: Assign id to every memcg-aware shrinker
+      memcg: Move up for_each_mem_cgroup{,_tree} defines
+      mm: Assign memcg-aware shrinkers bitmap to memcg
+      mm: Refactoring in workingset_init()
+      fs: Refactoring in alloc_super()
+      fs: Propagate shrinker::id to list_lru
+      list_lru: Add memcg argument to list_lru_from_kmem()
+      list_lru: Pass dst_memcg argument to memcg_drain_list_lru_node()
+      list_lru: Pass lru argument to memcg_drain_list_lru_node()
+      mm: Export mem_cgroup_is_root()
+      mm: Set bit in memcg shrinker bitmap on first list_lru item apearance
+      mm: Iterate only over charged shrinkers during memcg shrink_slab()
+      mm: Add SHRINK_EMPTY shrinker methods return value
+      mm: Clear shrinker bit if there are no objects related to memcg
+
+Vladimir Davydov (1):
+      mm: Generalize shrink_slab() calls in shrink_node()
+
+
+ fs/super.c                 |   11 ++
+ include/linux/list_lru.h   |   18 ++--
+ include/linux/memcontrol.h |   46 +++++++++-
+ include/linux/sched.h      |    2 
+ include/linux/shrinker.h   |   11 ++
+ include/linux/slab.h       |    2 
+ init/Kconfig               |    5 +
+ mm/list_lru.c              |   90 ++++++++++++++-----
+ mm/memcontrol.c            |  173 +++++++++++++++++++++++++++++++------
+ mm/slab.h                  |    6 +
+ mm/slab_common.c           |    8 +-
+ mm/vmscan.c                |  204 +++++++++++++++++++++++++++++++++++++++-----
+ mm/workingset.c            |   11 ++
+ 13 files changed, 478 insertions(+), 109 deletions(-)
+
+--
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+Tested-by: Shakeel Butt <shakeelb@google.com>
