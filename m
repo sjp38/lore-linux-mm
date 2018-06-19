@@ -1,71 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 56D386B0003
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 02:15:52 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id x17-v6so9716288pfm.18
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 23:15:52 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f3-v6si10416153plr.214.2018.06.18.23.15.51
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B1E4C6B0003
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 02:41:02 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id b195-v6so16508285qkc.8
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 23:41:02 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id o125-v6si647430qkd.38.2018.06.18.23.41.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 23:15:51 -0700 (PDT)
-Date: Tue, 19 Jun 2018 09:15:48 +0300
-From: Leon Romanovsky <leon@kernel.org>
-Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
-Message-ID: <20180619061548.GC7557@mtr-leonro.mtl.com>
-References: <20180617012510.20139-1-jhubbard@nvidia.com>
- <20180617012510.20139-3-jhubbard@nvidia.com>
- <CAPcyv4i=eky-QrPcLUEqjsASuRUrFEWqf79hWe0mU8xtz6Jk-w@mail.gmail.com>
- <20180617200432.krw36wrcwidb25cj@ziepe.ca>
- <CAPcyv4gayKk_zHDYAvntware12qMXWjnnL_FDJNUQsJS_zNfDw@mail.gmail.com>
- <20180618081113.GA16991@lst.de>
+        Mon, 18 Jun 2018 23:41:01 -0700 (PDT)
+Subject: Re: [PATCH 06/10] x86/cet: Add arch_prctl functions for shadow stack
+References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
+ <CALCETrU6axo158CiSCRRkC4GC5hib9hypC98t7LLjA3gDaacsw@mail.gmail.com>
+ <1528403417.5265.35.camel@2b52.sc.intel.com>
+ <CALCETrXz3WWgZwUXJsDTWvmqKUArQFuMH1xJdSLVKFpTysNWxg@mail.gmail.com>
+ <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
+ <alpine.DEB.2.21.1806121155450.2157@nanos.tec.linutronix.de>
+ <CAMe9rOoCiXQ4iVD3j_AHGrvEXtoaVVZVs7H7fCuqNEuuR5j+2Q@mail.gmail.com>
+ <CALCETrXO8R+RQPhJFk4oiA4PF77OgSS2Yro_POXQj1zvdLo61A@mail.gmail.com>
+ <CAMe9rOpLxPussn7gKvn0GgbOB4f5W+DKOGipe_8NMam+Afd+RA@mail.gmail.com>
+ <CALCETrWmGRkQvsUgRaj+j0CP4beKys+TT5aDR5+18nuphwr+Cw@mail.gmail.com>
+ <CAMe9rOpzcCdje=bUVs+C1WrY6GuwA-8AUFVLOG325LGz7KHJxw@mail.gmail.com>
+ <alpine.DEB.2.21.1806122046520.1592@nanos.tec.linutronix.de>
+ <CAMe9rOrGjJf0aMnUjAP38MqvOiW3=iXGQjcUT3O=f9pE85hXaw@mail.gmail.com>
+ <CALCETrVsh5t-V1Sm88LsZE_+DS0GE_bMWbcoX3SjD6GnrB08Pw@mail.gmail.com>
+ <CAGXu5jK0gospOXRpN6zYiQPXOZeE=YpVAz2qu4Zc3-32v85+EQ@mail.gmail.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <e152e1a7-e3b1-c3c4-ce1a-874e97300b37@redhat.com>
+Date: Tue, 19 Jun 2018 08:40:53 +0200
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="7iMSBzlTiPOCCT2k"
-Content-Disposition: inline
-In-Reply-To: <20180618081113.GA16991@lst.de>
+In-Reply-To: <CAGXu5jK0gospOXRpN6zYiQPXOZeE=YpVAz2qu4Zc3-32v85+EQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>, john.hubbard@gmail.com, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>
+To: Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@kernel.org>
+Cc: "H. J. Lu" <hjl.tools@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Yu-cheng Yu <yu-cheng.yu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
 
+On 06/19/2018 02:52 AM, Kees Cook wrote:
+> Adding Florian to CC, but if something gets CET enabled, it really
+> shouldn't have a way to turn it off. If there's a way to turn it off,
+> all the ROP research will suddenly turn to exactly one gadget before
+> doing the rest of the ROP: turning off CET. Right now ROP is: use
+> stack-pivot gadget, do everything else. Allowed CET to turn off will
+> just add one step: use CET-off gadget, use stack-pivot gadget, do
+> everything else. :P
+> 
+> Following Linus's request for "slow introduction" of new security
+> features, likely the best approach is to default to "relaxed" (with a
+> warning about down-grades), and allow distros/end-users to pick
+> "forced" if they know their libraries are all CET-enabled.
 
---7iMSBzlTiPOCCT2k
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+The dynamic linker can tell beforehand (before executing any user code) 
+whether a process image supports CET.  So there doesn't have to be 
+anything gradual about it per se to preserve backwards compatibility.
 
-On Mon, Jun 18, 2018 at 10:11:13AM +0200, Christoph Hellwig wrote:
-> On Sun, Jun 17, 2018 at 01:10:04PM -0700, Dan Williams wrote:
-> > I believe kernel behavior regression is a primary concern as now
-> > fallocate() and truncate() can randomly fail where they didn't before.
->
-> Fail or block forever due to actions of other unprivileged users.
->
-> That is a complete no-go.
+The idea to turn off CET probably comes from the desire to support 
+dlopen.  I'm not sure if this is really necessary because the complexity 
+is rather nasty.  (We currently do something similar for executable 
+stacks.)  I'd rather have a switch to turn off the feature upon process 
+start.  Things like NSS and PAM modules need to be recompiled early.  (I 
+hope that everything that goes directly to the network via custom 
+protocols or hardware such as smartcards is proxied via daemons these days.)
 
-They will fail "properly" with some error, which is better than current
-situation where those unprivileged users can trigger oops.
-
-Thanks
-
---7iMSBzlTiPOCCT2k
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBAgAGBQJbKJ+UAAoJEORje4g2clin69QP/jWFR8E7MKYfBqiosGF6OPVf
-qxjEVTcaIMnnC6GrMykfAnOg7ApYKitetux5SV3+h+EChVTck2nQacbNKGC+kRJ1
-bPKSM2qVPUSgcsfj5kDPXHslVZdhnuYp066rnGkc7CJEfnrMTpcexgOkCQW7iQb/
-B+dpa2VaC5G14XoxVBpONweQ+NedTSX8lLemYazAsY6nm8uwVDAQqdk8bu2F0ayp
-zoarTVCwYV7ENdv0rTkhLyPtB207GHoeCweSU/kj7mdj8Pbaf1CDzxIlOvY4djSC
-Ia5fscHImRT29r8oIIlTI7JfLwsQaPye03o0AZ++qPhwmlGfspJy1dwYea0eMChl
-CvgSigrS22txh367GZ70hn9lpHIAeuUP85RVVODN3tXokJS5cJNHT4n5lwdItcii
-GDaXUzVx+a1Qio3J/mb/4MvLstCbE1Y4r2nYj2ag5gL1XuLPdqp8icYM6OEPQ2lf
-B6z8OF6uQu0bzXj/m//Rep1bhwRnVjgrTVDzc67+hscq/BswhhAx04+COquTEXxv
-TpHOraax/ZLN31lLQ/3QUIMKUZNvuhWVl2ARQJXtb8hmbPo+zQYkuP+ip8DmD5ny
-wvtHqR04dCCwDEp1VmoPFe3PJy+zQvBHe18OyjyuarokNQNZCVAO0pNfivzibwFm
-m1W/BwqX6Z3QRrQrQtYA
-=LD7E
------END PGP SIGNATURE-----
-
---7iMSBzlTiPOCCT2k--
+Thanks,
+Florian
