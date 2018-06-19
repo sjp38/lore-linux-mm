@@ -1,85 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C740E6B0007
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 04:52:42 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g20-v6so10010916pfi.2
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 01:52:42 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r7-v6sor4667900ple.150.2018.06.19.01.52.41
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 46DED6B0007
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 05:03:02 -0400 (EDT)
+Received: by mail-pl0-f70.google.com with SMTP id e1-v6so11670164pld.23
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 02:03:02 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g15-v6si13923049pgf.249.2018.06.19.02.03.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Jun 2018 01:52:41 -0700 (PDT)
-Message-ID: <09b7cc16ee5275d4ef3dffb11942e3f2ba44aedd.camel@gmail.com>
-Subject: Re: [PATCH 00/10] Control Flow Enforcement - Part (3)
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Tue, 19 Jun 2018 18:52:29 +1000
-In-Reply-To: <CALCETrWCEjuM56J8dqXPR==MevJTYKan5dnAMFJaXzFMYr8Q_A@mail.gmail.com>
-References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
-	 <bbfde1b3-5e1b-80e3-30e8-fd1e46a2ceb1@gmail.com>
-	 <1528815820.8271.16.camel@2b52.sc.intel.com>
-	 <814fc15e80908d8630ff665be690ccbe6e69be88.camel@gmail.com>
-	 <1528988176.13101.15.camel@2b52.sc.intel.com>
-	 <2b77abb17dfaf58b7c23fac9d8603482e1887337.camel@gmail.com>
-	 <CALCETrWCEjuM56J8dqXPR==MevJTYKan5dnAMFJaXzFMYr8Q_A@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Jun 2018 02:03:00 -0700 (PDT)
+Date: Tue, 19 Jun 2018 02:02:55 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
+Message-ID: <20180619090255.GA25522@bombadil.infradead.org>
+References: <20180617200432.krw36wrcwidb25cj@ziepe.ca>
+ <CAPcyv4gayKk_zHDYAvntware12qMXWjnnL_FDJNUQsJS_zNfDw@mail.gmail.com>
+ <311eba48-60f1-b6cc-d001-5cc3ed4d76a9@nvidia.com>
+ <20180618081258.GB16991@lst.de>
+ <d4817192-6db0-2f3f-7c67-6078b69686d3@nvidia.com>
+ <CAPcyv4iacHYxGmyWokFrVsmxvLj7=phqp2i0tv8z6AT-mYuEEA@mail.gmail.com>
+ <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
+ <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
+ <0e6053b3-b78c-c8be-4fab-e8555810c732@nvidia.com>
+ <20180619082949.wzoe42wpxsahuitu@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180619082949.wzoe42wpxsahuitu@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. J. Lu" <hjl.tools@gmail.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
+To: Jan Kara <jack@suse.cz>
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <john.hubbard@gmail.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
 
-On Mon, 2018-06-18 at 14:44 -0700, Andy Lutomirski wrote:
-> On Sat, Jun 16, 2018 at 8:16 PM Balbir Singh <bsingharora@gmail.com> wrote:
-> > 
-> > On Thu, 2018-06-14 at 07:56 -0700, Yu-cheng Yu wrote:
-> > > On Thu, 2018-06-14 at 11:07 +1000, Balbir Singh wrote:
-> > > > On Tue, 2018-06-12 at 08:03 -0700, Yu-cheng Yu wrote:
-> > > > > On Tue, 2018-06-12 at 20:56 +1000, Balbir Singh wrote:
-> > > > > > 
-> > > > > > On 08/06/18 00:37, Yu-cheng Yu wrote:
-> > > > > > > This series introduces CET - Shadow stack
-> > > > > > > 
-> > > > > > > At the high level, shadow stack is:
-> > > > > > > 
-> > > > > > >       Allocated from a task's address space with vm_flags VM_SHSTK;
-> > > > > > >       Its PTEs must be read-only and dirty;
-> > > > > > >       Fixed sized, but the default size can be changed by sys admin.
-> > > > > > > 
-> > > > > > > For a forked child, the shadow stack is duplicated when the next
-> > > > > > > shadow stack access takes place.
-> > > > > > > 
-> > > > > > > For a pthread child, a new shadow stack is allocated.
-> > > > > > > 
-> > > > > > > The signal handler uses the same shadow stack as the main program.
-> > > > > > > 
-> > > > > > 
-> > > > > > Even with sigaltstack()?
-> > > > > > 
-> > > > > 
-> > > > > Yes.
-> > > > 
-> > > > I am not convinced that it would work, as we switch stacks, oveflow might
-> > > > be an issue. I also forgot to bring up setcontext(2), I presume those
-> > > > will get new shadow stacks
-> > > 
-> > > Do you mean signal stack/sigaltstack overflow or swapcontext in a signal
-> > > handler?
-> > > 
-> > 
-> > I meant any combination of that. If there is a user space threads implementation that uses sigaltstack for switching threads
-> > 
+On Tue, Jun 19, 2018 at 10:29:49AM +0200, Jan Kara wrote:
+> And for record, the problem with page cache pages is not only that
+> try_to_unmap() may unmap them. It is also that page_mkclean() can
+> write-protect them. And once PTEs are write-protected filesystems may end
+> up doing bad things if DMA then modifies the page contents (DIF/DIX
+> failures, data corruption, oopses). As such I don't think that solutions
+> based on page reference count have a big chance of dealing with the
+> problem.
 > 
-> Anyone who does that is nuts.  The whole point of user space threads
-> is speed, and signals are very slow.  For userspace threads to work,
-> we need an API to allocate new shadow stacks, and we need to use the
-> extremely awkwardly defined RSTORSSP stuff to switch.  (I assume this
-> is possible on an ISA level.  The docs are bad, and the mnemonics for
-> the relevant instructions are nonsensical.)
+> And your page flag approach would also need to take page_mkclean() into
+> account. And there the issue is that until the flag is cleared (i.e., we
+> are sure there are no writers using references from GUP) you cannot
+> writeback the page safely which does not work well with your idea of
+> clearing the flag only once the page is evicted from page cache (hint, page
+> cache page cannot get evicted until it is written back).
+> 
+> So as sad as it is, I don't see an easy solution here.
 
-The whole point was to ensure we don't break applications/code that work
-today. I think as long as there is a shadow stack allocated corresponding
-to the user space stack and we can Restore SSP as we switch things should be
-fine.
-
-Balbir Singh.
+Pages which are "got" don't need to be on the LRU list.  They'll be
+marked dirty when they're put, so we can use page->lru for fun things
+like a "got" refcount.  If we use bit 1 of page->lru for PageGot, we've
+got 30/62 bits in the first word and a full 64 bits in the second word.
