@@ -1,51 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AA526B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 11:18:56 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id n10-v6so38627qtp.11
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 08:18:56 -0700 (PDT)
-Received: from frisell.zx2c4.com (frisell.zx2c4.com. [192.95.5.64])
-        by mx.google.com with ESMTPS id m41-v6si5279965qvc.214.2018.06.19.08.18.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Jun 2018 08:18:55 -0700 (PDT)
-Received: 
-	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTP id c11a0fd9
-	for <linux-mm@kvack.org>;
-	Tue, 19 Jun 2018 15:12:57 +0000 (UTC)
-Received: 
-	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTPSA id e8d87ce1 (TLSv1.2:ECDHE-RSA-AES128-GCM-SHA256:128:NO)
-	for <linux-mm@kvack.org>;
-	Tue, 19 Jun 2018 15:12:56 +0000 (UTC)
-Received: by mail-ot0-f173.google.com with SMTP id d19-v6so58477oti.8
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 08:18:49 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BB32D6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 11:35:44 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id l20-v6so61033oii.1
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 08:35:44 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e11-v6si6437123otc.373.2018.06.19.08.35.43
+        for <linux-mm@kvack.org>;
+        Tue, 19 Jun 2018 08:35:43 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH 1/2] arm64: avoid alloc memory on offline node
+References: <16c4db2f-bc70-d0f2-fb38-341d9117ff66@huawei.com>
+	<20180611134303.GC75679@bhelgaas-glaptop.roam.corp.google.com>
+	<20180611145330.GO13364@dhcp22.suse.cz>
+	<87lgbk59gs.fsf@e105922-lin.cambridge.arm.com>
+	<87bmce60y3.fsf@e105922-lin.cambridge.arm.com>
+	<8b715082-14d4-f10b-d2d6-b23be7e4bf7e@huawei.com>
+	<20180619120714.GE13685@dhcp22.suse.cz>
+	<874lhz3pmn.fsf@e105922-lin.cambridge.arm.com>
+	<20180619140818.GA16927@e107981-ln.cambridge.arm.com>
+	<87wouu3jz1.fsf@e105922-lin.cambridge.arm.com>
+	<20180619151425.GH13685@dhcp22.suse.cz>
+Date: Tue, 19 Jun 2018 16:35:40 +0100
+In-Reply-To: <20180619151425.GH13685@dhcp22.suse.cz> (Michal Hocko's message
+	of "Tue, 19 Jun 2018 17:14:25 +0200")
+Message-ID: <87r2l23i2b.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-References: <CAHmME9rtoPwxUSnktxzKso14iuVCWT7BE_-_8PAC=pGw1iJnQg@mail.gmail.com>
- <CALvZod6Dxx79ztxzHsDVe6pj7Fa7ydJAjMf_EHV9H15+AsVwdA@mail.gmail.com>
- <CAHmME9qvRDQOJYdSPaAf-hg5raacu4TBgStLy7NzFL+j+dXheQ@mail.gmail.com>
- <CACT4Y+YLySJMfG4kCJ2FiPpPtN6sgU6k2FoZUYMFrJGLj+vDjw@mail.gmail.com>
- <CAHmME9oeoSbRZyf6qJTg+q-zZanYGu4q=YOZNqCCbRAFu15R9w@mail.gmail.com> <CALvZod7MfTTwbfG3zC1kGrZB1Cf0UAnbvdbqhC5Dm=uy6=DtOg@mail.gmail.com>
-In-Reply-To: <CALvZod7MfTTwbfG3zC1kGrZB1Cf0UAnbvdbqhC5Dm=uy6=DtOg@mail.gmail.com>
-From: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Date: Tue, 19 Jun 2018 17:18:36 +0200
-Message-ID: <CAHmME9q7aKGNiYauCjyy6Fu+bryPphEoLEMbAObTJgTrTfS2uw@mail.gmail.com>
-Subject: Re: Possible regression in "slab, slub: skip unnecessary kasan_cache_shutdown()"
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, aryabinin@virtuozzo.com, Alexander Potapenko <glider@google.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Xie XiuQi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Bjorn Helgaas <helgaas@kernel.org>, tnowicki@caviumnetworks.com, linux-pci@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Will Deacon <will.deacon@arm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>, linux-mm@kvack.org, wanghuiqiang@huawei.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, zhongjiang <zhongjiang@huawei.com>, linux-arm <linux-arm-kernel@lists.infradead.org>
 
-On Tue, Jun 19, 2018 at 5:08 PM Shakeel Butt <shakeelb@google.com> wrote:
-> > > Are you using SLAB or SLUB? We stress kernel pretty heavily, but with
-> > > SLAB, and I suspect Shakeel may also be using SLAB. So if you are
-> > > using SLUB, there is significant chance that it's a bug in the SLUB
-> > > part of the change.
-> >
-> > Nice intuition; I am indeed using SLUB rather than SLAB...
-> >
+Michal Hocko <mhocko@kernel.org> writes:
+
+> On Tue 19-06-18 15:54:26, Punit Agrawal wrote:
+> [...]
+>> In terms of $SUBJECT, I wonder if it's worth taking the original patch
+>> as a temporary fix (it'll also be easier to backport) while we work on
+>> fixing these other issues and enabling memoryless nodes.
 >
-> Can you try once with SLAB? Just to make sure that it is SLUB specific.
+> Well, x86 already does that but copying this antipatern is not really
+> nice. So it is good as a quick fix but it would be definitely much
+> better to have a robust fix. Who knows how many other places might hit
+> this. You certainly do not want to add a hack like this all over...
 
-Sorry, I meant to mention that earlier. I tried with SLAB; the crash
-does not occur. This appears to be SLUB-specific.
+Completely agree! I was only suggesting it as a temporary measure,
+especially as it looked like a proper fix might be invasive.
+
+Another fix might be to change the node specific allocation to node
+agnostic allocations. It isn't clear why the allocation is being
+requested from a specific node. I think Lorenzo suggested this in one of
+the threads.
+
+I've started putting together a set fixing the issues identified in this
+thread. It should give a better idea on the best course of action.
