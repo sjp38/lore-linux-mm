@@ -1,133 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A3CE6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 17:13:28 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id s7-v6so435596pfm.4
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 14:13:28 -0700 (PDT)
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id f59-v6si580299plf.500.2018.06.19.14.13.25
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BCF46B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 17:34:01 -0400 (EDT)
+Received: by mail-pl0-f69.google.com with SMTP id t17-v6so502491ply.13
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 14:34:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v41-v6sor236721plg.73.2018.06.19.14.34.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jun 2018 14:13:27 -0700 (PDT)
-Subject: Re: [RFC v2 PATCH 2/2] mm: mmap: zap pages with read mmap_sem for
- large mapping
-References: <1529364856-49589-1-git-send-email-yang.shi@linux.alibaba.com>
- <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
- <20180619100218.GN2458@hirez.programming.kicks-ass.net>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <f78924fc-ea81-9ddd-ebb2-28241d5721c8@linux.alibaba.com>
-Date: Tue, 19 Jun 2018 14:13:05 -0700
-MIME-Version: 1.0
-In-Reply-To: <20180619100218.GN2458@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+        (Google Transport Security);
+        Tue, 19 Jun 2018 14:34:00 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH] slub: fix __kmem_cache_empty for !CONFIG_SLUB_DEBUG
+Date: Tue, 19 Jun 2018 14:33:52 -0700
+Message-Id: <20180619213352.71740-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Jason A . Donenfeld" <Jason@zx2c4.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
+For !CONFIG_SLUB_DEBUG, SLUB does not maintain the number of slabs
+allocated per node for a kmem_cache. Thus, slabs_node() in
+__kmem_cache_empty() will always return 0. So, in such situation, it is
+required to check per-cpu slabs to make sure if a kmem_cache is empty or
+not.
 
+Please note that __kmem_cache_shutdown() and __kmem_cache_shrink() are
+not affected by !CONFIG_SLUB_DEBUG as they call flush_all() to clear
+per-cpu slabs.
 
-On 6/19/18 3:02 AM, Peter Zijlstra wrote:
-> On Tue, Jun 19, 2018 at 07:34:16AM +0800, Yang Shi wrote:
->
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index fc41c05..e84f80c 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -2686,6 +2686,141 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
->>   	return __split_vma(mm, vma, addr, new_below);
->>   }
->>   
->> +/* Consider PUD size or 1GB mapping as large mapping */
->> +#ifdef HPAGE_PUD_SIZE
->> +#define LARGE_MAP_THRESH	HPAGE_PUD_SIZE
->> +#else
->> +#define LARGE_MAP_THRESH	(1 * 1024 * 1024 * 1024)
->> +#endif
->> +
->> +/* Unmap large mapping early with acquiring read mmap_sem */
->> +static int do_munmap_zap_early(struct mm_struct *mm, unsigned long start,
->> +			       size_t len, struct list_head *uf)
->> +{
->> +	unsigned long end = 0;
->> +	struct vm_area_struct *vma = NULL, *prev, *last, *tmp;
->> +	bool success = false;
->> +	int ret = 0;
->> +
->> +	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE - start)
->> +		return -EINVAL;
->> +
->> +	len = (PAGE_ALIGN(len));
->> +	if (len == 0)
->> +		return -EINVAL;
->> +
->> +	/* Just deal with uf in regular path */
->> +	if (unlikely(uf))
->> +		goto regular_path;
->> +
->> +	if (len >= LARGE_MAP_THRESH) {
->> +		down_read(&mm->mmap_sem);
->> +		vma = find_vma(mm, start);
->> +		if (!vma) {
->> +			up_read(&mm->mmap_sem);
->> +			return 0;
->> +		}
->> +
->> +		prev = vma->vm_prev;
->> +
->> +		end = start + len;
->> +		if (vma->vm_start > end) {
->> +			up_read(&mm->mmap_sem);
->> +			return 0;
->> +		}
->> +
->> +		if (start > vma->vm_start) {
->> +			int error;
->> +
->> +			if (end < vma->vm_end &&
->> +			    mm->map_count > sysctl_max_map_count) {
->> +				up_read(&mm->mmap_sem);
->> +				return -ENOMEM;
->> +			}
->> +
->> +			error = __split_vma(mm, vma, start, 0);
->> +			if (error) {
->> +				up_read(&mm->mmap_sem);
->> +				return error;
->> +			}
->> +			prev = vma;
->> +		}
->> +
->> +		last = find_vma(mm, end);
->> +		if (last && end > last->vm_start) {
->> +			int error = __split_vma(mm, last, end, 1);
->> +
->> +			if (error) {
->> +				up_read(&mm->mmap_sem);
->> +				return error;
->> +			}
->> +		}
->> +		vma = prev ? prev->vm_next : mm->mmap;
-> Hold up, two things: you having to copy most of do_munmap() didn't seem
-> to suggest a helper function? And second, since when are we allowed to
+Fixes: f9e13c0a5a33 ("slab, slub: skip unnecessary kasan_cache_shutdown()")
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+Reported-by: Jason A . Donenfeld <Jason@zx2c4.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: <stable@vger.kernel.org>
+---
+ mm/slub.c | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
 
-Yes, they will be extracted into a helper function in the next version.
-
-May bad, I don't think it is allowed. We could reform this to:
-
-acquire write mmap_sem
-vma lookup (split vmas)
-release write mmap_sem
-
-acquire read mmap_sem
-zap pages
-release read mmap_sem
-
-I'm supposed this is safe as what Michal said before.
-
-Thanks,
-Yang
-
-> split VMAs under a read lock?
+diff --git a/mm/slub.c b/mm/slub.c
+index a3b8467c14af..731c02b371ae 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3673,9 +3673,23 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+ 
+ bool __kmem_cache_empty(struct kmem_cache *s)
+ {
+-	int node;
++	int cpu, node;
+ 	struct kmem_cache_node *n;
+ 
++	/*
++	 * slabs_node will always be 0 for !CONFIG_SLUB_DEBUG. So, manually
++	 * check slabs for all cpus.
++	 */
++	if (!IS_ENABLED(CONFIG_SLUB_DEBUG)) {
++		for_each_online_cpu(cpu) {
++			struct kmem_cache_cpu *c;
++
++			c = per_cpu_ptr(s->cpu_slab, cpu);
++			if (c->page || slub_percpu_partial(c))
++				return false;
++		}
++	}
++
+ 	for_each_kmem_cache_node(s, node, n)
+ 		if (n->nr_partial || slabs_node(s, node))
+ 			return false;
+-- 
+2.18.0.rc1.244.gcf134e6275-goog
