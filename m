@@ -1,112 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A72A36B0003
-	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 22:51:46 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id h4-v6so16544369qkm.9
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 19:51:46 -0700 (PDT)
-Received: from frisell.zx2c4.com (frisell.zx2c4.com. [192.95.5.64])
-        by mx.google.com with ESMTPS id e11-v6si767042qvo.221.2018.06.18.19.51.44
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 80E786B0007
+	for <linux-mm@kvack.org>; Mon, 18 Jun 2018 23:05:37 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id z10-v6so16556927qki.5
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 20:05:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
+        by mx.google.com with ESMTPS id a130-v6si1423610qkg.283.2018.06.18.20.05.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 18 Jun 2018 19:51:45 -0700 (PDT)
-Received: 
-	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTP id a875fb2a
-	for <linux-mm@kvack.org>;
-	Tue, 19 Jun 2018 02:45:50 +0000 (UTC)
-Received: 
-	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTPSA id fd038d6b (TLSv1.2:ECDHE-RSA-AES128-GCM-SHA256:128:NO)
-	for <linux-mm@kvack.org>;
-	Tue, 19 Jun 2018 02:45:48 +0000 (UTC)
-Received: by mail-ot0-f173.google.com with SMTP id a5-v6so20874086otf.12
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 19:51:37 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Jun 2018 20:05:36 -0700 (PDT)
+Date: Tue, 19 Jun 2018 06:05:28 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [virtio-dev] Re: [PATCH v33 2/4] virtio-balloon:
+ VIRTIO_BALLOON_F_FREE_PAGE_HINT
+Message-ID: <20180619055449-mutt-send-email-mst@kernel.org>
+References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com>
+ <1529037793-35521-3-git-send-email-wei.w.wang@intel.com>
+ <20180615144000-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F7396A3D04@shsmsx102.ccr.corp.intel.com>
+ <20180615171635-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F7396A5CB0@shsmsx102.ccr.corp.intel.com>
+ <20180618051637-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F7396AA10C@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
-From: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Date: Tue, 19 Jun 2018 04:51:25 +0200
-Message-ID: <CAHmME9rtoPwxUSnktxzKso14iuVCWT7BE_-_8PAC=pGw1iJnQg@mail.gmail.com>
-Subject: Possible regression in "slab, slub: skip unnecessary kasan_cache_shutdown()"
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <286AC319A985734F985F78AFA26841F7396AA10C@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aryabinin@virtuozzo.com, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
+To: "Wang, Wei W" <wei.w.wang@intel.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "peterx@redhat.com" <peterx@redhat.com>
 
-Hello Shakeel,
+On Tue, Jun 19, 2018 at 01:06:48AM +0000, Wang, Wei W wrote:
+> On Monday, June 18, 2018 10:29 AM, Michael S. Tsirkin wrote:
+> > On Sat, Jun 16, 2018 at 01:09:44AM +0000, Wang, Wei W wrote:
+> > > Not necessarily, I think. We have min(4m_page_blocks / 512, 1024) above,
+> > so the maximum memory that can be reported is 2TB. For larger guests, e.g.
+> > 4TB, the optimization can still offer 2TB free memory (better than no
+> > optimization).
+> > 
+> > Maybe it's better, maybe it isn't. It certainly muddies the waters even more.
+> > I'd rather we had a better plan. From that POV I like what Matthew Wilcox
+> > suggested for this which is to steal the necessary # of entries off the list.
+> 
+> Actually what Matthew suggested doesn't make a difference here. That method always steal the first free page blocks, and sure can be changed to take more. But all these can be achieved via kmalloc
 
-It may be the case that f9e13c0a5a33d1eaec374d6d4dab53a4f72756a0 has
-introduced a regression. I've bisected a failing test to this commit,
-and after staring at the my code for a long time, I'm unable to find a
-bug that this commit might have unearthed. Rather, it looks like this
-commit introduces a performance optimization, rather than a
-correctness fix, so it seems that whatever test case is failing is
-likely an incorrect failure. Does that seem like an accurate
-possibility to you?
+I'd do get_user_pages really. You don't want pages split, etc.
 
-Below is a stack trace when things go south. Let me know if you'd like
-to run my test suite, and I can send additional information.
+> by the caller which is more prudent and makes the code more straightforward. I think we don't need to take that risk unless the MM folks strongly endorse that approach.
+> 
+> The max size of the kmalloc-ed memory is 4MB, which gives us the limitation that the max free memory to report is 2TB. Back to the motivation of this work, the cloud guys want to use this optimization to accelerate their guest live migration. 2TB guests are not common in today's clouds. When huge guests become common in the future, we can easily tweak this API to fill hints into scattered buffer (e.g. several 4MB arrays passed to this API) instead of one as in this version.
+> 
+> This limitation doesn't cause any issue from functionality perspective. For the extreme case like a 100TB guest live migration which is theoretically possible today, this optimization helps skip 2TB of its free memory. This result is that it may reduce only 2% live migration time, but still better than not skipping the 2TB (if not using the feature).
 
-Regards,
-Jason
+Not clearly better, no, since you are slowing the guest.
 
 
-[    1.364686] kasan: GPF could be caused by NULL-ptr deref or user
-memory access
-[    1.365258] general protection fault: 0000 [#1] PREEMPT SMP
-DEBUG_PAGEALLOC KASAN
-[    1.365852] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 4.16.0 #19
-[    1.366315] RIP: 0010:___cache_free+0x76/0x1e0
-[    1.366667] RSP: 0000:ffff8800003af868 EFLAGS: 00010286
-[    1.367079] RAX: ffffea0000cb04a0 RBX: ffff8800351f1958 RCX: ffff880035954900
-[    1.367640] RDX: ffffea0000cb049f RSI: ffff8800351f1958 RDI: ffff880035954900
-[    1.368014] RBP: ffffea0000d47c40 R08: ffff8800003a0870 R09: 0000000000000006
-[    1.368014] R10: 0000000000000000 R11: 0000000000000000 R12: ffff880033314b98
-[    1.368014] R13: ffff880035954900 R14: ffffea0000000000 R15: ffffffff826dfae0
-[    1.368014] FS:  0000000000000000(0000) GS:ffff880036480000(0000)
-knlGS:00000000000
-[    1.368014] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    1.368014] CR2: 00000000ffffffff CR3: 0000000002220001 CR4: 00000000001606a0
-[    1.368014] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[    1.368014] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[    1.368014] Call Trace:
-[    1.368014]  ? qlist_free_all+0x58/0x1c0
-[    1.368014]  qlist_free_all+0x70/0x1c0
-[    1.368014]  ? trace_hardirqs_on_caller+0x3d0/0x630
-[    1.368014]  quarantine_reduce+0x221/0x310
-[    1.368014]  kasan_kmalloc+0x95/0xc0
-[    1.368014]  kmem_cache_alloc+0x151/0x2b0
-[    1.368014]  create_object+0xa7/0xa70
-[    1.368014]  ? kmemleak_disable+0x90/0x90
-[    1.368014]  ? trace_hardirqs_on_caller+0x3d0/0x630
-[    1.368014]  ? fs_reclaim_acquire.part.14+0x30/0x30
-[    1.368014]  __kmalloc+0x200/0x340
-[    1.368014]  ? do_one_initcall+0x12c/0x212
-[    1.368014]  __register_sysctl_table+0xbe/0x11b0
-[    1.368014]  ipv4_sysctl_init_net+0x1cf/0x2d0
-[    1.368014]  ops_init+0x203/0x510
-[    1.368014]  ? proc_sys_setattr+0xe0/0xe0
-[    1.368014]  ? __peernet2id_alloc+0x180/0x180
-[    1.368014]  ? __rb_erase_color+0x1d90/0x1d90
-[    1.368014]  register_pernet_operations+0x38e/0x960
-[    1.368014]  ? setup_net+0x8b0/0x8b0
-[    1.368014]  ? register_pernet_subsys+0x10/0x40
-[    1.368014]  ? down_write+0x96/0x150
-[    1.368014]  ? register_pernet_subsys+0x10/0x40
-[    1.368014]  ? __register_sysctl_table+0x669/0x11b0
-[    1.368014]  ? gre_offload_init+0x44/0x44
-[    1.368014]  register_pernet_subsys+0x1f/0x40
-[    1.368014]  sysctl_ipv4_init+0x34/0x47
-[    1.368014]  do_one_initcall+0x12c/0x212
-[    1.368014]  ? start_kernel+0x60e/0x60e
-[    1.368014]  ? up_write+0x78/0x220
-[    1.368014]  ? up_read+0x130/0x130
-[    1.368014]  ? __asan_register_globals+0x53/0x80
-[    1.368014]  ? kasan_unpoison_shadow+0x30/0x40
-[    1.368014]  kernel_init_freeable+0x3b5/0x459
-[    1.368014]  ? rest_init+0x2bf/0x2bf
-[    1.368014]  kernel_init+0x7/0x11b
-[    1.368014]  ? rest_init+0x2bf/0x2bf
-[    1.368014]  ret_from_fork+0x24/0x30
-[    1.368014] Code: 83 fd e0 0f 84 62 01 00 00 48 8b 45 20 49 c7 c7
-e0 fa 6d 82 48 8
-[    1.368014] RIP: ___cache_free+0x76/0x1e0 RSP: ffff8800003af868
-[    1.387680] ---[ end trace 975b7b250dd637de ]---
-[    1.388098] Kernel panic - not syncing: Fatal exception
-[    1.388655] Kernel Offset: disabled
+> So, for the first release of this feature, I think it is better to have the simpler and more straightforward solution as we have now, and clearly document why it can report up to 2TB free memory.
+
+No one has the time to read documentation about how an internal flag
+within a device works. Come on, getting two pages isn't much harder
+than a single one.
+
+> 
+>  
+> > If that doesn't fly, we can allocate out of the loop and just retry with more
+> > pages.
+> > 
+> > > On the other hand, large guests being large mostly because the guests need
+> > to use large memory. In that case, they usually won't have that much free
+> > memory to report.
+> > 
+> > And following this logic small guests don't have a lot of memory to report at
+> > all.
+> > Could you remind me why are we considering this optimization then?
+> 
+> If there is a 3TB guest, it is 3TB not 2TB mostly because it would need to use e.g. 2.5TB memory from time to time. In the worst case, it only has 0.5TB free memory to report, but reporting 0.5TB with this optimization is better than no optimization. (and the current 2TB limitation isn't a limitation for the 3TB guest in this case)
+
+I'd rather not spend time writing up random limitations.
+
+
+> Best,
+> Wei
