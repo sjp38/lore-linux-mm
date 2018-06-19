@@ -1,28 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FC336B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 17:38:22 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id f13-v6so731484wrs.0
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 14:38:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i8-v6sor377956wrr.28.2018.06.19.14.38.21
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1B86B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 17:54:17 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id x16-v6so967292qto.20
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 14:54:17 -0700 (PDT)
+Received: from frisell.zx2c4.com (frisell.zx2c4.com. [192.95.5.64])
+        by mx.google.com with ESMTPS id i49-v6si813866qtf.45.2018.06.19.14.54.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Jun 2018 14:38:21 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Jun 2018 14:54:15 -0700 (PDT)
+Received: 
+	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTP id c2dcb276
+	for <linux-mm@kvack.org>;
+	Tue, 19 Jun 2018 21:48:14 +0000 (UTC)
+Received: 
+	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTPSA id ae188b33 (TLSv1.2:ECDHE-RSA-AES128-GCM-SHA256:128:NO)
+	for <linux-mm@kvack.org>;
+	Tue, 19 Jun 2018 21:48:14 +0000 (UTC)
+Received: by mail-oi0-f42.google.com with SMTP id t133-v6so1153494oif.10
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 14:54:09 -0700 (PDT)
 MIME-Version: 1.0
 References: <20180619213352.71740-1-shakeelb@google.com>
 In-Reply-To: <20180619213352.71740-1-shakeelb@google.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 19 Jun 2018 14:38:08 -0700
-Message-ID: <CALvZod7UVenX76Lo611U-yaXv_nkc0oTFrBapMS-T0rw8Rh4hg@mail.gmail.com>
+From: "Jason A. Donenfeld" <Jason@zx2c4.com>
+Date: Tue, 19 Jun 2018 23:53:57 +0200
+Message-ID: <CAHmME9pUoXod3pC4g+HLYUbCafj=1_53qHqu9ScB+NtJ2zpwqA@mail.gmail.com>
 Subject: Re: [PATCH] slub: fix __kmem_cache_empty for !CONFIG_SLUB_DEBUG
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason@zx2c4.com, Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-On Tue, Jun 19, 2018 at 2:33 PM Shakeel Butt <shakeelb@google.com> wrote:
+On Tue, Jun 19, 2018 at 11:34 PM Shakeel Butt <shakeelb@google.com> wrote:
 >
 > For !CONFIG_SLUB_DEBUG, SLUB does not maintain the number of slabs
 > allocated per node for a kmem_cache. Thus, slabs_node() in
@@ -43,9 +53,6 @@ On Tue, Jun 19, 2018 at 2:33 PM Shakeel Butt <shakeelb@google.com> wrote:
 > Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Cc: <stable@vger.kernel.org>
-
-Forgot to Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-
 > ---
 >  mm/slub.c | 16 +++++++++++++++-
 >  1 file changed, 15 insertions(+), 1 deletion(-)
@@ -82,3 +89,5 @@ Forgot to Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
 > --
 > 2.18.0.rc1.244.gcf134e6275-goog
 >
+
+I can confirm that this fixes the test case on build.wireguard.com.
