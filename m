@@ -1,84 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A0016B000A
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 08:09:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a12-v6so10151249pfn.12
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 05:09:43 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id ay5-v6si16658195plb.459.2018.06.19.05.09.42
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E6DF26B0003
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 08:44:45 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x203-v6so22635wmg.8
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 05:44:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g61-v6si7068067ede.420.2018.06.19.05.44.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jun 2018 05:09:42 -0700 (PDT)
-Message-ID: <5B28F371.9020308@intel.com>
-Date: Tue, 19 Jun 2018 20:13:37 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Jun 2018 05:44:44 -0700 (PDT)
+Subject: Re: [PATCH v2 6/7] mm, proc: add KReclaimable to /proc/meminfo
+References: <20180618091808.4419-1-vbabka@suse.cz>
+ <20180618091808.4419-7-vbabka@suse.cz>
+ <20180618143317.eb8f5d7b6c667784343ef902@linux-foundation.org>
+ <650c3fab-3137-4fe6-272a-f4ec104855a7@suse.cz>
+ <20180619081357.GA95482@rodete-desktop-imager.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <10bfd013-0eab-aad3-ac69-7f854909eccf@suse.cz>
+Date: Tue, 19 Jun 2018 14:44:41 +0200
 MIME-Version: 1.0
-Subject: Re: [virtio-dev] Re: [PATCH v33 2/4] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_HINT
-References: <1529037793-35521-1-git-send-email-wei.w.wang@intel.com> <1529037793-35521-3-git-send-email-wei.w.wang@intel.com> <20180615144000-mutt-send-email-mst@kernel.org> <286AC319A985734F985F78AFA26841F7396A3D04@shsmsx102.ccr.corp.intel.com> <20180615171635-mutt-send-email-mst@kernel.org> <286AC319A985734F985F78AFA26841F7396A5CB0@shsmsx102.ccr.corp.intel.com> <20180618051637-mutt-send-email-mst@kernel.org> <286AC319A985734F985F78AFA26841F7396AA10C@shsmsx102.ccr.corp.intel.com> <20180619055449-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20180619055449-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <20180619081357.GA95482@rodete-desktop-imager.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "peterx@redhat.com" <peterx@redhat.com>
+To: Minchan Kim <minchan.kernel@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-api@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox <willy@infradead.org>
 
-On 06/19/2018 11:05 AM, Michael S. Tsirkin wrote:
-> On Tue, Jun 19, 2018 at 01:06:48AM +0000, Wang, Wei W wrote:
->> On Monday, June 18, 2018 10:29 AM, Michael S. Tsirkin wrote:
->>> On Sat, Jun 16, 2018 at 01:09:44AM +0000, Wang, Wei W wrote:
->>>> Not necessarily, I think. We have min(4m_page_blocks / 512, 1024) above,
->>> so the maximum memory that can be reported is 2TB. For larger guests, e.g.
->>> 4TB, the optimization can still offer 2TB free memory (better than no
->>> optimization).
+On 06/19/2018 10:13 AM, Minchan Kim wrote:
+> On Tue, Jun 19, 2018 at 09:30:03AM +0200, Vlastimil Babka wrote:
+>> On 06/18/2018 11:33 PM, Andrew Morton wrote:
+>>> On Mon, 18 Jun 2018 11:18:07 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 >>>
->>> Maybe it's better, maybe it isn't. It certainly muddies the waters even more.
->>> I'd rather we had a better plan. From that POV I like what Matthew Wilcox
->>> suggested for this which is to steal the necessary # of entries off the list.
->> Actually what Matthew suggested doesn't make a difference here. That method always steal the first free page blocks, and sure can be changed to take more. But all these can be achieved via kmalloc
-> I'd do get_user_pages really. You don't want pages split, etc.
-
->> by the caller which is more prudent and makes the code more straightforward. I think we don't need to take that risk unless the MM folks strongly endorse that approach.
+>>>> The vmstat NR_KERNEL_MISC_RECLAIMABLE counter is for kernel non-slab
+>>>> allocations that can be reclaimed via shrinker. In /proc/meminfo, we can show
+>>>> the sum of all reclaimable kernel allocations (including slab) as
+>>>> "KReclaimable". Add the same counter also to per-node meminfo under /sys
+>>>
+>>> Why do you consider this useful enough to justify adding it to
+>>> /pro/meminfo?  How will people use it, what benefit will they see, etc?
 >>
->> The max size of the kmalloc-ed memory is 4MB, which gives us the limitation that the max free memory to report is 2TB. Back to the motivation of this work, the cloud guys want to use this optimization to accelerate their guest live migration. 2TB guests are not common in today's clouds. When huge guests become common in the future, we can easily tweak this API to fill hints into scattered buffer (e.g. several 4MB arrays passed to this API) instead of one as in this version.
+>> Let's add this:
 >>
->> This limitation doesn't cause any issue from functionality perspective. For the extreme case like a 100TB guest live migration which is theoretically possible today, this optimization helps skip 2TB of its free memory. This result is that it may reduce only 2% live migration time, but still better than not skipping the 2TB (if not using the feature).
-> Not clearly better, no, since you are slowing the guest.
+>> With this counter, users will have more complete information about
+>> kernel memory usage. Non-slab reclaimable pages (currently just the ION
+>> allocator) will not be missing from /proc/meminfo, making users wonder
+>> where part of their memory went. More precisely, they already appear in
+>> MemAvailable, but without the new counter, it's not obvious why the
+>> value in MemAvailable doesn't fully correspond with the sum of other
+>> counters participating in it.
+> 
+> Hmm, if we could get MemAvailable with sum of other counters participating
+> in it, MemAvailable wouldn't be meaninful. IMO, MemAvailable don't need to
+> be matched with other counters.
 
-Not really. Live migration slows down the guest itself. It seems that 
-the guest spends a little extra time reporting free pages, but in return 
-the live migration time gets reduced a lot, which makes the guest endure 
-less from live migration. (there is no drop of the workload performance 
-when using the optimization in the tests)
+MemAvailable is meant as a "shortcut" for users, so they don't have to
+remember which counters to count and add them up manually. It's also not
+an exact sum, because there are some assumptions that part of
+reclaimable memory might be pinned etc. Still, missing KReclaimable in
+/proc/meminfo would be an odd exception wrt the other counters, IMHO.
 
+> The benefit of ION KReclaimable in real field is there are some sluggish
+> problem bugreport under memory pressure and found ION page pool is too
+> much without shrinking. In that case, that meminfo would be useful to
+> know something was broken in the system.
 
+Right.
 
->
->
->> So, for the first release of this feature, I think it is better to have the simpler and more straightforward solution as we have now, and clearly document why it can report up to 2TB free memory.
-> No one has the time to read documentation about how an internal flag
-> within a device works. Come on, getting two pages isn't much harder
-> than a single one.
+> In that point of view, a concern to me is if we put more KReclaimable
+> pages(e.g., binder is candidate), it ends up we couldn't identify what
+> caches are too much among them. That means we needs KReclaimableInfo(like
+> slabinfo) to show each type's KReclaimable pages in future.
 
->>   
->>> If that doesn't fly, we can allocate out of the loop and just retry with more
->>> pages.
->>>
->>>> On the other hand, large guests being large mostly because the guests need
->>> to use large memory. In that case, they usually won't have that much free
->>> memory to report.
->>>
->>> And following this logic small guests don't have a lot of memory to report at
->>> all.
->>> Could you remind me why are we considering this optimization then?
->> If there is a 3TB guest, it is 3TB not 2TB mostly because it would need to use e.g. 2.5TB memory from time to time. In the worst case, it only has 0.5TB free memory to report, but reporting 0.5TB with this optimization is better than no optimization. (and the current 2TB limitation isn't a limitation for the 3TB guest in this case)
-> I'd rather not spend time writing up random limitations.
+Yeah there are more direct kernel allocations that can eat significant
+amounts of memory, without being visible in /proc/meminfo, and not
+necessarily reclaimable. E.g. unless that changed, I recall XFS page
+buffers. Striking a good balance of how detailed the accounting should
+be is not easy.
 
-This is not a random limitation. It would be more clear to see the code. 
-Also I'm not sure how get_user_pages could be used in our case, and what 
-you meant by "getting two pages". I'll post out a new version, and we 
-can discuss on the code.
-
-
-Best,
-Wei
+BTW at some point I proposed MemUnaccounted to make it more obvious
+(without adding up fields manually) that there is some memory consumed
+by kernel allocations not visible in the other meminfo fields.
