@@ -1,131 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 93FE76B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 13:20:07 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id j7-v6so157034pff.16
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 10:20:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o33-v6sor73411pld.107.2018.06.19.10.20.06
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5545E6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 13:32:59 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o10-v6so378970qtm.7
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 10:32:59 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0125.outbound.protection.outlook.com. [104.47.1.125])
+        by mx.google.com with ESMTPS id s124-v6si228385qkh.299.2018.06.19.10.32.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Jun 2018 10:20:06 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH 06/10] x86/cet: Add arch_prctl functions for shadow stack
-From: Andy Lutomirski <luto@amacapital.net>
-In-Reply-To: <CAGXu5jJ4ivrvi-kG0iY=4C0mQQXBDXwPdfY36Dk+JqOpX19n0w@mail.gmail.com>
-Date: Tue, 19 Jun 2018 10:20:03 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <0AF8B71E-B6CC-42DE-B95C-93896196C3D7@amacapital.net>
-References: <20180607143807.3611-1-yu-cheng.yu@intel.com> <20180607143807.3611-7-yu-cheng.yu@intel.com>
- <CALCETrU6axo158CiSCRRkC4GC5hib9hypC98t7LLjA3gDaacsw@mail.gmail.com>
- <1528403417.5265.35.camel@2b52.sc.intel.com> <CALCETrXz3WWgZwUXJsDTWvmqKUArQFuMH1xJdSLVKFpTysNWxg@mail.gmail.com>
- <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
- <alpine.DEB.2.21.1806121155450.2157@nanos.tec.linutronix.de>
- <CAMe9rOoCiXQ4iVD3j_AHGrvEXtoaVVZVs7H7fCuqNEuuR5j+2Q@mail.gmail.com>
- <CALCETrXO8R+RQPhJFk4oiA4PF77OgSS2Yro_POXQj1zvdLo61A@mail.gmail.com>
- <CAMe9rOpLxPussn7gKvn0GgbOB4f5W+DKOGipe_8NMam+Afd+RA@mail.gmail.com>
- <CALCETrWmGRkQvsUgRaj+j0CP4beKys+TT5aDR5+18nuphwr+Cw@mail.gmail.com>
- <CAMe9rOpzcCdje=bUVs+C1WrY6GuwA-8AUFVLOG325LGz7KHJxw@mail.gmail.com>
- <alpine.DEB.2.21.1806122046520.1592@nanos.tec.linutronix.de>
- <CAMe9rOrGjJf0aMnUjAP38MqvOiW3=iXGQjcUT3O=f9pE85hXaw@mail.gmail.com>
- <CALCETrVsh5t-V1Sm88LsZE_+DS0GE_bMWbcoX3SjD6GnrB08Pw@mail.gmail.com>
- <CAGXu5jK0gospOXRpN6zYiQPXOZeE=YpVAz2qu4Zc3-32v85+EQ@mail.gmail.com>
- <569B4719-6283-4575-A16E-D0A78D280F4E@amacapital.net> <CAGXu5jJNgu4bW_Zthqjfpe9gLxK0zxG8QFEqqK+pJNebz6tUaw@mail.gmail.com>
- <1529427588.23068.7.camel@intel.com> <CAGXu5jJ4ivrvi-kG0iY=4C0mQQXBDXwPdfY36Dk+JqOpX19n0w@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 19 Jun 2018 10:32:58 -0700 (PDT)
+Subject: Re: Possible regression in "slab, slub: skip unnecessary
+ kasan_cache_shutdown()"
+References: <CAHmME9rtoPwxUSnktxzKso14iuVCWT7BE_-_8PAC=pGw1iJnQg@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <46ca5661-4bd1-6733-0140-d6e6dea1ab33@virtuozzo.com>
+Date: Tue, 19 Jun 2018 20:34:22 +0300
+MIME-Version: 1.0
+In-Reply-To: <CAHmME9rtoPwxUSnktxzKso14iuVCWT7BE_-_8PAC=pGw1iJnQg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, Andy Lutomirski <luto@kernel.org>, "H. J. Lu" <hjl.tools@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com, Florian Weimer <fweimer@redhat.com>
+To: "Jason A. Donenfeld" <Jason@zx2c4.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
 
 
 
-> On Jun 19, 2018, at 10:07 AM, Kees Cook <keescook@chromium.org> wrote:
->=20
->> On Tue, Jun 19, 2018 at 9:59 AM, Yu-cheng Yu <yu-cheng.yu@intel.com> wrot=
-e:
->>> On Tue, 2018-06-19 at 09:44 -0700, Kees Cook wrote:
->>> On Tue, Jun 19, 2018 at 7:50 AM, Andy Lutomirski <luto@amacapital.net
->>>> wrote:
->>>>=20
->>>>>=20
->>>>> On Jun 18, 2018, at 5:52 PM, Kees Cook <keescook@chromium.org>
->>>>> wrote:
->>>>> Following Linus's request for "slow introduction" of new security
->>>>> features, likely the best approach is to default to "relaxed"
->>>>> (with a
->>>>> warning about down-grades), and allow distros/end-users to pick
->>>>> "forced" if they know their libraries are all CET-enabled.
->>>> I still don=E2=80=99t get what =E2=80=9Crelaxed=E2=80=9D is for.  I thi=
-nk the right design
->>>> is:
->>>>=20
->>>> Processes start with CET on or off depending on the ELF note, but
->>>> they start with CET unlocked no matter what. They can freely switch
->>>> CET on and off (subject to being clever enough not to crash if they
->>>> turn it on and then return right off the end of the shadow stack)
->>>> until they call ARCH_CET_LOCK.
->>> I'm fine with this. I'd expect modern loaders to just turn on CET and
->>> ARCH_CET_LOCK immediately and be done with it. :P
->>=20
->> This is the current implementation.  If the loader has CET in its ELF
->> header, it is executed with CET on.  The loader will turn off CET if
->> the application being loaded does not support it (in the ELF header).
->> The loader calls ARCH_CET_LOCK before passing to the application.  But
->> how do we handle dlopen?
->=20
-> I thought CET_LOCK would not get set in "relaxed" mode, due to dlopen
-> usage, and that would be the WARN case. People without dlopen concerns
-> can boot with "enforced" mode? If a system builder knows there are no
-> legacy dlopens they build with enforced enabled, etc.
+On 06/19/2018 05:51 AM, Jason A. Donenfeld wrote:
+> Hello Shakeel,
+> 
+> It may be the case that f9e13c0a5a33d1eaec374d6d4dab53a4f72756a0 has
+> introduced a regression. I've bisected a failing test to this commit,
+> and after staring at the my code for a long time, I'm unable to find a
+> bug that this commit might have unearthed. Rather, it looks like this
+> commit introduces a performance optimization, rather than a
+> correctness fix, so it seems that whatever test case is failing is
+> likely an incorrect failure. Does that seem like an accurate
+> possibility to you?
+> 
+> Below is a stack trace when things go south. Let me know if you'd like
+> to run my test suite, and I can send additional information.
+> 
+> Regards,
+> Jason
+> 
+> 
 
-I think we=E2=80=99re getting ahead of ourselves. dlopen() of a non-CET-awar=
-e library in a CET process is distinctly non-trivial, especially in a multit=
-hreaded process. I think getting it right will require *userspace* support. =
- It certainly needs ld.so to issue to arch_prctl at a bare minimum. So I see=
- no point to a kernel-supplied =E2=80=9Crelaxed=E2=80=9D mode. I think there=
- may be demand for a ld.so relaxed mode, but it will have nothing to do with=
- boot options.
+What's the status of CONFIG_SLUB_DEBUG in your config?
 
-It=E2=80=99s potentially helpful to add an arch_prctl that turns CET off for=
- all threads, but only if unlocked. It would obviously be one hell of a gadg=
-et.
+AFAICS __kmem_cache_empty() is broken for CONFIG_SLUB_DEBUG=n. We use slabs_node() there
+which is always 0 for CONFIG_SLUB_DEBUG=n.
 
->=20
->>>> Ptrace gets new APIs to turn CET on and off and to lock and unlock
->>>> it.  If an attacker finds a =E2=80=9Cptrace me and turn off CET=E2=80=9D=
- gadget,
->>>> then they might as well just do =E2=80=9Cptrace me and write shell code=
-=E2=80=9D
->>>> instead. It=E2=80=99s basically the same gadget. Keep in mind that the
->>>> actual sequence of syscalls to do this is incredibly complicated.
->>> Right -- if an attacker can control ptrace of the target, we're way
->>> past CET. The only concern I have, though, is taking advantage of
->>> expected ptracing. For example: browsers tend to have crash handlers
->>> that launch a ptracer. If ptracing disabled CET for all threads, this
->>> won't by safe: an attacker just gains control in two threads, crashes
->>> one to get the ptracer to attach, which disables CET in the other
->>> thread and the attacker continues ROP as normal. As long as the
->>> ptrace
->>> disabling is thread-specific, I think this will be okay.
->>=20
->> If ptrace can turn CET on/off and it is thread-specific, do we still
->> need ptrace lock/unlock?
-
-Let me clarify. I don=E2=80=99t think ptrace() should have any automatic eff=
-ect on CET. I think there should be an explicit way to ask ptrace to twiddle=
- CET, and it should probably apply per thread.
-
->=20
-> Does it provide anything beyond what PR_DUMPABLE does?
-
-What do you mean?
-
-
->=20
-> -Kees
->=20
-> --=20
-> Kees Cook
-> Pixel Security
+The problem seems not limited to __kmem_cache_empty(), __kmem_cache_shutdown() and __kmem_cache_shrink()
+are also rely on correctness of the slabs_node(). Presumably this might cause some problems while
+destroying memcg kmem caches.
