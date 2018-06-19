@@ -1,68 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B1E4C6B0003
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 02:41:02 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id b195-v6so16508285qkc.8
-        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 23:41:02 -0700 (PDT)
-Received: from mx1.redhat.com (mx3-rdu2.redhat.com. [66.187.233.73])
-        by mx.google.com with ESMTPS id o125-v6si647430qkd.38.2018.06.18.23.41.01
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BAC066B0003
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 02:59:30 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id z10-v6so16931949qki.5
+        for <linux-mm@kvack.org>; Mon, 18 Jun 2018 23:59:30 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id e1-v6si2097219qtc.6.2018.06.18.23.59.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jun 2018 23:41:01 -0700 (PDT)
-Subject: Re: [PATCH 06/10] x86/cet: Add arch_prctl functions for shadow stack
-References: <20180607143807.3611-1-yu-cheng.yu@intel.com>
- <CALCETrU6axo158CiSCRRkC4GC5hib9hypC98t7LLjA3gDaacsw@mail.gmail.com>
- <1528403417.5265.35.camel@2b52.sc.intel.com>
- <CALCETrXz3WWgZwUXJsDTWvmqKUArQFuMH1xJdSLVKFpTysNWxg@mail.gmail.com>
- <CAMe9rOr49V8rqRa_KVsw61PWd+crkQvPDgPKtvowazjmsfgWWQ@mail.gmail.com>
- <alpine.DEB.2.21.1806121155450.2157@nanos.tec.linutronix.de>
- <CAMe9rOoCiXQ4iVD3j_AHGrvEXtoaVVZVs7H7fCuqNEuuR5j+2Q@mail.gmail.com>
- <CALCETrXO8R+RQPhJFk4oiA4PF77OgSS2Yro_POXQj1zvdLo61A@mail.gmail.com>
- <CAMe9rOpLxPussn7gKvn0GgbOB4f5W+DKOGipe_8NMam+Afd+RA@mail.gmail.com>
- <CALCETrWmGRkQvsUgRaj+j0CP4beKys+TT5aDR5+18nuphwr+Cw@mail.gmail.com>
- <CAMe9rOpzcCdje=bUVs+C1WrY6GuwA-8AUFVLOG325LGz7KHJxw@mail.gmail.com>
- <alpine.DEB.2.21.1806122046520.1592@nanos.tec.linutronix.de>
- <CAMe9rOrGjJf0aMnUjAP38MqvOiW3=iXGQjcUT3O=f9pE85hXaw@mail.gmail.com>
- <CALCETrVsh5t-V1Sm88LsZE_+DS0GE_bMWbcoX3SjD6GnrB08Pw@mail.gmail.com>
- <CAGXu5jK0gospOXRpN6zYiQPXOZeE=YpVAz2qu4Zc3-32v85+EQ@mail.gmail.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <e152e1a7-e3b1-c3c4-ce1a-874e97300b37@redhat.com>
-Date: Tue, 19 Jun 2018 08:40:53 +0200
+        Mon, 18 Jun 2018 23:59:29 -0700 (PDT)
+Subject: Re: [PATCH v3 8/8] mm: Fix exports that inadvertently make put_page()
+ EXPORT_SYMBOL_GPL
+References: <152938827880.17797.439879736804291936.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152938832086.17797.4538943238207602944.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <3f7833bf-99ad-f36c-1e95-36bf78b60d50@nvidia.com>
+Date: Mon, 18 Jun 2018 23:59:07 -0700
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jK0gospOXRpN6zYiQPXOZeE=YpVAz2qu4Zc3-32v85+EQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <152938832086.17797.4538943238207602944.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@kernel.org>
-Cc: "H. J. Lu" <hjl.tools@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Yu-cheng Yu <yu-cheng.yu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Shanbhogue, Vedvyas" <vedvyas.shanbhogue@intel.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jonathan Corbet <corbet@lwn.net>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, mike.kravetz@oracle.com
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Joe Gorse <jhgorse@gmail.com>, hch@lst.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/19/2018 02:52 AM, Kees Cook wrote:
-> Adding Florian to CC, but if something gets CET enabled, it really
-> shouldn't have a way to turn it off. If there's a way to turn it off,
-> all the ROP research will suddenly turn to exactly one gadget before
-> doing the rest of the ROP: turning off CET. Right now ROP is: use
-> stack-pivot gadget, do everything else. Allowed CET to turn off will
-> just add one step: use CET-off gadget, use stack-pivot gadget, do
-> everything else. :P
+On 06/18/2018 11:05 PM, Dan Williams wrote:
+> Now that all producers of dev_pagemap instances in the kernel are
+> properly converted to EXPORT_SYMBOL_GPL, fix up implicit consumers that
+> interact with dev_pagemap owners via put_page(). To reiterate,
+> dev_pagemap producers are EXPORT_SYMBOL_GPL because they adopt and
+> modify core memory management interfaces such that the dev_pagemap owner
+> can interact with all other kernel infrastructure and sub-systems
+> (drivers, filesystems, etc...) that consume page structures.
 > 
-> Following Linus's request for "slow introduction" of new security
-> features, likely the best approach is to default to "relaxed" (with a
-> warning about down-grades), and allow distros/end-users to pick
-> "forced" if they know their libraries are all CET-enabled.
+> Fixes: e76384884344 ("mm: introduce MEMORY_DEVICE_FS_DAX and CONFIG_DEV_PAGEMAP_OPS")
+> Reported-by: Joe Gorse <jhgorse@gmail.com>
+> Reported-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  kernel/memremap.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index 16141b608b63..ecee37b44aa1 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -330,7 +330,7 @@ EXPORT_SYMBOL_GPL(get_dev_pagemap);
+>  
+>  #ifdef CONFIG_DEV_PAGEMAP_OPS
+>  DEFINE_STATIC_KEY_FALSE(devmap_managed_key);
+> -EXPORT_SYMBOL_GPL(devmap_managed_key);
+> +EXPORT_SYMBOL(devmap_managed_key);
+>  static atomic_t devmap_enable;
+>  
+>  /*
+> @@ -371,5 +371,5 @@ void __put_devmap_managed_page(struct page *page)
+>  	} else if (!count)
+>  		__put_page(page);
+>  }
+> -EXPORT_SYMBOL_GPL(__put_devmap_managed_page);
+> +EXPORT_SYMBOL(__put_devmap_managed_page);
+>  #endif /* CONFIG_DEV_PAGEMAP_OPS */
+> 
 
-The dynamic linker can tell beforehand (before executing any user code) 
-whether a process image supports CET.  So there doesn't have to be 
-anything gradual about it per se to preserve backwards compatibility.
+Yep, that fixes everything I was seeing.
 
-The idea to turn off CET probably comes from the desire to support 
-dlopen.  I'm not sure if this is really necessary because the complexity 
-is rather nasty.  (We currently do something similar for executable 
-stacks.)  I'd rather have a switch to turn off the feature upon process 
-start.  Things like NSS and PAM modules need to be recompiled early.  (I 
-hope that everything that goes directly to the network via custom 
-protocols or hardware such as smartcards is proxied via daemons these days.)
-
-Thanks,
-Florian
+thanks,
+-- 
+John Hubbard
+NVIDIA
