@@ -1,56 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5545E6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 13:32:59 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id o10-v6so378970qtm.7
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 10:32:59 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0125.outbound.protection.outlook.com. [104.47.1.125])
-        by mx.google.com with ESMTPS id s124-v6si228385qkh.299.2018.06.19.10.32.58
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B19EA6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 13:41:09 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id z144-v6so128701lff.2
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 10:41:09 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id i88-v6si84474lfl.309.2018.06.19.10.41.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 19 Jun 2018 10:32:58 -0700 (PDT)
-Subject: Re: Possible regression in "slab, slub: skip unnecessary
- kasan_cache_shutdown()"
-References: <CAHmME9rtoPwxUSnktxzKso14iuVCWT7BE_-_8PAC=pGw1iJnQg@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <46ca5661-4bd1-6733-0140-d6e6dea1ab33@virtuozzo.com>
-Date: Tue, 19 Jun 2018 20:34:22 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Jun 2018 10:41:07 -0700 (PDT)
+Date: Tue, 19 Jun 2018 10:40:44 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 3/3] fs, mm: account buffer_head to kmemcg
+Message-ID: <20180619174040.GA4304@castle.DHCP.thefacebook.com>
+References: <20180619051327.149716-1-shakeelb@google.com>
+ <20180619051327.149716-4-shakeelb@google.com>
+ <20180619162741.GC27423@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <CAHmME9rtoPwxUSnktxzKso14iuVCWT7BE_-_8PAC=pGw1iJnQg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20180619162741.GC27423@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Jason A. Donenfeld" <Jason@zx2c4.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Shakeel Butt <shakeelb@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-
-
-On 06/19/2018 05:51 AM, Jason A. Donenfeld wrote:
-> Hello Shakeel,
+On Tue, Jun 19, 2018 at 12:27:41PM -0400, Johannes Weiner wrote:
+> On Mon, Jun 18, 2018 at 10:13:27PM -0700, Shakeel Butt wrote:
+> > The buffer_head can consume a significant amount of system memory and
+> > is directly related to the amount of page cache. In our production
+> > environment we have observed that a lot of machines are spending a
+> > significant amount of memory as buffer_head and can not be left as
+> > system memory overhead.
+> > 
+> > Charging buffer_head is not as simple as adding __GFP_ACCOUNT to the
+> > allocation. The buffer_heads can be allocated in a memcg different from
+> > the memcg of the page for which buffer_heads are being allocated. One
+> > concrete example is memory reclaim. The reclaim can trigger I/O of pages
+> > of any memcg on the system. So, the right way to charge buffer_head is
+> > to extract the memcg from the page for which buffer_heads are being
+> > allocated and then use targeted memcg charging API.
+> > 
+> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> > Cc: Jan Kara <jack@suse.cz>
+> > Cc: Greg Thelen <gthelen@google.com>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> >  fs/buffer.c                | 14 +++++++++++++-
+> >  include/linux/memcontrol.h |  7 +++++++
+> >  mm/memcontrol.c            | 21 +++++++++++++++++++++
+> >  3 files changed, 41 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/fs/buffer.c b/fs/buffer.c
+> > index 8194e3049fc5..26389b7a3cab 100644
+> > --- a/fs/buffer.c
+> > +++ b/fs/buffer.c
+> > @@ -815,10 +815,17 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
+> >  	struct buffer_head *bh, *head;
+> >  	gfp_t gfp = GFP_NOFS;
+> >  	long offset;
+> > +	struct mem_cgroup *old_memcg;
+> > +	struct mem_cgroup *memcg = get_mem_cgroup_from_page(page);
+> >  
+> >  	if (retry)
+> >  		gfp |= __GFP_NOFAIL;
+> >  
+> > +	if (memcg) {
+> > +		gfp |= __GFP_ACCOUNT;
+> > +		old_memcg = memalloc_memcg_save(memcg);
+> > +	}
 > 
-> It may be the case that f9e13c0a5a33d1eaec374d6d4dab53a4f72756a0 has
-> introduced a regression. I've bisected a failing test to this commit,
-> and after staring at the my code for a long time, I'm unable to find a
-> bug that this commit might have unearthed. Rather, it looks like this
-> commit introduces a performance optimization, rather than a
-> correctness fix, so it seems that whatever test case is failing is
-> likely an incorrect failure. Does that seem like an accurate
-> possibility to you?
+> Please move the get_mem_cgroup_from_page() call out of the
+> declarations and down to right before the if (memcg) branch.
 > 
-> Below is a stack trace when things go south. Let me know if you'd like
-> to run my test suite, and I can send additional information.
+> >  	head = NULL;
+> >  	offset = PAGE_SIZE;
+> >  	while ((offset -= size) >= 0) {
+> > @@ -835,6 +842,11 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
+> >  		/* Link the buffer to its page */
+> >  		set_bh_page(bh, page, offset);
+> >  	}
+> > +out:
+> > +	if (memcg) {
+> > +		memalloc_memcg_restore(old_memcg);
+> > +#ifdef CONFIG_MEMCG
+> > +		css_put(&memcg->css);
+> > +#endif
 > 
-> Regards,
-> Jason
-> 
-> 
+> Please add a put_mem_cgroup() ;)
 
-What's the status of CONFIG_SLUB_DEBUG in your config?
+I've added such helper by commit 8a34a8b7fd62 ("mm, oom: cgroup-aware OOM killer").
+It's in the mm tree.
 
-AFAICS __kmem_cache_empty() is broken for CONFIG_SLUB_DEBUG=n. We use slabs_node() there
-which is always 0 for CONFIG_SLUB_DEBUG=n.
-
-The problem seems not limited to __kmem_cache_empty(), __kmem_cache_shutdown() and __kmem_cache_shrink()
-are also rely on correctness of the slabs_node(). Presumably this might cause some problems while
-destroying memcg kmem caches.
+Thanks!
