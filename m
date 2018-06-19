@@ -1,78 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B28B6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 17:09:04 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a12-v6so413635pfn.12
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 14:09:04 -0700 (PDT)
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id m4-v6si495130pgp.512.2018.06.19.14.09.02
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A3CE6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 17:13:28 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id s7-v6so435596pfm.4
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 14:13:28 -0700 (PDT)
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id f59-v6si580299plf.500.2018.06.19.14.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jun 2018 14:09:03 -0700 (PDT)
+        Tue, 19 Jun 2018 14:13:27 -0700 (PDT)
+Subject: Re: [RFC v2 PATCH 2/2] mm: mmap: zap pages with read mmap_sem for
+ large mapping
+References: <1529364856-49589-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20180619100218.GN2458@hirez.programming.kicks-ass.net>
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: [PATCH] thp: use mm_file_counter to determine update which rss counter
-Date: Wed, 20 Jun 2018 05:08:38 +0800
-Message-Id: <1529442518-17398-1-git-send-email-yang.shi@linux.alibaba.com>
+Message-ID: <f78924fc-ea81-9ddd-ebb2-28241d5721c8@linux.alibaba.com>
+Date: Tue, 19 Jun 2018 14:13:05 -0700
+MIME-Version: 1.0
+In-Reply-To: <20180619100218.GN2458@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Since commit eca56ff906bdd0239485e8b47154a6e73dd9a2f3 ("mm, shmem: add
-internal shmem resident memory accounting"), MM_SHMEMPAGES is added to
-separate the shmem accounting from regular files. So, all shmem pages
-should be accounted to MM_SHMEMPAGES instead of MM_FILEPAGES.
 
-And, normal 4K shmem pages have been accounted to MM_SHMEMPAGES, so
-shmem thp pages should be not treated differently. Accouting them to
-MM_SHMEMPAGES via mm_counter_file() since shmem pages are swap backed
-to keep consistent with normal 4K shmem pages.
 
-This will not change the rss counter of processes since shmem pages are
-still a part of it.
+On 6/19/18 3:02 AM, Peter Zijlstra wrote:
+> On Tue, Jun 19, 2018 at 07:34:16AM +0800, Yang Shi wrote:
+>
+>> diff --git a/mm/mmap.c b/mm/mmap.c
+>> index fc41c05..e84f80c 100644
+>> --- a/mm/mmap.c
+>> +++ b/mm/mmap.c
+>> @@ -2686,6 +2686,141 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+>>   	return __split_vma(mm, vma, addr, new_below);
+>>   }
+>>   
+>> +/* Consider PUD size or 1GB mapping as large mapping */
+>> +#ifdef HPAGE_PUD_SIZE
+>> +#define LARGE_MAP_THRESH	HPAGE_PUD_SIZE
+>> +#else
+>> +#define LARGE_MAP_THRESH	(1 * 1024 * 1024 * 1024)
+>> +#endif
+>> +
+>> +/* Unmap large mapping early with acquiring read mmap_sem */
+>> +static int do_munmap_zap_early(struct mm_struct *mm, unsigned long start,
+>> +			       size_t len, struct list_head *uf)
+>> +{
+>> +	unsigned long end = 0;
+>> +	struct vm_area_struct *vma = NULL, *prev, *last, *tmp;
+>> +	bool success = false;
+>> +	int ret = 0;
+>> +
+>> +	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE - start)
+>> +		return -EINVAL;
+>> +
+>> +	len = (PAGE_ALIGN(len));
+>> +	if (len == 0)
+>> +		return -EINVAL;
+>> +
+>> +	/* Just deal with uf in regular path */
+>> +	if (unlikely(uf))
+>> +		goto regular_path;
+>> +
+>> +	if (len >= LARGE_MAP_THRESH) {
+>> +		down_read(&mm->mmap_sem);
+>> +		vma = find_vma(mm, start);
+>> +		if (!vma) {
+>> +			up_read(&mm->mmap_sem);
+>> +			return 0;
+>> +		}
+>> +
+>> +		prev = vma->vm_prev;
+>> +
+>> +		end = start + len;
+>> +		if (vma->vm_start > end) {
+>> +			up_read(&mm->mmap_sem);
+>> +			return 0;
+>> +		}
+>> +
+>> +		if (start > vma->vm_start) {
+>> +			int error;
+>> +
+>> +			if (end < vma->vm_end &&
+>> +			    mm->map_count > sysctl_max_map_count) {
+>> +				up_read(&mm->mmap_sem);
+>> +				return -ENOMEM;
+>> +			}
+>> +
+>> +			error = __split_vma(mm, vma, start, 0);
+>> +			if (error) {
+>> +				up_read(&mm->mmap_sem);
+>> +				return error;
+>> +			}
+>> +			prev = vma;
+>> +		}
+>> +
+>> +		last = find_vma(mm, end);
+>> +		if (last && end > last->vm_start) {
+>> +			int error = __split_vma(mm, last, end, 1);
+>> +
+>> +			if (error) {
+>> +				up_read(&mm->mmap_sem);
+>> +				return error;
+>> +			}
+>> +		}
+>> +		vma = prev ? prev->vm_next : mm->mmap;
+> Hold up, two things: you having to copy most of do_munmap() didn't seem
+> to suggest a helper function? And second, since when are we allowed to
 
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- mm/huge_memory.c | 4 ++--
- mm/memory.c      | 2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
+Yes, they will be extracted into a helper function in the next version.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 1cd7c1a..2687f7c 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1740,7 +1740,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		} else {
- 			if (arch_needs_pgtable_deposit())
- 				zap_deposited_table(tlb->mm, pmd);
--			add_mm_counter(tlb->mm, MM_FILEPAGES, -HPAGE_PMD_NR);
-+			add_mm_counter(tlb->mm, mm_counter_file(page), -HPAGE_PMD_NR);
- 		}
- 
- 		spin_unlock(ptl);
-@@ -2088,7 +2088,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 			SetPageReferenced(page);
- 		page_remove_rmap(page, true);
- 		put_page(page);
--		add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
-+		add_mm_counter(mm, mm_counter_file(page), -HPAGE_PMD_NR);
- 		return;
- 	} else if (is_huge_zero_pmd(*pmd)) {
- 		/*
-diff --git a/mm/memory.c b/mm/memory.c
-index 7206a63..4a2f2a8 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3372,7 +3372,7 @@ static int do_set_pmd(struct vm_fault *vmf, struct page *page)
- 	if (write)
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
- 
--	add_mm_counter(vma->vm_mm, MM_FILEPAGES, HPAGE_PMD_NR);
-+	add_mm_counter(vma->vm_mm, mm_counter_file(page), HPAGE_PMD_NR);
- 	page_add_file_rmap(page, true);
- 	/*
- 	 * deposit and withdraw with pmd lock held
--- 
-1.8.3.1
+May bad, I don't think it is allowed. We could reform this to:
+
+acquire write mmap_sem
+vma lookup (split vmas)
+release write mmap_sem
+
+acquire read mmap_sem
+zap pages
+release read mmap_sem
+
+I'm supposed this is safe as what Michal said before.
+
+Thanks,
+Yang
+
+> split VMAs under a read lock?
