@@ -1,49 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 098846B0007
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 11:48:47 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id x6-v6so45671pgp.9
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 08:48:47 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e6-v6si14325192pgf.670.2018.06.19.08.48.45
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A11B86B000A
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 12:00:28 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id n66-v6so8757898itg.0
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 09:00:28 -0700 (PDT)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id p77-v6si16261iop.184.2018.06.19.09.00.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Jun 2018 08:48:45 -0700 (PDT)
-Date: Tue, 19 Jun 2018 08:48:44 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [bug report] page cache: Convert filemap_range_has_page to XArray
-Message-ID: <20180619154844.GD1438@bombadil.infradead.org>
-References: <20180619144705.oqjmli6l7f7j2mgx@kili.mountain>
+        Tue, 19 Jun 2018 09:00:25 -0700 (PDT)
+References: <152938827880.17797.439879736804291936.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <152938829462.17797.17960582127304725369.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <6d5ae5ea-48ed-fc0b-8945-a0478aa0ca5c@deltatee.com>
+Date: Tue, 19 Jun 2018 10:00:19 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180619144705.oqjmli6l7f7j2mgx@kili.mountain>
+In-Reply-To: <152938829462.17797.17960582127304725369.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH v3 3/8] mm, devm_memremap_pages: Fix shutdown handling
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: stable@vger.kernel.org, Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 19, 2018 at 05:47:05PM +0300, Dan Carpenter wrote:
->    455  bool filemap_range_has_page(struct address_space *mapping,
->    456                             loff_t start_byte, loff_t end_byte)
->    457  {
->    458          struct page *page;
->    459          XA_STATE(xas, &mapping->i_pages, start_byte >> PAGE_SHIFT);
->    460          pgoff_t max = end_byte >> PAGE_SHIFT;
->    461  
->    462          if (end_byte < start_byte)
->    463                  return false;
->    464  
->    465          rcu_read_lock();
->    466          do {
->    467                  page = xas_find(&xas, max);
->    468                  if (xas_retry(&xas, page))
->    469                          continue;
->                                 ^^^^^^^^
->    470                  /* Shadow entries don't count */
->    471                  if (xa_is_value(page))
->    472                          continue;
->                                 ^^^^^^^^
-> This is the same as a break because it's a while(0) loop.
 
-Good catch.  Fix pushed.
+
+On 19/06/18 12:04 AM, Dan Williams wrote:
+> Cc: <stable@vger.kernel.org>
+> Fixes: e8d513483300 ("memremap: change devm_memremap_pages interface...")
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+> Reported-by: Logan Gunthorpe <logang@deltatee.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+
+Looks good to me.
+
+Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
