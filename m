@@ -1,111 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8752E6B0007
-	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 06:02:24 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id x25-v6so10083552pfn.21
-        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 03:02:24 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id o184-v6si14081963pga.92.2018.06.19.03.02.23
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D0C136B0003
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2018 06:41:45 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id j18-v6so6704676wme.5
+        for <linux-mm@kvack.org>; Tue, 19 Jun 2018 03:41:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t38-v6si6787814edd.288.2018.06.19.03.41.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Jun 2018 03:02:23 -0700 (PDT)
-Date: Tue, 19 Jun 2018 12:02:18 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC v2 PATCH 2/2] mm: mmap: zap pages with read mmap_sem for
- large mapping
-Message-ID: <20180619100218.GN2458@hirez.programming.kicks-ass.net>
-References: <1529364856-49589-1-git-send-email-yang.shi@linux.alibaba.com>
- <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Jun 2018 03:41:43 -0700 (PDT)
+Date: Tue, 19 Jun 2018 12:41:42 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/2] mm: set PG_dma_pinned on get_user_pages*()
+Message-ID: <20180619104142.lpilc6esz7w3a54i@quack2.suse.cz>
+References: <CAPcyv4gayKk_zHDYAvntware12qMXWjnnL_FDJNUQsJS_zNfDw@mail.gmail.com>
+ <311eba48-60f1-b6cc-d001-5cc3ed4d76a9@nvidia.com>
+ <20180618081258.GB16991@lst.de>
+ <d4817192-6db0-2f3f-7c67-6078b69686d3@nvidia.com>
+ <CAPcyv4iacHYxGmyWokFrVsmxvLj7=phqp2i0tv8z6AT-mYuEEA@mail.gmail.com>
+ <3898ef6b-2fa0-e852-a9ac-d904b47320d5@nvidia.com>
+ <CAPcyv4iRBzmwWn_9zDvqdfVmTZL_Gn7uA_26A1T-kJib=84tvA@mail.gmail.com>
+ <0e6053b3-b78c-c8be-4fab-e8555810c732@nvidia.com>
+ <20180619082949.wzoe42wpxsahuitu@quack2.suse.cz>
+ <20180619090255.GA25522@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1529364856-49589-3-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <20180619090255.GA25522@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mhocko@kernel.org, willy@infradead.org, ldufour@linux.vnet.ibm.com, akpm@linux-foundation.org, mingo@redhat.com, acme@kernel.org, alexander.shishkin@linux.intel.com, jolsa@redhat.com, namhyung@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@ziepe.ca>, John Hubbard <john.hubbard@gmail.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-rdma <linux-rdma@vger.kernel.org>
 
-On Tue, Jun 19, 2018 at 07:34:16AM +0800, Yang Shi wrote:
+On Tue 19-06-18 02:02:55, Matthew Wilcox wrote:
+> On Tue, Jun 19, 2018 at 10:29:49AM +0200, Jan Kara wrote:
+> > And for record, the problem with page cache pages is not only that
+> > try_to_unmap() may unmap them. It is also that page_mkclean() can
+> > write-protect them. And once PTEs are write-protected filesystems may end
+> > up doing bad things if DMA then modifies the page contents (DIF/DIX
+> > failures, data corruption, oopses). As such I don't think that solutions
+> > based on page reference count have a big chance of dealing with the
+> > problem.
+> > 
+> > And your page flag approach would also need to take page_mkclean() into
+> > account. And there the issue is that until the flag is cleared (i.e., we
+> > are sure there are no writers using references from GUP) you cannot
+> > writeback the page safely which does not work well with your idea of
+> > clearing the flag only once the page is evicted from page cache (hint, page
+> > cache page cannot get evicted until it is written back).
+> > 
+> > So as sad as it is, I don't see an easy solution here.
+> 
+> Pages which are "got" don't need to be on the LRU list.  They'll be
+> marked dirty when they're put, so we can use page->lru for fun things
+> like a "got" refcount.  If we use bit 1 of page->lru for PageGot, we've
+> got 30/62 bits in the first word and a full 64 bits in the second word.
 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index fc41c05..e84f80c 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2686,6 +2686,141 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
->  	return __split_vma(mm, vma, addr, new_below);
->  }
->  
-> +/* Consider PUD size or 1GB mapping as large mapping */
-> +#ifdef HPAGE_PUD_SIZE
-> +#define LARGE_MAP_THRESH	HPAGE_PUD_SIZE
-> +#else
-> +#define LARGE_MAP_THRESH	(1 * 1024 * 1024 * 1024)
-> +#endif
-> +
-> +/* Unmap large mapping early with acquiring read mmap_sem */
-> +static int do_munmap_zap_early(struct mm_struct *mm, unsigned long start,
-> +			       size_t len, struct list_head *uf)
-> +{
-> +	unsigned long end = 0;
-> +	struct vm_area_struct *vma = NULL, *prev, *last, *tmp;
-> +	bool success = false;
-> +	int ret = 0;
-> +
-> +	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE - start)
-> +		return -EINVAL;
-> +
-> +	len = (PAGE_ALIGN(len));
-> +	if (len == 0)
-> +		return -EINVAL;
-> +
-> +	/* Just deal with uf in regular path */
-> +	if (unlikely(uf))
-> +		goto regular_path;
-> +
-> +	if (len >= LARGE_MAP_THRESH) {
-> +		down_read(&mm->mmap_sem);
-> +		vma = find_vma(mm, start);
-> +		if (!vma) {
-> +			up_read(&mm->mmap_sem);
-> +			return 0;
-> +		}
-> +
-> +		prev = vma->vm_prev;
-> +
-> +		end = start + len;
-> +		if (vma->vm_start > end) {
-> +			up_read(&mm->mmap_sem);
-> +			return 0;
-> +		}
-> +
-> +		if (start > vma->vm_start) {
-> +			int error;
-> +
-> +			if (end < vma->vm_end &&
-> +			    mm->map_count > sysctl_max_map_count) {
-> +				up_read(&mm->mmap_sem);
-> +				return -ENOMEM;
-> +			}
-> +
-> +			error = __split_vma(mm, vma, start, 0);
-> +			if (error) {
-> +				up_read(&mm->mmap_sem);
-> +				return error;
-> +			}
-> +			prev = vma;
-> +		}
-> +
-> +		last = find_vma(mm, end);
-> +		if (last && end > last->vm_start) {
-> +			int error = __split_vma(mm, last, end, 1);
-> +
-> +			if (error) {
-> +				up_read(&mm->mmap_sem);
-> +				return error;
-> +			}
-> +		}
-> +		vma = prev ? prev->vm_next : mm->mmap;
+Interesting idea! It would destroy the aging information for the page but
+for pages accessed through GUP references that is very much vague concept
+anyway. It might be a bit tricky as pulling a page out of LRU requires page
+lock but I don't think that's a huge problem. And page cache pages not on
+LRU exist even currently when they are under reclaim so hopefully there
+won't be too many places in MM that would need fixing up for such pages.
 
-Hold up, two things: you having to copy most of do_munmap() didn't seem
-to suggest a helper function? And second, since when are we allowed to
-split VMAs under a read lock?
+I'm also still pondering the idea of inserting a "virtual" VMA into vma
+interval tree in the inode - as the GUP references are IMHO closest to an
+mlocked mapping - and that would achieve all the functionality we need as
+well. I just didn't have time to experiment with it.
+
+And then there's the aspect that both these approaches are a bit too
+heavyweight for some get_user_pages_fast() users (e.g. direct IO) - Al Viro
+had an idea to use page lock for that path but e.g. fs/direct-io.c would have
+problems due to lock ordering constraints (filesystem ->get_block would
+suddently get called with the page lock held). But we can probably leave
+performance optimizations for phase two.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
